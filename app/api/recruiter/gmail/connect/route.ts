@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { saveGmailTokens } from "../../../../../../lib/gmailServer";
+import { saveGmailTokens } from "../../../../../lib/gmailServer";
 
 export async function POST(req: NextRequest) {
   try {
