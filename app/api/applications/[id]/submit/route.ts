@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
-import { adminClient, ensureUser, getAuthUser } from "../../../../../../lib/server-auth";
-import { checkWeeklyApplicationQuota } from "../../../../../../lib/entitlements";
-import { decryptToken, encryptToken } from "../../../../../../lib/candidateGmail";
+import { adminClient, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
+import { checkWeeklyApplicationQuota } from "../../../../../lib/entitlements";
+import { decryptToken, encryptToken } from "../../../../../lib/candidateGmail";
 
 function value(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v.trim() : null;
