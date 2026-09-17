@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import AdmZip from 'adm-zip';
 
 const root = process.cwd();
 const archive = path.join(root, 'Jobly-V23-Fix-Abonnement-CTA-16-09-2026.zip');
@@ -11,8 +10,7 @@ const temp = path.join(root, '.jobly-v23-extract');
 fs.rmSync(temp, { recursive: true, force: true });
 fs.mkdirSync(temp, { recursive: true });
 
-const zip = new AdmZip(archive);
-zip.extractAllTo(temp, true);
+execFileSync('unzip', ['-q', '-o', archive, '-d', temp], { stdio: 'inherit' });
 const extractedRoot = path.join(temp, 'jobly_v23');
 if (!fs.existsSync(path.join(extractedRoot, 'package.json'))) throw new Error('Extracted V23 package.json not found');
 
