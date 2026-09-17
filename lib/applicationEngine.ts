@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { runAiGateway } from "./aiGateway";
 import { getChannelDefinition, hasJoblyAdapter } from "./applicationChannels";
+import { buildTailoredCv, TailoredCvEducation, TailoredCvExperience, TailoredCvProfile, TailoredCvSkill } from "./applicationCv";
 
 export type ApplicationChannel = "JOBLY" | "EMAIL" | "EXTERNAL" | "UNSUPPORTED";
 
@@ -39,7 +40,10 @@ export async function prepareApplication(req: NextRequest, args: {
   jobDescription: string;
   company: string;
   applicationProfile: Record<string, unknown>;
-  profile: Record<string, unknown>;
+  profile: TailoredCvProfile;
+  experiences: TailoredCvExperience[];
+  skills: TailoredCvSkill[];
+  education: TailoredCvEducation[];
 }) {
   const channel = resolveApplicationChannel(args.applicationProfile);
   if (channel.channel === "UNSUPPORTED") throw new Error(channel.reason);
@@ -48,11 +52,20 @@ export async function prepareApplication(req: NextRequest, args: {
   if (!ai.ok) throw new Error(ai.message);
   const output = ai.output && typeof ai.output === "object" ? ai.output as Record<string, unknown> : {};
   const warnings = Array.isArray(output.warnings) ? output.warnings.filter((x): x is string => typeof x === "string") : [];
+  const tailoredCvText = buildTailoredCv({
+    profile: args.profile,
+    experiences: args.experiences,
+    skills: args.skills,
+    education: args.education,
+    jobTitle: args.jobTitle,
+    jobDescription: args.jobDescription,
+  });
   return {
     channel,
     definition,
     ai,
     letter: buildGroundedLetter(args.profile, args.jobTitle, args.company),
+    tailoredCvText,
     warnings,
     readyForSubmission: definition.automated && !definition.requiresConnection,
     requiresUserConnection: definition.requiresConnection,
