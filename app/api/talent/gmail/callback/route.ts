@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient } from "../../../../../../lib/server-auth";
-import { encryptToken, exchangeCode, gmailProfile, verifyOAuthState } from "../../../../../../lib/candidateGmail";
+import { adminClient } from "../../../../../lib/server-auth";
+import { encryptToken, exchangeCode, gmailProfile, verifyOAuthState } from "../../../../../lib/candidateGmail";
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
