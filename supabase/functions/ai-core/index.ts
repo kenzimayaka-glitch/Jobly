@@ -6,13 +6,13 @@ const cors = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-type Operation = "INTERVIEW" | "LEARNING" | "APPLICATION_COPILOT" | "CAREER_COMPANION";
+type Operation = "OFFER_INTELLIGENCE" | "CV_INTELLIGENCE" | "MATCHING" | "APPLICATION_COPILOT" | "APPLICATION_STRATEGY" | "LEARNING" | "INTERVIEW" | "CAREER_COMPANION" | "NOTIFICATION";
 type Priority = "QUALITY" | "BALANCED" | "SPEED" | "COST";
 type ProviderId = "OPENROUTER" | "GEMINI" | "GROQ" | "CEREBRAS" | "TOGETHER" | "HUGGINGFACE" | "DETERMINISTIC";
-
 type RequestBody = { operation: Operation; input?: Record<string, unknown>; context?: Record<string, unknown>; priority?: Priority };
 type Result = { output: unknown; model: string; metadata?: Record<string, unknown> };
 
+const ALL_OPERATIONS: Operation[] = ["OFFER_INTELLIGENCE","CV_INTELLIGENCE","MATCHING","APPLICATION_COPILOT","APPLICATION_STRATEGY","LEARNING","INTERVIEW","CAREER_COMPANION","NOTIFICATION"];
 const orders: Record<Priority, ProviderId[]> = {
   QUALITY: ["OPENROUTER", "GEMINI", "TOGETHER", "GROQ", "CEREBRAS", "HUGGINGFACE", "DETERMINISTIC"],
   BALANCED: ["OPENROUTER", "GEMINI", "GROQ", "CEREBRAS", "TOGETHER", "HUGGINGFACE", "DETERMINISTIC"],
@@ -35,16 +35,12 @@ Tu es J'IA, l'intelligence artificielle unifiée de JOBLY.
 
 JOBLY utilise plusieurs moteurs d'intelligence artificielle internes.
 Ces moteurs sont interchangeables et ne constituent pas des identités distinctes pour l'utilisateur.
-
 Tu ne dois jamais te présenter sous le nom d'un fournisseur, d'une plateforme ou d'un modèle d'IA.
-
 Tu es toujours J'IA.
 
-Opération actuelle :
-${body.operation}
+Opération actuelle : ${body.operation}
 
 Règles fondamentales :
-
 1. Utilise uniquement les informations fournies.
 2. N'invente aucune information personnelle.
 3. N'invente aucun diplôme, emploi, expérience, compétence, entreprise ou résultat.
@@ -55,9 +51,10 @@ Règles fondamentales :
 8. Ne révèle jamais les fournisseurs ou modèles internes.
 9. Retourne uniquement un JSON valide.
 10. Aucun Markdown dans la réponse JSON.
+11. J'IA est transverse : relie profil, mémoire, comportement, offres, CV, matching, candidatures, learning, interview, carrière et notifications.
+12. Ne soumets jamais une candidature automatiquement et ne prends aucune action irréversible sans autorisation explicite.
 
-Identité user-facing :
-J'IA — Intelligence JOBLY.
+Identité user-facing : J'IA — Intelligence JOBLY.
 `,
     user: JSON.stringify({ operation: body.operation, input: body.input || {}, context: body.context || {} }),
   };
@@ -107,10 +104,18 @@ async function gemini(body: RequestBody): Promise<Result> {
 
 function deterministic(body: RequestBody): Result {
   const c = body.context || {}; const p: any = c.profile || {}; const skills: string[] = ((c.skills || []) as any[]).map(x => x?.name).filter(Boolean); const roles: string[] = p.targetRoles || [];
-  if (body.operation === "INTERVIEW") return { model: "fallback-v1", output: { mode: "deterministic", questions: [`Présente une réalisation concrète liée à ${roles[0] || "ton objectif professionnel"}.`, "Quelle compétence veux-tu renforcer dans les 3 prochains mois ?", "Quel résultat mesurable peux-tu apporter ?"], focus: [...skills.slice(0, 3), ...(roles.length ? [`Cible : ${roles[0]}`] : [])] } };
-  if (body.operation === "LEARNING") return { model: "fallback-v1", output: { mode: "deterministic", objectives: ((c.gaps || []) as string[]).slice(0, 4).map(g => ({ objective: g, priority: "HIGH", checkpoint: "Ajouter une preuve vérifiable au profil" })), effort: "2 à 4 h/semaine" } };
-  if (body.operation === "APPLICATION_COPILOT") return { model: "fallback-v1", output: { mode: "deterministic", warnings: [...(skills.length ? [] : ["Ajouter des compétences vérifiables"]), ...(p.summary ? [] : ["Compléter le résumé professionnel"])], cvSuggestions: [`Mettre en avant les compétences pertinentes pour ${roles[0] || "le poste ciblé"}.`, "Quantifier uniquement les réalisations réelles."], coverLetterOutline: ["Accroche liée au poste", "Preuves issues du parcours réel", "Motivation spécifique", "Disponibilité / prochaine étape"], submission: "USER_REQUIRED" } };
-  return { model: "fallback-v1", output: { mode: "deterministic", summary: c.nextBestAction, nextActions: [c.nextBestAction, "Consulter les opportunités", "Suivre les candidatures"].slice(0, 3), readiness: c.readiness } };
+  const role = roles[0] || "ton objectif professionnel";
+  switch (body.operation) {
+    case "OFFER_INTELLIGENCE": return { model: "fallback-v2", output: { mode: "deterministic", summary: "Analyse structurée de l'offre à partir des informations disponibles.", role, missing: (body.input?.jobDescription ? [] : ["description complète de l'offre"]), signals: skills.slice(0,5) } };
+    case "CV_INTELLIGENCE": return { model: "fallback-v2", output: { mode: "deterministic", strengths: skills.slice(0,5), gaps: c.gaps || [], suggestions: [`Mettre en avant les preuves réelles les plus pertinentes pour ${role}.`], warning: "Aucune expérience ou compétence ne doit être inventée." } };
+    case "MATCHING": return { model: "fallback-v2", output: { mode: "deterministic", readiness: c.readiness, rationale: "Le matching IA doit compléter les signaux déterministes avec le contexte personnel disponible.", signals: skills.slice(0,5), gaps: c.gaps || [] } };
+    case "APPLICATION_COPILOT": return { model: "fallback-v2", output: { mode: "deterministic", warnings: [...(skills.length ? [] : ["Ajouter des compétences vérifiables"]), ...(p.summary ? [] : ["Compléter le résumé professionnel"])], cvSuggestions: [`Mettre en avant les compétences pertinentes pour ${role}.`, "Quantifier uniquement les réalisations réelles."], coverLetterOutline: ["Accroche liée au poste", "Preuves issues du parcours réel", "Motivation spécifique", "Prochaine étape"], submission: "USER_REQUIRED" } };
+    case "APPLICATION_STRATEGY": return { model: "fallback-v2", output: { mode: "deterministic", strategy: ["Vérifier l'adéquation offre/profil", "Adapter les preuves du CV", "Préparer les arguments clés", "Relancer selon le statut de candidature"], readiness: c.readiness, submission: "USER_REQUIRED" } };
+    case "LEARNING": return { model: "fallback-v2", output: { mode: "deterministic", objectives: ((c.gaps || []) as string[]).slice(0,4).map(g => ({ objective: g, priority: "HIGH", checkpoint: "Ajouter une preuve vérifiable au profil" })), effort: "2 à 4 h/semaine" } };
+    case "INTERVIEW": return { model: "fallback-v2", output: { mode: "deterministic", questions: [`Présente une réalisation concrète liée à ${role}.", "Quelle compétence veux-tu renforcer dans les 3 prochains mois ?", "Quel résultat mesurable peux-tu apporter ?"], focus: [...skills.slice(0,3), `Cible : ${role}`] } };
+    case "NOTIFICATION": return { model: "fallback-v2", output: { mode: "deterministic", notify: Boolean(body.input?.opportunityId || body.input?.signalType), priority: body.input?.urgency || "NORMAL", reason: body.input?.reason || "Signal JOBLY à contextualiser", dedupe: true } };
+    default: return { model: "fallback-v2", output: { mode: "deterministic", summary: c.nextBestAction, nextActions: [c.nextBestAction, "Consulter les opportunités", "Suivre les candidatures"].slice(0, 3), readiness: c.readiness } };
+  }
 }
 
 function enabled(id: ProviderId) {
@@ -138,17 +143,14 @@ async function run(body: RequestBody) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ ok: false, message: "Méthode non autorisée." }, 405);
-
   const auth = req.headers.get("Authorization") || "";
   if (!auth.toLowerCase().startsWith("bearer ")) return json({ ok: false, message: "Session requise." }, 401);
-
   const supabase = createClient(env("SUPABASE_URL"), env("SUPABASE_ANON_KEY"), { global: { headers: { Authorization: auth } } });
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return json({ ok: false, message: "Session invalide." }, 401);
-
   try {
     const body = await req.json() as RequestBody;
-    if (!["INTERVIEW", "LEARNING", "APPLICATION_COPILOT", "CAREER_COMPANION"].includes(body.operation)) return json({ ok: false, message: "Opération IA inconnue." }, 400);
+    if (!ALL_OPERATIONS.includes(body.operation)) return json({ ok: false, message: "Opération IA inconnue." }, 400);
     const result = await run(body);
     return json({ ok: true, aiName: "J'IA", aiBrand: "JOBLY", aiDescription: "Intelligence unifiée de JOBLY", ...result, userId: user.id });
   } catch (e) {
