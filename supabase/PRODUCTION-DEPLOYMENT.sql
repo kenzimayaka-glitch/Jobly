@@ -1,0 +1,6 @@
+-- JOBLY C0.7.0 production deployment map.
+-- Active Prisma migration order:
+-- 1) 20260909090000_initial_production_schema/migration.sql
+-- 2) 20260909091000_production_hardening_rls/migration.sql
+-- Historical C0.6 migrations are preserved under docs/database/historical-c06-migrations/
+-- and are NOT re-applied because the C0.7.0 baseline already contains their final cumulative state.

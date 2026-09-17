@@ -1,0 +1,118 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getSupabaseClient } from "@/lib/supabase";
+import PageHeader from "../../../components/PageHeader";
+import BottomNav, { RECRUITER_NAV } from "../../../components/BottomNav";
+import DecorativeBackground from "../../../components/DecorativeBackground";
+import ScoreRing from "../../../components/ScoreRing";
+import { getGmailConnection, sendEmailFromRecruiter } from "../../../lib/gmailService";
+import { calculateATSScore } from "../../../lib/atsService";
+import { getEmailTemplate } from "../../../lib/viralityService";
+
+type Application = {
+  id: string; recruiterJobId: string | null; jobTitle: string | null; status: string;
+  candidateName: string; candidateEmail: string; profilePhotoUrl: string | null;
+  cvUrl: string | null; cvPhotoUrl: string | null; letterText: string; atsScore: number | null;
+  viewedAt: string | null; createdAt: string; updatedAt: string;
+};
+
+const FILTERS = [
+  ["all","Tous"],["ats","ATS Validé"],["INTERVIEW","Convoqué"],["REJECTED","Refusé"],
+] as const;
+
+function statusLabel(status: string) {
+  return ({DISCOVERED:"Découverte",PREPARED:"Préparée",USER_REVIEW:"À examiner",SUBMITTED:"Reçue",ACKNOWLEDGED:"Vue",INTERVIEW:"Convoqué",OFFER:"Accepté",REJECTED:"Refusé"} as Record<string,string>)[status] || status;
+}
+
+export default function UnifiedApplicationsPage() {
+  const router = useRouter();
+  const [token,setToken]=useState<string|null>(null);
+  const [applications,setApplications]=useState<Application[]>([]);
+  const [filter,setFilter]=useState<(typeof FILTERS)[number][0]>("all");
+  const [loading,setLoading]=useState(true);
+  const [busy,setBusy]=useState<string|null>(null);
+  const [toast,setToast]=useState("");
+  const [gmail,setGmail]=useState(getGmailConnection());
+
+  const load=useCallback(async()=>{
+    const session=await getSupabaseClient().auth.getSession();
+    if(!session.data.session){router.replace("/");return;}
+    const t=session.data.session.access_token; setToken(t);
+    const res=await fetch("/api/recruiter/applications",{headers:{Authorization:`Bearer ${t}`}});
+    const body=await res.json();
+    if(res.ok) setApplications(body.applications||[]);
+    else setToast(body.message||"Impossible de charger les candidatures.");
+    setLoading(false);
+  },[router]);
+
+  useEffect(()=>{load();},[load]);
+
+  const visible=useMemo(()=>applications.filter(a=>{
+    if(filter==="all") return true;
+    if(filter==="ats") return (a.atsScore ?? 0)>=65;
+    return a.status===filter;
+  }),[applications,filter]);
+
+  function importGmail(){ router.push("/recruiter/settings?from=candidatures"); }
+
+  async function decide(app: Application, decision:"accept"|"reject"){
+    if(!token) return;
+    setBusy(app.id);
+    const emailTemplate=getEmailTemplate(decision,app.candidateName,"Votre entreprise");
+    const from=gmail.email||"rh@jobly.cm";
+    await sendEmailFromRecruiter({to:app.candidateEmail||"candidate@example.com",subject:emailTemplate.subject,body:emailTemplate.bodyWithPub,recruiterEmail:from});
+    const status=decision==="accept"?"INTERVIEW":"REJECTED";
+    const res=await fetch(`/api/recruiter/applications/${app.id}`,{
+      method:"PATCH",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({status})
+    });
+    const body=await res.json();
+    if(!res.ok){setToast(body.message||"Mise à jour impossible.");}
+    else {setApplications(prev=>prev.map(x=>x.id===app.id?{...x,status}:x));setToast(`Email envoyé depuis ${from}.`);}
+    setBusy(null);
+  }
+
+  async function openCv(app:Application){
+    if(app.cvUrl) window.open(app.cvUrl,"_blank","noopener,noreferrer");
+    else setToast("CV non joint à cette candidature.");
+  }
+
+  if(loading) return <main className="grid min-h-[100dvh] place-items-center bg-[#F7FAFF] font-bold text-navy">Chargement…</main>;
+
+  return <main className="relative min-h-[100dvh] bg-[#F7FAFF] pb-28 text-navy">
+    <DecorativeBackground/>
+    <div className="relative z-10">
+      <PageHeader label="Candidatures Unifiées" eyebrow="RECRUTEUR" initial="R" onBack={()=>router.push("/recruiter")}/>
+      <div className="mx-auto max-w-5xl px-5 py-5">
+        {toast && <button onClick={()=>setToast("")} className="mb-4 w-full rounded-2xl bg-blue-50 px-4 py-3 text-left text-xs font-extrabold text-[#2E5C9E]">{toast}</button>}
+        <div className="flex flex-wrap gap-2">
+          {FILTERS.map(([key,label])=><button key={key} onClick={()=>setFilter(key)} className={`rounded-full border px-3.5 py-2 text-xs font-extrabold ${filter===key?"border-[#2E5C9E] bg-[#2E5C9E] text-white":"border-slate-200 bg-white text-navy"}`}>{label}</button>)}
+          <button onClick={importGmail} className="ml-auto rounded-full bg-[#FFC72C] px-4 py-2 text-xs font-extrabold text-navy">Importer depuis Gmail</button>
+        </div>
+
+        <section className="mt-4 overflow-hidden rounded-[24px] bg-white shadow-sm">
+          <div className="hidden grid-cols-[1.4fr_1fr_110px_80px_80px_110px_170px] gap-3 border-b border-slate-100 px-4 py-3 text-[10px] font-black uppercase tracking-wide text-jobly-gray md:grid">
+            <span>Poste</span><span>Nom</span><span>Score ATS</span><span>CV</span><span>LM</span><span>Statut</span><span>Actions</span>
+          </div>
+          {visible.length===0 ? <div className="p-8 text-center text-sm font-semibold text-jobly-gray">Aucune candidature dans ce filtre.</div> :
+          <div className="divide-y divide-slate-100">
+            {visible.map(app=>{
+              const score=app.atsScore ?? calculateATSScore(app.letterText||"",app.jobTitle||"").score;
+              return <div key={app.id} className="grid gap-3 px-4 py-4 md:grid-cols-[1.4fr_1fr_110px_80px_80px_110px_170px] md:items-center">
+                <div><p className="text-sm font-extrabold">{app.jobTitle||"Offre"}</p><p className="mt-1 text-[10px] text-jobly-gray">{new Date(app.createdAt).toLocaleDateString("fr-FR")}</p></div>
+                <div className="flex items-center gap-2"><div className="grid h-9 w-9 place-items-center rounded-full bg-blue-50 text-xs font-black text-[#2E5C9E]">{app.candidateName.slice(0,1).toUpperCase()}</div><div><p className="text-xs font-extrabold">{app.candidateName}</p><p className="truncate text-[10px] text-jobly-gray">{app.candidateEmail}</p></div></div>
+                <div className="flex items-center gap-2"><ScoreRing score={score} size="sm"/><span className="text-xs font-black">{score}%</span></div>
+                <button onClick={()=>openCv(app)} className="rounded-full bg-blue-50 px-3 py-2 text-[10px] font-black text-[#2E5C9E]">👁 CV</button>
+                <button onClick={()=>setToast(app.letterText||"Aucune lettre de motivation disponible.")} className="rounded-full bg-slate-100 px-3 py-2 text-[10px] font-black">LM</button>
+                <span className={`w-fit rounded-full px-2.5 py-1 text-[10px] font-black ${app.status==="REJECTED"?"bg-red-50 text-red-600":app.status==="INTERVIEW"?"bg-amber-50 text-amber-700":"bg-emerald-50 text-emerald-700"}`}>{statusLabel(app.status)}</span>
+                <div className="flex gap-2"><button disabled={busy===app.id} onClick={()=>decide(app,"accept")} className="rounded-full bg-emerald-500 px-3 py-2 text-[10px] font-black text-white disabled:opacity-50">Valider</button><button disabled={busy===app.id} onClick={()=>decide(app,"reject")} className="rounded-full bg-slate-200 px-3 py-2 text-[10px] font-black text-navy disabled:opacity-50">Refuser</button></div>
+              </div>
+            })}
+          </div>}
+        </section>
+      </div>
+    </div>
+    <BottomNav active="/recruiter/candidatures" items={RECRUITER_NAV}/>
+  </main>;
+}
