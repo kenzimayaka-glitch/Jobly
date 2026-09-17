@@ -1,0 +1,1 @@
+{"name":"jobly-v23-bootstrap","private":true,"scripts":{"build":"node bootstrap.mjs"},"dependencies":{"adm-zip":"^0.5.16"},"engines":{"node":">=20.9.0"}}
