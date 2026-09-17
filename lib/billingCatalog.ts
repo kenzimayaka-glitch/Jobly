@@ -25,14 +25,14 @@ export const PLAN_CATALOG: Record<PlanCode, PlanDefinition> = {
   FREE: {
     code: "FREE", name: "Free", tagline: "Découvrir et utiliser JOBLY manuellement.", monthlyPriceXaf: 0, annualPriceXaf: 0,
     aiCredits: 5, storageMb: 25, applicationsPerWeek: 15, bulkApplicationLimit: 1, cvVersions: 1, savedJobs: 20, alerts: 1,
-    atsConversionIncluded: false, atsConversionPriceXaf: 1000, recruiterEmailConnect: 0, recruiterAtsFilters: "none",
-    features: ["Profil et CV", "Recherche illimitée", "15 candidatures / semaine", "Matching de base", "Mobility de base", "Career Brain limité", "Téléchargement CV ATS : 1 000 FCFA"],
+    atsConversionIncluded: false, atsConversionPriceXaf: 500, recruiterEmailConnect: 0, recruiterAtsFilters: "none",
+    features: ["Profil et CV", "Recherche illimitée", "15 candidatures / semaine", "Matching de base", "Mobility de base", "Career Brain limité", "Téléchargement CV ATS : 500 FCFA"],
   },
   START: {
     code: "START", name: "Start", tagline: "Accélérer sa recherche.", monthlyPriceXaf: 1800, annualPriceXaf: 5000,
     aiCredits: 30, storageMb: 100, applicationsPerWeek: 30, bulkApplicationLimit: 1, cvVersions: 3, savedJobs: 100, alerts: 5,
-    atsConversionIncluded: false, atsConversionPriceXaf: 1000, recruiterEmailConnect: 0, recruiterAtsFilters: "limited",
-    features: ["Tout Free", "30 candidatures / semaine", "Matching amélioré", "Analyse CV 10/mois", "Alertes personnalisées", "Career Brain amélioré", "Téléchargement CV ATS : 1 000 FCFA"],
+    atsConversionIncluded: false, atsConversionPriceXaf: 500, recruiterEmailConnect: 0, recruiterAtsFilters: "limited",
+    features: ["Tout Free", "30 candidatures / semaine", "Matching amélioré", "Analyse CV 10/mois", "Alertes personnalisées", "Career Brain amélioré", "Téléchargement CV ATS : 500 FCFA"],
   },
   PREMIUM: {
     code: "PREMIUM", name: "Premium", tagline: "JOBLY travaille avec moi.", monthlyPriceXaf: 3500, annualPriceXaf: 15500,
