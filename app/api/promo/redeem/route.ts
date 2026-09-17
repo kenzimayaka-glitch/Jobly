@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authUser, adminClient, ensureUser } from "../../../lib/mobilityServer";
-import { normalizePromoCode, promoCodeHash, promoEndDate, promoScopeAllows } from "../../../lib/promo";
+import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
+import { normalizePromoCode, promoCodeHash, promoEndDate, promoScopeAllows } from "../../../../lib/promo";
 
 export async function POST(request: NextRequest) {
   try {
-    const au = await authUser(request);
+    const au = await getAuthUser(request);
     if (!au) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const sb = adminClient();
     const user = await ensureUser(sb, au);
