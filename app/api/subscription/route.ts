@@ -14,8 +14,8 @@ export async function GET(request: NextRequest) {
     const sb = adminClient(); const user = await ensureUser(sb, auth);
     const { data, error } = await sb.from("Subscription").select("*").eq("userId", user.id).order("createdAt", { ascending: false }).limit(1).maybeSingle();
     if (error) throw new Error(error.message);
-    const plan = getPlan(data?.plan || "FREE") || getPlan("FREE")!;
-    return NextResponse.json({ subscription: data || { plan: "FREE", status: "ACTIVE" }, entitlements: getEntitlements(plan.code), prices: { monthly: plan.monthlyPriceXaf, annual: plan.annualPriceXaf, currency: "XAF" } });
+    const plan = getPlan(data?.planCode || "FREE") || getPlan("FREE")!;
+    return NextResponse.json({ subscription: data || { planCode: "FREE", status: "ACTIVE", productType: "TALENT" }, entitlements: getEntitlements(plan.code), prices: { monthly: plan.monthlyPriceXaf, annual: plan.annualPriceXaf, currency: "XAF" } });
   } catch (e) { return jsonError(e instanceof Error ? e.message : "Abonnement indisponible.", 500); }
 }
 
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
     const subscriptionId = crypto.randomUUID();
     const paymentId = crypto.randomUUID();
-    const { data: subscription, error: subError } = await sb.from("Subscription").insert({ id: subscriptionId, userId: user.id, plan: planCode, status: "PENDING", billingInterval: interval, priceAmount: amount, priceCurrency: "XAF", provider: providerName, createdAt: now, updatedAt: now }).select("*").single();
+    const { data: subscription, error: subError } = await sb.from("Subscription").insert({ id: subscriptionId, userId: user.id, planCode, status: "PENDING", billingInterval: interval, priceAmount: amount, priceCurrency: "XAF", provider: providerName, createdAt: now, updatedAt: now }).select("*").single();
     if (subError) throw new Error(subError.message);
     const { data: payment, error: paymentError } = await sb.from("Payment").insert({ id: paymentId, userId: user.id, subscriptionId, provider: providerName, amount, currency: "XAF", status: "CREATED", idempotencyKey: idem.key, createdAt: now, updatedAt: now }).select("*").single();
     if (paymentError) throw new Error(paymentError.message);
