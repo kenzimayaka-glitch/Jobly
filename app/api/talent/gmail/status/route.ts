@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { candidateContext } from "../../../../../../lib/candidateGmail";
+import { candidateContext } from "../../../../../lib/candidateGmail";
 
 export async function GET(request: NextRequest) {
   try {
