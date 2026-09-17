@@ -1,3 +1,3 @@
 "use client";
-import { CinematicTalentFeed } from "@/components/JoblyCinematic";
-export default function JobsPage(){return <CinematicTalentFeed/>}
+import { JoblyOfferFeed } from "@/components/JoblyOfferFeed";
+export default function JobsPage(){return <JoblyOfferFeed/>}

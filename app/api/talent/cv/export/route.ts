@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import PDFDocument from "pdfkit";
-import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
-import { getProvider } from "../../../../lib/paymentProviders";
-import { getPlan } from "../../../../lib/billingCatalog";
+import { adminClient, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
+import { getProvider } from "../../../../../lib/paymentProviders";
+import { getPlan } from "../../../../../lib/billingCatalog";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;

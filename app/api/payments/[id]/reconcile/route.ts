@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
+import { generateDistributorAcquisitionCommission } from "../../../../../lib/distributor-commission";
 
 const err = (message: string, status: number, code = message) =>
   NextResponse.json({ error: code, message }, { status });
@@ -84,6 +85,8 @@ export async function POST(
       .single();
     if (updateError) throw new Error(updateError.message);
 
+    let commission = null;
+
     if (payment.subscriptionId) {
       if (status === "SUCCESSFUL") {
         const { data: sub } = await sb
@@ -103,6 +106,8 @@ export async function POST(
             canceledAt: null,
             updatedAt: now,
           }).eq("id", sub.id);
+
+          commission = await generateDistributorAcquisitionCommission(sb, sub);
         }
       } else if (status === "FAILED") {
         await sb.from("Subscription").update({
@@ -129,10 +134,11 @@ export async function POST(
         status,
         reason: reason || null,
         externalId: externalId || payment.externalId || null,
+        commissionId: commission?.id || null,
       },
     });
 
-    return NextResponse.json({ payment: updatedPayment, reconciledBy: user.id });
+    return NextResponse.json({ payment: updatedPayment, reconciledBy: user.id, commission });
   } catch (e) {
     return err(e instanceof Error ? e.message : "Rapprochement impossible.", 500);
   }

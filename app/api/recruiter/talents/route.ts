@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
       return {
         userId: profile.userId,
         name: [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "Talent Jobly",
-        headline: profile.headline || career.currentLevelLabel,
+        headline: profile.headline || levelLabel(career.currentLevel),
         location: profile.location || null,
         targetRoles: profile.targetRoles || [],
         yearsExperience: years,

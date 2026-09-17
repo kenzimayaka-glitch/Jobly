@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PDFParse } from "pdf-parse";
-import { runAiGateway } from "../../../../lib/aiGateway";
+import { runAiGateway } from "../../../../../lib/aiGateway";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;

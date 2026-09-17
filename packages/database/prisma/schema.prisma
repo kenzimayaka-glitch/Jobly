@@ -36,6 +36,7 @@ enum ApplicationStatus {
   DISCOVERED
   PREPARED
   USER_REVIEW
+  SUBMITTING
   SUBMITTED
   ACKNOWLEDGED
   INTERVIEW
@@ -103,7 +104,7 @@ model PaymentWebhookEvent {
   receivedAt       DateTime @default(now())
   processedAt      DateTime?
   status            String   @default("RECEIVED")
-  error             String?
+  error            String?
   @@unique([provider, externalEventId])
   @@index([provider, receivedAt])
 }
@@ -203,7 +204,7 @@ model Skill {
   name       String
   level      String?
   provenance Provenance @default(DECLARED)
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Education {
@@ -540,7 +541,7 @@ model PartnerHousing {
   available           Boolean  @default(true)
   distanceToCompanyKm Float?
   createdAt           DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  updatedAt           DateTime @updatedAt
   partner              PartnerExtended @relation(fields: [partnerExtendedId], references: [id], onDelete: Cascade)
 }
 

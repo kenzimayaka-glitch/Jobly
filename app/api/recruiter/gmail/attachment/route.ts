@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getGmailAccessToken } from "../../../../../../lib/gmailServer";
+import { getGmailAccessToken } from "../../../../../lib/gmailServer";
 
 function b64urlToBuffer(data: string) { return Buffer.from(data.replace(/-/g, "+").replace(/_/g, "/"), "base64"); }
 

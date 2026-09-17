@@ -10,6 +10,13 @@ import { getGmailConnection, sendEmailFromRecruiter } from "../../../lib/gmailSe
 import { calculateATSScore } from "../../../lib/atsService";
 import { getEmailTemplate } from "../../../lib/viralityService";
 
+function ScoreRing({ score, size="sm" }: { score:number; size?: "sm"|"md" }) {
+  const radius = size === "sm" ? 17 : 22;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - Math.max(0, Math.min(100, score)) / 100);
+  return <svg width={size === "sm" ? 40 : 50} height={size === "sm" ? 40 : 50} viewBox="0 0 50 50" aria-label={`Score ATS ${score}%`}><circle cx="25" cy="25" r={radius} fill="none" stroke="currentColor" strokeOpacity="0.12" strokeWidth="4"/><circle cx="25" cy="25" r={radius} fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} transform="rotate(-90 25 25)"/><text x="25" y="29" textAnchor="middle" fontSize="9" fontWeight="800" fill="currentColor">{score}</text></svg>;
+}
+
 type Application = { id: string; recruiterJobId: string | null; jobTitle: string | null; status: string; candidateName: string; candidateEmail: string; profilePhotoUrl: string | null; cvUrl: string | null; cvPhotoUrl: string | null; letterText: string; atsScore: number | null; viewedAt: string | null; createdAt: string; updatedAt: string };
 const FILTERS = [["all","Tous"],["ats","ATS Validé"],["INTERVIEW","Convoqué"],["REJECTED","Refusé"]] as const;
 function statusLabel(status: string) { return ({DISCOVERED:"Découverte",PREPARED:"Préparée",USER_REVIEW:"À examiner",SUBMITTED:"Reçue",ACKNOWLEDGED:"Vue",INTERVIEW:"Convoqué",OFFER:"Accepté",REJECTED:"Refusé"} as Record<string,string>)[status] || status; }
