@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser, newId } from "../../../lib/server-auth";
-import { checkWeeklyApplicationQuota } from "../../../lib/entitlements";
 import { prepareApplication } from "../../../lib/applicationEngine";
 
 const MAX_OFFER_AGE_DAYS = 60;
@@ -30,6 +29,7 @@ export async function POST(request:NextRequest){try{const authUser=await getAuth
  const company=source==="discovery"&&offer.companyId?(await supabase.from("Company").select("name").eq("id",offer.companyId).maybeSingle()).data?.name||"l'entreprise":offer.companyName||"l'entreprise";
  const [profileRes,experiencesRes,skillsRes,educationRes]=await Promise.all([supabase.from("Profile").select("firstName,lastName,headline,summary,phone,targetRoles,targetCities,contractPreferences,remotePreference,preferredSectors,location").eq("userId",user.id).maybeSingle(),supabase.from("Experience").select("company,title,startDate,endDate,description,provenance").eq("userId",user.id),supabase.from("Skill").select("name,level,provenance").eq("userId",user.id),supabase.from("Education").select("institution,degree,field,startDate,endDate,provenance").eq("userId",user.id)]);if(profileRes.error)throw new Error(profileRes.error.message);if(experiencesRes.error)throw new Error(experiencesRes.error.message);if(skillsRes.error)throw new Error(skillsRes.error.message);if(educationRes.error)throw new Error(educationRes.error.message);
  const applicationId=newId();const prepared=await prepareApplication(request,{jobTitle:offer.title,jobDescription:offer.description,company,applicationProfile:offer.applicationProfile||{},profile:profileRes.data||{},experiences:experiencesRes.data||[],skills:skillsRes.data||[],education:educationRes.data||[]});
+ if(prepared.channel.channel==="EXTERNAL")return NextResponse.json({message:"Cette offre utilise un canal externe non automatisé par Jobly et ne peut pas être candidate-able pour le moment.",channel:prepared.channel},{status:422});
  const status="USER_REVIEW";
  const {data,error}=await supabase.from("Application").insert({id:applicationId,userId:user.id,jobId:source==="discovery"?targetId:null,recruiterJobId:source==="recruiter"?targetId:null,language:"fr",status,letterText:prepared.letter,tailoredCvText:prepared.tailoredCvText,submittedAt:null,proofUrl:null,statusSource:"CANDIDATE",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),sourceType:prepared.channel.channel}).select("*").single();if(error)throw new Error(error.message);
  return NextResponse.json({application:data,prepared:{channel:prepared.channel,letter:prepared.letter,tailoredCvText:prepared.tailoredCvText,warnings:prepared.warnings,readyForSubmission:prepared.readyForSubmission,requiresUserConnection:prepared.requiresUserConnection,requiresExternalUserAction:prepared.requiresExternalUserAction},applicationProfile:offer.applicationProfile||{}});
