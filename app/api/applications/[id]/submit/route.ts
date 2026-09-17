@@ -112,8 +112,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const quota = await checkWeeklyApplicationQuota(supabase, user.id);
     if (!quota.allowed) return NextResponse.json({ message: quota.message || "Quota hebdomadaire atteint.", quota }, { status: 429 });
 
-    // Atomic claim: only one request may move this application into SUBMITTING.
-    // This closes the double-click / concurrent-request window before Gmail is called.
     const claimAt = new Date().toISOString();
     const { data: claimedApplication, error: claimError } = await supabase.from("Application").update({ status: "SUBMITTING", updatedAt: claimAt }).eq("id", id).eq("userId", user.id).in("status", ["USER_REVIEW", "PREPARED"]).select("*").maybeSingle();
     if (claimError) throw new Error(claimError.message);
@@ -125,7 +123,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!targetId) throw new Error("Cible de candidature manquante.");
     const { data: offer, error: offerError } = await supabase.from(table).select("*").eq("id", targetId).maybeSingle();
     if (offerError) throw new Error(offerError.message);
-    if (!offer) return NextResponse.json({ message: "L'offre n'est plus disponible." }, { status: 410 });
+    if (!offer) throw new Error("L'offre n'est plus disponible.");
 
     const applicationProfile = (offer.applicationProfile && typeof offer.applicationProfile === "object" ? offer.applicationProfile : {}) as Record<string, unknown>;
     const requestedChannel = String(claimedApplication.sourceType || "").toUpperCase();
@@ -136,12 +134,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const { data: gmail, error: gmailError } = await supabase.from("CandidateGmailConnection").select("*").eq("userId", user.id).maybeSingle();
     if (gmailError) throw new Error(gmailError.message);
-    if (!gmail?.encryptedAccessToken && !gmail?.encryptedRefreshToken) return NextResponse.json({ message: "Connectez votre Gmail avant d'envoyer la candidature.", requiresGmail: true }, { status: 412 });
+    if (!gmail?.encryptedAccessToken && !gmail?.encryptedRefreshToken) throw new Error("Connectez votre Gmail avant d'envoyer la candidature.");
 
     let accessToken = gmail.encryptedAccessToken ? decryptToken(gmail.encryptedAccessToken) : "";
     const expiresAt = gmail.accessTokenExpiresAt ? new Date(gmail.accessTokenExpiresAt).getTime() : 0;
     if (!accessToken || expiresAt < Date.now() + 60_000) {
-      if (!gmail.encryptedRefreshToken) return NextResponse.json({ message: "La connexion Gmail doit être réautorisée.", requiresGmail: true }, { status: 412 });
+      if (!gmail.encryptedRefreshToken) throw new Error("La connexion Gmail doit être réautorisée.");
       const refreshed = await refreshGoogleAccessToken(decryptToken(gmail.encryptedRefreshToken));
       accessToken = refreshed.accessToken;
       await supabase.from("CandidateGmailConnection").update({ encryptedAccessToken: encryptToken(accessToken), accessTokenExpiresAt: new Date(Date.now() + refreshed.expiresIn * 1000).toISOString(), updatedAt: new Date().toISOString() }).eq("userId", user.id);
@@ -156,14 +154,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const submittedAt = new Date().toISOString();
     const { data: updated, error: updateError } = await supabase.from("Application").update({ status: "SUBMITTED", submittedAt, sourceMessageId: sent.messageId, sourceThreadId: sent.threadId, sourceEmail: recipient, sourceFilename: filename, updatedAt: submittedAt }).eq("id", id).eq("userId", user.id).eq("status", "SUBMITTING").select("*").maybeSingle();
-    if (updateError) {
-      // Gmail already accepted the message. Keep SUBMITTING so a retry cannot send it twice.
+    if (updateError || !updated) {
       return NextResponse.json({ message: "La candidature a bien été envoyée par Gmail, mais sa preuve est encore en cours d'enregistrement.", submitted: true, pendingProof: true, messageId: sent.messageId }, { status: 202 });
     }
-    if (!updated) return NextResponse.json({ message: "La candidature a bien été envoyée par Gmail, mais sa preuve est encore en cours d'enregistrement.", submitted: true, pendingProof: true, messageId: sent.messageId }, { status: 202 });
     return NextResponse.json({ submitted: true, application: updated, proof: { provider: "GMAIL", messageId: sent.messageId, threadId: sent.threadId, from: gmail.googleEmail, to: recipient } });
   } catch (error) {
-    // Never roll back after Gmail accepted the message: doing so could allow a duplicate send.
     if (claimed && !emailSent && supabase && applicationId) {
       await supabase.from("Application").update({ status: previousStatus, updatedAt: new Date().toISOString() }).eq("id", applicationId).eq("status", "SUBMITTING");
     }
