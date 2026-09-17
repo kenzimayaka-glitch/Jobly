@@ -19,7 +19,6 @@ export async function checkForRelaunch(candidates: RelaunchCandidate[], recruite
       to: candidate.candidateEmail,
       subject: template.subject,
       body: template.bodyWithPub,
-      recruiterEmail,
     });
     sent.push({ candidateId: candidate.id, ...result });
   }
