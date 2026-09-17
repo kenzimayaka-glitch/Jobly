@@ -1,5 +1,14 @@
 export type AiPlan = "FREE" | "START" | "PREMIUM" | "PRO";
-export type AiOperation = "INTERVIEW" | "LEARNING" | "APPLICATION_COPILOT" | "CAREER_COMPANION";
+export type AiOperation =
+  | "OFFER_INTELLIGENCE"
+  | "CV_INTELLIGENCE"
+  | "MATCHING"
+  | "APPLICATION_COPILOT"
+  | "APPLICATION_STRATEGY"
+  | "LEARNING"
+  | "INTERVIEW"
+  | "CAREER_COMPANION"
+  | "NOTIFICATION";
 
 /**
  * P5 Free-First economic guardrail.
@@ -16,10 +25,15 @@ export const AI_CREDITS_BY_PLAN: Record<AiPlan, number> = {
 };
 
 export const AI_OPERATION_COST: Record<AiOperation, number> = {
-  INTERVIEW: 3,
-  LEARNING: 2,
+  OFFER_INTELLIGENCE: 2,
+  CV_INTELLIGENCE: 2,
+  MATCHING: 1,
   APPLICATION_COPILOT: 2,
+  APPLICATION_STRATEGY: 2,
+  LEARNING: 2,
+  INTERVIEW: 3,
   CAREER_COMPANION: 1,
+  NOTIFICATION: 1,
 };
 
 export function monthlyAiBudgetXaf(plan: AiPlan): number {
