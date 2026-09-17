@@ -13,6 +13,14 @@ export default function ScreenProtection() {
 
     const previous = document.body.getAttribute("data-screen-protected");
     document.body.setAttribute("data-screen-protected", "true");
+    const style = document.createElement("style");
+    style.dataset.joblyScreenProtection = "true";
+    style.textContent = `
+      body[data-screen-protected="true"] * { -webkit-user-select: none !important; user-select: none !important; -webkit-touch-callout: none !important; }
+      body[data-screen-protected="true"] input, body[data-screen-protected="true"] textarea { -webkit-user-select: text !important; user-select: text !important; }
+      @media print { body[data-screen-protected="true"] { display: none !important; } }
+    `;
+    document.head.appendChild(style);
 
     const prevent = (event: Event) => event.preventDefault();
     const keydown = (event: KeyboardEvent) => {
@@ -32,6 +40,7 @@ export default function ScreenProtection() {
     return () => {
       if (previous === null) document.body.removeAttribute("data-screen-protected");
       else document.body.setAttribute("data-screen-protected", previous);
+      style.remove();
       document.removeEventListener("contextmenu", prevent);
       document.removeEventListener("copy", prevent);
       document.removeEventListener("cut", prevent);
