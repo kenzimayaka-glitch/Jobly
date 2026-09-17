@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
 
-const MAX_OFFER_AGE_MS = 62 * 24 * 60 * 60 * 1000;
+const MAX_OFFER_AGE_DAYS = 60;
 
 type Profile = { targetRoles: string[] | null; targetCities: string[] | null; contractPreferences: string[] | null; remotePreference: string | null };
 type Experience = { startDate: string };
@@ -12,7 +12,13 @@ type MatchableJob = { title:string; location:string|null; contractType:string|nu
 
 function computeYearsExperience(experiences:Experience[]):number { if(!experiences.length)return 0; const earliest=experiences.map(e=>new Date(e.startDate).getTime()).filter(t=>!Number.isNaN(t)).sort((a,b)=>a-b)[0]; if(earliest===undefined)return 0; return Math.max(0,Math.floor((Date.now()-earliest)/(1000*60*60*24*365))); }
 function normalize(value:string|null|undefined):string { return (value||"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
-function isFresh(publishedAt:string|null|undefined,createdAt:string):boolean { const t=new Date(publishedAt||createdAt).getTime(); return Number.isFinite(t)&&Date.now()-t<=MAX_OFFER_AGE_MS; }
+function addMonths(date:Date, months:number):Date { const copy=new Date(date); const originalDay=copy.getDate(); copy.setDate(1); copy.setMonth(copy.getMonth()+months); const lastDay=new Date(copy.getFullYear(),copy.getMonth()+1,0).getDate(); copy.setDate(Math.min(originalDay,lastDay)); return copy; }
+function isFresh(publishedAt:string|null|undefined, deadline:string|null|undefined, createdAt:string):boolean {
+  if(deadline) return new Date(deadline).getTime()>=Date.now();
+  const base=new Date(publishedAt||createdAt);
+  if(!Number.isFinite(base.getTime())) return false;
+  return Date.now()<=addMonths(base,2).getTime() && Date.now()-base.getTime()<=MAX_OFFER_AGE_DAYS*24*60*60*1000;
+}
 function isOpen(deadline:string|null|undefined):boolean { return !deadline||new Date(deadline).getTime()>=Date.now(); }
 function computeMatch(profile:Profile,yearsExperience:number,job:MatchableJob){ const roles=(profile.targetRoles||[]).map(normalize).filter(Boolean),cities=(profile.targetCities||[]).map(normalize).filter(Boolean),contracts=(profile.contractPreferences||[]).map(normalize).filter(Boolean),remote=normalize(profile.remotePreference)||"indifferent",title=normalize(job.title),location=normalize(job.location),contract=normalize(job.contractType),jobRemote=normalize(job.remoteMode)||"no",min=job.minExperienceYears??0; const role=roles.length>0&&roles.some(r=>title.includes(r))?1:0; const city=cities.length>0&&location?(cities.includes(location)?1:0):0; const contractScore=contracts.length>0&&contract?(contracts.includes(contract)?1:0):0; let remoteScore=0;if(remote==="indifferent"||remote===jobRemote)remoteScore=1;else if(remote==="yes"&&jobRemote==="partial")remoteScore=.5;const experience=yearsExperience>=min?1:0;return{matchPercent:Math.round(((role+city+contractScore+remoteScore+experience)/5)*100),breakdown:{role,city,contract:contractScore,remote:remoteScore,experience}}; }
 
@@ -29,8 +35,8 @@ export async function GET(request:NextRequest){
   ]);
   if(profileRes.error)throw new Error(profileRes.error.message);if(experiencesRes.error)throw new Error(experiencesRes.error.message);if(jobsRes.error)throw new Error(jobsRes.error.message);if(recruiterJobsRes.error)throw new Error(recruiterJobsRes.error.message);
   const profile:Profile=profileRes.data||{targetRoles:[],targetCities:[],contractPreferences:[],remotePreference:"INDIFFERENT"};const yearsExperience=computeYearsExperience((experiencesRes.data as Experience[])||[]);
-  const discovery=((jobsRes.data as Job[])||[]).filter(j=>isFresh(j.sourcePublishedAt,j.createdAt)&&isOpen(j.deadline));
-  const recruiter=((recruiterJobsRes.data as RecruiterJobRow[])||[]).filter(j=>isFresh(null,j.createdAt));
+  const discovery=((jobsRes.data as Job[])||[]).filter(j=>isFresh(j.sourcePublishedAt,j.deadline,j.createdAt)&&isOpen(j.deadline));
+  const recruiter=((recruiterJobsRes.data as RecruiterJobRow[])||[]).filter(j=>isFresh(null,null,j.createdAt));
   type Unified={source:"discovery"|"recruiter";sourceId:string;title:string;description:string;location:string|null;contractType:string|null;remoteMode:string|null;minExperienceYears:number|null;companyName:string|null;companyId:string|null;createdAt:string;publishedAt:string|null;deadline:string|null;sourceUrl:string|null;applicationProfile:Record<string,unknown>;visualUrl:string|null;visualSource:string|null;applicationCheckedAt:string|null};
   let unified:Unified[]=[...discovery.map(j=>({source:"discovery" as const,sourceId:j.id,title:j.title,description:j.description,location:j.location,contractType:j.contractType,remoteMode:j.remoteMode,minExperienceYears:j.minExperienceYears,companyName:null,companyId:j.companyId,createdAt:j.createdAt,publishedAt:j.sourcePublishedAt,deadline:j.deadline,sourceUrl:j.sourceUrl,applicationProfile:j.applicationProfile,visualUrl:j.visualUrl,visualSource:j.visualSource,applicationCheckedAt:j.applicationCheckedAt})),...recruiter.map(j=>({source:"recruiter" as const,sourceId:j.id,title:j.title,description:j.description,location:j.location,contractType:j.contract,remoteMode:j.remoteMode,minExperienceYears:j.minExperienceYears,companyName:j.companyName,companyId:null,createdAt:j.createdAt,publishedAt:j.createdAt,deadline:null,sourceUrl:j.sourceUrl,applicationProfile:j.applicationProfile,visualUrl:j.visualUrl,visualSource:j.visualSource,applicationCheckedAt:j.applicationCheckedAt}))];
   const totalActive=unified.length;
@@ -38,6 +44,6 @@ export async function GET(request:NextRequest){
   const companyIds=Array.from(new Set(unified.map(j=>j.companyId).filter(Boolean))) as string[];const companiesRes=companyIds.length?await supabase.from("Company").select("id,name,logoUrl,description,website,verified").in("id",companyIds):{data:[] as Company[],error:null};if(companiesRes.error)throw new Error(companiesRes.error.message);const companiesById=new Map((companiesRes.data as Company[]).map(c=>[c.id,c]));
   const results=unified.map(job=>{const {matchPercent,breakdown}=computeMatch(profile,yearsExperience,job);const company=job.companyId?companiesById.get(job.companyId):undefined;return{source:job.source,id:job.sourceId,title:job.title,location:job.location,contractType:job.contractType,remoteMode:job.remoteMode,minExperienceYears:job.minExperienceYears,createdAt:job.createdAt,publishedAt:job.publishedAt,deadline:job.deadline,sourceUrl:job.sourceUrl,applicationReady:true,applicationProfile:job.applicationProfile,applicationCheckedAt:job.applicationCheckedAt,visualUrl:job.visualUrl||company?.logoUrl||null,visualSource:job.visualSource||(company?.logoUrl?"COMPANY_LOGO":null),company:company?{id:company.id,name:company.name,logoUrl:company.logoUrl,description:company.description,website:company.website,verified:company.verified}:job.companyName?{id:null,name:job.companyName,logoUrl:null,description:null,website:null,verified:false}:null,matchPercent,matchBreakdown:breakdown};}).sort((a,b)=>b.matchPercent-a.matchPercent);
   const matchingCount=unified.reduce((count,job)=>count+(computeMatch(profile,yearsExperience,job).matchPercent>=60?1:0),0);
-  return NextResponse.json({totalActive,matchingCount,count:results.length,yearsExperience,jobs:results,freshnessPolicy:{maxAgeDays:62,externalRequiresApplicationReady:true}});
+  return NextResponse.json({totalActive,matchingCount,count:results.length,yearsExperience,jobs:results,freshnessPolicy:{maxAgeDays:60,explicitDeadlineOverridesMaxAge:true,externalRequiresApplicationReady:true}});
  }catch(error){return NextResponse.json({message:error instanceof Error?error.message:"Impossible de charger les offres."},{status:500});}
 }
