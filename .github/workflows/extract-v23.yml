@@ -1,0 +1,54 @@
+name: Extract JOBLY V23
+
+on:
+  push:
+    branches:
+      - jobly-v23-deploy
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout deployment branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract V23 source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP="Jobly-V23-Fix-Offres-Photos-Refresh-16-09-2026.zip"
+          if [ ! -f "$ZIP" ]; then
+            echo "V23 archive already extracted; nothing to do."
+            exit 0
+          fi
+          rm -rf /tmp/jobly-v23
+          mkdir -p /tmp/jobly-v23
+          unzip -q -o "$ZIP" -d /tmp/jobly-v23
+          test -d /tmp/jobly-v23/jobly_v23
+          cp -a /tmp/jobly-v23/jobly_v23/. .
+          rm -f "$ZIP"
+          rm -rf /tmp/jobly-v23
+
+      - name: Commit extracted source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f "Jobly-V23-Fix-Offres-Photos-Refresh-16-09-2026.zip" ]; then
+            echo "Archive still present; extraction step did not complete."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: extract JOBLY V23 source for Vercel deployment"
+          git push origin HEAD:jobly-v23-deploy
