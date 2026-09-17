@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PDFParse } from "pdf-parse";
-import { calculateATSScore } from "../../../../../../lib/atsService";
-import { getGmailAccessToken } from "../../../../../../lib/gmailServer";
-import { newId } from "../../../../../../lib/server-auth";
+import { calculateATSScore } from "../../../../../lib/atsService";
+import { getGmailAccessToken } from "../../../../../lib/gmailServer";
+import { newId } from "../../../../../lib/server-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
