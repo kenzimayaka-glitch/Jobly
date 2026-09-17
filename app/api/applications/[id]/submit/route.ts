@@ -68,7 +68,7 @@ async function sendGmail(accessToken: string, from: string, to: string, subject:
     "",
     `--${boundary}`,
     `Content-Type: application/pdf; name="${escapeHeader(filename)}"`,
-    "Content-Disposition: attachment; filename="${escapeHeader(filename)}"`,
+    `Content-Disposition: attachment; filename="${escapeHeader(filename)}"`,
     "Content-Transfer-Encoding: base64",
     "",
     cvPdf.toString("base64").match(/.{1,76}/g)?.join("\r\n") || "",
@@ -87,35 +87,52 @@ async function sendGmail(accessToken: string, from: string, to: string, subject:
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  let supabase: ReturnType<typeof adminClient> | null = null;
+  let applicationId: string | null = null;
+  let claimed = false;
+  let emailSent = false;
+  let previousStatus: "USER_REVIEW" | "PREPARED" = "USER_REVIEW";
+
   try {
     const authUser = await getAuthUser(request);
     if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
-    const supabase = adminClient();
+    supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
     const { id } = await params;
+    applicationId = id;
 
     const { data: application, error: applicationError } = await supabase.from("Application").select("*").eq("id", id).eq("userId", user.id).maybeSingle();
     if (applicationError) throw new Error(applicationError.message);
     if (!application) return NextResponse.json({ message: "Candidature introuvable." }, { status: 404 });
     if (application.status === "SUBMITTED") return NextResponse.json({ submitted: true, application, alreadySubmitted: true });
+    if (application.status === "SUBMITTING") return NextResponse.json({ message: "Cette candidature est déjà en cours d'envoi. Réessayez dans quelques instants.", submitting: true }, { status: 409 });
     if (application.status !== "USER_REVIEW" && application.status !== "PREPARED") return NextResponse.json({ message: "Cette candidature n'est pas prête à être envoyée." }, { status: 409 });
+    previousStatus = application.status;
 
     const quota = await checkWeeklyApplicationQuota(supabase, user.id);
     if (!quota.allowed) return NextResponse.json({ message: quota.message || "Quota hebdomadaire atteint.", quota }, { status: 429 });
 
-    const targetId = application.jobId || application.recruiterJobId;
-    const table = application.jobId ? "Job" : "RecruiterJob";
-    if (!targetId) return NextResponse.json({ message: "Cible de candidature manquante." }, { status: 422 });
+    // Atomic claim: only one request may move this application into SUBMITTING.
+    // This closes the double-click / concurrent-request window before Gmail is called.
+    const claimAt = new Date().toISOString();
+    const { data: claimedApplication, error: claimError } = await supabase.from("Application").update({ status: "SUBMITTING", updatedAt: claimAt }).eq("id", id).eq("userId", user.id).in("status", ["USER_REVIEW", "PREPARED"]).select("*").maybeSingle();
+    if (claimError) throw new Error(claimError.message);
+    if (!claimedApplication) return NextResponse.json({ message: "Cette candidature est déjà en cours d'envoi ou a été envoyée.", submitting: true }, { status: 409 });
+    claimed = true;
+
+    const targetId = claimedApplication.jobId || claimedApplication.recruiterJobId;
+    const table = claimedApplication.jobId ? "Job" : "RecruiterJob";
+    if (!targetId) throw new Error("Cible de candidature manquante.");
     const { data: offer, error: offerError } = await supabase.from(table).select("*").eq("id", targetId).maybeSingle();
     if (offerError) throw new Error(offerError.message);
     if (!offer) return NextResponse.json({ message: "L'offre n'est plus disponible." }, { status: 410 });
 
     const applicationProfile = (offer.applicationProfile && typeof offer.applicationProfile === "object" ? offer.applicationProfile : {}) as Record<string, unknown>;
-    const requestedChannel = String(application.sourceType || "").toUpperCase();
-    if (requestedChannel !== "EMAIL") return NextResponse.json({ message: "Ce canal de candidature n'est pas encore automatisable." }, { status: 422 });
+    const requestedChannel = String(claimedApplication.sourceType || "").toUpperCase();
+    if (requestedChannel !== "EMAIL") throw new Error("Ce canal de candidature n'est pas encore automatisable.");
 
     const recipient = profileValue(applicationProfile, ["applicationEmail", "email", "recipientEmail", "recipient"]);
-    if (!recipient || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) return NextResponse.json({ message: "L'offre ne fournit pas d'adresse email de candidature vérifiable." }, { status: 422 });
+    if (!recipient || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) throw new Error("L'offre ne fournit pas d'adresse email de candidature vérifiable.");
 
     const { data: gmail, error: gmailError } = await supabase.from("CandidateGmailConnection").select("*").eq("userId", user.id).maybeSingle();
     if (gmailError) throw new Error(gmailError.message);
@@ -131,16 +148,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const subject = profileValue(applicationProfile, ["subject", "emailSubject"]) || `Candidature — ${String(offer.title || "Offre Jobly")}`;
-    const body = application.letterText || `Bonjour,\n\nVeuillez trouver ci-joint ma candidature au poste de ${String(offer.title || "")} .\n\nCordialement,\n${String(user.displayName || user.firstName || "Candidat")}`;
+    const body = claimedApplication.letterText || `Bonjour,\n\nVeuillez trouver ci-joint ma candidature au poste de ${String(offer.title || "")} .\n\nCordialement,\n${String(user.displayName || user.firstName || "Candidat")}`;
     const filename = `CV-${String(offer.title || "Jobly").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 70) || "Jobly"}.pdf`;
-    const cvPdf = await renderCvPdf(String(application.tailoredCvText || "CV non disponible."));
+    const cvPdf = await renderCvPdf(String(claimedApplication.tailoredCvText || "CV non disponible."));
     const sent = await sendGmail(accessToken, gmail.googleEmail, recipient, subject, body, cvPdf, filename);
+    emailSent = true;
+
     const submittedAt = new Date().toISOString();
-    const { data: updated, error: updateError } = await supabase.from("Application").update({ status: "SUBMITTED", submittedAt, sourceMessageId: sent.messageId, sourceThreadId: sent.threadId, sourceEmail: recipient, sourceFilename: filename, updatedAt: submittedAt }).eq("id", id).eq("userId", user.id).neq("status", "SUBMITTED").select("*").maybeSingle();
-    if (updateError) throw new Error(updateError.message);
-    if (!updated) return NextResponse.json({ message: "La candidature a été envoyée, mais son enregistrement concurrentiel doit être vérifié.", submitted: true, messageId: sent.messageId }, { status: 202 });
+    const { data: updated, error: updateError } = await supabase.from("Application").update({ status: "SUBMITTED", submittedAt, sourceMessageId: sent.messageId, sourceThreadId: sent.threadId, sourceEmail: recipient, sourceFilename: filename, updatedAt: submittedAt }).eq("id", id).eq("userId", user.id).eq("status", "SUBMITTING").select("*").maybeSingle();
+    if (updateError) {
+      // Gmail already accepted the message. Keep SUBMITTING so a retry cannot send it twice.
+      return NextResponse.json({ message: "La candidature a bien été envoyée par Gmail, mais sa preuve est encore en cours d'enregistrement.", submitted: true, pendingProof: true, messageId: sent.messageId }, { status: 202 });
+    }
+    if (!updated) return NextResponse.json({ message: "La candidature a bien été envoyée par Gmail, mais sa preuve est encore en cours d'enregistrement.", submitted: true, pendingProof: true, messageId: sent.messageId }, { status: 202 });
     return NextResponse.json({ submitted: true, application: updated, proof: { provider: "GMAIL", messageId: sent.messageId, threadId: sent.threadId, from: gmail.googleEmail, to: recipient } });
   } catch (error) {
+    // Never roll back after Gmail accepted the message: doing so could allow a duplicate send.
+    if (claimed && !emailSent && supabase && applicationId) {
+      await supabase.from("Application").update({ status: previousStatus, updatedAt: new Date().toISOString() }).eq("id", applicationId).eq("status", "SUBMITTING");
+    }
     return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible d'envoyer la candidature." }, { status: 500 });
   }
 }
