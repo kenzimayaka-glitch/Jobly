@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 import { adminClient, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
 
-function renderPdf(text: string): Promise<Uint8Array> {
+function renderPdf(text: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: "A4", margin: 48, info: { Title: "Jobly — CV adapté à l'offre" } });
     const chunks: Buffer[] = [];
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
-    doc.on("end", () => resolve(new Uint8Array(Buffer.concat(chunks))));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
     const lines = text.split("\n");
     for (const line of lines) {
@@ -42,7 +42,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!application) return NextResponse.json({ message: "Candidature introuvable." }, { status: 404 });
     if (!application.tailoredCvText) return NextResponse.json({ message: "Le CV adapté n'est pas encore disponible." }, { status: 404 });
     const pdf = await renderPdf(application.tailoredCvText);
-    return new Response(pdf, {
+    const body = new ArrayBuffer(pdf.byteLength);
+    new Uint8Array(body).set(pdf);
+    return new Response(body, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `inline; filename="jobly-cv-${id}.pdf"`,
