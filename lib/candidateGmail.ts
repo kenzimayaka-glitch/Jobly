@@ -100,21 +100,6 @@ export async function gmailProfile(accessToken: string) {
   return { email: String(json.emailAddress) };
 }
 
-export async function saveCandidateGmail(userId: string, tokens: { access_token: string; refresh_token?: string; expires_in?: number; scope?: string }) {
-  const supabase = adminClient();
-  const now = new Date();
-  const record = {
-    userId,
-    googleEmail: tokens.scope ? undefined : undefined,
-    encryptedAccessToken: null,
-    encryptedRefreshToken: null,
-    accessTokenExpiresAt: null,
-    scopes: String(tokens.scope || GMAIL_SCOPE).split(" ").filter(Boolean),
-    updatedAt: now.toISOString(),
-  };
-  return { supabase, record, now };
-}
-
 export function encryptToken(value: string) {
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", secret(), iv);
