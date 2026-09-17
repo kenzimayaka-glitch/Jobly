@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import PwaInit from "../components/PwaInit";
 import JiaObserver from "../components/JiaObserver";
+import ScreenProtection from "../components/ScreenProtection";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="h-[100dvh] w-screen m-0 p-0 overflow-x-hidden bg-white antialiased font-sans">
         <PwaInit />
         <JiaObserver />
+        <ScreenProtection />
         {children}
       </body>
     </html>
