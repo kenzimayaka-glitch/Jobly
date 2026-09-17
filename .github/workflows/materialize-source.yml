@@ -1,0 +1,44 @@
+name: Materialize Jobly source
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract source ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP="Jobly-V23-Fix-Abonnement-CTA-16-09-2026.zip"
+          test -f "$ZIP"
+          rm -rf /tmp/jobly-src
+          mkdir -p /tmp/jobly-src
+          unzip -q "$ZIP" -d /tmp/jobly-src
+          SRC=$(find /tmp/jobly-src -type f -name package.json -print -quit | xargs -r dirname)
+          test -n "$SRC"
+          test -f "$SRC/package.json"
+          cp -a "$SRC"/. ./
+          rm -f "$ZIP"
+          rm -rf /tmp/jobly-src
+
+      - name: Commit materialized source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: materialize Jobly source from ZIP"
+          git push origin HEAD:main
