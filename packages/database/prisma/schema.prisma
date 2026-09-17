@@ -36,6 +36,7 @@ enum ApplicationStatus {
   DISCOVERED
   PREPARED
   USER_REVIEW
+  SUBMITTING
   SUBMITTED
   ACKNOWLEDGED
   INTERVIEW
@@ -81,14 +82,14 @@ model SubscriptionPlan {
 }
 
 model IdempotencyKey {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   userId      String
   endpoint    String
   key         String
   payloadHash String
   statusCode  Int
   response    Json
-  createdAt   DateTime @default(now())
+  createdAt   DateTime   @default(now())
   @@unique([userId, endpoint, key])
   @@index([createdAt])
 }
@@ -103,7 +104,7 @@ model PaymentWebhookEvent {
   receivedAt       DateTime @default(now())
   processedAt      DateTime?
   status            String   @default("RECEIVED")
-  error             String?
+  error            String?
   @@unique([provider, externalEventId])
   @@index([provider, receivedAt])
 }
@@ -132,13 +133,10 @@ model User {
   email           String?      @unique
   phone           String?      @unique
   displayName     String?
-  // Ajouts 15/09/2026 : requis par /api/auth/complete-signup et
-  // /api/auth/username/check, absents du schéma jusqu'ici (cause de l'erreur
-  // "column User.username does not exist" à la création de compte).
   username          String?   @unique
-  firstName         String?
-  lastName          String?
-  country           String?
+  firstName       String?
+  lastName        String?
+  country         String?
   privacyAcceptedAt DateTime?
   role            UserRole     @default(TALENT)
   profilePhotoUrl String?
@@ -166,9 +164,6 @@ model User {
 model Profile {
   id             String   @id @default(cuid())
   userId         String   @unique
-  // Ajouts 15/09/2026 : requis par /api/auth/complete-signup, absents du
-  // schéma jusqu'ici (même cause que sur User : erreur au moment d'écrire le
-  // profil à la fin de l'inscription).
   firstName      String?
   lastName       String?
   phone          String?
@@ -178,10 +173,9 @@ model Profile {
   location       String?
   targetRoles    String[] @default([])
   preferredSectors String[] @default([])
-  // Ajouts spec 6.1 / 12.1 (onboarding Career Brain, étape "Objectifs")
-  targetCities        String[] @default([]) // villes souhaitées pour un emploi (distinct de `location`)
-  contractPreferences String[] @default([]) // ex: ["CDI","CDD"], plusieurs choix possibles
-  remotePreference    String   @default("INDIFFERENT") // "YES" | "NO" | "INDIFFERENT"
+  targetCities        String[] @default([])
+  contractPreferences String[] @default([])
+  remotePreference    String   @default("INDIFFERENT")
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -245,15 +239,13 @@ model Job {
   deadline       DateTime?
   lastSeenAt     DateTime?
   isActive       Boolean  @default(true)
-  // Ajouts spec 12.1 (calcul du % de correspondance)
-  remoteMode          String  @default("NO") // "YES" | "NO" | "PARTIAL"
+  remoteMode          String  @default("NO")
   minExperienceYears  Int     @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   company        Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   applications   Application[]
   matches        Match[]
-
   @@unique([source, sourceUrl], name: "source_sourceUrl")
 }
 
@@ -264,19 +256,17 @@ model RecruiterJob {
   companyName    String             @default("Mon entreprise")
   description    String
   location       String?
-  mode           String             @default("Hybride") // libellé affiché tel quel (ex: "Présentiel", "Hybride")
+  mode           String             @default("Hybride")
   contract       String             @default("CDI")
   salary         String?
   sector         String?
   tags           String[]           @default([])
   status         RecruiterJobStatus @default(draft)
-  // Ajouts 12/09/2026 — unification avec Job pour le Matching V1 (spec 12.1)
-  remoteMode         String @default("NO") // "YES" | "NO" | "PARTIAL", dérivé de `mode` mais normalisé pour le calcul de score
+  remoteMode         String @default("NO")
   minExperienceYears Int    @default(0)
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   applications   Application[]
-
   @@index([recruiterUserId])
 }
 
@@ -301,22 +291,23 @@ model Application {
   cvUrl          String?
   cvPhotoUrl     String?
   letterText     String?
+  tailoredCvText String?
   atsScore       Int?
   submittedAt    DateTime?
-  // Ajouts spec 12.2 (écran Candidatures V1)
-  proofUrl       String?           // capture/photo de preuve de candidature jointe par le candidat
-  viewedAt       DateTime?         // horodatage de la première ouverture par un recruteur (statut "Vu")
-  interviewAt    DateTime?         // date d'entretien renseignée manuellement
-  statusSource   String   @default("CANDIDATE") // "CANDIDATE" | "RECRUITER" — qui a fixé le statut final en cas de conflit
+  proofUrl       String?
+  viewedAt       DateTime?
+  interviewAt    DateTime?
+  statusSource   String   @default("CANDIDATE")
+  sourceType     String?
+  sourceMessageId String?
+  sourceThreadId String?
+  sourceEmail   String?
+  sourceFilename String?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   job            Job?              @relation(fields: [jobId], references: [id], onDelete: Cascade)
   recruiterJob   RecruiterJob?     @relation(fields: [recruiterJobId], references: [id], onDelete: Cascade)
-
-  // Exactement une des deux sources (voir contrainte CHECK dans la migration SQL) :
-  // une candidature porte soit sur une offre Discovery (jobId), soit sur une offre
-  // publiée par un recruteur JOBLY (recruiterJobId) — jamais les deux, jamais aucune.
   @@unique([userId, jobId])
   @@unique([userId, recruiterJobId])
 }
@@ -333,10 +324,10 @@ model Subscription {
   currentPeriodStart  DateTime?
   currentPeriodEnd    DateTime?
   trialStartedAt      DateTime?
-  trialEndsAt    DateTime?
-  canceledAt     DateTime?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  trialEndsAt         DateTime?
+  canceledAt          DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
   user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -400,163 +391,17 @@ model CourseRecommendation {
   provider    String
   url         String
   isFree      Boolean  @default(true)
-  language    String   @default("fr")
-  createdAt   DateTime @default(now())
+  language   String   @default("fr")
+  createdAt  DateTime @default(now())
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
+  id         String     @id @default(cuid())
   userId     String?
   action     String
   entityType String
   entityId   String?
   metadata   Json?
   createdAt  DateTime @default(now())
-  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-}
-
-
-model DiscoveryQueueItem {
-  id          String   @id @default(cuid())
-  sourceId    String
-  status      DiscoveryQueueStatus @default(PENDING)
-  scheduledAt DateTime
-  startedAt   DateTime?
-  finishedAt  DateTime?
-  attempts    Int      @default(0)
-  lastError   String?
-  lockedBy    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  source      JobSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-
-  @@index([status, scheduledAt])
-  @@unique([sourceId, scheduledAt])
-}
-
-enum DiscoveryQueueStatus {
-  PENDING
-  RUNNING
-  SUCCEEDED
-  FAILED
-  SKIPPED
-}
-
-model DiscoveryRun {
-  id          String   @id @default(cuid())
-  sourceId    String
-  queueItemId String?
-  status      String
-  fetched     Int      @default(0)
-  created     Int      @default(0)
-  updated     Int      @default(0)
-  skipped     Int      @default(0)
-  expired     Int      @default(0)
-  durationMs  Int?
-  error       String?
-  createdAt   DateTime @default(now())
-  source      JobSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-
-  @@index([sourceId, createdAt])
-  @@index([status, createdAt])
-}
-
-model JobSource {
-  id              String   @id @default(cuid())
-  name            String   @unique
-  baseUrl         String
-  searchUrl       String?
-  country         String   @default("CM")
-  language        String   @default("fr")
-  active          Boolean  @default(true)
-  discoveryStatus String   @default("READY")
-  ingestionMode   String   @default("EXTERNAL_LINK")
-  adapterKey      String?
-  feedUrl         String?
-  maxItems        Int      @default(50)
-  staleAfterHours Int      @default(168)
-  requestTimeoutMs Int     @default(15000)
-  lastQueuedAt    DateTime?
-  lastRunAt       DateTime?
-  lastSuccessAt   DateTime?
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  discoveryQueue  DiscoveryQueueItem[]
-  discoveryRuns   DiscoveryRun[]
-}
-
-model MobilityRequest {
-  id                  String   @id @default(cuid())
-  userId              String
-  departCity          String
-  arriveeCity         String
-  departLat           Float
-  departLng           Float
-  arriveeLat          Float
-  arriveeLng          Float
-  companyLat          Float?
-  companyLng          Float?
-  distanceKm          Int      @default(0)
-  housingType         String   @default("CHAMBRE")
-  salary              Int      @default(0)
-  costTotal           Int      @default(0)
-  costMonthly         Int      @default(0)
-  mobilityFit         Int      @default(20)
-  subventionPercent   Int      @default(0)
-  status              String   @default("DRAFT")
-  currentStep         Int      @default(1)
-  recruiterGuaranteed Boolean  @default(false)
-  passCode            String?  @unique
-  passUsages          Int      @default(0)
-  cniWatermarked      Boolean  @default(false)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@index([userId, updatedAt])
-  @@index([status])
-}
-
-model PartnerExtended {
-  id             String   @id @default(cuid())
-  partnerUserId  String?
-  type           String
-  code           String   @unique
-  lat            Float?
-  lng            Float?
-  createdAt      DateTime @default(now())
-  user           User?    @relation(fields: [partnerUserId], references: [id], onDelete: Cascade)
-  housing        PartnerHousing[]
-}
-
-model PartnerHousing {
-  id                  String   @id @default(cuid())
-  partnerExtendedId   String
-  name                String
-  address             String?
-  lat                 Float
-  lng                 Float
-  monthlyCost         Int      @default(0)
-  available           Boolean  @default(true)
-  distanceToCompanyKm Float?
-  createdAt           DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  partner              PartnerExtended @relation(fields: [partnerExtendedId], references: [id], onDelete: Cascade)
-}
-
-model AiUsage {
-  id          String   @id @default(cuid())
-  userId      String
-  planCode    String
-  operation   String
-  credits     Int
-  provider    String
-  model       String?
-  requestHash String
-  latencyMs   Int?
-  success     Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@index([userId, createdAt])
-  @@index([operation, createdAt])
+  user       User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
