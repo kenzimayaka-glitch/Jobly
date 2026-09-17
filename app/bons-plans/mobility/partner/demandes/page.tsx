@@ -1,0 +1,3 @@
+"use client";
+import {useRouter} from "next/navigation";
+export default function MobilityPartnerDemandes(){const router=useRouter();return <main className="min-h-[100dvh] bg-white px-5 py-8"><div className="mx-auto max-w-4xl"><span className="rounded-full bg-[#FFF5CC] px-3 py-1 text-xs font-black">MOBILITY PARTNER</span><h1 className="mt-4 text-3xl font-black">Demandes</h1><div className="mt-6 rounded-[24px] border p-6 shadow-sm"><p className="text-sm text-slate-500">Espace opérationnel Jobly Mobility. Les actions sont reliées au dossier et au GPS.</p><button onClick={()=>router.push('/bons-plans/mobility/partner/dashboard')} className="mt-5 rounded-full bg-[#0A3D9C] px-5 py-3 font-black text-white">Retour Dashboard</button></div></div></main>}

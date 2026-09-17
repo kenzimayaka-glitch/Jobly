@@ -1,0 +1,6 @@
+"use client";
+import {DndContext,DragEndEvent,useDraggable,useDroppable} from "@dnd-kit/core";import {useState} from "react";
+type Row={id:string;status:string;label:string};
+function Card({row}:{row:Row}){const {attributes,listeners,setNodeRef,transform}=useDraggable({id:row.id});return <div ref={setNodeRef} {...listeners} {...attributes} style={transform?{transform:`translate3d(${transform.x}px,${transform.y}px,0)`}:undefined} className="mt-3 cursor-grab rounded-2xl bg-white p-4 shadow-sm"><b>{row.label}</b></div>}
+function Column({status,rows}:{status:string;rows:Row[]}){const {setNodeRef,isOver}=useDroppable({id:status});return <section ref={setNodeRef} className={`rounded-[24px] bg-slate-50 p-4 ${isOver?"ring-2 ring-[#FFC700]":""}`}><h2 className="font-black">{status}</h2>{rows.map(r=><Card key={r.id} row={r}/>)}</section>}
+export default function MobilityKanban({initial}:{initial:Row[]}){const [rows,setRows]=useState(initial);const statuses=["DRAFT","GUARANTEED","SUBSIDY_VALIDATED","PAID"];function end(e:DragEndEvent){const target=String(e.over?.id||"");if(!statuses.includes(target))return;setRows(rs=>rs.map(r=>r.id===e.active.id?{...r,status:target}:r))}return <DndContext onDragEnd={end}><div className="grid gap-4 md:grid-cols-4">{statuses.map(s=><Column key={s} status={s} rows={rows.filter(r=>r.status===s)}/>)}</div></DndContext>}

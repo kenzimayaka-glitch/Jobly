@@ -1,0 +1,2 @@
+import {NextRequest,NextResponse} from "next/server";import {authUser,adminClient,ensureUser} from "../../../lib/mobilityServer";
+export async function GET(req:NextRequest){try{const au=await authUser(req);if(!au)return NextResponse.json({message:"Session requise."},{status:401});const user=await ensureUser(adminClient(),au);return NextResponse.json({user})}catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Profil indisponible."},{status:500})}}
