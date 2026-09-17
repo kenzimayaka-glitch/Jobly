@@ -8,21 +8,22 @@ import { buildJiaContext } from "./jiaContext";
 export type GatewayResult = { ok:true; operation:AiOperation; credits:number; remaining:number; provider:string; aiName:typeof JIA_NAME; output:unknown } | { ok:false; status:number; message:string };
 const OPS = new Set<AiOperation>(["OFFER_INTELLIGENCE","CV_INTELLIGENCE","MATCHING","APPLICATION_COPILOT","APPLICATION_STRATEGY","LEARNING","INTERVIEW","CAREER_COMPANION","NOTIFICATION"]);
 const normalize=(v:string)=>{const x=v.toUpperCase() as AiOperation; return OPS.has(x)?x:null};
-const planOf=(s:any):AiPlan=>{const p=String(s?.planCode||"FREE"); return (["FREE","START","PREMIUM","PRO"] as string[]).includes(p)?p as AiPlan:"FREE"};
+const planOf=(s:any):AiPlan=>{const p=String(s?.planCode||s?.plan||"FREE"); return (["FREE","START","PREMIUM","PRO"] as string[]).includes(p)?p as AiPlan:"FREE"};
 const sha=(v:unknown)=>crypto.createHash("sha256").update(JSON.stringify(v)).digest("hex");
-const redactPII=(v:string)=>v.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,"[email]").replace(/(?:\+?\d[\d\s().-]{7,}\d)/g,"[phone]").slice(0,4000);
+const redactPII=(v:string)=>v.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,"[email]").replace(/(?:\+?\d[\d\s().-]{7,}\d)/g,"[phone]");
+const maxFor=(op:AiOperation,key:string)=>op==="CV_INTELLIGENCE"&&key==="cvText"?16000:4000;
 const INPUT_KEYS:Record<AiOperation,string[]>={
   OFFER_INTELLIGENCE:["jobTitle","jobDescription","company","location","contract","skills"], CV_INTELLIGENCE:["cvText","targetRole","jobDescription"], MATCHING:["jobTitle","jobDescription","jobId","matchSignals"],
   APPLICATION_COPILOT:["jobTitle","jobDescription"], APPLICATION_STRATEGY:["jobTitle","jobDescription","applicationId","stage"], LEARNING:["goal","timePerWeek","targetRole","skillGaps"],
   INTERVIEW:["answer","difficulty","role","jobDescription","company"], CAREER_COMPANION:["goal","blocker","targetRole","horizon"], NOTIFICATION:["signalType","opportunityId","reason","urgency"]
 };
-const sanitizeInput=(op:AiOperation,input:any)=>{if(!input||typeof input!=="object")return {};return Object.fromEntries((INPUT_KEYS[op]||[]).filter(k=>typeof input[k]==="string"||typeof input[k]==="number"||Array.isArray(input[k])).map(k=>[k,Array.isArray(input[k])?input[k].slice(0,20).map((x:any)=>redactPII(String(x))):typeof input[k]==="string"?redactPII(String(input[k])):input[k]]));};
+const sanitizeInput=(op:AiOperation,input:any)=>{if(!input||typeof input!=="object")return {};return Object.fromEntries((INPUT_KEYS[op]||[]).filter(k=>typeof input[k]==="string"||typeof input[k]==="number"||Array.isArray(input[k])).map(k=>[k,Array.isArray(input[k])?input[k].slice(0,20).map((x:any)=>redactPII(String(x)).slice(0,1000)):typeof input[k]==="string"?redactPII(String(input[k])).slice(0,maxFor(op,k)):input[k]]));};
 
 export async function runAiGateway(req:NextRequest, raw:string, input:any={}):Promise<GatewayResult>{
   const op=normalize(raw); if(!op)return {ok:false,status:400,message:"Opération IA inconnue."};
   const auth=await getAuthUser(req); if(!auth)return {ok:false,status:401,message:"Session requise."};
   const sb=adminClient(); const user=await ensureUser(sb,auth);
-  const {data:sub}=await sb.from("Subscription").select("planCode,status").eq("userId",user.id).in("status",["ACTIVE","TRIALING"]).order("createdAt",{ascending:false}).limit(1).maybeSingle();
+  const {data:sub}=await sb.from("Subscription").select("plan,status").eq("userId",user.id).in("status",["ACTIVE","TRIAL"]).order("createdAt",{ascending:false}).limit(1).maybeSingle();
   const plan=planOf(sub),cost=AI_OPERATION_COST[op],quota=AI_CREDITS_BY_PLAN[plan];
   const safeInput=sanitizeInput(op,input);
   const built=await buildJiaContext(sb,user.id,{operation:op,input:safeInput});
