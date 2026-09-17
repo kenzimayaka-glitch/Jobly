@@ -1,0 +1,33 @@
+JOBLY — RAPPORT DE FUSION GLOBALE
+Date: 13/09/2026 08:44 UTC
+
+Base principale:
+- JOBLY-MOBILITY-V2-FINAL-CODE-13-09-2026.zip
+
+Sources complémentaires:
+- JOBLY-P1-P2-8-FEATURES-CHECKPOINT-13-09-2026.zip
+- JOBLY-P1-P2-8-FEATURES-CHECKPOINT-13-09-2026 (1).zip (doublon exact)
+- JOBLY-P1-P2-8-FEATURES-13-09-2026.zip
+- jobly-ecosystem-redesign-v2.0.zip
+
+Résolution:
+- La base Mobility/Features est prioritaire pour les fichiers en conflit.
+- Les trois checkpoints P1/P2 identiques ont été dédupliqués.
+- Les assets du redesign historique encore référencés par le code ont été récupérés.
+- app/pwa-init.ts n'a pas été réintroduit: components/PwaInit.tsx est la voie actuelle.
+
+Inventaire:
+- 41 pages/routes
+- 25 API routes
+- 4 migrations Prisma
+- 4 scripts SQL Supabase
+- 8 features virales codées, non E2E validées
+- Mobility V2 codée, non BUILD/E2E validée
+
+Validation:
+- npm install --no-audit --no-fund: TIMEOUT
+- typecheck: non exécuté
+- build: non exécuté
+- E2E mobile: non exécuté
+
+Le fichier Statut.md a été mis à jour avec le snapshot de fusion.
