@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
 import { getEntitlements, getPlan } from "../../../lib/billingCatalog";
-import { isTestUnlimited } from "../../../lib/entitlements";
+import { getActivePlanCode, isTestUnlimited } from "../../../lib/entitlements";
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,25 +9,14 @@ export async function GET(request: NextRequest) {
     if (!a) return NextResponse.json({ error: "UNAUTHENTICATED", message: "Session requise." }, { status: 401 });
     const sb = adminClient();
     const u = await ensureUser(sb, a);
-    const { data } = await sb
-      .from("Subscription")
-      .select("plan,status,currentPeriodEnd")
-      .eq("userId", u.id)
-      .order("createdAt", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const active = data && (data.status === "ACTIVE" || data.status === "TRIAL");
-    const plan = getPlan(active ? String(data.plan) : "FREE") || getPlan("FREE")!;
+    const planCode = await getActivePlanCode(sb, u.id);
+    const plan = getPlan(planCode) || getPlan("FREE")!;
     const testUnlimited = isTestUnlimited();
+    const now = new Date().toISOString();
+    const { data: promo } = await sb.from("PromoRedemption").select("grantedPlan,productType,startsAt,endsAt").eq("userId", u.id).is("revokedAt", null).gt("endsAt", now).order("endsAt", { ascending: false }).limit(1).maybeSingle();
 
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { count: usedApplications } = await sb
-      .from("Application")
-      .select("id", { count: "exact", head: true })
-      .eq("userId", u.id)
-      .neq("status", "DISCOVERED")
-      .gte("submittedAt", since);
-
+    const { count: usedApplications } = await sb.from("Application").select("id", { count: "exact", head: true }).eq("userId", u.id).neq("status", "DISCOVERED").gte("submittedAt", since);
     const entitlements = getEntitlements(plan.code);
 
     return NextResponse.json({
@@ -35,7 +24,8 @@ export async function GET(request: NextRequest) {
         ? { ...entitlements, aiCredits: Infinity, storageMb: Infinity, applicationsPerWeek: Infinity, bulkApplicationLimit: Infinity, cvVersions: Infinity, savedJobs: Infinity, alerts: Infinity, testUnlimited: true }
         : { ...entitlements, testUnlimited: false },
       usage: { applicationsThisWeek: usedApplications || 0 },
-      subscription: { plan: plan.code, status: active ? data?.status : "ACTIVE", currentPeriodEnd: active ? data?.currentPeriodEnd : null },
+      subscription: { plan: plan.code, status: "ACTIVE", currentPeriodEnd: null },
+      promo: promo ? { plan: promo.grantedPlan, productType: promo.productType, startsAt: promo.startsAt, endsAt: promo.endsAt } : null,
     });
   } catch (e) {
     return NextResponse.json({ error: "ENTITLEMENTS_UNAVAILABLE", message: e instanceof Error ? e.message : "Droits indisponibles." }, { status: 500 });
