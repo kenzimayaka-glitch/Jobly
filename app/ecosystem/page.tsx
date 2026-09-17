@@ -35,11 +35,11 @@ function EcosystemContent() {
             </p>
           </div>
 
-          <EcosystemSelector showBonPlan={switcher} />
+          <EcosystemSelector showBonPlan />
 
           {!switcher && (
             <div className="mt-2 rounded-[18px] border border-white bg-white/75 px-3 py-2 text-center text-[10px] leading-relaxed text-[#66738A] shadow-sm backdrop-blur">
-              Votre choix sera mémorisé pour vous faire entrer directement dans votre espace lors de vos prochaines connexions.
+              Votre choix sera mémorisé pour vous faire entrer directement dans votre espace lors de vos prochaines connexions. Les Bon Plans restent accessibles à tout moment.
             </div>
           )}
         </div>
