@@ -22,7 +22,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ZIP="Jobly-V23-Fix-Offres-Photos-Refresh-16-09-2026.zip"
+          ZIP="Jobly-V23-Fix-Abonnement-CTA-16-09-2026(2).zip"
           if [ ! -f "$ZIP" ]; then
             echo "V23 archive already extracted; nothing to do."
             exit 0
@@ -39,7 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -f "Jobly-V23-Fix-Offres-Photos-Refresh-16-09-2026.zip" ]; then
+          if [ -f "Jobly-V23-Fix-Abonnement-CTA-16-09-2026(2).zip" ]; then
             echo "Archive still present; extraction step did not complete."
             exit 1
           fi
