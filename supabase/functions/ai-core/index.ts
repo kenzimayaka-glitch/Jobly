@@ -1,159 +1,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
+const cors = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS"};
 type Operation = "OFFER_INTELLIGENCE" | "CV_INTELLIGENCE" | "MATCHING" | "APPLICATION_COPILOT" | "APPLICATION_STRATEGY" | "LEARNING" | "INTERVIEW" | "CAREER_COMPANION" | "NOTIFICATION";
 type Priority = "QUALITY" | "BALANCED" | "SPEED" | "COST";
 type ProviderId = "OPENROUTER" | "GEMINI" | "GROQ" | "CEREBRAS" | "TOGETHER" | "HUGGINGFACE" | "DETERMINISTIC";
 type RequestBody = { operation: Operation; input?: Record<string, unknown>; context?: Record<string, unknown>; priority?: Priority };
 type Result = { output: unknown; model: string; metadata?: Record<string, unknown> };
-
-const ALL_OPERATIONS: Operation[] = ["OFFER_INTELLIGENCE","CV_INTELLIGENCE","MATCHING","APPLICATION_COPILOT","APPLICATION_STRATEGY","LEARNING","INTERVIEW","CAREER_COMPANION","NOTIFICATION"];
-const orders: Record<Priority, ProviderId[]> = {
-  QUALITY: ["OPENROUTER", "GEMINI", "TOGETHER", "GROQ", "CEREBRAS", "HUGGINGFACE", "DETERMINISTIC"],
-  BALANCED: ["OPENROUTER", "GEMINI", "GROQ", "CEREBRAS", "TOGETHER", "HUGGINGFACE", "DETERMINISTIC"],
-  SPEED: ["GROQ", "CEREBRAS", "OPENROUTER", "GEMINI", "TOGETHER", "HUGGINGFACE", "DETERMINISTIC"],
-  COST: ["OPENROUTER", "GROQ", "CEREBRAS", "TOGETHER", "HUGGINGFACE", "GEMINI", "DETERMINISTIC"],
-};
-
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "content-type": "application/json" } });
-const env = (name: string) => Deno.env.get(name) || "";
-
-function parse(text: string): unknown {
-  const clean = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
-  try { return JSON.parse(clean); } catch { return { text: clean }; }
-}
-
-function prompt(body: RequestBody) {
-  return {
-    system: `
-Tu es J'IA, l'intelligence artificielle unifiée de JOBLY.
-
-JOBLY utilise plusieurs moteurs d'intelligence artificielle internes.
-Ces moteurs sont interchangeables et ne constituent pas des identités distinctes pour l'utilisateur.
-Tu ne dois jamais te présenter sous le nom d'un fournisseur, d'une plateforme ou d'un modèle d'IA.
-Tu es toujours J'IA.
-
-Opération actuelle : ${body.operation}
-
-Règles fondamentales :
-1. Utilise uniquement les informations fournies.
-2. N'invente aucune information personnelle.
-3. N'invente aucun diplôme, emploi, expérience, compétence, entreprise ou résultat.
-4. Lorsque l'information manque, indique-le clairement.
-5. Réponds en français sauf si l'entrée est principalement dans une autre langue.
-6. Fournis des recommandations concrètes et exploitables.
-7. Respecte strictement le contexte professionnel de JOBLY.
-8. Ne révèle jamais les fournisseurs ou modèles internes.
-9. Retourne uniquement un JSON valide.
-10. Aucun Markdown dans la réponse JSON.
-11. J'IA est transverse : relie profil, mémoire, comportement, offres, CV, matching, candidatures, learning, interview, carrière et notifications.
-12. Ne soumets jamais une candidature automatiquement et ne prends aucune action irréversible sans autorisation explicite.
-
-Identité user-facing : J'IA — Intelligence JOBLY.
-`,
-    user: JSON.stringify({ operation: body.operation, input: body.input || {}, context: body.context || {} }),
-  };
-}
-
-async function compatible(body: RequestBody, provider: ProviderId): Promise<Result> {
-  const configs: Record<Exclude<ProviderId, "GEMINI" | "DETERMINISTIC">, { key: string; url: string; model: string; headers?: Record<string, string> }> = {
-    OPENROUTER: { key: "OPENROUTER_API_KEY", url: "https://openrouter.ai/api/v1", model: env("OPENROUTER_MODEL") || "openai/gpt-oss-120b", headers: { "HTTP-Referer": env("JOBLY_PUBLIC_URL") || "https://jobly.app", "X-Title": "JOBLY — J'IA" } },
-    GROQ: { key: "GROQ_API_KEY", url: "https://api.groq.com/openai/v1", model: env("GROQ_MODEL") || "openai/gpt-oss-120b" },
-    CEREBRAS: { key: "CEREBRAS_API_KEY", url: "https://api.cerebras.ai/v1", model: env("CEREBRAS_MODEL") || "llama3.1-8b" },
-    TOGETHER: { key: "TOGETHER_API_KEY", url: "https://api.together.xyz/v1", model: env("TOGETHER_MODEL") || "openai/gpt-oss-20b" },
-    HUGGINGFACE: { key: "HF_TOKEN", url: "https://router.huggingface.co/v1", model: env("HF_MODEL") || "openai/gpt-oss-120b:fastest" },
-  };
-  const c = configs[provider as Exclude<ProviderId, "GEMINI" | "DETERMINISTIC">];
-  const key = env(c.key);
-  if (!key) throw new Error(`${c.key} manquant`);
-  const p = prompt(body);
-  const r = await fetch(`${c.url}/chat/completions`, {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${key}`, ...(c.headers || {}) },
-    body: JSON.stringify({ model: c.model, messages: [{ role: "system", content: p.system }, { role: "user", content: p.user }], temperature: 0.2, max_tokens: 1800, stream: false }),
-    signal: AbortSignal.timeout(30000),
-  });
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`${provider} ${r.status}: ${String(data?.error?.message || data?.message || "API error").slice(0, 300)}`);
-  const text = data?.choices?.[0]?.message?.content;
-  if (typeof text !== "string" || !text.trim()) throw new Error(`${provider} réponse vide`);
-  return { output: parse(text), model: data?.model || c.model, metadata: { usage: data?.usage || null, finishReason: data?.choices?.[0]?.finish_reason || null } };
-}
-
-async function gemini(body: RequestBody): Promise<Result> {
-  const key = env("GEMINI_API_KEY");
-  if (!key) throw new Error("GEMINI_API_KEY manquant");
-  const model = env("GEMINI_MODEL") || "gemini-2.5-flash";
-  const p = prompt(body);
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`, {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts: [{ text: `${p.system}\n\n${p.user}` }] }], generationConfig: { temperature: 0.2, responseMimeType: "application/json", maxOutputTokens: 1800 } }),
-    signal: AbortSignal.timeout(30000),
-  });
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`Gemini ${r.status}: ${String(data?.error?.message || "API error").slice(0, 300)}`);
-  const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || "").join("") || "";
-  if (!text) throw new Error("Gemini réponse vide");
-  return { output: parse(text), model: data?.modelVersion || model, metadata: { usage: data?.usageMetadata || null } };
-}
-
-function deterministic(body: RequestBody): Result {
-  const c = body.context || {}; const p: any = c.profile || {}; const skills: string[] = ((c.skills || []) as any[]).map(x => x?.name).filter(Boolean); const roles: string[] = p.targetRoles || [];
-  const role = roles[0] || "ton objectif professionnel";
-  switch (body.operation) {
-    case "OFFER_INTELLIGENCE": return { model: "fallback-v2", output: { mode: "deterministic", summary: "Analyse structurée de l'offre à partir des informations disponibles.", role, missing: (body.input?.jobDescription ? [] : ["description complète de l'offre"]), signals: skills.slice(0,5) } };
-    case "CV_INTELLIGENCE": return { model: "fallback-v2", output: { mode: "deterministic", strengths: skills.slice(0,5), gaps: c.gaps || [], suggestions: [`Mettre en avant les preuves réelles les plus pertinentes pour ${role}.`], warning: "Aucune expérience ou compétence ne doit être inventée." } };
-    case "MATCHING": return { model: "fallback-v2", output: { mode: "deterministic", readiness: c.readiness, rationale: "Le matching IA doit compléter les signaux déterministes avec le contexte personnel disponible.", signals: skills.slice(0,5), gaps: c.gaps || [] } };
-    case "APPLICATION_COPILOT": return { model: "fallback-v2", output: { mode: "deterministic", warnings: [...(skills.length ? [] : ["Ajouter des compétences vérifiables"]), ...(p.summary ? [] : ["Compléter le résumé professionnel"])], cvSuggestions: [`Mettre en avant les compétences pertinentes pour ${role}.`, "Quantifier uniquement les réalisations réelles."], coverLetterOutline: ["Accroche liée au poste", "Preuves issues du parcours réel", "Motivation spécifique", "Prochaine étape"], submission: "USER_REQUIRED" } };
-    case "APPLICATION_STRATEGY": return { model: "fallback-v2", output: { mode: "deterministic", strategy: ["Vérifier l'adéquation offre/profil", "Adapter les preuves du CV", "Préparer les arguments clés", "Relancer selon le statut de candidature"], readiness: c.readiness, submission: "USER_REQUIRED" } };
-    case "LEARNING": return { model: "fallback-v2", output: { mode: "deterministic", objectives: ((c.gaps || []) as string[]).slice(0,4).map(g => ({ objective: g, priority: "HIGH", checkpoint: "Ajouter une preuve vérifiable au profil" })), effort: "2 à 4 h/semaine" } };
-    case "INTERVIEW": return { model: "fallback-v2", output: { mode: "deterministic", questions: [`Présente une réalisation concrète liée à ${role}.", "Quelle compétence veux-tu renforcer dans les 3 prochains mois ?", "Quel résultat mesurable peux-tu apporter ?"], focus: [...skills.slice(0,3), `Cible : ${role}`] } };
-    case "NOTIFICATION": return { model: "fallback-v2", output: { mode: "deterministic", notify: Boolean(body.input?.opportunityId || body.input?.signalType), priority: body.input?.urgency || "NORMAL", reason: body.input?.reason || "Signal JOBLY à contextualiser", dedupe: true } };
-    default: return { model: "fallback-v2", output: { mode: "deterministic", summary: c.nextBestAction, nextActions: [c.nextBestAction, "Consulter les opportunités", "Suivre les candidatures"].slice(0, 3), readiness: c.readiness } };
-  }
-}
-
-function enabled(id: ProviderId) {
-  if (id === "DETERMINISTIC") return true;
-  const keys: Record<Exclude<ProviderId, "DETERMINISTIC">, string> = { GEMINI: "GEMINI_API_KEY", OPENROUTER: "OPENROUTER_API_KEY", GROQ: "GROQ_API_KEY", CEREBRAS: "CEREBRAS_API_KEY", TOGETHER: "TOGETHER_API_KEY", HUGGINGFACE: "HF_TOKEN" };
-  return Boolean(env(keys[id as Exclude<ProviderId, "DETERMINISTIC">]));
-}
-
-async function run(body: RequestBody) {
-  const priority = body.priority && orders[body.priority] ? body.priority : "BALANCED";
-  const attempts: ProviderId[] = [];
-  for (const id of orders[priority]) {
-    if (!enabled(id)) continue;
-    attempts.push(id);
-    try {
-      const result = id === "DETERMINISTIC" ? deterministic(body) : id === "GEMINI" ? await gemini(body) : await compatible(body, id);
-      return { provider: id, model: result.model, output: result.output, attempts, fallbackUsed: id !== orders[priority][0], metadata: result.metadata || null };
-    } catch (_error) {
-      // Provider failures are intentionally isolated; the next provider is attempted.
-    }
-  }
-  throw new Error("Aucun moteur IA JOBLY disponible.");
-}
-
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  if (req.method !== "POST") return json({ ok: false, message: "Méthode non autorisée." }, 405);
-  const auth = req.headers.get("Authorization") || "";
-  if (!auth.toLowerCase().startsWith("bearer ")) return json({ ok: false, message: "Session requise." }, 401);
-  const supabase = createClient(env("SUPABASE_URL"), env("SUPABASE_ANON_KEY"), { global: { headers: { Authorization: auth } } });
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return json({ ok: false, message: "Session invalide." }, 401);
-  try {
-    const body = await req.json() as RequestBody;
-    if (!ALL_OPERATIONS.includes(body.operation)) return json({ ok: false, message: "Opération IA inconnue." }, 400);
-    const result = await run(body);
-    return json({ ok: true, aiName: "J'IA", aiBrand: "JOBLY", aiDescription: "Intelligence unifiée de JOBLY", ...result, userId: user.id });
-  } catch (e) {
-    return json({ ok: false, aiName: "J'IA", aiBrand: "JOBLY", aiDescription: "Intelligence unifiée de JOBLY", message: e instanceof Error ? e.message : "Service J'IA indisponible." }, 502);
-  }
-});
+const ALL_OPERATIONS: Operation[]=["OFFER_INTELLIGENCE","CV_INTELLIGENCE","MATCHING","APPLICATION_COPILOT","APPLICATION_STRATEGY","LEARNING","INTERVIEW","CAREER_COMPANION","NOTIFICATION"];
+const orders:Record<Priority,ProviderId[]>={QUALITY:["OPENROUTER","GEMINI","TOGETHER","GROQ","CEREBRAS","HUGGINGFACE","DETERMINISTIC"],BALANCED:["OPENROUTER","GEMINI","GROQ","CEREBRAS","TOGETHER","HUGGINGFACE","DETERMINISTIC"],SPEED:["GROQ","CEREBRAS","OPENROUTER","GEMINI","TOGETHER","HUGGINGFACE","DETERMINISTIC"],COST:["OPENROUTER","GROQ","CEREBRAS","TOGETHER","HUGGINGFACE","GEMINI","DETERMINISTIC"]};
+const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"content-type":"application/json"}}); const env=(name:string)=>Deno.env.get(name)||"";
+function parse(text:string):unknown{const clean=text.trim().replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/i,"");try{return JSON.parse(clean)}catch{return {text:clean}}}
+function prompt(body:RequestBody){return{system:`Tu es J'IA, l'intelligence artificielle unifiée de JOBLY.\n\nLes moteurs internes sont interchangeables et ne constituent pas des identités distinctes. Tu ne dois jamais révéler les fournisseurs ou modèles.\n\nOpération actuelle : ${body.operation}\n\nRègles : utilise uniquement les informations fournies; n'invente aucune information personnelle, diplôme, emploi, expérience, compétence, entreprise ou résultat; signale les informations manquantes; réponds en français sauf si l'entrée est principalement dans une autre langue; donne des recommandations concrètes; retourne uniquement un JSON valide; aucun Markdown; J'IA relie profil, mémoire, comportement, offres, CV, matching, candidatures, learning, interview, carrière et notifications; aucune candidature automatique ni action irréversible sans autorisation explicite.\n\nIdentité user-facing : J'IA — Intelligence JOBLY.`,user:JSON.stringify({operation:body.operation,input:body.input||{},context:body.context||{}})}}
+async function compatible(body:RequestBody,provider:ProviderId):Promise<Result>{const configs:Record<Exclude<ProviderId,"GEMINI"|"DETERMINISTIC">,{key:string,url:string,model:string,headers?:Record<string,string>}>= {OPENROUTER:{key:"OPENROUTER_API_KEY",url:"https://openrouter.ai/api/v1",model:env("OPENROUTER_MODEL")||"openai/gpt-oss-120b",headers:{"HTTP-Referer":env("JOBLY_PUBLIC_URL")||"https://jobly.app","X-Title":"JOBLY — J'IA"}},GROQ:{key:"GROQ_API_KEY",url:"https://api.groq.com/openai/v1",model:env("GROQ_MODEL")||"openai/gpt-oss-120b"},CEREBRAS:{key:"CEREBRAS_API_KEY",url:"https://api.cerebras.ai/v1",model:env("CEREBRAS_MODEL")||"llama3.1-8b"},TOGETHER:{key:"TOGETHER_API_KEY",url:"https://api.together.xyz/v1",model:env("TOGETHER_MODEL")||"openai/gpt-oss-20b"},HUGGINGFACE:{key:"HF_TOKEN",url:"https://router.huggingface.co/v1",model:env("HF_MODEL")||"openai/gpt-oss-120b:fastest"}};const c=configs[provider as Exclude<ProviderId,"GEMINI"|"DETERMINISTIC">];const key=env(c.key);if(!key)throw new Error(`${c.key} manquant`);const p=prompt(body);const r=await fetch(`${c.url}/chat/completions`,{method:"POST",headers:{"content-type":"application/json",authorization:`Bearer ${key}`,...(c.headers||{})},body:JSON.stringify({model:c.model,messages:[{role:"system",content:p.system},{role:"user",content:p.user}],temperature:.2,max_tokens:1800,stream:false}),signal:AbortSignal.timeout(30000)});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(`${provider} ${r.status}: ${String(data?.error?.message||data?.message||"API error").slice(0,300)}`);const text=data?.choices?.[0]?.message?.content;if(typeof text!=="string"||!text.trim())throw new Error(`${provider} réponse vide`);return{output:parse(text),model:data?.model||c.model,metadata:{usage:data?.usage||null,finishReason:data?.choices?.[0]?.finish_reason||null}}}
+async function gemini(body:RequestBody):Promise<Result>{const key=env("GEMINI_API_KEY");if(!key)throw new Error("GEMINI_API_KEY manquant");const model=env("GEMINI_MODEL")||"gemini-2.5-flash";const p=prompt(body);const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:`${p.system}\n\n${p.user}`}]}],generationConfig:{temperature:.2,responseMimeType:"application/json",maxOutputTokens:1800}}),signal:AbortSignal.timeout(30000)});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(`Gemini ${r.status}: ${String(data?.error?.message||"API error").slice(0,300)}`);const text=data?.candidates?.[0]?.content?.parts?.map((p:any)=>p.text||"").join("")||"";if(!text)throw new Error("Gemini réponse vide");return{output:parse(text),model:data?.modelVersion||model,metadata:{usage:data?.usageMetadata||null}}}
+function deterministic(body:RequestBody):Result{const c=body.context||{};const p:any=c.profile||{};const skills:string[]=((c.skills||[])as any[]).map(x=>x?.name).filter(Boolean);const roles:string[]=p.targetRoles||[];const role=roles[0]||"ton objectif professionnel";switch(body.operation){case"OFFER_INTELLIGENCE":return{model:"fallback-v2",output:{mode:"deterministic",summary:"Analyse structurée de l'offre à partir des informations disponibles.",role,missing:body.input?.jobDescription?[]:["description complète de l'offre"],signals:skills.slice(0,5)}};case"CV_INTELLIGENCE":return{model:"fallback-v2",output:{mode:"deterministic",strengths:skills.slice(0,5),gaps:c.gaps||[],suggestions:[`Mettre en avant les preuves réelles les plus pertinentes pour ${role}.`],warning:"Aucune expérience ou compétence ne doit être inventée."}};case"MATCHING":return{model:"fallback-v2",output:{mode:"deterministic",readiness:c.readiness,rationale:"Le matching IA complète les signaux déterministes avec le contexte personnel disponible.",signals:skills.slice(0,5),gaps:c.gaps||[]}};case"APPLICATION_COPILOT":return{model:"fallback-v2",output:{mode:"deterministic",warnings:[...(skills.length?[]:["Ajouter des compétences vérifiables"]),...(p.summary?[]:["Compléter le résumé professionnel"])],cvSuggestions:[`Mettre en avant les compétences pertinentes pour ${role}.`,"Quantifier uniquement les réalisations réelles."],coverLetterOutline:["Accroche liée au poste","Preuves issues du parcours réel","Motivation spécifique","Prochaine étape"],submission:"USER_REQUIRED"}};case"APPLICATION_STRATEGY":return{model:"fallback-v2",output:{mode:"deterministic",strategy:["Vérifier l'adéquation offre/profil","Adapter les preuves du CV","Préparer les arguments clés","Relancer selon le statut de candidature"],readiness:c.readiness,submission:"USER_REQUIRED"}};case"LEARNING":return{model:"fallback-v2",output:{mode:"deterministic",objectives:((c.gaps||[])as string[]).slice(0,4).map(g=>({objective:g,priority:"HIGH",checkpoint:"Ajouter une preuve vérifiable au profil"})),effort:"2 à 4 h/semaine"}};case"INTERVIEW":return{model:"fallback-v2",output:{mode:"deterministic",questions:[`Présente une réalisation concrète liée à ${role}.`,"Quelle compétence veux-tu renforcer dans les 3 prochains mois ?","Quel résultat mesurable peux-tu apporter ?"],focus:[...skills.slice(0,3),`Cible : ${role}`]}};case"NOTIFICATION":return{model:"fallback-v2",output:{mode:"deterministic",notify:Boolean(body.input?.opportunityId||body.input?.signalType),priority:body.input?.urgency||"NORMAL",reason:body.input?.reason||"Signal JOBLY à contextualiser",dedupe:true}};default:return{model:"fallback-v2",output:{mode:"deterministic",summary:c.nextBestAction,nextActions:[c.nextBestAction,"Consulter les opportunités","Suivre les candidatures"].slice(0,3),readiness:c.readiness}}}}
+function enabled(id:ProviderId){if(id==="DETERMINISTIC")return true;const keys:Record<Exclude<ProviderId,"DETERMINISTIC">,string>={GEMINI:"GEMINI_API_KEY",OPENROUTER:"OPENROUTER_API_KEY",GROQ:"GROQ_API_KEY",CEREBRAS:"CEREBRAS_API_KEY",TOGETHER:"TOGETHER_API_KEY",HUGGINGFACE:"HF_TOKEN"};return Boolean(env(keys[id as Exclude<ProviderId,"DETERMINISTIC">]))}
+async function run(body:RequestBody){const priority=body.priority&&orders[body.priority]?body.priority:"BALANCED";const attempts:ProviderId[]=[];for(const id of orders[priority]){if(!enabled(id))continue;attempts.push(id);try{const result=id==="DETERMINISTIC"?deterministic(body):id==="GEMINI"?await gemini(body):await compatible(body,id);return{provider:id,model:result.model,output:result.output,attempts,fallbackUsed:id!==orders[priority][0],metadata:result.metadata||null}}catch(_error){}}throw new Error("Aucun moteur IA JOBLY disponible.")}
+Deno.serve(async(req)=>{if(req.method==="OPTIONS")return new Response("ok",{headers:cors});if(req.method!=="POST")return json({ok:false,message:"Méthode non autorisée."},405);const auth=req.headers.get("Authorization")||"";if(!auth.toLowerCase().startsWith("bearer "))return json({ok:false,message:"Session requise."},401);const supabase=createClient(env("SUPABASE_URL"),env("SUPABASE_ANON_KEY"),{global:{headers:{Authorization:auth}}});const{data:{user},error}=await supabase.auth.getUser();if(error||!user)return json({ok:false,message:"Session invalide."},401);try{const body=await req.json()as RequestBody;if(!ALL_OPERATIONS.includes(body.operation))return json({ok:false,message:"Opération IA inconnue."},400);const result=await run(body);return json({ok:true,aiName:"J'IA",aiBrand:"JOBLY",aiDescription:"Intelligence unifiée de JOBLY",...result,userId:user.id})}catch(e){return json({ok:false,aiName:"J'IA",aiBrand:"JOBLY",aiDescription:"Intelligence unifiée de JOBLY",message:e instanceof Error?e.message:"Service J'IA indisponible."},502)}});
