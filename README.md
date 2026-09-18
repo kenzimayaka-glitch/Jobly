@@ -1563,3 +1563,37 @@ La transition Recruiter → Talent Profile est désormais traitée comme une con
 Le redesign passe du prototype vidéo au **vrai signal vidéo du Talent**. Depuis `/talent/profile`, un Talent peut enregistrer une prise caméra/micro de 5–8 secondes ou importer un MP4/WebM/MOV de 25 Mo maximum. Le serveur `/api/auth/video-pitch` stocke le fichier dans le bucket Supabase `talent-pitches` et persiste `pitchVideoUrl`, `pitchVideoStoragePath`, `pitchVideoDurationMs` et `pitchVideoUpdatedAt` sur `User`. Le Match Lab Recruiter et le profil partagé consomment désormais ce vrai `pitchVideoUrl`; lorsqu'un Talent n'a pas encore de pitch, JOBLY l'indique explicitement au lieu de montrer le média de démonstration comme s'il était réel.
 
 Référence détaillée : `TRUE-VIDEO-PITCH-ENGINE-V23.md`.
+
+
+---
+
+# CHECKPOINT DE CONTINUITÉ — 18/09/2026
+
+## État d'exécution
+
+Le travail actif est poursuivi directement sur la branche `feature/distributor-commission`, sans repartir d'une archive ni réinitialiser les décisions précédentes.
+
+- **PR active :** #2 — Finalize Distributor commissions and payment integration.
+- **Dernier commit de la branche :** `f9ee3335`.
+- **CI GitHub :** verte sur le dernier commit.
+- **Vercel :** les checks automatiques restent actuellement bloqués par une limitation de fréquence/build-rate-limit Vercel ; cela ne doit pas être confondu avec un build Vercel validé.
+- **Objectif immédiat :** stabiliser le cœur existant puis terminer les surfaces Bons Plans sans déclarer prématurément le produit production-complete.
+
+## Bons Plans — état courant
+
+Le hub `/bons-plans` est maintenant structuré autour de quatre piliers :
+
+1. **Jobly Campus** — parcours orienté étudiants et premières expériences.
+2. **Jobly Community** — communautés professionnelles contextualisées.
+3. **Jobly Mobility** — mobilité géographique et économique.
+4. **Jobly Events** — événements professionnels et étudiants.
+
+Le sélecteur `/ecosystem` expose désormais **Bon Plan** directement, sans paramètre caché.
+
+`/campus` dispose déjà d'une première expérience fonctionnelle orientée étudiants : stages, jobs étudiants, missions/freelance, préparation/formation, volontariat/projets et événements.
+
+**Important :** Community et Events disposent encore d'une porte d'entrée produit mais pas encore d'un backend métier spécialisé complet. Ils doivent être construits et validés avant d'être considérés comme production-complete.
+
+## Règle de continuité
+
+`Statut.md` reste la source de vérité d'exécution. Ce README reste la source de vérité de vision, architecture et décisions. Toute modification importante du produit doit mettre à jour les deux documents lorsqu'elle change l'état réel ou une décision de continuité.
