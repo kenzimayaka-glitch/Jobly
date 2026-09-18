@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
     const profile = await ensureRecruiterProfile(supabase, user.id);
-    return NextResponse.json({ profile });
+    return NextResponse.json({ profile: { ...profile, email: user.email || null, phone: user.phone || null } });
   } catch (error) {
     return NextResponse.json(
       { message: error instanceof Error ? error.message : "Impossible de charger le profil recruteur." },
