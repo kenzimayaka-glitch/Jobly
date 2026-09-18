@@ -66,7 +66,11 @@ export async function PUT(request: NextRequest) {
       .single();
     if (error) throw new Error(error.message);
 
-    return NextResponse.json({ profile: data });
+    const phone = String(body.phone || "").trim() || null;
+    const { error: userUpdateError } = await supabase.from("User").update({ phone, updatedAt: new Date().toISOString() }).eq("id", user.id);
+    if (userUpdateError) throw new Error(userUpdateError.message);
+
+    return NextResponse.json({ profile: { ...data, email: user.email || null, phone } });
   } catch (error) {
     return NextResponse.json(
       { message: error instanceof Error ? error.message : "Impossible d'enregistrer le profil recruteur." },
