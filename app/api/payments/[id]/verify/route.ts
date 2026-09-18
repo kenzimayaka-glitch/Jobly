@@ -1,16 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
 import { getProvider } from "../../../../../lib/paymentProviders";
-import { generateDistributorAcquisitionCommission } from "../../../../../lib/distributor-commission";
 
 const err = (m: string, s: number, c = m) => NextResponse.json({ error: c, message: m }, { status: s });
-const transitions: Record<string, string[]> = {
-  CREATED: ["PENDING", "FAILED"],
-  PENDING: ["SUCCESSFUL", "FAILED"],
-  SUCCESSFUL: ["REFUNDED"],
-  FAILED: [],
-  REFUNDED: [],
-};
 
 export async function POST(
   request: NextRequest,
@@ -33,70 +25,37 @@ export async function POST(
     if (!p) return err("Paiement introuvable.", 404, "PAYMENT_NOT_FOUND");
     if (!p.externalId) return err("Référence provider absente.", 409, "EXTERNAL_ID_MISSING");
 
-    const r = await getProvider(String(p.provider)).verifyPayment(p.externalId);
-    if (r.amount != null && Number(r.amount) !== Number(p.amount)) {
+    const verification = await getProvider(String(p.provider)).verifyPayment(p.externalId);
+    if (verification.amount != null && Number(verification.amount) !== Number(p.amount)) {
       return err("Montant provider différent.", 409, "AMOUNT_MISMATCH");
-    }
-    if (p.status === r.status) return NextResponse.json({ payment: p, verification: r, idempotent: true });
-    if (!(transitions[String(p.status)] || []).includes(r.status)) {
-      return err(`Transition invalide: ${p.status} -> ${r.status}.`, 409, "INVALID_PAYMENT_TRANSITION");
     }
 
     const now = new Date().toISOString();
-    const patch: Record<string, unknown> = { status: r.status, updatedAt: now };
-    if (r.status === "SUCCESSFUL") patch.paidAt = now;
-    if (r.status === "FAILED") patch.failureReason = r.message || "Provider returned FAILED";
-
-    const { data: updated, error: updateError } = await sb
-      .from("Payment")
-      .update(patch)
-      .eq("id", p.id)
-      .select("*")
-      .single();
-    if (updateError) throw new Error(updateError.message);
-
-    let commission = null;
-    if (p.subscriptionId) {
-      if (r.status === "SUCCESSFUL") {
-        const { data: sub, error: subError } = await sb
-          .from("Subscription")
-          .select("id,userId,planCode,billingInterval,productType")
-          .eq("id", p.subscriptionId)
-          .eq("userId", u.id)
-          .maybeSingle();
-        if (subError) throw new Error(subError.message);
-
-        if (sub) {
-          const start = new Date(now);
-          const end = new Date(start);
-          if (sub.billingInterval === "ANNUAL") end.setUTCFullYear(end.getUTCFullYear() + 1);
-          else end.setUTCMonth(end.getUTCMonth() + 1);
-
-          const { error: subscriptionError } = await sb
-            .from("Subscription")
-            .update({
-              status: "ACTIVE",
-              currentPeriodStart: start.toISOString(),
-              currentPeriodEnd: end.toISOString(),
-              canceledAt: null,
-              updatedAt: now,
-            })
-            .eq("id", p.subscriptionId)
-            .eq("userId", u.id);
-          if (subscriptionError) throw new Error(subscriptionError.message);
-
-          commission = await generateDistributorAcquisitionCommission(sb, sub);
-        }
-      } else if (r.status === "FAILED") {
-        await sb
-          .from("Subscription")
-          .update({ status: "EXPIRED", updatedAt: now })
-          .eq("id", p.subscriptionId)
-          .eq("userId", u.id);
-      }
+    const { data: finalized, error: finalizeError } = await sb.rpc("finalize_payment", {
+      p_payment_id: String(p.id),
+      p_user_id: String(u.id),
+      p_status: String(verification.status),
+      p_amount: Number(p.amount),
+      p_now: now,
+      p_failure_reason: verification.status === "FAILED" ? (verification.message || "Provider returned FAILED") : null,
+    });
+    if (finalizeError) {
+      const code = String(finalizeError.message || "");
+      if (code.includes("PAYMENT_NOT_FOUND")) return err("Paiement introuvable.", 404, "PAYMENT_NOT_FOUND");
+      if (code.includes("AMOUNT_MISMATCH")) return err("Montant provider différent.", 409, "AMOUNT_MISMATCH");
+      if (code.includes("INVALID_PAYMENT_TRANSITION")) return err("Transition de paiement invalide.", 409, "INVALID_PAYMENT_TRANSITION");
+      if (code.includes("SUBSCRIPTION_NOT_FOUND")) return err("Abonnement introuvable.", 409, "SUBSCRIPTION_NOT_FOUND");
+      if (code.includes("INVALID_PAYMENT_STATUS")) return err("Statut provider invalide.", 409, "INVALID_PAYMENT_STATUS");
+      throw new Error(finalizeError.message);
     }
 
-    return NextResponse.json({ payment: updated, verification: r, commission });
+    const result = finalized as { payment?: unknown; commission?: unknown; idempotent?: boolean };
+    return NextResponse.json({
+      payment: result.payment,
+      verification,
+      commission: result.commission ?? null,
+      idempotent: Boolean(result.idempotent),
+    });
   } catch (e) {
     return err(e instanceof Error ? e.message : "Vérification impossible.", 500);
   }
