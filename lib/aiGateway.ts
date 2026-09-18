@@ -24,7 +24,7 @@ export async function runAiGateway(req:NextRequest, raw:string, input:any={}):Pr
   const op=normalize(raw); if(!op)return {ok:false,status:400,message:"Opération IA inconnue."};
   const auth=await getAuthUser(req); if(!auth)return {ok:false,status:401,message:"Session requise."};
   const sb=adminClient(); const user=await ensureUser(sb,auth);
-  const {data:sub}=await sb.from("Subscription").select("plan,status").eq("userId",user.id).in("status",["ACTIVE","TRIAL"]).order("createdAt",{ascending:false}).limit(1).maybeSingle();
+  const {data:sub}=await sb.from("Subscription").select("planCode,status").eq("userId",user.id).in("status",["ACTIVE","TRIAL"]).order("createdAt",{ascending:false}).limit(1).maybeSingle();
   const plan=planOf(sub),cost=AI_OPERATION_COST[op],quota=AI_CREDITS_BY_PLAN[plan];
   const safeInput=sanitizeInput(op,input);
   const built=await buildJiaContext(sb,user.id,{operation:op,input:safeInput});
