@@ -2126,3 +2126,22 @@ Aucune nouvelle fonctionnalité ne sera déclarée terminée sans :
 4. test E2E ;
 5. déploiement ;
 6. validation réelle.
+
+
+## CHECKPOINT EXÉCUTION — 18/09/2026 — VALIDATION FINALE EN COURS
+
+### Correctifs récents
+- 🔧 Contrainte Supabase anti-concurrence des abonnements `ACTIVE/PENDING` appliquée et vérifiée.
+- 🔧 Vérification paiement corrigée : `Subscription.status` est maintenant chargé par `/api/payments/[id]/verify`.
+- 🧪 Build Vercel final : **à revalider** après ce dernier correctif ; le dernier déploiement connu avant la correction était en échec de typecheck.
+- ⏸️ Promotion production : volontairement non effectuée tant que le build final et les contrôles fonctionnels ne sont pas terminés.
+
+### Prochaine séquence obligatoire
+1. Build Vercel du dernier commit.
+2. Correction immédiate de tout blocage de build réellement observé.
+3. Validation paiement → abonnement → entitlements/quota/idempotence.
+4. Validation applications et idempotence/quota.
+5. Contrôle runtime Vercel/Supabase.
+6. Vérification finale de branche puis promotion contrôlée.
+
+**État global : 🧪 EN VALIDATION FINALE — pas encore production-ready.**
