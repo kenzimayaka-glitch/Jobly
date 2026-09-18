@@ -2083,3 +2083,46 @@ Le push GitHub automatique reste à effectuer dès que l'intégration GitHub acc
 
 ## Prochaine action
 Appliquer `supabase/20260916090000_talent_pitch.sql`, puis tester sur téléphone : enregistrer 6 s → publier → ouvrir le compte Recruiter → vérifier que le même pitch réel apparaît dans le Match Lab et dans le profil partagé.
+
+
+---
+
+# CHECKPOINT #27 — CONTINUITÉ PRODUIT + BONS PLANS — 18/09/2026
+
+## État réel de la branche
+
+- Branche active : `feature/distributor-commission`.
+- PR active : #2 — Finalize Distributor commissions and payment integration.
+- Dernier commit connu : `f9ee33356b6e27c1ef81300d7c721a6229a1b2a1`.
+- CI GitHub du dernier commit : **SUCCESS**.
+- Checks Vercel : actuellement affectés par **build-rate-limit** ; aucune validation Vercel READY ne doit être déduite de la CI GitHub.
+
+## Travail récent livré
+
+### Bons Plans
+- `/bons-plans` transformé en hub des quatre piliers : Campus, Community, Mobility, Events.
+- `/ecosystem` expose désormais Bon Plan directement.
+- `/campus` transformé en hub étudiant avec parcours stages/premières expériences, jobs étudiants/temps partiel, missions/freelance, formation/préparation, volontariat/projets et événements.
+
+### Cœur commercial / candidatures
+- Moteur d'entitlements et quota de candidatures intégré au parcours réel.
+- Mode test illimité conservé pour les validations internes.
+- Moteur de candidature réelle avec canal Gmail et état `SUBMITTING` atomique.
+- Commission d'acquisition Distributor idempotente sur première souscription éligible payée.
+- Migration Supabase d'idempotence de commission appliquée et présente dans le dépôt.
+
+## Ce qui reste explicitement ouvert
+
+- Validation Vercel finale/READY après résolution du build-rate-limit.
+- Validation runtime Supabase et des flux critiques avec les variables réelles.
+- Jobly Community : backend métier (communautés, membres, découverte, règles d'accès) encore à construire.
+- Jobly Events : backend métier (catalogue, organisateurs, dates/lieux, inscription) encore à construire.
+- Jobly Mobility : poursuivre l'intégration fonctionnelle existante et sa validation réelle.
+- Hardening sécurité Supabase : certains advisors restent à traiter avant un go-live complet.
+- Ne pas déclarer le projet « terminé » tant que les fonctionnalités manquantes et la validation production ne sont pas closes.
+
+## Prochaine priorité d'exécution
+
+**Community → Events → validation des flux → hardening → go-live.**
+
+La stratégie reste : **ne pas perdre le travail existant, ne pas repartir de zéro, ne pas remplacer une fondation fonctionnelle par des mocks, et documenter chaque décision importante dans README.md + Statut.md.**
