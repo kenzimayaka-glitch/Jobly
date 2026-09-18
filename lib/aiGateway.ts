@@ -4,8 +4,9 @@ import { NextRequest } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "./server-auth";
 import { AI_CREDITS_BY_PLAN, AI_OPERATION_COST, type AiOperation, type AiPlan } from "./aiEconomics";
 import { buildJiaContext } from "./jiaContext";
+import { maybeCreateJiaUpgradeNudge } from "./jia/subscriptionNudge";
 
-export type GatewayResult = { ok:true; operation:AiOperation; credits:number; remaining:number; provider:string; aiName:typeof JIA_NAME; output:unknown } | { ok:false; status:number; message:string };
+export type GatewayResult = { ok:true; operation:AiOperation; credits:number; remaining:number; provider:string; aiName:typeof JIA_NAME; output:unknown } | { ok:false; status:number; message:string; upgradeSuggestion?: Awaited<ReturnType<typeof maybeCreateJiaUpgradeNudge>> };
 const OPS = new Set<AiOperation>(["OFFER_INTELLIGENCE","CV_INTELLIGENCE","MATCHING","APPLICATION_COPILOT","APPLICATION_STRATEGY","LEARNING","INTERVIEW","CAREER_COMPANION","NOTIFICATION"]);
 const normalize=(v:string)=>{const x=v.toUpperCase() as AiOperation; return OPS.has(x)?x:null};
 const planOf=(s:any):AiPlan=>{const p=String(s?.planCode||s?.plan||"FREE"); return (["FREE","START","PREMIUM","PRO"] as string[]).includes(p)?p as AiPlan:"FREE"};
@@ -33,7 +34,7 @@ export async function runAiGateway(req:NextRequest, raw:string, input:any={}):Pr
   const {data:reservation,error:reservationError}=await sb.rpc("reserve_ai_credit",{p_user_id:user.id,p_plan_code:plan,p_operation:op,p_cost:cost,p_request_hash:requestHash});
   if(reservationError)return {ok:false,status:500,message:reservationError.message};
   const row=Array.isArray(reservation)?reservation[0]:reservation;
-  if(!row?.allowed)return {ok:false,status:429,message:`Quota IA mensuel atteint (${Number(row?.used_credits||0)}/${quota} crédits).`};
+  if(!row?.allowed){\n    const upgradeSuggestion = await maybeCreateJiaUpgradeNudge(sb,user.id,plan,"AI_CREDITS",`La tâche demandée nécessite encore des crédits IA, mais le quota de ta formule est atteint.`,`Continuer les analyses J’IA au-delà du quota inclus`,plan === "FREE" ? "START" : plan === "START" ? "PREMIUM" : "PRO");\n    return {ok:false,status:429,message:`Quota IA mensuel atteint (${Number(row?.used_credits||0)}/${quota} crédits).`,upgradeSuggestion};\n  }
   const usageId=String(row.usage_id);
   const supabaseUrl=process.env.NEXT_PUBLIC_SUPABASE_URL; const supabaseKey=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; const authorization=req.headers.get("authorization");
   if(!supabaseUrl||!supabaseKey||!authorization)return {ok:false,status:500,message:"Runtime Supabase IA non configuré."};
