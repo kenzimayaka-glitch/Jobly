@@ -2128,3 +2128,25 @@ J’IA assiste l’administrateur. Elle peut analyser, alerter, simuler, recomma
 
 ## Prochaine brique de construction
 **CEO Intelligence Core → Admin Cockpit → Profitability Engine → Market Watch → CEO Actions → Reporting → contrôle d’accès/audit → validation E2E.**
+
+
+# CHECKPOINT 19/09/2026 — STABILISATION PRODUCTION + RLS
+
+## Production Vercel
+- Déploiement production actuel : `dpl_HxyQM398puLXHEENjA5HEA6DnpQj`.
+- Commit : `1b94ecc08b40952393f62dd1109c6c8c95fe3b3e`.
+- État Vercel : **READY**, cible **production**, alias `jobly-c0651.vercel.app`, aucune erreur d'alias.
+- La page d'accueil et `/jobs` répondent HTTP 200 en production.
+- Les API protégées testées sans session refusent correctement l'accès (ex. `/api/me` → 401).
+- Aucun cluster d'erreur runtime Vercel détecté sur les dernières 24 h.
+
+## Supabase / sécurité-performance
+- Index FK `PromoCode_createdby_idx` ajouté.
+- Optimisation des politiques RLS utilisant `auth.uid()` / `auth.role()` avec formes d'initialisation mises en cache.
+- Une seconde passe a corrigé les 7 avertissements RLS initplan restants sur AiUsage, Subscription, RecruiterGmailConnection et JiaUpgradeNudge.
+- Les seuls avertissements performance restants sont les index actuellement inutilisés et une double policy SELECT intentionnelle sur RecruiterJob ; aucun index n'est supprimé sans données de trafic suffisantes.
+- Les 16 tables RLS sans policy restent volontairement protégées pour les flux serveur/service-only ; aucune policy publique n'a été ajoutée aveuglément.
+- Deux points de configuration Supabase restent hors migration SQL : déplacement de pg_net hors du schéma public et activation de la protection contre les mots de passe compromis.
+
+## État réel
+**Production déployée et techniquement stable sur les parcours anonymes testés.** La validation E2E authentifiée Talent/Recruiter/Partner et le branchement paiement/iClan restent des validations métier distinctes et ne doivent pas être déclarés terminés sans parcours réel.
