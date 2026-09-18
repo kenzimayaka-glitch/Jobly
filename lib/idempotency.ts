@@ -12,16 +12,31 @@ export async function getIdempotentResult(request: NextRequest, endpoint: string
   if (key.length > 200) return { error: "IDEMPOTENCY_KEY_REUSED" as const };
   const hash = payloadHash(body);
   const sb = adminClient();
+  const claim = {
+    id: crypto.randomUUID(), userId, endpoint, key, payloadHash: hash,
+    statusCode: 102, response: { processing: true },
+    createdAt: new Date().toISOString(),
+  };
+  const { data: inserted, error: insertError } = await sb
+    .from("IdempotencyKey")
+    .insert(claim)
+    .select("*")
+    .maybeSingle();
+  if (!insertError && inserted) return { key, hash, existing: null };
+  if (insertError && !insertError.message.toLowerCase().includes("duplicate") && !insertError.message.toLowerCase().includes("unique"))
+    throw new Error(insertError.message);
+
   const { data, error } = await sb.from("IdempotencyKey").select("*").eq("userId", userId).eq("endpoint", endpoint).eq("key", key).maybeSingle();
   if (error) throw new Error(error.message);
-  if (!data) return { key, hash, existing: null };
+  if (!data) throw new Error("IDEMPOTENCY_CLAIM_NOT_FOUND");
   if (data.payloadHash !== hash) return { error: "IDEMPOTENCY_KEY_REUSED" as const, conflict: true };
+  if (data.statusCode === 102) return { key, hash, existing: null, processing: true as const };
   return { key, hash, existing: data };
 }
 
 export async function saveIdempotentResult(userId: string, endpoint: string, key: string, hash: string, statusCode: number, response: unknown) {
-  const { error } = await adminClient().from("IdempotencyKey").insert({
-    id: crypto.randomUUID(), userId, endpoint, key, payloadHash: hash, statusCode, response, createdAt: new Date().toISOString(),
-  });
-  if (error && !error.message.toLowerCase().includes("duplicate") && !error.message.toLowerCase().includes("unique")) throw new Error(error.message);
+  const { error } = await adminClient().from("IdempotencyKey").update({
+    statusCode, response,
+  }).eq("userId", userId).eq("endpoint", endpoint).eq("key", key);
+  if (error) throw new Error(error.message);
 }
