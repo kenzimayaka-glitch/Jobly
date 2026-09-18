@@ -497,7 +497,6 @@ Elle peut alimenter :
 - Events ;
 - Housing ;
 - Partners.
-
 À terme, une **Career Map / Jobly Nearby** peut réunir les éléments pertinents autour du Talent.
 
 ---
@@ -997,7 +996,6 @@ Le fondateur n'est pas développeur. Quand une IA a besoin d'un arbitrage pour a
 - poser **une seule question à la fois**, avec **2 à 4 options courtes, numérotées** ;
 - attendre la réponse avant de poser la question suivante ;
 - ne jamais avancer sur une zone d'incertitude sans arbitrage explicite du fondateur.
-
 ---
 
 # 30. MÉTHODE DE CONCEPTION 20/20
@@ -1498,7 +1496,6 @@ Pour accélérer la clôture du projet, les surfaces structurantes de la vision 
 - Bon Plan → accès direct Mobility / Opportunités
 
 Ces surfaces ferment les portes de navigation sans transformer une fondation en fonctionnalité backend spécialisée inexistante. Les validations BUILD/E2E finales restent obligatoires avant de déclarer le produit production-ready.
-
 **Stratégie de fin de projet :** stabiliser et valider avant d'ajouter de nouvelles briques.
 
 ## 2026-09-16 — Stabilisation finale des parcours cœur
@@ -1563,3 +1560,39 @@ La transition Recruiter → Talent Profile est désormais traitée comme une con
 Le redesign passe du prototype vidéo au **vrai signal vidéo du Talent**. Depuis `/talent/profile`, un Talent peut enregistrer une prise caméra/micro de 5–8 secondes ou importer un MP4/WebM/MOV de 25 Mo maximum. Le serveur `/api/auth/video-pitch` stocke le fichier dans le bucket Supabase `talent-pitches` et persiste `pitchVideoUrl`, `pitchVideoStoragePath`, `pitchVideoDurationMs` et `pitchVideoUpdatedAt` sur `User`. Le Match Lab Recruiter et le profil partagé consomment désormais ce vrai `pitchVideoUrl`; lorsqu'un Talent n'a pas encore de pitch, JOBLY l'indique explicitement au lieu de montrer le média de démonstration comme s'il était réel.
 
 Référence détaillée : `TRUE-VIDEO-PITCH-ENGINE-V23.md`.
+
+# J’IA — CEO DIGITAL DE JOBLY — 18/09/2026
+
+J’IA possède désormais deux missions complémentaires dans la vision Jobly : **l’intelligence de carrière pour les utilisateurs** et **le CEO digital de Jobly pour l’administrateur/fondateur**. Le second rôle est un mandat de pilotage business 360°, distinct du chatbot user-facing.
+
+## Mission CEO
+J’IA doit assister l’administrateur dans la lecture, le pilotage et l’optimisation de Jobly : **CEO Intelligence, BI, Growth, Commercial, Finance, Market Intelligence, Operations et Customer Intelligence**.
+
+Elle doit notamment surveiller les objectifs globaux de Jobly, les équipes et Partners, les KPI temps réel, l’acquisition, activation, rétention, conversion, revenus, coûts, marges, commissions, rentabilité, santé opérationnelle et signaux marché.
+
+## CEO Cockpit
+Le cockpit administrateur cible comprend :
+- situation globale et priorités ;
+- alertes ;
+- projections 7 / 30 / 90 jours ;
+- Profitability Engine ;
+- Market Watch ;
+- CEO Actions ;
+- KPI temps réel ;
+- objectifs Jobly / équipes / Partners ;
+- rapports hebdomadaires et mensuels ;
+- benchmarking et veille concurrentielle web sourcée ;
+- recommandations commerciales, marketing et B2B/Partners.
+
+Boucle de pilotage : **Observer → Comprendre → Prédire → Décider → Exécuter → Mesurer → Corriger → Apprendre.**
+
+J’IA peut analyser, alerter, simuler, recommander et préparer une exécution. Les décisions juridiquement ou financièrement engageantes restent soumises à validation humaine explicite.
+
+## Business Core confidentiel
+Le CEO Core est séparé de l’intelligence exposée aux utilisateurs Talent/Recruiter/Partner. J’IA user-facing ne doit jamais divulguer finances, marges, objectifs, prévisions, stratégie, KPI internes, concurrence, commissions ou données permettant de les déduire. Le contrôle d’accès doit être technique, par rôle/permission, et audité.
+
+## Rapports décisionnels
+Les rapports doivent rester chiffrés, traçables et honnêtes : graphiques, tendances, prédictions de rentabilité explicitement présentées comme projections, veille concurrentielle sourcée, benchmarking et recommandations avec KPI de suivi.
+
+## État d’implémentation
+Cette vision CEO est désormais une **brique officielle de Jobly**, mais le cockpit CEO complet, Profitability Engine, Market Watch et orchestration des CEO Actions ne sont pas déclarés comme déjà codés tant qu’ils ne sont pas réellement implémentés et validés. Les fondations J’IA existantes doivent être réutilisées : mémoire, événements, contexte, gateway, garde-fous et audit.
