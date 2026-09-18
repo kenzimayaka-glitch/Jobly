@@ -66,8 +66,7 @@ export default function RecruiterOnboardingPage() {
     if (sector) score += 15;
     if (website.trim()) score += 15;
     if (city.trim()) score += 15;
-    if (phone.trim()) score += 15;
-    if (email.trim()) score += 20;
+    
     
     return Math.round((score / maxScore) * 100);
   }, [companyName, sector, website, city, phone, email]);
@@ -95,7 +94,7 @@ export default function RecruiterOnboardingPage() {
       setEmail(profile.email || "");
       setPromoterName(profile.promoterName || "");
       setCompanySize(profile.companySize || "");
-      setCompleted(profile.companyName && profile.sector && profile.website && profile.phone && profile.email ? true : false);
+      setCompleted(Boolean(profile.companyName && profile.sector));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur de chargement.");
     } finally {
@@ -247,7 +246,7 @@ export default function RecruiterOnboardingPage() {
             </label>
 
             <label className="block">
-              <span className="mb-1.5 block text-xs font-extrabold text-navy">Contact / Téléphone *</span>
+              <span className="mb-1.5 block text-xs font-extrabold text-navy">Contact / Téléphone</span>
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -258,7 +257,7 @@ export default function RecruiterOnboardingPage() {
             </label>
 
             <label className="block">
-              <span className="mb-1.5 block text-xs font-extrabold text-navy">Adresse mail *</span>
+              <span className="mb-1.5 block text-xs font-extrabold text-navy">Adresse mail</span>
               <input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
