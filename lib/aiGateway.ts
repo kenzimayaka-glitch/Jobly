@@ -46,6 +46,14 @@ export async function runAiGateway(req:NextRequest, raw:string, input:any={}):Pr
   if(!providerResponse.ok||!orchestration?.ok)return {ok:false,status:502,message:String(orchestration?.message||"Runtime IA indisponible.").slice(0,300)};
   const {error:updateError}=await sb.from("AiUsage").update({provider:orchestration.provider,model:orchestration.model,latencyMs:Date.now()-started,success:true}).eq("id",usageId).eq("userId",user.id);
   if(updateError)return {ok:false,status:500,message:updateError.message};
+  const output:any=orchestration.output&&typeof orchestration.output==="object"?orchestration.output:{};
+  const confidence=output.confidence==="HIGH"||output.confidence==="MEDIUM"||output.confidence==="LOW"?output.confidence:"MEDIUM";
+  const traceBase={userId:user.id,actorRole:String(user.role),entityType:"AI_OPERATION",entityId:usageId,confidence,evidence:[{operation:op,provider:orchestration.provider,model:orchestration.model,requestHash,memorySignals:context.memory.length,eventSignals:context.behavior.eventCount}],metadata:{operation:op,credits:cost,attempts:orchestration.attempts,fallbackUsed:orchestration.fallbackUsed,latencyMs:Date.now()-started}};
+  const observation=await sb.from("JiaIntelligenceTrace").insert({...traceBase,stage:"OBSERVATION",title:`J’IA — ${op}`,content:`Exécution de l’opération ${op}.`,sourceType:"AI_GATEWAY",sourceRef:"lib/aiGateway.ts",status:"RECORDED"}).select("id").single();
+  if(!observation.error&&observation.data?.id){
+    const actions=Array.isArray(output.suggestedActions)?output.suggestedActions:[];
+    await sb.from("JiaIntelligenceTrace").insert({...traceBase,parentId:observation.data.id,stage:"RECOMMENDATION",title:`Résultat J’IA — ${op}`,content:JSON.stringify(orchestration.output).slice(0,12000),sourceType:"AI_GATEWAY",sourceRef:"lib/aiGateway.ts",status:actions.length?"PENDING_APPROVAL":"RECORDED",metadata:{...traceBase.metadata,suggestedActions:actions.slice(0,10),tracePolicy:"SUMMARY_ONLY"}});
+  }
   await sb.from("AuditLog").insert({userId:user.id,action:"AI_OPERATION",entityType:"AiUsage",metadata:{operation:op,credits:cost,provider:orchestration.provider,model:orchestration.model,attempts:orchestration.attempts,fallbackUsed:orchestration.fallbackUsed,requestHash,memorySignals:context.memory.length,eventSignals:context.behavior.eventCount,consent:context.behavior.consented}});
   return {ok:true,operation:op,credits:cost,remaining:Number(row.remaining_credits),provider:orchestration.provider,aiName:JIA_NAME,output:orchestration.output};
 }
