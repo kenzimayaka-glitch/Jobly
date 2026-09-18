@@ -82,6 +82,10 @@ export async function POST(req:NextRequest){
     const output=aiBody.output||{};
     const reply=typeof output.reply==="string"?output.reply:(typeof output.text==="string"?output.text:"J’IA n’a pas produit de réponse exploitable.");
     const metadata={provider:aiBody.provider||null,model:aiBody.model||null,confidence:output.confidence||null,sources:output.sources||[],webResearchUsed:Array.isArray(output.sources)&&output.sources.some((x:any)=>typeof x?.url==="string"&&x.url.length>0),keyPoints:output.keyPoints||[],suggestedActions:output.suggestedActions||[]};
+    const traceBase={userId:admin.user.id,actorRole:"ADMIN",conversationId,entityType:"CEO_CHAT",title:"J’IA CEO Copilot",evidence:output.sources||[],sourceType:"CEO_CHAT",sourceRef:"/api/admin/jia/chat",metadata:{provider:aiBody.provider||null,model:aiBody.model||null,webResearchUsed:metadata.webResearchUsed}};
+    const {data:observationTrace}=await admin.sb.from("JiaIntelligenceTrace").insert({...traceBase,stage:"OBSERVATION",content:message,confidence:"HIGH"}).select("id").single();
+    const {data:recommendationTrace}=await admin.sb.from("JiaIntelligenceTrace").insert({...traceBase,parentId:observationTrace?.id||null,stage:"RECOMMENDATION",content:reply,confidence:output.confidence||"LOW",status:Array.isArray(output.suggestedActions)&&output.suggestedActions.length?"PENDING_APPROVAL":"RECORDED"}).select("id").single();
+    if(observationTrace?.id)metadata.traceId=recommendationTrace?.id||observationTrace.id;
     const {data:saved,error:savedError}=await admin.sb.from("JiaCEOMessage").insert({conversationId,role:"assistant",content:reply,metadata}).select("id,role,content,metadata,createdAt").single();
     if(savedError)throw new Error(savedError.message);
     await admin.sb.from("JiaCEOConversation").update({updatedAt:new Date().toISOString()}).eq("id",conversationId).eq("adminUserId",admin.user.id);
