@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
-import { getEntitlements, getPlan, getPrice, type BillingInterval, type PlanCode } from "../../../lib/billingCatalog";
+import { getEntitlements, getPlan, getPrice, getRecruiterEntitlements, getRecruiterPlan, getRecruiterPrice, type BillingInterval, type PlanCode } from "../../../lib/billingCatalog";
 import { getIdempotentResult, saveIdempotentResult } from "../../../lib/idempotency";
 import { getProvider } from "../../../lib/paymentProviders";
 
@@ -14,8 +14,13 @@ export async function GET(request: NextRequest) {
     const sb = adminClient(); const user = await ensureUser(sb, auth);
     const { data, error } = await sb.from("Subscription").select("*").eq("userId", user.id).order("createdAt", { ascending: false }).limit(1).maybeSingle();
     if (error) throw new Error(error.message);
-    const plan = getPlan(data?.planCode || "FREE") || getPlan("FREE")!;
-    return NextResponse.json({ subscription: data || { planCode: "FREE", status: "ACTIVE", productType: "TALENT" }, entitlements: getEntitlements(plan.code), prices: { monthly: plan.monthlyPriceXaf, annual: plan.annualPriceXaf, currency: "XAF" } });
+    const productType = data?.productType === "RECRUITER" ? "RECRUITER" : "TALENT";
+    const plan = productType === "RECRUITER" ? getRecruiterPlan(data?.planCode || "FREE") || getRecruiterPlan("FREE")! : getPlan(data?.planCode || "FREE") || getPlan("FREE")!;
+    const entitlements = productType === "RECRUITER" ? getRecruiterEntitlements(plan.code) : getEntitlements(plan.code);
+    const prices = productType === "RECRUITER"
+      ? { monthly: plan.monthlyPriceXaf, annual: plan.annualPriceXaf, currency: "XAF" }
+      : { monthly: plan.monthlyPriceXaf, annual: plan.annualPriceXaf, currency: "XAF" };
+    return NextResponse.json({ subscription: data || { planCode: "FREE", status: "ACTIVE", productType: "TALENT" }, entitlements, prices });
   } catch (e) { return jsonError(e instanceof Error ? e.message : "Abonnement indisponible.", 500); }
 }
 
@@ -28,7 +33,7 @@ export async function POST(request: NextRequest) {
     const interval = String(body.interval || "").toUpperCase() as BillingInterval;
     const providerName = String(body.provider || "MOCK").toUpperCase();
     const productType = String(body.productType || "TALENT").toUpperCase();
-    const plan = getPlan(planCode);
+    const plan = productType === "RECRUITER" ? getRecruiterPlan(planCode) : getPlan(planCode);
     if (!plan || planCode === "FREE" || !PAID_PLANS.has(planCode)) return jsonError("Plan payant invalide.", 400, "INVALID_PLAN");
     if (!["MONTHLY", "ANNUAL"].includes(interval)) return jsonError("Intervalle invalide.", 400, "INVALID_INTERVAL");
     if (!["MOCK", "ICLAN"].includes(providerName)) return jsonError("Provider indisponible.", 400, "PROVIDER_UNAVAILABLE");
@@ -38,29 +43,11 @@ export async function POST(request: NextRequest) {
     if ("error" in idem) return jsonError("Clé d'idempotence manquante ou réutilisée avec un payload différent.", ("conflict" in idem && idem.conflict) ? 409 : 400, idem.error);
     if (idem.existing) return NextResponse.json(idem.existing.response, { status: idem.existing.statusCode });
 
-    // One active/pending subscription per user and product. A second purchase
-    // would otherwise create overlapping billing periods and ambiguous entitlements.
-    const { data: existingSubscription, error: existingError } = await sb
-      .from("Subscription")
-      .select("id,status,planCode,billingInterval")
-      .eq("userId", user.id)
-      .eq("productType", productType)
-      .in("status", ["ACTIVE", "PENDING"])
-      .order("createdAt", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data: existingSubscription, error: existingError } = await sb.from("Subscription").select("id,status,planCode,billingInterval").eq("userId", user.id).eq("productType", productType).in("status", ["ACTIVE", "PENDING"]).order("createdAt", { ascending: false }).limit(1).maybeSingle();
     if (existingError) throw new Error(existingError.message);
-    if (existingSubscription) {
-      return jsonError(
-        existingSubscription.status === "ACTIVE"
-          ? "Un abonnement actif existe déjà pour ce produit. Annulez-le avant de souscrire à un autre plan."
-          : "Un paiement d'abonnement est déjà en cours pour ce produit.",
-        409,
-        existingSubscription.status === "ACTIVE" ? "ACTIVE_SUBSCRIPTION_EXISTS" : "PENDING_SUBSCRIPTION_EXISTS"
-      );
-    }
+    if (existingSubscription) return jsonError(existingSubscription.status === "ACTIVE" ? "Un abonnement actif existe déjà pour ce produit. Annulez-le avant de souscrire à un autre plan." : "Un paiement d'abonnement est déjà en cours pour ce produit.", 409, existingSubscription.status === "ACTIVE" ? "ACTIVE_SUBSCRIPTION_EXISTS" : "PENDING_SUBSCRIPTION_EXISTS");
 
-    const amount = getPrice(planCode, interval);
+    const amount = productType === "RECRUITER" ? getRecruiterPrice(planCode, interval) : getPrice(planCode, interval);
     const now = new Date().toISOString();
     const subscriptionId = crypto.randomUUID();
     const paymentId = crypto.randomUUID();
@@ -74,13 +61,10 @@ export async function POST(request: NextRequest) {
     const provider = getProvider(providerName);
     try {
       const intent = await provider.createPayment({ paymentId, amount, currency: "XAF", phone: body.phone || auth.phone, paymentMethod: body.paymentMethod });
-      const { data: pendingPayment, error: pendingError } = await sb.from("Payment").update({
-        status: "PENDING",
-        externalId: intent.checkoutReference,
-        updatedAt: new Date().toISOString(),
-      }).eq("id", paymentId).eq("status", "CREATED").select("*").single();
+      const { data: pendingPayment, error: pendingError } = await sb.from("Payment").update({ status: "PENDING", externalId: intent.checkoutReference, updatedAt: new Date().toISOString() }).eq("id", paymentId).eq("status", "CREATED").select("*").single();
       if (pendingError) throw new Error(pendingError.message);
-      const response = { subscription: { ...subscription, status: "PENDING" }, payment: { ...pendingPayment, checkoutReference: intent.checkoutReference }, provider: intent.provider, instructions: intent.instructions, entitlements: getEntitlements(planCode) };
+      const entitlements = productType === "RECRUITER" ? getRecruiterEntitlements(planCode) : getEntitlements(planCode);
+      const response = { subscription: { ...subscription, status: "PENDING" }, payment: { ...pendingPayment, checkoutReference: intent.checkoutReference }, provider: intent.provider, instructions: intent.instructions, entitlements };
       await saveIdempotentResult(user.id, "/api/subscription", idem.key, idem.hash, 201, response);
       return NextResponse.json(response, { status: 201 });
     } catch (providerError) {
@@ -96,7 +80,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const auth = await getAuthUser(request); if (!auth) return jsonError("Session requise.", 401, "UNAUTHENTICATED");
     const sb = adminClient(); const user = await ensureUser(sb, auth);
-    const { data: sub, error } = await sb.from("Subscription").select("id,status").eq("userId", user.id).order("createdAt", { ascending: false }).limit(1).maybeSingle();
+    const { data: sub, error } = await sb.from("Subscription").select("id,status,productType").eq("userId", user.id).order("createdAt", { ascending: false }).limit(1).maybeSingle();
     if (error) throw new Error(error.message); if (!sub) return jsonError("Abonnement introuvable.", 404, "SUBSCRIPTION_NOT_FOUND");
     if (sub.status === "CANCELED") return NextResponse.json({ subscription: sub, idempotent: true });
     const { data: updated, error: updateError } = await sb.from("Subscription").update({ status: "CANCELED", canceledAt: new Date().toISOString(), updatedAt: new Date().toISOString() }).eq("id", sub.id).select("*").single();
