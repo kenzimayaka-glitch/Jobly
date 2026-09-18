@@ -27,10 +27,12 @@ export async function POST(request: NextRequest) {
     const planCode = String(body.plan || "").toUpperCase() as PlanCode;
     const interval = String(body.interval || "").toUpperCase() as BillingInterval;
     const providerName = String(body.provider || "MOCK").toUpperCase();
+    const productType = String(body.productType || "TALENT").toUpperCase();
     const plan = getPlan(planCode);
     if (!plan || planCode === "FREE" || !PAID_PLANS.has(planCode)) return jsonError("Plan payant invalide.", 400, "INVALID_PLAN");
     if (!["MONTHLY", "ANNUAL"].includes(interval)) return jsonError("Intervalle invalide.", 400, "INVALID_INTERVAL");
     if (!["MOCK", "ICLAN"].includes(providerName)) return jsonError("Provider indisponible.", 400, "PROVIDER_UNAVAILABLE");
+    if (!["TALENT", "RECRUITER"].includes(productType)) return jsonError("Type de produit invalide.", 400, "INVALID_PRODUCT_TYPE");
     const sb = adminClient(); const user = await ensureUser(sb, auth);
     const idem = await getIdempotentResult(request, "/api/subscription", user.id, body);
     if ("error" in idem) return jsonError("Clé d'idempotence manquante ou réutilisée avec un payload différent.", ("conflict" in idem && idem.conflict) ? 409 : 400, idem.error);
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
     const subscriptionId = crypto.randomUUID();
     const paymentId = crypto.randomUUID();
-    const { data: subscription, error: subError } = await sb.from("Subscription").insert({ id: subscriptionId, userId: user.id, planCode, status: "PENDING", billingInterval: interval, priceAmount: amount, priceCurrency: "XAF", provider: providerName, createdAt: now, updatedAt: now }).select("*").single();
+    const { data: subscription, error: subError } = await sb.from("Subscription").insert({ id: subscriptionId, userId: user.id, planCode, productType, status: "PENDING", billingInterval: interval, priceAmount: amount, priceCurrency: "XAF", provider: providerName, createdAt: now, updatedAt: now }).select("*").single();
     if (subError) throw new Error(subError.message);
     const { data: payment, error: paymentError } = await sb.from("Payment").insert({ id: paymentId, userId: user.id, subscriptionId, provider: providerName, amount, currency: "XAF", status: "CREATED", idempotencyKey: idem.key, createdAt: now, updatedAt: now }).select("*").single();
     if (paymentError) throw new Error(paymentError.message);
