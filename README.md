@@ -1578,3 +1578,14 @@ Séquence validée : cœur candidatures → paiements/abonnements/entitlements/c
 Campus cible d'abord les étudiants et matérialise la philosophie « La carrière professionnelle commence avant le premier job. ». Il couvre les premières expériences, revenus, compétences, réseau, orientation, programmes partenaires et la passerelle Campus → preuves → Career Twin → Talent.
 
 Le code, la base, les tests E2E et le déploiement sont suivis séparément : une route existante n'est jamais considérée comme une validation.
+
+
+## CHECKPOINT DE VALIDATION — 18/09/2026 — CYCLE FINAL EN COURS
+
+- Branche de conformité : `alignment/20260918-full-compliance`.
+- Correctif Supabase appliqué et vérifié : contrainte unique partielle `Subscription(userId, productType)` pour les statuts `ACTIVE/PENDING`, afin de bloquer les abonnements concurrents.
+- Correctif paiement : `/api/payments/[id]/verify` sélectionne désormais explicitement `Subscription.status` avant contrôle des transitions.
+- Un build Vercel précédent avait échoué sur ce dernier point ; le correctif a été commité et le **build final reste à revalider**.
+- **Aucune promotion production n'est déclarée à ce stade.**
+- Les deux dernières validations fonctionnelles (paiement → abonnement → entitlements/quota/idempotence, puis applications) restent ouvertes jusqu'à obtention d'un build final réussi et de tests vérifiables.
+- Règle active : ne jamais transformer un correctif codé en validation tant que le déploiement et le test cible ne sont pas confirmés.
