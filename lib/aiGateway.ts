@@ -34,7 +34,10 @@ export async function runAiGateway(req:NextRequest, raw:string, input:any={}):Pr
   const {data:reservation,error:reservationError}=await sb.rpc("reserve_ai_credit",{p_user_id:user.id,p_plan_code:plan,p_operation:op,p_cost:cost,p_request_hash:requestHash});
   if(reservationError)return {ok:false,status:500,message:reservationError.message};
   const row=Array.isArray(reservation)?reservation[0]:reservation;
-  if(!row?.allowed){\n    const upgradeSuggestion = await maybeCreateJiaUpgradeNudge(sb,user.id,plan,"AI_CREDITS",`La tâche demandée nécessite encore des crédits IA, mais le quota de ta formule est atteint.`,`Continuer les analyses J’IA au-delà du quota inclus`,plan === "FREE" ? "START" : plan === "START" ? "PREMIUM" : "PRO");\n    return {ok:false,status:429,message:`Quota IA mensuel atteint (${Number(row?.used_credits||0)}/${quota} crédits).`,upgradeSuggestion};\n  }
+  if(!row?.allowed){
+    const upgradeSuggestion = await maybeCreateJiaUpgradeNudge(sb,user.id,plan,"AI_CREDITS",`La tâche demandée nécessite encore des crédits IA, mais le quota de ta formule est atteint.`,`Continuer les analyses J’IA au-delà du quota inclus`,plan === "FREE" ? "START" : plan === "START" ? "PREMIUM" : "PRO");
+    return {ok:false,status:429,message:`Quota IA mensuel atteint (${Number(row?.used_credits||0)}/${quota} crédits).`,upgradeSuggestion};
+  }
   const usageId=String(row.usage_id);
   const supabaseUrl=process.env.NEXT_PUBLIC_SUPABASE_URL; const supabaseKey=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; const authorization=req.headers.get("authorization");
   if(!supabaseUrl||!supabaseKey||!authorization)return {ok:false,status:500,message:"Runtime Supabase IA non configuré."};
