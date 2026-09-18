@@ -11,7 +11,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     if (error || !share || share.revokedAt || (share.expiresAt && new Date(share.expiresAt).getTime() < Date.now())) return NextResponse.json({ message: "Ce partage CV n'est plus disponible." }, { status: 404 });
 
     const [userRes, profileRes, expRes, skillRes, eduRes] = await Promise.all([
-      supabase.from("User").select("id,displayName,firstName,lastName,profilePhotoUrl,email,phone,englishLevel,licences").eq("id", share.userId).single(),
+      supabase.from("User").select("id,displayName,firstName,lastName,profilePhotoUrl,englishLevel,licences").eq("id", share.userId).single(),
       supabase.from("Profile").select("*").eq("userId", share.userId).maybeSingle(),
       supabase.from("Experience").select("*").eq("userId", share.userId).order("startDate", { ascending: false }),
       supabase.from("Skill").select("*").eq("userId", share.userId).order("name"),
@@ -22,7 +22,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
     return NextResponse.json({
       share: { token, jobTitle: share.jobTitleSnapshot, companyName: share.companyNameSnapshot },
-      user: userRes.data, profile: profileRes.data,
+      user: userRes.data, profile: profileRes.data ? { firstName: profileRes.data.firstName, lastName: profileRes.data.lastName, headline: profileRes.data.headline, summary: profileRes.data.summary, location: profileRes.data.location, targetRoles: profileRes.data.targetRoles, preferredSectors: profileRes.data.preferredSectors, targetCities: profileRes.data.targetCities, contractPreferences: profileRes.data.contractPreferences, remotePreference: profileRes.data.remotePreference } : null,
       experiences: expRes.data || [], skills: skillRes.data || [], education: eduRes.data || [],
     });
   } catch (error) {
