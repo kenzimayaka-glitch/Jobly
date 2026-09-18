@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {adminClient,ensureUser,getAuthUser} from "@/lib/server-auth";
+import {buildCEOIntelligence} from "@/lib/ceoIntelligence";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -51,6 +52,7 @@ export async function POST(req:NextRequest){
     const {data:history,error:historyError}=await admin.sb.from("JiaCEOMessage").select("role,content,createdAt").eq("conversationId",conversationId).order("createdAt",{ascending:false}).limit(20);
     if(historyError)throw new Error(historyError.message);
     const {data:knowledge,error:knowledgeError}=await admin.sb.from("JiaEnterpriseMemory").select("domain,title,content,source_ref").eq("active",true).order("domain",{ascending:true}).limit(100);
+    const ceoSnapshot=await buildCEOIntelligence(admin.sb);
     if(knowledgeError)throw new Error(knowledgeError.message);
 
     const {error:insertUserError}=await admin.sb.from("JiaCEOMessage").insert({conversationId,role:"user",content:message});
@@ -69,7 +71,8 @@ export async function POST(req:NextRequest){
         context:{
           enterpriseKnowledge:knowledge||[],
           conversationHistory:(history||[]).reverse(),
-          adminRole:"ADMIN"
+          adminRole:"ADMIN",
+          ceoSnapshot
         }
       }),
       signal:AbortSignal.timeout(45000)
