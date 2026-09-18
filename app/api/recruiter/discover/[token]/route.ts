@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminClient } from "@/lib/server-auth";
 import { calculateExplainableMatch } from "@/lib/opportunityAggregator";
 
+function years(rows:any[]){const starts=rows.map(x=>new Date(x.startDate).getTime()).filter(Number.isFinite);if(!starts.length)return 0;return Math.max(0,Math.floor((Date.now()-Math.min(...starts))/(1000*60*60*24*365)));}
+
 export async function GET(_request:NextRequest,{params}:{params:Promise<{token:string}>}) {
  try{
   const {token}=await params;const db=adminClient();
