@@ -60,7 +60,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
   const safeName = name.replace(/[^a-zA-Z0-9]+/g,"_");
   const safeCompany = share.companyNameSnapshot ? "_Candidature_" + String(share.companyNameSnapshot).replace(/[^a-zA-Z0-9]+/g,"_") : "";
-  return new NextResponse(pdf,{status:200,headers:{
+  return new NextResponse(new Uint8Array(pdf),{status:200,headers:{
     "Content-Type":"application/pdf",
     "Content-Disposition":'attachment; filename="CV_' + safeName + safeCompany + '.pdf"',
     "Cache-Control":"no-store"
