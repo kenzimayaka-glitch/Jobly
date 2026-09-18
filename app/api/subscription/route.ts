@@ -37,6 +37,29 @@ export async function POST(request: NextRequest) {
     const idem = await getIdempotentResult(request, "/api/subscription", user.id, body);
     if ("error" in idem) return jsonError("Clé d'idempotence manquante ou réutilisée avec un payload différent.", ("conflict" in idem && idem.conflict) ? 409 : 400, idem.error);
     if (idem.existing) return NextResponse.json(idem.existing.response, { status: idem.existing.statusCode });
+
+    // One active/pending subscription per user and product. A second purchase
+    // would otherwise create overlapping billing periods and ambiguous entitlements.
+    const { data: existingSubscription, error: existingError } = await sb
+      .from("Subscription")
+      .select("id,status,planCode,billingInterval")
+      .eq("userId", user.id)
+      .eq("productType", productType)
+      .in("status", ["ACTIVE", "PENDING"])
+      .order("createdAt", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existingError) throw new Error(existingError.message);
+    if (existingSubscription) {
+      return jsonError(
+        existingSubscription.status === "ACTIVE"
+          ? "Un abonnement actif existe déjà pour ce produit. Annulez-le avant de souscrire à un autre plan."
+          : "Un paiement d'abonnement est déjà en cours pour ce produit.",
+        409,
+        existingSubscription.status === "ACTIVE" ? "ACTIVE_SUBSCRIPTION_EXISTS" : "PENDING_SUBSCRIPTION_EXISTS"
+      );
+    }
+
     const amount = getPrice(planCode, interval);
     const now = new Date().toISOString();
     const subscriptionId = crypto.randomUUID();
@@ -44,7 +67,10 @@ export async function POST(request: NextRequest) {
     const { data: subscription, error: subError } = await sb.from("Subscription").insert({ id: subscriptionId, userId: user.id, planCode, productType, status: "PENDING", billingInterval: interval, priceAmount: amount, priceCurrency: "XAF", provider: providerName, createdAt: now, updatedAt: now }).select("*").single();
     if (subError) throw new Error(subError.message);
     const { data: payment, error: paymentError } = await sb.from("Payment").insert({ id: paymentId, userId: user.id, subscriptionId, provider: providerName, amount, currency: "XAF", status: "CREATED", idempotencyKey: idem.key, createdAt: now, updatedAt: now }).select("*").single();
-    if (paymentError) throw new Error(paymentError.message);
+    if (paymentError) {
+      await sb.from("Subscription").update({ status: "EXPIRED", updatedAt: new Date().toISOString() }).eq("id", subscriptionId).eq("status", "PENDING");
+      throw new Error(paymentError.message);
+    }
     const provider = getProvider(providerName);
     try {
       const intent = await provider.createPayment({ paymentId, amount, currency: "XAF", phone: body.phone || auth.phone, paymentMethod: body.paymentMethod });
@@ -54,7 +80,7 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date().toISOString(),
       }).eq("id", paymentId).eq("status", "CREATED").select("*").single();
       if (pendingError) throw new Error(pendingError.message);
-      const response = { subscription, payment: { ...pendingPayment, checkoutReference: intent.checkoutReference }, provider: intent.provider, instructions: intent.instructions, entitlements: getEntitlements(planCode) };
+      const response = { subscription: { ...subscription, status: "PENDING" }, payment: { ...pendingPayment, checkoutReference: intent.checkoutReference }, provider: intent.provider, instructions: intent.instructions, entitlements: getEntitlements(planCode) };
       await saveIdempotentResult(user.id, "/api/subscription", idem.key, idem.hash, 201, response);
       return NextResponse.json(response, { status: 201 });
     } catch (providerError) {
