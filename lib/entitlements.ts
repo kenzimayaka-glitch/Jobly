@@ -17,7 +17,9 @@ export async function checkWeeklyApplicationQuota(supabase: any, userId: string)
   if (isTestUnlimited()) return { allowed: true, used: 0, limit: Infinity, unlimited: true };
   const plan = await getActivePlanCode(supabase, userId, "TALENT"); const entitlements = getEntitlements(plan); const limit = entitlements.applicationsPerWeek;
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { count } = await supabase.from("Application").select("id", { count: "exact", head: true }).eq("userId", userId).neq("status", "DISCOVERED").gte("submittedAt", since);
+  // A candidature consumes quota when JOBLY creates the application record (USER_REVIEW),
+  // not only after a proof/submission timestamp is added. This prevents unlimited prepared applications.
+  const { count } = await supabase.from("Application").select("id", { count: "exact", head: true }).eq("userId", userId).neq("status", "DISCOVERED").gte("createdAt", since);
   const used = count || 0;
   if (used >= limit) { const nextPlan = plan === "FREE" ? "START" : plan === "START" ? "PREMIUM" : plan === "PREMIUM" ? "PRO" : null; return { allowed: false, used, limit, unlimited: false, message: nextPlan ? `Votre quota hebdomadaire est atteint (${used}/${limit} candidatures). Passez à ${getPlan(nextPlan)?.name} pour augmenter votre quota.` : `Votre quota hebdomadaire est atteint (${used}/${limit} candidatures). Il sera renouvelé dans 7 jours.` }; }
   return { allowed: true, used, limit, unlimited: false };
