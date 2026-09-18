@@ -4,6 +4,7 @@ import {buildCEOIntelligence} from "@/lib/ceoIntelligence";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
+// Production build checkpoint: CEO Copilot route is validated through CI before deployment.
 
 async function getAdmin(req:NextRequest){
   const auth=await getAuthUser(req);
