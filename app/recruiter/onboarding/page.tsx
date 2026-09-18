@@ -264,6 +264,7 @@ export default function RecruiterOnboardingPage() {
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-navy outline-none focus:border-jobly-blue"
                 placeholder="contact@techsolutions.cm"
                 type="email"
+                readOnly
               />
             </label>
 
