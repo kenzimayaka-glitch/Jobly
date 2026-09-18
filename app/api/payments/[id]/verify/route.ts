@@ -78,7 +78,9 @@ export async function POST(
           if (sub.billingInterval === "ANNUAL") end.setUTCFullYear(end.getUTCFullYear() + 1);
           else end.setUTCMonth(end.getUTCMonth() + 1);
 
-          if (sub.status !== "ACTIVE") {
+          const subscriptionStatus = String((sub as { status?: unknown }).status ?? "");
+
+          if (subscriptionStatus !== "ACTIVE") {
             const { error: subscriptionError } = await sb
               .from("Subscription")
               .update({
