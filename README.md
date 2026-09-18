@@ -1563,3 +1563,18 @@ La transition Recruiter → Talent Profile est désormais traitée comme une con
 Le redesign passe du prototype vidéo au **vrai signal vidéo du Talent**. Depuis `/talent/profile`, un Talent peut enregistrer une prise caméra/micro de 5–8 secondes ou importer un MP4/WebM/MOV de 25 Mo maximum. Le serveur `/api/auth/video-pitch` stocke le fichier dans le bucket Supabase `talent-pitches` et persiste `pitchVideoUrl`, `pitchVideoStoragePath`, `pitchVideoDurationMs` et `pitchVideoUpdatedAt` sur `User`. Le Match Lab Recruiter et le profil partagé consomment désormais ce vrai `pitchVideoUrl`; lorsqu'un Talent n'a pas encore de pitch, JOBLY l'indique explicitement au lieu de montrer le média de démonstration comme s'il était réel.
 
 Référence détaillée : `TRUE-VIDEO-PITCH-ENGINE-V23.md`.
+
+
+---
+
+# ALIGNMENT CHECKPOINT — 18/09/2026
+
+La reprise du projet suit désormais une règle stricte : aucune décision validée ne doit être réduite ou perdue lors d'une fusion de branches.
+
+Voir \`ALIGNMENT-CHECKPOINT-20260918.md\` pour la référence détaillée.
+
+Séquence validée : cœur candidatures → paiements/abonnements/entitlements/commissions → Go Live contrôlé → Bons Plans (Campus/Community/Mobility/Events) → J’IA transversal/CEO/BI/profitabilité/confidentialité → intégration 360° → design final.
+
+Campus cible d'abord les étudiants et matérialise la philosophie « La carrière professionnelle commence avant le premier job. ». Il couvre les premières expériences, revenus, compétences, réseau, orientation, programmes partenaires et la passerelle Campus → preuves → Career Twin → Talent.
+
+Le code, la base, les tests E2E et le déploiement sont suivis séparément : une route existante n'est jamais considérée comme une validation.
