@@ -53,7 +53,7 @@ export async function POST(req:NextRequest){
     if(historyError)throw new Error(historyError.message);
     const {data:allKnowledge,error:knowledgeError}=await admin.sb.from("JiaEnterpriseMemory").select("domain,title,content,source_ref,sensitivity").eq("active",true).order("updatedAt",{ascending:false}).limit(200);
     if(knowledgeError)throw new Error(knowledgeError.message);
-    const terms=message.toLowerCase().split(/\\W+/).filter((x:string)=>x.length>3).slice(0,20);
+    const terms=message.toLowerCase().split(/\W+/).filter((x:string)=>x.length>3).slice(0,20);
     const knowledge=(allKnowledge||[]).map((x:any)=>{const hay=(String(x.title||"")+" "+String(x.domain||"")+" "+String(x.content||"")).toLowerCase();const score=terms.reduce((n:number,t:string)=>n+(hay.includes(t)?1:0),0);return {...x,_score:score};}).filter((x:any)=>x._score>0).sort((a:any,b:any)=>b._score-a._score).slice(0,30).map(({_score,...x}:any)=>x);
     const ceoSnapshot=await buildCEOIntelligence(admin.sb);
     const {error:insertUserError}=await admin.sb.from("JiaCEOMessage").insert({conversationId,role:"user",content:message});
@@ -82,7 +82,7 @@ export async function POST(req:NextRequest){
     if(!aiResponse.ok)throw new Error(aiBody.message||"J’IA est momentanément indisponible.");
     const output=aiBody.output||{};
     const reply=typeof output.reply==="string"?output.reply:(typeof output.text==="string"?output.text:"J’IA n’a pas produit de réponse exploitable.");
-    const metadata={provider:aiBody.provider||null,model:aiBody.model||null,confidence:output.confidence||null,sources:output.sources||[],webResearchUsed:Array.isArray(output.sources)&&output.sources.some((x:any)=>typeof x?.url==="string"&&x.url.length>0),keyPoints:output.keyPoints||[],suggestedActions:output.suggestedActions||[]};
+    const metadata:Record<string,any>={provider:aiBody.provider||null,model:aiBody.model||null,confidence:output.confidence||null,sources:output.sources||[],webResearchUsed:Array.isArray(output.sources)&&output.sources.some((x:any)=>typeof x?.url==="string"&&x.url.length>0),keyPoints:output.keyPoints||[],suggestedActions:output.suggestedActions||[]};
     const traceBase={userId:admin.user.id,actorRole:"ADMIN",conversationId,entityType:"CEO_CHAT",title:"J’IA CEO Copilot",evidence:output.sources||[],sourceType:"CEO_CHAT",sourceRef:"/api/admin/jia/chat",metadata:{provider:aiBody.provider||null,model:aiBody.model||null,webResearchUsed:metadata.webResearchUsed}};
     const {data:observationTrace}=await admin.sb.from("JiaIntelligenceTrace").insert({...traceBase,stage:"OBSERVATION",content:message,confidence:"HIGH"}).select("id").single();
     const {data:recommendationTrace}=await admin.sb.from("JiaIntelligenceTrace").insert({...traceBase,parentId:observationTrace?.id||null,stage:"RECOMMENDATION",content:reply,confidence:output.confidence||"LOW",status:Array.isArray(output.suggestedActions)&&output.suggestedActions.length?"PENDING_APPROVAL":"RECORDED"}).select("id").single();
