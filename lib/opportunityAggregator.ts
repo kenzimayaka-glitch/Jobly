@@ -43,13 +43,42 @@ function overlapScore(needles: string[], haystack: string): number {
 }
 
 function experienceYears(experiences: Experience[]): number {
-  const starts = experiences.map((x) => x.startDate ? new Date(x.startDate).getTime() : NaN).filter(Number.isFinite);
-  if (!starts.length) return 0;
-  return Math.max(0, Math.floor((Date.now() - Math.min(...starts)) / (365.25 * 24 * 60 * 60 * 1000)));
+  const now = Date.now();
+  const intervals = experiences
+    .map((x) => {
+      const start = x.startDate ? new Date(x.startDate).getTime() : NaN;
+      if (!Number.isFinite(start)) return null;
+      const rawEnd = x.endDate ? new Date(x.endDate).getTime() : now;
+      const end = Number.isFinite(rawEnd) ? Math.min(rawEnd, now) : now;
+      return { start, end: Math.max(start, end) };
+    })
+    .filter((x): x is { start: number; end: number } => Boolean(x))
+    .sort((a, b) => a.start - b.start);
+  if (!intervals.length) return 0;
+  let total = 0;
+  let currentStart = intervals[0].start;
+  let currentEnd = intervals[0].end;
+  for (const interval of intervals.slice(1)) {
+    if (interval.start <= currentEnd) {
+      currentEnd = Math.max(currentEnd, interval.end);
+    } else {
+      total += currentEnd - currentStart;
+      currentStart = interval.start;
+      currentEnd = interval.end;
+    }
+  }
+  total += currentEnd - currentStart;
+  return Math.max(0, Math.floor(total / (365.25 * 24 * 60 * 60 * 1000)));
 }
 
-function achievementEvidence(experiences: Experience[]): number {
-  const text = experiences.map((x) => String(x.description ?? "")).join(" ");
+function achievementEvidence(experiences: Experience[], corpus: string): number {
+  const relevant = experiences.filter((x) => {
+    const text = String(x.title ?? "") + " " + String(x.description ?? "");
+    const tokens = tokenize(text);
+    return tokens.length && overlapScore(tokens, corpus) >= 20;
+  });
+  const pool = relevant.length ? relevant : experiences;
+  const text = pool.map((x) => String(x.description ?? "")).join(" ");
   if (!text.trim()) return 45;
   const quantified = /\b\d+(?:[.,]\d+)?\s*(?:%|x|k|m|b|xaf|fcfa|€|\$)|\b(?:million|milliard|millions|milliards)\b/i.test(text);
   const impact = /\b(?:augmented|increase|increased|growth|croissance|reduced|réduit|managed|géré|generated|généré|revenue|chiffre d'affaires|target|objectif|portfolio|clients|merchants|recruited|recruté|delivered|livré|achieved|atteint)\b/i.test(text);
@@ -73,9 +102,9 @@ function matchProfileToOpportunity(
   const years = experienceYears(experiences);
   const min = Number(job.minExperienceYears ?? 0);
   const expScore = min <= 0 ? (experiences.length ? 75 : 50) : Math.min(100, Math.round((years / min) * 100));
-  const educationTerms = education.flatMap((e) => [e.degree, e.field, e.institution].filter(Boolean) as string[]);
+  const educationTerms = education.flatMap((e) => [e.degree, e.field].filter(Boolean) as string[]);
   const educationScore = educationTerms.length ? overlapScore(educationTerms, corpus) : 50;
-  const achievementScore = achievementEvidence(experiences);
+  const achievementScore = achievementEvidence(experiences, corpus);
   const targetCities = profile.targetCities.map(normalize).filter(Boolean);
   const location = normalize(job.location);
   const cityScore = targetCities.length ? (targetCities.some((c) => location.includes(c)) ? 100 : 40) : 60;
