@@ -205,7 +205,7 @@ function AiOutputView({ output }: { output: unknown }) {
 
 type Operation = "INTERVIEW" | "LEARNING" | "APPLICATION_COPILOT" | "CAREER_COMPANION";
 
-type Exchange = { you: string; result?: any; error?: string; quotaExceeded?: boolean };
+type UpgradeSuggestion = { shown: true; featureKey: string; benefit: string; targetPlan: string; reason: string; href: string };\ntype Exchange = { you: string; result?: any; error?: string; quotaExceeded?: boolean; upgradeSuggestion?: UpgradeSuggestion | null };
 
 function InputForm({
   operation,
@@ -333,7 +333,7 @@ export default function AiCareerAgent({
       });
       const b = await r.json();
       if (!r.ok) {
-        setExchanges((prev) => [...prev, { you: summary, error: b.message || "Service IA indisponible.", quotaExceeded: r.status === 429 }]);
+        setExchanges((prev) => [...prev, { you: summary, error: b.message || "Service IA indisponible.", quotaExceeded: r.status === 429, upgradeSuggestion: b.upgradeSuggestion || null }]);
         return;
       }
       setCredits({ provider: b.provider, credits: b.credits, remaining: b.remaining });
@@ -365,10 +365,27 @@ export default function AiCareerAgent({
                     {ex.error ? (
                       <div className="rounded-2xl rounded-tl-sm bg-red-50 p-4 text-sm font-bold text-red-600">
                         {ex.error}
-                        {ex.quotaExceeded && (
-                          <Link href="/abonnement" className="mt-3 block w-full rounded-2xl bg-jobly-blue px-4 py-3 text-center text-sm font-black text-white">
-                            Voir les abonnements
-                          </Link>
+                        {ex.upgradeSuggestion && (
+                          <div className="mt-3 rounded-2xl border border-blue-100 bg-white p-4 text-slate-700 shadow-sm">
+                            <p className="text-sm font-extrabold text-navy">J’IA peut aller plus loin ici.</p>
+                            <p className="mt-1 text-xs font-medium text-slate-500">{ex.upgradeSuggestion.benefit} avec la formule {ex.upgradeSuggestion.targetPlan}.</p>
+                            <div className="mt-3 flex items-center gap-2">
+                              <Link
+                                href={ex.upgradeSuggestion.href}
+                                onClick={() => { void fetch("/api/jia/subscription-nudge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ featureKey: ex.upgradeSuggestion?.featureKey, action: "CLICKED", planCode: ex.upgradeSuggestion?.targetPlan }) }); }}
+                                className="rounded-xl bg-jobly-blue px-4 py-2 text-xs font-black text-white"
+                              >
+                                Voir ce que permet cette formule
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => { void fetch("/api/jia/subscription-nudge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ featureKey: ex.upgradeSuggestion?.featureKey, action: "DISMISSED", planCode: ex.upgradeSuggestion?.targetPlan }) }); setExchanges((prev) => prev.map((item, idx) => idx === i ? { ...item, upgradeSuggestion: null } : item)); }}
+                                className="px-2 py-2 text-xs font-bold text-slate-400"
+                              >
+                                Pas maintenant
+                              </button>
+                            </div>
+                          </div>
                         )}
                       </div>
                     ) : (
