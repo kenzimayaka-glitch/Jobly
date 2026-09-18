@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient } from "../../../../lib/server-auth";
 import { getProvider } from "../../../../lib/paymentProviders";
+import { generateDistributorAcquisitionCommission } from "../../../../lib/distributor-commission";
 
 const allowed = new Set(["CREATED", "PENDING", "SUCCESSFUL", "FAILED", "REFUNDED"]);
 const transitions: Record<string, Set<string>> = {
@@ -66,7 +67,9 @@ export async function POST(request: NextRequest) {
         const end = new Date(now);
         if (sub.billingInterval === "ANNUAL") end.setUTCFullYear(end.getUTCFullYear() + 1);
         else end.setUTCMonth(end.getUTCMonth() + 1);
-        await sb.from("Subscription").update({ status: "ACTIVE", currentPeriodStart: now.toISOString(), currentPeriodEnd: end.toISOString(), updatedAt: now.toISOString() }).eq("id", sub.id);
+        const { data: activatedSub, error: activationError } = await sb.from("Subscription").update({ status: "ACTIVE", currentPeriodStart: now.toISOString(), currentPeriodEnd: end.toISOString(), updatedAt: now.toISOString() }).eq("id", sub.id).select("*").single();
+        if (activationError) throw new Error(activationError.message);
+        if (activatedSub) await generateDistributorAcquisitionCommission(sb, activatedSub);
       }
     } else if (payment.subscriptionId && status === "REFUNDED") {
       await sb.from("Subscription").update({ status: "CANCELED", canceledAt: now.toISOString(), updatedAt: now.toISOString() }).eq("id", payment.subscriptionId);
