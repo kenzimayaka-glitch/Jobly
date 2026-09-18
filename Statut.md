@@ -497,8 +497,7 @@ iClan/Eduklan est la frontière fournisseur retenue, mais **l'intégration live 
 CREATED
  ↓
 PENDING
- ↓
-SUCCESSFUL / FAILED
+ ↓SUCCESSFUL / FAILED
  ↓
 REFUNDED
 ```
@@ -998,7 +997,6 @@ Raison donnée par le fondateur : construire la boucle de valeur pour le candida
 **Career AI, Mon CV et Formations gratuites recommandées deviennent des fonctionnalités Premium** (et non gratuites pour tous comme décidé plus tôt le 12/09 — voir section 12, contredit et remplace ce point précis). Elles sont codées maintenant, verrouillées (badge Premium 🔒, clic → écran Abonnements même en placeholder), sans logique IA réelle branchée tant que le chiffrage (section 17) n'est pas fait. Implication : un écran Abonnements minimal doit exister pour que le clic sur le cadenas ne mène pas à un lien mort.
 
 **Moteur de Matching (P1) construit en même temps que l'écran Dashboard**, plutôt qu'avant. Migration DB `20260912100000_matching_applications_v1` codée (voir section 4) pour supporter le calcul du % de correspondance (12.1) et le suivi de candidature (12.2) — non encore déployée sur la base réelle.
-
 **Règle de gouvernance ajoutée :** à chaque codage ou information pertinente, mettre à jour ce `Statut.md` et le `README.md` dans la foulée — pas seulement en fin de session.
 
 **`/api/jobs` codée** (12/09/2026) : GET qui calcule le % de correspondance (5 critères pondération égale, spec 12.1) à partir du profil réel et retourne le nombre réel d'offres actives (`totalActive`, jamais filtré). Non déployée, non testée sur téléphone réel.
@@ -1497,8 +1495,7 @@ Cette section historique est remplacée par la décision verrouillée et l'impl�
 # 32. P3.2 → P4 — CAREER OS + OPPORTUNITY INTELLIGENCE — 13/09/2026
 
 ## P3.2 — Career OS minimal livré dans le code
-- `GET /api/career-os`.
-- Écran `/career-os`.
+- `GET /api/career-os`.- Écran `/career-os`.
 - Career Goals dérivés du Career Brain.
 - Career Gap déterministe.
 - Career Roadmap / GPS minimal.
@@ -1997,8 +1994,7 @@ Ne plus multiplier les pages. Passer en mode **stabilisation finale** : build Ve
 - `npm run typecheck`, `npm run build`.
 - E2E connecté Talent + Recruiter.
 - Autoplay vidéo sur iOS/Android.
-- Remplacement du fallback par les vrais pitchs vidéo backend.
-- Performance, accessibilité et reduced-motion.
+- Remplacement du fallback par les vrais pitchs vidéo backend.- Performance, accessibilité et reduced-motion.
 
 
 ## 26. CINEMATIC V21 — 16/09/2026 — CHECKPOINT
@@ -2083,3 +2079,52 @@ Le push GitHub automatique reste à effectuer dès que l'intégration GitHub acc
 
 ## Prochaine action
 Appliquer `supabase/20260916090000_talent_pitch.sql`, puis tester sur téléphone : enregistrer 6 s → publier → ouvrir le compte Recruiter → vérifier que le même pitch réel apparaît dans le Match Lab et dans le profil partagé.
+
+# CHECKPOINT 18/09/2026 — J’IA CEO DIGITAL
+
+## Décision produit figée
+J’IA possède deux dimensions :
+1. **Career Intelligence** pour les utilisateurs ;
+2. **CEO Intelligence** pour l’administrateur/fondateur.
+
+Le rôle CEO est un pilotage digital business 360° et ne doit pas être réduit à un chatbot d’administration.
+
+## Périmètre conçu
+- CEO Intelligence
+- BI
+- Growth
+- Commercial
+- Finance
+- Market Intelligence
+- Operations
+- Customer Intelligence
+
+## Cockpit administrateur cible
+- situation globale ;
+- alertes ;
+- projections 7/30/90 jours ;
+- Profitability Engine ;
+- Market Watch ;
+- CEO Actions ;
+- KPI temps réel ;
+- objectifs Jobly, équipes et Partners ;
+- rapports hebdomadaires/mensuels ;
+- prédictions de rentabilité ;
+- veille concurrentielle web sourcée ;
+- benchmarking ;
+- recommandations commerciales, marketing et B2B/Partners avec KPI de suivi.
+
+## Boucle CEO
+**Observer → Comprendre → Prédire → Décider → Exécuter → Mesurer → Corriger → Apprendre.**
+
+## Confidentialité
+Business Core strictement séparé de J’IA user-facing. Finances, marges, objectifs, prévisions, stratégie, KPI internes, concurrence, commissions et données permettant de les déduire doivent être protégés par permissions techniques et audit.
+
+## Gouvernance
+J’IA assiste l’administrateur. Elle peut analyser, alerter, simuler, recommander et préparer. Les décisions juridiquement ou financièrement engageantes restent sous validation humaine explicite.
+
+## Statut honnête
+🟡 **CONÇU / À IMPLÉMENTER** — le mandat CEO est maintenant formellement intégré à la documentation de référence. Le cockpit, Profitability Engine, Market Watch, CEO Actions et reporting automatisé doivent encore être construits puis validés avec des données réelles.
+
+## Prochaine brique de construction
+**CEO Intelligence Core → Admin Cockpit → Profitability Engine → Market Watch → CEO Actions → Reporting → contrôle d’accès/audit → validation E2E.**
