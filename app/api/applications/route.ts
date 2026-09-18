@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser, newId } from "../../../lib/server-auth";
 import { prepareApplication } from "../../../lib/applicationEngine";
+import { getActivePlanCode, isTestUnlimited } from "../../../lib/entitlements";
+import { getEntitlements } from "../../../lib/billingCatalog";
 
 const MAX_OFFER_AGE_DAYS = 60;
 type ApplicationRow = { id:string; userId:string; jobId:string|null; recruiterJobId:string|null; status:string; proofUrl:string|null; viewedAt:string|null; interviewAt:string|null; statusSource:string; createdAt:string; updatedAt:string };
@@ -25,12 +27,16 @@ export async function POST(request:NextRequest){try{const authUser=await getAuth
   if(!offer.applicationReady)return NextResponse.json({message:"J'IA ne peut pas encore candidater à cette offre."},{status:422});
   if(!isFresh(null,null,offer.createdAt))return NextResponse.json({message:"Cette offre n'est plus diffusée par Jobly."},{status:410});
  }
- const existing=await supabase.from("Application").select("id,status").eq("userId",user.id).eq(source==="discovery"?"jobId":"recruiterJobId",targetId).maybeSingle();if(existing.data)return NextResponse.json({message:"Vous avez déjà une candidature pour cette offre.",application:existing.data},{status:409});
  const company=source==="discovery"&&offer.companyId?(await supabase.from("Company").select("name").eq("id",offer.companyId).maybeSingle()).data?.name||"l'entreprise":offer.companyName||"l'entreprise";
  const [profileRes,experiencesRes,skillsRes,educationRes]=await Promise.all([supabase.from("Profile").select("firstName,lastName,headline,summary,phone,targetRoles,targetCities,contractPreferences,remotePreference,preferredSectors,location").eq("userId",user.id).maybeSingle(),supabase.from("Experience").select("company,title,startDate,endDate,description,provenance").eq("userId",user.id),supabase.from("Skill").select("name,level,provenance").eq("userId",user.id),supabase.from("Education").select("institution,degree,field,startDate,endDate,provenance").eq("userId",user.id)]);if(profileRes.error)throw new Error(profileRes.error.message);if(experiencesRes.error)throw new Error(experiencesRes.error.message);if(skillsRes.error)throw new Error(skillsRes.error.message);if(educationRes.error)throw new Error(educationRes.error.message);
+ const planCode=await getActivePlanCode(supabase,user.id,"TALENT");
+ const quotaLimit=getEntitlements(planCode).applicationsPerWeek;
+ const unlimited=isTestUnlimited();
  const applicationId=newId();const prepared=await prepareApplication(request,{jobTitle:offer.title,jobDescription:offer.description,company,applicationProfile:offer.applicationProfile||{},profile:profileRes.data||{},experiences:experiencesRes.data||[],skills:skillsRes.data||[],education:educationRes.data||[]});
  if(prepared.channel.channel==="EXTERNAL")return NextResponse.json({message:"Cette offre utilise un canal externe non automatisé par Jobly et ne peut pas être candidate-able pour le moment.",channel:prepared.channel},{status:422});
  const status="USER_REVIEW";
- const {data,error}=await supabase.from("Application").insert({id:applicationId,userId:user.id,jobId:source==="discovery"?targetId:null,recruiterJobId:source==="recruiter"?targetId:null,language:"fr",status,letterText:prepared.letter,tailoredCvText:prepared.tailoredCvText,submittedAt:null,proofUrl:null,statusSource:"CANDIDATE",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),sourceType:prepared.channel.channel}).select("*").single();if(error)throw new Error(error.message);
+ const {data,error}=await supabase.rpc("create_application_with_quota",{p_id:applicationId,p_user_id:user.id,p_job_id:source==="discovery"?targetId:null,p_recruiter_job_id:source==="recruiter"?targetId:null,p_language:"fr",p_status:status,p_letter:prepared.letter,p_tailored_cv_text:prepared.tailoredCvText,p_submitted_at:null,p_proof_url:null,p_status_source:"CANDIDATE",p_created_at:new Date().toISOString(),p_updated_at:new Date().toISOString(),p_source_type:prepared.channel.channel,p_quota_limit:quotaLimit,p_unlimited:unlimited}).single();
+ if(error){if(error.code==="P0001"&&error.message.includes("QUOTA_EXCEEDED"))return NextResponse.json({message:"Votre quota hebdomadaire de candidatures est atteint.",code:"QUOTA_EXCEEDED",used:error.details?Number(error.details):undefined,limit:quotaLimit},{status:429});if(error.code==="P0002"||error.message.includes("DUPLICATE_APPLICATION"))return NextResponse.json({message:"Vous avez déjà une candidature pour cette offre."},{status:409});throw new Error(error.message);}
+ if(!data)throw new Error("Impossible de créer la candidature.");
  return NextResponse.json({application:data,prepared:{channel:prepared.channel,letter:prepared.letter,tailoredCvText:prepared.tailoredCvText,warnings:prepared.warnings,readyForSubmission:prepared.readyForSubmission,requiresUserConnection:prepared.requiresUserConnection,requiresExternalUserAction:prepared.requiresExternalUserAction},applicationProfile:offer.applicationProfile||{}});
  }catch(error){return NextResponse.json({message:error instanceof Error?error.message:"Impossible de préparer la candidature."},{status:500});}}
