@@ -31,7 +31,7 @@ type Skill = { name: string | null; level: string | null };
 type Education = { degree: string | null; field: string | null; institution: string | null };
 
 function tokenize(value: string): string[] {
-  return normalize(value).split(/\\W+/).filter((x) => x.length > 2);
+  return normalize(value).split(/\W+/).filter((x) => x.length > 2);
 }
 
 function overlapScore(needles: string[], haystack: string): number {
@@ -51,8 +51,8 @@ function experienceYears(experiences: Experience[]): number {
 function achievementEvidence(experiences: Experience[]): number {
   const text = experiences.map((x) => String(x.description ?? "")).join(" ");
   if (!text.trim()) return 45;
-  const quantified = /\\b\\d+(?:[.,]\\d+)?\\s*(?:%|x|k|m|b|xaf|fcfa|€|\\$)|\\b(?:million|milliard|millions|milliards)\\b/i.test(text);
-  const impact = /\\b(?:augmented|increase|increased|growth|croissance|reduced|réduit|managed|géré|generated|généré|revenue|chiffre d'affaires|target|objectif|portfolio|clients|merchants|recruited|recruté|delivered|livré|achieved|atteint)\\b/i.test(text);
+  const quantified = /\b\\d+(?:[.,]\\d+)?\\s*(?:%|x|k|m|b|xaf|fcfa|€|\\$)|\\b(?:million|milliard|millions|milliards)\\b/i.test(text);
+  const impact = /\b(?:augmented|increase|increased|growth|croissance|reduced|réduit|managed|géré|generated|généré|revenue|chiffre d'affaires|target|objectif|portfolio|clients|merchants|recruited|recruté|delivered|livré|achieved|atteint)\\b/i.test(text);
   return quantified ? 100 : impact ? 75 : 55;
 }
 
