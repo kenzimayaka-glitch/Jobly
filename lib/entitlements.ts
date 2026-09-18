@@ -1,6 +1,6 @@
 import { getEntitlements, getPlan, PlanCode } from "./billingCatalog";
 
-export function isTestUnlimited(): boolean { return String(process.env.JOBLY_TEST_UNLIMITED || "").toLowerCase() === "true"; }
+export function isTestUnlimited(): boolean { return process.env.NODE_ENV !== "production" && String(process.env.JOBLY_TEST_UNLIMITED || "").toLowerCase() === "true"; }
 
 export async function getActivePlanCode(supabase: any, userId: string, productType: "TALENT" | "RECRUITER" = "TALENT"): Promise<PlanCode> {
   const now = new Date().toISOString();
