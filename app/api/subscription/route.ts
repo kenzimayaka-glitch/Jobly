@@ -53,7 +53,10 @@ export async function POST(request: NextRequest) {
     const subscriptionId = crypto.randomUUID();
     const paymentId = crypto.randomUUID();
     const { data: subscription, error: subError } = await sb.from("Subscription").insert({ id: subscriptionId, userId: user.id, planCode, productType, status: "PENDING", billingInterval: interval, priceAmount: amount, priceCurrency: "XAF", provider: providerName, createdAt: now, updatedAt: now }).select("*").single();
-    if (subError) throw new Error(subError.message);
+    if (subError) {
+      if (subError.code === "23505") return jsonError("Un abonnement ou paiement d'abonnement est déjà en cours pour ce produit.", 409, "SUBSCRIPTION_ALREADY_IN_PROGRESS");
+      throw new Error(subError.message);
+    }
     const { data: payment, error: paymentError } = await sb.from("Payment").insert({ id: paymentId, userId: user.id, subscriptionId, provider: providerName, amount, currency: "XAF", status: "CREATED", idempotencyKey: idem.key, createdAt: now, updatedAt: now }).select("*").single();
     if (paymentError) {
       await sb.from("Subscription").update({ status: "EXPIRED", updatedAt: new Date().toISOString() }).eq("id", subscriptionId).eq("status", "PENDING");
