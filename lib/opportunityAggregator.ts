@@ -34,6 +34,62 @@ function normalize(value: unknown): string {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+export function calculateExplainableMatch(input: {
+  targetRoles?: string[];
+  targetCities?: string[];
+  contractPreferences?: string[];
+  remotePreference?: string;
+  preferredSectors?: string[];
+  skills?: string[];
+  experienceYears?: number;
+  educationScore?: number;
+  achievementScore?: number;
+}, job: {
+  title?: string;
+  location?: string | null;
+  contractType?: string | null;
+  contract?: string | null;
+  remoteMode?: string | null;
+  minExperienceYears?: number | null;
+  sector?: string | null;
+  tags?: unknown;
+}): number {
+  const roles = (input.targetRoles ?? []).map(normalize);
+  const cities = (input.targetCities ?? []).map(normalize);
+  const contracts = (input.contractPreferences ?? []).map(normalize);
+  const preferredRemote = normalize(input.remotePreference ?? "indifferent");
+  const sectors = (input.preferredSectors ?? []).map(normalize);
+  const skills = (input.skills ?? []).map(normalize);
+  const title = normalize(job.title);
+  const location = normalize(job.location);
+  const contract = normalize(job.contractType ?? job.contract);
+  const remote = normalize(job.remoteMode);
+  const sector = normalize(job.sector);
+  const tags = Array.isArray(job.tags) ? job.tags.map(normalize) : String(job.tags ?? "").split(/[,|]/).map(normalize).filter(Boolean);
+
+  const role = roles.length ? (roles.some(r => title.includes(r) || r.includes(title)) ? 100 : 0) : 50;
+  const skill = skills.length && tags.length
+    ? Math.min(100, Math.round((skills.filter(s => tags.some(t => t.includes(s) || s.includes(t))).length / Math.max(1, skills.length)) * 100))
+    : 50;
+  const experience = input.experienceYears == null || job.minExperienceYears == null
+    ? 50
+    : input.experienceYears >= Number(job.minExperienceYears) ? 100 : 0;
+  const education = input.educationScore ?? 50;
+  const achievements = input.achievementScore ?? 50;
+  const city = cities.length ? (cities.some(c => location.includes(c) || c.includes(location)) ? 100 : 0) : 50;
+  const remoteScore = !preferredRemote || preferredRemote === "indifferent" || preferredRemote === "peu importe"
+    ? 100
+    : (remote === preferredRemote || (preferredRemote === "oui" && remote === "partiel")) ? 100 : 0;
+  const contractScore = contracts.length ? (contracts.some(c => contract.includes(c) || c.includes(contract)) ? 100 : 0) : 50;
+  const sectorScore = sectors.length && sector ? (sectors.some(s => sector.includes(s) || s.includes(sector)) ? 100 : 0) : 50;
+
+  return Math.round(
+    role * 0.22 + skill * 0.22 + experience * 0.15 + education * 0.10 +
+    achievements * 0.10 + city * 0.07 + remoteScore * 0.06 +
+    contractScore * 0.04 + sectorScore * 0.04
+  );
+}
+
 function roleMatch(title: string, roles: string[]): number {
   if (!roles.length) return 50;
   const t = normalize(title);
