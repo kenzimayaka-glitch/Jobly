@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
     const sb = adminClient(); const user = await ensureUser(sb, auth);
     const idem = await getIdempotentResult(request, "/api/subscription", user.id, body);
     if ("error" in idem) return jsonError("Clé d'idempotence manquante ou réutilisée avec un payload différent.", ("conflict" in idem && idem.conflict) ? 409 : 400, idem.error);
+    if ("processing" in idem && idem.processing) return jsonError("Une requête avec cette clé d'idempotence est déjà en cours.", 409, "IDEMPOTENCY_IN_PROGRESS");
     if (idem.existing) return NextResponse.json(idem.existing.response, { status: idem.existing.statusCode });
 
     const { data: existingSubscription, error: existingError } = await sb.from("Subscription").select("id,status,planCode,billingInterval").eq("userId", user.id).eq("productType", productType).in("status", ["ACTIVE", "PENDING"]).order("createdAt", { ascending: false }).limit(1).maybeSingle();
