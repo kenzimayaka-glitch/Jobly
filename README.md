@@ -1596,3 +1596,35 @@ Les rapports doivent rester chiffrés, traçables et honnêtes : graphiques, ten
 
 ## État d’implémentation
 Cette vision CEO est désormais une **brique officielle de Jobly**, mais le cockpit CEO complet, Profitability Engine, Market Watch et orchestration des CEO Actions ne sont pas déclarés comme déjà codés tant qu’ils ne sont pas réellement implémentés et validés. Les fondations J’IA existantes doivent être réutilisées : mémoire, événements, contexte, gateway, garde-fous et audit.
+
+
+## 2026-09-18 — J’IA Enterprise Brain + CEO Copilot
+
+J’IA dispose désormais d’une mémoire institutionnelle persistante séparée de la mémoire personnelle des Talents.
+
+### Mémoire institutionnelle
+La table `JiaEnterpriseMemory` conserve des connaissances canoniques par domaine :
+- VISION ;
+- PRODUCT ;
+- TECHNICAL ;
+- COMMERCIAL ;
+- ORGANIZATION ;
+- GOVERNANCE.
+
+La première base couvre la vision JOBLY 20/20, Career Twin, Campus, l’architecture technique, l’architecture J’IA, le modèle Recruiter/Recruit + Move, CEO Intelligence, les règles de confidentialité et l’organigramme fonctionnel connu.
+
+### CEO Copilot
+Le compte administrateur expose désormais **J’IA · CEO Copilot**. Les conversations sont persistées dans `JiaCEOConversation` / `JiaCEOMessage`, protégées par rôle ADMIN, et auditées via `CEOAuditLog`.
+
+J’IA reçoit dans chaque échange :
+- la mémoire institutionnelle JOBLY ;
+- l’historique récent de la conversation ;
+- le snapshot CEO calculé à partir des données Jobly réelles.
+
+La réponse distingue faits, métriques, projections, hypothèses et informations manquantes. Aucun secret de provider n’est exposé.
+
+### Principe de maturité
+La présence d’une connaissance dans la mémoire ne signifie pas qu’une fonctionnalité est validée en production. J’IA conserve la distinction **CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**.
+
+### Sécurité
+Le CEO Copilot est réservé au rôle ADMIN. Les informations CEO/confidentielles ne doivent jamais être exposées aux surfaces Talent, Recruiter ou Partner.
