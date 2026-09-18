@@ -53,3 +53,6 @@ Le contrôle doit être technique : l'IA utilisateur ne récupère pas les donn�
 ## Validation
 Chaque fonctionnalité suit :
 IDÉE → DÉCISION → SPÉCIFICATION → CODE → DB → TEST E2E → DÉPLOIEMENT → VALIDATION.
+
+## Build gate — 18/09/2026
+Le build Vercel de la branche d'alignement doit être validé après les derniers correctifs entitlements et abonnement avant toute promotion en production.
