@@ -57,6 +57,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   doc.end();
   const pdf = await done;
   // Keep the response body in the Web Fetch API shape expected by Next.js 15.
+  // Deployment verification checkpoint.
   await supabase.from("CVShare").update({ downloadCount:(share.downloadCount||0)+1 }).eq("id",share.id);
 
   const safeName = name.replace(/[^a-zA-Z0-9]+/g,"_");
