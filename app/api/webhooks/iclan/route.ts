@@ -54,35 +54,53 @@ export async function POST(request: NextRequest) {
     if (externalId && payment.externalId && payment.externalId !== externalId) throw new Error("PAYMENT_EXTERNAL_ID_MISMATCH");
     if (payment.status !== status && !transitions[payment.status]?.has(status)) throw new Error("INVALID_PAYMENT_TRANSITION");
 
-    // A distinct webhook event can repeat the same payment status. Treat it as
-    // an idempotent delivery: do not extend subscriptions or generate effects twice.
-    if (payment.status === status) {
-      if (eventIdInternal) await sb.from("PaymentWebhookEvent").update({ status: "PROCESSED", processedAt: new Date().toISOString(), error: null }).eq("id", eventIdInternal);
+    const sameStatus = payment.status === status;
+    const now = new Date();
+
+    // Same-status deliveries are only idempotent after their downstream effects
+    // are known to be complete. If an earlier attempt updated Payment but failed
+    // before activating the subscription/commission, retry the downstream work.
+    if (sameStatus && status !== "SUCCESSFUL" && status !== "FAILED" && status !== "REFUNDED") {
+      if (eventIdInternal) await sb.from("PaymentWebhookEvent").update({ status: "PROCESSED", processedAt: now.toISOString(), error: null }).eq("id", eventIdInternal);
       return NextResponse.json({ ok: true, duplicate: true });
     }
 
-    const now = new Date();
-    const update: Record<string, unknown> = { status, updatedAt: now.toISOString() };
-    if (externalId) update.externalId = externalId;
-    if (status === "SUCCESSFUL") update.paidAt = now.toISOString();
-    if (status === "REFUNDED") update.refundedAt = now.toISOString();
-    const { error: updateError } = await sb.from("Payment").update(update).eq("id", payment.id);
-    if (updateError) throw new Error(updateError.message);
+    if (!sameStatus) {
+      const update: Record<string, unknown> = { status, updatedAt: now.toISOString() };
+      if (externalId) update.externalId = externalId;
+      if (status === "SUCCESSFUL") update.paidAt = now.toISOString();
+      if (status === "REFUNDED") update.refundedAt = now.toISOString();
+      const { error: updateError } = await sb.from("Payment").update(update).eq("id", payment.id);
+      if (updateError) throw new Error(updateError.message);
+    }
 
     if (payment.subscriptionId && status === "SUCCESSFUL") {
       const { data: sub } = await sb.from("Subscription").select("*").eq("id", payment.subscriptionId).maybeSingle();
       if (sub) {
-        const end = new Date(now);
-        if (sub.billingInterval === "ANNUAL") end.setUTCFullYear(end.getUTCFullYear() + 1);
-        else end.setUTCMonth(end.getUTCMonth() + 1);
-        const { data: activatedSub, error: activationError } = await sb.from("Subscription").update({ status: "ACTIVE", currentPeriodStart: now.toISOString(), currentPeriodEnd: end.toISOString(), updatedAt: now.toISOString() }).eq("id", sub.id).select("*").single();
-        if (activationError) throw new Error(activationError.message);
-        if (activatedSub) await generateDistributorAcquisitionCommission(sb, activatedSub);
+        // Never extend an already-active subscription for a duplicate webhook.
+        // But if Payment was marked successful before activation failed, complete
+        // activation now; commission generation is itself DB-idempotent.
+        if (!sameStatus || sub.status !== "ACTIVE") {
+          const end = new Date(now);
+          if (sub.billingInterval === "ANNUAL") end.setUTCFullYear(end.getUTCFullYear() + 1);
+          else end.setUTCMonth(end.getUTCMonth() + 1);
+          const { data: activatedSub, error: activationError } = await sb.from("Subscription").update({ status: "ACTIVE", currentPeriodStart: now.toISOString(), currentPeriodEnd: end.toISOString(), updatedAt: now.toISOString() }).eq("id", sub.id).select("*").single();
+          if (activationError) throw new Error(activationError.message);
+          if (activatedSub) await generateDistributorAcquisitionCommission(sb, activatedSub);
+        } else {
+          // The subscription is already active; this is safe to call because the
+          // acquisition commission has a database uniqueness boundary.
+          await generateDistributorAcquisitionCommission(sb, sub);
+        }
       }
     } else if (payment.subscriptionId && status === "REFUNDED") {
-      await sb.from("Subscription").update({ status: "CANCELED", canceledAt: now.toISOString(), updatedAt: now.toISOString() }).eq("id", payment.subscriptionId);
+      if (!sameStatus) {
+        const { error } = await sb.from("Subscription").update({ status: "CANCELED", canceledAt: now.toISOString(), updatedAt: now.toISOString() }).eq("id", payment.subscriptionId);
+        if (error) throw new Error(error.message);
+      }
     } else if (payment.subscriptionId && status === "FAILED") {
-      await sb.from("Subscription").update({ status: "EXPIRED", updatedAt: now.toISOString() }).eq("id", payment.subscriptionId).eq("status", "PENDING");
+      const { error } = await sb.from("Subscription").update({ status: "EXPIRED", updatedAt: now.toISOString() }).eq("id", payment.subscriptionId).eq("status", "PENDING");
+      if (error) throw new Error(error.message);
     }
 
     if (eventIdInternal) await sb.from("PaymentWebhookEvent").update({ status: "PROCESSED", processedAt: now.toISOString(), error: null }).eq("id", eventIdInternal);
