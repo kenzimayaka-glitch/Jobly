@@ -81,7 +81,7 @@ export async function POST(req:NextRequest){
     if(!aiResponse.ok)throw new Error(aiBody.message||"J’IA est momentanément indisponible.");
     const output=aiBody.output||{};
     const reply=typeof output.reply==="string"?output.reply:(typeof output.text==="string"?output.text:"J’IA n’a pas produit de réponse exploitable.");
-    const metadata={provider:aiBody.provider||null,model:aiBody.model||null,confidence:output.confidence||null,sources:output.sources||[],keyPoints:output.keyPoints||[],suggestedActions:output.suggestedActions||[]};
+    const metadata={provider:aiBody.provider||null,model:aiBody.model||null,confidence:output.confidence||null,sources:output.sources||[],webResearchUsed:Boolean((aiBody.context as any)?.webResearch),keyPoints:output.keyPoints||[],suggestedActions:output.suggestedActions||[]};
     const {data:saved,error:savedError}=await admin.sb.from("JiaCEOMessage").insert({conversationId,role:"assistant",content:reply,metadata}).select("id,role,content,metadata,createdAt").single();
     if(savedError)throw new Error(savedError.message);
     await admin.sb.from("JiaCEOConversation").update({updatedAt:new Date().toISOString()}).eq("id",conversationId).eq("adminUserId",admin.user.id);
