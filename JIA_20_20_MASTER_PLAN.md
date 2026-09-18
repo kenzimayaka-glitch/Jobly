@@ -198,3 +198,18 @@ Elle ne doit pas :
 ## 5. Critère de sortie 20/20
 
 J’IA ne sera considérée comme 20/20 que lorsque les briques ci-dessus seront non seulement présentes dans le code, mais **testées sur leurs parcours réels, validées et déployées**, avec une traçabilité de la confiance, des sources, des décisions et des résultats.
+
+
+## Milestone — Value-first subscription intelligence (18 Sep 2026)
+
+J’IA must optimize user success before monetization. Upgrade guidance is permitted only when the requested task objectively exceeds the active plan entitlement or quota.
+
+- Free work is never degraded to manufacture conversion.
+- If a task is executable in the current plan, J’IA executes it without an upgrade prompt.
+- If a task is blocked by a real entitlement/quota boundary, J’IA may explain the specific additional capability available in a higher plan.
+- No artificial urgency, guilt, repeated prompts, fake scarcity, or withholding of an otherwise available answer.
+- No upgrade prompt while resolving a service problem or incomplete/error response.
+- Governor: at most one contextual nudge in 7 days; feature-specific cooldowns apply after dismissal/click.
+- Nudge impressions/clicks/dismissals are persisted in JiaUpgradeNudge for traceability.
+- The subscription message is contextual: need → blocked capability → concrete additional value → plan.
+- Existing entitlement/quota logic remains the source of truth; J’IA does not invent Premium capabilities.
