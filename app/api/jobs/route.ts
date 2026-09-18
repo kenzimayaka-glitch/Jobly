@@ -29,7 +29,9 @@ export async function GET(request:NextRequest){
   const [profileRes,experiencesRes,jobsRes,recruiterJobsRes]=await Promise.all([
    supabase.from("Profile").select("targetRoles,targetCities,contractPreferences,remotePreference,preferredSectors").eq("userId",user.id).maybeSingle(),
    supabase.from("Experience").select("startDate").eq("userId",user.id),
-   // Discovery visibility is intentionally independent from application readiness:\n   // users must be able to discover the market broadly; readiness is enforced when applying.\n   supabase.from("Job").select("*").eq("isActive",true).order("createdAt",{ascending:false}),
+   // Discovery visibility is intentionally independent from application readiness.
+   // Users must be able to discover the market broadly; readiness is enforced when applying.
+   supabase.from("Job").select("*").eq("isActive",true).order("createdAt",{ascending:false}),
    supabase.from("RecruiterJob").select("*").eq("status","published").eq("applicationReady",true).order("createdAt",{ascending:false})
   ]);
   if(profileRes.error)throw new Error(profileRes.error.message);if(experiencesRes.error)throw new Error(experiencesRes.error.message);if(jobsRes.error)throw new Error(jobsRes.error.message);if(recruiterJobsRes.error)throw new Error(recruiterJobsRes.error.message);
