@@ -51,7 +51,15 @@ export async function POST(request: NextRequest) {
     if (paymentError) throw new Error(paymentError.message);
     if (!payment) throw new Error("PAYMENT_NOT_FOUND");
     if (payment.amount !== amount || payment.currency !== currency) throw new Error("PAYMENT_VERIFICATION_FAILED");
+    if (externalId && payment.externalId && payment.externalId !== externalId) throw new Error("PAYMENT_EXTERNAL_ID_MISMATCH");
     if (payment.status !== status && !transitions[payment.status]?.has(status)) throw new Error("INVALID_PAYMENT_TRANSITION");
+
+    // A distinct webhook event can repeat the same payment status. Treat it as
+    // an idempotent delivery: do not extend subscriptions or generate effects twice.
+    if (payment.status === status) {
+      if (eventIdInternal) await sb.from("PaymentWebhookEvent").update({ status: "PROCESSED", processedAt: new Date().toISOString(), error: null }).eq("id", eventIdInternal);
+      return NextResponse.json({ ok: true, duplicate: true });
+    }
 
     const now = new Date();
     const update: Record<string, unknown> = { status, updatedAt: now.toISOString() };
