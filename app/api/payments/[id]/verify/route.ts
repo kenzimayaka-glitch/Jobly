@@ -66,7 +66,7 @@ export async function POST(
       if (r.status === "SUCCESSFUL") {
         const { data: sub, error: subError } = await sb
           .from("Subscription")
-          .select("id,userId,planCode,billingInterval,productType")
+          .select("id,userId,planCode,status,billingInterval,productType")
           .eq("id", p.subscriptionId)
           .eq("userId", u.id)
           .maybeSingle();
