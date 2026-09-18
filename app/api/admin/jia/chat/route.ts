@@ -51,10 +51,11 @@ export async function POST(req:NextRequest){
 
     const {data:history,error:historyError}=await admin.sb.from("JiaCEOMessage").select("role,content,createdAt").eq("conversationId",conversationId).order("createdAt",{ascending:false}).limit(20);
     if(historyError)throw new Error(historyError.message);
-    const {data:knowledge,error:knowledgeError}=await admin.sb.from("JiaEnterpriseMemory").select("domain,title,content,source_ref").eq("active",true).order("domain",{ascending:true}).limit(100);
-    const ceoSnapshot=await buildCEOIntelligence(admin.sb);
+    const {data:allKnowledge,error:knowledgeError}=await admin.sb.from("JiaEnterpriseMemory").select("domain,title,content,source_ref,sensitivity").eq("active",true).order("updatedAt",{ascending:false}).limit(200);
     if(knowledgeError)throw new Error(knowledgeError.message);
-
+    const terms=message.toLowerCase().split(/\\W+/).filter((x:string)=>x.length>3).slice(0,20);
+    const knowledge=(allKnowledge||[]).map((x:any)=>{const hay=(String(x.title||"")+" "+String(x.domain||"")+" "+String(x.content||"")).toLowerCase();const score=terms.reduce((n:number,t:string)=>n+(hay.includes(t)?1:0),0);return {...x,_score:score};}).filter((x:any)=>x._score>0).sort((a:any,b:any)=>b._score-a._score).slice(0,30).map(({_score,...x}:any)=>x);
+    const ceoSnapshot=await buildCEOIntelligence(admin.sb);
     const {error:insertUserError}=await admin.sb.from("JiaCEOMessage").insert({conversationId,role:"user",content:message});
     if(insertUserError)throw new Error(insertUserError.message);
 
