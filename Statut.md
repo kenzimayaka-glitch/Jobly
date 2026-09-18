@@ -2083,3 +2083,65 @@ Le push GitHub automatique reste à effectuer dès que l'intégration GitHub acc
 
 ## Prochaine action
 Appliquer `supabase/20260916090000_talent_pitch.sql`, puis tester sur téléphone : enregistrer 6 s → publier → ouvrir le compte Recruiter → vérifier que le même pitch réel apparaît dans le Match Lab et dans le profil partagé.
+
+
+---
+
+# CHECKPOINT D'ALIGNEMENT — 18/09/2026
+
+## Objectif
+Réconcilier l'état d'exécution avec les décisions produit validées. Le projet ne doit plus confondre surface UI, code, base, test et validation.
+
+## Références
+- Vision et décisions figées : `ALIGNMENT-CHECKPOINT-20260918.md`
+- Branche de travail : `alignment/20260918-full-compliance`
+- Base de travail : `main`
+
+## Campus — correction appliquée
+La page Campus a été reconstruite autour du parcours étudiant validé :
+- philosophie « La carrière professionnelle commence avant le premier job » ;
+- étudiant comme cible principale ;
+- stages académiques/professionnels/de vacances ;
+- jobs étudiants et temps partiel ;
+- missions, courses, freelance et petits services ;
+- formations et préparation aux concours ;
+- volontariat/bénévolat ;
+- projets/challenges ;
+- événements ;
+- J’IA Campus : orientation, matching, préparation et suivi ;
+- Mobility, Events et Community comme écosystèmes connexes, Community restant séparé ;
+- passerelle Campus → premières preuves → Career Twin → Talent ;
+- acteurs B2B/B2G et programmes co-construits.
+
+**État : 🔧 CODÉ — à valider E2E et à déployer.**
+
+## Important
+Le hub Bons Plans et le sélecteur d'écosystèmes sont déjà présents dans `main`. La divergence observée précédemment provenait de la comparaison avec une ancienne branche de travail et non d'une disparition des commits dans l'historique Git. 
+
+## Prochaine règle de validation
+Aucune nouvelle fonctionnalité ne sera déclarée terminée sans :
+1. décision produit identifiée ;
+2. code ;
+3. données/backend nécessaires ;
+4. test E2E ;
+5. déploiement ;
+6. validation réelle.
+
+
+## CHECKPOINT EXÉCUTION — 18/09/2026 — VALIDATION FINALE EN COURS
+
+### Correctifs récents
+- 🔧 Contrainte Supabase anti-concurrence des abonnements `ACTIVE/PENDING` appliquée et vérifiée.
+- 🔧 Vérification paiement corrigée : `Subscription.status` est maintenant chargé par `/api/payments/[id]/verify`.
+- 🧪 Build Vercel final : **à revalider** après ce dernier correctif ; le dernier déploiement connu avant la correction était en échec de typecheck.
+- ⏸️ Promotion production : volontairement non effectuée tant que le build final et les contrôles fonctionnels ne sont pas terminés.
+
+### Prochaine séquence obligatoire
+1. Build Vercel du dernier commit.
+2. Correction immédiate de tout blocage de build réellement observé.
+3. Validation paiement → abonnement → entitlements/quota/idempotence.
+4. Validation applications et idempotence/quota.
+5. Contrôle runtime Vercel/Supabase.
+6. Vérification finale de branche puis promotion contrôlée.
+
+**État global : 🧪 EN VALIDATION FINALE — pas encore production-ready.**

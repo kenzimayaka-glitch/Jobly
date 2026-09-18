@@ -37,30 +37,36 @@ export async function POST(
     if (r.amount != null && Number(r.amount) !== Number(p.amount)) {
       return err("Montant provider différent.", 409, "AMOUNT_MISMATCH");
     }
-    if (p.status === r.status) return NextResponse.json({ payment: p, verification: r, idempotent: true });
-    if (!(transitions[String(p.status)] || []).includes(r.status)) {
+    if (p.status === r.status && r.status !== "SUCCESSFUL") {
+      return NextResponse.json({ payment: p, verification: r, idempotent: true });
+    }
+    if (p.status !== r.status && !(transitions[String(p.status)] || []).includes(r.status)) {
       return err(`Transition invalide: ${p.status} -> ${r.status}.`, 409, "INVALID_PAYMENT_TRANSITION");
     }
 
     const now = new Date().toISOString();
-    const patch: Record<string, unknown> = { status: r.status, updatedAt: now };
-    if (r.status === "SUCCESSFUL") patch.paidAt = now;
-    if (r.status === "FAILED") patch.failureReason = r.message || "Provider returned FAILED";
-
-    const { data: updated, error: updateError } = await sb
-      .from("Payment")
-      .update(patch)
-      .eq("id", p.id)
-      .select("*")
-      .single();
-    if (updateError) throw new Error(updateError.message);
+    let updated = p;
+    if (p.status !== r.status) {
+      const patch: Record<string, unknown> = { status: r.status, updatedAt: now };
+      if (r.status === "SUCCESSFUL") patch.paidAt = now;
+      if (r.status === "FAILED") patch.failureReason = r.message || "Provider returned FAILED";
+      const { data: nextPayment, error: updateError } = await sb
+        .from("Payment")
+        .update(patch)
+        .eq("id", p.id)
+        .eq("status", p.status)
+        .select("*")
+        .single();
+      if (updateError) throw new Error(updateError.message);
+      updated = nextPayment;
+    }
 
     let commission = null;
     if (p.subscriptionId) {
       if (r.status === "SUCCESSFUL") {
         const { data: sub, error: subError } = await sb
           .from("Subscription")
-          .select("id,userId,planCode,billingInterval,productType")
+          .select("id,userId,planCode,status,billingInterval,productType")
           .eq("id", p.subscriptionId)
           .eq("userId", u.id)
           .maybeSingle();
@@ -72,18 +78,22 @@ export async function POST(
           if (sub.billingInterval === "ANNUAL") end.setUTCFullYear(end.getUTCFullYear() + 1);
           else end.setUTCMonth(end.getUTCMonth() + 1);
 
-          const { error: subscriptionError } = await sb
-            .from("Subscription")
-            .update({
-              status: "ACTIVE",
-              currentPeriodStart: start.toISOString(),
-              currentPeriodEnd: end.toISOString(),
-              canceledAt: null,
-              updatedAt: now,
-            })
-            .eq("id", p.subscriptionId)
-            .eq("userId", u.id);
-          if (subscriptionError) throw new Error(subscriptionError.message);
+          const subscriptionStatus = String((sub as { status?: unknown }).status ?? "");
+
+          if (subscriptionStatus !== "ACTIVE") {
+            const { error: subscriptionError } = await sb
+              .from("Subscription")
+              .update({
+                status: "ACTIVE",
+                currentPeriodStart: start.toISOString(),
+                currentPeriodEnd: end.toISOString(),
+                canceledAt: null,
+                updatedAt: now,
+              })
+              .eq("id", p.subscriptionId)
+              .eq("userId", u.id);
+            if (subscriptionError) throw new Error(subscriptionError.message);
+          }
 
           commission = await generateDistributorAcquisitionCommission(sb, sub);
         }

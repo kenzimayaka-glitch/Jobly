@@ -26,6 +26,109 @@ type Profile = {
   preferredSectors: string[];
 };
 
+type Experience = { title: string | null; description: string | null; startDate: string | null; endDate: string | null };
+type Skill = { name: string | null; level: string | null };
+type Education = { degree: string | null; field: string | null; institution: string | null };
+
+function tokenize(value: string): string[] {
+  return normalize(value).split(/\W+/).filter((x) => x.length > 2);
+}
+
+function overlapScore(needles: string[], haystack: string): number {
+  const text = new Set(tokenize(haystack));
+  const wanted = Array.from(new Set(needles.flatMap(tokenize)));
+  if (!wanted.length) return 50;
+  const hits = wanted.filter((token) => text.has(token)).length;
+  return Math.min(100, Math.round((hits / wanted.length) * 100));
+}
+
+function experienceYears(experiences: Experience[]): number {
+  const now = Date.now();
+  const intervals = experiences
+    .map((x) => {
+      const start = x.startDate ? new Date(x.startDate).getTime() : NaN;
+      if (!Number.isFinite(start)) return null;
+      const rawEnd = x.endDate ? new Date(x.endDate).getTime() : now;
+      const end = Number.isFinite(rawEnd) ? Math.min(rawEnd, now) : now;
+      return { start, end: Math.max(start, end) };
+    })
+    .filter((x): x is { start: number; end: number } => Boolean(x))
+    .sort((a, b) => a.start - b.start);
+  if (!intervals.length) return 0;
+  let total = 0;
+  let currentStart = intervals[0].start;
+  let currentEnd = intervals[0].end;
+  for (const interval of intervals.slice(1)) {
+    if (interval.start <= currentEnd) {
+      currentEnd = Math.max(currentEnd, interval.end);
+    } else {
+      total += currentEnd - currentStart;
+      currentStart = interval.start;
+      currentEnd = interval.end;
+    }
+  }
+  total += currentEnd - currentStart;
+  return Math.max(0, Math.floor(total / (365.25 * 24 * 60 * 60 * 1000)));
+}
+
+function achievementEvidence(experiences: Experience[], corpus: string): number {
+  const relevant = experiences.filter((x) => {
+    const text = String(x.title ?? "") + " " + String(x.description ?? "");
+    const tokens = tokenize(text);
+    return tokens.length && overlapScore(tokens, corpus) >= 20;
+  });
+  const pool = relevant.length ? relevant : experiences;
+  const text = pool.map((x) => String(x.description ?? "")).join(" ");
+  if (!text.trim()) return 45;
+  const quantified = /\b\d+(?:[.,]\d+)?\s*(?:%|x|k|m|b|xaf|fcfa|€|\$)|\b(?:million|milliard|millions|milliards)\b/i.test(text);
+  const impact = /\b(?:augmented|increase|increased|growth|croissance|reduced|réduit|managed|géré|generated|généré|revenue|chiffre d'affaires|target|objectif|portfolio|clients|merchants|recruited|recruté|delivered|livré|achieved|atteint)\b/i.test(text);
+  return quantified ? 100 : impact ? 75 : 55;
+}
+
+function matchProfileToOpportunity(
+  profile: Profile,
+  experiences: Experience[],
+  skills: Skill[],
+  education: Education[],
+  job: { title: string; description?: string | null; location?: string | null; contract?: string | null; remoteMode?: string | null; minExperienceYears?: number | null; sector?: string | null; tags?: string[] }
+): { matchScore: number; details: Record<string, number> } {
+  const title = String(job.title ?? "");
+  const description = String(job.description ?? "");
+  const corpus = title + " " + description + " " + (job.tags ?? []).join(" ");
+  const roles = profile.targetRoles;
+  const role = roles.length ? Math.max(roleMatch(title, roles), overlapScore(roles, corpus)) : 50;
+  const skillNames = skills.map((s) => String(s.name ?? "")).filter(Boolean);
+  const skillsScore = skillNames.length ? overlapScore(skillNames, corpus) : 50;
+  const years = experienceYears(experiences);
+  const min = Number(job.minExperienceYears ?? 0);
+  const expScore = min <= 0 ? (experiences.length ? 75 : 50) : Math.min(100, Math.round((years / min) * 100));
+  const educationTerms = education.flatMap((e) => [e.degree, e.field].filter(Boolean) as string[]);
+  const educationScore = educationTerms.length ? overlapScore(educationTerms, corpus) : 50;
+  const achievementScore = achievementEvidence(experiences, corpus);
+  const targetCities = profile.targetCities.map(normalize).filter(Boolean);
+  const location = normalize(job.location);
+  const cityScore = targetCities.length ? (targetCities.some((c) => location.includes(c)) ? 100 : 40) : 60;
+  const remote = normalize(profile.remotePreference);
+  const jobRemote = normalize(job.remoteMode);
+  const remoteScore = !remote || remote === "indifferent" || remote === jobRemote ? 100 : remote === "yes" && jobRemote === "partial" ? 75 : 40;
+  const contractPrefs = profile.contractPreferences.map(normalize).filter(Boolean);
+  const contractScore = contractPrefs.length ? (contractPrefs.includes(normalize(job.contract)) ? 100 : 40) : 60;
+  const sectors = profile.preferredSectors;
+  const sectorScore = sectors.length && job.sector ? overlapScore(sectors, String(job.sector)) : 60;
+  const matchScore = Math.round(
+    role * 0.22 +
+    skillsScore * 0.22 +
+    expScore * 0.15 +
+    educationScore * 0.10 +
+    achievementScore * 0.10 +
+    cityScore * 0.07 +
+    remoteScore * 0.06 +
+    contractScore * 0.04 +
+    sectorScore * 0.04
+  );
+  return { matchScore: Math.max(0, Math.min(100, matchScore)), details: { role, skills: skillsScore, experience: expScore, education: educationScore, achievements: achievementScore, city: cityScore, remote: remoteScore, contract: contractScore, sector: sectorScore } };
+}
+
 function normalize(value: unknown): string {
   return String(value ?? "")
     .trim()
@@ -112,13 +215,16 @@ function extractCompanyName(title: string, description: string): string | null {
 
 export async function getCascadeOpportunities(userId: string): Promise<CascadeOpportunity[]> {
   const sb = adminClient();
-  const [profileRes, jobsRes, recruiterRes, companiesRes] = await Promise.all([
+  const [profileRes, experiencesRes, skillsRes, educationRes, jobsRes, recruiterRes, companiesRes] = await Promise.all([
     sb.from("Profile").select("targetRoles,targetCities,contractPreferences,remotePreference,preferredSectors").eq("userId", userId).maybeSingle(),
-    sb.from("Job").select("id,title,location,contractType,remoteMode,minExperienceYears,companyId,source,sourceUrl,isActive,description").eq("isActive", true).order("createdAt", { ascending: false }).limit(150),
-    sb.from("RecruiterJob").select("id,title,companyName,location,contract,remoteMode,minExperienceYears,status").eq("status", "published").order("createdAt", { ascending: false }).limit(100),
+    sb.from("Experience").select("title,description,startDate,endDate").eq("userId", userId),
+    sb.from("Skill").select("name,level").eq("userId", userId),
+    sb.from("Education").select("degree,field,institution").eq("userId", userId),
+    sb.from("Job").select("id,title,location,contractType,remoteMode,minExperienceYears,companyId,source,sourceUrl,isActive,description,aiSector,aiSkills").eq("isActive", true).order("createdAt", { ascending: false }).limit(150),
+    sb.from("RecruiterJob").select("id,title,companyName,description,location,contract,remoteMode,minExperienceYears,sector,tags,status").eq("status", "published").order("createdAt", { ascending: false }).limit(100),
     sb.from("Company").select("id,name,logoUrl,verified,website").limit(200),
   ]);
-  for (const result of [profileRes, jobsRes, recruiterRes, companiesRes]) {
+  for (const result of [profileRes, experiencesRes, skillsRes, educationRes, jobsRes, recruiterRes, companiesRes]) {
     if (result.error) throw new Error(result.error.message);
   }
 
@@ -143,6 +249,9 @@ export async function getCascadeOpportunities(userId: string): Promise<CascadeOp
       website: company.website == null ? null : String(company.website),
     },
   ]));
+  const experiences = (experiencesRes.data ?? []) as Experience[];
+  const skills = (skillsRes.data ?? []) as Skill[];
+  const education = (educationRes.data ?? []) as Education[];
   const results: CascadeOpportunity[] = [];
 
   for (const job of jobsRes.data ?? []) {
@@ -150,10 +259,17 @@ export async function getCascadeOpportunities(userId: string): Promise<CascadeOp
     const company = job.companyId ? companies.get(job.companyId) : null;
     const detectedCompany = company?.name ?? extractCompanyName(String(job.title ?? ""), String(job.description ?? ""));
     if (!job.sourceUrl || !detectedCompany) continue;
-    const match = roleMatch(job.title, profile.targetRoles);
-    const city = profile.targetCities.length && profile.targetCities.some((c) => normalize(c) === normalize(job.location)) ? 100 : 50;
-    const remote = profile.remotePreference.toLowerCase() === "indifferent" || normalize(profile.remotePreference) === normalize(job.remoteMode) ? 100 : 50;
-    const matchScore = Math.round(match * 0.65 + city * 0.2 + remote * 0.15);
+    const matchResult = matchProfileToOpportunity(profile, experiences, skills, education, {
+      title: String(job.title ?? ""),
+      description: String(job.description ?? ""),
+      location: job.location,
+      contract: job.contractType,
+      remoteMode: job.remoteMode,
+      minExperienceYears: job.minExperienceYears,
+      sector: job.aiSector,
+      tags: Array.isArray(job.aiSkills) ? job.aiSkills.map(String) : [],
+    });
+    const matchScore = matchResult.matchScore;
     const prestige = sourcePrestige(String(job.source ?? "discovery"), Boolean(company?.verified));
     results.push({
       id: `job:${job.id}`,
@@ -174,9 +290,17 @@ export async function getCascadeOpportunities(userId: string): Promise<CascadeOp
 
   for (const job of recruiterRes.data ?? []) {
     const isStage = /stage|internship|intern/i.test(String(job.contract ?? "")) || /stage/i.test(String(job.title ?? ""));
-    const match = roleMatch(job.title, profile.targetRoles);
-    const city = profile.targetCities.length && profile.targetCities.some((c) => normalize(c) === normalize(job.location)) ? 100 : 50;
-    const matchScore = Math.round(match * 0.75 + city * 0.25);
+    const matchResult = matchProfileToOpportunity(profile, experiences, skills, education, {
+      title: String(job.title ?? ""),
+      description: String(job.description ?? ""),
+      location: job.location,
+      contract: job.contract,
+      remoteMode: job.remoteMode,
+      minExperienceYears: job.minExperienceYears,
+      sector: job.sector,
+      tags: Array.isArray(job.tags) ? job.tags.map(String) : [],
+    });
+    const matchScore = matchResult.matchScore;
     const prestige = sourcePrestige("recruiter");
     results.push({
       id: `recruiter:${job.id}`,
