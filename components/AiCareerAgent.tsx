@@ -205,7 +205,8 @@ function AiOutputView({ output }: { output: unknown }) {
 
 type Operation = "INTERVIEW" | "LEARNING" | "APPLICATION_COPILOT" | "CAREER_COMPANION";
 
-type UpgradeSuggestion = { shown: true; featureKey: string; benefit: string; targetPlan: string; reason: string; href: string };\ntype Exchange = { you: string; result?: any; error?: string; quotaExceeded?: boolean; upgradeSuggestion?: UpgradeSuggestion | null };
+type UpgradeSuggestion = { shown: true; featureKey: string; benefit: string; targetPlan: string; reason: string; href: string };
+type Exchange = { you: string; result?: any; error?: string; quotaExceeded?: boolean; upgradeSuggestion?: UpgradeSuggestion | null };
 
 function InputForm({
   operation,
@@ -230,7 +231,8 @@ function InputForm({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (operation === "INTERVIEW") {
-      const combinedAnswer = lastQuestion ? `Question posée : ${lastQuestion}\nMa réponse : ${answer}` : answer;
+      const combinedAnswer = lastQuestion ? `Question posée : ${lastQuestion}
+Ma réponse : ${answer}` : answer;
       onSubmit({ role, difficulty, answer: combinedAnswer }, answer || `Entretien ciblé : ${role || "profil général"} (${difficulty})`);
       setAnswer("");
       return;
