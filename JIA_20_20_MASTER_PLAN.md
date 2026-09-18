@@ -18,6 +18,10 @@ Ce document fusionne les décisions déjà prises et les chantiers encore manqua
 - Audit CEO.
 - Recherche Web serveur contrôlée.
 - Couche **Research Reasoning & Source Trust** ajoutée le 18/09/2026.
+- Primitives **Insight / Hypothesis / Recommendation / Outcome / Learning** et moteur Next Best Action ajoutés le 18/09/2026.
+- Boucle de résultat contrôlé `OUTCOME → LEARNING` ajoutée avec interdiction d'auto-promotion en mémoire canonique.
+- Endpoint proactif Talent ajouté avec détection de candidatures stagnantes, entretiens et Career Gaps.
+- Intelligence temporelle CEO enrichie par comparaison d'activité et traces de raisonnement.
 
 ## 2. Ce qui manquait et doit être compilé dans J’IA
 
