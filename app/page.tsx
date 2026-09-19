@@ -262,14 +262,16 @@ const translations = {
 
 const BENEFITS = {
   fr: [
-    { Icon: ShieldStarIcon, title: "100% Gratuit", subtitle: "Accès aux opportunités" },
-    { Icon: PeopleStarIcon, title: "Coaching IA", subtitle: "Conseils personnalisés" },
-    { Icon: CheckCircleIcon, title: "Placement Rapide", subtitle: "Construis ta carrière" },
+    { Icon: ShieldStarIcon, title: "100% gratuit", subtitle: "Accès à un univers de possibilités" },
+    { Icon: PeopleStarIcon, title: "J'IA matche sur-mesure", subtitle: "Ne cherche plus, choisis" },
+    { Icon: CheckCircleIcon, title: "J'IA postule à ta place", subtitle: "50 offres, un clic, zéro effort" },
+    { Icon: SparkleIcon, title: "Assistance mobilité", subtitle: "Fini les frictions du premier mois" },
   ],
   en: [
-    { Icon: ShieldStarIcon, title: "100% Free", subtitle: "Access opportunities" },
-    { Icon: PeopleStarIcon, title: "AI Coaching", subtitle: "Personalized advice" },
-    { Icon: CheckCircleIcon, title: "Fast Placement", subtitle: "Build your career" },
+    { Icon: ShieldStarIcon, title: "100% Free", subtitle: "Access a universe of possibilities" },
+    { Icon: PeopleStarIcon, title: "J'IA matches for you", subtitle: "Stop searching, start choosing" },
+    { Icon: CheckCircleIcon, title: "J'IA applies for you", subtitle: "50 jobs, one click, zero effort" },
+    { Icon: SparkleIcon, title: "Mobility assistance", subtitle: "No more first-month friction" },
   ],
 } as const;
 
@@ -781,14 +783,19 @@ export default function Home() {
               </div>
 
               <div className="relative z-20 w-[49%] pt-[4.8rem] sm:w-[45%] sm:pt-[4.5rem]">
-                <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-blue">Career OS</span>
+                <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-blue">Your Career OS</span>
                 <h1 className="font-[var(--font-inter)] text-[2.2rem] font-extrabold leading-[1.1] tracking-[-0.035em] text-deep-blue">
                   {translations[lang].title.split("\n").map((line, i) => (
                     <span key={line}>{line}{i === 0 && <br />}</span>
                   ))}
                 </h1>
-                <div className="mt-3 h-[6px] w-[90px] rounded-full bg-canari shadow-glow-canari" aria-hidden="true" />
-                <p className="mt-3 max-w-[150px] text-[14px] font-light italic leading-[1.35] text-[#4a4a4a]">
+                <svg aria-hidden="true" width="54" height="5" viewBox="0 0 54 5" className="mt-3 overflow-visible">
+                  <path d="M1 1.5 C17 4.8 37 4.8 53 1.5" fill="none" stroke="#FFD60A" strokeWidth="5" strokeLinecap="round" />
+                </svg>
+                <p className="mt-2.5 max-w-[165px] text-[12px] font-semibold tracking-[0.01em] text-deep-blue/75">
+                  Powered by <span className="font-black tracking-[-0.055em]"><span className="text-deep-blue">J'</span><span className="text-[#39D7FF]">I</span><span className="bg-gradient-to-br from-[#39D7FF] via-[#5BCBFF] to-[#FFC72C] bg-clip-text text-transparent">A</span></span>
+                </p>
+                <p className="mt-2 max-w-[165px] text-[13px] font-light italic leading-[1.35] text-[#4a4a4a]">
                   {translations[lang].subtitle}
                 </p>
               </div>
@@ -822,10 +829,10 @@ export default function Home() {
 
             <div className="relative z-20 mt-2 shrink-0 grid grid-cols-3 gap-3 px-4">
               {BENEFITS[lang].map(({ Icon, title, subtitle }) => (
-                <div key={title} className="rounded-2xl border border-white/60 bg-white/70 p-2.5 text-center shadow-premium backdrop-blur-md">
+                <div key={title} className="min-h-[82px] rounded-2xl border border-white/60 bg-white/70 p-3 text-center shadow-premium backdrop-blur-md">
                   <Icon className="mx-auto mb-1 h-5 w-5 text-sky-blue" />
-                  <p className="text-[13px] font-bold leading-tight text-deep-blue">{title}</p>
-                  <p className="mt-1 text-[11px] font-light leading-tight text-[#7a7f89]">{subtitle}</p>
+                  <p className="text-[11px] font-bold leading-tight text-deep-blue sm:text-[12px]">{title}</p>
+                  <p className="mt-1 text-[10px] font-light leading-tight text-[#7a7f89] sm:text-[11px]">{subtitle}</p>
                 </div>
               ))}
             </div>
@@ -1010,13 +1017,11 @@ export default function Home() {
       {screen === "reset-sent" && <section className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-4 text-center"><div className="mx-auto mb-4 text-5xl" aria-hidden="true">✉️</div><h1 className="text-[32px] font-extrabold text-navy">{translations[lang].sentTitle}</h1><p className="my-3 text-sm text-jobly-gray">{translations[lang].sentText}</p><button type="button" onClick={()=>{reset();goTo("login");}} className="h-[52px] rounded-2xl bg-jobly-blue font-extrabold text-white">{translations[lang].backLogin}</button></section>}
 
       {message && screen !== "journey" && screen !== "jia-welcome" && <div role="status" aria-live="polite" className="rounded-2xl border border-blue-100 bg-blue-50 px-3.5 py-2.5 text-center text-xs text-blue-800">{message}</div>}
-      {screen !== "journey" && screen !== "jia-welcome" && screen !== "signup" && screen !== "signup-otp" && screen !== "signup-password" && screen !== "login" && <footer className="shrink-0 px-4 pb-3 text-center">
+      {screen !== "journey" && screen !== "jia-welcome" && screen !== "signup" && screen !== "signup-otp" && screen !== "signup-password" && screen !== "login" && <footer className="shrink-0 px-4 pb-2 text-center">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={`footer-${lang}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeOut" }}>
-            <p className="text-[11px] leading-[1.35] text-[#6B7280]">{translations[lang].conditions}</p>
-            <div className="mt-1.5 flex items-center justify-center gap-2 text-[12px] font-medium text-jobly-blue">
-              <a href="/legal/terms" className="underline">{translations[lang].terms}</a><span>•</span><a href="/legal/privacy" className="underline">{translations[lang].privacy}</a>
-            </div>
+            
+            
             {screen === "welcome" && <div className="relative mx-auto mt-1 h-[29px] w-[120px]" aria-hidden="true">
               <motion.svg viewBox="0 0 120 29" className="absolute inset-0 h-full w-full">
                 <motion.path d="M58 27 C44 23 46 12 61 9 C72 7 77 2 74 0" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: [0, 0.7, 0.12, 0] }} transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut" }} />
