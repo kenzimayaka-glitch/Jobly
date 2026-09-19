@@ -456,7 +456,7 @@ export default function Home() {
   const journeyPointerRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const [jiaLine, setJiaLine] = useState(0);
   const [dropLanded, setDropLanded] = useState(false);
-  const logoRef = useRef<HTMLDivElement>(null);
+  const logoRef = useRef<HTMLImageElement>(null);
   const heartTargetRef = useRef<HTMLSpanElement>(null);
   const [heartPath, setHeartPath] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
   const [darkMode, setDarkMode] = useState(false);
@@ -766,7 +766,7 @@ export default function Home() {
       <div className="fixed right-4 top-4 z-30 flex gap-1 rounded-full border border-white/40 bg-white/40 p-1 shadow-premium backdrop-blur-xl"><button type="button" onClick={()=>{setLang("fr");try{localStorage.setItem("jobly-lang","fr")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="fr"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇫🇷 FR</button><button type="button" onClick={()=>{setLang("en");try{localStorage.setItem("jobly-lang","en")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="en"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇬🇧 EN</button></div>
     )}
     <div className="relative flex min-h-0 flex-1 w-full flex-col gap-0">
-      <header className="z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"><div ref={logoRef} aria-label="JOBLY — accueil" className="select-none font-[var(--font-inter)] text-[30px] font-black leading-none tracking-[-0.075em] text-deep-blue sm:text-[36px]"><span>JOB</span><span className="relative inline-block text-deep-blue">L<span className="absolute -bottom-[2px] left-[1px] h-[4px] w-[11px] rounded-full bg-canari sm:-bottom-[3px] sm:h-[5px] sm:w-[13px]" /></span><span>Y</span></div></header>
+      <header className="z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"><img ref={logoRef} src="/jobly-logo-reference.jpg" alt="JOBLY — accueil" className="h-auto w-[165px] mix-blend-multiply sm:w-[195px]" /></header>
       {screen === "welcome" && (
         <AnimatePresence mode="wait" initial={false}>
           <motion.section
