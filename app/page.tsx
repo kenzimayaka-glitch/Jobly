@@ -827,12 +827,12 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="relative z-20 mt-2 shrink-0 grid grid-cols-3 gap-3 px-4">
+            <div className="relative z-20 mt-2 shrink-0 grid grid-cols-4 gap-2 px-3 sm:gap-3 sm:px-4">
               {BENEFITS[lang].map(({ Icon, title, subtitle }) => (
-                <div key={title} className="min-h-[82px] rounded-2xl border border-white/60 bg-white/70 p-3 text-center shadow-premium backdrop-blur-md">
-                  <Icon className="mx-auto mb-1 h-5 w-5 text-sky-blue" />
-                  <p className="text-[11px] font-bold leading-tight text-deep-blue sm:text-[12px]">{title}</p>
-                  <p className="mt-1 text-[10px] font-light leading-tight text-[#7a7f89] sm:text-[11px]">{subtitle}</p>
+                <div key={title} className="min-h-[82px] rounded-2xl border border-white/60 bg-white/70 p-2 text-center shadow-premium backdrop-blur-md sm:p-3">
+                  <Icon className="mx-auto mb-1 h-4.5 w-4.5 text-sky-blue sm:h-5 sm:w-5" />
+                  <p className="text-[9px] font-bold leading-[1.05] text-deep-blue sm:text-[12px] sm:leading-tight">{title}</p>
+                  <p className="mt-1 text-[8px] font-light leading-[1.05] text-[#7a7f89] sm:text-[11px] sm:leading-tight">{subtitle}</p>
                 </div>
               ))}
             </div>
