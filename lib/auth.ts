@@ -127,7 +127,7 @@ export async function requestPasswordReset(email: string) {
   const value = email.trim().toLowerCase();
   if (!value.includes("@")) throw new Error("Entre l'adresse e-mail associée au compte.");
   const { error } = await getSupabaseClient().auth.resetPasswordForEmail(value, {
-    redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
+    redirectTo: `${window.location.origin}/auth/reset-password`,
   });
   if (error) throw new Error(translateAuthError(error.message));
 }

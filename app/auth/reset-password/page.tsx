@@ -19,30 +19,43 @@ function ResetPasswordInner() {
   useEffect(() => {
     const supabase = getSupabaseClient();
     let mounted = true;
+    let timeout: number | undefined;
 
     const prepare = async () => {
       try {
-        // The callback normally establishes the recovery session first.
-        // This also supports a direct Supabase recovery URL containing tokens.
+        // The recovery link now opens this page directly from Gmail.
+        // Accept both Supabase PKCE links (?code=...) and token-hash links
+        // (?token_hash=...&type=recovery), then wait for the resulting session.
+        const code = searchParams.get("code");
+        const tokenHash = searchParams.get("token_hash");
+        const type = searchParams.get("type");
+
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+        } else if (tokenHash) {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: type === "recovery" ? "recovery" : "email",
+          });
+          if (error) throw error;
+        }
+
         const { data } = await supabase.auth.getSession();
         if (data.session) {
           if (mounted) setReady(true);
           return;
         }
 
-        // If the browser is still processing the recovery hash, wait briefly
-        // for Supabase's auth state event instead of showing a dead form.
-        const timer = window.setTimeout(async () => {
+        timeout = window.setTimeout(async () => {
           const { data: retry } = await supabase.auth.getSession();
           if (mounted) {
             setReady(Boolean(retry.session));
             if (!retry.session) setMessage("Le lien de récupération est invalide ou a expiré. Demande un nouveau lien depuis Jobly.");
           }
-        }, 900);
-
-        return () => window.clearTimeout(timer);
+        }, 1200);
       } catch {
-        if (mounted) setMessage("Impossible de préparer la récupération du mot de passe.");
+        if (mounted) setMessage("Le lien de récupération est invalide ou a expiré. Demande un nouveau lien depuis Jobly.");
       }
     };
 
@@ -56,9 +69,10 @@ function ResetPasswordInner() {
     void prepare();
     return () => {
       mounted = false;
+      if (timeout) window.clearTimeout(timeout);
       listener.subscription.unsubscribe();
     };
-  }, []);
+  }, [searchParams]);
 
   async function submit() {
     if (password !== confirm) {
@@ -70,7 +84,7 @@ function ResetPasswordInner() {
     try {
       await updatePassword(password);
       setMessage("Mot de passe modifié avec succès.");
-      setTimeout(() => router.replace("/"), 900);
+      setTimeout(() => window.location.assign("/ecosystem"), 700);
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Impossible de modifier le mot de passe.");
     } finally {
