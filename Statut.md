@@ -497,8 +497,7 @@ iClan/Eduklan est la frontière fournisseur retenue, mais **l'intégration live 
 CREATED
  ↓
 PENDING
- ↓SUCCESSFUL / FAILED
- ↓
+ ↓SUCCESSFUL / FAILED ↓
 REFUNDED
 ```
 
@@ -998,7 +997,6 @@ Raison donnée par le fondateur : construire la boucle de valeur pour le candida
 
 **Moteur de Matching (P1) construit en même temps que l'écran Dashboard**, plutôt qu'avant. Migration DB `20260912100000_matching_applications_v1` codée (voir section 4) pour supporter le calcul du % de correspondance (12.1) et le suivi de candidature (12.2) — non encore déployée sur la base réelle.
 **Règle de gouvernance ajoutée :** à chaque codage ou information pertinente, mettre à jour ce `Statut.md` et le `README.md` dans la foulée — pas seulement en fin de session.
-
 **`/api/jobs` codée** (12/09/2026) : GET qui calcule le % de correspondance (5 critères pondération égale, spec 12.1) à partir du profil réel et retourne le nombre réel d'offres actives (`totalActive`, jamais filtré). Non déployée, non testée sur téléphone réel.
 
 **Divergence RecruiterJob/Job découverte et arbitrée** (12/09/2026) : les candidatures couvrent les 2 sources d'offres (décision du fondateur). Migration `20260912110000_recruiterjob_unification` codée. `/api/jobs` fusionne désormais Discovery + RecruiterJob dans une seule liste triée par % de correspondance.
@@ -1497,8 +1495,7 @@ Cette section historique est remplacée par la décision verrouillée et l'impl�
 ## P3.2 — Career OS minimal livré dans le code
 - `GET /api/career-os`.- Écran `/career-os`.
 - Career Goals dérivés du Career Brain.
-- Career Gap déterministe.
-- Career Roadmap / GPS minimal.
+- Career Gap déterministe.- Career Roadmap / GPS minimal.
 - Readiness calculé à partir des gaps réels.
 - Next Best Action déterminée à partir du prochain blocage utile.
 
@@ -1998,7 +1995,6 @@ Ne plus multiplier les pages. Passer en mode **stabilisation finale** : build Ve
 
 
 ## 26. CINEMATIC V21 — 16/09/2026 — CHECKPOINT
-
 **Décision active :** reconstruction visuelle radicale des trois surfaces cœur (`/recruiter`, `/jobs`, `/talent/profile`) sans casser les APIs existantes.
 
 **Codé localement :** motion/glass/haptic/audio/confetti, navigation glass, bottom sheets, recherche jobs, Apply réel, Match Lab réel, parallax profil.
@@ -2185,3 +2181,94 @@ J’IA assiste l’administrateur. Elle peut analyser, alerter, simuler, recomma
 - **État :** 🔧 CODÉ — NON VALIDÉ
 - **Build Vercel :** READY sur le déploiement de la correction.
 - **Validation humaine :** test réel Gmail → nouveau mot de passe → retour dans Jobly encore requis.
+
+# CHECKPOINT 20/09/2026 — J’IA DÉFINITIVE / MOTION SYSTEM
+
+## Décision du fondateur
+
+La référence visuelle de J’IA fournie le 20/09/2026 est désormais la **référence visuelle maître** du personnage.
+
+Elle doit conserver :
+- une jeune femme africaine adulte, sophistiquée et élégante ;
+- une présence de griotte moderne / gardienne de mémoire ;
+- cheveux noirs naturellement crépus, coiffure simple ;
+- lunettes rondes dorées ;
+- blazer bleu et foulard soie ambre/or à motif géométrique discret ;
+- pin minimaliste « J’IA » ;
+- apparence humaine et organique ;
+- aucune esthétique robotique/cyborg ;
+- aucun élément corporate inutile (tablette, dashboard, mallette, badge RH, casque, antenne, etc.).
+
+**Règle : les animations ne doivent pas modifier ou dénaturer cette identité.**
+
+## Décision d'interaction
+
+J’IA doit exprimer ses intentions par **des gestes réellement animés du personnage**, et non par des emojis utilisés comme substitut à l'animation.
+
+### Vocabulaire gestuel cible — 24 gestes
+
+**CORE**
+1. Saluer / accueillir
+2. Analyser / réfléchir
+3. Pointer / expliquer
+4. Écrire / prendre des notes
+5. Valider / cocher
+6. Alerter / attention
+7. Envoyer / postuler
+8. Célébrer / embauché
+
+**ÉMOTIONNELS**
+9. Clin d’œil complice
+10. Rassurer
+11. Encourager
+12. Déçue mais motivante
+13. Surprise / offre parfaite
+14. Curieuse
+15. Fatiguée mais continue
+16. Fière
+
+**BUSINESS**
+17. Présenter un graphique
+18. Serrer la main / partenariat
+19. Présenter une équipe
+20. Expliquer PAY OS
+21. Appeler / relation RH
+22. Filtrer / trier
+23. Sécuriser / confidentiel
+24. Dire au revoir / à demain
+
+## Architecture cible
+
+Le moteur J’IA devra suivre :
+
+`CONTEXTE → INTENTION → MESSAGE → GESTE → CIBLE/POSITION → VOIX → ACTION`
+
+Le geste doit être contextualisé. Exemple : lorsque J’IA demande de cliquer sur un bouton, elle doit pouvoir **pointer réellement vers ce bouton**, avec une position recalculée selon l'écran et le viewport mobile.
+
+La voix et l'animation faciale suivent :
+
+`INTENTION → TEXTE LOCALISÉ → VOIX → BOUCHE / EXPRESSION`
+
+Le texte et la voix doivent suivre la langue active de l'utilisateur.
+
+## Principe de comportement
+
+J’IA devient une couche d'assistance transversale du Career OS :
+- présence discrète ;
+- assistance contextualisée ;
+- anticipation ;
+- proposition de prochaine action ;
+- guidage visuel ;
+- accompagnement d'une difficulté ;
+- action lorsque le système l'autorise ;
+- confirmation du résultat.
+
+Elle ne doit pas bouger en permanence. Chaque animation doit porter une information ou une intention.
+
+## État honnête
+
+**🟡 SPÉCIFIÉ / RÉFÉRENCE VISUELLE FIGÉE — NON IMPLÉMENTÉ**
+
+La référence visuelle et le vocabulaire des 24 gestes sont documentés. Le moteur d'animations, les assets/rigs nécessaires, la synchronisation bouche/voix et les tests téléphone restent à implémenter.
+
+**Important :** cette section ne constitue pas une validation de l'animation. Aucune animation J’IA ne doit être déclarée « validée » avant un test réel sur téléphone.
