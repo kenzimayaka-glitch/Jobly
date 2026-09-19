@@ -1736,3 +1736,18 @@ Les animations doivent avoir une fonction sémantique. **Pas de mouvement gratui
 **SPÉCIFIÉ / RÉFÉRENCE VISUELLE FIGÉE → MOTION SYSTEM À IMPLÉMENTER ET À TESTER**
 
 La référence visuelle est définie. Les 24 gestes constituent le vocabulaire cible ; leur implémentation technique, synchronisation voix/bouche et validation sur téléphone restent à réaliser.
+
+
+# CHECKPOINT 20/09/2026 — J’IA MOTION SYSTEM IMPLÉMENTÉ
+
+La première couche exécutable du Motion System J’IA est désormais codée dans components/WaterScene.tsx et components/JiaMaster.ts.
+
+- La référence visuelle fournie par le fondateur est embarquée comme master asset, sans dépendance CDN.
+- Les 24 intentions gestuelles définies dans le vocabulaire J’IA disposent désormais d’un preset d’animation sémantique.
+- Le parcours d’accueil J’IA active automatiquement les intentions welcome → analyze → reassure ; aucune animation continue non contextualisée n’est introduite après cette séquence.
+- Le moteur accepte désormais une intention explicite : gesture, message, target, voice.
+- La cible contextuelle peut être affichée comme repère lorsque J’IA guide une action.
+- La voix navigateur est préparée via Web Speech API lorsque voice: true est demandé ; la langue suit le document actif FR/EN.
+- prefers-reduced-motion est respecté.
+
+**État honnête :** le moteur 2D et le vocabulaire sémantique sont implémentés. Ce n’est pas encore un rig anatomique avec animation indépendante des bras, mains, yeux et bouche. Cette étape reste nécessaire pour atteindre le niveau final de « geste réellement physique » défini dans la spécification.
