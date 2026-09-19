@@ -765,7 +765,7 @@ export default function Home() {
     {screen === "welcome" && (
       <div className="fixed right-4 top-4 z-30 flex gap-1 rounded-full border border-white/40 bg-white/40 p-1 shadow-premium backdrop-blur-xl"><button type="button" onClick={()=>{setLang("fr");try{localStorage.setItem("jobly-lang","fr")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="fr"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇫🇷 FR</button><button type="button" onClick={()=>{setLang("en");try{localStorage.setItem("jobly-lang","en")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="en"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇬🇧 EN</button></div>
     )}
-    <div className="relative flex min-h-[100dvh] w-full flex-col gap-0">
+    <div className="relative flex min-h-0 flex-1 w-full flex-col gap-0">
       <header className="z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"><img ref={logoRef} src="/jobly-logo-reference.jpg" alt="JOBLY — accueil" className="h-auto w-[165px] mix-blend-multiply sm:w-[195px]" /></header>
       {screen === "welcome" && (
         <AnimatePresence mode="wait" initial={false}>
