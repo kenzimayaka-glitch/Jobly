@@ -456,7 +456,7 @@ export default function Home() {
   const journeyPointerRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const [jiaLine, setJiaLine] = useState(0);
   const [dropLanded, setDropLanded] = useState(false);
-  const logoRef = useRef<HTMLImageElement>(null);
+  const logoRef = useRef<HTMLDivElement>(null);
   const heartTargetRef = useRef<HTMLSpanElement>(null);
   const [heartPath, setHeartPath] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
   const [darkMode, setDarkMode] = useState(false);
@@ -766,7 +766,7 @@ export default function Home() {
       <div className="fixed right-4 top-4 z-30 flex gap-1 rounded-full border border-white/40 bg-white/40 p-1 shadow-premium backdrop-blur-xl"><button type="button" onClick={()=>{setLang("fr");try{localStorage.setItem("jobly-lang","fr")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="fr"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇫🇷 FR</button><button type="button" onClick={()=>{setLang("en");try{localStorage.setItem("jobly-lang","en")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="en"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇬🇧 EN</button></div>
     )}
     <div className="relative flex min-h-0 flex-1 w-full flex-col gap-0">
-      <header className="z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"><img ref={logoRef} src="/jobly-logo-reference.jpg" alt="JOBLY — accueil" className="h-auto w-[165px] mix-blend-multiply sm:w-[195px]" /></header>
+      <header className="z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"><div ref={logoRef} aria-label="JOBLY — accueil" className="select-none font-[var(--font-inter)] text-[30px] font-black leading-none tracking-[-0.075em] text-deep-blue sm:text-[36px]"><span>JOB</span><span className="relative inline-block text-deep-blue">L<span className="absolute -bottom-[2px] left-[1px] h-[4px] w-[11px] rounded-full bg-canari sm:-bottom-[3px] sm:h-[5px] sm:w-[13px]" /></span><span>Y</span></div></header>
       {screen === "welcome" && (
         <AnimatePresence mode="wait" initial={false}>
           <motion.section
@@ -783,7 +783,7 @@ export default function Home() {
               </div>
 
               <div className="relative z-20 w-[49%] pt-[4.8rem] sm:w-[45%] sm:pt-[4.5rem]">
-                <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-blue">Your Career OS</span>
+                
                 <h1 className="font-[var(--font-inter)] text-[2.2rem] font-extrabold leading-[1.1] tracking-[-0.035em] text-deep-blue">
                   {translations[lang].title.split("\n").map((line, i) => (
                     <span key={line}>{line}{i === 0 && <br />}</span>
@@ -800,7 +800,7 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="absolute bottom-0 right-[-1%] z-[5] h-[78%] w-[63%] sm:h-[76%] sm:w-[60%] lg:h-[70%] lg:w-[50%]">
+              <div className="absolute bottom-[2cm] right-[-1%] z-[5] h-[78%] w-[63%] sm:h-[76%] sm:w-[60%] lg:h-[70%] lg:w-[50%]">
                 <Image
                   fill
                   priority
@@ -830,7 +830,7 @@ export default function Home() {
             <div className="relative z-20 mt-2 shrink-0 grid grid-cols-4 gap-2 px-3 sm:gap-3 sm:px-4">
               {BENEFITS[lang].map(({ Icon, title, subtitle }) => (
                 <div key={title} className="min-h-[82px] rounded-2xl border border-white/60 bg-white/70 p-2 text-center shadow-premium backdrop-blur-md sm:p-3">
-                  <Icon className="mx-auto mb-1 h-4.5 w-4.5 text-sky-blue sm:h-5 sm:w-5" />
+                  <Icon className="mx-auto mb-1 h-3.5 w-3.5 text-sky-blue sm:h-4 sm:w-4" />
                   <p className="text-[9px] font-bold leading-[1.05] text-deep-blue sm:text-[12px] sm:leading-tight">{title}</p>
                   <p className="mt-1 text-[8px] font-light leading-[1.05] text-[#7a7f89] sm:text-[11px] sm:leading-tight">{subtitle}</p>
                 </div>
