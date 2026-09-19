@@ -19,7 +19,16 @@ export default function PageHeader({
 }) {
   const router = useRouter();
 
-  function goProfile() { router.push(theme === "talent" ? "/talent/profile" : "/dashboard"); }
+  function goProfile() {
+    const profileHref = theme === "talent"
+      ? "/talent/profile"
+      : eyebrow === "RECRUITER"
+        ? "/recruiter/profile"
+        : eyebrow === "PARTNER"
+          ? "/partner/profile"
+          : "/dashboard";
+    router.push(profileHref);
+  }
 
   return (
     <header className="relative z-20 border-b border-slate-100 bg-white/95 px-5 pb-3 pt-4 backdrop-blur sm:px-6">
