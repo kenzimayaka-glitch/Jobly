@@ -1,5 +1,5 @@
 # JOBLY — README DE CONTINUITÉ PRODUIT & TECHNIQUE
-## JOBLY 20/20 — Your AI Career Agent
+## JOBLY 20/20 — Your Career OS
 ### Référence de continuité — 12 septembre 2026 (routes mises à jour le 13/09/2026)
 
 > **AUDIT 360° DU 13/09/2026** — un audit complet de navigation a été réalisé
@@ -498,7 +498,6 @@ Elle peut alimenter :
 - Housing ;
 - Partners.
 À terme, une **Career Map / Jobly Nearby** peut réunir les éléments pertinents autour du Talent.
-
 ---
 
 # 14. CAREER COMPANION
@@ -997,7 +996,6 @@ Le fondateur n'est pas développeur. Quand une IA a besoin d'un arbitrage pour a
 - attendre la réponse avant de poser la question suivante ;
 - ne jamais avancer sur une zone d'incertitude sans arbitrage explicite du fondateur.
 ---
-
 # 30. MÉTHODE DE CONCEPTION 20/20
 
 Avant de créer un écran :
@@ -1497,7 +1495,6 @@ Pour accélérer la clôture du projet, les surfaces structurantes de la vision 
 
 Ces surfaces ferment les portes de navigation sans transformer une fondation en fonctionnalité backend spécialisée inexistante. Les validations BUILD/E2E finales restent obligatoires avant de déclarer le produit production-ready.
 **Stratégie de fin de projet :** stabiliser et valider avant d'ajouter de nouvelles briques.
-
 ## 2026-09-16 — Stabilisation finale des parcours cœur
 - Talent dispose d'un espace CV avec import, création, édition, score ATS déterministe, versions et impression/PDF navigateur.
 - Talent et Partner disposent désormais d'un espace Paramètres dédié ; Recruiter conserve ses paramètres et y accède depuis son profil.
@@ -1628,3 +1625,114 @@ La présence d’une connaissance dans la mémoire ne signifie pas qu’une fonc
 
 ### Sécurité
 Le CEO Copilot est réservé au rôle ADMIN. Les informations CEO/confidentielles ne doivent jamais être exposées aux surfaces Talent, Recruiter ou Partner.
+
+# CHECKPOINT 20/09/2026 — J’IA : IDENTITÉ VISUELLE DÉFINITIVE & MOTION SYSTEM
+
+## Référence visuelle maître
+
+La version de J’IA fournie par le fondateur le 20/09/2026 devient la **référence visuelle définitive** de J’IA pour le produit.
+
+Caractéristiques à préserver :
+- jeune femme africaine adulte, fin vingtaine ;
+- beauté sophistiquée et présence de mannequin, sans esthétique enfantine ;
+- expression chaleureuse, confiante et regard direct ;
+- présence de **griotte moderne / gardienne de mémoire**, pas d’assistante corporate générique ;
+- cheveux noirs naturellement crépus, coiffure simple et élégante ;
+- lunettes rondes à monture dorée ;
+- blazer bleu taillé ;
+- foulard soie ambre/or avec motif géométrique textile discret ;
+- pin minimaliste « J’IA » ;
+- apparence entièrement humaine et organique ;
+- aucun élément robotique, mécanique ou cybernétique ;
+- aucun casque, antenne, tablette, dashboard, graphique, mallette ou badge RH ;
+- composition utilisable en illustration complète et en avatar recadré.
+
+**Règle de non-régression :** ne pas réinterpréter l'identité visuelle de J’IA lors d'une implémentation technique. Les animations doivent être construites autour du personnage, pas l'inverse.
+
+## J’IA n’utilise pas des emojis pour exprimer ses intentions
+
+Le système cible un **avatar animé réel** : lorsque J’IA veut saluer, pointer, réfléchir, valider ou célébrer, elle réalise physiquement le geste correspondant.
+
+Les emojis peuvent rester des éléments textuels génériques de l'interface lorsque le produit en a besoin, mais **ils ne constituent pas le langage gestuel de J’IA**.
+
+## J’IA Motion System
+
+Les gestes sont définis comme un vocabulaire sémantique :
+
+### CORE
+1. Saluer / accueillir
+2. Analyser / réfléchir
+3. Pointer / expliquer
+4. Écrire / prendre des notes
+5. Valider / cocher
+6. Alerter / attention
+7. Envoyer / postuler
+8. Célébrer / embauché
+
+### ÉMOTIONNELS
+9. Clin d’œil complice
+10. Rassurer
+11. Encourager
+12. Déçue mais motivante
+13. Surprise / offre parfaite
+14. Curieuse
+15. Fatiguée mais continue
+16. Fière
+
+### BUSINESS
+17. Présenter un graphique
+18. Serrer la main / partenariat
+19. Présenter une équipe
+20. Expliquer PAY OS
+21. Appeler / relation RH
+22. Filtrer / trier
+23. Sécuriser / confidentiel
+24. Dire au revoir / à demain
+
+## Architecture cible
+
+Le comportement de J’IA suit :
+
+`CONTEXTE → INTENTION → MESSAGE → GESTE → CIBLE/POSITION → VOIX → ACTION`
+
+Un même geste peut être réutilisé dans plusieurs parcours avec un message et une cible différents.
+
+Pour les actions contextualisées, J’IA doit pouvoir :
+- identifier l'élément concerné ;
+- se positionner sans masquer l'action ;
+- pointer physiquement vers la cible ;
+- expliquer ce qu'il faut faire ;
+- guider l'utilisateur jusqu'à l'action ;
+- confirmer le résultat.
+
+Sur mobile, la position et la taille de la cible doivent être recalculées selon le viewport.
+
+## Voix, bouche et expression
+
+Quand la voix est activée, la chaîne cible est :
+
+`INTENTION → TEXTE LOCALISÉ → VOIX → ANIMATION FACIALE / BOUCHE`
+
+Le texte affiché et la langue parlée doivent suivre la langue de l'utilisateur.
+
+## Principe produit
+
+J’IA doit être une **couche d'accompagnement contextuel du Career OS**, pas une mascotte animée en permanence.
+
+Elle peut :
+- accueillir ;
+- expliquer ;
+- anticiper un besoin ;
+- proposer la prochaine action ;
+- montrer où cliquer ;
+- accompagner une difficulté ;
+- exécuter ou déclencher l'action lorsque le système l'autorise ;
+- confirmer le résultat.
+
+Les animations doivent avoir une fonction sémantique. **Pas de mouvement gratuit ou permanent.**
+
+## Statut
+
+**SPÉCIFIÉ / RÉFÉRENCE VISUELLE FIGÉE → MOTION SYSTEM À IMPLÉMENTER ET À TESTER**
+
+La référence visuelle est définie. Les 24 gestes constituent le vocabulaire cible ; leur implémentation technique, synchronisation voix/bouche et validation sur téléphone restent à réaliser.
