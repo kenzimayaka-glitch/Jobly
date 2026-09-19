@@ -2159,3 +2159,29 @@ J’IA assiste l’administrateur. Elle peut analyser, alerter, simuler, recomma
 - **État :** 🔧 CODÉ — NON VALIDÉ
 - **Build :** `npm run build` réussi sur le commit de correction via CI GitHub (PR #5).
 - **Validation humaine :** non effectuée ; test téléphone réel encore requis.
+
+### Corrections interface demandées — 19/09/2026
+
+#### PAGE D’ACCUEIL
+- **Fichier :** `app/page.tsx`
+- **Avant :** libellé `Career OS`, trait droit de 90 px, 3 cartes de valeur, footer légal visible.
+- **Après :** libellé `Your Career OS`, trait canari `#FFD60A` de 54×5 px légèrement courbé, mention `Powered by J'IA` avec l’esthétique J’IA existante, 4 cartes de valeur, footer légal retiré de l’accueil et espacement resserré.
+- **État :** 🔧 CODÉ — NON VALIDÉ
+- **Build Vercel :** READY sur le déploiement de la correction.
+- **Validation humaine :** test téléphone réel encore requis.
+
+#### PAGE CRÉER MON COMPTE
+- **Fichier :** `app/page.tsx`
+- **Avant :** sous-titre précédent, contenu centré.
+- **Après :** sous-titre `Veuillez remplir vos informations d’identification.`, Nom/Prénom/Téléphone/Adresse e-mail alignés à gauche, phrase `Ton numéro est enregistré...` supprimée.
+- **État :** 🔧 CODÉ — NON VALIDÉ
+- **Build Vercel :** READY sur le déploiement de la correction.
+- **Validation humaine :** test téléphone réel encore requis.
+
+#### RÉCUPÉRATION MOT DE PASSE
+- **Fichiers :** `lib/auth.ts`, `app/auth/reset-password/page.tsx`
+- **Avant :** le lien Gmail passait par `/auth/callback` avant la page de configuration et la redirection finale pouvait laisser l’expérience bloquée.
+- **Après :** le lien de récupération ouvre directement `/auth/reset-password`, la page traite les liens Supabase PKCE (`code`) et `token_hash` de récupération, puis force une navigation complète vers `/ecosystem` après changement du mot de passe.
+- **État :** 🔧 CODÉ — NON VALIDÉ
+- **Build Vercel :** READY sur le déploiement de la correction.
+- **Validation humaine :** test réel Gmail → nouveau mot de passe → retour dans Jobly encore requis.
