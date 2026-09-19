@@ -2150,3 +2150,12 @@ J’IA assiste l’administrateur. Elle peut analyser, alerter, simuler, recomma
 
 ## État réel
 **Production déployée et techniquement stable sur les parcours anonymes testés.** La validation E2E authentifiée Talent/Recruiter/Partner et le branchement paiement/iClan restent des validations métier distinctes et ne doivent pas être déclarés terminés sans parcours réel.
+
+
+### Audit navigation — 19/09/2026
+- **Correction appliquée :** `components/PageHeader.tsx`
+- **Avant :** l'avatar du header envoyait tout profil non-Talent vers `/dashboard`, y compris depuis les espaces Recruteur et Partner.
+- **Après :** le header route vers `/talent/profile`, `/recruiter/profile` ou `/partner/profile` selon l'écosystème ; le comportement par défaut reste `/dashboard`.
+- **État :** 🔧 CODÉ — NON VALIDÉ
+- **Build :** `npm run build` réussi sur le commit de correction via CI GitHub (PR #5).
+- **Validation humaine :** non effectuée ; test téléphone réel encore requis.
