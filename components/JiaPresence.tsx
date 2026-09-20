@@ -2,7 +2,9 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { JiaCharacter, type JiaGesture } from "./WaterScene";
+import JIA from "./JIA";
+import type { JIAMove } from "./JIA";
+import type { JiaGesture } from "./WaterScene";
 import { getSupabaseClient } from "../lib/supabase";
 
 type Prediction = { message: string; gesture: JiaGesture; shouldSpeak: boolean; target?: string };
@@ -155,9 +157,9 @@ export default function JiaPresence() {
   }, [pathname, interacted, jiaEnabled]);
 
   if (!jiaEnabled) return null;
-  return <div className="pointer-events-none fixed inset-0 z-[80] overflow-visible" aria-label="J’IA — présence intelligente de Jobly">
+  return <div className="pointer-events-none fixed inset-0 z-[9999] overflow-visible isolation-isolate" style={{ isolation: "isolate" }} aria-label="J’IA — présence intelligente de Jobly">
     <motion.div className="pointer-events-auto fixed bottom-3 right-3 h-[300px] w-[190px] max-w-[calc(100vw-24px)] cursor-grab touch-none sm:bottom-4 sm:right-4 sm:h-[370px] sm:w-[270px]" drag dragMomentum={false} dragElastic={0.06} dragConstraints={{ left: -Math.max(0, viewport.w - 300), right: 0, top: -Math.max(0, viewport.h - 430), bottom: 0 }} whileTap={{ cursor: "grabbing", scale: 0.99 }}>
-      <JiaCharacter speaking={speaking} gesture={prediction.gesture} />
+      <JIA speaking={speaking} gesture={prediction.gesture} auto />
       <motion.div className="pointer-events-none absolute -top-2 left-1/2 z-[82] -translate-x-1/2 rounded-full border-2 border-[#0057B8] bg-[#FFE135] px-3 py-1.5 text-[10px] font-black uppercase tracking-[.11em] text-[#0057B8] shadow-md">{interactionMode === "voice" ? (voiceSupported ? (listening ? "J’IA · écoute" : "J’IA · vocal") : "J’IA · vocal indisponible") : "J’IA · texte"}</motion.div>
       {prediction.message && <motion.div key={prediction.message} className="pointer-events-none absolute right-[calc(100%+10px)] bottom-12 z-[81] w-[min(310px,68vw)] sm:right-[calc(100%+14px)] sm:bottom-16 sm:w-[min(390px,68vw)]" initial={{ opacity: 0, y: 10, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.28 }}><div className="rounded-[20px] border-2 border-[#0057B8] bg-[#FFE135] px-4 py-3 text-[13px] font-extrabold leading-[1.4] text-[#0057B8] shadow-[0_14px_35px_rgba(0,87,184,.20)] sm:px-5 sm:py-4 sm:text-[14px]">{prediction.message}</div></motion.div>}
     </motion.div>
