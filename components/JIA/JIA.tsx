@@ -76,10 +76,10 @@ export default function JIA({speaking,gesture="welcome",auto=true,move:requested
    <Layer bone={bone("handR")} region={[65,68,31,30]}/>
    <Layer bone={bone("scarf")} region={[31,34,38,30]}/>
    <motion.div className="absolute inset-0 pointer-events-none" animate={head} transition={{type:"spring",stiffness:160,damping:18}} style={{transformOrigin:"50% 80%"}}>
-     <motion.span className="absolute rounded-full bg-[#17212B]" style={{left:"43.8%",top:"25.5%",width:"1.7%",height:"0.9%"}} animate={{x:e.x??0,y:e.y??0,scaleY:blink||winkL?.08:1}}/>
-     <motion.span className="absolute rounded-full bg-[#17212B]" style={{left:"58.7%",top:"25.5%",width:"1.7%",height:"0.9%"}} animate={{x:e.x??0,y:e.y??0,scaleY:blink||winkR?.08:1}}/>
+     <motion.span className="absolute rounded-full bg-[#17212B]" style={{left:"43.8%",top:"25.5%",width:"1.7%",height:"0.9%"}} animate={{x:e.x??0,y:e.y??0,scaleY:(blink||winkL) ? 0.08 : 1}}/>
+     <motion.span className="absolute rounded-full bg-[#17212B]" style={{left:"58.7%",top:"25.5%",width:"1.7%",height:"0.9%"}} animate={{x:e.x??0,y:e.y??0,scaleY:(blink||winkR) ? 0.08 : 1}}/>
      <motion.span className="absolute rounded-[50%] border border-[#6B302B]/70 bg-[#8E3F3B]/25" style={{left:"51.2%",top:"38.3%",width:"8.8%",height:"2.4%",transform:"translate(-50%,-50%)"}} animate={{scaleX:speaking?(talk?1.12:.88):.86,scaleY:speaking?(talk?1.22:.78):.55,opacity:speaking?.7:0}}/>
-     <motion.span className="absolute left-[36.5%] top-[24.6%] h-[2.2%] w-[29%] rounded-full bg-[#9A5B3E]" animate={{scaleY:blink||winkL||winkR?.08:0,opacity:blink||winkL||winkR?.9:0}}/>
+     <motion.span className="absolute left-[36.5%] top-[24.6%] h-[2.2%] w-[29%] rounded-full bg-[#9A5B3E]" animate={{scaleY:(blink||winkL||winkR) ? 0.08 : 0,opacity:(blink||winkL||winkR) ? 0.9 : 0}}/>
    </motion.div>
  </motion.div>
 }
