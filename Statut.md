@@ -2352,3 +2352,26 @@ Le rig ne suit plus le curseur et ne fait plus pivoter automatiquement le corps.
 **🔧 CODÉ → 🧪 À VALIDER SUR TÉLÉPHONE + VERCEL**
 
 La commande vocale et son garde-fou financier sont codés. La compatibilité exacte de Speech Recognition dépend du navigateur et doit être validée sur les appareils cibles. Les actions métier supplémentaires devront écouter jobly:jia-command sans contourner la barrière financière.
+
+
+# CHECKPOINT 20/09/2026 — J’IA SETTINGS / ACCÈS PAR ÉCOSYSTÈME
+
+## Implémenté
+- Nouveau composant : `components/JiaPreferences.tsx`.
+- Configuration ajoutée aux paramètres **Talent**, **Recruiter** et **Partner**.
+- Accès J’IA : activé/désactivé.
+- Réponse J’IA : **texte seulement** ou **vocal**.
+- Notification J’IA : **texte seulement** ou **vocal**.
+- Recommandations proactives : activées/désactivées.
+- Préférences séparées par écosystème.
+- Persistance Supabase dans `public.jia_preferences`.
+- RLS activée : un utilisateur ne peut lire/modifier que ses propres préférences.
+- Migration appliquée sur **JOBLY-PROD**.
+
+## Commits
+- `86edc371e08dea424fc80e5a611a486d607129dc` — composant J’IA Settings.
+- `8520cb1f16a44c5022a1a941a2c5f77e6fb0d868` — intégration Talent/Partner.
+- `5900926d67e0e0d38e2ceda20c1413e9d282fd98` — intégration Recruiter.
+
+## État honnête
+**🔧 CODÉ + PERSISTANCE DB → 🧪 BUILD / VERCEL / TEST MOBILE À VALIDER**.
