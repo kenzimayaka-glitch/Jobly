@@ -785,7 +785,7 @@ export default function Home() {
 
               <div className="relative z-20 mt-6 w-[45%]">
                 
-                <h1 className="font-[var(--font-poppins)] text-[28px] leading-[31px] font-[800] tracking-[-0.8px] text-deep-blue">
+                <h1 className="font-[var(--font-inter)] text-[28px] leading-[31px] font-extrabold tracking-[-0.8px] text-deep-blue">
                   {translations[lang].title.split("\n").map((line, i) => (
                     <span key={line}>{line}{i === 0 && <br />}</span>
                   ))}
@@ -793,10 +793,10 @@ export default function Home() {
                 <svg aria-hidden="true" width="54" height="5" viewBox="0 0 54 5" className="mt-3 overflow-visible">
                   <path d="M1 1.5 C17 4.8 37 4.8 53 1.5" fill="none" stroke="#FFD60A" strokeWidth="5" strokeLinecap="round" />
                 </svg>
-                <p className="mt-2.5 max-w-[165px] text-[12px] font-semibold tracking-[0.01em] text-deep-blue/75">
+                <p className="mt-2.5 max-w-[165px] font-[var(--font-inter)] text-[12px] font-bold tracking-[0.01em] text-deep-blue/75">
                   Powered by <span className="font-black tracking-[-0.055em]"><span className="text-deep-blue">J'</span><span className="text-[#39D7FF]">I</span><span className="bg-gradient-to-br from-[#39D7FF] via-[#5BCBFF] to-[#FFC72C] bg-clip-text text-transparent">A</span></span>
                 </p>
-                <p className="relative z-10 mt-3 w-[52%] text-[13px] leading-[18px] font-[400] italic text-[#4a4a4a]">
+                <p className="relative z-10 mt-3 w-[95%] text-[13px] leading-[18px] font-[var(--font-inter)] font-bold italic text-[#4a4a4a]">
                   {translations[lang].subtitle}
                 </p>
               </div>
@@ -820,20 +820,20 @@ export default function Home() {
             </div>
 
             <div className="relative z-20 mt-8 shrink-0 flex flex-row gap-3 px-4">
-              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[56px] w-[48%] rounded-xl bg-canari font-[700] font-[var(--font-poppins)] text-[14px] text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96]">
+              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[56px] w-[48%] rounded-xl bg-canari font-[var(--font-inter)] font-bold text-[14px] text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96]">
                 {translations[lang].create}
               </button>
-              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[56px] w-[48%] rounded-xl border border-white/50 bg-deep-blue/90 font-[700] font-[var(--font-poppins)] text-[14px] font-[var(--font-poppins)] text-off-white shadow-premium backdrop-blur-xl transition-transform active:scale-[0.96]">
+              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[56px] w-[48%] rounded-xl border border-white/50 bg-deep-blue/90 font-[var(--font-inter)] font-bold text-[14px] text-off-white shadow-premium backdrop-blur-xl transition-transform active:scale-[0.96]">
                 {translations[lang].login}
               </button>
             </div>
 
             <div className="relative z-20 mt-6 shrink-0 grid grid-cols-4 gap-2.5 px-3">
               {BENEFITS[lang].map(({ Icon, title, subtitle }) => (
-                <div key={title} className="min-h-[82px] rounded-xl border border-white/60 bg-white/70 p-3 text-center shadow-premium backdrop-blur-md">
+                <div key={title} className="min-h-[82px] rounded-xl border border-white/60 bg-white/70 p-3 text-center font-[var(--font-inter)] shadow-premium backdrop-blur-md">
                   <Icon className="mx-auto mb-1 h-3.5 w-3.5 text-sky-blue sm:h-4 sm:w-4" />
-                  <p className="font-[var(--font-poppins)] text-[11px] font-[700] leading-[12px] text-deep-blue">{title}</p>
-                  <p className="mt-1 font-[var(--font-poppins)] text-[9px] font-[400] leading-[10px] text-[#7a7f89]">{subtitle}</p>
+                  <p className="font-[var(--font-inter)] text-[11px] font-bold leading-[12px] text-deep-blue">{title}</p>
+                  <p className="mt-1 font-[var(--font-inter)] text-[9px] font-bold leading-[10px] text-[#7a7f89]">{subtitle}</p>
                 </div>
               ))}
             </div>
