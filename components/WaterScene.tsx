@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { JIA_MASTER_DATA_URI } from "./JiaMaster";
 
 export type JiaGesture =
   | "welcome" | "analyze" | "point" | "write" | "validate" | "alert" | "apply" | "celebrate"
@@ -87,47 +88,40 @@ function speak(text:string, onEnd?:()=>void) {
 }
 
 export function JiaCharacter({speaking, gesture}:{speaking:boolean; gesture:JiaGesture}) {
-  const blink = gesture === "surprised" ? false : true;
-  return (
-    <div className="relative h-full w-full select-none" aria-label="J’IA, personnage central de Jobly">
-      <motion.div
-        className="absolute inset-x-[18%] bottom-0 h-[14%] rounded-[50%] bg-[#39D7FF]/20 blur-xl"
-        animate={{scaleX:[.92,1.08,.92],opacity:[.35,.58,.35]}}
-        transition={{duration:2.8,repeat:Infinity,ease:"easeInOut"}}
-      />
-      <svg viewBox="0 0 260 360" className="relative z-10 h-full w-full overflow-visible" role="img">
-        <defs>
-          <linearGradient id="jiaBody" x1="0" x2="1" y1="0" y2="1">
-            <stop offset="0" stopColor="#39D7FF"/><stop offset=".52" stopColor="#1678D4"/><stop offset="1" stopColor="#071A38"/>
-          </linearGradient>
-          <linearGradient id="jiaFace" x1="0" x2="1" y1="0" y2="1">
-            <stop offset="0" stopColor="#F8FCFF"/><stop offset=".7" stopColor="#B8E9FF"/><stop offset="1" stopColor="#6BBCEB"/>
-          </linearGradient>
-          <radialGradient id="jiaGlow"><stop stopColor="#FFDE00" stopOpacity=".95"/><stop offset="1" stopColor="#39D7FF" stopOpacity="0"/></radialGradient>
-          <filter id="jiaShadow"><feDropShadow dx="0" dy="12" stdDeviation="10" floodOpacity=".35"/></filter>
-        </defs>
-        <motion.g filter="url(#jiaShadow)" animate={{y:[0,-2,0]}} transition={{duration:2.7,repeat:Infinity,ease:"easeInOut"}}>
-          <ellipse cx="130" cy="327" rx="74" ry="14" fill="#020A18" opacity=".55"/>
-          <path d="M72 317 Q77 248 91 217 Q108 190 130 190 Q152 190 169 217 Q183 248 188 317 Q130 345 72 317Z" fill="url(#jiaBody)" stroke="#70E5FF" strokeOpacity=".55" strokeWidth="2"/>
-          <path d="M91 235 Q130 219 169 235" fill="none" stroke="#FFDE00" strokeWidth="5" strokeLinecap="round" opacity=".9"/>
-          <motion.path d="M79 270 Q46 258 32 229" fill="none" stroke="#39D7FF" strokeWidth="12" strokeLinecap="round" animate={gesture==="point"?{rotate:[0,-14,0],x:[0,-6,0]}:{rotate:[0,3,0]}} transition={{duration:1.5,repeat:gesture==="point"?Infinity:0}}/>
-          <motion.path d="M181 270 Q214 258 228 229" fill="none" stroke="#39D7FF" strokeWidth="12" strokeLinecap="round" animate={gesture==="point"?{rotate:[0,14,0],x:[0,6,0]}:{rotate:[0,-3,0]}} transition={{duration:1.5,repeat:gesture==="point"?Infinity:0}}/>
-          <circle cx="130" cy="174" r="73" fill="url(#jiaFace)" stroke="#A9F1FF" strokeWidth="3"/>
-          <path d="M83 145 Q130 89 177 145" fill="none" stroke="#39D7FF" strokeWidth="11" strokeLinecap="round"/>
-          <motion.circle cx="130" cy="103" r="15" fill="url(#jiaGlow)" animate={{opacity:[.65,1,.65],scale:[.9,1.1,.9]}} transition={{duration:2,repeat:Infinity}}/>
-          <motion.g animate={{y:speaking?[0,-1,0]:0}} transition={{duration:.25,repeat:speaking?Infinity:0}}>
-            <motion.ellipse cx="103" cy="169" rx="12" ry="17" fill="#06152E" animate={blink?{scaleY:[1,1,.08,1]}:undefined} transition={{duration:4.8,repeat:Infinity,times:[0,.93,.96,1]}}/>
-            <motion.ellipse cx="157" cy="169" rx="12" ry="17" fill="#06152E" animate={blink?{scaleY:[1,1,.08,1]}:undefined} transition={{duration:5.4,repeat:Infinity,times:[0,.93,.96,1]}}/>
-            <circle cx="106" cy="164" r="4" fill="#FFDE00"/><circle cx="160" cy="164" r="4" fill="#FFDE00"/>
-            <path d="M113 204 Q130 217 147 204" fill="none" stroke="#06152E" strokeWidth="5" strokeLinecap="round"/>
-            <motion.ellipse cx="130" cy="208" rx={speaking?16:11} ry={speaking?8:3} fill="#FF4F87" animate={speaking?{scaleX:[.7,1.15,.75],opacity:[.8,1,.8]}:{scaleX:1,opacity:.55}} transition={{duration:.28,repeat:speaking?Infinity:0}}/>
-          </motion.g>
-          <path d="M103 113 Q130 92 157 113" fill="none" stroke="#06152E" strokeWidth="4" strokeLinecap="round"/>
-          <circle cx="76" cy="184" r="8" fill="#FFDE00" opacity=".75"/><circle cx="184" cy="184" r="8" fill="#FFDE00" opacity=".75"/>
-        </motion.g>
-      </svg>
-    </div>
-  );
+  const [assetUrl, setAssetUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let objectUrl: string | null = null, cancelled = false;
+    const image = new Image();
+    image.onload = () => {
+      if (cancelled) return;
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return;
+      ctx.drawImage(image,0,0);
+      const pixels = ctx.getImageData(0,0,canvas.width,canvas.height), data = pixels.data;
+      const visited = new Uint8Array(canvas.width*canvas.height);
+      const queue = new Int32Array(canvas.width*canvas.height);
+      let head=0, tail=0;
+      const push=(x:number,y:number)=>{ if(x<0||y<0||x>=canvas.width||y>=canvas.height)return; const i=y*canvas.width+x; if(visited[i])return; visited[i]=1; queue[tail++]=i; };
+      for(let x=0;x<canvas.width;x++){push(x,0);push(x,canvas.height-1);}
+      for(let y=0;y<canvas.height;y++){push(0,y);push(canvas.width-1,y);}
+      const white=(i:number)=>{const p=i*4;return data[p]>248&&data[p+1]>248&&data[p+2]>248&&data[p+3]>0;};
+      while(head<tail){const i=queue[head++];if(!white(i))continue;data[i*4+3]=0;const x=i%canvas.width,y=Math.floor(i/canvas.width);push(x-1,y);push(x+1,y);push(x,y-1);push(x,y+1);}
+      ctx.putImageData(pixels,0,0);
+      canvas.toBlob(blob=>{if(!blob||cancelled)return;objectUrl=URL.createObjectURL(blob);setAssetUrl(objectUrl);},"image/png");
+    };
+    image.src=JIA_MASTER_DATA_URI;
+    return ()=>{cancelled=true;if(objectUrl)URL.revokeObjectURL(objectUrl);};
+  }, []);
+  const p=MOTIONS[gesture]??MOTIONS.welcome;
+  return <div className="relative h-full w-full select-none" aria-label="J’IA, personnage central de Jobly">
+    <motion.div className="absolute inset-0 flex items-end justify-center"
+      animate={{x:p.x,y:speaking?[0,-2,0,-1,0]:[0,-2,0],rotate:p.rotate,scale:speaking?[1,1.008,1]:[1,1.004,1]}}
+      transition={{duration:speaking?.75:Math.max(.9,p.duration),repeat:Infinity,ease:"easeInOut"}}>
+      {assetUrl?<img src={assetUrl} alt="J’IA" draggable={false} className="h-full w-full object-contain drop-shadow-[0_16px_22px_rgba(0,0,0,.18)]"/>:<div className="h-full w-full animate-pulse rounded-[40%] bg-white/10" aria-hidden="true"/>}
+    </motion.div>
+  </div>;
 }
 
 export default function WaterScene({intent,transparent=false}:{intent?:JiaMotionIntent; transparent?:boolean}={}) {
