@@ -2313,3 +2313,42 @@ Les projets historiques/doublons suivants sont hors périmètre : jobly_v0.1, jo
 - Les déploiements du projet canonique sont bien reliés à kenzimayaka-glitch/Jobly sur main.
 
 **Consigne pour toute IA / développeur : lire ce checkpoint et Statut.md avant toute modification ou action Vercel.**
+
+
+# CHECKPOINT 20/09/2026 — J’IA VOICE COMMAND / WAKE WORD
+
+## Décision produit figée
+Pour qu’une phrase soit interprétée comme une commande d’action J’IA, l’utilisateur doit commencer par prononcer « J’IA ». Toute parole sans ce préfixe est ignorée par le moteur de commande.
+
+J’IA explique elle-même cette règle à l’utilisateur : elle annonce que ses actions commencent par « J’IA », afin que le fonctionnement soit découvert naturellement.
+
+## Voix
+- Web Speech API activée côté navigateur lorsque le moteur vocal est disponible.
+- J’IA peut parler en français ou en anglais selon la langue active du document.
+- Écoute continue après autorisation du navigateur ; une première interaction peut être nécessaire pour déclencher/autoriser le microphone selon les politiques du navigateur.
+- Indicateur vocal visible : écoute / vocal / indisponible.
+
+## Commandes vocales V1 reliées
+- recherche d’offres compatibles ;
+- filtrage CDI / CDD / Stage / Remote ;
+- ouverture d’une offre ;
+- demande de candidature ;
+- transmission de la commande à la couche d’action J’IA.
+
+Le flux utilise un événement interne jobly:jia-command afin de séparer compréhension vocale et exécution métier. Les surfaces métier peuvent ainsi recevoir les mêmes intentions sans dupliquer le moteur vocal.
+
+## Barrière financière — NON NÉGOCIABLE
+Le moteur vocal bloque explicitement toute commande de paiement, transfert d’argent ou transaction. J’IA peut expliquer ou guider un parcours financier, mais ne peut jamais exécuter ni confirmer un paiement.
+
+Cette interdiction est appliquée avant l’émission de l’événement d’action : une commande financière n’atteint donc pas la couche métier J’IA.
+
+## Mobilité du personnage
+J’IA reste immobile par défaut. Elle se déplace uniquement par glisser-déposer manuel de l’utilisateur. La bulle de dialogue reste attachée au même conteneur et se déplace avec elle.
+
+## Visage / rig
+Le rig ne suit plus le curseur et ne fait plus pivoter automatiquement le corps. Les micro-expressions de clignement et de synchronisation vocale restent indépendantes de la position du personnage.
+
+## État honnête
+**🔧 CODÉ → 🧪 À VALIDER SUR TÉLÉPHONE + VERCEL**
+
+La commande vocale et son garde-fou financier sont codés. La compatibilité exacte de Speech Recognition dépend du navigateur et doit être validée sur les appareils cibles. Les actions métier supplémentaires devront écouter jobly:jia-command sans contourner la barrière financière.
