@@ -760,7 +760,7 @@ export default function Home() {
   }
   async function forgot() { if (!email.includes("@")) return setMessage("Entre l'adresse e-mail associée à ton compte."); setBusy(true); setMessage(""); try { await requestPasswordReset(email); goTo("reset-sent"); } catch (e) { setMessage(e instanceof Error ? e.message : "Impossible d'envoyer l'e-mail de récupération."); } finally { setBusy(false); } }
 
-  return <main className={`relative h-[100dvh] w-full bg-off-white dark:bg-[#0A1931] dark:text-white ${(screen === "welcome" || screen === "signup") ? "overflow-hidden" : "overflow-y-auto"}`}>
+  return <main className={`relative min-h-screen flex flex-col justify-between w-full bg-off-white dark:bg-[#0A1931] dark:text-white ${(screen === "welcome" || screen === "signup") ? "overflow-hidden" : "overflow-y-auto"}`}>
     {screen === "welcome" && <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 z-0 h-[340px] w-[340px] rounded-full bg-sky-blue/25 blur-[90px]" />}
     <BubbleField />
     {screen === "welcome" && (
@@ -819,11 +819,11 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative z-20 shrink-0 grid grid-cols-2 gap-3 px-4">
-              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[54px] rounded-xl bg-canari text-[14px] font-bold text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96]">
+            <div className="relative z-20 mt-6 shrink-0 flex flex-col gap-4 px-4 sm:flex-row">
+              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[54px] w-full flex-1 rounded-xl bg-canari text-[14px] font-bold text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96]">
                 {translations[lang].create}
               </button>
-              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[54px] rounded-xl border border-white/50 bg-deep-blue/90 text-[14px] font-bold text-off-white shadow-premium backdrop-blur-xl transition-transform active:scale-[0.96]">
+              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[54px] w-full flex-1 rounded-xl border border-white/50 bg-deep-blue/90 text-[14px] font-bold text-off-white shadow-premium backdrop-blur-xl transition-transform active:scale-[0.96]">
                 {translations[lang].login}
               </button>
             </div>
@@ -1018,7 +1018,7 @@ export default function Home() {
       {screen === "reset-sent" && <section className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-4 text-center"><div className="mx-auto mb-4 text-5xl" aria-hidden="true">✉️</div><h1 className="text-[32px] font-extrabold text-navy">{translations[lang].sentTitle}</h1><p className="my-3 text-sm text-jobly-gray">{translations[lang].sentText}</p><button type="button" onClick={()=>{reset();goTo("login");}} className="h-[52px] rounded-2xl bg-jobly-blue font-extrabold text-white">{translations[lang].backLogin}</button></section>}
 
       {message && screen !== "journey" && screen !== "jia-welcome" && <div role="status" aria-live="polite" className="rounded-2xl border border-blue-100 bg-blue-50 px-3.5 py-2.5 text-center text-xs text-blue-800">{message}</div>}
-      {screen !== "journey" && screen !== "jia-welcome" && screen !== "signup" && screen !== "signup-otp" && screen !== "signup-password" && screen !== "login" && <footer className="shrink-0 px-4 pb-2 text-center">
+      {screen !== "journey" && screen !== "jia-welcome" && screen !== "signup" && screen !== "signup-otp" && screen !== "signup-password" && screen !== "login" && <footer className="mt-16 shrink-0 px-4 pb-8 pt-6 text-center">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={`footer-${lang}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeOut" }}>
             
