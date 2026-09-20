@@ -13,10 +13,11 @@ const JoblyLogo = forwardRef<HTMLDivElement, JoblyLogoProps>(function JoblyLogo(
   ref,
 ) {
   const hero = size === "hero";
+
   return (
     <div
       ref={ref}
-      aria-label="JobLy — Your Career OS"
+      aria-label="JobLy — Your Career OS."
       className={`inline-flex select-none flex-col items-start leading-none ${className}`}
     >
       <div className="flex items-center">
@@ -31,29 +32,42 @@ const JoblyLogo = forwardRef<HTMLDivElement, JoblyLogoProps>(function JoblyLogo(
           />
         </span>
 
-        <span
-          className={`font-[var(--font-inter)] font-black tracking-[-0.075em] text-deep-blue ${hero ? "text-[36px]" : "text-[17px]"}`}
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 500 120"
+          className={hero ? "h-[48px] w-[164px]" : "h-[25px] w-[86px]"}
+          xmlns="http://www.w3.org/2000/svg"
         >
-          O<span>b</span><span className="relative inline-block">L<span
-            aria-hidden="true"
-            className={`pointer-events-none absolute left-[7%] ${hero ? "bottom-[-1px] h-[5px] w-[88%]" : "bottom-[-1px] h-[3px] w-[88%]"}`}
+          <g
+            fill="#0072CE"
+            fontFamily="Poppins, sans-serif"
+            fontWeight="800"
+            fontSize="110"
           >
-            <svg viewBox="0 0 48 8" preserveAspectRatio="none" className="h-full w-full overflow-visible">
-              <path
-                d="M1 3.7 C10 2.2 18 6.6 28 4.5 C35 3.0 40 5.9 47 2.5"
-                fill="none"
-                stroke="#FFDE00"
-                strokeWidth={hero ? "3.8" : "3"}
-                strokeLinecap="round"
-              />
-            </svg>
-          </span></span><span>y</span>
-        </span>
+            <text x="0" y="95">o</text>
+            <text x="94" y="95">b</text>
+            <text x="260" y="115">y</text>
+          </g>
+
+          {/* L : pied jaune canari, courbé et volontairement organique */}
+          <rect x="196" y="5" width="38" height="78" fill="#0072CE" />
+          <path
+            d="M 196 86
+               C 213 88, 268 92, 323 84
+               Q 333 82, 336 86
+               Q 338 95, 333 102
+               Q 323 108, 278 108
+               Q 228 108, 196 102 Z"
+            fill="#FFD700"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </div>
 
       {showTagline && (
         <span
-          className={`mt-0.5 font-[var(--font-inter)] font-semibold tracking-[-0.015em] text-deep-blue ${hero ? "ml-[34px] text-[9px]" : "ml-[10px] text-[5px]"}`}
+          className={`mt-0.5 font-[var(--font-inter)] font-semibold tracking-[-0.015em] text-[#0072CE] ${hero ? "ml-[34px] text-[9px]" : "ml-[10px] text-[5px]"}`}
         >
           Your Career OS.
         </span>
