@@ -135,7 +135,7 @@ export default function BottomNav({ active, items }: { active: string; items?: N
   const navItems = items ?? TALENT_NAV;
 
   return (
-    <nav aria-label="Navigation principale" className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-100 bg-white/95 pb-safe backdrop-blur">
+    <nav aria-label="Navigation principale" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#DCE7F4] bg-white/96 pb-safe backdrop-blur-xl shadow-[0_-8px_30px_rgba(10,25,49,.06)]">
       <div className={`mx-auto flex items-center justify-between gap-0.5 px-2 py-2 ${navItems.length === 5 ? "max-w-md" : "max-w-sm"}`}>
         {navItems.map(({ icon, label, href }) => {
           const isActive = active === href || active.startsWith(href + "/");
@@ -145,10 +145,10 @@ export default function BottomNav({ active, items }: { active: string; items?: N
               type="button"
               onClick={() => { if (href !== active) router.replace(href); }}
               aria-current={isActive ? "page" : undefined}
-              className={`flex flex-1 flex-col items-center gap-1 rounded-2xl py-2 text-[10px] font-bold transition-colors ${
+              className={`jobly-focus flex flex-1 flex-col items-center gap-1 rounded-2xl py-2.5 text-[10px] font-bold transition-all ${
                 isActive
                   ? "bg-jobly-blue text-white shadow-[0_8px_18px_rgba(46,92,158,0.3)]"
-                  : "text-jobly-gray hover:text-navy"
+                  : "text-[#5F6F86] hover:text-[#0057B8]"
               }`}
             >
               <NavIcon id={icon} className="h-[19px] w-[19px]" />
