@@ -2,8 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import JIA from "./JIA";
-import type { JIAMove } from "./JIA";
+import JIA from "./JIA/JIA";
+import type { JIAMove } from "./JIA/JIA";
 import type { JiaGesture } from "./WaterScene";
 import { getSupabaseClient } from "../lib/supabase";
 
