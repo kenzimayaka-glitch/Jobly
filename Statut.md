@@ -2287,3 +2287,29 @@ La première couche exécutable du Motion System J’IA est désormais codée da
 - prefers-reduced-motion est respecté.
 
 **État honnête :** le moteur 2D et le vocabulaire sémantique sont implémentés. Ce n’est pas encore un rig anatomique avec animation indépendante des bras, mains, yeux et bouche. Cette étape reste nécessaire pour atteindre le niveau final de « geste réellement physique » défini dans la spécification.
+
+
+# CHECKPOINT 20/09/2026 — PROJET VERCEL CANONIQUE VERROUILLÉ
+
+## Règle de continuité — NON NÉGOCIABLE
+Le projet Vercel officiel de JOBLY est désormais explicitement verrouillé :
+
+- **Vercel : jobly-c0.6.5.1**
+- **Project ID : prj_7B3nK76wDdgQbHK4WFz59DsKKYJQ**
+- **Team : PORTFOLIO / portfolio-5555**
+- **GitHub : kenzimayaka-glitch/Jobly**
+- **Branche : main**
+- **Alias attendu : jobly-c0651.vercel.app**
+
+### Règle absolue
+**Ne jamais changer de projet Vercel par erreur.** Toute opération de déploiement, configuration, diagnostic, rollback ou validation doit cibler ce projet et aucun autre, sauf instruction explicite du fondateur.
+
+Les projets historiques/doublons suivants sont hors périmètre : jobly_v0.1, jobly, jobly-v23, jobly-v23-test, jobly-v23-schema-test.
+
+### État au moment du checkpoint
+- Le dernier déploiement de jobly-c0.6.5.1 est en **ERROR**.
+- Commit concerné : d56c7b3f11b63a47b2f246fd0b28e71b00339fdd — fix(jia): normalize generated source newlines.
+- Le déploiement précédent **READY** reste disponible comme rollback candidate : dpl_6gHKxWqD1KshbeoFYKZUvknC9w6L, commit b8dc6ecf4247b7ea3ed85b11383000e502c690fc.
+- Les déploiements du projet canonique sont bien reliés à kenzimayaka-glitch/Jobly sur main.
+
+**Consigne pour toute IA / développeur : lire ce checkpoint et Statut.md avant toute modification ou action Vercel.**
