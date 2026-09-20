@@ -1,6 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, Poppins } from "next/font/google";
 import PwaInit from "../components/PwaInit";
 import JiaObserver from "../components/JiaObserver";
 import ScreenProtection from "../components/ScreenProtection";
@@ -19,6 +19,13 @@ const plusJakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["400", "700", "800"],
+  variable: "--font-poppins",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "JOBLY — J'IA, Intelligence Artificielle JOBLY",
   description: "Une intelligence qui travaille pour votre carrière.",
@@ -26,7 +33,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr" className={`h-full w-full ${inter.variable} ${plusJakarta.variable}`}>
+    <html lang="fr" className={`h-full w-full ${inter.variable} ${plusJakarta.variable} ${poppins.variable}`}>
       <body className="h-[100dvh] w-screen m-0 p-0 overflow-x-hidden bg-white antialiased font-sans">
         <PwaInit />
         <JiaObserver />
