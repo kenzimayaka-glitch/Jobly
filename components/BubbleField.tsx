@@ -200,7 +200,7 @@ export default function BubbleField() {
             const current = bubblesRef.current[idx];
             if (!current.popped) burstRef.current?.(current, idx);
           }}
-          className="bubble absolute pointer-events-auto cursor-pointer rounded-full border"
+          className="bubble absolute pointer-events-auto cursor-pointer rounded-full border blur-[2px] opacity-50"
           style={{
             width: b.size,
             height: b.size,
@@ -209,18 +209,18 @@ export default function BubbleField() {
             transform: "translate(-50%,-50%)",
             borderColor: `${b.color}88`,
             backgroundColor: `${b.color}20`,
-            boxShadow: `inset 0 0 14px rgba(255,255,255,.85), 0 5px 16px ${b.color}35`,
+            boxShadow: `inset 0 0 12px rgba(255,255,255,.55), 0 4px 12px ${b.color}22`,
           }}
         />
       ))}
 
       {splashes.map((splash) => (
         <div key={splash.id} className="pointer-events-none absolute" style={{ left: `${splash.x}%`, top: `${splash.y}%` }}>
-          <span className="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ backgroundColor: splash.color, boxShadow: `0 0 16px ${splash.color}88` }} />
+          <span className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full blur-[2px] opacity-45" style={{ backgroundColor: splash.color, boxShadow: `0 0 10px ${splash.color}55` }} />
           {splash.particles.map((particle, index) => (
             <span
               key={`${splash.id}-${index}`}
-              className="splash-particle"
+              className="splash-particle blur-[2px] opacity-45"
               style={{
                 width: particle.size,
                 height: particle.size,
