@@ -100,7 +100,7 @@ export default function JiaPresence() {
       if (intent === "assistant_command") say("J’ai compris ta demande. Je vais te guider depuis Jobly.", "analyze");
     };
     r.onerror = () => setListening(false);
-    r.onend = () => { setListening(false); recognition.current = null; if (shouldRestart.current) window.setTimeout(startListening, 500); };
+    r.onend = () => { setListening(false); recognition.current = null; if (shouldRestart.current && interactionModeRef.current === "voice" && jiaEnabled) window.setTimeout(startListening, 700); };
     recognition.current = r; shouldRestart.current = true;
     try { r.start(); setListening(true); } catch { setListening(false); }
   };
@@ -143,10 +143,10 @@ export default function JiaPresence() {
     document.addEventListener("click", onClick, true); return () => document.removeEventListener("click", onClick, true);
   }, []);
   useEffect(() => {
-    const requestPrediction = async () => { const now = Date.now(); if (now - lastRequest.current < 9000) return; lastRequest.current = now; try {
+    const requestPrediction = async () => { if (!jiaEnabled) return; const now = Date.now(); if (now - lastRequest.current < 9000) return; lastRequest.current = now; try {
       const response = await fetch("/api/jia/predict", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: pathname, action: lastAction.current, visibleText: document.body.innerText.slice(0, 1800), recentDialogue: lastPrediction.current ? [lastPrediction.current] : [], idleMs: 0 }) });
       if (!response.ok) return; const next = (await response.json()) as Prediction; if (!next.message || next.message === lastPrediction.current) return; if (!next.gesture) next.gesture = "curious"; lastPrediction.current = next.message; setPrediction({ ...next, shouldSpeak: interactionModeRef.current === "voice" && next.shouldSpeak === true });
-      if (next.shouldSpeak && interacted) { setSpeaking(true); speak(next.message, () => setSpeaking(false)); }
+      if (interactionModeRef.current === "voice" && next.shouldSpeak && interacted) { setSpeaking(true); speak(next.message, () => setSpeaking(false)); }
     } catch {} };
     const schedule = (delay: number) => { if (pending.current) window.clearTimeout(pending.current); pending.current = window.setTimeout(requestPrediction, delay); };
     schedule(6500); const onActivity = () => schedule(2200);
