@@ -88,7 +88,7 @@ export function JiaCharacter({speaking, gesture}:{speaking:boolean; gesture:JiaG
 export default function WaterScene({intent,transparent=false}:{intent?:JiaMotionIntent; transparent?:boolean}={}) {
   const reduce = useReducedMotion();
   const explicit = !!intent;
-  const [active,setActive] = useState<JiaMotionIntent>(intent ?? {gesture:"welcome",roam:true});
+  const [active,setActive] = useState<JiaMotionIntent>(intent ?? {gesture:"welcome",roam:false});
   const [speaking,setSpeaking] = useState(false);
   const [viewport,setViewport] = useState({w:1280,h:800});
   const lastVoice = useRef("");
@@ -181,7 +181,7 @@ export default function WaterScene({intent,transparent=false}:{intent?:JiaMotion
         dragMomentum
         dragElastic={.18}
         dragConstraints={{left:-Math.max(0,viewport.w-230),right:0,top:-Math.max(0,viewport.h-320),bottom:0}}
-        animate={active.roam === false || reduce ? {x:0,y:0} : {x:roamPath,y:roamYPath}}
+        animate={active.roam === true && !reduce ? {x:roamPath,y:roamYPath} : {x:0,y:0}}
         transition={{duration:22,repeat:Infinity,ease:"easeInOut"}}
         whileTap={{cursor:"grabbing",scale:.98}}
         initial={{opacity:0,scale:.82}}
