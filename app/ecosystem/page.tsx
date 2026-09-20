@@ -1,16 +1,13 @@
 // Bon Plan: leaving requires an explicit confirmation, then returns to the ecosystem selector.
 "use client";
 
-import { Suspense, useState } from "react";
-import WaterScene, { type JiaMotionIntent } from "../../components/WaterScene";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import PageHeader from "../../components/PageHeader";
 import EcosystemSelector from "../../components/EcosystemSelector";
 
 function EcosystemContent() {
   const params = useSearchParams();
-  const [jiaGuide, setJiaGuide] = useState("Je suis J’IA. Je vais t’aider à choisir l’espace qui correspond à ton objectif.");
-  const [jiaIntent, setJiaIntent] = useState<JiaMotionIntent>({ gesture: "welcome", message: "Je suis J’IA. Je vais t’aider à choisir l’espace qui correspond à ton objectif.", voice: true, roam: true });
   const switcher = params.get("mode") === "switcher";
 
   return (
