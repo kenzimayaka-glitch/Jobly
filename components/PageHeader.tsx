@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import JoblyLogo from "./JoblyLogo";
 
 export default function PageHeader({
   label,
@@ -39,11 +40,7 @@ export default function PageHeader({
           aria-label="Retour à l'accueil JOBLY"
           className="flex items-center gap-2"
         >
-          <img src="/jobly-logo-reference.jpg" alt="" className="h-auto w-8 mix-blend-multiply" />
-          <span className="flex flex-col items-start leading-none">
-            <span className="font-heading text-[17px] font-extrabold tracking-[-0.02em] text-navy">JOBLY</span>
-            <span className="text-[9px] font-semibold text-jobly-gray">J'IA · Intelligence JOBLY</span>
-          </span>
+          <JoblyLogo size="header" showTagline />
         </button>
 
         <div className="flex items-center gap-2.5">
