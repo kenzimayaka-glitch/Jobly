@@ -1751,3 +1751,12 @@ La première couche exécutable du Motion System J’IA est désormais codée da
 - prefers-reduced-motion est respecté.
 
 **État honnête :** le moteur 2D et le vocabulaire sémantique sont implémentés. Ce n’est pas encore un rig anatomique avec animation indépendante des bras, mains, yeux et bouche. Cette étape reste nécessaire pour atteindre le niveau final de « geste réellement physique » défini dans la spécification.
+
+# CHECKPOINT 20/09/2026 — J’IA PRODUCTION VISIBILITY / HARDENING
+
+- Cause identifiée : la présence globale J’IA était explicitement masquée sur `/`, alors que la présence dédiée n’était pas rendue par la landing page ; cette condition a été retirée de `components/JiaPresence.tsx`.
+- J’IA est désormais prévue comme présence globale hors écran `/ecosystem`, avec déplacement autonome, déplacement manuel, dialogue prédictif et geste sémantique via le composant global.
+- Le rendu canonique a été durci dans `components/JiaRig.tsx` : suppression du fond blanc par flood-fill connecté avec tolérance aux artefacts JPEG, sans supprimer les blancs internes du personnage.
+- Correctif GitHub : `483cf899f58c72af5a510692f1e84ff71bb760e6`.
+- **État honnête : CODED sur `main` ; déploiement Vercel de ce correctif à confirmer.** La production actuellement observée reste sur un déploiement antérieur tant qu’un nouveau déploiement `READY` n’a pas été créé.
+- Règle de validation : ne pas déclarer J’IA visuellement corrigée en production avant vérification du déploiement et du rendu réel.
