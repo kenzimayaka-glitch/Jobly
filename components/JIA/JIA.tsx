@@ -1,139 +1,85 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { JIA_100_MOVES, type JIA100Move } from "./movements";
 
 export type JIAMove = JIA100Move;
+type Props={speaking:boolean;gesture?:string;auto?:boolean;move?:JIA100Move};
+type Bone={x?:number;y?:number;rotate?:number;rotateX?:number;rotateY?:number;z?:number;scale?:number};
 
-type Props = {
-  speaking: boolean;
-  gesture?: string;
-  auto?: boolean;
-  move?: JIA100Move;
+const SRC="/jia/jia-master.png";
+const GESTURE_MOVE:Record<string,JIA100Move>={
+ welcome:"wave_hi",validate:"stamping",reassure:"calm_down",encourage:"nod_slow",analyze:"scanning",
+ curious:"look_around","present-chart":"chart_up",filter:"point_button",point:"point_button",apply:"point_cv",
+ "call-hr":"point_you",handshake:"hand_shake","present-team":"explain_wide","pay-os":"money",alert:"stop",
+ secure:"hand_chest",disappointed:"think_doubt",tired:"breathe_deep",surprised:"eyebrow_raise",
+ celebrate:"celebrate_jump",proud:"proud",wink:"wink_left",write:"writing"
+};
+const AUTO:JIA100Move[]=["idle","blink_slow","smile_soft","look_around","nod_slow","think_chin","point_button","scarf_adjust","explain_open","celebrate_fist","listen_tilt","reading","matching","proud"];
+
+const P:Record<string,Record<string,Bone>>={
+ point_button:{head:{rotateY:-15,rotate:-2},eyes:{x:3},armR:{rotate:-28,rotateY:-18,z:18},handR:{rotate:8,x:4,y:2},torso:{rotate:-2,scale:1.01},scarf:{rotate:3}},
+ point_down:{head:{rotate:-3},eyes:{y:4},armR:{rotate:28,rotateY:-8,z:10},handR:{rotate:-10,y:7}},
+ point_up:{head:{rotate:-3,rotateY:-5},eyes:{y:-4},armR:{rotate:-48,rotateY:-10,z:20},handR:{rotate:4,y:-5}},
+ point_right:{head:{rotateY:-12},eyes:{x:4},armR:{rotate:-18,rotateY:-25,z:22},handR:{rotate:7,x:5}},
+ point_left:{head:{rotateY:12},eyes:{x:-4},armL:{rotate:18,rotateY:25,z:22},handL:{rotate:-7,x:-5}},
+ wave_hi:{head:{rotate:2},armR:{rotate:-22,rotateY:-8,z:12},handR:{rotate:18}},wave_bye:{head:{rotate:2},armR:{rotate:-20,rotateY:-8,z:12},handR:{rotate:-20}},
+ thumbs_up:{armR:{rotate:-28,rotateY:-8,z:8},handR:{y:-3},head:{rotate:1}},hand_chest:{armR:{rotate:-20,rotateY:8,z:5},handR:{rotate:10,x:-3,y:2},torso:{scale:1.025}},
+ hand_hip:{armR:{rotate:20,rotateY:-8,z:5},handR:{rotate:-5,x:3,y:8}},
+ explain_open:{armL:{rotate:18,rotateY:10,z:8},armR:{rotate:-18,rotateY:-10,z:8},handL:{rotate:-6},handR:{rotate:6},torso:{scale:1.015}},
+ explain_wide:{armL:{rotate:28,rotateY:18,z:14},armR:{rotate:-28,rotateY:-18,z:14},handL:{rotate:-8},handR:{rotate:8},torso:{scale:1.025}},
+ clap:{armL:{rotate:-20},armR:{rotate:20},handL:{rotate:8,x:3},handR:{rotate:-8,x:-3}},
+ celebrate_jump:{torso:{y:-10,z:20,scale:1.055},head:{y:-8,rotate:-2},armL:{rotate:-42,rotateY:12,z:22},armR:{rotate:-42,rotateY:-12,z:22},handL:{rotate:-8},handR:{rotate:8},scarf:{rotate:-4}},
+ shrug:{armL:{rotate:-18,rotateY:12},armR:{rotate:18,rotateY:-12},handL:{rotate:-8},handR:{rotate:8},head:{rotate:2}},
+ listen_tilt:{head:{rotate:-9,rotateY:5},eyes:{x:2},torso:{rotate:-2}},nod_slow:{head:{rotate:8}},shake_no:{head:{rotate:-10}},
+ think_chin:{head:{rotate:-7,rotateY:-5},eyes:{x:-2,y:-3},armR:{rotate:-18,rotateY:6,z:4},handR:{rotate:10,x:-2,y:-4}},
+ think_up:{head:{rotate:-5,rotateY:-3},eyes:{y:-4}},think_doubt:{head:{rotate:5},eyes:{x:-2},armR:{rotate:18,rotateY:5},handR:{rotate:-8}},
+ smile_soft:{mouth:{scale:1.03},head:{rotate:1}},smile_wide:{mouth:{scale:1.07},head:{rotate:1}},surprised:{mouth:{scale:1.08},head:{y:-3}},
+ calm_down:{armL:{rotate:12},armR:{rotate:-12},handL:{rotate:-5},handR:{rotate:5}},proud:{torso:{scale:1.04},head:{rotate:-1}},
+ reading:{head:{rotate:3},eyes:{y:3},armL:{rotate:8},armR:{rotate:-8}},typing:{armL:{rotate:10},armR:{rotate:-10}},
+ writing:{armR:{rotate:-12,rotateY:-8},handR:{rotate:5,x:3,y:4},head:{rotate:2}},
+ scanning:{eyes:{x:3},head:{rotate:2}},matching:{head:{rotate:1},eyes:{x:3},armR:{rotate:-10},handR:{rotate:4}},
+ chart_up:{armR:{rotate:-34,rotateY:-10,z:16},handR:{rotate:4,y:-6},head:{rotateY:-8},eyes:{x:3}},
+ money:{armR:{rotate:-18,rotateY:-12},handR:{rotate:-4,x:2,y:2},head:{rotateY:-4}},
+ stop:{armR:{rotate:-42,rotateY:-5,z:12},handR:{rotate:2,y:-3},head:{rotate:2}},
 };
 
-const GESTURE_MOVE: Record<string, JIA100Move> = {
-  welcome: "wave_hi", validate: "stamping", reassure: "calm_down", encourage: "nod_slow",
-  analyze: "scanning", curious: "look_around", "present-chart": "chart_up", filter: "point_button",
-  point: "point_button", apply: "point_cv", "call-hr": "point_you", handshake: "hand_shake",
-  "present-team": "explain_wide", "pay-os": "money", alert: "stop", secure: "hand_chest",
-  disappointed: "think_doubt", tired: "breathe_deep", surprised: "eyebrow_raise",
-  celebrate: "celebrate_jump", proud: "proud", wink: "wink_left", write: "writing",
-};
+function useBlink(){const[b,setB]=useState(false);useEffect(()=>{let dead=false,t:ReturnType<typeof setTimeout>;const f=()=>{t=setTimeout(()=>{if(dead)return;setB(true);setTimeout(()=>!dead&&setB(false),110);f()},2200+Math.random()*3000)};f();return()=>{dead=true;clearTimeout(t)}},[]);return b}
 
-const AUTO_SEQUENCE: JIA100Move[] = [
-  "idle","blink_slow","smile_soft","look_around","nod_slow","think_chin",
-  "point_button","scarf_adjust","explain_open","celebrate_fist","listen_tilt",
-  "reading","matching","proud",
-];
-
-function useBlink() {
-  const [blink, setBlink] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const schedule = () => {
-      timer = setTimeout(() => {
-        if (cancelled) return;
-        setBlink(true);
-        setTimeout(() => !cancelled && setBlink(false), 115);
-        schedule();
-      }, 2200 + Math.random() * 3000);
-    };
-    schedule();
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, []);
-  return blink;
+function clip(x:number,y:number,w:number,h:number):CSSProperties{
+ return {position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"contain",objectPosition:"center",clipPath:`inset(${y}% ${100-x-w}% ${100-y-h}% ${x}%)`,pointerEvents:"none",userSelect:"none"};
+}
+function Layer({bone,region}:{bone:Bone;region:[number,number,number,number]}){
+ return <motion.div className="absolute inset-0" style={{transformStyle:"preserve-3d",transformOrigin:"50% 50%"}} animate={{x:bone.x??0,y:bone.y??0,rotate:bone.rotate??0,rotateX:bone.rotateX??0,rotateY:bone.rotateY??0,translateZ:bone.z??0,scale:bone.scale??1}} transition={{type:"spring",stiffness:150,damping:18}}>
+   <img src={SRC} alt="" draggable={false} style={clip(...region)}/>
+ </motion.div>
 }
 
-function motionFor(move: JIA100Move) {
-  if (move.startsWith("blink") || move.startsWith("wink")) return { scaleY: [1, 0.97, 1] };
-  if (move.startsWith("nod")) return { y: [0, 6, 0, 4, 0] };
-  if (move.startsWith("shake_no")) return { rotate: [0, -4, 4, -3, 0] };
-  if (move.startsWith("point_")) return { x: [0, 7, 3, 7, 0], rotate: [0, 1.5, -1, 1, 0] };
-  if (move === "celebrate_jump" || move === "rocket") return { y: [0, -10, 0, -6, 0], rotate: [0, -2, 2, -1, 0] };
-  if (move === "proud" || move === "hand_chest") return { scale: [1, 1.045, 1] };
-  if (move === "listen_tilt" || move === "lean_in") return { x: [0, 5, 0], rotate: [0, 5, 0] };
-  if (move.startsWith("think_")) return { x: [0, -4, 0], rotate: [0, -2, 0], scale: [1, .99, 1] };
-  if (move.startsWith("hair_") || move.startsWith("scarf_") || move.startsWith("glasses_")) return { x: [0, -4, 0], rotate: [0, 2, 0] };
-  if (move.startsWith("wave_")) return { x: [0, 5, -5, 5, 0], rotate: [0, 3, -3, 2, 0] };
-  if (move.startsWith("explain_")) return { x: [0, -5, 5, 0], scale: [1, 1.02, 1.02, 1] };
-  if (move === "breathe_deep" || move === "stretch") return { scale: [1, 1.055, 1] };
-  if (move === "focus" || move === "scanning" || move === "magnify") return { scale: [1, .985, 1] };
-  if (move === "confused" || move === "think_doubt") return { rotate: [0, -3, 2, 0] };
-  if (move === "typing" || move === "writing" || move === "reading") return { y: [0, 2, 0, -1, 0] };
-  if (move === "chart_up" || move === "matching" || move === "checking" || move === "highlighting" || move === "target") return { y: [0, -3, 0], scale: [1, 1.02, 1] };
-  return { scale: [1, 1.012, 1] };
-}
+export default function JIA({speaking,gesture="welcome",auto=true,move:requestedMove}:Props){
+ const reduced=useReducedMotion(),blink=useBlink(),[move,setMove]=useState<JIA100Move>("idle"),[talk,setTalk]=useState(false);
+ const until=useRef(0),idx=useRef(0);const contextual=useMemo(()=>GESTURE_MOVE[gesture]??"idle",[gesture]);const pose=P[move]??{};
+ const bone=(n:string):Bone=>pose[n]??{};
+ useEffect(()=>{setMove(requestedMove??contextual);until.current=Date.now()+4200},[contextual,requestedMove]);
+ useEffect(()=>{if(!auto||reduced)return;const t=window.setInterval(()=>{if(Date.now()<until.current)return;idx.current=(idx.current+1)%AUTO.length;setMove(AUTO[idx.current])},3500);return()=>window.clearInterval(t)},[auto,reduced]);
+ useEffect(()=>{const f=(e:Event)=>{const m=(e as CustomEvent<{move?:JIA100Move}>).detail?.move;if(m&&JIA_100_MOVES.includes(m)){setMove(m);until.current=Date.now()+4200}};window.addEventListener("jobly:jia-move",f);return()=>window.removeEventListener("jobly:jia-move",f)},[]);
+ useEffect(()=>{if(!speaking){setTalk(false);return}const t=window.setInterval(()=>setTalk(v=>!v),125);return()=>window.clearInterval(t)},[speaking]);
 
-export default function JIA({ speaking, gesture = "welcome", auto = true, move: requestedMove }: Props) {
-  const reduced = useReducedMotion();
-  const blink = useBlink();
-  const [move, setMove] = useState<JIA100Move>("idle");
-  const [talk, setTalk] = useState(false);
-  const overrideUntil = useRef(0);
-  const indexRef = useRef(0);
-
-  const contextualMove = useMemo(() => GESTURE_MOVE[gesture] ?? "idle", [gesture]);
-
-  useEffect(() => {
-    setMove(requestedMove ?? contextualMove);
-    overrideUntil.current = Date.now() + 4200;
-  }, [contextualMove, requestedMove]);
-
-  useEffect(() => {
-    if (!auto || reduced) return;
-    const timer = window.setInterval(() => {
-      if (Date.now() < overrideUntil.current) return;
-      indexRef.current = (indexRef.current + 1) % AUTO_SEQUENCE.length;
-      setMove(AUTO_SEQUENCE[indexRef.current]);
-    }, 3500);
-    return () => window.clearInterval(timer);
-  }, [auto, reduced]);
-
-  useEffect(() => {
-    const onMove = (event: Event) => {
-      const requested = (event as CustomEvent<{ move?: JIA100Move }>).detail?.move;
-      if (!requested || !JIA_100_MOVES.includes(requested)) return;
-      setMove(requested);
-      overrideUntil.current = Date.now() + 4200;
-    };
-    window.addEventListener("jobly:jia-move", onMove);
-    return () => window.removeEventListener("jobly:jia-move", onMove);
-  }, []);
-
-  useEffect(() => {
-    if (!speaking) { setTalk(false); return; }
-    const timer = window.setInterval(() => setTalk((v) => !v), 125);
-    return () => window.clearInterval(timer);
-  }, [speaking]);
-
-  const animation = motionFor(move);
-
-  return (
-    <motion.div
-      className="relative h-full w-full select-none overflow-visible"
-      aria-label={`J’IA — ${move} — personnage animé de Jobly`}
-      animate={reduced ? undefined : animation}
-      transition={{ duration: move === "celebrate_jump" || move === "rocket" ? 1.1 : 0.8, ease: "easeInOut" }}
-    >
-      <motion.img
-        src="/jia/jia-master.png"
-        alt="J’IA"
-        draggable={false}
-        className="absolute inset-0 h-full w-full object-contain object-center"
-        animate={reduced ? undefined : (move === "idle" ? { scale: [1, 1.012, 1], y: [0, -1, 0] } : animation)}
-        transition={{ duration: move === "idle" ? 3 : 0.8, repeat: move === "idle" ? Infinity : 0, ease: "easeInOut" }}
-      />
-      <div aria-hidden className="pointer-events-none absolute" style={{left:"43.8%",top:"25.4%",width:"4.9%",height:"2%",transform:"translate(-50%,-50%)"}}>
-        <motion.span className="absolute left-[28%] top-1/2 h-[20%] w-[12%] -translate-y-1/2 rounded-full bg-[#17212B]" animate={reduced?undefined:{x:move.includes("think")?[0,2,4,2,0]:[0,1.5,0,-.8,0]}} transition={{duration:move.includes("think")?2.4:4.8,repeat:Infinity,ease:"easeInOut"}}/>
-      </div>
-      <div aria-hidden className="pointer-events-none absolute" style={{left:"58.7%",top:"25.5%",width:"4.9%",height:"2%",transform:"translate(-50%,-50%)"}}>
-        <motion.span className="absolute left-[28%] top-1/2 h-[20%] w-[12%] -translate-y-1/2 rounded-full bg-[#17212B]" animate={reduced?undefined:{x:move.includes("think")?[0,2,4,2,0]:[0,-1.5,0,.8,0]}} transition={{duration:move.includes("think")?2.4:5.2,repeat:Infinity,ease:"easeInOut"}}/>
-      </div>
-      <motion.div aria-hidden className="pointer-events-none absolute left-[36.5%] top-[24.6%] h-[2.2%] w-[29%] rounded-full bg-[#9A5B3E]" animate={{scaleY:blink?1:.08,opacity:blink?.9:0}} transition={{duration:.07}}/>
-      <motion.div aria-hidden className="pointer-events-none absolute left-[51.2%] top-[38.3%] h-[2.4%] w-[8.8%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-[#6B302B]/70 bg-[#8E3F3B]/25" animate={{scaleX:speaking?(talk?1.12:.88):.86,scaleY:speaking?(talk?1.22:.78):.55,opacity:speaking?.65:0}} transition={{duration:.09}}/>
-    </motion.div>
-  );
+ const e=bone("eyes"),head=bone("head"),winkL=move==="wink_left",winkR=move==="wink_right";
+ return <motion.div className="relative h-full w-full select-none overflow-visible" aria-label={`J’IA — ${move} — rig anatomique Jobly`} style={{perspective:1000,transformStyle:"preserve-3d"}}>
+   {/* 12 virtual anatomical layers, all sourced from the approved HD master. */}
+   <Layer bone={bone("torso")} region={[20,34,60,66]}/>
+   <Layer bone={head} region={[28,5,44,39]}/>
+   <Layer bone={bone("armL")} region={[7,42,30,53]}/>
+   <Layer bone={bone("armR")} region={[63,42,30,53]}/>
+   <Layer bone={bone("handL")} region={[4,68,31,30]}/>
+   <Layer bone={bone("handR")} region={[65,68,31,30]}/>
+   <Layer bone={bone("scarf")} region={[31,34,38,30]}/>
+   <motion.div className="absolute inset-0 pointer-events-none" animate={head} transition={{type:"spring",stiffness:160,damping:18}} style={{transformOrigin:"50% 80%"}}>
+     <motion.span className="absolute rounded-full bg-[#17212B]" style={{left:"43.8%",top:"25.5%",width:"1.7%",height:"0.9%"}} animate={{x:e.x??0,y:e.y??0,scaleY:blink||winkL?.08:1}}/>
+     <motion.span className="absolute rounded-full bg-[#17212B]" style={{left:"58.7%",top:"25.5%",width:"1.7%",height:"0.9%"}} animate={{x:e.x??0,y:e.y??0,scaleY:blink||winkR?.08:1}}/>
+     <motion.span className="absolute rounded-[50%] border border-[#6B302B]/70 bg-[#8E3F3B]/25" style={{left:"51.2%",top:"38.3%",width:"8.8%",height:"2.4%",transform:"translate(-50%,-50%)"}} animate={{scaleX:speaking?(talk?1.12:.88):.86,scaleY:speaking?(talk?1.22:.78):.55,opacity:speaking?.7:0}}/>
+     <motion.span className="absolute left-[36.5%] top-[24.6%] h-[2.2%] w-[29%] rounded-full bg-[#9A5B3E]" animate={{scaleY:blink||winkL||winkR?.08:0,opacity:blink||winkL||winkR?.9:0}}/>
+   </motion.div>
+ </motion.div>
 }
