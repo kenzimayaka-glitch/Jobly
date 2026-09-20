@@ -65,12 +65,6 @@ const LABELS:Record<JiaGesture,string> = {
   secure:"C’est sécurisé", goodbye:"À bientôt"
 };
 
-const AUTO_DIALOGUE = [
-  {gesture:"welcome" as JiaGesture, text:"Bienvenue sur Jobly. Je suis J’IA, ton intelligence d’accompagnement.", pause:900},
-  {gesture:"curious" as JiaGesture, text:"Je regarde ce que tu fais pour comprendre ce dont tu pourrais avoir besoin ensuite.", pause:700},
-  {gesture:"analyze" as JiaGesture, text:"Je ne suis pas ici pour attendre tes questions. Je peux anticiper la prochaine étape de ton parcours.", pause:900},
-  {gesture:"reassure" as JiaGesture, text:"Et quand quelque chose mérite ton attention, je viens vers toi.", pause:1200},
-];
 
 function speak(text:string, onEnd?:()=>void) {
   if (typeof window === "undefined" || !text || !window.speechSynthesis) {
@@ -244,8 +238,4 @@ export default function WaterScene({intent,transparent=false}:{intent?:JiaMotion
       </div>
     </div>
   );
-}
-
-function itemPause(index:number) {
-  return AUTO_DIALOGUE[index]?.pause ?? 800;
 }
