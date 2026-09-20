@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { JiaCharacter, type JiaGesture } from "./WaterScene";
@@ -132,42 +132,38 @@ export default function JiaPresence() {
     };
   }, [hidden, pathname, interacted]);
 
-  const roamX = Math.max(30, Math.min(viewport.w * 0.68, viewport.w - 250));
-  const roamY = Math.max(30, Math.min(viewport.h * 0.62, viewport.h - 320));
-
-  const x = useMemo(() => [0, -roamX * 0.18, roamX * 0.42, roamX * 0.08, -roamX * 0.3, 0], [roamX]);
-  const y = useMemo(() => [0, -roamY * 0.22, -roamY * 0.5, -roamY * 0.12, roamY * 0.12, 0], [roamY]);
+  // J’IA reste immobile par défaut. Elle se déplace uniquement quand
+  // l’utilisateur la fait glisser ; sa bulle est dans le même conteneur
+  // afin de rester parfaitement attachée au personnage.
 
   if (hidden) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-[80] overflow-hidden" aria-label="J’IA — présence intelligente de Jobly">
+    <div className="pointer-events-none fixed inset-0 z-[80] overflow-visible" aria-label="J’IA — présence intelligente de Jobly">
       <motion.div
         className="pointer-events-auto fixed bottom-4 right-4 h-[245px] w-[175px] cursor-grab touch-none sm:h-[285px] sm:w-[205px]"
         drag
-        dragMomentum
-        dragElastic={0.14}
-        dragConstraints={{ left: -Math.max(0, viewport.w - 235), right: 0, top: -Math.max(0, viewport.h - 320), bottom: 0 }}
-        animate={{ x, y }}
-        transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
+        dragMomentum={false}
+        dragElastic={0.08}
+        dragConstraints={{ left: -Math.max(0, viewport.w - 210), right: 0, top: -Math.max(0, viewport.h - 320), bottom: 0 }}
         whileTap={{ cursor: "grabbing", scale: 0.985 }}
       >
         <JiaCharacter speaking={speaking} gesture={prediction.gesture} />
-      </motion.div>
 
-      {prediction.message && (
-        <motion.div
-          key={prediction.message}
-          className="pointer-events-none fixed bottom-5 right-[195px] z-[81] max-w-[min(380px,62vw)]"
-          initial={{ opacity: 0, y: 10, scale: 0.97 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.28 }}
-        >
-          <div className="rounded-[20px] border border-white/15 bg-[#061226]/78 px-4 py-3 text-[13px] font-semibold leading-relaxed text-white shadow-2xl backdrop-blur-xl">
-            {prediction.message}
-          </div>
-        </motion.div>
-      )}
+        {prediction.message && (
+          <motion.div
+            key={prediction.message}
+            className="pointer-events-none absolute right-[calc(100%+12px)] bottom-8 z-[81] w-[min(380px,62vw)]"
+            initial={{ opacity: 0, y: 10, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.28 }}
+          >
+            <div className="rounded-[20px] border border-white/15 bg-[#061226]/78 px-4 py-3 text-[13px] font-semibold leading-relaxed text-white shadow-2xl backdrop-blur-xl">
+              {prediction.message}
+            </div>
+          </motion.div>
+        )}
+      </motion.div>
     </div>
   );
 }
