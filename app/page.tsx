@@ -988,6 +988,7 @@ export default function Home() {
           disabled={busy}
           className="h-[52px] w-full rounded-2xl bg-[#FFDE00] font-extrabold text-black disabled:opacity-40"
         >{busy?"Création…":translations[lang].signup}</button>
+        {message && <div role="alert" aria-live="assertive" className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-center text-[13px] font-semibold text-red-700">{message}</div>}
       </section>}
 
       {cropSource && <Cropper src={cropSource} onCancel={() => setCropSource("")} onConfirm={acceptCrop} />}
