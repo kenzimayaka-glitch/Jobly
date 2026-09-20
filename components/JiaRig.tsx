@@ -61,7 +61,7 @@ export function JiaRig({speaking,gesture}:Props) {
   return (
     <motion.div className="relative h-full w-full select-none overflow-visible" aria-label="J’IA — personnage animé de Jobly"
       animate={head} transition={{duration:.45,ease:"easeInOut"}}>
-      <img src="/jia/jia-master.png" alt="J’IA" draggable={false}
+      <img src="/jia/jia-master.webp" alt="J’IA" draggable={false}
         className="absolute inset-0 h-full w-full object-contain object-center" />
 
       <div aria-hidden className="pointer-events-none absolute" style={{left:`${EYE.left.x}%`,top:`${EYE.left.y}%`,width:`${EYE.width}%`,height:`${EYE.height}%`,transform:"translate(-50%,-50%)"}}>
