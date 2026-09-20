@@ -12,12 +12,6 @@ type Prediction = {
   target?: string;
 };
 
-const ALLOWED_GESTURES = new Set<JiaGesture>([
-  "welcome", "analyze", "point", "write", "validate", "alert", "apply", "celebrate",
-  "wink", "reassure", "encourage", "disappointed", "surprised", "curious", "tired", "proud",
-  "present-chart", "handshake", "present-team", "pay-os", "call-hr", "filter", "secure", "goodbye",
-]);
-
 const DEFAULT: Prediction = {
   message: "Je reste attentive. Si quelque chose peut accélérer ton parcours, je te le signalerai.",
   gesture: "curious",
