@@ -35,7 +35,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr" className={`h-full w-full ${inter.variable} ${plusJakarta.variable} ${poppins.variable}`}>
-      <body className="h-[100dvh] w-screen m-0 p-0 overflow-hidden bg-white antialiased font-sans">
+      <body className="h-[100dvh] w-screen m-0 p-0 overflow-visible bg-white antialiased font-sans">
         <PwaInit />
         <JiaObserver />
         <JiaPresence />
