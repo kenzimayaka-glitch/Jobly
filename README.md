@@ -1815,3 +1815,10 @@ Pour chaque écosystème, l’utilisateur peut choisir :
 Les préférences sont isolées par écosystème et persistées dans Supabase (`public.jia_preferences`) avec RLS par utilisateur.
 
 J’IA peut expliquer elle-même ces choix et orienter l’utilisateur vers la bonne option. Le choix reste modifiable à tout moment. Les permissions vocales et notifications du téléphone/navigateur restent toujours sous le contrôle du système.
+
+
+## CHECKPOINT J’IA — CHANTIER COMPLET PRÉPARÉ
+
+La branche `chore/jia-complete-bulk` regroupe le correctif J’IA en bloc : personnage complet sans clipping, transparence conservée, visage animé (yeux/sourcils/bouche/lip-sync), mouvements sémantiques de tête, déplacement manuel uniquement, dialogue jaune canari + bleu lisible, modes Texte/Vocal réellement respectés, préférences Talent/Recruiter/Partner, Brain transversal, proactivité et garde-fou financier renforcé.
+
+**Aucun build Vercel n’est déclenché automatiquement.** Le chantier attend l’autorisation explicite du fondateur pour fusion/build et validation E2E.
