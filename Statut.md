@@ -2375,3 +2375,26 @@ La commande vocale et son garde-fou financier sont codés. La compatibilité exa
 
 ## État honnête
 **🔧 CODÉ + PERSISTANCE DB → 🧪 BUILD / VERCEL / TEST MOBILE À VALIDER**.
+
+
+---
+
+## CHECKPOINT CTO — 20/09/2026 — J’IA BRAIN V1 TRANSVERSAL
+
+### Réalisé dans ce passage
+- Création du noyau serveur `lib/jia/brain.ts` : contexte mémoire + événements récents + CareerAssessment → orchestration IA → intention → confiance → action proposée → trace `JiaIntelligenceTrace`.
+- Nouvelle API authentifiée `POST /api/jia/brain` avec consentement obligatoire.
+- Nouvelle API authentifiée `GET/PUT /api/jia/preferences` pour centraliser les préférences J’IA par écosystème.
+- J’IA Presence reliée au Brain après chaque commande vocale, tout en conservant la règle stricte du wake word « J’IA ».
+- Le mode vocal configuré est désormais respecté par la présence J’IA.
+- La proactivité Talent respecte désormais `access_enabled` et `proactive_recommendations`, et expose le mode de notification configuré.
+- Correction P0 du build : `filteredJobs` était référencé avant sa déclaration dans `JoblyOfferFeed.tsx`.
+
+### Validation technique
+- GitHub Actions exécute automatiquement `npm install` puis `npm run build` sur chaque push `main`.
+- Les premiers runs de ce passage ont correctement détecté l’erreur TypeScript puis le correctif a été poussé.
+- **À ce checkpoint, le dernier build GitHub est encore en cours : ne pas le déclarer VALIDÉ avant conclusion SUCCESS.**
+- Vercel reste le projet canonique verrouillé ; aucun changement de projet n’a été effectué.
+
+### Limite de ce checkpoint
+La fondation du cerveau transversal est maintenant branchée, mais les fonctions externes qui nécessitent des fournisseurs/permissions non présents (notamment push système hors navigateur et certaines actions métier) ne doivent pas être décrites comme opérationnelles tant qu’elles n’ont pas passé CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.
