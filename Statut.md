@@ -2422,3 +2422,13 @@ Le chantier J’IA a été repris en bloc sur la branche `chore/jia-complete-bul
 **État :** 🔧 CODÉ EN BLOC → 🧪 BUILD/E2E À VALIDER.
 
 **Important :** conformément à la nouvelle règle du fondateur, aucun build Vercel n’est lancé automatiquement. La branche doit être validée puis fusionnée/soumise au build uniquement après autorisation explicite.
+
+
+## 20/09/2026 — J’IA — DERNIÈRE PASSE BULK EFFECTUÉE
+
+- Guard financier du Brain corrigé : une demande financière ne peut produire aucune action proposée.
+- Commande vocale `J’IA, sauvegarde/enregistre...` rendue fonctionnelle sur les offres via favoris persistés côté navigateur.
+- Mouvement autonome désactivé dans `WaterScene` : J’IA reste immobile jusqu’au déplacement manuel par l’utilisateur.
+- Chantier J’IA regroupé et prêt pour validation technique globale.
+- **Aucun build Vercel soumis** conformément à la règle du fondateur.
+- État : **CODE BULK FINALISÉ → BUILD + E2E + CHECKING VISUEL À AUTORISER**.
