@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans, Poppins } from "next/font/google";
 import PwaInit from "../components/PwaInit";
 import JiaObserver from "../components/JiaObserver";
+import JiaPresence from "../components/JiaPresence";
 import ScreenProtection from "../components/ScreenProtection";
 
 const inter = Inter({
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="h-[100dvh] w-screen m-0 p-0 overflow-hidden bg-white antialiased font-sans">
         <PwaInit />
         <JiaObserver />
+        <JiaPresence />
         <ScreenProtection />
         {children}
       </body>
