@@ -44,6 +44,7 @@ export function JoblyOfferFeed() {
   const [token, setToken] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [applied, setApplied] = useState<Set<string>>(new Set());
+  const [saved, setSaved] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState<Set<string>>(new Set());
   const [selectedCompany, setSelectedCompany] = useState<Job["company"]>(null);
   const [loading, setLoading] = useState(true);
@@ -71,6 +72,20 @@ export function JoblyOfferFeed() {
   }, [token]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    try { setSaved(new Set(JSON.parse(localStorage.getItem("jobly:jia:saved-offers") || "[]"))); } catch {}
+  }, []);
+
+  const toggleSaved = useCallback((job: Job) => {
+    const key = `${job.source}:${job.id}`;
+    setSaved(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      try { localStorage.setItem("jobly:jia:saved-offers", JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  }, []);
 
   async function apply(job: Job) {
     if (!token) return;
@@ -159,7 +174,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     };
     window.addEventListener("jobly:jia-command", onJiaCommand);
     return () => window.removeEventListener("jobly:jia-command", onJiaCommand);
-  }, [filteredJobs, router, apply]);
+  }, [filteredJobs, router, apply, toggleSaved, saved]);
   const featured = useMemo(() => filteredJobs.slice(0, 3), [filteredJobs]);
   const rest = useMemo(() => filteredJobs.slice(3), [filteredJobs]);
   const feedSummary = feedMeta.totalAvailable ? `${feedMeta.totalAvailable} opportunité${feedMeta.totalAvailable > 1 ? "s" : ""} actuellement disponible${feedMeta.totalAvailable > 1 ? "s" : ""}` : "Marché en cours de synchronisation";
