@@ -86,7 +86,7 @@ function speak(text:string, onEnd?:()=>void) {
   window.speechSynthesis.speak(u);
 }
 
-function JiaCharacter({speaking, gesture}:{speaking:boolean; gesture:JiaGesture}) {
+export function JiaCharacter({speaking, gesture}:{speaking:boolean; gesture:JiaGesture}) {
   const blink = gesture === "surprised" ? false : true;
   return (
     <div className="relative h-full w-full select-none" aria-label="J’IA, personnage central de Jobly">
@@ -130,7 +130,7 @@ function JiaCharacter({speaking, gesture}:{speaking:boolean; gesture:JiaGesture}
   );
 }
 
-export default function WaterScene({intent}:{intent?:JiaMotionIntent}={}) {
+export default function WaterScene({intent,transparent=false}:{intent?:JiaMotionIntent; transparent?:boolean}={}) {
   const reduce = useReducedMotion();
   const explicit = !!intent;
   const [active,setActive] = useState<JiaMotionIntent>(intent ?? {gesture:"welcome",roam:true});
@@ -189,11 +189,11 @@ export default function WaterScene({intent}:{intent?:JiaMotionIntent}={}) {
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[60] overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,#163A63_0%,#071326_42%,#020410_100%)]">
+      {!transparent && <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,#163A63_0%,#071326_42%,#020410_100%)]">
         <div className="pointer-events-none absolute inset-0 opacity-70">
           <motion.div className="absolute left-1/2 top-[12%] h-72 w-72 -translate-x-1/2 rounded-full bg-[#39D7FF]/10 blur-3xl" animate={{scale:[1,1.12,1],opacity:[.35,.55,.35]}} transition={{duration:5.5,repeat:Infinity,ease:"easeInOut"}}/>
         </div>
-      </div>
+      </div>}
 
       <motion.div
         className="pointer-events-auto fixed bottom-5 right-4 z-[70] h-[250px] w-[180px] cursor-grab touch-none sm:h-[290px] sm:w-[210px]"
