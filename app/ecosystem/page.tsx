@@ -2,7 +2,6 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { motion } from "framer-motion";
 import WaterScene, { type JiaMotionIntent } from "../../components/WaterScene";
 import { useSearchParams } from "next/navigation";
 import PageHeader from "../../components/PageHeader";
