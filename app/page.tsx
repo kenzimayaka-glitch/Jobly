@@ -823,7 +823,7 @@ export default function Home() {
               <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[56px] w-[48%] rounded-xl bg-canari font-[700] font-[var(--font-poppins)] text-[14px] text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96]">
                 {translations[lang].create}
               </button>
-              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[56px] w-[48%] rounded-xl border border-white/50 bg-deep-blue/90 font-[700] font-poppins text-[14px] text-off-white shadow-premium backdrop-blur-xl transition-transform active:scale-[0.96]">
+              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[56px] w-[48%] rounded-xl border border-white/50 bg-deep-blue/90 font-[700] font-[var(--font-poppins)] text-[14px] font-[var(--font-poppins)] text-off-white shadow-premium backdrop-blur-xl transition-transform active:scale-[0.96]">
                 {translations[lang].login}
               </button>
             </div>
