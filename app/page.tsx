@@ -847,8 +847,8 @@ export default function Home() {
       )}
 
       {screen === "login" && (
-        <section className="min-h-screen flex flex-col items-center justify-center px-6 py-8">
-          <div className="w-full max-w-[420px] flex flex-col gap-8">
+        <section className="min-h-screen flex flex-col items-center justify-center px-6 py-8 -translate-y-[10px]">
+          <div className="w-full max-w-[420px] flex flex-col gap-6">
             <div className="flex justify-between items-center">
               <JoblyLogo size="hero" showTagline />
               <button type="button" onClick={toggleDarkMode} aria-label={darkMode ? "Désactiver le mode nuit" : "Activer le mode nuit"} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-[15px] text-navy">
@@ -888,7 +888,7 @@ export default function Home() {
               </button>
               {message && <div role="alert" aria-live="assertive" className="rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-center text-[13px] font-semibold text-red-700">{message}</div>}
             </form>
-            <p className="relative -translate-y-1 text-center text-[13px] text-gray-500">{translations[lang].noAccount}{" "}<button type="button" onClick={()=>{reset();goTo("signup");}} className="font-bold text-[#22448B]">{translations[lang].create}</button></p>
+            <p className="relative -mt-2 text-center text-[13px] text-gray-500">{translations[lang].noAccount}{" "}<button type="button" onClick={()=>{reset();goTo("signup");}} className="font-bold text-[#22448B]">{translations[lang].create}</button></p>
           </div>
         </section>
       )}
