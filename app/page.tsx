@@ -166,7 +166,7 @@ const translations = {
     subtitle: "Rejoignez des milliers de talents et obtenez votre emploi idéal en quelques clics. CV, opportunités, coaching — tout est prêt pour vous.",
     google: "Continuer avec Google",
     conditions: "En continuant, vous acceptez nos Conditions et Politique de confidentialité",
-    create: "Créer mon compte",
+    create: "Créer un compte",
     login: "Se connecter",
     loginTitle: "Connexion",
     loginSubtitle: "Entrez votre Username et votre Mot de passe",
@@ -819,7 +819,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative z-20 mt-8 shrink-0 flex flex-row gap-3 px-4">
+            <div className="relative z-20 mt-0 shrink-0 flex flex-row gap-3 px-4">
               <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[56px] w-[48%] rounded-xl bg-canari font-[var(--font-inter)] font-bold text-[14px] text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96]">
                 {translations[lang].create}
               </button>
