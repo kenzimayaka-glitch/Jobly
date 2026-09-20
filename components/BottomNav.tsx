@@ -147,7 +147,7 @@ export default function BottomNav({ active, items }: { active: string; items?: N
               aria-current={isActive ? "page" : undefined}
               className={`jobly-focus flex flex-1 flex-col items-center gap-1 rounded-2xl py-2.5 text-[10px] font-bold transition-all ${
                 isActive
-                  ? "bg-jobly-blue text-white shadow-[0_8px_18px_rgba(46,92,158,0.3)]"
+                  ? "bg-[#FFE135] text-[#0A1931] shadow-[0_8px_18px_rgba(246,207,0,.25)] ring-1 ring-black/5"
                   : "text-[#5F6F86] hover:text-[#0057B8]"
               }`}
             >
