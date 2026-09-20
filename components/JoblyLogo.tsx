@@ -34,7 +34,7 @@ const JoblyLogo = forwardRef<HTMLDivElement, JoblyLogoProps>(function JoblyLogo(
 
         <svg
           aria-hidden="true"
-          viewBox="0 0 500 120"
+          viewBox="0 0 280 120"
           className={hero ? "h-[48px] w-[164px]" : "h-[25px] w-[86px]"}
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -45,19 +45,19 @@ const JoblyLogo = forwardRef<HTMLDivElement, JoblyLogoProps>(function JoblyLogo(
             fontSize="110"
           >
             <text x="0" y="95">o</text>
-            <text x="94" y="95">b</text>
-            <text x="260" y="115">y</text>
+            <text x="67" y="95">b</text>
+            <text x="188" y="115">y</text>
           </g>
 
-          {/* L : pied jaune canari, courbé et volontairement organique */}
-          <rect x="196" y="5" width="38" height="78" fill="#22448B" />
+          {/* L : corps bleu normal, pied jaune canari court et organique */}
+          <rect x="133" y="5" width="38" height="78" fill="#22448B" />
           <path
-            d="M 196 86
-               C 210 88, 230 91, 244 88
-               Q 248 87, 250 90
-               Q 252 96, 248 101
-               Q 242 106, 224 106
-               Q 208 106, 196 102 Z"
+            d="M 133 86
+               C 143 88, 157 90, 169 88
+               Q 174 87, 176 90
+               Q 178 95, 174 99
+               Q 168 103, 156 103
+               Q 143 103, 133 100 Z"
             fill="#FFD400"
             strokeLinecap="round"
             strokeLinejoin="round"
