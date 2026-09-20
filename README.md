@@ -1845,3 +1845,15 @@ Audit de **100 % de l’application** : routes, écrans, composants, états dyna
 **page → composant → texte → clé → FR → EN → contexte → affichage mobile/desktop → build → tests → recontrôle.**
 
 L’audit est **EN COURS / NON CERTIFIÉ** tant que l’inventaire et les tests complets ne sont pas terminés.
+
+
+# CHECKPOINT 21/09/2026 — AUDIT TRADUCTION FR ↔ EN
+
+L’audit de traduction transversal est **EN COURS / NON CERTIFIÉ**.
+
+- Authentification/onboarding inspectés en profondeur.
+- Des chaînes hardcodées hors i18n ont été identifiées et la correction du mécanisme global de langue a commencé.
+- `components/LanguageSync.tsx` synchronise désormais l’attribut HTML de langue avec `jobly-lang`.
+- La certification exige encore l’audit de toutes les routes, composants, états conditionnels, contenus dynamiques/API, J’IA, messages générés, clés i18n et affichages mobile/desktop.
+- Build, tests de régression et déploiement de la version traduite restent à effectuer avant toute certification.
+- **Ne pas déclarer Jobly terminé sur la base de ce checkpoint.**
