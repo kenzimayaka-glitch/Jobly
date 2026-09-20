@@ -776,14 +776,14 @@ export default function Home() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.32, ease: "easeOut" }}
-            className="flex min-h-0 flex-1 flex-col"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="relative min-h-0 flex-1 overflow-hidden px-4 pt-0">
               <div aria-hidden="true" className="pointer-events-none absolute left-[10%] top-[-5%] z-[2] h-[64%] w-[44%] opacity-60">
                 <div className="h-full w-full -rotate-[26deg] border-l border-dashed border-sky-blue/50" />
               </div>
 
-              <div className="relative z-20 mt-6 w-[45%]">
+              <div className="relative z-20 mt-2 w-[45%]">
                 
                 <h1 className="font-[var(--font-inter)] text-[28px] leading-[31px] font-extrabold tracking-[-0.8px] text-deep-blue">
                   {translations[lang].title.split("\n").map((line, i) => (
@@ -801,7 +801,7 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="absolute top-[2cm] right-0 z-[5] h-[82%] w-[62%]">
+              <div className="absolute top-[1cm] right-0 z-[5] h-[60%] w-[60%]">
                 <Image
                   fill
                   priority
@@ -819,7 +819,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative z-20 mt-0 shrink-0 flex flex-row gap-3 px-4">
+            <div className="relative z-20 mt-2 shrink-0 flex flex-row gap-3 px-4">
               <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[56px] w-[48%] rounded-xl bg-canari font-[var(--font-inter)] font-bold text-[14px] text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96]">
                 {translations[lang].create}
               </button>
@@ -828,7 +828,7 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="relative z-20 mt-6 shrink-0 grid grid-cols-4 gap-2.5 px-3">
+            <div className="relative z-20 mt-3 shrink-0 grid grid-cols-4 gap-2.5 px-3 pb-1">
               {BENEFITS[lang].map(({ Icon, title, subtitle }) => (
                 <div key={title} className="relative overflow-hidden rounded-[24px]">
                   <div className="pointer-events-none absolute -top-20 -left-20 h-[300px] w-[300px] rounded-full bg-[#FFD400]/30 blur-[80px]" />
