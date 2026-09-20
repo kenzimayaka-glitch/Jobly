@@ -63,7 +63,7 @@ function sourceStyle([x,y,w,h]:[number,number,number,number]):CSSProperties{
 function SliceLayer({name,bone}:{name:string;bone:Bone}){
   const region=SLICES[name];
   return <motion.div className="absolute" style={{...sliceStyle(region),transformStyle:"preserve-3d",transformOrigin:"50% 50%"}}
-    animate={{x:bone.x??0,y:bone.y??0,rotate:bone.rotate??0,rotateX:bone.rotateX??0,rotateY:bone.rotateY??0,translateZ:bone.z??0,scale:bone.scale??1}}
+    animate={{x:bone.x??0,y:bone.y??0,rotate:bone.rotate??0,rotateX:bone.rotateX??0,rotateY:bone.rotateY??0,z:bone.z??0,scale:bone.scale??1}}
     transition={{type:"spring",stiffness:180,damping:20}}>
     <img src={SRC} alt="" draggable={false} style={sourceStyle(region)}/>
   </motion.div>;
