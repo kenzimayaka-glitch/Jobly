@@ -2398,3 +2398,37 @@ La commande vocale et son garde-fou financier sont codés. La compatibilité exa
 
 ### Limite de ce checkpoint
 La fondation du cerveau transversal est maintenant branchée, mais les fonctions externes qui nécessitent des fournisseurs/permissions non présents (notamment push système hors navigateur et certaines actions métier) ne doivent pas être décrites comme opérationnelles tant qu’elles n’ont pas passé CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.
+
+
+---
+
+### 20/09/2026 — J’IA — CHANTIER COMPLET PRÉPARÉ POUR VALIDATION
+
+Le chantier J’IA a été repris en bloc sur la branche `chore/jia-complete-bulk`, sans déclencher de nouveau build Vercel.
+
+**Corrections intégrées :**
+- représentation J’IA agrandie et contenue sans clipping ; suppression du fond blanc par traitement transparent conservée ;
+- visage animé : clignement des yeux, regard, sourcils, bouche et lip-sync visibles ;
+- mouvements de tête et micro-mouvements pilotés par les gestes sémantiques ; aucun déplacement autonome par défaut ;
+- dialogue lisible : fond jaune canari `#FFE135`, texte bleu `#0057B8`, bordure bleue, sans flou ;
+- déplacement manuel de J’IA conservé par glisser-déposer ; le dialogue suit le personnage ;
+- mode Texte/Vocal réellement respecté ; le micro et la synthèse vocale ne démarrent plus en mode texte ;
+- accès J’IA désactivé respecté ;
+- prédictions proactives bloquées lorsque J’IA est désactivée ;
+- frontière financière renforcée dans le Brain : aucune proposition d’action de paiement/transfert/transaction ne peut être retournée comme action J’IA ;
+- Brain transversal, préférences Talent/Recruiter/Partner et API proactives conservés ;
+- règle de commande vocale `J’IA` conservée.
+
+**État :** 🔧 CODÉ EN BLOC → 🧪 BUILD/E2E À VALIDER.
+
+**Important :** conformément à la nouvelle règle du fondateur, aucun build Vercel n’est lancé automatiquement. La branche doit être validée puis fusionnée/soumise au build uniquement après autorisation explicite.
+
+
+## 20/09/2026 — J’IA — DERNIÈRE PASSE BULK EFFECTUÉE
+
+- Guard financier du Brain corrigé : une demande financière ne peut produire aucune action proposée.
+- Commande vocale `J’IA, sauvegarde/enregistre...` rendue fonctionnelle sur les offres via favoris persistés côté navigateur.
+- Mouvement autonome désactivé dans `WaterScene` : J’IA reste immobile jusqu’au déplacement manuel par l’utilisateur.
+- Chantier J’IA regroupé et prêt pour validation technique globale.
+- **Aucun build Vercel soumis** conformément à la règle du fondateur.
+- État : **CODE BULK FINALISÉ → BUILD + E2E + CHECKING VISUEL À AUTORISER**.
