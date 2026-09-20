@@ -1760,3 +1760,11 @@ La première couche exécutable du Motion System J’IA est désormais codée da
 - Correctif GitHub : `483cf899f58c72af5a510692f1e84ff71bb760e6`.
 - **État honnête : CODED sur `main` ; déploiement Vercel de ce correctif à confirmer.** La production actuellement observée reste sur un déploiement antérieur tant qu’un nouveau déploiement `READY` n’a pas été créé.
 - Règle de validation : ne pas déclarer J’IA visuellement corrigée en production avant vérification du déploiement et du rendu réel.
+
+
+## CHECKPOINT 20/09/2026 — J’IA GLOBAL VISIBILITY CORRECTION
+- Recheck du code 2026-09-20: `components/JiaPresence.tsx` masquait encore J’IA sur `/` malgré la documentation précédente.
+- Correction appliquée sur `main`: J’IA est désormais autorisée sur la landing page; seule `/ecosystem` reste masquée pour éviter le doublon avec sa scène dédiée.
+- Commit correctif: `9bd4774e4593591655da99146d0eedd1a3d8ed82`.
+- État Vercel: le dernier déploiement production vérifié reste `b8dc6ecf4247b7ea3ed85b11383000e502c690fc`; il ne contient pas encore ce correctif.
+- Validation finale non déclarée: le déploiement automatique n’a pas créé de nouveau build après le push, et l’action de déploiement Vercel connectée retourne actuellement une erreur d’outil. Aucun rendu production corrigé n’est donc prétendu.
