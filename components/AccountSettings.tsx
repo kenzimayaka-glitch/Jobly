@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "../lib/supabase";
 import SubscriptionCard from "./SubscriptionCard";
+import JiaPreferences from "./JiaPreferences";
 
 export default function AccountSettings({ ecosystem, backHref, accent = "blue" }: { ecosystem: "TALENT" | "RECRUITER" | "PARTNER"; backHref: string; accent?: "blue" | "yellow" }) {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function AccountSettings({ ecosystem, backHref, accent = "blue" }
       <label className="mt-4 flex items-center justify-between gap-4 text-sm font-bold"><span>Profil privé</span><button type="button" onClick={()=>setPrivateProfile(v=>!v)} className={`h-7 w-12 rounded-full p-1 ${privateProfile ? "bg-jobly-blue" : "bg-slate-200"}`}><span className={`block h-5 w-5 rounded-full bg-white transition-transform ${privateProfile ? "translate-x-5" : ""}`}/></button></label>
       <label className="mt-4 block text-sm font-bold">Langue<select value={language} onChange={e=>setLanguage(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3"><option value="fr">Français</option><option value="en">English</option></select></label>
     </section>
+    <JiaPreferences ecosystem={ecosystem} />
     <SubscriptionCard ecosystem={ecosystem} />
     <section className="rounded-[24px] bg-white p-5 shadow-sm">
       <h2 className="font-heading text-lg font-extrabold">Sécurité & confidentialité</h2>
