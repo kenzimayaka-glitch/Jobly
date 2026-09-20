@@ -2638,3 +2638,26 @@ Le chantier J’IA a été repris en bloc sur la branche `chore/jia-complete-bul
 - Chantier J’IA regroupé et prêt pour validation technique globale.
 - **Aucun build Vercel soumis** conformément à la règle du fondateur.
 - État : **CODE BULK FINALISÉ → BUILD + E2E + CHECKING VISUEL À AUTORISER**.
+
+
+# CHECKPOINT 21/09/2026 — AUDIT TRADUCTION FR ↔ EN — NON CERTIFIÉ
+
+## État
+- Audit intégral FR ↔ EN : **EN COURS / NON CERTIFIÉ**.
+- L’audit a confirmé que l’existence de dictionnaires/locales ne suffit pas à certifier toute l’application.
+- La surface authentification/onboarding a été inspectée et plusieurs chaînes utilisateur précédemment hardcodées ont été identifiées comme devant passer par le système de langue.
+- `components/LanguageSync.tsx` a été ajouté pour synchroniser `document.documentElement.lang` avec la langue active stockée dans `jobly-lang`.
+- `app/layout.tsx` a été ajusté pour monter ce synchroniseur global.
+- Production Vercel reste actuellement **READY**, mais le dernier déploiement READY confirmé pointe encore vers l’ancien commit de design `78ffb8b...`; les corrections de traduction ne sont donc pas certifiées en production.
+
+## Certification bloquée jusqu’à
+1. Inventaire exhaustif de toutes les routes, composants et états utilisateur.
+2. Audit des chaînes visibles, conditionnelles, dynamiques/API/backend et J’IA.
+3. Détection et correction des chaînes hardcodées hors i18n.
+4. Vérification des clés manquantes, inutilisées, dupliquées et incohérentes.
+5. Vérification du changement FR ↔ EN et conservation du contexte sur toutes les routes.
+6. Vérification responsive mobile/desktop des textes traduits.
+7. Build complet, tests, régression et nouveau contrôle des chaînes.
+8. Déploiement puis vérification de la production sur le commit certifié.
+
+**Règle : aucune certification “terminé/go live” avant validation de l’ensemble de ces points.**
