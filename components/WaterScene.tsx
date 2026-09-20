@@ -2,59 +2,230 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { JIA_MASTER_DATA_URI } from "./JiaMaster";
 
 export type JiaGesture =
   | "welcome" | "analyze" | "point" | "write" | "validate" | "alert" | "apply" | "celebrate"
   | "wink" | "reassure" | "encourage" | "disappointed" | "surprised" | "curious" | "tired" | "proud"
   | "present-chart" | "handshake" | "present-team" | "pay-os" | "call-hr" | "filter" | "secure" | "goodbye";
 
-export type JiaMotionIntent = { gesture: JiaGesture; message?: string; target?: string; voice?: boolean };
-
-type Preset = { x: number[]; y: number[]; rotate: number[]; scale: number[]; duration: number; repeat?: number | "Infinity" };
-const M=(x:number[],y:number[],r:number[],s:number[],duration:number,repeat?:number|"Infinity"):Preset=>({x,y,rotate:r,scale:s,duration,repeat});
-const MOTIONS:Record<JiaGesture,Preset>={
- welcome:M([0,-5,4,0],[0,-3,0,0],[0,-1.2,1.2,0],[1,1.015,1,1],2.4,"Infinity"),
- analyze:M([0,-5,4,0],[0,1,-2,0],[0,-2,1,0],[1,1.025,1.015,1],2.8,"Infinity"),
- point:M([0,7,10,7,0],[0,-2,1,-1,0],[0,1.5,2.5,1,0],[1,1.02,1.025,1.02,1],1.5,"Infinity"),
- write:M([0,-2,2,0],[0,2,0,1,0],[0,1,-1,.6,0],[1,1.01,1,1.01,1],1.35,"Infinity"),
- validate:M([0,0,0],[0,-4,0],[0,-2,0],[1,1.045,1],1.15),
- alert:M([0,-3,3,-2,0],[0,-2,0,-1,0],[0,-2,2,-1,0],[1,1.03,1.03,1.02,1],1.1,2),
- apply:M([0,6,3,0],[0,-2,0,0],[0,1.5,.5,0],[1,1.02,1.01,1],1.3),
- celebrate:M([0,-8,8,-6,6,0],[0,-5,-2,-6,-2,0],[0,-2,2,-2,2,0],[1,1.05,1.04,1.05,1.04,1],1.8),
- wink:M([0,2,0],[0,-2,0],[0,1.2,0],[1,1.02,1],1.2),
- reassure:M([0,-3,3,0],[0,-3,0,0],[0,-1,1,0],[1,1.03,1.02,1],2,1),
- encourage:M([0,4,-4,0],[0,-5,0,0],[0,1,-1,0],[1,1.04,1.02,1],1.4,1),
- disappointed:M([0,-2,0],[0,5,0],[0,-3,0],[1,.985,1],1.5),
- surprised:M([0,0,0],[0,-7,0],[0,0,0],[1,1.065,1],1),
- curious:M([0,-5,5,0],[0,1,0,0],[0,-4,4,0],[1,1.02,1.02,1],1.7),
- tired:M([0,-2,2,0],[0,4,5,0],[0,-3,3,0],[1,.99,.99,1],2.2),
- proud:M([0,0,0],[0,-4,0],[0,0,0],[1,1.04,1],1.3),
- "present-chart":M([0,-7,6,0],[0,-2,0,0],[0,-1,2,0],[1,1.02,1.02,1],1.8),
- handshake:M([0,7,-4,7,0],[0,0,-2,0,0],[0,1.5,-1,1.5,0],[1,1.02,1.01,1.02,1],1.8),
- "present-team":M([0,-6,6,0],[0,-2,0,0],[0,-1,1,0],[1,1.02,1.02,1],1.7),
- "pay-os":M([0,-4,4,0],[0,-3,0,0],[0,-1.5,1.5,0],[1,1.025,1.02,1],1.8),
- "call-hr":M([0,5,-2,5,0],[0,-2,0,-1,0],[0,1.5,-.5,1.5,0],[1,1.02,1,1.02,1],1.7),
- filter:M([0,-5,5,0],[0,1,-1,0],[0,-2,2,0],[1,1.02,1.02,1],1.5),
- secure:M([0,0,0],[0,-3,0],[0,0,0],[1,1.03,1],1.4),
- goodbye:M([0,-5,5,-3,0],[0,-2,0,-1,0],[0,-1.5,1.5,-.5,0],[1,1.02,1.02,1.01,1],1.9),
+export type JiaMotionIntent = {
+  gesture: JiaGesture;
+  message?: string;
+  target?: string;
+  voice?: boolean;
+  roam?: boolean;
 };
-const LABELS:Record<JiaGesture,string>={welcome:"Bienvenue",analyze:"J’analyse",point:"Je te montre",write:"Je note",validate:"C’est validé",alert:"Attention",apply:"Je postule",celebrate:"Bravo",wink:"Clin d’œil",reassure:"Je suis avec toi",encourage:"On continue",disappointed:"On ajuste",surprised:"Belle opportunité",curious:"Regardons",tired:"Je continue",proud:"Fière de toi","present-chart":"Voici les données",handshake:"Partenariat","present-team":"L’équipe","pay-os":"PAY OS","call-hr":"Relation RH",filter:"Je filtre",secure:"C’est sécurisé",goodbye:"À bientôt"};
 
-function speak(text:string){if(typeof window==="undefined"||!text||!window.speechSynthesis)return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang=document.documentElement.lang?.startsWith("en")?"en-US":"fr-FR";u.rate=.96;u.pitch=1.02;window.speechSynthesis.speak(u);}
+type Preset = {
+  x: number[];
+  y: number[];
+  rotate: number[];
+  scale: number[];
+  duration: number;
+  repeat?: number | "Infinity";
+};
 
-export default function WaterScene({intent}:{intent?:JiaMotionIntent}={}){
- const reduce=useReducedMotion(); const explicit=!!intent; const [active,setActive]=useState<JiaMotionIntent>(intent??{gesture:"welcome"}); const lastVoice=useRef("");
- useEffect(()=>{if(intent)setActive(intent)},[intent?.gesture,intent?.message,intent?.target,intent?.voice]);
- useEffect(()=>{if(explicit)return;const timers=[window.setTimeout(()=>setActive({gesture:"analyze",message:"Je regarde déjà comment t’accompagner."}),3600),window.setTimeout(()=>setActive({gesture:"reassure",message:"Tu n’es pas seul dans ton parcours."}),7200)];return()=>timers.forEach(clearTimeout)},[explicit]);
- useEffect(()=>{if(!active.voice||!active.message||lastVoice.current===active.message)return;lastVoice.current=active.message;speak(active.message)},[active.voice,active.message]);
- const p=useMemo(()=>MOTIONS[active.gesture]??MOTIONS.welcome,[active.gesture]); const repeat=reduce?0:p.repeat==="Infinity"?Infinity:p.repeat;
- return <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(circle_at_50%_38%,#163A63_0%,#071326_42%,#020410_100%)]">
-  <div className="pointer-events-none absolute inset-0 opacity-80"><motion.div className="absolute left-1/2 top-[12%] h-72 w-72 -translate-x-1/2 rounded-full bg-[#39D7FF]/10 blur-3xl" animate={{scale:[1,1.12,1],opacity:[.35,.55,.35]}} transition={{duration:5.5,repeat:Infinity,ease:"easeInOut"}}/><motion.div className="absolute bottom-[10%] left-1/2 h-40 w-[70vw] -translate-x-1/2 rounded-[50%] border border-[#39D7FF]/20" animate={{scaleX:[1,1.08,1],opacity:[.3,.65,.3]}} transition={{duration:3.8,repeat:Infinity,ease:"easeInOut"}}/></div>
-  <div className="absolute inset-x-0 bottom-[18vh] top-0 flex items-end justify-center px-3 sm:px-8"><motion.div className="relative h-[32vh] max-h-[280px] w-[42vw] max-w-[220px] min-w-[150px] origin-bottom will-change-transform" animate={{x:p.x,y:p.y,rotate:p.rotate,scale:p.scale}} transition={{duration:reduce?0:p.duration,repeat,ease:"easeInOut"}}>
-   <motion.img src={JIA_MASTER_DATA_URI} alt="J’IA — intelligence artificielle JOBLY" className="absolute inset-0 h-full w-full object-contain object-bottom drop-shadow-[0_28px_55px_rgba(0,0,0,.42)]" draggable={false} animate={reduce?undefined:{scale:[1,1.006,1]}} transition={{duration:3.8,repeat:Infinity,ease:"easeInOut"}}/>
-   <AnimatePresence>{active.target&&<motion.div key={active.target} className="pointer-events-none absolute left-1/2 top-[44%] flex w-max -translate-x-1/2 items-center gap-2 rounded-full border border-white/20 bg-black/35 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-md" initial={{opacity:0,y:8,scale:.92}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-6}}><span className="h-2 w-2 animate-pulse rounded-full bg-[#FFDE00]"/>{active.target}</motion.div>}</AnimatePresence>
-  </motion.div></div>
-  <div className="absolute inset-x-0 bottom-[5.5vh] z-20 flex flex-col items-center gap-2 px-5 text-center"><motion.div key={active.gesture} initial={{opacity:0,y:8,scale:.96}} animate={{opacity:1,y:0,scale:1}} className="rounded-full border border-white/15 bg-black/30 px-4 py-2 text-[11px] font-extrabold uppercase tracking-[.12em] text-[#FFDE00] backdrop-blur-md">{LABELS[active.gesture]}</motion.div>{active.message&&<motion.p key={active.message} initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} className="max-w-[560px] text-[15px] font-semibold leading-relaxed text-white/95">{active.message}</motion.p>}</div>
- </div>;
+const M = (x:number[], y:number[], r:number[], s:number[], duration:number, repeat?:number|"Infinity"):Preset =>
+  ({x,y,rotate:r,scale:s,duration,repeat});
+
+const MOTIONS:Record<JiaGesture,Preset> = {
+  welcome:M([0,-5,4,0],[0,-3,0,0],[0,-1.2,1.2,0],[1,1.015,1,1],2.4,"Infinity"),
+  analyze:M([0,-5,4,0],[0,1,-2,0],[0,-2,1,0],[1,1.025,1.015,1],2.8,"Infinity"),
+  point:M([0,7,10,7,0],[0,-2,1,-1,0],[0,1.5,2.5,1,0],[1,1.02,1.025,1.02,1],1.5,"Infinity"),
+  write:M([0,-2,2,0],[0,2,0,1,0],[0,1,-1,.6,0],[1,1.01,1,1.01,1],1.35,"Infinity"),
+  validate:M([0,0,0],[0,-4,0],[0,-2,0],[1,1.045,1],1.15),
+  alert:M([0,-3,3,-2,0],[0,-2,0,-1,0],[0,-2,2,-1,0],[1,1.03,1.03,1.02,1],1.1,2),
+  apply:M([0,6,3,0],[0,-2,0,0],[0,1.5,.5,0],[1,1.02,1.01,1],1.3),
+  celebrate:M([0,-8,8,-6,6,0],[0,-5,-2,-6,-2,0],[0,-2,2,-2,2,0],[1,1.05,1.04,1.05,1.04,1],1.8),
+  wink:M([0,2,0],[0,-2,0],[0,1.2,0],[1,1.02,1],1.2),
+  reassure:M([0,-3,3,0],[0,-3,0,0],[0,-1,1,0],[1,1.03,1.02,1],2,1),
+  encourage:M([0,4,-4,0],[0,-5,0,0],[0,1,-1,0],[1,1.04,1.02,1],1.4,1),
+  disappointed:M([0,-2,0],[0,5,0],[0,-3,0],[1,.985,1],1.5),
+  surprised:M([0,0,0],[0,-7,0],[0,0,0],[1,1.065,1],1),
+  curious:M([0,-5,5,0],[0,1,0,0],[0,-4,4,0],[1,1.02,1.02,1],1.7),
+  tired:M([0,-2,2,0],[0,4,5,0],[0,-3,3,0],[1,.99,.99,1],2.2),
+  proud:M([0,0,0],[0,-4,0],[0,0,0],[1,1.04,1],1.3),
+  "present-chart":M([0,-7,6,0],[0,-2,0,0],[0,-1,2,0],[1,1.02,1.02,1],1.8),
+  handshake:M([0,7,-4,7,0],[0,0,-2,0,0],[0,1.5,-1,1.5,0],[1,1.02,1.01,1.02,1],1.8),
+  "present-team":M([0,-6,6,0],[0,-2,0,0],[0,-1,1,0],[1,1.02,1.02,1],1.7),
+  "pay-os":M([0,-4,4,0],[0,-3,0,0],[0,-1.5,1.5,0],[1,1.025,1.02,1],1.8),
+  "call-hr":M([0,5,-2,5,0],[0,-2,0,-1,0],[0,1.5,-.5,1.5,0],[1,1.02,1,1.02,1],1.7),
+  filter:M([0,-5,5,0],[0,1,-1,0],[0,-2,2,0],[1,1.02,1.02,1],1.5),
+  secure:M([0,0,0],[0,-3,0],[0,0,0],[1,1.03,1],1.4),
+  goodbye:M([0,-5,5,-3,0],[0,-2,0,-1,0],[0,-1.5,1.5,-.5,0],[1,1.02,1.02,1.01,1],1.9),
+};
+
+const LABELS:Record<JiaGesture,string> = {
+  welcome:"Bienvenue", analyze:"J’analyse", point:"Je te montre", write:"Je note", validate:"C’est validé",
+  alert:"Attention", apply:"Je postule", celebrate:"Bravo", wink:"Clin d’œil", reassure:"Je suis avec toi",
+  encourage:"On continue", disappointed:"On ajuste", surprised:"Belle opportunité", curious:"Regardons",
+  tired:"Je continue", proud:"Fière de toi", "present-chart":"Voici les données", handshake:"Partenariat",
+  "present-team":"L’équipe", "pay-os":"PAY OS", "call-hr":"Relation RH", filter:"Je filtre",
+  secure:"C’est sécurisé", goodbye:"À bientôt"
+};
+
+const AUTO_DIALOGUE = [
+  {gesture:"welcome" as JiaGesture, text:"Bienvenue sur Jobly. Je suis J’IA, ton intelligence d’accompagnement.", pause:900},
+  {gesture:"curious" as JiaGesture, text:"Je regarde ce que tu fais pour comprendre ce dont tu pourrais avoir besoin ensuite.", pause:700},
+  {gesture:"analyze" as JiaGesture, text:"Je ne suis pas ici pour attendre tes questions. Je peux anticiper la prochaine étape de ton parcours.", pause:900},
+  {gesture:"reassure" as JiaGesture, text:"Et quand quelque chose mérite ton attention, je viens vers toi.", pause:1200},
+];
+
+function speak(text:string, onEnd?:()=>void) {
+  if (typeof window === "undefined" || !text || !window.speechSynthesis) {
+    onEnd?.();
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = document.documentElement.lang?.startsWith("en") ? "en-US" : "fr-FR";
+  u.rate = .96;
+  u.pitch = 1.04;
+  u.onend = () => onEnd?.();
+  u.onerror = () => onEnd?.();
+  window.speechSynthesis.speak(u);
+}
+
+function JiaCharacter({speaking, gesture}:{speaking:boolean; gesture:JiaGesture}) {
+  const blink = gesture === "surprised" ? false : true;
+  return (
+    <div className="relative h-full w-full select-none" aria-label="J’IA, personnage central de Jobly">
+      <motion.div
+        className="absolute inset-x-[18%] bottom-0 h-[14%] rounded-[50%] bg-[#39D7FF]/20 blur-xl"
+        animate={{scaleX:[.92,1.08,.92],opacity:[.35,.58,.35]}}
+        transition={{duration:2.8,repeat:Infinity,ease:"easeInOut"}}
+      />
+      <svg viewBox="0 0 260 360" className="relative z-10 h-full w-full overflow-visible" role="img">
+        <defs>
+          <linearGradient id="jiaBody" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0" stopColor="#39D7FF"/><stop offset=".52" stopColor="#1678D4"/><stop offset="1" stopColor="#071A38"/>
+          </linearGradient>
+          <linearGradient id="jiaFace" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0" stopColor="#F8FCFF"/><stop offset=".7" stopColor="#B8E9FF"/><stop offset="1" stopColor="#6BBCEB"/>
+          </linearGradient>
+          <radialGradient id="jiaGlow"><stop stopColor="#FFDE00" stopOpacity=".95"/><stop offset="1" stopColor="#39D7FF" stopOpacity="0"/></radialGradient>
+          <filter id="jiaShadow"><feDropShadow dx="0" dy="12" stdDeviation="10" floodOpacity=".35"/></filter>
+        </defs>
+        <motion.g filter="url(#jiaShadow)" animate={{y:[0,-2,0]}} transition={{duration:2.7,repeat:Infinity,ease:"easeInOut"}}>
+          <ellipse cx="130" cy="327" rx="74" ry="14" fill="#020A18" opacity=".55"/>
+          <path d="M72 317 Q77 248 91 217 Q108 190 130 190 Q152 190 169 217 Q183 248 188 317 Q130 345 72 317Z" fill="url(#jiaBody)" stroke="#70E5FF" strokeOpacity=".55" strokeWidth="2"/>
+          <path d="M91 235 Q130 219 169 235" fill="none" stroke="#FFDE00" strokeWidth="5" strokeLinecap="round" opacity=".9"/>
+          <motion.path d="M79 270 Q46 258 32 229" fill="none" stroke="#39D7FF" strokeWidth="12" strokeLinecap="round" animate={gesture==="point"?{rotate:[0,-14,0],x:[0,-6,0]}:{rotate:[0,3,0]}} transition={{duration:1.5,repeat:gesture==="point"?Infinity:0}}/>
+          <motion.path d="M181 270 Q214 258 228 229" fill="none" stroke="#39D7FF" strokeWidth="12" strokeLinecap="round" animate={gesture==="point"?{rotate:[0,14,0],x:[0,6,0]}:{rotate:[0,-3,0]}} transition={{duration:1.5,repeat:gesture==="point"?Infinity:0}}/>
+          <circle cx="130" cy="174" r="73" fill="url(#jiaFace)" stroke="#A9F1FF" strokeWidth="3"/>
+          <path d="M83 145 Q130 89 177 145" fill="none" stroke="#39D7FF" strokeWidth="11" strokeLinecap="round"/>
+          <motion.circle cx="130" cy="103" r="15" fill="url(#jiaGlow)" animate={{opacity:[.65,1,.65],scale:[.9,1.1,.9]}} transition={{duration:2,repeat:Infinity}}/>
+          <motion.g animate={{y:speaking?[0,-1,0]:0}} transition={{duration:.25,repeat:speaking?Infinity:0}}>
+            <motion.ellipse cx="103" cy="169" rx="12" ry="17" fill="#06152E" animate={blink?{scaleY:[1,1,.08,1]}:undefined} transition={{duration:4.8,repeat:Infinity,times:[0,.93,.96,1]}}/>
+            <motion.ellipse cx="157" cy="169" rx="12" ry="17" fill="#06152E" animate={blink?{scaleY:[1,1,.08,1]}:undefined} transition={{duration:5.4,repeat:Infinity,times:[0,.93,.96,1]}}/>
+            <circle cx="106" cy="164" r="4" fill="#FFDE00"/><circle cx="160" cy="164" r="4" fill="#FFDE00"/>
+            <path d="M113 204 Q130 217 147 204" fill="none" stroke="#06152E" strokeWidth="5" strokeLinecap="round"/>
+            <motion.ellipse cx="130" cy="208" rx={speaking?16:11} ry={speaking?8:3} fill="#FF4F87" animate={speaking?{scaleX:[.7,1.15,.75],opacity:[.8,1,.8]}:{scaleX:1,opacity:.55}} transition={{duration:.28,repeat:speaking?Infinity:0}}/>
+          </motion.g>
+          <path d="M103 113 Q130 92 157 113" fill="none" stroke="#06152E" strokeWidth="4" strokeLinecap="round"/>
+          <circle cx="76" cy="184" r="8" fill="#FFDE00" opacity=".75"/><circle cx="184" cy="184" r="8" fill="#FFDE00" opacity=".75"/>
+        </motion.g>
+      </svg>
+    </div>
+  );
+}
+
+export default function WaterScene({intent}:{intent?:JiaMotionIntent}={}) {
+  const reduce = useReducedMotion();
+  const explicit = !!intent;
+  const [active,setActive] = useState<JiaMotionIntent>(intent ?? {gesture:"welcome",roam:true});
+  const [speaking,setSpeaking] = useState(false);
+  const [autoIndex,setAutoIndex] = useState(0);
+  const [viewport,setViewport] = useState({w:1280,h:800});
+  const lastVoice = useRef("");
+
+  useEffect(() => {
+    const sync = () => setViewport({w:window.innerWidth,h:window.innerHeight});
+    sync(); window.addEventListener("resize",sync); return () => window.removeEventListener("resize",sync);
+  }, []);
+
+  useEffect(() => { if (intent) setActive(intent); }, [intent?.gesture,intent?.message,intent?.target,intent?.voice,intent?.roam]);
+
+  useEffect(() => {
+    if (explicit || reduce) return;
+    const t = window.setTimeout(() => {
+      setActive({gesture:AUTO_DIALOGUE[0].gesture,message:AUTO_DIALOGUE[0].text,voice:true,roam:true});
+    }, 900);
+    return () => clearTimeout(t);
+  }, [explicit,reduce]);
+
+  useEffect(() => {
+    if (explicit || reduce || !active.voice || !active.message || lastVoice.current === active.message) return;
+    lastVoice.current = active.message;
+    setSpeaking(true);
+    speak(active.message, () => {
+      setSpeaking(false);
+      const next = autoIndex + 1;
+      if (next < AUTO_DIALOGUE.length && !explicit) {
+        window.setTimeout(() => {
+          setAutoIndex(next);
+          const item = AUTO_DIALOGUE[next];
+          setActive({gesture:item.gesture,message:item.text,voice:true,roam:true});
+        }, itemPause(next));
+      }
+    });
+    return () => { if (typeof window !== "undefined") window.speechSynthesis?.cancel(); };
+  }, [active.voice,active.message,explicit,reduce,autoIndex]);
+
+  useEffect(() => {
+    return () => { if (typeof window !== "undefined") window.speechSynthesis?.cancel(); };
+  }, []);
+
+  const p = useMemo(() => MOTIONS[active.gesture] ?? MOTIONS.welcome,[active.gesture]);
+  const repeat = reduce ? 0 : p.repeat === "Infinity" ? Infinity : p.repeat;
+  const roamX = Math.max(0, Math.min(viewport.w * .72, viewport.w - 230));
+  const roamY = Math.max(0, Math.min(viewport.h * .72, viewport.h - 300));
+  const roamPath = [
+    0, -roamX*.22, roamX*.45, roamX*.12, -roamX*.36, 0
+  ];
+  const roamYPath = [
+    0, -roamY*.32, -roamY*.62, -roamY*.12, roamY*.18, 0
+  ];
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-[60] overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,#163A63_0%,#071326_42%,#020410_100%)]">
+        <div className="pointer-events-none absolute inset-0 opacity-70">
+          <motion.div className="absolute left-1/2 top-[12%] h-72 w-72 -translate-x-1/2 rounded-full bg-[#39D7FF]/10 blur-3xl" animate={{scale:[1,1.12,1],opacity:[.35,.55,.35]}} transition={{duration:5.5,repeat:Infinity,ease:"easeInOut"}}/>
+        </div>
+      </div>
+
+      <motion.div
+        className="pointer-events-auto fixed bottom-5 right-4 z-[70] h-[250px] w-[180px] cursor-grab touch-none sm:h-[290px] sm:w-[210px]"
+        drag
+        dragMomentum
+        dragElastic={.18}
+        dragConstraints={{left:-Math.max(0,viewport.w-230),right:0,top:-Math.max(0,viewport.h-320),bottom:0}}
+        animate={active.roam === false || reduce ? {x:0,y:0} : {x:roamXPath,y:roamYPath}}
+        transition={{duration:22,repeat:Infinity,ease:"easeInOut"}}
+        whileTap={{cursor:"grabbing",scale:.98}}
+        initial={{opacity:0,scale:.82}}
+        whileInView={{opacity:1,scale:1}}
+        aria-label="J’IA — personnage central de Jobly"
+      >
+        <JiaCharacter speaking={speaking} gesture={active.gesture}/>
+        <AnimatePresence>
+          {active.target && (
+            <motion.div key={active.target} className="absolute left-1/2 top-[8%] -translate-x-1/2 rounded-full border border-white/20 bg-black/45 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-md" initial={{opacity:0,y:8,scale:.92}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-6}}>
+              <span className="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-[#FFDE00]"/>{active.target}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+
+      <div className="pointer-events-none fixed bottom-5 right-[205px] z-[65] flex max-w-[min(420px,70vw)] flex-col items-end gap-2 text-right sm:right-[235px]">
+        <motion.div key={active.gesture} initial={{opacity:0,y:8,scale:.96}} animate={{opacity:1,y:0,scale:1}} className="rounded-full border border-white/15 bg-black/45 px-4 py-2 text-[11px] font-extrabold uppercase tracking-[.12em] text-[#FFDE00] backdrop-blur-md">{LABELS[active.gesture]}</motion.div>
+        {active.message && <motion.p key={active.message} initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} className="max-w-[420px] rounded-2xl border border-white/10 bg-black/45 px-4 py-3 text-[14px] font-semibold leading-relaxed text-white/95 shadow-2xl backdrop-blur-md">{active.message}</motion.p>}
+      </div>
+    </div>
+  );
+}
+
+function itemPause(index:number) {
+  return AUTO_DIALOGUE[index]?.pause ?? 800;
 }
