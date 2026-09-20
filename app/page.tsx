@@ -783,9 +783,9 @@ export default function Home() {
                 <div className="h-full w-full -rotate-[26deg] border-l border-dashed border-sky-blue/50" />
               </div>
 
-              <div className="relative z-20 w-[49%] pt-[4.8rem] sm:w-[45%] sm:pt-[4.5rem]">
+              <div className="relative z-20 mt-6 w-[45%]">
                 
-                <h1 className="font-[var(--font-inter)] text-[2.2rem] font-extrabold leading-[1.1] tracking-[-0.035em] text-deep-blue">
+                <h1 className="font-[var(--font-poppins)] text-[28px] leading-[31px] font-[800] tracking-[-0.8px] text-deep-blue">
                   {translations[lang].title.split("\n").map((line, i) => (
                     <span key={line}>{line}{i === 0 && <br />}</span>
                   ))}
@@ -796,18 +796,18 @@ export default function Home() {
                 <p className="mt-2.5 max-w-[165px] text-[12px] font-semibold tracking-[0.01em] text-deep-blue/75">
                   Powered by <span className="font-black tracking-[-0.055em]"><span className="text-deep-blue">J'</span><span className="text-[#39D7FF]">I</span><span className="bg-gradient-to-br from-[#39D7FF] via-[#5BCBFF] to-[#FFC72C] bg-clip-text text-transparent">A</span></span>
                 </p>
-                <p className="mt-2 max-w-[165px] text-[13px] font-light italic leading-[1.35] text-[#4a4a4a]">
+                <p className="relative z-10 mt-3 w-[52%] text-[13px] leading-[18px] font-[400] italic text-[#4a4a4a]">
                   {translations[lang].subtitle}
                 </p>
               </div>
 
-              <div className="absolute bottom-[2cm] right-[-1%] z-[5] h-[78%] w-[63%] sm:h-[76%] sm:w-[60%] lg:h-[70%] lg:w-[50%]">
+              <div className="absolute top-0 right-0 z-[5] h-auto w-[60%]">
                 <Image
                   fill
                   priority
                   src="/hero-jobly-community.webp"
                   alt="Communauté Jobly diverse"
-                  sizes="(max-width: 640px) 63vw, (max-width: 1024px) 60vw, 50vw"
+                  sizes="60vw"
                   className="object-cover object-top"
                   style={{
                     WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 19%, black 100%), linear-gradient(to bottom, black 0%, black 72%, transparent 100%)",
@@ -819,21 +819,21 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative z-20 mt-6 shrink-0 flex flex-col gap-4 px-4 sm:flex-row">
-              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[54px] w-full flex-1 rounded-xl bg-canari text-[14px] font-bold text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96]">
+            <div className="relative z-20 mt-8 shrink-0 flex flex-row gap-3 px-4">
+              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[56px] w-[48%] rounded-xl bg-canari font-[700] font-poppins text-[14px] text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96]">
                 {translations[lang].create}
               </button>
-              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[54px] w-full flex-1 rounded-xl border border-white/50 bg-deep-blue/90 text-[14px] font-bold text-off-white shadow-premium backdrop-blur-xl transition-transform active:scale-[0.96]">
+              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[56px] w-[48%] rounded-xl border border-white/50 bg-deep-blue/90 font-[700] font-poppins text-[14px] text-off-white shadow-premium backdrop-blur-xl transition-transform active:scale-[0.96]">
                 {translations[lang].login}
               </button>
             </div>
 
-            <div className="relative z-20 mt-2 shrink-0 grid grid-cols-4 gap-2 px-3 sm:gap-3 sm:px-4">
+            <div className="relative z-20 mt-6 shrink-0 grid grid-cols-4 gap-2.5 px-3">
               {BENEFITS[lang].map(({ Icon, title, subtitle }) => (
-                <div key={title} className="min-h-[82px] rounded-2xl border border-white/60 bg-white/70 p-2 text-center shadow-premium backdrop-blur-md sm:p-3">
+                <div key={title} className="min-h-[82px] rounded-xl border border-white/60 bg-white/70 p-3 text-center shadow-premium backdrop-blur-md">
                   <Icon className="mx-auto mb-1 h-3.5 w-3.5 text-sky-blue sm:h-4 sm:w-4" />
-                  <p className="text-[9px] font-bold leading-[1.05] text-deep-blue sm:text-[12px] sm:leading-tight">{title}</p>
-                  <p className="mt-1 text-[8px] font-light leading-[1.05] text-[#7a7f89] sm:text-[11px] sm:leading-tight">{subtitle}</p>
+                  <p className="font-poppins text-[11px] font-[700] leading-[12px] text-deep-blue">{title}</p>
+                  <p className="mt-1 font-poppins text-[9px] font-[400] leading-[10px] text-[#7a7f89]">{subtitle}</p>
                 </div>
               ))}
             </div>
