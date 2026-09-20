@@ -1800,3 +1800,18 @@ Le moteur vocal V1 reconnaît notamment les intentions de recherche d’offres, 
 **Interaction personnage :** J’IA reste immobile par défaut et l’utilisateur peut la déplacer au doigt. Sa bulle reste attachée au personnage.
 
 **Compatibilité :** la reconnaissance vocale dépend des capacités du navigateur et de l’autorisation microphone ; la Web Speech API est utilisée lorsqu’elle est disponible.
+
+
+# CHECKPOINT 20/09/2026 — J’IA SETTINGS / ACCÈS PAR ÉCOSYSTÈME
+
+J’IA dispose désormais d’une configuration dédiée dans les paramètres de chaque écosystème : **Talent, Recruiter et Partner**.
+
+Pour chaque écosystème, l’utilisateur peut choisir :
+- **Accès J’IA** : autorisée / désactivée ;
+- **Réponse J’IA** : texte seulement / vocal ;
+- **Notifications J’IA** : texte seulement / vocal ;
+- **Recommandations proactives** : activées / désactivées.
+
+Les préférences sont isolées par écosystème et persistées dans Supabase (`public.jia_preferences`) avec RLS par utilisateur.
+
+J’IA peut expliquer elle-même ces choix et orienter l’utilisateur vers la bonne option. Le choix reste modifiable à tout moment. Les permissions vocales et notifications du téléphone/navigateur restent toujours sous le contrôle du système.
