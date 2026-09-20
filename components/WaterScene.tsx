@@ -129,7 +129,6 @@ export default function WaterScene({intent,transparent=false}:{intent?:JiaMotion
   const explicit = !!intent;
   const [active,setActive] = useState<JiaMotionIntent>(intent ?? {gesture:"welcome",roam:true});
   const [speaking,setSpeaking] = useState(false);
-  const [autoIndex,setAutoIndex] = useState(0);
   const [viewport,setViewport] = useState({w:1280,h:800});
   const lastVoice = useRef("");
 
@@ -142,29 +141,56 @@ export default function WaterScene({intent,transparent=false}:{intent?:JiaMotion
 
   useEffect(() => {
     if (explicit || reduce) return;
-    const t = window.setTimeout(() => {
-      setActive({gesture:AUTO_DIALOGUE[0].gesture,message:AUTO_DIALOGUE[0].text,voice:true,roam:true});
-    }, 900);
-    return () => clearTimeout(t);
+    let cancelled = false;
+    let timer: number | null = null;
+
+    const predict = async () => {
+      if (cancelled) return;
+      try {
+        const response = await fetch("/api/jia/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            path: typeof window !== "undefined" ? window.location.pathname : "/",
+            action: "",
+            visibleText: typeof document !== "undefined" ? document.body.innerText.slice(0, 1600) : "",
+            recentDialogue: lastVoice.current ? [lastVoice.current] : [],
+            idleMs: 0,
+          }),
+        });
+        if (response.ok) {
+          const next = await response.json();
+          if (next?.message && next.message !== lastVoice.current) {
+            setActive({
+              gesture: next.gesture || "curious",
+              message: String(next.message).slice(0, 260),
+              voice: next.shouldSpeak !== false,
+              target: next.target,
+              roam: true,
+            });
+          }
+        }
+      } catch {
+        // Keep the character alive with the local fallback when AI is unavailable.
+      } finally {
+        if (!cancelled) timer = window.setTimeout(predict, 15000);
+      }
+    };
+
+    timer = window.setTimeout(predict, 1800);
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
   }, [explicit,reduce]);
 
   useEffect(() => {
     if (explicit || reduce || !active.voice || !active.message || lastVoice.current === active.message) return;
     lastVoice.current = active.message;
     setSpeaking(true);
-    speak(active.message, () => {
-      setSpeaking(false);
-      const next = autoIndex + 1;
-      if (next < AUTO_DIALOGUE.length && !explicit) {
-        window.setTimeout(() => {
-          setAutoIndex(next);
-          const item = AUTO_DIALOGUE[next];
-          setActive({gesture:item.gesture,message:item.text,voice:true,roam:true});
-        }, itemPause(next));
-      }
-    });
+    speak(active.message, () => setSpeaking(false));
     return () => { if (typeof window !== "undefined") window.speechSynthesis?.cancel(); };
-  }, [active.voice,active.message,explicit,reduce,autoIndex]);
+  }, [active.voice,active.message,explicit,reduce]);
 
   useEffect(() => {
     return () => { if (typeof window !== "undefined") window.speechSynthesis?.cancel(); };
