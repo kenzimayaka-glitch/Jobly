@@ -35,21 +35,7 @@ function EcosystemContent() {
             </p>
           </div>
 
-          <EcosystemSelector
-            showBonPlan
-            onGuide={(eco) => {
-              const message =
-                eco.id === "talent" ? "Tu cherches un emploi ou veux construire ta carrière ? Talent est ton espace." :
-                eco.id === "recruiter" ? "Tu recrutes ? Recruiter te permet de trouver les talents dont tu as besoin." :
-                eco.id === "partner" ? "Tu veux développer ton activité avec Jobly ? Découvre Partner." :
-                "Découvre les offres et avantages exclusifs dans Bon Plan.";
-              const gesture = eco.id === "talent" ? "point" : eco.id === "recruiter" ? "call-hr" : eco.id === "partner" ? "handshake" : "celebrate";
-              setJiaGuide(message);
-              setJiaIntent({ gesture, message, voice: true, roam: true });
-            }}
-          />
-
-          <WaterScene intent={jiaIntent} transparent />
+          <EcosystemSelector showBonPlan />
 
           {!switcher && (
             <div className="mt-2 rounded-[18px] border border-white bg-white/75 px-3 py-2 text-center text-[10px] leading-relaxed text-[#66738A] shadow-sm backdrop-blur">
