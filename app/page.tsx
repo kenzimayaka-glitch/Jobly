@@ -601,7 +601,9 @@ export default function Home() {
   const phoneDigits = rawPhoneDigits.length > 1 && rawPhoneDigits.startsWith("0") ? rawPhoneDigits.slice(1) : rawPhoneDigits;
   const phoneE164 = `${country.dialCode}${phoneDigits}`;
   const validPhone = country.code === "CM" ? /^6\d{8}$/.test(phoneDigits) : phoneDigits.length >= 6 && phoneDigits.length <= 15;
-  const validUsername = /^[A-Za-z0-9._]{3,15}$/.test(username.trim());
+  // Le username est soumis à la même règle partout : non vide, 40 caractères max.
+  // L'unicité est ensuite vérifiée côté API avant la création du compte.
+  const validUsername = username.trim().length > 0 && username.trim().length <= 40;
   const passwordError = validatePassword(password);
 
   useEffect(() => { try { const saved = window.localStorage.getItem("jobly-lang") as "fr" | "en" | null; if (saved === "fr" || saved === "en") setLang(saved); } catch {} }, []);
@@ -724,19 +726,20 @@ export default function Home() {
     setPhoto(file); setPreview(URL.createObjectURL(file)); setCropSource("");
   }
   async function finishSignup() {
-    if (usernameStatus === "taken") return setMessage(translations[lang].usernameTaken);
-    if (usernameStatus !== "available") {
-      // API check may have failed — retry once before blocking
-      try {
-        const ok = await checkUsernameAvailable(username.trim());
-        if (!ok) return setMessage(translations[lang].usernameTaken);
-      } catch {
-        return setMessage("Impossible de vérifier le username. Vérifie ta connexion et réessaie.");
-      }
-    }
+    // Verrouille immédiatement le bouton pour éviter les doubles soumissions
+    // et valide localement les trois prérequis avant tout appel réseau.
+    if (!validUsername) return setMessage("Choisis un username non vide (40 caractères maximum).");
     if (passwordError) return setMessage(passwordError);
     if (!privacyAccepted) return setMessage("Tu dois accepter la politique de confidentialité.");
     setBusy(true); setMessage("");
+    try {
+      // La vérification d'unicité est toujours refaite au moment critique :
+      // l'état affiché "disponible" peut être devenu obsolète entre-temps.
+      const usernameAvailable = await checkUsernameAvailable(username.trim());
+      if (!usernameAvailable) {
+        setMessage(translations[lang].usernameTaken);
+        return;
+      }
     try {
       // 15/09/2026 : même ordre que dans app/onboarding/page.tsx — le profil
       // est créé AVANT updateUser({ password }), pour ne plus dépendre d'un
@@ -747,12 +750,11 @@ export default function Home() {
       if (error) throw new Error(error.message);
       if (photo) {
         const { data: sessionData } = await getSupabaseClient().auth.getSession();
-        if (sessionData.session) {
-          const form = new FormData(); form.append("photo", photo);
-          const response = await fetch("/api/auth/profile-photo", { method: "POST", headers: { Authorization: `Bearer ${sessionData.session.access_token}` }, body: form });
-          const body = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(body.message || "La photo n'a pas pu être enregistrée.");
-        }
+        if (!sessionData.session) throw new Error("Ta session n'est plus active. Reconnecte-toi puis réessaie.");
+        const form = new FormData(); form.append("photo", photo);
+        const response = await fetch("/api/auth/profile-photo", { method: "POST", headers: { Authorization: `Bearer ${sessionData.session.access_token}` }, body: form });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.message || "La photo n'a pas pu être enregistrée.");
       }
       setJourneyIndex(0);
       goTo("journey");
@@ -954,7 +956,7 @@ export default function Home() {
           <div className="relative">
             <input
               value={username}
-              onChange={e=>setUsername(e.target.value.replace(/\s/g,"").slice(0,15))}
+              onChange={e=>setUsername(e.target.value.replace(/\s/g,"").slice(0,40))}
               autoComplete="username"
               placeholder="Kenzi"
               aria-invalid={usernameStatus === "taken"}
