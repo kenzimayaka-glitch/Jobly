@@ -6,8 +6,8 @@
 
 :root {
   --navy: #0a1931;
-  --jobly-blue: #2E5C9E;
-  --jobly-yellow: #FFC72C;
+  --jobly-blue: #0057B8;
+  --jobly-yellow: #FFE135;
   --font-jakarta: "Plus Jakarta Sans", Inter, sans-serif;
 }
 
@@ -96,12 +96,12 @@ button:disabled { cursor: not-allowed; opacity: 0.62; }
   outline: none;
   font-family: "Plus Jakarta Sans", Inter, sans-serif;
 }
-.field:focus { border-color: #2E5C9E; box-shadow: 0 0 0 3px rgb(46 92 158 / .12); }
+.field:focus { border-color: #0057B8; box-shadow: 0 0 0 3px rgb(46 92 158 / .12); }
 textarea.field { padding-top: 12px; padding-bottom: 12px; }
 
 /* Yellow CTA button */
 .btn-yellow {
-  background: #FFC72C;
+  background: #FFE135;
   color: #0A1931;
   font-weight: 800;
   border-radius: 999px;
@@ -136,7 +136,7 @@ body {
    TALENT CANARY UI — shared visual language
    Canary palette only: white + JOBLY blue + canary yellow + neutral navy/gray.
    ─────────────────────────────────────────────────────────────────────────── */
-.talent-bg { background: linear-gradient(180deg, #F8FBFF 0%, #FFFFFF 48%, #FFFDF4 100%); }
+.talent-bg { background: linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 48%, #FFFDF2 100%); }
 .talent-smoke {
   position: absolute;
   border-radius: 999px;
