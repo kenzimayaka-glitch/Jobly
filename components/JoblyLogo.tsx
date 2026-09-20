@@ -50,14 +50,14 @@ const JoblyLogo = forwardRef<HTMLDivElement, JoblyLogoProps>(function JoblyLogo(
           </g>
 
           {/* L : pied jaune canari, courbé et volontairement organique */}
-          <rect x="196" y="5" width="38" height="78" fill="#0072CE" />
+          <rect x="196" y="5" width="38" height="81" fill="#0072CE" />
           <path
             d="M 196 86
-               C 213 88, 268 92, 323 84
-               Q 333 82, 336 86
-               Q 338 95, 333 102
-               Q 323 108, 278 108
-               Q 228 108, 196 102 Z"
+               C 210 88, 230 91, 244 88
+               Q 248 87, 250 90
+               Q 252 96, 248 101
+               Q 242 106, 224 106
+               Q 208 106, 196 102 Z"
             fill="#FFD700"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -67,7 +67,7 @@ const JoblyLogo = forwardRef<HTMLDivElement, JoblyLogoProps>(function JoblyLogo(
 
       {showTagline && (
         <span
-          className={`mt-0.5 font-[var(--font-inter)] font-semibold tracking-[-0.015em] text-[#0072CE] ${hero ? "ml-[34px] text-[9px]" : "ml-[10px] text-[5px]"}`}
+          className={`mt-0.5 font-[var(--font-inter)] font-bold tracking-[-0.015em] text-[#0072CE] ${hero ? "ml-[34px] text-[9px]" : "ml-[10px] text-[5px]"}`}
         >
           Your Career OS.
         </span>
