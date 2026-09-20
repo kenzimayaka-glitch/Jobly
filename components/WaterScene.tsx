@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { JIA_MASTER_DATA_URI } from "./JiaMaster";
+import { JiaRig } from "./JiaRig";
 
 export type JiaGesture =
   | "welcome" | "analyze" | "point" | "write" | "validate" | "alert" | "apply" | "celebrate"
@@ -82,40 +82,7 @@ function speak(text:string, onEnd?:()=>void) {
 }
 
 export function JiaCharacter({speaking, gesture}:{speaking:boolean; gesture:JiaGesture}) {
-  const [assetUrl, setAssetUrl] = useState<string | null>(null);
-  useEffect(() => {
-    let objectUrl: string | null = null, cancelled = false;
-    const image = new Image();
-    image.onload = () => {
-      if (cancelled) return;
-      const canvas = document.createElement("canvas");
-      canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      if (!ctx) return;
-      ctx.drawImage(image,0,0);
-      const pixels = ctx.getImageData(0,0,canvas.width,canvas.height), data = pixels.data;
-      const visited = new Uint8Array(canvas.width*canvas.height);
-      const queue = new Int32Array(canvas.width*canvas.height);
-      let head=0, tail=0;
-      const push=(x:number,y:number)=>{ if(x<0||y<0||x>=canvas.width||y>=canvas.height)return; const i=y*canvas.width+x; if(visited[i])return; visited[i]=1; queue[tail++]=i; };
-      for(let x=0;x<canvas.width;x++){push(x,0);push(x,canvas.height-1);}
-      for(let y=0;y<canvas.height;y++){push(0,y);push(canvas.width-1,y);}
-      const white=(i:number)=>{const p=i*4;return data[p]>248&&data[p+1]>248&&data[p+2]>248&&data[p+3]>0;};
-      while(head<tail){const i=queue[head++];if(!white(i))continue;data[i*4+3]=0;const x=i%canvas.width,y=Math.floor(i/canvas.width);push(x-1,y);push(x+1,y);push(x,y-1);push(x,y+1);}
-      ctx.putImageData(pixels,0,0);
-      canvas.toBlob(blob=>{if(!blob||cancelled)return;objectUrl=URL.createObjectURL(blob);setAssetUrl(objectUrl);},"image/png");
-    };
-    image.src=JIA_MASTER_DATA_URI;
-    return ()=>{cancelled=true;if(objectUrl)URL.revokeObjectURL(objectUrl);};
-  }, []);
-  const p=MOTIONS[gesture]??MOTIONS.welcome;
-  return <div className="relative h-full w-full select-none" aria-label="J’IA, personnage central de Jobly">
-    <motion.div className="absolute inset-0 flex items-end justify-center"
-      animate={{x:p.x,y:speaking?[0,-2,0,-1,0]:[0,-2,0],rotate:p.rotate,scale:speaking?[1,1.008,1]:[1,1.004,1]}}
-      transition={{duration:speaking?.75:Math.max(.9,p.duration),repeat:Infinity,ease:"easeInOut"}}>
-      {assetUrl?<img src={assetUrl} alt="J’IA" draggable={false} className="h-full w-full object-contain drop-shadow-[0_16px_22px_rgba(0,0,0,.18)]"/>:<div className="h-full w-full animate-pulse rounded-[40%] bg-white/10" aria-hidden="true"/>}
-    </motion.div>
-  </div>;
+  return <JiaRig speaking={speaking} gesture={gesture} />;
 }
 
 export default function WaterScene({intent,transparent=false}:{intent?:JiaMotionIntent; transparent?:boolean}={}) {
