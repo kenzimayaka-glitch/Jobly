@@ -1822,3 +1822,26 @@ J’IA peut expliquer elle-même ces choix et orienter l’utilisateur vers la b
 La branche `chore/jia-complete-bulk` regroupe le correctif J’IA en bloc : personnage complet sans clipping, transparence conservée, visage animé (yeux/sourcils/bouche/lip-sync), mouvements sémantiques de tête, déplacement manuel uniquement, dialogue jaune canari + bleu lisible, modes Texte/Vocal réellement respectés, préférences Talent/Recruiter/Partner, Brain transversal, proactivité et garde-fou financier renforcé.
 
 **Aucun build Vercel n’est déclenché automatiquement.** Le chantier attend l’autorisation explicite du fondateur pour fusion/build et validation E2E.
+
+# CHECKPOINT 21/09/2026 — AUDIT TRADUCTION FR ↔ EN
+
+La traduction devient un critère transversal de finition du produit.
+
+## Exigence
+Audit de **100 % de l’application** : routes, écrans, composants, états dynamiques, formulaires, CTA, navigation, notifications, modales, dashboards, Talent, Recruiter, Partner, CV, ATS, Career OS/GPS, Opportunities, Mobility, J’IA, paramètres, abonnements, paiements et contenus générés.
+
+## Règles
+- français naturel et professionnel ;
+- anglais naturel et professionnel ;
+- terminologie métier cohérente ;
+- aucune chaîne utilisateur dans la mauvaise langue ;
+- aucun texte hardcodé contournant volontairement le système de langue ;
+- clés manquantes, inutilisées ou incohérentes à identifier ;
+- contenus dynamiques/API et messages J’IA inclus ;
+- responsive mobile/desktop contrôlé après traduction ;
+- l’attribut HTML de langue doit suivre la langue réellement active.
+
+## Méthode de certification
+**page → composant → texte → clé → FR → EN → contexte → affichage mobile/desktop → build → tests → recontrôle.**
+
+L’audit est **EN COURS / NON CERTIFIÉ** tant que l’inventaire et les tests complets ne sont pas terminés.
