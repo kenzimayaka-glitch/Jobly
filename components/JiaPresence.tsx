@@ -54,6 +54,7 @@ export default function JiaPresence() {
   const [voiceSupported, setVoiceSupported] = useState(true);
   const [jiaEnabled, setJiaEnabled] = useState(true);
   const [interactionMode, setInteractionMode] = useState<"text" | "voice">("text");
+  const interactionModeRef = useRef<"text" | "voice">("text");
   const recognition = useRef<RecognitionLike | null>(null);
   const shouldRestart = useRef(true);
   const lastAction = useRef(""); const lastPrediction = useRef("");
@@ -62,7 +63,7 @@ export default function JiaPresence() {
   const hidden = false;
 
   const say = (message: string, gesture: JiaGesture = "reassure") => {
-    const canSpeak = interactionMode === "voice";
+    const canSpeak = interactionModeRef.current === "voice";
     setPrediction({ message, gesture, shouldSpeak: canSpeak });
     if (canSpeak) { setSpeaking(true); speak(message, () => setSpeaking(false)); }
   };
@@ -117,7 +118,9 @@ export default function JiaPresence() {
         const data = await response.json();
         if (!active) return;
         setJiaEnabled(data.access_enabled !== false);
-        setInteractionMode(data.interaction_mode === "voice" ? "voice" : "text");
+        const mode = data.interaction_mode === "voice" ? "voice" : "text";
+        setInteractionMode(mode);
+        interactionModeRef.current = mode;
       } catch {}
     })();
     return () => { active = false; };
