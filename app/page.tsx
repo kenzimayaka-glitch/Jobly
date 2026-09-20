@@ -762,7 +762,7 @@ export default function Home() {
   }
   async function forgot() { if (!email.includes("@")) return setMessage("Entre l'adresse e-mail associée à ton compte."); setBusy(true); setMessage(""); try { await requestPasswordReset(email); goTo("reset-sent"); } catch (e) { setMessage(e instanceof Error ? e.message : "Impossible d'envoyer l'e-mail de récupération."); } finally { setBusy(false); } }
 
-  return <main className={`relative min-h-screen flex flex-col justify-between w-full bg-off-white dark:bg-[#0A1931] dark:text-white ${(screen === "welcome" || screen === "signup") ? "overflow-hidden" : "overflow-y-auto"}`}>
+  return <main className={`relative min-h-screen flex flex-col justify-between w-full bg-off-white dark:bg-[#0A1931] dark:text-white ${screen === "welcome" ? "overflow-hidden" : "overflow-y-auto"}`}>
     {screen === "welcome" && <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 z-0 h-[340px] w-[340px] rounded-full bg-sky-blue/25 blur-[90px]" />}
     <BubbleField />
     {screen === "welcome" && (
