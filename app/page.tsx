@@ -819,7 +819,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative z-20 mt-2 shrink-0 flex flex-row gap-3 px-4">
+            <div className="relative z-20 mt-0 shrink-0 flex flex-row gap-3 px-4">
               <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[56px] w-[48%] rounded-xl bg-canari font-[var(--font-inter)] font-bold text-[14px] text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96]">
                 {translations[lang].create}
               </button>
