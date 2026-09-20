@@ -1,13 +1,16 @@
 // Bon Plan: leaving requires an explicit confirmation, then returns to the ecosystem selector.
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
+import { motion } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import PageHeader from "../../components/PageHeader";
 import EcosystemSelector from "../../components/EcosystemSelector";
+import { JIA_MASTER_DATA_URI } from "../../components/JiaMaster";
 
 function EcosystemContent() {
   const params = useSearchParams();
+  const [jiaGuide, setJiaGuide] = useState("Je suis J’IA. Je vais t’aider à choisir l’espace qui correspond à ton objectif.");
   const switcher = params.get("mode") === "switcher";
 
   return (
@@ -35,7 +38,34 @@ function EcosystemContent() {
             </p>
           </div>
 
-          <EcosystemSelector showBonPlan />
+          <EcosystemSelector
+            showBonPlan
+            onGuide={(eco) => setJiaGuide(
+              eco.id === "talent" ? "Tu cherches un emploi ou veux construire ta carrière ? Talent est ton espace." :
+              eco.id === "recruiter" ? "Tu recrutes ? Recruiter te permet de trouver les talents dont tu as besoin." :
+              eco.id === "partner" ? "Tu veux développer ton activité avec Jobly ? Découvre Partner." :
+              "Découvre les offres et avantages exclusifs dans Bon Plan."
+            )}
+          />
+
+          <div className="pointer-events-none fixed bottom-3 left-3 z-30 flex max-w-[min(360px,calc(100vw-24px))] items-end gap-2 sm:bottom-5 sm:left-5">
+            <motion.div
+              className="relative h-[76px] w-[76px] shrink-0 rounded-full border border-white/70 bg-white/80 p-1.5 shadow-[0_14px_35px_rgba(20,38,78,0.22)] backdrop-blur-xl"
+              animate={{ y: [0, -4, 0], scale: [1, 1.015, 1] }}
+              transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <img src={JIA_MASTER_DATA_URI} alt="J’IA — guide Jobly" className="h-full w-full object-contain object-bottom" draggable={false} />
+              <span className="absolute bottom-1 right-1 h-3 w-3 rounded-full border-2 border-white bg-[#FFDE00] shadow-[0_0_10px_rgba(255,222,0,.9)]" aria-hidden="true" />
+            </motion.div>
+            <motion.div
+              key={jiaGuide}
+              initial={{ opacity: 0, y: 6, scale: .98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              className="mb-3 rounded-[18px] border border-white/70 bg-white/90 px-3.5 py-2.5 text-[11px] font-semibold leading-[1.35] text-[#0B1F4B] shadow-[0_12px_30px_rgba(20,38,78,0.16)] backdrop-blur-xl"
+            >
+              <span className="mr-1 font-black text-[#22448B]">J’IA</span>{jiaGuide}
+            </motion.div>
+          </div>
 
           {!switcher && (
             <div className="mt-2 rounded-[18px] border border-white bg-white/75 px-3 py-2 text-center text-[10px] leading-relaxed text-[#66738A] shadow-sm backdrop-blur">
