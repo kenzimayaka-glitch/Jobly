@@ -18,8 +18,6 @@ const ALLOWED_GESTURES = new Set<JiaGesture>([\n  "welcome", "analyze", "point",
   shouldSpeak: false,
 };
 
-const HIDDEN_PATHS = new Set(["/ecosystem"]);
-
 function speak(text: string, onEnd?: () => void) {
   if (typeof window === "undefined" || !window.speechSynthesis || !text) {
     onEnd?.();
@@ -46,7 +44,7 @@ export default function JiaPresence() {
   const pending = useRef<number | null>(null);
   const lastRequest = useRef(0);
 
-  const hidden = HIDDEN_PATHS.has(pathname);
+  const hidden = false;
 
   useEffect(() => {
     const sync = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
