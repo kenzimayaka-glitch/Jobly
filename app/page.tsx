@@ -778,7 +778,7 @@ export default function Home() {
             transition={{ duration: 0.32, ease: "easeOut" }}
             className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="relative min-h-0 flex-1 overflow-hidden px-4 pt-0">
+            <div className="relative h-[44%] shrink-0 overflow-hidden px-4 pt-0">
               <div aria-hidden="true" className="pointer-events-none absolute left-[10%] top-[-5%] z-[2] h-[64%] w-[44%] opacity-60">
                 <div className="h-full w-full -rotate-[26deg] border-l border-dashed border-sky-blue/50" />
               </div>
