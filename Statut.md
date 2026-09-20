@@ -1,16 +1,222 @@
 # JOBLY — STATUT DU PROJET
 ## SOURCE DE VÉRITÉ D'EXÉCUTION — JOBLY 20/20
-### Mise à jour : 12/09/2026
+### Mise à jour : 20/09/2026 — Audit croisé CODE ↔ ROUTES ↔ UI ↔ NAVIGATION ↔ FONCTIONNALITÉS ↔ DONNÉES
 
-> **Rôle de ce fichier :** état réel d'exécution du projet.
->
-> Ce document ne doit jamais être remplacé par une nouvelle roadmap personnelle d'une IA.
-> Il distingue systématiquement : **spécifié / conçu / codé / testé / validé / déployé**.
->
-> Une fonctionnalité ne devient **VALIDÉE** que lorsqu'elle a été réellement testée selon son parcours cible.
-> Le fait qu'une route, un écran ou une table existe dans le code ne constitue pas une validation.
+> Règle : une fonctionnalité n'est terminée que si elle traverse **SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**.
+> Les anciens checkpoints restent conservés comme historique et ne remplacent jamais l'état courant.
 
 ---
+
+# 0. ÉTAT EXÉCUTIF — 20/09/2026
+
+**JOBLY est déployé en production sur le projet Vercel canonique `jobly-c0.6.5.1`.**
+
+- Branche : `main`
+- Commit audité/déployé : `8857d15e235ed683e33ea96a792f668e5435ada6`
+- Déploiement : `dpl_2FE94p9idHpVUzDbVpTkoPjmTu49`
+- Statut Vercel : **READY**
+- Checks Vercel : **SUCCESS**
+- Supabase production : **ACTIVE_HEALTHY**
+- Repo : `kenzimayaka-glitch/Jobly`
+
+## Verdict
+
+**PRODUCTION DEPLOYED ≠ GO LIVE COMPLET.**
+
+Build et déploiement sont verts, mais l'ensemble du produit n'est pas encore certifié sur toute la chaîne de vérité.
+
+### Écarts de certification
+
+1. E2E complet des parcours authentifiés.
+2. Validation mobile réelle des surfaces critiques.
+3. Gmail OAuth runtime Talent/Recruiter.
+4. Billing / abonnements / iClan de bout en bout.
+5. Mobility E2E.
+6. Push/proactivité en conditions réelles.
+7. J’IA : rig anatomique professionnel non finalisé.
+8. Quelques chemins de navigation et éléments documentaires à fermer.
+
+| Niveau | État global |
+|---|---|
+| SPÉCIFIÉ | 🟢 |
+| CODÉ | 🟢 |
+| ACCESSIBLE | 🟢 majoritaire |
+| CONNECTÉ | 🟢 majoritaire |
+| TESTÉ | 🟡 partiel |
+| VALIDÉ | 🟡 partiel |
+| DÉPLOYÉ | 🟢 |
+
+---
+
+# 1. AUDIT CROISÉ
+
+L'audit appliqué suit pour chaque fonctionnalité : **implémentation → page → accès → CTA → fonctionnement → fin de parcours → persistance/exécution → rôle → mobile → loading/error/empty/success**.
+
+Audit inverse : **fonctionnalité → page → navigation → CTA → API → données**.
+
+Une réponse essentielle manquante signifie **NON TERMINÉE**.
+
+---
+
+# 2. TALENT
+
+| Fonction | État |
+|---|---|
+| Auth Gmail/Google | 🟢 codée/accessibilité ; 🟡 runtime E2E |
+| Jobs / Discovery | 🟢 codé/connecté ; 🟡 E2E |
+| Détail offre | 🟢 présent ; 🟡 E2E |
+| Applications | 🟢 présent/connecté ; 🟡 E2E |
+| CV / CV Share / QR | 🟢 largement connecté ; 🟡 E2E/export |
+| CV→ATS | 🟢 présent ; 🟡 validation complète |
+| Career OS / Brain | 🟢 accessible |
+| Career GPS / Gap / Readiness | 🟡 V1 |
+| Opportunity Radar | 🟢 présent |
+| Opportunity Cascade | 🟢 présent ; sources externes limitées |
+| Market Intelligence | 🟡 V1 |
+| Gmail/import | 🟢 code ; 🟡 OAuth runtime |
+| Mobility Talent | 🟢 code ; 🟡 E2E |
+| AI Companion/Learning/Application | 🟢 surfaces/backend ; 🟡 validation fournisseur/coût |
+| Interview AI | 🟢 surface/backend ; 🟡 runtime/fournisseur |
+
+---
+
+# 3. RECRUITER
+
+| Fonction | État |
+|---|---|
+| Onboarding | 🟢 présent ; 🟡 fermeture E2E |
+| Dashboard | 🟢 présent |
+| Profil | 🟢 API/UI connectées |
+| Offres | 🟢 présent |
+| Création d'offre | 🟢 présent |
+| Candidatures | 🟢 implémenté ; 🟡 E2E |
+| ATS | 🟢 implémenté ; 🟡 E2E |
+| Talents | 🟢 présent |
+| Gmail | 🟢 code ; 🟡 OAuth runtime |
+| Mobility | 🟢 présent ; 🟡 E2E |
+
+---
+
+# 4. PARTNER
+
+| Fonction | État |
+|---|---|
+| Dashboard | 🟢 connecté |
+| Profil | 🟢 API/UI présentes |
+| Parrainage | 🟢 connecté |
+| Commissions | 🟢 données/API présentes |
+| KYC | 🟢 états présents |
+| Paiement | 🟡 versement réel non certifié |
+| Mobility | 🟢 surfaces ; 🟡 E2E |
+| Détection email | 🟡 MVP explicitement simulé |
+
+---
+
+# 5. PAGES / NAVIGATION
+
+### `/cv`
+
+Ancienne surface CV distincte du parcours canonique `/talent/cvs`.
+
+**Décision :** conserver la compatibilité mais rediriger `/cv → /talent/cvs`.
+
+Correction identifiée mais non poussée lors de l'audit en raison du contrôle de sécurité de l'écriture GitHub.
+
+### Recruiter onboarding
+
+Chemin cible : **Recruiter → profil incomplet → `/recruiter/onboarding` → sauvegarde → Recruiter**.
+
+Une correction de fermeture automatique a été préparée mais non poussée pour la même raison.
+
+---
+
+# 6. CTA / BOUTONS
+
+Les principaux problèmes P0 historiques ont été corrigés : navigation Candidatures/Profil Écosystème ; faux « Voir tout » ; CTA « Générer avec IA » non opérationnel ; BottomNav Recruiter sur ATS et détail offre ; route `/recruiter/jobs` ; notifications ; service worker PWA.
+
+Un CTA n'est considéré comme **TESTÉ** qu'après exécution réelle du parcours.
+
+---
+
+# 7. DESIGN SYSTEM
+
+Les composants communs sont présents : `PageHeader`, `BottomNav`, backgrounds, cartes, boutons, typographies et composants d'écosystème.
+
+Il subsiste deux familles visuelles : **JOBLY classique** et **Cinematic**.
+
+**État : 🟡 harmonisation complète à terminer.**
+
+---
+
+# 8. J’IA
+
+## Architecture
+
+**PERSONNAGE VISUEL ≠ MOTEUR D'ANIMATION ≠ CERVEAU ≠ VOIX ≠ ACTIONS**
+
+- **Personnage visuel :** 🟢 identité validée conservée.
+- **Animation :** 🟢 moteur et vocabulaire `JIA_100` présents.
+- **Cerveau :** 🟢 `lib/jia/brain.ts`, `/api/jia/brain`, préférences, mémoire, proactivité et traces.
+- **Voix :** 🟢 codée : wake word, Web Speech API, commandes, réponse vocale ; 🟡 validation navigateur/mobile réelle.
+- **Actions :** 🟢 commandes métier partiellement connectées ; garde financière présente.
+- **Rig anatomique :** 🟡 **NON VALIDÉ 20/20**. Les couches sont animées indépendamment mais utilisent encore le master/crops ; ce n'est pas encore un ensemble professionnel d'assets anatomiques réellement séparés.
+
+---
+
+# 9. DONNÉES / SUPABASE
+
+Les principaux domaines disposent de leurs tables/migrations : Jobs, Companies, Applications, User/Profile, Recruiter, Partner, Payments, Gmail, CV Share, Mobility, J’IA Preferences/Memory/Events/Intelligence.
+
+Alertes restantes avant certification sécurité finale : tables server-only sans policies, `pg_net` dans `public`, protection contre les mots de passe compromis désactivée.
+
+Des index sont signalés inutilisés ; aucun retrait massif sans données de trafic représentatives.
+
+---
+
+# 10. DÉPLOIEMENT
+
+Production canonique : Vercel `jobly-c0.6.5.1`, projet `prj_7B3nK76wDdgQbHK4WFz59DsKKYJQ`, team `PORTFOLIO / portfolio-5555`, branch `main`, commit `8857d15e235ed683e33ea96a792f668e5435ada6`, deployment `dpl_2FE94p9idHpVUzDbVpTkoPjmTu49`, status **READY**.
+
+Les anciens états ERROR sont historiques et obsolètes.
+
+---
+
+# 11. BLOQUANTS DE CERTIFICATION
+
+1. E2E complet.
+2. Mobile réel.
+3. Gmail OAuth runtime.
+4. Billing/iClan de bout en bout.
+5. Mobility E2E.
+6. J’IA rig anatomique.
+7. Deux corrections GitHub identifiées mais non poussées : `/cv → /talent/cvs` et fermeture automatique Recruiter onboarding.
+
+---
+
+# 12. CRITÈRE DE FIN
+
+Une fonctionnalité est **TERMINÉE** uniquement si : **SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**.
+
+---
+
+# 13. PROCHAINE PASSE OBLIGATOIRE
+
+1. Fermer les corrections GitHub bloquées.
+2. Exécuter les E2E prioritaires.
+3. Valider mobile.
+4. Valider Gmail OAuth runtime.
+5. Fermer Billing/iClan.
+6. Fermer Mobility E2E.
+7. Finaliser le rig anatomique J’IA.
+8. Harmoniser Cinematic/classique.
+9. Nettoyer les anciennes contradictions documentaires.
+10. Rebuild → test → déploiement → vérification production.
+
+**Ne pas revenir à un état antérieur : `main` actuel est la base de continuation.**
+
+---
+
+# HISTORIQUE
 
 # 0. ÉTAT EXÉCUTIF
 
