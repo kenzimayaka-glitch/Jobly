@@ -127,7 +127,7 @@ export default function WaterScene({intent,transparent=false}:{intent?:JiaMotion
               message: String(next.message).slice(0, 260),
               voice: next.shouldSpeak !== false,
               target: next.target,
-              roam: true,
+              roam: false,
             });
           }
         }
