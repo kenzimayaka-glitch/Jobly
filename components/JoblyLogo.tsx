@@ -39,7 +39,7 @@ const JoblyLogo = forwardRef<HTMLDivElement, JoblyLogoProps>(function JoblyLogo(
           xmlns="http://www.w3.org/2000/svg"
         >
           <g
-            fill="#0072CE"
+            fill="#22448B"
             fontFamily="Poppins, sans-serif"
             fontWeight="800"
             fontSize="110"
@@ -50,7 +50,7 @@ const JoblyLogo = forwardRef<HTMLDivElement, JoblyLogoProps>(function JoblyLogo(
           </g>
 
           {/* L : pied jaune canari, courbé et volontairement organique */}
-          <rect x="196" y="5" width="38" height="81" fill="#0072CE" />
+          <rect x="196" y="5" width="38" height="78" fill="#22448B" />
           <path
             d="M 196 86
                C 210 88, 230 91, 244 88
@@ -58,7 +58,7 @@ const JoblyLogo = forwardRef<HTMLDivElement, JoblyLogoProps>(function JoblyLogo(
                Q 252 96, 248 101
                Q 242 106, 224 106
                Q 208 106, 196 102 Z"
-            fill="#FFD700"
+            fill="#FFD400"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -67,7 +67,7 @@ const JoblyLogo = forwardRef<HTMLDivElement, JoblyLogoProps>(function JoblyLogo(
 
       {showTagline && (
         <span
-          className={`mt-0.5 font-[var(--font-inter)] font-bold tracking-[-0.015em] text-[#0072CE] ${hero ? "ml-[34px] text-[9px]" : "ml-[10px] text-[5px]"}`}
+          className={`mt-0.5 font-[var(--font-inter)] font-bold tracking-[-0.015em] text-[#22448B] ${hero ? "ml-[34px] text-[9px]" : "ml-[10px] text-[5px]"}`}
         >
           Your Career OS.
         </span>
