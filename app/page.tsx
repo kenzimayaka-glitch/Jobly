@@ -801,7 +801,7 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="absolute top-0 right-0 z-[5] h-[78%] w-[60%]">
+              <div className="absolute top-[2cm] right-0 z-[5] h-[78%] w-[60%]">
                 <Image
                   fill
                   priority
