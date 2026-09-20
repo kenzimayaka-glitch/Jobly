@@ -158,7 +158,6 @@ export default function WaterScene({intent,transparent=false}:{intent?:JiaMotion
   }, []);
 
   const p = useMemo(() => MOTIONS[active.gesture] ?? MOTIONS.welcome,[active.gesture]);
-  const repeat = reduce ? 0 : p.repeat === "Infinity" ? Infinity : p.repeat;
   const roamX = Math.max(0, Math.min(viewport.w * .72, viewport.w - 230));
   const roamY = Math.max(0, Math.min(viewport.h * .72, viewport.h - 300));
   const roamPath = [
