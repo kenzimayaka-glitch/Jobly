@@ -801,7 +801,7 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="absolute top-0 right-0 z-[5] h-auto w-[60%]">
+              <div className="absolute top-0 right-0 z-[5] h-[78%] w-[60%]">
                 <Image
                   fill
                   priority
@@ -820,7 +820,7 @@ export default function Home() {
             </div>
 
             <div className="relative z-20 mt-8 shrink-0 flex flex-row gap-3 px-4">
-              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[56px] w-[48%] rounded-xl bg-canari font-[700] font-poppins text-[14px] text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96]">
+              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[56px] w-[48%] rounded-xl bg-canari font-[700] font-[var(--font-poppins)] text-[14px] text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96]">
                 {translations[lang].create}
               </button>
               <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[56px] w-[48%] rounded-xl border border-white/50 bg-deep-blue/90 font-[700] font-poppins text-[14px] text-off-white shadow-premium backdrop-blur-xl transition-transform active:scale-[0.96]">
@@ -832,8 +832,8 @@ export default function Home() {
               {BENEFITS[lang].map(({ Icon, title, subtitle }) => (
                 <div key={title} className="min-h-[82px] rounded-xl border border-white/60 bg-white/70 p-3 text-center shadow-premium backdrop-blur-md">
                   <Icon className="mx-auto mb-1 h-3.5 w-3.5 text-sky-blue sm:h-4 sm:w-4" />
-                  <p className="font-poppins text-[11px] font-[700] leading-[12px] text-deep-blue">{title}</p>
-                  <p className="mt-1 font-poppins text-[9px] font-[400] leading-[10px] text-[#7a7f89]">{subtitle}</p>
+                  <p className="font-[var(--font-poppins)] text-[11px] font-[700] leading-[12px] text-deep-blue">{title}</p>
+                  <p className="mt-1 font-[var(--font-poppins)] text-[9px] font-[400] leading-[10px] text-[#7a7f89]">{subtitle}</p>
                 </div>
               ))}
             </div>
