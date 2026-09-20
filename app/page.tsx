@@ -847,7 +847,7 @@ export default function Home() {
       )}
 
       {screen === "login" && (
-        <section className="min-h-screen flex flex-col items-center justify-center px-6 py-8 -translate-y-[10px]">
+        <section className="min-h-screen flex flex-col items-center justify-center px-6 py-8 -translate-y-[20px]">
           <div className="w-full max-w-[420px] flex flex-col gap-6">
             <div className="flex justify-between items-center">
               <JoblyLogo size="hero" showTagline />
