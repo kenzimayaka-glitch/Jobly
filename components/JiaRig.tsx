@@ -16,7 +16,7 @@ type Props = {
  * her identity; it layers micro-motion over the original asset.
  */
 export function JiaRig({ speaking, gesture }: Props) {
-  const [assetUrl, setAssetUrl] = useState<string | null>(null);
+  const [assetUrl, setAssetUrl] = useState<string>(JIA_MASTER_DATA_URI);
   const [talk, setTalk] = useState(false);
   const [blink, setBlink] = useState(false);
   const [look, setLook] = useState({ x: 0, y: 0 });
@@ -111,7 +111,7 @@ export function JiaRig({ speaking, gesture }: Props) {
     return 0;
   }, [gesture]);
 
-  if (!assetUrl) return <div className="h-full w-full animate-pulse rounded-[40%] bg-white/10" />;
+  // Always render the canonical artwork immediately; the transparent processed copy\n  // replaces it when ready. This prevents an invisible loading state on mobile/slow devices.\n
 
   return (
     <div className="relative h-full w-full select-none" aria-label="J’IA — personnage animé de Jobly">
