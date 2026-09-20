@@ -201,7 +201,7 @@ export default function WaterScene({intent}:{intent?:JiaMotionIntent}={}) {
         dragMomentum
         dragElastic={.18}
         dragConstraints={{left:-Math.max(0,viewport.w-230),right:0,top:-Math.max(0,viewport.h-320),bottom:0}}
-        animate={active.roam === false || reduce ? {x:0,y:0} : {x:roamXPath,y:roamYPath}}
+        animate={active.roam === false || reduce ? {x:0,y:0} : {x:roamPath,y:roamYPath}}
         transition={{duration:22,repeat:Infinity,ease:"easeInOut"}}
         whileTap={{cursor:"grabbing",scale:.98}}
         initial={{opacity:0,scale:.82}}
