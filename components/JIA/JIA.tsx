@@ -47,13 +47,26 @@ const P:Record<string,Record<string,Bone>>={
 
 function useBlink(){const[b,setB]=useState(false);useEffect(()=>{let dead=false,t:ReturnType<typeof setTimeout>;const f=()=>{t=setTimeout(()=>{if(dead)return;setB(true);setTimeout(()=>!dead&&setB(false),110);f()},2200+Math.random()*3000)};f();return()=>{dead=true;clearTimeout(t)}},[]);return b}
 
-function clip(x:number,y:number,w:number,h:number):CSSProperties{
- return {position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"contain",objectPosition:"center",clipPath:`inset(${y}% ${100-x-w}% ${100-y-h}% ${x}%)`,pointerEvents:"none",userSelect:"none"};
+
+const SLICES:Record<string,[number,number,number,number]>={
+  torso:[20,34,60,66], head:[28,5,44,39], hairBack:[24,0,52,25], hairFront:[27,0,46,34],
+  eyes:[39,20,23,9], eyebrows:[38,18,25,7], mouth:[45,33,12,9],
+  armL:[7,42,30,53], armR:[63,42,30,53], handL:[4,68,31,30], handR:[65,68,31,30],
+  scarf:[31,34,38,30], glasses:[34,16,32,17],
+};
+function sliceStyle([x,y,w,h]:[number,number,number,number]):CSSProperties{
+  return {position:"absolute",left:`${x}%`,top:`${y}%`,width:`${w}%`,height:`${h}%`,overflow:"hidden",pointerEvents:"none",userSelect:"none"};
 }
-function Layer({bone,region}:{bone:Bone;region:[number,number,number,number]}){
- return <motion.div className="absolute inset-0" style={{transformStyle:"preserve-3d",transformOrigin:"50% 50%"}} animate={{x:bone.x??0,y:bone.y??0,rotate:bone.rotate??0,rotateX:bone.rotateX??0,rotateY:bone.rotateY??0,translateZ:bone.z??0,scale:bone.scale??1}} transition={{type:"spring",stiffness:150,damping:18}}>
-   <img src={SRC} alt="" draggable={false} style={clip(...region)}/>
- </motion.div>
+function sourceStyle([x,y,w,h]:[number,number,number,number]):CSSProperties{
+  return {position:"absolute",width:`${10000/w}%`,height:`${10000/h}%`,left:`-${x/w*100}%`,top:`-${y/h*100}%`,maxWidth:"none",maxHeight:"none",objectFit:"fill",pointerEvents:"none",userSelect:"none"};
+}
+function SliceLayer({name,bone}:{name:string;bone:Bone}){
+  const region=SLICES[name];
+  return <motion.div className="absolute" style={{...sliceStyle(region),transformStyle:"preserve-3d",transformOrigin:"50% 50%"}}
+    animate={{x:bone.x??0,y:bone.y??0,rotate:bone.rotate??0,rotateX:bone.rotateX??0,rotateY:bone.rotateY??0,translateZ:bone.z??0,scale:bone.scale??1}}
+    transition={{type:"spring",stiffness:180,damping:20}}>
+    <img src={SRC} alt="" draggable={false} style={sourceStyle(region)}/>
+  </motion.div>;
 }
 
 export default function JIA({speaking,gesture="welcome",auto=true,move:requestedMove}:Props){
@@ -67,19 +80,21 @@ export default function JIA({speaking,gesture="welcome",auto=true,move:requested
 
  const e=bone("eyes"),head=bone("head"),winkL=move==="wink_left",winkR=move==="wink_right";
  return <motion.div className="relative h-full w-full select-none overflow-visible" aria-label={`J’IA — ${move} — rig anatomique Jobly`} style={{perspective:1000,transformStyle:"preserve-3d"}}>
-   {/* 12 virtual anatomical layers, all sourced from the approved HD master. */}
-   <Layer bone={bone("torso")} region={[20,34,60,66]}/>
-   <Layer bone={head} region={[28,5,44,39]}/>
-   <Layer bone={bone("armL")} region={[7,42,30,53]}/>
-   <Layer bone={bone("armR")} region={[63,42,30,53]}/>
-   <Layer bone={bone("handL")} region={[4,68,31,30]}/>
-   <Layer bone={bone("handR")} region={[65,68,31,30]}/>
-   <Layer bone={bone("scarf")} region={[31,34,38,30]}/>
+   {/* Independent anatomical slices — no full-canvas clipPath duplication. */}
+   <SliceLayer name="torso" bone={bone("torso")}/>
+   <SliceLayer name="hairBack" bone={bone("hairBack")}/>
+   <SliceLayer name="head" bone={head}/>
+   <SliceLayer name="hairFront" bone={bone("hairFront")}/>
+   <SliceLayer name="armL" bone={bone("armL")}/>
+   <SliceLayer name="armR" bone={bone("armR")}/>
+   <SliceLayer name="handL" bone={bone("handL")}/>
+   <SliceLayer name="handR" bone={bone("handR")}/>
+   <SliceLayer name="scarf" bone={bone("scarf")}/>
+   <SliceLayer name="glasses" bone={bone("glasses")}/>
    <motion.div className="absolute inset-0 pointer-events-none" animate={head} transition={{type:"spring",stiffness:160,damping:18}} style={{transformOrigin:"50% 80%"}}>
      <motion.span className="absolute rounded-full bg-[#17212B]" style={{left:"43.8%",top:"25.5%",width:"1.7%",height:"0.9%"}} animate={{x:e.x??0,y:e.y??0,scaleY:(blink||winkL) ? 0.08 : 1}}/>
      <motion.span className="absolute rounded-full bg-[#17212B]" style={{left:"58.7%",top:"25.5%",width:"1.7%",height:"0.9%"}} animate={{x:e.x??0,y:e.y??0,scaleY:(blink||winkR) ? 0.08 : 1}}/>
      <motion.span className="absolute rounded-[50%] border border-[#6B302B]/70 bg-[#8E3F3B]/25" style={{left:"51.2%",top:"38.3%",width:"8.8%",height:"2.4%",transform:"translate(-50%,-50%)"}} animate={{scaleX:speaking?(talk?1.12:.88):.86,scaleY:speaking?(talk?1.22:.78):.55,opacity:speaking?.7:0}}/>
-     <motion.span className="absolute left-[36.5%] top-[24.6%] h-[2.2%] w-[29%] rounded-full bg-[#9A5B3E]" animate={{scaleY:(blink||winkL||winkR) ? 0.08 : 0,opacity:(blink||winkL||winkR) ? 0.9 : 0}}/>
    </motion.div>
  </motion.div>
 }
