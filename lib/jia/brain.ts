@@ -92,6 +92,9 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     ? "Je peux expliquer ou guider un paiement, mais je ne peux jamais l’exécuter ni le confirmer."
     : (clean(generated?.message, 500) || clean(assessment.data?.nextBestAction, 500) || EMPTY);
   const confidence = generated?.confidence === "HIGH" || generated?.confidence === "MEDIUM" ? generated.confidence : "MEDIUM";
+  const proposedAction = financialRequest ? undefined : (generated?.proposedAction && typeof generated.proposedAction === "object"
+    ? generated.proposedAction as JiaBrainResult["proposedAction"]
+    : fallbackAction);
 
   const trace = await sb.from("JiaIntelligenceTrace").insert({
     userId: input.userId,
