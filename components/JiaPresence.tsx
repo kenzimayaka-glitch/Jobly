@@ -46,7 +46,7 @@ export default function JiaPresence() {
   const pending = useRef<number | null>(null);
   const lastRequest = useRef(0);
 
-  const hidden = pathname === "/" || HIDDEN_PATHS.has(pathname);
+  const hidden = HIDDEN_PATHS.has(pathname);
 
   useEffect(() => {
     const sync = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
