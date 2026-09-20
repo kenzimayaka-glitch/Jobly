@@ -801,13 +801,13 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="absolute top-[2cm] right-0 z-[5] h-[82%] w-[64%]">
+              <div className="absolute top-[2cm] right-0 z-[5] h-[82%] w-[62%]">
                 <Image
                   fill
                   priority
                   src="/hero-jobly-community.webp"
                   alt="Communauté Jobly diverse"
-                  sizes="64vw"
+                  sizes="62vw"
                   className="object-cover object-top"
                   style={{
                     WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 14%, black 100%), linear-gradient(to bottom, transparent 0%, black 14%, black 78%, transparent 100%)",
