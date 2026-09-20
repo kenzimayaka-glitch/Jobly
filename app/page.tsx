@@ -740,7 +740,6 @@ export default function Home() {
         setMessage(translations[lang].usernameTaken);
         return;
       }
-    try {
       // 15/09/2026 : même ordre que dans app/onboarding/page.tsx — le profil
       // est créé AVANT updateUser({ password }), pour ne plus dépendre d'un
       // jeton potentiellement tourné/invalidé par le changement de mot de
