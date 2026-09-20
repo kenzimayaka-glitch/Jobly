@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { JiaCharacter, type JiaGesture } from "./WaterScene";
+import { getSupabaseClient } from "../lib/supabase";
 
 type Prediction = { message: string; gesture: JiaGesture; shouldSpeak: boolean; target?: string };
 type RecognitionLike = { continuous: boolean; interimResults: boolean; lang: string; onresult: ((event: any) => void) | null; onerror: ((event: any) => void) | null; onend: (() => void) | null; start: () => void; stop: () => void };
@@ -51,6 +52,8 @@ export default function JiaPresence() {
   const [interacted, setInteracted] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(true);
+  const [jiaEnabled, setJiaEnabled] = useState(true);
+  const [interactionMode, setInteractionMode] = useState<"text" | "voice">("text");
   const recognition = useRef<RecognitionLike | null>(null);
   const shouldRestart = useRef(true);
   const lastAction = useRef(""); const lastPrediction = useRef("");
@@ -58,7 +61,11 @@ export default function JiaPresence() {
   const introSpoken = useRef(false);
   const hidden = false;
 
-  const say = (message: string, gesture: JiaGesture = "reassure") => { setPrediction({ message, gesture, shouldSpeak: true }); setSpeaking(true); speak(message, () => setSpeaking(false)); };
+  const say = (message: string, gesture: JiaGesture = "reassure") => {
+    const canSpeak = interactionMode === "voice";
+    setPrediction({ message, gesture, shouldSpeak: canSpeak });
+    if (canSpeak) { setSpeaking(true); speak(message, () => setSpeaking(false)); }
+  };
   const startListening = () => {
     if (typeof window === "undefined") return;
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -75,6 +82,20 @@ export default function JiaPresence() {
       if (isPaymentCommand(command)) { say("Je peux t’accompagner, mais je ne peux jamais exécuter ni confirmer un paiement.", "secure"); return; }
       const intent = commandIntent(command);
       window.dispatchEvent(new CustomEvent("jobly:jia-command", { detail: { command, intent } }));
+      void (async () => {
+        try {
+          const { data: { session } } = await getSupabaseClient().auth.getSession();
+          if (!session?.access_token) return;
+          const response = await fetch("/api/jia/brain", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+            body: JSON.stringify({ message: command, path: pathname, action: intent, ecosystem: pathname.startsWith("/recruiter") ? "RECRUITER" : pathname.startsWith("/partner") ? "PARTNER" : "TALENT" })
+          });
+          if (!response.ok) return;
+          const result = await response.json();
+          if (result.message) window.dispatchEvent(new CustomEvent("jobly:jia-response", { detail: { message: result.message, gesture: intent === "search_jobs" ? "analyze" : "reassure" } }));
+        } catch {}
+      })();
       window.dispatchEvent(new CustomEvent("jobly:jia-transcript", { detail: { transcript, command, intent } }));
       if (intent === "assistant_command") say("J’ai compris ta demande. Je vais te guider depuis Jobly.", "analyze");
     };
@@ -84,6 +105,23 @@ export default function JiaPresence() {
     try { r.start(); setListening(true); } catch { setListening(false); }
   };
 
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const ecosystem = pathname.startsWith("/recruiter") ? "RECRUITER" : pathname.startsWith("/partner") ? "PARTNER" : "TALENT";
+        const { data: { session } } = await getSupabaseClient().auth.getSession();
+        if (!session?.access_token) return;
+        const response = await fetch("/api/jia/preferences?ecosystem=" + ecosystem, { headers: { Authorization: "Bearer " + session.access_token } });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!active) return;
+        setJiaEnabled(data.access_enabled !== false);
+        setInteractionMode(data.interaction_mode === "voice" ? "voice" : "text");
+      } catch {}
+    })();
+    return () => { active = false; };
+  }, [pathname]);
   useEffect(() => { const sync = () => setViewport({ w: window.innerWidth, h: window.innerHeight }); sync(); window.addEventListener("resize", sync); return () => window.removeEventListener("resize", sync); }, []);
   useEffect(() => {
     const onInteract = () => {
@@ -114,6 +152,7 @@ export default function JiaPresence() {
     return () => { if (pending.current) window.clearTimeout(pending.current); window.removeEventListener("pointerdown", onActivity); window.removeEventListener("keydown", onActivity); window.removeEventListener("scroll", onActivity); window.speechSynthesis?.cancel(); };
   }, [pathname, interacted]);
 
+  if (!jiaEnabled) return null;
   return <div className="pointer-events-none fixed inset-0 z-[80] overflow-visible" aria-label="J’IA — présence intelligente de Jobly">
     <motion.div className="pointer-events-auto fixed bottom-4 right-4 h-[245px] w-[175px] cursor-grab touch-none sm:h-[285px] sm:w-[205px]" drag dragMomentum={false} dragElastic={0.08} dragConstraints={{ left: -Math.max(0, viewport.w - 210), right: 0, top: -Math.max(0, viewport.h - 320), bottom: 0 }} whileTap={{ cursor: "grabbing", scale: 0.985 }}>
       <JiaCharacter speaking={speaking} gesture={prediction.gesture} />
