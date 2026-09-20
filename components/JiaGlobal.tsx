@@ -2,6 +2,7 @@
 
 import JiaPresence from "./JiaPresence";
 
+// Production global mount — single J’IA instance.
 export default function JiaGlobal() {
   return (
     <div
