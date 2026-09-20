@@ -9,6 +9,9 @@ export async function GET(req:NextRequest){
   try{
     const auth=await getAuthUser(req); if(!auth)return NextResponse.json({message:"Session requise."},{status:401});
     const sb=adminClient(); const user=await ensureUser(sb,auth); const userId=String(user.id);
+    const pref=await sb.from("jia_preferences").select("access_enabled,proactive_recommendations,notification_mode").eq("user_id",userId).eq("ecosystem","TALENT").maybeSingle();
+    if(pref.error)throw new Error(pref.error.message);
+    if(pref.data?.access_enabled===false || pref.data?.proactive_recommendations===false) return NextResponse.json({ok:true,disabled:true,signals:[],recommendations:[],persisted:0});
     const [apps,assessment]=await Promise.all([
       sb.from("Application").select("id,status,createdAt,updatedAt,interviewAt,jobId,recruiterJobId").eq("userId",userId).order("updatedAt",{ascending:false}).limit(40),
       sb.from("CareerAssessment").select("id,readiness,gaps,nextBestAction,computedAt").eq("userId",userId).order("computedAt",{ascending:false}).limit(1).maybeSingle()
@@ -36,6 +39,6 @@ export async function GET(req:NextRequest){
         }
       }
     }
-    return NextResponse.json({ok:true,generatedAt:new Date().toISOString(),signals,recommendations,readiness:assessment.data?.readiness??null,nextBestAction:assessment.data?.nextBestAction??null,persisted});
+    return NextResponse.json({ok:true,generatedAt:new Date().toISOString(),signals,recommendations,readiness:assessment.data?.readiness??null,nextBestAction:assessment.data?.nextBestAction??null,persisted,deliveryMode:pref.data?.notification_mode||"text"});
   }catch(e){return NextResponse.json({message:e instanceof Error?e.message:"J’IA proactif indisponible."},{status:500});}
 }
