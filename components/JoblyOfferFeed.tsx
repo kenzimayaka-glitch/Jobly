@@ -111,6 +111,8 @@ export function JoblyOfferFeed() {
     }
   }
 
+  const filteredJobs = useMemo(() => { const q = query.trim().toLowerCase(); return jobs.filter(job => { const haystack = [job.title, job.location, job.contractType, job.remoteMode, job.company?.name].filter(Boolean).join(" ").toLowerCase(); const matchesQuery = !q || haystack.includes(q); const matchesFilter = filter === "Toutes" || (filter === "Remote" ? String(job.remoteMode || "").toLowerCase().includes("remote") : String(job.contractType || "").toLowerCase().includes(filter.toLowerCase())); return matchesQuery && matchesFilter; }); }, [jobs, query, filter]);
+
 function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase(); }
 
   useEffect(() => {
@@ -158,7 +160,6 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     window.addEventListener("jobly:jia-command", onJiaCommand);
     return () => window.removeEventListener("jobly:jia-command", onJiaCommand);
   }, [filteredJobs, router, apply]);
-  const filteredJobs = useMemo(() => { const q = query.trim().toLowerCase(); return jobs.filter(job => { const haystack = [job.title, job.location, job.contractType, job.remoteMode, job.company?.name].filter(Boolean).join(" ").toLowerCase(); const matchesQuery = !q || haystack.includes(q); const matchesFilter = filter === "Toutes" || (filter === "Remote" ? String(job.remoteMode || "").toLowerCase().includes("remote") : String(job.contractType || "").toLowerCase().includes(filter.toLowerCase())); return matchesQuery && matchesFilter; }); }, [jobs, query, filter]);
   const featured = useMemo(() => filteredJobs.slice(0, 3), [filteredJobs]);
   const rest = useMemo(() => filteredJobs.slice(3), [filteredJobs]);
   const feedSummary = feedMeta.totalAvailable ? `${feedMeta.totalAvailable} opportunité${feedMeta.totalAvailable > 1 ? "s" : ""} actuellement disponible${feedMeta.totalAvailable > 1 ? "s" : ""}` : "Marché en cours de synchronisation";
