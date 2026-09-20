@@ -887,7 +887,7 @@ export default function Home() {
                 <GoogleIcon className="w-5 h-5" />{translations[lang].google}
               </button>
             </form>
-            <p className="text-center text-[13px] text-gray-500">{translations[lang].noAccount}{" "}<button type="button" onClick={()=>{reset();goTo("signup");}} className="font-bold text-[#22448B]">{translations[lang].create}</button></p>
+            <p className="relative -translate-y-1 text-center text-[13px] text-gray-500">{translations[lang].noAccount}{" "}<button type="button" onClick={()=>{reset();goTo("signup");}} className="font-bold text-[#22448B]">{translations[lang].create}</button></p>
           </div>
         </section>
       )}
