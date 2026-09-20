@@ -1768,3 +1768,22 @@ La première couche exécutable du Motion System J’IA est désormais codée da
 - Commit correctif: `9bd4774e4593591655da99146d0eedd1a3d8ed82`.
 - État Vercel: le dernier déploiement production vérifié reste `b8dc6ecf4247b7ea3ed85b11383000e502c690fc`; il ne contient pas encore ce correctif.
 - Validation finale non déclarée: le déploiement automatique n’a pas créé de nouveau build après le push, et l’action de déploiement Vercel connectée retourne actuellement une erreur d’outil. Aucun rendu production corrigé n’est donc prétendu.
+
+
+# RÈGLE ABSOLUE DE CONTINUITÉ — PROJET VERCEL CANONIQUE
+
+**Projet Vercel unique à utiliser pour JOBLY : jobly-c0.6.5.1.**
+
+- Projet Vercel : **jobly-c0.6.5.1**
+- ID : prj_7B3nK76wDdgQbHK4WFz59DsKKYJQ
+- Équipe : PORTFOLIO / portfolio-5555
+- Dépôt source : **kenzimayaka-glitch/Jobly**
+- Branche de production : **main**
+- Alias attendu : **jobly-c0651.vercel.app**
+
+### Interdiction de changer de projet
+Toute intervention Vercel, tout diagnostic de déploiement et toute validation de production doivent être effectués **exclusivement sur ce projet**, sauf décision explicite du fondateur.
+
+Les anciens projets/doublons (jobly_v0.1, jobly, jobly-v23, jobly-v23-test, jobly-v23-schema-test) ne doivent jamais être utilisés comme cible de déploiement ou comme source de vérité.
+
+**Avant toute action Vercel : vérifier le nom du projet, l'ID et le dépôt kenzimayaka-glitch/Jobly. En cas de doute, ne pas changer de projet.**
