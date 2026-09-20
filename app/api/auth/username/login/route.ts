@@ -11,13 +11,14 @@ export async function POST(request: NextRequest) {
     const supabaseAdmin = adminClient();
     const { data: user, error } = await supabaseAdmin.from("User").select("email").ilike("username", username).maybeSingle();
     if (error) throw new Error(error.message);
-    if (!user?.email) return NextResponse.json({ message: "Username ou mot de passe incorrect." }, { status: 401 });
+    if (!user?.email) { console.info("[auth/username/login] lookup_not_found"); return NextResponse.json({ message: "Username ou mot de passe incorrect." }, { status: 401 }); }
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     if (!url || !key) throw new Error("Supabase client non configuré.");
     const auth = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
     const { data, error: authError } = await auth.auth.signInWithPassword({ email: user.email, password });
-    if (authError || !data.session) return NextResponse.json({ message: "Username ou mot de passe incorrect." }, { status: 401 });
+    if (authError || !data.session) { console.info("[auth/username/login] password_rejected"); return NextResponse.json({ message: "Username ou mot de passe incorrect." }, { status: 401 }); }
+    console.info("[auth/username/login] success");
     return NextResponse.json({ access_token: data.session.access_token, refresh_token: data.session.refresh_token });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Connexion impossible." }, { status: 500 });
