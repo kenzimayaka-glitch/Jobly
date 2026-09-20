@@ -15,6 +15,7 @@ import {
 } from "../lib/auth";
 import { setRememberMe, getSupabaseClient } from "../lib/supabase";
 import BubbleField from "../components/BubbleField";
+import JoblyLogo from "../components/JoblyLogo";
 import WaterScene from "../components/WaterScene";
 import {
   GoogleIcon,
@@ -456,7 +457,7 @@ export default function Home() {
   const journeyPointerRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const [jiaLine, setJiaLine] = useState(0);
   const [dropLanded, setDropLanded] = useState(false);
-  const logoRef = useRef<HTMLImageElement>(null);
+  const logoRef = useRef<HTMLDivElement>(null);
   const heartTargetRef = useRef<HTMLSpanElement>(null);
   const [heartPath, setHeartPath] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
   const [darkMode, setDarkMode] = useState(false);
@@ -766,7 +767,7 @@ export default function Home() {
       <div className="fixed right-4 top-4 z-30 flex gap-1 rounded-full border border-white/40 bg-white/40 p-1 shadow-premium backdrop-blur-xl"><button type="button" onClick={()=>{setLang("fr");try{localStorage.setItem("jobly-lang","fr")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="fr"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇫🇷 FR</button><button type="button" onClick={()=>{setLang("en");try{localStorage.setItem("jobly-lang","en")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="en"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇬🇧 EN</button></div>
     )}
     <div className="relative flex min-h-0 flex-1 w-full flex-col gap-0">
-      <header className="z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"><img ref={logoRef} src="/jobly-logo-reference.jpg" alt="JOBLY — accueil" className="h-auto w-[165px] mix-blend-multiply sm:w-[195px]" /></header>
+      <header className="z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"><JoblyLogo ref={logoRef} size="hero" showTagline /></header>
       {screen === "welcome" && (
         <AnimatePresence mode="wait" initial={false}>
           <motion.section
