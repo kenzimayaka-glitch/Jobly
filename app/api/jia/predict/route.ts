@@ -2,14 +2,24 @@ import { generateText } from "ai";
 
 export const runtime = "nodejs";
 
-const ALLOWED_GESTURES = new Set([\n  "welcome", "analyze", "point", "write", "validate", "alert", "apply", "celebrate",\n  "wink", "reassure", "encourage", "surprised", "curious", "proud", "handshake",\n  "present-chart", "call-hr", "filter", "secure", "goodbye",\n]);\n\ntype JiaPrediction = {
+const ALLOWED_GESTURES = new Set([
+  "welcome", "analyze", "point", "write", "validate", "alert", "apply", "celebrate",
+  "wink", "reassure", "encourage", "surprised", "curious", "proud", "handshake",
+  "present-chart", "call-hr", "filter", "secure", "goodbye",
+]);
+
+type JiaPrediction = {
   message: string;
   gesture: string;
   shouldSpeak: boolean;
   target?: string;
 };
 
-const RATE_WINDOW_MS = 60_000;\nconst RATE_MAX = 8;\nconst rateStore = new Map<string, { count: number; resetAt: number }>();\n\nconst FALLBACK: JiaPrediction = {
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = 8;
+const rateStore = new Map<string, { count: number; resetAt: number }>();
+
+const FALLBACK: JiaPrediction = {
   message: "Je regarde ce que tu fais pour anticiper la prochaine étape utile.",
   gesture: "curious",
   shouldSpeak: true,
