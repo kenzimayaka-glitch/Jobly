@@ -111,6 +111,53 @@ export function JoblyOfferFeed() {
     }
   }
 
+function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase(); }
+
+  useEffect(() => {
+    const respond = (message: string, gesture: string = "reassure") => {
+      window.dispatchEvent(new CustomEvent("jobly:jia-response", { detail: { message, gesture } }));
+    };
+    const onJiaCommand = (event: Event) => {
+      const detail = (event as CustomEvent<{ command?: string; intent?: string }>).detail || {};
+      const command = String(detail.command || "").trim();
+      const intent = detail.intent || "";
+      if (!command) return;
+      if (intent === "search_jobs") {
+        setQuery("");
+        setFilter("Toutes");
+        respond("Je recherche les meilleures offres compatibles avec ton profil.", "analyze");
+        return;
+      }
+      if (intent === "filter_jobs") {
+        const lower = command.toLowerCase();
+        const next = lower.includes("cdi") ? "CDI" : lower.includes("cdd") ? "CDD" : lower.includes("stage") ? "Stage" : lower.includes("remote") || lower.includes("télétravail") ? "Remote" : "Toutes";
+        setFilter(next);
+        respond(next === "Toutes" ? "Dis-moi le filtre souhaité : CDI, CDD, stage ou télétravail." : "C’est filtré.", "filter");
+        return;
+      }
+      if (intent === "open_job") {
+        const indexMatch = command.match(/\\b(premi(?:è|e)re|deuxi(?:è|e)me|troisi(?:è|e)me|[1-9])\\b/i);
+        const index = indexMatch ? ({ "premiere": 0, "première": 0, "deuxieme": 1, "deuxième": 1, "troisieme": 2, "troisième": 2 } as Record<string, number>)[normalizeVoice(indexMatch[1])] ?? Number(indexMatch[1]) - 1 : 0;
+        const job = filteredJobs[Math.max(0, Math.min(index, filteredJobs.length - 1))];
+        if (!job) { respond("Je n’ai aucune offre à ouvrir pour le moment.", "curious"); return; }
+        router.push(`/jobs/${job.id}?source=${job.source}`);
+        respond("J’ouvre l’offre.", "point");
+        return;
+      }
+      if (intent === "apply_job") {
+        if (filteredJobs.length === 1) { void apply(filteredJobs[0]); respond("Je lance la candidature pour cette offre.", "apply"); return; }
+        respond("Dis-moi quelle offre : par exemple « J’IA, postule à la deuxième ».", "curious");
+        return;
+      }
+      if (intent === "save_job") {
+        respond("Je peux préparer cette sauvegarde, mais le bouton Favori doit être disponible sur l’offre concernée.", "reassure");
+        return;
+      }
+      respond("J’ai reçu ta commande. Je vais te guider dans Jobly.", "analyze");
+    };
+    window.addEventListener("jobly:jia-command", onJiaCommand);
+    return () => window.removeEventListener("jobly:jia-command", onJiaCommand);
+  }, [filteredJobs, router, apply]);
   const filteredJobs = useMemo(() => { const q = query.trim().toLowerCase(); return jobs.filter(job => { const haystack = [job.title, job.location, job.contractType, job.remoteMode, job.company?.name].filter(Boolean).join(" ").toLowerCase(); const matchesQuery = !q || haystack.includes(q); const matchesFilter = filter === "Toutes" || (filter === "Remote" ? String(job.remoteMode || "").toLowerCase().includes("remote") : String(job.contractType || "").toLowerCase().includes(filter.toLowerCase())); return matchesQuery && matchesFilter; }); }, [jobs, query, filter]);
   const featured = useMemo(() => filteredJobs.slice(0, 3), [filteredJobs]);
   const rest = useMemo(() => filteredJobs.slice(3), [filteredJobs]);
