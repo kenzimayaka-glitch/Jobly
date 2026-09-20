@@ -72,7 +72,7 @@ function toneStyles(tone: Eco["tone"]) {
   }[tone];
 }
 
-export default function EcosystemSelector({ showBonPlan = false }: { showBonPlan?: boolean }) {
+export default function EcosystemSelector({ showBonPlan = false, onGuide }: { showBonPlan?: boolean; onGuide?: (eco: Eco) => void }) {
   const router = useRouter();
   const items = showBonPlan ? [...ECOSYSTEMS, BON_PLAN] : ECOSYSTEMS;
 
@@ -93,6 +93,8 @@ export default function EcosystemSelector({ showBonPlan = false }: { showBonPlan
               key={eco.id}
               type="button"
               role="listitem"
+              onMouseEnter={() => onGuide?.(eco)}
+              onFocus={() => onGuide?.(eco)}
               onClick={() => select(eco)}
               style={{ animationDelay: `${index * 110}ms`, background: s.gradient }}
               className="eco-card group relative flex w-full aspect-[1.12/1] min-h-0 flex-col overflow-hidden rounded-[28px] text-left shadow-[0_16px_38px_rgba(20,38,78,0.16)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_46px_rgba(20,38,78,0.22)] active:scale-[0.985]"
