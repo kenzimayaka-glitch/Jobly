@@ -801,17 +801,17 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="absolute top-[2cm] right-0 z-[5] h-[78%] w-[60%]">
+              <div className="absolute top-[2cm] right-0 z-[5] h-[82%] w-[64%]">
                 <Image
                   fill
                   priority
                   src="/hero-jobly-community.webp"
                   alt="Communauté Jobly diverse"
-                  sizes="60vw"
+                  sizes="64vw"
                   className="object-cover object-top"
                   style={{
-                    WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 19%, black 100%), linear-gradient(to bottom, black 0%, black 72%, transparent 100%)",
-                    maskImage: "linear-gradient(to right, transparent 0%, black 19%, black 100%), linear-gradient(to bottom, black 0%, black 72%, transparent 100%)",
+                    WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 14%, black 100%), linear-gradient(to bottom, transparent 0%, black 14%, black 78%, transparent 100%)",
+                    maskImage: "linear-gradient(to right, transparent 0%, black 14%, black 100%), linear-gradient(to bottom, transparent 0%, black 14%, black 78%, transparent 100%)",
                     WebkitMaskComposite: "destination-in",
                     maskComposite: "intersect",
                   }}
@@ -830,10 +830,15 @@ export default function Home() {
 
             <div className="relative z-20 mt-6 shrink-0 grid grid-cols-4 gap-2.5 px-3">
               {BENEFITS[lang].map(({ Icon, title, subtitle }) => (
-                <div key={title} className="min-h-[82px] rounded-xl border border-white/60 bg-white/70 p-3 text-center font-[var(--font-inter)] shadow-premium backdrop-blur-md">
-                  <Icon className="mx-auto mb-1 h-3.5 w-3.5 text-sky-blue sm:h-4 sm:w-4" />
-                  <p className="font-[var(--font-inter)] text-[11px] font-bold leading-[12px] text-deep-blue">{title}</p>
-                  <p className="mt-1 font-[var(--font-inter)] text-[9px] font-bold leading-[10px] text-[#7a7f89]">{subtitle}</p>
+                <div key={title} className="relative overflow-hidden rounded-[24px]">
+                  <div className="pointer-events-none absolute -top-20 -left-20 h-[300px] w-[300px] rounded-full bg-[#FFD400]/30 blur-[80px]" />
+                  <div className="pointer-events-none absolute -bottom-20 -right-20 h-[300px] w-[300px] rounded-full bg-[#22448B]/20 blur-[80px]" />
+                  <div className="pointer-events-none absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#FF8C00]/15 blur-[90px]" />
+                  <div className="relative min-h-[82px] rounded-[24px] border border-white/40 bg-white/20 p-3 text-center font-[var(--font-inter)] shadow-premium backdrop-blur-[40px]">
+                    <Icon className="mx-auto mb-1 h-3.5 w-3.5 text-sky-blue sm:h-4 sm:w-4" />
+                    <p className="font-[var(--font-inter)] text-[11px] font-bold leading-[12px] text-deep-blue">{title}</p>
+                    <p className="mt-1 font-[var(--font-inter)] text-[9px] font-bold leading-[10px] text-[#7a7f89]">{subtitle}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1018,7 +1023,7 @@ export default function Home() {
       {screen === "reset-sent" && <section className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-4 text-center"><div className="mx-auto mb-4 text-5xl" aria-hidden="true">✉️</div><h1 className="text-[32px] font-extrabold text-navy">{translations[lang].sentTitle}</h1><p className="my-3 text-sm text-jobly-gray">{translations[lang].sentText}</p><button type="button" onClick={()=>{reset();goTo("login");}} className="h-[52px] rounded-2xl bg-jobly-blue font-extrabold text-white">{translations[lang].backLogin}</button></section>}
 
       {message && screen !== "journey" && screen !== "jia-welcome" && <div role="status" aria-live="polite" className="rounded-2xl border border-blue-100 bg-blue-50 px-3.5 py-2.5 text-center text-xs text-blue-800">{message}</div>}
-      {screen !== "journey" && screen !== "jia-welcome" && screen !== "signup" && screen !== "signup-otp" && screen !== "signup-password" && screen !== "login" && <footer className="mt-16 shrink-0 px-4 pb-8 pt-6 text-center">
+      {screen !== "journey" && screen !== "jia-welcome" && screen !== "signup" && screen !== "signup-otp" && screen !== "signup-password" && screen !== "login" && <footer className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-4 pt-2 text-center">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={`footer-${lang}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeOut" }}>
             
