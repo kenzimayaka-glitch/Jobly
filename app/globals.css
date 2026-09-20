@@ -235,3 +235,80 @@ body {
 @media (prefers-reduced-motion:reduce){
   .jobly-motion,.jobly-outline-pulse{animation:none!important;transition:none!important}
 }
+
+
+/* ───────────────────────────────────────────────────────────────────────────
+   JOBLY 2026 — UNIFIED CANARY UX SYSTEM
+   Authentication is the visual source of truth for the product.
+   Primary: Canary Yellow. Secondary: Canary Blue + White.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root{
+  --jobly-canary:#FFE135;
+  --jobly-canary-strong:#F6CF00;
+  --jobly-canary-blue:#0057B8;
+  --jobly-canary-blue-soft:#EAF3FF;
+  --jobly-ink:#0A1931;
+  --jobly-muted:#5F6F86;
+  --jobly-border:#DCE7F4;
+  --jobly-surface:#FFFFFF;
+  --jobly-radius-sm:12px;
+  --jobly-radius-md:18px;
+  --jobly-radius-lg:24px;
+  --jobly-shadow:0 12px 32px rgba(10,25,49,.07);
+  --jobly-shadow-hover:0 18px 42px rgba(10,25,49,.11);
+}
+body{
+  background:#fff !important;
+  color:var(--jobly-ink);
+}
+.jobly-app{
+  color:var(--jobly-ink);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(255,225,53,.13), transparent 28%),
+    radial-gradient(circle at 94% 8%, rgba(0,87,184,.08), transparent 26%),
+    #fff;
+}
+.jobly-surface{
+  background:rgba(255,255,255,.96);
+  border:1px solid var(--jobly-border);
+  border-radius:var(--jobly-radius-lg);
+  box-shadow:var(--jobly-shadow);
+}
+.jobly-section-title{font-weight:800;letter-spacing:-.025em;color:var(--jobly-ink)}
+.jobly-muted{color:var(--jobly-muted)}
+.jobly-primary{
+  background:var(--jobly-canary) !important;
+  color:var(--jobly-ink) !important;
+  border:1px solid rgba(10,25,49,.08);
+  border-radius:999px;
+  font-weight:800;
+  box-shadow:0 8px 20px rgba(246,207,0,.18);
+  transition:transform .16s ease, box-shadow .16s ease;
+}
+.jobly-primary:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(246,207,0,.25)}
+.jobly-secondary{
+  background:var(--jobly-canary-blue) !important;
+  color:#fff !important;
+  border-radius:999px;
+  font-weight:800;
+  box-shadow:0 8px 20px rgba(0,87,184,.18);
+}
+.jobly-soft-blue{background:var(--jobly-canary-blue-soft) !important;color:var(--jobly-canary-blue) !important}
+.jobly-soft-yellow{background:#FFF8C7 !important;color:#695500 !important}
+.jobly-focus:focus-visible{outline:3px solid rgba(0,87,184,.25);outline-offset:3px}
+.jobly-page{
+  min-height:100dvh;
+  background:linear-gradient(180deg,#fff 0%,#fff 72%,#FFFDF2 100%);
+}
+.jobly-card-unified{
+  background:rgba(255,255,255,.97);
+  border:1px solid var(--jobly-border);
+  border-radius:var(--jobly-radius-lg);
+  box-shadow:var(--jobly-shadow);
+  transition:box-shadow .18s ease,transform .18s ease,border-color .18s ease;
+}
+.jobly-card-unified:hover{box-shadow:var(--jobly-shadow-hover);border-color:#C9D9ED}
+@media (max-width:640px){
+  .jobly-page{padding-bottom:76px}
+  .jobly-card-unified{border-radius:20px}
+}
