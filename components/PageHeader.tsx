@@ -32,7 +32,7 @@ export default function PageHeader({
   }
 
   return (
-    <header className="relative z-20 border-b border-slate-100 bg-white/95 px-5 pb-3 pt-4 backdrop-blur sm:px-6">
+    <header className="relative z-20 border-b border-[#DCE7F4] bg-white/96 px-5 pb-3 pt-4 backdrop-blur-xl shadow-[0_6px_24px_rgba(10,25,49,.04)] sm:px-6">
       <div className="mx-auto flex max-w-5xl items-center justify-between">
         <button
           type="button"
@@ -49,7 +49,7 @@ export default function PageHeader({
             type="button"
             onClick={() => router.push("/notifications")}
             aria-label="Notifications"
-            className="relative flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-500 shadow-sm"
+            className="jobly-focus relative flex h-10 w-10 items-center justify-center rounded-full bg-[#EAF3FF] text-[#0057B8] shadow-sm"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -62,7 +62,7 @@ export default function PageHeader({
             {avatarUrl ? (
               <img src={avatarUrl} alt="Photo de profil" className="h-10 w-10 rounded-full border-2 border-white object-cover shadow-[0_4px_12px_rgba(11,31,75,0.12)]" />
             ) : (
-              <span className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-white text-sm font-black text-jobly-blue shadow-[0_4px_12px_rgba(11,31,75,0.12)] ${theme === "talent" ? "bg-gradient-to-br from-blue-100 to-yellow-100" : "bg-gradient-to-br from-blue-100 to-violet-100"}`}>
+              <span className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-white text-sm font-black text-[#0057B8] shadow-[0_4px_12px_rgba(11,31,75,0.12)] ${theme === "talent" ? "bg-gradient-to-br from-blue-100 to-yellow-100" : "bg-gradient-to-br from-blue-100 to-violet-100"}`}>
                 {initial}
               </span>
             )}
