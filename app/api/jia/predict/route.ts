@@ -53,6 +53,21 @@ export async function POST(request: Request) {
       idleMs: Number.isFinite(body?.idleMs) ? Math.min(Math.max(body.idleMs, 0), 300000) : 0,
     };
 
+    const forwarded = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+    const ip = forwarded.split(",")[0].trim();
+    const now = Date.now();
+    const entry = rateStore.get(ip);
+    if (!entry || entry.resetAt <= now) {
+      rateStore.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    } else if (entry.count >= RATE_MAX) {
+      return Response.json(FALLBACK, {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil((entry.resetAt - now) / 1000)) },
+      });
+    } else {
+      entry.count += 1;
+    }
+
     const { text } = await generateText({
       model: "deepseek/deepseek-v4.1-flash",
       system: SYSTEM,
@@ -67,7 +82,7 @@ export async function POST(request: Request) {
 
     const safe: JiaPrediction = {
       message: parsed.message.trim().slice(0, 260),
-      gesture: parsed.gesture,
+      gesture: ALLOWED_GESTURES.has(parsed.gesture) ? parsed.gesture : "curious",
       shouldSpeak: parsed.shouldSpeak !== false,
       ...(parsed.target ? { target: String(parsed.target).slice(0, 80) } : {}),
     };
