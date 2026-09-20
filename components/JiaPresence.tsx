@@ -60,7 +60,6 @@ export default function JiaPresence() {
   const lastAction = useRef(""); const lastPrediction = useRef("");
   const pending = useRef<number | null>(null); const lastRequest = useRef(0);
   const introSpoken = useRef(false);
-  const hidden = false;
 
   const say = (message: string, gesture: JiaGesture = "reassure") => {
     const canSpeak = interactionModeRef.current === "voice";
@@ -68,7 +67,7 @@ export default function JiaPresence() {
     if (canSpeak) { setSpeaking(true); speak(message, () => setSpeaking(false)); }
   };
   const startListening = () => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || interactionModeRef.current !== "voice" || !jiaEnabled) return;
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) { setVoiceSupported(false); return; }
     if (recognition.current) return;
@@ -128,11 +127,11 @@ export default function JiaPresence() {
   useEffect(() => { const sync = () => setViewport({ w: window.innerWidth, h: window.innerHeight }); sync(); window.addEventListener("resize", sync); return () => window.removeEventListener("resize", sync); }, []);
   useEffect(() => {
     const onInteract = () => {
-      setInteracted(true); startListening();
-      if (!introSpoken.current) { introSpoken.current = true; window.setTimeout(() => speak("Pour me donner une action, commence ta phrase par J’IA. Je peux rechercher, filtrer, ouvrir ou préparer une candidature."), 250); }
+      setInteracted(true);
+      if (interactionModeRef.current === "voice") startListening();
+      if (!introSpoken.current && interactionModeRef.current === "voice") { introSpoken.current = true; window.setTimeout(() => speak("Pour me donner une action, commence ta phrase par J’IA. Je peux rechercher, filtrer, ouvrir ou préparer une candidature."), 250); }
     };
     window.addEventListener("pointerdown", onInteract, { passive: true }); window.addEventListener("keydown", onInteract, { passive: true });
-    startListening();
     return () => { shouldRestart.current = false; recognition.current?.stop(); recognition.current = null; window.removeEventListener("pointerdown", onInteract); window.removeEventListener("keydown", onInteract); };
   }, []);
   useEffect(() => {
@@ -146,21 +145,21 @@ export default function JiaPresence() {
   useEffect(() => {
     const requestPrediction = async () => { const now = Date.now(); if (now - lastRequest.current < 9000) return; lastRequest.current = now; try {
       const response = await fetch("/api/jia/predict", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: pathname, action: lastAction.current, visibleText: document.body.innerText.slice(0, 1800), recentDialogue: lastPrediction.current ? [lastPrediction.current] : [], idleMs: 0 }) });
-      if (!response.ok) return; const next = (await response.json()) as Prediction; if (!next.message || next.message === lastPrediction.current) return; if (!next.gesture) next.gesture = "curious"; lastPrediction.current = next.message; setPrediction(next);
+      if (!response.ok) return; const next = (await response.json()) as Prediction; if (!next.message || next.message === lastPrediction.current) return; if (!next.gesture) next.gesture = "curious"; lastPrediction.current = next.message; setPrediction({ ...next, shouldSpeak: interactionModeRef.current === "voice" && next.shouldSpeak === true });
       if (next.shouldSpeak && interacted) { setSpeaking(true); speak(next.message, () => setSpeaking(false)); }
     } catch {} };
     const schedule = (delay: number) => { if (pending.current) window.clearTimeout(pending.current); pending.current = window.setTimeout(requestPrediction, delay); };
     schedule(6500); const onActivity = () => schedule(2200);
     window.addEventListener("pointerdown", onActivity, { passive: true }); window.addEventListener("keydown", onActivity, { passive: true }); window.addEventListener("scroll", onActivity, { passive: true });
     return () => { if (pending.current) window.clearTimeout(pending.current); window.removeEventListener("pointerdown", onActivity); window.removeEventListener("keydown", onActivity); window.removeEventListener("scroll", onActivity); window.speechSynthesis?.cancel(); };
-  }, [pathname, interacted]);
+  }, [pathname, interacted, jiaEnabled]);
 
   if (!jiaEnabled) return null;
   return <div className="pointer-events-none fixed inset-0 z-[80] overflow-visible" aria-label="J’IA — présence intelligente de Jobly">
-    <motion.div className="pointer-events-auto fixed bottom-4 right-4 h-[245px] w-[175px] cursor-grab touch-none sm:h-[285px] sm:w-[205px]" drag dragMomentum={false} dragElastic={0.08} dragConstraints={{ left: -Math.max(0, viewport.w - 210), right: 0, top: -Math.max(0, viewport.h - 320), bottom: 0 }} whileTap={{ cursor: "grabbing", scale: 0.985 }}>
+    <motion.div className="pointer-events-auto fixed bottom-3 right-3 h-[330px] w-[235px] cursor-grab touch-none sm:bottom-4 sm:right-4 sm:h-[390px] sm:w-[285px]" drag dragMomentum={false} dragElastic={0.06} dragConstraints={{ left: -Math.max(0, viewport.w - 300), right: 0, top: -Math.max(0, viewport.h - 430), bottom: 0 }} whileTap={{ cursor: "grabbing", scale: 0.99 }}>
       <JiaCharacter speaking={speaking} gesture={prediction.gesture} />
-      <motion.div className="pointer-events-none absolute -top-3 left-1/2 z-[82] -translate-x-1/2 rounded-full border border-white/15 bg-[#061226]/85 px-2.5 py-1 text-[9px] font-black uppercase tracking-[.12em] text-white shadow-lg backdrop-blur-xl">{voiceSupported ? (listening ? "J’IA · écoute" : "J’IA · vocal") : "J’IA · vocal indisponible"}</motion.div>
-      {prediction.message && <motion.div key={prediction.message} className="pointer-events-none absolute right-[calc(100%+12px)] bottom-8 z-[81] w-[min(380px,62vw)]" initial={{ opacity: 0, y: 10, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.28 }}><div className="rounded-[20px] border border-white/15 bg-[#061226]/78 px-4 py-3 text-[13px] font-semibold leading-relaxed text-white shadow-2xl backdrop-blur-xl">{prediction.message}</div></motion.div>}
+      <motion.div className="pointer-events-none absolute -top-2 left-1/2 z-[82] -translate-x-1/2 rounded-full border-2 border-[#0057B8] bg-[#FFE135] px-3 py-1.5 text-[10px] font-black uppercase tracking-[.11em] text-[#0057B8] shadow-md">{interactionMode === "voice" ? (voiceSupported ? (listening ? "J’IA · écoute" : "J’IA · vocal") : "J’IA · vocal indisponible") : "J’IA · texte"}</motion.div>
+      {prediction.message && <motion.div key={prediction.message} className="pointer-events-none absolute right-[calc(100%+14px)] bottom-16 z-[81] w-[min(390px,68vw)]" initial={{ opacity: 0, y: 10, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.28 }}><div className="rounded-[22px] border-2 border-[#0057B8] bg-[#FFE135] px-5 py-4 text-[14px] font-extrabold leading-[1.5] text-[#0057B8] shadow-[0_14px_35px_rgba(0,87,184,.20)]">{prediction.message}</div></motion.div>}
     </motion.div>
   </div>;
 }
