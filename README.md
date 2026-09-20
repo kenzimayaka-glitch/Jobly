@@ -1787,3 +1787,16 @@ Toute intervention Vercel, tout diagnostic de déploiement et toute validation d
 Les anciens projets/doublons (jobly_v0.1, jobly, jobly-v23, jobly-v23-test, jobly-v23-schema-test) ne doivent jamais être utilisés comme cible de déploiement ou comme source de vérité.
 
 **Avant toute action Vercel : vérifier le nom du projet, l'ID et le dépôt kenzimayaka-glitch/Jobly. En cas de doute, ne pas changer de projet.**
+
+
+## J’IA — COMMANDE VOCALE ET WAKE WORD
+
+J’IA peut servir d’interface vocale du Career OS. Pour déclencher une action, l’utilisateur commence sa phrase par « J’IA ». J’IA lui explique elle-même cette règle.
+
+Le moteur vocal V1 reconnaît notamment les intentions de recherche d’offres, filtrage, ouverture et candidature, puis les transmet via l’événement interne jobly:jia-command aux surfaces métier concernées.
+
+**Sécurité financière :** les commandes de paiement, transfert d’argent ou confirmation de transaction sont bloquées avant toute émission d’action. J’IA ne dispose pas d’une capacité d’exécution de paiement.
+
+**Interaction personnage :** J’IA reste immobile par défaut et l’utilisateur peut la déplacer au doigt. Sa bulle reste attachée au personnage.
+
+**Compatibilité :** la reconnaissance vocale dépend des capacités du navigateur et de l’autorisation microphone ; la Web Speech API est utilisée lorsqu’elle est disponible.
