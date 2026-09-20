@@ -43,7 +43,9 @@ function normalizeIntent(message: string) {
   return "CAREER";
 }
 
-function isFinancialRequest(message: string) { return /\\b(paie|payer|paiement|payes|paye|transfere|transfert|argent|transaction|checkout)\\b/i.test(message); }\n\nfunction actionForIntent(intent: string, message: string) {
+function isFinancialRequest(message: string) { return /\b(paie|payer|paiement|payes|paye|transfere|transfert|argent|transaction|checkout)\b/i.test(message); }
+
+function actionForIntent(intent: string, message: string) {
   const m = message.toLowerCase();
   if (intent === "OPPORTUNITY" && /recherche|cherche|trouve|montre/.test(m)) return { type:"SEARCH_JOBS", requiresConfirmation:false };
   if (intent === "APPLICATION" && /postule|envoie/.test(m)) return { type:"PREPARE_APPLICATION", requiresConfirmation:true };
@@ -85,9 +87,11 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
 
   const intent = normalizeIntent(context.message);
   const fallbackAction = actionForIntent(intent, context.message);
-  const message = financialRequest\n    ? "Je peux expliquer ou guider un paiement, mais je ne peux jamais l’exécuter ni le confirmer."\n    : (clean(generated?.message, 500) || clean(assessment.data?.nextBestAction, 500) || EMPTY);
+  const financialRequest = isFinancialRequest(context.message);
+  const message = financialRequest
+    ? "Je peux expliquer ou guider un paiement, mais je ne peux jamais l’exécuter ni le confirmer."
+    : (clean(generated?.message, 500) || clean(assessment.data?.nextBestAction, 500) || EMPTY);
   const confidence = generated?.confidence === "HIGH" || generated?.confidence === "MEDIUM" ? generated.confidence : "MEDIUM";
-  const financialRequest = isFinancialRequest(context.message);\n  const proposedAction = financialRequest ? undefined : (generated?.proposedAction && typeof generated.proposedAction === "object"\n    ? generated.proposedAction as JiaBrainResult["proposedAction"]\n    : fallbackAction);
 
   const trace = await sb.from("JiaIntelligenceTrace").insert({
     userId: input.userId,
