@@ -9,6 +9,7 @@ import DecorativeBackground from "../../../components/DecorativeBackground";
 import { connectGmail, disconnectGmail, getGmailConnection, refreshGmailConnection } from "../../../lib/gmailService";
 import { checkForRelaunch } from "../../../lib/cronService";
 import SubscriptionCard from "../../../components/SubscriptionCard";
+import JiaPreferences from "../../../components/JiaPreferences";
 
 const SETTINGS_KEY = "jobly:recruiter-settings";
 
@@ -70,6 +71,7 @@ export default function RecruiterSettingsPage() {
         <PageHeader label="Paramètres" eyebrow="RECRUTEUR" initial="R" onBack={() => router.push("/recruiter")} />
         <div className="mx-auto max-w-3xl space-y-4 px-5 py-5">
           {message && <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-xs font-extrabold text-emerald-700">{message}</div>}
+          <JiaPreferences ecosystem="RECRUITER" />
           <SubscriptionCard ecosystem="RECRUITER" />
 
           <section className="rounded-[24px] bg-white p-5 shadow-sm">
