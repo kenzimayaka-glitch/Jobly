@@ -767,7 +767,7 @@ export default function Home() {
       <div className="fixed right-4 top-4 z-30 flex gap-1 rounded-full border border-white/40 bg-white/40 p-1 shadow-premium backdrop-blur-xl"><button type="button" onClick={()=>{setLang("fr");try{localStorage.setItem("jobly-lang","fr")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="fr"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇫🇷 FR</button><button type="button" onClick={()=>{setLang("en");try{localStorage.setItem("jobly-lang","en")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="en"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇬🇧 EN</button></div>
     )}
     <div className="relative flex min-h-0 flex-1 w-full flex-col gap-0">
-      <header className="z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"><JoblyLogo ref={logoRef} size="hero" showTagline /></header>
+      {screen !== "login" && screen !== "signup" && <header className="z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"><JoblyLogo ref={logoRef} size="hero" showTagline /></header>}
       {screen === "welcome" && (
         <AnimatePresence mode="wait" initial={false}>
           <motion.section
@@ -846,11 +846,92 @@ export default function Home() {
         </AnimatePresence>
       )}
 
-      {screen === "login" && <section className="container w-[92%] max-w-[440px] mx-auto flex flex-1 flex-col justify-center px-4 py-4"><div className="mb-3 flex w-full items-center justify-end"><button type="button" onClick={toggleDarkMode} aria-label={darkMode ? "Désactiver le mode nuit" : "Activer le mode nuit"} className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F5F9] text-[15px] text-navy">{darkMode ? "☀️" : "🌙"}</button></div><h1 className="mb-1 w-full text-center text-[36px] font-extrabold leading-none tracking-[-0.03em] text-navy">{translations[lang].loginTitle}</h1><p className="mb-5 w-full text-center text-sm text-jobly-gray">{translations[lang].loginSubtitle}</p><label className="mb-3 block w-full"><span className="mb-1.5 block text-[13px] font-bold text-navy">{translations[lang].username}</span><input value={username} onChange={e=>setUsername(e.target.value)} placeholder="ex. Kenzi" autoComplete="username" className="h-[50px] w-full rounded-2xl border border-slate-300 px-4 text-[15px] outline-none focus:border-jobly-blue" /></label><label className="mb-2 block w-full"><span className="mb-1.5 block text-[13px] font-bold text-navy">{translations[lang].password}</span><div className="flex h-[50px] w-full items-center rounded-2xl border border-slate-300 px-4"><input type={showPassword?"text":"password"} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password" onKeyDown={e=>e.key==="Enter"&&login()} className="w-full outline-none" placeholder="••••••••"/><button type="button" aria-label={showPassword?"Masquer le mot de passe":"Afficher le mot de passe"} onClick={()=>setShowPassword(v=>!v)} className="text-slate-400"><EyeIcon open={showPassword}/></button></div></label><div className="mb-4 flex w-full items-center justify-between"><label className="flex items-center gap-1.5 text-[13px] font-bold text-navy"><input type="checkbox" checked={rememberMe} onChange={e=>setRememberMeState(e.target.checked)} className="h-4 w-4 accent-[#FFDE00]"/>Rester connecté</label><button type="button" onClick={()=>{setMessage("");goTo("forgot");}} className="w-max text-[13px] font-bold text-jobly-blue">{translations[lang].forgot}</button></div><button type="button" onClick={login} disabled={busy} className="h-[52px] w-full rounded-2xl bg-[#FFDE00] text-base font-extrabold text-black">{busy?"Connexion…":`${translations[lang].login} →`}</button><div className="my-4 flex w-full items-center gap-2.5 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200"/>{translations[lang].or}<span className="h-px flex-1 bg-slate-200"/></div><button type="button" onClick={google} disabled={busy} className="flex h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl border border-slate-200 bg-white text-[15px] font-bold text-navy shadow-sm"><GoogleIcon className="h-5 w-5"/>{translations[lang].google}</button><p className="mt-4 w-full text-center text-[13px] text-jobly-gray">{translations[lang].noAccount} <button type="button" onClick={()=>{reset();goTo("signup");}} className="font-extrabold text-jobly-blue">{translations[lang].create}</button></p></section>}
+      {screen === "login" && (
+        <section className="min-h-screen flex flex-col items-center justify-center px-6 py-8">
+          <div className="w-full max-w-[420px] flex flex-col gap-8">
+            <div className="flex justify-between items-center">
+              <JoblyLogo size="hero" showTagline />
+              <button type="button" onClick={toggleDarkMode} aria-label={darkMode ? "Désactiver le mode nuit" : "Activer le mode nuit"} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-[15px] text-navy">
+                {darkMode ? "☀️" : "🌙"}
+              </button>
+            </div>
+            <div className="flex flex-col gap-2 text-left">
+              <h1 className="text-[32px] font-bold leading-none text-[#0A1931]">{translations[lang].loginTitle}</h1>
+              <p className="text-[14px] text-gray-500">{translations[lang].loginSubtitle}</p>
+            </div>
+            <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); login(); }}>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-[#0A1931]">{translations[lang].username}</label>
+                <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="ex. Kenzi" autoComplete="username" className="h-[48px] w-full rounded-full border border-gray-200 px-5 text-[15px] outline-none focus:border-jobly-blue" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-[#0A1931]">{translations[lang].password}</label>
+                <div className="flex h-[48px] items-center rounded-full border border-gray-200 px-5">
+                  <input type={showPassword?"text":"password"} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password" className="w-full bg-transparent outline-none" placeholder="••••••••" />
+                  <button type="button" aria-label={showPassword?"Masquer le mot de passe":"Afficher le mot de passe"} onClick={()=>setShowPassword(v=>!v)} className="text-slate-400"><EyeIcon open={showPassword}/></button>
+                </div>
+              </div>
+              <div className="flex justify-between items-center px-1 mt-1">
+                <label className="flex items-center gap-2 text-[13px] font-semibold text-[#0A1931]">
+                  <input type="checkbox" checked={rememberMe} onChange={e=>setRememberMeState(e.target.checked)} className="h-4 w-4 rounded accent-[#FFD400]" />Rester connecté
+                </label>
+                <button type="button" onClick={()=>{setMessage("");goTo("forgot");}} className="text-[13px] font-bold text-[#22448B]">{translations[lang].forgot}</button>
+              </div>
+              <button type="submit" disabled={busy} className="mt-6 h-[52px] w-full rounded-full bg-[#FFD400] font-bold text-[#0A1931]">{busy ? "Connexion…" : `${translations[lang].login} →`}</button>
+              <div className="flex items-center gap-4 my-2">
+                <div className="h-px flex-1 bg-gray-200" />
+                <span className="text-xs text-gray-400">{translations[lang].or}</span>
+                <div className="h-px flex-1 bg-gray-200" />
+              </div>
+              <button type="button" onClick={google} disabled={busy} className="h-[52px] rounded-full border border-gray-200 bg-white font-semibold flex items-center justify-center gap-2">
+                <GoogleIcon className="w-5 h-5" />{translations[lang].google}
+              </button>
+            </form>
+            <p className="text-center text-[13px] text-gray-500">{translations[lang].noAccount}{" "}<button type="button" onClick={()=>{reset();goTo("signup");}} className="font-bold text-[#22448B]">{translations[lang].create}</button></p>
+          </div>
+        </section>
+      )}
 
-      {screen === "signup" && <section className="container mx-auto flex w-full max-w-[480px] flex-1 flex-col items-start justify-start overflow-y-auto px-4 pt-5 pb-4 text-left"><h1 className="w-full text-left text-[32px] font-extrabold text-navy">{translations[lang].signupTitle}</h1><p className="mb-3 w-full text-left text-sm text-jobly-gray">{translations[lang].signupSubtitle}</p><div className="grid w-full grid-cols-2 gap-3 text-left"><label className="text-left"><span className="mb-1 block text-left text-xs font-bold text-navy">{translations[lang].lastName}</span><input value={lastName} onChange={e=>setLastName(e.target.value)} autoComplete="family-name" className="h-12 w-full rounded-2xl border px-3 text-left" placeholder="BITSEKI"/></label><label className="text-left"><span className="mb-1 block text-left text-xs font-bold text-navy">{translations[lang].firstName}</span><input value={firstName} onChange={e=>setFirstName(e.target.value)} autoComplete="given-name" className="h-12 w-full rounded-2xl border px-3 text-left" placeholder="MAYAKA"/></label></div><label className="mt-3 block w-full text-left"><span className="mb-1 block text-left text-xs font-bold text-navy">{translations[lang].phone}</span><div className="flex h-12 items-center rounded-2xl border px-2"><CountryPicker country={country} placeholder={translations[lang].countrySearch} onChange={(c)=>{setCountry(c);setPhone("")}}/><span className="mx-1 h-6 w-px bg-slate-200"/><input value={formatPhoneDisplay(phone,country.code)} onChange={e=>setPhone(e.target.value.replace(/\D/g,"").slice(0,15))} inputMode="tel" autoComplete="tel" placeholder={country.code==="CM"?"6 12 34 56 78":"Numéro"} className="w-full text-left outline-none"/></div></label><label className="mt-3 block w-full text-left"><span className="mb-1 block text-left text-xs font-bold text-navy">{translations[lang].email}</span><input type="email" value={email} onChange={e=>setEmail(e.target.value)} inputMode="email" autoComplete="email" placeholder="vous@exemple.com" className="h-12 w-full rounded-2xl border px-3 text-left"/></label><button type="button" onClick={startSignup} disabled={busy} className="mt-5 h-[52px] w-full rounded-2xl bg-[#FFDE00] font-extrabold text-black">{busy?"Envoi du code…":translations[lang].continue}</button></section>}
+{screen === "signup" && (
+        <section className="min-h-screen flex flex-col items-center justify-center px-6 py-8">
+          <div className="w-full max-w-[420px] flex flex-col gap-8">
+            <div className="flex justify-start">
+              <JoblyLogo size="hero" showTagline />
+            </div>
+            <div className="flex flex-col gap-2 text-left">
+              <h1 className="text-[32px] font-bold leading-none text-[#0A1931]">{translations[lang].signupTitle}</h1>
+              <p className="text-[14px] text-gray-500">{translations[lang].signupSubtitle}</p>
+            </div>
+            <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); startSignup(); }}>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[13px] font-semibold text-[#0A1931]">{translations[lang].lastName}</label>
+                  <input value={lastName} onChange={e=>setLastName(e.target.value)} autoComplete="family-name" className="h-[48px] w-full rounded-full border border-gray-200 px-5 text-[15px] outline-none focus:border-jobly-blue" placeholder="BITSEKI" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[13px] font-semibold text-[#0A1931]">{translations[lang].firstName}</label>
+                  <input value={firstName} onChange={e=>setFirstName(e.target.value)} autoComplete="given-name" className="h-[48px] w-full rounded-full border border-gray-200 px-5 text-[15px] outline-none focus:border-jobly-blue" placeholder="MAYAKA" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-[#0A1931]">{translations[lang].phone}</label>
+                <div className="flex h-[48px] items-center rounded-full border border-gray-200 px-3">
+                  <CountryPicker country={country} placeholder={translations[lang].countrySearch} onChange={(c)=>{setCountry(c);setPhone("")}} />
+                  <span className="mx-1 h-6 w-px bg-gray-200" />
+                  <input value={formatPhoneDisplay(phone,country.code)} onChange={e=>setPhone(e.target.value.replace(/\D/g,"").slice(0,15))} inputMode="tel" autoComplete="tel" placeholder={country.code==="CM"?"6 12 34 56 78":"Numéro"} className="w-full bg-transparent text-[15px] outline-none" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-[#0A1931]">{translations[lang].email}</label>
+                <input type="email" value={email} onChange={e=>setEmail(e.target.value)} inputMode="email" autoComplete="email" placeholder="vous@exemple.com" className="h-[48px] w-full rounded-full border border-gray-200 px-5 text-[15px] outline-none focus:border-jobly-blue" />
+              </div>
+              <button type="submit" disabled={busy} className="mt-6 h-[52px] w-full rounded-full bg-[#FFD400] font-bold text-[#0A1931]">{busy ? "Envoi du code…" : translations[lang].continue}</button>
+            </form>
+          </div>
+        </section>
+      )}
 
-      {screen === "signup-otp" && <section className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center px-4 py-4 text-center"><div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] bg-[#EAF0FF] text-[#FFDE00]"><PhoneIcon className="h-8 w-8"/></div><h1 className="mb-2 text-[32px] font-extrabold text-navy">{translations[lang].verifyTitle}</h1><p className="mb-5 text-sm text-jobly-gray">{translations[lang].verifyText} <strong>{email}</strong>.</p><input value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,"").slice(0,6))} inputMode="numeric" autoComplete="one-time-code" placeholder={translations[lang].codePlaceholder} aria-label={translations[lang].codePlaceholder} className="mb-3 h-[54px] w-full rounded-2xl border text-center text-xl tracking-[0.25em]"/><button type="button" onClick={verifySignupOtp} disabled={busy||otp.length!==6} className="h-[52px] w-full rounded-2xl bg-[#FFDE00] font-extrabold text-black">{busy?"Vérification…":translations[lang].verify}</button><button type="button" onClick={resendSignupOtp} disabled={busy||resendBusy} className="mt-2 text-[13px] font-bold text-jobly-blue">{resendBusy?"Envoi…":translations[lang].resend}</button></section>}
+{screen === "signup-otp" && <section className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center px-4 py-4 text-center"><div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] bg-[#EAF0FF] text-[#FFDE00]"><PhoneIcon className="h-8 w-8"/></div><h1 className="mb-2 text-[32px] font-extrabold text-navy">{translations[lang].verifyTitle}</h1><p className="mb-5 text-sm text-jobly-gray">{translations[lang].verifyText} <strong>{email}</strong>.</p><input value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,"").slice(0,6))} inputMode="numeric" autoComplete="one-time-code" placeholder={translations[lang].codePlaceholder} aria-label={translations[lang].codePlaceholder} className="mb-3 h-[54px] w-full rounded-2xl border text-center text-xl tracking-[0.25em]"/><button type="button" onClick={verifySignupOtp} disabled={busy||otp.length!==6} className="h-[52px] w-full rounded-2xl bg-[#FFDE00] font-extrabold text-black">{busy?"Vérification…":translations[lang].verify}</button><button type="button" onClick={resendSignupOtp} disabled={busy||resendBusy} className="mt-2 text-[13px] font-bold text-jobly-blue">{resendBusy?"Envoi…":translations[lang].resend}</button></section>}
 
       {screen === "signup-password" && <section className="mx-auto w-full max-w-[420px] flex-1 px-4 py-4">
         <div className="mb-5 flex items-start justify-between gap-4">
