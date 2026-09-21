@@ -1,0 +1,139 @@
+{
+  "meta": {
+    "character": "J'IA",
+    "source": "/jia/rig",
+    "rig_version": "2.0-hybrid-facial-3d",
+    "bones": [
+      "head",
+      "eyes",
+      "eyebrows",
+      "mouth",
+      "arm_L",
+      "arm_R",
+      "hand_L",
+      "hand_R",
+      "torso",
+      "scarf",
+      "hair",
+      "glasses"
+    ],
+    "total_moves": 100,
+    "note": "J'IA V5.20 rig runtime"
+  },
+  "moves": {
+    "01_idle": {
+      "duration": 3.2
+    },
+    "02_blink_fast": {
+      "duration": 0.7
+    },
+    "03_smile_wide": {
+      "duration": 0.7
+    },
+    "04_wink_right": {
+      "duration": 0.7
+    },
+    "05_stretch": {
+      "duration": 0.7
+    },
+    "06_listen_tilt": {
+      "duration": 0.7
+    },
+    "07_nod_fast": {
+      "duration": 0.7
+    },
+    "08_ear_touch": {
+      "duration": 0.7
+    },
+    "09_think_chin": {
+      "duration": 0.7
+    },
+    "10_think_frown": {
+      "duration": 0.7
+    },
+    "11_think_glasses": {
+      "duration": 0.7
+    },
+    "12_think_write": {
+      "duration": 0.7
+    },
+    "13_think_idea": {
+      "duration": 0.7
+    },
+    "14_point_button": {
+      "duration": 0.7
+    },
+    "15_point_cv": {
+      "duration": 0.7
+    },
+    "16_point_up": {
+      "duration": 0.7
+    },
+    "17_point_you": {
+      "duration": 0.7
+    },
+    "18_point_tap": {
+      "duration": 0.7
+    },
+    "19_hair_touch": {
+      "duration": 0.7
+    },
+    "20_scarf_touch": {
+      "duration": 0.7
+    },
+    "21_blazer_adjust": {
+      "duration": 0.7
+    },
+    "22_lip_touch": {
+      "duration": 0.7
+    },
+    "23_hand_hip": {
+      "duration": 0.7
+    },
+    "24_explain_open": {
+      "duration": 0.7
+    },
+    "25_explain_list": {
+      "duration": 0.7
+    },
+    "26_heart": {
+      "duration": 0.7
+    },
+    "27_wave_hi": {
+      "duration": 0.7
+    },
+    "28_typing": {
+      "duration": 0.7
+    },
+    "29_searching": {
+      "duration": 0.7
+    },
+    "30_highlighting": {
+      "duration": 0.7
+    },
+    "31_chart_up": {
+      "duration": 0.7
+    },
+    "32_base": {
+      "duration": 0.7
+    },
+    "33_listen": {
+      "duration": 0.7
+    },
+    "34_think": {
+      "duration": 0.7
+    },
+    "35_point": {
+      "duration": 0.7
+    },
+    "36_style": {
+      "duration": 0.7
+    },
+    "37_emotion": {
+      "duration": 0.7
+    },
+    "38_career": {
+      "duration": 0.7
+    }
+  }
+}
