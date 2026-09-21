@@ -1,0 +1,26 @@
+{
+  "character": "J'IA",
+  "source": "/jia/rig",
+  "canvas": {
+    "width": 1408,
+    "height": 1472
+  },
+  "format": "webp-cropped",
+  "layers": [
+    "torso",
+    "scarf",
+    "arm_L",
+    "arm_R",
+    "hand_L",
+    "hand_R",
+    "head",
+    "hair",
+    "glasses",
+    "eyebrows",
+    "eye_L",
+    "eye_R",
+    "mouth"
+  ],
+  "note": "Rig V5 : calques WebP recadrés + visèmes SVG + mouvements 3D. Les anciens PNG plein-canvas ne sont plus nécessaires.",
+  "version": "2.0-hybrid-facial-3D"
+}

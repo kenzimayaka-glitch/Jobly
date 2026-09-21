@@ -1,0 +1,3 @@
+export type JIAOutfit="blue"|"yellow"|"white";
+export function getJIAOutfit(date=new Date()):JIAOutfit{const h=date.getHours(),m=date.getMinutes(),minutes=h*60+m;if(minutes>=360&&minutes<960)return"blue";if(minutes>=960&&minutes<1020)return"yellow";if(minutes>=1020&&minutes<1320)return"white";return"yellow";}
+export const JIA_OUTFITS:Record<JIAOutfit,{label:string;video:string;mp4:string;poster:string}>={blue:{label:"Veste bleue",video:"/jia/outfits/blue.webm",mp4:"/jia/outfits/blue.mp4",poster:"/jia/outfits/blue.jpg"},yellow:{label:"Débardeur jaune",video:"/jia/outfits/yellow.webm",mp4:"/jia/outfits/yellow.mp4",poster:"/jia/outfits/yellow.jpg"},white:{label:"Veste blanche",video:"/jia/outfits/white.webm",mp4:"/jia/outfits/white.mp4",poster:"/jia/outfits/white.jpg"}};
