@@ -1,0 +1,84 @@
+name: Import JIA V5.20 Release Asset
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  import-jia-v520:
+    if: startsWith(github.event.release.tag_name, 'jia-v5.20-')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout transfer branch
+        uses: actions/checkout@v4
+        with:
+          ref: jia-v5.20-transfer
+          fetch-depth: 0
+
+      - name: Download JIA V5.20 ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/jia-v520
+          gh release download "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'Jobly-JIA-V5-20-20-21-09-2026.zip' \
+            --dir /tmp/jia-v520
+          test -s /tmp/jia-v520/Jobly-JIA-V5-20-20-21-09-2026.zip
+          sha256sum /tmp/jia-v520/Jobly-JIA-V5-20-20-21-09-2026.zip
+
+      - name: Extract and import exact JIA V5.20 paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/jia-v520/extracted
+          mkdir -p /tmp/jia-v520/extracted
+          unzip -q /tmp/jia-v520/Jobly-JIA-V5-20-20-21-09-2026.zip -d /tmp/jia-v520/extracted
+          SRC=/tmp/jia-v520/extracted/Jobly-main
+          test -d "$SRC/components/JIA"
+          test -d "$SRC/public/jia/clips"
+          test -d "$SRC/public/jia/outfits"
+          test -d "$SRC/public/jia/rig"
+
+          rm -rf components/JIA public/jia/clips public/jia/outfits public/jia/rig
+          mkdir -p components public/jia public/rig docs/JIA
+          cp -a "$SRC/components/JIA" components/
+          cp -a "$SRC/public/jia/clips" public/jia/
+          cp -a "$SRC/public/jia/outfits" public/jia/
+          cp -a "$SRC/public/jia/rig" public/jia/
+          cp -a "$SRC/components/JiaPresence.tsx" components/
+          cp -a "$SRC/public/rig/JIA_Rig.json" public/rig/
+          cp -a "$SRC/docs/JIA/." docs/JIA/
+          cp -a "$SRC/AUDIT-JIA-RIG-V3-21-09-2026.md" .
+          cp -a "$SRC/AUDIT-JIA-UPDATE-21-09-2026.md" .
+
+      - name: Verify imported asset set
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(find public/jia/clips -type f | wc -l)" -eq 44
+          test "$(find public/jia/outfits -type f | wc -l)" -eq 9
+          test "$(find public/jia/rig -type f | wc -l)" -eq 21
+          test "$(find components/JIA -type f | wc -l)" -eq 6
+          test -f components/JiaPresence.tsx
+          test -f public/rig/JIA_Rig.json
+          test -f docs/JIA/JIA_VIDEO_MANIFEST.json
+          test -f docs/JIA/AUDIT-JIA-V5-20-20-21-09-2026.md
+          echo "JIA V5.20 asset verification passed."
+
+      - name: Commit to transfer branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/JIA components/JiaPresence.tsx public/jia/clips public/jia/outfits public/jia/rig public/rig/JIA_Rig.json docs/JIA AUDIT-JIA-RIG-V3-21-09-2026.md AUDIT-JIA-UPDATE-21-09-2026.md
+          git diff --cached --quiet && echo "No JIA changes to commit." && exit 0
+          git commit -m "feat(jia): import V5.20 assets from release"
+          git push origin HEAD:jia-v5.20-transfer
