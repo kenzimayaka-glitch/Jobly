@@ -146,7 +146,7 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
   useEffect(() => { play(requestedMove ?? contextual, Boolean(requestedMove)); }, [contextual, requestedMove, play]);
 
   useEffect(() => {
-    if (!auto || reduced) return;
+    if (!auto) return;
     const timer = window.setInterval(() => {
       if (Date.now() < until.current) return;
       idx.current = (idx.current + 1) % AUTO.length;
@@ -207,9 +207,9 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
       className="relative h-full"
       style={{ aspectRatio: `${CANVAS.width} / ${CANVAS.height}`, perspective: 1100, transformStyle: "preserve-3d" }}
       animate={{
-        y: [0, -1.5, 0, 1, 0],
-        rotate: move === "wave_hi" || move === "explain_open" ? [0, -1, 1, -0.5, 0] : [0, 0.35, 0, -0.35, 0],
-        scale: move === "celebrate_jump" ? [1, 1.025, 1] : [1, 1.006, 1],
+        y: [0, -4, 0, 3, 0],
+        rotate: move === "wave_hi" || move === "explain_open" ? [0, -2.5, 2.5, -1.5, 0] : [0, 0.8, 0, -0.8, 0],
+        scale: move === "celebrate_jump" ? [1, 1.05, 1] : [1, 1.012, 1],
       }}
       transition={{
         y: { duration: speaking ? 0.8 : 3.2, ease: "easeInOut", repeat: Infinity },
