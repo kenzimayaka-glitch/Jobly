@@ -763,7 +763,7 @@ export default function Home() {
   return <main className={`relative min-h-screen flex flex-col justify-between w-full bg-off-white dark:bg-[#0A1931] dark:text-white ${screen === "welcome" ? "overflow-y-auto" : "overflow-y-auto"}`}>
     {screen === "welcome" && <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 z-0 h-[340px] w-[340px] rounded-full bg-sky-blue/25 blur-[90px]" />}
     {screen === "welcome" && (
-      <div className="fixed right-4 top-4 z-30 flex gap-1 rounded-full border border-[#d7e1f0] bg-white p-1 shadow-[0_4px_16px_rgba(16,50,100,0.12)]"><button type="button" onClick={()=>{setLang("fr");try{localStorage.setItem("jobly-lang","fr")}catch{}}} className={`rounded-full px-4 py-2 text-[13px] transition-all ${lang==="fr"?"bg-white font-extrabold text-deep-blue shadow-[0_2px_8px_rgba(16,50,100,0.12)]":"text-deep-blue/55"}`}>🇫🇷 FR⌄</button><button type="button" onClick={()=>{setLang("en");try{localStorage.setItem("jobly-lang","en")}catch{}}} className={`rounded-full px-4 py-2 text-[13px] transition-all ${lang==="en"?"bg-white font-extrabold text-deep-blue shadow-[0_2px_8px_rgba(16,50,100,0.12)]":"text-deep-blue/55"}`}>🇬🇧 EN</button></div>
+      <div className="pointer-events-auto fixed right-4 top-4 z-[100] flex gap-1 rounded-full border border-[#d7e1f0] bg-white p-1 shadow-[0_4px_16px_rgba(16,50,100,0.12)]"><button type="button" onClick={()=>{setLang("fr");try{localStorage.setItem("jobly-lang","fr")}catch{}}} className={`rounded-full px-4 py-2 text-[13px] transition-all ${lang==="fr"?"bg-white font-extrabold text-deep-blue shadow-[0_2px_8px_rgba(16,50,100,0.12)]":"text-deep-blue/55"}`}>🇫🇷 FR⌄</button><button type="button" onClick={()=>{setLang("en");try{localStorage.setItem("jobly-lang","en")}catch{}}} className={`rounded-full px-4 py-2 text-[13px] transition-all ${lang==="en"?"bg-white font-extrabold text-deep-blue shadow-[0_2px_8px_rgba(16,50,100,0.12)]":"text-deep-blue/55"}`}>🇬🇧 EN</button></div>
     )}
     <div className="relative flex min-h-0 flex-1 w-full flex-col gap-0">
       {screen !== "login" && screen !== "signup" && <header className="z-20 flex h-[92px] shrink-0 items-start px-5 pt-6 sm:px-8"><JoblyLogo ref={logoRef} size="hero" showTagline /></header>}
@@ -803,7 +803,7 @@ export default function Home() {
                   src="/hero-jobly-community.webp"
                   alt="Communauté Jobly diverse"
                   sizes="62vw"
-                  className="object-cover object-top"
+                  className="pointer-events-none object-cover object-top"
                   style={{
                     WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 14%, black 100%), linear-gradient(to bottom, transparent 0%, black 14%, black 78%, transparent 100%)",
                     maskImage: "linear-gradient(to right, transparent 0%, black 14%, black 100%), linear-gradient(to bottom, transparent 0%, black 14%, black 78%, transparent 100%)",
@@ -883,7 +883,7 @@ export default function Home() {
               </button>
               {message && <div role="alert" aria-live="assertive" className="rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-center text-[13px] font-semibold text-red-700">{message}</div>}
             </form>
-            <p className="relative -mt-2 text-center text-[13px] text-gray-500">{translations[lang].noAccount}{" "}<button type="button" onClick={()=>{reset();goTo("signup");}} className="font-bold text-[#22448B]">Créer un compte</button></p>
+            <p className="relative -mt-2 text-center text-[13px] text-gray-500">{translations[lang].noAccount}{" "}<button type="button" onClick={()=>{reset();goTo("signup");}} className="font-bold text-[#22448B]">{translations[lang].create}</button></p>
           </div>
         </section>
       )}
@@ -1107,7 +1107,7 @@ export default function Home() {
             
             
             
-            {screen === "welcome" && <div className="space-y-2 text-[10px] text-deep-blue"><p>En continuant, vous acceptez nos <u>Conditions</u> et <u>Politique de confidentialité</u></p><p className="font-semibold text-[#0757d5]"><u>Conditions d&apos;utilisation</u><span className="px-2 text-deep-blue">•</span><u>Politique de confidentialité</u></p><p className="pt-3 text-[11px] font-normal text-deep-blue">Conçu avec <span className="text-red-500">♥</span> par MAYAKA</p></div>}
+            {screen === "welcome" && <div className="space-y-2 text-[10px] text-deep-blue"><p>{translations[lang].conditions}</p><p className="font-semibold text-[#0757d5]"><u>{translations[lang].terms}</u><span className="px-2 text-deep-blue">•</span><u>{translations[lang].privacy}</u></p><p className="pt-3 text-[11px] font-normal text-deep-blue">{translations[lang].madeWith} <span className="text-red-500">♥</span> {translations[lang].by}</p></div>}
           </motion.div>
         </AnimatePresence>
       </footer>}
