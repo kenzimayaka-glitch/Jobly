@@ -814,7 +814,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative z-20 mt-2 shrink-0 flex flex-col gap-3 px-4 sm:flex-row">
+            <div className="relative z-20 mt-2 shrink-0 flex flex-row gap-3 px-4">
               <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[58px] w-full rounded-2xl bg-[#1261F5] font-[var(--font-inter)] font-bold text-[14px] text-white shadow-[0_8px_18px_rgba(18,97,245,0.24)] transition-transform active:scale-[0.96] sm:w-[48%]">
                 {translations[lang].create}
               </button>
