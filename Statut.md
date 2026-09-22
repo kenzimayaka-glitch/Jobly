@@ -1,6 +1,6 @@
 # JOBLY — STATUT DU PROJET
 ## SOURCE DE VÉRITÉ D'EXÉCUTION — JOBLY 20/20
-### Mise à jour : 20/09/2026 — Audit croisé CODE ↔ ROUTES ↔ UI ↔ NAVIGATION ↔ FONCTIONNALITÉS ↔ DONNÉES
+### Mise à jour : 22/09/2026 — Passe de fermeture navigation et responsive
 
 > Règle : une fonctionnalité n'est terminée que si elle traverse **SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**.
 > Les anciens checkpoints restent conservés comme historique et ne remplacent jamais l'état courant.
@@ -2326,7 +2326,7 @@ Business Core strictement séparé de J’IA user-facing. Finances, marges, obje
 J’IA assiste l’administrateur. Elle peut analyser, alerter, simuler, recommander et préparer. Les décisions juridiquement ou financièrement engageantes restent sous validation humaine explicite.
 
 ## Statut honnête
-🟡 **CONÇU / À IMPLÉMENTER** — le mandat CEO est maintenant formellement intégré à la documentation de référence. Le cockpit, Profitability Engine, Market Watch, CEO Actions et reporting automatisé doivent encore être construits puis validés avec des données réelles.
+🟡 **CON��U / À IMPLÉMENTER** — le mandat CEO est maintenant formellement intégré à la documentation de référence. Le cockpit, Profitability Engine, Market Watch, CEO Actions et reporting automatisé doivent encore être construits puis validés avec des données réelles.
 
 ## Prochaine brique de construction
 **CEO Intelligence Core → Admin Cockpit → Profitability Engine → Market Watch → CEO Actions → Reporting → contrôle d’accès/audit → validation E2E.**
