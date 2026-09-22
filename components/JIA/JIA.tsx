@@ -74,7 +74,7 @@ function BoneGroup({ pivot, bone, duration, opacity = 1, children }: { pivot: { 
 
 function Sprite({ name, animate, transition, srcOverride }: { name: LayerName; animate?: Record<string, any>; transition?: Record<string, any>; srcOverride?: string }) {
   const l = LAYOUT[name];
-  const style: CSSProperties = { position: "absolute", left: `${l.left}%`, top: `${l.top}%`, width: `${l.width}%`, height: `${l.height}%`, maxWidth: "none", transformOrigin: "50% 50%", display: "none" };
+  const style: CSSProperties = { position: "absolute", left: `${l.left}%`, top: `${l.top}%`, width: `${l.width}%`, height: `${l.height}%`, maxWidth: "none", transformOrigin: "50% 50%" };
   return <motion.img src={srcOverride ?? `${RIG_SRC}/${l.file}`} alt="" draggable={false} onError={(event) => { event.currentTarget.style.display = "none"; }} className="select-none pointer-events-none" style={style} animate={animate} transition={transition} />;
 }
 
@@ -204,20 +204,10 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
 
   return <div className="relative flex h-full w-full select-none justify-center overflow-visible" aria-label={`J’IA — ${clip ?? (outfitVideoMode ? outfitCfg.label : move)}`}>
     <div className="relative h-full" style={{ aspectRatio: `${CANVAS.width} / ${CANVAS.height}`, perspective: 1100, transformStyle: "preserve-3d" }}>
-      <motion.img
+      <img
         src="/jia/jia-master.png"
         alt="J’IA, l’assistante intelligente de Jobly"
-        className="absolute inset-0 h-full w-full object-contain pointer-events-none"
-        animate={{
-          y: speaking ? [0, -2, 0, -1, 0] : [0, -1.5, 0, 1, 0],
-          rotate: move === "wave_hi" || move === "explain_open" ? [0, -1.5, 1.5, -1, 0] : [0, 0.7, 0, -0.7, 0],
-          scale: move === "celebrate_jump" ? [1, 1.025, 1] : [1, 1.008, 1],
-        }}
-        transition={{
-          y: { duration: speaking ? 0.8 : 3.2, ease: "easeInOut", repeat: Infinity },
-          rotate: { duration: move === "wave_hi" ? 1.1 : 3.2, ease: "easeInOut", repeat: Infinity },
-          scale: { duration: 0.9, ease: "easeInOut", repeat: Infinity },
-        }}
+        className="pointer-events-none absolute inset-0 h-full w-full object-contain"
       />
       <BoneGroup pivot={PIVOT.torso} bone={torsoBone} duration={duration} opacity={hideBody ? 0 : 1}>
         <motion.div className="absolute inset-0 pointer-events-none" style={{ transformOrigin: `${PIVOT.torso.x}% ${PIVOT.torso.y}%` }} animate={breathe ? { scaleY: [1, 1 + breathe, 1] } : { scaleY: 1 }} transition={breathe ? { duration: 3.2, ease: "easeInOut", repeat: Infinity } : undefined}>
