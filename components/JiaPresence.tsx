@@ -156,11 +156,27 @@ export default function JiaPresence() {
     return () => { if (pending.current) window.clearTimeout(pending.current); window.removeEventListener("pointerdown", onActivity); window.removeEventListener("keydown", onActivity); window.removeEventListener("scroll", onActivity); window.speechSynthesis?.cancel(); };
   }, [pathname, interacted, jiaEnabled]);
 
-  if (!jiaEnabled) return null;
+  const toggleInteractionMode = () => {
+    const next = interactionModeRef.current === "voice" ? "text" : "voice";
+    interactionModeRef.current = next;
+    setInteractionMode(next);
+    if (next === "voice") startListening();
+    else { shouldRestart.current = false; recognition.current?.stop(); recognition.current = null; setListening(false); }
+  };
+
+  if (!jiaEnabled) return (
+    <button type="button" onClick={() => setJiaEnabled(true)} className="pointer-events-auto fixed bottom-4 right-4 z-[90] rounded-full border-2 border-[#0057B8] bg-[#FFE135] px-3 py-2 text-[10px] font-black uppercase tracking-[.08em] text-[#0057B8] shadow-lg" aria-label="Réactiver J’IA">
+      Réactiver J’IA
+    </button>
+  );
   return <div className="pointer-events-none relative h-full w-full overflow-visible" aria-label="J’IA — présence intelligente de Jobly">
     <motion.div className="pointer-events-auto absolute bottom-3 right-3 h-[125px] w-[80px] max-w-[calc(100vw-24px)] cursor-grab touch-none sm:bottom-4 sm:right-4 sm:h-[160px] sm:w-[105px]" drag dragMomentum={false} dragElastic={0.06} dragConstraints={{ left: -Math.max(0, viewport.w - 300), right: 0, top: -Math.max(0, viewport.h - 430), bottom: 0 }} whileTap={{ cursor: "grabbing", scale: 0.99 }}>
       <JIA speaking={speaking} gesture={prediction.gesture} auto />
-      <motion.div className="pointer-events-none absolute -top-2 left-1/2 z-[82] -translate-x-1/2 rounded-full border-2 border-[#0057B8] bg-[#FFE135] px-2.5 py-1 text-[9px] font-black uppercase tracking-[.11em] text-[#0057B8] shadow-md">{interactionMode === "voice" ? (voiceSupported ? (listening ? "J’IA · écoute" : "J’IA · vocal") : "J’IA · vocal indisponible") : "J’IA · texte"}</motion.div>
+      <div className="pointer-events-auto absolute -top-9 left-1/2 z-[83] flex -translate-x-1/2 gap-1 rounded-full bg-white/95 p-1 shadow-md" role="group" aria-label="Commandes J’IA">
+        <button type="button" onClick={toggleInteractionMode} className="rounded-full border border-[#0057B8] px-2 py-1 text-[9px] font-black text-[#0057B8]" aria-label={interactionMode === "voice" ? "Passer J’IA en mode texte" : "Passer J’IA en mode vocal"}>{interactionMode === "voice" ? "Vocal" : "Texte"}</button>
+        <button type="button" onClick={() => { shouldRestart.current = false; recognition.current?.stop(); setJiaEnabled(false); }} className="rounded-full border border-[#9AA8BB] px-2 py-1 text-[9px] font-black text-[#52627A]" aria-label="Masquer J’IA">Masquer</button>
+      </div>
+      <motion.div className="pointer-events-none absolute -top-2 left-1/2 z-[82] -translate-x-1/2 rounded-full border-2 border-[#0057B8] bg-[#FFE135] px-2.5 py-1 text-[9px] font-black uppercase tracking-[.11em] text-[#0057B8] shadow-md" aria-live="polite">{interactionMode === "voice" ? (voiceSupported ? (listening ? "J’IA · écoute" : "J’IA · vocal") : "J’IA · vocal indisponible") : "J’IA · texte"}</motion.div>
       {prediction.message && <motion.div key={prediction.message} className="pointer-events-none absolute right-[calc(100%+8px)] bottom-8 z-[81] w-[min(210px,58vw)] sm:right-[calc(100%+8px)] sm:bottom-8 sm:w-[min(260px,54vw)]" initial={{ opacity: 0, y: 10, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.28 }}><div className="rounded-[20px] border-2 border-[#0057B8] bg-[#FFE135] px-4 py-3 text-[12px] font-extrabold leading-[1.4] text-[#0057B8] shadow-[0_14px_35px_rgba(0,87,184,.20)] sm:px-4 sm:py-3 sm:text-[13px]">{prediction.message}</div></motion.div>}
     </motion.div>
   </div>;
