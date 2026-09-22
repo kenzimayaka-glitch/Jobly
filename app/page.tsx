@@ -763,10 +763,10 @@ export default function Home() {
   return <main className={`relative min-h-screen flex flex-col justify-between w-full bg-off-white dark:bg-[#0A1931] dark:text-white ${screen === "welcome" ? "overflow-y-auto" : "overflow-y-auto"}`}>
     {screen === "welcome" && <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 z-0 h-[340px] w-[340px] rounded-full bg-sky-blue/25 blur-[90px]" />}
     {screen === "welcome" && (
-      <div className="fixed right-4 top-4 z-30 flex gap-1 rounded-full border border-white/40 bg-white/40 p-1 shadow-premium backdrop-blur-xl"><button type="button" onClick={()=>{setLang("fr");try{localStorage.setItem("jobly-lang","fr")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="fr"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇫🇷 FR</button><button type="button" onClick={()=>{setLang("en");try{localStorage.setItem("jobly-lang","en")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="en"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇬🇧 EN</button></div>
+      <div className="fixed right-4 top-4 z-30 flex gap-1 rounded-full border border-[#d7e1f0] bg-white p-1 shadow-[0_4px_16px_rgba(16,50,100,0.12)]"><button type="button" onClick={()=>{setLang("fr");try{localStorage.setItem("jobly-lang","fr")}catch{}}} className={`rounded-full px-4 py-2 text-[13px] transition-all ${lang==="fr"?"bg-white font-extrabold text-deep-blue shadow-[0_2px_8px_rgba(16,50,100,0.12)]":"text-deep-blue/55"}`}>🇫🇷 FR⌄</button><button type="button" onClick={()=>{setLang("en");try{localStorage.setItem("jobly-lang","en")}catch{}}} className={`rounded-full px-4 py-2 text-[13px] transition-all ${lang==="en"?"bg-white font-extrabold text-deep-blue shadow-[0_2px_8px_rgba(16,50,100,0.12)]":"text-deep-blue/55"}`}>🇬🇧 EN</button></div>
     )}
     <div className="relative flex min-h-0 flex-1 w-full flex-col gap-0">
-      {screen !== "login" && screen !== "signup" && <header className="z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"><JoblyLogo ref={logoRef} size="hero" showTagline /></header>}
+      {screen !== "login" && screen !== "signup" && <header className="z-20 flex h-[92px] shrink-0 items-start px-5 pt-6 sm:px-8"><JoblyLogo ref={logoRef} size="hero" showTagline /></header>}
       {screen === "welcome" && (
         <AnimatePresence mode="wait" initial={false}>
           <motion.section
@@ -778,13 +778,9 @@ export default function Home() {
             className="flex min-h-0 flex-1 flex-col overflow-visible pb-6"
           >
             <div className="relative h-[44%] shrink-0 overflow-hidden px-4 pt-0">
-              <div aria-hidden="true" className="pointer-events-none absolute left-[10%] top-[-5%] z-[2] h-[64%] w-[44%] opacity-60">
-                <div className="h-full w-full -rotate-[26deg] border-l border-dashed border-sky-blue/50" />
-              </div>
-
-              <div className="relative z-20 mt-2 w-[45%]">
+                            <div className="relative z-20 mt-12 w-[52%] pl-1 sm:mt-16">
                 
-                <h1 className="font-[var(--font-inter)] text-[28px] leading-[31px] font-extrabold tracking-[-0.8px] text-deep-blue">
+                <h1 className="font-[var(--font-inter)] text-[32px] leading-[35px] font-extrabold tracking-[-1.2px] text-deep-blue sm:text-[42px] sm:leading-[44px]">
                   {translations[lang].title.split("\n").map((line, i) => (
                     <span key={line}>{line}{i === 0 && <br />}</span>
                   ))}
@@ -800,7 +796,7 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="absolute top-[1cm] right-0 z-[5] h-[60%] w-[60%]">
+              <div className="absolute right-[-5%] top-[18%] z-[5] h-[78%] w-[66%] sm:right-0 sm:top-[14%] sm:h-[82%] sm:w-[63%]">
                 <Image
                   fill
                   priority
@@ -819,21 +815,21 @@ export default function Home() {
             </div>
 
             <div className="relative z-20 mt-2 shrink-0 flex flex-col gap-3 px-4 sm:flex-row">
-              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[58px] w-full rounded-2xl bg-canari font-[var(--font-inter)] font-bold text-[14px] text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96] sm:w-[48%]">
+              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[58px] w-full rounded-2xl bg-[#1261F5] font-[var(--font-inter)] font-bold text-[14px] text-white shadow-[0_8px_18px_rgba(18,97,245,0.24)] transition-transform active:scale-[0.96] sm:w-[48%]">
                 {translations[lang].create}
               </button>
-              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[58px] w-full rounded-2xl border border-white/50 bg-deep-blue/90 font-[var(--font-inter)] font-bold text-[14px] text-off-white shadow-premium backdrop-blur-xl transition-transform active:scale-[0.96] sm:w-[48%]">
+              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[58px] w-full rounded-2xl bg-[#FFD400] font-[var(--font-inter)] font-bold text-[14px] text-deep-blue shadow-[0_8px_18px_rgba(255,212,0,0.28)] transition-transform active:scale-[0.96] sm:w-[48%]">
                 {translations[lang].login}
               </button>
             </div>
 
-            <div className="relative z-20 mt-6 shrink-0 grid grid-cols-1 gap-3 px-4 pb-1 sm:grid-cols-3">
+            <div className="relative z-20 mt-7 shrink-0 grid grid-cols-3 gap-2 px-4 pb-1 sm:gap-3">
               {BENEFITS[lang].slice(0, 3).map(({ Icon, title, subtitle }) => (
                 <div key={title} className="relative overflow-hidden rounded-[24px]">
                   <div className="pointer-events-none absolute -top-20 -left-20 h-[300px] w-[300px] rounded-full bg-[#FFD400]/30 blur-[80px]" />
                   <div className="pointer-events-none absolute -bottom-20 -right-20 h-[300px] w-[300px] rounded-full bg-[#22448B]/20 blur-[80px]" />
                   <div className="pointer-events-none absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#FF8C00]/15 blur-[90px]" />
-                  <div className="relative min-h-[82px] rounded-[24px] border border-white/40 bg-white/20 p-3 text-center font-[var(--font-inter)] shadow-premium backdrop-blur-[40px]">
+                  <div className="relative min-h-[112px] rounded-[22px] border border-[#cbdcf3] bg-white p-3 text-center font-[var(--font-inter)] shadow-[0_4px_14px_rgba(24,73,140,0.07)]">
                     <Icon className="mx-auto mb-1 h-3.5 w-3.5 text-sky-blue sm:h-4 sm:w-4" />
                     <p className="font-[var(--font-inter)] text-[11px] font-bold leading-[12px] text-deep-blue">{title}</p>
                     <p className="mt-1 font-[var(--font-inter)] text-[9px] font-bold leading-[10px] text-[#7a7f89]">{subtitle}</p>
@@ -1110,12 +1106,8 @@ export default function Home() {
           <motion.div key={`footer-${lang}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeOut" }}>
             
             
-            {screen === "welcome" && <div className="relative mx-auto mt-1 h-[29px] w-[120px]" aria-hidden="true">
-              <motion.svg viewBox="0 0 120 29" className="absolute inset-0 h-full w-full">
-                <motion.path d="M58 27 C44 23 46 12 61 9 C72 7 77 2 74 0" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: [0, 0.7, 0.12, 0] }} transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut" }} />
-              </motion.svg>
-            </div>}
-            {screen === "welcome" && <p className="text-[11px] text-jobly-gray">{translations[lang].madeWith} <span ref={heartTargetRef} className="inline-block h-[14px] w-[14px] align-[-3px]" aria-hidden="true">&nbsp;</span> {translations[lang].by}</p>}
+            
+            {screen === "welcome" && <div className="space-y-2 text-[10px] text-deep-blue"><p>En continuant, vous acceptez nos <u>Conditions</u> et <u>Politique de confidentialité</u></p><p className="font-semibold text-[#0757d5]"><u>Conditions d&apos;utilisation</u><span className="px-2 text-deep-blue">•</span><u>Politique de confidentialité</u></p><p className="pt-3 text-[11px] font-normal text-deep-blue">Conçu avec <span className="text-red-500">♥</span> par MAYAKA</p></div>}
           </motion.div>
         </AnimatePresence>
       </footer>}
