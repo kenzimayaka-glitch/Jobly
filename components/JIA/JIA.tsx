@@ -6,7 +6,7 @@ import { JIA_100_MOVES, type JIA100Move } from "./movements";
 import rig from "./JIA_Rig.json";
 import { CANVAS, LAYOUT, PIVOT, RIG_SRC, type LayerName } from "./rigLayout";
 import { preloadClips } from "./clips";
-import { getJIAOutfit, JIA_OUTFITS, type JIAOutfit } from "./outfits";
+import { JIA_OUTFITS } from "./outfits";
 
 export type JIAMove = JIA100Move;
 type Props = { speaking: boolean; gesture?: string; auto?: boolean; move?: JIA100Move };
@@ -98,18 +98,9 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
   const [move, setMove] = useState<JIA100Move>("idle");
   const [talk, setTalk] = useState(false);
   const [voiceViseme, setVoiceViseme] = useState<"neutral" | "small" | "open" | "round" | "wide" | "smile">("neutral");
-  const [outfit, setOutfit] = useState<JIAOutfit>("blue");
   const until = useRef(0);
   const idx = useRef(0);
-  const outfitVideoRef = useRef<HTMLVideoElement | null>(null);
   const contextual = useMemo(() => GESTURE_MOVE[gesture] ?? "idle", [gesture]);
-
-  useEffect(() => {
-    const sync = () => setOutfit(getJIAOutfit());
-    sync();
-    const timer = window.setInterval(sync, 15_000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     const onVoice = (event: Event) => {
@@ -131,7 +122,7 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
     // The movement is rendered by the layered rig. Clip videos can contain opaque
     // backgrounds on mobile browsers, so they must never replace the rig surface.
     return;
-  }, [reduced, outfit]);
+  }, []);
 
   useEffect(() => { play(requestedMove ?? contextual, Boolean(requestedMove)); }, [contextual, requestedMove, play]);
 
@@ -162,14 +153,10 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
     return () => window.clearInterval(timer);
   }, [speaking]);
 
-  const outfitVideoMode = outfit !== "blue";
-  const outfitCfg = JIA_OUTFITS[outfit];
-
-  useEffect(() => {
-    if (!outfitVideoMode) return;
-    const v = outfitVideoRef.current; if (!v) return;
-    v.currentTime = 0; v.play().catch(() => {});
-  }, [outfitVideoMode, outfit]);
+  // Keep the transparent layered rig as the only renderer. Outfit videos can
+  // fall back to an opaque black frame while a movement changes state.
+  const outfitVideoMode = false;
+  const outfitCfg = JIA_OUTFITS.blue;
 
   const hideBody = outfitVideoMode;
   const eyeBone = bones.eyes ?? {};
@@ -215,7 +202,6 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
         <Sprite name="mouth" srcOverride={`${RIG_SRC}/mouth.webp`} animate={mouthAnimate} transition={mouthTransition} />
       </BoneGroup>
 
-      <AnimatePresence>{outfitVideoMode && <motion.video key={`outfit-${outfit}`} ref={outfitVideoRef} className="absolute inset-0 h-full w-full object-cover pointer-events-none" style={{ zIndex: 30, background: "#000" }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.45 }} muted playsInline autoPlay loop preload="metadata" poster={outfitCfg.poster} aria-label={`J’IA — ${outfitCfg.label}`}><source src={outfitCfg.video} type="video/webm" /><source src={outfitCfg.mp4} type="video/mp4" /></motion.video>}</AnimatePresence>
 
     </motion.div>
   </div>;
