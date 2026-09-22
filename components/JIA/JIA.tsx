@@ -203,7 +203,20 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
   const breathe = reduced ? 0 : Number(torsoBone.breathe ?? BREATH);
 
   return <div className="relative flex h-full w-full select-none justify-center overflow-visible" aria-label={`J’IA — ${clip ?? (outfitVideoMode ? outfitCfg.label : move)}`}>
-    <div className="relative h-full" style={{ aspectRatio: `${CANVAS.width} / ${CANVAS.height}`, perspective: 1100, transformStyle: "preserve-3d" }}>
+    <motion.div
+      className="relative h-full"
+      style={{ aspectRatio: `${CANVAS.width} / ${CANVAS.height}`, perspective: 1100, transformStyle: "preserve-3d" }}
+      animate={{
+        y: [0, -1.5, 0, 1, 0],
+        rotate: move === "wave_hi" || move === "explain_open" ? [0, -1, 1, -0.5, 0] : [0, 0.35, 0, -0.35, 0],
+        scale: move === "celebrate_jump" ? [1, 1.025, 1] : [1, 1.006, 1],
+      }}
+      transition={{
+        y: { duration: speaking ? 0.8 : 3.2, ease: "easeInOut", repeat: Infinity },
+        rotate: { duration: move === "wave_hi" ? 1.1 : 3.2, ease: "easeInOut", repeat: Infinity },
+        scale: { duration: 0.9, ease: "easeInOut", repeat: Infinity },
+      }}
+    >
       <BoneGroup pivot={PIVOT.torso} bone={torsoBone} duration={duration} opacity={hideBody ? 0 : 1}>
         <motion.div className="absolute inset-0 pointer-events-none" style={{ transformOrigin: `${PIVOT.torso.x}% ${PIVOT.torso.y}%` }} animate={breathe ? { scaleY: [1, 1 + breathe, 1] } : { scaleY: 1 }} transition={breathe ? { duration: 3.2, ease: "easeInOut", repeat: Infinity } : undefined}>
           <Sprite name="torso" />
@@ -223,6 +236,6 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
       <AnimatePresence>{outfitVideoMode && <motion.video key={`outfit-${outfit}`} ref={outfitVideoRef} className="absolute inset-0 h-full w-full object-cover pointer-events-none" style={{ zIndex: 30, background: "#000" }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.45 }} muted playsInline autoPlay loop preload="metadata" poster={outfitCfg.poster} aria-label={`J’IA — ${outfitCfg.label}`}><source src={outfitCfg.video} type="video/webm" /><source src={outfitCfg.mp4} type="video/mp4" /></motion.video>}</AnimatePresence>
 
       <AnimatePresence>{clipCfg && <motion.video key={clip} ref={videoRef} className="absolute pointer-events-none" style={{ left: `${clipCfg.fit.left}%`, top: `${clipCfg.fit.top}%`, width: `${clipCfg.fit.width}%`, aspectRatio: "1 / 1", zIndex: 20, transformOrigin: `50% ${clipCfg.fit.originY}%`, WebkitMaskImage: "linear-gradient(to bottom, #000 78%, transparent 100%)", maskImage: "linear-gradient(to bottom, #000 78%, transparent 100%)" }} initial={{ opacity: 0, scale: clipCfg.fit.scaleFrom }} animate={{ opacity: 1, scale: [clipCfg.fit.scaleFrom, clipCfg.fit.scaleTo] }} exit={{ opacity: 0 }} transition={{ opacity: { duration: 0.18 }, scale: { duration: clipCfg.duration, ease: "linear" } }} muted playsInline autoPlay preload="auto" aria-hidden="true" onEnded={endClip} onError={endClip}>{pickClipSources(clipCfg).map((s) => <source key={s.src} src={s.src} type={s.type} />)}</motion.video>}</AnimatePresence>
-    </div>
+    </motion.div>
   </div>;
 }
