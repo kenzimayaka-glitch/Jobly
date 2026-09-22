@@ -5,7 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { JIA_100_MOVES, type JIA100Move } from "./movements";
 import rig from "./JIA_Rig.json";
 import { CANVAS, LAYOUT, PIVOT, RIG_SRC, type LayerName } from "./rigLayout";
-import { CLIP_COOLDOWN_MS, JIA_CLIPS, pickClipSources, preloadClips } from "./clips";
+import { preloadClips } from "./clips";
 import { getJIAOutfit, JIA_OUTFITS, type JIAOutfit } from "./outfits";
 
 export type JIAMove = JIA100Move;
@@ -96,14 +96,11 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
   const reduced = !!useReducedMotion();
   const blink = useBlink(!reduced);
   const [move, setMove] = useState<JIA100Move>("idle");
-  const [clip, setClip] = useState<JIA100Move | null>(null);
   const [talk, setTalk] = useState(false);
   const [voiceViseme, setVoiceViseme] = useState<"neutral" | "small" | "open" | "round" | "wide" | "smile">("neutral");
   const [outfit, setOutfit] = useState<JIAOutfit>("blue");
   const until = useRef(0);
   const idx = useRef(0);
-  const lastClipAt = useRef(0);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   const outfitVideoRef = useRef<HTMLVideoElement | null>(null);
   const contextual = useMemo(() => GESTURE_MOVE[gesture] ?? "idle", [gesture]);
 
@@ -131,18 +128,11 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
   const play = useCallback((next: JIA100Move, explicit: boolean, holdMs = 1400) => {
     setMove(next);
     until.current = Date.now() + holdMs;
-    const cfg = JIA_CLIPS[next];
-    if (!cfg || reduced || outfit !== "blue") return;
-    const now = Date.now();
-    if (!explicit && now - lastClipAt.current < CLIP_COOLDOWN_MS) return;
-    lastClipAt.current = now;
-    until.current = now + cfg.duration * 1000 + 600;
-    setClip(next);
+    // The movement is rendered by the layered rig. Clip videos can contain opaque
+    // backgrounds on mobile browsers, so they must never replace the rig surface.
+    return;
   }, [reduced, outfit]);
 
-  const endClip = useCallback(() => { setClip(null); setMove("idle"); }, []);
-
-  useEffect(() => { preloadClips(); }, []);
   useEffect(() => { play(requestedMove ?? contextual, Boolean(requestedMove)); }, [contextual, requestedMove, play]);
 
   useEffect(() => {
@@ -172,24 +162,16 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
     return () => window.clearInterval(timer);
   }, [speaking]);
 
-  const outfitVideoMode = outfit !== "blue" && !clip;
+  const outfitVideoMode = outfit !== "blue";
   const outfitCfg = JIA_OUTFITS[outfit];
 
-  useEffect(() => { if (outfit !== "blue" && clip) setClip(null); }, [outfit, clip]);
   useEffect(() => {
     if (!outfitVideoMode) return;
     const v = outfitVideoRef.current; if (!v) return;
     v.currentTime = 0; v.play().catch(() => {});
   }, [outfitVideoMode, outfit]);
 
-  useEffect(() => {
-    if (!clip) return;
-    const v = videoRef.current; if (!v) return;
-    v.currentTime = 0; v.play().catch(endClip);
-  }, [clip, endClip]);
-
-  const clipCfg = clip ? JIA_CLIPS[clip] : undefined;
-  const hideBody = Boolean(clipCfg) || outfitVideoMode;
+  const hideBody = outfitVideoMode;
   const eyeBone = bones.eyes ?? {};
   const eyeL = eyeAnimation("left", eyeBone, blink);
   const eyeR = eyeAnimation("right", eyeBone, blink);
@@ -202,7 +184,7 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
   const torsoBone: Bone = bones.torso ?? {};
   const breathe = reduced ? 0 : Number(torsoBone.breathe ?? BREATH);
 
-  return <div className="relative flex h-full w-full select-none justify-center overflow-visible" aria-label={`J’IA — ${clip ?? (outfitVideoMode ? outfitCfg.label : move)}`}>
+  return <div className="relative flex h-full w-full select-none justify-center overflow-visible" aria-label={`J’IA — ${outfitVideoMode ? outfitCfg.label : move}`}>
     <motion.div
       className="relative h-full"
       style={{ aspectRatio: `${CANVAS.width} / ${CANVAS.height}`, perspective: 1100, transformStyle: "preserve-3d" }}
@@ -235,7 +217,6 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
 
       <AnimatePresence>{outfitVideoMode && <motion.video key={`outfit-${outfit}`} ref={outfitVideoRef} className="absolute inset-0 h-full w-full object-cover pointer-events-none" style={{ zIndex: 30, background: "#000" }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.45 }} muted playsInline autoPlay loop preload="metadata" poster={outfitCfg.poster} aria-label={`J’IA — ${outfitCfg.label}`}><source src={outfitCfg.video} type="video/webm" /><source src={outfitCfg.mp4} type="video/mp4" /></motion.video>}</AnimatePresence>
 
-      <AnimatePresence>{clipCfg && <motion.video key={clip} ref={videoRef} className="absolute pointer-events-none" style={{ left: `${clipCfg.fit.left}%`, top: `${clipCfg.fit.top}%`, width: `${clipCfg.fit.width}%`, aspectRatio: "1 / 1", zIndex: 20, transformOrigin: `50% ${clipCfg.fit.originY}%`, WebkitMaskImage: "linear-gradient(to bottom, #000 78%, transparent 100%)", maskImage: "linear-gradient(to bottom, #000 78%, transparent 100%)" }} initial={{ opacity: 0, scale: clipCfg.fit.scaleFrom }} animate={{ opacity: 1, scale: [clipCfg.fit.scaleFrom, clipCfg.fit.scaleTo] }} exit={{ opacity: 0 }} transition={{ opacity: { duration: 0.18 }, scale: { duration: clipCfg.duration, ease: "linear" } }} muted playsInline autoPlay preload="auto" aria-hidden="true" onEnded={endClip} onError={endClip}>{pickClipSources(clipCfg).map((s) => <source key={s.src} src={s.src} type={s.type} />)}</motion.video>}</AnimatePresence>
     </motion.div>
   </div>;
 }
