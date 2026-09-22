@@ -74,7 +74,7 @@ function BoneGroup({ pivot, bone, duration, opacity = 1, children }: { pivot: { 
 
 function Sprite({ name, animate, transition, srcOverride }: { name: LayerName; animate?: Record<string, any>; transition?: Record<string, any>; srcOverride?: string }) {
   const l = LAYOUT[name];
-  const style: CSSProperties = { position: "absolute", left: `${l.left}%`, top: `${l.top}%`, width: `${l.width}%`, height: `${l.height}%`, maxWidth: "none", transformOrigin: "50% 50%" };
+  const style: CSSProperties = { position: "absolute", left: `${l.left}%`, top: `${l.top}%`, width: `${l.width}%`, height: `${l.height}%`, maxWidth: "none", transformOrigin: "50% 50%", display: "none" };
   return <motion.img src={srcOverride ?? `${RIG_SRC}/${l.file}`} alt="" draggable={false} onError={(event) => { event.currentTarget.style.display = "none"; }} className="select-none pointer-events-none" style={style} animate={animate} transition={transition} />;
 }
 
@@ -204,9 +204,14 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
 
   return <div className="relative flex h-full w-full select-none justify-center overflow-visible" aria-label={`J’IA — ${clip ?? (outfitVideoMode ? outfitCfg.label : move)}`}>
     <div className="relative h-full" style={{ aspectRatio: `${CANVAS.width} / ${CANVAS.height}`, perspective: 1100, transformStyle: "preserve-3d" }}>
-      <img
-        src="/jia/jia-master.png"
-        alt="J’IA, l’assistante intelligente de Jobly"
+      <video
+        src="/jia/jia-loop.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
+        preload="auto"
+        aria-label="J’IA, l’assistante intelligente de Jobly"
         className="pointer-events-none absolute inset-0 h-full w-full object-contain"
       />
       <BoneGroup pivot={PIVOT.torso} bone={torsoBone} duration={duration} opacity={hideBody ? 0 : 1}>
