@@ -426,7 +426,7 @@ function Cropper({ src, onCancel, onConfirm }: { src: string; onCancel: () => vo
 // on montre la valeur de l'app avant de demander quoi que ce soit d'autre.
 const JOURNEY_SLIDES = [
   { emoji: "💼", tint: "#EAF2FF", accent: "#2E5C9E", title: "1500+ offres vérifiées près de toi", subtitle: "De vraies opportunités, en temps réel." },
-  { emoji: "🧠", tint: "#F0E9FF", accent: "#8B5CF6", title: "J'IA corrige ton CV en 10s", subtitle: "J'IA relit, corrige et améliore ton profil." },
+  { emoji: "���", tint: "#F0E9FF", accent: "#8B5CF6", title: "J'IA corrige ton CV en 10s", subtitle: "J'IA relit, corrige et améliore ton profil." },
   { emoji: "📄", tint: "#E8F5E9", accent: "#10B981", title: "Un CV qui passe les robots recruteurs", subtitle: "Optimisé pour être vu, pas juste envoyé." },
   { emoji: "🎯", tint: "#FFF3E8", accent: "#FFC72C", title: "Ne postule plus au hasard", subtitle: "Un score de matching te dit où tu as vraiment ta chance." },
   { emoji: "🌍", tint: "#EAF2FF", accent: "#0A1931", title: "Entreprise, Candidat, Freelance… Choisis ton monde", subtitle: "J'IA s'adapte à qui tu es aujourd'hui." },
@@ -775,7 +775,7 @@ export default function Home() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.32, ease: "easeOut" }}
-            className="flex min-h-0 flex-1 flex-col overflow-visible pb-6"
+            className="flex min-h-0 flex-1 flex-col overflow-visible pb-2"
           >
             <div className="relative h-[44%] shrink-0 overflow-hidden px-4 pt-0">
                             <div className="relative z-20 mt-12 w-[52%] pl-1 sm:mt-16">
@@ -815,10 +815,10 @@ export default function Home() {
             </div>
 
             <div className="relative z-20 mt-2 shrink-0 flex flex-row gap-3 px-4">
-              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[58px] w-full rounded-2xl bg-[#1261F5] font-[var(--font-inter)] font-bold text-[14px] text-white shadow-[0_8px_18px_rgba(18,97,245,0.24)] transition-transform active:scale-[0.96] sm:w-[48%]">
+              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[58px] min-w-0 flex-1 rounded-2xl bg-[#1261F5] px-2 font-[var(--font-inter)] text-[12px] font-bold text-white shadow-[0_8px_18px_rgba(18,97,245,0.24)] transition-transform active:scale-[0.96] sm:text-[14px]">
                 {translations[lang].create}
               </button>
-              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[58px] w-full rounded-2xl bg-[#FFD400] font-[var(--font-inter)] font-bold text-[14px] text-deep-blue shadow-[0_8px_18px_rgba(255,212,0,0.28)] transition-transform active:scale-[0.96] sm:w-[48%]">
+              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[58px] min-w-0 flex-1 rounded-2xl bg-[#FFD400] px-2 font-[var(--font-inter)] text-[12px] font-bold text-deep-blue shadow-[0_8px_18px_rgba(255,212,0,0.28)] transition-transform active:scale-[0.96] sm:text-[14px]">
                 {translations[lang].login}
               </button>
             </div>
@@ -829,10 +829,10 @@ export default function Home() {
                   <div className="pointer-events-none absolute -top-20 -left-20 h-[300px] w-[300px] rounded-full bg-[#FFD400]/30 blur-[80px]" />
                   <div className="pointer-events-none absolute -bottom-20 -right-20 h-[300px] w-[300px] rounded-full bg-[#22448B]/20 blur-[80px]" />
                   <div className="pointer-events-none absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#FF8C00]/15 blur-[90px]" />
-                  <div className="relative min-h-[112px] rounded-[22px] border border-[#cbdcf3] bg-white p-3 text-center font-[var(--font-inter)] shadow-[0_4px_14px_rgba(24,73,140,0.07)]">
+                  <div className="relative min-h-[112px] min-w-0 rounded-[22px] border border-[#cbdcf3] bg-white p-2 text-center font-[var(--font-inter)] shadow-[0_4px_14px_rgba(24,73,140,0.07)] sm:p-3">
                     <Icon className="mx-auto mb-1 h-3.5 w-3.5 text-sky-blue sm:h-4 sm:w-4" />
-                    <p className="font-[var(--font-inter)] text-[11px] font-bold leading-[12px] text-deep-blue">{title}</p>
-                    <p className="mt-1 font-[var(--font-inter)] text-[9px] font-bold leading-[10px] text-[#7a7f89]">{subtitle}</p>
+                    <p className="break-words font-[var(--font-inter)] text-[10px] font-bold leading-[12px] text-deep-blue sm:text-[11px]">{title}</p>
+                    <p className="mt-1 break-words font-[var(--font-inter)] text-[8px] font-bold leading-[10px] text-[#7a7f89] sm:text-[9px]">{subtitle}</p>
                   </div>
                 </div>
               ))}
@@ -1101,7 +1101,7 @@ export default function Home() {
       {screen === "reset-sent" && <section className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-4 text-center"><div className="mx-auto mb-4 text-5xl" aria-hidden="true">✉️</div><h1 className="text-[32px] font-extrabold text-navy">{translations[lang].sentTitle}</h1><p className="my-3 text-sm text-jobly-gray">{translations[lang].sentText}</p><button type="button" onClick={()=>{reset();goTo("login");}} className="h-[52px] rounded-2xl bg-jobly-blue font-extrabold text-white">{translations[lang].backLogin}</button></section>}
 
       {message && screen !== "journey" && screen !== "jia-welcome" && screen !== "login" && <div role="status" aria-live="polite" className="rounded-2xl border border-blue-100 bg-blue-50 px-3.5 py-2.5 text-center text-xs text-blue-800">{message}</div>}
-      {screen !== "journey" && screen !== "jia-welcome" && screen !== "signup" && screen !== "signup-otp" && screen !== "signup-password" && screen !== "login" && <footer className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-4 pt-2 text-center">
+      {screen !== "journey" && screen !== "jia-welcome" && screen !== "signup" && screen !== "signup-otp" && screen !== "signup-password" && screen !== "login" && <footer className="relative z-30 mt-6 shrink-0 px-4 pb-6 pt-2 text-center">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={`footer-${lang}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeOut" }}>
             
