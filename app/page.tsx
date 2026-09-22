@@ -14,7 +14,6 @@ import {
   checkUsernameAvailable,
 } from "../lib/auth";
 import { setRememberMe, getSupabaseClient } from "../lib/supabase";
-import BubbleField from "../components/BubbleField";
 import JoblyLogo from "../components/JoblyLogo";
 import WaterScene from "../components/WaterScene";
 import {
@@ -761,9 +760,8 @@ export default function Home() {
   }
   async function forgot() { if (!email.includes("@")) return setMessage("Entre l'adresse e-mail associée à ton compte."); setBusy(true); setMessage(""); try { await requestPasswordReset(email); goTo("reset-sent"); } catch (e) { setMessage(e instanceof Error ? e.message : "Impossible d'envoyer l'e-mail de récupération."); } finally { setBusy(false); } }
 
-  return <main className={`relative min-h-screen flex flex-col justify-between w-full bg-off-white dark:bg-[#0A1931] dark:text-white ${screen === "welcome" ? "overflow-hidden" : "overflow-y-auto"}`}>
+  return <main className={`relative min-h-screen flex flex-col justify-between w-full bg-off-white dark:bg-[#0A1931] dark:text-white ${screen === "welcome" ? "overflow-y-auto" : "overflow-y-auto"}`}>
     {screen === "welcome" && <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 z-0 h-[340px] w-[340px] rounded-full bg-sky-blue/25 blur-[90px]" />}
-    <BubbleField />
     {screen === "welcome" && (
       <div className="fixed right-4 top-4 z-30 flex gap-1 rounded-full border border-white/40 bg-white/40 p-1 shadow-premium backdrop-blur-xl"><button type="button" onClick={()=>{setLang("fr");try{localStorage.setItem("jobly-lang","fr")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="fr"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇫🇷 FR</button><button type="button" onClick={()=>{setLang("en");try{localStorage.setItem("jobly-lang","en")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="en"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇬🇧 EN</button></div>
     )}
@@ -777,7 +775,7 @@ export default function Home() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.32, ease: "easeOut" }}
-            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+            className="flex min-h-0 flex-1 flex-col overflow-visible pb-6"
           >
             <div className="relative h-[44%] shrink-0 overflow-hidden px-4 pt-0">
               <div aria-hidden="true" className="pointer-events-none absolute left-[10%] top-[-5%] z-[2] h-[64%] w-[44%] opacity-60">
@@ -820,17 +818,17 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative z-20 mt-0 shrink-0 flex flex-row gap-3 px-4">
-              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[56px] w-[48%] rounded-xl bg-canari font-[var(--font-inter)] font-bold text-[14px] text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96]">
+            <div className="relative z-20 mt-2 shrink-0 flex flex-col gap-3 px-4 sm:flex-row">
+              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[58px] w-full rounded-2xl bg-canari font-[var(--font-inter)] font-bold text-[14px] text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96] sm:w-[48%]">
                 {translations[lang].create}
               </button>
-              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[56px] w-[48%] rounded-xl border border-white/50 bg-deep-blue/90 font-[var(--font-inter)] font-bold text-[14px] text-off-white shadow-premium backdrop-blur-xl transition-transform active:scale-[0.96]">
+              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[58px] w-full rounded-2xl border border-white/50 bg-deep-blue/90 font-[var(--font-inter)] font-bold text-[14px] text-off-white shadow-premium backdrop-blur-xl transition-transform active:scale-[0.96] sm:w-[48%]">
                 {translations[lang].login}
               </button>
             </div>
 
-            <div className="relative z-20 mt-3 shrink-0 grid grid-cols-4 gap-2.5 px-3 pb-1">
-              {BENEFITS[lang].map(({ Icon, title, subtitle }) => (
+            <div className="relative z-20 mt-6 shrink-0 grid grid-cols-1 gap-3 px-4 pb-1 sm:grid-cols-3">
+              {BENEFITS[lang].slice(0, 3).map(({ Icon, title, subtitle }) => (
                 <div key={title} className="relative overflow-hidden rounded-[24px]">
                   <div className="pointer-events-none absolute -top-20 -left-20 h-[300px] w-[300px] rounded-full bg-[#FFD400]/30 blur-[80px]" />
                   <div className="pointer-events-none absolute -bottom-20 -right-20 h-[300px] w-[300px] rounded-full bg-[#22448B]/20 blur-[80px]" />
