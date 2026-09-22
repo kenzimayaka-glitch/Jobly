@@ -212,7 +212,7 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
         <Sprite name="head" /><Sprite name="hair" /><Sprite name="glasses" />
         <Sprite name="eyebrows" animate={{ y: eyebrowBone.y ?? 0 }} transition={SPRING} />
         <Sprite name="eye_L" animate={eyeL.animate} transition={eyeL.transition} /><Sprite name="eye_R" animate={eyeR.animate} transition={eyeR.transition} />
-        <Sprite name="mouth" srcOverride={`${RIG_SRC}/mouth/${mouthFile}`} animate={mouthAnimate} transition={mouthTransition} />
+        <Sprite name="mouth" srcOverride={`${RIG_SRC}/mouth.webp`} animate={mouthAnimate} transition={mouthTransition} />
       </BoneGroup>
 
       <AnimatePresence>{outfitVideoMode && <motion.video key={`outfit-${outfit}`} ref={outfitVideoRef} className="absolute inset-0 h-full w-full object-cover pointer-events-none" style={{ zIndex: 30, background: "#000" }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.45 }} muted playsInline autoPlay loop preload="metadata" poster={outfitCfg.poster} aria-label={`J’IA — ${outfitCfg.label}`}><source src={outfitCfg.video} type="video/webm" /><source src={outfitCfg.mp4} type="video/mp4" /></motion.video>}</AnimatePresence>
