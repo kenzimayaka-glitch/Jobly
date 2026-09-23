@@ -17,7 +17,15 @@ function Model({ speaking }: { speaking: boolean }) {
     group.current.rotation.z = Math.sin(t * 0.55) * 0.008;
   });
 
-  return <primitive ref={group} object={scene} scale={1.42} position={[0, -1.48, 0]} />;
+  return (
+    <primitive
+      ref={group}
+      object={scene}
+      scale={1.18}
+      position={[0, -1.32, 0]}
+      rotation={[0, Math.PI, 0]}
+    />
+  );
 }
 
 export default function JIA3D({ speaking }: { speaking: boolean }) {
