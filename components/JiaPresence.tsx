@@ -304,6 +304,19 @@ export default function JiaPresence() {
     try { r.start(); setListening(true); } catch { setListening(false); }
   }, [say]);
 
+  // La présence reste montée entre les routes : on relance seulement la reconnaissance vocale.
+  useEffect(() => {
+    if (recognition.current) {
+      recognition.current.stop();
+      recognition.current = null;
+    }
+    if (modeRef.current === "voice" && enabledRef.current) {
+      shouldRestart.current = true;
+      const timer = window.setTimeout(() => startListening(), 180);
+      return () => window.clearTimeout(timer);
+    }
+  }, [lang, pathname, startListening]);
+
   useEffect(() => {
     const onInteract = () => {
       if (modeRef.current === "voice") startListening();
@@ -323,8 +336,6 @@ export default function JiaPresence() {
     };
   }, [startListening]);
 
-  // Changement de langue : la reconnaissance repart dans la bonne langue.
-  useEffect(() => { if (recognition.current) { recognition.current.stop(); } }, [lang]);
 
   useEffect(() => {
     const onPreferencesChanged = (event: Event) => {
@@ -475,7 +486,7 @@ export default function JiaPresence() {
       } catch { /* proactivité facultative */ }
     };
     const schedule = (delay: number) => { if (timer) window.clearTimeout(timer); timer = window.setTimeout(request, delay); };
-    schedule(8_000);
+    schedule(pathname === "/" ? 8_000 : 2_500);
     const interval = window.setInterval(request, PREDICT_MIN_INTERVAL);
     const onActivity = () => schedule(4_000);
     window.addEventListener("pointerdown", onActivity, { passive: true });
@@ -485,7 +496,6 @@ export default function JiaPresence() {
       window.clearInterval(interval);
       window.removeEventListener("pointerdown", onActivity);
       window.removeEventListener("keydown", onActivity);
-      window.speechSynthesis?.cancel();
     };
   }, [pathname, visible, prefs.proactive, sensitiveRoute, say]);
 
