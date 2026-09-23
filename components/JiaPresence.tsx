@@ -146,6 +146,7 @@ export default function JiaPresence() {
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [commandInput, setCommandInput] = useState("");
   const [commandBusy, setCommandBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{ type: string; message: string } | null>(null);
 
   const modeRef = useRef<"text" | "voice">("text");
   const langRef = useRef(lang);
@@ -287,7 +288,7 @@ export default function JiaPresence() {
           if (!response.ok) return;
           const out = await response.json();
           if (out.message) window.dispatchEvent(new CustomEvent("jobly:jia-response", { detail: { message: out.message, gesture: intent === "search_jobs" ? "analyze" : "reassure" } }));
-        } catch { /* le Brain est optionnel : la commande locale a déjà ét�� émise */ }
+        } catch { /* le Brain est optionnel : la commande locale a déjà ét���� émise */ }
       })();
       if (intent === "assistant_command") say(tRef.current("jia.reply.understood"), { gesture: "analyze" });
     };
@@ -363,8 +364,10 @@ export default function JiaPresence() {
       const sourceSuffix = Array.isArray(out.sources) && out.sources.length
         ? `\n\nSources : ${out.sources.slice(0, 3).map((source: { title?: string; url?: string }) => source.title || source.url).join(" · ")}`
         : "";
+      const proposedType = out.proposedAction?.type as string | undefined;
+      if (proposedType) setPendingAction({ type: proposedType, message: command });
       say(`${out.message || "Je suis prête à t’aider."}${sourceSuffix}`, {
-        gesture: out.proposedAction ? "analyze" : "reassure",
+        gesture: proposedType ? "analyze" : "reassure",
         move: out.proposedAction ? "point_button" : undefined,
         speak: true,
         sticky: true,
@@ -376,6 +379,28 @@ export default function JiaPresence() {
       setCommandBusy(false);
     }
   }, [commandBusy, commandInput, router, say]);
+
+  const confirmPendingAction = useCallback(async () => {
+    if (!pendingAction) return;
+    setCommandBusy(true);
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      const response = await fetch("/api/jia/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
+        body: JSON.stringify({ type: pendingAction.type, message: pendingAction.message, confirmed: true }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || "Action non disponible.");
+      setPendingAction(null);
+      say("C’est préparé. Je t’ouvre l’espace correspondant.", { gesture: "welcome", speak: true, sticky: true });
+      if (result.next) router.push(result.next);
+    } catch (error) {
+      say(error instanceof Error ? error.message : "Je n’ai pas pu préparer cette action.", { gesture: "secure", sticky: true, speak: false });
+    } finally {
+      setCommandBusy(false);
+    }
+  }, [pendingAction, router, say]);
 
   // ── Réponses externes, gestes sémantiques (window.jia.play) ──────────────
   useEffect(() => {
@@ -525,6 +550,15 @@ export default function JiaPresence() {
                     <span className="rounded-full bg-canari-blue-soft px-2 py-1 text-[10px] font-extrabold text-canari-blue">{statusLabel}</span>
                   </div>
                   <p className="mt-1 text-[11px] leading-4 text-muted">Parle-lui ou écris-lui ce que tu veux faire. J’IA répond et te guide vers l’action suivante.</p>
+                  {pendingAction && (
+                    <div className="mt-2 rounded-xl border border-canari-blue/30 bg-canari-blue-soft p-2.5 text-[11px] text-ink">
+                      <p className="font-extrabold">J’IA attend ton autorisation pour préparer cette action.</p>
+                      <div className="mt-2 flex gap-2">
+                        <button type="button" onClick={() => void confirmPendingAction()} disabled={commandBusy} className="min-h-8 rounded-lg bg-canari-blue px-3 text-[11px] font-extrabold text-white disabled:opacity-50">Autoriser</button>
+                        <button type="button" onClick={() => setPendingAction(null)} disabled={commandBusy} className="min-h-8 rounded-lg border border-line px-3 text-[11px] font-extrabold text-muted">Annuler</button>
+                      </div>
+                    </div>
+                  )}
                   <form onSubmit={(event) => { event.preventDefault(); void sendTextCommand(); }} className="mt-2.5 flex items-center gap-2 rounded-xl border border-line bg-white p-1.5 focus-within:border-canari-blue">
                     <input value={commandInput} onChange={(event) => setCommandInput(event.target.value)} placeholder="Ex. Trouve-moi un emploi" aria-label="Message à J’IA" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-xs font-semibold text-ink outline-none placeholder:text-muted" disabled={commandBusy} />
                     <button type="submit" aria-label="Envoyer à J’IA" disabled={commandBusy || !commandInput.trim()} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-canari-blue text-white disabled:opacity-40">{commandBusy ? "…" : "↑"}</button>
