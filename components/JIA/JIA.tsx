@@ -1,11 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { JIA_100_MOVES, type JIA100Move } from "./movements";
 import rig from "./JIA_Rig.json";
 import { CANVAS, LAYOUT, PIVOT, RIG_SRC, type LayerName } from "./rigLayout";
-import { preloadClips } from "./clips";
 import { JIA_OUTFITS } from "./outfits";
 
 export type JIAMove = JIA100Move;
@@ -34,6 +33,23 @@ const BREATH = 0.012;
 
 function moveKey(move: JIA100Move) {
   return RIG_PREFIX.get(move) ?? RIG_PREFIX.get("idle")!;
+}
+
+function proceduralMove(move: JIA100Move): RigMove {
+  const nod = move.startsWith("nod_") ? { rz: [0, -3, 3, 0] } : {};
+  const wave = move === "wave_hi" || move === "wave_bye";
+  const point = move.startsWith("point_");
+  const explain = move.startsWith("explain_") || move === "heart" || move === "clap";
+  const expressive = move === "celebrate_jump" || move === "celebrate_fist" || move === "proud";
+  return {
+    duration: move === "idle" ? 3.2 : 0.85,
+    head: nod,
+    torso: expressive ? { y: [0, -14, 0], scale: [1, 1.025, 1] } : { y: [0, -3, 0] },
+    arm_L: wave ? { rz: [0, -18, 18, -8, 0] } : point ? { rz: [-2, -12, -2] } : explain ? { rz: [0, -10, 10, 0] } : { rz: [0, -2, 2, 0] },
+    arm_R: wave ? { rz: [0, 18, -18, 8, 0] } : point ? { rz: [2, 12, 2] } : explain ? { rz: [0, 10, -10, 0] } : { rz: [0, 2, -2, 0] },
+    hand_L: wave ? { rz: [0, 14, -14, 0] } : {},
+    hand_R: wave ? { rz: [0, -14, 14, 0] } : {},
+  };
 }
 
 function transformOf(bone: Bone = {}) {
@@ -112,9 +128,9 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
     return () => window.removeEventListener("jobly:jia-voice", onVoice);
   }, []);
 
-  const rigMove = RIG_MOVES[moveKey(move)] ?? RIG_MOVES[RIG_PREFIX.get("idle")!];
-  const duration = Number(rigMove?.duration ?? 0.7);
-  const bones = useMemo(() => rigMove ?? {}, [rigMove]);
+  const rigMove = RIG_MOVES[moveKey(move)] ?? {};
+  const duration = Number(rigMove.duration ?? 0.85);
+  const bones = useMemo(() => ({ ...proceduralMove(move), ...rigMove }), [move, rigMove]);
 
   const play = useCallback((next: JIA100Move, explicit: boolean, holdMs = 1400) => {
     setMove(next);
