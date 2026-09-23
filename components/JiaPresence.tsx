@@ -23,7 +23,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
-import JIA from "./JIA/JIA";
+import JIA3D from "./JIA/JIA3D";
 import type { JIAMove } from "./JIA/JIA";
 import type { JiaGesture } from "./WaterScene";
 import { GESTURE_TO_MOVE } from "./JIA/gestureMap";
@@ -290,7 +290,7 @@ export default function JiaPresence() {
           if (!response.ok) return;
           const out = await response.json();
           if (out.message) window.dispatchEvent(new CustomEvent("jobly:jia-response", { detail: { message: out.message, gesture: intent === "search_jobs" ? "analyze" : "reassure" } }));
-        } catch { /* le Brain est optionnel : la commande locale a déjà ét���� émise */ }
+        } catch { /* le Brain est optionnel : la commande locale a déjà ét������ émise */ }
       })();
       if (intent === "assistant_command") say(tRef.current("jia.reply.understood"), { gesture: "analyze" });
     };
@@ -557,7 +557,7 @@ export default function JiaPresence() {
         <AnimatePresence>
           {(bubble || panelOpen) && (
             <motion.div key="stack" initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.2 }}
-              className="flex w-[min(280px,calc(100vw-24px))] flex-col items-end gap-2">
+              className="absolute bottom-full right-0 mb-2 flex w-[min(280px,calc(100vw-24px))] flex-col items-end gap-2">
                   {bubble && (
                 <div role="status" aria-live="polite" className="relative w-full rounded-[18px] border-2 border-canari-blue bg-canari py-2.5 pl-3.5 pr-9 text-[13px] font-extrabold leading-[1.4] text-canari-blue shadow-[0_12px_30px_rgba(0,87,184,.2)]">
                   {bubble.text}
@@ -619,7 +619,7 @@ export default function JiaPresence() {
           <div className="relative w-[96px] sm:w-[120px]" style={{ aspectRatio: "1200 / 1248" }} onPointerDown={(e) => dragControls.start(e)}>
             <button type="button" onClick={() => { if (!wasDragged.current) setPanelOpen((v) => !v); }} aria-expanded={panelOpen} aria-label={t("jia.open")} title={t("jia.move")}
               className="absolute inset-0 cursor-grab rounded-3xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-canari-blue/30 active:cursor-grabbing">
-              <JIA speaking={speaking} gesture={gesture} move={move} auto={false} outfit={outfit} />
+              <JIA3D speaking={speaking} />
             </button>
             <button type="button" onClick={minimize} aria-label={t("jia.minimize")} title={t("jia.minimize")}
               className="absolute -left-1 top-0 grid h-9 w-9 place-items-center rounded-full border border-line bg-white/95 text-muted shadow-md transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-canari-blue">

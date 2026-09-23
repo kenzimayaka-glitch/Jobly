@@ -259,6 +259,16 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
   const torsoAnimate = speaking
     ? { scaleY: [1, 1 + BREATH * 1.8, 1], y: [0, -0.8, 0] }
     : { scaleY: [1, 1 + BREATH, 1], y: [0, -0.35, 0] };
+  const humanIdle = reduced
+    ? undefined
+    : {
+        y: [0, -0.8, 0.25, 0],
+        rotate: [0, 0.18, -0.12, 0],
+        scaleX: [1, 1.0015, 0.999, 1],
+      };
+  const humanIdleTransition = reduced
+    ? undefined
+    : { duration: speaking ? 3.8 : 5.8, ease: "easeInOut" as const, repeat: Infinity };
 
   const eyebrowBone: Bone = bones.eyebrows ?? {};
   const torsoBone: Bone = bones.torso ?? {};
@@ -274,6 +284,12 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
         style={{ aspectRatio: `${CANVAS.width} / ${CANVAS.height}`, perspective: 1100, transformStyle: "preserve-3d" }}
       >
         {/* Corps : torse (respiration), foulard, bras et mains solidaires de leur bras */}
+        <motion.div
+          className="absolute inset-0"
+          animate={humanIdle}
+          transition={humanIdleTransition}
+          style={{ transformOrigin: "50% 88%", transformStyle: "preserve-3d" }}
+        >
         <BoneGroup pivot={PIVOT.torso} bone={torsoBone} duration={duration} opacity={hideBody ? 0 : 1}>
           <motion.div
             className="absolute inset-0 pointer-events-none"
@@ -307,6 +323,7 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
             )}
           </motion.div>
         </BoneGroup>
+        </motion.div>
 
         {/* Tête : cheveux, lunettes, sourcils, yeux et bouche pivotent ensemble autour du cou */}
         <BoneGroup pivot={PIVOT.head} bone={bones.head} duration={duration} opacity={hideBody ? 0 : 1}>
