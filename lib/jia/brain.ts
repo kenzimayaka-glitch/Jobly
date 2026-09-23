@@ -54,7 +54,21 @@ function normalizeIntent(message: string) {
   return "CAREER";
 }
 
-type WebSource = { title: string; url: string; snippet: string };
+type WebSource = { title: string; url: string; snippet: string; domain: string; trust: "HIGH" | "MEDIUM" };
+
+const TRUSTED_WEB_DOMAINS = new Set([
+  "francetravail.fr", "service-public.fr", "legifrance.gouv.fr", "insee.fr", "who.int", "europa.eu",
+  "linkedin.com", "indeed.com", "glassdoor.fr", "apec.fr", "oniseptv.onisep.fr", "onisep.fr",
+]);
+
+function normalizeWebUrl(raw: string) {
+  try {
+    const url = new URL(raw);
+    if (!/^https?:$/.test(url.protocol) || url.hostname === "localhost" || url.hostname.endsWith(".local")) return null;
+    [...url.searchParams.keys()].forEach((key) => { if (/^utm_|^gclid$|^fbclid$/i.test(key)) url.searchParams.delete(key); });
+    return url;
+  } catch { return null; }
+}
 
 function needsWebResearch(message: string) {
   return /\b(aujourd'hui|actualit|dernier|dernière|récent|maintenant|sur internet|en ligne|cherche|recherche|compare|prix|salaire|marché|offre|emploi|formation|événement|réglementation|202[4-9])\b/i.test(message);
@@ -73,12 +87,14 @@ async function searchWeb(query: string): Promise<WebSource[]> {
     const sources: WebSource[] = [];
     const pattern = /result__a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?result__snippet[^>]*>([\s\S]*?)<\/a?>/gi;
     for (const match of html.matchAll(pattern)) {
-      const url = match[1].replace(/&amp;/g, "&");
-      if (!/^https?:\/\//i.test(url) || sources.some((source) => source.url === url)) continue;
-      const cleanText = (value: string) => value.replace(/<[^>]+>/g, "").replace(/&[^;]+;/g, " ").replace(/\s+/g, " ").trim();
-      sources.push({ title: cleanText(match[2]).slice(0, 180), url, snippet: cleanText(match[3]).slice(0, 400) });
+      const parsed = normalizeWebUrl(match[1].replace(/&amp;/g, "&"));
+      if (!parsed || sources.some((source) => source.url === parsed.href) || sources.some((source) => source.domain === parsed.hostname)) continue;
+      const cleanText = (value: string) => value.replace(/<[^>]+>/g, "").replace(/&(?:amp|quot|#39|lt|gt);/g, " ").replace(/\s+/g, " ").trim();
+      const domain = parsed.hostname.replace(/^www\./, "");
+      sources.push({ title: cleanText(match[2]).slice(0, 180), url: parsed.href, domain, trust: TRUSTED_WEB_DOMAINS.has(domain) ? "HIGH" : "MEDIUM", snippet: cleanText(match[3]).slice(0, 400) });
       if (sources.length === 5) break;
     }
+    sources.sort((a, b) => Number(b.trust === "HIGH") - Number(a.trust === "HIGH"));
     return sources;
   } catch {
     return [];
@@ -121,7 +137,7 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
 
   const sources = needsWebResearch(context.message) ? await searchWeb(context.message) : [];
   const webResearch = sources.length > 0
-    ? `Sources web récentes (à vérifier, jamais des faits garantis):\n${sources.map((source) => `- ${source.title} — ${source.url}\n  ${source.snippet}`).join("\n")}`
+    ? `Sources web récentes (à vérifier, jamais des faits garantis; confiance: HIGH = domaine institutionnel ou spécialisé connu, MEDIUM = source à vérifier):\n${sources.map((source) => `- [${source.trust}] ${source.title} — ${source.url}\n  ${source.snippet}`).join("\n")}`
     : "Aucune source web fiable trouvée.";
 
   const operation: AiOperation =
