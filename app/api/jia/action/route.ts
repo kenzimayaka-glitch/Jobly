@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
 import { isFinancialRequest } from "@/lib/jia/guard";
 
-const ACTIONS = new Set(["SEARCH_JOBS", "START_INTERVIEW_COACHING", "BUILD_LEARNING_PLAN", "PREPARE_APPLICATION"]);
+const ACTIONS = new Set(["SEARCH_JOBS", "START_INTERVIEW_COACHING", "BUILD_LEARNING_PLAN", "PREPARE_APPLICATION", "FOLLOW_UP", "REVIEW", "LEARN", "APPLY", "VERIFY"]);
 
 export async function POST(req: NextRequest) {
   const auth = await getAuthUser(req);
@@ -24,5 +24,6 @@ export async function POST(req: NextRequest) {
     status: "COMPLETED", metadata: { actionType: type, confirmed },
   }).select("id").single();
   if (result.error) return NextResponse.json({ message: result.error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, action: type, status: "PREPARED", traceId: result.data?.id ?? null, next: type === "SEARCH_JOBS" ? "/jobs" : type === "START_INTERVIEW_COACHING" ? "/ai/interview" : type === "BUILD_LEARNING_PLAN" ? "/ai/learning" : "/applications" });
+  const next = type === "SEARCH_JOBS" ? "/jobs" : type === "START_INTERVIEW_COACHING" ? "/ai/interview" : type === "BUILD_LEARNING_PLAN" || type === "LEARN" ? "/ai/learning" : type === "FOLLOW_UP" || type === "APPLY" ? "/applications" : type === "VERIFY" ? "/profile" : "/career";
+  return NextResponse.json({ ok: true, action: type, status: "PREPARED", traceId: result.data?.id ?? null, next });
 }

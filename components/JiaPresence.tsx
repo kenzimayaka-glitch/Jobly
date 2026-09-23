@@ -146,7 +146,7 @@ export default function JiaPresence() {
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [commandInput, setCommandInput] = useState("");
   const [commandBusy, setCommandBusy] = useState(false);
-  const [pendingAction, setPendingAction] = useState<{ type: string; message: string } | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ type: string; message: string; target?: string } | null>(null);
 
   const modeRef = useRef<"text" | "voice">("text");
   const langRef = useRef(lang);
@@ -365,14 +365,13 @@ export default function JiaPresence() {
         ? `\n\nSources : ${out.sources.slice(0, 3).map((source: { title?: string; url?: string }) => source.title || source.url).join(" · ")}`
         : "";
       const proposedType = out.proposedAction?.type as string | undefined;
-      if (proposedType) setPendingAction({ type: proposedType, message: command });
+      if (proposedType) setPendingAction({ type: proposedType, message: command, target: out.proposedAction?.target });
       say(`${out.message || "Je suis prête à t’aider."}${sourceSuffix}`, {
         gesture: proposedType ? "analyze" : "reassure",
         move: out.proposedAction ? "point_button" : undefined,
         speak: true,
         sticky: true,
       });
-      if (out.proposedAction?.target) router.push(out.proposedAction.target);
     } catch (error) {
       say(error instanceof Error ? error.message : "Je n’ai pas réussi à répondre.", { gesture: "secure", sticky: true, speak: false });
     } finally {
@@ -394,7 +393,7 @@ export default function JiaPresence() {
       if (!response.ok) throw new Error(result.message || "Action non disponible.");
       setPendingAction(null);
       say("C’est préparé. Je t’ouvre l’espace correspondant.", { gesture: "welcome", speak: true, sticky: true });
-      if (result.next) router.push(result.next);
+      if (pendingAction.target || result.next) router.push(pendingAction.target || result.next);
     } catch (error) {
       say(error instanceof Error ? error.message : "Je n’ai pas pu préparer cette action.", { gesture: "secure", sticky: true, speak: false });
     } finally {
