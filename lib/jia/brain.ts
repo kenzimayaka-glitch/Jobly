@@ -25,15 +25,24 @@ export type JiaBrainResult = {
 };
 
 const EMPTY: Record<"fr" | "en", string> = {
-  fr: "Je suis prête. Donne-moi ton objectif et je vais déterminer la prochaine action utile.",
-  en: "I’m ready. Tell me your goal and I’ll work out the next useful step.",
+  fr: "Je suis prête. Donne-moi ton objectif, ta situation actuelle et ce qui te bloque ; je relierai ta demande à ton parcours, tes compétences et la prochaine action utile.",
+  en: "I’m ready. Tell me your goal, current situation, and what is blocking you; I’ll connect it to your career context and the next useful action.",
+};
+
+const CONTEXTUAL_FALLBACKS: Record<string, string[]> = {
+  OPPORTUNITY: ["Je vais croiser cette recherche avec ton profil et tes critères, puis te dire quelles opportunités méritent vraiment ton attention.", "Je peux comparer les opportunités, repérer les écarts de compétences et te proposer une stratégie plutôt qu’une simple liste d’offres."],
+  APPLICATION: ["Je vais regarder où se situe ta candidature dans le parcours et préparer la prochaine relance ou amélioration utile.", "Je peux relier cette candidature à ton expérience, adapter ton argumentaire et identifier ce qui augmente réellement tes chances."],
+  INTERVIEW: ["Je vais partir du poste visé et de ton expérience pour te faire travailler les réponses qui comptent vraiment.", "On peut simuler l’entretien, repérer tes points faibles et construire des réponses crédibles à partir de ton parcours."],
+  LEARNING: ["Je vais relier cette compétence à ton objectif professionnel et construire un apprentissage qui produit une preuve concrète.", "Je peux t’aider à choisir quoi apprendre, dans quel ordre, et comment le démontrer dans ton profil."],
+  MOBILITY: ["Je vais comparer les options de mobilité avec ton projet, tes contraintes et les opportunités réellement accessibles.", "Je peux analyser les marchés, les compétences demandées et les compromis avant de te recommander une destination."],
+  CAREER: ["Je vais prendre en compte ton parcours, tes signaux récents et ton objectif pour te proposer une prochaine étape précise.", "Je ne veux pas te donner un conseil générique : donne-moi le résultat que tu vises et je relierai les choix à ta trajectoire."],
 };
 const FINANCIAL_REPLY: Record<"fr" | "en", string> = {
   fr: "Je peux expliquer ou guider un paiement, mais je ne peux jamais l’exécuter ni le confirmer.",
   en: "I can explain or guide you through a payment, but I can never run or confirm it.",
 };
 
-function clean(value: unknown, max = 500) {
+function clean(value: unknown, max = 1200) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
@@ -161,11 +170,13 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
   const financialRequest = isFinancialRequest(context.message);
   // Barrière financière : évaluée AVANT toute action (cf. lib/jia/guard.ts).
   const fallbackAction = financialRequest ? undefined : actionForIntent(intent, context.message);
+  const fallbackPool = CONTEXTUAL_FALLBACKS[intent] || CONTEXTUAL_FALLBACKS.CAREER;
+  const fallbackMessage = fallbackPool[(context.message.length + (events.data?.length || 0)) % fallbackPool.length];
   const message = financialRequest
     ? FINANCIAL_REPLY[lang]
-    : (clean(generated?.message, 500) || (sources.length > 0
+    : (clean(generated?.message, 1200) || (sources.length > 0
       ? (lang === "en" ? `I found ${sources.length} relevant web sources. I can compare them with your career context.` : `J’ai trouvé ${sources.length} sources web pertinentes. Je peux maintenant les comparer à ton contexte de carrière.`)
-      : clean(assessment.data?.nextBestAction, 500) || EMPTY[lang]));
+      : clean(assessment.data?.nextBestAction, 1200) || (lang === "en" ? fallbackMessage : fallbackMessage)));
   const confidence = generated?.confidence === "HIGH" || generated?.confidence === "MEDIUM" ? generated.confidence : "MEDIUM";
   const proposedAction = financialRequest ? undefined : (generated?.proposedAction && typeof generated.proposedAction === "object"
     ? generated.proposedAction as JiaBrainResult["proposedAction"]

@@ -26,7 +26,8 @@ const GESTURE_MOVE: Record<string, JIA100Move> = {
 
 const AUTO: JIA100Move[] = [
   "idle", "blink_slow", "smile_soft", "look_around", "nod_slow", "think_chin", "point_button",
-  "scarf_adjust", "explain_open", "celebrate_fist", "listen_tilt", "reading", "matching", "proud",
+  "scarf_adjust", "explain_open", "listen_tilt", "reading", "matching", "proud", "breathe_deep",
+  "look_around", "nod_slow", "explain_open", "listen_tilt",
 ];
 
 const SPRING = { type: "spring", stiffness: 150, damping: 18, mass: 0.55 } as const;
@@ -204,8 +205,8 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
     const timer = window.setInterval(() => {
       if (Date.now() < until.current) return;
       idx.current = (idx.current + 1) % AUTO.length;
-      play(AUTO[idx.current], false, 3900);
-    }, 1200);
+      play(AUTO[idx.current], false, 2600);
+    }, 900);
     return () => window.clearInterval(timer);
   }, [auto, reduced, play]);
 
