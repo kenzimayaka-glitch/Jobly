@@ -287,7 +287,7 @@ export default function JiaPresence() {
           if (!response.ok) return;
           const out = await response.json();
           if (out.message) window.dispatchEvent(new CustomEvent("jobly:jia-response", { detail: { message: out.message, gesture: intent === "search_jobs" ? "analyze" : "reassure" } }));
-        } catch { /* le Brain est optionnel : la commande locale a déjà été émise */ }
+        } catch { /* le Brain est optionnel : la commande locale a déjà ét�� émise */ }
       })();
       if (intent === "assistant_command") say(tRef.current("jia.reply.understood"), { gesture: "analyze" });
     };
@@ -360,7 +360,10 @@ export default function JiaPresence() {
       });
       const out = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(out.message || "J’IA est momentanément indisponible.");
-      say(out.message || "Je suis prête à t’aider.", {
+      const sourceSuffix = Array.isArray(out.sources) && out.sources.length
+        ? `\n\nSources : ${out.sources.slice(0, 3).map((source: { title?: string; url?: string }) => source.title || source.url).join(" · ")}`
+        : "";
+      say(`${out.message || "Je suis prête à t’aider."}${sourceSuffix}`, {
         gesture: out.proposedAction ? "analyze" : "reassure",
         move: out.proposedAction ? "point_button" : undefined,
         speak: true,
