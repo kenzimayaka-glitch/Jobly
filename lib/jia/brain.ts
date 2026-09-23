@@ -20,6 +20,7 @@ export type JiaBrainResult = {
   confidence: "HIGH" | "MEDIUM" | "LOW";
   proposedAction?: { type: string; target?: string; requiresConfirmation: boolean };
   provider: string;
+  sources?: Array<{ title: string; url: string; snippet: string }>;
   traceId?: string;
 };
 
@@ -51,6 +52,37 @@ function normalizeIntent(message: string) {
   if (/\b(recrut|candidat|talent)\b/.test(m)) return "RECRUITMENT";
   if (/\b(partenaire|commission|parrain)\b/.test(m)) return "PARTNER";
   return "CAREER";
+}
+
+type WebSource = { title: string; url: string; snippet: string };
+
+function needsWebResearch(message: string) {
+  return /\b(aujourd'hui|actualit|dernier|dernière|récent|maintenant|sur internet|en ligne|cherche|recherche|compare|prix|salaire|marché|offre|emploi|formation|événement|réglementation|202[4-9])\b/i.test(message);
+}
+
+async function searchWeb(query: string): Promise<WebSource[]> {
+  if (!query.trim()) return [];
+  try {
+    const response = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query.slice(0, 300))}`, {
+      headers: { "User-Agent": "Jobly-JIA/1.0" },
+      signal: AbortSignal.timeout(7000),
+      cache: "no-store",
+    });
+    if (!response.ok) return [];
+    const html = await response.text();
+    const sources: WebSource[] = [];
+    const pattern = /result__a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?result__snippet[^>]*>([\s\S]*?)<\/a?>/gi;
+    for (const match of html.matchAll(pattern)) {
+      const url = match[1].replace(/&amp;/g, "&");
+      if (!/^https?:\/\//i.test(url) || sources.some((source) => source.url === url)) continue;
+      const cleanText = (value: string) => value.replace(/<[^>]+>/g, "").replace(/&[^;]+;/g, " ").replace(/\s+/g, " ").trim();
+      sources.push({ title: cleanText(match[2]).slice(0, 180), url, snippet: cleanText(match[3]).slice(0, 400) });
+      if (sources.length === 5) break;
+    }
+    return sources;
+  } catch {
+    return [];
+  }
 }
 
 export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult> {
@@ -86,6 +118,11 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     }).select("id").single();
     return { message, intent: "GREETING", confidence: "HIGH", provider: "DETERMINISTIC", ...(trace.data?.id ? { traceId: String(trace.data.id) } : {}) };
   }
+
+  const sources = needsWebResearch(context.message) ? await searchWeb(context.message) : [];
+  const webResearch = sources.length > 0
+    ? `Sources web récentes (à vérifier, jamais des faits garantis):\n${sources.map((source) => `- ${source.title} — ${source.url}\n  ${source.snippet}`).join("\n")}`
+    : "Aucune source web fiable trouvée.";
 
   const operation: AiOperation =
     input.ecosystem === "RECRUITER" ? "OFFER_INTELLIGENCE" :
