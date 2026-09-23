@@ -131,7 +131,12 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
   let provider = "DETERMINISTIC";
   let generated: Record<string, unknown> | null = null;
   try {
-    const result = await runAiOrchestrator(operation, { message: context.message }, context, "QUALITY");
+    const result = await runAiOrchestrator(
+      operation,
+      { message: context.message, webResearch },
+      { ...context, webResearch },
+      "QUALITY",
+    );
     provider = result.provider;
     generated = extractJson(result.output);
   } catch {}
@@ -154,12 +159,12 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     title: "J’IA Brain decision",
     content: message,
     confidence,
-    evidence: { path: context.path, action: context.action, intent, memoryCount: memory.data?.length || 0, eventCount: events.data?.length || 0 },
+    evidence: { path: context.path, action: context.action, intent, memoryCount: memory.data?.length || 0, eventCount: events.data?.length || 0, webSources: sources.map((source) => source.url) },
     sourceType: "JIA_BRAIN",
     sourceRef: "lib/jia/brain",
     status: "COMPLETED",
     metadata: { provider, ecosystem: context.ecosystem, proactive: context.proactive },
   }).select("id").single();
 
-  return { message, intent, confidence, proposedAction, provider, ...(trace.data?.id ? { traceId:String(trace.data.id) } : {}) };
+  return { message, intent, confidence, proposedAction, provider, sources, ...(trace.data?.id ? { traceId:String(trace.data.id) } : {}) };
 }
