@@ -147,6 +147,7 @@ export default function JiaPresence() {
   const [commandInput, setCommandInput] = useState("");
   const [commandBusy, setCommandBusy] = useState(false);
   const [pendingAction, setPendingAction] = useState<{ type: string; message: string; target?: string } | null>(null);
+  const [sourceLinks, setSourceLinks] = useState<Array<{ title: string; url: string; snippet?: string }>>([]);
 
   const modeRef = useRef<"text" | "voice">("text");
   const langRef = useRef(lang);
@@ -361,8 +362,10 @@ export default function JiaPresence() {
       });
       const out = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(out.message || "J’IA est momentanément indisponible.");
-      const sourceSuffix = Array.isArray(out.sources) && out.sources.length
-        ? `\n\nSources : ${out.sources.slice(0, 3).map((source: { title?: string; url?: string }) => source.title || source.url).join(" · ")}`
+      const nextSources = Array.isArray(out.sources) ? out.sources.filter((source: unknown): source is { title: string; url: string; snippet?: string } => Boolean(source && typeof source === "object" && "url" in source && typeof source.url === "string" && /^https?:\/\//i.test(source.url))).slice(0, 5) : [];
+      setSourceLinks(nextSources);
+      const sourceSuffix = nextSources.length
+        ? `\n\nSources vérifiables : ${nextSources.slice(0, 3).map((source: { title: string; url: string }) => source.title || source.url).join(" · ")}`
         : "";
       const proposedType = out.proposedAction?.type as string | undefined;
       if (proposedType) setPendingAction({ type: proposedType, message: command, target: out.proposedAction?.target });
@@ -533,9 +536,19 @@ export default function JiaPresence() {
           {(bubble || panelOpen) && (
             <motion.div key="stack" initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.2 }}
               className="flex w-[min(280px,calc(100vw-24px))] flex-col items-end gap-2">
-              {bubble && (
+                  {bubble && (
                 <div role="status" aria-live="polite" className="relative w-full rounded-[18px] border-2 border-canari-blue bg-canari py-2.5 pl-3.5 pr-9 text-[13px] font-extrabold leading-[1.4] text-canari-blue shadow-[0_12px_30px_rgba(0,87,184,.2)]">
                   {bubble.text}
+                  {sourceLinks.length > 0 && (
+                    <div className="mt-2 border-t border-canari-blue/20 pt-2 text-[10px] font-semibold">
+                      <p className="mb-1 font-black uppercase tracking-[0.08em]">Sources consultées</p>
+                      <div className="flex flex-col gap-1">
+                        {sourceLinks.map((source) => (
+                          <a key={source.url} href={source.url} target="_blank" rel="noreferrer" className="truncate underline underline-offset-2 hover:opacity-70">{source.title || source.url}</a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <button type="button" onClick={dismissBubble} aria-label={t("jia.dismiss")}
                     className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full text-canari-blue/70 hover:bg-white/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-canari-blue">
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>

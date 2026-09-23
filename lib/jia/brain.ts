@@ -147,7 +147,9 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
   const fallbackAction = financialRequest ? undefined : actionForIntent(intent, context.message);
   const message = financialRequest
     ? FINANCIAL_REPLY[lang]
-    : (clean(generated?.message, 500) || clean(assessment.data?.nextBestAction, 500) || EMPTY[lang]);
+    : (clean(generated?.message, 500) || (sources.length > 0
+      ? (lang === "en" ? `I found ${sources.length} relevant web sources. I can compare them with your career context.` : `J’ai trouvé ${sources.length} sources web pertinentes. Je peux maintenant les comparer à ton contexte de carrière.`)
+      : clean(assessment.data?.nextBestAction, 500) || EMPTY[lang]));
   const confidence = generated?.confidence === "HIGH" || generated?.confidence === "MEDIUM" ? generated.confidence : "MEDIUM";
   const proposedAction = financialRequest ? undefined : (generated?.proposedAction && typeof generated.proposedAction === "object"
     ? generated.proposedAction as JiaBrainResult["proposedAction"]
