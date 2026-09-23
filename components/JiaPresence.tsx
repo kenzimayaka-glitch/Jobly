@@ -290,7 +290,7 @@ export default function JiaPresence() {
           if (!response.ok) return;
           const out = await response.json();
           if (out.message) window.dispatchEvent(new CustomEvent("jobly:jia-response", { detail: { message: out.message, gesture: intent === "search_jobs" ? "analyze" : "reassure" } }));
-        } catch { /* le Brain est optionnel : la commande locale a déjà ét���� émise */ }
+        } catch { /* le Brain est optionnel : la commande locale a déjà ét����� émise */ }
       })();
       if (intent === "assistant_command") say(tRef.current("jia.reply.understood"), { gesture: "analyze" });
     };
@@ -557,7 +557,7 @@ export default function JiaPresence() {
         <AnimatePresence>
           {(bubble || panelOpen) && (
             <motion.div key="stack" initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.2 }}
-              className="flex w-[min(280px,calc(100vw-24px))] flex-col items-end gap-2">
+              className="absolute bottom-full right-0 mb-2 flex w-[min(280px,calc(100vw-24px))] flex-col items-end gap-2">
                   {bubble && (
                 <div role="status" aria-live="polite" className="relative w-full rounded-[18px] border-2 border-canari-blue bg-canari py-2.5 pl-3.5 pr-9 text-[13px] font-extrabold leading-[1.4] text-canari-blue shadow-[0_12px_30px_rgba(0,87,184,.2)]">
                   {bubble.text}
