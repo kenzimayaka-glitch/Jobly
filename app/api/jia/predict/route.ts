@@ -1,6 +1,8 @@
 import { generateText } from "ai";
 import type { NextRequest } from "next/server";
 import { getAuthUser } from "@/lib/server-auth";
+import { adminClient } from "@/lib/server-auth";
+import { buildJiaContext } from "@/lib/jiaContext";
 
 export const runtime = "nodejs";
 
@@ -61,6 +63,9 @@ Rules:
 
 export async function POST(request: NextRequest) {
   let lang: Lang = "fr";
+  const proactiveFallback: JiaPrediction = {
+    message: "Je suis là. Je peux t’aider à avancer dans Jobly.", gesture: "welcome", shouldSpeak: true,
+  };
   try {
     // Endpoint payant (LLM) : session Jobly obligatoire — plus d’appel anonyme.
     const auth = await getAuthUser(request);
@@ -77,6 +82,14 @@ export async function POST(request: NextRequest) {
         : [],
       idleMs: Number.isFinite(body?.idleMs) ? Math.min(Math.max(body.idleMs, 0), 300000) : 0,
     };
+    const twin = await buildJiaContext(adminClient(), auth.id, { operation: "PROACTIVE_SIGNAL", input: context });
+    const careerContext = twin.context ? {
+      readiness: twin.context.readiness,
+      gaps: twin.context.gaps.slice(0, 3),
+      nextBestAction: twin.context.nextBestAction,
+      targetRoles: twin.context.profile.targetRoles,
+      recentActivity: twin.context.behavior.recent.slice(0, 5),
+    } : null;
 
     const forwarded = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
     const ip = forwarded.split(",")[0].trim();
@@ -93,16 +106,26 @@ export async function POST(request: NextRequest) {
       entry.count += 1;
     }
 
+    const contextFallback: JiaPrediction = careerContext?.gaps[0]
+      ? { message: `Je peux t’aider à ${careerContext.nextBestAction.toLowerCase()}.`, gesture: "encourage", shouldSpeak: true }
+      : context.path.includes("/jobs")
+        ? { message: "Je peux t’aider à trouver une offre adaptée à ton profil.", gesture: "curious", shouldSpeak: true }
+        : context.path.includes("/candidatures")
+          ? { message: "Je peux vérifier tes candidatures et repérer la prochaine relance utile.", gesture: "analyze", shouldSpeak: true }
+          : context.path.includes("/career")
+            ? { message: "Je peux t’aider à choisir la prochaine étape de ton parcours.", gesture: "encourage", shouldSpeak: true }
+            : proactiveFallback;
+
     const { text } = await generateText({
       model: "deepseek/deepseek-v4.1-flash",
       system: lang === "en" ? SYSTEM_EN : SYSTEM_FR,
-      prompt: JSON.stringify(context),
+      prompt: JSON.stringify({ ...context, careerContext }),
       maxOutputTokens: 180,
     });
 
     const parsed = JSON.parse(text.replace(/^\`\`\`json\s*/i, "").replace(/\s*\`\`\`$/i, "")) as JiaPrediction;
     if (!parsed || typeof parsed.message !== "string" || typeof parsed.gesture !== "string") {
-      return Response.json(FALLBACK[lang]);
+      return Response.json(proactiveFallback);
     }
 
     const safe: JiaPrediction = {
@@ -113,6 +136,6 @@ export async function POST(request: NextRequest) {
     };
     return Response.json(safe);
   } catch {
-    return Response.json(FALLBACK[lang], { status: 200 });
+    return Response.json(proactiveFallback, { status: 200 });
   }
 }

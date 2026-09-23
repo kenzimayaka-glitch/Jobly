@@ -20,6 +20,7 @@ export type JiaBrainResult = {
   confidence: "HIGH" | "MEDIUM" | "LOW";
   proposedAction?: { type: string; target?: string; requiresConfirmation: boolean };
   provider: string;
+  sources?: Array<{ title: string; url: string; snippet: string }>;
   traceId?: string;
 };
 
@@ -53,6 +54,53 @@ function normalizeIntent(message: string) {
   return "CAREER";
 }
 
+type WebSource = { title: string; url: string; snippet: string; domain: string; trust: "HIGH" | "MEDIUM" };
+
+const TRUSTED_WEB_DOMAINS = new Set([
+  "francetravail.fr", "service-public.fr", "legifrance.gouv.fr", "insee.fr", "who.int", "europa.eu",
+  "linkedin.com", "indeed.com", "glassdoor.fr", "apec.fr", "oniseptv.onisep.fr", "onisep.fr",
+]);
+
+function normalizeWebUrl(raw: string) {
+  try {
+    const url = new URL(raw);
+    if (!/^https?:$/.test(url.protocol) || url.hostname === "localhost" || url.hostname.endsWith(".local")) return null;
+    [...url.searchParams.keys()].forEach((key) => { if (/^utm_|^gclid$|^fbclid$/i.test(key)) url.searchParams.delete(key); });
+    return url;
+  } catch { return null; }
+}
+
+function needsWebResearch(message: string) {
+  return /\b(aujourd'hui|actualit|dernier|dernière|récent|maintenant|sur internet|en ligne|cherche|recherche|compare|prix|salaire|marché|offre|emploi|formation|événement|réglementation|202[4-9])\b/i.test(message);
+}
+
+async function searchWeb(query: string): Promise<WebSource[]> {
+  if (!query.trim()) return [];
+  try {
+    const response = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query.slice(0, 300))}`, {
+      headers: { "User-Agent": "Jobly-JIA/1.0" },
+      signal: AbortSignal.timeout(7000),
+      cache: "no-store",
+    });
+    if (!response.ok) return [];
+    const html = await response.text();
+    const sources: WebSource[] = [];
+    const pattern = /result__a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?result__snippet[^>]*>([\s\S]*?)<\/a?>/gi;
+    for (const match of html.matchAll(pattern)) {
+      const parsed = normalizeWebUrl(match[1].replace(/&amp;/g, "&"));
+      if (!parsed || sources.some((source) => source.url === parsed.href) || sources.some((source) => source.domain === parsed.hostname)) continue;
+      const cleanText = (value: string) => value.replace(/<[^>]+>/g, "").replace(/&(?:amp|quot|#39|lt|gt);/g, " ").replace(/\s+/g, " ").trim();
+      const domain = parsed.hostname.replace(/^www\./, "");
+      sources.push({ title: cleanText(match[2]).slice(0, 180), url: parsed.href, domain, trust: TRUSTED_WEB_DOMAINS.has(domain) ? "HIGH" : "MEDIUM", snippet: cleanText(match[3]).slice(0, 400) });
+      if (sources.length === 5) break;
+    }
+    sources.sort((a, b) => Number(b.trust === "HIGH") - Number(a.trust === "HIGH"));
+    return sources;
+  } catch {
+    return [];
+  }
+}
+
 export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult> {
   const sb = adminClient();
   const [memory, events, assessment] = await Promise.all([
@@ -74,6 +122,24 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     assessment: assessment.data || null,
   };
 
+  const greeting = /^(bonjour|bonsoir|salut|hello|coucou|hey|bjr)\b[!?., ]*$/i.test(context.message);
+  if (greeting) {
+    const message = lang === "en"
+      ? "Hello. I’m here with you. Tell me what you want to accomplish today."
+      : "Bonjour. Je suis avec toi. Dis-moi ce que tu veux accomplir aujourd’hui.";
+    const trace = await sb.from("JiaIntelligenceTrace").insert({
+      userId: input.userId, stage: "INSIGHT", title: "J’IA greeting", content: message,
+      confidence: "HIGH", evidence: { path: context.path }, sourceType: "JIA_BRAIN", sourceRef: "lib/jia/brain",
+      status: "COMPLETED", metadata: { provider: "DETERMINISTIC", ecosystem: context.ecosystem },
+    }).select("id").single();
+    return { message, intent: "GREETING", confidence: "HIGH", provider: "DETERMINISTIC", ...(trace.data?.id ? { traceId: String(trace.data.id) } : {}) };
+  }
+
+  const sources = needsWebResearch(context.message) ? await searchWeb(context.message) : [];
+  const webResearch = sources.length > 0
+    ? `Sources web récentes (à vérifier, jamais des faits garantis; confiance: HIGH = domaine institutionnel ou spécialisé connu, MEDIUM = source à vérifier):\n${sources.map((source) => `- [${source.trust}] ${source.title} — ${source.url}\n  ${source.snippet}`).join("\n")}`
+    : "Aucune source web fiable trouvée.";
+
   const operation: AiOperation =
     input.ecosystem === "RECRUITER" ? "OFFER_INTELLIGENCE" :
     input.ecosystem === "PARTNER" ? "CAREER_COMPANION" : "CAREER_COMPANION";
@@ -81,7 +147,12 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
   let provider = "DETERMINISTIC";
   let generated: Record<string, unknown> | null = null;
   try {
-    const result = await runAiOrchestrator(operation, { message: context.message }, context, "QUALITY");
+    const result = await runAiOrchestrator(
+      operation,
+      { message: context.message, webResearch },
+      { ...context, webResearch },
+      "QUALITY",
+    );
     provider = result.provider;
     generated = extractJson(result.output);
   } catch {}
@@ -92,7 +163,9 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
   const fallbackAction = financialRequest ? undefined : actionForIntent(intent, context.message);
   const message = financialRequest
     ? FINANCIAL_REPLY[lang]
-    : (clean(generated?.message, 500) || clean(assessment.data?.nextBestAction, 500) || EMPTY[lang]);
+    : (clean(generated?.message, 500) || (sources.length > 0
+      ? (lang === "en" ? `I found ${sources.length} relevant web sources. I can compare them with your career context.` : `J’ai trouvé ${sources.length} sources web pertinentes. Je peux maintenant les comparer à ton contexte de carrière.`)
+      : clean(assessment.data?.nextBestAction, 500) || EMPTY[lang]));
   const confidence = generated?.confidence === "HIGH" || generated?.confidence === "MEDIUM" ? generated.confidence : "MEDIUM";
   const proposedAction = financialRequest ? undefined : (generated?.proposedAction && typeof generated.proposedAction === "object"
     ? generated.proposedAction as JiaBrainResult["proposedAction"]
@@ -104,12 +177,12 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     title: "J’IA Brain decision",
     content: message,
     confidence,
-    evidence: { path: context.path, action: context.action, intent, memoryCount: memory.data?.length || 0, eventCount: events.data?.length || 0 },
+    evidence: { path: context.path, action: context.action, intent, memoryCount: memory.data?.length || 0, eventCount: events.data?.length || 0, webSources: sources.map((source) => source.url) },
     sourceType: "JIA_BRAIN",
     sourceRef: "lib/jia/brain",
     status: "COMPLETED",
     metadata: { provider, ecosystem: context.ecosystem, proactive: context.proactive },
   }).select("id").single();
 
-  return { message, intent, confidence, proposedAction, provider, ...(trace.data?.id ? { traceId:String(trace.data.id) } : {}) };
+  return { message, intent, confidence, proposedAction, provider, sources, ...(trace.data?.id ? { traceId:String(trace.data.id) } : {}) };
 }

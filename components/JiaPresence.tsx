@@ -146,6 +146,9 @@ export default function JiaPresence() {
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [commandInput, setCommandInput] = useState("");
   const [commandBusy, setCommandBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{ type: string; message: string; target?: string } | null>(null);
+  const [sourceLinks, setSourceLinks] = useState<Array<{ title: string; url: string; snippet?: string }>>([]);
+  const [healthStatus, setHealthStatus] = useState<"idle" | "checking" | "ready" | "error">("idle");
 
   const modeRef = useRef<"text" | "voice">("text");
   const langRef = useRef(lang);
@@ -287,7 +290,7 @@ export default function JiaPresence() {
           if (!response.ok) return;
           const out = await response.json();
           if (out.message) window.dispatchEvent(new CustomEvent("jobly:jia-response", { detail: { message: out.message, gesture: intent === "search_jobs" ? "analyze" : "reassure" } }));
-        } catch { /* le Brain est optionnel : la commande locale a déjà été émise */ }
+        } catch { /* le Brain est optionnel : la commande locale a déjà ét���� émise */ }
       })();
       if (intent === "assistant_command") say(tRef.current("jia.reply.understood"), { gesture: "analyze" });
     };
@@ -301,6 +304,19 @@ export default function JiaPresence() {
     shouldRestart.current = true;
     try { r.start(); setListening(true); } catch { setListening(false); }
   }, [say]);
+
+  // La présence reste montée entre les routes : on relance seulement la reconnaissance vocale.
+  useEffect(() => {
+    if (recognition.current) {
+      recognition.current.stop();
+      recognition.current = null;
+    }
+    if (modeRef.current === "voice" && enabledRef.current) {
+      shouldRestart.current = true;
+      const timer = window.setTimeout(() => startListening(), 180);
+      return () => window.clearTimeout(timer);
+    }
+  }, [lang, pathname, startListening]);
 
   useEffect(() => {
     const onInteract = () => {
@@ -321,8 +337,6 @@ export default function JiaPresence() {
     };
   }, [startListening]);
 
-  // Changement de langue : la reconnaissance repart dans la bonne langue.
-  useEffect(() => { if (recognition.current) { recognition.current.stop(); } }, [lang]);
 
   useEffect(() => {
     const onPreferencesChanged = (event: Event) => {
@@ -345,6 +359,16 @@ export default function JiaPresence() {
     return () => window.removeEventListener("jobly:jia-preferences-changed", onPreferencesChanged);
   }, [startListening]);
 
+  const checkJiaHealth = useCallback(async () => {
+    setHealthStatus("checking");
+    try {
+      const response = await fetch("/api/jia/health", { cache: "no-store" });
+      setHealthStatus(response.ok ? "ready" : "error");
+    } catch {
+      setHealthStatus("error");
+    }
+  }, []);
+
   const sendTextCommand = useCallback(async () => {
     const command = commandInput.trim();
     if (!command || commandBusy) return;
@@ -360,19 +384,47 @@ export default function JiaPresence() {
       });
       const out = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(out.message || "J’IA est momentanément indisponible.");
-      say(out.message || "Je suis prête à t’aider.", {
-        gesture: out.proposedAction ? "analyze" : "reassure",
+      const nextSources = Array.isArray(out.sources) ? out.sources.filter((source: unknown): source is { title: string; url: string; snippet?: string } => Boolean(source && typeof source === "object" && "url" in source && typeof source.url === "string" && /^https?:\/\//i.test(source.url))).slice(0, 5) : [];
+      setSourceLinks(nextSources);
+      const sourceSuffix = nextSources.length
+        ? `\n\nSources vérifiables : ${nextSources.slice(0, 3).map((source: { title: string; url: string }) => source.title || source.url).join(" · ")}`
+        : "";
+      const proposedType = out.proposedAction?.type as string | undefined;
+      if (proposedType) setPendingAction({ type: proposedType, message: command, target: out.proposedAction?.target });
+      say(`${out.message || "Je suis prête à t’aider."}${sourceSuffix}`, {
+        gesture: proposedType ? "analyze" : "reassure",
         move: out.proposedAction ? "point_button" : undefined,
         speak: true,
         sticky: true,
       });
-      if (out.proposedAction?.target) router.push(out.proposedAction.target);
     } catch (error) {
       say(error instanceof Error ? error.message : "Je n’ai pas réussi à répondre.", { gesture: "secure", sticky: true, speak: false });
     } finally {
       setCommandBusy(false);
     }
   }, [commandBusy, commandInput, router, say]);
+
+  const confirmPendingAction = useCallback(async () => {
+    if (!pendingAction) return;
+    setCommandBusy(true);
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      const response = await fetch("/api/jia/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
+        body: JSON.stringify({ type: pendingAction.type, message: pendingAction.message, confirmed: true }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || "Action non disponible.");
+      setPendingAction(null);
+      say("C’est préparé. Je t’ouvre l’espace correspondant.", { gesture: "welcome", speak: true, sticky: true });
+      if (pendingAction.target || result.next) router.push(pendingAction.target || result.next);
+    } catch (error) {
+      say(error instanceof Error ? error.message : "Je n’ai pas pu préparer cette action.", { gesture: "secure", sticky: true, speak: false });
+    } finally {
+      setCommandBusy(false);
+    }
+  }, [pendingAction, router, say]);
 
   // ── Réponses externes, gestes sémantiques (window.jia.play) ──────────────
   useEffect(() => {
@@ -406,7 +458,7 @@ export default function JiaPresence() {
     return () => { window.removeEventListener("jobly:jia-play", onPlay); delete window.jia; };
   }, [say, dismissBubble]);
 
-  // ── Proactivité (si autorisée) ───────────────────────────────────────────
+  // ── Proactivité (si autorisée) ───────────────────────���───────────────────
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
       const el = (event.target as HTMLElement | null)?.closest("button,a,[role=button],input,select,textarea") as HTMLElement | null;
@@ -445,7 +497,8 @@ export default function JiaPresence() {
       } catch { /* proactivité facultative */ }
     };
     const schedule = (delay: number) => { if (timer) window.clearTimeout(timer); timer = window.setTimeout(request, delay); };
-    schedule(8_000);
+    schedule(pathname === "/" ? 8_000 : 2_500);
+    void checkJiaHealth();
     const interval = window.setInterval(request, PREDICT_MIN_INTERVAL);
     const onActivity = () => schedule(4_000);
     window.addEventListener("pointerdown", onActivity, { passive: true });
@@ -455,9 +508,8 @@ export default function JiaPresence() {
       window.clearInterval(interval);
       window.removeEventListener("pointerdown", onActivity);
       window.removeEventListener("keydown", onActivity);
-      window.speechSynthesis?.cancel();
     };
-  }, [pathname, visible, prefs.proactive, sensitiveRoute, say]);
+  }, [checkJiaHealth, pathname, visible, prefs.proactive, sensitiveRoute, say]);
 
   useEffect(() => () => { if (bubbleTimer.current) window.clearTimeout(bubbleTimer.current); }, []);
   useEffect(() => { if (!speaking) return; const id = window.setTimeout(() => setSpeaking(false), 30_000); return () => window.clearTimeout(id); }, [speaking]);
@@ -506,9 +558,19 @@ export default function JiaPresence() {
           {(bubble || panelOpen) && (
             <motion.div key="stack" initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.2 }}
               className="flex w-[min(280px,calc(100vw-24px))] flex-col items-end gap-2">
-              {bubble && (
+                  {bubble && (
                 <div role="status" aria-live="polite" className="relative w-full rounded-[18px] border-2 border-canari-blue bg-canari py-2.5 pl-3.5 pr-9 text-[13px] font-extrabold leading-[1.4] text-canari-blue shadow-[0_12px_30px_rgba(0,87,184,.2)]">
                   {bubble.text}
+                  {sourceLinks.length > 0 && (
+                    <div className="mt-2 border-t border-canari-blue/20 pt-2 text-[10px] font-semibold">
+                      <p className="mb-1 font-black uppercase tracking-[0.08em]">Sources consultées</p>
+                      <div className="flex flex-col gap-1">
+                        {sourceLinks.map((source) => (
+                          <a key={source.url} href={source.url} target="_blank" rel="noreferrer" className="truncate underline underline-offset-2 hover:opacity-70">{source.title || source.url}</a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <button type="button" onClick={dismissBubble} aria-label={t("jia.dismiss")}
                     className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full text-canari-blue/70 hover:bg-white/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-canari-blue">
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
@@ -519,9 +581,18 @@ export default function JiaPresence() {
                 <div data-jia-panel className="w-full rounded-[20px] border border-line bg-white p-3 shadow-[0_16px_40px_rgba(10,25,49,.16)]">
                   <div className="flex items-center justify-between gap-2">
                     <div className="text-[13px] font-black text-ink">{t("jia.panel.title")}</div>
-                    <span className="rounded-full bg-canari-blue-soft px-2 py-1 text-[10px] font-extrabold text-canari-blue">{statusLabel}</span>
+                    <span className="rounded-full bg-canari-blue-soft px-2 py-1 text-[10px] font-extrabold text-canari-blue">{healthStatus === "checking" ? "Vérification…" : healthStatus === "error" ? "Connexion à vérifier" : healthStatus === "ready" ? "J’IA connectée" : statusLabel}</span>
                   </div>
                   <p className="mt-1 text-[11px] leading-4 text-muted">Parle-lui ou écris-lui ce que tu veux faire. J’IA répond et te guide vers l’action suivante.</p>
+                  {pendingAction && (
+                    <div className="mt-2 rounded-xl border border-canari-blue/30 bg-canari-blue-soft p-2.5 text-[11px] text-ink">
+                      <p className="font-extrabold">J’IA attend ton autorisation pour préparer cette action.</p>
+                      <div className="mt-2 flex gap-2">
+                        <button type="button" onClick={() => void confirmPendingAction()} disabled={commandBusy} className="min-h-8 rounded-lg bg-canari-blue px-3 text-[11px] font-extrabold text-white disabled:opacity-50">Autoriser</button>
+                        <button type="button" onClick={() => setPendingAction(null)} disabled={commandBusy} className="min-h-8 rounded-lg border border-line px-3 text-[11px] font-extrabold text-muted">Annuler</button>
+                      </div>
+                    </div>
+                  )}
                   <form onSubmit={(event) => { event.preventDefault(); void sendTextCommand(); }} className="mt-2.5 flex items-center gap-2 rounded-xl border border-line bg-white p-1.5 focus-within:border-canari-blue">
                     <input value={commandInput} onChange={(event) => setCommandInput(event.target.value)} placeholder="Ex. Trouve-moi un emploi" aria-label="Message à J’IA" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-xs font-semibold text-ink outline-none placeholder:text-muted" disabled={commandBusy} />
                     <button type="submit" aria-label="Envoyer à J’IA" disabled={commandBusy || !commandInput.trim()} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-canari-blue text-white disabled:opacity-40">{commandBusy ? "…" : "↑"}</button>
