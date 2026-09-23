@@ -145,12 +145,12 @@ body {
   will-change: transform;
   animation: talent-smoke-drift 14s ease-in-out infinite alternate;
 }
-.talent-smoke-a { width: 360px; height: 220px; left: -150px; top: 8%; background: #FFC72C; }
-.talent-smoke-b { width: 420px; height: 260px; right: -180px; top: 24%; background: #2E7BEA; animation-delay: -4s; }
-.talent-smoke-c { width: 330px; height: 220px; left: 35%; bottom: -120px; background: #FFD84D; animation-delay: -8s; }
-.talent-orb { position:absolute; width:180px; height:180px; border-radius:50%; filter:blur(1px); opacity:.14; border:28px solid #2E7BEA; animation: talent-orb-float 11s ease-in-out infinite; }
+.talent-smoke-a { width: 360px; height: 220px; left: -150px; top: 8%; background: #FFE135; }
+.talent-smoke-b { width: 420px; height: 260px; right: -180px; top: 24%; background: #0057B8; animation-delay: -4s; }
+.talent-smoke-c { width: 330px; height: 220px; left: 35%; bottom: -120px; background: #FFE135; animation-delay: -8s; }
+.talent-orb { position:absolute; width:180px; height:180px; border-radius:50%; filter:blur(1px); opacity:.14; border:28px solid #0057B8; animation: talent-orb-float 11s ease-in-out infinite; }
 .talent-orb-left { left:-120px; bottom:22%; }
-.talent-orb-right { right:-120px; top:12%; border-color:#FFC72C; animation-delay:-5s; }
+.talent-orb-right { right:-120px; top:12%; border-color:#FFE135; animation-delay:-5s; }
 @keyframes talent-smoke-drift {
   0% { transform: translate3d(-2%, -1%, 0) scale(1); }
   50% { transform: translate3d(5%, 4%, 0) scale(1.08); }
@@ -201,9 +201,9 @@ body {
   backdrop-filter: blur(10px);
 }
 .talent-shell .field { border-color: #D7E2F1; background:#fff; }
-.talent-shell .field:focus { border-color:#2E5C9E; box-shadow:0 0 0 3px rgba(46,92,158,.12); }
-.talent-shell .talent-yellow { background:#FFC72C !important; color:#0A1931 !important; }
-.talent-shell .talent-blue { background:#2E5C9E !important; color:#fff !important; }
+.talent-shell .field:focus { border-color:#0057B8; box-shadow:0 0 0 3px rgba(46,92,158,.12); }
+.talent-shell .talent-yellow { background:#FFE135 !important; color:#0A1931 !important; }
+.talent-shell .talent-blue { background:#0057B8 !important; color:#fff !important; }
 .talent-shell .talent-soft-blue { background:#EEF5FF !important; color:#214F8F !important; }
 .talent-shell .talent-soft-yellow { background:#FFF8D9 !important; color:#735700 !important; }
 .talent-shell .talent-outline { border-color:#C9D9ED !important; color:#173F7A !important; background:#fff !important; }

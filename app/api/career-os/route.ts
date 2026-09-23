@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
 import { assessCareer, levelLabel } from "../../../lib/careerEngine";
+import { localizeCareerList, localizeCareerText, type CareerLang } from "../../../lib/careerText";
 
 export async function GET(req: NextRequest) {
   try {
+    const lang: CareerLang = new URL(req.url).searchParams.get("lang") === "en" ? "en" : "fr";
+    const L = (x: string) => localizeCareerText(x, lang);
     const auth = await getAuthUser(req); if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const sb = adminClient(); const user = await ensureUser(sb, auth);
     const [p, e, s, ed, j] = await Promise.all([
@@ -53,15 +56,15 @@ export async function GET(req: NextRequest) {
       targetCity,
       yearsExperience: assessment.yearsExperience,
       currentLevel: assessment.currentLevel,
-      currentLevelLabel: levelLabel(assessment.currentLevel),
+      currentLevelLabel: L(levelLabel(assessment.currentLevel)),
       targetLevel: assessment.targetLevel,
-      targetLevelLabel: levelLabel(assessment.targetLevel),
+      targetLevelLabel: L(levelLabel(assessment.targetLevel)),
       readiness: assessment.readiness,
-      dimensions: assessment.dimensions,
-      criteria: assessment.criteria,
-      gap: gaps.slice(0, 6),
-      nextBestAction: nextAction,
-      roadmap,
+      dimensions: Object.fromEntries(Object.entries(assessment.dimensions).map(([k, v]) => [k, { ...v, evidence: localizeCareerList(v.evidence, lang) }])),
+      criteria: localizeCareerList(assessment.criteria, lang),
+      gap: localizeCareerList(gaps.slice(0, 6), lang),
+      nextBestAction: L(nextAction),
+      roadmap: roadmap.map((r) => ({ ...r, title: L(r.title), action: L(r.action) })),
       publicDiscoverable: Boolean(profile.publicDiscoverable),
       profileCompleteness: { skills: skills.length, experiences: experiences.length, education: education.length },
     });

@@ -44,7 +44,7 @@ export default function PartnerLogin() {
         <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="Username" className="mt-5 w-full rounded-2xl border p-3"/>
         <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Mot de passe" className="mt-3 w-full rounded-2xl border p-3"/>
         {message && <p className="mt-3 text-sm font-bold text-red-600">{message}</p>}
-        <button disabled={busy} onClick={enter} className="mt-5 w-full rounded-full bg-[#FFC72C] px-5 py-3 font-black disabled:opacity-50">{busy ? "Connexion…" : "Entrer"}</button>
+        <button disabled={busy} onClick={enter} className="mt-5 w-full rounded-full bg-[#FFE135] px-5 py-3 font-black disabled:opacity-50">{busy ? "Connexion…" : "Entrer"}</button>
       </div>
     </main>
   );

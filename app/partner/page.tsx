@@ -51,7 +51,7 @@ function OrangeMoneyLogo() {
 function MoMoLogo() {
   return (
     <svg viewBox="0 0 80 40" className="h-10 w-auto" aria-label="MTN Mobile Money">
-      <rect width="80" height="40" rx="8" fill="#FFC72C" />
+      <rect width="80" height="40" rx="8" fill="#FFE135" />
       <text x="10" y="16" fontSize="11" fontWeight="900" fill="#1a1a1a" fontFamily="sans-serif">MTN</text>
       <text x="10" y="30" fontSize="9" fontWeight="700" fill="#1a1a1a" fontFamily="sans-serif">MoMo</text>
       <circle cx="65" cy="20" r="12" fill="#1a1a1a" opacity="0.12" />
@@ -235,9 +235,9 @@ export default function PartnerDashboard() {
                 <h2 className="font-heading text-base font-extrabold">Gains Passifs Détectés</h2>
                 <p className="mt-1 text-xs text-jobly-gray">Jobly peut détecter les recommandations reçues par email.</p>
               </div>
-              <button type="button" onClick={async()=>{const detected=await detectReferralByEmail(); setToastMessage(`${detected.length} recommandation(s) détectée(s).`);}} className="rounded-full bg-[#FFC72C] px-4 py-2 text-[10px] font-black text-navy">Scanner</button>
+              <button type="button" onClick={async()=>{const detected=await detectReferralByEmail(); setToastMessage(`${detected.length} recommandation(s) détectée(s).`);}} className="rounded-full bg-[#FFE135] px-4 py-2 text-[10px] font-black text-navy">Scanner</button>
             </div>
-            <div className="mt-3 rounded-2xl bg-blue-50 p-3 text-xs font-bold text-[#2E5C9E]">
+            <div className="mt-3 rounded-2xl bg-blue-50 p-3 text-xs font-bold text-[#0057B8]">
               Les détections MVP sont simulées. Une commission n'est créditée que lorsqu'une inscription correspondante est confirmée.
             </div>
           </section>

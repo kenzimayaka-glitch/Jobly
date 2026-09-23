@@ -14,9 +14,9 @@ export default function ScoreRing({ score, value, size = "md", label }: { score?
 
   // Color based on score
   const getColor = () => {
-    if (clamped >= 80) return { start: "#2E7BEA", mid: "#2E5C9E", end: "#FFC72C" };
-    if (clamped >= 60) return { start: "#FFC72C", mid: "#FFC72C", end: "#2E7BEA" };
-    return { start: "#2E5C9E", mid: "#2E5C9E", end: "#94A3B8" };
+    if (clamped >= 80) return { start: "#2E7BEA", mid: "#0057B8", end: "#FFE135" };
+    if (clamped >= 60) return { start: "#FFE135", mid: "#FFE135", end: "#2E7BEA" };
+    return { start: "#0057B8", mid: "#0057B8", end: "#94A3B8" };
   };
 
   const colors = getColor();

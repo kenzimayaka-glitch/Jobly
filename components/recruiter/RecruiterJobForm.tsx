@@ -244,7 +244,7 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
               <h2 className="font-heading text-base font-extrabold text-navy">Déjà publiée ailleurs ?</h2>
               <p className="mt-1 text-xs text-jobly-gray">Colle l’URL LinkedIn, Indeed ou d’une autre source et pré-remplis ton offre en quelques secondes.</p>
               <div className="mt-3 flex gap-2">
-                <input value={sourceUrl} onChange={(e)=>setSourceUrl(e.target.value)} placeholder="https://linkedin.com/jobs/…" className="min-w-0 flex-1 rounded-full border border-slate-200 px-4 py-3 text-xs outline-none focus:border-[#2E5C9E]" />
+                <input value={sourceUrl} onChange={(e)=>setSourceUrl(e.target.value)} placeholder="https://linkedin.com/jobs/…" className="min-w-0 flex-1 rounded-full border border-slate-200 px-4 py-3 text-xs outline-none focus:border-[#0057B8]" />
                 <button type="button" disabled={importing || !sourceUrl.trim()} onClick={async()=>{
                   try {
                     setImporting(true); setError(null);
@@ -255,12 +255,12 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
                     setShareToast("Offre importée : vérifie les informations avant publication.");
                   } catch { setError("URL invalide. Vérifie le lien puis réessaie."); }
                   finally { setImporting(false); }
-                }} className="shrink-0 rounded-full bg-[#FFC72C] px-4 py-3 text-xs font-black text-navy disabled:opacity-50">{importing ? "Import…" : "Importer en 10s"}</button>
+                }} className="shrink-0 rounded-full bg-[#FFE135] px-4 py-3 text-xs font-black text-navy disabled:opacity-50">{importing ? "Import…" : "Importer en 10s"}</button>
               </div>
-              {shareToast && <p className="mt-2 text-xs font-bold text-[#2E5C9E]">{shareToast}</p>}
+              {shareToast && <p className="mt-2 text-xs font-bold text-[#0057B8]">{shareToast}</p>}
               <p className="mt-2 text-[10px] text-jobly-gray">Pré-remplissage indicatif à partir de l'URL (pas encore d'extraction réelle du contenu externe) : relis et complète chaque champ avant publication.</p>
               <label className="mt-3 flex cursor-not-allowed items-center gap-2 text-xs font-bold text-jobly-gray" title="Intégration Gmail non branchée côté backend — voir audit du 16/09/2026">
-                <input type="checkbox" disabled className="h-4 w-4 accent-[#2E5C9E]" />
+                <input type="checkbox" disabled className="h-4 w-4 accent-[#0057B8]" />
                 Connecter Gmail pour recevoir les candidatures · Bientôt disponible
               </label>
             </section>
@@ -521,12 +521,12 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
               <h2 className="font-heading text-xl font-extrabold text-navy">Félicitations 🎉</h2>
               <p className="mt-1 text-xs text-jobly-gray">Partage ton offre partout en 30 secondes.</p>
               <div className="mt-4 flex gap-2">
-                {(["linkedin","facebook","whatsapp"] as const).map(tab=><button key={tab} onClick={()=>setShareTab(tab)} className={`flex-1 rounded-full px-2 py-2 text-[10px] font-black ${shareTab===tab?"bg-[#2E5C9E] text-white":"bg-slate-100 text-navy"}`}>{tab==="linkedin"?"LinkedIn":tab==="facebook"?"Facebook":"WhatsApp"}</button>)}
+                {(["linkedin","facebook","whatsapp"] as const).map(tab=><button key={tab} onClick={()=>setShareTab(tab)} className={`flex-1 rounded-full px-2 py-2 text-[10px] font-black ${shareTab===tab?"bg-[#0057B8] text-white":"bg-slate-100 text-navy"}`}>{tab==="linkedin"?"LinkedIn":tab==="facebook"?"Facebook":"WhatsApp"}</button>)}
               </div>
               <textarea readOnly value={text} rows={8} className="mt-3 w-full rounded-2xl border border-slate-200 p-3 text-xs text-navy outline-none"/>
-              <button onClick={async()=>{await navigator.clipboard.writeText(text);setShareToast("Texte copié.");}} className="mt-3 w-full rounded-full bg-[#FFC72C] py-3 text-xs font-black text-navy">Copier</button>
-              <p className="mt-3 rounded-2xl bg-blue-50 p-3 text-[11px] font-bold text-[#2E5C9E]">Lien direct : {jobPublicUrl(shareJob.id, "recruiter")}</p>
-              <p className="mt-2 text-[10px] text-jobly-gray">Contact candidature : <a className="font-bold text-[#2E5C9E]" href={`mailto:${recruiterEmail}`}>{recruiterEmail}</a></p>
+              <button onClick={async()=>{await navigator.clipboard.writeText(text);setShareToast("Texte copié.");}} className="mt-3 w-full rounded-full bg-[#FFE135] py-3 text-xs font-black text-navy">Copier</button>
+              <p className="mt-3 rounded-2xl bg-blue-50 p-3 text-[11px] font-bold text-[#0057B8]">Lien direct : {jobPublicUrl(shareJob.id, "recruiter")}</p>
+              <p className="mt-2 text-[10px] text-jobly-gray">Contact candidature : <a className="font-bold text-[#0057B8]" href={`mailto:${recruiterEmail}`}>{recruiterEmail}</a></p>
               <button onClick={()=>router.push("/recruiter")} className="mt-3 w-full rounded-full border border-slate-200 py-3 text-xs font-black text-navy">Terminer</button>
             </section>
           </div>

@@ -63,7 +63,7 @@ export default function RecruiterJobsListPage() {
     try {
       const [jobsRes, applicationsRes] = await Promise.all([
         fetch("/api/recruiter/jobs", { headers: { Authorization: `Bearer ${token}` } }),
-        fetch("/api/recruiter/applications", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("/api/recruiter/applications?markViewed=0", { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       const jobsBody = await jobsRes.json();
       if (!jobsRes.ok) throw new Error(jobsBody.message || "Offres indisponibles.");

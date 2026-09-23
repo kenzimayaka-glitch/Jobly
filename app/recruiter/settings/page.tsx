@@ -77,7 +77,7 @@ export default function RecruiterSettingsPage() {
           <section className="rounded-[24px] bg-white p-5 shadow-sm">
             <h2 className="font-heading text-base font-extrabold">Auto-relance</h2>
             <p className="mt-1 text-xs text-jobly-gray">Contrôle des candidats convoqués depuis plus de 3 jours.</p>
-            <button type="button" onClick={async()=>{const result=await checkForRelaunch([{id:"demo",candidateName:"Candidat démo",candidateEmail:"candidate@example.com",companyName:"Votre entreprise",interviewAt:new Date(Date.now()-4*86400000).toISOString()}],gmail.email||"rh@jobly.cm");setMessage(`${result.sent.length} relance(s) envoyée(s).`);}} className="mt-3 w-full rounded-full bg-[#2E5C9E] py-3 text-xs font-black text-white">Vérifier les relances maintenant</button>
+            <button type="button" onClick={async()=>{const result=await checkForRelaunch([{id:"demo",candidateName:"Candidat démo",candidateEmail:"candidate@example.com",companyName:"Votre entreprise",interviewAt:new Date(Date.now()-4*86400000).toISOString()}],gmail.email||"rh@jobly.cm");setMessage(`${result.sent.length} relance(s) envoyée(s).`);}} className="mt-3 w-full rounded-full bg-[#0057B8] py-3 text-xs font-black text-white">Vérifier les relances maintenant</button>
           </section>
 
           <section className="rounded-[24px] bg-white p-5 shadow-sm">
@@ -88,22 +88,22 @@ export default function RecruiterSettingsPage() {
               </div>
               <span className={`rounded-full px-3 py-1 text-[10px] font-black ${gmail.connected ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-jobly-gray"}`}>{gmail.connected ? "CONNECTÉ" : "NON CONNECTÉ"}</span>
             </div>
-            <button onClick={handleGmail} className="mt-4 w-full rounded-full bg-[#FFC72C] px-5 py-3 text-sm font-extrabold text-[#0A1931]">{gmail.connected ? "Déconnecter Gmail" : "Connecter mon Gmail"}</button>
+            <button onClick={handleGmail} className="mt-4 w-full rounded-full bg-[#FFE135] px-5 py-3 text-sm font-extrabold text-[#0A1931]">{gmail.connected ? "Déconnecter Gmail" : "Connecter mon Gmail"}</button>
             <p className="mt-3 text-[10px] font-semibold text-jobly-gray">Jobly demande uniquement les accès Gmail nécessaires à la lecture des candidatures et à l'envoi des décisions.</p>
           </section>
 
           <section className="rounded-[24px] bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div><h2 className="font-heading text-base font-extrabold">Signature Jobly</h2><p className="mt-1 text-xs text-jobly-gray">Préférence de signature pour les emails de recrutement.</p></div>
-              <button aria-label="Activer la signature" onClick={() => { const v=!signatureEnabled; setSignatureEnabled(v); persist({signatureEnabled:v}); }} className={`h-7 w-12 rounded-full p-1 ${signatureEnabled ? "bg-[#2E5C9E]" : "bg-slate-200"}`}><span className={`block h-5 w-5 rounded-full bg-white transition-transform ${signatureEnabled ? "translate-x-5" : ""}`} /></button>
+              <button aria-label="Activer la signature" onClick={() => { const v=!signatureEnabled; setSignatureEnabled(v); persist({signatureEnabled:v}); }} className={`h-7 w-12 rounded-full p-1 ${signatureEnabled ? "bg-[#0057B8]" : "bg-slate-200"}`}><span className={`block h-5 w-5 rounded-full bg-white transition-transform ${signatureEnabled ? "translate-x-5" : ""}`} /></button>
             </div>
-            <textarea value={signature} onChange={(e) => {setSignature(e.target.value); persist({signature:e.target.value});}} rows={3} className="mt-4 w-full rounded-2xl border border-slate-200 p-3 text-sm outline-none focus:border-[#2E5C9E]" />
+            <textarea value={signature} onChange={(e) => {setSignature(e.target.value); persist({signature:e.target.value});}} rows={3} className="mt-4 w-full rounded-2xl border border-slate-200 p-3 text-sm outline-none focus:border-[#0057B8]" />
           </section>
 
           <section className="rounded-[24px] bg-white p-5 shadow-sm">
             <h2 className="font-heading text-base font-extrabold">WhatsApp Business</h2>
             <p className="mt-1 text-xs text-jobly-gray">Préparation de la candidature WhatsApp V2.</p>
-            <input value={whatsapp} onChange={(e)=>{setWhatsapp(e.target.value); persist({whatsapp:e.target.value});}} placeholder="+237 6 XX XX XX XX" className="mt-4 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-[#2E5C9E]" />
+            <input value={whatsapp} onChange={(e)=>{setWhatsapp(e.target.value); persist({whatsapp:e.target.value});}} placeholder="+237 6 XX XX XX XX" className="mt-4 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-[#0057B8]" />
             <button disabled className="mt-3 w-full rounded-full bg-slate-100 py-3 text-xs font-black text-slate-400">Activer candidature WhatsApp · Bientôt</button>
             <p className="mt-2 text-[10px] font-semibold text-jobly-gray">{whatsappEnabled ? "Préférences enregistrées." : "L'API payante n'est pas activée dans ce MVP."}</p>
           </section>

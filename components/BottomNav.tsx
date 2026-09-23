@@ -1,38 +1,42 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useI18n, type DictKey } from "@/lib/i18n";
 
 export type NavItem = {
   icon: string;
+  /** Libellé français par défaut (repli). */
   label: string;
+  /** Clé i18n : le libellé affiché suit la langue choisie. */
+  labelKey?: DictKey;
   href: string;
 };
 
 // ─── Preset nav configs ───────────────────────────────────────────────────────
 
 export const TALENT_NAV: NavItem[] = [
-  { icon: "home", label: "Accueil", href: "/dashboard" },
-  { icon: "briefcase", label: "Offres", href: "/jobs" },
-  { icon: "check", label: "Candidatures", href: "/candidatures" },
-  { icon: "sparkle", label: "Career AI", href: "/career-brain" },
-  { icon: "orbit", label: "Écosystèmes", href: "/ecosystem?mode=switcher" },
+  { icon: "home", label: "Accueil", labelKey: "nav.home", href: "/dashboard" },
+  { icon: "briefcase", label: "Offres", labelKey: "nav.offers", href: "/jobs" },
+  { icon: "check", label: "Candidatures", labelKey: "nav.applications", href: "/candidatures" },
+  { icon: "sparkle", label: "Career AI", labelKey: "nav.careerAi", href: "/career-brain" },
+  { icon: "orbit", label: "Écosystèmes", labelKey: "nav.ecosystems", href: "/ecosystem?mode=switcher" },
 ];
 
 export const RECRUITER_NAV: NavItem[] = [
-  { icon: "home", label: "Accueil", href: "/recruiter" },
-  { icon: "briefcase", label: "Offres", href: "/recruiter/jobs" },
-  { icon: "people", label: "Candidatures", href: "/recruiter/candidatures" },
-  { icon: "ats", label: "ATS", href: "/recruiter/ats" },
-  { icon: "user", label: "Profil", href: "/recruiter/profile" },
-  { icon: "orbit", label: "Écosystèmes", href: "/ecosystem?mode=switcher" },
+  { icon: "home", label: "Accueil", labelKey: "nav.home", href: "/recruiter" },
+  { icon: "briefcase", label: "Offres", labelKey: "nav.offers", href: "/recruiter/jobs" },
+  { icon: "people", label: "Candidatures", labelKey: "nav.applications", href: "/recruiter/candidatures" },
+  { icon: "ats", label: "ATS", labelKey: "nav.ats", href: "/recruiter/ats" },
+  { icon: "user", label: "Profil", labelKey: "nav.profile", href: "/recruiter/profile" },
+  { icon: "orbit", label: "Écosystèmes", labelKey: "nav.ecosystems", href: "/ecosystem?mode=switcher" },
 ];
 
 export const PARTNER_NAV: NavItem[] = [
-  { icon: "chart", label: "Dashboard", href: "/partner" },
-  { icon: "user", label: "Profil", href: "/partner/profile" },
-  { icon: "card", label: "Paiement", href: "/partner/payment" },
-  { icon: "link", label: "Parrainage", href: "/partner/referral" },
-  { icon: "orbit", label: "Écosystèmes", href: "/ecosystem?mode=switcher" },
+  { icon: "chart", label: "Dashboard", labelKey: "nav.dashboard", href: "/partner" },
+  { icon: "user", label: "Profil", labelKey: "nav.profile", href: "/partner/profile" },
+  { icon: "card", label: "Paiement", labelKey: "nav.payment", href: "/partner/payment" },
+  { icon: "link", label: "Parrainage", labelKey: "nav.referral", href: "/partner/referral" },
+  { icon: "orbit", label: "Écosystèmes", labelKey: "nav.ecosystems", href: "/ecosystem?mode=switcher" },
 ];
 
 // ─── SVG icons ───────────────────────────────────────────────────────────────
@@ -132,27 +136,38 @@ function NavIcon({ id, className }: { id: string; className?: string }) {
 
 export default function BottomNav({ active, items }: { active: string; items?: NavItem[] }) {
   const router = useRouter();
+  const { t } = useI18n();
   const navItems = items ?? TALENT_NAV;
+  // `active` peut contenir une query (?mode=…) : on compare au chemin seul.
+  const activePath = active.split("?")[0];
+  // Un seul onglet actif : le plus spécifique (ex. /recruiter/jobs l’emporte sur /recruiter).
+  const scores = navItems.map((i) => {
+    const h = i.href.split("?")[0];
+    return activePath === h || activePath.startsWith(h + "/") ? h.length : -1;
+  });
+  const best = Math.max(...scores);
 
   return (
-    <nav aria-label="Navigation principale" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#DCE7F4] bg-white/96 pb-safe backdrop-blur-xl shadow-[0_-8px_30px_rgba(10,25,49,.06)]">
-      <div className={`mx-auto flex items-center justify-between gap-0.5 px-2 py-2 ${navItems.length === 5 ? "max-w-md" : "max-w-sm"}`}>
-        {navItems.map(({ icon, label, href }) => {
-          const isActive = active === href || active.startsWith(href + "/");
+    <nav aria-label={t("nav.aria")} className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 backdrop-blur-xl shadow-[0_-8px_30px_rgba(10,25,49,.06)]" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <div className={`mx-auto flex items-center justify-between gap-0.5 px-2 py-2 ${navItems.length >= 6 ? "max-w-lg" : navItems.length === 5 ? "max-w-md" : "max-w-sm"}`}>
+        {navItems.map(({ icon, label, labelKey, href }, index) => {
+          const hrefPath = href.split("?")[0];
+          const isActive = best >= 0 && scores[index] === best;
+          const text = labelKey ? t(labelKey) : label;
           return (
             <button
-              key={label}
+              key={href + label}
               type="button"
-              onClick={() => { if (href !== active) router.replace(href); }}
+              onClick={() => { if (hrefPath !== activePath) router.replace(href); }}
               aria-current={isActive ? "page" : undefined}
-              className={`jobly-focus flex flex-1 flex-col items-center gap-1 rounded-2xl py-2.5 text-[10px] font-bold transition-all ${
+              className={`jobly-focus flex min-h-[52px] flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-bold transition-all active:scale-95 ${
                 isActive
-                  ? "bg-[#FFE135] text-[#0A1931] shadow-[0_8px_18px_rgba(246,207,0,.25)] ring-1 ring-black/5"
-                  : "text-[#5F6F86] hover:text-[#0057B8]"
+                  ? "bg-canari text-ink shadow-[0_8px_18px_rgba(246,207,0,.25)] ring-1 ring-black/5"
+                  : "text-muted hover:text-canari-blue"
               }`}
             >
-              <NavIcon id={icon} className="h-[19px] w-[19px]" />
-              <span className="text-center leading-[1.1]">{label}</span>
+              <NavIcon id={icon} className="h-[20px] w-[20px]" />
+              <span className="max-w-full truncate text-center leading-[1.1]">{text}</span>
             </button>
           );
         })}
