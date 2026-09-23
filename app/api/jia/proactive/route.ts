@@ -12,12 +12,25 @@ export async function GET(req:NextRequest){
     const pref=await sb.from("jia_preferences").select("access_enabled,proactive_recommendations,notification_mode").eq("user_id",userId).eq("ecosystem","TALENT").maybeSingle();
     if(pref.error)throw new Error(pref.error.message);
     if(pref.data?.access_enabled===false || pref.data?.proactive_recommendations===false) return NextResponse.json({ok:true,disabled:true,signals:[],recommendations:[],persisted:0});
-    const [apps,assessment]=await Promise.all([
+    const [apps,assessment,events]=await Promise.all([
       sb.from("Application").select("id,status,createdAt,updatedAt,interviewAt,jobId,recruiterJobId").eq("userId",userId).order("updatedAt",{ascending:false}).limit(40),
-      sb.from("CareerAssessment").select("id,readiness,gaps,nextBestAction,computedAt").eq("userId",userId).order("computedAt",{ascending:false}).limit(1).maybeSingle()
+      sb.from("CareerAssessment").select("id,readiness,gaps,nextBestAction,computedAt").eq("userId",userId).order("computedAt",{ascending:false}).limit(1).maybeSingle(),
+      sb.from("JiaEvent").select("id,eventType,path,metadata,createdAt").eq("userId",userId).order("createdAt",{ascending:false}).limit(30),
     ]);
-    if(apps.error)throw new Error(apps.error.message); if(assessment.error)throw new Error(assessment.error.message);
+    if(apps.error)throw new Error(apps.error.message); if(assessment.error)throw new Error(assessment.error.message); if(events.error)throw new Error(events.error.message);
     const signals:Signal[]=[];
+    const recentEvents = events.data || [];
+    const lastEvent = recentEvents[0];
+    if (lastEvent?.eventType === "SEARCH" && recentEvents.filter((event) => event.eventType === "SEARCH").length >= 3) {
+      signals.push({ id: "search-pattern", type: "SEARCH_PATTERN", title: "Recherche à transformer en plan", detail: "Tu explores plusieurs pistes. J’IA peut comparer les options et construire une prochaine étape de carrière.", confidence: "MEDIUM", occurredAt: lastEvent.createdAt });
+    }
+    if (lastEvent?.eventType === "LEARNING_ACTIVITY") {
+      signals.push({ id: String(lastEvent.id), type: "LEARNING_CONTINUITY", title: "Continuer ton apprentissage", detail: "Une activité d’apprentissage récente peut être prolongée par un objectif concret ou une compétence à démontrer.", confidence: "MEDIUM", occurredAt: lastEvent.createdAt });
+    }
+    const lastProfileUpdate = recentEvents.find((event) => event.eventType === "PROFILE_UPDATE");
+    if (lastProfileUpdate && Date.now() - new Date(lastProfileUpdate.createdAt).getTime() < 14 * 86400000) {
+      signals.push({ id: String(lastProfileUpdate.id), type: "PROFILE_TO_OPPORTUNITY", title: "Relier ton profil aux opportunités", detail: "Ton profil vient d’évoluer. J’IA peut recalculer les opportunités et les compétences à mettre en avant.", confidence: "HIGH", occurredAt: lastProfileUpdate.createdAt });
+    }
     for(const a of apps.data||[]){
       const ageDays=(Date.now()-new Date(a.updatedAt||a.createdAt).getTime())/86400000;
       if(a.status==="INTERVIEW")signals.push({id:a.id,type:"APPLICATION_INTERVIEW",title:"Entretien à préparer",detail:"Une candidature est actuellement au stade entretien.",confidence:"HIGH",occurredAt:a.interviewAt||a.updatedAt});
