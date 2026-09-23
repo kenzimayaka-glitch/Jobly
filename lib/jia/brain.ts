@@ -74,6 +74,19 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     assessment: assessment.data || null,
   };
 
+  const greeting = /^(bonjour|bonsoir|salut|hello|coucou|hey|bjr)\b[!?., ]*$/i.test(context.message);
+  if (greeting) {
+    const message = lang === "en"
+      ? "Hello. I’m here with you. Tell me what you want to accomplish today."
+      : "Bonjour. Je suis avec toi. Dis-moi ce que tu veux accomplir aujourd’hui.";
+    const trace = await sb.from("JiaIntelligenceTrace").insert({
+      userId: input.userId, stage: "INSIGHT", title: "J’IA greeting", content: message,
+      confidence: "HIGH", evidence: { path: context.path }, sourceType: "JIA_BRAIN", sourceRef: "lib/jia/brain",
+      status: "COMPLETED", metadata: { provider: "DETERMINISTIC", ecosystem: context.ecosystem },
+    }).select("id").single();
+    return { message, intent: "GREETING", confidence: "HIGH", provider: "DETERMINISTIC", ...(trace.data?.id ? { traceId: String(trace.data.id) } : {}) };
+  }
+
   const operation: AiOperation =
     input.ecosystem === "RECRUITER" ? "OFFER_INTELLIGENCE" :
     input.ecosystem === "PARTNER" ? "CAREER_COMPANION" : "CAREER_COMPANION";

@@ -61,6 +61,9 @@ Rules:
 
 export async function POST(request: NextRequest) {
   let lang: Lang = "fr";
+  const proactiveFallback: JiaPrediction = {
+    message: "Je suis là. Je peux t’aider à avancer dans Jobly.", gesture: "welcome", shouldSpeak: true,
+  };
   try {
     // Endpoint payant (LLM) : session Jobly obligatoire — plus d’appel anonyme.
     const auth = await getAuthUser(request);
@@ -93,6 +96,14 @@ export async function POST(request: NextRequest) {
       entry.count += 1;
     }
 
+    const contextFallback: JiaPrediction = context.path.includes("/jobs")
+      ? { message: "Je peux t’aider à trouver une offre adaptée à ton profil.", gesture: "curious", shouldSpeak: true }
+      : context.path.includes("/candidatures")
+        ? { message: "Je peux vérifier tes candidatures et repérer la prochaine relance utile.", gesture: "analyze", shouldSpeak: true }
+        : context.path.includes("/career")
+          ? { message: "Je peux t’aider à choisir la prochaine étape de ton parcours.", gesture: "encourage", shouldSpeak: true }
+          : proactiveFallback;
+
     const { text } = await generateText({
       model: "deepseek/deepseek-v4.1-flash",
       system: lang === "en" ? SYSTEM_EN : SYSTEM_FR,
@@ -102,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     const parsed = JSON.parse(text.replace(/^\`\`\`json\s*/i, "").replace(/\s*\`\`\`$/i, "")) as JiaPrediction;
     if (!parsed || typeof parsed.message !== "string" || typeof parsed.gesture !== "string") {
-      return Response.json(FALLBACK[lang]);
+      return Response.json(proactiveFallback);
     }
 
     const safe: JiaPrediction = {
@@ -113,6 +124,6 @@ export async function POST(request: NextRequest) {
     };
     return Response.json(safe);
   } catch {
-    return Response.json(FALLBACK[lang], { status: 200 });
+    return Response.json(proactiveFallback, { status: 200 });
   }
 }
