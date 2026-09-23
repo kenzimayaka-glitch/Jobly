@@ -148,6 +148,7 @@ export default function JiaPresence() {
   const [commandBusy, setCommandBusy] = useState(false);
   const [pendingAction, setPendingAction] = useState<{ type: string; message: string; target?: string } | null>(null);
   const [sourceLinks, setSourceLinks] = useState<Array<{ title: string; url: string; snippet?: string }>>([]);
+  const [healthStatus, setHealthStatus] = useState<"idle" | "checking" | "ready" | "error">("idle");
 
   const modeRef = useRef<"text" | "voice">("text");
   const langRef = useRef(lang);
@@ -358,6 +359,16 @@ export default function JiaPresence() {
     return () => window.removeEventListener("jobly:jia-preferences-changed", onPreferencesChanged);
   }, [startListening]);
 
+  const checkJiaHealth = useCallback(async () => {
+    setHealthStatus("checking");
+    try {
+      const response = await fetch("/api/jia/health", { cache: "no-store" });
+      setHealthStatus(response.ok ? "ready" : "error");
+    } catch {
+      setHealthStatus("error");
+    }
+  }, []);
+
   const sendTextCommand = useCallback(async () => {
     const command = commandInput.trim();
     if (!command || commandBusy) return;
@@ -447,7 +458,7 @@ export default function JiaPresence() {
     return () => { window.removeEventListener("jobly:jia-play", onPlay); delete window.jia; };
   }, [say, dismissBubble]);
 
-  // ── Proactivité (si autorisée) ───────────────────────────────────────────
+  // ── Proactivité (si autorisée) ───────────────────────���───────────────────
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
       const el = (event.target as HTMLElement | null)?.closest("button,a,[role=button],input,select,textarea") as HTMLElement | null;
@@ -487,6 +498,7 @@ export default function JiaPresence() {
     };
     const schedule = (delay: number) => { if (timer) window.clearTimeout(timer); timer = window.setTimeout(request, delay); };
     schedule(pathname === "/" ? 8_000 : 2_500);
+    void checkJiaHealth();
     const interval = window.setInterval(request, PREDICT_MIN_INTERVAL);
     const onActivity = () => schedule(4_000);
     window.addEventListener("pointerdown", onActivity, { passive: true });
@@ -497,7 +509,7 @@ export default function JiaPresence() {
       window.removeEventListener("pointerdown", onActivity);
       window.removeEventListener("keydown", onActivity);
     };
-  }, [pathname, visible, prefs.proactive, sensitiveRoute, say]);
+  }, [checkJiaHealth, pathname, visible, prefs.proactive, sensitiveRoute, say]);
 
   useEffect(() => () => { if (bubbleTimer.current) window.clearTimeout(bubbleTimer.current); }, []);
   useEffect(() => { if (!speaking) return; const id = window.setTimeout(() => setSpeaking(false), 30_000); return () => window.clearTimeout(id); }, [speaking]);
@@ -569,7 +581,7 @@ export default function JiaPresence() {
                 <div data-jia-panel className="w-full rounded-[20px] border border-line bg-white p-3 shadow-[0_16px_40px_rgba(10,25,49,.16)]">
                   <div className="flex items-center justify-between gap-2">
                     <div className="text-[13px] font-black text-ink">{t("jia.panel.title")}</div>
-                    <span className="rounded-full bg-canari-blue-soft px-2 py-1 text-[10px] font-extrabold text-canari-blue">{statusLabel}</span>
+                    <span className="rounded-full bg-canari-blue-soft px-2 py-1 text-[10px] font-extrabold text-canari-blue">{healthStatus === "checking" ? "Vérification…" : healthStatus === "error" ? "Connexion à vérifier" : healthStatus === "ready" ? "J’IA connectée" : statusLabel}</span>
                   </div>
                   <p className="mt-1 text-[11px] leading-4 text-muted">Parle-lui ou écris-lui ce que tu veux faire. J’IA répond et te guide vers l’action suivante.</p>
                   {pendingAction && (
