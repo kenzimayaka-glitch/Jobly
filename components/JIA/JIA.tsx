@@ -67,7 +67,17 @@ function useBlink(enabled: boolean) {
       timer = setTimeout(() => {
         if (dead) return;
         setBlink(true);
-        setTimeout(() => !dead && setBlink(false), 105);
+        setTimeout(() => {
+          if (dead) return;
+          setBlink(false);
+          if (Math.random() < 0.16) {
+            setTimeout(() => {
+              if (dead) return;
+              setBlink(true);
+              setTimeout(() => !dead && setBlink(false), 95);
+            }, 120);
+          }
+        }, 105);
         next();
       }, 2300 + Math.random() * 3200);
     };
@@ -211,8 +221,15 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
   useEffect(() => {
     if (!speaking) { setTalk(false); return; }
     const timer = window.setInterval(() => setTalk((value) => !value), 125);
-    return () => window.clearInterval(timer);
-  }, [speaking]);
+    const gestureTimer = window.setInterval(() => {
+      if (Date.now() < until.current) return;
+      play(Math.random() > 0.45 ? "explain_open" : "listen_tilt", false, 2600);
+    }, 2800);
+    return () => {
+      window.clearInterval(timer);
+      window.clearInterval(gestureTimer);
+    };
+  }, [play, speaking]);
 
   // Lecture du clip : si le navigateur refuse l'autoplay ou la vidéo, on retombe sur le rig.
   useEffect(() => {
@@ -238,10 +255,12 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
   const mouthTransition = speaking
     ? { duration: 0.16, ease: "easeInOut", repeat: Infinity, repeatType: "mirror" as const }
     : SPRING;
+  const torsoAnimate = speaking
+    ? { scaleY: [1, 1 + BREATH * 1.8, 1], y: [0, -0.8, 0] }
+    : { scaleY: [1, 1 + BREATH, 1], y: [0, -0.35, 0] };
 
   const eyebrowBone: Bone = bones.eyebrows ?? {};
   const torsoBone: Bone = bones.torso ?? {};
-  const breathe = reduced ? 0 : Number(torsoBone.breathe ?? BREATH);
 
   return (
     <div
@@ -258,8 +277,8 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
           <motion.div
             className="absolute inset-0 pointer-events-none"
             style={{ transformOrigin: `${PIVOT.torso.x}% ${PIVOT.torso.y}%` }}
-            animate={breathe ? { scaleY: [1, 1 + breathe, 1] } : { scaleY: 1 }}
-            transition={breathe ? { duration: 3.2, ease: "easeInOut", repeat: Infinity } : undefined}
+            animate={reduced ? { scaleY: 1 } : torsoAnimate}
+            transition={reduced ? undefined : { duration: speaking ? 1.15 : 3.2, ease: "easeInOut", repeat: Infinity }}
           >
             <Sprite name="torso" layout={layout} />
             {hasScarf && (
