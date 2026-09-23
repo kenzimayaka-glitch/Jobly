@@ -30,12 +30,54 @@ const EMPTY: Record<"fr" | "en", string> = {
 };
 
 const CONTEXTUAL_FALLBACKS: Record<string, string[]> = {
-  OPPORTUNITY: ["Je vais croiser cette recherche avec ton profil et tes critères, puis te dire quelles opportunités méritent vraiment ton attention.", "Je peux comparer les opportunités, repérer les écarts de compétences et te proposer une stratégie plutôt qu’une simple liste d’offres."],
-  APPLICATION: ["Je vais regarder où se situe ta candidature dans le parcours et préparer la prochaine relance ou amélioration utile.", "Je peux relier cette candidature à ton expérience, adapter ton argumentaire et identifier ce qui augmente réellement tes chances."],
-  INTERVIEW: ["Je vais partir du poste visé et de ton expérience pour te faire travailler les réponses qui comptent vraiment.", "On peut simuler l’entretien, repérer tes points faibles et construire des réponses crédibles à partir de ton parcours."],
-  LEARNING: ["Je vais relier cette compétence à ton objectif professionnel et construire un apprentissage qui produit une preuve concrète.", "Je peux t’aider à choisir quoi apprendre, dans quel ordre, et comment le démontrer dans ton profil."],
-  MOBILITY: ["Je vais comparer les options de mobilité avec ton projet, tes contraintes et les opportunités réellement accessibles.", "Je peux analyser les marchés, les compétences demandées et les compromis avant de te recommander une destination."],
-  CAREER: ["Je vais prendre en compte ton parcours, tes signaux récents et ton objectif pour te proposer une prochaine étape précise.", "Je ne veux pas te donner un conseil générique : donne-moi le résultat que tu vises et je relierai les choix à ta trajectoire."],
+  OPPORTUNITY: [
+    "Je vais croiser cette recherche avec ton profil et tes critères, puis te dire quelles opportunités méritent vraiment ton attention.",
+    "Je peux comparer les opportunités, repérer les écarts de compétences et te proposer une stratégie plutôt qu’une simple liste d’offres.",
+    "Je vais regarder au-delà du titre du poste : niveau attendu, environnement, progression possible et adéquation avec ta trajectoire.",
+    "Je peux classer les pistes par pertinence, expliquer les compromis et te dire laquelle mérite une candidature en premier.",
+    "Cette recherche peut devenir un plan concret : sélection, adaptation du profil, candidature et suivi des réponses.",
+    "Je vais vérifier ce qui est réellement demandé sur le marché et distinguer une opportunité prometteuse d’une offre simplement visible.",
+  ],
+  APPLICATION: [
+    "Je vais regarder où se situe ta candidature dans le parcours et préparer la prochaine relance ou amélioration utile.",
+    "Je peux relier cette candidature à ton expérience, adapter ton argumentaire et identifier ce qui augmente réellement tes chances.",
+    "Je vais analyser le poste, ton profil et le message envoyé pour trouver le point précis à renforcer.",
+    "Si la candidature stagne, je peux proposer une relance adaptée au délai, au recruteur et au contexte de l’offre.",
+    "Je peux transformer cette candidature en apprentissage : ce qui a fonctionné, ce qui manque et ce que l’on teste ensuite.",
+    "Je vais t’aider à construire une candidature crédible, spécifique au poste, sans inventer d’expérience que tu n’as pas.",
+  ],
+  INTERVIEW: [
+    "Je vais partir du poste visé et de ton expérience pour te faire travailler les réponses qui comptent vraiment.",
+    "On peut simuler l’entretien, repérer tes points faibles et construire des réponses crédibles à partir de ton parcours.",
+    "Je peux anticiper les questions liées au poste, préparer tes exemples et t’aider à répondre avec plus de précision.",
+    "Je vais distinguer le contenu de ta réponse, ta posture et la preuve apportée pour travailler le bon levier.",
+    "Tu peux me donner une offre ou une question difficile : je la relierai à ton expérience plutôt que de fournir une réponse standard.",
+    "Je peux préparer une simulation progressive, avec un retour après chaque réponse et un plan d’amélioration mesurable.",
+  ],
+  LEARNING: [
+    "Je vais relier cette compétence à ton objectif professionnel et construire un apprentissage qui produit une preuve concrète.",
+    "Je peux t’aider à choisir quoi apprendre, dans quel ordre, et comment le démontrer dans ton profil.",
+    "Je vais identifier la compétence qui débloque le plus ta trajectoire, plutôt que de te proposer une formation au hasard.",
+    "On peut transformer cet apprentissage en projet, résultat ou portfolio que tu pourras réellement présenter.",
+    "Je vais comparer le niveau demandé, ton niveau actuel et le chemin le plus court pour réduire l’écart.",
+    "Je peux créer un plan réaliste selon ton temps disponible, ton objectif et la preuve attendue par les recruteurs.",
+  ],
+  MOBILITY: [
+    "Je vais comparer les options de mobilité avec ton projet, tes contraintes et les opportunités réellement accessibles.",
+    "Je peux analyser les marchés, les compétences demandées et les compromis avant de te recommander une destination.",
+    "Je vais croiser la mobilité avec le coût, la langue, le secteur et les perspectives, pas seulement avec une carte.",
+    "Je peux te montrer ce qui change selon la ville ou le pays : salaire, accès aux offres et compétences recherchées.",
+    "Avant de recommander un départ, je vais vérifier si ton profil est prêt et quelles étapes réduisent le risque.",
+    "Je peux comparer plusieurs scénarios de mobilité et te laisser choisir selon tes priorités réelles.",
+  ],
+  CAREER: [
+    "Je vais prendre en compte ton parcours, tes signaux récents et ton objectif pour te proposer une prochaine étape précise.",
+    "Je ne veux pas te donner un conseil générique : donne-moi le résultat que tu vises et je relierai les choix à ta trajectoire.",
+    "Je vais regarder ce qui a changé récemment dans ton parcours pour identifier une décision utile maintenant.",
+    "Je peux t’aider à passer d’une intention à un plan : objectif, écart, action, échéance et preuve de progression.",
+    "Si tu hésites entre plusieurs directions, je peux les comparer avec tes compétences, tes contraintes et tes perspectives.",
+    "Je vais partir de ta situation réelle, pas d’un modèle de carrière abstrait, pour déterminer le prochain mouvement pertinent.",
+  ],
 };
 const FINANCIAL_REPLY: Record<"fr" | "en", string> = {
   fr: "Je peux expliquer ou guider un paiement, mais je ne peux jamais l’exécuter ni le confirmer.",
@@ -133,9 +175,10 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
 
   const greeting = /^(bonjour|bonsoir|salut|hello|coucou|hey|bjr)\b[!?., ]*$/i.test(context.message);
   if (greeting) {
-    const message = lang === "en"
-      ? "Hello. I’m here with you. Tell me what you want to accomplish today."
-      : "Bonjour. Je suis avec toi. Dis-moi ce que tu veux accomplir aujourd’hui.";
+    const greetingReplies = lang === "en"
+      ? ["Hello. I’m here with you. Tell me what you want to accomplish today.", "Hello. I’m ready to pick up your career context. What would you like to move forward?", "Hi. I’m listening. We can explore an opportunity, unblock an application, or plan your next step."]
+      : ["Bonjour. Je suis avec toi. Dis-moi ce que tu veux accomplir aujourd’hui.", "Bonjour. Je suis prête à reprendre ton contexte de carrière. Qu’aimerais-tu faire avancer ?", "Bonjour. Je t’écoute. On peut explorer une opportunité, débloquer une candidature ou préparer la suite de ton parcours."];
+    const message = greetingReplies[context.message.length % greetingReplies.length];
     const trace = await sb.from("JiaIntelligenceTrace").insert({
       userId: input.userId, stage: "INSIGHT", title: "J’IA greeting", content: message,
       confidence: "HIGH", evidence: { path: context.path }, sourceType: "JIA_BRAIN", sourceRef: "lib/jia/brain",
