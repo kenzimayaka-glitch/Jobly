@@ -140,6 +140,8 @@ export default function JiaPresence() {
   const [typing, setTyping] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const [commandInput, setCommandInput] = useState("");
+  const [commandBusy, setCommandBusy] = useState(false);
 
   const modeRef = useRef<"text" | "voice">("text");
   const langRef = useRef(lang);
@@ -304,6 +306,35 @@ export default function JiaPresence() {
   // Changement de langue : la reconnaissance repart dans la bonne langue.
   useEffect(() => { if (recognition.current) { recognition.current.stop(); } }, [lang]);
 
+  const sendTextCommand = useCallback(async () => {
+    const command = commandInput.trim();
+    if (!command || commandBusy) return;
+    setCommandBusy(true);
+    setCommandInput("");
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token) throw new Error("Session requise.");
+      const response = await fetch("/api/jia/brain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ message: command, path: pathRef.current, ecosystem: ecosystemOf(pathRef.current), lang: langRef.current }),
+      });
+      const out = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(out.message || "J’IA est momentanément indisponible.");
+      say(out.message || "Je suis prête à t’aider.", {
+        gesture: out.proposedAction ? "analyze" : "reassure",
+        move: out.proposedAction ? "point_button" : undefined,
+        speak: true,
+        sticky: true,
+      });
+      if (out.proposedAction?.target) router.push(out.proposedAction.target);
+    } catch (error) {
+      say(error instanceof Error ? error.message : "Je n’ai pas réussi à répondre.", { gesture: "secure", sticky: true, speak: false });
+    } finally {
+      setCommandBusy(false);
+    }
+  }, [commandBusy, commandInput, router, say]);
+
   // ── Réponses externes, gestes sémantiques (window.jia.play) ──────────────
   useEffect(() => {
     const onResponse = (event: Event) => {
@@ -376,11 +407,13 @@ export default function JiaPresence() {
     };
     const schedule = (delay: number) => { if (timer) window.clearTimeout(timer); timer = window.setTimeout(request, delay); };
     schedule(8_000);
+    const interval = window.setInterval(request, PREDICT_MIN_INTERVAL);
     const onActivity = () => schedule(4_000);
     window.addEventListener("pointerdown", onActivity, { passive: true });
     window.addEventListener("keydown", onActivity, { passive: true });
     return () => {
       if (timer) window.clearTimeout(timer);
+      window.clearInterval(interval);
       window.removeEventListener("pointerdown", onActivity);
       window.removeEventListener("keydown", onActivity);
       window.speechSynthesis?.cancel();
@@ -449,7 +482,11 @@ export default function JiaPresence() {
                     <div className="text-[13px] font-black text-ink">{t("jia.panel.title")}</div>
                     <span className="rounded-full bg-canari-blue-soft px-2 py-1 text-[10px] font-extrabold text-canari-blue">{statusLabel}</span>
                   </div>
-                  <p className="mt-1 text-[11px] leading-4 text-muted">{t("jia.panel.hint")}</p>
+                  <p className="mt-1 text-[11px] leading-4 text-muted">Parle-lui ou écris-lui ce que tu veux faire. J’IA répond et te guide vers l’action suivante.</p>
+                  <form onSubmit={(event) => { event.preventDefault(); void sendTextCommand(); }} className="mt-2.5 flex items-center gap-2 rounded-xl border border-line bg-white p-1.5 focus-within:border-canari-blue">
+                    <input value={commandInput} onChange={(event) => setCommandInput(event.target.value)} placeholder="Ex. Trouve-moi un emploi" aria-label="Message à J’IA" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-xs font-semibold text-ink outline-none placeholder:text-muted" disabled={commandBusy} />
+                    <button type="submit" aria-label="Envoyer à J’IA" disabled={commandBusy || !commandInput.trim()} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-canari-blue text-white disabled:opacity-40">{commandBusy ? "…" : "↑"}</button>
+                  </form>
                   <div className="mt-2.5 flex flex-wrap gap-1.5">
                     {CHIPS[eco].map((c) => (
                       <button key={c.href} type="button" onClick={() => go(c.href)}
