@@ -36,7 +36,7 @@ function moveKey(move: JIA100Move) {
 }
 
 function proceduralMove(move: JIA100Move): RigMove {
-  const nod = move.startsWith("nod_") ? { rz: [0, -3, 3, 0] } : {};
+  const nod = move.startsWith("nod_") || move === "idle" ? { y: [0, -2, 0, 2, 0], rz: [0, -2, 2, 0] } : {};
   const wave = move === "wave_hi" || move === "wave_bye";
   const point = move.startsWith("point_");
   const explain = move.startsWith("explain_") || move === "heart" || move === "clap";
@@ -107,7 +107,7 @@ function eyeAnimation(side: "left" | "right", bone: Bone = {}, blink: boolean) {
   const scanning = Array.isArray(x);
   const idleGaze = look === undefined && !bone.scan && !bone.follow;
   return {
-    animate: { x: idleGaze ? ["-3%", "3%", "0%"] : x, y, scaleY: closed ? 0.08 : 1 },
+    animate: { x: idleGaze ? ["-5%", "5%", "0%"] : x, y, scaleY: closed ? 0.02 : 1 },
     transition: closed ? { duration: 0.12, ease: "easeInOut" } : scanning || idleGaze ? { duration: 2.8, ease: "easeInOut", repeat: Infinity } : SPRING,
   };
 }
@@ -186,8 +186,8 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
   const mouthOpen = mouthBone.open ? 1.25 : 1;
   const mouthFile = speaking ? ({ neutral: "mouth_neutral.svg", small: "mouth_small.svg", open: "mouth_open.svg", round: "mouth_round.svg", wide: "mouth_wide.svg", smile: "mouth_smile.svg" } as const)[voiceViseme] : (move === "smile_wide" || move === "smile_soft" || move === "proud" ? "mouth_smile.svg" : "mouth_neutral.svg");
   const mouthAnimate = {
-    scaleY: speaking ? [1, 1.28, 0.92, 1.12, 1] : [1, 1.04, 1],
-    scaleX: mouthBone.scaleX ?? 1,
+    scaleY: speaking ? [1, 1.55, 0.72, 1.32, 1] : [1, 1.12, 0.94, 1],
+    scaleX: speaking ? [1, 1.08, 0.96, 1] : 1,
     scale: mouthBone.scale ?? 1,
   };
   const mouthTransition = speaking
