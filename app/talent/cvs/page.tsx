@@ -103,7 +103,7 @@ export default function TalentCVs() {
         <section className="rounded-[24px] bg-white p-5 shadow-sm print:hidden">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div><h1 className="text-xl font-black">CV Builder + ATS</h1><p className="mt-1 text-xs text-jobly-gray">Importe ton PDF : J’IA extrait les données et remplit automatiquement ton CV.</p></div>
-            <label className={`cursor-pointer rounded-full bg-[#FFC72C] px-4 py-3 text-xs font-black ${busy ? "pointer-events-none opacity-50" : ""}`}>Importer mon CV PDF<input type="file" accept="application/pdf,.pdf" onChange={importPdf} className="hidden" disabled={busy} /></label>
+            <label className={`cursor-pointer rounded-full bg-[#FFE135] px-4 py-3 text-xs font-black ${busy ? "pointer-events-none opacity-50" : ""}`}>Importer mon CV PDF<input type="file" accept="application/pdf,.pdf" onChange={importPdf} className="hidden" disabled={busy} /></label>
           </div>
           {file && <p className="mt-3 text-xs font-bold text-jobly-blue">Fichier : {file}</p>}
         </section>
@@ -122,12 +122,12 @@ export default function TalentCVs() {
             <textarea value={cv.education} onChange={e => update("education", e.target.value)} placeholder="Formation / certifications" rows={4} className="mt-3 w-full rounded-xl border px-4 py-3" />
             <div className="mt-4 grid gap-2 sm:grid-cols-3 print:hidden">
               <button onClick={save} className="rounded-xl bg-jobly-blue py-3 font-black text-white">Enregistrer</button>
-              <button onClick={() => exportPdf()} disabled={busy} className="rounded-xl bg-[#FFC72C] py-3 font-black disabled:opacity-50">Télécharger ATS</button>
+              <button onClick={() => exportPdf()} disabled={busy} className="rounded-xl bg-[#FFE135] py-3 font-black disabled:opacity-50">Télécharger ATS</button>
               <button onClick={() => router.push("/career-os")} className="rounded-xl border py-3 font-black">Career OS →</button>
             </div>
             {message && <p className="mt-3 text-xs font-bold text-jobly-blue print:hidden">{message}</p>}
 
-            {payment && <div className="mt-4 rounded-2xl border border-[#FFC72C] bg-[#FFF9E6] p-4 print:hidden">
+            {payment && <div className="mt-4 rounded-2xl border border-[#FFE135] bg-[#FFF9E6] p-4 print:hidden">
               <p className="font-black">Téléchargement ATS — {payment.priceXaf.toLocaleString("fr-FR")} FCFA</p>
               <p className="mt-1 text-xs">{payment.instructions}</p>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">

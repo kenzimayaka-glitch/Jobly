@@ -16,6 +16,11 @@ export async function GET(req: NextRequest) {
     if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    // ?markViewed=0 : lecture « passive » (dashboard, compteurs, pitchs). Sans cela, ouvrir
+    // le dashboard marquait toutes les candidatures « Vues » côté candidat sans qu’aucune
+    // n’ait été réellement ouverte. Les écrans de traitement (ATS, Candidatures) gardent le
+    // comportement spécifié (SUBMITTED → ACKNOWLEDGED).
+    const markViewed = new URL(req.url).searchParams.get("markViewed") !== "0";
 
     const { data: ownJobs, error: jobsError } = await supabase
       .from("RecruiterJob")
@@ -46,7 +51,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Marquer "Vu" les candidatures pas encore ouvertes (SUBMITTED → ACKNOWLEDGED).
-    const toMark = applications.filter((a: any) => !a.viewedAt && a.status === "SUBMITTED");
+    const toMark = markViewed ? applications.filter((a: any) => !a.viewedAt && a.status === "SUBMITTED") : [];
     if (toMark.length) {
       const now = new Date().toISOString();
       const { error: updateError } = await supabase

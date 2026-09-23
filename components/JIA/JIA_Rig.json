@@ -2,7 +2,7 @@
   "meta": {
     "character": "J'IA",
     "source": "/jia/rig",
-    "rig_version": "2.0-hybrid-facial-3d",
+    "rig_version": "1.2-hierarchique-sprites",
     "bones": [
       "head",
       "eyes",
@@ -18,122 +18,1169 @@
       "glasses"
     ],
     "total_moves": 100,
-    "note": "J'IA V5.20 rig runtime"
+    "note": "Calques anatomiques indépendants issus de la référence J'IA. Depuis 1.2 : les calques sont recadrés (WebP), organisés en hiérarchie (tête = cheveux+lunettes+sourcils+yeux+bouche ; bras = bras+main), avec pivots réels. Les poses de main (champ `pose`) ne sont pas rendues par le rig : elles sont couvertes par des clips vidéo (components/JIA/clips.ts)."
   },
   "moves": {
     "01_idle": {
-      "duration": 3.2
+      "duration": 0.7,
+      "torso": {
+        "breathe": 0.02
+      }
     },
-    "02_blink_fast": {
+    "02_breathe_deep": {
       "duration": 0.7
     },
-    "03_smile_wide": {
+    "03_blink_slow": {
+      "duration": 0.7,
+      "eyes": {
+        "blink": true
+      }
+    },
+    "04_blink_fast": {
+      "duration": 0.7,
+      "eyes": {
+        "blink": true
+      }
+    },
+    "05_blink_double": {
+      "duration": 0.7,
+      "eyes": {
+        "blink": true
+      }
+    },
+    "06_smile_soft": {
+      "duration": 0.7,
+      "mouth": {
+        "scale": 1.03
+      }
+    },
+    "07_smile_wide": {
+      "duration": 0.7,
+      "mouth": {
+        "scale": 1.06
+      }
+    },
+    "08_smile_shy": {
+      "duration": 0.7,
+      "mouth": {
+        "scale": 1.03
+      }
+    },
+    "09_wink_left": {
+      "duration": 0.7,
+      "eyes": {
+        "wink": "left"
+      }
+    },
+    "10_wink_right": {
+      "duration": 0.7,
+      "eyes": {
+        "wink": "right"
+      }
+    },
+    "11_lips_bite": {
+      "duration": 0.7,
+      "mouth": {
+        "scaleY": 0.75,
+        "open": false
+      }
+    },
+    "12_yawn": {
+      "duration": 0.7,
+      "mouth": {
+        "scaleY": 1.25,
+        "open": true
+      }
+    },
+    "13_stretch": {
       "duration": 0.7
     },
-    "04_wink_right": {
+    "14_look_around": {
+      "duration": 0.7,
+      "eyes": {
+        "scan": true,
+        "follow": true
+      }
+    },
+    "15_focus": {
+      "duration": 0.7,
+      "torso": {
+        "breathe": 0.02
+      }
+    },
+    "16_listen_tilt": {
+      "duration": 0.7,
+      "head": {
+        "rz": -11,
+        "ry": 5
+      },
+      "eyes": {
+        "look": "right"
+      }
+    },
+    "17_listen_forward": {
+      "duration": 0.7,
+      "head": {
+        "y": 7,
+        "rx": -3
+      }
+    },
+    "18_nod_slow": {
+      "duration": 0.7,
+      "head": {
+        "rx": [
+          0,
+          10,
+          0
+        ],
+        "repeat": 2
+      }
+    },
+    "19_nod_fast": {
+      "duration": 0.7,
+      "head": {
+        "rx": [
+          0,
+          10,
+          0
+        ],
+        "repeat": 2
+      }
+    },
+    "20_nod_3x": {
+      "duration": 0.7,
+      "head": {
+        "rx": [
+          0,
+          10,
+          0
+        ],
+        "repeat": 3
+      }
+    },
+    "21_shake_no": {
+      "duration": 0.7,
+      "head": {
+        "ry": [
+          0,
+          -9,
+          9,
+          -9,
+          0
+        ]
+      }
+    },
+    "22_shake_soft": {
+      "duration": 0.7,
+      "head": {
+        "ry": [
+          0,
+          -9,
+          9,
+          -9,
+          0
+        ]
+      }
+    },
+    "23_ear_touch": {
       "duration": 0.7
     },
-    "05_stretch": {
+    "24_lean_in": {
+      "duration": 0.7,
+      "head": {
+        "y": 7,
+        "rx": -3
+      }
+    },
+    "25_eyebrow_raise": {
+      "duration": 0.7,
+      "eyebrows": {
+        "y": -7
+      }
+    },
+    "26_think_chin": {
+      "duration": 0.7,
+      "head": {
+        "rz": -6,
+        "rx": -4
+      },
+      "eyes": {
+        "look": "up"
+      },
+      "arm_R": {
+        "rx": -20,
+        "ry": 6
+      },
+      "hand_R": {
+        "pose": "chin"
+      }
+    },
+    "27_think_up": {
+      "duration": 0.7,
+      "head": {
+        "rz": 2,
+        "rx": -4
+      },
+      "eyes": {
+        "look": "up"
+      }
+    },
+    "28_think_side": {
+      "duration": 0.7,
+      "head": {
+        "rz": 2,
+        "rx": -4
+      },
+      "eyes": {
+        "look": "up"
+      }
+    },
+    "29_think_frown": {
+      "duration": 0.7,
+      "head": {
+        "rz": 2,
+        "rx": -4
+      },
+      "eyes": {
+        "look": "up"
+      }
+    },
+    "30_think_mouth": {
+      "duration": 0.7,
+      "head": {
+        "rz": 2,
+        "rx": -4
+      },
+      "eyes": {
+        "look": "up"
+      },
+      "arm_R": {
+        "rx": -20,
+        "ry": 6
+      },
+      "hand_R": {
+        "pose": "chin"
+      }
+    },
+    "31_think_temple": {
+      "duration": 0.7,
+      "head": {
+        "rz": 2,
+        "rx": -4
+      },
+      "eyes": {
+        "look": "up"
+      },
+      "arm_R": {
+        "rx": -20,
+        "ry": 6
+      },
+      "hand_R": {
+        "pose": "chin"
+      }
+    },
+    "32_think_glasses": {
+      "duration": 0.7,
+      "head": {
+        "rz": -6,
+        "rx": -4
+      },
+      "eyes": {
+        "look": "up"
+      },
+      "arm_R": {
+        "rx": -20,
+        "ry": 6
+      },
+      "hand_R": {
+        "pose": "chin"
+      }
+    },
+    "33_think_chin_rub": {
+      "duration": 0.7,
+      "head": {
+        "rz": 2,
+        "rx": -4
+      },
+      "eyes": {
+        "look": "up"
+      },
+      "arm_R": {
+        "rx": -20,
+        "ry": 6
+      },
+      "hand_R": {
+        "pose": "chin"
+      }
+    },
+    "34_think_pace": {
+      "duration": 0.7,
+      "head": {
+        "rz": 2,
+        "rx": -4
+      },
+      "eyes": {
+        "look": "up"
+      },
+      "arm_R": {
+        "rx": -20,
+        "ry": 6
+      },
+      "hand_R": {
+        "pose": "chin"
+      }
+    },
+    "35_think_write": {
+      "duration": 0.7,
+      "head": {
+        "rz": 2,
+        "rx": -4
+      },
+      "eyes": {
+        "look": "up"
+      },
+      "arm_R": {
+        "rx": -20,
+        "ry": 6
+      },
+      "hand_R": {
+        "pose": "chin"
+      }
+    },
+    "36_think_count": {
+      "duration": 0.7,
+      "head": {
+        "rz": 2,
+        "rx": -4
+      },
+      "eyes": {
+        "look": "up"
+      },
+      "arm_R": {
+        "rx": -20,
+        "ry": 6
+      },
+      "hand_R": {
+        "pose": "chin"
+      }
+    },
+    "37_think_compare": {
+      "duration": 0.7,
+      "head": {
+        "rz": 2,
+        "rx": -4
+      },
+      "eyes": {
+        "look": "up"
+      },
+      "arm_R": {
+        "rx": -20,
+        "ry": 6
+      },
+      "hand_R": {
+        "pose": "chin"
+      }
+    },
+    "38_think_idea": {
+      "duration": 0.7,
+      "head": {
+        "rz": 2,
+        "rx": -4
+      },
+      "eyes": {
+        "look": "up"
+      },
+      "arm_R": {
+        "rx": -20,
+        "ry": 6
+      },
+      "hand_R": {
+        "pose": "chin"
+      }
+    },
+    "39_think_doubt": {
+      "duration": 0.7,
+      "head": {
+        "rz": 2,
+        "rx": -4
+      },
+      "eyes": {
+        "look": "up"
+      }
+    },
+    "40_think_solve": {
+      "duration": 0.7,
+      "head": {
+        "rz": 2,
+        "rx": -4
+      },
+      "eyes": {
+        "look": "up"
+      },
+      "arm_R": {
+        "rx": -20,
+        "ry": 6
+      },
+      "hand_R": {
+        "pose": "chin"
+      }
+    },
+    "41_point_button": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -30,
+        "ry": -25,
+        "z": 20
+      },
+      "hand_R": {
+        "pose": "point_index"
+      },
+      "eyes": {
+        "look": "right"
+      },
+      "head": {
+        "ry": -10
+      }
+    },
+    "42_point_bubble": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -30,
+        "ry": -25,
+        "z": 20
+      },
+      "hand_R": {
+        "pose": "point_index"
+      },
+      "eyes": {
+        "look": "right"
+      },
+      "head": {
+        "ry": -10
+      }
+    },
+    "43_point_score": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -30,
+        "ry": -25,
+        "z": 20
+      },
+      "hand_R": {
+        "pose": "point_index"
+      },
+      "eyes": {
+        "look": "right"
+      },
+      "head": {
+        "ry": -10
+      }
+    },
+    "44_point_cv": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -30,
+        "ry": -25,
+        "z": 20
+      },
+      "hand_R": {
+        "pose": "point_index"
+      },
+      "eyes": {
+        "look": "right"
+      },
+      "head": {
+        "ry": -10
+      }
+    },
+    "45_point_left": {
+      "duration": 0.7,
+      "arm_L": {
+        "rx": -30,
+        "ry": 25,
+        "z": 20
+      },
+      "hand_L": {
+        "pose": "point_index"
+      },
+      "eyes": {
+        "look": "left"
+      },
+      "head": {
+        "ry": 10
+      }
+    },
+    "46_point_right": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -30,
+        "ry": -25,
+        "z": 20
+      },
+      "hand_R": {
+        "pose": "point_index"
+      },
+      "eyes": {
+        "look": "right"
+      },
+      "head": {
+        "ry": -10
+      }
+    },
+    "47_point_up": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -30,
+        "ry": -25,
+        "z": 20
+      },
+      "hand_R": {
+        "pose": "point_index"
+      },
+      "eyes": {
+        "look": "right"
+      },
+      "head": {
+        "ry": -10
+      }
+    },
+    "48_point_down": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -30,
+        "ry": -25,
+        "z": 20
+      },
+      "hand_R": {
+        "pose": "point_index"
+      },
+      "eyes": {
+        "look": "right"
+      },
+      "head": {
+        "ry": -10
+      }
+    },
+    "49_point_self": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -30,
+        "ry": -25,
+        "z": 20
+      },
+      "hand_R": {
+        "pose": "point_index"
+      },
+      "eyes": {
+        "look": "right"
+      },
+      "head": {
+        "ry": -10
+      }
+    },
+    "50_point_you": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -30,
+        "ry": -25,
+        "z": 20
+      },
+      "hand_R": {
+        "pose": "point_index"
+      },
+      "eyes": {
+        "look": "right"
+      },
+      "head": {
+        "ry": -10
+      }
+    },
+    "51_point_2fingers": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -30,
+        "ry": -25,
+        "z": 20
+      },
+      "hand_R": {
+        "pose": "point_index"
+      },
+      "eyes": {
+        "look": "right"
+      },
+      "head": {
+        "ry": -10
+      }
+    },
+    "52_point_circle": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -30,
+        "ry": -25,
+        "z": 20
+      },
+      "hand_R": {
+        "pose": "point_index"
+      },
+      "eyes": {
+        "look": "right"
+      },
+      "head": {
+        "ry": -10
+      }
+    },
+    "53_point_tap": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -30,
+        "ry": -25,
+        "z": 20
+      },
+      "hand_R": {
+        "pose": "point_index"
+      },
+      "eyes": {
+        "look": "right"
+      },
+      "head": {
+        "ry": -10
+      }
+    },
+    "54_point_swipe": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -30,
+        "ry": -25,
+        "z": 20
+      },
+      "hand_R": {
+        "pose": "point_index"
+      },
+      "eyes": {
+        "look": "right"
+      },
+      "head": {
+        "ry": -10
+      }
+    },
+    "55_point_laser": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -30,
+        "ry": -25,
+        "z": 20
+      },
+      "hand_R": {
+        "pose": "point_index"
+      },
+      "eyes": {
+        "look": "right"
+      },
+      "head": {
+        "ry": -10
+      }
+    },
+    "56_hair_touch": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -22
+      },
+      "hand_R": {
+        "pose": "hair"
+      },
+      "head": {
+        "ry": -5
+      }
+    },
+    "57_hair_flip": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -22
+      },
+      "hand_R": {
+        "pose": "hair"
+      },
+      "head": {
+        "ry": -5
+      }
+    },
+    "58_scarf_adjust": {
+      "duration": 0.7,
+      "scarf": {
+        "rz": 3
+      },
+      "arm_L": {
+        "rx": -20,
+        "ry": 5
+      },
+      "hand_L": {
+        "pose": "scarf"
+      }
+    },
+    "59_scarf_touch": {
+      "duration": 0.7,
+      "scarf": {
+        "rz": 3
+      },
+      "arm_L": {
+        "rx": -20,
+        "ry": 5
+      },
+      "hand_L": {
+        "pose": "scarf"
+      }
+    },
+    "60_glasses_push": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -20,
+        "ry": -6
+      },
+      "hand_R": {
+        "pose": "glasses"
+      }
+    },
+    "61_glasses_clean": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -20,
+        "ry": -6
+      },
+      "hand_R": {
+        "pose": "glasses"
+      }
+    },
+    "62_blazer_adjust": {
       "duration": 0.7
     },
-    "06_listen_tilt": {
+    "63_pin_touch": {
       "duration": 0.7
     },
-    "07_nod_fast": {
+    "64_earring_touch": {
       "duration": 0.7
     },
-    "08_ear_touch": {
+    "65_lip_touch": {
       "duration": 0.7
     },
-    "09_think_chin": {
+    "66_neck_touch": {
       "duration": 0.7
     },
-    "10_think_frown": {
-      "duration": 0.7
+    "67_hand_fold": {
+      "duration": 0.7,
+      "arm_L": {
+        "rx": 10
+      },
+      "arm_R": {
+        "rx": -10
+      },
+      "hand_L": {
+        "pose": "fold"
+      },
+      "hand_R": {
+        "pose": "fold"
+      }
     },
-    "11_think_glasses": {
-      "duration": 0.7
+    "68_hand_hip": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -20,
+        "ry": 8
+      },
+      "hand_R": {
+        "pose": "hip"
+      }
     },
-    "12_think_write": {
-      "duration": 0.7
+    "69_hand_chest": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -20,
+        "ry": 8
+      },
+      "hand_R": {
+        "pose": "chest"
+      }
     },
-    "13_think_idea": {
-      "duration": 0.7
+    "70_hand_shake": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -20,
+        "ry": 8
+      },
+      "hand_R": {
+        "pose": "shake"
+      }
     },
-    "14_point_button": {
-      "duration": 0.7
+    "71_explain_open": {
+      "duration": 0.7,
+      "arm_L": {
+        "rx": 18,
+        "ry": 12
+      },
+      "arm_R": {
+        "rx": -18,
+        "ry": -12
+      },
+      "hand_L": {
+        "pose": "open"
+      },
+      "hand_R": {
+        "pose": "open"
+      }
     },
-    "15_point_cv": {
-      "duration": 0.7
+    "72_explain_wide": {
+      "duration": 0.7,
+      "arm_L": {
+        "rx": 18,
+        "ry": 12
+      },
+      "arm_R": {
+        "rx": -18,
+        "ry": -12
+      },
+      "hand_L": {
+        "pose": "open"
+      },
+      "hand_R": {
+        "pose": "open"
+      }
     },
-    "16_point_up": {
-      "duration": 0.7
+    "73_explain_small": {
+      "duration": 0.7,
+      "arm_L": {
+        "rx": 18,
+        "ry": 12
+      },
+      "arm_R": {
+        "rx": -18,
+        "ry": -12
+      },
+      "hand_L": {
+        "pose": "open"
+      },
+      "hand_R": {
+        "pose": "open"
+      }
     },
-    "17_point_you": {
-      "duration": 0.7
+    "74_explain_list": {
+      "duration": 0.7,
+      "arm_L": {
+        "rx": 18,
+        "ry": 12
+      },
+      "arm_R": {
+        "rx": -18,
+        "ry": -12
+      },
+      "hand_L": {
+        "pose": "open"
+      },
+      "hand_R": {
+        "pose": "open"
+      }
     },
-    "18_point_tap": {
-      "duration": 0.7
+    "75_calm_down": {
+      "duration": 0.7,
+      "arm_L": {
+        "rx": 18,
+        "ry": 12
+      },
+      "arm_R": {
+        "rx": -18,
+        "ry": -12
+      },
+      "hand_L": {
+        "pose": "open"
+      },
+      "hand_R": {
+        "pose": "open"
+      }
     },
-    "19_hair_touch": {
-      "duration": 0.7
+    "76_stop": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -42,
+        "ry": -5,
+        "z": 12
+      },
+      "hand_R": {
+        "pose": "stop"
+      }
     },
-    "20_scarf_touch": {
-      "duration": 0.7
+    "77_ok": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -25,
+        "ry": -8
+      },
+      "hand_R": {
+        "pose": "ok"
+      }
     },
-    "21_blazer_adjust": {
-      "duration": 0.7
+    "78_heart": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -25,
+        "ry": -8
+      },
+      "hand_R": {
+        "pose": "heart"
+      }
     },
-    "22_lip_touch": {
-      "duration": 0.7
+    "79_clap": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -25,
+        "ry": -8
+      },
+      "hand_R": {
+        "pose": "clap"
+      }
     },
-    "23_hand_hip": {
-      "duration": 0.7
+    "80_celebrate_jump": {
+      "duration": 0.7,
+      "torso": {
+        "y": -16,
+        "z": 25,
+        "scale": 1.06
+      },
+      "head": {
+        "y": -10
+      },
+      "arm_L": {
+        "rx": -60,
+        "ry": 12,
+        "z": 25
+      },
+      "arm_R": {
+        "rx": -60,
+        "ry": -12,
+        "z": 25
+      },
+      "mouth": {
+        "scale": 1.08
+      }
     },
-    "24_explain_open": {
-      "duration": 0.7
+    "81_celebrate_fist": {
+      "duration": 0.7,
+      "torso": {
+        "y": -16,
+        "z": 25,
+        "scale": 1.06
+      },
+      "head": {
+        "y": -10
+      },
+      "arm_L": {
+        "rx": -60,
+        "ry": 12,
+        "z": 25
+      },
+      "arm_R": {
+        "rx": -60,
+        "ry": -12,
+        "z": 25
+      },
+      "mouth": {
+        "scale": 1.08
+      }
     },
-    "25_explain_list": {
-      "duration": 0.7
+    "82_wave_hi": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -24,
+        "ry": -8
+      },
+      "hand_R": {
+        "pose": "wave"
+      }
     },
-    "26_heart": {
-      "duration": 0.7
+    "83_wave_bye": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -24,
+        "ry": -8
+      },
+      "hand_R": {
+        "pose": "wave"
+      }
     },
-    "27_wave_hi": {
-      "duration": 0.7
+    "84_shrug": {
+      "duration": 0.7,
+      "arm_L": {
+        "rx": 18,
+        "ry": 12
+      },
+      "arm_R": {
+        "rx": -18,
+        "ry": -12
+      },
+      "hand_L": {
+        "pose": "open"
+      },
+      "hand_R": {
+        "pose": "open"
+      }
     },
-    "28_typing": {
-      "duration": 0.7
+    "85_confused": {
+      "duration": 0.7,
+      "head": {
+        "rz": -7
+      },
+      "mouth": {
+        "scale": 0.96
+      }
     },
-    "29_searching": {
-      "duration": 0.7
+    "86_proud": {
+      "duration": 0.7,
+      "head": {
+        "rz": -1
+      },
+      "mouth": {
+        "scale": 1.04
+      }
     },
-    "30_highlighting": {
-      "duration": 0.7
+    "87_typing": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -22,
+        "ry": -10
+      },
+      "hand_R": {
+        "pose": "typing"
+      }
     },
-    "31_chart_up": {
-      "duration": 0.7
+    "88_reading": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -22,
+        "ry": -10
+      },
+      "hand_R": {
+        "pose": "reading"
+      },
+      "eyes": {
+        "look": "down"
+      }
     },
-    "32_base": {
-      "duration": 0.7
+    "89_scanning": {
+      "duration": 0.7,
+      "eyes": {
+        "scan": true,
+        "follow": true
+      }
     },
-    "33_listen": {
-      "duration": 0.7
+    "90_writing": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -22,
+        "ry": -10
+      },
+      "hand_R": {
+        "pose": "writing"
+      }
     },
-    "34_think": {
-      "duration": 0.7
+    "91_searching": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -22,
+        "ry": -10
+      },
+      "hand_R": {
+        "pose": "searching"
+      },
+      "eyes": {
+        "look": "right"
+      }
     },
-    "35_point": {
-      "duration": 0.7
+    "92_matching": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -22,
+        "ry": -10
+      },
+      "hand_R": {
+        "pose": "matching"
+      }
     },
-    "36_style": {
-      "duration": 0.7
+    "93_checking": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -22,
+        "ry": -10
+      },
+      "hand_R": {
+        "pose": "checking"
+      }
     },
-    "37_emotion": {
-      "duration": 0.7
+    "94_highlighting": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -22,
+        "ry": -10
+      },
+      "hand_R": {
+        "pose": "highlighting"
+      }
     },
-    "38_career": {
-      "duration": 0.7
+    "95_erasing": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -22,
+        "ry": -10
+      },
+      "hand_R": {
+        "pose": "erasing"
+      }
+    },
+    "96_stamping": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -22,
+        "ry": -10
+      },
+      "hand_R": {
+        "pose": "stamping"
+      }
+    },
+    "97_magnify": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -22,
+        "ry": -10
+      },
+      "hand_R": {
+        "pose": "magnify"
+      }
+    },
+    "98_chart_up": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -22,
+        "ry": -10
+      },
+      "hand_R": {
+        "pose": "chart_up"
+      }
+    },
+    "99_money": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -22,
+        "ry": -10
+      },
+      "hand_R": {
+        "pose": "money"
+      }
+    },
+    "100_target": {
+      "duration": 0.7,
+      "arm_R": {
+        "rx": -22,
+        "ry": -10
+      },
+      "hand_R": {
+        "pose": "target"
+      }
     }
   }
 }

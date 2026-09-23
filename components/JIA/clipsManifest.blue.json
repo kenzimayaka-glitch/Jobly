@@ -1,0 +1,212 @@
+{
+  "scarf_touch": {
+    "duration": 5.21,
+    "scaleFrom": 1.133,
+    "scaleTo": 0.9
+  },
+  "chart_up": {
+    "duration": 5.21,
+    "scaleFrom": 1.268,
+    "scaleTo": 1.272
+  },
+  "analyze": {
+    "duration": 5.21,
+    "scaleFrom": 1.381,
+    "scaleTo": 1.381
+  },
+  "call-hr": {
+    "duration": 5.21,
+    "scaleFrom": 1.194,
+    "scaleTo": 1.158
+  },
+  "celebrate_jump--2": {
+    "duration": 5.21,
+    "scaleFrom": 0.761,
+    "scaleTo": 1.296
+  },
+  "celebrate_jump": {
+    "duration": 5.21,
+    "scaleFrom": 0.788,
+    "scaleTo": 1.258
+  },
+  "clap": {
+    "duration": 5.21,
+    "scaleFrom": 1.251,
+    "scaleTo": 1.33
+  },
+  "ear_touch": {
+    "duration": 5.21,
+    "scaleFrom": 1.176,
+    "scaleTo": 1.144
+  },
+  "explain_open--2": {
+    "duration": 5.21,
+    "scaleFrom": 1.222,
+    "scaleTo": 1.203
+  },
+  "explain_open--3": {
+    "duration": 5.21,
+    "scaleFrom": 1.222,
+    "scaleTo": 1.296
+  },
+  "explain_open": {
+    "duration": 5.21,
+    "scaleFrom": 1.322,
+    "scaleTo": 1.015
+  },
+  "explain_small": {
+    "duration": 5.21,
+    "scaleFrom": 1.2,
+    "scaleTo": 1.188
+  },
+  "explain_wide--2": {
+    "duration": 5.21,
+    "scaleFrom": 1.304,
+    "scaleTo": 1.289
+  },
+  "explain_wide": {
+    "duration": 5.21,
+    "scaleFrom": 1.422,
+    "scaleTo": 1.427
+  },
+  "hand_chest": {
+    "duration": 5.21,
+    "scaleFrom": 1.185,
+    "scaleTo": 0.938
+  },
+  "hand_fold--2": {
+    "duration": 5.21,
+    "scaleFrom": 1.372,
+    "scaleTo": 1.349
+  },
+  "hand_fold": {
+    "duration": 5.21,
+    "scaleFrom": 1.311,
+    "scaleTo": 1.307
+  },
+  "money": {
+    "duration": 5.21,
+    "scaleFrom": 1.337,
+    "scaleTo": 1.076
+  },
+  "ok": {
+    "duration": 5.21,
+    "scaleFrom": 1.235,
+    "scaleTo": 1.167
+  },
+  "point_you": {
+    "duration": 5.21,
+    "scaleFrom": 1.158,
+    "scaleTo": 0.932
+  },
+  "reading": {
+    "duration": 5.21,
+    "scaleFrom": 1.188,
+    "scaleTo": 1.161
+  },
+  "scarf_adjust--2": {
+    "duration": 5.21,
+    "scaleFrom": 1.133,
+    "scaleTo": 0.963
+  },
+  "scarf_adjust": {
+    "duration": 5.21,
+    "scaleFrom": 1.216,
+    "scaleTo": 0.994
+  },
+  "scarf_touch--2": {
+    "duration": 5.21,
+    "scaleFrom": 1.141,
+    "scaleTo": 0.987
+  },
+  "scarf_touch--3": {
+    "duration": 5.21,
+    "scaleFrom": 1.133,
+    "scaleTo": 0.951
+  },
+  "scarf_touch--4": {
+    "duration": 5.21,
+    "scaleFrom": 1.133,
+    "scaleTo": 1.013
+  },
+  "searching": {
+    "duration": 5.21,
+    "scaleFrom": 1.2,
+    "scaleTo": 0.947
+  },
+  "shrug--2": {
+    "duration": 5.21,
+    "scaleFrom": 1.286,
+    "scaleTo": 1.222
+  },
+  "shrug": {
+    "duration": 5.21,
+    "scaleFrom": 1.381,
+    "scaleTo": 1.279
+  },
+  "smile_shy": {
+    "duration": 5.21,
+    "scaleFrom": 1.245,
+    "scaleTo": 1.191
+  },
+  "smile_soft": {
+    "duration": 5.21,
+    "scaleFrom": 1.36,
+    "scaleTo": 1.225
+  },
+  "smile_wide--2": {
+    "duration": 5.21,
+    "scaleFrom": 1.191,
+    "scaleTo": 1.128
+  },
+  "smile_wide": {
+    "duration": 5.21,
+    "scaleFrom": 1.182,
+    "scaleTo": 1.009
+  },
+  "surprised": {
+    "duration": 5.21,
+    "scaleFrom": 1.17,
+    "scaleTo": 1.176
+  },
+  "think_chin": {
+    "duration": 5.21,
+    "scaleFrom": 1.173,
+    "scaleTo": 0.878
+  },
+  "think_doubt--2": {
+    "duration": 5.21,
+    "scaleFrom": 1.209,
+    "scaleTo": 1.179
+  },
+  "think_doubt": {
+    "duration": 5.21,
+    "scaleFrom": 1.188,
+    "scaleTo": 0.863
+  },
+  "think_frown": {
+    "duration": 5.21,
+    "scaleFrom": 1.401,
+    "scaleTo": 1.333
+  },
+  "think_idea": {
+    "duration": 5.21,
+    "scaleFrom": 0.981,
+    "scaleTo": 0.923
+  },
+  "wave_bye": {
+    "duration": 5.21,
+    "scaleFrom": 1.333,
+    "scaleTo": 1.3
+  },
+  "wave_hi": {
+    "duration": 5.21,
+    "scaleFrom": 1.368,
+    "scaleTo": 1.293
+  },
+  "writing": {
+    "duration": 5.21,
+    "scaleFrom": 1.41,
+    "scaleTo": 1.397
+  }
+}

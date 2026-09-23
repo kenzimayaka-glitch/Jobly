@@ -40,7 +40,7 @@ const BON_PLAN: Eco = {
 function toneStyles(tone: Eco["tone"]) {
   return {
     yellow: {
-      gradient: "linear-gradient(135deg,#FFE27A 0%,#FFC72C 55%,#F2A900 100%)",
+      gradient: "linear-gradient(135deg,#FFE27A 0%,#FFE135 55%,#F2A900 100%)",
       blobA: "#FFF3C4",
       blobB: "#E9A400",
       badgeText: "#7A5300",
@@ -50,11 +50,11 @@ function toneStyles(tone: Eco["tone"]) {
       tint: "rgba(255,199,44,0.34)",
     },
     blue: {
-      gradient: "linear-gradient(135deg,#6FA1FF 0%,#2E5C9E 55%,#173C74 100%)",
+      gradient: "linear-gradient(135deg,#6FA1FF 0%,#0057B8 55%,#173C74 100%)",
       blobA: "#BFD8FF",
       blobB: "#0F2E5C",
       badgeText: "#FFFFFF",
-      arrowText: "#1D4ED8",
+      arrowText: "#00458F",
       titleText: "#FFFFFF",
       taglineText: "rgba(255,255,255,0.85)",
       tint: "rgba(29,78,216,0.34)",

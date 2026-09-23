@@ -1,6 +1,7 @@
 import type { AiOperation } from "../aiEconomics";
 import { runAiOrchestrator } from "../ai/orchestrator";
 import { adminClient } from "../server-auth";
+import { actionForIntent, isFinancialRequest } from "./guard";
 
 export type JiaBrainInput = {
   userId: string;
@@ -9,6 +10,8 @@ export type JiaBrainInput = {
   path?: string;
   action?: string;
   proactive?: boolean;
+  /** Langue de l’interface (FR par défaut) : pilote la langue de la réponse. */
+  lang?: "fr" | "en";
 };
 
 export type JiaBrainResult = {
@@ -20,7 +23,14 @@ export type JiaBrainResult = {
   traceId?: string;
 };
 
-const EMPTY = "Je suis prête. Donne-moi ton objectif et je vais déterminer la prochaine action utile.";
+const EMPTY: Record<"fr" | "en", string> = {
+  fr: "Je suis prête. Donne-moi ton objectif et je vais déterminer la prochaine action utile.",
+  en: "I’m ready. Tell me your goal and I’ll work out the next useful step.",
+};
+const FINANCIAL_REPLY: Record<"fr" | "en", string> = {
+  fr: "Je peux expliquer ou guider un paiement, mais je ne peux jamais l’exécuter ni le confirmer.",
+  en: "I can explain or guide you through a payment, but I can never run or confirm it.",
+};
 
 function clean(value: unknown, max = 500) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -33,25 +43,14 @@ function extractJson(value: unknown): Record<string, unknown> | null {
 
 function normalizeIntent(message: string) {
   const m = message.toLowerCase();
-  if (/\b(offre|emploi|poste|job)\b/.test(m)) return "OPPORTUNITY";
-  if (/\b(candidature|postule|postuler|cv)\b/.test(m)) return "APPLICATION";
+  if (/\b(offre|offres|emploi|emplois|poste|job|jobs|offer|offers|vacancy|vacancies)\b/.test(m)) return "OPPORTUNITY";
+  if (/\b(candidature|postule|postuler|cv|apply|application|resume)\b/.test(m)) return "APPLICATION";
   if (/\b(entretien|interview)\b/.test(m)) return "INTERVIEW";
   if (/\b(apprendre|formation|skill|compétence)\b/.test(m)) return "LEARNING";
   if (/\b(mobilité|déménag|ville|pays)\b/.test(m)) return "MOBILITY";
   if (/\b(recrut|candidat|talent)\b/.test(m)) return "RECRUITMENT";
   if (/\b(partenaire|commission|parrain)\b/.test(m)) return "PARTNER";
   return "CAREER";
-}
-
-function isFinancialRequest(message: string) { return /\b(paie|payer|paiement|payes|paye|transfere|transfert|argent|transaction|checkout)\b/i.test(message); }
-
-function actionForIntent(intent: string, message: string) {
-  const m = message.toLowerCase();
-  if (intent === "OPPORTUNITY" && /recherche|cherche|trouve|montre/.test(m)) return { type:"SEARCH_JOBS", requiresConfirmation:false };
-  if (intent === "APPLICATION" && /postule|envoie/.test(m)) return { type:"PREPARE_APPLICATION", requiresConfirmation:true };
-  if (intent === "INTERVIEW") return { type:"START_INTERVIEW_COACHING", requiresConfirmation:false };
-  if (intent === "LEARNING") return { type:"BUILD_LEARNING_PLAN", requiresConfirmation:false };
-  return undefined;
 }
 
 export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult> {
@@ -62,7 +61,9 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     sb.from("CareerAssessment").select("readiness,gaps,nextBestAction,computedAt").eq("userId", input.userId).order("computedAt",{ascending:false}).limit(1).maybeSingle(),
   ]);
 
+  const lang: "fr" | "en" = input.lang === "en" ? "en" : "fr";
   const context = {
+    responseLanguage: lang === "en" ? "English" : "français",
     ecosystem: input.ecosystem || "TALENT",
     path: clean(input.path, 160),
     action: clean(input.action, 240),
@@ -86,11 +87,12 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
   } catch {}
 
   const intent = normalizeIntent(context.message);
-  const fallbackAction = actionForIntent(intent, context.message);
   const financialRequest = isFinancialRequest(context.message);
+  // Barrière financière : évaluée AVANT toute action (cf. lib/jia/guard.ts).
+  const fallbackAction = financialRequest ? undefined : actionForIntent(intent, context.message);
   const message = financialRequest
-    ? "Je peux expliquer ou guider un paiement, mais je ne peux jamais l’exécuter ni le confirmer."
-    : (clean(generated?.message, 500) || clean(assessment.data?.nextBestAction, 500) || EMPTY);
+    ? FINANCIAL_REPLY[lang]
+    : (clean(generated?.message, 500) || clean(assessment.data?.nextBestAction, 500) || EMPTY[lang]);
   const confidence = generated?.confidence === "HIGH" || generated?.confidence === "MEDIUM" ? generated.confidence : "MEDIUM";
   const proposedAction = financialRequest ? undefined : (generated?.proposedAction && typeof generated.proposedAction === "object"
     ? generated.proposedAction as JiaBrainResult["proposedAction"]

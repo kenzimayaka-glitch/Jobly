@@ -1,7 +1,24 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import JoblyLogo from "./JoblyLogo";
+import { useI18n } from "@/lib/i18n";
+
+type Role = "talent" | "recruiter" | "partner";
+
+const HOME: Record<Role, string> = { talent: "/dashboard", recruiter: "/recruiter", partner: "/partner" };
+const PROFILE: Record<Role, string> = { talent: "/talent/profile", recruiter: "/recruiter/profile", partner: "/partner/profile" };
+
+/** Déduit l’écosystème : prop explicite > thème > libellé d’eyebrow (FR/EN) > URL courante. */
+function resolveRole(role: Role | undefined, theme: string, eyebrow: string | undefined, pathname: string): Role {
+  if (role) return role;
+  if (theme === "talent") return "talent";
+  if (/^(recruiter|recruteur)$/i.test((eyebrow ?? "").trim())) return "recruiter";
+  if (/^(partner|partenaire)$/i.test((eyebrow ?? "").trim())) return "partner";
+  if (pathname.startsWith("/recruiter")) return "recruiter";
+  if (pathname.startsWith("/partner")) return "partner";
+  return "talent";
+}
 
 export default function PageHeader({
   label,
@@ -10,6 +27,7 @@ export default function PageHeader({
   avatarUrl,
   onBack,
   theme = "default",
+  role,
 }: {
   label: string;
   eyebrow?: string;
@@ -17,39 +35,31 @@ export default function PageHeader({
   avatarUrl?: string;
   onBack?: () => void;
   theme?: "default" | "talent";
+  role?: Role;
 }) {
   const router = useRouter();
-
-  function goProfile() {
-    const profileHref = theme === "talent"
-      ? "/talent/profile"
-      : eyebrow === "RECRUITER"
-        ? "/recruiter/profile"
-        : eyebrow === "PARTNER"
-          ? "/partner/profile"
-          : "/dashboard";
-    router.push(profileHref);
-  }
+  const pathname = usePathname() ?? "";
+  const { t } = useI18n();
+  const eco = resolveRole(role, theme, eyebrow, pathname);
 
   return (
-    <header className="relative z-20 border-b border-[#DCE7F4] bg-white/96 px-5 pb-3 pt-4 backdrop-blur-xl shadow-[0_6px_24px_rgba(10,25,49,.04)] sm:px-6">
+    <header className="sticky top-0 z-30 border-b border-line bg-white/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-[0_6px_24px_rgba(10,25,49,.04)] backdrop-blur-xl sm:px-6">
       <div className="mx-auto flex max-w-5xl items-center justify-between">
         <button
           type="button"
-          onClick={() => (onBack ? onBack() : router.push("/dashboard"))}
-          aria-label="Retour à l'accueil JOBLY"
-          className="flex items-center gap-2"
+          onClick={() => (onBack ? onBack() : router.push(HOME[eco]))}
+          aria-label={t("header.backHome")}
+          className="jobly-focus flex min-h-[44px] items-center gap-2 rounded-xl"
         >
           <JoblyLogo size="header" showTagline />
         </button>
 
         <div className="flex items-center gap-2.5">
-          {/* Notification bell — corrigé le 13/09/2026 (audit) : n'avait aucune action */}
           <button
             type="button"
             onClick={() => router.push("/notifications")}
-            aria-label="Notifications"
-            className="jobly-focus relative flex h-10 w-10 items-center justify-center rounded-full bg-[#EAF3FF] text-[#0057B8] shadow-sm"
+            aria-label={t("header.notifications")}
+            className="jobly-focus relative flex h-11 w-11 items-center justify-center rounded-full bg-canari-blue-soft text-canari-blue transition active:scale-95"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -57,12 +67,12 @@ export default function PageHeader({
             </svg>
           </button>
 
-          {/* Avatar — real photo if available, otherwise initial */}
-          <button type="button" onClick={goProfile} aria-label="Ouvrir mon profil" className="rounded-full focus:outline-none focus:ring-2 focus:ring-[#1457D9] focus:ring-offset-2">
+          <button type="button" onClick={() => router.push(PROFILE[eco])} aria-label={t("header.openProfile")} className="jobly-focus rounded-full">
             {avatarUrl ? (
-              <img src={avatarUrl} alt="Photo de profil" className="h-10 w-10 rounded-full border-2 border-white object-cover shadow-[0_4px_12px_rgba(11,31,75,0.12)]" />
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt={t("header.profilePhoto")} className="h-11 w-11 rounded-full border-2 border-white object-cover shadow-[0_4px_12px_rgba(11,31,75,0.12)]" />
             ) : (
-              <span className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-white text-sm font-black text-[#0057B8] shadow-[0_4px_12px_rgba(11,31,75,0.12)] ${theme === "talent" ? "bg-gradient-to-br from-blue-100 to-yellow-100" : "bg-gradient-to-br from-blue-100 to-violet-100"}`}>
+              <span className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-canari text-sm font-black text-ink shadow-[0_4px_12px_rgba(11,31,75,0.12)]">
                 {initial}
               </span>
             )}
@@ -72,8 +82,8 @@ export default function PageHeader({
 
       {(eyebrow || label) && (
         <div className="mx-auto mt-2 max-w-5xl">
-          {eyebrow && <div className="text-[11px] font-black uppercase tracking-wider text-jobly-blue">{eyebrow}</div>}
-          <div className="text-xs text-slate-500">{label}</div>
+          {eyebrow && <div className="text-[11px] font-black uppercase tracking-wider text-canari-blue">{eyebrow}</div>}
+          {label && <div className="text-[13px] font-semibold text-muted">{label}</div>}
         </div>
       )}
     </header>

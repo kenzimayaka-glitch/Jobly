@@ -54,6 +54,11 @@ export function JoblyOfferFeed() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("Toutes");
 
+  // Deep link : /jobs?q=stage (ex. CTA « Chercher un stage » de l’espace Campus).
+  useEffect(() => {
+    try { const q = new URLSearchParams(window.location.search).get("q"); if (q) setQuery(q.slice(0, 80)); } catch {}
+  }, []);
+
   useEffect(() => { getSupabaseClient().auth.getSession().then(({ data }) => { if (!data.session) { router.replace("/"); return; } setToken(data.session.access_token); }); }, [router]);
 
   const load = useCallback(async (manual = false) => {

@@ -12,7 +12,7 @@ export default function AccountSettings({ ecosystem, backHref, accent = "blue" }
   const [notifications, setNotifications] = useState(true);
   const [privateProfile, setPrivateProfile] = useState(false);
   const [language, setLanguage] = useState("fr");
-  const bg = accent === "yellow" ? "bg-[#FFC72C] text-navy" : "bg-jobly-blue text-white";
+  const bg = accent === "yellow" ? "bg-[#FFE135] text-navy" : "bg-jobly-blue text-white";
 
   async function logout() {
     setMessage("Déconnexion…");

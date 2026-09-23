@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
       path: typeof body?.path === "string" ? body.path : "",
       action: typeof body?.action === "string" ? body.action : "",
       proactive: Boolean(body?.proactive),
+      lang: body?.lang === "en" ? "en" : "fr",
     });
     return NextResponse.json({ ok:true, ...result });
   } catch (error) {

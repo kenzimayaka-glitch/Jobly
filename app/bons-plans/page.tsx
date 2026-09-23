@@ -71,7 +71,7 @@ export default function BonsPlansPage() {
           ← Quitter
         </button>
 
-        <section className="overflow-hidden rounded-[32px] bg-gradient-to-br from-[#FFF1A8] via-[#FFD95A] to-[#FFC72C] p-6 shadow-[0_20px_60px_rgba(70,55,0,.13)] sm:p-8">
+        <section className="overflow-hidden rounded-[32px] bg-gradient-to-br from-[#FFF1A8] via-[#FFD95A] to-[#FFE135] p-6 shadow-[0_20px_60px_rgba(70,55,0,.13)] sm:p-8">
           <span className="inline-flex rounded-full border border-white/50 bg-white/35 px-3 py-1 text-[10px] font-black uppercase tracking-[.16em]">
             BON PLAN JOBLY
           </span>

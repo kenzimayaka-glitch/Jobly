@@ -44,7 +44,7 @@ export function ShieldStarIcon({ className = "" }: { className?: string }) {
       <defs>
         <linearGradient id="shieldGrad" x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
           <stop offset="0" stopColor="#3B82F6" />
-          <stop offset="1" stopColor="#1D4ED8" />
+          <stop offset="1" stopColor="#00458F" />
         </linearGradient>
       </defs>
       <path d="M24 4 40 9.6v12.6C40 33 33.2 40.3 24 44 14.8 40.3 8 33 8 22.2V9.6Z" fill="#DCE9FF" stroke="url(#shieldGrad)" strokeWidth="3" strokeLinejoin="round" />

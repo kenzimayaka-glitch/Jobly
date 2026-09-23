@@ -129,7 +129,7 @@ function Cropper({ src, onCancel, onConfirm }: { src: string; onCancel: () => vo
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0A1931]/70 px-5 backdrop-blur-sm">
     <div className="w-full max-w-[360px] rounded-[28px] bg-white p-5 shadow-2xl">
       <div className="mb-4 flex items-center justify-between"><div><h2 className="text-lg font-extrabold text-[#0A1931]">Rogner la photo</h2><p className="text-xs text-slate-400">Déplace la photo puis ajuste le zoom.</p></div><button type="button" onClick={onCancel} className="rounded-full px-3 py-1 text-sm font-bold text-slate-500">Fermer</button></div>
-      <div className="mx-auto h-[220px] w-[220px] overflow-hidden rounded-full bg-slate-100 ring-4 ring-[#FFC72C]/35" onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp} style={{ touchAction: "none", cursor: dragging ? "grabbing" : "grab" }}>
+      <div className="mx-auto h-[220px] w-[220px] overflow-hidden rounded-full bg-slate-100 ring-4 ring-[#FFE135]/35" onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp} style={{ touchAction: "none", cursor: dragging ? "grabbing" : "grab" }}>
         <img ref={imageRef} src={src} alt="Aperçu à rogner" draggable={false} className="pointer-events-none h-full w-full select-none object-contain" style={{ transform: `translate(${crop.x}px, ${crop.y}px) scale(${crop.scale})` }} />
       </div>
       <input aria-label="Zoom de la photo" type="range" min="1" max="2.2" step="0.01" value={crop.scale} onChange={(e) => setCrop((c) => ({ ...c, scale: Number(e.target.value) }))} className="mt-5 w-full accent-[#0D4BE0]" />
@@ -255,7 +255,7 @@ export default function OnboardingPage() {
 
   return <main className="relative h-[100dvh] w-full overflow-hidden bg-white px-4 text-[#0A1931]">
     <div className="pointer-events-none absolute -left-16 top-16 h-28 w-28 rounded-full bg-[#8B5CF6]/15 blur-xl" />
-    <div className="pointer-events-none absolute -right-12 bottom-24 h-36 w-36 rounded-full bg-[#FFC72C]/20 blur-2xl" />
+    <div className="pointer-events-none absolute -right-12 bottom-24 h-36 w-36 rounded-full bg-[#FFE135]/20 blur-2xl" />
     <section className="relative mx-auto flex h-full w-full max-w-[420px] flex-col pt-5 pb-4">
       <header className="flex shrink-0 items-center justify-between">
         <img src="/jobly-logo-reference.jpg" alt="JOBLY" className="h-auto w-[132px] mix-blend-multiply" />

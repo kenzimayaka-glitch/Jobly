@@ -57,7 +57,7 @@ const JoblyLogo = forwardRef<HTMLDivElement, JoblyLogoProps>(function JoblyLogo(
                C156 87 159 89 160 92
                C161 96 158 99 154 101
                C147 103 134 102 124 99 Z"
-            fill="#FFD400"
+            fill="#FFE135"
             strokeLinecap="round"
             strokeLinejoin="round"
           />

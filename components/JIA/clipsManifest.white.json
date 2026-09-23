@@ -1,0 +1,42 @@
+{
+  "arms_crossed": {
+    "duration": 5.21,
+    "scaleFrom": 1.401,
+    "scaleTo": 1.401
+  },
+  "head_tilt_phone": {
+    "duration": 5.21,
+    "scaleFrom": 1.381,
+    "scaleTo": 1.376
+  },
+  "point_up": {
+    "duration": 5.21,
+    "scaleFrom": 1.401,
+    "scaleTo": 1.36
+  },
+  "present_laptop": {
+    "duration": 5.21,
+    "scaleFrom": 1.8,
+    "scaleTo": 1.766
+  },
+  "present_laptop--2": {
+    "duration": 5.21,
+    "scaleFrom": 1.8,
+    "scaleTo": 1.828
+  },
+  "show_document": {
+    "duration": 5.21,
+    "scaleFrom": 1.49,
+    "scaleTo": 1.481
+  },
+  "show_phone": {
+    "duration": 5.21,
+    "scaleFrom": 1.381,
+    "scaleTo": 1.389
+  },
+  "thumbs_up": {
+    "duration": 5.21,
+    "scaleFrom": 1.8,
+    "scaleTo": 1.222
+  }
+}

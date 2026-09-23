@@ -9,17 +9,27 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // ── JOBLY 2026 — palette Canari (source unique, alignée sur docs/DESIGN-SYSTEM-JOBLY-2026.md) ──
         canari: "#FFE135",
+        "canari-strong": "#F6CF00",
+        "canari-soft": "#FFF8C7",
+        "canari-blue": "#0057B8",
+        "canari-blue-dark": "#00458F",
+        "canari-blue-soft": "#EAF3FF",
+        ink: "#0A1931",
+        muted: "#5F6F86",
+        line: "#DCE7F4",
+        surface: "#F7FAFF",
         "sky-blue": "#7EC8E3",
         "deep-blue": "#2E3F4F",
         "off-white": "#FFFEFB",
         navy: "#0A1931",
-        "jobly-blue": "#2E5C9E",
-        "jobly-blue-dark": "#1D4ED8",
+        "jobly-blue": "#0057B8",
+        "jobly-blue-dark": "#00458F",
         "jobly-green": "#00C950",
         "jobly-green-dark": "#10B981",
-        "jobly-yellow": "#FFC72C",
-        "jobly-yellow-canary": "#FFC72C",
+        "jobly-yellow": "#FFE135",
+        "jobly-yellow-canary": "#FFE135",
         "jobly-gray": "#6B7280",
         "jobly-violet": "#8B5CF6",
         "jobly-mint": "#10B981",
@@ -37,13 +47,16 @@ const config: Config = {
       },
       borderRadius: {
         "4xl": "28px",
-        "card": "20px",
+        "card": "24px",
+        "control": "999px",
       },
       boxShadow: {
         "card": "0 8px 20px rgba(22,37,74,0.06)",
         "card-lg": "0 16px 50px rgba(22,37,74,0.10)",
         "glow-canari": "0 10px 30px rgba(255,225,53,0.45)",
         "premium": "0 16px 40px rgba(46,63,79,0.12)",
+        "cta": "0 8px 20px rgba(246,207,0,0.28)",
+        "soft": "0 12px 32px rgba(10,25,49,0.07)",
       },
       keyframes: {
         "heart-fall": {
@@ -60,6 +73,18 @@ const config: Config = {
           "0%,100%": { transform: "translate3d(0,0,0)" },
           "50%": { transform: "translate3d(6px,-12px,0)" },
         },
+        "ui-pop": {
+          "0%": { transform: "scale(.96)", opacity: "0" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
+        "ui-sheet": {
+          "0%": { transform: "translateY(24px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        "ui-shimmer": {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
         sparkle: {
           "0%,100%": { transform: "scale(1) rotate(0deg)", opacity: "0.9" },
           "50%": { transform: "scale(1.15) rotate(12deg)", opacity: "1" },
@@ -70,6 +95,9 @@ const config: Config = {
         "heart-beat": "heart-beat 1.1s ease-in-out 3.7s infinite",
         "bubble-float": "bubble-float 6s ease-in-out infinite",
         sparkle: "sparkle 3.2s ease-in-out infinite",
+        "ui-pop": "ui-pop .18s ease-out both",
+        "ui-sheet": "ui-sheet .22s cubic-bezier(.22,1,.36,1) both",
+        "ui-shimmer": "ui-shimmer 1.6s linear infinite",
       },
     },
   },

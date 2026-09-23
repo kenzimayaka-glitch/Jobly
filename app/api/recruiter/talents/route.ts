@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
 import { assessCareer, levelLabel } from "../../../../lib/careerEngine";
+import { localizeCareerList, localizeCareerText, type CareerLang } from "../../../../lib/careerText";
 
 const norm = (v: unknown) => String(v || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
@@ -11,6 +12,8 @@ function yearsFrom(experiences: any[]) {
 
 export async function GET(req: NextRequest) {
   try {
+    const lang: CareerLang = new URL(req.url).searchParams.get("lang") === "en" ? "en" : "fr";
+    const L = (x: string) => localizeCareerText(x, lang);
     const auth = await getAuthUser(req); if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const sb = adminClient(); const recruiter = await ensureUser(sb, auth);
     const { data: roleUser } = await sb.from("User").select("role").eq("id", recruiter.id).maybeSingle();
@@ -59,20 +62,20 @@ export async function GET(req: NextRequest) {
       }
       return {
         userId: profile.userId,
-        name: [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "Talent Jobly",
-        headline: profile.headline || levelLabel(career.currentLevel),
+        name: [profile.firstName, profile.lastName].filter(Boolean).join(" ") || L("Talent Jobly"),
+        headline: profile.headline || L(levelLabel(career.currentLevel)),
         location: profile.location || null,
         targetRoles: profile.targetRoles || [],
         yearsExperience: years,
         currentLevel: career.currentLevel,
-        currentLevelLabel: levelLabel(career.currentLevel),
+        currentLevelLabel: L(levelLabel(career.currentLevel)),
         readiness: career.readiness,
         topSkills: skills.slice(0, 8).map((s: any) => ({ name: s.name, level: s.level })),
         educationCount: education.length,
-        quantifiedEvidence: career.dimensions.impact.evidence,
+        quantifiedEvidence: localizeCareerList(career.dimensions.impact.evidence, lang),
         discoveryScore: bestScore,
         bestJob: bestJob ? { id: bestJob.id, title: bestJob.title } : null,
-        reasons: reasons.length ? reasons : ["Profil complet", `${career.readiness}% de readiness carrière`],
+        reasons: localizeCareerList(reasons.length ? reasons : ["Profil complet", `${career.readiness}% de readiness carrière`], lang),
       };
     }).sort((a: any, b: any) => b.discoveryScore - a.discoveryScore).slice(0, 10);
 

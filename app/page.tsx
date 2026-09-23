@@ -14,6 +14,7 @@ import {
   checkUsernameAvailable,
 } from "../lib/auth";
 import { setRememberMe, getSupabaseClient } from "../lib/supabase";
+import BubbleField from "../components/BubbleField";
 import JoblyLogo from "../components/JoblyLogo";
 import WaterScene from "../components/WaterScene";
 import {
@@ -425,10 +426,10 @@ function Cropper({ src, onCancel, onConfirm }: { src: string; onCancel: () => vo
 // 5 pages "journey" après la création de l'identité — inspiré Duolingo/TikTok :
 // on montre la valeur de l'app avant de demander quoi que ce soit d'autre.
 const JOURNEY_SLIDES = [
-  { emoji: "💼", tint: "#EAF2FF", accent: "#2E5C9E", title: "1500+ offres vérifiées près de toi", subtitle: "De vraies opportunités, en temps réel." },
-  { emoji: "���", tint: "#F0E9FF", accent: "#8B5CF6", title: "J'IA corrige ton CV en 10s", subtitle: "J'IA relit, corrige et améliore ton profil." },
+  { emoji: "💼", tint: "#EAF2FF", accent: "#0057B8", title: "1500+ offres vérifiées près de toi", subtitle: "De vraies opportunités, en temps réel." },
+  { emoji: "🧠", tint: "#F0E9FF", accent: "#8B5CF6", title: "J'IA corrige ton CV en 10s", subtitle: "J'IA relit, corrige et améliore ton profil." },
   { emoji: "📄", tint: "#E8F5E9", accent: "#10B981", title: "Un CV qui passe les robots recruteurs", subtitle: "Optimisé pour être vu, pas juste envoyé." },
-  { emoji: "🎯", tint: "#FFF3E8", accent: "#FFC72C", title: "Ne postule plus au hasard", subtitle: "Un score de matching te dit où tu as vraiment ta chance." },
+  { emoji: "🎯", tint: "#FFF3E8", accent: "#FFE135", title: "Ne postule plus au hasard", subtitle: "Un score de matching te dit où tu as vraiment ta chance." },
   { emoji: "🌍", tint: "#EAF2FF", accent: "#0A1931", title: "Entreprise, Candidat, Freelance… Choisis ton monde", subtitle: "J'IA s'adapte à qui tu es aujourd'hui." },
 ] as const;
 
@@ -760,13 +761,14 @@ export default function Home() {
   }
   async function forgot() { if (!email.includes("@")) return setMessage("Entre l'adresse e-mail associée à ton compte."); setBusy(true); setMessage(""); try { await requestPasswordReset(email); goTo("reset-sent"); } catch (e) { setMessage(e instanceof Error ? e.message : "Impossible d'envoyer l'e-mail de récupération."); } finally { setBusy(false); } }
 
-  return <main className={`relative min-h-screen flex flex-col justify-between w-full bg-off-white dark:bg-[#0A1931] dark:text-white ${screen === "welcome" ? "overflow-y-auto" : "overflow-y-auto"}`}>
+  return <main className={`relative min-h-screen flex flex-col justify-between w-full bg-off-white dark:bg-[#0A1931] dark:text-white ${screen === "welcome" ? "overflow-hidden" : "overflow-y-auto"}`}>
     {screen === "welcome" && <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 z-0 h-[340px] w-[340px] rounded-full bg-sky-blue/25 blur-[90px]" />}
+    <BubbleField />
     {screen === "welcome" && (
-      <div className="pointer-events-auto fixed right-4 top-4 z-[100] flex gap-1 rounded-full border border-[#d7e1f0] bg-white p-1 shadow-[0_4px_16px_rgba(16,50,100,0.12)]"><button type="button" onClick={()=>{setLang("fr");try{localStorage.setItem("jobly-lang","fr")}catch{}}} className={`rounded-full px-4 py-2 text-[13px] transition-all ${lang==="fr"?"bg-white font-extrabold text-deep-blue shadow-[0_2px_8px_rgba(16,50,100,0.12)]":"text-deep-blue/55"}`}>🇫🇷 FR⌄</button><button type="button" onClick={()=>{setLang("en");try{localStorage.setItem("jobly-lang","en")}catch{}}} className={`rounded-full px-4 py-2 text-[13px] transition-all ${lang==="en"?"bg-white font-extrabold text-deep-blue shadow-[0_2px_8px_rgba(16,50,100,0.12)]":"text-deep-blue/55"}`}>🇬🇧 EN</button></div>
+      <div className="fixed right-4 top-4 z-30 flex gap-1 rounded-full border border-white/40 bg-white/40 p-1 shadow-premium backdrop-blur-xl"><button type="button" onClick={()=>{setLang("fr");try{localStorage.setItem("jobly-lang","fr")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="fr"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇫🇷 FR</button><button type="button" onClick={()=>{setLang("en");try{localStorage.setItem("jobly-lang","en")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="en"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇬🇧 EN</button></div>
     )}
     <div className="relative flex min-h-0 flex-1 w-full flex-col gap-0">
-      {screen !== "login" && screen !== "signup" && <header className="z-20 flex h-[92px] shrink-0 items-start px-5 pt-6 sm:px-8"><JoblyLogo ref={logoRef} size="hero" showTagline /></header>}
+      {screen !== "login" && screen !== "signup" && <header className="z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"><JoblyLogo ref={logoRef} size="hero" showTagline /></header>}
       {screen === "welcome" && (
         <AnimatePresence mode="wait" initial={false}>
           <motion.section
@@ -775,12 +777,16 @@ export default function Home() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.32, ease: "easeOut" }}
-            className="flex min-h-0 flex-1 flex-col overflow-visible pb-2"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="relative h-[44%] shrink-0 overflow-hidden px-4 pt-0">
-                            <div className="relative z-20 mt-12 w-[52%] pl-1 sm:mt-16">
+              <div aria-hidden="true" className="pointer-events-none absolute left-[10%] top-[-5%] z-[2] h-[64%] w-[44%] opacity-60">
+                <div className="h-full w-full -rotate-[26deg] border-l border-dashed border-sky-blue/50" />
+              </div>
+
+              <div className="relative z-20 mt-2 w-[45%]">
                 
-                <h1 className="font-[var(--font-inter)] text-[32px] leading-[35px] font-extrabold tracking-[-1.2px] text-deep-blue sm:text-[42px] sm:leading-[44px]">
+                <h1 className="font-[var(--font-inter)] text-[28px] leading-[31px] font-extrabold tracking-[-0.8px] text-deep-blue">
                   {translations[lang].title.split("\n").map((line, i) => (
                     <span key={line}>{line}{i === 0 && <br />}</span>
                   ))}
@@ -789,21 +795,21 @@ export default function Home() {
                   <path d="M1 1.5 C17 4.8 37 4.8 53 1.5" fill="none" stroke="#FFD60A" strokeWidth="5" strokeLinecap="round" />
                 </svg>
                 <p className="mt-2.5 max-w-[165px] font-[var(--font-inter)] text-[12px] font-bold tracking-[0.01em] text-deep-blue/75">
-                  Powered by <span className="font-black tracking-[-0.055em]"><span className="text-deep-blue">J'</span><span className="text-[#39D7FF]">I</span><span className="bg-gradient-to-br from-[#39D7FF] via-[#5BCBFF] to-[#FFC72C] bg-clip-text text-transparent">A</span></span>
+                  Powered by <span className="font-black tracking-[-0.055em]"><span className="text-deep-blue">J'</span><span className="text-[#39D7FF]">I</span><span className="bg-gradient-to-br from-[#39D7FF] via-[#5BCBFF] to-[#FFE135] bg-clip-text text-transparent">A</span></span>
                 </p>
                 <p className="relative z-10 mt-3 w-[95%] text-[13px] leading-[18px] font-[var(--font-inter)] font-bold italic text-[#4a4a4a]">
                   {translations[lang].subtitle}
                 </p>
               </div>
 
-              <div className="absolute right-[-5%] top-[18%] z-[5] h-[78%] w-[66%] sm:right-0 sm:top-[14%] sm:h-[82%] sm:w-[63%]">
+              <div className="absolute top-[1cm] right-0 z-[5] h-[60%] w-[60%]">
                 <Image
                   fill
                   priority
                   src="/hero-jobly-community.webp"
                   alt="Communauté Jobly diverse"
                   sizes="62vw"
-                  className="pointer-events-none object-cover object-top"
+                  className="object-cover object-top"
                   style={{
                     WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 14%, black 100%), linear-gradient(to bottom, transparent 0%, black 14%, black 78%, transparent 100%)",
                     maskImage: "linear-gradient(to right, transparent 0%, black 14%, black 100%), linear-gradient(to bottom, transparent 0%, black 14%, black 78%, transparent 100%)",
@@ -814,25 +820,25 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative z-20 mt-2 shrink-0 flex flex-row gap-3 px-4">
-              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[58px] min-w-0 flex-1 rounded-2xl bg-[#1261F5] px-2 font-[var(--font-inter)] text-[12px] font-bold text-white shadow-[0_8px_18px_rgba(18,97,245,0.24)] transition-transform active:scale-[0.96] sm:text-[14px]">
+            <div className="relative z-20 mt-0 shrink-0 flex flex-row gap-3 px-4">
+              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[56px] w-[48%] rounded-xl bg-canari font-[var(--font-inter)] font-bold text-[14px] text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96]">
                 {translations[lang].create}
               </button>
-              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[58px] min-w-0 flex-1 rounded-2xl bg-[#FFD400] px-2 font-[var(--font-inter)] text-[12px] font-bold text-deep-blue shadow-[0_8px_18px_rgba(255,212,0,0.28)] transition-transform active:scale-[0.96] sm:text-[14px]">
+              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[56px] w-[48%] rounded-xl border border-white/50 bg-deep-blue/90 font-[var(--font-inter)] font-bold text-[14px] text-off-white shadow-premium backdrop-blur-xl transition-transform active:scale-[0.96]">
                 {translations[lang].login}
               </button>
             </div>
 
-            <div className="relative z-20 mt-7 shrink-0 grid grid-cols-3 gap-2 px-4 pb-1 sm:gap-3">
-              {BENEFITS[lang].slice(0, 3).map(({ Icon, title, subtitle }) => (
+            <div className="relative z-20 mt-3 shrink-0 grid grid-cols-4 gap-2.5 px-3 pb-1">
+              {BENEFITS[lang].map(({ Icon, title, subtitle }) => (
                 <div key={title} className="relative overflow-hidden rounded-[24px]">
-                  <div className="pointer-events-none absolute -top-20 -left-20 h-[300px] w-[300px] rounded-full bg-[#FFD400]/30 blur-[80px]" />
+                  <div className="pointer-events-none absolute -top-20 -left-20 h-[300px] w-[300px] rounded-full bg-[#FFE135]/30 blur-[80px]" />
                   <div className="pointer-events-none absolute -bottom-20 -right-20 h-[300px] w-[300px] rounded-full bg-[#22448B]/20 blur-[80px]" />
                   <div className="pointer-events-none absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#FF8C00]/15 blur-[90px]" />
-                  <div className="relative min-h-[112px] min-w-0 rounded-[22px] border border-[#cbdcf3] bg-white p-2 text-center font-[var(--font-inter)] shadow-[0_4px_14px_rgba(24,73,140,0.07)] sm:p-3">
+                  <div className="relative min-h-[82px] rounded-[24px] border border-white/40 bg-white/20 p-3 text-center font-[var(--font-inter)] shadow-premium backdrop-blur-[40px]">
                     <Icon className="mx-auto mb-1 h-3.5 w-3.5 text-sky-blue sm:h-4 sm:w-4" />
-                    <p className="break-words font-[var(--font-inter)] text-[10px] font-bold leading-[12px] text-deep-blue sm:text-[11px]">{title}</p>
-                    <p className="mt-1 break-words font-[var(--font-inter)] text-[8px] font-bold leading-[10px] text-[#7a7f89] sm:text-[9px]">{subtitle}</p>
+                    <p className="font-[var(--font-inter)] text-[11px] font-bold leading-[12px] text-deep-blue">{title}</p>
+                    <p className="mt-1 font-[var(--font-inter)] text-[9px] font-bold leading-[10px] text-[#7a7f89]">{subtitle}</p>
                   </div>
                 </div>
               ))}
@@ -868,11 +874,11 @@ export default function Home() {
               </div>
               <div className="flex justify-between items-center px-1 mt-1">
                 <label className="flex items-center gap-2 text-[13px] font-semibold text-[#0A1931]">
-                  <input type="checkbox" checked={rememberMe} onChange={e=>setRememberMeState(e.target.checked)} className="h-4 w-4 rounded accent-[#FFD400]" />Rester connecté
+                  <input type="checkbox" checked={rememberMe} onChange={e=>setRememberMeState(e.target.checked)} className="h-4 w-4 rounded accent-[#FFE135]" />Rester connecté
                 </label>
                 <button type="button" onClick={()=>{setMessage("");goTo("forgot");}} className="text-[13px] font-bold text-[#22448B]">{translations[lang].forgot}</button>
               </div>
-              <button type="submit" disabled={busy} className="mt-6 h-[52px] w-full rounded-full bg-[#FFD400] font-bold text-[#0A1931]">{busy ? "Connexion…" : `${translations[lang].login} →`}</button>
+              <button type="submit" disabled={busy} className="mt-6 h-[52px] w-full rounded-full bg-[#FFE135] font-bold text-[#0A1931]">{busy ? "Connexion…" : `${translations[lang].login} →`}</button>
               <div className="flex items-center gap-4 my-2">
                 <div className="h-px flex-1 bg-gray-200" />
                 <span className="text-xs text-gray-400">{translations[lang].or}</span>
@@ -883,7 +889,7 @@ export default function Home() {
               </button>
               {message && <div role="alert" aria-live="assertive" className="rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-center text-[13px] font-semibold text-red-700">{message}</div>}
             </form>
-            <p className="relative -mt-2 text-center text-[13px] text-gray-500">{translations[lang].noAccount}{" "}<button type="button" onClick={()=>{reset();goTo("signup");}} className="font-bold text-[#22448B]">{translations[lang].create}</button></p>
+            <p className="relative -mt-2 text-center text-[13px] text-gray-500">{translations[lang].noAccount}{" "}<button type="button" onClick={()=>{reset();goTo("signup");}} className="font-bold text-[#22448B]">Créer un compte</button></p>
           </div>
         </section>
       )}
@@ -921,7 +927,7 @@ export default function Home() {
                 <label className="text-[13px] font-semibold text-[#0A1931]">{translations[lang].email}</label>
                 <input type="email" value={email} onChange={e=>setEmail(e.target.value)} inputMode="email" autoComplete="email" placeholder="vous@exemple.com" className="h-[48px] w-full rounded-full border border-gray-200 px-5 text-[15px] outline-none focus:border-jobly-blue" />
               </div>
-              <button type="submit" disabled={busy} className="mt-6 h-[52px] w-full rounded-full bg-[#FFD400] font-bold text-[#0A1931]">{busy ? "Envoi du code…" : translations[lang].continue}</button>
+              <button type="submit" disabled={busy} className="mt-6 h-[52px] w-full rounded-full bg-[#FFE135] font-bold text-[#0A1931]">{busy ? "Envoi du code…" : translations[lang].continue}</button>
             </form>
           </div>
         </section>
@@ -1070,7 +1076,7 @@ export default function Home() {
               )}
               {jiaLine === 1 && (
                 <motion.p key="l1" initial={{ opacity: 0, y: 10, scale: 0.92 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }} transition={{ type: "spring", stiffness: 200, damping: 16 }} className="text-[20px] font-extrabold text-white">
-                  Je suis <span className="font-black tracking-[-0.055em]"><span className="text-white">J'</span><span className="text-[#39D7FF]">I</span><span className="bg-gradient-to-br from-[#39D7FF] via-[#5BCBFF] to-[#FFC72C] bg-clip-text text-transparent">A</span></span>,
+                  Je suis <span className="font-black tracking-[-0.055em]"><span className="text-white">J'</span><span className="text-[#39D7FF]">I</span><span className="bg-gradient-to-br from-[#39D7FF] via-[#5BCBFF] to-[#FFE135] bg-clip-text text-transparent">A</span></span>,
                 </motion.p>
               )}
               {jiaLine >= 2 && (
@@ -1101,13 +1107,17 @@ export default function Home() {
       {screen === "reset-sent" && <section className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-4 text-center"><div className="mx-auto mb-4 text-5xl" aria-hidden="true">✉️</div><h1 className="text-[32px] font-extrabold text-navy">{translations[lang].sentTitle}</h1><p className="my-3 text-sm text-jobly-gray">{translations[lang].sentText}</p><button type="button" onClick={()=>{reset();goTo("login");}} className="h-[52px] rounded-2xl bg-jobly-blue font-extrabold text-white">{translations[lang].backLogin}</button></section>}
 
       {message && screen !== "journey" && screen !== "jia-welcome" && screen !== "login" && <div role="status" aria-live="polite" className="rounded-2xl border border-blue-100 bg-blue-50 px-3.5 py-2.5 text-center text-xs text-blue-800">{message}</div>}
-      {screen !== "journey" && screen !== "jia-welcome" && screen !== "signup" && screen !== "signup-otp" && screen !== "signup-password" && screen !== "login" && <footer className="relative z-30 mt-6 shrink-0 px-4 pb-6 pt-2 text-center">
+      {screen !== "journey" && screen !== "jia-welcome" && screen !== "signup" && screen !== "signup-otp" && screen !== "signup-password" && screen !== "login" && <footer className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-4 pt-2 text-center">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={`footer-${lang}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeOut" }}>
             
             
-            
-            {screen === "welcome" && <div className="space-y-2 text-[10px] text-deep-blue"><p>{translations[lang].conditions}</p><p className="font-semibold text-[#0757d5]"><u>{translations[lang].terms}</u><span className="px-2 text-deep-blue">•</span><u>{translations[lang].privacy}</u></p><p className="pt-3 text-[11px] font-normal text-deep-blue">{translations[lang].madeWith} <span className="text-red-500">♥</span> {translations[lang].by}</p></div>}
+            {screen === "welcome" && <div className="relative mx-auto mt-1 h-[29px] w-[120px]" aria-hidden="true">
+              <motion.svg viewBox="0 0 120 29" className="absolute inset-0 h-full w-full">
+                <motion.path d="M58 27 C44 23 46 12 61 9 C72 7 77 2 74 0" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: [0, 0.7, 0.12, 0] }} transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut" }} />
+              </motion.svg>
+            </div>}
+            {screen === "welcome" && <p className="text-[11px] text-jobly-gray">{translations[lang].madeWith} <span ref={heartTargetRef} className="inline-block h-[14px] w-[14px] align-[-3px]" aria-hidden="true">&nbsp;</span> {translations[lang].by}</p>}
           </motion.div>
         </AnimatePresence>
       </footer>}
