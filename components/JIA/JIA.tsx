@@ -105,12 +105,16 @@ function eyeAnimation(side: "left" | "right", bone: Bone = {}, blink: boolean) {
   if (look === "down") y = "18%";
   if (bone.scan || bone.follow) x = ["-12%", "12%", "-12%"];
   const scanning = Array.isArray(x);
-  return { animate: { x, y, scaleY: closed ? 0.08 : 1 }, transition: closed ? { duration: 0.12, ease: "easeInOut" } : scanning ? { duration: 1.8, ease: "easeInOut", repeat: Infinity } : SPRING };
+  const idleGaze = look === undefined && !bone.scan && !bone.follow;
+  return {
+    animate: { x: idleGaze ? ["-3%", "3%", "0%"] : x, y, scaleY: closed ? 0.08 : 1 },
+    transition: closed ? { duration: 0.12, ease: "easeInOut" } : scanning || idleGaze ? { duration: 2.8, ease: "easeInOut", repeat: Infinity } : SPRING,
+  };
 }
 
 export default function JIA({ speaking, gesture = "welcome", auto = true, move: requestedMove }: Props) {
   const reduced = !!useReducedMotion();
-  const blink = useBlink(!reduced);
+  const blink = useBlink(true);
   const [move, setMove] = useState<JIA100Move>("idle");
   const [talk, setTalk] = useState(false);
   const [voiceViseme, setVoiceViseme] = useState<"neutral" | "small" | "open" | "round" | "wide" | "smile">("neutral");
@@ -181,8 +185,14 @@ export default function JIA({ speaking, gesture = "welcome", auto = true, move: 
   const mouthBone: Bone = bones.mouth ?? {};
   const mouthOpen = mouthBone.open ? 1.25 : 1;
   const mouthFile = speaking ? ({ neutral: "mouth_neutral.svg", small: "mouth_small.svg", open: "mouth_open.svg", round: "mouth_round.svg", wide: "mouth_wide.svg", smile: "mouth_smile.svg" } as const)[voiceViseme] : (move === "smile_wide" || move === "smile_soft" || move === "proud" ? "mouth_smile.svg" : "mouth_neutral.svg");
-  const mouthAnimate = { scaleY: (mouthBone.scaleY ?? 1) * mouthOpen, scaleX: mouthBone.scaleX ?? 1, scale: mouthBone.scale ?? 1 };
-  const mouthTransition = speaking ? { duration: 0.09, ease: "easeOut" as const } : SPRING;
+  const mouthAnimate = {
+    scaleY: speaking ? [1, 1.28, 0.92, 1.12, 1] : [1, 1.04, 1],
+    scaleX: mouthBone.scaleX ?? 1,
+    scale: mouthBone.scale ?? 1,
+  };
+  const mouthTransition = speaking
+    ? { duration: 0.34, ease: "easeInOut" as const, repeat: Infinity }
+    : { duration: 2.2, ease: "easeInOut" as const, repeat: Infinity };
   const eyebrowBone: Bone = bones.eyebrows ?? {};
   const torsoBone: Bone = bones.torso ?? {};
   const breathe = reduced ? 0 : Number(torsoBone.breathe ?? BREATH);
