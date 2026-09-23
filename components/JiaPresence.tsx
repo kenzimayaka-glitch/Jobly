@@ -96,10 +96,14 @@ function speak(text: string, lang: "fr" | "en", onEnd?: () => void) {
   u.onend = () => onEnd?.();
   u.onerror = () => onEnd?.();
   window.speechSynthesis.speak(u);
+  // Certains navigateurs suspendent SpeechSynthesis après un changement de route.
+  window.setTimeout(() => {
+    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+  }, 80);
 }
 
 function isTypingTarget(el: Element | null) {
-  if (!el) return false;
+  if (!el || el.closest("[data-jia-panel]")) return false;
   const tag = el.tagName;
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (el as HTMLElement).isContentEditable === true;
 }
@@ -209,6 +213,14 @@ export default function JiaPresence() {
         const mode = data.interaction_mode === "voice" ? "voice" : "text";
         modeRef.current = mode;
         setPrefs({ enabled: data.access_enabled !== false, mode, proactive: data.proactive_recommendations !== false });
+        if (mode === "voice") {
+          shouldRestart.current = true;
+          window.setTimeout(() => startListening(), 250);
+        } else {
+          shouldRestart.current = false;
+          recognition.current?.stop();
+          recognition.current = null;
+        }
       } catch { /* silence : pas d’état optimiste sur les préférences */ }
     })();
     return () => { active = false; };
@@ -216,7 +228,13 @@ export default function JiaPresence() {
 
   // Réduction persistée (préférence d’affichage locale).
   useEffect(() => { try { setCollapsed(window.localStorage.getItem(COLLAPSE_KEY) === "1"); } catch {} }, []);
-  useEffect(() => { setPanelOpen(false); setExpandedHere(false); }, [pathname]);
+  useEffect(() => {
+    setPanelOpen(false);
+    setExpandedHere(false);
+    const pageGesture: JiaGesture = pathname.startsWith("/jobs") ? "curious" : pathname.startsWith("/candidatures") ? "reassure" : pathname.startsWith("/career") ? "analyze" : pathname.startsWith("/recruiter") ? "proud" : pathname.startsWith("/partner") ? "welcome" : "curious";
+    setGesture(pageGesture);
+    setMove(undefined);
+  }, [pathname]);
 
   // ── Ne jamais gêner : saisie clavier, modales ouvertes ───────────────────
   useEffect(() => {
@@ -305,6 +323,27 @@ export default function JiaPresence() {
 
   // Changement de langue : la reconnaissance repart dans la bonne langue.
   useEffect(() => { if (recognition.current) { recognition.current.stop(); } }, [lang]);
+
+  useEffect(() => {
+    const onPreferencesChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ mode?: "text" | "voice"; enabled?: boolean; proactive?: boolean }>).detail;
+      const mode = detail.mode === "voice" ? "voice" : "text";
+      modeRef.current = mode;
+      enabledRef.current = detail.enabled !== false;
+      setPrefs((current) => ({ ...current, mode, enabled: detail.enabled !== false, proactive: detail.proactive !== false }));
+      if (mode === "voice" && enabledRef.current) {
+        shouldRestart.current = true;
+        window.setTimeout(() => startListening(), 150);
+      } else {
+        shouldRestart.current = false;
+        recognition.current?.stop();
+        recognition.current = null;
+        window.speechSynthesis?.cancel();
+      }
+    };
+    window.addEventListener("jobly:jia-preferences-changed", onPreferencesChanged);
+    return () => window.removeEventListener("jobly:jia-preferences-changed", onPreferencesChanged);
+  }, [startListening]);
 
   const sendTextCommand = useCallback(async () => {
     const command = commandInput.trim();
@@ -477,7 +516,7 @@ export default function JiaPresence() {
                 </div>
               )}
               {panelOpen && (
-                <div className="w-full rounded-[20px] border border-line bg-white p-3 shadow-[0_16px_40px_rgba(10,25,49,.16)]">
+                <div data-jia-panel className="w-full rounded-[20px] border border-line bg-white p-3 shadow-[0_16px_40px_rgba(10,25,49,.16)]">
                   <div className="flex items-center justify-between gap-2">
                     <div className="text-[13px] font-black text-ink">{t("jia.panel.title")}</div>
                     <span className="rounded-full bg-canari-blue-soft px-2 py-1 text-[10px] font-extrabold text-canari-blue">{statusLabel}</span>

@@ -66,6 +66,7 @@ export default function JiaPreferences({ ecosystem }: { ecosystem: Ecosystem }) 
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id,ecosystem" });
       if (error) throw error;
+      window.dispatchEvent(new CustomEvent("jobly:jia-preferences-changed", { detail: { mode: value.interaction_mode, enabled: value.access_enabled, proactive: value.proactive_recommendations } }));
       setMessage("Préférences J’IA enregistrées.");
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Impossible d’enregistrer.");
