@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "../../lib/supabase";
 import PageHeader from "../../components/PageHeader";
 import BottomNav, { TALENT_NAV } from "../../components/BottomNav";
 import ScoreRing from "../../components/ScoreRing";
+import TalentHero from "../../components/TalentHero";
 
 type ProfileData = {
   user: { id?: string; displayName?: string; email?: string; phone?: string; profilePhotoUrl?: string | null };
@@ -68,7 +69,6 @@ export default function DashboardPage() {
   const [data, setData] = useState<ProfileData | null>(null);
   const [jobs, setJobs] = useState<JobsResponse | null>(null);
   const [applications, setApplications] = useState<ApplicationsResponse | null>(null);
-  const [search, setSearch] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -114,11 +114,26 @@ export default function DashboardPage() {
   const topJobs = jobs?.jobs?.slice(0, 3) ?? [];
   const applicationsCount = applications?.counters?.envoyees ?? 0;
   const visibleJobCount = jobs?.totalActive ?? 0;
+  const carouselRef = useRef<HTMLDivElement | null>(null);
 
-  function goSearch() {
-    const q = search.trim();
-    router.push(q ? `/jobs?q=${encodeURIComponent(q)}` : "/jobs");
-  }
+  useEffect(() => {
+    const el = carouselRef.current;
+    if (!el || topJobs.length < 2) return;
+    const step = 292;
+    const interval = window.setInterval(() => {
+      const halfway = topJobs.length * step;
+      const next = el.scrollLeft + step;
+      if (next >= halfway) {
+        el.scrollTo({ left: 0, behavior: "auto" });
+        requestAnimationFrame(() => el.scrollTo({ left: step, behavior: "smooth" }));
+      } else {
+        el.scrollTo({ left: next, behavior: "smooth" });
+      }
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [topJobs.length]);
+
+
 
   if (loading) return <main className="min-h-[100dvh] grid place-items-center bg-white font-bold text-navy">Chargement…</main>;
 
@@ -133,31 +148,10 @@ export default function DashboardPage() {
       />
 
       <div className="w-full">
-        <section className="relative overflow-visible bg-transparent">
-          <div className="mx-auto w-full max-w-6xl px-4 pb-5 pt-2 sm:px-6 sm:pb-6 lg:px-8">
-            <div className="relative h-[280px] overflow-visible rounded-[24px] bg-transparent px-5 sm:px-6">
-              <div className="relative z-30 flex h-full w-[60%] flex-col justify-center pr-2 sm:pr-6">
-                <p className="text-[18px] font-black leading-tight tracking-[-.03em] text-[#0A1931] sm:text-[22px]">Bonjour{firstName ? ` ${firstName}` : ""} 👋</p>
-                <h1 className="mt-2 max-w-[560px] font-heading text-[28px] font-bold leading-[1.08] tracking-[-.035em] text-[#0A1931] sm:text-[32px]">Votre carrière mérite un vrai copilote.</h1>
-                <p className="mt-3 max-w-[500px] text-[12px] leading-5 text-[#667085] sm:text-[14px] sm:leading-6">Je cherche, j’analyse, je prépare et je vous accompagne vers les meilleures opportunités.</p>
-              </div>
-              <div className="pointer-events-none absolute inset-y-0 right-0 z-20 flex w-[40%] items-end justify-end">
-                {data?.user.profilePhotoUrl ? (
-                  <img src={data.user.profilePhotoUrl} alt="Photo de profil" className="h-[168px] w-auto max-w-none translate-y-[18px] object-contain object-bottom drop-shadow-[0_18px_20px_rgba(10,25,49,.14)] sm:h-[184px] sm:translate-y-[22px]" />
-                ) : (
-                  <div className="mb-[-18px] grid h-[168px] w-[140px] place-items-center bg-[#0057B8] text-6xl font-black text-white shadow-[0_18px_20px_rgba(10,25,49,.14)] sm:h-[184px] sm:w-[150px]">{(firstName || "J").charAt(0).toUpperCase()}</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
-          <form onSubmit={(e) => { e.preventDefault(); goSearch(); }} className="relative z-30 flex min-h-[58px] items-center gap-3 rounded-[20px] border border-[#E7EAF0] bg-white px-4 shadow-[0_12px_30px_rgba(7,27,69,.10)] focus-within:border-[#FFE135]">
-            <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0 text-[#0057B8]" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Quel poste recherchez-vous ?" className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-[#7C8CA5]" aria-label="Rechercher une offre" />
-            <button type="submit" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-[#52627A] transition hover:bg-[#F4F6F8]" aria-label="Filtrer les résultats"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button>
-          </form>
-
+          <TalentHero photoUrl={data?.user.profilePhotoUrl} firstName={firstName} />
+        </div>
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
           <section className="mt-5 grid grid-cols-4 gap-2 sm:gap-3">
             {QUICK.map((item) => {
               const tone = item.tone === "violet"
@@ -171,7 +165,7 @@ export default function DashboardPage() {
                 <button key={item.href} type="button" onClick={() => router.push(item.href)} className="group min-w-0 rounded-[18px] border border-[#E0E7F2] bg-white p-2.5 text-left shadow-[0_8px_22px_rgba(7,27,69,.055)] transition-all hover:-translate-y-0.5 hover:border-[#FFE135] active:scale-[.98] sm:rounded-[22px] sm:p-4">
                   <span className={`grid h-10 w-10 place-items-center rounded-2xl ${tone} sm:h-12 sm:w-12`}><QuickIcon id={item.icon}/></span>
                   <strong className="mt-2 block truncate text-[11px] font-black sm:mt-3 sm:text-sm">{item.title}</strong>
-                  <span className="mt-1 hidden min-h-8 text-[10px] leading-4 text-[#5D6C83] sm:block">{item.subtitle}</span>
+                  <span className="mt-1 hidden min-h-8 text-[10px] leading-4 text-[#5D6C83] sm:block">{item.title === "Offres" ? "+" + visibleJobCount + " offres" : item.title === "Mes candidatures" ? "+" + applicationsCount + " candidatures" : item.title === "Mon CV" ? "Votre CV Jobly" : "Votre parcours professionnel"}</span>
                   <span className="mt-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#D9E2F0] text-sm font-black text-[#0057B8] sm:mt-3 sm:h-8 sm:w-8 sm:text-lg">→</span>
                 </button>
               );
@@ -197,13 +191,13 @@ export default function DashboardPage() {
           <section className="mt-6">
             <div className="flex items-end justify-between gap-3"><div><h2 className="font-heading text-xl font-black">Opportunités recommandées</h2><p className="mt-1 text-xs text-[#64748B]">{visibleJobCount > 0 ? `${visibleJobCount} offre${visibleJobCount > 1 ? "s" : ""} actuellement disponible${visibleJobCount > 1 ? "s" : ""}.` : "Aucune offre disponible pour le moment."}</p></div><button type="button" onClick={() => router.push("/jobs")} className="shrink-0 text-xs font-black text-[#0057B8]">Voir tout →</button></div>
             {topJobs.length > 0 ? (
-              <div className="mt-3 -mx-1 overflow-x-auto overflow-y-hidden pb-2 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div ref={carouselRef} className="mt-3 -mx-1 overflow-x-auto overflow-y-hidden pb-2 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <div className="flex w-max gap-3 pr-4">
-                  {topJobs.map((job) => {
+                  {[...topJobs, ...topJobs].map((job, index) => {
                     const remote = remoteLabel(job.remoteMode);
                     const destination = `/jobs/${encodeURIComponent(job.id)}?source=${job.source}`;
                     return (
-                      <button key={`${job.source}:${job.id}`} type="button" onClick={() => router.push(destination)} className="h-[180px] w-[280px] shrink-0 snap-start rounded-[20px] border border-[#E4EAF2] bg-white p-4 text-left shadow-[0_8px_24px_rgba(7,27,69,.07)] transition-all hover:-translate-y-0.5 hover:border-[#0057B8]">
+                      <button key={`${job.source}:${job.id}:${index}`} type="button" onClick={() => router.push(destination)} className="h-[180px] w-[280px] shrink-0 snap-start rounded-[20px] border border-[#E4EAF2] bg-white p-4 text-left shadow-[0_8px_24px_rgba(7,27,69,.07)] transition-all hover:-translate-y-0.5 hover:border-[#0057B8]">
                         <div className="flex items-center gap-2">
                           {job.company?.logoUrl ? <img src={job.company.logoUrl} alt="" className="h-[50px] w-[50px] rounded-full border border-[#E5EAF2] object-contain" /> : <span className="grid h-[50px] w-[50px] place-items-center rounded-full bg-[#0057B8] text-sm font-black text-white">{(job.company?.name || "J").charAt(0).toUpperCase()}</span>}
                           <span className="min-w-0 truncate text-[11px] font-bold text-[#667085]">{job.company?.name || "Employeur non précisé"}</span>
