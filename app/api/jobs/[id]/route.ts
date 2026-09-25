@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient } from "../../../../lib/server-auth";\n\nfunction companyDomain(website:string|null|undefined):string|null { if(!website) return null; try { const raw=website.startsWith("http")?website:`https://${website}`; return new URL(raw).hostname.toLowerCase().replace(/^www\\./,"") || null; } catch { return null; } }
+import { adminClient } from "../../../../lib/server-auth";
+
+function companyDomain(website:string|null|undefined):string|null { if(!website) return null; try { const raw=website.startsWith("http")?website:`https://${website}`; return new URL(raw).hostname.toLowerCase().replace(/^www\\./,"") || null; } catch { return null; } }
 
 export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ id: string }> };
