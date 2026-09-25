@@ -22,7 +22,7 @@ export default function TalentHero({ photoUrl, firstName = "" }: TalentHeroProps
         objectUrl = URL.createObjectURL(blob);
         setCutoutUrl(objectUrl);
       } catch {
-        if (!cancelled) setCutoutUrl(photoUrl);
+        if (!cancelled) setCutoutUrl(null);
       }
     }
     removeBackground();
@@ -50,10 +50,10 @@ export default function TalentHero({ photoUrl, firstName = "" }: TalentHeroProps
         </div>
         {cutoutUrl && <img src={cutoutUrl} alt={`Portrait de ${firstName || "vous"}`} className="pointer-events-none absolute bottom-0 right-0 z-10 h-[115%] w-auto max-w-[68%] object-contain object-bottom" />}
         <div className="absolute bottom-4 left-4 right-4 z-30">
-          <form className="flex min-h-[56px] items-center gap-3 rounded-full bg-white px-4 shadow-[0_14px_34px_rgba(7,27,69,.14)]">
+          <form action="/jobs" method="get" className="flex min-h-[56px] items-center gap-3 rounded-full bg-white px-4 shadow-[0_14px_34px_rgba(7,27,69,.14)]">
             <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-[#52627A]" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-            <input placeholder="Quel poste recherchez-vous ?" className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-[#7C8CA5]" aria-label="Rechercher une offre" />
-            <button type="button" aria-label="Filtrer" className="grid h-9 w-9 place-items-center rounded-full text-[#52627A] hover:bg-[#F4F6F8]"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M7 12h10M10 18h4" /></svg></button>
+            <input name="q" placeholder="Quel poste recherchez-vous ?" className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-[#7C8CA5]" aria-label="Rechercher une offre" />
+            <button type="submit" aria-label="Filtrer" className="grid h-9 w-9 place-items-center rounded-full text-[#52627A] hover:bg-[#F4F6F8]"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M7 12h10M10 18h4" /></svg></button>
           </form>
         </div>
       </div>
