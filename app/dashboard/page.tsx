@@ -23,7 +23,7 @@ type Job = {
   location: string | null;
   contractType: string | null;
   remoteMode: string | null;
-  company: { name: string; logoUrl: string | null } | null;
+  company: { name: string; logoUrl: string | null; domain?: string | null; website?: string | null } | null;
   matchPercent: number;
 };
 
@@ -199,8 +199,7 @@ export default function DashboardPage() {
                     return (
                       <button key={`${job.source}:${job.id}:${index}`} type="button" onClick={() => router.push(destination)} className="h-[180px] w-[280px] shrink-0 snap-start rounded-[20px] border border-[#E4EAF2] bg-white p-4 text-left shadow-[0_8px_24px_rgba(7,27,69,.07)] transition-all hover:-translate-y-0.5 hover:border-[#0057B8]">
                         <div className="flex items-center gap-2">
-                          {job.company?.logoUrl ? <img src={job.company.logoUrl} alt="" className="h-[50px] w-[50px] rounded-full border border-[#E5EAF2] object-contain" /> : <span className="grid h-[50px] w-[50px] place-items-center rounded-full bg-[#0057B8] text-sm font-black text-white">{(job.company?.name || "J").charAt(0).toUpperCase()}</span>}
-                          <span className="min-w-0 truncate text-[11px] font-bold text-[#667085]">{job.company?.name || "Employeur non précisé"}</span>
+                          <CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={50} />                          <span className="min-w-0 truncate text-[11px] font-bold text-[#667085]">{job.company?.name || "Employeur non précisé"}</span>
                         </div>
                         <strong className="mt-3 block line-clamp-2 text-sm font-black leading-5 text-[#1A2B4C]">{job.title}</strong>
                         <div className="mt-2 flex items-center gap-1 truncate text-[10px] text-[#5D6C83]"><span aria-hidden>⌖</span><span>{job.location || "Yaoundé, Cameroun"}</span></div>
