@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getSupabaseClient } from "../lib/supabase";
 import { removeBackground as imglyRemoveBackground } from "@imgly/background-removal";
 import { TrendingUp } from "lucide-react";
 
@@ -9,35 +10,57 @@ type TalentHeroProps = {
   firstName?: string;
 };
 
-export default function TalentHero({ photoUrl, firstName = "" }: TalentHeroProps) {
-  const [cutoutUrl, setCutoutUrl] = useState<string | null>(null);
+export default function TalentHero({ photoUrl, heroPhotoUrl, firstName = "" }: TalentHeroProps & { heroPhotoUrl?: string | null }) {
+  const [displayPhotoUrl, setDisplayPhotoUrl] = useState<string | null>(heroPhotoUrl || photoUrl || null);
+  const [heroAttempted, setHeroAttempted] = useState(false);
+  const [heroGenerating, setHeroGenerating] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    let objectUrl: string | null = null;
-    async function removeBackground() {
-      if (!photoUrl) { setCutoutUrl(null); return; }
-      try {
-        const response = await fetch(photoUrl, { credentials: "omit", cache: "no-store" });
-        if (!response.ok) throw new Error("Photo inaccessible.");
-        const sourceBlob = await response.blob();
-        const blob = await imglyRemoveBackground(sourceBlob, {
-          model: "isnet",
-          output: { format: "image/png", quality: 1 },
-        });
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setCutoutUrl(objectUrl);
-      } catch (error) {
-        console.error("Jobly hero background removal failed:", error);
-        if (!cancelled) setCutoutUrl(null);
-      }
-    }
-    void removeBackground();
-    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [photoUrl]);
+    setDisplayPhotoUrl(heroPhotoUrl || photoUrl || null);
+    setHeroAttempted(false);
+  }, [photoUrl, heroPhotoUrl]);
 
-  const heroPhotoUrl = cutoutUrl;
+  async function generateAndPersistHero() {
+    if (!photoUrl || heroGenerating || heroAttempted) return;
+    setHeroAttempted(true);
+    setHeroGenerating(true);
+    try {
+      const response = await fetch(photoUrl, { credentials: "omit", cache: "no-store" });
+      if (!response.ok) throw new Error("Photo inaccessible.");
+      const sourceBlob = await response.blob();
+      const blob = await imglyRemoveBackground(sourceBlob, {
+        model: "isnet",
+        output: { format: "image/png", quality: 1 },
+      });
+      const { data: sessionData } = await getSupabaseClient().auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("Session indisponible.");
+      const form = new FormData();
+      form.append("photo", new File([blob], "hero.png", { type: "image/png" }));
+      form.append("kind", "hero");
+      const save = await fetch("/api/auth/profile-photo", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      const payload = await save.json().catch(() => null);
+      if (!save.ok || !payload?.url) throw new Error(payload?.message || "Impossible d'enregistrer le Hero.");
+      setDisplayPhotoUrl(payload.url);
+    } catch (error) {
+      console.error("Jobly hero background removal failed:", error);
+      setDisplayPhotoUrl(photoUrl);
+    } finally {
+      setHeroGenerating(false);
+    }
+  }
+
+  function handleHeroError() {
+    if (heroPhotoUrl && displayPhotoUrl === heroPhotoUrl) {
+      void generateAndPersistHero();
+    } else if (displayPhotoUrl !== photoUrl) {
+      setDisplayPhotoUrl(photoUrl || null);
+    }
+  }
 
   return (
     <section className="relative w-full overflow-visible rounded-[32px] bg-[#FFFDFA]">
@@ -69,13 +92,14 @@ export default function TalentHero({ photoUrl, firstName = "" }: TalentHeroProps
             <div className="absolute bottom-0 left-[25%] h-40 w-40 rounded-full bg-[#FFE3A8]/25 blur-3xl" />
           </div>
 
-          {heroPhotoUrl && (
+          {displayPhotoUrl && (
             <div className="absolute inset-0 overflow-hidden rounded-[30px] [mask-image:linear-gradient(to_bottom,transparent_0%,black_8%,black_88%,transparent_100%)]">
               <img
-                src={heroPhotoUrl}
+                src={displayPhotoUrl}
                 alt={`Portrait de ${firstName || "vous"}`}
                 className="h-full w-full object-cover object-top"
                 loading="eager"
+                onError={handleHeroError}
               />
             </div>
           )}
@@ -88,6 +112,12 @@ export default function TalentHero({ photoUrl, firstName = "" }: TalentHeroProps
           <div className="absolute right-1 top-[66px] z-30 flex h-9 w-9 animate-[bounce_3s_ease-in-out_infinite] items-center justify-center rounded-full bg-white shadow-[0_8px_20px_rgba(10,25,49,.12)] sm:right-3 sm:top-[72px]">
             <TrendingUp className="h-5 w-5 text-emerald-600" strokeWidth={2.5} />
           </div>
+
+          {heroGenerating && (
+            <div className="absolute bottom-2 left-1/2 z-40 -translate-x-1/2 rounded-full bg-white/90 px-3 py-1 text-[9px] font-bold text-[#0A1931] shadow-sm">
+              Préparation du portrait…
+            </div>
+          )}
         </div>
 
         <div className="absolute bottom-4 left-5 right-5 z-30 sm:left-8 sm:right-8">
