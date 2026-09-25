@@ -147,6 +147,14 @@ model User {
   pitchVideoStoragePath String?
   pitchVideoDurationMs Int?
   pitchVideoUpdatedAt DateTime?
+  showcaseConfig Json @default("{}")
+  actionImages Json @default("[]")
+  portfolioBusiness Json @default("{}")
+  executiveSummary String?
+  advertisingVideoUrl String?
+  advertisingVideoStoragePath String?
+  advertisingVideoDurationMs Int?
+  advertisingVideoUpdatedAt DateTime?
   cvPhotoUrl      String?
   englishLevel    String?
   licences        String[]     @default([])
