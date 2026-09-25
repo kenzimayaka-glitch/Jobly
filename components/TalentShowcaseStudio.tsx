@@ -17,7 +17,6 @@ type Props = {
   setRecordSeconds: (v: number) => void;
   onUpload: (f: File) => Promise<void>;
   onDelete: () => Promise<void>;
-  startRecording: () => Promise<void>;
   router: any;
 };
 
@@ -106,7 +105,7 @@ async function generateAdBlob(pitchUrl: string, imageUrls: string[], name: strin
 }
 
 export default function TalentShowcaseStudio(props: Props) {
-  const { plan, pitchUrl, pitchDuration, busy, message, recording, setRecording, recordSeconds, setRecordSeconds, onUpload, onDelete, startRecording, router } = props;
+  const { plan, pitchUrl, pitchDuration, busy, message, recording, setRecording, recordSeconds, setRecordSeconds, onUpload, onDelete, router } = props;
   const limits = plan === "FREE" ? null : LIMITS[plan];
   const [tab, setTab] = useState(0);
   const [images, setImages] = useState<string[]>([]);
@@ -116,7 +115,33 @@ export default function TalentShowcaseStudio(props: Props) {
   const [saving, setSaving] = useState(false);
   const [generation, setGeneration] = useState<string | null>(null);
   const [adUrl, setAdUrl] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);  const streamRef = useRef<MediaStream|null>(null);
+  const recorderRef = useRef<MediaRecorder|null>(null);
+  const timerRef = useRef<number|null>(null);
+  async function startRecording() {
+    if (!limits || recording) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+      streamRef.current = stream;
+      const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus") ? "video/webm;codecs=vp9,opus" : "video/webm";
+      const recorder = new MediaRecorder(stream,{mimeType:mime});
+      const parts: Blob[] = [];
+      recorder.ondataavailable = e => { if (e.data.size) parts.push(e.data); };
+      recorder.onstop = async () => {
+        if (timerRef.current) window.clearInterval(timerRef.current);
+        stream.getTracks().forEach(t=>t.stop());
+        streamRef.current=null; recorderRef.current=null; setRecording(false); setRecordSeconds(0);
+        const blob = new Blob(parts,{type:mime});
+        const file = Object.assign(blob,{name:`jobly-pitch-${Date.now()}.webm`,lastModified:Date.now()}) as File;
+        await onUpload(file);
+      };
+      recorderRef.current=recorder; setRecording(true); setRecordSeconds(0); recorder.start();
+      const started=Date.now();
+      timerRef.current=window.setInterval(()=>{const sec=Math.floor((Date.now()-started)/1000);setRecordSeconds(Math.min(sec,limits.pitch));if(sec>=limits.pitch&&recorder.state!=="inactive")recorder.stop();},200);
+    } catch(e) { setGeneration(e instanceof Error?e.message:"Caméra non disponible."); setRecording(false); }
+  }
+  function stopRecording(){ if(recorderRef.current?.state!=="inactive") recorderRef.current?.stop(); }
+
 
   useEffect(() => {
     (async () => {
@@ -196,7 +221,7 @@ export default function TalentShowcaseStudio(props: Props) {
         {message && <p className="mt-3 rounded-2xl bg-red-50 p-3 text-xs font-bold text-red-700">{message}</p>}
         <div className="mt-4 grid gap-2 sm:grid-cols-2"><button disabled={!limits || busy || recording} onClick={() => void startRecording()} className="rounded-full bg-[#FFE135] py-3 font-black text-[#2E3F4F]"><Video className="mr-2 inline" size={16}/> Enregistrer</button><label className="rounded-full border border-black/10 bg-[#F5F7F8] py-3 text-center font-black cursor-pointer">Importer<input id="showcase-upload" type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" disabled={!limits || busy || recording} onChange={e=>{const f=e.target.files?.[0];if(f)void onUpload(f);e.currentTarget.value=""}}/></label></div>
         
-        {pitchUrl && <button disabled={busy} onClick={()=>void onDelete()} className="mt-3 w-full rounded-full border border-black/10 py-3 text-xs font-black">Supprimer le pitch</button>}
+        {recording && <button onClick={stopRecording} className="mt-3 w-full rounded-full border border-black/10 py-3 text-xs font-black">Arrêter l’enregistrement · {recordSeconds}s</button>}{pitchUrl && <button disabled={busy} onClick={()=>void onDelete()} className="mt-3 w-full rounded-full border border-black/10 py-3 text-xs font-black">Supprimer le pitch</button>}
       </section>}
       {tab===1 && <section className="mt-4 rounded-[28px] bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><h2 className="text-xl font-black">Actions illustratives</h2><span className="text-xs font-bold text-[#5D6B76]">{images.length}/{limits?.images || 0}</span></div><p className="mt-1 text-sm text-[#5D6B76]">Ajoute des images qui montrent concrètement ton expérience.</p><input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={e=>void addImages(e.target.files)}/><button disabled={!limits || images.length >= (limits?.images || 0)} onClick={()=>fileRef.current?.click()} className="mt-4 w-full rounded-full bg-[#FFE135] py-3 font-black"><ImagePlus className="mr-2 inline" size={16}/> Ajouter des images</button><div className="mt-4 grid grid-cols-3 gap-2">{images.map((src,i)=><div key={i} className="relative aspect-square overflow-hidden rounded-2xl"><img src={src} alt="" className="h-full w-full object-cover"/><button onClick={()=>setImages(v=>v.filter((_,j)=>j!==i))} className="absolute right-1 top-1 rounded-full bg-black/65 px-2 py-1 text-xs text-white">×</button></div>)}</div></section>}
       {tab===2 && <section className="mt-4 rounded-[28px] bg-white p-5 shadow-sm"><h2 className="text-xl font-black">Portfolio Business</h2><p className="mt-1 text-sm text-[#5D6B76]">Présente tes réalisations, clients, chiffres ou projets.</p><textarea value={portfolio.value} onChange={e=>setPortfolio(v=>({...v,value:e.target.value}))} className="mt-4 min-h-40 w-full rounded-2xl border border-black/10 p-4 text-sm outline-none" placeholder="Ex. portefeuille commercial, projets, résultats…"/><input value={portfolio.link} onChange={e=>setPortfolio(v=>({...v,link:e.target.value}))} className="mt-3 w-full rounded-full border border-black/10 px-4 py-3 text-sm outline-none" placeholder="Lien portfolio (optionnel)"/></section>}
