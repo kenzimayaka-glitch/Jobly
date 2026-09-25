@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { removeBackground } from "@imgly/background-removal";
+import { removeBackground as imglyRemoveBackground } from "@imgly/background-removal";
 
 type TalentHeroProps = {
   photoUrl?: string | null;
@@ -17,7 +17,7 @@ export default function TalentHero({ photoUrl, firstName = "" }: TalentHeroProps
     async function removeBackground() {
       if (!photoUrl) { setCutoutUrl(null); return; }
       try {
-        const blob = await removeBackground(photoUrl, { output: { format: "image/png", quality: 1 } });
+        const blob = await imglyRemoveBackground(photoUrl, { output: { format: "image/png", quality: 1 } });
         if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
         setCutoutUrl(objectUrl);
