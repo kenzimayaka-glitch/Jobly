@@ -30,10 +30,10 @@ type JobsResponse = { totalActive: number; count: number; jobs: Job[] };
 type ApplicationsResponse = { counters?: { envoyees: number; vues: number; entretien: number } };
 
 const QUICK = [
-  { href: "/jobs", icon: "briefcase", title: "Offres", subtitle: "Les opportunités disponibles" },
-  { href: "/career-brain", icon: "sparkle", title: "Career AI", subtitle: "Ton assistant personnel" },
-  { href: "/talent/cvs", icon: "cv", title: "Mon CV", subtitle: "Créer, importer, optimiser" },
-  { href: "/candidatures", icon: "target", title: "Mes candidatures", subtitle: "Suivre tes candidatures" },
+  { href: "/talent/cvs", icon: "cv", title: "Mon CV", subtitle: "Optimisé par J’IA", tone: "violet" },
+  { href: "/jobs", icon: "briefcase", title: "Offres", subtitle: "Les opportunités pour vous", tone: "blue" },
+  { href: "/candidatures", icon: "target", title: "Mes candidatures", subtitle: "Suivez vos progrès", tone: "orange" },
+  { href: "/career-os", icon: "sparkle", title: "Ma carrière", subtitle: "Pilotez votre parcours", tone: "green" },
 ];
 
 function QuickIcon({ id }: { id: string }) {
@@ -123,7 +123,7 @@ export default function DashboardPage() {
   if (loading) return <main className="min-h-[100dvh] grid place-items-center bg-white font-bold text-navy">Chargement…</main>;
 
   return (
-    <main className="talent-shell min-h-[100dvh] w-full overflow-x-hidden bg-white pb-28 text-navy">
+    <main className="talent-shell min-h-[100dvh] w-full overflow-x-hidden bg-[#F7F9FC] pb-28 text-navy">
       <PageHeader
         label="Talent"
         initial={(firstName || "J").charAt(0).toUpperCase()}
@@ -132,67 +132,77 @@ export default function DashboardPage() {
       />
 
       <div className="w-full">
-        <section className="border-b border-[#E7ECF5] bg-white">
-          <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 lg:px-8">
-            <div className="grid items-center gap-5 lg:grid-cols-[1.35fr_.65fr]">
-              <div>
-                <p className="mt-2 text-[25px] font-black leading-tight tracking-[-.03em] text-[#FFE135] sm:text-[30px]">Bonjour{firstName ? ` ${firstName}` : ""}</p>
-                <h1 className="mt-1 max-w-3xl font-heading text-[24px] font-black leading-[1.08] tracking-[-.035em] sm:text-[32px]">Votre carrière mérite <span className="text-[#0057B8]">un vrai copilote.</span></h1>
-                <p className="mt-4 max-w-2xl text-[15px] leading-6 text-[#52627A]">Je cherche, j’analyse, je prépare et je vous accompagne vers les opportunités disponibles pour vous.</p>
-                <div className="mt-4"><button type="button" onClick={() => router.push("/career-brain")} className="rounded-full bg-[#FFE135] px-6 py-3.5 text-sm font-black text-[#071B45] shadow-[0_10px_25px_rgba(255,212,0,.32)] transition-transform active:scale-[.98]">Commencer avec J'IA ↗</button></div>
+        <section className="relative overflow-hidden bg-[#F7F9FC]">
+          <div className="pointer-events-none absolute -right-20 top-4 h-64 w-64 rounded-full bg-[#DCEBFF] blur-3xl sm:h-80 sm:w-80" />
+          <div className="pointer-events-none absolute left-[-80px] top-24 h-56 w-56 rounded-full bg-[#FFF4A8]/70 blur-3xl" />
+          <div className="mx-auto w-full max-w-6xl px-4 pb-8 pt-3 sm:px-6 sm:pb-10 lg:px-8">
+            <div className="relative min-h-[250px] overflow-visible sm:min-h-[300px]">
+              <div className="relative z-20 w-[68%] pt-4 sm:w-[62%] sm:pt-7">
+                <p className="text-[20px] font-black leading-tight tracking-[-.03em] text-[#FFE135] drop-shadow-[0_1px_0_rgba(7,27,69,.08)] sm:text-[28px]">Bonjour{firstName ? ` ${firstName}` : ""} 👋</p>
+                <h1 className="mt-2 max-w-xl font-heading text-[25px] font-black leading-[1.06] tracking-[-.04em] sm:text-[38px]">Votre carrière mérite <span className="text-[#0057B8]">un vrai copilote.</span></h1>
+                <p className="mt-3 max-w-lg text-[12px] leading-5 text-[#52627A] sm:text-[15px] sm:leading-6">Je cherche, j’analyse, je prépare et je vous accompagne vers les meilleures opportunités.</p>
               </div>
-              <div className="flex flex-col items-center justify-start lg:items-end">
-                <div className="relative grid h-32 w-32 place-items-center rounded-[30px] border-4 border-[#FFE135] bg-[#0B3D91] shadow-[0_20px_50px_rgba(11,61,145,.25)] sm:h-48 sm:w-48">
-                  {data?.user.profilePhotoUrl ? (
-                    <img src={data.user.profilePhotoUrl} alt="Photo de profil" className="h-full w-full rounded-[26px] object-cover" />
-                  ) : (
-                    <span className="text-5xl font-black text-white">{(firstName || "J").charAt(0).toUpperCase()}</span>
-                  )}
-                  <span className="absolute -bottom-3 -right-3 rounded-full bg-[#FFE135] px-3 py-1.5 text-[10px] font-black text-[#071B45] shadow-lg">MON PROFIL</span>
-                </div>
-                <button type="button" onClick={() => router.push("/talent/profile")} className="mt-5 rounded-full border-2 border-[#0057B8] bg-white px-5 py-2.5 text-sm font-black text-[#0057B8]">Compléter mon profil</button>
-              </div></div>
+
+              <div className="pointer-events-none absolute right-[-8px] bottom-[-46px] z-10 h-[245px] w-[245px] sm:right-0 sm:bottom-[-62px] sm:h-[330px] sm:w-[330px]">
+                <div className="absolute inset-[8%] rounded-full bg-[#D8E9FF]/80 blur-2xl" />
+                <div className="absolute inset-[18%] rounded-full bg-[#FFE135]/45 blur-3xl" />
+                {data?.user.profilePhotoUrl ? (
+                  <img
+                    src={data.user.profilePhotoUrl}
+                    alt="Photo de profil"
+                    className="relative h-full w-full rounded-full object-cover object-center shadow-[0_22px_55px_rgba(0,87,184,.18)] ring-8 ring-white/45"
+                  />
+                ) : (
+                  <div className="relative grid h-full w-full place-items-center rounded-full bg-[#0057B8] text-6xl font-black text-white shadow-[0_22px_55px_rgba(0,87,184,.18)] ring-8 ring-white/45">
+                    {(firstName || "J").charAt(0).toUpperCase()}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </section>
-
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
-          <form onSubmit={(e) => { e.preventDefault(); goSearch(); }} className="mt-5 flex min-h-[58px] items-center gap-3 rounded-[18px] border-2 border-[#D7E1F0] bg-white px-4 shadow-[0_8px_24px_rgba(7,27,69,.07)] focus-within:border-[#0057B8]">
+          <form onSubmit={(e) => { e.preventDefault(); goSearch(); }} className="relative z-30 -mt-3 flex min-h-[58px] items-center gap-3 rounded-[20px] border-2 border-white/80 bg-white/95 px-4 shadow-[0_14px_34px_rgba(7,27,69,.11)] backdrop-blur-md focus-within:border-[#FFE135]">
             <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0 text-[#0057B8]" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Quel poste recherchez-vous ?" className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-[#7C8CA5]" aria-label="Rechercher une offre" />
             <button type="submit" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#0057B8] text-white" aria-label="Rechercher">→</button>
           </form>
 
-          <section className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {QUICK.map((item, i) => (
-              <button key={item.href} type="button" onClick={() => router.push(item.href)} className="group rounded-[22px] border-2 border-[#E0E7F2] bg-white p-4 text-left shadow-[0_10px_25px_rgba(7,27,69,.07)] transition-all hover:-translate-y-0.5 hover:border-[#0057B8] active:scale-[.98]">
-                <span className={`grid h-12 w-12 place-items-center rounded-2xl ${i % 2 === 0 ? "bg-[#FFE135] text-[#071B45]" : "bg-[#0057B8] text-white"}`}><QuickIcon id={item.icon}/></span>
-                <strong className="mt-3 block text-sm font-black">{item.title}</strong>
-                <span className="mt-1 block min-h-8 text-[11px] leading-4 text-[#5D6C83]">{item.subtitle}</span>
-                <span className="mt-3 inline-flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#D9E2F0] text-lg font-black text-[#0057B8]">→</span>
-              </button>
-            ))}
+          <section className="mt-5 grid grid-cols-4 gap-2 sm:gap-3">
+            {QUICK.map((item) => {
+              const tone = item.tone === "violet"
+                ? "bg-[#F1EDFF] text-[#5B35C8]"
+                : item.tone === "orange"
+                  ? "bg-[#FFF0E5] text-[#E56A00]"
+                  : item.tone === "green"
+                    ? "bg-[#E7FAF2] text-[#12A875]"
+                    : "bg-[#EAF2FF] text-[#0057B8]";
+              return (
+                <button key={item.href} type="button" onClick={() => router.push(item.href)} className="group min-w-0 rounded-[18px] border border-[#E0E7F2] bg-white p-2.5 text-left shadow-[0_8px_22px_rgba(7,27,69,.055)] transition-all hover:-translate-y-0.5 hover:border-[#FFE135] active:scale-[.98] sm:rounded-[22px] sm:p-4">
+                  <span className={`grid h-10 w-10 place-items-center rounded-2xl ${tone} sm:h-12 sm:w-12`}><QuickIcon id={item.icon}/></span>
+                  <strong className="mt-2 block truncate text-[11px] font-black sm:mt-3 sm:text-sm">{item.title}</strong>
+                  <span className="mt-1 hidden min-h-8 text-[10px] leading-4 text-[#5D6C83] sm:block">{item.subtitle}</span>
+                  <span className="mt-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#D9E2F0] text-sm font-black text-[#0057B8] sm:mt-3 sm:h-8 sm:w-8 sm:text-lg">→</span>
+                </button>
+              );
+            })}
           </section>
 
-          <section className="mt-5 grid gap-4 lg:grid-cols-[1.35fr_.65fr]">
-            <div className="rounded-[26px] border-2 border-[#E0E7F2] bg-white p-5 shadow-[0_12px_32px_rgba(7,27,69,.07)] sm:p-6">
-              <div className="flex items-center gap-5">
-                <ScoreRing value={profileCompletion} size={112} label="Profil complété" />
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-lg font-black">Votre tableau de bord évolue avec vos données</h2>
-                  <p className="mt-1 text-xs leading-5 text-[#5D6C83]">{profileCompletion === 100 ? "Votre profil est complet. Jobly peut personnaliser davantage vos opportunités." : `Votre profil est complété à ${profileCompletion} %. Ajoutez les informations manquantes pour affiner vos recommandations.`}</p>
-                  <button type="button" onClick={() => router.push("/talent/profile")} className="mt-3 rounded-full bg-[#0057B8] px-5 py-2.5 text-xs font-black text-white">Mettre à jour mon profil →</button>
+          <button type="button" onClick={() => router.push("/jobs?focus=match")} className="mt-5 w-full rounded-[26px] border border-[#DCE8F4] bg-gradient-to-r from-[#EFFCF7] via-white to-[#FFFBE4] p-5 text-left shadow-[0_12px_32px_rgba(7,27,69,.07)] transition-all hover:-translate-y-0.5 hover:border-[#FFE135] sm:p-6">
+            <div className="flex items-center gap-4 sm:gap-6">
+              <ScoreRing value={jobs?.jobs?.length ? Math.round(jobs.jobs.reduce((sum, job) => sum + job.matchPercent, 0) / jobs.jobs.length) : profileCompletion} size={112} label="Match global" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h2 className="text-[17px] font-black sm:text-xl">Votre profil est très recherché !</h2>
+                    <p className="mt-1 text-xs leading-5 text-[#5D6C83] sm:text-sm">Vous correspondez à de nombreuses opportunités du moment. Voici les meilleures offres pour vous.</p>
+                  </div>
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#F1EDFF] text-[#5B35C8]">✦</span>
                 </div>
+                <span className="mt-3 inline-flex rounded-full bg-[#0057B8] px-5 py-2.5 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,87,184,.22)]">Voir mes meilleures offres&nbsp; →</span>
               </div>
             </div>
-            <div className="rounded-[26px] border-2 border-[#FFE135] bg-[#FFF9D9] p-5 shadow-[0_12px_32px_rgba(7,27,69,.06)]">
-              <div className="text-xs font-black uppercase tracking-wide text-[#6B5200]">Mes candidatures</div>
-              <div className="mt-2 text-4xl font-black text-[#0B3D91]">{applicationsCount}</div>
-              <p className="mt-1 text-xs text-[#5D6C83]">candidature{applicationsCount > 1 ? "s" : ""} envoyée{applicationsCount > 1 ? "s" : ""} selon votre activité réelle.</p>
-              <button type="button" onClick={() => router.push("/candidatures")} className="mt-4 rounded-full border-2 border-[#0B3D91] bg-white px-4 py-2.5 text-xs font-black text-[#0B3D91]">Voir mes candidatures →</button>
-            </div>
-          </section>
+          </button>
 
           <section className="mt-6">
             <div className="flex items-end justify-between gap-3"><div><h2 className="font-heading text-xl font-black">Opportunités recommandées</h2><p className="mt-1 text-xs text-[#64748B]">{visibleJobCount > 0 ? `${visibleJobCount} offre${visibleJobCount > 1 ? "s" : ""} actuellement disponible${visibleJobCount > 1 ? "s" : ""}.` : "Aucune offre disponible pour le moment."}</p></div><button type="button" onClick={() => router.push("/jobs")} className="shrink-0 text-xs font-black text-[#0057B8]">Voir tout →</button></div>
