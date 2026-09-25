@@ -148,7 +148,20 @@ export function JoblyOfferFeed() {
     }
   }
 
-  const filteredJobs = useMemo(() => { const q = query.trim().toLowerCase(); return jobs.filter(job => { const haystack = [job.title, job.location, job.contractType, job.remoteMode, job.company?.name].filter(Boolean).join(" ").toLowerCase(); const matchesQuery = !q || haystack.includes(q); const matchesFilter = filter === "Toutes" || (filter === "Remote" ? String(job.remoteMode || "").toLowerCase().includes("remote") : String(job.contractType || "").toLowerCase().includes(filter.toLowerCase())); return matchesQuery && matchesFilter; }); }, [jobs, query, filter]);
+  const focusMatch = useMemo(() => {
+    try { return new URLSearchParams(window.location.search).get("focus") === "match"; } catch { return false; }
+  }, []);
+
+  const filteredJobs = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const result = jobs.filter(job => {
+      const haystack = [job.title, job.location, job.contractType, job.remoteMode, job.company?.name].filter(Boolean).join(" ").toLowerCase();
+      const matchesQuery = !q || haystack.includes(q);
+      const matchesFilter = filter === "Toutes" || (filter === "Remote" ? String(job.remoteMode || "").toLowerCase().includes("remote") : String(job.contractType || "").toLowerCase().includes(filter.toLowerCase()));
+      return matchesQuery && matchesFilter;
+    });
+    return focusMatch ? [...result].sort((a, b) => b.matchPercent - a.matchPercent) : result;
+  }, [jobs, query, filter, focusMatch]);
 
 function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase(); }
 
