@@ -10,7 +10,7 @@ import TalentHero from "../../components/TalentHero";
 import CompanyLogo from "../../components/CompanyLogo";
 
 type ProfileData = {
-  user: { id?: string; displayName?: string; email?: string; phone?: string; profilePhotoUrl?: string | null };
+  user: { id?: string; displayName?: string; email?: string; phone?: string; profilePhotoUrl?: string | null; heroPhotoUrl?: string | null };
   profile: { headline?: string; summary?: string; location?: string; targetRoles?: string[]; preferredSectors?: string[] };
   experiences: unknown[];
   skills: { name?: string }[];
@@ -150,7 +150,7 @@ export default function DashboardPage() {
 
       <div className="w-full">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
-          <TalentHero photoUrl={data?.user.profilePhotoUrl} firstName={firstName} />
+          <TalentHero photoUrl={data?.user.profilePhotoUrl} heroPhotoUrl={data?.user.heroPhotoUrl} firstName={firstName} />
         </div>
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
           <section className="mt-5 grid grid-cols-4 gap-2 sm:gap-3">
