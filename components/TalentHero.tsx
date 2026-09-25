@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { removeBackground as imglyRemoveBackground } from "@imgly/background-removal";
 import { TrendingUp } from "lucide-react";
 
 type TalentHeroProps = {
@@ -9,8 +10,34 @@ type TalentHeroProps = {
 };
 
 export default function TalentHero({ photoUrl, firstName = "" }: TalentHeroProps) {
-  const [photoErrored, setPhotoErrored] = useState(false);
-  const heroPhotoUrl = photoUrl && !photoErrored ? photoUrl : null;
+  const [cutoutUrl, setCutoutUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    async function removeBackground() {
+      if (!photoUrl) { setCutoutUrl(null); return; }
+      try {
+        const response = await fetch(photoUrl, { credentials: "omit", cache: "no-store" });
+        if (!response.ok) throw new Error("Photo inaccessible.");
+        const sourceBlob = await response.blob();
+        const blob = await imglyRemoveBackground(sourceBlob, {
+          model: "isnet",
+          output: { format: "image/png", quality: 1 },
+        });
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setCutoutUrl(objectUrl);
+      } catch (error) {
+        console.error("Jobly hero background removal failed:", error);
+        if (!cancelled) setCutoutUrl(null);
+      }
+    }
+    void removeBackground();
+    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [photoUrl]);
+
+  const heroPhotoUrl = cutoutUrl;
 
   return (
     <section className="relative w-full overflow-visible rounded-[32px] bg-[#FFFDFA]">
@@ -48,7 +75,6 @@ export default function TalentHero({ photoUrl, firstName = "" }: TalentHeroProps
                 src={heroPhotoUrl}
                 alt={`Portrait de ${firstName || "vous"}`}
                 className="h-full w-full object-cover object-top"
-                onError={() => setPhotoErrored(true)}
                 loading="eager"
               />
             </div>
