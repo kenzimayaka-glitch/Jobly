@@ -150,7 +150,12 @@ export default function JIA3D({ speaking }: { speaking: boolean }) {
         <ambientLight intensity={1.5} />
         <directionalLight position={[2, 3, 4]} intensity={2.1} color="#fff6df" />
         <directionalLight position={[-2, 1, 2]} intensity={0.7} color="#8fc9ff" />
-        <Suspense fallback={null}>
+        <Suspense fallback={
+          <mesh>
+            <sphereGeometry args={[0.3]} />
+            <meshStandardMaterial color="#FFC72C" />
+          </mesh>
+        }>
           <Model speaking={speaking} />
           <Environment preset="studio" />
         </Suspense>
