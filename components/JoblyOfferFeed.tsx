@@ -48,6 +48,7 @@ export function JoblyOfferFeed() {
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState<Set<string>>(new Set());
   const [selectedCompany, setSelectedCompany] = useState<Job["company"]>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -60,7 +61,22 @@ export function JoblyOfferFeed() {
     try { const q = new URLSearchParams(window.location.search).get("q"); if (q) setQuery(q.slice(0, 80)); } catch {}
   }, []);
 
-  useEffect(() => { getSupabaseClient().auth.getSession().then(({ data }) => { if (!data.session) { router.replace("/"); return; } setToken(data.session.access_token); }); }, [router]);
+  useEffect(() => {
+    let cancelled = false;
+    getSupabaseClient().auth.getSession()
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (!data.session) {
+          router.replace("/");
+          return;
+        }
+        setToken(data.session.access_token);
+      })
+      .finally(() => {
+        if (!cancelled) setSessionLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [router]);
 
   const load = useCallback(async (manual = false) => {
     if (!token) return;
@@ -185,7 +201,23 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
   const rest = useMemo(() => filteredJobs.slice(3), [filteredJobs]);
   const feedSummary = feedMeta.totalAvailable ? `${feedMeta.totalAvailable} opportunité${feedMeta.totalAvailable > 1 ? "s" : ""} actuellement disponible${feedMeta.totalAvailable > 1 ? "s" : ""}` : "Marché en cours de synchronisation";
 
-  if (loading && !jobs.length) return <main className="min-h-[100dvh] bg-[#17212B] pb-28 text-white"><div className="mx-auto max-w-6xl animate-pulse space-y-6 p-6"><div className="h-64 rounded-[36px] bg-slate-50"/><div className="h-40 rounded-[28px] bg-white/10"/></div><BottomNav active="/jobs" items={TALENT_NAV} /></main>;
+  if (sessionLoading || (loading && !jobs.length)) return (
+    <main className="min-h-[100dvh] bg-[#F5F7F8] pb-28 text-[#17212B]">
+      <div className="mx-auto max-w-6xl space-y-5 p-5 sm:p-8">
+        <div className="animate-pulse rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="h-3 w-32 rounded-full bg-slate-200"/>
+          <div className="mt-4 h-10 w-3/4 rounded-xl bg-slate-200"/>
+          <div className="mt-3 h-4 w-full max-w-xl rounded-full bg-slate-100"/>
+          <div className="mt-8 h-48 rounded-[26px] bg-slate-100"/>
+        </div>
+        <div className="flex items-center justify-center gap-3 py-4 text-sm font-bold text-slate-500">
+          <RefreshCw size={16} className="animate-spin"/>
+          <span>Chargement des offres…</span>
+        </div>
+      </div>
+      <BottomNav active="/jobs" items={TALENT_NAV} />
+    </main>
+  );
 
   return <main className="min-h-[100dvh] overflow-hidden bg-[#F5F7F8] pb-28 text-[#17212B]">
     <section className="relative mx-auto max-w-6xl px-5 pb-8 pt-7 sm:px-8">
