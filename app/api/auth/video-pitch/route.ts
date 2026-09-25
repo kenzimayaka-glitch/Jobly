@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import { getActivePlanCode } from "../../../../lib/entitlements";
 
 const BUCKET = "talent-pitches";
 const MAX_BYTES = 25 * 1024 * 1024;
@@ -78,12 +79,14 @@ export async function POST(request: NextRequest) {
     if (file.size === 0) return NextResponse.json({ message: "La vidéo est vide." }, { status: 400 });
 
     const durationMs = Number(form.get("durationMs") || 0);
-    if (!Number.isFinite(durationMs) || durationMs < 5000 || durationMs > 8000) {
-      return NextResponse.json({ message: "Le pitch doit durer entre 5 et 8 secondes." }, { status: 422 });
-    }
+    if (!Number.isFinite(durationMs)) return NextResponse.json({ message: "Durée vidéo invalide." }, { status: 422 });
 
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    const plan = await getActivePlanCode(supabase, user.id, "TALENT");
+    const maxDurationMs = plan === "PRO" ? 20000 : plan === "PREMIUM" || plan === "PREMIUM_MONTHLY" || plan === "PREMIUM_ANNUAL" ? 10000 : 0;
+    if (!maxDurationMs) return NextResponse.json({ message: "Le pitch vidéo est disponible avec les formules Pro et Premium." }, { status: 403 });
+    if (durationMs < 5000 || durationMs > maxDurationMs) return NextResponse.json({ message: `Ton pitch doit durer entre 5 et ${Math.round(maxDurationMs / 1000)} secondes avec ta formule.` }, { status: 422 });
     await ensureBucket(supabase);
 
     const extension = file.type === "video/webm" ? "webm" : file.type === "video/quicktime" ? "mov" : "mp4";
