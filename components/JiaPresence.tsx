@@ -177,7 +177,7 @@ export default function JiaPresence() {
   const sensitiveRoute = SENSITIVE_ROUTES.some((r) => r.test(pathname));
   const hiddenHere = hiddenPaths.includes(pathname);
   const showFigure = compactRoute ? expandedHere : !collapsed;
-  const visible = true; // TEST TEMPORAIRE — diagnostic runtime J’IA
+  const visible = signedIn && prefs.enabled && !hiddenRoute && !hiddenHere;
   const suspended = typing || dialogOpen;
 
   // ── Message / voix ────────────────────────────────────────────────────────
@@ -616,7 +616,7 @@ export default function JiaPresence() {
         </AnimatePresence>
 
         {showFigure ? (
-          <div className="relative w-[96px] sm:w-[120px]" style={{ aspectRatio: "1200 / 1248", minHeight: "99px" }} onPointerDown={(e) => dragControls.start(e)}>
+          <div className="relative w-[96px] sm:w-[120px]" style={{ aspectRatio: "1200 / 1248" }} onPointerDown={(e) => dragControls.start(e)}>
             <button type="button" onClick={() => { if (!wasDragged.current) setPanelOpen((v) => !v); }} aria-expanded={panelOpen} aria-label={t("jia.open")} title={t("jia.move")}
               className="absolute inset-0 cursor-grab rounded-3xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-canari-blue/30 active:cursor-grabbing">
               <JIA3D speaking={speaking} />
