@@ -39,6 +39,17 @@ async function ensureUser(supabase: ReturnType<typeof adminClient>, authUser: { 
   return data;
 }
 
+function heroPhotoUrlForSource(supabase: ReturnType<typeof adminClient>, photoUrl: string | null | undefined) {
+  if (!photoUrl) return null;
+  const marker = "/storage/v1/object/public/profile-photos/";
+  const index = photoUrl.indexOf(marker);
+  if (index < 0) return null;
+  const sourcePath = photoUrl.slice(index + marker.length);
+  if (!sourcePath) return null;
+  const heroPath = `${sourcePath}.hero.png`;
+  return supabase.storage.from("profile-photos").getPublicUrl(heroPath).data.publicUrl;
+}
+
 function cleanStrings(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((v: unknown): v is string => typeof v === "string" && v.trim().length > 0).map((v) => v.trim())
@@ -59,7 +70,7 @@ export async function GET(request: NextRequest) {
     ]);
     for (const result of [profile, experiences, skills, education]) if (result.error) throw new Error(result.error.message);
     return NextResponse.json({
-      user: { id: user.id, email: user.email, phone: user.phone, displayName: user.displayName, profilePhotoUrl: user.profilePhotoUrl, pitchVideoUrl: user.pitchVideoUrl ?? null, pitchVideoDurationMs: user.pitchVideoDurationMs ?? null, pitchVideoUpdatedAt: user.pitchVideoUpdatedAt ?? null, englishLevel: user.englishLevel, licences: user.licences ?? [] },
+      user: { id: user.id, email: user.email, phone: user.phone, displayName: user.displayName, profilePhotoUrl: user.profilePhotoUrl, heroPhotoUrl: heroPhotoUrlForSource(supabase, user.profilePhotoUrl), pitchVideoUrl: user.pitchVideoUrl ?? null, pitchVideoDurationMs: user.pitchVideoDurationMs ?? null, pitchVideoUpdatedAt: user.pitchVideoUpdatedAt ?? null, englishLevel: user.englishLevel, licences: user.licences ?? [] },
       profile: profile.data ?? { headline: "", summary: "", location: "", targetRoles: [], preferredSectors: [] },
       experiences: experiences.data ?? [], skills: skills.data ?? [], education: education.data ?? [],
     });
