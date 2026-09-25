@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import { getActivePlanCode } from "../../../lib/entitlements";
 
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -58,6 +59,7 @@ export async function GET(request: NextRequest) {
       supabase.from("Education").select("*").eq("userId", user.id).order("startDate", { ascending: false }),
     ]);
     for (const result of [profile, experiences, skills, education]) if (result.error) throw new Error(result.error.message);
+    const plan = await getActivePlanCode(supabase, user.id, "TALENT");
     return NextResponse.json({
       user: { id: user.id, email: user.email, phone: user.phone, displayName: user.displayName, profilePhotoUrl: user.profilePhotoUrl, pitchVideoUrl: user.pitchVideoUrl ?? null, pitchVideoDurationMs: user.pitchVideoDurationMs ?? null, pitchVideoUpdatedAt: user.pitchVideoUpdatedAt ?? null, englishLevel: user.englishLevel, licences: user.licences ?? [] },
       profile: profile.data ?? { headline: "", summary: "", location: "", targetRoles: [], preferredSectors: [] },
