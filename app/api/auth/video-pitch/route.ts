@@ -4,7 +4,7 @@ import crypto from "node:crypto";
 import { getActivePlanCode } from "../../../../lib/entitlements";
 
 const BUCKET = "talent-pitches";
-const MAX_BYTES = 25 * 1024 * 1024;
+const MAX_BYTES = 4 * 1024 * 1024;
 const ALLOWED = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 
 function adminClient() {
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     const file = form.get("file");
     if (!(file instanceof File)) return NextResponse.json({ message: "Vidéo manquante." }, { status: 400 });
     if (!ALLOWED.has(file.type)) return NextResponse.json({ message: "Format accepté : MP4, WebM ou MOV." }, { status: 415 });
-    if (file.size > MAX_BYTES) return NextResponse.json({ message: "La vidéo doit faire 25 Mo maximum." }, { status: 413 });
+    if (file.size > MAX_BYTES) return NextResponse.json({ message: "La vidéo doit faire 4 Mo maximum." }, { status: 413 });
     if (file.size === 0) return NextResponse.json({ message: "La vidéo est vide." }, { status: 400 });
 
     const durationMs = Number(form.get("durationMs") || 0);
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
     const plan = await getActivePlanCode(supabase, user.id, "TALENT");
-    const maxDurationMs = plan === "PRO" ? 20000 : plan === "PREMIUM" || plan === "PREMIUM_MONTHLY" || plan === "PREMIUM_ANNUAL" ? 10000 : 0;
+    const maxDurationMs = plan === "PRO" ? 20000 : plan === "PREMIUM" ? 10000 : 0;
     if (!maxDurationMs) return NextResponse.json({ message: "Le pitch vidéo est disponible avec les formules Pro et Premium." }, { status: 403 });
     if (durationMs < 5000 || durationMs > maxDurationMs) return NextResponse.json({ message: `Ton pitch doit durer entre 5 et ${Math.round(maxDurationMs / 1000)} secondes avec ta formule.` }, { status: 422 });
     await ensureBucket(supabase);
