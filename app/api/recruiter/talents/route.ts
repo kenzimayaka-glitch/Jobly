@@ -29,15 +29,20 @@ export async function GET(req: NextRequest) {
     const userIds = profiles.map((p: any) => p.userId).filter(Boolean);
     if (!userIds.length) return NextResponse.json({ count: 0, talents: [], message: "Aucun talent public pour le moment." });
 
-    const [exRes, skillRes, eduRes] = await Promise.all([
+    const [exRes, skillRes, eduRes, usersRes, subsRes] = await Promise.all([
       sb.from("Experience").select("userId,title,company,startDate,endDate,description,provenance").in("userId", userIds),
       sb.from("Skill").select("userId,name,level,provenance").in("userId", userIds),
       sb.from("Education").select("userId,degree,field,institution,provenance").in("userId", userIds),
+      sb.from("User").select("id,displayName,firstName,lastName,profilePhotoUrl,pitchVideoUrl,pitchVideoDurationMs").in("id", userIds),
+      sb.from("Subscription").select("userId,plan,status,updatedAt").in("userId", userIds).eq("status", "ACTIVE"),
     ]);
-    for (const r of [exRes, skillRes, eduRes]) if (r.error) throw new Error(r.error.message);
+    for (const r of [exRes, skillRes, eduRes, usersRes, subsRes]) if (r.error) throw new Error(r.error.message);
 
     const by = (rows: any[]) => rows.reduce((m, row) => { (m[row.userId] ||= []).push(row); return m; }, {} as Record<string, any[]>);
     const exBy = by(exRes.data || []), skillsBy = by(skillRes.data || []), eduBy = by(eduRes.data || []);
+    const usersById = new Map((usersRes.data || []).map((u: any) => [u.id, u]));
+    const subsById = new Map<string, any>();
+    for (const sub of (subsRes.data || [])) { if (!subsById.has(sub.userId)) subsById.set(sub.userId, sub); }
     const jobs = jobsRes.data || [];
 
     const talents = profiles.map((profile: any) => {
@@ -60,6 +65,9 @@ export async function GET(req: NextRequest) {
         const score = Math.round((role * 0.35 + city * 0.15 + experience * 0.2 + skill * 0.3) * 100);
         if (score > bestScore) { bestScore = score; bestJob = job; reasons = [role ? "Métier cible" : "", city ? "Zone cible" : "", experience ? "Expérience" : "", skill > 0.5 ? "Compétences" : ""].filter(Boolean); }
       }
+      const user = usersById.get(profile.userId);
+      const sub = subsById.get(profile.userId);
+      const plan = sub?.plan === "PRO" ? "PRO" : sub?.plan === "PREMIUM" || sub?.plan === "PREMIUM_MONTHLY" || sub?.plan === "PREMIUM_ANNUAL" ? "PREMIUM" : "FREE";
       return {
         userId: profile.userId,
         name: [profile.firstName, profile.lastName].filter(Boolean).join(" ") || L("Talent Jobly"),
@@ -76,8 +84,13 @@ export async function GET(req: NextRequest) {
         discoveryScore: bestScore,
         bestJob: bestJob ? { id: bestJob.id, title: bestJob.title } : null,
         reasons: localizeCareerList(reasons.length ? reasons : ["Profil complet", `${career.readiness}% de readiness carrière`], lang),
+        profilePhotoUrl: user?.profilePhotoUrl || null,
+        pitchVideoUrl: user?.pitchVideoUrl || null,
+        pitchVideoDurationMs: user?.pitchVideoDurationMs || null,
+        plan,
+        advertisingEligible: plan === "PRO" || plan === "PREMIUM",
       };
-    }).sort((a: any, b: any) => b.discoveryScore - a.discoveryScore).slice(0, 10);
+    }).sort((a: any, b: any) => b.discoveryScore - a.discoveryScore);
 
     return NextResponse.json({ count: talents.length, talents, publicOnly: true, generatedAt: new Date().toISOString() });
   } catch (e) {
