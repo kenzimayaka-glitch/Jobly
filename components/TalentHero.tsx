@@ -32,6 +32,8 @@ export default function TalentHero({ photoUrl, firstName = "" }: TalentHeroProps
     };
   }, [photoUrl]);
 
+  const heroPhotoUrl = cutoutUrl || photoUrl || null;
+
   return (
     <section className="relative w-full overflow-visible rounded-[32px] bg-[#FFFDFA]">
       <div className="pointer-events-none absolute top-[-20px] right-[10%] h-64 w-64 rounded-full bg-[#FFDE59]/60 blur-[40px]" />
@@ -48,7 +50,7 @@ export default function TalentHero({ photoUrl, firstName = "" }: TalentHeroProps
             <p className="mt-3 max-w-[500px] text-[12px] leading-5 text-[#667085] sm:text-[14px] sm:leading-6">Je cherche, j’analyse, je prépare et je vous accompagne vers les meilleures opportunités.</p>
           </div>
         </div>
-        {cutoutUrl && <img src={cutoutUrl} alt={`Portrait de ${firstName || "vous"}`} className="pointer-events-none absolute bottom-0 right-0 z-10 h-[115%] w-auto max-w-[68%] object-contain object-bottom" />}
+        {heroPhotoUrl && <img src={heroPhotoUrl} alt={`Portrait de ${firstName || "vous"}`} className="pointer-events-none absolute bottom-0 right-0 z-10 h-[115%] w-auto max-w-[68%] object-contain object-bottom" />}
         <div className="absolute bottom-4 left-4 right-4 z-30">
           <form action="/jobs" method="get" className="flex min-h-[56px] items-center gap-3 rounded-full bg-white px-4 shadow-[0_14px_34px_rgba(7,27,69,.14)]">
             <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-[#52627A]" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
