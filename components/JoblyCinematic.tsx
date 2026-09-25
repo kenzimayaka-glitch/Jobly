@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowUpRight, Bell, BriefcaseBusiness, Check, Heart, Home, M
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 import { companyAvatar } from "@/lib/avatar";
+import TalentShowcaseStudio from "@/components/TalentShowcaseStudio";
 
 const C = { yellow:"#FFE135", blue:"#7A9BB5", navy:"#2E3F4F", white:"#FFFEFB" };
 
@@ -246,7 +247,7 @@ export function CinematicProfile() {
   async function removePitch(){const session=(await getSupabaseClient().auth.getSession()).data.session;if(!session)return;setPitchBusy(true);try{const r=await fetch("/api/auth/video-pitch",{method:"DELETE",headers:{Authorization:`Bearer ${session.access_token}`}});if(!r.ok)throw new Error("Suppression impossible.");setPitchUrl(null);setPitchDuration(null);setPitchMessage("Pitch supprimé.");}catch(e){setPitchMessage(e instanceof Error?e.message:"Suppression impossible.");}finally{setPitchBusy(false);}}
   const name=candidate?.candidateName||"Your next signal";
   const role=candidate?.candidateRole||candidate?.jobTitle||"Talent";
-  if(isOwner){return <TalentPitchStudio owner={owner} plan={pitchPlan} pitchUrl={pitchUrl} pitchDuration={pitchDuration} busy={pitchBusy} message={pitchMessage} recording={recording} setRecording={setRecording} recordSeconds={recordSeconds} setRecordSeconds={setRecordSeconds} onUpload={uploadPitch} onDelete={removePitch} router={router}/>;}
+  if(isOwner){return <TalentShowcaseStudio plan={pitchPlan} pitchUrl={pitchUrl} pitchDuration={pitchDuration} busy={pitchBusy} message={pitchMessage} recording={recording} setRecording={setRecording} recordSeconds={recordSeconds} setRecordSeconds={setRecordSeconds} onUpload={uploadPitch} onDelete={removePitch} router={router}/>;}
   return <main className="min-h-[100dvh] overflow-hidden bg-[#2E3F4F] text-[#FFFEFB]">
     <motion.div style={{scale}} className="fixed inset-0">
       {video?<video className="h-full w-full object-cover opacity-80" src={video} autoPlay={playing} muted loop playsInline poster={photo||"/jobly/cinematic-ui.png"}/>:photo?<img src={photo} alt="" className="h-full w-full object-cover opacity-80"/>:<div className="h-full w-full bg-[#7A9BB5]/20"/>}
