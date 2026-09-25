@@ -28,6 +28,7 @@ export default function PageHeader({
   onBack,
   theme = "default",
   role,
+  transparent = false,
 }: {
   label: string;
   eyebrow?: string;
@@ -36,6 +37,7 @@ export default function PageHeader({
   onBack?: () => void;
   theme?: "default" | "talent";
   role?: Role;
+  transparent?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname() ?? "";
@@ -43,7 +45,7 @@ export default function PageHeader({
   const eco = resolveRole(role, theme, eyebrow, pathname);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-white/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-[0_6px_24px_rgba(10,25,49,.04)] backdrop-blur-xl sm:px-6">
+    <header className={`sticky top-0 z-30 px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 ${transparent ? "border-b-0 bg-transparent shadow-none backdrop-blur-0" : "border-b border-line bg-white/95 shadow-[0_6px_24px_rgba(10,25,49,.04)] backdrop-blur-xl"}`}>
       <div className="mx-auto flex max-w-5xl items-center justify-between">
         <button
           type="button"
