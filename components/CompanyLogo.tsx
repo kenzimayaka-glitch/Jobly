@@ -28,8 +28,8 @@ function initials(name?: string | null) {
   return (parts.length >= 2 ? parts[0][0] + parts[1][0] : parts[0]?.slice(0, 2) || "EN").toUpperCase();
 }
 
-function cacheKey(domain: string) {
-  return `jobly:company-logo:${domain}`;
+function cacheKey(domain: string, source: string = "primary") {
+  return `jobly:company-logo:${source}:${domain.toLowerCase()}`;
 }
 
 export default function CompanyLogo({
@@ -66,16 +66,18 @@ export default function CompanyLogo({
       return;
     }
     try {
-      const cached = localStorage.getItem(cacheKey(resolvedDomain));
-      setSrc(cached || candidates[0] || null);
+      const cached = localStorage.getItem(cacheKey(resolvedDomain, logoDevToken ? "logodev" : "fallback"));
+      setSrc(cached && cached !== "1" ? cached : candidates[0] || null);
     } catch {
       setSrc(candidates[0] || null);
     }
-  }, [resolvedDomain, candidates]);
+  }, [resolvedDomain, candidates, logoDevToken]);
 
   function handleLoad() {
     if (!resolvedDomain || !src) return;
-    try { localStorage.setItem(cacheKey(resolvedDomain, logoDevToken ? "logodev" : "fallback"), src); } catch {}
+    try {
+      localStorage.setItem(cacheKey(resolvedDomain, logoDevToken ? "logodev" : "fallback"), src);
+    } catch {}
   }
 
   function handleError() {
