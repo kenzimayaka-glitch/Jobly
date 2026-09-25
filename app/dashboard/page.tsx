@@ -213,23 +213,28 @@ export default function DashboardPage() {
           <section className="mt-6">
             <div className="flex items-end justify-between gap-3"><div><h2 className="font-heading text-xl font-black">Opportunités recommandées</h2><p className="mt-1 text-xs text-[#64748B]">{visibleJobCount > 0 ? `${visibleJobCount} offre${visibleJobCount > 1 ? "s" : ""} actuellement disponible${visibleJobCount > 1 ? "s" : ""}.` : "Aucune offre disponible pour le moment."}</p></div><button type="button" onClick={() => router.push("/jobs")} className="shrink-0 text-xs font-black text-[#0057B8]">Voir tout →</button></div>
             {topJobs.length > 0 ? (
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                {topJobs.map((job) => {
-                  const remote = remoteLabel(job.remoteMode);
-                  const destination = `/jobs/${encodeURIComponent(job.id)}?source=${job.source}`;
-                  return (
-                    <button key={`${job.source}:${job.id}`} type="button" onClick={() => router.push(destination)} className="rounded-[22px] border-2 border-[#E0E7F2] bg-white p-4 text-left shadow-[0_10px_26px_rgba(7,27,69,.055)] transition-all hover:-translate-y-0.5 hover:border-[#0057B8]">
-                      <div className="flex items-center gap-2">
-                        {job.company?.logoUrl ? <img src={job.company.logoUrl} alt="" className="h-10 w-10 rounded-xl border border-[#E5EAF2] object-contain" /> : <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#0057B8] text-sm font-black text-white">{(job.company?.name || "J").charAt(0).toUpperCase()}</span>}
-                        <span className="min-w-0 truncate text-[11px] font-bold text-[#5D6C83]">{job.company?.name || "Employeur non précisé"}</span>
-                      </div>
-                      <strong className="mt-3 block text-sm font-black">{job.title}</strong>
-                      <span className="mt-2 block truncate text-[11px] text-[#5D6C83]">{job.location || "Localisation non précisée"}</span>
-                      <span className="mt-2 block text-[11px] text-[#5D6C83]">{contractLabel(job.contractType)}{remote ? ` · ${remote}` : ""}</span>
-                      <span className="mt-3 inline-flex rounded-full bg-[#DDF8EA] px-2.5 py-1 text-[10px] font-black text-[#08733E]">{job.matchPercent}% match</span>
-                    </button>
-                  );
-                })}
+              <div className="mt-3 -mx-1 overflow-x-auto overflow-y-hidden pb-2 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex w-max gap-3 pr-4">
+                  {topJobs.map((job) => {
+                    const remote = remoteLabel(job.remoteMode);
+                    const destination = `/jobs/${encodeURIComponent(job.id)}?source=${job.source}`;
+                    return (
+                      <button key={`${job.source}:${job.id}`} type="button" onClick={() => router.push(destination)} className="h-[180px] w-[280px] shrink-0 snap-start rounded-[20px] border border-[#E4EAF2] bg-white p-4 text-left shadow-[0_8px_24px_rgba(7,27,69,.07)] transition-all hover:-translate-y-0.5 hover:border-[#0057B8]">
+                        <div className="flex items-center gap-2">
+                          {job.company?.logoUrl ? <img src={job.company.logoUrl} alt="" className="h-[50px] w-[50px] rounded-full border border-[#E5EAF2] object-contain" /> : <span className="grid h-[50px] w-[50px] place-items-center rounded-full bg-[#0057B8] text-sm font-black text-white">{(job.company?.name || "J").charAt(0).toUpperCase()}</span>}
+                          <span className="min-w-0 truncate text-[11px] font-bold text-[#667085]">{job.company?.name || "Employeur non précisé"}</span>
+                        </div>
+                        <strong className="mt-3 block line-clamp-2 text-sm font-black leading-5 text-[#1A2B4C]">{job.title}</strong>
+                        <div className="mt-2 flex items-center gap-1 truncate text-[10px] text-[#5D6C83]"><span aria-hidden>⌖</span><span>{job.location || "Yaoundé, Cameroun"}</span></div>
+                        <div className="mt-1 flex items-center gap-1 truncate text-[10px] text-[#5D6C83]"><span aria-hidden>💼</span><span>{contractLabel(job.contractType)}{remote ? ` · ${remote}` : " · Télétravail partiel"}</span></div>
+                        <div className="mt-2 flex items-center justify-between">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[#DDF8EA] px-2.5 py-1 text-[10px] font-black text-[#08733E]"><span aria-hidden>✓</span>{job.matchPercent}% match</span>
+                          <span className="grid h-7 w-7 place-items-center rounded-full border border-[#D9E2F0] text-sm font-black text-[#0057B8]" aria-hidden>↻</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             ) : (
               <div className="mt-3 rounded-[22px] border-2 border-dashed border-[#BFD0E8] bg-[#F7FAFF] p-6 text-center"><p className="text-sm font-bold">Les offres apparaîtront ici dès qu'elles seront disponibles.</p><button type="button" onClick={() => router.push("/jobs")} className="mt-3 rounded-full bg-[#0057B8] px-5 py-2.5 text-xs font-black text-white">Explorer les offres →</button></div>
