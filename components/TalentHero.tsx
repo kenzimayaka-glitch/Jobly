@@ -34,7 +34,6 @@ export default function TalentHero({ photoUrl, firstName = "" }: TalentHeroProps
           output: {
             format: "image/png",
             quality: 1,
-            type: "foreground",
           },
         });
 
