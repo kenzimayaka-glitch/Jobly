@@ -14,25 +14,51 @@ export default function TalentHero({ photoUrl, firstName = "" }: TalentHeroProps
   useEffect(() => {
     let cancelled = false;
     let objectUrl: string | null = null;
+
     async function removeBackground() {
-      if (!photoUrl) { setCutoutUrl(null); return; }
+      if (!photoUrl) {
+        setCutoutUrl(null);
+        return;
+      }
+
       try {
-        const blob = await imglyRemoveBackground(photoUrl, { output: { format: "image/png", quality: 1 } });
+        // Download the source first so IMG.LY receives the actual image bytes.
+        // This avoids failures when the profile photo is hosted on a different
+        // origin and the browser blocks direct cross-origin image access.
+        const response = await fetch(photoUrl, { credentials: "omit", cache: "no-store" });
+        if (!response.ok) throw new Error("Photo inaccessible.");
+        const sourceBlob = await response.blob();
+
+        const blob = await imglyRemoveBackground(sourceBlob, {
+          model: "isnet",
+          output: {
+            format: "image/png",
+            quality: 1,
+            type: "foreground",
+          },
+        });
+
         if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
         setCutoutUrl(objectUrl);
-      } catch {
+      } catch (error) {
+        console.error("Jobly hero background removal failed:", error);
         if (!cancelled) setCutoutUrl(null);
       }
     }
-    removeBackground();
+
+    void removeBackground();
+
     return () => {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [photoUrl]);
 
-  const heroPhotoUrl = cutoutUrl || photoUrl || null;
+  // Do not replace the cutout with the original image once processing has
+  // started: the Hero must display the transparent foreground, not the source
+  // photo with its background.
+  const heroPhotoUrl = cutoutUrl || null;
 
   return (
     <section className="relative w-full overflow-visible rounded-[32px] bg-[#FFFDFA]">
