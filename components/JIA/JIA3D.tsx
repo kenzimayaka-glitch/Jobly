@@ -7,7 +7,7 @@ import * as THREE from "three";
 
 type Move =
   | "idle" | "breathe_deep" | "blink_slow" | "smile_soft" | "wave_hi" | "wave_bye"
-  | "nod_slow" | "shake_no" | "think_chin" | "point_button" | "point_you"
+  | "nod_slow" | "listen_tilt" | "shake_no" | "think_chin" | "point_button" | "point_you"
   | "explain_open" | "scarf_touch" | "ok" | "stop" | "hand_chest" | "celebrate_jump"
   | "reading" | "matching" | "searching" | "hand_shake" | "money" | "writing";
 
