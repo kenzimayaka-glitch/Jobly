@@ -17,6 +17,7 @@ type Props = {
   setRecordSeconds: (v: number) => void;
   onUpload: (f: File) => Promise<void>;
   onDelete: () => Promise<void>;
+  startRecording: () => Promise<void>;
   router: any;
 };
 
@@ -105,7 +106,7 @@ async function generateAdBlob(pitchUrl: string, imageUrls: string[], name: strin
 }
 
 export default function TalentShowcaseStudio(props: Props) {
-  const { plan, pitchUrl, pitchDuration, busy, message, recording, setRecording, recordSeconds, setRecordSeconds, onUpload, onDelete, router } = props;
+  const { plan, pitchUrl, pitchDuration, busy, message, recording, setRecording, recordSeconds, setRecordSeconds, onUpload, onDelete, startRecording, router } = props;
   const limits = plan === "FREE" ? null : LIMITS[plan];
   const [tab, setTab] = useState(0);
   const [images, setImages] = useState<string[]>([]);
@@ -193,8 +194,8 @@ export default function TalentShowcaseStudio(props: Props) {
         {pitchUrl ? <video src={pitchUrl} controls playsInline className="aspect-video w-full rounded-2xl bg-[#17212B] object-cover"/> : <div className="grid aspect-video place-items-center rounded-2xl bg-[#E9EEF1] text-center text-sm font-bold">Aucun pitch publié.</div>}
         <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold text-[#5D6B76]"><span>4 MB max</span><span>•</span><span>5–{limits?.pitch || "—"} s</span><span>•</span><span>MP4 / WebM / MOV</span></div>
         {message && <p className="mt-3 rounded-2xl bg-red-50 p-3 text-xs font-bold text-red-700">{message}</p>}
-        <div className="mt-4 grid gap-2 sm:grid-cols-2"><button disabled={!limits || busy || recording} onClick={() => document.getElementById("showcase-record")?.click()} className="rounded-full bg-[#FFE135] py-3 font-black text-[#2E3F4F]"><Video className="mr-2 inline" size={16}/> Enregistrer</button><label className="rounded-full border border-black/10 bg-[#F5F7F8] py-3 text-center font-black cursor-pointer">Importer<input id="showcase-upload" type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" disabled={!limits || busy || recording} onChange={e=>{const f=e.target.files?.[0];if(f)void onUpload(f);e.currentTarget.value=""}}/></label></div>
-        <button id="showcase-record" className="hidden" onClick={()=>{}}> </button>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2"><button disabled={!limits || busy || recording} onClick={() => void startRecording()} className="rounded-full bg-[#FFE135] py-3 font-black text-[#2E3F4F]"><Video className="mr-2 inline" size={16}/> Enregistrer</button><label className="rounded-full border border-black/10 bg-[#F5F7F8] py-3 text-center font-black cursor-pointer">Importer<input id="showcase-upload" type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" disabled={!limits || busy || recording} onChange={e=>{const f=e.target.files?.[0];if(f)void onUpload(f);e.currentTarget.value=""}}/></label></div>
+        
         {pitchUrl && <button disabled={busy} onClick={()=>void onDelete()} className="mt-3 w-full rounded-full border border-black/10 py-3 text-xs font-black">Supprimer le pitch</button>}
       </section>}
       {tab===1 && <section className="mt-4 rounded-[28px] bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><h2 className="text-xl font-black">Actions illustratives</h2><span className="text-xs font-bold text-[#5D6B76]">{images.length}/{limits?.images || 0}</span></div><p className="mt-1 text-sm text-[#5D6B76]">Ajoute des images qui montrent concrètement ton expérience.</p><input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={e=>void addImages(e.target.files)}/><button disabled={!limits || images.length >= (limits?.images || 0)} onClick={()=>fileRef.current?.click()} className="mt-4 w-full rounded-full bg-[#FFE135] py-3 font-black"><ImagePlus className="mr-2 inline" size={16}/> Ajouter des images</button><div className="mt-4 grid grid-cols-3 gap-2">{images.map((src,i)=><div key={i} className="relative aspect-square overflow-hidden rounded-2xl"><img src={src} alt="" className="h-full w-full object-cover"/><button onClick={()=>setImages(v=>v.filter((_,j)=>j!==i))} className="absolute right-1 top-1 rounded-full bg-black/65 px-2 py-1 text-xs text-white">×</button></div>)}</div></section>}
