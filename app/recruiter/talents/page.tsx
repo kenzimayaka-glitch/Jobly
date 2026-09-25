@@ -12,7 +12,7 @@ import { useI18n } from "@/lib/i18n";
 type Talent = {
   userId: string; name: string; headline: string; location: string | null; yearsExperience: number; currentLevel: number; currentLevelLabel: string;
   readiness: number; topSkills: { name: string }[]; quantifiedEvidence: string[]; discoveryScore: number; bestJob: { id: string; title: string } | null; reasons: string[];
-  profilePhotoUrl?: string | null; pitchVideoUrl?: string | null; pitchVideoDurationMs?: number | null; plan?: "FREE" | "PRO" | "PREMIUM"; advertisingEligible?: boolean;
+  profilePhotoUrl?: string | null; pitchVideoUrl?: string | null; pitchVideoDurationMs?: number | null; advertisingVideoUrl?: string | null; advertisingVideoDurationMs?: number | null; executiveSummary?: string | null; portfolioBusiness?: any; plan?: "FREE" | "PRO" | "PREMIUM"; advertisingEligible?: boolean;
 };
 
 export default function RecruiterTalentsPage() {
@@ -39,7 +39,7 @@ export default function RecruiterTalentsPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const featured = useMemo(() => (talents ?? []).filter((x) => x.advertisingEligible && x.pitchVideoUrl), [talents]);
+  const featured = useMemo(() => (talents ?? []).filter((x) => x.advertisingEligible && x.advertisingVideoUrl), [talents]);
 
   useEffect(() => {
     if (featured.length < 2) return;
@@ -78,7 +78,7 @@ export default function RecruiterTalentsPage() {
                   const duration = talent.plan === "PRO" ? 12 : 8;
                   return (
                     <motion.article key={`${talent.userId}-${index}`} initial={{ opacity: 0, x: 45 }} animate={{ opacity: active ? 1 : .55, x: index * 30, y: index * 10, scale: 1 - index * .035, zIndex: 10 - index }} transition={{ duration: .35 }} className="absolute inset-0 overflow-hidden rounded-[26px] border border-white/15 bg-white/10">
-                      {active && <video src={talent.pitchVideoUrl || undefined} poster={talent.profilePhotoUrl || undefined} autoPlay muted loop playsInline className="h-full w-full object-cover opacity-70" />}
+                      {active && <video src={talent.advertisingVideoUrl || undefined} poster={talent.profilePhotoUrl || undefined} autoPlay muted loop playsInline className="h-full w-full object-cover opacity-70" />}
                       {!active && <div className="h-full w-full bg-gradient-to-br from-[#7A9BB5]/45 to-[#2E3F4F]" />}
                       <div className="absolute inset-0 bg-gradient-to-t from-[#17212B] via-transparent to-transparent" />
                       <div className="absolute left-5 right-5 top-5 flex items-center justify-between">
@@ -94,7 +94,7 @@ export default function RecruiterTalentsPage() {
                           </div>
                           <button type="button" onClick={() => openTalent(talent)} className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F] shadow-lg" aria-label={t("common.view")}><ArrowUpRight size={21}/></button>
                         </div>
-                        {active && <div className="mt-4 flex items-center gap-2 text-[11px] font-bold text-white/65"><Play size={14} fill="currentColor"/> Vidéo de mise en valeur du Talent · profil public</div>}
+                        {active && <div className="mt-4 flex items-center gap-2 text-[11px] font-bold text-white/65"><Play size={14} fill="currentColor"/> Vidéo publicitaire Top Talent · profil public</div>}
                       </div>
                     </motion.article>
                   );
