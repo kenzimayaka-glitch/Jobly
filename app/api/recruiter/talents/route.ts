@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       sb.from("Experience").select("userId,title,company,startDate,endDate,description,provenance").in("userId", userIds),
       sb.from("Skill").select("userId,name,level,provenance").in("userId", userIds),
       sb.from("Education").select("userId,degree,field,institution,provenance").in("userId", userIds),
-      sb.from("User").select("id,displayName,firstName,lastName,profilePhotoUrl,pitchVideoUrl,pitchVideoDurationMs").in("id", userIds),
+      sb.from("User").select("id,displayName,firstName,lastName,profilePhotoUrl,pitchVideoUrl,pitchVideoDurationMs,advertisingVideoUrl,advertisingVideoDurationMs,executiveSummary,portfolioBusiness").in("id", userIds),
       sb.from("Subscription").select("userId,plan,status,updatedAt").in("userId", userIds).eq("status", "ACTIVE"),
     ]);
     for (const r of [exRes, skillRes, eduRes, usersRes, subsRes]) if (r.error) throw new Error(r.error.message);
@@ -87,6 +87,10 @@ export async function GET(req: NextRequest) {
         profilePhotoUrl: user?.profilePhotoUrl || null,
         pitchVideoUrl: user?.pitchVideoUrl || null,
         pitchVideoDurationMs: user?.pitchVideoDurationMs || null,
+        advertisingVideoUrl: user?.advertisingVideoUrl || null,
+        advertisingVideoDurationMs: user?.advertisingVideoDurationMs || null,
+        executiveSummary: user?.executiveSummary || null,
+        portfolioBusiness: user?.portfolioBusiness || {},
         plan,
         advertisingEligible: plan === "PRO" || plan === "PREMIUM",
       };
