@@ -130,7 +130,7 @@ export default function DashboardPage() {
       } else {
         el.scrollTo({ left: next, behavior: "smooth" });
       }
-    }, 1000);
+    }, 3000);
     return () => window.clearInterval(interval);
   }, [topJobs.length]);
 
