@@ -123,55 +123,39 @@ export default function DashboardPage() {
   if (loading) return <main className="min-h-[100dvh] grid place-items-center bg-white font-bold text-navy">Chargement…</main>;
 
   return (
-    <main className="talent-shell min-h-[100dvh] w-full overflow-x-hidden bg-[#F7F9FC] pb-28 text-navy">
+    <main className="talent-shell min-h-[100dvh] w-full overflow-x-hidden bg-[#FFF8E7] pb-28 text-navy">
       <PageHeader
-        label="Talent"
+        label=""
         initial={(firstName || "J").charAt(0).toUpperCase()}
         avatarUrl={data?.user.profilePhotoUrl || undefined}
         theme="talent"
+        transparent
       />
 
       <div className="w-full">
-        <section className="relative overflow-visible bg-[#F7F9FC]">
-          <div className="pointer-events-none absolute -right-20 top-4 h-64 w-64 rounded-full bg-[#DCEBFF] blur-3xl sm:h-80 sm:w-80" />
-          <div className="pointer-events-none absolute left-[-80px] top-24 h-56 w-56 rounded-full bg-[#FFF4A8]/70 blur-3xl" />
-          <div className="mx-auto w-full max-w-6xl px-4 pb-8 pt-3 sm:px-6 sm:pb-10 lg:px-8">
-            <div className="relative min-h-[330px] overflow-visible sm:min-h-[390px]">
-              <div className="relative z-20 w-[68%] pt-4 sm:w-[58%] sm:pt-8">
-                <p className="text-[20px] font-black leading-tight tracking-[-.03em] text-[#FFE135] drop-shadow-[0_1px_0_rgba(7,27,69,.08)] sm:text-[28px]">Bonjour{firstName ? ` ${firstName}` : ""} 👋</p>
-                <h1 className="mt-2 max-w-xl font-heading text-[25px] font-black leading-[1.06] tracking-[-.04em] sm:text-[38px]">Votre carrière mérite <span className="text-[#0057B8]">un vrai copilote.</span></h1>
-                <p className="mt-3 max-w-lg text-[12px] leading-5 text-[#52627A] sm:text-[15px] sm:leading-6">Je cherche, j’analyse, je prépare et je vous accompagne vers les meilleures opportunités.</p>
+        <section className="relative overflow-visible bg-transparent">
+          <div className="mx-auto w-full max-w-6xl px-4 pb-5 pt-2 sm:px-6 sm:pb-6 lg:px-8">
+            <div className="relative h-[280px] overflow-visible rounded-[24px] bg-transparent px-5 sm:px-6">
+              <div className="relative z-30 flex h-full w-[60%] flex-col justify-center pr-2 sm:pr-6">
+                <p className="text-[18px] font-black leading-tight tracking-[-.03em] text-[#0A1931] sm:text-[22px]">Bonjour{firstName ? ` ${firstName}` : ""} 👋</p>
+                <h1 className="mt-2 max-w-[560px] font-heading text-[28px] font-bold leading-[1.08] tracking-[-.035em] text-[#0A1931] sm:text-[32px]">Votre carrière mérite un vrai copilote.</h1>
+                <p className="mt-3 max-w-[500px] text-[12px] leading-5 text-[#667085] sm:text-[14px] sm:leading-6">Je cherche, j’analyse, je prépare et je vous accompagne vers les meilleures opportunités.</p>
               </div>
-
-              <div className="pointer-events-none absolute right-[-8px] bottom-[-34px] z-10 h-[310px] w-[285px] sm:right-0 sm:bottom-[-48px] sm:h-[390px] sm:w-[360px]">
-                <div className="absolute left-[8%] top-[10%] h-36 w-36 rounded-full bg-[#FFE135]/55 blur-3xl sm:h-48 sm:w-48" />
-                <div className="absolute right-[0%] top-[22%] h-36 w-36 rounded-full bg-[#CFE4FF]/80 blur-3xl sm:h-52 sm:w-52" />
-                <div className="absolute inset-x-[4%] bottom-0 top-[4%] overflow-hidden rounded-[46%_46%_18%_18%] bg-white shadow-[0_24px_60px_rgba(7,27,69,.12)] ring-8 ring-white/80">
-                  {data?.user.profilePhotoUrl ? (
-                    <img
-                      src={data.user.profilePhotoUrl}
-                      alt="Photo de profil"
-                      className="absolute inset-0 h-full w-full object-cover object-[center_18%] brightness-[1.06] contrast-[1.03] saturate-[1.06]"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 grid place-items-center bg-[#0057B8] text-7xl font-black text-white">
-                      {(firstName || "J").charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 h-[38%] bg-gradient-to-t from-[#1769B5] via-[#1769B5]/95 to-transparent" />
-                  <div className="absolute bottom-[-4%] left-[8%] h-[38%] w-[88%] rounded-[55%_55%_12%_12%] bg-[#155DB0] shadow-[inset_0_10px_18px_rgba(255,255,255,.12)]" />
-                  <div className="absolute bottom-[18%] right-[2%] h-[48%] w-[9%] rotate-[9deg] rounded-full bg-[#161A22] shadow-[0_4px_10px_rgba(0,0,0,.18)]" />
-                  <div className="absolute bottom-[27%] left-1/2 h-8 w-24 -translate-x-1/2 rounded-full border-4 border-[#D7E8FF]/80 bg-white/10" />
-                </div>
+              <div className="pointer-events-none absolute inset-y-0 right-0 z-20 flex w-[40%] items-end justify-end">
+                {data?.user.profilePhotoUrl ? (
+                  <img src={data.user.profilePhotoUrl} alt="Photo de profil" className="h-[168px] w-auto max-w-none translate-y-[18px] object-contain object-bottom drop-shadow-[0_18px_20px_rgba(10,25,49,.14)] sm:h-[184px] sm:translate-y-[22px]" />
+                ) : (
+                  <div className="mb-[-18px] grid h-[168px] w-[140px] place-items-center bg-[#0057B8] text-6xl font-black text-white shadow-[0_18px_20px_rgba(10,25,49,.14)] sm:h-[184px] sm:w-[150px]">{(firstName || "J").charAt(0).toUpperCase()}</div>
+                )}
               </div>
             </div>
           </div>
         </section>
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
-          <form onSubmit={(e) => { e.preventDefault(); goSearch(); }} className="relative z-30 -mt-3 flex min-h-[58px] items-center gap-3 rounded-[20px] border-2 border-white/80 bg-white/95 px-4 shadow-[0_14px_34px_rgba(7,27,69,.11)] backdrop-blur-md focus-within:border-[#FFE135]">
+          <form onSubmit={(e) => { e.preventDefault(); goSearch(); }} className="relative z-30 flex min-h-[58px] items-center gap-3 rounded-[20px] border border-[#E7EAF0] bg-white px-4 shadow-[0_12px_30px_rgba(7,27,69,.10)] focus-within:border-[#FFE135]">
             <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0 text-[#0057B8]" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Quel poste recherchez-vous ?" className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-[#7C8CA5]" aria-label="Rechercher une offre" />
-            <button type="submit" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#0057B8] text-white" aria-label="Rechercher">→</button>
+            <button type="submit" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-[#52627A] transition hover:bg-[#F4F6F8]" aria-label="Filtrer les résultats"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button>
           </form>
 
           <section className="mt-5 grid grid-cols-4 gap-2 sm:gap-3">
