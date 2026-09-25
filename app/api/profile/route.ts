@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       user: { id: user.id, email: user.email, phone: user.phone, displayName: user.displayName, profilePhotoUrl: user.profilePhotoUrl, pitchVideoUrl: user.pitchVideoUrl ?? null, pitchVideoDurationMs: user.pitchVideoDurationMs ?? null, pitchVideoUpdatedAt: user.pitchVideoUpdatedAt ?? null, actionImages: user.actionImages ?? [], portfolioBusiness: user.portfolioBusiness ?? {}, executiveSummary: user.executiveSummary ?? null, advertisingVideoUrl: user.advertisingVideoUrl ?? null, advertisingVideoDurationMs: user.advertisingVideoDurationMs ?? null, englishLevel: user.englishLevel, licences: user.licences ?? [] },
       profile: profile.data ?? { headline: "", summary: "", location: "", targetRoles: [], preferredSectors: [] },
-      experiences: experiences.data ?? [], skills: skills.data ?? [], education: education.data ?? [],
+      experiences: experiences.data ?? [], skills: skills.data ?? [], education: education.data ?? [], plan,
     });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible de charger le profil." }, { status: 500 });
