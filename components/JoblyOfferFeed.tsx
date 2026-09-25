@@ -6,6 +6,7 @@ import { ArrowUpRight, Building2, Check, ExternalLink, RefreshCw, Send, Sparkles
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 import { companyAvatar } from "@/lib/avatar";
+import BottomNav, { TALENT_NAV } from "@/components/BottomNav";
 
 type Job = {
   source: "discovery" | "recruiter";
@@ -184,9 +185,9 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
   const rest = useMemo(() => filteredJobs.slice(3), [filteredJobs]);
   const feedSummary = feedMeta.totalAvailable ? `${feedMeta.totalAvailable} opportunité${feedMeta.totalAvailable > 1 ? "s" : ""} actuellement disponible${feedMeta.totalAvailable > 1 ? "s" : ""}` : "Marché en cours de synchronisation";
 
-  if (loading && !jobs.length) return <main className="min-h-[100dvh] bg-[#17212B] p-6 text-white"><div className="mx-auto max-w-6xl animate-pulse space-y-6"><div className="h-64 rounded-[36px] bg-slate-50"/><div className="h-40 rounded-[28px] bg-white/10"/></div></main>;
+  if (loading && !jobs.length) return <main className="min-h-[100dvh] bg-[#17212B] pb-28 text-white"><div className="mx-auto max-w-6xl animate-pulse space-y-6 p-6"><div className="h-64 rounded-[36px] bg-slate-50"/><div className="h-40 rounded-[28px] bg-white/10"/></div><BottomNav active="/jobs" items={TALENT_NAV} /></main>;
 
-  return <main className="min-h-[100dvh] overflow-hidden bg-[#F5F7F8] pb-20 text-[#17212B]">
+  return <main className="min-h-[100dvh] overflow-hidden bg-[#F5F7F8] pb-28 text-[#17212B]">
     <section className="relative mx-auto max-w-6xl px-5 pb-8 pt-7 sm:px-8">
       <motion.div className="absolute -right-20 top-0 h-72 w-72 rounded-full bg-[#7A9BB5]/30 blur-3xl" animate={{ x: [0, -30, 0], y: [0, 25, 0], scale: [1, 1.1, 1] }} transition={{ duration: 12, repeat: Infinity }} />
       <div className="relative z-10 flex items-end justify-between gap-4"><div><span className="text-[10px] font-bold uppercase tracking-[2px] text-slate-400">JOBLY / OPPORTUNITÉS</span><h1 className="mt-2 text-4xl font-black leading-[.95] tracking-[-.045em] sm:text-6xl">Les offres<br/><span className="text-[#B59A00]">auxquelles J’IA</span><br/>peut postuler.</h1><p className="mt-5 max-w-xl text-sm text-slate-500">{feedSummary}. Les plus récentes remontent automatiquement ; une offre disparaît lorsqu'elle expire.</p></div><button onClick={() => load(true)} aria-label="Actualiser" className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white/10 text-[#FFE135]"><RefreshCw size={18} className={refreshing ? "animate-spin" : ""}/></button></div>
@@ -202,5 +203,6 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
 
     <AnimatePresence>{selectedCompany && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] grid place-items-end bg-black/60 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => setSelectedCompany(null)}><motion.div initial={{ y: 40, opacity: 0, scale: .97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 40, opacity: 0 }} onClick={e => e.stopPropagation()} className="w-full max-w-lg rounded-[32px] border border-white/15 bg-[#2E3F4F] p-6 shadow-2xl"><div className="flex items-start justify-between"><div className="flex items-center gap-3"><img src={companyLogo(selectedCompany)} alt={selectedCompany.name} className="h-14 w-14 rounded-2xl object-cover"/><div><p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#7A9BB5]">Entreprise</p><h2 className="text-xl font-black">{selectedCompany.name}</h2></div></div><button onClick={() => setSelectedCompany(null)} className="rounded-full border border-white/10 p-2"><X size={18}/></button></div><p className="mt-6 text-sm leading-6 text-white/75">{selectedCompany.description || "Aucun résumé d'activité fourni dans la source de l'offre."}</p>{selectedCompany.website && <a href={selectedCompany.website.startsWith("http") ? selectedCompany.website : `https://${selectedCompany.website}`} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-3 text-xs font-bold">Voir le site de l'entreprise <ExternalLink size={14}/></a>}</motion.div></motion.div>}</AnimatePresence>
     {jobs.length === 0 && !loading && <div className="mx-auto max-w-2xl px-5 py-20 text-center"><Sparkles className="mx-auto text-[#FFE135]"/><h2 className="mt-4 text-2xl font-black">Aucune offre disponible pour le moment.</h2><p className="mt-2 text-sm text-white/55">Jobly ne fabrique pas d’offres : les opportunités affichées proviennent de sources réelles.</p></div>}
+    <BottomNav active="/jobs" items={TALENT_NAV} />
   </main>;
 }
