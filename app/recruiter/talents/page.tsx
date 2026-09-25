@@ -1,76 +1,8 @@
 "use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { getSupabaseClient } from "@/lib/supabase";
+import {useCallback,useEffect,useMemo,useState} from "react";
+import {useRouter} from "next/navigation";
+import {getSupabaseClient} from "@/lib/supabase";
 import AppShell from "@/components/ui/AppShell";
-import { Badge, Button, Card, EmptyState, ErrorState, LoadingState, PageIntro, StatCard } from "@/components/ui";
-import { useI18n } from "@/lib/i18n";
-
-type Talent = {
-  userId: string; name: string; headline: string; location: string | null; yearsExperience: number; currentLevel: number; currentLevelLabel: string;
-  readiness: number; topSkills: { name: string }[]; quantifiedEvidence: string[]; discoveryScore: number; bestJob: { id: string; title: string } | null; reasons: string[];
-};
-
-export default function RecruiterTalentsPage() {
-  const router = useRouter();
-  const { t, lang } = useI18n();
-  const [talents, setTalents] = useState<Talent[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setError(null);
-    setTalents(null);
-    try {
-      const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session) { router.replace("/"); return; }
-      const res = await fetch(`/api/recruiter/talents?lang=${lang}`, { headers: { Authorization: `Bearer ${session.access_token}` } });
-      if (res.status === 403) { setError(t("talents.forbidden")); return; }
-      if (!res.ok) throw new Error("load");
-      setTalents((await res.json()).talents ?? []);
-    } catch {
-      setError(t("talents.loadError"));
-    }
-  }, [router, lang, t]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  return (
-    <AppShell role="recruiter" active="/recruiter/talents" title={t("talents.title")} eyebrow={t("common.recruiter").toUpperCase()} backHref="/recruiter" width="lg">
-      <PageIntro title={t("talents.title")} subtitle={t("talents.subtitle")} actions={<Button variant="outline" size="sm" onClick={load}>{t("talents.refresh")}</Button>} />
-      {error && <ErrorState className="mt-6" title={error} onRetry={load} />}
-      {!talents && !error && <LoadingState />}
-      {talents && talents.length === 0 && <EmptyState className="mt-6" title={t("talents.empty")} body={t("talents.emptyBody")} />}
-      {talents && talents.length > 0 && (
-        <ul className="mt-6 grid gap-4 md:grid-cols-2">
-          {talents.map((tl, i) => (
-            <li key={tl.userId}>
-              <Card>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Badge tone="yellow">#{String(i + 1).padStart(2, "0")} · {t("talents.public")}</Badge>
-                    <h2 className="mt-2 truncate text-lg font-black text-ink">{tl.name}</h2>
-                    <p className="truncate text-sm font-semibold text-muted">{tl.headline}</p>
-                  </div>
-                  <div className="text-right"><div className="text-3xl font-black leading-none text-canari-blue">{tl.discoveryScore}</div><div className="text-[10px] font-black uppercase text-muted">{t("talents.signal")}</div></div>
-                </div>
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  <StatCard label={t("career.years")} value={tl.yearsExperience} tone="slate" className="!p-3" />
-                  <StatCard label={t("career.level")} value={`L${tl.currentLevel}`} hint={tl.currentLevelLabel} className="!p-3" />
-                  <StatCard label={t("career.readiness")} value={`${tl.readiness}%`} tone="green" className="!p-3" />
-                </div>
-                <p className="mt-3 text-xs font-semibold text-muted">{[tl.location, tl.bestJob?.title].filter(Boolean).join(" · ") || t("talents.fallbackProfile")}</p>
-                <div className="mt-3 flex flex-wrap gap-1.5">{tl.topSkills.slice(0, 5).map((s) => <Badge key={s.name} tone="slate">{s.name}</Badge>)}</div>
-                <div className="mt-4 rounded-2xl bg-canari-blue-soft p-4">
-                  <p className="text-[11px] font-black uppercase tracking-wider text-canari-blue">{t("talents.why")}</p>
-                  <p className="mt-1 text-xs leading-5 text-ink">{tl.reasons.join(" · ")}</p>
-                  {tl.quantifiedEvidence.length > 0 && <p className="mt-2 text-xs text-ink"><b>{t("talents.evidence")} :</b> {tl.quantifiedEvidence.join(" · ")}</p>}
-                </div>
-              </Card>
-            </li>
-          ))}
-        </ul>
-      )}
-    </AppShell>
-  );
-}
+import {Badge,Button,Card,EmptyState,ErrorState,LoadingState,PageIntro} from "@/components/ui";
+type Talent={userId:string;name:string;headline:string;summary:string;location:string|null;photoUrl:string|null;plan:"FREE"|"PRO"|"PREMIUM";pitchVideoUrl:string|null;advertisingVideoUrl:string|null;advertisingVideoDurationMs:number|null;advertisingEligible:boolean;topSkills:any[]};
+export default function TopTalentPage(){const router=useRouter();const[talents,setTalents]=useState<Talent[]|null>(null);const[error,setError]=useState<string|null>(null);const[active,setActive]=useState(0);const[paused,setPaused]=useState(false);const load=useCallback(async()=>{try{setError(null);const s=(await getSupabaseClient().auth.getSession()).data.session;if(!s){router.replace("/");return;}const r=await fetch("/api/recruiter/talents",{headers:{Authorization:"Bearer "+s.access_token}});const b=await r.json();if(!r.ok)throw new Error(b.message||"Chargement impossible.");setTalents(b.talents||[]);}catch(e){setError(e instanceof Error?e.message:"Erreur réseau.")}},[router]);useEffect(()=>{void load()},[load]);const ads=useMemo(()=>talents?.filter((x)=>x.advertisingEligible&&x.advertisingVideoUrl)||[],[talents]);useEffect(()=>{if(ads.length<2||paused)return;const id=window.setInterval(()=>setActive((i)=>(i+1)%ads.length),5000);return()=>window.clearInterval(id)},[ads.length,paused]);const current=ads.length?ads[active%ads.length]:null;return <AppShell role="recruiter" active="/recruiter/talents" title="Top Talent" eyebrow="RECRUTEUR" backHref="/recruiter" width="lg"><PageIntro title="Top Talent" subtitle="Tous les profils publics sont accessibles. Pro et Premium ajoutent une vidéo publicitaire en tête." actions={<Button variant="outline" size="sm" onClick={load}>Actualiser</Button>}/>{error&&<ErrorState className="mt-6" title={error} onRetry={load}/>} {!talents&&!error&&<LoadingState/>}{talents&&<><section onMouseEnter={()=>setPaused(true)} onMouseLeave={()=>setPaused(false)} className="relative mt-6 min-h-[360px] overflow-hidden rounded-[30px] bg-[#2E3F4F] shadow-sm">{current?<div className="absolute inset-0">{ads.slice(0,4).map((ad,i)=><div key={ad.userId} className="absolute inset-x-4 top-4 bottom-4 overflow-hidden rounded-[26px] border border-white/10 bg-black shadow-2xl transition-all duration-500" style={{transform:"translateX("+(i-active%4)*10+"px) scale("+(1-i*.045)+")",zIndex:20-i,opacity:i===active%4?1:.72}}><video src={ad.advertisingVideoUrl||""} autoPlay muted loop playsInline className="h-full w-full object-cover"/><div className="absolute inset-0 bg-gradient-to-t from-[#2E3F4F] via-transparent to-transparent"/></div>)}<div className="absolute inset-x-6 bottom-6 z-30 text-white"><Badge tone={current.plan==="PREMIUM"?"yellow":"blue"}>{current.plan==="PREMIUM"?"PREMIUM · AD ≤ 8s":"PRO · AD ≤ 12s"}</Badge><h2 className="mt-2 text-3xl font-black">{current.name}</h2><p className="text-sm font-semibold text-white/75">{current.headline}</p><Button className="mt-3" onClick={()=>router.push("/recruiter/talents/profile?userId="+encodeURIComponent(current.userId))}>Voir le profil</Button></div></div>:<div className="grid h-full min-h-[360px] place-items-center p-8 text-center text-white"><div><p className="text-xs font-black uppercase tracking-[2px] text-[#FFE135]">TOP TALENT</p><h2 className="mt-2 text-2xl font-black">Aucune vidéo publicitaire publiée.</h2><p className="mt-2 text-sm text-white/70">Les profils Free restent présents dans la liste publique.</p></div></div>}</section><div className="mt-7 flex items-end justify-between"><div><h2 className="text-xl font-black text-ink">Tous les profils publics</h2><p className="text-sm text-muted">Free, Pro et Premium.</p></div><b className="text-xs text-muted">{talents.length} profil{talents.length>1?"s":""}</b></div>{talents.length===0?<EmptyState className="mt-4" title="Aucun profil public pour le moment."/>:<div className="mt-4 grid gap-4 sm:grid-cols-2">{talents.map((t)=><Card key={t.userId}><div className="flex gap-4"><div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-slate-100">{t.photoUrl?<img src={t.photoUrl} alt="" className="h-full w-full object-cover"/>:<div className="grid h-full place-items-center font-black text-slate-400">{t.name[0]}</div>}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap gap-1.5"><Badge tone={t.plan==="PREMIUM"?"yellow":t.plan==="PRO"?"blue":"slate"}>{t.plan}</Badge><Badge tone="green">PUBLIC</Badge></div><h3 className="mt-2 truncate text-lg font-black text-ink">{t.name}</h3><p className="truncate text-sm font-semibold text-muted">{t.headline}</p></div></div><p className="mt-3 line-clamp-3 text-sm leading-6 text-muted">{t.summary||"Profil professionnel public sur Jobly."}</p><div className="mt-3 flex flex-wrap gap-1.5">{t.topSkills.map((s)=><Badge key={s.name} tone="slate">{s.name}</Badge>)}</div><Button className="mt-4 w-full" variant="outline" onClick={()=>router.push("/recruiter/talents/profile?userId="+encodeURIComponent(t.userId))}>Voir le profil</Button></Card>)}</div>}</>}</AppShell>}
