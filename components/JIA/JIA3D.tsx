@@ -42,6 +42,7 @@ function Model({ speaking }: { speaking: boolean }) {
   const { scene, animations } = useGLTF("/jia/jia-officielle.glb");
   const { actions } = useAnimations(animations, group);
   const activeMove = useRef<Move>("idle");
+  const spineRef = useRef<THREE.Object3D | null>(null);
   const bones = useMemo(() => ({
     head: findBone(scene, ["head", "neck", "mixamorighead"]),
     spine: findBone(scene, ["spine", "chest", "upperchest"]),
@@ -50,6 +51,10 @@ function Model({ speaking }: { speaking: boolean }) {
     leftHand: findBone(scene, ["lefthand", "hand_l"]),
     rightHand: findBone(scene, ["righthand", "hand_r"]),
   }), [scene]);
+
+  useEffect(() => {
+    spineRef.current = scene.getObjectByName("Spine") as THREE.Object3D | null;
+  }, [scene]);
 
   useEffect(() => {
     const onMove = (event: Event) => {
@@ -82,7 +87,6 @@ function Model({ speaking }: { speaking: boolean }) {
 
     const targets: Array<[THREE.Bone | null, THREE.Euler]> = [];
     const head = bones.head;
-    const spine = bones.spine;
     const leftArm = bones.leftArm;
     const rightArm = bones.rightArm;
 
@@ -105,6 +109,7 @@ function Model({ speaking }: { speaking: boolean }) {
       bone.rotation.z = THREE.MathUtils.damp(bone.rotation.z, target.z, 7, delta);
     }
 
+    const spine = spineRef.current;
     if (spine) {
       const breathing = Math.sin(t * (speaking ? 2.2 : 1.1)) * (speaking ? 0.012 : 0.006);
       spine.rotation.x = THREE.MathUtils.damp(spine.rotation.x, breathing, 5, delta);
