@@ -20,7 +20,8 @@ export async function GET(request: NextRequest, context: Context) {
         .eq("id", id).eq("isActive", true).maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) return NextResponse.json({ message: "Offre introuvable ou inactive." }, { status: 404 });
-      return NextResponse.json({ source, job: { ...data, company: data.company ? { ...data.company, domain: companyDomain(data.company.website) } : null } });
+      const company = Array.isArray(data.company) ? data.company[0] : data.company;
+      return NextResponse.json({ source, job: { ...data, company: company ? { ...company, domain: companyDomain(company.website) } : null } });
     }
     const { data, error } = await supabase.from("RecruiterJob")
       .select("id,title,description,location,contract,remoteMode,minExperienceYears,salary,sector,tags,createdAt,companyName")
