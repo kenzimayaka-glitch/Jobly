@@ -75,7 +75,7 @@ export default function CompanyLogo({
 
   function handleLoad() {
     if (!resolvedDomain || !src) return;
-    try { localStorage.setItem(cacheKey(resolvedDomain), src); } catch {}
+    try { localStorage.setItem(cacheKey(resolvedDomain, logoDevToken ? "logodev" : "fallback"), src); } catch {}
   }
 
   function handleError() {
