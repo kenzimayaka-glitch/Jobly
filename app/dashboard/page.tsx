@@ -132,7 +132,7 @@ export default function DashboardPage() {
       />
 
       <div className="w-full">
-        <section className="relative overflow-hidden bg-[#F7F9FC]">
+        <section className="relative overflow-visible bg-[#F7F9FC]">
           <div className="pointer-events-none absolute -right-20 top-4 h-64 w-64 rounded-full bg-[#DCEBFF] blur-3xl sm:h-80 sm:w-80" />
           <div className="pointer-events-none absolute left-[-80px] top-24 h-56 w-56 rounded-full bg-[#FFF4A8]/70 blur-3xl" />
           <div className="mx-auto w-full max-w-6xl px-4 pb-8 pt-3 sm:px-6 sm:pb-10 lg:px-8">
