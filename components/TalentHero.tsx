@@ -16,7 +16,7 @@ export default function TalentHero({ photoUrl, firstName = "" }: TalentHeroProps
     async function removeBackground() {
       if (!photoUrl) { setCutoutUrl(null); return; }
       try {
-        const { removeBackground } = await import("@imgly/background-removal");
+        const removeBackground = (await import("@imgly/background-removal")).default;
         const blob = await removeBackground(photoUrl, { output: { format: "image/png", quality: 1 } });
         if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
