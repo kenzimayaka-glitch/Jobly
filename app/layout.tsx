@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Plus_Jakarta_Sans, Poppins } from "next/font/google";
 import PwaInit from "../components/PwaInit";
 import JiaObserver from "../components/JiaObserver";
-
+import JiaGlobal from "../components/JiaGlobal";
 import ScreenProtection from "../components/ScreenProtection";
 import { LanguageProvider } from "../lib/i18n";
 
@@ -48,7 +48,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <JiaObserver />
           <ScreenProtection />
           {children}
-                </LanguageProvider>
+          <JiaGlobal />
+        </LanguageProvider>
       </body>
     </html>
   );
