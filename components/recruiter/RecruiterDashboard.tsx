@@ -142,7 +142,7 @@ export default function RecruiterDashboard() {
           <Section title={t("rdash.quick.title")}>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <DashboardCard title={t("rdash.quick.ats")} href="/recruiter/ats" icon={IconAts} />
-              <DashboardCard title={t("rdash.quick.talents")} href="/recruiter/talents" icon={IconStar} />
+              <DashboardCard title="⭐ Top Talent" description="Découvrez les profils publics et les vidéos publicitaires Pro/Premium." href="/recruiter/talents" icon={IconStar} />
               <DashboardCard title={t("rdash.quick.gmail")} href="/recruiter/candidatures" icon={IconMail} />
               <DashboardCard title={t("rdash.quick.mobility")} href="/recruiter/mobility" icon={IconGlobe} />
               <DashboardCard title={t("rdash.quick.profile")} href="/recruiter/profile" icon={IconBuilding} />
