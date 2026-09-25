@@ -10,10 +10,10 @@ const config: Config = {
     extend: {
       colors: {
         // ── JOBLY 2026 — palette Canari (source unique, alignée sur docs/DESIGN-SYSTEM-JOBLY-2026.md) ──
-        canari: "#FFE135",
+        canari: "#FFD21A",
         "canari-strong": "#F6CF00",
         "canari-soft": "#FFF8C7",
-        "canari-blue": "#0057B8",
+        "canari-blue": "#1264EB",
         "canari-blue-dark": "#00458F",
         "canari-blue-soft": "#EAF3FF",
         ink: "#0A1931",
@@ -24,12 +24,12 @@ const config: Config = {
         "deep-blue": "#2E3F4F",
         "off-white": "#FFFEFB",
         navy: "#0A1931",
-        "jobly-blue": "#0057B8",
+        "jobly-blue": "#1264EB",
         "jobly-blue-dark": "#00458F",
         "jobly-green": "#00C950",
         "jobly-green-dark": "#10B981",
-        "jobly-yellow": "#FFE135",
-        "jobly-yellow-canary": "#FFE135",
+        "jobly-yellow": "#FFD21A",
+        "jobly-yellow-canary": "#FFD21A",
         "jobly-gray": "#6B7280",
         "jobly-violet": "#8B5CF6",
         "jobly-mint": "#10B981",

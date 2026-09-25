@@ -6,8 +6,8 @@
 
 :root {
   --navy: #0a1931;
-  --jobly-blue: #0057B8;
-  --jobly-yellow: #FFE135;
+  --jobly-blue: #1264EB;
+  --jobly-yellow: #FFD21A;
   --font-jakarta: "Plus Jakarta Sans", Inter, sans-serif;
 }
 
@@ -96,12 +96,12 @@ button:disabled { cursor: not-allowed; opacity: 0.62; }
   outline: none;
   font-family: "Plus Jakarta Sans", Inter, sans-serif;
 }
-.field:focus { border-color: #0057B8; box-shadow: 0 0 0 3px rgb(46 92 158 / .12); }
+.field:focus { border-color: #1264EB; box-shadow: 0 0 0 3px rgb(46 92 158 / .12); }
 textarea.field { padding-top: 12px; padding-bottom: 12px; }
 
 /* Yellow CTA button */
 .btn-yellow {
-  background: #FFE135;
+  background: #FFD21A;
   color: #0A1931;
   font-weight: 800;
   border-radius: 999px;
@@ -145,12 +145,12 @@ body {
   will-change: transform;
   animation: talent-smoke-drift 14s ease-in-out infinite alternate;
 }
-.talent-smoke-a { width: 360px; height: 220px; left: -150px; top: 8%; background: #FFE135; }
-.talent-smoke-b { width: 420px; height: 260px; right: -180px; top: 24%; background: #0057B8; animation-delay: -4s; }
-.talent-smoke-c { width: 330px; height: 220px; left: 35%; bottom: -120px; background: #FFE135; animation-delay: -8s; }
-.talent-orb { position:absolute; width:180px; height:180px; border-radius:50%; filter:blur(1px); opacity:.14; border:28px solid #0057B8; animation: talent-orb-float 11s ease-in-out infinite; }
+.talent-smoke-a { width: 360px; height: 220px; left: -150px; top: 8%; background: #FFD21A; }
+.talent-smoke-b { width: 420px; height: 260px; right: -180px; top: 24%; background: #1264EB; animation-delay: -4s; }
+.talent-smoke-c { width: 330px; height: 220px; left: 35%; bottom: -120px; background: #FFD21A; animation-delay: -8s; }
+.talent-orb { position:absolute; width:180px; height:180px; border-radius:50%; filter:blur(1px); opacity:.14; border:28px solid #1264EB; animation: talent-orb-float 11s ease-in-out infinite; }
 .talent-orb-left { left:-120px; bottom:22%; }
-.talent-orb-right { right:-120px; top:12%; border-color:#FFE135; animation-delay:-5s; }
+.talent-orb-right { right:-120px; top:12%; border-color:#FFD21A; animation-delay:-5s; }
 @keyframes talent-smoke-drift {
   0% { transform: translate3d(-2%, -1%, 0) scale(1); }
   50% { transform: translate3d(5%, 4%, 0) scale(1.08); }
@@ -201,9 +201,9 @@ body {
   backdrop-filter: blur(10px);
 }
 .talent-shell .field { border-color: #D7E2F1; background:#fff; }
-.talent-shell .field:focus { border-color:#0057B8; box-shadow:0 0 0 3px rgba(46,92,158,.12); }
-.talent-shell .talent-yellow { background:#FFE135 !important; color:#0A1931 !important; }
-.talent-shell .talent-blue { background:#0057B8 !important; color:#fff !important; }
+.talent-shell .field:focus { border-color:#1264EB; box-shadow:0 0 0 3px rgba(46,92,158,.12); }
+.talent-shell .talent-yellow { background:#FFD21A !important; color:#0A1931 !important; }
+.talent-shell .talent-blue { background:#1264EB !important; color:#fff !important; }
 .talent-shell .talent-soft-blue { background:#EEF5FF !important; color:#214F8F !important; }
 .talent-shell .talent-soft-yellow { background:#FFF8D9 !important; color:#735700 !important; }
 .talent-shell .talent-outline { border-color:#C9D9ED !important; color:#173F7A !important; background:#fff !important; }
@@ -231,7 +231,7 @@ body {
 .jobly-cinematic-bg{background:#2E3F4F;color:#FFFEFB}
 .jobly-cinematic-glass{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.20);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 16px 40px rgba(46,63,79,.30)}
 .jobly-yellow-glow{box-shadow:0 0 42px rgba(255,225,53,.42)}
-.jobly-outline{color:transparent;-webkit-text-stroke:1px #FFE135}
+.jobly-outline{color:transparent;-webkit-text-stroke:1px #FFD21A}
 @media (prefers-reduced-motion:reduce){
   .jobly-motion,.jobly-outline-pulse{animation:none!important;transition:none!important}
 }
@@ -243,9 +243,9 @@ body {
    Primary: Canary Yellow. Secondary: Canary Blue + White.
    ─────────────────────────────────────────────────────────────────────────── */
 :root{
-  --jobly-canary:#FFE135;
+  --jobly-canary:#FFD21A;
   --jobly-canary-strong:#F6CF00;
-  --jobly-canary-blue:#0057B8;
+  --jobly-canary-blue:#1264EB;
   --jobly-canary-blue-soft:#EAF3FF;
   --jobly-ink:#0A1931;
   --jobly-muted:#5F6F86;
