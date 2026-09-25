@@ -136,27 +136,33 @@ export default function DashboardPage() {
           <div className="pointer-events-none absolute -right-20 top-4 h-64 w-64 rounded-full bg-[#DCEBFF] blur-3xl sm:h-80 sm:w-80" />
           <div className="pointer-events-none absolute left-[-80px] top-24 h-56 w-56 rounded-full bg-[#FFF4A8]/70 blur-3xl" />
           <div className="mx-auto w-full max-w-6xl px-4 pb-8 pt-3 sm:px-6 sm:pb-10 lg:px-8">
-            <div className="relative min-h-[250px] overflow-visible sm:min-h-[300px]">
-              <div className="relative z-20 w-[68%] pt-4 sm:w-[62%] sm:pt-7">
+            <div className="relative min-h-[330px] overflow-visible sm:min-h-[390px]">
+              <div className="relative z-20 w-[68%] pt-4 sm:w-[58%] sm:pt-8">
                 <p className="text-[20px] font-black leading-tight tracking-[-.03em] text-[#FFE135] drop-shadow-[0_1px_0_rgba(7,27,69,.08)] sm:text-[28px]">Bonjour{firstName ? ` ${firstName}` : ""} 👋</p>
                 <h1 className="mt-2 max-w-xl font-heading text-[25px] font-black leading-[1.06] tracking-[-.04em] sm:text-[38px]">Votre carrière mérite <span className="text-[#0057B8]">un vrai copilote.</span></h1>
                 <p className="mt-3 max-w-lg text-[12px] leading-5 text-[#52627A] sm:text-[15px] sm:leading-6">Je cherche, j’analyse, je prépare et je vous accompagne vers les meilleures opportunités.</p>
               </div>
 
-              <div className="pointer-events-none absolute right-[-8px] bottom-[-46px] z-10 h-[245px] w-[245px] sm:right-0 sm:bottom-[-62px] sm:h-[330px] sm:w-[330px]">
-                <div className="absolute inset-[8%] rounded-full bg-[#D8E9FF]/80 blur-2xl" />
-                <div className="absolute inset-[18%] rounded-full bg-[#FFE135]/45 blur-3xl" />
-                {data?.user.profilePhotoUrl ? (
-                  <img
-                    src={data.user.profilePhotoUrl}
-                    alt="Photo de profil"
-                    className="relative h-full w-full rounded-full object-cover object-center shadow-[0_22px_55px_rgba(0,87,184,.18)] ring-8 ring-white/45"
-                  />
-                ) : (
-                  <div className="relative grid h-full w-full place-items-center rounded-full bg-[#0057B8] text-6xl font-black text-white shadow-[0_22px_55px_rgba(0,87,184,.18)] ring-8 ring-white/45">
-                    {(firstName || "J").charAt(0).toUpperCase()}
-                  </div>
-                )}
+              <div className="pointer-events-none absolute right-[-8px] bottom-[-34px] z-10 h-[310px] w-[285px] sm:right-0 sm:bottom-[-48px] sm:h-[390px] sm:w-[360px]">
+                <div className="absolute left-[8%] top-[10%] h-36 w-36 rounded-full bg-[#FFE135]/55 blur-3xl sm:h-48 sm:w-48" />
+                <div className="absolute right-[0%] top-[22%] h-36 w-36 rounded-full bg-[#CFE4FF]/80 blur-3xl sm:h-52 sm:w-52" />
+                <div className="absolute inset-x-[4%] bottom-0 top-[4%] overflow-hidden rounded-[46%_46%_18%_18%] bg-white shadow-[0_24px_60px_rgba(7,27,69,.12)] ring-8 ring-white/80">
+                  {data?.user.profilePhotoUrl ? (
+                    <img
+                      src={data.user.profilePhotoUrl}
+                      alt="Photo de profil"
+                      className="absolute inset-0 h-full w-full object-cover object-[center_18%] brightness-[1.06] contrast-[1.03] saturate-[1.06]"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 grid place-items-center bg-[#0057B8] text-7xl font-black text-white">
+                      {(firstName || "J").charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 h-[38%] bg-gradient-to-t from-[#1769B5] via-[#1769B5]/95 to-transparent" />
+                  <div className="absolute bottom-[-4%] left-[8%] h-[38%] w-[88%] rounded-[55%_55%_12%_12%] bg-[#155DB0] shadow-[inset_0_10px_18px_rgba(255,255,255,.12)]" />
+                  <div className="absolute bottom-[18%] right-[2%] h-[48%] w-[9%] rotate-[9deg] rounded-full bg-[#161A22] shadow-[0_4px_10px_rgba(0,0,0,.18)]" />
+                  <div className="absolute bottom-[27%] left-1/2 h-8 w-24 -translate-x-1/2 rounded-full border-4 border-[#D7E8FF]/80 bg-white/10" />
+                </div>
               </div>
             </div>
           </div>
