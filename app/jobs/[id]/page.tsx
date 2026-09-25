@@ -6,7 +6,8 @@ import { getSupabaseClient } from "@/lib/supabase";
 import { jobPublicUrl } from "@/lib/site";
 import PageHeader from "@/components/PageHeader";
 import BottomNav from "@/components/BottomNav";
-import TalentBackground from "@/components/TalentBackground";\nimport CompanyLogo from "@/components/CompanyLogo";
+import TalentBackground from "@/components/TalentBackground";
+import CompanyLogo from "@/components/CompanyLogo";
 
 type Job = Record<string, any>;
 function JobDetailInner() {
