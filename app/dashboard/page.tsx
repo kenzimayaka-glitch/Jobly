@@ -125,7 +125,7 @@ export default function DashboardPage() {
   return (
     <main className="talent-shell min-h-[100dvh] w-full overflow-x-hidden bg-white pb-28 text-navy">
       <PageHeader
-        label="Talent · ton espace carrière"
+        label="Talent"
         initial={(firstName || "J").charAt(0).toUpperCase()}
         avatarUrl={data?.user.profilePhotoUrl || undefined}
         theme="talent"
@@ -136,24 +136,22 @@ export default function DashboardPage() {
           <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 lg:px-8">
             <div className="grid items-center gap-5 lg:grid-cols-[1.35fr_.65fr]">
               <div>
-                <span className="inline-flex rounded-full bg-[#FFF0A6] px-3 py-1.5 text-[10px] font-black uppercase tracking-[.12em] text-[#5D4700]">Talent Journey · Page 1</span>
-                <p className="mt-4 text-sm font-extrabold">Bonjour{firstName ? ` ${firstName}` : ""} 👋</p>
-                <h1 className="mt-1 max-w-3xl font-heading text-[34px] font-black leading-[1.02] tracking-[-.045em] sm:text-[48px]">Votre carrière mérite <span className="text-[#0057B8]">un vrai copilote.</span></h1>
+                <p className="mt-2 text-[25px] font-black leading-tight tracking-[-.03em] text-[#FFE135] sm:text-[30px]">Bonjour{firstName ? ` ${firstName}` : ""}</p>
+                <h1 className="mt-1 max-w-3xl font-heading text-[24px] font-black leading-[1.08] tracking-[-.035em] sm:text-[32px]">Votre carrière mérite <span className="text-[#0057B8]">un vrai copilote.</span></h1>
                 <p className="mt-4 max-w-2xl text-[15px] leading-6 text-[#52627A]">Je cherche, j’analyse, je prépare et je vous accompagne vers les opportunités disponibles pour vous.</p>
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <button type="button" onClick={() => router.push("/career-brain")} className="rounded-full bg-[#FFE135] px-6 py-3.5 text-sm font-black text-[#071B45] shadow-[0_10px_25px_rgba(255,212,0,.32)] transition-transform active:scale-[.98]">Commencer avec J'IA ↗</button>
-                  <button type="button" onClick={() => router.push("/talent/profile")} className="rounded-full border-2 border-[#0057B8] bg-white px-6 py-3 text-sm font-black text-[#0057B8]">Compléter mon profil</button>
-                </div>
+                <div className="mt-4"><button type="button" onClick={() => router.push("/career-brain")} className="rounded-full bg-[#FFE135] px-6 py-3.5 text-sm font-black text-[#071B45] shadow-[0_10px_25px_rgba(255,212,0,.32)] transition-transform active:scale-[.98]">Commencer avec J'IA ↗</button></div>
               </div>
-              <div className="flex justify-center lg:justify-end">
-                <div className="relative grid h-40 w-40 place-items-center rounded-[36px] border-4 border-[#FFE135] bg-[#0B3D91] shadow-[0_20px_50px_rgba(11,61,145,.25)] sm:h-48 sm:w-48">
+              <div className="flex flex-col items-center justify-start lg:items-end">
+                <div className="relative grid h-32 w-32 place-items-center rounded-[30px] border-4 border-[#FFE135] bg-[#0B3D91] shadow-[0_20px_50px_rgba(11,61,145,.25)] sm:h-48 sm:w-48">
                   {data?.user.profilePhotoUrl ? (
-                    <img src={data.user.profilePhotoUrl} alt="Photo de profil" className="h-full w-full rounded-[32px] object-cover" />
+                    <img src={data.user.profilePhotoUrl} alt="Photo de profil" className="h-full w-full rounded-[26px] object-cover" />
                   ) : (
-                    <span className="text-6xl font-black text-white">{(firstName || "J").charAt(0).toUpperCase()}</span>
+                    <span className="text-5xl font-black text-white">{(firstName || "J").charAt(0).toUpperCase()}</span>
                   )}
                   <span className="absolute -bottom-3 -right-3 rounded-full bg-[#FFE135] px-3 py-1.5 text-[10px] font-black text-[#071B45] shadow-lg">MON PROFIL</span>
                 </div>
+                <button type="button" onClick={() => router.push("/talent/profile")} className="mt-5 rounded-full border-2 border-[#0057B8] bg-white px-5 py-2.5 text-sm font-black text-[#0057B8]">Compléter mon profil</button>
+              </div></div>
               </div>
             </div>
           </div>
