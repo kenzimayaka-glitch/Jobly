@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     for (const result of [profile, experiences, skills, education]) if (result.error) throw new Error(result.error.message);
     const plan = await getActivePlanCode(supabase, user.id, "TALENT");
     return NextResponse.json({
-      user: { id: user.id, email: user.email, phone: user.phone, displayName: user.displayName, profilePhotoUrl: user.profilePhotoUrl, pitchVideoUrl: user.pitchVideoUrl ?? null, pitchVideoDurationMs: user.pitchVideoDurationMs ?? null, pitchVideoUpdatedAt: user.pitchVideoUpdatedAt ?? null, englishLevel: user.englishLevel, licences: user.licences ?? [] },
+      user: { id: user.id, email: user.email, phone: user.phone, displayName: user.displayName, profilePhotoUrl: user.profilePhotoUrl, pitchVideoUrl: user.pitchVideoUrl ?? null, pitchVideoDurationMs: user.pitchVideoDurationMs ?? null, pitchVideoUpdatedAt: user.pitchVideoUpdatedAt ?? null, actionImages: user.actionImages ?? [], portfolioBusiness: user.portfolioBusiness ?? {}, executiveSummary: user.executiveSummary ?? null, advertisingVideoUrl: user.advertisingVideoUrl ?? null, advertisingVideoDurationMs: user.advertisingVideoDurationMs ?? null, englishLevel: user.englishLevel, licences: user.licences ?? [] },
       profile: profile.data ?? { headline: "", summary: "", location: "", targetRoles: [], preferredSectors: [] },
       experiences: experiences.data ?? [], skills: skills.data ?? [], education: education.data ?? [],
     });
@@ -80,6 +80,21 @@ export async function PUT(request: NextRequest) {
     const user = await ensureUser(supabase, authUser);
 
     // Each section is persisted independently. Saving one section never erases another.
+    if (section === "showcase") {
+      const update: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+      if (Array.isArray(body.actionImages)) update.actionImages = body.actionImages.slice(0, 6);
+      if (body.portfolioBusiness && typeof body.portfolioBusiness === "object") update.portfolioBusiness = body.portfolioBusiness;
+      if (typeof body.executiveSummary === "string") update.executiveSummary = body.executiveSummary.trim() || null;
+      if (typeof body.publicDiscoverable === "boolean") {
+        const existing = await supabase.from("Profile").select("id").eq("userId", user.id).maybeSingle();
+        const payload: Record<string, unknown> = { userId: user.id, id: existing.data?.id ?? crypto.randomUUID(), publicDiscoverable: body.publicDiscoverable };
+        const { error } = await supabase.from("Profile").upsert(payload, { onConflict: "userId" });
+        if (error) throw new Error(error.message);
+      }
+      const { error } = await supabase.from("User").update(update).eq("id", user.id);
+      if (error) throw new Error(error.message);
+    }
+
     if (section === "profil" || section === "all") {
       const userUpdate: Record<string, unknown> = {};
       if (typeof body.displayName === "string") userUpdate.displayName = body.displayName.trim() || null;
