@@ -22,7 +22,7 @@ type Eco = {
 
 // Photos : assets/ecosystem/{talent-20,recruiter-40,partner-22}.jpg — visuels définitifs fournis par le client.
 const ECOSYSTEMS: Eco[] = [
-  { id: "talent", name: "Talent", badge: "TALENT", tagline: "Construisez votre avenir professionnel.", href: "/career-brain", image: talentImage, tone: "yellow" },
+  { id: "talent", name: "Talent", badge: "TALENT", tagline: "Construisez votre avenir professionnel.", href: "/dashboard", image: talentImage, tone: "yellow" },
   { id: "recruiter", name: "Recruiter", badge: "RECRUITER", tagline: "Trouvez les talents qui feront la différence.", href: "/recruiter", image: recruiterImage, tone: "blue" },
   { id: "partner", name: "Partner", badge: "PARTNER", tagline: "Développez votre activité avec Jobly.", href: "/partner", image: partnerImage, tone: "green" },
 ];
