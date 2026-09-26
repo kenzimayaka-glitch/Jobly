@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
   const result: CompanyProfile = {
     name, address: null, location: null, phone: null, website: website || null,
     mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([name, location].filter(Boolean).join(", "))}`, activity: [], status: null, rating: null, reviewCount: null,
-    description: null, news: [], source: [],
+    description: null, news: [], source: [], logoUrl: null,
   };
 
   const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     } catch {}
   }
 
-  if (!result.description && website) {
+  if (!result.logoUrl && website) { try { const host = new URL(website.startsWith("http") ? website : `https://${website}`).hostname.replace(/^www\\./, ""); result.logoUrl = `/api/company-logo/image?domain=${encodeURIComponent(host)}`; } catch {} }\n\n  if (!result.description && website) {
     try {
       const url = website.startsWith("http") ? website : `https://${website}`;
       const response = await fetch(url, { headers: { "User-Agent": "JoblyBot/1.0 (+https://jobly.cm)" }, signal: AbortSignal.timeout(5000), cache: "no-store" });
