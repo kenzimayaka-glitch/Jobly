@@ -190,15 +190,13 @@ export async function GET(request:NextRequest){
     const contact=resolveApplicationContact(job.applicationProfile,job.description);
     return {
       ...job,
+      applicationReady:Boolean(contact.email||contact.phone),
       applicationProfile:{
         ...job.applicationProfile,
         ...(contact.email?{applicationEmail:contact.email}:{}),
         ...(contact.phone?{applicationPhone:contact.phone}:{}),
       },
     };
-  }).filter(job=>{
-    const contact=resolveApplicationContact(job.applicationProfile,job.description);
-    return Boolean(contact.email||contact.phone);
   });
   const companyIds=Array.from(new Set(unified.map(j=>j.companyId).filter(Boolean))) as string[];const companiesRes=companyIds.length?await supabase.from("Company").select("id,name,logoUrl,description,website,verified").in("id",companyIds):{data:[] as Company[],error:null};if(companiesRes.error)throw new Error(companiesRes.error.message);const companiesById=new Map((companiesRes.data as Company[]).map(c=>[c.id,c]));
   const ranked=unified.map(job=>{const {matchPercent,confidence,breakdown}=adaptiveMatch(profile,yearsExperience,experiences,skills,education,job);const company=job.companyId?companiesById.get(job.companyId):undefined;const publishedAt=job.publishedAt||job.createdAt;const expirationAt=expirationFor(job.publishedAt,job.deadline,job.createdAt);return{source:job.source,id:job.sourceId,title:job.title,description:job.description,location:job.location,contractType:job.contractType,remoteMode:job.remoteMode,minExperienceYears:job.minExperienceYears,createdAt:job.createdAt,publishedAt,expirationAt:expirationAt?expirationAt.toISOString():null,deadline:job.deadline,sourceUrl:job.sourceUrl,sourcePlatform:job.sourcePlatform,applicationReady:Boolean(job.applicationReady),applicationProfile:job.applicationProfile,applicationCheckedAt:job.applicationCheckedAt,visualUrl:job.visualUrl||company?.logoUrl||null,visualSource:job.visualSource||(company?.logoUrl?"COMPANY_LOGO":null),company:(company&&!isGenericCompanyName(company.name))?{id:company.id,name:company.name,logoUrl:company.logoUrl,description:company.description,website:company.website,domain:companyDomain(company.website),verified:company.verified}:(!company&&job.companyName&&!isGenericCompanyName(job.companyName))?{id:null,name:job.companyName,logoUrl:null,description:null,website:null,domain:null,verified:false}:null,matchPercent,matchConfidence:confidence,matchBreakdown:breakdown,feedScore:matchPercent};}).sort((a,b)=>b.feedScore-a.feedScore||new Date(b.publishedAt).getTime()-new Date(a.publishedAt).getTime());
