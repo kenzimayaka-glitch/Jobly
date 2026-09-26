@@ -50,7 +50,7 @@ export async function fetchStructuredSource(sourceKey:string):Promise<DiscoveryI
     u.searchParams.set("isDuplicate","false");
     const data=await fetchJson(u.toString(),{headers:{"X-RapidAPI-Key":key,"X-RapidAPI-Host":host}});
     const rows=data?.data ?? data?.results ?? [];
-    return rows.map((x:any)=>({title:clean(x.title),description:clean(x.description),company:clean(x.company),location:clean(x.location||x.city),url:clean(x.url||x.link),deadline:clean(x.deadline||x.expiresAt)||null,published:clean(x.dateCreated||x.pubDate||x.datePosted)||null})).filter((x:DiscoveryItem)=>x.title&&x.url);
+    return rows.map((x:any)=>({title:clean(x.title),description:clean(x.description),company:clean(x.company),website:clean(x.companyUrl||x.company_url||x.companyWebsite||x.website)||null,location:clean(x.location||x.city),url:clean(x.url||x.link),deadline:clean(x.deadline||x.expiresAt)||null,published:clean(x.dateCreated||x.pubDate||x.datePosted)||null})).filter((x:DiscoveryItem)=>x.title&&x.url);
   }
 
   if(sourceKey==="jobspipe_cm"){
@@ -58,14 +58,14 @@ export async function fetchStructuredSource(sourceKey:string):Promise<DiscoveryI
     if(!key) return null;
     const base=Deno.env.get("JOBSPIPE_API_URL")||"https://api.jobspipe.dev/v1/jobs/search";
     const data=await fetchJson(base,{method:"POST",headers:{"Authorization":`Bearer ${key}`},body:JSON.stringify({job_country_code_or:["CM"],limit:100,include_total_results:true})});
-    return (data?.data||[]).map((x:any)=>({title:clean(x.job_title),description:clean(x.description),company:clean(x.company),location:clean(x.location||x.long_location),url:clean(x.final_url||x.url||x.source_url),deadline:clean(x.expires_at)||null,published:clean(x.date_posted)||null})).filter((x:DiscoveryItem)=>x.title&&x.url);
+    return (data?.data||[]).map((x:any)=>({title:clean(x.job_title),description:clean(x.description),company:clean(x.company),website:clean(x.company_url||x.companyUrl||x.company_website||x.website)||null,location:clean(x.location||x.long_location),url:clean(x.final_url||x.url||x.source_url),deadline:clean(x.expires_at)||null,published:clean(x.date_posted)||null})).filter((x:DiscoveryItem)=>x.title&&x.url);
   }
 
   if(sourceKey==="jooble_cm"){
     const key=Deno.env.get("JOOBLE_API_KEY"), endpoint=Deno.env.get("JOOBLE_API_URL");
     if(!key||!endpoint) return [];
     const data=await fetchJson(endpoint,{method:"POST",body:JSON.stringify({keywords:Deno.env.get("JOOBLE_KEYWORDS")||"emploi",location:"Cameroon",page:1,ResultOnPage:100})});
-    return (data?.jobs||data?.data||[]).map((x:any)=>({title:clean(x.title),description:clean(x.snippet||x.description),company:clean(x.company),location:clean(x.location),url:clean(x.link||x.url),deadline:null,published:clean(x.updated)||null})).filter((x:DiscoveryItem)=>x.title&&x.url);
+    return (data?.jobs||data?.data||[]).map((x:any)=>({title:clean(x.title),description:clean(x.snippet||x.description),company:clean(x.company),website:clean(x.company_url||x.companyUrl||x.website)||null,location:clean(x.location),url:clean(x.link||x.url),deadline:null,published:clean(x.updated)||null})).filter((x:DiscoveryItem)=>x.title&&x.url);
   }
 
   return null;
