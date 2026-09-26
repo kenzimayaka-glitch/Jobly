@@ -420,7 +420,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
             </details>;
           })}</div>
           <div className="mt-4 rounded-2xl border border-[#FFE135]/50 bg-[#FFFBE0] p-3 text-[11px] font-semibold text-slate-600">Aucune lettre n’est envoyée automatiquement : relisez, modifiez ou remplacez chaque lettre avant de confirmer.</div>
-          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button onClick={editPreparedBulk} className="rounded-full border border-slate-200 px-5 py-3 text-xs font-black">Modifier la sélection</button><button onClick={() => void submitBulkApplications()} disabled={bulkSubmitting} className="rounded-full bg-[#FFE135] px-5 py-3 text-xs font-black text-[#2E3F4F]">{bulkSubmitting ? "Envoi des candidatures…" : `Confirmer et envoyer ${preparedBulk.length} candidature${preparedBulk.length>1?"s":""}`}</button></div>
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button onClick={editPreparedBulk} className="rounded-full border border-slate-200 px-5 py-3 text-xs font-black">Fermer la revue</button><button onClick={() => void submitBulkApplications()} disabled={bulkSubmitting} className="rounded-full bg-[#FFE135] px-5 py-3 text-xs font-black text-[#2E3F4F]">{bulkSubmitting ? "Envoi des candidatures…" : `Confirmer et envoyer ${preparedBulk.length} candidature${preparedBulk.length>1?"s":""}`}</button></div>
         </motion.div>
       </motion.div>
     )}</AnimatePresence>
