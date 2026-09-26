@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 function authorized(request: NextRequest): boolean {
-  const configured = process.env.CRJobs_SOURCE_SECRET || process.env.CRON_SECRET || process.env.JOB_SOURCE_INGEST_SECRET;
+  const configured = process.env.CRON_SECRET || process.env.JOB_SOURCE_INGEST_SECRET;
   if (!configured) return false;
   const header = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
   return header === configured;
