@@ -148,10 +148,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const subject = profileValue(applicationProfile, ["subject", "emailSubject"]) || `Candidature — ${String(offer.title || "Offre Jobly")}`;
-    const body = candidateLetter || claimedApplication.letterText || `Bonjour,\n\nVeuillez trouver ci-joint ma candidature au poste de ${String(offer.title || "")} .\n\nCordialement,\n${String(user.displayName || user.firstName || "Candidat")}`;
+    const emailBody = candidateLetter || claimedApplication.letterText || `Bonjour,\n\nVeuillez trouver ci-joint ma candidature au poste de ${String(offer.title || "")} .\n\nCordialement,\n${String(user.displayName || user.firstName || "Candidat")}`;
     const filename = `CV-${String(offer.title || "Jobly").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 70) || "Jobly"}.pdf`;
     const cvPdf = await renderCvPdf(String(claimedApplication.tailoredCvText || "CV non disponible."));
-    const sent = await sendGmail(accessToken, gmail.googleEmail, recipient, subject, body, cvPdf, filename);
+    const sent = await sendGmail(accessToken, gmail.googleEmail, recipient, subject, emailBody, cvPdf, filename);
     emailSent = true;
 
     const submittedAt = new Date().toISOString();
