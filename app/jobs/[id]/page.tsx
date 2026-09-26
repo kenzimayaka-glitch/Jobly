@@ -13,8 +13,8 @@ type Job = Record<string, any>;
 function cleanOfferDescription(value: unknown): string {
   if (value == null) return "";
   let text = String(value)
-    .replace(/<br\\s*\\/?>(?=.)/gi, "\n")
-    .replace(/<\\/(p|div|li|h[1-6])>/gi, "\n")
+    .replace(/<br\s*\/?>(?=.)/gi, "\n")
+    .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
     .replace(/<li[^>]*>/gi, "• ")
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/gi, " ")
@@ -23,13 +23,13 @@ function cleanOfferDescription(value: unknown): string {
     .replace(/&#39;|&apos;/gi, "'")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
-    .replace(/\\r/g, "")
+    .replace(/\r/g, "")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n[ \t]+/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
-    .replace(/\x60\x60\x60(?:html|markdown|md|text)?/gi, "")
     .trim();
 
+  // Répare les séquences UTF-8 mal décodées (ex. « Ã© », « â€™ ») sans toucher au français normal.
   if (/[ÃÂâ][\x80-\xBF\x20-\x7E]/.test(text) && [...text].every(ch => ch.charCodeAt(0) <= 255)) {
     try {
       const bytes = new Uint8Array([...text].map(ch => ch.charCodeAt(0)));
@@ -41,6 +41,7 @@ function cleanOfferDescription(value: unknown): string {
   return text
     .replace(/^[•\-–—]\s*/gm, "• ")
     .replace(/\n{3,}/g, "\n\n")
+    .replace(new RegExp(String.fromCharCode(96) + "{3}", "g"), "")
     .trim();
 }
 
