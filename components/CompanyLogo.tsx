@@ -51,8 +51,6 @@ export default function CompanyLogo({
     const direct = logoUrl?.trim();
 
     if (direct) urls.push(direct);
-    if (resolvedLogo) urls.push(resolvedLogo);
-
     if (resolvedDomain && logoDevToken) {
       urls.push(
         `https://img.logo.dev/${encodeURIComponent(resolvedDomain)}?token=${encodeURIComponent(logoDevToken)}&size=128&format=png&fallback=404`,
@@ -66,7 +64,7 @@ export default function CompanyLogo({
     }
 
     return [...new Set(urls)];
-  }, [logoUrl, resolvedLogo, resolvedDomain, logoDevToken]);
+  }, [logoUrl, resolvedDomain, logoDevToken]);
 
   const [index, setIndex] = useState(0);
   const [src, setSrc] = useState<string | null>(null);
