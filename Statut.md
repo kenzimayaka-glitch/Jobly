@@ -2841,3 +2841,135 @@ Le parcours complet **Talent → candidature WhatsApp → CV recruteur → déco
 - validation production.
 
 **Règle CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ : cette décision ne doit pas être déclarée implémentée tant que les étapes techniques et les tests réels ne sont pas effectués.**
+
+
+# CHECKPOINT 26/09/2026 — J’IA RECRUTEMENT : MATCHING → PROJECTION → FEEDBACK
+
+## Modèle d'intelligence figé
+
+J’IA ne doit pas être réduite à un simple indicateur « ce candidat correspond / ne correspond pas ». Le modèle cible sépare explicitement :
+
+1. **Matching Engine — Est-ce que le profil correspond à l'offre ?**
+   - métier/fonction ;
+   - compétences ;
+   - expérience ;
+   - formation ;
+   - langues ;
+   - localisation ;
+   - secteur ;
+   - critères réellement présents dans l'offre.
+   - Une donnée inconnue est **Non renseignée** et ne doit pas être transformée automatiquement en échec.
+
+2. **Explainability — Pourquoi ?**
+   - forces ;
+   - gaps / points à développer ;
+   - éléments de preuve ;
+   - distinction entre données connues, déclarées, documentées, vérifiées et inférées.
+
+3. **Projection Engine — Comment le profil pourrait-il évoluer ?**
+   - projection conditionnelle à **3–6 mois, 6–12 mois et 12–18 mois** lorsque les données le permettent ;
+   - trajectoire possible ;
+   - conditions et actions pouvant favoriser cette trajectoire ;
+   - hypothèses ;
+   - éléments observés ;
+   - niveau de confiance ;
+   - date de la projection.
+   
+   Cette projection n'est **pas** une prédiction d'embauche et J’IA ne doit jamais décider à la place du recruteur.
+
+4. **Recommendation Engine — Que peut-on faire ensuite ?**
+   - Talent : développer une compétence, adapter le CV, préparer un entretien, combler un gap, acquérir une expérience, explorer une autre offre, etc. ;
+   - Recruiter : approfondir un point en entretien, demander une information manquante, examiner une compétence, poursuivre ou non le processus selon sa propre décision.
+
+5. **Reputation / Feedback Engine — Que montrent les interactions professionnelles vérifiées ?**
+   - retours de recruteurs ;
+   - évaluations vérifiées ;
+   - tendances de points forts ;
+   - axes d'amélioration ;
+   - évolution du Career Twin.
+
+## Chaîne cible
+
+```text
+CANDIDATURE
+↓
+MATCHING J’IA
+↓
+FORCES / GAPS
+↓
+ANALYSE J’IA
+↓
+PROJECTION
+3–6 / 6–12 / 12–18 mois
+↓
+RECOMMANDATIONS
+↓
+DÉCISION HUMAINE
+↓
+RECRUTÉ / NON RETENU
+↓
+FEEDBACK PROFESSIONNEL
+↓
+⭐ 1–5
+↓
+CAREER TWIN MIS À JOUR
+↓
+NOUVELLE PROJECTION J’IA
+```
+
+### Règle centrale
+
+**J’IA explique, projette, recommande et apprend du parcours. Le recruteur décide.**
+
+Les projections doivent rester conditionnelles et explicables :
+
+`projection → preuves observées → hypothèses → conditions → confiance`
+
+J’IA ne doit pas utiliser de caractéristiques sensibles ou de proxys sensibles pour prendre ou recommander une décision de recrutement.
+
+## Feedback recruteur après non-recrutement
+
+Lorsqu'un Talent n'est pas retenu, Jobly peut demander au recruteur un **feedback professionnel** et une **évaluation de 1 à 5 étoiles** afin qu'une interaction professionnelle réelle puisse produire une valeur de carrière même sans embauche.
+
+### Conditions d'accès
+
+Le feedback + étoiles sont réservés aux recruteurs **Premium et Pro**, et uniquement lorsqu'une **interaction réelle et vérifiée** avec le candidat est enregistrée.
+
+Exemples d'interactions vérifiables :
+- candidature reçue et examinée ;
+- CV ouvert ;
+- entretien réalisé dans Jobly ;
+- candidature clôturée ;
+- autre interaction de recrutement effectivement journalisée.
+
+Un abonnement Premium/Pro ne suffit donc pas à lui seul.
+
+### Anti-abus
+
+Le système doit limiter :
+- comptes créés uniquement pour noter ;
+- notation sans interaction réelle ;
+- volumes anormaux ;
+- répétitions ou schémas coordonnés ;
+- comportements susceptibles de fausser artificiellement la réputation.
+
+Les évaluations suspectes peuvent être placées en vérification avant publication.
+
+### Présentation au Talent
+
+La réputation ne doit pas devenir une valeur humaine globale ni un classement arbitraire. La présentation cible est contextualisée, par exemple :
+- **Crédibilité professionnelle : 4,6/5** ;
+- nombre d'évaluations vérifiées ;
+- nombre de recruteurs ayant évalué ;
+- forces récurrentes ;
+- axes d'amélioration récurrents.
+
+Le Talent doit pouvoir consulter les retours, en tirer des enseignements et contester un feedback manifestement faux ou abusif.
+
+Les feedbacks vérifiés peuvent enrichir le **Career Twin**. J’IA peut ensuite identifier des tendances sans transformer une évaluation individuelle en vérité absolue.
+
+## État
+
+**🟦 SPÉCIFIÉ / DÉCISION FIGÉE**
+
+Cette architecture n'est pas déclarée CODÉE, TESTÉE, VALIDÉE ou DÉPLOYÉE tant que l'implémentation, les permissions, l'anti-abus, les tests E2E et la production n'ont pas été vérifiés selon la règle **CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**.
