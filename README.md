@@ -1936,3 +1936,238 @@ Un audit dédié des sources d'offres a été réalisé et documenté dans `AUDI
 Nouvelle piste prioritaire : **MinaJobs dispose d'un RSS public et indique explicitement que son contenu peut être intégré avec lien retour vers la source**. Techmap documente également une couverture spécifique du Cameroun et une API/flux structurés. JobsPipe propose une API normalisée filtrable par pays, mais la couverture CM doit être mesurée avec un accès réel.
 
 Règle : ne pas ajouter de scraping non autorisé. L'architecture cible est multi-source → normalisation → déduplication → enrichissement entreprise → matching Jobly/J'IA. Aucun déploiement Vercel n'est déclenché automatiquement.
+
+---
+
+# DÉCISION PRODUIT — PARCOURS CANDIDATURE WHATSAPP → TALENT → RECRUITER
+## 26/09/2026 — Parcours et onboarding Recruiter figés
+
+Cette section constitue la référence produit pour le parcours de candidature via WhatsApp et la conversion d'un recruteur externe en utilisateur Recruiter Jobly.
+
+### 1. Parcours côté Talent — candidature
+
+**Principe fondamental : WhatsApp est un canal de candidature intégré à Jobly, pas un remplacement de Jobly.**
+
+- Toute offre visible dans Jobly nécessite un compte Jobly.
+- Le Talent possède déjà son compte Jobly avant de candidater.
+- Si une offre ne propose pas de formulaire/email mais fournit un numéro WhatsApp, le Talent peut cliquer sur **Postuler via WhatsApp**.
+- Le lien WhatsApp doit conserver le contexte sécurisé de l'offre et de la candidature.
+- La candidature doit être enregistrée dans Jobly comme une vraie **Application**, liée au Talent et au Job, avec sa provenance **WhatsApp**.
+- Le Talent ne recrée jamais son profil pour cette candidature.
+- Le recruteur reçoit le contexte de candidature via WhatsApp, mais Jobly conserve la candidature et son historique dans son propre système.
+
+Flux de référence :
+
+```
+Talent Jobly
+  ↓
+Offre Jobly
+  ↓
+Postuler via WhatsApp
+  ↓
+WhatsApp
+  ↓
+Application Jobly créée / enregistrée
+  ↓
+Lien CV sécurisé transmis au recruteur
+```
+
+### 2. Étape B — recruteur non inscrit
+
+Le recruteur qui n'a pas encore de compte Jobly arrive sur le CV du Talent qui vient de postuler.
+
+**À cette étape, il ne voit PAS l'analyse J’IA du candidat qui a postulé.**
+
+Il voit :
+
+- le CV du candidat ayant postulé ;
+- la possibilité de consulter/télécharger ce CV en fermant la boîte de dialogue ;
+- l'existence d'autres Talents Jobly correspondant à l'offre.
+
+En cliquant **Voir**, il découvre **uniquement les autres candidats qui matchent l'offre et qui n'ont pas postulé**.
+
+Pour ces autres profils, Jobly peut afficher :
+
+- profil public autorisé ;
+- score de matching ;
+- explication du matching ;
+- forces ;
+- points à développer / écarts ;
+- projection J’IA ;
+- informations publiques autorisées.
+
+Le candidat qui a effectivement postulé n'est donc pas mélangé à cette découverte : son CV reste le contenu principal de la page.
+
+### 3. Bouton « Fermer »
+
+Le bouton **Fermer** ferme uniquement l'interface de découverte/interstitiel.
+
+Le recruteur revient au CV du candidat ayant postulé et peut :
+
+- lire le CV ;
+- le télécharger.
+
+Aucune création de compte n'est imposée pour simplement consulter le CV transmis dans ce parcours.
+
+### 4. Coordonnées des autres profils
+
+Lorsqu'un recruteur non inscrit clique sur **Voir les coordonnées** d'un autre Talent correspondant :
+
+```
+Voir les coordonnées
+        ↓
+Interface Jobly
+        ↓
+Créer un compte / Se connecter
+```
+
+C'est **à ce moment précis** que Jobly demande la création du compte.
+
+Le parcours ne doit pas transformer WhatsApp en produit payant : la valeur payante concerne l'accès recruteur, l'intelligence de recrutement et les coordonnées/actions protégées, pas l'envoi de la candidature WhatsApp.
+
+### 5. Code d'accès à usage unique — preuve de provenance de l'offre
+
+Lorsqu'il choisit de créer/se connecter depuis ce parcours, Jobly affiche une interface avec un **code numérique unique à 6 chiffres** (exemple : `042361`) et une petite icône de copie.
+
+Texte de référence :
+
+> **VOTRE CODE D'ACCÈS**
+>
+> `042361`  📋
+>
+> *Ceci est votre code d'accès, copiez-le.*
+>
+> **Inscrivez-vous et choisissez « Recruteur ».**
+
+**L'affichage de cette interface déclenche le téléchargement/lancement du parcours d'installation Jobly.**
+
+Le code :
+
+- est généré côté serveur ;
+- est lié au contexte sécurisé de l'offre et de la candidature à l'origine du parcours ;
+- est temporaire ;
+- est à usage unique ;
+- ne doit pas être considéré comme une preuve juridique de propriété de l'entreprise ;
+- sert de preuve technique que le compte Recruiter revendique l'offre depuis son parcours de provenance Jobly.
+
+Le code ne doit pas être placé en clair dans l'URL. Le serveur doit conserver une représentation sécurisée du secret et invalider le code après utilisation.
+
+### 6. Installation et inscription Recruiter
+
+Après le téléchargement :
+
+1. le recruteur installe Jobly ;
+2. il crée son compte ;
+3. il choisit **Recruiter** ;
+4. Jobly détecte le contexte de provenance conservé par le parcours ;
+5. Jobly affiche une interface demandant le **code d'accès à 6 chiffres** ;
+6. le recruteur saisit le code ;
+7. Jobly vérifie que le code est valide, non expiré et non utilisé ;
+8. si la vérification réussit, l'offre est automatiquement rattachée à son espace Recruiter.
+
+Le recruteur ne doit **jamais recréer l'offre**.
+
+### 7. Retour immédiat vers le CV
+
+Après validation du code et connexion, Jobly doit préserver le contexte initial.
+
+Le recruteur revient directement au **CV du Talent qui avait postulé**.
+
+Il ne doit pas arriver sur un dashboard vide ni devoir rechercher l'offre manuellement.
+
+### 8. Espace Recruiter après vérification
+
+L'offre à l'origine du parcours apparaît automatiquement dans Recruiter.
+
+Le recruteur retrouve immédiatement :
+
+- l'offre concernée ;
+- la candidature du Talent qui avait postulé via WhatsApp ;
+- le CV et les documents disponibles ;
+- les futures candidatures reçues pour cette offre ;
+- les autres candidatures déjà enregistrées dans Jobly ;
+- les fonctions de matching et d'analyse autorisées.
+
+À partir du compte Recruiter, il peut consulter l'analyse du candidat ayant postulé, ce qui était volontairement masqué avant création du compte.
+
+### 9. Coordonnées et abonnement
+
+Après création du compte, le recruteur peut consulter les autres candidatures et profils selon ses droits.
+
+Les coordonnées des profils protégés restent soumises aux **entitlements/abonnement** prévus par Jobly.
+
+Décision actuelle :
+
+- les profils et le matching peuvent démontrer la valeur du produit ;
+- l'accès aux coordonnées protégées est une fonctionnalité recruteur soumise aux droits ;
+- les **meilleurs profils non-applicants** peuvent être soumis au niveau d'abonnement Premium/Pro défini par le catalogue Jobly ;
+- l'upsell doit rester contextuel et discret.
+
+### 10. Analyse J’IA — règle de séparation
+
+J’IA ne doit pas décider si un recruteur doit embaucher.
+
+Elle doit distinguer :
+
+**Matching**
+- à quel point le profil correspond à l'offre ;
+- pourquoi ;
+- forces ;
+- gaps/points à développer.
+
+**Projection**
+- trajectoires professionnelles possibles ;
+- évolution potentielle à 3–6, 6–12, 12–18 mois lorsque les données permettent une projection ;
+- conditions/actions susceptibles de favoriser cette trajectoire ;
+- hypothèses et niveau de confiance.
+
+Le même socle d'intelligence sert Talent et Recruiter, avec des données et actions adaptées aux permissions de chacun.
+
+### 11. Identification du recruteur — limite du code
+
+Le code d'accès permet à Jobly de rattacher techniquement le nouveau compte au **contexte de l'offre**.
+
+Il ne doit pas être présenté comme une preuve légale que la personne est propriétaire de l'entreprise.
+
+Le modèle doit donc distinguer :
+
+- **Identité du compte vérifiée** ;
+- **Contexte d'offre revendiqué via code** ;
+- **Entreprise vérifiée**, si une vérification complémentaire existe ;
+- **Autorisation sur l'offre** ;
+- **Propriétaire/administrateur de l'offre**, lorsque ce statut est réellement établi.
+
+Le code sert donc à établir la continuité sécurisée du parcours et l'autorisation de récupération de l'offre, sans inventer une preuve juridique d'identité employeur.
+
+### 12. Sécurité du claim
+
+Le mécanisme cible doit empêcher :
+
+- la réutilisation d'un code ;
+- l'utilisation d'un code expiré ;
+- la modification du contexte dans l'URL ;
+- la revendication arbitraire d'une autre offre ;
+- l'accès à des coordonnées ou documents non autorisés.
+
+Objet logique cible :
+
+```
+AccessClaim
+- id
+- codeHash
+- jobId
+- applicationId
+- sourceTokenId
+- expiresAt
+- usedAt
+- usedByUserId
+- status
+```
+
+Le nom exact du modèle peut évoluer avec le schéma existant, mais les garanties fonctionnelles sont figées.
+
+### État de la décision
+
+**🟦 DÉCISION PRODUIT FIGÉE → SPÉCIFIÉE → IMPLÉMENTATION À RÉALISER → TESTS À EFFECTUER**
+
+Cette section documente le comportement cible. Elle ne signifie pas que tout le parcours est déjà codé, testé, validé ou déployé.
