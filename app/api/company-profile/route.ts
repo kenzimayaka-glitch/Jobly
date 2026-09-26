@@ -14,6 +14,7 @@ type CompanyProfile = {
   rating: number | null;
   reviewCount: number | null;
   description: string | null;
+  summary: string | null;
   news: Array<{ title: string; link: string; publishedAt: string | null }>;
   source: string[];
   logoUrl: string | null;
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
   const result: CompanyProfile = {
     name, address: null, location: null, phone: null, website: website || null,
     mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([name, location].filter(Boolean).join(", "))}`, activity: [], status: null, rating: null, reviewCount: null,
-    description: null, news: [], source: [], logoUrl: null,
+    description: null, summary: null, news: [], source: [], logoUrl: null,
   };
 
   const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
@@ -88,6 +89,15 @@ export async function GET(request: NextRequest) {
       }
     } catch {}
   }
+
+  const summaryParts: string[] = [];
+  if (result.description) summaryParts.push(result.description);
+  if (result.activity.length) summaryParts.push(`Activité identifiée : ${result.activity.join(", ")}.`);
+  if (result.address) summaryParts.push(`Localisation : ${result.address}.`);
+  if (result.phone) summaryParts.push(`Contact : ${result.phone}.`);
+  if (result.status) summaryParts.push(`Statut : ${result.status.replace(/_/g, " ").toLowerCase()}.`);
+  if (result.rating != null) summaryParts.push(`Évaluation Google : ${result.rating}/5${result.reviewCount != null ? ` sur ${result.reviewCount} avis` : ""}.`);
+  result.summary = summaryParts.length ? summaryParts.join(" ") : null;
 
   // Jobly ne présente pas des résultats de recherche comme s'ils constituaient le profil de l'entreprise.
   // Les informations affichées sont uniquement celles qui peuvent être rattachées directement à l'entreprise.
