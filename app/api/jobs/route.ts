@@ -14,7 +14,7 @@ function companyDomain(website:string|null|undefined):string|null { if(!website)
 type RecruiterJobRow = { id:string; title:string; companyName:string; description:string; location:string|null; contract:string|null; remoteMode:string|null; minExperienceYears:number|null; status:string; createdAt:string; sourceType:string; sourceUrl:string|null; sourcePlatform:string|null; applicationReady:boolean; applicationProfile:Record<string,unknown>; visualUrl:string|null; visualSource:string|null; applicationCheckedAt:string|null; sector?:string|null; tags?:string[] };
 type MatchableJob = { title:string; description?:string|null; location:string|null; contractType:string|null; remoteMode:string|null; minExperienceYears:number|null; sector?:string|null; tags?:string[]; language?:string|null };
 
-function computeYearsExperience(experiences:Experience[]):number { if(!experiences.length)return 0; const earliest=experiences.map(e=>new Date(e.startDate).getTime()).filter(t=>!Number.isNaN(t)).sort((a,b)=>a-b)[0]; if(earliest===undefined)return 0; return Math.max(0,Math.floor((Date.now()-earliest)/(1000*60*60*24*365))); }
+function computeYearsExperience(experiences:Experience[]):number|null { if(!experiences.length)return null; const earliest=experiences.map(e=>new Date(e.startDate).getTime()).filter(t=>!Number.isNaN(t)).sort((a,b)=>a-b)[0]; if(earliest===undefined)return null; return Math.max(0,Math.floor((Date.now()-earliest)/(1000*60*60*24*365))); }
 function normalize(value:string|null|undefined):string { return (value||"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
 function expirationFor(_publishedAt:string|null|undefined, deadline:string|null|undefined, _createdAt:string):Date|null { if(!deadline)return null; const d=new Date(deadline); return Number.isFinite(d.getTime())?d:null; }
 type MatchCriterion = { id:string; label:string; score:number|null; weight:number; required:boolean; status:"MATCH"|"PARTIAL"|"MISMATCH"|"UNKNOWN"; candidateValue?:string|null; expectedValue?:string|null };
@@ -23,8 +23,17 @@ function detectExp(text:string,min:number|null){if(min!=null&&min>0)return min;c
 function detectEdu(text:string){const n=normalize(text);if(/bac\s*\+\s*5|bac5|master|mba|ingenieur|doctorat|phd/.test(n))return 5;if(/bac\s*\+\s*4|bac4|maitrise/.test(n))return 4;if(/bac\s*\+\s*3|bac3|licence|bachelor/.test(n))return 3;if(/bac\s*\+\s*2|bac2|bts|dut|deug/.test(n))return 2;if(/baccalaureat|high school/.test(n))return 0;return null;}
 function eduLevel(value:string|null|undefined){const n=normalize(value);if(!n)return null;if(/doctorat|phd/.test(n))return 6;if(/master|mba|ingenieur|engineering/.test(n))return 5;if(/maitrise/.test(n))return 4;if(/licence|bachelor/.test(n))return 3;if(/bts|dut|deug|bac\s*\+\s*2/.test(n))return 2;if(/bac|baccalaureat|high school/.test(n))return 0;return null;}
 function languageReq(text:string){const n=normalize(text);const out:string[]=[];if(/anglais|english/.test(n))out.push("anglais");if(/francais|french/.test(n))out.push("francais");return Array.from(new Set(out));}
+const COMMON_SKILLS=["excel","power bi","tableau","sql","python","java","javascript","typescript","react","next.js","node.js","php","laravel","sap","salesforce","hubspot","crm","erp","kobo collect","powerpoint","word","google analytics","marketing digital","communication","negociation","gestion de projet","project management","analyse de donnees","data analysis","business development","vente","sales","prospection","relation client","customer service","recrutement","rh","ressources humaines","comptabilite","finance","audit","gestion de portefeuille","lead generation","social media","seo","sem","canva"];
+function extractRequiredSkills(text:string,tags:string[],candidateSkills:string[]){
+  const n=normalize(text);
+  const tagged=tags.map(normalize).filter(x=>x.length>2);
+  const lexicon=COMMON_SKILLS.filter(skill=>n.includes(normalize(skill)));
+  const explicit=/(competences? requises?|competences? cles|profil recherche|requis|exige|obligatoire|required|must|mandatory|maitrise|proficiency)/.test(n);
+  const mentionedCandidate=explicit?candidateSkills.map(normalize).filter(skill=>skill.length>2&&n.includes(skill)):[];
+  return Array.from(new Set([...tagged,...lexicon,...mentionedCandidate])).filter(Boolean);
+}
 function languageScore(text:string,lang:string){const n=normalize(text);if(lang==="anglais"&&!/anglais|english/.test(n))return null;if(lang==="francais"&&!/francais|french/.test(n))return null;return /bilingue|fluent|courant|advanced|professionnel|professional|maitrise/.test(n)?1:.7;}
-function adaptiveMatch(profile:Profile,years:number,experiences:Experience[],skills:Skill[],education:Education[],job:MatchableJob){
+function adaptiveMatch(profile:Profile,years:number|null,experiences:Experience[],skills:Skill[],education:Education[],job:MatchableJob){
   const offer=[job.title,job.description,job.location,job.contractType,job.remoteMode,job.sector,...(job.tags||[])].filter(Boolean).join(" ");
   const offerN=normalize(offer);
   const candidate=[profile.headline,profile.summary,profile.location,...(profile.targetRoles||[]),...(profile.preferredSectors||[]),...experiences.map(x=>(x.title||"")+" "+(x.description||"")),...skills.map(x=>(x.name||"")+" "+(x.level||"")),...education.map(x=>(x.degree||"")+" "+(x.field||""))].filter(Boolean).join(" ");
@@ -48,13 +57,11 @@ function adaptiveMatch(profile:Profile,years:number,experiences:Experience[],ski
   }];
 
   const candidateSkillNames=skills.map(x=>normalize(x.name)).filter(Boolean);
-  const taggedSkills=Array.from(new Set((job.tags||[]).map(normalize).filter(x=>x.length>2)));
-  const mentionedCandidateSkills=candidateSkillNames.filter(skill=>skill.length>2&&offerN.includes(skill));
-  const requiredSkills=Array.from(new Set([...taggedSkills,...mentionedCandidateSkills]));
+  const requiredSkills=extractRequiredSkills(offer,job.tags||[],candidateSkillNames);
   if(requiredSkills.length){
     const hit=requiredSkills.filter(req=>candidateSkillNames.some(skill=>skill===req||skill.includes(req)||req.includes(skill))).length;
     const score=hit/requiredSkills.length;
-    const required=taggedSkills.length>0||/(requis|exige|obligatoire|required|must|mandatory|maitrise|proficiency)/.test(offerN);
+    const required=requiredSkills.length>0;
     criteria.push({
       id:"skills",label:"Compétences",score,weight:30,required,
       status:score>=.85?"MATCH":score>0?"PARTIAL":"MISMATCH",
@@ -64,10 +71,15 @@ function adaptiveMatch(profile:Profile,years:number,experiences:Experience[],ski
   }
 
   const exp=detectExp(offer,job.minExperienceYears);
-  if(exp!=null) criteria.push({
-    id:"experience",label:"Expérience",score:years>=exp?1:Math.max(0,years/Math.max(exp,1)),weight:20,required:true,
-    status:years>=exp?"MATCH":years>0?"PARTIAL":"MISMATCH",candidateValue:String(years)+" ans",expectedValue:String(exp)+" ans min."
-  });
+  if(exp!=null) {
+    const score=years==null?null:years>=exp?1:Math.max(0,years/Math.max(exp,1));
+    criteria.push({
+      id:"experience",label:"Expérience",score,weight:20,required:true,
+      status:score==null?"UNKNOWN":years!>=exp?"MATCH":years!>0?"PARTIAL":"MISMATCH",
+      candidateValue:years==null?"Non renseigné":String(years)+" ans",
+      expectedValue:String(exp)+" ans min."
+    });
+  }
 
   const ed=detectEdu(offer);
   if(ed!=null){
@@ -158,7 +170,7 @@ export async function GET(request:NextRequest){
   type Unified={source:"discovery"|"recruiter";sourceId:string;title:string;description:string;location:string|null;contractType:string|null;remoteMode:string|null;minExperienceYears:number|null;companyName:string|null;companyId:string|null;createdAt:string;publishedAt:string|null;deadline:string|null;sourceUrl:string|null;sourcePlatform:string|null;applicationProfile:Record<string,unknown>;visualUrl:string|null;visualSource:string|null;applicationCheckedAt:string|null;sector:string|null;tags:string[];language?:string|null};
   const discovery=((jobsRes.data as Job[])||[]);
   const recruiter=((recruiterJobsRes.data as RecruiterJobRow[])||[]);
-  let unified:Unified[]=[...discovery.map(j=>({source:"discovery" as const,sourceId:j.id,title:j.title,description:j.description,location:j.location,contractType:j.contractType,remoteMode:j.remoteMode,minExperienceYears:j.minExperienceYears,companyName:null,companyId:j.companyId,createdAt:j.createdAt,publishedAt:j.sourcePublishedAt,deadline:j.deadline,sourceUrl:j.sourceUrl,sourcePlatform:j.source||null,applicationProfile:j.applicationProfile,visualUrl:j.visualUrl,visualSource:j.visualSource,applicationCheckedAt:j.applicationCheckedAt,sector:j.aiSector||null,tags:[...(Array.isArray(j.aiSkills)?j.aiSkills as string[]:[]),...(Array.isArray((j as any).tags)?(j as any).tags as string[]:[])],language:j.language||null})),...recruiter.map(j=>({source:"recruiter" as const,sourceId:j.id,title:j.title,description:j.description,location:j.location,contractType:j.contract,remoteMode:j.remoteMode,minExperienceYears:j.minExperienceYears,companyName:j.companyName,companyId:null,createdAt:j.createdAt,publishedAt:j.createdAt,deadline:null,sourceUrl:j.sourceUrl,sourcePlatform:j.sourcePlatform||"JOBLY",applicationProfile:j.applicationProfile,visualUrl:j.visualUrl,visualSource:j.visualSource,applicationCheckedAt:j.applicationCheckedAt,sector:j.sector||null,tags:j.tags||[],language:null}))];
+  let unified:Unified[]=[...discovery.map(j=>({source:"discovery" as const,sourceId:j.id,title:j.title,description:j.description,location:j.location,contractType:j.contractType,remoteMode:j.remoteMode,minExperienceYears:j.minExperienceYears,companyName:null,companyId:j.companyId,createdAt:j.createdAt,publishedAt:j.sourcePublishedAt,deadline:j.deadline,sourceUrl:j.sourceUrl,sourcePlatform:j.source||null,applicationProfile:j.applicationProfile,visualUrl:j.visualUrl,visualSource:j.visualSource,applicationCheckedAt:j.applicationCheckedAt,sector:j.aiSector||null,tags:[...(Array.isArray(j.aiSkills)?(j.aiSkills as unknown[]).filter((x):x is string=>typeof x==="string"):[]),...(Array.isArray((j as any).tags)?((j as any).tags as unknown[]).filter((x):x is string=>typeof x==="string"):[])],language:j.language||null})),...recruiter.map(j=>({source:"recruiter" as const,sourceId:j.id,title:j.title,description:j.description,location:j.location,contractType:j.contract,remoteMode:j.remoteMode,minExperienceYears:j.minExperienceYears,companyName:j.companyName,companyId:null,createdAt:j.createdAt,publishedAt:j.createdAt,deadline:null,sourceUrl:j.sourceUrl,sourcePlatform:j.sourcePlatform||"JOBLY",applicationProfile:j.applicationProfile,visualUrl:j.visualUrl,visualSource:j.visualSource,applicationCheckedAt:j.applicationCheckedAt,sector:j.sector||null,tags:j.tags||[],language:null}))];
   if(filterContract)unified=unified.filter(j=>normalize(j.contractType)===normalize(filterContract));if(filterCity)unified=unified.filter(j=>normalize(j.location).includes(normalize(filterCity)));if(filterRemote)unified=unified.filter(j=>normalize(j.remoteMode)===normalize(filterRemote));if(search){const n=normalize(search);unified=unified.filter(j=>normalize(j.title).includes(n)||normalize(j.companyName).includes(n));}
   const companyIds=Array.from(new Set(unified.map(j=>j.companyId).filter(Boolean))) as string[];const companiesRes=companyIds.length?await supabase.from("Company").select("id,name,logoUrl,description,website,verified").in("id",companyIds):{data:[] as Company[],error:null};if(companiesRes.error)throw new Error(companiesRes.error.message);const companiesById=new Map((companiesRes.data as Company[]).map(c=>[c.id,c]));
   const ranked=unified.map(job=>{const {matchPercent,confidence,breakdown}=adaptiveMatch(profile,yearsExperience,experiences,skills,education,job);const company=job.companyId?companiesById.get(job.companyId):undefined;const publishedAt=job.publishedAt||job.createdAt;const expirationAt=expirationFor(job.publishedAt,job.deadline,job.createdAt);return{source:job.source,id:job.sourceId,title:job.title,description:job.description,location:job.location,contractType:job.contractType,remoteMode:job.remoteMode,minExperienceYears:job.minExperienceYears,createdAt:job.createdAt,publishedAt,expirationAt:expirationAt?expirationAt.toISOString():null,deadline:job.deadline,sourceUrl:job.sourceUrl,sourcePlatform:job.sourcePlatform,applicationReady:job.source==="recruiter"?true:false,applicationProfile:job.applicationProfile,applicationCheckedAt:job.applicationCheckedAt,visualUrl:job.visualUrl||company?.logoUrl||null,visualSource:job.visualSource||(company?.logoUrl?"COMPANY_LOGO":null),company:company?{id:company.id,name:company.name,logoUrl:company.logoUrl,description:company.description,website:company.website,domain:companyDomain(company.website),verified:company.verified}:job.companyName?{id:null,name:job.companyName,logoUrl:null,description:null,website:null,domain:null,verified:false}:null,matchPercent,matchConfidence:confidence,matchBreakdown:breakdown,feedScore:matchPercent};}).sort((a,b)=>b.feedScore-a.feedScore||new Date(b.publishedAt).getTime()-new Date(a.publishedAt).getTime());
