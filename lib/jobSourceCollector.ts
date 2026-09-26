@@ -24,17 +24,20 @@ export type CollectedOffer = {
   publishedAt: string | null;
   applicationProfile: Record<string, unknown>;
   contentHash: string;
+  logoUrl: string | null;
+  companyWebsite: string | null;
 };
 
 const SOURCES: SourceConfig[] = [
   { key: "MINAJOBS", name: "MinaJobs", listingUrls: ["https://cameroun.minajobs.net/URL_LANDING_SEARCHED", "https://minajobs.net/"], hostnames: ["cameroun.minajobs.net", "minajobs.net"], offerPattern: /\/emplois-stage-recrutement\/(\d+)\//i },
   { key: "JOBINFOCAMER", name: "JobInfoCamer", listingUrls: ["https://www.jobinfocamer.com/jobs/", "https://www.jobinfocamer.com/fr/"], hostnames: ["www.jobinfocamer.com", "jobinfocamer.com"], offerPattern: /\/job\/(\d+)\//i },
+  { key: "INFOSCONCOURSEDUCATION", name: "Infos Concours Education", listingUrls: ["https://infosconcourseducation.com/category/offre-demploiss/", "https://infosconcourseducation.com/"], hostnames: ["infosconcourseducation.com", "www.infosconcourseducation.com"], offerPattern: /\/[^/]+\/?$/i },
 ];
 
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
 const FETCH_TIMEOUT_MS = 12_000;
-const MAX_LISTING_PAGES = 4;
-const MAX_OFFERS_PER_SOURCE = 40;
+const MAX_LISTING_PAGES = 3;
+const MAX_OFFERS_PER_SOURCE = 20;
 const MAX_DESCRIPTION_CHARS = 30_000;
 
 function normalizeSpace(value: string): string {
@@ -71,6 +74,11 @@ function titleFromHtml(html: string): string | null {
   return title ? normalizeSpace(decodeEntities(title)).replace(/\s*[-|]\s*(MinaJobs|JobInfoCamer).*$/i,"").trim() : null;
 }
 
+function isRelevantInfosConcoursLink(url: URL, title: string): boolean {
+  return /infosconcourseducation\\.com$/i.test(url.hostname) &&
+    /(?:offre|emploi|recrut|stage|commercial|assistant|manager|technicien|agent|chauffeur|vendeur|promotrice|promoteur)/i.test(url.pathname + " " + title);
+}
+
 function extractLinks(html: string, baseUrl: string, source: SourceConfig): CandidateLink[] {
   const out: CandidateLink[] = [];
   const re = /<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
@@ -78,8 +86,11 @@ function extractLinks(html: string, baseUrl: string, source: SourceConfig): Cand
   while ((match = re.exec(html))) {
     try {
       const url = new URL(decodeEntities(match[1]),baseUrl).toString(), parsed = new URL(url);
-      if (!source.hostnames.includes(parsed.hostname.toLowerCase()) || !source.offerPattern.test(parsed.pathname)) continue;
+      if (!source.hostnames.includes(parsed.hostname.toLowerCase())) continue;
       const title = normalizeSpace(htmlToCleanText(match[2]));
+      if (source.key === "INFOSCONCOURSEDUCATION") {
+        if (!isRelevantInfosConcoursLink(parsed, title)) continue;
+      } else if (!source.offerPattern.test(parsed.pathname)) continue;
       if (title.length >= 4) out.push({url,title});
     } catch {}
   }
@@ -127,6 +138,33 @@ function parseDate(value: string | null): string | null {
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 
+function extractCompanyWebsite(html: string, pageUrl: string): string | null {
+  const links = Array.from(html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi));
+  const scored: { url: string; score: number }[] = [];
+  for (const match of links) {
+    const label = normalizeSpace(htmlToCleanText(match[2]));
+    if (!/(site officiel|website|site web|official website|entreprise|company)/i.test(label)) continue;
+    try {
+      const u = new URL(decodeEntities(match[1]), pageUrl);
+      if (/^https?:$/.test(u.protocol) && u.hostname !== new URL(pageUrl).hostname) scored.push({ url: u.toString(), score: /site officiel|website|official/i.test(label) ? 3 : 1 });
+    } catch {}
+  }
+  scored.sort((a,b) => b.score - a.score);
+  return scored[0]?.url || null;
+}
+
+function extractCompanyLogo(html: string, pageUrl: string): string | null {
+  const jsonLogo = html.match(/["']logo["']\s*:\s*["'](https?:\/\/[^"']+)["']/i)?.[1];
+  if (jsonLogo) return decodeEntities(jsonLogo);
+  const itemLogo = html.match(/<[^>]+itemprop=["']logo["'][^>]+(?:src|content)=["']([^"']+)["']/i)?.[1];
+  if (itemLogo) { try { return new URL(decodeEntities(itemLogo), pageUrl).toString(); } catch {} }
+  const icon = html.match(/<link\b[^>]+rel=["'][^"']*(?:icon|apple-touch-icon)[^"']*["'][^>]+href=["']([^"']+)["']/i)?.[1];
+  if (icon) { try { return new URL(decodeEntities(icon), pageUrl).toString(); } catch {} }
+  const og = html.match(/<meta\b[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1];
+  if (og) { try { return new URL(decodeEntities(og), pageUrl).toString(); } catch {} }
+  return null;
+}
+
 function findApplicationUrl(html: string, pageUrl: string, source: SourceConfig): string | null {
   const re = /<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
   let match: RegExpExecArray | null;
@@ -163,6 +201,8 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   const publishedAt = parseDate(firstMatch(clean,[/(?:Date de publication|Posté|Publié(?:e)?)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
   const deadline = parseDate(firstMatch(clean,[/(?:Date expiration|Date limite|Délai|deadline)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
   const contacts = resolveApplicationContact({},clean), applicationUrl = findApplicationUrl(html,url,source);
+  const companyWebsite = extractCompanyWebsite(html,url);
+  const logoUrl = extractCompanyLogo(html,url);
   const applicationProfile: Record<string,unknown> = {
     channel: contacts.email ? "EMAIL" : contacts.phone ? "PHONE" : applicationUrl ? "EXTERNAL" : "UNSUPPORTED",
     comingSoon: !contacts.email && !contacts.phone && !applicationUrl
@@ -171,7 +211,7 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   if (contacts.phone) applicationProfile.applicationPhone = contacts.phone;
   if (applicationUrl) applicationProfile.applicationUrl = applicationUrl;
   applicationProfile.subject = extractApplicationSubject(clean,title);
-  return {sourceKey:source.key,externalId:externalId(url,source),sourceUrl:url,title:title.slice(0,300),company:company?.replace(/^(le|la|l[’']|the)\s+/i,"").trim()||null,location:location||null,contractType:contractType||null,description:clean,deadline,publishedAt,applicationProfile,contentHash:crypto.createHash("sha256").update(normalizeSpace(clean)).digest("hex")};
+  return {sourceKey:source.key,externalId:externalId(url,source),sourceUrl:url,title:title.slice(0,300),company:company?.replace(/^(le|la|l[’']|the)\s+/i,"").trim()||null,location:location||null,contractType:contractType||null,description:clean,deadline,publishedAt,applicationProfile,contentHash:crypto.createHash("sha256").update(normalizeSpace(clean)).digest("hex"),logoUrl,companyWebsite};
 }
 
 async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
