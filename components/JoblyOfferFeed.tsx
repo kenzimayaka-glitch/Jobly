@@ -180,10 +180,9 @@ export function JoblyOfferFeed() {
   }
 
   function editPreparedBulk() {
-    const keys = preparedBulk.map(item => item.key);
-    setBasket(new Set(keys));
-    try { localStorage.setItem("jobly:jia:application-basket", JSON.stringify(keys)); } catch {}
     setPreparedBulk([]);
+    setEditingLetterId(null);
+    setImportingLetterId(null);
   }
 
   async function submitBulkApplications() {
@@ -398,7 +397,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     <AnimatePresence>{preparedBulk.length > 0 && (
       <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-[110] grid place-items-center bg-black/65 p-3 backdrop-blur-sm">
         <motion.div initial={{y:24,opacity:0}} animate={{y:0,opacity:1}} className="max-h-[88dvh] w-full max-w-2xl overflow-y-auto rounded-[30px] bg-white p-5 text-[#17212B] shadow-2xl sm:p-6">
-          <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">J’IA · revue finale</p><h2 className="mt-1 text-2xl font-black">Candidatures prêtes à envoyer</h2><p className="mt-1 text-xs text-slate-500">{preparedBulk.length} candidature{preparedBulk.length>1?"s":""} préparée{preparedBulk.length>1?"s":""}. Vérifiez-les avant l’envoi.</p></div><button onClick={editPreparedBulk} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200"><X size={17}/></button></div>
+          <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">J’IA · revue finale</p><h2 className="mt-1 text-2xl font-black">Candidatures prêtes à envoyer</h2><p className="mt-1 text-xs text-slate-500">{preparedBulk.length} candidature{preparedBulk.length>1?"s":""} préparée{preparedBulk.length>1?"s":""}. Vérifiez-les avant l’envoi.</p></div><button onClick={() => setPreparedBulk([])} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200"><X size={17}/></button></div>
           <div className="mt-5 space-y-3">{preparedBulk.map(item => {
             const isEditing = editingLetterId === item.id;
             const inputId = `letter-upload-${item.id}`;
