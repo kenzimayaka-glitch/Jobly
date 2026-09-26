@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PDFParse } from "pdf-parse";
-import mammoth from "mammoth";
+import JSZip from "jszip";
 import { getAuthUser } from "../../../../lib/server-auth";
 
 const MAX_BYTES = 5 * 1024 * 1024;
