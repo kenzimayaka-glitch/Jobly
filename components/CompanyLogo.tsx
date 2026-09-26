@@ -30,7 +30,7 @@ function initials(name?: string | null) {
 
 function cacheKey(name?: string | null, domain?: string | null, logoUrl?: string | null) {
   const identity = [name?.trim().toLowerCase() || "entreprise", domain?.trim().toLowerCase() || "nodomain", logoUrl?.trim() || "auto"].join(":");
-  return `jobly:company-logo:v4:${encodeURIComponent(identity)}`;
+  return `jobly:company-logo:v5:${encodeURIComponent(identity)}`;
 }
 
 export default function CompanyLogo({
@@ -58,6 +58,11 @@ export default function CompanyLogo({
     }
 
     if (resolvedDomain) {
+      // Same-origin proxy first: avoids browser/CDN/referrer failures that can hide
+      // otherwise valid company favicons in production.
+      urls.push(
+        `/api/company-logo/image?domain=${encodeURIComponent(resolvedDomain)}`,
+      );
       urls.push(
         `https://www.google.com/s2/favicons?domain=${encodeURIComponent(resolvedDomain)}&sz=128`,
       );
