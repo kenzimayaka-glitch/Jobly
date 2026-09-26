@@ -24,6 +24,7 @@ type Job = {
   applicationReady: boolean;
   applicationProfile: { channel?: string; phoneNumbers?: string[]; comingSoon?: boolean };
   visualUrl: string | null;
+  visualSource: string | null;
 };
 
 function formatDate(value: string | null) { if (!value) return "Non indiquée"; return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)); }
@@ -352,7 +353,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,225,53,.28),transparent_38%),radial-gradient(circle_at_80%_80%,rgba(46,63,79,.18),transparent_42%)]"/>
                     {job.visualUrl ? <motion.img src={job.visualUrl} alt="" className="absolute inset-0 h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} animate={{ scale: [1, 1.035, 1] }} transition={{ duration: 8, repeat: Infinity }}/> : null}
                     <div className="relative z-10 grid h-24 w-24 place-items-center rounded-[24px] border border-white/70 bg-white/95 shadow-xl">
-                      <CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={68}/>
+                      <CompanyLogo companyName={job.company?.name} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={68}/>
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-t from-[#2E3F4F]/70 via-transparent to-transparent"/>
                     <span className="absolute left-3 top-3 rounded-full bg-[#FFE135] px-3 py-1 text-[9px] font-black uppercase tracking-[1.4px] text-[#2E3F4F]">Top match</span>
@@ -360,7 +361,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                   </div>
                   <div className="p-3">
                     <div className="mt-1 flex items-center gap-2">
-                      <CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={32}/>
+                      <CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={32}/>
                       <p className="min-w-0 truncate text-[10px] font-bold uppercase tracking-[1.5px] text-[#7A9BB5]">{job.company?.name || "Entreprise"}</p>
                     </div>
                     <h2 className="mt-1 text-2xl font-black leading-none">{job.title}</h2>
@@ -390,7 +391,21 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
 
     {basketJobs.length > 0 && (
       <div className="fixed bottom-20 left-1/2 z-[80] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-[24px] border border-[#FFE135] bg-[#2E3F4F] p-3 text-white shadow-2xl sm:bottom-6">
-        <div className="flex items-center gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]"><ShoppingBag size={18}/></div><div className="min-w-0 flex-1"><p className="text-sm font-black">Panier de candidatures · {basketJobs.length}/{bulkLimit}</p><p className="text-[10px] text-white/65">J’IA préparera chaque candidature séparément avant votre validation.</p></div><button onClick={() => void prepareBulkApplications()} disabled={bulkPreparing} className="rounded-full bg-[#FFE135] px-4 py-2.5 text-xs font-black text-[#2E3F4F]">{bulkPreparing ? "Préparation…" : "Préparer avec J’IA"}</button></div>
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]"><ShoppingBag size={18}/></div>
+          <div className="min-w-0 flex-1"><p className="text-sm font-black">Panier de candidatures · {basketJobs.length}/{bulkLimit}</p><p className="text-[10px] text-white/65">J’IA préparera chaque candidature séparément avant votre validation.</p></div>
+          <button onClick={() => void prepareBulkApplications()} disabled={bulkPreparing} className="rounded-full bg-[#FFE135] px-4 py-2.5 text-xs font-black text-[#2E3F4F]">{bulkPreparing ? "Préparation…" : "Préparer avec J’IA"}</button>
+          <button
+            type="button"
+            aria-label="Fermer et vider le panier de candidatures"
+            title="Annuler et désélectionner les candidatures"
+            onClick={() => {
+              setBasket(new Set());
+              try { localStorage.setItem("jobly:jia:application-basket", "[]"); } catch {}
+            }}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/20 bg-white/10 text-white transition hover:bg-white/20"
+          ><X size={18}/></button>
+        </div>
       </div>
     )}
 
