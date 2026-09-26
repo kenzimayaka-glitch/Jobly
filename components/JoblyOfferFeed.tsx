@@ -361,7 +361,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                   </div>
                   <div className="p-3">
                     <div className="mt-1 flex items-center gap-2">
-                      <CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={32}/>
+                      <CompanyLogo companyName={job.company?.name} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={32}/>
                       <p className="min-w-0 truncate text-[10px] font-bold uppercase tracking-[1.5px] text-[#7A9BB5]">{job.company?.name || "Entreprise"}</p>
                     </div>
                     <h2 className="mt-1 text-2xl font-black leading-none">{job.title}</h2>
