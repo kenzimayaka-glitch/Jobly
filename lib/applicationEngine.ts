@@ -11,7 +11,7 @@ function stringValue(value: unknown): string | null {
 
 function extractApplicationEmail(text: string): string | null {
   const matches = Array.from(new Set(
-    (text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi) || [])
+    (text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [])
       .map(value => value.trim().replace(/[),.;:]+$/, ""))
   ));
   if (!matches.length) return null;
@@ -23,7 +23,7 @@ function extractApplicationEmail(text: string): string | null {
     let score = 0;
     if (/(candidature|candidater|postuler|recrutement|recrute|recruitment|cv|curriculum|envoyer|envoyez|adresse de candidature|modalites de candidature|apply)/i.test(context)) score += 5;
     if (/(email|mail|e-mail)/i.test(context)) score += 1;
-    if (/^(aide|info|contact|support)@/i.test(email)) score -= 2;
+    if (/^(aide|info|contact|support|hello|admin)@/i.test(email)) score -= 3;
     if (score > 0 && (!best || score > best.score)) best = { email, score };
   }
   return best?.email || null;
