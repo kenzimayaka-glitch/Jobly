@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUpRight, Building2, Check, ExternalLink, RefreshCw, Send, Sparkles, X, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowUpRight, Building2, Check, ExternalLink, RefreshCw, Send, Sparkles, X, Search, SlidersHorizontal, ShoppingBag, CheckSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 import { companyAvatar } from "@/lib/avatar";
@@ -36,6 +36,11 @@ export function JoblyOfferFeed() {
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState<Set<string>>(new Set());
   const [selectedCompany, setSelectedCompany] = useState<Job["company"]>(null);
+  const [basket, setBasket] = useState<Set<string>>(new Set());
+  const [bulkLimit, setBulkLimit] = useState(1);
+  const [preparedBulk, setPreparedBulk] = useState<Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string }>>([]);
+  const [bulkPreparing, setBulkPreparing] = useState(false);
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -76,7 +81,9 @@ export function JoblyOfferFeed() {
       ]);
       const jobsBody = await jobsRes.json(); if (!jobsRes.ok) throw new Error(jobsBody.message || "Impossible de charger les offres.");
       setJobs(jobsBody.jobs || []); setFeedMeta({ totalAvailable: jobsBody.totalAvailable || 0, matchingCount: jobsBody.matchingCount || 0 });
-      if (appsRes.ok) { const body = await appsRes.json(); setApplied(new Set((body.applications || []).filter((a: any) => a.status === "SUBMITTED").map((a: any) => `${a.source}:${a.jobId || a.recruiterJobId}`))); }
+      if (appsRes.ok) { const body = await appsRes.json(); setApplied(new Set((body.applications || []).filter((a: any) => ["SUBMITTED","SUBMITTING","USER_REVIEW","PREPARED"].includes(a.status)).map((a: any) => `${a.source}:${a.jobId || a.recruiterJobId}`))); }
+      const bulkInfoRes = await fetch("/api/applications/bulk-check", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ selectedCount: 0 }) });
+      if (bulkInfoRes.ok) { const bulkInfo = await bulkInfoRes.json().catch(() => ({})); setBulkLimit(Number(bulkInfo.bulkApplicationLimit || 1)); }
     } catch (e) { setError(e instanceof Error ? e.message : "Erreur réseau."); }
     finally { setLoading(false); setRefreshing(false); }
   }, [token]);
@@ -85,7 +92,21 @@ export function JoblyOfferFeed() {
 
   useEffect(() => {
     try { setSaved(new Set(JSON.parse(localStorage.getItem("jobly:jia:saved-offers") || "[]"))); } catch {}
+    try { setBasket(new Set(JSON.parse(localStorage.getItem("jobly:jia:application-basket") || "[]"))); } catch {}
   }, []);
+
+  const toggleBasket = useCallback((job: Job) => {
+    const key = `${job.source}:${job.id}`;
+    if (applied.has(key)) return;
+    setBasket(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      try { localStorage.setItem("jobly:jia:application-basket", JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  }, [applied]);
+
+  const basketJobs = useMemo(() => jobs.filter(job => basket.has(`${job.source}:${job.id}`) && !applied.has(`${job.source}:${job.id}`)), [jobs, basket, applied]);
 
   const toggleSaved = useCallback((job: Job) => {
     const key = `${job.source}:${job.id}`;
@@ -134,6 +155,55 @@ export function JoblyOfferFeed() {
     } finally {
       setSubmitting(prev => { const next = new Set(prev); next.delete(key); return next; });
     }
+  }
+
+  async function prepareBulkApplications() {
+    if (!token || basketJobs.length === 0 || bulkPreparing) return;
+    setBulkPreparing(true); setError("");
+    try {
+      const checkRes = await fetch("/api/applications/bulk-check", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ selectedCount: basketJobs.length }) });
+      const checkBody = await checkRes.json().catch(() => ({}));
+      if (!checkRes.ok) throw new Error(checkBody.message || "La postulation groupée n'est pas disponible avec votre formule.");
+      const gmailStatusRes = await fetch("/api/talent/gmail/status", { headers: { Authorization: `Bearer ${token}` } });
+      const gmailStatus = await gmailStatusRes.json().catch(() => ({}));
+      if (gmailStatusRes.ok && !gmailStatus.connected) { window.location.href = "/api/talent/gmail/connect"; return; }
+      const prepared: Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string }> = [];
+      for (const job of basketJobs) {
+        const key = `${job.source}:${job.id}`;
+        const res = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ source: job.source, jobId: job.id }) });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (prepared.length) setPreparedBulk(prepared);
+          throw new Error(body.message || `Impossible de préparer ${job.title}.`);
+        }
+        const id = body.application?.id;
+        if (id) prepared.push({ id, key, job, letter: String(body.prepared?.letter || ""), tailoredCvText: String(body.prepared?.tailoredCvText || "") });
+      }
+      setPreparedBulk(prepared);
+      setBasket(new Set());
+      try { localStorage.setItem("jobly:jia:application-basket", "[]"); } catch {}
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "La préparation groupée a échoué.");
+    } finally { setBulkPreparing(false); }
+  }
+
+  async function submitBulkApplications() {
+    if (!token || preparedBulk.length === 0 || bulkSubmitting) return;
+    setBulkSubmitting(true); setError("");
+    const remaining: typeof preparedBulk = [];
+    for (const item of preparedBulk) {
+      try {
+        const res = await fetch(`/api/applications/${item.id}/submit`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok && res.status !== 202) { remaining.push(item); continue; }
+        if (body.submitted || res.status === 202) setApplied(prev => new Set(prev).add(item.key));
+      } catch { remaining.push(item); }
+    }
+    if (remaining.length) {
+      setPreparedBulk(remaining);
+      setError(`${preparedBulk.length - remaining.length}/${preparedBulk.length} candidatures envoyées. Les autres restent prêtes à être envoyées.`);
+    } else setPreparedBulk([]);
+    setBulkSubmitting(false);
   }
 
   const focusMatch = useMemo(() => {
@@ -304,6 +374,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                       <button onClick={() => job.applicationReady ? apply(job) : router.push(`/jobs/${job.id}?source=${job.source}`)} disabled={done || busy} className="flex h-12 flex-1 items-center justify-center rounded-full bg-[#FFE135] text-sm font-black text-[#2E3F4F] disabled:bg-slate-100 disabled:text-slate-400">
                         {done ? <><Check size={17} className="mr-2"/>Candidature envoyée</> : busy ? <><RefreshCw size={17} className="mr-2 animate-spin"/>Envoi en cours…</> : <><Send size={17} className="mr-2"/>{job.applicationReady ? "Postuler avec J’IA" : phoneComingSoon ? "COMING SOON" : "Voir l’offre"}</>}
                       </button>
+                      <button onClick={() => toggleBasket(job)} aria-label={basket.has(key) ? "Retirer du panier" : "Ajouter au panier"} className={basket.has(key) ? "grid h-12 w-12 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"}>{basket.has(key) ? <CheckSquare size={18}/> : <ShoppingBag size={18}/>}</button>
                       <button onClick={() => setSelectedCompany(job.company)} aria-label="Voir l'entreprise" className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"><Building2 size={18}/></button>
                       <button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} aria-label="Voir l'offre" className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"><ArrowUpRight size={18}/></button>
                     </div>
@@ -315,7 +386,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         </div>
       )}
 
-      <div className="mt-10 grid gap-4 md:grid-cols-2">{rest.map(job => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const busy = submitting.has(key); const phoneComingSoon = job.applicationProfile?.channel === "WHATSAPP_PHONE"; return <motion.article key={key} layout className="rounded-[28px] border border-white/10 bg-white p-4 shadow-[0_12px_40px_rgba(23,33,43,.07)]"><div className="flex gap-4"><div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={56}/></div><div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold uppercase tracking-[1.3px] text-[#7A9BB5]">{job.company?.name || "Entreprise"}</p><h2 className="mt-1 text-lg font-black">{job.title}</h2><p className="mt-1 text-xs text-white/55">{[job.location, job.contractType].filter(Boolean).join(" · ")}</p><p className="mt-2 text-[10px] text-slate-400">Publié {formatDate(job.publishedAt)} · Expire {formatDate(job.expirationAt)}</p></div><strong className="text-2xl font-black text-[#FFE135]">{job.matchPercent}%</strong></div><div className="mt-4 flex gap-2"><button onClick={() => phoneComingSoon ? router.push(`/jobs/${job.id}?source=${job.source}`) : apply(job)} disabled={done || busy} className="flex-1 rounded-full bg-[#FFE135] py-3 text-xs font-black text-[#2E3F4F] disabled:bg-white/15 disabled:text-white">{done ? "Candidature envoyée" : busy ? "Envoi en cours…" : phoneComingSoon ? "COMING SOON" : "Postuler à cette offre"}</button><button onClick={() => setSelectedCompany(job.company)} className="rounded-full border border-white/15 px-4 py-3 text-xs font-bold">Entreprise</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="grid w-11 place-items-center rounded-full border border-white/15"><ArrowUpRight size={16}/></button></div></motion.article>; })}</div>
+      <div className="mt-10 grid gap-3 md:grid-cols-2">{rest.map(job => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const busy = submitting.has(key); const selected = basket.has(key); const phoneComingSoon = job.applicationProfile?.channel === "WHATSAPP_PHONE"; return <motion.article key={key} layout className={selected ? "rounded-[24px] border-2 border-[#FFE135] bg-white p-3 shadow-[0_10px_32px_rgba(23,33,43,.07)]" : "rounded-[24px] border border-white/10 bg-white p-3 shadow-[0_10px_32px_rgba(23,33,43,.07)]"}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={46}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{job.company?.name || "Entreprise"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[job.location, job.contractType].filter(Boolean).join(" · ") || "Localisation / contrat non précisés"}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)}</p></div><strong className="text-xl font-black text-[#B59A00]">{job.matchPercent}%</strong></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} disabled={done} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBag size={16}/>}</button><button onClick={() => phoneComingSoon ? router.push(`/jobs/${job.id}?source=${job.source}`) : apply(job)} disabled={done || busy} className="flex-1 rounded-full bg-[#FFE135] py-2.5 text-xs font-black text-[#2E3F4F] disabled:bg-slate-200 disabled:text-slate-500">{done ? "Candidature envoyée" : busy ? "Préparation…" : phoneComingSoon ? "COMING SOON" : "Postuler"}</button><button onClick={() => setSelectedCompany(job.company)} className="rounded-full border border-slate-200 px-3 py-2.5 text-xs font-bold">Entreprise</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="grid w-10 place-items-center rounded-full border border-slate-200"><ArrowUpRight size={15}/></button></div></motion.article>; })}</div>
     </section>
 
     <AnimatePresence>{selectedCompany && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] grid place-items-end bg-black/60 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => setSelectedCompany(null)}><motion.div initial={{ y: 40, opacity: 0, scale: .97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 40, opacity: 0 }} onClick={e => e.stopPropagation()} className="w-full max-w-lg rounded-[32px] border border-white/15 bg-[#2E3F4F] p-6 shadow-2xl"><div className="flex items-start justify-between"><div className="flex items-center gap-3"><CompanyLogo companyName={selectedCompany.name} logoUrl={selectedCompany.logoUrl} domain={selectedCompany.domain} website={selectedCompany.website} size={56}/><div><p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#7A9BB5]">Entreprise</p><h2 className="text-xl font-black">{selectedCompany.name}</h2></div></div><button onClick={() => setSelectedCompany(null)} className="rounded-full border border-white/10 p-2"><X size={18}/></button></div><p className="mt-6 text-sm leading-6 text-white/75">{selectedCompany.description || "Aucun résumé d'activité fourni dans la source de l'offre."}</p>{selectedCompany.website && <a href={selectedCompany.website.startsWith("http") ? selectedCompany.website : `https://${selectedCompany.website}`} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-3 text-xs font-bold">Voir le site de l'entreprise <ExternalLink size={14}/></a>}</motion.div></motion.div>}</AnimatePresence>
