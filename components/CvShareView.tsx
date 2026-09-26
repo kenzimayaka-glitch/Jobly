@@ -8,12 +8,12 @@ import { useRouter } from "next/navigation";
 type Data = { share:any; user:any; profile:any; experiences:any[]; skills:any[]; education:any[] };
 
 function MiniTalentDemo({ jobTitle }: { jobTitle?: string|null }) {
-  return <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-white/[.06] p-3">
+  return <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-white/[.06] p-3">
     <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-white/45"><span>JOBLY · TALENT INTELLIGENCE</span><span>{jobTitle || "Match Lab"}</span></div>
     <div className="mt-3 grid grid-cols-4 gap-2">
       {[96,93,91,88].map((n,i)=><motion.div key={n} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{delay:i*.15}} className="rounded-xl bg-white/10 p-2 text-center"><motion.div initial={{scale:.7}} animate={{scale:1}} transition={{delay:.15+i*.15}} className="text-sm font-black text-[#FFE135]">{n}%</motion.div><div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10"><motion.div initial={{width:0}} animate={{width:n+"%"}} transition={{delay:.25+i*.15,duration:.6}} className="h-full rounded-full bg-[#FFE135]"/></div></motion.div>)}
     </div>
-    <div className="mt-3 flex flex-wrap gap-2 text-[8px] font-bold text-white/50"><span>Experience</span><span>Skills</span><span>Sector</span><span>Seniority</span></div>
+    <div className="mt-3 flex flex-wrap gap-2 text-[8px] font-bold text-white/50"><span>Experience</span><span>Skills</span><span>Secteur</span><span>Seniorité</span></div>
   </div>;
 }
 
@@ -32,7 +32,7 @@ export function CvShareView({ token }: { token:string }) {
   const downloadUrl="/api/cv-share/"+encodeURIComponent(token)+"/pdf";
 
   return <main className="min-h-[100dvh] bg-[#F5F7FA] pb-10 text-[#0B2447]">
-    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 px-4 py-3 backdrop-blur-xl"><div className="mx-auto flex max-w-5xl items-center justify-between"><div className="font-black tracking-tight"><span className="text-[#174EA6]">JOB</span><span className="text-[#FFE135]">LY</span></div><a href="/download" className="rounded-full border border-slate-200 px-3 py-2 text-[10px] font-black uppercase tracking-wider">Télécharger Jobly</a></div></header>
+    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 px-4 py-3 backdrop-blur-xl"><div className="mx-auto flex max-w-5xl items-center justify-between"><div className="font-black tracking-tight"><span className="text-[#174EA6]">JOB</span><span className="text-[#FFE135]">LY</span></div><a href="/download" className="rounded-full border border-slate-200 px-3 py-2 text-[10px] font-black uppercase tracking-wider">Découvrir Jobly</a></div></header>
 
     <div className="mx-auto max-w-4xl px-4 py-5 sm:py-8">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.22em] text-slate-400">CV professionnel</p><h1 className="mt-1 text-2xl font-black sm:text-3xl">{name}</h1><p className="mt-1 text-sm font-bold text-[#174EA6]">{data.share?.companyName ? "Candidature — "+data.share.companyName : data.share?.jobTitle || data.profile?.headline || "Profil professionnel"}</p></div><a href={downloadUrl} className="inline-flex items-center gap-2 rounded-2xl bg-[#174EA6] px-4 py-3 text-sm font-black text-white shadow-lg"><Download size={16}/> Télécharger le CV</a></div>
@@ -49,11 +49,17 @@ export function CvShareView({ token }: { token:string }) {
       </article>
     </div>
 
-    <AnimatePresence>{showRecruiter&&<motion.div initial={{opacity:0,y:30}} animate={{opacity:1,y:0}} exit={{opacity:0,y:20}} className="fixed inset-x-3 bottom-4 z-50 mx-auto max-w-xl overflow-hidden rounded-[28px] border border-white/10 bg-[#081B36]/95 p-4 text-white shadow-2xl backdrop-blur-xl sm:right-6 sm:left-auto">
-      <button aria-label="Fermer" onClick={()=>setShowRecruiter(false)} className="absolute right-3 top-3 rounded-full p-2 text-white/60 hover:bg-white/10"><X size={18}/></button>
-      <div className="pr-8"><p className="text-[10px] font-black uppercase tracking-[.25em] text-[#FFE135]">JOBLY · TALENT INTELLIGENCE</p><h2 className="mt-2 text-xl font-black">Vous recrutez ?</h2><p className="mt-1 text-sm leading-5 text-white/75">Ce talent vous intéresse ? Découvrez d'autres talents correspondant à cette opportunité.</p></div>
-      <MiniTalentDemo jobTitle={data.share?.jobTitle}/>
-      <button onClick={()=>router.push("/recruiter/discover/"+encodeURIComponent(token))} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#FFE135] px-4 py-3 text-sm font-black text-[#081B36]">Voir les talents <ArrowRight size={16}/></button>
+    <AnimatePresence>{showRecruiter&&<motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-[100] grid place-items-center bg-[#081B36]/80 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="jobly-recruiter-promo">
+      <motion.div initial={{opacity:0,scale:.96,y:16}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:.98,y:10}} transition={{duration:.2}} className="relative w-full max-w-xl overflow-hidden rounded-[30px] border border-white/10 bg-[#081B36] p-5 text-white shadow-2xl sm:p-7">
+        <button aria-label="Fermer l'information Jobly et consulter le CV" onClick={()=>setShowRecruiter(false)} className="absolute right-3 top-3 rounded-full p-2 text-white/60 hover:bg-white/10"><X size={20}/></button>
+        <div className="pr-10"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.25em] text-[#FFE135]"><Sparkles size={14}/> Jobly · Talent Intelligence</div><h2 id="jobly-recruiter-promo" className="mt-3 text-2xl font-black sm:text-3xl">Vous recrutez ce talent ?</h2><p className="mt-2 text-sm leading-6 text-white/75">Avant de consulter le CV, découvrez en quelques secondes comment Jobly peut vous aider à trouver d'autres profils correspondant à votre besoin.</p></div>
+        <MiniTalentDemo jobTitle={data.share?.jobTitle}/>
+        <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
+          <button onClick={()=>router.push("/recruiter/discover/"+encodeURIComponent(token))} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#FFE135] px-4 py-3 text-sm font-black text-[#081B36]">Découvrir les talents sur Jobly <ArrowRight size={16}/></button>
+          <button onClick={()=>setShowRecruiter(false)} className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/80 hover:bg-white/10">Fermer et consulter le CV</button>
+        </div>
+        <p className="mt-3 text-center text-[10px] font-medium text-white/35">Vous pouvez fermer cette présentation et télécharger le CV directement, sans créer de compte.</p>
+      </motion.div>
     </motion.div>}</AnimatePresence>
   </main>;
 }
