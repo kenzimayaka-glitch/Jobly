@@ -33,7 +33,7 @@ type ApplicationsResponse = { counters?: { envoyees: number; vues: number; entre
 
 const QUICK = [
   { href: "/talent/cvs", icon: "cv", title: "Mon CV", subtitle: "Optimisé par J’IA", tone: "violet" },
-  { href: "/jobs", icon: "briefcase", title: "Offres", subtitle: "Les opportunités pour vous", tone: "blue" },
+  { href: "/jobs", icon: "briefcase", title: "Offres", subtitle: "Les offres qui vous correspondent", tone: "blue" },
   { href: "/candidatures", icon: "target", title: "Mes candidatures", subtitle: "Suivez vos progrès", tone: "orange" },
   { href: "/career-os", icon: "sparkle", title: "Ma carrière", subtitle: "Pilotez votre parcours", tone: "green" },
 ];
@@ -114,7 +114,7 @@ export default function DashboardPage() {
   const firstName = data?.user.displayName?.split(" ")[0] || "";
   const topJobs = jobs?.jobs?.slice(0, 3) ?? [];
   const applicationsCount = applications?.counters?.envoyees ?? 0;
-  const visibleJobCount = jobs?.totalActive ?? 0;
+  const visibleJobCount = jobs?.totalActive ?? 0;\n  const availableOffersLabel = `${visibleJobCount} offre${visibleJobCount > 1 ? "s" : ""} disponible${visibleJobCount > 1 ? "s" : ""} aujourd’hui`;
   const carouselRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -139,7 +139,7 @@ export default function DashboardPage() {
   if (loading) return <main className="min-h-[100dvh] grid place-items-center bg-white font-bold text-navy">Chargement…</main>;
 
   return (
-    <main className="talent-shell min-h-[100dvh] w-full overflow-x-hidden bg-[#FFF8E7] pb-28 text-navy">
+    <main className="talent-shell min-h-[100dvh] w-full overflow-x-hidden bg-[#F5F7FB] pb-28 text-[#17212B]">
       <PageHeader
         label=""
         initial={(firstName || "J").charAt(0).toUpperCase()}
@@ -156,18 +156,18 @@ export default function DashboardPage() {
           <section className="mt-5 grid grid-cols-4 gap-2 sm:gap-3">
             {QUICK.map((item) => {
               const tone = item.tone === "violet"
-                ? "bg-[#F1EDFF] text-[#5B35C8]"
+                ? "bg-[#EEF2FF] text-[#22448B]"
                 : item.tone === "orange"
-                  ? "bg-[#FFF0E5] text-[#E56A00]"
+                  ? "bg-[#FFF4E8] text-[#C45A00]"
                   : item.tone === "green"
-                    ? "bg-[#E7FAF2] text-[#12A875]"
-                    : "bg-[#EAF2FF] text-[#0057B8]";
+                    ? "bg-[#EAF8F3] text-[#0B8F6A]"
+                    : "bg-[#EAF2FF] text-[#22448B]";
               return (
-                <button key={item.href} type="button" onClick={() => router.push(item.href)} className="group min-w-0 rounded-[18px] border border-[#E0E7F2] bg-white p-2.5 text-left shadow-[0_8px_22px_rgba(7,27,69,.055)] transition-all hover:-translate-y-0.5 hover:border-[#FFE135] active:scale-[.98] sm:rounded-[22px] sm:p-4">
+                <button key={item.href} type="button" onClick={() => router.push(item.href)} className="group min-w-0 rounded-[18px] border border-[#DCE5F1] bg-white p-2.5 text-left shadow-[0_8px_22px_rgba(7,27,69,.055)] transition-all hover:-translate-y-0.5 hover:border-[#FFE135] active:scale-[.98] sm:rounded-[22px] sm:p-4">
                   <span className={`grid h-10 w-10 place-items-center rounded-2xl ${tone} sm:h-12 sm:w-12`}><QuickIcon id={item.icon}/></span>
                   <strong className="mt-2 block truncate text-[11px] font-black sm:mt-3 sm:text-sm">{item.title}</strong>
-                  <span className="mt-1 hidden min-h-8 text-[10px] leading-4 text-[#5D6C83] sm:block">{item.title === "Offres" ? "+" + visibleJobCount + " offres" : item.title === "Mes candidatures" ? "+" + applicationsCount + " candidatures" : item.title === "Mon CV" ? "Votre CV Jobly" : "Votre parcours professionnel"}</span>
-                  <span className="mt-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#D9E2F0] text-sm font-black text-[#0057B8] sm:mt-3 sm:h-8 sm:w-8 sm:text-lg">→</span>
+                  <span className="mt-1 hidden min-h-8 text-[10px] leading-4 text-[#5D6C83] sm:block">{item.title === "Offres" ? availableOffersLabel : item.title === "Mes candidatures" ? "+" + applicationsCount + " candidatures" : item.title === "Mon CV" ? "Votre CV Jobly" : "Votre parcours professionnel"}</span>
+                  <span className="mt-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#D9E2F0] text-sm font-black text-[#22448B] sm:mt-3 sm:h-8 sm:w-8 sm:text-lg">→</span>
                 </button>
               );
             })}
@@ -175,22 +175,22 @@ export default function DashboardPage() {
 
           <button type="button" onClick={() => router.push("/jobs?focus=match")} className="mt-5 w-full rounded-[26px] border border-[#DCE8F4] bg-gradient-to-r from-[#EFFCF7] via-white to-[#FFFBE4] p-5 text-left shadow-[0_12px_32px_rgba(7,27,69,.07)] transition-all hover:-translate-y-0.5 hover:border-[#FFE135] sm:p-6">
             <div className="flex items-center gap-4 sm:gap-6">
-              <ScoreRing value={jobs?.jobs?.length ? Math.round(jobs.jobs.reduce((sum, job) => sum + job.matchPercent, 0) / jobs.jobs.length) : profileCompletion} size={112} label="Match global" />
+              <ScoreRing value={jobs?.jobs?.length ? Math.round(jobs.jobs.reduce((sum, job) => sum + job.matchPercent, 0) / jobs.jobs.length) : profileCompletion} size={112} label="Compatibilité" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h2 className="text-[17px] font-black sm:text-xl">Votre profil est très recherché !</h2>
-                    <p className="mt-1 text-xs leading-5 text-[#5D6C83] sm:text-sm">Vous correspondez à de nombreuses opportunités du moment. Voici les meilleures offres pour vous.</p>
+                    <h2 className="text-[17px] font-black sm:text-xl">Votre profil ouvre de nouvelles possibilités</h2>
+                    <p className="mt-1 text-xs leading-5 text-[#5D6C83] sm:text-sm">J’IA identifie les offres qui correspondent le mieux à votre profil actuel.</p>
                   </div>
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#F1EDFF] text-[#5B35C8]">✦</span>
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#EEF2FF] text-[#22448B]">✦</span>
                 </div>
-                <span className="mt-3 inline-flex rounded-full bg-[#0057B8] px-5 py-2.5 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,87,184,.22)]">Voir mes meilleures offres&nbsp; →</span>
+                <span className="mt-3 inline-flex rounded-full bg-[#22448B] px-5 py-2.5 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,87,184,.22)]">Voir mes meilleures offres&nbsp; →</span>
               </div>
             </div>
           </button>
 
           <section className="mt-6">
-            <div className="flex items-end justify-between gap-3"><div><h2 className="font-heading text-xl font-black">Opportunités recommandées</h2><p className="mt-1 text-xs text-[#64748B]">{visibleJobCount > 0 ? `${visibleJobCount} offre${visibleJobCount > 1 ? "s" : ""} actuellement disponible${visibleJobCount > 1 ? "s" : ""}.` : "Aucune offre disponible pour le moment."}</p></div><button type="button" onClick={() => router.push("/jobs")} className="shrink-0 text-xs font-black text-[#0057B8]">Voir tout →</button></div>
+            <div className="flex items-end justify-between gap-3"><div><h2 className="font-heading text-xl font-black">Les offres qui vous correspondent</h2><p className="mt-1 text-xs text-[#64748B]">{visibleJobCount > 0 ? availableOffersLabel + "." : "Aucune offre disponible pour le moment."}</p></div><button type="button" onClick={() => router.push("/jobs")} className="shrink-0 text-xs font-black text-[#0057B8]">Voir tout →</button></div>
             {topJobs.length > 0 ? (
               <div ref={carouselRef} className="mt-3 -mx-1 overflow-x-auto overflow-y-hidden pb-2 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <div className="flex w-max gap-3 pr-4">
@@ -198,7 +198,7 @@ export default function DashboardPage() {
                     const remote = remoteLabel(job.remoteMode);
                     const destination = `/jobs/${encodeURIComponent(job.id)}?source=${job.source}`;
                     return (
-                      <button key={`${job.source}:${job.id}:${index}`} type="button" onClick={() => router.push(destination)} className="h-[180px] w-[280px] shrink-0 snap-start rounded-[20px] border border-[#E4EAF2] bg-white p-4 text-left shadow-[0_8px_24px_rgba(7,27,69,.07)] transition-all hover:-translate-y-0.5 hover:border-[#0057B8]">
+                      <button key={`${job.source}:${job.id}:${index}`} type="button" onClick={() => router.push(destination)} className="h-[180px] w-[280px] shrink-0 snap-start rounded-[20px] border border-[#E4EAF2] bg-white p-4 text-left shadow-[0_8px_24px_rgba(7,27,69,.07)] transition-all hover:-translate-y-0.5 hover:border-[#22448B]">
                         <div className="flex items-center gap-2">
                           <CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={50} />                          <span className="min-w-0 truncate text-[11px] font-bold text-[#667085]">{job.company?.name || "Employeur non précisé"}</span>
                         </div>
@@ -219,17 +219,17 @@ export default function DashboardPage() {
             )}
           </section>
 
-          <section className="mt-5 flex items-center gap-4 rounded-[22px] border-2 border-[#C9DDF7] bg-[#EAF2FF] p-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#0057B8] text-2xl">🎓</span><div className="min-w-0 flex-1"><h2 className="text-sm font-black text-[#0B3D91]">Boostez vos compétences</h2><p className="mt-1 text-[11px] leading-4 text-[#52627A]">Transformez vos gaps en objectifs de carrière avec les formations disponibles.</p></div><button type="button" onClick={() => router.push("/ai/learning")} className="rounded-full border-2 border-[#0057B8] bg-white px-4 py-2 text-[10px] font-black text-[#0057B8]">Voir →</button></section>
+          <section className="mt-5 flex items-center gap-4 rounded-[22px] border-2 border-[#D6E3F5] bg-[#EEF2FF] p-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#0057B8] text-2xl">🎓</span><div className="min-w-0 flex-1"><h2 className="text-sm font-black text-[#17346E]">Boostez vos compétences</h2><p className="mt-1 text-[11px] leading-4 text-[#52627A]">Transformez vos gaps en objectifs de carrière avec les formations disponibles.</p></div><button type="button" onClick={() => router.push("/ai/learning")} className="rounded-full border-2 border-[#0057B8] bg-white px-4 py-2 text-[10px] font-black text-[#0057B8]">Voir →</button></section>
 
-          <section className="mt-5 mb-4 rounded-[26px] border-2 border-[#E0E7F2] bg-white p-5 shadow-[0_12px_32px_rgba(7,27,69,.07)] sm:p-6">
+          <section className="mt-5 mb-4 rounded-[26px] border border-[#DCE5F1] bg-white p-5 shadow-[0_12px_32px_rgba(7,27,69,.07)] sm:p-6">
             <div className="flex items-center justify-between gap-3"><div><h2 className="font-heading text-lg font-black">Career Intelligence</h2><p className="mt-1 text-xs text-[#5D6C83]">Accédez à toutes les briques Career depuis un seul endroit.</p></div><button type="button" onClick={() => router.push("/career-os")} className="rounded-full bg-[#0057B8] px-4 py-2.5 text-[10px] font-black text-white">Ouvrir →</button></div>
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {[["GPS","/career-gps"],["Gap","/career-gap"],["Radar","/opportunity-radar"],["ID / QR","/jobly-id"]].map(([label,href]) => <button key={href} type="button" onClick={() => router.push(href)} className="rounded-2xl border-2 border-[#E0E7F2] bg-[#F7FAFF] p-3 text-left hover:border-[#0057B8]"><span className="block text-xs font-black text-[#0057B8]">{label}</span><span className="mt-1 block text-[10px] font-semibold text-[#64748B]">Accéder →</span></button>)}
+              {[["GPS","/career-gps"],["Gap","/career-gap"],["Radar","/opportunity-radar"],["ID / QR","/jobly-id"]].map(([label,href]) => <button key={href} type="button" onClick={() => router.push(href)} className="rounded-2xl border border-[#DCE5F1] bg-[#F7FAFF] p-3 text-left hover:border-[#22448B]"><span className="block text-xs font-black text-[#0057B8]">{label}</span><span className="mt-1 block text-[10px] font-semibold text-[#64748B]">Accéder →</span></button>)}
             </div>
           </section>
 
           <section className="mt-5 mb-4 rounded-[26px] border-2 border-[#E0E7F2] bg-white p-5 shadow-[0_12px_32px_rgba(7,27,69,.07)] sm:p-6">
-            <div><h2 className="font-heading text-lg font-black">Explorer</h2><p className="mt-1 text-xs text-[#5D6C83]">D'autres espaces Jobly à découvrir.</p></div>
+            <div><h2 className="font-heading text-lg font-black">Explorer</h2><p className="mt-1 text-xs text-[#5D6C83]">D’autres espaces Jobly à découvrir.</p></div>
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[["Market Intelligence","/market-intelligence"],["Communities","/communities"],["Campus","/campus"],["Events","/events"]].map(([label,href]) => <button key={href} type="button" onClick={() => router.push(href)} className="rounded-2xl border-2 border-[#E0E7F2] bg-[#F7FAFF] p-3 text-left hover:border-[#0057B8]"><span className="block text-xs font-black text-[#0057B8]">{label}</span><span className="mt-1 block text-[10px] font-semibold text-[#64748B]">Accéder →</span></button>)}
             </div>
