@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import pdfParse from "pdf-parse";
+import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 import { getAuthUser } from "../../../../lib/server-auth";
 
@@ -22,8 +22,10 @@ export async function POST(request: NextRequest) {
     let text = "";
 
     if (ext === "pdf" || file.type === "application/pdf") {
-      const parsed = await pdfParse(bytes);
+      const parser = new PDFParse({ data: bytes });
+      const parsed = await parser.getText();
       text = String(parsed.text || "");
+      await parser.destroy();
     } else if (ext === "docx" || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
       const parsed = await mammoth.extractRawText({ buffer: bytes });
       text = String(parsed.value || "");
