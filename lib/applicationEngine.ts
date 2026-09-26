@@ -29,6 +29,63 @@ function extractApplicationEmail(text: string): string | null {
   return best?.email || null;
 }
 
+
+export function extractApplicationPhone(text: string): string | null {
+  const matches = Array.from(new Set(
+    (text.match(/(?:\+?237[\s.-]?(?:\+?237[\s.-]?)?[26]\d{8}|[26]\d{8})/g) || [])
+      .map(value => value.replace(/[^\d+]/g, "").replace(/^\+237\+237/, "+237"))
+  ));
+  if (!matches.length) return null;
+  const lower = text.toLowerCase();
+  let best: { phone: string; score: number } | null = null;
+  for (const phone of matches) {
+    const digits = phone.replace(/[^\d]/g, "").slice(-9);
+    const index = lower.indexOf(digits);
+    const context = lower.slice(Math.max(0, index - 220), Math.min(lower.length, index + phone.length + 220));
+    let score = 0;
+    if (/(candidature|candidater|postuler|recrutement|recrute|whatsapp|téléphone|telephone|tel|appeler|appel|joindre|contacter|envoyer|envoyez|modalites de candidature|apply)/i.test(context)) score += 5;
+    if (/(whatsapp|téléphone|telephone|tel|contact)/i.test(context)) score += 1;
+    if (score > 0 && (!best || score > best.score)) best = { phone, score };
+  }
+  return best?.phone || null;
+}
+
+function cleanApplicationSubject(value: string): string {
+  return value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&(?:nbsp|amp|quot|apos|lt|gt);/gi, match => ({
+      "&nbsp;": " ", "&amp;": "&", "&quot;": '"', "&apos;": "'", "&lt;": "<", "&gt;": ">"
+    }[match.toLowerCase()] || " "))
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^["'“”«»\s]+|["'“”«»\s]+$/g, "")
+    .trim();
+}
+
+export function extractApplicationSubject(text: string, jobTitle: string): string {
+  const pattern = /(?:objet(?: de (?:la )?candidature| du mail| de l['’]email)?|subject|email subject|mail subject|indiquer en objet|mettre en objet|avec pour objet|mentionner en objet)\s*[:：-]\s*["'“”«»]?([^\n\r<]{3,180})/i;
+  const match = text.match(pattern);
+  const subject = match?.[1] ? cleanApplicationSubject(match[1]) : "";
+  return subject || \`Candidature_\${cleanApplicationSubject(jobTitle) || "Offre"}\`;
+}
+
+export function resolveApplicationContact(applicationProfile: Record<string, unknown>, jobDescription: string): { email: string | null; phone: string | null } {
+  const explicitEmail = stringValue(applicationProfile.applicationEmail || applicationProfile.email || applicationProfile.recipientEmail);
+  const phoneValues = [
+    applicationProfile.applicationPhone,
+    applicationProfile.phone,
+    applicationProfile.recipientPhone,
+    applicationProfile.whatsappPhone,
+    applicationProfile.phoneNumber,
+    ...(Array.isArray(applicationProfile.phoneNumbers) ? applicationProfile.phoneNumbers : []),
+  ];
+  const explicitPhone = phoneValues.map(value => stringValue(value)).find(Boolean) || null;
+  return {
+    email: explicitEmail || extractApplicationEmail(jobDescription),
+    phone: explicitPhone || extractApplicationPhone(jobDescription),
+  };
+}
+
 export function resolveApplicationChannel(profile: Record<string, unknown>): { channel: ApplicationChannel; recipient: string | null; link: string | null; adapterKey: string | null; reason: string } {
   const requested = String(profile.channel || profile.applicationChannel || "").toUpperCase();
   const email = stringValue(profile.applicationEmail || profile.email || profile.recipientEmail);
@@ -67,7 +124,12 @@ export async function prepareApplication(req: NextRequest, args: {
   letterOverride?: string | null;
   skipAi?: boolean;
 }) {
-  const applicationProfile = { ...args.applicationProfile };\n  if (!stringValue(applicationProfile.applicationEmail) && !stringValue(applicationProfile.email) && !stringValue(applicationProfile.recipientEmail) && String(applicationProfile.channel || applicationProfile.applicationChannel || "").toUpperCase() === "EMAIL") {\n    const extractedEmail = extractApplicationEmail(args.jobDescription);\n    if (extractedEmail) applicationProfile.applicationEmail = extractedEmail;\n  }\n  const channel = resolveApplicationChannel(applicationProfile);
+  const applicationProfile = { ...args.applicationProfile };
+  const contacts = resolveApplicationContact(applicationProfile, args.jobDescription);
+  if (!stringValue(applicationProfile.applicationEmail) && contacts.email) applicationProfile.applicationEmail = contacts.email;
+  if (!stringValue(applicationProfile.applicationPhone) && contacts.phone) applicationProfile.applicationPhone = contacts.phone;
+  const channel = resolveApplicationChannel(applicationProfile);
+  const subject = extractApplicationSubject(args.jobDescription, args.jobTitle);
   if (channel.channel === "UNSUPPORTED") throw new Error(channel.reason);
   const definition = getChannelDefinition(channel.channel);
   const ai = args.skipAi ? { ok: true as const, output: {}, message: "" } : await runAiGateway(req, "APPLICATION_COPILOT", { jobTitle: args.jobTitle, jobDescription: args.jobDescription });
@@ -85,6 +147,8 @@ export async function prepareApplication(req: NextRequest, args: {
   return {
     channel,
     definition,
+    subject,
+    applicationContact: contacts,
     ai,
     letter: stringValue(args.letterOverride) || buildGroundedLetter(args.profile, args.jobTitle, args.company),
     tailoredCvText,
