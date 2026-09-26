@@ -23,6 +23,7 @@ type CompanyWebProfile = {
   description: string | null;
   news: Array<{ title: string; link: string; publishedAt: string | null }>;
   source: string[];
+  logoUrl?: string | null;
 };
 
 type Job = {
@@ -538,7 +539,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
       <motion.div initial={{ y: 40, opacity: 0, scale: .97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 40, opacity: 0 }} onClick={e => e.stopPropagation()} className="max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-[32px] border border-white/15 bg-[#2E3F4F] p-6 text-white shadow-2xl">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <CompanyLogo companyName={selectedCompany.name} logoUrl={selectedCompany.logoUrl} domain={selectedCompany.domain} website={selectedCompany.website} size={56}/>
+            <CompanyLogo companyName={selectedCompany.name} logoUrl={companyWebProfile?.logoUrl || selectedCompany.logoUrl} domain={selectedCompany.domain} website={companyWebProfile?.website || selectedCompany.website} size={56}/>
             <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#FFE135]">Entreprise</p><h2 className="truncate text-xl font-black">{selectedCompany.name}</h2></div>
           </div>
           <button onClick={() => setSelectedCompany(null)} aria-label="Fermer les informations de l’entreprise" className="rounded-full border border-white/10 p-2"><X size={18}/></button>
