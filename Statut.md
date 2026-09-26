@@ -38,6 +38,11 @@ Le score expose maintenant matchBreakdown[] avec le critère, le poids, l'état,
 - Suppression des libellés Opportunités de cette surface.
 - Logo entreprise : résolution renforcée avec fallback API + favicon.
 - CTA du détail de score : Adapter mon CV pour cette candidature → /cv?mode=adapt&jobId=...&source=....
+- Retour rapide : à partir de la **20ᵉ offre parcourue**, une flèche flottante discrète permet de remonter en haut des offres.
+- Entreprise : le libellé générique est remplacé par le **nom réel de l’entreprise** lorsqu’il est connu ; clic → fiche entreprise.
+- Fiche entreprise : recherche prioritaire via **Google Places / Google Maps** lorsque la clé est configurée, puis site officiel et Google Actualités ; adresse, géolocalisation, téléphone, site, activité, statut, avis et actualités sont affichés uniquement lorsqu’ils sont réellement disponibles ; sinon **« Aucune donnée disponible »**.
+- Liste des offres : CTA **« Voir l’offre »** présent sur chaque offre hors Top Match ; le Top Match conserve son parcours dédié.
+- Actualisation : bouton **« Actualiser les offres »** renforcé, avec état de chargement visible.
 
 ## Déploiement
 
