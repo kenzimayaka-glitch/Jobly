@@ -4,8 +4,15 @@ const cache = new Map<string, { logoUrl: string | null; expiresAt: number }>();
 const TTL = 24 * 60 * 60 * 1000;
 
 export async function GET(request: NextRequest) {
-  const params = new URL(request.url).searchParams;\n  const name = params.get("name")?.trim();\n  const domain = params.get("domain")?.trim();
-  if (!name && !domain) return NextResponse.json({ logoUrl: null }, { status: 400 });\n  if (!token) {\n    if (domain) return NextResponse.json({ logoUrl: `/api/company-logo/image?domain=${encodeURIComponent(domain)}`, domain });\n    return NextResponse.json({ logoUrl: null, reason: "logo_api_not_configured" }, { status: 503 });\n  }
+  const params = new URL(request.url).searchParams;
+  const name = params.get("name")?.trim();
+  const domain = params.get("domain")?.trim();
+  if (!name && !domain) return NextResponse.json({ logoUrl: null }, { status: 400 });
+  const token = process.env.LOGO_DEV_API_KEY?.trim() || process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN?.trim();
+  if (!token) {
+    if (domain) return NextResponse.json({ logoUrl: `/api/company-logo/image?domain=${encodeURIComponent(domain)}`, domain });
+    return NextResponse.json({ logoUrl: null, reason: "logo_api_not_configured" }, { status: 503 });
+  }
 
   const key = (name || domain || "company").toLowerCase();
   const cached = cache.get(key);
