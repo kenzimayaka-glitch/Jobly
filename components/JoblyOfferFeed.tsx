@@ -227,10 +227,15 @@ export function JoblyOfferFeed() {
   }
 
   async function apply(job: Job) {
-    if (!token) return;
+    if (!token) {
+      setError("Votre session Jobly a expiré. Reconnectez-vous pour postuler.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     const key = `${job.source}:${job.id}`;
     if (applied.has(key) || applicationReadyKeys.has(key) || submitting.has(key) || bulkPreparing) return;
     await prepareSingleApplication(job);
+    if (error) window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function prepareBulkApplications() {
