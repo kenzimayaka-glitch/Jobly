@@ -30,7 +30,7 @@ function initials(name?: string | null) {
 
 function cacheKey(name?: string | null, domain?: string | null, logoUrl?: string | null) {
   const identity = [name?.trim().toLowerCase() || "entreprise", domain?.trim().toLowerCase() || "nodomain", logoUrl?.trim() || "auto"].join(":");
-  return `jobly:company-logo:v5:${encodeURIComponent(identity)}`;
+  return `jobly:company-logo:v6:${encodeURIComponent(identity)}`;
 }
 
 export default function CompanyLogo({
@@ -42,7 +42,6 @@ export default function CompanyLogo({
   className = "",
 }: CompanyLogoProps) {
   const resolvedDomain = useMemo(() => normalizeDomain(domain || website), [domain, website]);
-  const logoDevToken = process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN?.trim();
   const [resolvedLogo, setResolvedLogo] = useState<string | null>(null);
   const [resolving, setResolving] = useState(false);
 
@@ -51,12 +50,6 @@ export default function CompanyLogo({
     const direct = logoUrl?.trim();
 
     if (direct) urls.push(direct);
-    if (resolvedDomain && logoDevToken) {
-      urls.push(
-        `https://img.logo.dev/${encodeURIComponent(resolvedDomain)}?token=${encodeURIComponent(logoDevToken)}&size=128&format=png&fallback=404`,
-      );
-    }
-
     if (resolvedDomain) {
       // Same-origin proxy first: avoids browser/CDN/referrer failures that can hide
       // otherwise valid company favicons in production.
@@ -75,7 +68,7 @@ export default function CompanyLogo({
     }
 
     return [...new Set(urls)];
-  }, [logoUrl, resolvedDomain, logoDevToken]);
+  }, [logoUrl, resolvedDomain, companyName]);
 
   const [index, setIndex] = useState(0);
   const [src, setSrc] = useState<string | null>(null);
@@ -89,17 +82,30 @@ export default function CompanyLogo({
     setResolving(false);
 
     const identityKey = cacheKey(companyName, resolvedDomain, logoUrl);
-    try {
-      const cached = localStorage.getItem(identityKey);
-      if (!cancelled && cached && cached !== "1") {
-        setSrc(cached);
-        return () => { cancelled = true; };
-      }
-    } catch {}
-
     const direct = logoUrl?.trim();
     if (direct) {
       setSrc(direct);
+      return () => { cancelled = true; };
+    }
+
+    if ((resolvedDomain || companyName?.trim())) {
+      setResolving(true);
+      const query = resolvedDomain
+        ? `domain=${encodeURIComponent(resolvedDomain)}`
+        : `name=${encodeURIComponent(companyName!.trim())}`;
+      fetch(`/api/company-logo?${query}`)
+        .then(async (response) => {
+          if (!response.ok) throw new Error("logo-resolution-failed");
+          const body = await response.json();
+          return typeof body.logoUrl === "string" ? body.logoUrl : null;
+        })
+        .then((url) => {
+          if (cancelled) return;
+          setResolvedLogo(url);
+          setSrc(url || candidates[0] || null);
+        })
+        .catch(() => { if (!cancelled) setSrc(candidates[0] || null); })
+        .finally(() => { if (!cancelled) setResolving(false); });
       return () => { cancelled = true; };
     }
 
