@@ -3134,3 +3134,91 @@ Non déclaré CODÉ, TESTÉ, VALIDÉ ou DÉPLOYÉ.
 14. Vérification réelle avant certification production.
 
 **Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+
+## CHECKPOINT 26/09/2026 — CYCLE DE RECRUTEMENT COMPLET / PIPELINE CONFIGURABLE
+
+### Décision produit
+Le cycle de recrutement est désormais défini de bout en bout :
+
+~~~
+OFFRE → CANDIDATURE → MATCHING → PRÉSÉLECTION → PIPELINE
+→ TEST / ENTRETIEN / ÉVALUATION → ANALYSE J’IA
+→ DÉCISION RECRUTEUR → FEEDBACK → ÉTAPE SUIVANTE
+→ DÉCISION FINALE → OFFRE D’EMBAUCHE → ONBOARDING
+~~~
+
+Le **Job possède le pipeline** ; l’**Application possède la progression réelle** du candidat. Plusieurs candidats peuvent donc être simultanément à des étapes différentes du même recrutement.
+
+### Pipeline configurable
+
+Le recruteur peut définir, par offre :
+- étapes, ordre et étapes obligatoires/optionnelles ;
+- étapes répétables ou retour à une étape précédente ;
+- tâches et événements associés ;
+- critères d’évaluation ;
+- communications et rappels ;
+- conditions de passage ;
+- niveau d’automatisation.
+
+Types d’étapes cibles : SCREENING, INTERVIEW, VIDEO_INTERVIEW, ONSITE_INTERVIEW, TECHNICAL_TEST, ASSESSMENT, PRESENTATION, REFERENCE_CHECK, SALARY_DISCUSSION, FINAL_INTERVIEW, OFFER, CUSTOM.
+
+### Tests candidats
+
+Types cibles : QCM métier, cas pratique, test technique, mise en situation, rédaction, commercial, linguistique, présentation, étude de cas et test personnalisé.
+
+Le recruteur définit les critères/pondérations. J’IA peut proposer une structure mais ne doit pas inventer le barème final.
+
+Mode **évaluation** : J’IA explique les règles mais ne répond pas à la place du candidat. Mode **entraînement** : J’IA peut aider.
+
+### Analyse J’IA
+
+Après soumission :
+- correction objective ;
+- score par critère ;
+- forces ;
+- lacunes ;
+- éléments à approfondir ;
+- preuves issues des réponses ;
+- niveau de confiance ;
+- synthèse courte pour le recruteur ;
+- accès aux réponses détaillées/corrigé lorsque disponible.
+
+Un score de test reste une preuve contextualisée et datée, pas une valeur globale du Talent.
+
+### Décision et automatisation
+
+Le recruteur peut **VALIDER**, **REFUSER**, **METTRE EN PAUSE**, **REVENIR À UNE ÉTAPE**, **DEMANDER UNE VÉRIFICATION** ou, selon permissions, **RÉOUVRIR**.
+
+Trois modes sont définis :
+1. **MANUEL** — J’IA prépare, le recruteur déclenche.
+2. **ASSISTÉ** — J’IA prépare, le recruteur confirme.
+3. **AUTOMATIQUE** — une règle préconfigurée exécute la suite après la décision humaine requise.
+
+Après validation, Jobly peut automatiquement : clôturer l’étape, enregistrer le résultat, générer le feedback, notifier le Talent, ouvrir l’étape suivante, préparer/envoyer l’invitation selon les permissions, planifier les rappels et mettre à jour la timeline.
+
+### Cas de cycle à couvrir
+
+Retrait/abandon, expiration, pause/reprise, étape annulée, entretien replanifié, absence, test non rendu/expiré, réouverture, plusieurs recruteurs, modification du pipeline en cours avec historique, correction d’une décision selon permissions.
+
+### Séparation des états
+
+État de l’offre ≠ État de la candidature ≠ État de l’étape ≠ État du candidat.
+
+### Timeline cible
+
+Candidature → Matching → Présélection → Test/Entretien → Résultat → Analyse J’IA → Décision → Feedback → Étape suivante → … → Décision finale → Offre → Acceptation/Refus → Clôture.
+
+Chaque événement doit permettre de distinguer proposition J’IA, décision humaine, action exécutée, communication préparée/envoyée, notification, résultat, feedback et changement d’étape.
+
+### Garde-fous
+
+J’IA assiste, explique et automatise les actions autorisées ; elle ne décide pas seule du recrutement lorsque le workflow exige une décision humaine. Les scores doivent rester contextualisés et explicables. Les caractéristiques sensibles/proxys sensibles ne doivent pas servir à recommander une décision de recrutement. Les données privées, communications et décisions doivent être traçables et protégées.
+
+### État
+
+**🟦 SPÉCIFIÉ / DÉCISION FIGÉE — NON CODÉ / NON TESTÉ / NON VALIDÉ / NON DÉPLOYÉ**
+
+Cette section devient la référence de conception du cycle de recrutement complet. La prochaine phase technique devra auditer puis implémenter **DB → API → UI → J’IA → notifications → timeline → permissions → tests E2E**.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
