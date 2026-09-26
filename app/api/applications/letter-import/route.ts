@@ -27,8 +27,23 @@ export async function POST(request: NextRequest) {
       text = String(parsed.text || "");
       await parser.destroy();
     } else if (ext === "docx" || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-      const parsed = await mammoth.extractRawText({ buffer: bytes });
-      text = String(parsed.value || "");
+      const zip = await JSZip.loadAsync(bytes);
+      const documentXml = zip.file("word/document.xml");
+      if (!documentXml) throw new Error("Document Word invalide : contenu principal introuvable.");
+      const xml = await documentXml.async("text");
+      const withBreaks = xml
+        .replace(/<w:tab\s*\/?>/gi, "\t")
+        .replace(/<w:br\s*\/?>/gi, "\n")
+        .replace(/<w:cr\s*\/?>/gi, "\n")
+        .replace(/<\/w:p>/gi, "\n");
+      text = withBreaks
+        .replace(/<w:t[^>]*>([\\s\\S]*?)<\/w:t>/gi, "$1")
+        .replace(/<[^>]+>/g, "")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'");
     } else if (ext === "doc") {
       return NextResponse.json({ message: "Les anciens fichiers .doc ne sont pas encore pris en charge. Enregistrez-le en .docx ou PDF." }, { status: 415 });
     } else {
