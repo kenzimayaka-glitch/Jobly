@@ -12,7 +12,34 @@ import CompanyLogo from "@/components/CompanyLogo";
 type Job = Record<string, any>;
 function cleanOfferDescription(value: unknown): string {
   if (value == null) return "";
-  let text = String(value)
+
+  // Certaines sources renvoient la description comme JSON ou comme HTML complet.
+  // On extrait le contenu éditorial avant de l'afficher, jamais le code/source brut.
+  let raw = typeof value === "string" ? value.trim() : "";
+  if (!raw && typeof value === "object") {
+    try { raw = JSON.stringify(value); } catch { raw = ""; }
+  }
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      const pick = (node: any): string => {
+        if (typeof node === "string") return node;
+        if (Array.isArray(node)) return node.map(pick).filter(Boolean).join("\n\n");
+        if (node && typeof node === "object") {
+          const preferred = ["description", "content", "text", "summary", "details", "responsibilities", "requirements", "profile", "missions"];
+          const parts = preferred.map(key => node[key]).map(pick).filter(Boolean);
+          return parts.length ? parts.join("\n\n") : "";
+        }
+        return "";
+      };
+      const extracted = pick(parsed);
+      if (extracted) raw = extracted;
+    } catch {}
+  }
+
+  let text = raw
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
     .replace(/<br\s*\/?>(?=.)/gi, "\n")
     .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
     .replace(/<li[^>]*>/gi, "• ")
