@@ -2726,3 +2726,17 @@ Le chantier J’IA a été repris en bloc sur la branche `chore/jia-complete-bul
 
 ### État
 **🔧 CODÉ → 🧪 BUILD / VERCEL / VALIDATION VISUELLE À CONFIRMER.**
+
+## CHECKPOINT 26/09/2026 — HARDENING FINAL DU MATCHING
+
+Avant le prochain build unique, le moteur d'offres a reçu une passe de durcissement :
+- absence totale de données d'expérience ≠ 0 année : le critère devient **Non renseigné / UNKNOWN** et réduit la confiance au lieu de pénaliser artificiellement le candidat ;
+- extraction des compétences attendues renforcée à partir des tags, du vocabulaire de compétences métier/technique et des sections d'exigences ;
+- les compétences détectées sont comparées aux compétences réellement présentes dans le profil candidat ;
+- la langue explicitement portée par l'offre est désormais incluse dans le matching ;
+- les types de données non textuels dans `aiSkills` sont ignorés plutôt que transformés en valeurs parasites ;
+- le dashboard Talent consomme désormais `totalAvailable` et ne met en avant que les offres à **50 % ou plus** dans son carrousel de correspondances.
+
+Le flux marché conserve le total de toutes les offres disponibles ; le filtre **Les offres qui vous correspondent** applique le seuil de 50 % sans masquer artificiellement le marché global.
+
+**État : 🔧 CORRIGÉ → 🧪 TYPECHECK / BUILD / VALIDATION VISUELLE À CONFIRMER.**
