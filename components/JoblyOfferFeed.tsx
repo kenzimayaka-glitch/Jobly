@@ -375,33 +375,57 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
   }, [jobs.length, filteredJobs.length]);
 
   useEffect(() => {
-    const updateVerticalFocus = () => {
-      const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-offer-index]'));
-      if (!cards.length) return;
-      const focusY = window.innerHeight * 0.52;
-      let closest: { key: string; distance: number } | null = null;
-      for (const card of cards) {
-        const rect = card.getBoundingClientRect();
-        if (rect.bottom < 0 || rect.top > window.innerHeight) continue;
-        const key = card.dataset.offerKey;
-        if (!key) continue;
-        const distance = Math.abs(rect.top + rect.height / 2 - focusY);
-        if (!closest || distance < closest.distance) closest = { key, distance };
+    const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-offer-index]'));
+    if (!cards.length) {
+      setFocusedOfferKey(null);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      entries => {
+        let bestKey: string | null = null;
+        let bestRatio = 0;
+
+        for (const entry of entries) {
+          const key = (entry.target as HTMLElement).dataset.offerKey;
+          if (!key || !entry.isIntersecting) continue;
+          if (entry.intersectionRatio > bestRatio) {
+            bestRatio = entry.intersectionRatio;
+            bestKey = key;
+          }
+        }
+
+        if (bestKey) setFocusedOfferKey(bestKey);
+      },
+      {
+        root: null,
+        rootMargin: "-28% 0px -28% 0px",
+        threshold: [0.2, 0.4, 0.6, 0.8, 1],
       }
-      setFocusedOfferKey(closest?.key || null);
+    );
+
+    cards.forEach(card => observer.observe(card));
+
+    const syncFocus = () => {
+      const visible = cards
+        .map(card => {
+          const rect = card.getBoundingClientRect();
+          const visibleTop = Math.max(rect.top, window.innerHeight * 0.28);
+          const visibleBottom = Math.min(rect.bottom, window.innerHeight * 0.72);
+          const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+          return { card, visibleHeight };
+        })
+        .filter(item => item.visibleHeight > 0)
+        .sort((a, b) => b.visibleHeight - a.visibleHeight)[0];
+
+      setFocusedOfferKey(visible?.card.dataset.offerKey || null);
     };
-    updateVerticalFocus();
-    let frame = 0;
-    const onScroll = () => {
-      if (frame) return;
-      frame = window.requestAnimationFrame(() => { frame = 0; updateVerticalFocus(); });
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+
+    syncFocus();
+    window.addEventListener("resize", syncFocus);
     return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      if (frame) window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", syncFocus);
     };
   }, [rest.length]);
 
@@ -454,7 +478,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
       <div className="relative z-10 mt-5 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-[1px] text-slate-500"><button type="button" onClick={() => setMatchOnly(v => !v)} className={matchOnly ? "rounded-full border border-[#F97316] bg-[#F97316] px-3 py-2 text-white shadow-[0_8px_22px_rgba(249,115,22,.24)]" : "rounded-full border border-[#F97316]/30 bg-[#FFF7ED] px-3 py-2 text-[#C2410C]"}>Les offres qui vous correspondent · {feedMeta.matchingCount}</button></div>
     </section>
 
-    <section ref={offersStartRef} id="jobly-offers-start" className="mx-auto w-full max-w-full overflow-x-hidden px-5 scroll-mt-6 sm:px-8 lg:max-w-6xl">
+    <section ref={offersStartRef} id="jobly-offers-start" className="mx-auto w-full max-w-full min-w-0 overflow-x-clip px-5 scroll-mt-6 sm:px-8 lg:max-w-6xl">
       <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><h2 className="mt-1 text-xl font-black text-[#00A6A6]">{feedSummary}</h2></div><div className="flex flex-col gap-2 sm:flex-row"><form onSubmit={e => { e.preventDefault(); setQuery(query.trim()); }} className="flex h-11 min-w-[280px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 shadow-sm"><Search size={16} className="text-[#22448B]"/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Métier, entreprise, ville…" aria-label="Rechercher une offre" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"/><button type="submit" aria-label="Rechercher" title="Rechercher" className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#22448B] text-white transition hover:bg-[#17346E]"><Search size={14}/></button></form><div className="flex gap-2 overflow-x-auto">{["Toutes","CDI","CDD","Stage","Remote"].map(item => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "whitespace-nowrap rounded-2xl bg-[#FFE135] px-4 py-3 text-xs font-black text-[#17212B]" : "whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-500"}>{item}</button>)}</div></div></div>
       {featured.length > 0 && (
         <div className="relative" onMouseEnter={() => setTopMatchHover(true)} onMouseLeave={() => setTopMatchHover(false)}>
@@ -517,7 +541,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         </div>
       )}
 
-      <div className="mx-auto mt-10 grid w-full max-w-full gap-3 md:grid-cols-2">{rest.map((job, index) => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const ready = applicationReadyKeys.has(key); const busy = submitting.has(key); const selected = basket.has(key); const phoneComingSoon = job.applicationProfile?.channel === "WHATSAPP_PHONE"; const focused = focusedOfferKey === key; return <article key={key} data-offer-index={index + 7} data-offer-key={key} style={{ touchAction: "pan-y" }} className={`group transform-gpu transition-[transform,box-shadow] duration-300 ease-out will-change-transform ${focused ? "relative z-10 -translate-y-3 scale-[1.01] shadow-[0_18px_44px_rgba(255,225,53,.48)] md:-translate-y-2 md:scale-[1.025]" : "relative z-0 translate-y-0 scale-100 shadow-[0_10px_32px_rgba(23,33,43,.07)]"} ${selected ? "rounded-[24px] border-2 border-[#FFE135] bg-white p-3 opacity-90" : "rounded-[24px] border border-white/10 bg-white p-3 opacity-90"}`}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} domain={job.company?.domain} website={job.company?.website} size={46}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{job.company?.name || "Aucune donnée"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[job.location, job.contractType].filter(Boolean).join(" · ") || "Aucune donnée"}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)}</p></div><button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="rounded-xl px-1 text-right transition hover:bg-[#FFFBE0] focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-xl font-black text-[#FFE135]">{job.matchPercent}%</strong><span className="text-[8px] font-black text-[#FFE135]">Mon score</span></button></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} disabled={done || ready} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBag size={16}/>}</button><button onClick={() => phoneComingSoon ? router.push(`/jobs/${job.id}?source=${job.source}`) : apply(job)} disabled={done || ready || busy} className="flex min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full bg-[#FFE135] px-2.5 py-2.5 text-xs font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B]">{done ? "Candidature envoyée" : ready ? "Candidature prête" : busy ? "Préparation…" : phoneComingSoon ? "COMING SOON" : "Postuler"}</button><button onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label={`Voir les informations sur ${job.company?.name || "l’entreprise"}`} title="Informations sur l’entreprise" className="max-w-[170px] truncate rounded-full border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-[#22448B]">{job.company?.name || "Aucune donnée"}</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#7C3AED]/25 bg-[#F3E8FF] px-3 py-2.5 text-xs font-black text-[#6D28D9]"><span>Voir l’offre</span><ArrowUpRight size={14}/></button></div></motion.article>; })}</div>
+      <div className="mx-auto mt-10 grid w-full min-w-0 max-w-full grid-cols-1 gap-3 md:grid-cols-2">{rest.map((job, index) => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const ready = applicationReadyKeys.has(key); const busy = submitting.has(key); const selected = basket.has(key); const phoneComingSoon = job.applicationProfile?.channel === "WHATSAPP_PHONE"; const focused = focusedOfferKey === key; return <article key={key} data-offer-index={index + 7} data-offer-key={key} style={{ touchAction: "pan-y" }} className={`group min-w-0 max-w-full transform-gpu transition-[transform,box-shadow] duration-300 ease-out will-change-transform ${focused ? "relative z-10 -translate-y-3 shadow-[0_18px_44px_rgba(255,225,53,.48)] md:-translate-y-2" : "relative z-0 translate-y-0 shadow-[0_10px_32px_rgba(23,33,43,.07)]"} ${selected ? "rounded-[24px] border-2 border-[#FFE135] bg-white p-3 opacity-90" : "rounded-[24px] border border-white/10 bg-white p-3 opacity-90"}`}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} domain={job.company?.domain} website={job.company?.website} size={46}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{job.company?.name || "Aucune donnée"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[job.location, job.contractType].filter(Boolean).join(" · ") || "Aucune donnée"}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)}</p></div><button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="rounded-xl px-1 text-right transition hover:bg-[#FFFBE0] focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-xl font-black text-[#FFE135]">{job.matchPercent}%</strong><span className="text-[8px] font-black text-[#FFE135]">Mon score</span></button></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} disabled={done || ready} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBag size={16}/>}</button><button onClick={() => phoneComingSoon ? router.push(`/jobs/${job.id}?source=${job.source}`) : apply(job)} disabled={done || ready || busy} className="flex min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full bg-[#FFE135] px-2.5 py-2.5 text-xs font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B]">{done ? "Candidature envoyée" : ready ? "Candidature prête" : busy ? "Préparation…" : phoneComingSoon ? "COMING SOON" : "Postuler"}</button><button onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label={`Voir les informations sur ${job.company?.name || "l’entreprise"}`} title="Informations sur l’entreprise" className="max-w-[170px] truncate rounded-full border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-[#22448B]">{job.company?.name || "Aucune donnée"}</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#7C3AED]/25 bg-[#F3E8FF] px-3 py-2.5 text-xs font-black text-[#6D28D9]"><span>Voir l’offre</span><ArrowUpRight size={14}/></button></div></motion.article>; })}</div>
     </section>
 
     {basketJobs.length > 0 && (
