@@ -83,7 +83,7 @@ function adaptiveMatch(profile:Profile,years:number|null,experiences:Experience[
 
   const ed=detectEdu(offer);
   if(ed!=null){
-    const levels=education.map(x=>eduLevel(x.degree)).filter((x):x is number=>x!=null);
+    const levels=education.map(x=>eduLevel(x.degree)).filter((x):x is Exclude<ReturnType<typeof eduLevel>,null>=>x!=null);
     const best=levels.length?Math.max(...levels):null;
     const score=best==null?null:best>=ed?1:best/Math.max(ed,1);
     criteria.push({
