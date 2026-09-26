@@ -51,20 +51,55 @@ async function refreshGoogleAccessToken(refreshToken: string) {
   return { accessToken: String(json.access_token), expiresIn: Number(json.expires_in || 3600) };
 }
 
-async function sendGmail(accessToken: string, from: string, to: string, subject: string, body: string, cvPdf: Buffer, filename: string) {
+function escapeHtml(input: string) {
+  return input.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] || char);
+}
+
+function plainTextToHtml(input: string) {
+  return escapeHtml(input).replace(/\r?\n/g, "<br>");
+}
+
+async function sendGmail(
+  accessToken: string,
+  from: string,
+  to: string,
+  bcc: string,
+  subject: string,
+  body: string,
+  cvPdf: Buffer,
+  filename: string,
+) {
   const boundary = `jobly_${crypto.randomUUID()}`;
+  const alternativeBoundary = `jobly_alt_${crypto.randomUUID()}`;
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://jobly-c0651.vercel.app").replace(/\/$/, "");
+  const promoUrl = `${appUrl}/decouvrir-jobly?source=application-email`;
+  const gifUrl = process.env.JOBLY_EMAIL_PROMO_GIF_URL || `${appUrl}/jobly-email-promo.gif`;
+  const htmlBody = `<!doctype html><html><body style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#1f2937">${plainTextToHtml(body)}<br><br><div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:16px"><a href="${promoUrl}" style="text-decoration:none"><img src="${escapeHtml(gifUrl)}" alt="Jobly — Your Career OS" width="420" style="display:block;max-width:100%;height:auto;border:0"></a><div style="margin-top:8px;font-size:12px;color:#64748b">Propulsé par <a href="${promoUrl}" style="color:#22448B;text-decoration:none;font-weight:600">Jobly — Your Career OS</a></div></div></body></html>`;
+
   const mime = [
     `From: ${escapeHeader(from)}`,
     `To: ${escapeHeader(to)}`,
+    `Bcc: ${escapeHeader(bcc)}`,
     `Subject: ${escapeHeader(subject)}`,
     "MIME-Version: 1.0",
     `Content-Type: multipart/mixed; boundary="${boundary}"`,
     "",
     `--${boundary}`,
+    `Content-Type: multipart/alternative; boundary="${alternativeBoundary}"`,
+    "",
+    `--${alternativeBoundary}`,
     "Content-Type: text/plain; charset=UTF-8",
     "Content-Transfer-Encoding: 8bit",
     "",
-    body,
+    body + "\n\nPropulsé par Jobly — Your Career OS\n" + promoUrl,
+    "",
+    `--${alternativeBoundary}`,
+    "Content-Type: text/html; charset=UTF-8",
+    "Content-Transfer-Encoding: 8bit",
+    "",
+    htmlBody,
+    "",
+    `--${alternativeBoundary}--`,
     "",
     `--${boundary}`,
     `Content-Type: application/pdf; name="${escapeHeader(filename)}"`,
@@ -151,7 +186,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const emailBody = candidateLetter || claimedApplication.letterText || `Bonjour,\n\nVeuillez trouver ci-joint ma candidature au poste de ${String(offer.title || "")} .\n\nCordialement,\n${String(user.displayName || user.firstName || "Candidat")}`;
     const filename = `CV-${String(offer.title || "Jobly").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 70) || "Jobly"}.pdf`;
     const cvPdf = await renderCvPdf(String(claimedApplication.tailoredCvText || "CV non disponible."));
-    const sent = await sendGmail(accessToken, gmail.googleEmail, recipient, subject, emailBody, cvPdf, filename);
+    const sent = await sendGmail(accessToken, gmail.googleEmail, recipient, gmail.googleEmail, subject, emailBody, cvPdf, filename);
     emailSent = true;
 
     const submittedAt = new Date().toISOString();
