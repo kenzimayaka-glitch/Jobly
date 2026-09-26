@@ -2795,3 +2795,49 @@ Sources supplémentaires auditées :
 Le schéma `Job` possède déjà `sourceKey`, `externalId`, `contentHash`, `sourcePublishedAt` et `lastSeenAt`, permettant une ingestion multi-source sans changement de modèle immédiat.
 
 **Aucun déploiement Vercel n'a été déclenché pendant cet audit.**
+
+---
+
+# CHECKPOINT 26/09/2026 — CANDIDATURE WHATSAPP / ONBOARDING RECRUITER
+
+## Décision produit figée
+
+Le parcours complet **Talent → candidature WhatsApp → CV recruteur → découverte des autres talents → création compte Recruiter → code d'accès à usage unique → récupération automatique de l'offre** est désormais documenté comme référence produit.
+
+### Décisions principales
+
+- WhatsApp est un **canal de candidature**, pas un remplacement du compte Jobly.
+- Une candidature WhatsApp crée/conserve une vraie **Application Jobly** liée au Talent et au Job.
+- Le recruteur non inscrit voit le **CV du candidat ayant postulé**, mais pas son analyse J’IA avant création de compte.
+- L'interstitiel **Voir / Fermer** permet de découvrir uniquement les **autres talents qui matchent l'offre et n'ont pas postulé**.
+- **Fermer** ramène au CV du candidat postulant, consultable/téléchargeable sans création de compte.
+- **Voir les coordonnées** d'un autre profil déclenche le parcours de création de compte.
+- Jobly génère alors un **code d'accès numérique à 6 chiffres**, temporaire et à usage unique, lié au contexte sécurisé de l'offre/candidature.
+- L'affichage du code déclenche le parcours de téléchargement/installation Jobly.
+- Le recruteur installe Jobly, crée son compte, choisit **Recruiter**, puis saisit le code.
+- Le code valide la continuité du parcours et permet à Jobly de rattacher automatiquement l'offre au nouveau compte.
+- Le recruteur ne recrée pas l'offre.
+- Après connexion, il retrouve l'offre, la candidature du Talent ayant postulé, puis les futures candidatures.
+- À partir du compte Recruiter, l'analyse J’IA du candidat ayant postulé devient accessible selon les permissions.
+- Les coordonnées des autres profils restent soumises aux entitlements/abonnement.
+- Le code ne constitue pas une preuve juridique de propriété de l'entreprise : le système distingue contexte d'offre revendiqué, identité, entreprise vérifiée et autorisation.
+- Le modèle cible prévoit un mécanisme d'**AccessClaim** à usage unique/expiration/anti-réutilisation.
+
+## État
+
+**🟦 SPÉCIFIÉ / DÉCISION FIGÉE**
+
+### Non encore certifié
+
+- implémentation complète du claim/code ;
+- persistance sécurisée ;
+- expiration et invalidation ;
+- détection du contexte de provenance après installation ;
+- liaison automatique Job → Recruiter ;
+- retour direct au CV initial ;
+- contrôle des permissions ;
+- intégration abonnement/entitlements ;
+- tests E2E mobile ;
+- validation production.
+
+**Règle CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ : cette décision ne doit pas être déclarée implémentée tant que les étapes techniques et les tests réels ne sont pas effectués.**
