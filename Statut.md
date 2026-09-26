@@ -2772,3 +2772,26 @@ Ne pas lancer plusieurs builds de dépannage. Une fois le connecteur Vercel rét
 5. déploiement final et vérification de l'état `READY`.
 
 **État honnête : 🔧 CONSOLIDÉ → 🧪 BUILD UNIQUE / VALIDATION VERCEL À EFFECTUER.**
+
+
+## CHECKPOINT 26/09/2026 — AUDIT JOB SOURCES CAMEROUN
+
+**AUDIT SOURCES : TESTÉ / DOCUMENTÉ** — voir `AUDIT-JOB-SOURCES-2026-09-26.md`.
+
+La production JOBLY-PROD contient actuellement **232 offres externes actives** : Job in Cameroun 99, Emplois Cameroun 66, JobInfoCamer 35, FNE Cameroun 21, Emploi.cm 9, Cameroon Desks 2.
+
+Sources supplémentaires auditées :
+- **MinaJobs : RSS public identifié et réutilisation autorisée avec lien retour selon la page RSS — POC prioritaire.**
+- **Techmap : couverture Cameroun documentée, API/feed disponible — test à effectuer.**
+- **JobsPipe : API normalisée avec filtre pays — couverture Cameroun à mesurer avec clé réelle.**
+- FNE / Emploi.cm / JobInfoCamer / AfricaWork : offres publiques identifiées, mais aucun API/feed public suffisamment confirmé pour une activation automatique à ce stade.
+
+### Plan d'ingestion
+1. MinaJobs RSS → POC normalisation/upsert/déduplication.
+2. Techmap CM → mesure volume/fraîcheur/doublons.
+3. JobsPipe CM → mesure couverture/coût/doublons.
+4. FNE / Emploi.cm / JobInfoCamer / AfricaWork → API/feed officiel ou partenariat avant ingestion.
+
+Le schéma `Job` possède déjà `sourceKey`, `externalId`, `contentHash`, `sourcePublishedAt` et `lastSeenAt`, permettant une ingestion multi-source sans changement de modèle immédiat.
+
+**Aucun déploiement Vercel n'a été déclenché pendant cet audit.**
