@@ -22,6 +22,7 @@ type CompanyWebProfile = {
   reviewCount: number | null;
   description: string | null;
   news: Array<{ title: string; link: string; publishedAt: string | null }>;
+  summary: string | null;
   source: string[];
   logoUrl?: string | null;
 };
@@ -60,6 +61,7 @@ export function JoblyOfferFeed() {
   const [selectedCompanyLocation, setSelectedCompanyLocation] = useState<string | null>(null);
   const [companyWebProfile, setCompanyWebProfile] = useState<CompanyWebProfile | null>(null);
   const [companyWebLoading, setCompanyWebLoading] = useState(false);
+  const modalHistoryRef = useRef(false);
   const [selectedMatch, setSelectedMatch] = useState<Job | null>(null);
   const [basket, setBasket] = useState<Set<string>>(new Set());
   const [bulkLimit, setBulkLimit] = useState(1);
@@ -156,11 +158,23 @@ export function JoblyOfferFeed() {
     return () => { cancelled = true; };
   }, [selectedCompany, selectedCompanyLocation]);
 
+  const closeOfferModal = useCallback((kind: "match" | "company") => {
+    if (modalHistoryRef.current) {
+      modalHistoryRef.current = false;
+      window.history.back();
+    } else {
+      if (kind === "match") setSelectedMatch(null);
+      else setSelectedCompany(null);
+    }
+  }, []);
+
   useEffect(() => {
     if (!selectedMatch && !selectedCompany) return;
+    modalHistoryRef.current = true;
     const stateKey = "jobly-offers-modal";
     window.history.pushState({ ...(window.history.state || {}), [stateKey]: true }, "", window.location.href);
     const onPopState = () => {
+      modalHistoryRef.current = false;
       setSelectedMatch(null);
       setSelectedCompany(null);
     };
@@ -599,7 +613,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
       </motion.div>
     )}</AnimatePresence>
 
-    <AnimatePresence>{selectedMatch && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[105] grid place-items-end bg-black/60 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => setSelectedMatch(null)}>
+    <AnimatePresence>{selectedMatch && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[105] grid place-items-end bg-black/60 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => closeOfferModal("match")}>
       <motion.div initial={{ y: 30, opacity: 0, scale: .97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 30, opacity: 0 }} onClick={e => e.stopPropagation()} className="w-full max-w-md overflow-hidden rounded-[30px] bg-white text-[#17212B] shadow-2xl">
         <div className="bg-[#2E3F4F] p-5 text-white">
           <div className="flex items-start justify-between gap-3">
@@ -626,7 +640,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         </div></motion.div>
     </motion.div>}</AnimatePresence>
 
-    <AnimatePresence>{selectedCompany && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] grid place-items-end bg-black/60 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => setSelectedCompany(null)}>
+    <AnimatePresence>{selectedCompany && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] grid place-items-end bg-black/60 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => closeOfferModal("company")}>
       <motion.div initial={{ y: 40, opacity: 0, scale: .97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 40, opacity: 0 }} onClick={e => e.stopPropagation()} className="max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-[32px] border border-white/15 bg-[#2E3F4F] p-6 text-white shadow-2xl">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -642,9 +656,9 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
             {companyWebProfile.activity.length>0 && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Domaine d’activité</p><p className="mt-1 text-sm capitalize">{companyWebProfile.activity.join(" · ")}</p></div>}
             {(companyWebProfile.status || companyWebProfile.rating!=null) && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Présence Google</p><p className="mt-1 text-sm">{companyWebProfile.status ? companyWebProfile.status.replace(/_/g," ") : ""}{companyWebProfile.rating!=null ? ` · ★ ${companyWebProfile.rating}${companyWebProfile.reviewCount!=null ? ` (${companyWebProfile.reviewCount} avis)` : ""}` : ""}</p></div>}
           </div>}
-          {(companyWebProfile.description || selectedCompany.description) && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Présentation</p><p className="mt-1 text-sm leading-6 text-white/75">{companyWebProfile.description || selectedCompany.description}</p></div>}
+          {(companyWebProfile.summary || companyWebProfile.description || selectedCompany.description) && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Présentation</p><p className="mt-1 text-sm leading-6 text-white/75">{companyWebProfile.summary || companyWebProfile.description || selectedCompany.description}</p></div>}
           {companyWebProfile.website && <a href={companyWebProfile.website.startsWith("http") ? companyWebProfile.website : `https://${companyWebProfile.website}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-3 text-xs font-bold">Site officiel <ExternalLink size={14}/></a>}
-          {companyWebProfile.news.length>0 && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Actualités</p><div className="mt-2 space-y-2">{companyWebProfile.news.map((item,index)=><a key={index} href={item.link} target="_blank" rel="noreferrer" className="block rounded-2xl bg-white/5 p-3 text-sm font-semibold leading-5 hover:bg-white/10">{item.title}<span className="mt-1 block text-[10px] font-normal text-white/45">{item.publishedAt ? new Date(item.publishedAt).toLocaleDateString("fr-FR") : ""}</span></a>)}</div></div>}
+          
         </div> : <div className="mt-7 rounded-2xl bg-white/5 p-4 text-sm text-white/65">Aucune donnée</div>}
         {!companyWebLoading && companyWebProfile && !companyWebProfile.address && !companyWebProfile.phone && !companyWebProfile.website && !companyWebProfile.description && companyWebProfile.news.length===0 && <div className="mt-3 rounded-2xl bg-white/5 p-4 text-sm text-white/65">Aucune donnée</div>}
       </motion.div>
