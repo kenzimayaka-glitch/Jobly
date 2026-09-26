@@ -16,6 +16,7 @@ type CompanyProfile = {
   description: string | null;
   news: Array<{ title: string; link: string; publishedAt: string | null }>;
   source: string[];
+  logoUrl: string | null;
 };
 
 function clean(value: unknown) {
@@ -72,7 +73,9 @@ export async function GET(request: NextRequest) {
     } catch {}
   }
 
-  if (!result.logoUrl && website) { try { const host = new URL(website.startsWith("http") ? website : `https://${website}`).hostname.replace(/^www\\./, ""); result.logoUrl = `/api/company-logo/image?domain=${encodeURIComponent(host)}`; } catch {} }\n\n  if (!result.description && website) {
+  if (!result.logoUrl && website) { try { const host = new URL(website.startsWith("http") ? website : `https://${website}`).hostname.replace(/^www\\./, ""); result.logoUrl = `/api/company-logo/image?domain=${encodeURIComponent(host)}`; } catch {} }
+
+  if (!result.description && website) {
     try {
       const url = website.startsWith("http") ? website : `https://${website}`;
       const response = await fetch(url, { headers: { "User-Agent": "JoblyBot/1.0 (+https://jobly.cm)" }, signal: AbortSignal.timeout(5000), cache: "no-store" });
