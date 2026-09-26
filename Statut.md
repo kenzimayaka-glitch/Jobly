@@ -2973,3 +2973,164 @@ Les feedbacks vérifiés peuvent enrichir le **Career Twin**. J’IA peut ensuit
 **🟦 SPÉCIFIÉ / DÉCISION FIGÉE**
 
 Cette architecture n'est pas déclarée CODÉE, TESTÉE, VALIDÉE ou DÉPLOYÉE tant que l'implémentation, les permissions, l'anti-abus, les tests E2E et la production n'ont pas été vérifiés selon la règle **CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**.
+
+
+# CHECKPOINT 26/09/2026 — WORKFLOW RECRUTEUR : COMMUNICATION → ENTRETIEN → DÉCISION → FEEDBACK
+
+## Décision produit figée
+
+Le workflow Recruiter doit couvrir toute la relation de recrutement après la candidature : communication, entretien, rappels, décision et feedback. Le recruteur garde toujours la décision humaine finale.
+
+### Communication
+
+Tout recruteur Jobly peut donner un feedback professionnel au Talent lorsqu'une interaction réelle et vérifiable existe.
+
+Canaux :
+- **Email individuel** ;
+- **Email bulk** pour plusieurs candidats sélectionnés ;
+- **WhatsApp individuel**, avec message préparé par J’IA puis envoyé explicitement par le recruteur.
+
+J’IA propose des modèles contextualisés pour :
+- invitation à un entretien ;
+- confirmation ;
+- demande d'information ;
+- validation ;
+- refus ;
+- feedback.
+
+Pour l'email, le Talent reçoit le message et une notification Jobly, tandis que l'événement est conservé dans la timeline de candidature. Une copie/trace est également conservée côté Jobly pour le recruteur et le Talent selon les permissions. La marque Jobly peut être présente de façon discrète et clairement identifiable.
+
+Pour WhatsApp, Jobly ne doit pas envoyer automatiquement : le recruteur est redirigé vers le WhatsApp du Talent avec un message prérempli et clique lui-même sur **Envoyer**.
+
+### Entretien présentiel
+
+Le recruteur définit :
+- date ;
+- heure ;
+- lieu ;
+- adresse/point de rendez-vous ;
+- détails pratiques ;
+- consignes éventuelles.
+
+Ces informations sont reprises dans la communication envoyée au Talent.
+
+### Entretien visio
+
+Lorsque l'intégration Google autorisée est réellement disponible, J’IA/Jobly peut :
+- créer un lien Google Meet ;
+- enregistrer date, heure et lien ;
+- inscrire l'événement au calendrier du Talent ;
+- inscrire l'événement au calendrier du recruteur.
+
+**Jobly ne doit jamais fabriquer un lien Google Meet.** Sans autorisation/intégration Google réelle, le système doit demander une solution de visioconférence valide au lieu de prétendre avoir créé le lien.
+
+### Rappels J’IA
+
+Pour les entretiens :
+- **1 heure avant :** rappel de préparation (endroit calme, connexion stable, batterie suffisante, préparation pratique) ;
+- **5 minutes avant :** invitation à se connecter et à rejoindre la salle d'attente.
+
+Canaux selon les préférences :
+- notification Jobly ;
+- email ;
+- vocal si le mode vocal est activé.
+
+### Validation / refus
+
+Le recruteur peut :
+- valider une candidature ;
+- refuser une candidature ;
+- communiquer la décision par email ou WhatsApp ;
+- notifier le Talent ;
+- enregistrer la décision dans la timeline ;
+- demander/produire un feedback lorsque les conditions sont remplies.
+
+### Bulk
+
+Exemple cible : sélectionner 12 candidats → **Invitation entretien** → J’IA prépare 12 messages contextualisés → chaque Talent reçoit son message individuel → chaque envoi est journalisé séparément.
+
+### Timeline
+
+Chaque candidature doit pouvoir suivre une chronologie :
+
+```text
+Candidature reçue
+↓
+CV consulté
+↓
+Entretien proposé
+↓
+Invitation envoyée
+↓
+Entretien confirmé
+↓
+Rappel 1h
+↓
+Entretien
+↓
+Décision
+↓
+Feedback
+↓
+Candidature clôturée
+```
+
+Les événements sont horodatés et liés à l'Application concernée.
+
+### J’IA et décision humaine
+
+J’IA peut préparer, personnaliser, rappeler, synthétiser et recommander des prochaines étapes. Elle ne décide pas du recrutement ou du rejet.
+
+**Règle : J’IA assiste le workflow ; le recruteur décide.**
+
+### Feedback et étoiles
+
+Le **feedback professionnel** est ouvert à tout recruteur Jobly ayant eu une interaction réelle et vérifiable avec le Talent.
+
+Les **étoiles 1–5 et fonctions avancées de réputation** restent Premium/Pro, avec interaction vérifiée et protections anti-abus.
+
+Ainsi :
+- feedback professionnel ≠ Premium/Pro uniquement ;
+- notation ⭐1–5 / réputation avancée = Premium/Pro ;
+- aucune notation sans interaction réelle vérifiée.
+
+Les feedbacks vérifiés peuvent enrichir le Career Twin sans devenir une vérité absolue sur le Talent.
+
+### Traçabilité / confidentialité
+
+Le système doit distinguer et journaliser :
+- proposition J’IA ;
+- décision du recruteur ;
+- message préparé ;
+- message effectivement envoyé ;
+- notification ;
+- événement d'entretien ;
+- feedback ;
+- décision finale.
+
+Les coordonnées et données privées restent protégées par permissions et entitlements.
+
+## État
+
+**🟦 SPÉCIFIÉ / DÉCISION FIGÉE — 26/09/2026**
+
+Non déclaré CODÉ, TESTÉ, VALIDÉ ou DÉPLOYÉ.
+
+### Pré-requis techniques
+
+1. Timeline/événements de candidature.
+2. Email individuel et bulk.
+3. Templates J’IA contextualisés.
+4. Notifications liées aux communications.
+5. WhatsApp prérempli + envoi explicite.
+6. Entretien présentiel.
+7. Google Calendar/Meet avec autorisation réelle.
+8. Persistance sécurisée des événements.
+9. Rappels 1h/5min.
+10. Validation/refus/clôture.
+11. Feedback et entitlements Premium/Pro pour étoiles.
+12. Anti-abus et permissions.
+13. Tests E2E mobile/desktop.
+14. Vérification réelle avant certification production.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
