@@ -7,14 +7,14 @@ const clean=(s:any)=>String(s??"").replace(/<[^>]+>/g," ").replace(/&nbsp;/g," "
 
 function rssItems(xml:string): DiscoveryItem[] {
   const out: DiscoveryItem[] = [];
-  const blocks = xml.match(/<(?:item|entry)\\b[\\s\\S]*?<\\/(?:item|entry)>/gi) || [];
-  const cleanTag = (value:string) => clean(value.replace(/<!\\[CDATA\\[/g,"").replace(/\\]\\]>/g,""));
+  const blocks = xml.match(/<(?:item|entry)\b[\s\S]*?<\/(?:item|entry)>/gi) || [];
+  const cleanTag = (value:string) => clean(value.replace(/<!\[CDATA\[/g,"").replace(/\]\]>/g,""));
   for (const block of blocks) {
     const get = (tag:string) => {
-      const m = block.match(new RegExp("<" + tag + "(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)<\\\\/" + tag + ">", "i"));
+      const m = block.match(new RegExp("<" + tag + "(?:\\s[^>]*)?>([\\s\\S]*?)<\\/" + tag + ">", "i"));
       return m ? cleanTag(m[1]) : "";
     };
-    const linkAttr = block.match(/<link\\b[^>]*href=["']([^"']+)["'][^>]*>/i);
+    const linkAttr = block.match(/<link\b[^>]*href=["']([^"']+)["'][^>]*>/i);
     const linkText = get("link");
     const item: DiscoveryItem = {
       title: get("title"),
