@@ -13,8 +13,11 @@ type Job = Record<string, any>;
 function cleanOfferDescription(value: unknown): string {
   if (value == null) return "";
   let text = String(value)
-    .replace(/<br\s*\/?>(?=.)/gi, "\n")
-    .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
+    .replace(/\\r?\\n/g, "\n")
+    .replace(/\\t/g, " ")
+    .replace(/\\u00a0/g, " ")
+    .replace(/<br\\s*\\/?>(?=.)/gi, "\n")
+    .replace(/<\\/(p|div|li|h[1-6]|section|article)>/gi, "\n")
     .replace(/<li[^>]*>/gi, "• ")
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/gi, " ")
@@ -23,13 +26,30 @@ function cleanOfferDescription(value: unknown): string {
     .replace(/&#39;|&apos;/gi, "'")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
-    .replace(/\r/g, "")
+    .replace(/\\r/g, "")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n[ \t]+/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  // Répare les séquences UTF-8 mal décodées (ex. « Ã© », « â€™ ») sans toucher au français normal.
+  if (/^[{[]/.test(text)) {
+    try {
+      const parsed = JSON.parse(text);
+      const candidate = typeof parsed === "string" ? parsed : parsed?.description || parsed?.content || parsed?.text || "";
+      if (candidate) text = String(candidate);
+    } catch {}
+  }
+
+  text = text
+    .replace(/^\s*\x60\x60\x60(?:html|markdown|md|text)?\s*/i, "")
+    .replace(/\s*\x60\x60\x60\s*$/i, "")
+    .replace(/^\s*(?:description|description du poste)\s*:\s*/i, "")
+    .replace(/^\s*<\/?(?:html|body)[^>]*>\s*/gi, "")
+    .replace(/\s*<\/?(?:html|body)[^>]*>\s*$/gi, "")
+    .replace(/^[•\-–—]\s*/gm, "• ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
   if (/[ÃÂâ][\x80-\xBF\x20-\x7E]/.test(text) && [...text].every(ch => ch.charCodeAt(0) <= 255)) {
     try {
       const bytes = new Uint8Array([...text].map(ch => ch.charCodeAt(0)));
@@ -37,11 +57,7 @@ function cleanOfferDescription(value: unknown): string {
       if (repaired && repaired !== text) text = repaired;
     } catch {}
   }
-
-  return text
-    .replace(/^[•\-–—]\s*/gm, "• ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return text.trim();
 }
 
 function JobDetailInner() {
@@ -53,7 +69,7 @@ function JobDetailInner() {
   async function apply(){if(busy)return;setBusy(true);try{const s=await getSupabaseClient().auth.getSession();if(!s.data.session){sessionStorage.setItem("jobly:after-login", `/jobs/${params.id}?source=${source}`);router.push("/");return;}const r=await fetch("/api/applications",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${s.data.session.access_token}`},body:JSON.stringify({source,jobId:params.id})});const b=await r.json();if(r.status===409){alert("Tu as déjà postulé à cette offre.");return;}if(!r.ok)throw Error(b.message||"Impossible d'enregistrer la candidature.");alert("Candidature enregistrée. Tu peux la compléter dans Mes candidatures.");}catch(e){alert(e instanceof Error?e.message:"Erreur réseau.");}finally{setBusy(false)}}
   if(loading)return <main className="talent-shell grid min-h-[100dvh] place-items-center bg-[#F7FAFF] font-bold text-navy">Chargement…</main>;
   if(error||!job)return <main className="talent-shell min-h-[100dvh] bg-[#F7FAFF] text-navy"><PageHeader label="Offre" onBack={()=>router.push("/jobs")} theme="talent"/><div className="mx-auto mt-8 max-w-2xl px-5"><div className="talent-card rounded-[24px] bg-white p-6 shadow-sm"><h1 className="text-xl font-black">Offre indisponible</h1><p className="mt-2 text-sm text-slate-500">{error||"Cette offre n'est plus disponible."}</p><button onClick={()=>router.push("/jobs")} className="mt-5 rounded-2xl bg-jobly-blue px-5 py-3 text-sm font-black text-white">Retour aux offres</button></div></div></main>;
-  const company=job.company?.name||job.companyName||"Aucune donnée disponible", phoneComingSoon=job.applicationProfile?.channel==="WHATSAPP_PHONE", contract=job.contractType||job.contract, remote=job.remoteMode==="YES"?"Télétravail":job.remoteMode==="PARTIAL"?"Hybride":job.remoteMode==="NO"?"Présentiel":null;
+  const company=job.company?.name||job.companyName||"Aucune donnée", phoneComingSoon=job.applicationProfile?.channel==="WHATSAPP_PHONE", contract=job.contractType||job.contract, remote=job.remoteMode==="YES"?"Télétravail":job.remoteMode==="PARTIAL"?"Hybride":job.remoteMode==="NO"?"Présentiel":null;
   const deadline=job.deadline?new Date(job.deadline).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}):null;
   const tags:string[]=Array.isArray(job.tags)?job.tags:[];
   const cleanDescription=cleanOfferDescription(job.description);
