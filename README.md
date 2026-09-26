@@ -2303,3 +2303,267 @@ Les feedbacks vérifiés peuvent enrichir le **Career Twin**. J’IA peut ensuit
 **🟦 SPÉCIFIÉ / DÉCISION FIGÉE**
 
 Cette architecture n'est pas déclarée CODÉE, TESTÉE, VALIDÉE ou DÉPLOYÉE tant que l'implémentation, les permissions, l'anti-abus, les tests E2E et la production n'ont pas été vérifiés selon la règle **CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**.
+
+
+# CHECKPOINT 26/09/2026 — RECRUITMENT WORKFLOW : COMMUNICATION → ENTRETIEN → DÉCISION → FEEDBACK
+
+## Décision produit figée
+
+JOBLY étend le parcours Recruiter au-delà de la réception et de l'analyse des candidatures : **le recruteur doit pouvoir piloter toute la relation de recrutement avec le Talent depuis Jobly**, tout en laissant la décision humaine au recruteur.
+
+Le parcours cible est :
+
+```text
+CANDIDATURE
+↓
+MATCHING J’IA
+↓
+ANALYSE
+↓
+SÉLECTION RECRUTEUR
+↓
+┌────────────────┬────────────────┐
+│                │                │
+EMAIL         WHATSAPP        ENTRETIEN
+│                │                │
+│                │       Présentiel / Visio
+│                │                │
+└────────────────┴────────┬───────┘
+                         ↓
+                  RAPPELS J’IA
+                    1h / 5 min
+                         ↓
+                  DÉCISION HUMAINE
+                    ↙         ↘
+                VALIDÉ       REFUSÉ
+                   ↓             ↓
+              NOTIFICATION   FEEDBACK
+                   ↓             ↓
+              CAREER TWIN ←─────┘
+                         ↓
+                  NOUVELLE ANALYSE
+                         ↓
+                    PROJECTION
+```
+
+## 1. Communication recruteur → Talent
+
+Tout recruteur Jobly peut communiquer avec un Talent dans le cadre d'une interaction de recrutement réelle.
+
+### Email
+
+Le recruteur peut :
+- envoyer un message individuel ;
+- sélectionner plusieurs candidats et envoyer un message en bulk ;
+- choisir une intention parmi des modèles J’IA préconfigurés ;
+- envoyer une invitation d'entretien ;
+- confirmer une étape ;
+- valider une candidature ;
+- informer d'un refus ;
+- transmettre un feedback professionnel.
+
+J’IA doit proposer des modèles prêts à l'emploi, configurés selon le contexte de la candidature, tout en laissant le recruteur garder le contrôle du contenu final.
+
+Chaque communication email doit laisser une trace dans Jobly.
+
+Le Talent reçoit :
+- l'email ;
+- une notification Jobly ;
+- lorsque pertinent, les informations utiles dans sa timeline de candidature.
+
+Le recruteur et le Talent Jobly disposent d'une trace de l'échange selon leurs permissions.
+
+Les emails peuvent intégrer une **présence de marque Jobly discrète et clairement identifiable**, sans masquer le contenu du recruteur ni donner l'impression que Jobly parle à sa place.
+
+### WhatsApp
+
+Pour WhatsApp, le principe est **prérempli mais non automatique** :
+- le recruteur sélectionne le Talent ;
+- J’IA prépare le message adapté au contexte ;
+- Jobly redirige vers le WhatsApp du Talent avec le message prérempli ;
+- le recruteur doit cliquer lui-même sur **Envoyer**.
+
+Jobly ne doit donc pas envoyer automatiquement un message WhatsApp au nom du recruteur sans action explicite de celui-ci.
+
+WhatsApp reste un canal de communication/candidature, pas un mode d'authentification Jobly.
+
+## 2. Entretien
+
+### Entretien en présentiel
+
+Le recruteur peut définir :
+- date ;
+- heure ;
+- lieu ;
+- adresse ou point de rendez-vous ;
+- détails pratiques ;
+- consignes éventuelles.
+
+J’IA génère ensuite une communication claire contenant ces informations.
+
+Le Talent reçoit la proposition et la trace apparaît dans sa timeline de candidature.
+
+### Entretien en visioconférence
+
+Le recruteur peut choisir un entretien vidéo.
+
+Lorsque l'intégration Google autorisée est réellement disponible, Jobly/J’IA peut :
+- créer le lien Google Meet ;
+- associer date et heure ;
+- enregistrer l'événement dans le calendrier du Talent ;
+- enregistrer l'événement dans le calendrier du recruteur ;
+- conserver le lien et les métadonnées de l'entretien dans Jobly.
+
+**Règle technique : Jobly ne doit jamais inventer un lien Google Meet.** La création réelle du lien nécessite une intégration Google autorisée et les permissions correspondantes.
+
+Sans intégration/autorisation disponible, Jobly doit demander ou permettre au recruteur de fournir une solution de visioconférence au lieu de prétendre avoir créé un Meet.
+
+## 3. Rappels J’IA
+
+Pour les entretiens planifiés, J’IA devient un assistant de préparation et de ponctualité.
+
+### Rappel 1 heure avant
+
+Message cible :
+
+> **Votre entretien commence dans 1h. Assurez-vous d’être dans un endroit calme, avec une connexion stable et suffisamment de batterie. Si ce n’est pas possible, préparez-vous à rejoindre l’entretien dans de meilleures conditions.**
+
+Le rappel peut être délivré selon les préférences configurées :
+- notification Jobly ;
+- email ;
+- éventuellement vocal si le mode vocal est activé.
+
+### Rappel 5 minutes avant
+
+J’IA rappelle au Talent et/ou au recruteur, selon le contexte et les permissions :
+
+> **Votre entretien commence dans 5 minutes. Connectez-vous maintenant et rejoignez la salle d’attente.**
+
+Pour une visioconférence, le rappel doit permettre l'accès direct à l'événement/lien lorsque celui-ci existe réellement.
+
+## 4. Validation ou refus de candidature
+
+Le recruteur conserve la décision finale.
+
+Après sélection d'une ou plusieurs candidatures, Jobly doit permettre :
+- **Valider la candidature** ;
+- **Refuser la candidature** ;
+- envoyer immédiatement la communication correspondante ;
+- notifier le Talent ;
+- enregistrer l'événement dans la timeline ;
+- déclencher, lorsque le recruteur y a droit et qu'une interaction réelle existe, le feedback professionnel.
+
+Le même principe de communication s'applique à l'email et au parcours WhatsApp.
+
+## 5. Communication bulk
+
+Le bulk est destiné aux actions répétitives et légitimes du recruteur.
+
+Exemple :
+- le recruteur sélectionne 12 candidats ;
+- clique sur **Invitation entretien** ;
+- J’IA prépare 12 messages contextualisés ;
+- chaque Talent reçoit son message individuel ;
+- Jobly enregistre chaque envoi comme événement distinct.
+
+Le système doit éviter un simple copier-coller identique lorsque les données individuelles permettent une personnalisation utile.
+
+## 6. Timeline de candidature
+
+Chaque candidature doit pouvoir évoluer vers une timeline structurée :
+
+```text
+Candidature reçue
+↓
+CV consulté
+↓
+Entretien proposé
+↓
+Invitation envoyée
+↓
+Entretien confirmé
+↓
+Rappel 1h
+↓
+Entretien
+↓
+Décision
+↓
+Feedback
+↓
+Candidature clôturée
+```
+
+Les événements doivent être horodatés et rattachés à l'Application concernée.
+
+## 7. J’IA dans le workflow recruteur
+
+J’IA peut :
+- proposer le bon modèle de communication ;
+- personnaliser le contenu ;
+- rappeler les prochaines étapes ;
+- expliquer les informations manquantes ;
+- préparer l'entretien ;
+- déclencher les rappels autorisés ;
+- synthétiser l'historique de candidature ;
+- intégrer le feedback vérifié dans le Career Twin.
+
+J’IA **ne décide pas de recruter ou de rejeter** et ne doit pas présenter une projection comme une certitude.
+
+## 8. Feedback et étoiles
+
+Le **feedback professionnel** peut être produit par tout recruteur Jobly lorsqu'une interaction réelle et vérifiable avec le Talent existe, notamment après :
+- examen de candidature ;
+- échange ;
+- entretien ;
+- validation ou refus.
+
+Les **évaluations 1–5 étoiles et fonctions avancées de réputation** restent soumises aux règles Premium/Pro déjà figées, avec interaction réelle vérifiée et protections anti-abus.
+
+Ainsi :
+- feedback professionnel ≠ privilège exclusivement Premium/Pro ;
+- notation ⭐1–5 / réputation avancée = entitlement Premium/Pro ;
+- aucune notation sans interaction vérifiée.
+
+Les feedbacks vérifiés peuvent alimenter le Career Twin et les analyses futures, sans devenir une vérité absolue sur le Talent.
+
+## 9. Permissions, confidentialité et traçabilité
+
+Le système doit distinguer :
+- action proposée par J’IA ;
+- action décidée par le recruteur ;
+- communication préparée ;
+- communication effectivement envoyée ;
+- notification Jobly ;
+- événement d'entretien ;
+- feedback ;
+- décision finale.
+
+Les coordonnées et données privées restent protégées par les permissions et entitlements.
+
+Les communications et événements doivent être journalisés de façon exploitable pour la timeline et l'audit.
+
+## 10. État
+
+**🟦 SPÉCIFIÉ / DÉCISION FIGÉE — 26/09/2026**
+
+Cette fonctionnalité n'est pas déclarée CODÉE, TESTÉE, VALIDÉE ou DÉPLOYÉE.
+
+### Pré-requis techniques à réaliser
+
+1. Modèle d'événements/timeline de candidature.
+2. Service de communication email individuel/bulk.
+3. Templates J’IA contextualisés.
+4. Notifications Jobly associées aux communications.
+5. Intégration WhatsApp préremplie avec action explicite d'envoi.
+6. Workflow d'entretien présentiel.
+7. Intégration Google Calendar/Google Meet réellement autorisée.
+8. Création et persistance sécurisée des événements.
+9. Rappels J’IA 1h/5min.
+10. Décision validation/refus et clôture de candidature.
+11. Feedback professionnel et règles Premium/Pro pour les étoiles.
+12. Anti-abus et permissions.
+13. Tests E2E mobile/desktop et tests des communications.
+14. Vérification réelle avant toute certification production.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
