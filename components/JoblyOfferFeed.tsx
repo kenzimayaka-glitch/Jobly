@@ -325,6 +325,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     return () => window.removeEventListener("jobly:jia-command", onJiaCommand);
   }, [filteredJobs, router, apply, toggleSaved, saved]);
   const featured = useMemo(() => filteredJobs.slice(0, 6), [filteredJobs]);
+  const rest = useMemo(() => filteredJobs.slice(6), [filteredJobs]);
   const topMatchRef = useRef<HTMLDivElement | null>(null);
   const updateTopMatchArrows = useCallback(() => {
     const container = topMatchRef.current;
@@ -422,7 +423,6 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
   }, [featured.length]);
 
 
-  const rest = useMemo(() => filteredJobs.slice(6), [filteredJobs]);
   const scrollTopMatches = useCallback((direction: number) => {
     topMatchRef.current?.scrollBy({ left: direction * 350, behavior: "smooth" });
   }, []);
