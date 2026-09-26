@@ -433,16 +433,12 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
             </div>
             <span className="rounded-full border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[1px] text-slate-500">← →</span>
           </div>
-          <div className="group relative" onMouseEnter={() => setTopMatchHover(true)} onMouseLeave={() => setTopMatchHover(false)}>
-            <div className="pointer-events-none absolute inset-y-0 left-0 z-20 flex items-center pl-1">
-              <button type="button" aria-label="Voir les meilleures offres précédentes" onClick={() => scrollTopMatches(-1)} disabled={!topMatchCanScrollLeft} className={`pointer-events-auto grid h-11 w-11 place-items-center rounded-full border border-white/80 bg-white/75 text-[#FFE135] shadow-[0_8px_28px_rgba(255,225,53,.45)] backdrop-blur-xl transition-all duration-300 ${topMatchHover || coarsePointer ? "opacity-100" : "opacity-0"} ${topMatchCanScrollLeft ? "" : "pointer-events-none opacity-0"}`}><ChevronLeft size={21}/></button>
-            </div>
-            <div className="pointer-events-none absolute inset-y-0 right-0 z-20 flex items-center pr-1">
-              <button type="button" aria-label="Voir les meilleures offres suivantes" onClick={() => scrollTopMatches(1)} disabled={!topMatchCanScrollRight} className={`pointer-events-auto grid h-11 w-11 place-items-center rounded-full border border-white/80 bg-white/75 text-[#FFE135] shadow-[0_8px_28px_rgba(255,225,53,.45)] backdrop-blur-xl transition-all duration-300 ${topMatchHover || coarsePointer ? "opacity-100" : "opacity-0"} ${topMatchCanScrollRight ? "" : "pointer-events-none opacity-0"}`}><ChevronRight size={21}/></button>
-            </div>
+          <div className="relative" onMouseEnter={() => setTopMatchHover(true)} onMouseLeave={() => setTopMatchHover(false)}>
+            <button type="button" aria-label="Voir les meilleures offres précédentes" onClick={() => scrollTopMatches(-1)} disabled={!topMatchCanScrollLeft} className={topMatchHover || coarsePointer ? "absolute left-1 top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/80 bg-white/80 text-[#FFE135] shadow-[0_8px_28px_rgba(255,225,53,.45)] backdrop-blur-xl transition-all duration-300" : "absolute left-1 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/80 bg-white/80 text-[#FFE135] shadow-[0_8px_28px_rgba(255,225,53,.45)] backdrop-blur-xl transition-all duration-300"}>{<ChevronLeft size={21}/>}</button>
+            <button type="button" aria-label="Voir les meilleures offres suivantes" onClick={() => scrollTopMatches(1)} disabled={!topMatchCanScrollRight} className={topMatchHover || coarsePointer ? "absolute right-1 top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/80 bg-white/80 text-[#FFE135] shadow-[0_8px_28px_rgba(255,225,53,.45)] backdrop-blur-xl transition-all duration-300" : "absolute right-1 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/80 bg-white/80 text-[#FFE135] shadow-[0_8px_28px_rgba(255,225,53,.45)] backdrop-blur-xl transition-all duration-300"}>{<ChevronRight size={21}/>}</button>
             <div
               ref={topMatchRef}
-              className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-3 [scroll-snap-type:x_mandatory] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-3"
               aria-label="Vos meilleures offres — offres en cascade horizontale"
             >
             {featured.map((job, index) => {
