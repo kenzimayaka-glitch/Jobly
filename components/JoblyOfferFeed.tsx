@@ -9,6 +9,22 @@ import { companyAvatar } from "@/lib/avatar";
 import CompanyLogo from "@/components/CompanyLogo";
 import BottomNav, { TALENT_NAV } from "@/components/BottomNav";
 
+type CompanyWebProfile = {
+  name: string;
+  address: string | null;
+  location: { lat: number; lng: number } | null;
+  phone: string | null;
+  website: string | null;
+  mapsUrl: string | null;
+  activity: string[];
+  status: string | null;
+  rating: number | null;
+  reviewCount: number | null;
+  description: string | null;
+  news: Array<{ title: string; link: string; publishedAt: string | null }>;
+  source: string[];
+};
+
 type Job = {
   source: "discovery" | "recruiter";
   id: string;
@@ -40,6 +56,8 @@ export function JoblyOfferFeed() {
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState<Set<string>>(new Set());
   const [selectedCompany, setSelectedCompany] = useState<Job["company"]>(null);
+  const [companyWebProfile, setCompanyWebProfile] = useState<CompanyWebProfile | null>(null);
+  const [companyWebLoading, setCompanyWebLoading] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<Job | null>(null);
   const [basket, setBasket] = useState<Set<string>>(new Set());
   const [bulkLimit, setBulkLimit] = useState(1);
@@ -102,6 +120,31 @@ export function JoblyOfferFeed() {
     try { setSaved(new Set(JSON.parse(localStorage.getItem("jobly:jia:saved-offers") || "[]"))); } catch {}
     try { setBasket(new Set(JSON.parse(localStorage.getItem("jobly:jia:application-basket") || "[]"))); } catch {}
   }, []);
+
+  useEffect(() => {
+    if (!selectedCompany?.name) {
+      setCompanyWebProfile(null);
+      return;
+    }
+    let cancelled = false;
+    setCompanyWebLoading(true);
+    setCompanyWebProfile(null);
+    const params = new URLSearchParams({
+      name: selectedCompany.name,
+      website: selectedCompany.website || "",
+      location: selectedCompany.description ? "" : "Cameroun",
+    });
+    fetch(`/api/company-profile?${params.toString()}`)
+      .then(async response => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.message || "Impossible de récupérer les données de l'entreprise.");
+        return body as CompanyWebProfile;
+      })
+      .then(data => { if (!cancelled) setCompanyWebProfile(data); })
+      .catch(() => { if (!cancelled) setCompanyWebProfile(null); })
+      .finally(() => { if (!cancelled) setCompanyWebLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedCompany]);
 
   const toggleBasket = useCallback((job: Job) => {
     const key = `${job.source}:${job.id}`;
@@ -316,7 +359,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
   return <main className="min-h-[100dvh] overflow-hidden bg-[#F5F7F8] pb-28 text-[#17212B]">
     <section className="relative mx-auto max-w-6xl px-5 pb-8 pt-7 sm:px-8">
       <motion.div className="absolute -right-20 top-0 h-72 w-72 rounded-full bg-[#7A9BB5]/30 blur-3xl" animate={{ x: [0, -30, 0], y: [0, 25, 0], scale: [1, 1.1, 1] }} transition={{ duration: 12, repeat: Infinity }} />
-      <div className="relative z-10 flex items-end justify-between gap-4"><div><h1 className="mt-2 text-4xl font-black leading-[.95] tracking-[-.045em] sm:text-6xl">Offres</h1><p className="mt-3 max-w-xl text-base font-black text-[#2E3F4F]">J’IA se charge de tout</p><p className="mt-3 max-w-xl text-sm text-slate-500">{feedSummary}.</p></div><button onClick={() => load(true)} aria-label="Actualiser" className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white/10 text-[#FFE135]"><RefreshCw size={18} className={refreshing ? "animate-spin" : ""}/></button></div>
+      <div className="relative z-10 flex items-end justify-between gap-4"><div><h1 className="mt-2 text-4xl font-black leading-[.95] tracking-[-.045em] sm:text-6xl">Offres</h1><p className="mt-3 max-w-xl text-base font-black text-[#2E3F4F]">J’IA se charge de tout</p><p className="mt-3 max-w-xl text-sm text-slate-500">{feedSummary}.</p></div><button type="button" onClick={() => load(true)} aria-label="Actualiser les offres d’emploi" title="Actualiser les offres d’emploi" className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[#FFE135] px-4 text-sm font-black text-[#2E3F4F] shadow-[0_8px_24px_rgba(255,225,53,.28)] transition hover:scale-[1.02] active:scale-[.98] disabled:opacity-60" disabled={refreshing}><RefreshCw size={18} className={refreshing ? "animate-spin" : ""}/><span>{refreshing ? "Actualisation…" : "Actualiser les offres"}</span></button></div>
       {error && <div className="relative z-10 mt-5 rounded-2xl border border-red-300/20 bg-red-400/10 p-3 text-sm font-bold">{error}</div>}
       <div className="relative z-10 mt-5 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-[1px] text-slate-500"><button type="button" onClick={() => setMatchOnly(v => !v)} className={matchOnly ? "rounded-full border border-[#FFE135] bg-[#FFE135] px-3 py-2 text-[#17212B]" : "rounded-full border border-slate-200 bg-white/5 px-3 py-2"}>Les offres qui vous correspondent · {feedMeta.matchingCount}</button></div>
     </section>
@@ -376,7 +419,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                         {done ? <><Check size={17} className="mr-2"/>Candidature envoyée</> : ready ? "Candidature prête" : busy ? <><RefreshCw size={17} className="mr-2 animate-spin"/>Envoi en cours…</> : <><Send size={17} className="mr-2"/>{job.applicationReady ? "Postuler avec J’IA" : phoneComingSoon ? "COMING SOON" : "Voir l’offre"}</>}
                       </button>
                       <button onClick={() => toggleBasket(job)} aria-label={basket.has(key) ? "Retirer du panier" : "Ajouter au panier"} className={basket.has(key) ? "grid h-12 w-12 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"}>{basket.has(key) ? <CheckSquare size={18}/> : <ShoppingBag size={18}/>}</button>
-                      <button onClick={() => setSelectedCompany(job.company)} aria-label="À propos de l’entreprise" title="À propos de l’entreprise" className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"><Building2 size={18}/></button>
+                      <button onClick={() => setSelectedCompany(job.company)} aria-label="Voir les informations sur l’entreprise" title="Informations sur l’entreprise" className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"><Building2 size={18}/></button>
                       <button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} aria-label="Voir l'offre" className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"><ArrowUpRight size={18}/></button>
                     </div>
                   </div>
@@ -387,7 +430,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         </div>
       )}
 
-      <div className="mt-10 grid gap-3 md:grid-cols-2">{rest.map(job => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const ready = applicationReadyKeys.has(key); const busy = submitting.has(key); const selected = basket.has(key); const phoneComingSoon = job.applicationProfile?.channel === "WHATSAPP_PHONE"; return <motion.article key={key} layout className={selected ? "rounded-[24px] border-2 border-[#FFE135] bg-white p-3 shadow-[0_10px_32px_rgba(23,33,43,.07)]" : "rounded-[24px] border border-white/10 bg-white p-3 shadow-[0_10px_32px_rgba(23,33,43,.07)]"}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} domain={job.company?.domain} website={job.company?.website} size={46}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{job.company?.name || "Entreprise"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[job.location, job.contractType].filter(Boolean).join(" · ") || "Localisation / contrat non précisés"}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)}</p></div><button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="rounded-xl px-1 text-right transition hover:bg-[#FFFBE0] focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-xl font-black text-[#B59A00]">{job.matchPercent}%</strong><span className="text-[8px] font-bold text-slate-400">Mon score</span></button></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} disabled={done || ready} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBag size={16}/>}</button><button onClick={() => phoneComingSoon ? router.push(`/jobs/${job.id}?source=${job.source}`) : apply(job)} disabled={done || ready || busy} className="flex-1 rounded-full bg-[#FFE135] py-2.5 text-xs font-black text-[#2E3F4F] disabled:bg-slate-200 disabled:text-slate-500">{done ? "Candidature envoyée" : ready ? "Candidature prête" : busy ? "Préparation…" : phoneComingSoon ? "COMING SOON" : "Postuler"}</button><button onClick={() => setSelectedCompany(job.company)} aria-label="À propos de l’entreprise" title="À propos de l’entreprise" className="rounded-full border border-slate-200 px-3 py-2.5 text-xs font-bold">À propos</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="grid w-10 place-items-center rounded-full border border-slate-200"><ArrowUpRight size={15}/></button></div></motion.article>; })}</div>
+      <div className="mt-10 grid gap-3 md:grid-cols-2">{rest.map(job => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const ready = applicationReadyKeys.has(key); const busy = submitting.has(key); const selected = basket.has(key); const phoneComingSoon = job.applicationProfile?.channel === "WHATSAPP_PHONE"; return <motion.article key={key} layout className={selected ? "rounded-[24px] border-2 border-[#FFE135] bg-white p-3 shadow-[0_10px_32px_rgba(23,33,43,.07)]" : "rounded-[24px] border border-white/10 bg-white p-3 shadow-[0_10px_32px_rgba(23,33,43,.07)]"}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} domain={job.company?.domain} website={job.company?.website} size={46}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{job.company?.name || "Entreprise"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[job.location, job.contractType].filter(Boolean).join(" · ") || "Localisation / contrat non précisés"}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)}</p></div><button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="rounded-xl px-1 text-right transition hover:bg-[#FFFBE0] focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-xl font-black text-[#B59A00]">{job.matchPercent}%</strong><span className="text-[8px] font-bold text-slate-400">Mon score</span></button></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} disabled={done || ready} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBag size={16}/>}</button><button onClick={() => phoneComingSoon ? router.push(`/jobs/${job.id}?source=${job.source}`) : apply(job)} disabled={done || ready || busy} className="flex-1 rounded-full bg-[#FFE135] py-2.5 text-xs font-black text-[#2E3F4F] disabled:bg-slate-200 disabled:text-slate-500">{done ? "Candidature envoyée" : ready ? "Candidature prête" : busy ? "Préparation…" : phoneComingSoon ? "COMING SOON" : "Postuler"}</button><button onClick={() => setSelectedCompany(job.company)} aria-label="Voir les informations sur l’entreprise" title="Informations sur l’entreprise" className="rounded-full border border-slate-200 px-3 py-2.5 text-xs font-bold">Entreprise</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#22448B]/20 bg-[#F4F7FF] px-3 py-2.5 text-xs font-black text-[#22448B]"><span>Voir l’offre</span><ArrowUpRight size={14}/></button></div></motion.article>; })}</div>
     </section>
 
     {basketJobs.length > 0 && (
@@ -468,7 +511,30 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         </div></motion.div>
     </motion.div>}</AnimatePresence>
 
-    <AnimatePresence>{selectedCompany && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] grid place-items-end bg-black/60 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => setSelectedCompany(null)}><motion.div initial={{ y: 40, opacity: 0, scale: .97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 40, opacity: 0 }} onClick={e => e.stopPropagation()} className="w-full max-w-lg rounded-[32px] border border-white/15 bg-[#2E3F4F] p-6 shadow-2xl"><div className="flex items-start justify-between"><div className="flex items-center gap-3"><CompanyLogo companyName={selectedCompany.name} logoUrl={selectedCompany.logoUrl} domain={selectedCompany.domain} website={selectedCompany.website} size={56}/><div><p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#7A9BB5]">À propos de l’entreprise</p><h2 className="text-xl font-black">{selectedCompany.name}</h2></div></div><button onClick={() => setSelectedCompany(null)} className="rounded-full border border-white/10 p-2"><X size={18}/></button></div><p className="mt-6 text-sm leading-6 text-white/75">{selectedCompany.description || "Aucun résumé d’activité n’est fourni dans la source de l’offre."}</p>{selectedCompany.website && <a href={selectedCompany.website.startsWith("http") ? selectedCompany.website : `https://${selectedCompany.website}`} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-3 text-xs font-bold">Visiter le site de l’entreprise <ExternalLink size={14}/></a>}</motion.div></motion.div>}</AnimatePresence>
+    <AnimatePresence>{selectedCompany && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] grid place-items-end bg-black/60 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => setSelectedCompany(null)}>
+      <motion.div initial={{ y: 40, opacity: 0, scale: .97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 40, opacity: 0 }} onClick={e => e.stopPropagation()} className="max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-[32px] border border-white/15 bg-[#2E3F4F] p-6 text-white shadow-2xl">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <CompanyLogo companyName={selectedCompany.name} logoUrl={selectedCompany.logoUrl} domain={selectedCompany.domain} website={selectedCompany.website} size={56}/>
+            <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#FFE135]">Entreprise</p><h2 className="truncate text-xl font-black">{selectedCompany.name}</h2></div>
+          </div>
+          <button onClick={() => setSelectedCompany(null)} aria-label="Fermer les informations de l’entreprise" className="rounded-full border border-white/10 p-2"><X size={18}/></button>
+        </div>
+        {companyWebLoading ? <div className="mt-7 flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-sm text-white/70"><RefreshCw size={16} className="animate-spin"/> Recherche des informations publiques…</div> : companyWebProfile ? <div className="mt-6 space-y-4">
+          {companyWebProfile.address && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Localisation</p><p className="mt-1 text-sm">{companyWebProfile.address}</p>{companyWebProfile.mapsUrl && <a href={companyWebProfile.mapsUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center rounded-full bg-white/10 px-3 py-2 text-xs font-bold">Voir sur Google Maps</a>}</div>}
+          {companyWebProfile.phone && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Contact</p><a href={`tel:${companyWebProfile.phone}`} className="mt-1 block text-sm font-bold">{companyWebProfile.phone}</a></div>}
+          {(companyWebProfile.activity.length>0 || companyWebProfile.status || companyWebProfile.rating!=null) && <div className="grid gap-3 sm:grid-cols-2">
+            {companyWebProfile.activity.length>0 && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Domaine d’activité</p><p className="mt-1 text-sm capitalize">{companyWebProfile.activity.join(" · ")}</p></div>}
+            {(companyWebProfile.status || companyWebProfile.rating!=null) && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Présence Google</p><p className="mt-1 text-sm">{companyWebProfile.status ? companyWebProfile.status.replace(/_/g," ") : ""}{companyWebProfile.rating!=null ? ` · ★ ${companyWebProfile.rating}${companyWebProfile.reviewCount!=null ? ` (${companyWebProfile.reviewCount} avis)` : ""}` : ""}</p></div>}
+          </div>}
+          {(companyWebProfile.description || selectedCompany.description) && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Présentation</p><p className="mt-1 text-sm leading-6 text-white/75">{companyWebProfile.description || selectedCompany.description}</p></div>}
+          {companyWebProfile.website && <a href={companyWebProfile.website.startsWith("http") ? companyWebProfile.website : `https://${companyWebProfile.website}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-3 text-xs font-bold">Site officiel <ExternalLink size={14}/></a>}
+          {companyWebProfile.news.length>0 && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Actualités</p><div className="mt-2 space-y-2">{companyWebProfile.news.map((item,index)=><a key={index} href={item.link} target="_blank" rel="noreferrer" className="block rounded-2xl bg-white/5 p-3 text-sm font-semibold leading-5 hover:bg-white/10">{item.title}<span className="mt-1 block text-[10px] font-normal text-white/45">{item.publishedAt ? new Date(item.publishedAt).toLocaleDateString("fr-FR") : ""}</span></a>)}</div></div>}
+        </div> : <div className="mt-7 rounded-2xl bg-white/5 p-4 text-sm text-white/65">Aucune donnée disponible</div>}
+        {!companyWebLoading && companyWebProfile && !companyWebProfile.address && !companyWebProfile.phone && !companyWebProfile.website && !companyWebProfile.description && companyWebProfile.news.length===0 && <div className="mt-3 rounded-2xl bg-white/5 p-4 text-sm text-white/65">Aucune donnée disponible</div>}
+      </motion.div>
+    </motion.div>}</AnimatePresence>
+
     {jobs.length === 0 && !loading && <div className="mx-auto max-w-2xl px-5 py-20 text-center"><Sparkles className="mx-auto text-[#22448B]"/><h2 className="mt-4 text-2xl font-black">Aucune offre disponible pour le moment.</h2><p className="mt-2 text-sm text-white/55">Jobly ne fabrique pas d’offres : les offres affichées proviennent de sources réelles.</p></div>}
     <BottomNav active="/jobs" items={TALENT_NAV} />
   </main>;
