@@ -105,7 +105,7 @@ export default function CompanyLogo({
 
     if (!resolvedDomain && companyName?.trim()) {
       setResolving(true);
-      fetch(`/api/company-logo?name=${encodeURIComponent(companyName.trim())}`)
+      fetch(`/api/company-logo?name=${encodeURIComponent(companyName.trim())}${resolvedDomain ? `&domain=${encodeURIComponent(resolvedDomain)}` : ""}`)
         .then(async (response) => {
           if (!response.ok) throw new Error("logo-resolution-failed");
           const body = await response.json();
