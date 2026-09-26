@@ -1,0 +1,107 @@
+import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+
+type CompanyProfile = {
+  name: string;
+  address: string | null;
+  location: { lat: number; lng: number } | null;
+  phone: string | null;
+  website: string | null;
+  mapsUrl: string | null;
+  activity: string[];
+  status: string | null;
+  rating: number | null;
+  reviewCount: number | null;
+  description: string | null;
+  news: Array<{ title: string; link: string; publishedAt: string | null }>;
+  source: string[];
+};
+
+function clean(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function decodeXml(value: string) {
+  return value.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+}
+
+export async function GET(request: NextRequest) {
+  const params = new URL(request.url).searchParams;
+  const name = clean(params.get("name"));
+  const location = clean(params.get("location"));
+  const website = clean(params.get("website"));
+
+  if (!name) return NextResponse.json({ message: "Nom d'entreprise requis." }, { status: 400 });
+
+  const result: CompanyProfile = {
+    name, address: null, location: null, phone: null, website: website || null,
+    mapsUrl: null, activity: [], status: null, rating: null, reviewCount: null,
+    description: null, news: [], source: [],
+  };
+
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
+  if (apiKey) {
+    try {
+      const response = await fetch("https://places.googleapis.com/v1/places:searchText", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": apiKey,
+          "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.location,places.nationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.types,places.businessStatus,places.rating,places.userRatingCount",
+        },
+        body: JSON.stringify({ textQuery: location ? `${name}, ${location}` : name, languageCode: "fr" }),
+        cache: "no-store",
+      });
+      if (response.ok) {
+        const body = await response.json();
+        const place = body?.places?.[0];
+        if (place) {
+          result.address = clean(place.formattedAddress) || null;
+          result.location = place.location ? { lat: Number(place.location.latitude), lng: Number(place.location.longitude) } : null;
+          result.phone = clean(place.nationalPhoneNumber) || null;
+          result.website = clean(place.websiteUri) || result.website;
+          result.mapsUrl = clean(place.googleMapsUri) || null;
+          result.activity = Array.isArray(place.types) ? place.types.slice(0, 8).map((x: unknown) => String(x).replace(/_/g, " ")) : [];
+          result.status = clean(place.businessStatus) || null;
+          result.rating = typeof place.rating === "number" ? place.rating : null;
+          result.reviewCount = typeof place.userRatingCount === "number" ? place.userRatingCount : null;
+          result.source.push("Google Maps");
+        }
+      }
+    } catch {}
+  }
+
+  if (!result.description && website) {
+    try {
+      const url = website.startsWith("http") ? website : `https://${website}`;
+      const response = await fetch(url, { headers: { "User-Agent": "JoblyBot/1.0 (+https://jobly.cm)" }, signal: AbortSignal.timeout(5000), cache: "no-store" });
+      if (response.ok) {
+        const html = await response.text();
+        const description = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1] ||
+          html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1];
+        if (description) result.description = decodeXml(description).slice(0, 500);
+        result.source.push("Site officiel");
+      }
+    } catch {}
+  }
+
+  try {
+    const query = encodeURIComponent(`"${name}" ${location}`);
+    const response = await fetch(`https://news.google.com/rss/search?q=${query}&hl=fr&gl=CM&ceid=CM:fr`, { signal: AbortSignal.timeout(5000), cache: "no-store" });
+    if (response.ok) {
+      const xml = await response.text();
+      const items = [...xml.matchAll(/<item>([\\s\\S]*?)<\\/item>/g)].slice(0, 5);
+      result.news = items.map(match => {
+        const item = match[1];
+        const title = decodeXml(item.match(/<title>([\\s\\S]*?)<\\/title>/i)?.[1] || "");
+        const link = decodeXml(item.match(/<link>([\\s\\S]*?)<\\/link>/i)?.[1] || "");
+        const publishedAt = item.match(/<pubDate>([\\s\\S]*?)<\\/pubDate>/i)?.[1] || null;
+        return { title, link, publishedAt };
+      }).filter(item => item.title && item.link);
+      if (result.news.length) result.source.push("Google Actualités");
+    }
+  } catch {}
+
+  return NextResponse.json(result, { headers: { "Cache-Control": "private, max-age=300" } });
+}
