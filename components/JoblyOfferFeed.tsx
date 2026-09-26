@@ -75,7 +75,7 @@ export function JoblyOfferFeed() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("Toutes");
   const [matchOnly, setMatchOnly] = useState(false);
-  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);\n  const offersStartRef = useRef<HTMLElement | null>(null);
 
   // Deep link : /jobs?q=stage (ex. CTA « Chercher un stage » de l’espace Campus).
   useEffect(() => {
@@ -357,7 +357,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
   }, [featured.length]);
 
 
-  const rest = useMemo(() => filteredJobs.slice(3), [filteredJobs]);
+  const rest = useMemo(() => filteredJobs.slice(6), [filteredJobs]);
   const feedSummary = feedMeta.totalAvailable ? `${feedMeta.totalAvailable} offre${feedMeta.totalAvailable > 1 ? "s" : ""} disponible${feedMeta.totalAvailable > 1 ? "s" : ""} aujourd’hui` : "Marché en cours de synchronisation";
 
   if (sessionLoading || (loading && !jobs.length)) return (
@@ -386,7 +386,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
       <div className="relative z-10 mt-5 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-[1px] text-slate-500"><button type="button" onClick={() => setMatchOnly(v => !v)} className={matchOnly ? "rounded-full border border-[#FFE135] bg-[#FFE135] px-3 py-2 text-[#17212B]" : "rounded-full border border-slate-200 bg-white/5 px-3 py-2"}>Les offres qui vous correspondent · {feedMeta.matchingCount}</button></div>
     </section>
 
-    <section className="mx-auto max-w-6xl px-5 sm:px-8">
+    <section ref={offersStartRef} id="jobly-offers-start" className="mx-auto max-w-6xl px-5 scroll-mt-6 sm:px-8">
       <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Offres</p><h2 className="mt-1 text-xl font-black">{feedSummary}</h2></div><div className="flex flex-col gap-2 sm:flex-row"><form onSubmit={e => { e.preventDefault(); setQuery(query.trim()); }} className="flex h-11 min-w-[280px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 shadow-sm"><Search size={16} className="text-[#22448B]"/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Métier, entreprise, ville…" aria-label="Rechercher une offre" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"/><button type="submit" aria-label="Rechercher" title="Rechercher" className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#22448B] text-white transition hover:bg-[#17346E]"><Search size={14}/></button></form><div className="flex gap-2 overflow-x-auto">{["Toutes","CDI","CDD","Stage","Remote"].map(item => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "whitespace-nowrap rounded-2xl bg-[#FFE135] px-4 py-3 text-xs font-black text-[#17212B]" : "whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-500"}>{item}</button>)}</div></div></div>
       {featured.length > 0 && (
         <div>
@@ -528,7 +528,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
           </div>
           <div className="mt-5 rounded-2xl border border-[#FFE135]/60 bg-[#FFFBE0] p-3 text-[10px] leading-5 text-slate-600"><b>Score spécifique à cette offre :</b> seuls les critères détectés dans cette offre influencent le score. Une information absente du profil est signalée comme non renseignée et réduit la confiance plutôt que d’être comptée automatiquement comme un échec.</div>
           <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 text-[10px] leading-5 text-slate-500"><b className="text-[#2E3F4F]">Confiance de l’analyse : {selectedMatch.matchConfidence ?? 100}%</b> · basée sur les informations réellement disponibles dans votre profil.</div>
-          <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(selectedMatch.id) + "&source=" + encodeURIComponent(selectedMatch.source))} className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#FFE135] px-5 py-3 text-xs font-black text-[#2E3F4F]"><Sparkles size={15}/> Adapter mon CV pour cette candidature</button>
+          <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(selectedMatch.id) + "&source=" + encodeURIComponent(selectedMatch.source))} className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#FFE135] px-5 py-3 text-xs font-black text-[#2E3F4F]"><Sparkles size={15}/> Adapter votre CV pour cette candidature</button>
           <p className="mt-2 text-center text-[10px] text-slate-400">J’IA analyse l’offre et votre CV. Vous validez chaque modification avant utilisation.</p>
         </div></motion.div>
     </motion.div>}</AnimatePresence>
@@ -564,10 +564,10 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.82, y: 12 }}
         transition={{ duration: 0.22 }}
-        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        onClick={() => offersStartRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
         aria-label="Remonter en haut des offres"
         title="Remonter au début des offres"
-        className="fixed bottom-24 right-5 z-[75] grid h-12 w-12 place-items-center rounded-full border border-white/45 bg-white/30 text-[#22448B] shadow-[0_10px_30px_rgba(34,68,139,.16)] backdrop-blur-xl transition hover:bg-white/45 hover:shadow-[0_14px_36px_rgba(34,68,139,.22)] active:scale-95 sm:bottom-8 sm:right-8"
+        className="fixed bottom-24 right-5 z-[75] grid h-12 w-12 place-items-center rounded-full border border-white/55 bg-white/25 text-[#22448B] shadow-[0_10px_30px_rgba(34,68,139,.12)] backdrop-blur-2xl transition hover:bg-white/40 hover:shadow-[0_14px_36px_rgba(34,68,139,.18)] active:scale-95 sm:bottom-8 sm:right-8"
       >
         <span className="absolute inset-1 rounded-full border border-white/30" />
         <span className="relative text-xl font-black leading-none">↑</span>
