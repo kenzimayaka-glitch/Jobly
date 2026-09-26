@@ -56,6 +56,7 @@ export function JoblyOfferFeed() {
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState<Set<string>>(new Set());
   const [selectedCompany, setSelectedCompany] = useState<Job["company"]>(null);
+  const [selectedCompanyLocation, setSelectedCompanyLocation] = useState<string | null>(null);
   const [companyWebProfile, setCompanyWebProfile] = useState<CompanyWebProfile | null>(null);
   const [companyWebLoading, setCompanyWebLoading] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<Job | null>(null);
@@ -124,6 +125,7 @@ export function JoblyOfferFeed() {
   useEffect(() => {
     if (!selectedCompany?.name) {
       setCompanyWebProfile(null);
+      setSelectedCompanyLocation(null);
       return;
     }
     let cancelled = false;
@@ -132,7 +134,7 @@ export function JoblyOfferFeed() {
     const params = new URLSearchParams({
       name: selectedCompany.name,
       website: selectedCompany.website || "",
-      location: selectedCompany.description ? "" : "Cameroun",
+      location: selectedCompanyLocation || "",
     });
     fetch(`/api/company-profile?${params.toString()}`)
       .then(async response => {
@@ -144,7 +146,7 @@ export function JoblyOfferFeed() {
       .catch(() => { if (!cancelled) setCompanyWebProfile(null); })
       .finally(() => { if (!cancelled) setCompanyWebLoading(false); });
     return () => { cancelled = true; };
-  }, [selectedCompany]);
+  }, [selectedCompany, selectedCompanyLocation]);
 
   const toggleBasket = useCallback((job: Job) => {
     const key = `${job.source}:${job.id}`;
@@ -419,7 +421,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                         {done ? <><Check size={17} className="mr-2"/>Candidature envoyée</> : ready ? "Candidature prête" : busy ? <><RefreshCw size={17} className="mr-2 animate-spin"/>Envoi en cours…</> : <><Send size={17} className="mr-2"/>{job.applicationReady ? "Postuler avec J’IA" : phoneComingSoon ? "COMING SOON" : "Voir l’offre"}</>}
                       </button>
                       <button onClick={() => toggleBasket(job)} aria-label={basket.has(key) ? "Retirer du panier" : "Ajouter au panier"} className={basket.has(key) ? "grid h-12 w-12 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"}>{basket.has(key) ? <CheckSquare size={18}/> : <ShoppingBag size={18}/>}</button>
-                      <button onClick={() => setSelectedCompany(job.company)} aria-label="Voir les informations sur l’entreprise" title="Informations sur l’entreprise" className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"><Building2 size={18}/></button>
+                      <button onClick={() => { setSelectedCompany(job.company); setSelectedCompanyLocation(job.location); }} aria-label="Voir les informations sur l’entreprise" title="Informations sur l’entreprise" className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"><Building2 size={18}/></button>
                       <button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} aria-label="Voir l'offre" className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"><ArrowUpRight size={18}/></button>
                     </div>
                   </div>
