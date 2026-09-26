@@ -34,7 +34,7 @@ function extractRequiredSkills(text:string,tags:string[],candidateSkills:string[
 }
 function languageScore(text:string,lang:string){const n=normalize(text);if(lang==="anglais"&&!/anglais|english/.test(n))return null;if(lang==="francais"&&!/francais|french/.test(n))return null;return /bilingue|fluent|courant|advanced|professionnel|professional|maitrise/.test(n)?1:.7;}
 function adaptiveMatch(profile:Profile,years:number|null,experiences:Experience[],skills:Skill[],education:Education[],job:MatchableJob){
-  const offer=[job.title,job.description,job.location,job.contractType,job.remoteMode,job.sector,...(job.tags||[])].filter(Boolean).join(" ");
+  const offer=[job.title,job.description,job.location,job.contractType,job.remoteMode,job.sector,job.language,...(job.tags||[])].filter(Boolean).join(" ");
   const offerN=normalize(offer);
   const candidate=[profile.headline,profile.summary,profile.location,...(profile.targetRoles||[]),...(profile.preferredSectors||[]),...experiences.map(x=>(x.title||"")+" "+(x.description||"")),...skills.map(x=>(x.name||"")+" "+(x.level||"")),...education.map(x=>(x.degree||"")+" "+(x.field||""))].filter(Boolean).join(" ");
   const candidateN=normalize(candidate);
