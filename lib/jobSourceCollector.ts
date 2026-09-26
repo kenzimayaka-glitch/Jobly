@@ -143,9 +143,20 @@ function findApplicationUrl(html: string, pageUrl: string, source: SourceConfig)
   return candidates[0]?.url || null;
 }
 
+function editorialText(clean: string, title: string): string {
+  const start = Math.max(0, clean.toLowerCase().indexOf(title.toLowerCase()));
+  let text = start >= 0 ? clean.slice(start) : clean;
+  for (const marker of ["Offres d'emploi récentes", "REJOIGNEZ MinaJobs", "Envoyez moi des offres d'emploi", "Événements", "Vus récemment"]) {
+    const index = text.toLowerCase().indexOf(marker.toLowerCase());
+    if (index > 200) text = text.slice(0, index);
+  }
+  return normalizeSpace(text).slice(0, MAX_DESCRIPTION_CHARS);
+}
+
 function extractOffer(source: SourceConfig,url: string,html: string,listingTitle: string): CollectedOffer | null {
-  const clean = htmlToCleanText(html), title = titleFromHtml(html) || listingTitle;
+  const rawClean = htmlToCleanText(html), title = titleFromHtml(html) || listingTitle;
   if (!title || title.length < 3) return null;
+  const clean = editorialText(rawClean, title);
   const company = firstMatch(clean,[/(?:Nom de l[’']employeur|Nom de l'employeur|Employeur|Entreprise|Company)\s*[:：-]\s*([^|\n]{2,120})/i,/(?:chez|at)\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ0-9 .&'’-]{2,100})/i]);
   const location = firstMatch(clean,[/(?:Lieu|Localisation|Location)\s*[:：-]\s*([^|\n]{2,100})/i]);
   const contractType = firstMatch(clean,[/(?:Type d[’']emploi|Type d'emploi|Contrat|Contract)\s*[:：-]\s*([^|\n]{2,60})/i]);
