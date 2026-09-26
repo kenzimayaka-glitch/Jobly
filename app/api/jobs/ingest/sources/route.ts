@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { adminClient } from "../../../../../lib/server-auth";
-import { collectPublicJobSources } from "../../../../../lib/jobSourceCollector";
+import { adminClient } from "@/lib/server-auth";
+import { collectPublicJobSources } from "@/lib/jobSourceCollector";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
