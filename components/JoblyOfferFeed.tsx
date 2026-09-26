@@ -188,6 +188,13 @@ export function JoblyOfferFeed() {
     } finally { setBulkPreparing(false); }
   }
 
+  function editPreparedBulk() {
+    const keys = preparedBulk.map(item => item.key);
+    setBasket(new Set(keys));
+    try { localStorage.setItem("jobly:jia:application-basket", JSON.stringify(keys)); } catch {}
+    setPreparedBulk([]);
+  }
+
   async function submitBulkApplications() {
     if (!token || preparedBulk.length === 0 || bulkSubmitting) return;
     setBulkSubmitting(true); setError("");
@@ -400,9 +407,9 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     <AnimatePresence>{preparedBulk.length > 0 && (
       <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-[110] grid place-items-center bg-black/65 p-3 backdrop-blur-sm">
         <motion.div initial={{y:24,opacity:0}} animate={{y:0,opacity:1}} className="max-h-[88dvh] w-full max-w-2xl overflow-y-auto rounded-[30px] bg-white p-5 text-[#17212B] shadow-2xl sm:p-6">
-          <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">J’IA · revue finale</p><h2 className="mt-1 text-2xl font-black">Candidatures prêtes à envoyer</h2><p className="mt-1 text-xs text-slate-500">{preparedBulk.length} candidature{preparedBulk.length>1?"s":""} préparée{preparedBulk.length>1?"s":""}. Vérifiez-les avant l’envoi.</p></div><button onClick={() => setPreparedBulk([])} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200"><X size={17}/></button></div>
+          <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">J’IA · revue finale</p><h2 className="mt-1 text-2xl font-black">Candidatures prêtes à envoyer</h2><p className="mt-1 text-xs text-slate-500">{preparedBulk.length} candidature{preparedBulk.length>1?"s":""} préparée{preparedBulk.length>1?"s":""}. Vérifiez-les avant l’envoi.</p></div><button onClick={editPreparedBulk} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200"><X size={17}/></button></div>
           <div className="mt-5 space-y-3">{preparedBulk.map(item => <details key={item.id} className="rounded-2xl border border-slate-200 bg-[#F8FAFC] p-3"><summary className="cursor-pointer list-none"><div className="flex items-center gap-3"><CompanyLogo companyName={item.job.company?.name} logoUrl={item.job.company?.logoUrl} domain={item.job.company?.domain} website={item.job.company?.website} size={38}/><div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold uppercase text-slate-400">{item.job.company?.name || "Entreprise"}</p><p className="truncate text-sm font-black">{item.job.title}</p></div><span className="rounded-full bg-[#DDF8EA] px-2 py-1 text-[9px] font-black text-[#08733E]">{item.job.matchPercent}% match</span></div></summary><div className="mt-3 border-t border-slate-200 pt-3"><p className="whitespace-pre-wrap text-xs leading-5 text-slate-600">{item.letter || "Lettre personnalisée prête à l’envoi."}</p></div></details>)}</div>
-          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button onClick={() => setPreparedBulk([])} className="rounded-full border border-slate-200 px-5 py-3 text-xs font-black">Modifier la sélection</button><button onClick={() => void submitBulkApplications()} disabled={bulkSubmitting} className="rounded-full bg-[#FFE135] px-5 py-3 text-xs font-black text-[#2E3F4F]">{bulkSubmitting ? "Envoi des candidatures…" : `Confirmer et envoyer ${preparedBulk.length} candidature${preparedBulk.length>1?"s":""}`}</button></div>
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button onClick={editPreparedBulk} className="rounded-full border border-slate-200 px-5 py-3 text-xs font-black">Modifier la sélection</button><button onClick={() => void submitBulkApplications()} disabled={bulkSubmitting} className="rounded-full bg-[#FFE135] px-5 py-3 text-xs font-black text-[#2E3F4F]">{bulkSubmitting ? "Envoi des candidatures…" : `Confirmer et envoyer ${preparedBulk.length} candidature${preparedBulk.length>1?"s":""}`}</button></div>
         </motion.div>
       </motion.div>
     )}</AnimatePresence>
