@@ -28,7 +28,7 @@ type Job = {
   matchPercent: number;
 };
 
-type JobsResponse = { totalActive: number; count: number; jobs: Job[] };
+type JobsResponse = { totalAvailable: number; matchingCount: number; count: number; jobs: Job[] };
 type ApplicationsResponse = { counters?: { envoyees: number; vues: number; entretien: number } };
 
 const QUICK = [
@@ -112,9 +112,9 @@ export default function DashboardPage() {
   }, [data]);
 
   const firstName = data?.user.displayName?.split(" ")[0] || "";
-  const topJobs = jobs?.jobs?.slice(0, 3) ?? [];
+  const topJobs = jobs?.jobs?.filter((job) => job.matchPercent >= 50).slice(0, 3) ?? [];
   const applicationsCount = applications?.counters?.envoyees ?? 0;
-  const visibleJobCount = jobs?.totalActive ?? 0;\n  const availableOffersLabel = `${visibleJobCount} offre${visibleJobCount > 1 ? "s" : ""} disponible${visibleJobCount > 1 ? "s" : ""} aujourd’hui`;
+  const visibleJobCount = jobs?.totalAvailable ?? 0;\n  const availableOffersLabel = `${visibleJobCount} offre${visibleJobCount > 1 ? "s" : ""} disponible${visibleJobCount > 1 ? "s" : ""} aujourd’hui`;
   const carouselRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
