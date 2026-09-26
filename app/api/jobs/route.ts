@@ -1,3 +1,4 @@
+import { resolveApplicationContact } from "../../../lib/applicationEngine";
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
 
@@ -173,8 +174,6 @@ export async function GET(request:NextRequest){
    supabase.from("Experience").select("startDate,title,description").eq("userId",user.id),
    supabase.from("Skill").select("name,level").eq("userId",user.id),
    supabase.from("Education").select("degree,field").eq("userId",user.id),
-   // Discovery visibility is intentionally independent from application readiness.
-   // Users must be able to discover the market broadly; readiness is enforced when applying.
    supabase.from("Job").select("*").eq("isActive",true).order("createdAt",{ascending:false}),
    supabase.from("RecruiterJob").select("*").eq("status","published").eq("applicationReady",true).order("createdAt",{ascending:false})
   ]);
@@ -185,6 +184,22 @@ export async function GET(request:NextRequest){
   const recruiter=((recruiterJobsRes.data as RecruiterJobRow[])||[]);
   let unified:Unified[]=[...discovery.map(j=>({source:"discovery" as const,sourceId:j.id,title:j.title,description:j.description,location:j.location,contractType:j.contractType,remoteMode:j.remoteMode,minExperienceYears:j.minExperienceYears,companyName:null,companyId:j.companyId,createdAt:j.createdAt,publishedAt:j.sourcePublishedAt,deadline:j.deadline,sourceUrl:j.sourceUrl,sourcePlatform:j.source||null,applicationProfile:j.applicationProfile,visualUrl:j.visualUrl,visualSource:j.visualSource,applicationCheckedAt:j.applicationCheckedAt,sector:j.aiSector||null,tags:[...(Array.isArray(j.aiSkills)?(j.aiSkills as unknown[]).filter((x):x is string=>typeof x==="string"):[]),...(Array.isArray((j as any).tags)?((j as any).tags as unknown[]).filter((x):x is string=>typeof x==="string"):[])],language:j.language||null})),...recruiter.map(j=>({source:"recruiter" as const,sourceId:j.id,title:j.title,description:j.description,location:j.location,contractType:j.contract,remoteMode:j.remoteMode,minExperienceYears:j.minExperienceYears,companyName:j.companyName,companyId:null,createdAt:j.createdAt,publishedAt:j.createdAt,deadline:null,sourceUrl:j.sourceUrl,sourcePlatform:j.sourcePlatform||"JOBLY",applicationProfile:j.applicationProfile,visualUrl:j.visualUrl,visualSource:j.visualSource,applicationCheckedAt:j.applicationCheckedAt,sector:j.sector||null,tags:j.tags||[],language:null}))];
   if(filterContract)unified=unified.filter(j=>normalize(j.contractType)===normalize(filterContract));if(filterCity)unified=unified.filter(j=>normalize(j.location).includes(normalize(filterCity)));if(filterRemote)unified=unified.filter(j=>normalize(j.remoteMode)===normalize(filterRemote));if(search){const n=normalize(search);unified=unified.filter(j=>normalize(j.title).includes(n)||normalize(j.companyName).includes(n));}
+  // Discovery visibility is limited to offers with a verifiable direct application contact.
+  // A generic website/contact email is not enough: the extractor requires application context.
+  unified=unified.map(job=>{
+    const contact=resolveApplicationContact(job.applicationProfile,job.description);
+    return {
+      ...job,
+      applicationProfile:{
+        ...job.applicationProfile,
+        ...(contact.email?{applicationEmail:contact.email}:{}),
+        ...(contact.phone?{applicationPhone:contact.phone}:{}),
+      },
+    };
+  }).filter(job=>{
+    const contact=resolveApplicationContact(job.applicationProfile,job.description);
+    return Boolean(contact.email||contact.phone);
+  });
   const companyIds=Array.from(new Set(unified.map(j=>j.companyId).filter(Boolean))) as string[];const companiesRes=companyIds.length?await supabase.from("Company").select("id,name,logoUrl,description,website,verified").in("id",companyIds):{data:[] as Company[],error:null};if(companiesRes.error)throw new Error(companiesRes.error.message);const companiesById=new Map((companiesRes.data as Company[]).map(c=>[c.id,c]));
   const ranked=unified.map(job=>{const {matchPercent,confidence,breakdown}=adaptiveMatch(profile,yearsExperience,experiences,skills,education,job);const company=job.companyId?companiesById.get(job.companyId):undefined;const publishedAt=job.publishedAt||job.createdAt;const expirationAt=expirationFor(job.publishedAt,job.deadline,job.createdAt);return{source:job.source,id:job.sourceId,title:job.title,description:job.description,location:job.location,contractType:job.contractType,remoteMode:job.remoteMode,minExperienceYears:job.minExperienceYears,createdAt:job.createdAt,publishedAt,expirationAt:expirationAt?expirationAt.toISOString():null,deadline:job.deadline,sourceUrl:job.sourceUrl,sourcePlatform:job.sourcePlatform,applicationReady:Boolean(job.applicationReady),applicationProfile:job.applicationProfile,applicationCheckedAt:job.applicationCheckedAt,visualUrl:job.visualUrl||company?.logoUrl||null,visualSource:job.visualSource||(company?.logoUrl?"COMPANY_LOGO":null),company:(company&&!isGenericCompanyName(company.name))?{id:company.id,name:company.name,logoUrl:company.logoUrl,description:company.description,website:company.website,domain:companyDomain(company.website),verified:company.verified}:(!company&&job.companyName&&!isGenericCompanyName(job.companyName))?{id:null,name:job.companyName,logoUrl:null,description:null,website:null,domain:null,verified:false}:null,matchPercent,matchConfidence:confidence,matchBreakdown:breakdown,feedScore:matchPercent};}).sort((a,b)=>b.feedScore-a.feedScore||new Date(b.publishedAt).getTime()-new Date(a.publishedAt).getTime());
   const totalAvailable=ranked.length;const start=(page-1)*limit;const results=ranked.slice(start,start+limit);const matchingCount=ranked.reduce((count,job)=>count+(job.matchPercent>=50?1:0),0);
