@@ -1,12 +1,22 @@
 # JOBLY — README DE CONTINUITÉ PRODUIT & TECHNIQUE
 ## JOBLY 20/20 — Your Career OS
-### Référence de continuité — 12 septembre 2026 (routes mises à jour le 13/09/2026)
+### Référence de continuité — 26 septembre 2026
 
 > **AUDIT 360° DU 13/09/2026** — un audit complet de navigation a été réalisé
 > (voir `AUDIT-360-JOBLY-13-09-2026.md`) : chaque bouton/lien de l'app a été
 > vérifié contre les routes réelles. Les corrections "P0" (boutons morts,
 > liens erronés, navigation manquante) ont été appliquées ; voir `Statut.md`
 > §22 pour le détail complet et la liste de ce qui reste à faire (P1/P2).
+
+> **MISE À JOUR DU 26/09/2026 — OFFRES & MATCHING**
+>
+> Le parcours /jobs a été réaligné sur la vision candidat : titre **« Offres »**, sous-titre **« J’IA se charge de tout »**, compteur dynamique **« X offres disponibles aujourd’hui »**, filtre **« Les offres qui vous correspondent »** à partir de **50 %** de compatibilité, et bloc **« Vos meilleurs offres »** avec le sous-titre **« Les offres qui correspondent le mieux à votre profil actuel »**.
+>
+> Le moteur de matching est désormais **adaptatif à chaque offre** : il ne force plus une grille fixe. Il utilise les exigences effectivement détectées dans l'offre (métier, compétences, expérience, études, langue, localisation, secteur, etc.). Une information absente du profil est marquée **non renseignée** et réduit la confiance de l'analyse plutôt que d'être comptée automatiquement comme un échec.
+>
+> Le détail du score est cliquable et propose **« Adapter mon CV pour cette candidature »**, qui ouvre le CV Studio avec l'offre ciblée.
+>
+> Les règles historiques **« fraîcheur 60 jours max »** et **« deadline explicite prioritaire »** ont été retirées du moteur et de l'interface. La disponibilité des offres n'est plus artificiellement limitée à 60 jours.
 
 > **OBJECTIF DE CE DOCUMENT**
 >
