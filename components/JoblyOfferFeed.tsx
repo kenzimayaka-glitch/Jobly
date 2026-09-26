@@ -75,7 +75,8 @@ export function JoblyOfferFeed() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("Toutes");
   const [matchOnly, setMatchOnly] = useState(false);
-  const [showBackToTop, setShowBackToTop] = useState(false);\n  const offersStartRef = useRef<HTMLElement | null>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const offersStartRef = useRef<HTMLElement | null>(null);
 
   // Deep link : /jobs?q=stage (ex. CTA « Chercher un stage » de l’espace Campus).
   useEffect(() => {
