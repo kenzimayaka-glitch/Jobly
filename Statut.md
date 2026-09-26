@@ -2697,3 +2697,32 @@ Le chantier J’IA a été repris en bloc sur la branche `chore/jia-complete-bul
 8. Déploiement puis vérification de la production sur le commit certifié.
 
 **Règle : aucune certification “terminé/go live” avant validation de l’ensemble de ces points.**
+
+
+## CHECKPOINT 26/09/2026 — TALENT OFFERS / MATCH ADAPTATIF / UI
+
+### Offres & matching
+- Le score de compatibilité est calculé **offre par offre** : seuls les critères réellement détectés dans l’offre participent au score.
+- Critères détectés selon le contenu de l’offre : métier/fonction, compétences, expérience, niveau d’études, langues, localisation, secteur, contrat et télétravail.
+- Une information candidate inconnue est affichée comme **Non renseignée** et réduit la confiance plutôt que d’être assimilée automatiquement à un échec.
+- **Les offres qui vous correspondent** utilise un seuil de 50 % de compatibilité.
+- Le détail du score reste cliquable et affiche critères, attendu, données connues du profil et confiance.
+- **Adapter mon CV pour cette candidature** ouvre le CV Studio avec l’offre déjà ciblée.
+
+### Interface Talent
+- Surface principale : **Offres** ; sous-titre : **J’IA se charge de tout**.
+- Sélection principale : **Vos meilleurs offres** ; sous-titre : **Les offres qui correspondent le mieux à votre profil actuel**.
+- Compteur dynamique : **X offres disponibles aujourd’hui**, basé sur le nombre réel d’offres retournées.
+- Recherche : bouton explicite intégré dans le champ.
+- Les deadlines/expirations ne sont plus présentées comme élément prioritaire dans les cartes.
+- La logique de fraîcheur à 60 jours n’est plus utilisée pour le classement du flux.
+- Dashboard Talent réaligné sur la palette Jobly bleu royal / canari / surfaces claires.
+- Le vocabulaire « Opportunités » a été retiré des libellés concernés au profit de « Offres ».
+
+### Logos entreprise
+- CompanyLogo utilise un proxy same-origin /api/company-logo/image avant les favicons externes.
+- Google Favicon et DuckDuckGo restent des fallbacks.
+- Le cache navigateur a été versionné pour invalider les anciennes résolutions défaillantes.
+
+### État
+**🔧 CODÉ → 🧪 BUILD / VERCEL / VALIDATION VISUELLE À CONFIRMER.**
