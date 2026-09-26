@@ -22,6 +22,7 @@ type CompanyWebProfile = {
   reviewCount: number | null;
   description: string | null;
   news: Array<{ title: string; link: string; publishedAt: string | null }>;
+  summary: string | null;
   source: string[];
   logoUrl?: string | null;
 };
@@ -60,6 +61,7 @@ export function JoblyOfferFeed() {
   const [selectedCompanyLocation, setSelectedCompanyLocation] = useState<string | null>(null);
   const [companyWebProfile, setCompanyWebProfile] = useState<CompanyWebProfile | null>(null);
   const [companyWebLoading, setCompanyWebLoading] = useState(false);
+  const modalHistoryRef = useRef(false);
   const [selectedMatch, setSelectedMatch] = useState<Job | null>(null);
   const [basket, setBasket] = useState<Set<string>>(new Set());
   const [bulkLimit, setBulkLimit] = useState(1);
@@ -156,6 +158,30 @@ export function JoblyOfferFeed() {
     return () => { cancelled = true; };
   }, [selectedCompany, selectedCompanyLocation]);
 
+  const closeOfferModal = useCallback((kind: "match" | "company") => {
+    if (modalHistoryRef.current) {
+      modalHistoryRef.current = false;
+      window.history.back();
+    } else {
+      if (kind === "match") setSelectedMatch(null);
+      else setSelectedCompany(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!selectedMatch && !selectedCompany) return;
+    modalHistoryRef.current = true;
+    const stateKey = "jobly-offers-modal";
+    window.history.pushState({ ...(window.history.state || {}), [stateKey]: true }, "", window.location.href);
+    const onPopState = () => {
+      modalHistoryRef.current = false;
+      setSelectedMatch(null);
+      setSelectedCompany(null);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [selectedMatch, selectedCompany]);
+
   const toggleBasket = useCallback((job: Job) => {
     const key = `${job.source}:${job.id}`;
     if (applied.has(key) || applicationReadyKeys.has(key)) return;
@@ -201,10 +227,15 @@ export function JoblyOfferFeed() {
   }
 
   async function apply(job: Job) {
-    if (!token) return;
+    if (!token) {
+      setError("Votre session Jobly a expiré. Reconnectez-vous pour postuler.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     const key = `${job.source}:${job.id}`;
     if (applied.has(key) || applicationReadyKeys.has(key) || submitting.has(key) || bulkPreparing) return;
     await prepareSingleApplication(job);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function prepareBulkApplications() {
@@ -503,7 +534,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,225,53,.28),transparent_38%),radial-gradient(circle_at_80%_80%,rgba(46,63,79,.18),transparent_42%)]"/>
                     {job.visualUrl ? <motion.img src={job.visualUrl} alt="" className="absolute inset-0 h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} animate={{ scale: [1, 1.035, 1] }} transition={{ duration: 8, repeat: Infinity }}/> : null}
                     <div className="relative z-10 grid h-24 w-24 place-items-center rounded-[24px] border border-white/70 bg-white/95 shadow-xl">
-                      <CompanyLogo companyName={job.company?.name} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={68}/>
+                      <CompanyLogo companyName={job.company?.name} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={72}/>
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-t from-[#2E3F4F]/70 via-transparent to-transparent"/>
                     <span className="absolute left-3 top-3 rounded-full bg-[#FFE135] px-3 py-1 text-[9px] font-black uppercase tracking-[1.4px] text-[#2E3F4F]">Meilleures offres</span>
@@ -511,7 +542,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                   </div>
                   <div className="p-3">
                     <div className="mt-1 flex items-center gap-2">
-                      <CompanyLogo companyName={job.company?.name} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={32}/>
+                      <CompanyLogo companyName={job.company?.name} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={36}/>
                       <p className="min-w-0 truncate text-[10px] font-bold uppercase tracking-[1.5px] text-[#7A9BB5]">{job.company?.name ? (job.company.name.length > 20 ? `${job.company.name.slice(0, 17)}...` : job.company.name) : "Aucune donnée"}</p>
                     </div>
                     <h2 className="mt-1 text-2xl font-black leading-none">{job.title}</h2>
@@ -522,7 +553,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                         {done ? <><Check size={17} className="mr-2"/>Candidature envoyée</> : ready ? "Candidature prête" : busy ? <><RefreshCw size={17} className="mr-2 animate-spin"/>Envoi en cours…</> : <><Send size={17} className="mr-2"/>{job.applicationReady ? "Postuler avec J’IA" : phoneComingSoon ? "COMING SOON" : "Postuler"}</>}
                       </button>
                       <button onClick={() => toggleBasket(job)} aria-label={basket.has(key) ? "Retirer du panier" : "Ajouter au panier"} className={basket.has(key) ? "grid h-12 w-12 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid h-12 w-12 place-items-center rounded-full border border-[#22448B]/25 bg-[#EEF4FF] text-[#22448B]"}>{basket.has(key) ? <CheckSquare size={18}/> : <ShoppingBag size={18}/>}</button>
-                      <button onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label="Voir les informations sur l’entreprise" title="Informations sur l’entreprise" className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"><Building2 size={18}/></button>
+                      <button onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label="En savoir plus sur l’entreprise" title="En savoir +" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-full bg-[#00A6E8] px-4 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,166,232,.22)] transition hover:bg-[#008FC8] active:scale-[.98]">En savoir +</button>
                       <button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} aria-label="Voir l'offre" className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"><ArrowUpRight size={18}/></button>
                     </div>
                   </div>
@@ -533,7 +564,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         </div>
       )}
 
-      <div className="mx-auto mt-10 grid w-full min-w-0 max-w-full grid-cols-1 gap-3 md:grid-cols-2">{rest.map((job, index) => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const ready = applicationReadyKeys.has(key); const busy = submitting.has(key); const selected = basket.has(key); const phoneComingSoon = job.applicationProfile?.channel === "WHATSAPP_PHONE"; const focused = focusedOfferKey === key; return <article key={key} data-offer-index={index + 7} data-offer-key={key} style={{ touchAction: "pan-y" }} className={`group min-w-0 max-w-full transform-gpu transition-[transform,box-shadow] duration-300 ease-out will-change-transform ${focused ? "relative z-10 -translate-y-3 shadow-[0_18px_44px_rgba(255,225,53,.48)] md:-translate-y-2" : "relative z-0 translate-y-0 shadow-[0_10px_32px_rgba(23,33,43,.07)]"} ${selected ? "rounded-[24px] border-2 border-[#FFE135] bg-white p-3 opacity-90" : "rounded-[24px] border border-white/10 bg-white p-3 opacity-90"}`}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} domain={job.company?.domain} website={job.company?.website} size={46}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{job.company?.name || "Aucune donnée"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[job.location, job.contractType].filter(Boolean).join(" · ") || "Aucune donnée"}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)}</p></div><button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="rounded-xl px-1 text-right transition hover:bg-[#FFFBE0] focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-xl font-black text-[#FFE135]">{job.matchPercent}%</strong><span className="text-[8px] font-black text-[#FFE135]">Mon score</span></button></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} disabled={done || ready} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBag size={16}/>}</button><button onClick={() => phoneComingSoon ? router.push(`/jobs/${job.id}?source=${job.source}`) : apply(job)} disabled={done || ready || busy} className="flex min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full bg-[#FFE135] px-2.5 py-2.5 text-xs font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B]">{done ? "Candidature envoyée" : ready ? "Candidature prête" : busy ? "Préparation…" : phoneComingSoon ? "COMING SOON" : "Postuler"}</button><button onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label={`Voir les informations sur ${job.company?.name || "l’entreprise"}`} title="Informations sur l’entreprise" className="max-w-[170px] truncate rounded-full border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-[#22448B]">{job.company?.name || "Aucune donnée"}</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#7C3AED]/25 bg-[#F3E8FF] px-3 py-2.5 text-xs font-black text-[#6D28D9]"><span>Voir l’offre</span><ArrowUpRight size={14}/></button></div></article>; })}</div>
+      <div className="mx-auto mt-10 grid w-full min-w-0 max-w-full grid-cols-1 gap-3 md:grid-cols-2">{rest.map((job, index) => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const ready = applicationReadyKeys.has(key); const busy = submitting.has(key); const selected = basket.has(key); const phoneComingSoon = job.applicationProfile?.channel === "WHATSAPP_PHONE"; const focused = focusedOfferKey === key; return <article key={key} data-offer-index={index + 7} data-offer-key={key} style={{ touchAction: "pan-y" }} className={`group min-w-0 max-w-full transform-gpu transition-[transform,box-shadow] duration-300 ease-out will-change-transform ${focused ? "relative z-10 -translate-y-3 shadow-[0_18px_44px_rgba(255,225,53,.48)] md:-translate-y-2" : "relative z-0 translate-y-0 shadow-[0_10px_32px_rgba(23,33,43,.07)]"} ${selected ? "rounded-[24px] border-2 border-[#FFE135] bg-white p-3 opacity-90" : "rounded-[24px] border border-white/10 bg-white p-3 opacity-90"}`}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} domain={job.company?.domain} website={job.company?.website} size={50}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{job.company?.name || "Aucune donnée"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[job.location, job.contractType].filter(Boolean).join(" · ") || "Aucune donnée"}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)}</p></div><button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="rounded-xl px-1 text-right transition hover:bg-[#FFFBE0] focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-xl font-black text-[#FFE135]">{job.matchPercent}%</strong><span className="text-[8px] font-black text-[#FFE135]">Mon score</span></button></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} disabled={done || ready} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBag size={16}/>}</button><button onClick={() => phoneComingSoon ? router.push(`/jobs/${job.id}?source=${job.source}`) : apply(job)} disabled={done || ready || busy} className="flex min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full bg-[#FFE135] px-2.5 py-2.5 text-xs font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B]">{done ? "Candidature envoyée" : ready ? "Candidature prête" : busy ? "Préparation…" : phoneComingSoon ? "COMING SOON" : "Postuler"}</button><button onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label={`En savoir plus sur ${job.company?.name || "l’entreprise"}`} title="En savoir +" className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#00A6E8] px-3.5 py-2.5 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,166,232,.18)] transition hover:bg-[#008FC8] active:scale-[.98]">En savoir +</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#7C3AED]/25 bg-[#F3E8FF] px-3 py-2.5 text-xs font-black text-[#6D28D9]"><span>Voir l’offre</span><ArrowUpRight size={14}/></button></div></article>; })}</div>
     </section>
 
     {basketJobs.length > 0 && (
@@ -564,7 +595,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
             const isEditing = editingLetterId === item.id;
             const inputId = `letter-upload-${item.id}`;
             return <details key={item.id} open={isEditing || undefined} className="rounded-2xl border border-slate-200 bg-[#F8FAFC] p-3">
-              <summary className="cursor-pointer list-none"><div className="flex items-center gap-3"><CompanyLogo companyName={item.job.company?.name} logoUrl={item.job.company?.logoUrl} domain={item.job.company?.domain} website={item.job.company?.website} size={38}/><div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold uppercase text-slate-400">{item.job.company?.name || "Aucune donnée"}</p><p className="truncate text-sm font-black">{item.job.title}</p></div><span className="rounded-full bg-[#DDF8EA] px-2 py-1 text-[9px] font-black text-[#08733E]">{item.job.matchPercent}% match</span></div></summary>
+              <summary className="cursor-pointer list-none"><div className="flex items-center gap-3"><CompanyLogo companyName={item.job.company?.name} logoUrl={item.job.company?.logoUrl} domain={item.job.company?.domain} website={item.job.company?.website} size={40}/><div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold uppercase text-slate-400">{item.job.company?.name || "Aucune donnée"}</p><p className="truncate text-sm font-black">{item.job.title}</p></div><span className="rounded-full bg-[#DDF8EA] px-2 py-1 text-[9px] font-black text-[#08733E]">{item.job.matchPercent}% match</span></div></summary>
               <div className="mt-3 border-t border-slate-200 pt-3">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[1px] text-slate-400"><FileText size={14}/> Lettre · {item.letterSource === "CANDIDATE" ? "Votre document" : "Préparée par J’IA"}</div><div className="flex gap-2">
                   <button type="button" onClick={() => setEditingLetterId(isEditing ? null : item.id)} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-[10px] font-black"><Pencil size={13}/> {isEditing ? "Fermer" : "Modifier"}</button>
@@ -587,7 +618,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
       </motion.div>
     )}</AnimatePresence>
 
-    <AnimatePresence>{selectedMatch && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[105] grid place-items-end bg-black/60 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => setSelectedMatch(null)}>
+    <AnimatePresence>{selectedMatch && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[105] grid place-items-end bg-black/60 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => closeOfferModal("match")}>
       <motion.div initial={{ y: 30, opacity: 0, scale: .97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 30, opacity: 0 }} onClick={e => e.stopPropagation()} className="w-full max-w-md overflow-hidden rounded-[30px] bg-white text-[#17212B] shadow-2xl">
         <div className="bg-[#2E3F4F] p-5 text-white">
           <div className="flex items-start justify-between gap-3">
@@ -614,11 +645,11 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         </div></motion.div>
     </motion.div>}</AnimatePresence>
 
-    <AnimatePresence>{selectedCompany && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] grid place-items-end bg-black/60 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => setSelectedCompany(null)}>
+    <AnimatePresence>{selectedCompany && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] grid place-items-end bg-black/60 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => closeOfferModal("company")}>
       <motion.div initial={{ y: 40, opacity: 0, scale: .97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 40, opacity: 0 }} onClick={e => e.stopPropagation()} className="max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-[32px] border border-white/15 bg-[#2E3F4F] p-6 text-white shadow-2xl">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <CompanyLogo companyName={selectedCompany.name} logoUrl={companyWebProfile?.logoUrl || selectedCompany.logoUrl} domain={selectedCompany.domain} website={companyWebProfile?.website || selectedCompany.website} size={56}/>
+            <CompanyLogo companyName={selectedCompany.name} logoUrl={companyWebProfile?.logoUrl || selectedCompany.logoUrl} domain={selectedCompany.domain} website={companyWebProfile?.website || selectedCompany.website} size={60}/>
             <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#FFE135]">Entreprise</p><h2 className="truncate text-xl font-black">{selectedCompany.name}</h2></div>
           </div>
           <button onClick={() => setSelectedCompany(null)} aria-label="Fermer les informations de l’entreprise" className="rounded-full border border-white/10 p-2"><X size={18}/></button>
@@ -630,9 +661,9 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
             {companyWebProfile.activity.length>0 && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Domaine d’activité</p><p className="mt-1 text-sm capitalize">{companyWebProfile.activity.join(" · ")}</p></div>}
             {(companyWebProfile.status || companyWebProfile.rating!=null) && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Présence Google</p><p className="mt-1 text-sm">{companyWebProfile.status ? companyWebProfile.status.replace(/_/g," ") : ""}{companyWebProfile.rating!=null ? ` · ★ ${companyWebProfile.rating}${companyWebProfile.reviewCount!=null ? ` (${companyWebProfile.reviewCount} avis)` : ""}` : ""}</p></div>}
           </div>}
-          {(companyWebProfile.description || selectedCompany.description) && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Présentation</p><p className="mt-1 text-sm leading-6 text-white/75">{companyWebProfile.description || selectedCompany.description}</p></div>}
+          {(companyWebProfile.summary || companyWebProfile.description || selectedCompany.description) && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Présentation</p><p className="mt-1 text-sm leading-6 text-white/75">{companyWebProfile.summary || companyWebProfile.description || selectedCompany.description}</p></div>}
           {companyWebProfile.website && <a href={companyWebProfile.website.startsWith("http") ? companyWebProfile.website : `https://${companyWebProfile.website}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-3 text-xs font-bold">Site officiel <ExternalLink size={14}/></a>}
-          {companyWebProfile.news.length>0 && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Actualités</p><div className="mt-2 space-y-2">{companyWebProfile.news.map((item,index)=><a key={index} href={item.link} target="_blank" rel="noreferrer" className="block rounded-2xl bg-white/5 p-3 text-sm font-semibold leading-5 hover:bg-white/10">{item.title}<span className="mt-1 block text-[10px] font-normal text-white/45">{item.publishedAt ? new Date(item.publishedAt).toLocaleDateString("fr-FR") : ""}</span></a>)}</div></div>}
+          
         </div> : <div className="mt-7 rounded-2xl bg-white/5 p-4 text-sm text-white/65">Aucune donnée</div>}
         {!companyWebLoading && companyWebProfile && !companyWebProfile.address && !companyWebProfile.phone && !companyWebProfile.website && !companyWebProfile.description && companyWebProfile.news.length===0 && <div className="mt-3 rounded-2xl bg-white/5 p-4 text-sm text-white/65">Aucune donnée</div>}
       </motion.div>

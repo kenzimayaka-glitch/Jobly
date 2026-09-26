@@ -14,6 +14,7 @@ type CompanyProfile = {
   rating: number | null;
   reviewCount: number | null;
   description: string | null;
+  summary: string | null;
   news: Array<{ title: string; link: string; publishedAt: string | null }>;
   source: string[];
   logoUrl: string | null;
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
   const result: CompanyProfile = {
     name, address: null, location: null, phone: null, website: website || null,
     mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([name, location].filter(Boolean).join(", "))}`, activity: [], status: null, rating: null, reviewCount: null,
-    description: null, news: [], source: [], logoUrl: null,
+    description: null, summary: null, news: [], source: [], logoUrl: null,
   };
 
   const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
@@ -89,22 +90,19 @@ export async function GET(request: NextRequest) {
     } catch {}
   }
 
-  try {
-    const query = encodeURIComponent(`"${name}" ${location}`);
-    const response = await fetch(`https://news.google.com/rss/search?q=${query}&hl=fr&gl=CM&ceid=CM:fr`, { signal: AbortSignal.timeout(5000), cache: "no-store" });
-    if (response.ok) {
-      const xml = await response.text();
-      const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, 5);
-      result.news = items.map(match => {
-        const item = match[1];
-        const title = decodeXml(item.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || "");
-        const link = decodeXml(item.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || "");
-        const publishedAt = item.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1] || null;
-        return { title, link, publishedAt };
-      }).filter(item => item.title && item.link);
-      if (result.news.length) result.source.push("Google Actualités");
-    }
-  } catch {}
+  const summaryParts: string[] = [];
+  if (result.description) summaryParts.push(result.description);
+  if (result.activity.length) summaryParts.push(`Activité identifiée : ${result.activity.join(", ")}.`);
+  if (result.address) summaryParts.push(`Localisation : ${result.address}.`);
+  if (result.phone) summaryParts.push(`Contact : ${result.phone}.`);
+  if (result.status) summaryParts.push(`Statut : ${result.status.replace(/_/g, " ").toLowerCase()}.`);
+  if (result.rating != null) summaryParts.push(`Évaluation Google : ${result.rating}/5${result.reviewCount != null ? ` sur ${result.reviewCount} avis` : ""}.`);
+  result.summary = summaryParts.length ? summaryParts.join(" ") : null;
+
+  // Jobly ne présente pas des résultats de recherche comme s'ils constituaient le profil de l'entreprise.
+  // Les informations affichées sont uniquement celles qui peuvent être rattachées directement à l'entreprise.
+  result.news = [];
+
 
   return NextResponse.json(result, { headers: { "Cache-Control": "private, max-age=300" } });
 }
