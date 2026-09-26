@@ -45,8 +45,8 @@ export async function POST(request: NextRequest) {
             name: companyName,
             verified: false,
             description: null,
-            website: null,
-            logoUrl: null,
+            website: offer.companyWebsite,
+            logoUrl: offer.logoUrl,
           }).select("id").single();
           if (createdCompany.error) throw new Error(createdCompany.error.message);
           companyId = createdCompany.data.id;
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
       const contact = offer.applicationProfile;
       const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone);
-      const source = offer.sourceKey === "MINAJOBS" ? "MinaJobs" : "JobInfoCamer";
+      const source = offer.sourceKey === "MINAJOBS" ? "MinaJobs" : offer.sourceKey === "JOBINFOCAMER" ? "JobInfoCamer" : "Infos Concours Education";
       const payload = {
         title: offer.title,
         description: offer.description,
@@ -104,6 +104,14 @@ export async function POST(request: NextRequest) {
         }
         updated++;
       } else {
+        if (companyId && (offer.logoUrl || offer.companyWebsite)) {
+          const companyPatch: Record<string, unknown> = {};
+          if (offer.logoUrl) companyPatch.logoUrl = offer.logoUrl;
+          if (offer.companyWebsite) companyPatch.website = offer.companyWebsite;
+          const companyUpdate = await supabase.from("Company").update(companyPatch).eq("id", companyId);
+          if (companyUpdate.error) throw new Error(companyUpdate.error.message);
+        }
+
         const id = crypto.randomUUID();
         const insert = await supabase.from("Job").insert({
           id,
