@@ -510,7 +510,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                       <button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} aria-label="Voir l'offre" className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"><ArrowUpRight size={18}/></button>
                     </div>
                   </div>
-                </motion.article>
+                </article>
               );
             })}
           </div>
