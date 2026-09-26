@@ -3584,3 +3584,28 @@ Aucun déploiement Vercel n'est déclenché par ce checkpoint.
 
 ### Discipline de vérité
 CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ : les modifications ci-dessus sont CODÉES ; discover-jobs est aussi DÉPLOYÉ sur Supabase v17. La validation production de /jobs sur téléphone et le prochain build Vercel restent à effectuer avec autorisation de déploiement.
+
+## CHECKPOINT 26/09/2026 — LOGOS LOGO.DEV / BUILD VERCEL
+
+### Correction Logo.dev
+- Nom de variable serveur retenu : **LOGO_DEV_SECRET_KEY**.
+- La clé secrète n'est pas exposée côté navigateur.
+- `app/api/company-logo/route.ts` utilise désormais `LOGO_DEV_SECRET_KEY`.
+- `components/CompanyLogo.tsx` demande d'abord la résolution serveur Logo.dev.
+- Cache logo client versionné en **v6** afin d'éviter qu'un ancien fallback bloque une nouvelle résolution.
+- Les fallbacks favicon/proxy restent disponibles si Logo.dev ne retourne pas de résultat.
+
+### État
+**🟦 CODÉ — en attente de validation Vercel/runtime.**
+
+### Déploiement
+Le prochain déploiement Vercel doit couvrir l'état complet de `main` au moment du build, notamment :
+- correction Logo.dev ;
+- Bloc A Talent / Offres / matching ;
+- Bloc B Discovery / JobsPipe / `discover-jobs v17` ;
+- corrections TypeScript/build déjà intégrées ;
+- documentation mise à jour.
+
+**Aucun élément n'est déclaré VALIDÉ ou DÉPLOYÉ avant vérification réelle du build et du runtime.**
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
