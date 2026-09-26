@@ -75,6 +75,7 @@ export function JoblyOfferFeed() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("Toutes");
   const [matchOnly, setMatchOnly] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
   // Deep link : /jobs?q=stage (ex. CTA « Chercher un stage » de l’espace Campus).
   useEffect(() => {
@@ -320,6 +321,25 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
   const topMatchRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    const onScroll = () => {
+      if (window.scrollY < 320) {
+        setShowBackToTop(false);
+        return;
+      }
+      const twentiethOffer = document.querySelector<HTMLElement>('[data-offer-index="20"]');
+      if (!twentiethOffer) return;
+      setShowBackToTop(twentiethOffer.getBoundingClientRect().top <= window.innerHeight * 0.82);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [jobs.length, filteredJobs.length]);
+
+  useEffect(() => {
     const container = topMatchRef.current;
     if (!container || featured.length <= 1) return;
 
@@ -432,7 +452,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         </div>
       )}
 
-      <div className="mt-10 grid gap-3 md:grid-cols-2">{rest.map(job => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const ready = applicationReadyKeys.has(key); const busy = submitting.has(key); const selected = basket.has(key); const phoneComingSoon = job.applicationProfile?.channel === "WHATSAPP_PHONE"; return <motion.article key={key} layout className={selected ? "rounded-[24px] border-2 border-[#FFE135] bg-white p-3 shadow-[0_10px_32px_rgba(23,33,43,.07)]" : "rounded-[24px] border border-white/10 bg-white p-3 shadow-[0_10px_32px_rgba(23,33,43,.07)]"}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} domain={job.company?.domain} website={job.company?.website} size={46}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{job.company?.name || "Entreprise"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[job.location, job.contractType].filter(Boolean).join(" · ") || "Localisation / contrat non précisés"}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)}</p></div><button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="rounded-xl px-1 text-right transition hover:bg-[#FFFBE0] focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-xl font-black text-[#B59A00]">{job.matchPercent}%</strong><span className="text-[8px] font-bold text-slate-400">Mon score</span></button></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} disabled={done || ready} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBag size={16}/>}</button><button onClick={() => phoneComingSoon ? router.push(`/jobs/${job.id}?source=${job.source}`) : apply(job)} disabled={done || ready || busy} className="flex-1 rounded-full bg-[#FFE135] py-2.5 text-xs font-black text-[#2E3F4F] disabled:bg-slate-200 disabled:text-slate-500">{done ? "Candidature envoyée" : ready ? "Candidature prête" : busy ? "Préparation…" : phoneComingSoon ? "COMING SOON" : "Postuler"}</button><button onClick={() => setSelectedCompany(job.company)} aria-label="Voir les informations sur l’entreprise" title="Informations sur l’entreprise" className="rounded-full border border-slate-200 px-3 py-2.5 text-xs font-bold">Entreprise</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#22448B]/20 bg-[#F4F7FF] px-3 py-2.5 text-xs font-black text-[#22448B]"><span>Voir l’offre</span><ArrowUpRight size={14}/></button></div></motion.article>; })}</div>
+      <div className="mt-10 grid gap-3 md:grid-cols-2">{rest.map((job, index) => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const ready = applicationReadyKeys.has(key); const busy = submitting.has(key); const selected = basket.has(key); const phoneComingSoon = job.applicationProfile?.channel === "WHATSAPP_PHONE"; return <motion.article key={key} data-offer-index={index + 4} layout className={selected ? "rounded-[24px] border-2 border-[#FFE135] bg-white p-3 shadow-[0_10px_32px_rgba(23,33,43,.07)]" : "rounded-[24px] border border-white/10 bg-white p-3 shadow-[0_10px_32px_rgba(23,33,43,.07)]"}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} domain={job.company?.domain} website={job.company?.website} size={46}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{job.company?.name || "Entreprise"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[job.location, job.contractType].filter(Boolean).join(" · ") || "Localisation / contrat non précisés"}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)}</p></div><button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="rounded-xl px-1 text-right transition hover:bg-[#FFFBE0] focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-xl font-black text-[#B59A00]">{job.matchPercent}%</strong><span className="text-[8px] font-bold text-slate-400">Mon score</span></button></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} disabled={done || ready} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBag size={16}/>}</button><button onClick={() => phoneComingSoon ? router.push(`/jobs/${job.id}?source=${job.source}`) : apply(job)} disabled={done || ready || busy} className="flex-1 rounded-full bg-[#FFE135] py-2.5 text-xs font-black text-[#2E3F4F] disabled:bg-slate-200 disabled:text-slate-500">{done ? "Candidature envoyée" : ready ? "Candidature prête" : busy ? "Préparation…" : phoneComingSoon ? "COMING SOON" : "Postuler"}</button><button onClick={() => setSelectedCompany(job.company)} aria-label="Voir les informations sur l’entreprise" title="Informations sur l’entreprise" className="rounded-full border border-slate-200 px-3 py-2.5 text-xs font-bold">Entreprise</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#22448B]/20 bg-[#F4F7FF] px-3 py-2.5 text-xs font-black text-[#22448B]"><span>Voir l’offre</span><ArrowUpRight size={14}/></button></div></motion.article>; })}</div>
     </section>
 
     {basketJobs.length > 0 && (
@@ -537,6 +557,22 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
       </motion.div>
     </motion.div>}</AnimatePresence>
 
+    <AnimatePresence>
+      {showBackToTop && <motion.button
+        type="button"
+        initial={{ opacity: 0, scale: 0.82, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.82, y: 12 }}
+        transition={{ duration: 0.22 }}
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        aria-label="Remonter en haut des offres"
+        title="Remonter au début des offres"
+        className="fixed bottom-24 right-5 z-[75] grid h-12 w-12 place-items-center rounded-full border border-white/45 bg-white/30 text-[#22448B] shadow-[0_10px_30px_rgba(34,68,139,.16)] backdrop-blur-xl transition hover:bg-white/45 hover:shadow-[0_14px_36px_rgba(34,68,139,.22)] active:scale-95 sm:bottom-8 sm:right-8"
+      >
+        <span className="absolute inset-1 rounded-full border border-white/30" />
+        <span className="relative text-xl font-black leading-none">↑</span>
+      </motion.button>}
+    </AnimatePresence>
     {jobs.length === 0 && !loading && <div className="mx-auto max-w-2xl px-5 py-20 text-center"><Sparkles className="mx-auto text-[#22448B]"/><h2 className="mt-4 text-2xl font-black">Aucune offre disponible pour le moment.</h2><p className="mt-2 text-sm text-white/55">Jobly ne fabrique pas d’offres : les offres affichées proviennent de sources réelles.</p></div>}
     <BottomNav active="/jobs" items={TALENT_NAV} />
   </main>;
