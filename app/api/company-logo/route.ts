@@ -4,10 +4,10 @@ const cache = new Map<string, { logoUrl: string | null; expiresAt: number }>();
 const TTL = 24 * 60 * 60 * 1000;
 
 export async function GET(request: NextRequest) {
-  const name = new URL(request.url).searchParams.get("name")?.trim();
-  if (!name) return NextResponse.json({ logoUrl: null }, { status: 400 });
+  const params = new URL(request.url).searchParams;\n  const name = params.get("name")?.trim();\n  const domain = params.get("domain")?.trim();
+  if (!name && !domain) return NextResponse.json({ logoUrl: null }, { status: 400 });\n  if (!token) {\n    if (domain) return NextResponse.json({ logoUrl: `/api/company-logo/image?domain=${encodeURIComponent(domain)}`, domain });\n    return NextResponse.json({ logoUrl: null, reason: "logo_api_not_configured" }, { status: 503 });\n  }
 
-  const key = name.toLowerCase();
+  const key = (name || domain || "company").toLowerCase();
   const cached = cache.get(key);
   if (cached && cached.expiresAt > Date.now()) {
     return NextResponse.json({ logoUrl: cached.logoUrl });
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const response = await fetch(
-      `https://api.logo.dev/search?q=${encodeURIComponent(name)}&strategy=match`,
+      `https://api.logo.dev/search?q=${encodeURIComponent(name || domain || "")}&strategy=match`,
       {
         headers: { Authorization: `Bearer ${token}` },
         next: { revalidate: 86400 },
