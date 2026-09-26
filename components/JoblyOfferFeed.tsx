@@ -159,7 +159,7 @@ export function JoblyOfferFeed() {
       const gmailStatusRes = await fetch("/api/talent/gmail/status", { headers: { Authorization: `Bearer ${token}` } });
       const gmailStatus = await gmailStatusRes.json().catch(() => ({}));
       if (gmailStatusRes.ok && !gmailStatus.connected) { window.location.href = "/api/talent/gmail/connect"; return; }
-      const prepared: Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string }> = [];
+      const prepared: Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string; letterSource: "JIA" | "CANDIDATE" }> = [];
       for (const job of basketJobs) {
         const key = `${job.source}:${job.id}`;
         const res = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ source: job.source, jobId: job.id }) });
