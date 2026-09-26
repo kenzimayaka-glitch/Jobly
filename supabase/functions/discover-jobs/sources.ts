@@ -1,5 +1,3 @@
-import { parse } from "https://deno.land/std@0.224.0/xml/mod.ts";
-
 export type DiscoveryItem = {
   title:string; description:string; company:string; location:string; url:string;
   deadline:string|null; published:string|null;
@@ -8,18 +6,29 @@ export type DiscoveryItem = {
 const clean=(s:any)=>String(s??"").replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/\s+/g," ").trim();
 
 function rssItems(xml:string): DiscoveryItem[] {
-  const doc:any=parse(xml);
-  const items:any[] = doc?.rss?.channel?.item ?? doc?.feed?.entry ?? [];
-  const list=Array.isArray(items)?items:[items];
-  return list.map((x:any)=>({
-    title:clean(x.title),
-    description:clean(x.description ?? x.summary ?? x.content),
-    company:clean(x.company ?? x.author?.name),
-    location:clean(x.location ?? x.city ?? ""),
-    url:clean(typeof x.link==="object" ? x.link?.["@href"] : x.link),
-    deadline:clean(x.validThrough)||null,
-    published:clean(x.pubDate ?? x.published ?? x.datePosted)||null
-  })).filter(x=>x.title&&x.url);
+  const out: DiscoveryItem[] = [];
+  const blocks = xml.match(/<(?:item|entry)\\b[\\s\\S]*?<\\/(?:item|entry)>/gi) || [];
+  const cleanTag = (value:string) => clean(value.replace(/<!\\[CDATA\\[/g,"").replace(/\\]\\]>/g,""));
+  for (const block of blocks) {
+    const get = (tag:string) => {
+      const m = block.match(new RegExp("<" + tag + "(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)<\\\\/" + tag + ">", "i"));
+      return m ? cleanTag(m[1]) : "";
+    };
+    const linkAttr = block.match(/<link\\b[^>]*href=["']([^"']+)["'][^>]*>/i);
+    const linkText = get("link");
+    const item: DiscoveryItem = {
+      title: get("title"),
+      description: get("description") || get("summary") || get("content"),
+      company: get("company") || get("author"),
+      website: cleanTag(get("website") || get("companyWebsite")) || null,
+      location: get("location") || get("city"),
+      url: cleanTag(linkAttr?.[1] || linkText),
+      deadline: get("validThrough") || null,
+      published: get("pubDate") || get("published") || get("datePosted") || null
+    };
+    if (item.title && item.url) out.push(item);
+  }
+  return out;
 }
 
 async function fetchJson(url:string, init:RequestInit={}){
