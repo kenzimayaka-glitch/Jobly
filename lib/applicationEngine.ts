@@ -44,11 +44,13 @@ export async function prepareApplication(req: NextRequest, args: {
   experiences: TailoredCvExperience[];
   skills: TailoredCvSkill[];
   education: TailoredCvEducation[];
+  letterOverride?: string | null;
+  skipAi?: boolean;
 }) {
   const channel = resolveApplicationChannel(args.applicationProfile);
   if (channel.channel === "UNSUPPORTED") throw new Error(channel.reason);
   const definition = getChannelDefinition(channel.channel);
-  const ai = await runAiGateway(req, "APPLICATION_COPILOT", { jobTitle: args.jobTitle, jobDescription: args.jobDescription });
+  const ai = args.skipAi ? { ok: true as const, output: {}, message: "" } : await runAiGateway(req, "APPLICATION_COPILOT", { jobTitle: args.jobTitle, jobDescription: args.jobDescription });
   if (!ai.ok) throw new Error(ai.message);
   const output = ai.output && typeof ai.output === "object" ? ai.output as Record<string, unknown> : {};
   const warnings = Array.isArray(output.warnings) ? output.warnings.filter((x): x is string => typeof x === "string") : [];
@@ -64,7 +66,7 @@ export async function prepareApplication(req: NextRequest, args: {
     channel,
     definition,
     ai,
-    letter: buildGroundedLetter(args.profile, args.jobTitle, args.company),
+    letter: stringValue(args.letterOverride) || buildGroundedLetter(args.profile, args.jobTitle, args.company),
     tailoredCvText,
     warnings,
     readyForSubmission: definition.automated && !definition.requiresConnection,
