@@ -25,8 +25,15 @@ export function CvShareView({ token }: { token:string }) {
   const [matchCount,setMatchCount]=useState<number|null>(null);
 
   useEffect(()=>{
-    const shareUrl="/api/cv-share/"+encodeURIComponent(token);\n    const discoverUrl="/api/recruiter/discover/"+encodeURIComponent(token);
-    Promise.all([fetch(shareUrl),fetch(discoverUrl)]).then(async ([shareResponse,discoverResponse])=>{\n      const shareBody=await shareResponse.json();\n      if(!shareResponse.ok) throw new Error(shareBody.message||"CV indisponible.");\n      const discoverBody=await discoverResponse.json();\n      setData(shareBody);\n      setMatchCount(discoverResponse.ok && typeof discoverBody.totalMatches==="number" ? discoverBody.totalMatches : 0);\n    }).catch(e=>setError(e.message||"CV indisponible."));
+    const shareUrl="/api/cv-share/"+encodeURIComponent(token);
+    const discoverUrl="/api/recruiter/discover/"+encodeURIComponent(token);
+    Promise.all([fetch(shareUrl),fetch(discoverUrl)]).then(async ([shareResponse,discoverResponse])=>{
+      const shareBody=await shareResponse.json();
+      if(!shareResponse.ok) throw new Error(shareBody.message||"CV indisponible.");
+      const discoverBody=await discoverResponse.json();
+      setData(shareBody);
+      setMatchCount(discoverResponse.ok && typeof discoverBody.totalMatches==="number" ? discoverBody.totalMatches : 0);
+    }).catch(e=>setError(e.message||"CV indisponible."));
   },[token]);
 
   if(error) return <main className="min-h-[100dvh] grid place-items-center bg-[#F5F7FA] p-6"><div className="rounded-3xl bg-white p-8 text-center shadow-xl"><h1 className="text-xl font-black text-[#0B2447]">CV indisponible</h1><p className="mt-2 text-sm text-slate-500">{error}</p></div></main>;
@@ -56,11 +63,11 @@ export function CvShareView({ token }: { token:string }) {
     <AnimatePresence>{showRecruiter&&<motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-[100] grid place-items-center bg-[#081B36]/80 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="jobly-recruiter-promo">
       <motion.div initial={{opacity:0,scale:.96,y:16}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:.98,y:10}} transition={{duration:.2}} className="relative w-full max-w-xl overflow-hidden rounded-[30px] border border-white/10 bg-[#081B36] p-5 text-white shadow-2xl sm:p-7">
         <button aria-label="Fermer l'information Jobly et consulter le CV" onClick={()=>setShowRecruiter(false)} className="absolute right-3 top-3 rounded-full p-2 text-white/60 hover:bg-white/10"><X size={20}/></button>
-        <div className="pr-10"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.25em] text-[#FFE135]"><Sparkles size={14}/> Jobly · Talent Intelligence</div><h2 id="jobly-recruiter-promo" className="mt-3 text-2xl font-black sm:text-3xl">Vous recrutez ce talent ?</h2><p className="mt-2 text-sm leading-6 text-white/75">Avant de consulter le CV, découvrez en quelques secondes comment Jobly peut vous aider à trouver d'autres profils correspondant à votre besoin.</p></div>
+        <div className="pr-10"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.25em] text-[#FFE135]"><Sparkles size={14}/> Jobly · Talent Intelligence</div><h2 id="jobly-recruiter-promo" className="mt-3 text-2xl font-black sm:text-3xl">Vous recrutez ce talent ?</h2><p className="mt-2 text-sm leading-6 text-white/75">{matchCount === null ? "Recherche des talents correspondants…" : matchCount === 1 ? "1 talent correspond à cette offre." : `${matchCount} talents correspondent à cette offre.`} Jobly calcule ce nombre à partir des profils Talent actuellement visibles et du moteur de correspondance de cette offre.</p></div>
         <MiniTalentDemo jobTitle={data.share?.jobTitle}/>
         <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
-          <button onClick={()=>router.push("/recruiter/discover/"+encodeURIComponent(token))} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#FFE135] px-4 py-3 text-sm font-black text-[#081B36]">Découvrir les talents sur Jobly <ArrowRight size={16}/></button>
-          <button onClick={()=>setShowRecruiter(false)} className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/80 hover:bg-white/10">Fermer et consulter le CV</button>
+          <button onClick={()=>router.push("/recruiter/discover/"+encodeURIComponent(token))} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#FFE135] px-4 py-3 text-sm font-black text-[#081B36]">Voir <ArrowRight size={16}/></button>
+          <button onClick={()=>setShowRecruiter(false)} className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/80 hover:bg-white/10">Fermer</button>
         </div>
         <p className="mt-3 text-center text-[10px] font-medium text-white/35">Voir ouvre Jobly. Fermer permet de consulter et télécharger le CV directement, sans créer de compte.</p>
       </motion.div>
