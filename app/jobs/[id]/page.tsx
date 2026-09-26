@@ -13,11 +13,8 @@ type Job = Record<string, any>;
 function cleanOfferDescription(value: unknown): string {
   if (value == null) return "";
   let text = String(value)
-    .replace(/\\r?\\n/g, "\n")
-    .replace(/\\t/g, " ")
-    .replace(/\\u00a0/g, " ")
     .replace(/<br\\s*\\/?>(?=.)/gi, "\n")
-    .replace(/<\\/(p|div|li|h[1-6]|section|article)>/gi, "\n")
+    .replace(/<\\/(p|div|li|h[1-6])>/gi, "\n")
     .replace(/<li[^>]*>/gi, "• ")
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/gi, " ")
@@ -30,24 +27,7 @@ function cleanOfferDescription(value: unknown): string {
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n[ \t]+/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
-    .trim();
-
-  if (/^[\[{]/.test(text)) {
-    try {
-      const parsed = JSON.parse(text);
-      const candidate = typeof parsed === "string" ? parsed : (parsed && typeof parsed === "object" ? ((parsed as any).description || (parsed as any).content || (parsed as any).text || "") : "");
-      if (candidate) text = String(candidate);
-    } catch {}
-  }
-
-  text = text
-    .replace(/^\s*\x60\x60\x60(?:html|markdown|md|text)?\s*/i, "")
-    .replace(/\s*\x60\x60\x60\s*$/i, "")
-    .replace(/^\s*(?:description|description du poste)\s*:\s*/i, "")
-    .replace(/^\s*<\/?(?:html|body)[^>]*>\s*/gi, "")
-    .replace(/\s*<\/?(?:html|body)[^>]*>\s*$/gi, "")
-    .replace(/^[•\-–—]\s*/gm, "• ")
-    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\x60\x60\x60(?:html|markdown|md|text)?/gi, "")
     .trim();
 
   if (/[ÃÂâ][\x80-\xBF\x20-\x7E]/.test(text) && [...text].every(ch => ch.charCodeAt(0) <= 255)) {
@@ -57,7 +37,11 @@ function cleanOfferDescription(value: unknown): string {
       if (repaired && repaired !== text) text = repaired;
     } catch {}
   }
-  return text.trim();
+
+  return text
+    .replace(/^[•\-–—]\s*/gm, "• ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function JobDetailInner() {
