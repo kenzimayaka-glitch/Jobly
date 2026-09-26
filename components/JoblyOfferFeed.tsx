@@ -181,7 +181,7 @@ export function JoblyOfferFeed() {
     setCompanyWebLoading(true);
     setCompanyWebProfile(null);
     const params = new URLSearchParams({
-      name: cleanCompanyName(cleanCompanyName(selectedCompany.name)),
+      name: cleanCompanyName(selectedCompany.name),
       website: selectedCompany.website || "",
       location: selectedCompanyLocation || "",
     });
@@ -577,7 +577,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                   <div className="p-3">
                     <div className="mt-1 flex items-center gap-2">
                       <CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={36}/>
-                      <p className="min-w-0 truncate text-[10px] font-bold uppercase tracking-[1.5px] text-[#7A9BB5]">{cleanCompanyName(job.company?.name) ? (job.company.name.length > 20 ? `${job.company.name.slice(0, 17)}...` : job.company.name) : "Aucune donnée"}</p>
+                      <p className="min-w-0 truncate text-[10px] font-bold uppercase tracking-[1.5px] text-[#7A9BB5]">{(() => { const companyName = cleanCompanyName(job.company?.name); return companyName.length > 20 ? `${companyName.slice(0, 17)}...` : companyName; })()}</p>
                     </div>
                     <h2 className="mt-1 text-2xl font-black leading-none">{job.title}</h2>
                     <p className="mt-3 text-xs text-slate-500">{[job.location, job.contractType, job.remoteMode].filter(Boolean).join(" · ") || "Toutes localisations"}</p>
@@ -629,7 +629,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
             const isEditing = editingLetterId === item.id;
             const inputId = `letter-upload-${item.id}`;
             return <details key={item.id} open={isEditing || undefined} className="rounded-2xl border border-slate-200 bg-[#F8FAFC] p-3">
-              <summary className="cursor-pointer list-none"><div className="flex items-center gap-3"><CompanyLogo companyName={item.cleanCompanyName(job.company?.name)} logoUrl={item.job.company?.logoUrl} domain={item.job.company?.domain} website={item.job.company?.website} size={40}/><div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold uppercase text-slate-400">{item.cleanCompanyName(job.company?.name) || "Aucune donnée"}</p><p className="truncate text-sm font-black">{item.job.title}</p></div><span className="rounded-full bg-[#DDF8EA] px-2 py-1 text-[9px] font-black text-[#08733E]">{item.job.matchPercent}% match</span></div></summary>
+              <summary className="cursor-pointer list-none"><div className="flex items-center gap-3"><CompanyLogo companyName={cleanCompanyName(item.job.company?.name)} logoUrl={item.job.company?.logoUrl} domain={item.job.company?.domain} website={item.job.company?.website} size={40}/><div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold uppercase text-slate-400">{cleanCompanyName(item.job.company?.name)}</p><p className="truncate text-sm font-black">{item.job.title}</p></div><span className="rounded-full bg-[#DDF8EA] px-2 py-1 text-[9px] font-black text-[#08733E]">{item.job.matchPercent}% match</span></div></summary>
               <div className="mt-3 border-t border-slate-200 pt-3">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[1px] text-slate-400"><FileText size={14}/> Lettre · {item.letterSource === "CANDIDATE" ? "Votre document" : "Préparée par J’IA"}</div><div className="flex gap-2">
                   <button type="button" onClick={() => setEditingLetterId(isEditing ? null : item.id)} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-[10px] font-black"><Pencil size={13}/> {isEditing ? "Fermer" : "Modifier"}</button>
