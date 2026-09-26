@@ -25,22 +25,115 @@ function eduLevel(value:string|null|undefined){const n=normalize(value);if(!n)re
 function languageReq(text:string){const n=normalize(text);const out:string[]=[];if(/anglais|english/.test(n))out.push("anglais");if(/francais|french/.test(n))out.push("francais");return Array.from(new Set(out));}
 function languageScore(text:string,lang:string){const n=normalize(text);if(lang==="anglais"&&!/anglais|english/.test(n))return null;if(lang==="francais"&&!/francais|french/.test(n))return null;return /bilingue|fluent|courant|advanced|professionnel|professional|maitrise/.test(n)?1:.7;}
 function adaptiveMatch(profile:Profile,years:number,experiences:Experience[],skills:Skill[],education:Education[],job:MatchableJob){
- const offer=[job.title,job.description,job.location,job.contractType,job.remoteMode,job.sector,...(job.tags||[])].filter(Boolean).join(" ");
- const candidate=[profile.headline,profile.summary,profile.location,...(profile.targetRoles||[]),...(profile.preferredSectors||[]),...experiences.map(x=>(x.title||"")+" "+(x.description||"")),...skills.map(x=>(x.name||"")+" "+(x.level||"")),...education.map(x=>(x.degree||"")+" "+(x.field||""))].filter(Boolean).join(" ");
- const roles=[...(profile.targetRoles||[]),profile.headline||"",...experiences.map(x=>x.title||"")].map(normalize).filter(Boolean), title=normalize(job.title);
- const role=roles.length?roles.some(r=>title.includes(r)||r.includes(title))?1:0:null;
- const criteria:MatchCriterion[]=[{id:"role",label:"Métier / fonction",score:role,weight:WEIGHTS.role,required:true,status:role==null?"UNKNOWN":role?"MATCH":"MISMATCH",candidateValue:roles.slice(0,3).join(", ")||null,expectedValue:job.title}];
- const requiredSkills=Array.from(new Set((job.tags||[]).map(normalize).filter(x=>x.length>2)));
- if(requiredSkills.length){const cand=skills.map(x=>normalize(x.name)).filter(Boolean);const hit=requiredSkills.filter(r=>cand.some(x=>x===r||x.includes(r)||r.includes(x))).length;const sc=cand.length?hit/requiredSkills.length:null;criteria.push({id:"skills",label:"Compétences",score:sc,weight:WEIGHTS.skills,required:true,status:sc==null?"UNKNOWN":sc>=.85?"MATCH":sc>0?"PARTIAL":"MISMATCH",candidateValue:skills.map(x=>x.name).slice(0,6).join(", ")||null,expectedValue:requiredSkills.slice(0,8).join(", ")})}
- const exp=detectExp(offer,job.minExperienceYears);if(exp!=null)criteria.push({id:"experience",label:"Expérience",score:years>=exp?1:Math.max(0,years/Math.max(exp,1)),weight:WEIGHTS.experience,required:true,status:years>=exp?"MATCH":years>0?"PARTIAL":"MISMATCH",candidateValue:String(years)+" ans",expectedValue:String(exp)+" ans min."});
- const ed=detectEdu(offer);if(ed!=null){const levels=education.map(x=>eduLevel(x.degree)).filter((x):x is number=>x!=null),best=levels.length?Math.max(...levels):null,sc=best==null?null:best>=ed?1:best/Math.max(ed,1);criteria.push({id:"education",label:"Niveau d'études",score:sc,weight:WEIGHTS.education,required:true,status:sc==null?"UNKNOWN":sc>=1?"MATCH":sc>0?"PARTIAL":"MISMATCH",candidateValue:education.map(x=>x.degree||"").filter(Boolean).slice(0,3).join(", ")||null,expectedValue:ed===5?"Bac+5 / Master":ed===4?"Bac+4":ed===3?"Bac+3 / Licence":ed===2?"Bac+2":"Baccalauréat"})}
- for(const lang of languageReq(offer)){const sc=languageScore(candidate,lang);criteria.push({id:"language-"+lang,label:"Langue — "+lang,score:sc,weight:WEIGHTS.language/Math.max(languageReq(offer).length,1),required:true,status:sc==null?"UNKNOWN":sc>=.95?"MATCH":"PARTIAL",candidateValue:sc==null?"Non renseigné":sc>=.95?"Niveau avancé/courant détecté":"Présence détectée, niveau à confirmer",expectedValue:"Exigence linguistique de l'offre"})}
- const loc=normalize(job.location),locs=[...(profile.targetCities||[]),profile.location||""].map(normalize).filter(Boolean);if(loc)criteria.push({id:"location",label:"Localisation",score:locs.length?(locs.some(x=>loc.includes(x)||x.includes(loc))?1:0):null,weight:WEIGHTS.location,required:false,status:locs.length?(locs.some(x=>loc.includes(x)||x.includes(loc))?"MATCH":"MISMATCH"):"UNKNOWN",candidateValue:locs[0]||null,expectedValue:job.location});
- const sec=normalize(job.sector),secs=(profile.preferredSectors||[]).map(normalize).filter(Boolean);if(sec)criteria.push({id:"sector",label:"Secteur",score:secs.length?(secs.some(x=>sec.includes(x)||x.includes(sec))?1:0):null,weight:WEIGHTS.sector,required:false,status:secs.length?(secs.some(x=>sec.includes(x)||x.includes(sec))?"MATCH":"MISMATCH"):"UNKNOWN",candidateValue:secs.join(", ")||null,expectedValue:job.sector});
- const contract=normalize(job.contractType),contracts=(profile.contractPreferences||[]).map(normalize).filter(Boolean);if(contract)criteria.push({id:"contract",label:"Type de contrat",score:contracts.length?(contracts.includes(contract)?1:0):null,weight:WEIGHTS.contract,required:false,status:contracts.length?(contracts.includes(contract)?"MATCH":"MISMATCH"):"UNKNOWN",candidateValue:contracts.join(", ")||null,expectedValue:job.contractType});
- const remote=normalize(job.remoteMode),remotePref=normalize(profile.remotePreference);if(remote&&remote!=="no")criteria.push({id:"remote",label:"Télétravail",score:remotePref?(remotePref==="indifferent"||remotePref===remote?1:(remotePref==="yes"&&remote==="partial"?.5:0)):null,weight:1,required:false,status:remotePref?(remotePref==="indifferent"||remotePref===remote|| (remotePref==="yes"&&remote==="partial")?"MATCH":"MISMATCH"):"UNKNOWN",candidateValue:profile.remotePreference||null,expectedValue:job.remoteMode});
- const known=criteria.filter(x=>x.score!=null),tw=known.reduce((a,x)=>a+x.weight,0),matchPercent=tw?Math.round(known.reduce((a,x)=>a+(x.score||0)*x.weight,0)/tw*100):0,required=criteria.filter(x=>x.required),unknownRequired=required.filter(x=>x.score==null).length,confidence=Math.round((1-unknownRequired/Math.max(required.length,1))*100);
- return {matchPercent,confidence,breakdown:criteria};
+  const offer=[job.title,job.description,job.location,job.contractType,job.remoteMode,job.sector,...(job.tags||[])].filter(Boolean).join(" ");
+  const offerN=normalize(offer);
+  const candidate=[profile.headline,profile.summary,profile.location,...(profile.targetRoles||[]),...(profile.preferredSectors||[]),...experiences.map(x=>(x.title||"")+" "+(x.description||"")),...skills.map(x=>(x.name||"")+" "+(x.level||"")),...education.map(x=>(x.degree||"")+" "+(x.field||""))].filter(Boolean).join(" ");
+  const candidateN=normalize(candidate);
+
+  const stop=new Set(["assistant","assistante","responsable","manager","senior","junior","de","du","des","la","le","les","un","une","et","en","au","aux","pour","avec","dans","sur","of","the","and","with","for"]);
+  const tokens=(value:string)=>normalize(value).split(/[^a-z0-9+#.]+/).filter(x=>x.length>2&&!stop.has(x));
+  const similarity=(a:string,b:string)=>{
+    const A=new Set(tokens(a)),B=new Set(tokens(b));
+    if(!A.size||!B.size)return 0;
+    let hit=0; for(const x of A) if(Array.from(B).some(y=>x===y||x.includes(y)||y.includes(x))) hit++;
+    return hit/Math.max(A.size,B.size);
+  };
+
+  const roles=[...(profile.targetRoles||[]),profile.headline||"",...experiences.map(x=>x.title||"")].filter(Boolean);
+  const roleScore=roles.length?Math.max(...roles.map(r=>similarity(r,job.title))):null;
+  const criteria:MatchCriterion[]=[{
+    id:"role",label:"Métier / fonction",score:roleScore==null?null:Math.min(1,roleScore*1.35),weight:20,required:true,
+    status:roleScore==null?"UNKNOWN":roleScore>=.72?"MATCH":roleScore>=.35?"PARTIAL":"MISMATCH",
+    candidateValue:roles.slice(0,3).join(", ")||null,expectedValue:job.title
+  }];
+
+  const candidateSkillNames=skills.map(x=>normalize(x.name)).filter(Boolean);
+  const taggedSkills=Array.from(new Set((job.tags||[]).map(normalize).filter(x=>x.length>2)));
+  const mentionedCandidateSkills=candidateSkillNames.filter(skill=>skill.length>2&&offerN.includes(skill));
+  const requiredSkills=Array.from(new Set([...taggedSkills,...mentionedCandidateSkills]));
+  if(requiredSkills.length){
+    const hit=requiredSkills.filter(req=>candidateSkillNames.some(skill=>skill===req||skill.includes(req)||req.includes(skill))).length;
+    const score=hit/requiredSkills.length;
+    const required=taggedSkills.length>0||/(requis|exige|obligatoire|required|must|mandatory|maitrise|proficiency)/.test(offerN);
+    criteria.push({
+      id:"skills",label:"Compétences",score,weight:30,required,
+      status:score>=.85?"MATCH":score>0?"PARTIAL":"MISMATCH",
+      candidateValue:skills.map(x=>x.name).filter(Boolean).slice(0,8).join(", ")||null,
+      expectedValue:requiredSkills.slice(0,10).join(", ")
+    });
+  }
+
+  const exp=detectExp(offer,job.minExperienceYears);
+  if(exp!=null) criteria.push({
+    id:"experience",label:"Expérience",score:years>=exp?1:Math.max(0,years/Math.max(exp,1)),weight:20,required:true,
+    status:years>=exp?"MATCH":years>0?"PARTIAL":"MISMATCH",candidateValue:String(years)+" ans",expectedValue:String(exp)+" ans min."
+  });
+
+  const ed=detectEdu(offer);
+  if(ed!=null){
+    const levels=education.map(x=>eduLevel(x.degree)).filter((x):x is number=>x!=null);
+    const best=levels.length?Math.max(...levels):null;
+    const score=best==null?null:best>=ed?1:best/Math.max(ed,1);
+    criteria.push({
+      id:"education",label:"Niveau d'études",score,weight:12,required:true,
+      status:score==null?"UNKNOWN":score>=1?"MATCH":score>0?"PARTIAL":"MISMATCH",
+      candidateValue:education.map(x=>x.degree||"").filter(Boolean).slice(0,3).join(", ")||null,
+      expectedValue:ed>=5?"Bac+5 / Master":ed===4?"Bac+4":ed===3?"Bac+3 / Licence":ed===2?"Bac+2":"Baccalauréat"
+    });
+  }
+
+  const languageRequirements=languageReq(offer);
+  for(const lang of languageRequirements){
+    const levelRequired=/(bilingue|fluent|courant|advanced|professionnel|professional|maitrise|proficiency|niveau [a-z0-9+ -]+)/.test(offerN);
+    const candidateHasLanguage=new RegExp(lang==="anglais"?"anglais|english":"francais|french").test(candidateN);
+    const candidateAdvanced=/(bilingue|fluent|courant|advanced|professionnel|professional|maitrise|proficiency)/.test(candidateN);
+    const score=candidateHasLanguage?(levelRequired?(candidateAdvanced?1:.7):1):null;
+    criteria.push({
+      id:"language-"+lang,label:"Langue — "+lang,score,weight:10/Math.max(languageRequirements.length,1),
+      required:levelRequired,status:score==null?"UNKNOWN":score>=.95?"MATCH":"PARTIAL",
+      candidateValue:score==null?"Non renseigné":candidateAdvanced?"Niveau avancé/courant détecté":"Langue détectée, niveau à confirmer",
+      expectedValue:levelRequired?"Exigence linguistique explicite de l'offre":"Langue mentionnée dans l'offre"
+    });
+  }
+
+  const loc=normalize(job.location);
+  const locs=[...(profile.targetCities||[]),profile.location||""].map(normalize).filter(Boolean);
+  if(loc) criteria.push({
+    id:"location",label:"Localisation",score:locs.length?(locs.some(x=>loc.includes(x)||x.includes(loc))?1:0):null,weight:5,required:false,
+    status:locs.length?(locs.some(x=>loc.includes(x)||x.includes(loc))?"MATCH":"MISMATCH"):"UNKNOWN",
+    candidateValue:locs[0]||null,expectedValue:job.location
+  });
+
+  const sec=normalize(job.sector);
+  const secs=(profile.preferredSectors||[]).map(normalize).filter(Boolean);
+  if(sec) criteria.push({
+    id:"sector",label:"Secteur",score:secs.length?(secs.some(x=>sec.includes(x)||x.includes(sec))?1:0):null,weight:2,required:false,
+    status:secs.length?(secs.some(x=>sec.includes(x)||x.includes(sec))?"MATCH":"MISMATCH"):"UNKNOWN",
+    candidateValue:secs.join(", ")||null,expectedValue:job.sector
+  });
+
+  const contract=normalize(job.contractType);
+  const contracts=(profile.contractPreferences||[]).map(normalize).filter(Boolean);
+  if(contract) criteria.push({
+    id:"contract",label:"Type de contrat",score:contracts.length?(contracts.includes(contract)?1:0):null,weight:1,required:false,
+    status:contracts.length?(contracts.includes(contract)?"MATCH":"MISMATCH"):"UNKNOWN",
+    candidateValue:contracts.join(", ")||null,expectedValue:job.contractType
+  });
+
+  const remote=normalize(job.remoteMode),remotePref=normalize(profile.remotePreference);
+  if(remote&&remote!=="no") criteria.push({
+    id:"remote",label:"Télétravail",score:remotePref?(remotePref==="indifferent"||remotePref===remote?1:(remotePref==="yes"&&remote==="partial"?.5:0)):null,weight:1,required:false,
+    status:remotePref?(remotePref==="indifferent"||remotePref===remote||(remotePref==="yes"&&remote==="partial")?"MATCH":"MISMATCH"):"UNKNOWN",
+    candidateValue:profile.remotePreference||null,expectedValue:job.remoteMode
+  });
+
+  const known=criteria.filter(x=>x.score!=null);
+  const totalWeight=known.reduce((sum,x)=>sum+x.weight,0);
+  const matchPercent=totalWeight?Math.round(known.reduce((sum,x)=>sum+(x.score||0)*x.weight,0)/totalWeight*100):0;
+  const required=criteria.filter(x=>x.required);
+  const knownRequired=required.filter(x=>x.score!=null);
+  const confidence=Math.round((knownRequired.length/Math.max(required.length,1))*100);
+  return {matchPercent,confidence,breakdown:criteria};
 }
 
 export async function GET(request:NextRequest){
