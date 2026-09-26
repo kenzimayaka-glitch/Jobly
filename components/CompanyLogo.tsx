@@ -61,6 +61,9 @@ export default function CompanyLogo({
       urls.push(
         `https://www.google.com/s2/favicons?domain=${encodeURIComponent(resolvedDomain)}&sz=128`,
       );
+      urls.push(
+        `https://icons.duckduckgo.com/ip3/${encodeURIComponent(resolvedDomain)}.ico`,
+      );
     }
 
     return [...new Set(urls)];
