@@ -22,8 +22,12 @@ export function CvShareView({ token }: { token:string }) {
   const [data,setData]=useState<Data|null>(null);
   const [error,setError]=useState("");
   const [showRecruiter,setShowRecruiter]=useState(true);
+  const [matchCount,setMatchCount]=useState<number|null>(null);
 
-  useEffect(()=>{fetch("/api/cv-share/"+encodeURIComponent(token)).then(async r=>{const b=await r.json();if(!r.ok)throw new Error(b.message||"CV indisponible.");return b}).then(setData).catch(e=>setError(e.message||"CV indisponible."));},[token]);
+  useEffect(()=>{
+    const shareUrl="/api/cv-share/"+encodeURIComponent(token);\n    const discoverUrl="/api/recruiter/discover/"+encodeURIComponent(token);
+    Promise.all([fetch(shareUrl),fetch(discoverUrl)]).then(async ([shareResponse,discoverResponse])=>{\n      const shareBody=await shareResponse.json();\n      if(!shareResponse.ok) throw new Error(shareBody.message||"CV indisponible.");\n      const discoverBody=await discoverResponse.json();\n      setData(shareBody);\n      setMatchCount(discoverResponse.ok && typeof discoverBody.totalMatches==="number" ? discoverBody.totalMatches : 0);\n    }).catch(e=>setError(e.message||"CV indisponible."));
+  },[token]);
 
   if(error) return <main className="min-h-[100dvh] grid place-items-center bg-[#F5F7FA] p-6"><div className="rounded-3xl bg-white p-8 text-center shadow-xl"><h1 className="text-xl font-black text-[#0B2447]">CV indisponible</h1><p className="mt-2 text-sm text-slate-500">{error}</p></div></main>;
   if(!data) return <main className="min-h-[100dvh] grid place-items-center bg-[#F5F7FA] font-black text-[#0B2447]">Chargement du CV…</main>;
@@ -58,7 +62,7 @@ export function CvShareView({ token }: { token:string }) {
           <button onClick={()=>router.push("/recruiter/discover/"+encodeURIComponent(token))} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#FFE135] px-4 py-3 text-sm font-black text-[#081B36]">Découvrir les talents sur Jobly <ArrowRight size={16}/></button>
           <button onClick={()=>setShowRecruiter(false)} className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/80 hover:bg-white/10">Fermer et consulter le CV</button>
         </div>
-        <p className="mt-3 text-center text-[10px] font-medium text-white/35">Vous pouvez fermer cette présentation et télécharger le CV directement, sans créer de compte.</p>
+        <p className="mt-3 text-center text-[10px] font-medium text-white/35">Voir ouvre Jobly. Fermer permet de consulter et télécharger le CV directement, sans créer de compte.</p>
       </motion.div>
     </motion.div>}</AnimatePresence>
   </main>;
