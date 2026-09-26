@@ -114,7 +114,8 @@ export default function DashboardPage() {
   const firstName = data?.user.displayName?.split(" ")[0] || "";
   const topJobs = jobs?.jobs?.filter((job) => job.matchPercent >= 50).slice(0, 3) ?? [];
   const applicationsCount = applications?.counters?.envoyees ?? 0;
-  const visibleJobCount = jobs?.totalAvailable ?? 0;\n  const availableOffersLabel = `${visibleJobCount} offre${visibleJobCount > 1 ? "s" : ""} disponible${visibleJobCount > 1 ? "s" : ""} aujourd’hui`;
+  const visibleJobCount = jobs?.totalAvailable ?? 0;
+  const availableOffersLabel = `${visibleJobCount} offre${visibleJobCount > 1 ? "s" : ""} disponible${visibleJobCount > 1 ? "s" : ""} aujourd’hui`;
   const carouselRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
