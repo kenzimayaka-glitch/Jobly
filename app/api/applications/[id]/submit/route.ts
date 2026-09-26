@@ -100,6 +100,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const user = await ensureUser(supabase, authUser);
     const { id } = await params;
     applicationId = id;
+    const body = await request.json().catch(() => ({}));
+    const candidateLetter = typeof body?.letterText === "string" && body.letterText.trim() ? body.letterText.trim().slice(0, 30000) : null;
 
     const { data: application, error: applicationError } = await supabase.from("Application").select("*").eq("id", id).eq("userId", user.id).maybeSingle();
     if (applicationError) throw new Error(applicationError.message);
