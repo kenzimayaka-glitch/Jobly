@@ -1,6 +1,7 @@
 "use client";
 
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 type CvData = {
   fullName: string;
@@ -52,8 +53,21 @@ export default function CvStudioPage() {
   const [fileName, setFileName] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const searchParams = useSearchParams();
+  const adaptMode = searchParams.get("mode") === "adapt";
+  const adaptJobId = searchParams.get("jobId");
+  const adaptSource = searchParams.get("source");
+  const [adaptJob, setAdaptJob] = useState<{title:string;companyName?:string;company?:{name?:string}} | null>(null);
 
   const generatedName = useMemo(() => safeFilename(cv.fullName), [cv.fullName]);
+
+  useEffect(() => {
+    if (!adaptMode || !adaptJobId || (adaptSource !== "discovery" && adaptSource !== "recruiter")) return;
+    fetch("/api/jobs/" + encodeURIComponent(adaptJobId) + "?source=" + encodeURIComponent(adaptSource))
+      .then(async r => { const b = await r.json(); if (!r.ok) throw new Error(b.message || "Offre introuvable."); return b.job; })
+      .then(job => setAdaptJob(job))
+      .catch(() => setAdaptJob(null));
+  }, [adaptMode, adaptJobId, adaptSource]);
 
   async function importCv(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -92,6 +106,13 @@ export default function CvStudioPage() {
             <div className="mt-1 text-sm font-extrabold">{generatedName}</div>
           </div>
         </header>
+
+        {adaptMode && <section className="mb-6 rounded-3xl border border-[#FFE135] bg-[#FFFBE0] p-5 shadow-sm">
+          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8B7400]">J’IA · ADAPTATION DE CV</div>
+          <h2 className="mt-1 text-xl font-black text-[#0b2447]">Adapter mon CV pour cette candidature</h2>
+          <p className="mt-1 text-sm text-slate-600">{adaptJob ? "Candidature ciblée : " + adaptJob.title + (adaptJob.company?.name || adaptJob.companyName ? " · " + (adaptJob.company?.name || adaptJob.companyName) : "") : "J’IA prépare l’adaptation à partir de l’offre sélectionnée."}</p>
+          <p className="mt-2 text-xs leading-5 text-slate-500">J’IA analyse les exigences de l’offre et votre CV pour proposer les ajustements pertinents. Aucune modification n’est appliquée sans votre validation.</p>
+        </section>}
 
         <section className="mb-6 grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
           <label className="group cursor-pointer rounded-3xl border border-dashed border-slate-300 bg-white p-6 shadow-sm transition hover:border-slate-500">
