@@ -104,7 +104,7 @@ export function JoblyOfferFeed() {
   const [selectedMatch, setSelectedMatch] = useState<Job | null>(null);
   const [basket, setBasket] = useState<Set<string>>(new Set());
   const [bulkLimit, setBulkLimit] = useState(1);
-  const [preparedBulk, setPreparedBulk] = useState<Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string; letterSource: "JIA" | "CANDIDATE" }>>([]);
+  const [preparedBulk, setPreparedBulk] = useState<Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string; letterSource: "JIA" | "CANDIDATE"; subject: string; applicationContact: { email: string | null; phone: string | null } }>>([]);
   const [editingLetterId, setEditingLetterId] = useState<string | null>(null);
   const [importingLetterId, setImportingLetterId] = useState<string | null>(null);
   const [bulkPreparing, setBulkPreparing] = useState(false);
@@ -257,6 +257,8 @@ export function JoblyOfferFeed() {
         id: applicationId, key: `${job.source}:${job.id}`, job,
         letter: String(preparedBody.prepared?.letter || ""), tailoredCvText: String(preparedBody.prepared?.tailoredCvText || ""),
         letterSource: preparedBody.prepared?.letterSource === "CANDIDATE" ? "CANDIDATE" : "JIA",
+        subject: String(preparedBody.prepared?.subject || `Candidature_${job.title}`),
+        applicationContact: { email: preparedBody.prepared?.applicationContact?.email ? String(preparedBody.prepared.applicationContact.email) : null, phone: preparedBody.prepared?.applicationContact?.phone ? String(preparedBody.prepared.applicationContact.phone) : null },
       }]);
     } catch (e) { setError(e instanceof Error ? e.message : "La préparation de la candidature a échoué."); window.scrollTo({ top: 0, behavior: "smooth" }); }
     finally { setBulkPreparing(false); }
@@ -281,7 +283,7 @@ export function JoblyOfferFeed() {
       const checkRes = await fetch("/api/applications/bulk-check", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ selectedCount: basketJobs.length }) });
       const checkBody = await checkRes.json().catch(() => ({}));
       if (!checkRes.ok) throw new Error(checkBody.message || "La postulation groupée n'est pas disponible avec votre formule.");
-      const prepared: Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string; letterSource: "JIA" | "CANDIDATE" }> = [];
+      const prepared: Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string; letterSource: "JIA" | "CANDIDATE"; subject: string; applicationContact: { email: string | null; phone: string | null } }> = [];
       for (const job of basketJobs) {
         const key = `${job.source}:${job.id}`;
         const res = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ source: job.source, jobId: job.id }) });
@@ -291,7 +293,7 @@ export function JoblyOfferFeed() {
           throw new Error(body.message || `Impossible de préparer ${job.title}.`);
         }
         const id = body.application?.id;
-        if (id) prepared.push({ id, key, job, letter: String(body.prepared?.letter || ""), tailoredCvText: String(body.prepared?.tailoredCvText || ""), letterSource: body.prepared?.letterSource === "CANDIDATE" ? "CANDIDATE" : "JIA" });
+        if (id) prepared.push({ id, key, job, letter: String(body.prepared?.letter || ""), tailoredCvText: String(body.prepared?.tailoredCvText || ""), letterSource: body.prepared?.letterSource === "CANDIDATE" ? "CANDIDATE" : "JIA", subject: String(body.prepared?.subject || `Candidature_${job.title}`), applicationContact: { email: body.prepared?.applicationContact?.email ? String(body.prepared.applicationContact.email) : null, phone: body.prepared?.applicationContact?.phone ? String(body.prepared.applicationContact.phone) : null } });
       }
       setPreparedBulk(prepared);
       setBasket(new Set());
@@ -631,6 +633,10 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
             return <details key={item.id} open={isEditing || undefined} className="rounded-2xl border border-slate-200 bg-[#F8FAFC] p-3">
               <summary className="cursor-pointer list-none"><div className="flex items-center gap-3"><CompanyLogo companyName={cleanCompanyName(item.job.company?.name)} logoUrl={item.job.company?.logoUrl} domain={item.job.company?.domain} website={item.job.company?.website} size={40}/><div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold uppercase text-slate-400">{cleanCompanyName(item.job.company?.name)}</p><p className="truncate text-sm font-black">{item.job.title}</p></div><span className="rounded-full bg-[#DDF8EA] px-2 py-1 text-[9px] font-black text-[#08733E]">{item.job.matchPercent}% match</span></div></summary>
               <div className="mt-3 border-t border-slate-200 pt-3">
+                <div className="mb-3 rounded-2xl border border-[#FFE135]/60 bg-white p-3 text-[11px] text-slate-600">
+                  <p className="font-black text-slate-800">Objet : <span className="font-semibold">{item.subject}</span></p>
+                  <p className="mt-1 font-black text-slate-800">Candidature : <span className="font-semibold">{item.applicationContact.email || item.applicationContact.phone || "Canal non disponible"}</span></p>
+                </div>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[1px] text-slate-400"><FileText size={14}/> Lettre · {item.letterSource === "CANDIDATE" ? "Votre document" : "Préparée par J’IA"}</div><div className="flex gap-2">
                   <button type="button" onClick={() => setEditingLetterId(isEditing ? null : item.id)} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-[10px] font-black"><Pencil size={13}/> {isEditing ? "Fermer" : "Modifier"}</button>
                   <label htmlFor={inputId} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-[10px] font-black"><Upload size={13}/> {importingLetterId === item.id ? "Import…" : "Importer PDF / Word"}</label>
