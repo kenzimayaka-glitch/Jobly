@@ -27,8 +27,8 @@ const COMMON_SKILLS=["excel","power bi","tableau","sql","python","java","javascr
 function extractRequiredSkills(text:string,tags:string[],candidateSkills:string[]){
   const n=normalize(text);
   const tagged=tags.map(normalize).filter(x=>x.length>2);
-  const lexicon=COMMON_SKILLS.filter(skill=>n.includes(normalize(skill)));
   const explicit=/(competences? requises?|competences? cles|profil recherche|requis|exige|obligatoire|required|must|mandatory|maitrise|proficiency)/.test(n);
+  const lexicon=explicit?COMMON_SKILLS.filter(skill=>n.includes(normalize(skill))):[];
   const mentionedCandidate=explicit?candidateSkills.map(normalize).filter(skill=>skill.length>2&&n.includes(skill)):[];
   return Array.from(new Set([...tagged,...lexicon,...mentionedCandidate])).filter(Boolean);
 }
@@ -75,7 +75,7 @@ function adaptiveMatch(profile:Profile,years:number|null,experiences:Experience[
     const score=years==null?null:years>=exp?1:Math.max(0,years/Math.max(exp,1));
     criteria.push({
       id:"experience",label:"Expérience",score,weight:20,required:true,
-      status:score==null?"UNKNOWN":years!>=exp?"MATCH":years!>0?"PARTIAL":"MISMATCH",
+      status:score==null?"UNKNOWN":years==null?"UNKNOWN":years>=exp?"MATCH":years>0?"PARTIAL":"MISMATCH",
       candidateValue:years==null?"Non renseigné":String(years)+" ans",
       expectedValue:String(exp)+" ans min."
     });
