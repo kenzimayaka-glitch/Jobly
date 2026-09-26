@@ -156,6 +156,18 @@ export function JoblyOfferFeed() {
     return () => { cancelled = true; };
   }, [selectedCompany, selectedCompanyLocation]);
 
+  useEffect(() => {
+    if (!selectedMatch && !selectedCompany) return;
+    const stateKey = "jobly-offers-modal";
+    window.history.pushState({ ...(window.history.state || {}), [stateKey]: true }, "", window.location.href);
+    const onPopState = () => {
+      setSelectedMatch(null);
+      setSelectedCompany(null);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [selectedMatch, selectedCompany]);
+
   const toggleBasket = useCallback((job: Job) => {
     const key = `${job.source}:${job.id}`;
     if (applied.has(key) || applicationReadyKeys.has(key)) return;
