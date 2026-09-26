@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type CvData = {
@@ -47,7 +47,7 @@ function safeFilename(name: string) {
   return `CV_${last}_${first}_${months[date.getMonth()]}_${date.getFullYear()}.pdf`;
 }
 
-export default function CvStudioPage() {
+function CvStudioContent() {
   const [mode, setMode] = useState<ViewMode>("simple");
   const [cv, setCv] = useState<CvData>(EMPTY_CV);
   const [fileName, setFileName] = useState("");
@@ -197,5 +197,13 @@ export default function CvStudioPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function CvStudioPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-[#f5f7fb] px-4 py-8 text-[#0b2447]">Chargement de l’atelier CV…</main>}>
+      <CvStudioContent />
+    </Suspense>
   );
 }
