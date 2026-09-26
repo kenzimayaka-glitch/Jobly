@@ -16,7 +16,6 @@ type MatchableJob = { title:string; description?:string|null; location:string|nu
 
 function computeYearsExperience(experiences:Experience[]):number { if(!experiences.length)return 0; const earliest=experiences.map(e=>new Date(e.startDate).getTime()).filter(t=>!Number.isNaN(t)).sort((a,b)=>a-b)[0]; if(earliest===undefined)return 0; return Math.max(0,Math.floor((Date.now()-earliest)/(1000*60*60*24*365))); }
 function normalize(value:string|null|undefined):string { return (value||"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
-function addMonths(date:Date, months:number):Date { const copy=new Date(date); const originalDay=copy.getDate(); copy.setDate(1); copy.setMonth(copy.getMonth()+months); const lastDay=new Date(copy.getFullYear(),copy.getMonth()+1,0).getDate(); copy.setDate(Math.min(originalDay,lastDay)); return copy; }
 function expirationFor(_publishedAt:string|null|undefined, deadline:string|null|undefined, _createdAt:string):Date|null { if(!deadline)return null; const d=new Date(deadline); return Number.isFinite(d.getTime())?d:null; }
 type MatchCriterion = { id:string; label:string; score:number|null; weight:number; required:boolean; status:"MATCH"|"PARTIAL"|"MISMATCH"|"UNKNOWN"; candidateValue?:string|null; expectedValue?:string|null };
 const WEIGHTS:Record<string,number>={role:20,skills:30,experience:20,education:12,language:10,location:5,sector:2,contract:1};
