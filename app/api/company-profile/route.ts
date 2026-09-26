@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
   const result: CompanyProfile = {
     name, address: null, location: null, phone: null, website: website || null,
-    mapsUrl: null, activity: [], status: null, rating: null, reviewCount: null,
+    mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([name, location].filter(Boolean).join(", "))}`, activity: [], status: null, rating: null, reviewCount: null,
     description: null, news: [], source: [],
   };
 
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
           "X-Goog-Api-Key": apiKey,
           "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.location,places.nationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.types,places.businessStatus,places.rating,places.userRatingCount",
         },
-        body: JSON.stringify({ textQuery: location ? `${name}, ${location}` : name, languageCode: "fr" }),
+        body: JSON.stringify({ textQuery: location ? `${name}, ${location}` : name, languageCode: "fr", regionCode: "CM", maxResultCount: 5 }),
         cache: "no-store",
       });
       if (response.ok) {
