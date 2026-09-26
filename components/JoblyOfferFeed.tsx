@@ -107,7 +107,7 @@ export function JoblyOfferFeed() {
     });
   }, [applied, applicationReadyKeys]);
 
-  const basketJobs = useMemo(() => jobs.filter(job => basket.has(`${job.source}:${job.id}`) && !applied.has(`${job.source}:${job.id}`) && !applicationReadyKeys.has(`${job.source}:${job.id}`)), [jobs, basket, applied]);
+  const basketJobs = useMemo(() => jobs.filter(job => basket.has(`${job.source}:${job.id}`) && !applied.has(`${job.source}:${job.id}`) && !applicationReadyKeys.has(`${job.source}:${job.id}`)), [jobs, basket, applied, applicationReadyKeys]);
 
   const toggleSaved = useCallback((job: Job) => {
     const key = `${job.source}:${job.id}`;
@@ -122,7 +122,7 @@ export function JoblyOfferFeed() {
   async function apply(job: Job) {
     if (!token) return;
     const key = `${job.source}:${job.id}`;
-    if (applied.has(key) || submitting.has(key)) return;
+    if (applied.has(key) || applicationReadyKeys.has(key) || submitting.has(key)) return;
     setSubmitting(prev => new Set(prev).add(key));
     setError("");
     try {
