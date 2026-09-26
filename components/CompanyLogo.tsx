@@ -77,19 +77,21 @@ export default function CompanyLogo({
     setIndex(0);
     setFailed(false);
     setResolvedLogo(null);
+    setResolving(false);
 
+    const identityKey = cacheKey(companyName, resolvedDomain, logoUrl);
     try {
-      const cached = localStorage.getItem(cacheKey(companyName, resolvedDomain, logoUrl));
+      const cached = localStorage.getItem(identityKey);
       if (!cancelled && cached && cached !== "1") {
         setSrc(cached);
-        return;
+        return () => { cancelled = true; };
       }
     } catch {}
 
     const direct = logoUrl?.trim();
     if (direct) {
       setSrc(direct);
-      return;
+      return () => { cancelled = true; };
     }
 
     if (!resolvedDomain && companyName?.trim()) {
@@ -105,42 +107,14 @@ export default function CompanyLogo({
           setResolvedLogo(url);
           setSrc(url || null);
         })
-        .catch(() => {
-          if (!cancelled) setSrc(null);
-        })
-        .finally(() => {
-          if (!cancelled) setResolving(false);
-        });
+        .catch(() => { if (!cancelled) setSrc(null); })
+        .finally(() => { if (!cancelled) setResolving(false); });
       return () => { cancelled = true; };
     }
 
     setSrc(candidates[0] || null);
     return () => { cancelled = true; };
   }, [companyName, resolvedDomain, logoUrl, candidates]);
-
-  useEffect(() => {
-    if (!companyName?.trim() || resolvedDomain || logoUrl?.trim() || resolvedLogo) return;
-    setResolving(true);
-    let cancelled = false;
-    fetch(`/api/company-logo?name=${encodeURIComponent(companyName.trim())}`)
-      .then(async (response) => {
-        if (!response.ok) throw new Error("logo-resolution-failed");
-        const body = await response.json();
-        return typeof body.logoUrl === "string" ? body.logoUrl : null;
-      })
-      .then((url) => {
-        if (cancelled) return;
-        setResolvedLogo(url);
-        if (url) {
-          setIndex(0);
-          setSrc(url);
-        }
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setResolving(false); });
-    return () => { cancelled = true; };
-  }, [companyName, resolvedDomain, logoUrl, resolvedLogo]);
-
   function invalidateCache() {
     try { localStorage.removeItem(cacheKey(companyName, resolvedDomain, logoUrl)); } catch {}
   }
