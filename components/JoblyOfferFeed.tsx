@@ -235,7 +235,7 @@ export function JoblyOfferFeed() {
     const key = `${job.source}:${job.id}`;
     if (applied.has(key) || applicationReadyKeys.has(key) || submitting.has(key) || bulkPreparing) return;
     await prepareSingleApplication(job);
-    if (error) window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function prepareBulkApplications() {
