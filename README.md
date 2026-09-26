@@ -1910,3 +1910,18 @@ Avant le prochain build unique, le moteur d'offres a reçu une passe de durcisse
 Le flux marché conserve le total de toutes les offres disponibles ; le filtre **Les offres qui vous correspondent** applique le seuil de 50 % sans masquer artificiellement le marché global.
 
 **État : 🔧 CORRIGÉ → 🧪 TYPECHECK / BUILD / VALIDATION VISUELLE À CONFIRMER.**
+
+## CHECKPOINT 26/09/2026 — PRÉPARATION DU BUILD UNIQUE FINAL
+
+Après le durcissement du matching, l'état de référence du projet est désormais le commit `e5d0bddf51ef2581c963b4c68716ce0e4698459d` sur `main`.
+
+- Les corrections de matching et de dashboard sont regroupées dans `main`.
+- Aucun nouveau projet Vercel n'a été créé : le projet canonique reste `jobly-c0.6.5.1`.
+- Les anciens déploiements ERROR ne constituent pas des versions séparées à fusionner : leurs changements sont déjà cumulés dans l'historique de `main`.
+- L'objectif est désormais **un seul build final**, puis un seul déploiement de cette référence consolidée.
+- La tentative de déclenchement via le connecteur Vercel n'a pas pu être exécutée : le catalogue expose `deploy_to_vercel`, mais le serveur connecté retourne actuellement `Tool deploy_to_vercel not found`.
+- Le build complet n'est pas encore certifié depuis cet environnement : le dépôt ne peut pas être cloné ici et aucun workflow GitHub exploitable n'est associé au commit de référence.
+
+**État honnête : 🔧 CODE + DOCUMENTATION CONSOLIDÉS → 🧪 BUILD UNIQUE / LOGS / VALIDATION VISUELLE / DÉPLOIEMENT À EFFECTUER DÈS QUE LE CONNECTEUR VERCEL EST RÉTABLI.**
+
+**Règle de déploiement : aucun déploiement supplémentaire ne doit être lancé avant cette étape de validation.**
