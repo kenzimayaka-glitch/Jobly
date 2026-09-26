@@ -13,8 +13,8 @@ type Job = Record<string, any>;
 function cleanOfferDescription(value: unknown): string {
   if (value == null) return "";
   let text = String(value)
-    .replace(/<br\\s*\\/?>(?=.)/gi, "\\n")
-    .replace(/<\\/(p|div|li|h[1-6])>/gi, "\\n")
+    .replace(/<br\s*\/?>(?=.)/gi, "\n")
+    .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
     .replace(/<li[^>]*>/gi, "• ")
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/gi, " ")
@@ -23,14 +23,14 @@ function cleanOfferDescription(value: unknown): string {
     .replace(/&#39;|&apos;/gi, "'")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
-    .replace(/\\r/g, "")
-    .replace(/[ \\t]+\\n/g, "\\n")
-    .replace(/\\n[ \\t]+/g, "\\n")
-    .replace(/\\n{3,}/g, "\\n\\n")
+    .replace(/\r/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 
   // Répare les séquences UTF-8 mal décodées (ex. « Ã© », « â€™ ») sans toucher au français normal.
-  if (/[ÃÂâ][\\x80-\\xBF\\x20-\\x7E]/.test(text) && [...text].every(ch => ch.charCodeAt(0) <= 255)) {
+  if (/[ÃÂâ][\x80-\xBF\x20-\x7E]/.test(text) && [...text].every(ch => ch.charCodeAt(0) <= 255)) {
     try {
       const bytes = new Uint8Array([...text].map(ch => ch.charCodeAt(0)));
       const repaired = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
@@ -39,8 +39,8 @@ function cleanOfferDescription(value: unknown): string {
   }
 
   return text
-    .replace(/^[•\\-–—]\\s*/gm, "• ")
-    .replace(/\\n{3,}/g, "\\n\\n")
+    .replace(/^[•\-–—]\s*/gm, "• ")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -59,7 +59,7 @@ function JobDetailInner() {
   const cleanDescription=cleanOfferDescription(job.description);
   return <main className="talent-shell relative min-h-[100dvh] bg-[#F7FAFF] pb-28 text-navy"><TalentBackground/><div className="relative z-10"><PageHeader label="Détail de l'offre" onBack={()=>router.push("/jobs")} theme="talent"/><div className="mx-auto max-w-3xl px-5 py-6"><section className="rounded-[28px] bg-white p-6 shadow-sm"><div className="flex items-start gap-4"><CompanyLogo companyName={company} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={56} /><div className="min-w-0"><h1 className="text-2xl font-black">{job.title}</h1><p className="mt-1 font-bold text-jobly-blue">{company}</p><p className="mt-2 text-xs text-slate-500">{[job.location,contract,remote].filter(Boolean).join(" · ")}</p></div></div>
     <div className="mt-5 flex flex-wrap gap-2">{job.minExperienceYears!=null&&<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{job.minExperienceYears} an{job.minExperienceYears>1?"s":""} min.</span>}{job.sector&&<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{job.sector}</span>}{deadline&&<span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">Candidatures jusqu'au {deadline}</span>}{tags.map((t)=><span key={t} className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-jobly-blue">{t}</span>)}</div>
-    {phoneComingSoon&&<div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4"><p className="text-sm font-black text-amber-900">Candidater via WhatsApp</p><p className="mt-1 text-sm leading-5 text-amber-800">Jobly prépare votre message et génère un lien CV partageable. Vous vérifiez puis appuyez sur Envoyer dans WhatsApp.</p></div>}{cleanDescription&&<div className="mt-7 rounded-2xl border border-slate-100 bg-white p-1"><h2 className="px-3 pt-3 text-base font-black">Description du poste</h2><div className="mt-2 space-y-3 px-3 pb-3 text-sm leading-6 text-slate-600">{cleanDescription.split(/\\n\\s*\\n/).map((paragraph:string,index:number)=><p key={index}>{paragraph.split("\\n").map((line:string,lineIndex:number)=>{const bullet=/^•\\s*/.test(line);return <span key={lineIndex} className={bullet?"block pl-4 -indent-4":"block"}>{bullet?"• ":""}{bullet?line.replace(/^•\\s*/,""):line}</span>;})}</p>)}</div></div>}
+    {phoneComingSoon&&<div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4"><p className="text-sm font-black text-amber-900">Candidater via WhatsApp</p><p className="mt-1 text-sm leading-5 text-amber-800">Jobly prépare votre message et génère un lien CV partageable. Vous vérifiez puis appuyez sur Envoyer dans WhatsApp.</p></div>}{cleanDescription&&<div className="mt-7 rounded-2xl border border-slate-100 bg-white p-1"><h2 className="px-3 pt-3 text-base font-black">Description du poste</h2><div className="mt-2 space-y-3 px-3 pb-3 text-sm leading-6 text-slate-600">{cleanDescription.split(/\n\s*\n/).map((paragraph:string,index:number)=><p key={index}>{paragraph.split("\n").map((line:string,lineIndex:number)=>{const bullet=/^•\s*/.test(line);return <span key={lineIndex} className={bullet?"block pl-4 -indent-4":"block"}>{bullet?"• ":""}{bullet?line.replace(/^•\s*/,""):line}</span>;})}</p>)}</div></div>}
     {(job.salary||job.salaryMin!=null)&&<p className="mt-5 text-sm font-bold">Rémunération : {job.salary||`${job.salaryMin??""}${job.salaryMax!=null?` – ${job.salaryMax}`:""} ${job.salaryCurrency||"XAF"}`}</p>}
     {job.company?.description&&<div className="mt-7 rounded-2xl bg-slate-50 p-4"><h2 className="text-sm font-black">À propos de {company}</h2><p className="mt-2 text-sm leading-6 text-slate-600">{job.company.description}</p>{job.company?.website&&<a href={job.company.website.startsWith("http")?job.company.website:`https://${job.company.website}`} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-bold text-jobly-blue underline">Site de l'entreprise</a>}</div>}
     <button disabled={busy||phoneComingSoon} onClick={phoneComingSoon?openWhatsApp:apply} className="mt-7 w-full rounded-2xl bg-jobly-blue py-3.5 text-sm font-black text-white disabled:opacity-50">{phoneComingSoon?<><MessageCircle size={17} className="mr-2 inline"/>Candidater via WhatsApp</>:"J'ai postulé"}</button><button onClick={()=>navigator.clipboard?.writeText(jobPublicUrl(params.id,source||undefined))} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white py-3 text-sm font-black">Copier le lien de l'offre</button></section></div></div><BottomNav active="/jobs"/></main>;
