@@ -3548,3 +3548,39 @@ Cette capacité devient une brique stratégique du Career OS sous le nom **Jobly
 **Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
 
 Aucun déploiement Vercel n'est déclenché par ce checkpoint.
+
+
+## MISE À JOUR — 26/09/2026 — TALENT / DISCOVERY CORRECTIVE PASS
+
+### Bloc A — Talent / offres
+- Retour rapide : après le franchissement réel de la 20e offre, une flèche flottante transparente/floue et discrète apparaît ; clic → retour au début de la surface des offres.
+- Suppression de la duplication du flux : le bloc « Vos meilleurs offres » et la liste générale ne se chevauchent plus.
+- « Offres » / « J’IA se charge de tout » conservés comme intitulés de référence.
+- « Les offres qui vous correspondent » conserve le seuil ≥ 50 %.
+- Compteur : « X offres disponibles aujourd’hui », calculé sur le volume réellement chargé.
+- Recherche : bouton/icône de recherche intégré dans la grille.
+- « Voir l’offre » reste présent sur chaque offre de la liste générale, pas comme CTA textuel dans les meilleurs offres.
+- « Actualiser les offres » reste le CTA principal de rafraîchissement et son état de chargement est visible.
+- Détail offre : ajout du CTA « Adapter votre CV pour cette candidature » vers /cv?mode=adapt&jobId=...&source=....
+- Description : nettoyage HTML, retours à la ligne, puces, espaces et correction des encodages UTF-8 mal décodés.
+- Matching : les critères sont activés selon les attentes détectées dans l’offre ; une langue ne pèse sur le score que lorsqu’elle constitue une exigence explicite. Les données absentes restent UNKNOWN / Non renseigné et ne sont pas interprétées comme une absence.
+
+### Entreprises / identité
+- Le flux consomme le nom réel de l’entreprise quand il est disponible.
+- La fiche entreprise recherche en priorité Google Places / Google Maps lorsque la clé Google Places est configurée, puis le site officiel et Google Actualités.
+- La fiche peut afficher : adresse, géolocalisation, téléphone, site, domaine d’activité, statut/avis et actualités ; lorsqu’aucune donnée exploitable n’est trouvée : « Aucune donnée disponible ».
+- Résolution logo renforcée : domaine/site officiel → proxy favicon same-origin ; fallback Logo.dev si le token est configuré ; fallback initiales si aucun logo fiable n’est disponible.
+
+### Bloc B — Discovery / JobsPipe
+- discover-jobs Edge Function : version 17 ACTIVE.
+- Correction de déploiement : suppression de la dépendance RSS deno.land/std@0.224.0/xml/mod.ts qui empêchait le bundling de la fonction ; parsing RSS natif conservé.
+- Enrichissement entreprise : conservation du site web lorsque fourni par une source et alimentation de Company.website / Company.logoUrl lorsque possible.
+- Normalisation des descriptions appliquée avant stockage.
+- Sources/API étudiées le 26/09 : MinaJobs RSS, Techmap Job Postings API/RSS, JobsPipe API, Jooble REST API, ainsi que Joblinca Developer API public. Les clés/conditions d'accès restent à configurer avant de déclarer une ingestion réelle.
+
+### Déploiement Vercel
+- Aucun déploiement Vercel manuel n’a été lancé pendant cette passe.
+- Le verrou Git de déploiement automatique reste en place ; les modifications GitHub sont donc CODÉES, mais pas déclarées DEPLOYÉES sur Vercel.
+
+### Discipline de vérité
+CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ : les modifications ci-dessus sont CODÉES ; discover-jobs est aussi DÉPLOYÉ sur Supabase v17. La validation production de /jobs sur téléphone et le prochain build Vercel restent à effectuer avec autorisation de déploiement.
