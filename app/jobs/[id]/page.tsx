@@ -22,19 +22,27 @@ function cleanOfferDescription(value: unknown): string {
   if (raw) {
     try {
       const parsed = JSON.parse(raw);
-      const pick = (node: any): string => {
-        if (typeof node === "string") return node;
-        if (Array.isArray(node)) return node.map(pick).filter(Boolean).join("\n\n");
-        if (node && typeof node === "object") {
-          const preferred = ["description", "content", "text", "summary", "details", "responsibilities", "requirements", "profile", "missions"];
-          const parts = preferred.map(key => node[key]).map(pick).filter(Boolean);
-          return parts.length ? parts.join("\n\n") : "";
-        }
-        return "";
+      const preferred = ["description", "content", "text", "summary", "details", "responsibilities", "requirements", "profile", "missions", "about", "jobDescription", "job_description"];
+      const pick = (node: any, depth = 0): string => {
+        if (typeof node === "string") return node.trim();
+        if (Array.isArray(node)) return node.map(item => pick(item, depth + 1)).filter(Boolean).join("\n\n");
+        if (!node || typeof node !== "object" || depth > 5) return "";
+        const direct = preferred.map(key => pick(node[key], depth + 1)).filter(Boolean);
+        if (direct.length) return direct.join("\n\n");
+        return Object.values(node).map(value => pick(value, depth + 1)).filter(Boolean).join("\n\n");
       };
       const extracted = pick(parsed);
       if (extracted) raw = extracted;
     } catch {}
+  }
+
+  // Certaines sources sérialisent l'offre sous forme de JSON/JS dans description.
+  // On extrait le texte éditorial au lieu d'afficher le payload technique.
+  if (/^\s*(?:const|let|var|export|import|function|class)\b|^\s*[[{]/i.test(raw)) {
+    const quoted = raw.match(/"(?:description|content|text|summary|details|responsibilities|requirements|profile|missions)"\s*:\s*"([\\s\\S]*?)"/i);
+    if (quoted?.[1]) {
+      try { raw = JSON.parse('"'+quoted[1].replace(/"/g, '\\\"')+'"'); } catch { raw = quoted[1]; }
+    }
   }
 
   let text = raw
