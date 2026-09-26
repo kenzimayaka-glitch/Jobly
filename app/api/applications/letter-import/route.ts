@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PDFParse } from "pdf-parse";
-import * as JSZip from "jszip";
+import pdfParse from "pdf-parse";
+import mammoth from "mammoth";
 import { getAuthUser } from "../../../../lib/server-auth";
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -22,10 +22,8 @@ export async function POST(request: NextRequest) {
     let text = "";
 
     if (ext === "pdf" || file.type === "application/pdf") {
-      const parser = new PDFParse({ data: bytes });
-      const parsed = await parser.getText();
+      const parsed = await pdfParse(bytes);
       text = String(parsed.text || "");
-      await parser.destroy();
     } else if (ext === "docx" || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
       const parsed = await mammoth.extractRawText({ buffer: bytes });
       text = String(parsed.value || "");
