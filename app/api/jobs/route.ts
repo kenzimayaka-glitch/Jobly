@@ -22,7 +22,19 @@ const WEIGHTS:Record<string,number>={role:20,skills:30,experience:20,education:1
 function detectExp(text:string,min:number|null){if(min!=null&&min>0)return min;const m=normalize(text).match(/(?:minimum|min|au moins|plus de)\s*(\d+)\s*(?:ans?|annees?|years?)/);return m?Number(m[1]):null;}
 function detectEdu(text:string){const n=normalize(text);if(/bac\s*\+\s*5|bac5|master|mba|ingenieur|doctorat|phd/.test(n))return 5;if(/bac\s*\+\s*4|bac4|maitrise/.test(n))return 4;if(/bac\s*\+\s*3|bac3|licence|bachelor/.test(n))return 3;if(/bac\s*\+\s*2|bac2|bts|dut|deug/.test(n))return 2;if(/baccalaureat|high school/.test(n))return 0;return null;}
 function eduLevel(value:string|null|undefined){const n=normalize(value);if(!n)return null;if(/doctorat|phd/.test(n))return 6;if(/master|mba|ingenieur|engineering/.test(n))return 5;if(/maitrise/.test(n))return 4;if(/licence|bachelor/.test(n))return 3;if(/bts|dut|deug|bac\s*\+\s*2/.test(n))return 2;if(/bac|baccalaureat|high school/.test(n))return 0;return null;}
-function languageReq(text:string){const n=normalize(text);const out:string[]=[];if(/anglais|english/.test(n))out.push("anglais");if(/francais|french/.test(n))out.push("francais");return Array.from(new Set(out));}
+function languageReq(text:string){
+  const n=normalize(text);
+  const out:string[]=[];
+  const explicitEnglish=/(anglais|english).{0,45}(requis|requis[e]?|exige|exigee|obligatoire|required|must|mandatory|courant|fluent|bilingue|professionnel|professional|maitrise|proficiency|niveau)/.test(n)
+    || /(requis|exige|obligatoire|required|must|mandatory|courant|fluent|bilingue|professionnel|professional|maitrise|proficiency|niveau).{0,45}(anglais|english)/.test(n);
+  const explicitFrench=/(francais|french).{0,45}(requis|requis[e]?|exige|exigee|obligatoire|required|must|mandatory|courant|fluent|bilingue|professionnel|professional|maitrise|proficiency|niveau)/.test(n)
+    || /(requis|exige|obligatoire|required|must|mandatory|courant|fluent|bilingue|professionnel|professional|maitrise|proficiency|niveau).{0,45}(francais|french)/.test(n);
+  const bilingual=/(bilingue|bilingual).{0,60}(francais|french).{0,60}(anglais|english)/.test(n)
+    || /(bilingue|bilingual).{0,60}(anglais|english).{0,60}(francais|french)/.test(n);
+  if(explicitEnglish || bilingual) out.push("anglais");
+  if(explicitFrench || bilingual) out.push("francais");
+  return Array.from(new Set(out));
+}
 const COMMON_SKILLS=["excel","power bi","tableau","sql","python","java","javascript","typescript","react","next.js","node.js","php","laravel","sap","salesforce","hubspot","crm","erp","kobo collect","powerpoint","word","google analytics","marketing digital","communication","negociation","gestion de projet","project management","analyse de donnees","data analysis","business development","vente","sales","prospection","relation client","customer service","recrutement","rh","ressources humaines","comptabilite","finance","audit","gestion de portefeuille","lead generation","social media","seo","sem","canva"];
 function extractRequiredSkills(text:string,tags:string[],candidateSkills:string[]){
   const n=normalize(text);
