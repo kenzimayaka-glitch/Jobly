@@ -91,12 +91,12 @@ export async function GET(request: NextRequest) {
     const response = await fetch(`https://news.google.com/rss/search?q=${query}&hl=fr&gl=CM&ceid=CM:fr`, { signal: AbortSignal.timeout(5000), cache: "no-store" });
     if (response.ok) {
       const xml = await response.text();
-      const items = [...xml.matchAll(/<item>([\\s\\S]*?)<\\/item>/g)].slice(0, 5);
+      const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, 5);
       result.news = items.map(match => {
         const item = match[1];
-        const title = decodeXml(item.match(/<title>([\\s\\S]*?)<\\/title>/i)?.[1] || "");
-        const link = decodeXml(item.match(/<link>([\\s\\S]*?)<\\/link>/i)?.[1] || "");
-        const publishedAt = item.match(/<pubDate>([\\s\\S]*?)<\\/pubDate>/i)?.[1] || null;
+        const title = decodeXml(item.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || "");
+        const link = decodeXml(item.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || "");
+        const publishedAt = item.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1] || null;
         return { title, link, publishedAt };
       }).filter(item => item.title && item.link);
       if (result.news.length) result.source.push("Google Actualités");
