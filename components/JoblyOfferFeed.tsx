@@ -222,7 +222,7 @@ export function JoblyOfferFeed() {
       return matchesQuery && matchesFilter && (!matchOnly || job.matchPercent >= 50);
     });
     return focusMatch ? [...result].sort((a, b) => b.matchPercent - a.matchPercent) : result;
-  }, [jobs, query, filter, focusMatch]);
+  }, [jobs, query, filter, focusMatch, matchOnly]);
 
 function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase(); }
 
