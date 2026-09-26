@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUpRight, Building2, Check, ExternalLink, RefreshCw, Send, Sparkles, X, Search, SlidersHorizontal, ShoppingBag, CheckSquare, Upload, Pencil, FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowUpRight, Building2, Check, ExternalLink, RefreshCw, Send, Sparkles, X, Search, SlidersHorizontal, ShoppingBasket, CheckSquare, Upload, Pencil, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 import { companyAvatar } from "@/lib/avatar";
@@ -583,12 +583,12 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                     <p className="mt-3 text-xs text-slate-500">{[job.location, job.contractType, job.remoteMode].filter(Boolean).join(" · ") || "Toutes localisations"}</p>
                     <div className="mt-3 text-[10px] text-slate-500">Publié · <b className="text-slate-700">{formatDate(job.publishedAt)}</b></div>
                     <div className="mt-4 flex gap-2">
-                      <button onClick={() => job.applicationReady ? apply(job) : router.push(`/jobs/${job.id}?source=${job.source}`)} disabled={done || ready || busy} className="flex h-12 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full bg-[#FFE135] px-3 text-sm font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B]">
+                      <button onClick={() => phoneComingSoon ? router.push(`/jobs/${job.id}?source=${job.source}`) : apply(job)} disabled={done || ready || busy} className="flex h-12 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full bg-[#FFE135] px-3 text-sm font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B]">
                         {done ? <><Check size={17} className="mr-2"/>Candidature envoyée</> : ready ? "Candidature prête" : busy ? <><RefreshCw size={17} className="mr-2 animate-spin"/>Envoi en cours…</> : <><Send size={17} className="mr-2"/>{job.applicationReady ? "Postuler avec J’IA" : phoneComingSoon ? "COMING SOON" : "Postuler"}</>}
                       </button>
-                      <button onClick={() => toggleBasket(job)} aria-label={basket.has(key) ? "Retirer du panier" : "Ajouter au panier"} className={basket.has(key) ? "grid h-12 w-12 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid h-12 w-12 place-items-center rounded-full border border-[#22448B]/25 bg-[#EEF4FF] text-[#22448B]"}>{basket.has(key) ? <CheckSquare size={18}/> : <ShoppingBag size={18}/>}</button>
+                      <button onClick={() => toggleBasket(job)} aria-label={basket.has(key) ? "Retirer du panier" : "Ajouter au panier"} className={basket.has(key) ? "grid h-12 w-12 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid h-12 w-12 place-items-center rounded-full border border-[#22448B]/25 bg-[#EEF4FF] text-[#22448B]"}>{basket.has(key) ? <CheckSquare size={18}/> : <ShoppingBasket size={18}/>}</button>
                       <button type="button" onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label="En savoir plus sur l’entreprise" title="En savoir +" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-full bg-[#00A6E8] px-4 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,166,232,.22)] transition hover:bg-[#008FC8] active:scale-[.98]">En savoir +</button>
-                      <button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} aria-label="Voir l'offre" className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"><ArrowUpRight size={18}/></button>
+                      <button type="button" onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} aria-label="Voir l'offre" title="Voir l’offre" className="inline-flex h-12 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200 bg-white px-3 text-xs font-black text-[#B59A00] transition hover:border-[#B59A00]/40 hover:bg-[#FFFBE0]"><span>Voir l’offre</span><ArrowUpRight size={17}/></button>
                     </div>
                   </div>
                 </article>
