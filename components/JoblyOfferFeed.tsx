@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUpRight, Building2, Check, ExternalLink, RefreshCw, Send, Sparkles, X, Search, SlidersHorizontal, ShoppingBag, CheckSquare, Upload, Pencil, FileText } from "lucide-react";
+import { ArrowUpRight, Building2, Check, ExternalLink, RefreshCw, Send, Sparkles, X, Search, SlidersHorizontal, ShoppingBag, CheckSquare, Upload, Pencil, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 import { companyAvatar } from "@/lib/avatar";
@@ -46,7 +46,7 @@ type Job = {
   matchBreakdown?: Array<{ id: string; label: string; score: number | null; weight: number; required: boolean; status: "MATCH"|"PARTIAL"|"MISMATCH"|"UNKNOWN"; candidateValue?: string | null; expectedValue?: string | null }>;
 };
 
-function formatDate(value: string | null) { if (!value) return "Non indiquée"; return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)); }
+function formatDate(value: string | null) { if (!value) return "Aucune donnée"; return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)); }
 
 export function JoblyOfferFeed() {
   const router = useRouter();
@@ -77,6 +77,10 @@ export function JoblyOfferFeed() {
   const [filter, setFilter] = useState("Toutes");
   const [matchOnly, setMatchOnly] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [topMatchCanScrollLeft, setTopMatchCanScrollLeft] = useState(false);
+  const [topMatchCanScrollRight, setTopMatchCanScrollRight] = useState(true);
+  const [topMatchHover, setTopMatchHover] = useState(false);
+  const [coarsePointer, setCoarsePointer] = useState(false);
   const offersStartRef = useRef<HTMLElement | null>(null);
 
   // Deep link : /jobs?q=stage (ex. CTA « Chercher un stage » de l’espace Campus).
@@ -321,6 +325,33 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
   }, [filteredJobs, router, apply, toggleSaved, saved]);
   const featured = useMemo(() => filteredJobs.slice(0, 6), [filteredJobs]);
   const topMatchRef = useRef<HTMLDivElement | null>(null);
+  const updateTopMatchArrows = useCallback(() => {
+    const container = topMatchRef.current;
+    if (!container) return;
+    const maxScroll = Math.max(0, container.scrollWidth - container.clientWidth);
+    setTopMatchCanScrollLeft(container.scrollLeft > 4);
+    setTopMatchCanScrollRight(container.scrollLeft < maxScroll - 4);
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(pointer: coarse)");
+    const syncPointer = () => setCoarsePointer(media.matches);
+    syncPointer();
+    media.addEventListener?.("change", syncPointer);
+    return () => media.removeEventListener?.("change", syncPointer);
+  }, []);
+
+  useEffect(() => {
+    updateTopMatchArrows();
+    const container = topMatchRef.current;
+    if (!container) return;
+    container.addEventListener("scroll", updateTopMatchArrows, { passive: true });
+    window.addEventListener("resize", updateTopMatchArrows);
+    return () => {
+      container.removeEventListener("scroll", updateTopMatchArrows);
+      window.removeEventListener("resize", updateTopMatchArrows);
+    };
+  }, [featured.length, updateTopMatchArrows]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -360,6 +391,9 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
 
 
   const rest = useMemo(() => filteredJobs.slice(6), [filteredJobs]);
+  const scrollTopMatches = useCallback((direction: number) => {
+    topMatchRef.current?.scrollBy({ left: direction * 350, behavior: "smooth" });
+  }, []);
   const feedSummary = feedMeta.totalAvailable ? `${feedMeta.totalAvailable} offre${feedMeta.totalAvailable > 1 ? "s" : ""} disponible${feedMeta.totalAvailable > 1 ? "s" : ""} aujourd’hui` : "Marché en cours de synchronisation";
 
   if (sessionLoading || (loading && !jobs.length)) return (
@@ -380,16 +414,16 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     </main>
   );
 
-  return <main className="min-h-[100dvh] overflow-hidden bg-[#F5F7F8] pb-28 text-[#17212B]">
+  return <main className="min-h-[100dvh] bg-[#F5F7F8] pb-28 text-[#17212B]">
     <section className="relative mx-auto max-w-6xl px-5 pb-8 pt-7 sm:px-8">
       <motion.div className="absolute -right-20 top-0 h-72 w-72 rounded-full bg-[#7A9BB5]/30 blur-3xl" animate={{ x: [0, -30, 0], y: [0, 25, 0], scale: [1, 1.1, 1] }} transition={{ duration: 12, repeat: Infinity }} />
-      <div className="relative z-10 flex items-end justify-between gap-4"><div><h1 className="mt-2 text-4xl font-black leading-[.95] tracking-[-.045em] sm:text-6xl">Offres</h1><p className="mt-3 max-w-xl text-base font-black text-[#2E3F4F]">J’IA se charge de tout</p><p className="mt-3 max-w-xl text-sm text-slate-500">{feedSummary}.</p></div><button type="button" onClick={() => load(true)} aria-label="Actualiser les offres d’emploi" title="Actualiser les offres d’emploi" className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[#FFE135] px-4 text-sm font-black text-[#2E3F4F] shadow-[0_8px_24px_rgba(255,225,53,.28)] transition hover:scale-[1.02] active:scale-[.98] disabled:opacity-60" disabled={refreshing}><RefreshCw size={18} className={refreshing ? "animate-spin" : ""}/><span>{refreshing ? "Actualisation…" : "Actualiser les offres"}</span></button></div>
+      <div className="relative z-10 flex items-end justify-between gap-4"><div><h1 className="mt-2 text-4xl font-black leading-[.95] tracking-[-.045em] text-[#0057B8] sm:text-6xl">Offres</h1><p className="mt-3 max-w-xl text-base font-black text-[#FFE135]">J’IA se charge de tout</p></div><button type="button" onClick={() => load(true)} aria-label="Actualiser les offres d’emploi" title="Actualiser les offres d’emploi" className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[#FFE135] px-4 text-sm font-black text-[#2E3F4F] shadow-[0_8px_24px_rgba(255,225,53,.28)] transition hover:scale-[1.02] active:scale-[.98] disabled:opacity-60" disabled={refreshing}><RefreshCw size={18} className={refreshing ? "animate-spin" : ""}/><span>{refreshing ? "Actualisation…" : "Actualiser les offres"}</span></button></div>
       {error && <div className="relative z-10 mt-5 rounded-2xl border border-red-300/20 bg-red-400/10 p-3 text-sm font-bold">{error}</div>}
-      <div className="relative z-10 mt-5 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-[1px] text-slate-500"><button type="button" onClick={() => setMatchOnly(v => !v)} className={matchOnly ? "rounded-full border border-[#FFE135] bg-[#FFE135] px-3 py-2 text-[#17212B]" : "rounded-full border border-slate-200 bg-white/5 px-3 py-2"}>Les offres qui vous correspondent · {feedMeta.matchingCount}</button></div>
+      <div className="relative z-10 mt-5 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-[1px] text-slate-500"><button type="button" onClick={() => setMatchOnly(v => !v)} className={matchOnly ? "rounded-full border border-[#F97316] bg-[#F97316] px-3 py-2 text-white shadow-[0_8px_22px_rgba(249,115,22,.24)]" : "rounded-full border border-[#F97316]/30 bg-[#FFF7ED] px-3 py-2 text-[#C2410C]"}>Les offres qui vous correspondent · {feedMeta.matchingCount}</button></div>
     </section>
 
     <section ref={offersStartRef} id="jobly-offers-start" className="mx-auto max-w-6xl px-5 scroll-mt-6 sm:px-8">
-      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Offres</p><h2 className="mt-1 text-xl font-black">{feedSummary}</h2></div><div className="flex flex-col gap-2 sm:flex-row"><form onSubmit={e => { e.preventDefault(); setQuery(query.trim()); }} className="flex h-11 min-w-[280px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 shadow-sm"><Search size={16} className="text-[#22448B]"/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Métier, entreprise, ville…" aria-label="Rechercher une offre" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"/><button type="submit" aria-label="Rechercher" title="Rechercher" className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#22448B] text-white transition hover:bg-[#17346E]"><Search size={14}/></button></form><div className="flex gap-2 overflow-x-auto">{["Toutes","CDI","CDD","Stage","Remote"].map(item => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "whitespace-nowrap rounded-2xl bg-[#FFE135] px-4 py-3 text-xs font-black text-[#17212B]" : "whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-500"}>{item}</button>)}</div></div></div>
+      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><h2 className="mt-1 text-xl font-black text-[#00A6A6]">{feedSummary}</h2></div><div className="flex flex-col gap-2 sm:flex-row"><form onSubmit={e => { e.preventDefault(); setQuery(query.trim()); }} className="flex h-11 min-w-[280px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 shadow-sm"><Search size={16} className="text-[#22448B]"/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Métier, entreprise, ville…" aria-label="Rechercher une offre" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"/><button type="submit" aria-label="Rechercher" title="Rechercher" className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#22448B] text-white transition hover:bg-[#17346E]"><Search size={14}/></button></form><div className="flex gap-2 overflow-x-auto">{["Toutes","CDI","CDD","Stage","Remote"].map(item => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "whitespace-nowrap rounded-2xl bg-[#FFE135] px-4 py-3 text-xs font-black text-[#17212B]" : "whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-500"}>{item}</button>)}</div></div></div>
       {featured.length > 0 && (
         <div>
           <div className="mb-3 flex items-center justify-between">
@@ -418,7 +452,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                   initial={{ opacity: 0, x: 30 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * .08 }}
-                  className="relative min-w-[88%] snap-start overflow-hidden rounded-[32px] border border-white/15 bg-white p-3 shadow-[0_18px_60px_rgba(23,33,43,.10)] sm:min-w-[70%] lg:min-w-[calc((100%-2rem)/3)]"
+                  className="relative min-w-[88%] snap-start overflow-hidden rounded-[32px] border border-white/15 bg-white p-3 opacity-90 shadow-[0_18px_60px_rgba(23,33,43,.10)] transition-all duration-300 ease-out hover:opacity-100 sm:min-w-[70%] lg:min-w-[calc((100%-2rem)/3)]"
                 >
                   <div className="relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-[26px] bg-[#EEF2F6]">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,225,53,.28),transparent_38%),radial-gradient(circle_at_80%_80%,rgba(46,63,79,.18),transparent_42%)]"/>
@@ -433,7 +467,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                   <div className="p-3">
                     <div className="mt-1 flex items-center gap-2">
                       <CompanyLogo companyName={job.company?.name} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={32}/>
-                      <p className="min-w-0 truncate text-[10px] font-bold uppercase tracking-[1.5px] text-[#7A9BB5]">{job.company?.name || "Aucune donnée disponible"}</p>
+                      <p className="min-w-0 truncate text-[10px] font-bold uppercase tracking-[1.5px] text-[#7A9BB5]">{job.company?.name || "Aucune donnée"}</p>
                     </div>
                     <h2 className="mt-1 text-2xl font-black leading-none">{job.title}</h2>
                     <p className="mt-3 text-xs text-slate-500">{[job.location, job.contractType, job.remoteMode].filter(Boolean).join(" · ") || "Toutes localisations"}</p>
@@ -443,7 +477,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                         {done ? <><Check size={17} className="mr-2"/>Candidature envoyée</> : ready ? "Candidature prête" : busy ? <><RefreshCw size={17} className="mr-2 animate-spin"/>Envoi en cours…</> : <><Send size={17} className="mr-2"/>{job.applicationReady ? "Postuler avec J’IA" : phoneComingSoon ? "COMING SOON" : "Postuler"}</>}
                       </button>
                       <button onClick={() => toggleBasket(job)} aria-label={basket.has(key) ? "Retirer du panier" : "Ajouter au panier"} className={basket.has(key) ? "grid h-12 w-12 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"}>{basket.has(key) ? <CheckSquare size={18}/> : <ShoppingBag size={18}/>}</button>
-                      <button onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée disponible", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label="Voir les informations sur l’entreprise" title="Informations sur l’entreprise" className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"><Building2 size={18}/></button>
+                      <button onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label="Voir les informations sur l’entreprise" title="Informations sur l’entreprise" className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"><Building2 size={18}/></button>
                       <button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} aria-label="Voir l'offre" className="grid h-12 w-12 place-items-center rounded-full border border-slate-200 bg-white text-[#B59A00]"><ArrowUpRight size={18}/></button>
                     </div>
                   </div>
@@ -454,7 +488,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         </div>
       )}
 
-      <div className="mt-10 grid gap-3 md:grid-cols-2">{rest.map((job, index) => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const ready = applicationReadyKeys.has(key); const busy = submitting.has(key); const selected = basket.has(key); const phoneComingSoon = job.applicationProfile?.channel === "WHATSAPP_PHONE"; return <motion.article key={key} data-offer-index={index + 7} layout className={selected ? "rounded-[24px] border-2 border-[#FFE135] bg-white p-3 shadow-[0_10px_32px_rgba(23,33,43,.07)]" : "rounded-[24px] border border-white/10 bg-white p-3 shadow-[0_10px_32px_rgba(23,33,43,.07)]"}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} domain={job.company?.domain} website={job.company?.website} size={46}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{job.company?.name || "Aucune donnée disponible"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[job.location, job.contractType].filter(Boolean).join(" · ") || "Localisation / contrat non précisés"}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)}</p></div><button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="rounded-xl px-1 text-right transition hover:bg-[#FFFBE0] focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-xl font-black text-[#B59A00]">{job.matchPercent}%</strong><span className="text-[8px] font-bold text-slate-400">Mon score</span></button></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} disabled={done || ready} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBag size={16}/>}</button><button onClick={() => phoneComingSoon ? router.push(`/jobs/${job.id}?source=${job.source}`) : apply(job)} disabled={done || ready || busy} className="flex-1 rounded-full bg-[#FFE135] py-2.5 text-xs font-black text-[#2E3F4F] disabled:bg-slate-200 disabled:text-slate-500">{done ? "Candidature envoyée" : ready ? "Candidature prête" : busy ? "Préparation…" : phoneComingSoon ? "COMING SOON" : "Postuler"}</button><button onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée disponible", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label={`Voir les informations sur ${job.company?.name || "l’entreprise"}`} title="Informations sur l’entreprise" className="max-w-[170px] truncate rounded-full border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-[#22448B]">{job.company?.name || "Aucune donnée disponible"}</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#22448B]/20 bg-[#F4F7FF] px-3 py-2.5 text-xs font-black text-[#22448B]"><span>Voir l’offre</span><ArrowUpRight size={14}/></button></div></motion.article>; })}</div>
+      <div className="mt-10 grid gap-3 md:grid-cols-2">{rest.map((job, index) => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const ready = applicationReadyKeys.has(key); const busy = submitting.has(key); const selected = basket.has(key); const phoneComingSoon = job.applicationProfile?.channel === "WHATSAPP_PHONE"; return <motion.article key={key} data-offer-index={index + 7} layout initial={{ opacity: 0.9, y: 8 }} animate={{ opacity: 0.9, y: 0 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ amount: 0.45 }} whileHover={!coarsePointer ? { scale: 1.03, y: -4, zIndex: 10 } : undefined} className={selected ? "group rounded-[24px] border-2 border-[#FFE135] bg-white p-3 opacity-90 shadow-[0_10px_32px_rgba(23,33,43,.07)] transition-all duration-300 ease-out hover:opacity-100" : "group rounded-[24px] border border-white/10 bg-white p-3 opacity-90 shadow-[0_10px_32px_rgba(23,33,43,.07)] transition-all duration-300 ease-out hover:opacity-100"}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={job.company?.name} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} domain={job.company?.domain} website={job.company?.website} size={46}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{job.company?.name || "Aucune donnée"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[job.location, job.contractType].filter(Boolean).join(" · ") || "Aucune donnée"}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)}</p></div><button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="rounded-xl px-1 text-right transition hover:bg-[#FFFBE0] focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-xl font-black text-[#B59A00]">{job.matchPercent}%</strong><span className="text-[8px] font-bold text-slate-400">Mon score</span></button></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} disabled={done || ready} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBag size={16}/>}</button><button onClick={() => phoneComingSoon ? router.push(`/jobs/${job.id}?source=${job.source}`) : apply(job)} disabled={done || ready || busy} className="flex-1 rounded-full bg-[#FFE135] py-2.5 text-xs font-black text-[#2E3F4F] disabled:bg-slate-200 disabled:text-slate-500">{done ? "Candidature envoyée" : ready ? "Candidature prête" : busy ? "Préparation…" : phoneComingSoon ? "COMING SOON" : "Postuler"}</button><button onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label={`Voir les informations sur ${job.company?.name || "l’entreprise"}`} title="Informations sur l’entreprise" className="max-w-[170px] truncate rounded-full border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-[#22448B]">{job.company?.name || "Aucune donnée"}</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#22448B]/20 bg-[#F4F7FF] px-3 py-2.5 text-xs font-black text-[#22448B]"><span>Voir l’offre</span><ArrowUpRight size={14}/></button></div></motion.article>; })}</div>
     </section>
 
     {basketJobs.length > 0 && (
@@ -485,7 +519,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
             const isEditing = editingLetterId === item.id;
             const inputId = `letter-upload-${item.id}`;
             return <details key={item.id} open={isEditing || undefined} className="rounded-2xl border border-slate-200 bg-[#F8FAFC] p-3">
-              <summary className="cursor-pointer list-none"><div className="flex items-center gap-3"><CompanyLogo companyName={item.job.company?.name} logoUrl={item.job.company?.logoUrl} domain={item.job.company?.domain} website={item.job.company?.website} size={38}/><div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold uppercase text-slate-400">{item.job.company?.name || "Aucune donnée disponible"}</p><p className="truncate text-sm font-black">{item.job.title}</p></div><span className="rounded-full bg-[#DDF8EA] px-2 py-1 text-[9px] font-black text-[#08733E]">{item.job.matchPercent}% match</span></div></summary>
+              <summary className="cursor-pointer list-none"><div className="flex items-center gap-3"><CompanyLogo companyName={item.job.company?.name} logoUrl={item.job.company?.logoUrl} domain={item.job.company?.domain} website={item.job.company?.website} size={38}/><div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold uppercase text-slate-400">{item.job.company?.name || "Aucune donnée"}</p><p className="truncate text-sm font-black">{item.job.title}</p></div><span className="rounded-full bg-[#DDF8EA] px-2 py-1 text-[9px] font-black text-[#08733E]">{item.job.matchPercent}% match</span></div></summary>
               <div className="mt-3 border-t border-slate-200 pt-3">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[1px] text-slate-400"><FileText size={14}/> Lettre · {item.letterSource === "CANDIDATE" ? "Votre document" : "Préparée par J’IA"}</div><div className="flex gap-2">
                   <button type="button" onClick={() => setEditingLetterId(isEditing ? null : item.id)} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-[10px] font-black"><Pencil size={13}/> {isEditing ? "Fermer" : "Modifier"}</button>
@@ -515,7 +549,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
             <div><p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#FFE135]">JOBLY MATCH</p><h2 className="mt-1 text-2xl font-black">Votre score de compatibilité</h2><p className="mt-1 text-xs text-white/65">Analyse de cette offre par rapport aux informations connues de votre profil.</p></div>
             <button type="button" onClick={() => setSelectedMatch(null)} aria-label="Fermer le détail du score" className="grid h-9 w-9 place-items-center rounded-full border border-white/15 bg-white/5"><X size={17}/></button>
           </div>
-          <div className="mt-5 flex items-center gap-4"><div className="grid h-24 w-24 place-items-center rounded-full border-8 border-[#FFE135] bg-white/10"><span className="text-3xl font-black text-[#FFE135]">{selectedMatch.matchPercent}%</span></div><div className="min-w-0"><p className="text-sm font-black">{selectedMatch.title}</p><p className="mt-1 truncate text-xs text-white/60">{selectedMatch.company?.name || "Aucune donnée disponible"}</p><p className="mt-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-[9px] font-black uppercase tracking-[1px]">{selectedMatch.matchPercent >= 85 ? "Très forte compatibilité" : selectedMatch.matchPercent >= 70 ? "Bonne compatibilité" : selectedMatch.matchPercent >= 60 ? "Compatibilité intéressante" : "Compatibilité à renforcer"}</p></div></div>
+          <div className="mt-5 flex items-center gap-4"><div className="grid h-24 w-24 place-items-center rounded-full border-8 border-[#FFE135] bg-white/10"><span className="text-3xl font-black text-[#FFE135]">{selectedMatch.matchPercent}%</span></div><div className="min-w-0"><p className="text-sm font-black">{selectedMatch.title}</p><p className="mt-1 truncate text-xs text-white/60">{selectedMatch.company?.name || "Aucune donnée"}</p><p className="mt-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-[9px] font-black uppercase tracking-[1px]">{selectedMatch.matchPercent >= 85 ? "Très forte compatibilité" : selectedMatch.matchPercent >= 70 ? "Bonne compatibilité" : selectedMatch.matchPercent >= 60 ? "Compatibilité intéressante" : "Compatibilité à renforcer"}</p></div></div>
         </div>
         <div className="p-5">
           <p className="text-[10px] font-black uppercase tracking-[1.5px] text-slate-400">Critères détectés dans l’offre</p>
@@ -554,8 +588,8 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
           {(companyWebProfile.description || selectedCompany.description) && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Présentation</p><p className="mt-1 text-sm leading-6 text-white/75">{companyWebProfile.description || selectedCompany.description}</p></div>}
           {companyWebProfile.website && <a href={companyWebProfile.website.startsWith("http") ? companyWebProfile.website : `https://${companyWebProfile.website}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-3 text-xs font-bold">Site officiel <ExternalLink size={14}/></a>}
           {companyWebProfile.news.length>0 && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Actualités</p><div className="mt-2 space-y-2">{companyWebProfile.news.map((item,index)=><a key={index} href={item.link} target="_blank" rel="noreferrer" className="block rounded-2xl bg-white/5 p-3 text-sm font-semibold leading-5 hover:bg-white/10">{item.title}<span className="mt-1 block text-[10px] font-normal text-white/45">{item.publishedAt ? new Date(item.publishedAt).toLocaleDateString("fr-FR") : ""}</span></a>)}</div></div>}
-        </div> : <div className="mt-7 rounded-2xl bg-white/5 p-4 text-sm text-white/65">Aucune donnée disponible</div>}
-        {!companyWebLoading && companyWebProfile && !companyWebProfile.address && !companyWebProfile.phone && !companyWebProfile.website && !companyWebProfile.description && companyWebProfile.news.length===0 && <div className="mt-3 rounded-2xl bg-white/5 p-4 text-sm text-white/65">Aucune donnée disponible</div>}
+        </div> : <div className="mt-7 rounded-2xl bg-white/5 p-4 text-sm text-white/65">Aucune donnée</div>}
+        {!companyWebLoading && companyWebProfile && !companyWebProfile.address && !companyWebProfile.phone && !companyWebProfile.website && !companyWebProfile.description && companyWebProfile.news.length===0 && <div className="mt-3 rounded-2xl bg-white/5 p-4 text-sm text-white/65">Aucune donnée</div>}
       </motion.div>
     </motion.div>}</AnimatePresence>
 
