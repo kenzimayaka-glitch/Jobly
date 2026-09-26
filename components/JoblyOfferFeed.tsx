@@ -322,13 +322,13 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     </section>
 
     <section className="mx-auto max-w-6xl px-5 sm:px-8">
-      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Offres</p><h2 className="mt-1 text-xl font-black">{filteredJobs.length} résultat{filteredJobs.length > 1 ? "s" : ""}</h2></div><div className="flex flex-col gap-2 sm:flex-row"><label className="flex h-11 min-w-[260px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3"><Search size={16} className="text-slate-400"/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Métier, entreprise, ville…" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"/></label><div className="flex gap-2 overflow-x-auto">{["Toutes","CDI","CDD","Stage","Remote"].map(item => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "whitespace-nowrap rounded-2xl bg-[#FFE135] px-4 py-3 text-xs font-black text-[#17212B]" : "whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-500"}>{item}</button>)}</div></div></div>
+      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Offres</p><h2 className="mt-1 text-xl font-black">{feedSummary}</h2></div><div className="flex flex-col gap-2 sm:flex-row"><label className="flex h-11 min-w-[260px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3"><Search size={16} className="text-slate-400"/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Métier, entreprise, ville…" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"/></label><div className="flex gap-2 overflow-x-auto">{["Toutes","CDI","CDD","Stage","Remote"].map(item => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "whitespace-nowrap rounded-2xl bg-[#FFE135] px-4 py-3 text-xs font-black text-[#17212B]" : "whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-500"}>{item}</button>)}</div></div></div>
       {featured.length > 0 && (
         <div>
           <div className="mb-3 flex items-center justify-between">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Vos meilleurs offres</p>
-              <p className="mt-1 text-xs text-slate-400">Lecture automatique · une nouvelle offre toutes les 3 secondes</p>
+              <p className="mt-1 text-xs text-slate-400">Les offres qui correspondent le mieux à votre profil actuel</p>
             </div>
             <span className="rounded-full border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[1px] text-slate-500">← →</span>
           </div>
