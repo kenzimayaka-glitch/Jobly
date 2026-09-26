@@ -375,57 +375,49 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
   }, [jobs.length, filteredJobs.length]);
 
   useEffect(() => {
-    const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-offer-index]'));
-    if (!cards.length) {
-      setFocusedOfferKey(null);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      entries => {
-        let bestKey: string | null = null;
-        let bestRatio = 0;
-
-        for (const entry of entries) {
-          const key = (entry.target as HTMLElement).dataset.offerKey;
-          if (!key || !entry.isIntersecting) continue;
-          if (entry.intersectionRatio > bestRatio) {
-            bestRatio = entry.intersectionRatio;
-            bestKey = key;
-          }
-        }
-
-        if (bestKey) setFocusedOfferKey(bestKey);
-      },
-      {
-        root: null,
-        rootMargin: "-28% 0px -28% 0px",
-        threshold: [0.2, 0.4, 0.6, 0.8, 1],
+    const updateVerticalFocus = () => {
+      const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-offer-index]'));
+      if (!cards.length) {
+        setFocusedOfferKey(null);
+        return;
       }
-    );
 
-    cards.forEach(card => observer.observe(card));
+      const focusTop = window.innerHeight * 0.28;
+      const focusBottom = window.innerHeight * 0.72;
+      let closest: { key: string; distance: number } | null = null;
 
-    const syncFocus = () => {
-      const visible = cards
-        .map(card => {
-          const rect = card.getBoundingClientRect();
-          const visibleTop = Math.max(rect.top, window.innerHeight * 0.28);
-          const visibleBottom = Math.min(rect.bottom, window.innerHeight * 0.72);
-          const visibleHeight = Math.max(0, visibleBottom - visibleTop);
-          return { card, visibleHeight };
-        })
-        .filter(item => item.visibleHeight > 0)
-        .sort((a, b) => b.visibleHeight - a.visibleHeight)[0];
+      for (const card of cards) {
+        const rect = card.getBoundingClientRect();
+        const visibleTop = Math.max(rect.top, focusTop);
+        const visibleBottom = Math.min(rect.bottom, focusBottom);
+        if (visibleBottom <= visibleTop) continue;
 
-      setFocusedOfferKey(visible?.card.dataset.offerKey || null);
+        const key = card.dataset.offerKey;
+        if (!key) continue;
+
+        const distance = Math.abs(rect.top + rect.height / 2 - window.innerHeight * 0.5);
+        if (!closest || distance < closest.distance) closest = { key, distance };
+      }
+
+      setFocusedOfferKey(closest?.key || null);
     };
 
-    syncFocus();
-    window.addEventListener("resize", syncFocus);
+    updateVerticalFocus();
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        updateVerticalFocus();
+      });
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    window.addEventListener("resize", onScroll);
     return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", syncFocus);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
     };
   }, [rest.length]);
 
