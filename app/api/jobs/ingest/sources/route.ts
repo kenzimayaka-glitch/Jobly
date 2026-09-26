@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       }
 
       const existing = await supabase.from("Job")
-        .select("id,contentHash,createdAt")
+        .select("id,contentHash,createdAt,aiProcessed,aiProcessedAt")
         .eq("sourceKey", offer.sourceKey)
         .eq("externalId", offer.externalId)
         .maybeSingle();
@@ -81,14 +81,21 @@ export async function POST(request: NextRequest) {
         applicationReady,
         applicationProfile: contact,
         applicationCheckedAt: now,
-        aiProcessed: false,
-        aiProcessedAt: null,
         companyId,
         updatedAt: now,
       };
 
+      if (companyId && (offer.logoUrl || offer.companyWebsite)) {
+        const companyPatch: Record<string, unknown> = {};
+        if (offer.logoUrl) companyPatch.logoUrl = offer.logoUrl;
+        if (offer.companyWebsite) companyPatch.website = offer.companyWebsite;
+        const companyUpdate = await supabase.from("Company").update(companyPatch).eq("id", companyId);
+        if (companyUpdate.error) throw new Error(companyUpdate.error.message);
+      }
+
       if (existing.data?.id) {
-        if (existing.data.contentHash === offer.contentHash && !companyId) {
+        const contentChanged = existing.data.contentHash !== offer.contentHash;
+        if (!contentChanged && !companyId) {
           const touch = await supabase.from("Job").update({
             lastSeenAt: now,
             isActive: !isExpired(offer.deadline),
@@ -99,19 +106,14 @@ export async function POST(request: NextRequest) {
           }).eq("id", existing.data.id);
           if (touch.error) throw new Error(touch.error.message);
         } else {
-          const update = await supabase.from("Job").update(payload).eq("id", existing.data.id);
+          const update = await supabase.from("Job").update({
+            ...payload,
+            ...(contentChanged ? { aiProcessed: false, aiProcessedAt: null } : {}),
+          }).eq("id", existing.data.id);
           if (update.error) throw new Error(update.error.message);
         }
         updated++;
       } else {
-        if (companyId && (offer.logoUrl || offer.companyWebsite)) {
-          const companyPatch: Record<string, unknown> = {};
-          if (offer.logoUrl) companyPatch.logoUrl = offer.logoUrl;
-          if (offer.companyWebsite) companyPatch.website = offer.companyWebsite;
-          const companyUpdate = await supabase.from("Company").update(companyPatch).eq("id", companyId);
-          if (companyUpdate.error) throw new Error(companyUpdate.error.message);
-        }
-
         const id = crypto.randomUUID();
         const insert = await supabase.from("Job").insert({
           id,
