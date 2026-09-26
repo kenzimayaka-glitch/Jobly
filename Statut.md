@@ -2740,3 +2740,30 @@ Avant le prochain build unique, le moteur d'offres a reçu une passe de durcisse
 Le flux marché conserve le total de toutes les offres disponibles ; le filtre **Les offres qui vous correspondent** applique le seuil de 50 % sans masquer artificiellement le marché global.
 
 **État : 🔧 CORRIGÉ → 🧪 TYPECHECK / BUILD / VALIDATION VISUELLE À CONFIRMER.**
+
+# CHECKPOINT 26/09/2026 — PRÉPARATION DU BUILD UNIQUE FINAL
+
+## Référence consolidée
+- Branche : `main`
+- Commit de référence après les corrections de matching : `e5d0bddf51ef2581c963b4c68716ce0e4698459d`.
+- Projet Vercel canonique : `jobly-c0.6.5.1` — aucun nouveau projet créé.
+
+## Principe de consolidation
+Les anciens déploiements Vercel en erreur ne sont pas des builds à fusionner individuellement : leurs modifications sont déjà cumulées dans l'historique de `main`. La cible est donc un **seul build final de l'état consolidé**.
+
+## État de validation
+- Corrections de matching : **CODÉES**.
+- Documentation README + Statut : **MISE À JOUR**.
+- Build complet depuis cet environnement : **NON CERTIFIÉ**, car le dépôt ne peut pas être cloné/exécuté localement ici et aucun workflow GitHub exploitable n'est associé au commit de référence.
+- Logs des anciens déploiements : **NON RÉUTILISABLES POUR CERTIFIER LE NOUVEAU CODE**.
+- Déploiement unique : **EN ATTENTE DU RÉTABLISSEMENT DU CONNECTEUR VERCEL**. La tentative retourne actuellement `Tool deploy_to_vercel not found`.
+
+## Règle opérationnelle
+Ne pas lancer plusieurs builds de dépannage. Une fois le connecteur Vercel rétabli, exécuter dans l'ordre :
+1. build unique de `main` ;
+2. lecture des logs ;
+3. correction uniquement si nécessaire ;
+4. nouveau build uniquement si une correction est indispensable ;
+5. déploiement final et vérification de l'état `READY`.
+
+**État honnête : 🔧 CONSOLIDÉ → 🧪 BUILD UNIQUE / VALIDATION VERCEL À EFFECTUER.**
