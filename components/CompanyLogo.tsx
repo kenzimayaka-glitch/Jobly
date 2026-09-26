@@ -81,18 +81,16 @@ export default function CompanyLogo({
     setResolvedLogo(null);
     setResolving(false);
 
-    const identityKey = cacheKey(companyName, resolvedDomain, logoUrl);
     const direct = logoUrl?.trim();
-    if (direct) {
-      setSrc(direct);
-      return () => { cancelled = true; };
-    }
 
-    if ((resolvedDomain || companyName?.trim())) {
+    // Resolve through the server first so LOGO_DEV_SECRET_KEY is never exposed
+    // to the browser and Logo.dev remains the preferred source.
+    if (resolvedDomain || companyName?.trim()) {
       setResolving(true);
       const query = resolvedDomain
         ? `domain=${encodeURIComponent(resolvedDomain)}`
         : `name=${encodeURIComponent(companyName!.trim())}`;
+
       fetch(`/api/company-logo?${query}`)
         .then(async (response) => {
           if (!response.ok) throw new Error("logo-resolution-failed");
@@ -102,32 +100,19 @@ export default function CompanyLogo({
         .then((url) => {
           if (cancelled) return;
           setResolvedLogo(url);
-          setSrc(url || candidates[0] || null);
+          setSrc(url || direct || candidates[0] || null);
         })
-        .catch(() => { if (!cancelled) setSrc(candidates[0] || null); })
-        .finally(() => { if (!cancelled) setResolving(false); });
+        .catch(() => {
+          if (!cancelled) setSrc(direct || candidates[0] || null);
+        })
+        .finally(() => {
+          if (!cancelled) setResolving(false);
+        });
+
       return () => { cancelled = true; };
     }
 
-    if (!resolvedDomain && companyName?.trim()) {
-      setResolving(true);
-      fetch(`/api/company-logo?name=${encodeURIComponent(companyName.trim())}${resolvedDomain ? `&domain=${encodeURIComponent(resolvedDomain)}` : ""}`)
-        .then(async (response) => {
-          if (!response.ok) throw new Error("logo-resolution-failed");
-          const body = await response.json();
-          return typeof body.logoUrl === "string" ? body.logoUrl : null;
-        })
-        .then((url) => {
-          if (cancelled) return;
-          setResolvedLogo(url);
-          setSrc(url || null);
-        })
-        .catch(() => { if (!cancelled) setSrc(null); })
-        .finally(() => { if (!cancelled) setResolving(false); });
-      return () => { cancelled = true; };
-    }
-
-    setSrc(candidates[0] || null);
+    setSrc(direct || candidates[0] || null);
     return () => { cancelled = true; };
   }, [companyName, resolvedDomain, logoUrl, candidates]);
   function invalidateCache() {
