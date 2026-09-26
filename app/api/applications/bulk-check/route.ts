@@ -28,9 +28,9 @@ export async function POST(request: NextRequest) {
       }, { status: 403 });
     }
 
-    if (selectedCount > 0 && !weekly.allowed) {
+    if (selectedCount > 0 && (!weekly.allowed || selectedCount > Math.max(0, weekly.limit - weekly.used))) {
       return NextResponse.json({
-        message: weekly.message || "Votre quota hebdomadaire de candidatures est atteint.",
+        message: weekly.allowed ? `Votre sélection dépasse le quota restant cette semaine (${Math.max(0, weekly.limit - weekly.used)} candidature(s) restante(s)).` : (weekly.message || "Votre quota hebdomadaire de candidatures est atteint."),
         code: "QUOTA_EXCEEDED",
         planCode,
         limit: entitlements.applicationsPerWeek,
