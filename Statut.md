@@ -1,11 +1,47 @@
 # JOBLY — STATUT DU PROJET
 ## SOURCE DE VÉRITÉ D'EXÉCUTION — JOBLY 20/20
-### Mise à jour : 20/09/2026 — Audit croisé CODE ↔ ROUTES ↔ UI ↔ NAVIGATION ↔ FONCTIONNALITÉS ↔ DONNÉES
+### Mise à jour : 26/09/2026 — Offres / Matching adaptatif / UX
 
 > Règle : une fonctionnalité n'est terminée que si elle traverse **SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**.
 > Les anciens checkpoints restent conservés comme historique et ne remplacent jamais l'état courant.
 
 ---
+
+# 0.1 — MISE À JOUR DU 26/09/2026 — OFFRES & MATCHING
+
+## Matching adaptatif — 🔧 CODÉ / 🟡 À VALIDER E2E
+
+Le moteur /api/jobs a été refondu pour comparer le profil du candidat aux **exigences réellement présentes dans chaque offre**. Les critères ne sont plus imposés de façon uniforme.
+
+Critères activés uniquement lorsqu'ils sont pertinents pour l'offre :
+- métier / fonction ;
+- compétences ;
+- expérience ;
+- niveau d'études ;
+- langues lorsqu'une exigence linguistique est détectée ;
+- localisation ;
+- secteur ;
+- contrat lorsque pertinent.
+
+Les données candidat utilisées incluent désormais Profile, Experience, Skill et Education. Les informations inconnues sont traitées comme **UNKNOWN / Non renseigné** et contribuent à la confiance de l'analyse plutôt qu'à un zéro automatique.
+
+Le score expose maintenant matchBreakdown[] avec le critère, le poids, l'état, la valeur du candidat et l'attendu de l'offre, ainsi qu'un matchConfidence.
+
+## UX Offres — 🔧 CODÉ / 🟡 À VALIDER E2E
+
+- Header : suppression de JOBLY / OPPORTUNITÉS.
+- Hero : Offres + J’IA se charge de tout.
+- Les offres qui vous correspondent : filtre activable, seuil **≥ 50 %**.
+- Vos meilleurs offres + Les offres qui correspondent le mieux à votre profil actuel.
+- Compteur dynamique : X offres disponibles aujourd’hui selon le volume réellement chargé.
+- Suppression de Fraîcheur · 60 jours max et Deadline explicite prioritaire.
+- Suppression des libellés Opportunités de cette surface.
+- Logo entreprise : résolution renforcée avec fallback API + favicon.
+- CTA du détail de score : Adapter mon CV pour cette candidature → /cv?mode=adapt&jobId=...&source=....
+
+## Déploiement
+
+Ces changements sont poussés sur main par commits successifs et doivent être considérés **CODÉS**, pas encore **VALIDÉS**, jusqu'à vérification du build Vercel et du parcours /jobs en production.
 
 # 0. ÉTAT EXÉCUTIF — 20/09/2026
 
