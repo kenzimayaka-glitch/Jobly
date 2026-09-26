@@ -1925,3 +1925,14 @@ Après le durcissement du matching, l'état de référence du projet est désorm
 **État honnête : 🔧 CODE + DOCUMENTATION CONSOLIDÉS → 🧪 BUILD UNIQUE / LOGS / VALIDATION VISUELLE / DÉPLOIEMENT À EFFECTUER DÈS QUE LE CONNECTEUR VERCEL EST RÉTABLI.**
 
 **Règle de déploiement : aucun déploiement supplémentaire ne doit être lancé avant cette étape de validation.**
+
+
+# CHECKPOINT 26/09/2026 — JOB SOURCES / INGESTION CAMEROUN
+
+Un audit dédié des sources d'offres a été réalisé et documenté dans `AUDIT-JOB-SOURCES-2026-09-26.md`.
+
+État réel JOBLY-PROD au 26/09/2026 : **232 offres externes actives** réparties entre Job in Cameroun (99), Emplois Cameroun (66), JobInfoCamer (35), FNE Cameroun (21), Emploi.cm (9) et Cameroon Desks (2). Le tableau `Job` contient 317 lignes au total.
+
+Nouvelle piste prioritaire : **MinaJobs dispose d'un RSS public et indique explicitement que son contenu peut être intégré avec lien retour vers la source**. Techmap documente également une couverture spécifique du Cameroun et une API/flux structurés. JobsPipe propose une API normalisée filtrable par pays, mais la couverture CM doit être mesurée avec un accès réel.
+
+Règle : ne pas ajouter de scraping non autorisé. L'architecture cible est multi-source → normalisation → déduplication → enrichissement entreprise → matching Jobly/J'IA. Aucun déploiement Vercel n'est déclenché automatiquement.
