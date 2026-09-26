@@ -25,7 +25,8 @@ type Job = {
   applicationProfile: { channel?: string; phoneNumbers?: string[]; comingSoon?: boolean };
   visualUrl: string | null;
   visualSource: string | null;
-  matchBreakdown?: { role: number; city: number; contract: number; sector: number; remote: number; experience: number };
+  matchConfidence?: number;
+  matchBreakdown?: Array<{ id: string; label: string; score: number | null; weight: number; required: boolean; status: "MATCH"|"PARTIAL"|"MISMATCH"|"UNKNOWN"; candidateValue?: string | null; expectedValue?: string | null }>;
 };
 
 function formatDate(value: string | null) { if (!value) return "Non indiquée"; return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)); }
@@ -54,6 +55,7 @@ export function JoblyOfferFeed() {
   const [feedMeta, setFeedMeta] = useState({ totalAvailable: 0, matchingCount: 0 });
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("Toutes");
+  const [matchOnly, setMatchOnly] = useState(false);
 
   // Deep link : /jobs?q=stage (ex. CTA « Chercher un stage » de l’espace Campus).
   useEffect(() => {
@@ -217,7 +219,7 @@ export function JoblyOfferFeed() {
       const haystack = [job.title, job.location, job.contractType, job.remoteMode, job.company?.name].filter(Boolean).join(" ").toLowerCase();
       const matchesQuery = !q || haystack.includes(q);
       const matchesFilter = filter === "Toutes" || (filter === "Remote" ? String(job.remoteMode || "").toLowerCase().includes("remote") : String(job.contractType || "").toLowerCase().includes(filter.toLowerCase()));
-      return matchesQuery && matchesFilter;
+      return matchesQuery && matchesFilter && (!matchOnly || job.matchPercent >= 50);
     });
     return focusMatch ? [...result].sort((a, b) => b.matchPercent - a.matchPercent) : result;
   }, [jobs, query, filter, focusMatch]);
@@ -291,7 +293,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
 
 
   const rest = useMemo(() => filteredJobs.slice(3), [filteredJobs]);
-  const feedSummary = feedMeta.totalAvailable ? `${feedMeta.totalAvailable} opportunité${feedMeta.totalAvailable > 1 ? "s" : ""} actuellement disponible${feedMeta.totalAvailable > 1 ? "s" : ""}` : "Marché en cours de synchronisation";
+  const feedSummary = feedMeta.totalAvailable ? `${feedMeta.totalAvailable} offre${feedMeta.totalAvailable > 1 ? "s" : ""} disponible${feedMeta.totalAvailable > 1 ? "s" : ""} aujourd’hui` : "Marché en cours de synchronisation";
 
   if (sessionLoading || (loading && !jobs.length)) return (
     <main className="min-h-[100dvh] bg-[#F5F7F8] pb-28 text-[#17212B]">
@@ -314,18 +316,18 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
   return <main className="min-h-[100dvh] overflow-hidden bg-[#F5F7F8] pb-28 text-[#17212B]">
     <section className="relative mx-auto max-w-6xl px-5 pb-8 pt-7 sm:px-8">
       <motion.div className="absolute -right-20 top-0 h-72 w-72 rounded-full bg-[#7A9BB5]/30 blur-3xl" animate={{ x: [0, -30, 0], y: [0, 25, 0], scale: [1, 1.1, 1] }} transition={{ duration: 12, repeat: Infinity }} />
-      <div className="relative z-10 flex items-end justify-between gap-4"><div><span className="text-[10px] font-bold uppercase tracking-[2px] text-slate-400">JOBLY / OPPORTUNITÉS</span><h1 className="mt-2 text-4xl font-black leading-[.95] tracking-[-.045em] sm:text-6xl">Les offres<br/><span className="text-[#B59A00]">auxquelles J’IA</span><br/>peut postuler.</h1><p className="mt-5 max-w-xl text-sm text-slate-500">{feedSummary}. Les plus récentes remontent automatiquement ; une offre disparaît lorsqu'elle expire.</p></div><button onClick={() => load(true)} aria-label="Actualiser" className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white/10 text-[#FFE135]"><RefreshCw size={18} className={refreshing ? "animate-spin" : ""}/></button></div>
+      <div className="relative z-10 flex items-end justify-between gap-4"><div><span className="text-[10px] font-bold uppercase tracking-[2px] text-slate-400">JOBLY</span><h1 className="mt-2 text-4xl font-black leading-[.95] tracking-[-.045em] sm:text-6xl">Offres</h1><p className="mt-3 max-w-xl text-base font-black text-[#2E3F4F]">J’IA se charge de tout</p><p className="mt-3 max-w-xl text-sm text-slate-500">{feedSummary}.</p></div><button onClick={() => load(true)} aria-label="Actualiser" className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-slate-200 bg-white/10 text-[#FFE135]"><RefreshCw size={18} className={refreshing ? "animate-spin" : ""}/></button></div>
       {error && <div className="relative z-10 mt-5 rounded-2xl border border-red-300/20 bg-red-400/10 p-3 text-sm font-bold">{error}</div>}
-      <div className="relative z-10 mt-5 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-[1px] text-slate-500"><span className="rounded-full border border-slate-200 bg-white/5 px-3 py-2">Profil matché · {feedMeta.matchingCount}</span><span className="rounded-full border border-white/10 bg-white/5 px-3 py-2">Fraîcheur · 60 jours max</span><span className="rounded-full border border-white/10 bg-white/5 px-3 py-2">Deadline explicite prioritaire</span></div>
+      <div className="relative z-10 mt-5 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-[1px] text-slate-500"><button type="button" onClick={() => setMatchOnly(v => !v)} className={matchOnly ? "rounded-full border border-[#FFE135] bg-[#FFE135] px-3 py-2 text-[#17212B]" : "rounded-full border border-slate-200 bg-white/5 px-3 py-2"}>Les offres qui vous correspondent · {feedMeta.matchingCount}</button></div>
     </section>
 
     <section className="mx-auto max-w-6xl px-5 sm:px-8">
-      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Opportunités</p><h2 className="mt-1 text-xl font-black">{filteredJobs.length} résultat{filteredJobs.length > 1 ? "s" : ""}</h2></div><div className="flex flex-col gap-2 sm:flex-row"><label className="flex h-11 min-w-[260px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3"><Search size={16} className="text-slate-400"/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Métier, entreprise, ville…" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"/></label><div className="flex gap-2 overflow-x-auto">{["Toutes","CDI","CDD","Stage","Remote"].map(item => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "whitespace-nowrap rounded-2xl bg-[#FFE135] px-4 py-3 text-xs font-black text-[#17212B]" : "whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-500"}>{item}</button>)}</div></div></div>
+      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Offres</p><h2 className="mt-1 text-xl font-black">{filteredJobs.length} résultat{filteredJobs.length > 1 ? "s" : ""}</h2></div><div className="flex flex-col gap-2 sm:flex-row"><label className="flex h-11 min-w-[260px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3"><Search size={16} className="text-slate-400"/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Métier, entreprise, ville…" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"/></label><div className="flex gap-2 overflow-x-auto">{["Toutes","CDI","CDD","Stage","Remote"].map(item => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "whitespace-nowrap rounded-2xl bg-[#FFE135] px-4 py-3 text-xs font-black text-[#17212B]" : "whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-500"}>{item}</button>)}</div></div></div>
       {featured.length > 0 && (
         <div>
           <div className="mb-3 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Top Match</p>
+              <p className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">Vos meilleurs offres</p>
               <p className="mt-1 text-xs text-slate-400">Lecture automatique · une nouvelle offre toutes les 3 secondes</p>
             </div>
             <span className="rounded-full border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[1px] text-slate-500">← →</span>
@@ -333,7 +335,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
           <div
             ref={topMatchRef}
             className="flex snap-x snap-mandatory gap-4 overflow-x-hidden scroll-smooth pb-2"
-            aria-label="Top Match — offres en cascade horizontale"
+            aria-label="Vos meilleurs offres — offres en cascade horizontale"
           >
             {featured.map((job, index) => {
               const key = `${job.source}:${job.id}`;
@@ -358,7 +360,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                       <CompanyLogo companyName={job.company?.name} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={68}/>
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-t from-[#2E3F4F]/70 via-transparent to-transparent"/>
-                    <span className="absolute left-3 top-3 rounded-full bg-[#FFE135] px-3 py-1 text-[9px] font-black uppercase tracking-[1.4px] text-[#2E3F4F]">Top match</span>
+                    <span className="absolute left-3 top-3 rounded-full bg-[#FFE135] px-3 py-1 text-[9px] font-black uppercase tracking-[1.4px] text-[#2E3F4F]">Meilleure offre</span>
                     <button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="absolute bottom-2 right-2 rounded-2xl px-2 py-1 text-right transition hover:bg-black/15 focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-4xl font-black text-[#FFE135]">{job.matchPercent}%</strong><span className="text-[8px] font-black uppercase tracking-[1px] text-white/85">Voir mon score</span></button>
                   </div>
                   <div className="p-3">
@@ -454,22 +456,23 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         <div className="p-5">
           <p className="text-[10px] font-black uppercase tracking-[1.5px] text-slate-400">Détail de votre score</p>
           <div className="mt-4 space-y-3">
-            {[
-              ["Métier recherché", selectedMatch.matchBreakdown?.role ?? 0],
-              ["Localisation", selectedMatch.matchBreakdown?.city ?? 0],
-              ["Type de contrat", selectedMatch.matchBreakdown?.contract ?? 0],
-              ["Secteur", selectedMatch.matchBreakdown?.sector ?? 0],
-              ["Télétravail", selectedMatch.matchBreakdown?.remote ?? 0],
-              ["Expérience", selectedMatch.matchBreakdown?.experience ?? 0],
-            ].map(([label, value]) => <div key={String(label)}><div className="mb-1 flex items-center justify-between text-[10px] font-bold text-slate-500"><span>{label}</span><b className="text-[#2E3F4F]">{Math.round(Number(value) * 100)}%</b></div><div className="h-2 overflow-hidden rounded-full bg-slate-100"><motion.div initial={{ width: 0 }} animate={{ width: `${Math.round(Number(value) * 100)}%` }} transition={{ duration: .45 }} className="h-full rounded-full bg-[#FFE135]"/></div></div>)}
+            {(selectedMatch.matchBreakdown || []).map(item => <div key={item.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+              <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-bold text-slate-500"><span>{item.label}{item.required ? " · requis" : ""}</span><b className={item.status === "MISMATCH" ? "text-red-600" : item.status === "UNKNOWN" ? "text-amber-600" : "text-[#2E3F4F]"}>{item.score == null ? "Non renseigné" : Math.round(item.score * 100) + "%"}</b></div>
+              <div className="h-2 overflow-hidden rounded-full bg-white">{item.score != null && <motion.div initial={{ width: 0 }} animate={{ width: Math.round(item.score * 100) + "%" }} transition={{ duration: .45 }} className="h-full rounded-full bg-[#FFE135]"/>}</div>
+              <p className="mt-2 text-[10px] leading-4 text-slate-500">{item.status === "MATCH" ? "Correspondance confirmée." : item.status === "PARTIAL" ? "Correspondance partielle à vérifier." : item.status === "MISMATCH" ? "Écart identifié avec l’exigence de l’offre." : "Information non renseignée dans les données connues de votre profil."}</p>
+              {item.expectedValue && <p className="mt-1 text-[10px] font-semibold text-slate-600">Attendu : {item.expectedValue}</p>}
+              {item.candidateValue && <p className="mt-1 text-[10px] text-slate-400">Profil : {item.candidateValue}</p>}
+            </div>)}
           </div>
-          <div className="mt-5 rounded-2xl border border-[#FFE135]/60 bg-[#FFFBE0] p-3 text-[10px] leading-5 text-slate-600"><b>Comment Jobly calcule ce score :</b> il compare les informations connues de votre profil avec les critères de l’offre. Le score est dynamique et peut évoluer lorsque votre profil est enrichi.</div>
-        </div>
-      </motion.div>
+          <div className="mt-5 rounded-2xl border border-[#FFE135]/60 bg-[#FFFBE0] p-3 text-[10px] leading-5 text-slate-600"><b>Score adapté à l’offre :</b> seuls les critères détectés dans cette offre influencent le score. Une information absente du profil est signalée comme non renseignée et réduit la confiance plutôt que d’être comptée automatiquement comme un échec.</div>
+          <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 text-[10px] leading-5 text-slate-500"><b className="text-[#2E3F4F]">Confiance de l’analyse : {selectedMatch.matchConfidence ?? 100}%</b> · basée sur les informations réellement disponibles dans votre profil.</div>
+          <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(selectedMatch.id) + "&source=" + encodeURIComponent(selectedMatch.source))} className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#FFE135] px-5 py-3 text-xs font-black text-[#2E3F4F]"><Sparkles size={15}/> Adapter mon CV pour cette candidature</button>
+          <p className="mt-2 text-center text-[10px] text-slate-400">J’IA analyse l’offre et votre CV. Vous validez chaque modification avant utilisation.</p>
+        </div></motion.div>
     </motion.div>}</AnimatePresence>
 
     <AnimatePresence>{selectedCompany && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] grid place-items-end bg-black/60 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => setSelectedCompany(null)}><motion.div initial={{ y: 40, opacity: 0, scale: .97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 40, opacity: 0 }} onClick={e => e.stopPropagation()} className="w-full max-w-lg rounded-[32px] border border-white/15 bg-[#2E3F4F] p-6 shadow-2xl"><div className="flex items-start justify-between"><div className="flex items-center gap-3"><CompanyLogo companyName={selectedCompany.name} logoUrl={selectedCompany.logoUrl} domain={selectedCompany.domain} website={selectedCompany.website} size={56}/><div><p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#7A9BB5]">À propos de l’entreprise</p><h2 className="text-xl font-black">{selectedCompany.name}</h2></div></div><button onClick={() => setSelectedCompany(null)} className="rounded-full border border-white/10 p-2"><X size={18}/></button></div><p className="mt-6 text-sm leading-6 text-white/75">{selectedCompany.description || "Aucun résumé d’activité n’est fourni dans la source de l’offre."}</p>{selectedCompany.website && <a href={selectedCompany.website.startsWith("http") ? selectedCompany.website : `https://${selectedCompany.website}`} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-3 text-xs font-bold">Visiter le site de l’entreprise <ExternalLink size={14}/></a>}</motion.div></motion.div>}</AnimatePresence>
-    {jobs.length === 0 && !loading && <div className="mx-auto max-w-2xl px-5 py-20 text-center"><Sparkles className="mx-auto text-[#FFE135]"/><h2 className="mt-4 text-2xl font-black">Aucune offre disponible pour le moment.</h2><p className="mt-2 text-sm text-white/55">Jobly ne fabrique pas d’offres : les opportunités affichées proviennent de sources réelles.</p></div>}
+    {jobs.length === 0 && !loading && <div className="mx-auto max-w-2xl px-5 py-20 text-center"><Sparkles className="mx-auto text-[#FFE135]"/><h2 className="mt-4 text-2xl font-black">Aucune offre disponible pour le moment.</h2><p className="mt-2 text-sm text-white/55">Jobly ne fabrique pas d’offres : les offres affichées proviennent de sources réelles.</p></div>}
     <BottomNav active="/jobs" items={TALENT_NAV} />
   </main>;
 }
