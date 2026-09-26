@@ -2989,3 +2989,329 @@ Cette architecture complète le checkpoint précédent **COMMUNICATION → ENTRE
 Elle n'est pas déclarée CODÉE, TESTÉE, VALIDÉE ou DÉPLOYÉE tant que l'implémentation, les tests unitaires/intégration/E2E, les permissions, la persistance, les communications et la vérification réelle en production ne sont pas terminés.
 
 **Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+
+# CHECKPOINT 26/09/2026 — JOBLY DISTRIBUTION / JOBLY REACH — DIFFUSION MULTICANALE
+
+## Décision produit figée
+
+Jobly doit pouvoir transformer une offre en **campagne de distribution multicanale** : l'offre entre une seule fois dans Jobly, puis Jobly prépare et distribue une version adaptée aux canaux autorisés, avec un lien de retour vers Jobly pour consulter l'offre et candidater.
+
+Principe directeur :
+
+```
+OFFRE JOBLY
+   ↓
+NORMALISATION / CONTENU
+   ↓
+J’IA CONTENT & DISTRIBUTION ENGINE
+   ↓
+PUBLICATION / PARTAGE MULTICANAL
+   ↓
+SOCIAL / COMMUNAUTÉS / PARTENAIRES
+   ↓
+JOBLY
+   ↓
+CONSULTATION / INSTALLATION / COMPTE
+   ↓
+CANDIDATURE
+```
+
+## 1. Deux sources d'offres
+
+### A. Offre créée directement dans Jobly
+
+Le recruteur crée et publie son offre dans Jobly, puis peut choisir **« Diffuser votre offre partout »**.
+
+Jobly doit proposer, selon les connexions et autorisations disponibles :
+- aperçu de la publication ;
+- sélection des canaux ;
+- adaptation du texte par canal ;
+- publication immédiate ou planifiée lorsque le canal le permet ;
+- arrêt, mise à jour ou retrait de la campagne ;
+- suivi des publications et performances.
+
+### B. Offre provenant d'une source externe
+
+Jobly peut aussi distribuer une offre récupérée depuis une source externe **uniquement lorsque la republication est autorisée ou qu'un mécanisme de redirection/attribution est permis**.
+
+Flux cible :
+
+```
+SOURCE EXTERNE
+↓
+INGESTION JOBLY
+↓
+NORMALISATION
+↓
+DÉDUPLICATION
+↓
+CONTRÔLE SOURCE / DROITS / FRAÎCHEUR
+↓
+PUBLICATION JOBLY OU REDIRECTION ATTRIBUÉE
+↓
+DISTRIBUTION AUTORISÉE
+↓
+CANDIDAT
+↓
+JOBLY
+```
+
+Jobly ne doit jamais republier aveuglément une offre externe.
+
+Pour une source ne permettant pas la republication complète :
+- conserver l'attribution ;
+- afficher uniquement les informations autorisées ;
+- renvoyer vers la source/application originale ;
+- ne pas présenter un bouton « Postuler sur Jobly » si la candidature n'est pas réellement gérée par Jobly.
+
+## 2. Canaux cibles
+
+Canaux à prévoir dans l'architecture :
+- Jobly ;
+- Telegram / canaux et communautés Telegram ;
+- WhatsApp Channel / communautés lorsque les capacités officielles le permettent ;
+- LinkedIn ;
+- Facebook / pages / groupes lorsque l'accès et les permissions le permettent ;
+- Instagram ;
+- TikTok ;
+- Google Search / résultats emploi via pages Jobly et données structurées adaptées ;
+- sites partenaires ;
+- médias et job boards partenaires ;
+- communautés étudiantes ;
+- associations professionnelles ;
+- communautés locales ;
+- autres canaux autorisés à terme.
+
+### États de capacité par canal
+
+Chaque canal doit avoir un état explicite :
+
+- 🟢 **AUTOMATIQUE** — API officielle disponible + compte connecté + autorisation suffisante ;
+- 🟡 **ASSISTÉ** — Jobly prépare le contenu et ouvre le canal / partage pour validation humaine ;
+- ⚪ **NON DISPONIBLE** — connexion, permission, API ou approbation absente.
+
+**Ne jamais présenter comme « publication automatique » un canal qui nécessite une validation humaine ou une autorisation de plateforme.**
+
+## 3. Lien universel Jobly
+
+Chaque publication doit utiliser un lien de campagne traçable vers Jobly.
+
+Exemple conceptuel :
+
+```
+jobly.app/jobs/[jobId]?source=linkedin
+```
+
+Le lien doit permettre :
+- ouverture directe de l'offre ;
+- ouverture dans l'app si Jobly est installé ;
+- sinon page Jobly d'installation / téléchargement ;
+- reprise du contexte après installation ;
+- authentification/création de compte ;
+- retour sur l'offre ;
+- candidature.
+
+Le lien ne doit pas exposer de données sensibles.
+
+## 4. J’IA Content & Distribution Engine
+
+J’IA adapte le contenu au canal au lieu de republier le même texte partout.
+
+Exemples :
+- **LinkedIn** : formulation professionnelle et contexte métier ;
+- **Facebook** : format lisible pour communautés ;
+- **Instagram** : texte court + visuel ;
+- **TikTok** : format court vidéo/photo si le canal et les permissions le permettent ;
+- **Telegram** : annonce structurée avec lien Jobly ;
+- **WhatsApp Channel** : message court avec appel à l'action.
+
+J’IA peut préparer :
+- titre ;
+- accroche ;
+- résumé ;
+- hashtags lorsque pertinents ;
+- visuel ;
+- script court ;
+- texte de publication ;
+- lien traçable ;
+- variantes FR/EN.
+
+La publication reste soumise aux permissions du compte et aux règles de chaque plateforme.
+
+## 5. Tracking / attribution
+
+Chaque publication doit pouvoir recevoir un identifiant de campagne/publication, par exemple :
+
+```
+JOB-2026-00421-LI
+JOB-2026-00421-FB
+JOB-2026-00421-IG
+JOB-2026-00421-TT
+JOB-2026-00421-TG
+```
+
+Le funnel cible :
+
+```
+VUES
+↓
+CLICS
+↓
+OUVERTURE JOBLY
+↓
+INSTALLATION
+↓
+COMPTE
+↓
+PROFIL COMPLÉTÉ
+↓
+CANDIDATURE
+↓
+PRÉSÉLECTION
+↓
+ENTRETIEN
+↓
+EMBAUCHE
+```
+
+Le recruteur doit pouvoir distinguer les performances par canal sans confondre une vue sociale avec une candidature réelle.
+
+## 6. Architecture cible
+
+Modèle conceptuel :
+
+```
+JOB
+ ↓
+DISTRIBUTION CAMPAIGN
+ ↓
+CHANNEL PUBLICATION
+ ↓
+TRACKING LINK / ATTRIBUTION
+ ↓
+ANALYTICS
+```
+
+Objets cibles :
+
+### DistributionConnection
+- id
+- organizationId / recruiterId
+- channel
+- providerAccountId
+- status
+- permissions
+- connectedAt
+- expiresAt
+- metadata
+
+### DistributionCampaign
+- id
+- jobId
+- source
+- status
+- createdBy
+- scheduledAt
+- publishedAt
+- stoppedAt
+- metadata
+
+### ChannelPublication
+- id
+- campaignId
+- channel
+- externalPublicationId
+- status
+- contentVersion
+- publishedAt
+- updatedAt
+- removedAt
+- errorCode
+- metadata
+
+### TrackingLink
+- id
+- campaignId
+- channelPublicationId
+- token
+- source
+- createdAt
+- metadata
+
+États de publication cibles :
+
+```
+DRAFT
+READY
+AUTH_REQUIRED
+PENDING
+PUBLISHED
+FAILED
+EXPIRED
+REMOVED
+```
+
+## 7. Synchronisation
+
+Pour les canaux réellement intégrés, Jobly doit prévoir :
+- publication ;
+- mise à jour ;
+- renouvellement si le canal le permet ;
+- retrait/fermeture ;
+- expiration ;
+- gestion d'erreur ;
+- reprise ;
+- journalisation.
+
+Une offre supprimée ou fermée dans Jobly ne doit pas continuer à être présentée comme active dans les canaux que Jobly contrôle.
+
+## 8. Acquisition
+
+La distribution multicanale devient une boucle d'acquisition :
+
+**réseaux sociaux / communautés / partenaires → Jobly → installation ou ouverture → compte → candidature.**
+
+Le principe est de faire de chaque publication une porte d'entrée vers Jobly, sans prétendre que chaque plateforme permet techniquement la même automatisation.
+
+## 9. Gouvernance / anti-spam / droits
+
+Le moteur doit respecter :
+- conditions d'utilisation de chaque plateforme ;
+- APIs officielles et scopes autorisés ;
+- autorisations des comptes ;
+- fréquence et limites de publication ;
+- règles anti-spam ;
+- droits de reproduction des offres externes ;
+- attribution des sources ;
+- retrait/expiration des offres ;
+- protection des données ;
+- consentement et permissions du recruteur.
+
+**Aucune republication automatique d'une offre externe sans base d'autorisation suffisante.**
+
+## 10. Priorité d'implémentation
+
+Ordre recommandé :
+1. modèle de données DistributionConnection / Campaign / Publication / TrackingLink ;
+2. lien universel Jobly + reprise après installation ;
+3. génération de contenu J’IA par canal ;
+4. publication Jobly + tracking ;
+5. Telegram / canaux compatibles ;
+6. canaux Meta/LinkedIn/TikTok selon accès et autorisations réelles ;
+7. Google Search / données structurées emploi ;
+8. partenaires / communautés / médias ;
+9. analytics complet du funnel ;
+10. synchronisation update/close/expire ;
+11. tests E2E ;
+12. validation réelle avant production.
+
+## État
+
+**🟦 SPÉCIFIÉ / DÉCISION FIGÉE — NON CODÉ / NON TESTÉ / NON VALIDÉ / NON DÉPLOYÉ**
+
+Cette capacité devient une brique stratégique du Career OS sous le nom **Jobly Distribution / Jobly Reach**.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+Aucun déploiement Vercel n'est déclenché par ce checkpoint.
