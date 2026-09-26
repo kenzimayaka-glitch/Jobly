@@ -41,7 +41,7 @@ export async function fetchStructuredSource(sourceKey:string):Promise<DiscoveryI
 
   if(sourceKey==="techmap_cm"){
     const key=Deno.env.get("TECHMAP_RAPIDAPI_KEY");
-    if(!key) return null;
+    if(!key) return [];
     const host=Deno.env.get("TECHMAP_RAPIDAPI_HOST")||"daily-international-job-postings.p.rapidapi.com";
     const base=Deno.env.get("TECHMAP_API_URL")||`https://${host}/api/v2/jobs/search`;
     const u=new URL(base);
@@ -63,8 +63,8 @@ export async function fetchStructuredSource(sourceKey:string):Promise<DiscoveryI
 
   if(sourceKey==="jooble_cm"){
     const key=Deno.env.get("JOOBLE_API_KEY"), endpoint=Deno.env.get("JOOBLE_API_URL");
-    if(!key||!endpoint) return null;
-    const data=await fetchJson(endpoint,{method:"POST",body:JSON.stringify({keywords:"",location:"Cameroon",page:1,resultonpage:100})});
+    if(!key||!endpoint) return [];
+    const data=await fetchJson(endpoint,{method:"POST",body:JSON.stringify({keywords:Deno.env.get("JOOBLE_KEYWORDS")||"emploi",location:"Cameroon",page:1,ResultOnPage:100})});
     return (data?.jobs||data?.data||[]).map((x:any)=>({title:clean(x.title),description:clean(x.snippet||x.description),company:clean(x.company),location:clean(x.location),url:clean(x.link||x.url),deadline:null,published:clean(x.updated)||null})).filter((x:DiscoveryItem)=>x.title&&x.url);
   }
 
