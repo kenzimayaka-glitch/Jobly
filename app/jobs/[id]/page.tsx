@@ -32,10 +32,10 @@ function cleanOfferDescription(value: unknown): string {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  if (/^[{[]/.test(text)) {
+  if (/^[\[{]/.test(text)) {
     try {
       const parsed = JSON.parse(text);
-      const candidate = typeof parsed === "string" ? parsed : parsed?.description || parsed?.content || parsed?.text || "";
+      const candidate = typeof parsed === "string" ? parsed : (parsed && typeof parsed === "object" ? ((parsed as any).description || (parsed as any).content || (parsed as any).text || "") : "");
       if (candidate) text = String(candidate);
     } catch {}
   }
