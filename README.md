@@ -2567,3 +2567,425 @@ Cette fonctionnalité n'est pas déclarée CODÉE, TESTÉE, VALIDÉE ou DÉPLOY�
 14. Vérification réelle avant toute certification production.
 
 **Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+
+# CHECKPOINT 26/09/2026 — CYCLE DE RECRUTEMENT COMPLET : OFFRE → CANDIDATURE → ÉVALUATION → DÉCISION → SUITE
+
+## Décision produit consolidée
+
+Le cycle de recrutement JOBLY est désormais défini comme un **workflow complet et configurable par offre**, et non comme une succession d'écrans indépendants. Une offre possède un pipeline ; chaque candidature possède sa progression réelle dans ce pipeline ; chaque étape peut avoir ses propres tâches, événements, évaluations, communications et règles d'automatisation.
+
+### Chaîne cible de bout en bout
+
+~~~
+BESOIN RECRUTEUR
+↓
+CRÉATION DE L’OFFRE
+↓
+PUBLICATION / DIFFUSION
+↓
+CANDIDATURE
+(Jobly / WhatsApp intégré)
+↓
+MATCHING J’IA
+↓
+ANALYSE / EXPLICABILITÉ
+↓
+PRÉSÉLECTION RECRUTEUR
+↓
+PIPELINE CONFIGURÉ POUR L’OFFRE
+↓
+ÉTAPE N
+  ├─ communication
+  ├─ tâche / test / entretien
+  ├─ résultat
+  ├─ analyse J’IA
+  ├─ décision recruteur
+  └─ feedback
+↓
+SI VALIDÉ → ÉTAPE SUIVANTE
+SI REFUSÉ → FEEDBACK / CLÔTURE
+SI PAUSE → DOSSIER CONSERVÉ
+↓
+...
+↓
+DÉCISION FINALE
+↓
+OFFRE D’EMBAUCHE
+↓
+ACCEPTATION / REFUS
+↓
+ONBOARDING
+↓
+CAREER COMPANION / CAREER TWIN
+~~~
+
+## 1. Pipeline configurable par offre
+
+Le pipeline appartient au **Job**. L’Application enregistre l’état réel du candidat dans chaque étape.
+
+Architecture cible :
+
+~~~
+JOB
+ ↓
+RECRUITMENT PIPELINE
+ ↓
+STAGE
+ ↓
+CONFIGURATION / CONDITIONS / ACTIONS
+
+APPLICATION
+ ↓
+APPLICATION STAGE
+ ↓
+STATUS / DATES / EVENTS / RESULTS / FEEDBACK
+~~~
+
+Le recruteur peut définir, selon le poste :
+- les étapes ;
+- leur ordre ;
+- les étapes obligatoires ou optionnelles ;
+- les étapes répétables ;
+- les conditions de passage ;
+- les communications ;
+- les tests et évaluations ;
+- les délais ;
+- les rappels ;
+- le niveau d’automatisation.
+
+Exemple :
+
+~~~
+Candidature
+→ Présélection
+→ Test métier
+→ Entretien RH
+→ Test technique
+→ Entretien manager
+→ Entretien final
+→ Validation
+→ Offre d’embauche
+→ Embauche
+~~~
+
+Une candidature peut être à une étape différente d’une autre candidature pour la même offre.
+
+## 2. Types d’étapes
+
+Le moteur doit pouvoir supporter au minimum :
+- SCREENING ;
+- INTERVIEW ;
+- VIDEO_INTERVIEW ;
+- ONSITE_INTERVIEW ;
+- TECHNICAL_TEST ;
+- ASSESSMENT ;
+- PRESENTATION ;
+- REFERENCE_CHECK ;
+- SALARY_DISCUSSION ;
+- FINAL_INTERVIEW ;
+- OFFER ;
+- CUSTOM.
+
+Une étape peut contenir des **tasks/events** sans transformer chaque micro-action en nouvelle étape.
+
+## 3. Tests candidats
+
+JOBLY peut proposer plusieurs familles de tests :
+- QCM métier ;
+- cas pratique ;
+- test technique ;
+- mise en situation ;
+- test rédactionnel ;
+- test commercial ;
+- test linguistique ;
+- présentation ;
+- étude de cas ;
+- test personnalisé créé par le recruteur.
+
+Le recruteur définit les critères et pondérations lorsque l’évaluation est structurée. Exemple :
+
+~~~
+TEST — Commercial Terrain
+
+Découverte du besoin       25 %
+Argumentation              25 %
+Traitement des objections  20 %
+Conclusion commerciale     20 %
+Communication              10 %
+~~~
+
+J’IA ne doit pas inventer les critères d’évaluation du poste. Elle peut proposer une structure, mais le recruteur conserve la configuration finale.
+
+## 4. Administration du test
+
+Le candidat reçoit une invitation contextualisée, avec durée, échéance, règles et accès au test.
+
+Deux modes doivent être distingués :
+
+**ENTRAÎNEMENT** : J’IA peut aider et expliquer.
+
+**ÉVALUATION** : J’IA peut expliquer les règles mais ne répond pas à la place du candidat et ne doit pas fournir les réponses attendues pendant l’évaluation.
+
+Le système doit gérer :
+- début ;
+- progression ;
+- soumission ;
+- délai ;
+- expiration ;
+- absence de soumission ;
+- tentative(s) autorisée(s) ;
+- reprise si explicitement permise ;
+- traçabilité.
+
+## 5. Analyse J’IA du résultat
+
+Après soumission, J’IA sépare :
+
+**Correction objective**
+- réponse donnée ;
+- réponse attendue lorsque celle-ci existe ;
+- résultat par question/critère.
+
+**Analyse**
+- forces ;
+- lacunes ;
+- éléments à approfondir ;
+- preuves provenant des réponses ;
+- niveau de confiance ;
+- informations manquantes.
+
+**Synthèse recruteur**
+
+Exemple cible :
+
+> **82/100 — poursuivre vers l’entretien manager.**
+> - Découverte du besoin : 90 %
+> - Argumentation : 85 %
+> - Objections : 78 %
+> - Conclusion : 75 %
+> - Communication : 88 %
+> - Point à approfondir : traitement des objections complexes.
+
+Le recruteur peut ensuite consulter les réponses détaillées et le corrigé lorsque celui-ci est disponible.
+
+Un score de test reste une **preuve contextualisée**, datée et liée à un test précis ; il ne doit pas être transformé en vérité globale sur la valeur professionnelle du Talent.
+
+## 6. Décision humaine à chaque étape
+
+J’IA peut analyser et proposer une prochaine action, mais le recruteur décide lorsque l’étape est configurée comme nécessitant une validation humaine.
+
+Actions cibles :
+- **VALIDER** ;
+- **REFUSER** ;
+- **REVENIR À UNE ÉTAPE PRÉCÉDENTE** ;
+- **METTRE EN PAUSE** ;
+- **DEMANDER UNE VÉRIFICATION** ;
+- éventuellement **RÉOUVRIR** une étape selon les permissions.
+
+Chaque décision doit enregistrer qui l’a prise, quand, sur quelle candidature et à quelle étape.
+
+## 7. Trois niveaux d’automatisation
+
+Le recruteur peut configurer le comportement après une décision :
+
+### MANUEL
+J’IA prépare ; le recruteur déclenche l’action suivante.
+
+### ASSISTÉ
+J’IA prépare et demande confirmation avant l’exécution.
+
+### AUTOMATIQUE
+Une règle préconfigurée exécute la suite **après la décision humaine requise**.
+
+Exemple :
+
+~~~
+Test terminé
+↓
+Analyse J’IA
+↓
+Recruteur : VALIDER
+↓
+Feedback automatique
+↓
+Notification Talent
+↓
+ApplicationStage = COMPLETED
+↓
+Étape suivante activée
+↓
+Invitation générée
+↓
+Rappel planifié
+~~~
+
+L’automatisation ne doit jamais transformer une recommandation J’IA en décision de recrutement sans l’autorisation prévue par le workflow.
+
+## 8. Feedback automatisé
+
+Après validation ou refus, Jobly peut préparer un feedback adapté au contexte.
+
+Le recruteur peut conserver, modifier ou envoyer le message selon le niveau d’automatisation autorisé.
+
+Types :
+- validation d’étape ;
+- passage à l’étape suivante ;
+- demande d’information ;
+- refus ;
+- clôture ;
+- point à approfondir.
+
+Le feedback envoyé et le message effectivement transmis doivent être journalisés séparément du simple brouillon J’IA.
+
+## 9. Passage à l’étape suivante
+
+Après validation, Jobly doit pouvoir :
+1. clôturer l’étape courante ;
+2. enregistrer le résultat ;
+3. enregistrer la décision ;
+4. générer le feedback ;
+5. notifier le Talent ;
+6. ouvrir l’étape suivante ;
+7. préparer/envoyer la communication selon les règles ;
+8. planifier les rappels ;
+9. mettre à jour la timeline.
+
+Les conditions peuvent être configurées par le recruteur. Exemple :
+
+~~~
+Test ≥ 80 → Entretien manager
+60–79      → Entretien technique
+< 60       → Fin du processus
+~~~
+
+Ces seuils sont des **règles du recruteur**, pas des décisions autonomes de J’IA.
+
+## 10. Gestion des cas réels du recrutement
+
+Le cycle doit également prévoir :
+- retrait du candidat ;
+- candidature abandonnée ;
+- candidature expirée ;
+- mise en pause ;
+- reprise ;
+- étape annulée ;
+- entretien replanifié ;
+- candidat absent ;
+- test non rendu ;
+- test expiré ;
+- réouverture exceptionnelle ;
+- plusieurs recruteurs sur une même candidature ;
+- modification du pipeline en cours de recrutement avec conservation de l’historique ;
+- correction/annulation d’une décision selon permissions.
+
+## 11. États à ne pas confondre
+
+JOBLY doit distinguer :
+
+~~~
+ÉTAT DE L’OFFRE
+≠
+ÉTAT DE LA CANDIDATURE
+≠
+ÉTAT DE L’ÉTAPE
+≠
+ÉTAT DU CANDIDAT
+~~~
+
+Cette séparation est essentielle pour éviter qu’une clôture d’étape soit interprétée comme une clôture de candidature ou d’offre.
+
+## 12. Timeline et traçabilité
+
+La timeline est la source chronologique du parcours :
+
+~~~
+Candidature reçue
+→ CV consulté
+→ Matching
+→ Présélection
+→ Test proposé
+→ Test commencé
+→ Test soumis
+→ Analyse J’IA
+→ Décision recruteur
+→ Feedback
+→ Étape suivante
+→ Entretien
+→ Décision
+→ Feedback
+→ Offre
+→ Acceptation / Refus
+→ Clôture
+~~~
+
+Chaque événement doit pouvoir distinguer :
+- proposition J’IA ;
+- décision humaine ;
+- action exécutée ;
+- message préparé ;
+- message envoyé ;
+- notification ;
+- résultat ;
+- feedback ;
+- changement d’étape.
+
+## 13. Fin du cycle
+
+Le cycle de recrutement ne s’arrête pas à « candidature validée ».
+
+La fin cible est :
+
+~~~
+DÉCISION FINALE
+↓
+OFFRE D’EMBAUCHE
+↓
+ACCEPTÉE / REFUSÉE
+↓
+ONBOARDING
+↓
+CAREER COMPANION
+↓
+CAREER TWIN MIS À JOUR
+~~~
+
+En cas de refus final, le Talent reçoit une communication adaptée et les feedbacks vérifiés peuvent enrichir son Career Twin selon les permissions et règles de confidentialité.
+
+## 14. Boucle de progression
+
+Le résultat d’un recrutement peut enrichir le parcours sans devenir une vérité absolue :
+
+~~~
+CANDIDATURE
+→ ÉVALUATIONS
+→ ENTRETIENS
+→ DÉCISION
+→ FEEDBACK
+→ CAREER TWIN
+→ NOUVELLE ANALYSE
+→ RECOMMANDATIONS
+→ FUTURES CANDIDATURES
+~~~
+
+J’IA doit distinguer les faits observés, les données déclarées, les documents, les vérifications et les inférences.
+
+## 15. Garde-fous
+
+- J’IA n’embauche pas et ne rejette pas seule lorsque le workflow requiert une décision humaine.
+- J’IA ne doit pas utiliser de caractéristiques sensibles ou de proxys sensibles pour prendre/recommander une décision de recrutement.
+- J’IA ne doit pas inventer de résultats, réponses, entretiens ou liens de visioconférence.
+- Les scores sont contextualisés et explicables.
+- Les communications automatiques doivent respecter les préférences et permissions.
+- Les données privées restent protégées.
+- Les décisions et actions sont auditables.
+
+## État
+
+**🟦 SPÉCIFIÉ / DÉCISION FIGÉE — 26/09/2026**
+
+Cette architecture complète le checkpoint précédent **COMMUNICATION → ENTRETIEN → DÉCISION → FEEDBACK** et devient la référence produit du **cycle de recrutement de bout en bout**.
+
+Elle n'est pas déclarée CODÉE, TESTÉE, VALIDÉE ou DÉPLOYÉE tant que l'implémentation, les tests unitaires/intégration/E2E, les permissions, la persistance, les communications et la vérification réelle en production ne sont pas terminés.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
