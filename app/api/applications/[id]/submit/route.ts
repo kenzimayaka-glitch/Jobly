@@ -100,8 +100,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const user = await ensureUser(supabase, authUser);
     const { id } = await params;
     applicationId = id;
-    const body = await request.json().catch(() => ({}));
-    const candidateLetter = typeof body?.letterText === "string" && body.letterText.trim() ? body.letterText.trim().slice(0, 30000) : null;
 
     const { data: application, error: applicationError } = await supabase.from("Application").select("*").eq("id", id).eq("userId", user.id).maybeSingle();
     if (applicationError) throw new Error(applicationError.message);
@@ -115,7 +113,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!quota.allowed) return NextResponse.json({ message: quota.message || "Quota hebdomadaire atteint.", quota }, { status: 429 });
 
     const claimAt = new Date().toISOString();
-    const { data: claimedApplication, error: claimError } = await supabase.from("Application").update({ status: "SUBMITTING", updatedAt: claimAt, ...(candidateLetter ? { letterText: candidateLetter } : {}) }).eq("id", id).eq("userId", user.id).in("status", ["USER_REVIEW", "PREPARED"]).select("*").maybeSingle();
+    const { data: claimedApplication, error: claimError } = await supabase.from("Application").update({ status: "SUBMITTING", updatedAt: claimAt }).eq("id", id).eq("userId", user.id).in("status", ["USER_REVIEW", "PREPARED"]).select("*").maybeSingle();
     if (claimError) throw new Error(claimError.message);
     if (!claimedApplication) return NextResponse.json({ message: "Cette candidature est déjà en cours d'envoi ou a été envoyée.", submitting: true }, { status: 409 });
     claimed = true;
@@ -148,10 +146,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const subject = profileValue(applicationProfile, ["subject", "emailSubject"]) || `Candidature — ${String(offer.title || "Offre Jobly")}`;
-    const emailBody = candidateLetter || claimedApplication.letterText || `Bonjour,\n\nVeuillez trouver ci-joint ma candidature au poste de ${String(offer.title || "")} .\n\nCordialement,\n${String(user.displayName || user.firstName || "Candidat")}`;
+    const body = claimedApplication.letterText || `Bonjour,\n\nVeuillez trouver ci-joint ma candidature au poste de ${String(offer.title || "")} .\n\nCordialement,\n${String(user.displayName || user.firstName || "Candidat")}`;
     const filename = `CV-${String(offer.title || "Jobly").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 70) || "Jobly"}.pdf`;
     const cvPdf = await renderCvPdf(String(claimedApplication.tailoredCvText || "CV non disponible."));
-    const sent = await sendGmail(accessToken, gmail.googleEmail, recipient, subject, emailBody, cvPdf, filename);
+    const sent = await sendGmail(accessToken, gmail.googleEmail, recipient, subject, body, cvPdf, filename);
     emailSent = true;
 
     const submittedAt = new Date().toISOString();
