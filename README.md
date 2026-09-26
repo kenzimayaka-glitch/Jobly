@@ -3345,6 +3345,13 @@ Aucun déploiement Vercel n'est déclenché par ce checkpoint.
 - Normalisation des descriptions appliquée avant stockage.
 - Sources/API étudiées le 26/09 : MinaJobs RSS, Techmap Job Postings API/RSS, JobsPipe API, Jooble REST API, ainsi que Joblinca Developer API public. Les clés/conditions d'accès restent à configurer avant de déclarer une ingestion réelle.
 
+### Logos entreprises — 26/09/2026
+- La clé Logo.dev utilisée par Jobly est **LOGO_DEV_SECRET_KEY**.
+- Cette clé doit rester strictement côté serveur ; elle n'est pas exposée au bundle navigateur.
+- `/api/company-logo` utilise désormais `LOGO_DEV_SECRET_KEY` pour la résolution Logo.dev.
+- `CompanyLogo` passe d'abord par cette résolution serveur afin d'éviter les erreurs liées à l'utilisation d'une clé secrète côté client.
+- Cache navigateur logo versionné en v6 pour éviter qu'un ancien fallback empêche une nouvelle résolution Logo.dev.
+
 ### Déploiement Vercel
 - Aucun déploiement Vercel manuel n’a été lancé pendant cette passe.
 - Le verrou Git de déploiement automatique reste en place ; les modifications GitHub sont donc CODÉES, mais pas déclarées DEPLOYÉES sur Vercel.
