@@ -25,6 +25,7 @@ type Job = {
   applicationProfile: { channel?: string; phoneNumbers?: string[]; comingSoon?: boolean };
   visualUrl: string | null;
   visualSource: string | null;
+  matchBreakdown?: { role: number; city: number; contract: number; sector: number; remote: number; experience: number };
 };
 
 function formatDate(value: string | null) { if (!value) return "Non indiquée"; return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)); }
