@@ -65,6 +65,9 @@ export default function CompanyLogo({
         `https://icons.duckduckgo.com/ip3/${encodeURIComponent(resolvedDomain)}.ico`,
       );
     }
+    if (companyName?.trim()) {
+      urls.push(`/api/company-logo?name=${encodeURIComponent(companyName.trim())}`);
+    }
 
     return [...new Set(urls)];
   }, [logoUrl, resolvedDomain, logoDevToken]);
