@@ -152,6 +152,16 @@ export function JoblyOfferFeed() {
     if (!token) return;
     manual ? setRefreshing(true) : setLoading(true); setError("");
     try {
+      if (manual) {
+        const ingestRes = await fetch("/api/jobs/ingest/sources", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!ingestRes.ok) {
+          const ingestBody = await ingestRes.json().catch(() => ({}));
+          throw new Error(ingestBody.message || "Impossible d'actualiser les sources d'offres.");
+        }
+      }
       const [jobsRes, appsRes] = await Promise.all([
         fetch("/api/jobs?limit=200&page=1", { headers: { Authorization: `Bearer ${token}` } }),
         fetch("/api/applications", { headers: { Authorization: `Bearer ${token}` } }),
