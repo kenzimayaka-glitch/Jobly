@@ -33,13 +33,14 @@ export async function GET(request: NextRequest) {
   const name = clean(params.get("name"));
   const location = clean(params.get("location"));
   const website = clean(params.get("website"));
+  const suppliedDescription = clean(params.get("description"));
 
   if (!name) return NextResponse.json({ message: "Nom d'entreprise requis." }, { status: 400 });
 
   const result: CompanyProfile = {
     name, address: null, location: null, phone: null, website: website || null,
     mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([name, location].filter(Boolean).join(", "))}`, activity: [], status: null, rating: null, reviewCount: null,
-    description: null, summary: null, news: [], source: [], logoUrl: null,
+    description: suppliedDescription || null, summary: null, news: [], source: [], logoUrl: null,
   };
 
   const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
@@ -74,6 +75,27 @@ export async function GET(request: NextRequest) {
     } catch {}
   }
 
+  if (!result.address && location) {
+    try {
+      const query = encodeURIComponent([name, location, "Cameroon"].filter(Boolean).join(", "));
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=cm&q=${query}`, {
+        headers: { "User-Agent": "JoblyCompanyProfile/1.0 (+https://jobly-c0651.vercel.app)" },
+        signal: AbortSignal.timeout(4000),
+        cache: "no-store",
+      });
+      if (response.ok) {
+        const rows = await response.json();
+        const place = Array.isArray(rows) ? rows[0] : null;
+        if (place) {
+          result.address = clean(place.display_name) || null;
+          result.location = Number.isFinite(Number(place.lat)) && Number.isFinite(Number(place.lon)) ? { lat: Number(place.lat), lng: Number(place.lon) } : null;
+          result.mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(result.address || [name, location].join(", "))}`;
+          result.source.push("OpenStreetMap");
+        }
+      }
+    } catch {}
+  }
+
   if (!result.logoUrl && website) { try { const host = new URL(website.startsWith("http") ? website : `https://${website}`).hostname.replace(/^www\\./, ""); result.logoUrl = `/api/company-logo/image?domain=${encodeURIComponent(host)}`; } catch {} }
 
   if (!result.description && website) {
@@ -92,6 +114,7 @@ export async function GET(request: NextRequest) {
 
   const summaryParts: string[] = [];
   if (result.description) summaryParts.push(result.description);
+  if (result.website) summaryParts.push(`Site officiel : ${result.website}.`);
   if (result.activity.length) summaryParts.push(`Activité identifiée : ${result.activity.join(", ")}.`);
   if (result.address) summaryParts.push(`Localisation : ${result.address}.`);
   if (result.phone) summaryParts.push(`Contact : ${result.phone}.`);
