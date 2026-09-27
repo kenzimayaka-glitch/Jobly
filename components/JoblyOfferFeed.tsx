@@ -195,6 +195,8 @@ export function JoblyOfferFeed() {
     window.history.pushState({ ...(window.history.state || {}), [stateKey]: true }, "", window.location.href);
     const onPopState = () => {
       modalHistoryRef.current = false;
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      setFocusedOfferKey(null);
       setSelectedMatch(null);
       setSelectedCompany(null);
     };
@@ -612,7 +614,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                     <div className="pointer-events-none absolute inset-0 z-[1] flex min-w-0 items-center justify-center overflow-hidden px-4">
                       <div className="flex h-full w-full min-w-0 items-center justify-center opacity-[0.28]">
                         <div className="flex h-full w-full min-w-0 items-center justify-center">
-                          <CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl} size={640} className="!h-full !w-full !rounded-none !border-0 !bg-transparent !p-0"/>
+                          <CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl} size={640} className="company-logo-fill-frame !h-full !w-full !rounded-none !border-0 !bg-transparent !p-0"/>
                         </div>
                       </div>
                     </div>
