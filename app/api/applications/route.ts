@@ -30,8 +30,9 @@ export async function POST(request:NextRequest){try{const authUser=await getAuth
  }
  const company=source==="discovery"&&offer.companyId?(await supabase.from("Company").select("name").eq("id",offer.companyId).maybeSingle()).data?.name||"l'entreprise":offer.companyName||"l'entreprise";
  const applicationContact=resolveApplicationContact(offer.applicationProfile||{},offer.description||"");
- if(!applicationContact.email&&!applicationContact.phone){
-   return NextResponse.json({message:"Email de candidature ou numéro de téléphone absent de l'offre.",code:"APPLICATION_CONTACT_MISSING"},{status:422});
+ const applicationLink=String((offer.applicationProfile||{}).applicationUrl||(offer.applicationProfile||{}).applyUrl||(offer.applicationProfile||{}).url||"").trim();
+ if(!applicationContact.email&&!applicationContact.phone&&!applicationLink){
+   return NextResponse.json({message:"Aucun canal de candidature vérifiable n'est indiqué dans l'offre.",code:"APPLICATION_CONTACT_MISSING"},{status:422});
  }
  const [profileRes,experiencesRes,skillsRes,educationRes]=await Promise.all([supabase.from("Profile").select("firstName,lastName,headline,summary,phone,targetRoles,targetCities,contractPreferences,remotePreference,preferredSectors,location").eq("userId",user.id).maybeSingle(),supabase.from("Experience").select("company,title,startDate,endDate,description,provenance").eq("userId",user.id),supabase.from("Skill").select("name,level,provenance").eq("userId",user.id),supabase.from("Education").select("institution,degree,field,startDate,endDate,provenance").eq("userId",user.id)]);if(profileRes.error)throw new Error(profileRes.error.message);if(experiencesRes.error)throw new Error(experiencesRes.error.message);if(skillsRes.error)throw new Error(skillsRes.error.message);if(educationRes.error)throw new Error(educationRes.error.message);
  const planCode=await getActivePlanCode(supabase,user.id,"TALENT");
@@ -39,7 +40,7 @@ export async function POST(request:NextRequest){try{const authUser=await getAuth
  const unlimited=isTestUnlimited();
  const effectiveQuotaLimit=unlimited?2147483647:quotaLimit;
  const applicationId=newId();const prepared=await prepareApplication(request,{jobTitle:offer.title,jobDescription:offer.description,company,applicationProfile:offer.applicationProfile||{},profile:profileRes.data||{},experiences:experiencesRes.data||[],skills:skillsRes.data||[],education:educationRes.data||[],letterOverride,skipAi:Boolean(letterOverride)});
- if(prepared.channel.channel==="EXTERNAL")return NextResponse.json({message:"Cette offre utilise un canal externe non automatisé par Jobly et ne peut pas être candidate-able pour le moment.",channel:prepared.channel},{status:422});
+ 
  const status="USER_REVIEW";
  const {data,error}=await supabase.rpc("create_application_with_quota",{p_user_id:user.id,p_weekly_limit:effectiveQuotaLimit,p_application:{id:applicationId,userId:user.id,jobId:source==="discovery"?targetId:null,recruiterJobId:source==="recruiter"?targetId:null,language:"fr",status,letterText:prepared.letter,tailoredCvText:prepared.tailoredCvText,submittedAt:null,proofUrl:null,statusSource:"CANDIDATE",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),sourceType:prepared.channel.channel}}).single();
  if(error){if(error.code==="P0001"&&(error.message.includes("APPLICATION_QUOTA_EXCEEDED")||error.message.includes("QUOTA_EXCEEDED"))){const upgradeSuggestion=await maybeCreateJiaUpgradeNudge(supabase,user.id,planCode,"APPLICATION_QUOTA",`La candidature demandée dépasse le quota hebdomadaire inclus dans ta formule.`,`Augmenter le nombre de candidatures que JOBLY peut préparer pour toi chaque semaine`,planCode==="FREE"?"START":planCode==="START"?"PREMIUM":"PRO");return NextResponse.json({message:"Votre quota hebdomadaire de candidatures est atteint.",code:"QUOTA_EXCEEDED",limit:quotaLimit,upgradeSuggestion},{status:429});}if(error.code==="P0002"||error.message.includes("DUPLICATE_APPLICATION"))return NextResponse.json({message:"Vous avez déjà une candidature pour cette offre."},{status:409});throw new Error(error.message);}
