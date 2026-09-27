@@ -41,7 +41,7 @@ type Job = {
   deadline: string | null;
   applicationReady: boolean;
   sourceUrl?: string | null;
-  applicationProfile: { channel?: string; phoneNumbers?: string[]; comingSoon?: boolean; applicationUrl?: string; applyUrl?: string; url?: string; sourceUrl?: string };
+  applicationProfile: { channel?: string; phoneNumbers?: string[]; applicationEmail?: string; applicationPhone?: string; email?: string; phone?: string; comingSoon?: boolean; applicationUrl?: string; applyUrl?: string; url?: string; sourceUrl?: string };
   visualUrl: string | null;
   visualSource: string | null;
   matchConfidence?: number;
@@ -87,7 +87,7 @@ function cleanCompanyName(value: unknown): string {
   return raw.length > 80 ? raw.slice(0, 77) + "..." : raw;
 }
 
-function formatDate(value: string | null) { if (!value) return "Aucune donnée"; return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)); }
+function formatDate(value: string | null) { if (!value) return "Aucune donnée"; return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)); }\nfunction GmailIcon({size=18}:{size?:number}) { return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"><path d="M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5v13A2.5 2.5 0 0 1 18.5 21H5.5A2.5 2.5 0 0 1 3 18.5v-13Z" fill="white"/><path d="M4.5 6.2 12 12l7.5-5.8V18a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1V6.2Z" fill="#EA4335"/><path d="M4.5 6.2 12 12l7.5-5.8-1.1-1.6L12 9.4 5.6 4.6 4.5 6.2Z" fill="#4285F4"/><path d="M4.5 6.2V18c0 .55.45 1 1 1h2V8.12L4.5 6.2Z" fill="#34A853"/><path d="M19.5 6.2V18c0 .55-.45 1-1 1h-2V8.12l3-1.92Z" fill="#FBBC04"/></svg>; }\nfunction WhatsAppIcon({size=18}:{size?:number}) { return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#25D366"/><path d="M8.7 7.6c.3-.3.7-.3 1 0l1.2 1.4c.25.3.25.7.02 1l-.55.72c.5 1 1.35 1.85 2.35 2.35l.72-.55c.3-.23.7-.23 1 .02l1.4 1.2c.3.25.3.7 0 1-.65.75-1.6 1.2-2.65 1.05-1.65-.23-3.4-1.3-4.8-2.7s-2.47-3.15-2.7-4.8c-.15-1.05.3-2 1.05-2.65Z" fill="white"/></svg>; }
 
 export function JoblyOfferFeed() {
   const router = useRouter();
