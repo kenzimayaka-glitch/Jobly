@@ -263,6 +263,11 @@ export function JoblyOfferFeed() {
   }
 
   async function apply(job: Job) {
+    const applicationLink = String(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl || job.applicationProfile?.url || "").trim();
+    if (applicationLink) {
+      window.open(applicationLink, "_blank", "noopener,noreferrer");
+      return;
+    }
     if (!token) {
       setError("Votre session Jobly a expiré. Reconnectez-vous pour postuler.");
       window.scrollTo({ top: 0, behavior: "smooth" });
