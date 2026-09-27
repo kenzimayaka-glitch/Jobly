@@ -429,7 +429,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     window.addEventListener("jobly:jia-command", onJiaCommand);
     return () => window.removeEventListener("jobly:jia-command", onJiaCommand);
   }, [filteredJobs, router, apply, toggleSaved, saved]);
-  const featured = useMemo(() => filteredJobs.slice(0, 6), [filteredJobs]);
+  const featured = useMemo(() => filteredJobs.slice(0, 10), [filteredJobs]);
   const rest = useMemo(() => filteredJobs.slice(6), [filteredJobs]);
   const topMatchRef = useRef<HTMLDivElement | null>(null);
   const updateTopMatchArrows = useCallback(() => {
@@ -468,7 +468,6 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         frame = 0;
         const cards = Array.from(document.querySelectorAll<HTMLElement>("[data-offer-number]"));
         const thirtiethOffer = cards.find(card => card.dataset.offerNumber === "30");
-        const twentyNinthOffer = cards.find(card => card.dataset.offerNumber === "29");
         if (!thirtiethOffer) {
           setShowBackToTop(false);
           return;
@@ -476,11 +475,8 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         const pageY = window.scrollY;
         const thirtiethTop = thirtiethOffer.getBoundingClientRect().top + pageY;
         const showThreshold = Math.max(0, thirtiethTop - window.innerHeight * 0.2);
-        const hideThreshold = twentyNinthOffer
-          ? Math.max(0, twentyNinthOffer.getBoundingClientRect().top + pageY - window.innerHeight * 0.2)
-          : 0;
-        if (pageY >= showThreshold) setShowBackToTop(true);
-        else if (pageY < hideThreshold) setShowBackToTop(false);
+        // La détection ne déclenche aucun scroll automatique : elle affiche uniquement le bouton.
+        setShowBackToTop(pageY >= showThreshold);
       });
     };
     updateBackToTop();
@@ -634,8 +630,8 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                       </div>
                     </div>
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-24 bg-gradient-to-t from-[#2E3F4F]/60 via-[#2E3F4F]/15 to-transparent"/>
-                    <span className="absolute left-3 top-3 rounded-full bg-[#FFE135] px-3 py-1 text-[9px] font-black uppercase tracking-[1.4px] text-[#2E3F4F]">Meilleures offres</span>
-                    <button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="absolute bottom-2 right-2 rounded-2xl px-2 py-1 text-right transition hover:bg-black/15 focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-4xl font-black text-[#FFE135]">{job.matchPercent}%</strong><span className="text-[8px] font-black uppercase tracking-[1px] text-white/85">Voir mon score</span></button>
+                    <span className="absolute left-3 top-3 z-10 rounded-full bg-[#FFE135] px-3 py-1 text-[9px] font-black uppercase tracking-[1.4px] text-[#2E3F4F] shadow-[0_6px_18px_rgba(23,33,43,.18)]">Meilleures offres</span>
+                    <button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="absolute bottom-2 right-2 z-10 rounded-2xl px-2 py-1 text-right transition hover:bg-black/15 focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-4xl font-black text-[#FFE135]">{job.matchPercent}%</strong><span className="text-[8px] font-black uppercase tracking-[1px] text-white/85">Voir mon score</span></button>
                   </div>
                   <div className="p-3">
                     <div className="mt-1 flex items-center gap-2">
