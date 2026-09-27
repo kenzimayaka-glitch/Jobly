@@ -669,7 +669,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         <div className="relative flex items-start gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]"><ShoppingBasket size={18}/></div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-black text-[#22448B]">Panier de candidatures ({basketJobs.length}/{bulkLimit})</p>
+            <p className="text-sm font-black text-[#22448B]">Panier de candidature ({basketJobs.length}/{bulkLimit})</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button onClick={() => void prepareBulkApplications()} disabled={bulkPreparing} className="rounded-full bg-[#FFE135] px-4 py-2.5 text-xs font-black text-[#2E3F4F]">{bulkPreparing ? "Préparation…" : "Préparer avec J’IA"}</button>
               <button type="button" onClick={() => setBasketHistoryOpen(true)} className="rounded-full bg-[#7C3AED] px-3 py-2.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#6D28D9]">Historique</button>
@@ -766,10 +766,10 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
              <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Localisation</p><p className="mt-1 text-sm">{companyWebProfile.address || selectedCompanyLocation || "Non renseignée"}</p></div>
            </div>
            {companyWebProfile.activity.length>0 && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Domaine d’activité</p><p className="mt-1 text-sm capitalize">{companyWebProfile.activity.map((value) => cleanCompanyName(value) || value).join(" · ")}</p></div>}
-           {(companyWebProfile.phone || companyWebProfile.website) && <div className="grid gap-3 sm:grid-cols-2">
-             {companyWebProfile.phone && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Téléphone</p><a href={`tel:${companyWebProfile.phone}`} className="mt-1 block text-sm font-bold">{companyWebProfile.phone}</a></div>}
-             {companyWebProfile.website && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Site officiel</p><a href={companyWebProfile.website.startsWith("http") ? companyWebProfile.website : `https://${companyWebProfile.website}`} target="_blank" rel="noreferrer" className="mt-1 block truncate text-sm font-bold underline">{companyWebProfile.website}</a></div>}
-           </div>}
+           {<div className="grid gap-3 sm:grid-cols-2">
+             <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Téléphone</p>{companyWebProfile.phone ? <a href={`tel:${companyWebProfile.phone}`} className="mt-1 block text-sm font-bold">{companyWebProfile.phone}</a> : <p className="mt-1 text-sm font-bold">Aucune donnée</p>}</div>
+             <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Site officiel</p>{companyWebProfile.website ? <a href={companyWebProfile.website.startsWith("http") ? companyWebProfile.website : `https://${companyWebProfile.website}`} target="_blank" rel="noreferrer" className="mt-1 block truncate text-sm font-bold underline">{companyWebProfile.website}</a> : <p className="mt-1 text-sm font-bold">Aucune donnée</p>}</div>
+           </div>}}
            {(companyWebProfile.status || companyWebProfile.rating!=null) && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Présence publique</p><p className="mt-1 text-sm">{companyWebProfile.status ? companyWebProfile.status.replace(/_/g," ") : ""}{companyWebProfile.rating!=null ? ` · ★ ${companyWebProfile.rating}${companyWebProfile.reviewCount!=null ? ` (${companyWebProfile.reviewCount} avis)` : ""}` : ""}</p></div>}
            {(companyWebProfile.summary || companyWebProfile.description || selectedCompany.description) && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Synthèse exploitable</p><p className="mt-1 text-sm leading-6 text-white/75">{cleanJobDescription(companyWebProfile.summary || companyWebProfile.description || selectedCompany.description || "") || "Non renseigné."}</p></div>}
            {companyWebProfile.mapsUrl && <a href={companyWebProfile.mapsUrl} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-full bg-white/10 px-4 py-3 text-xs font-bold">Voir l’emplacement</a>}
