@@ -195,6 +195,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const applicationProfile = (offer.applicationProfile && typeof offer.applicationProfile === "object" ? offer.applicationProfile : {}) as Record<string, unknown>;
     const requestedChannel = String(claimedApplication.sourceType || "").toUpperCase();
     if (requestedChannel !== "EMAIL") throw new Error("Ce canal de candidature n'est pas encore automatisable.");
+    if (!String(claimedApplication.tailoredCvText || "").trim() || String(claimedApplication.tailoredCvText).trim() === "CV non disponible.") {
+      throw new Error("Votre CV/profil professionnel est incomplet. Complétez-le avant l'envoi.");
+    }
 
     const recipient = profileValue(applicationProfile, ["applicationEmail", "email", "recipientEmail", "recipient"]);
     if (!recipient || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) throw new Error("L'offre ne fournit pas d'adresse email de candidature vérifiable.");
