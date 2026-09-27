@@ -159,6 +159,7 @@ export function JoblyOfferFeed() {
     const params = new URLSearchParams({
       name: cleanCompanyName(selectedCompany.name),
       website: selectedCompany.website || "",
+      description: selectedCompany.description || "",
       location: selectedCompanyLocation || "",
     });
     fetch(`/api/company-profile?${params.toString()}`)
@@ -684,18 +685,21 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
           </div>
           <button onClick={() => setSelectedCompany(null)} aria-label="Fermer les informations de l’entreprise" className="rounded-full border border-white/10 p-2"><X size={18}/></button>
         </div>
-        {companyWebLoading ? <div className="mt-7 flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-sm text-white/70"><RefreshCw size={16} className="animate-spin"/> Recherche des informations publiques…</div> : companyWebProfile ? <div className="mt-6 space-y-4">
-          {companyWebProfile.address && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Localisation</p><p className="mt-1 text-sm">{companyWebProfile.address}</p>{companyWebProfile.mapsUrl && <a href={companyWebProfile.mapsUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center rounded-full bg-white/10 px-3 py-2 text-xs font-bold">Voir sur Google Maps</a>}</div>}
-          {companyWebProfile.phone && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Contact</p><a href={`tel:${companyWebProfile.phone}`} className="mt-1 block text-sm font-bold">{companyWebProfile.phone}</a></div>}
-          {(companyWebProfile.activity.length>0 || companyWebProfile.status || companyWebProfile.rating!=null) && <div className="grid gap-3 sm:grid-cols-2">
-            {companyWebProfile.activity.length>0 && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Domaine d’activité</p><p className="mt-1 text-sm capitalize">{companyWebProfile.activity.join(" · ")}</p></div>}
-            {(companyWebProfile.status || companyWebProfile.rating!=null) && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Présence Google</p><p className="mt-1 text-sm">{companyWebProfile.status ? companyWebProfile.status.replace(/_/g," ") : ""}{companyWebProfile.rating!=null ? ` · ★ ${companyWebProfile.rating}${companyWebProfile.reviewCount!=null ? ` (${companyWebProfile.reviewCount} avis)` : ""}` : ""}</p></div>}
-          </div>}
-          {(companyWebProfile.summary || companyWebProfile.description || selectedCompany.description) && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Présentation</p><p className="mt-1 text-sm leading-6 text-white/75">{companyWebProfile.summary || companyWebProfile.description || selectedCompany.description}</p></div>}
-          {companyWebProfile.website && <a href={companyWebProfile.website.startsWith("http") ? companyWebProfile.website : `https://${companyWebProfile.website}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-3 text-xs font-bold">Site officiel <ExternalLink size={14}/></a>}
-          
-        </div> : <div className="mt-7 rounded-2xl bg-white/5 p-4 text-sm text-white/65">Aucune donnée</div>}
-        {!companyWebLoading && companyWebProfile && !companyWebProfile.address && !companyWebProfile.phone && !companyWebProfile.website && !companyWebProfile.description && companyWebProfile.news.length===0 && <div className="mt-3 rounded-2xl bg-white/5 p-4 text-sm text-white/65">Aucune donnée</div>}
+         {companyWebLoading ? <div className="mt-7 flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-sm text-white/70"><RefreshCw size={16} className="animate-spin"/> Recherche des informations publiques…</div> : companyWebProfile ? <div className="mt-6 space-y-4">
+           <div className="grid gap-3 sm:grid-cols-2">
+             <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Nom</p><p className="mt-1 text-sm font-bold">{cleanCompanyName(selectedCompany.name) || "Aucune donnée"}</p></div>
+             <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Localisation</p><p className="mt-1 text-sm">{companyWebProfile.address || selectedCompanyLocation || "Non renseignée"}</p></div>
+           </div>
+           {companyWebProfile.activity.length>0 && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Domaine d’activité</p><p className="mt-1 text-sm capitalize">{companyWebProfile.activity.join(" · ")}</p></div>}
+           {(companyWebProfile.phone || companyWebProfile.website) && <div className="grid gap-3 sm:grid-cols-2">
+             {companyWebProfile.phone && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Téléphone</p><a href={`tel:${companyWebProfile.phone}`} className="mt-1 block text-sm font-bold">{companyWebProfile.phone}</a></div>}
+             {companyWebProfile.website && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Site officiel</p><a href={companyWebProfile.website.startsWith("http") ? companyWebProfile.website : `https://${companyWebProfile.website}`} target="_blank" rel="noreferrer" className="mt-1 block truncate text-sm font-bold underline">{companyWebProfile.website}</a></div>}
+           </div>}
+           {(companyWebProfile.status || companyWebProfile.rating!=null) && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Présence publique</p><p className="mt-1 text-sm">{companyWebProfile.status ? companyWebProfile.status.replace(/_/g," ") : ""}{companyWebProfile.rating!=null ? ` · ★ ${companyWebProfile.rating}${companyWebProfile.reviewCount!=null ? ` (${companyWebProfile.reviewCount} avis)` : ""}` : ""}</p></div>}
+           {(companyWebProfile.summary || companyWebProfile.description || selectedCompany.description) && <div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Synthèse exploitable</p><p className="mt-1 text-sm leading-6 text-white/75">{companyWebProfile.summary || companyWebProfile.description || selectedCompany.description}</p></div>}
+           {companyWebProfile.mapsUrl && <a href={companyWebProfile.mapsUrl} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-full bg-white/10 px-4 py-3 text-xs font-bold">Voir l’emplacement</a>}
+           {companyWebProfile.source.length>0 && <p className="text-[9px] font-bold uppercase tracking-[1px] text-white/40">Sources : {companyWebProfile.source.join(" · ")}</p>}
+         </div> : <div className="mt-7 rounded-2xl bg-white/5 p-4 text-sm text-white/65">Dossier entreprise indisponible pour le moment.</div>}
       </motion.div>
     </motion.div>}</AnimatePresence>
 
