@@ -99,12 +99,14 @@ function JobDetailInner() {
   const hasProfileContent = profileSections.some(([key])=>sectionText(key).length>0) || job.minExperienceYears!=null;
   const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Candidature via la plateforme externe" : "Candidature depuis Jobly";
   const applicationDocuments = sectionText("application");
-  const headerFacts = [
-    job.location ? `📍 ${job.location}` : null,
-    contract ? `💼 ${formatContract(contract)}` : null,
-    remote ? `🏢 ${remote}` : null,
-    (job.salary||job.salaryMin!=null) ? `💰 ${job.salary ? formatSalary(job.salary) : `${formatSalary(job.salaryMin)}${job.salaryMax!=null ? ` – ${formatSalary(job.salaryMax)}` : ""}`} ${job.salaryCurrency||"XAF"}` : null,
-  ].filter(Boolean);
+  const headerFacts: string[] = [
+    job.location ? `📍 ${job.location}` : "",
+    contract ? `💼 ${formatContract(contract)}` : "",
+    remote ? `🏢 ${remote}` : "",
+    (job.salary || job.salaryMin != null)
+      ? `💰 ${job.salary ? formatSalary(job.salary) : `${formatSalary(job.salaryMin)}${job.salaryMax != null ? ` – ${formatSalary(job.salaryMax)}` : ""}`} ${job.salaryCurrency || "XAF"}`
+      : "",
+  ].filter((fact): fact is string => Boolean(fact));
   return <main className="talent-shell relative min-h-[100dvh] bg-[#F7FAFF] pb-28 text-navy"><TalentBackground/><div className="relative z-10"><PageHeader label="Détail de l'offre" onBack={()=>router.replace("/jobs")} theme="talent"/><div className="mx-auto max-w-3xl px-5 py-6 sm:px-6">
     <section className="relative overflow-hidden rounded-[30px] bg-white p-6 shadow-sm sm:p-8">
       <img src="/jobly-logo-reference.jpg" alt="" aria-hidden="true" className="pointer-events-none absolute right-[-4rem] top-12 z-0 w-80 opacity-[0.035] grayscale"/>
