@@ -8,96 +8,18 @@ import PageHeader from "@/components/PageHeader";
 import BottomNav from "@/components/BottomNav";
 import TalentBackground from "@/components/TalentBackground";
 import CompanyLogo from "@/components/CompanyLogo";
+import { cleanCompanyName, cleanJobDescription } from "@/lib/jobContent";
 
 type Job = Record<string, any>;
 function GmailIcon({size=18}:{size?:number}) { return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"><path d="M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5v13A2.5 2.5 0 0 1 18.5 21H5.5A2.5 2.5 0 0 1 3 18.5v-13Z" fill="white"/><path d="M4.5 6.2 12 12l7.5-5.8V18a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1V6.2Z" fill="#EA4335"/><path d="M4.5 6.2 12 12l7.5-5.8-1.1-1.6L12 9.4 5.6 4.6 4.5 6.2Z" fill="#4285F4"/><path d="M4.5 6.2V18c0 .55.45 1 1 1h2V8.12L4.5 6.2Z" fill="#34A853"/><path d="M19.5 6.2V18c0 .55-.45 1-1 1h-2V8.12l3-1.92Z" fill="#FBBC04"/></svg>; }
 function WhatsAppIcon({size=18}:{size?:number}) { return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#25D366"/><path d="M8.7 7.6c.3-.3.7-.3 1 0l1.2 1.4c.25.3.25.7.02 1l-.55.72c.5 1 1.35 1.85 2.35 2.35l.72-.55c.3-.23.7-.23 1 .02l1.4 1.2c.3.25.3.7 0 1-.65.75-1.6 1.2-2.65 1.05-1.65-.23-3.4-1.3-4.8-2.7s-2.47-3.15-2.7-4.8c-.15-1.05.3-2 1.05-2.65Z" fill="white"/></svg>; }
-function cleanCompanyName(value: unknown): string {
-  if (typeof value !== "string") return "Aucune donnée";
-  let raw = value.trim();
-  try { const parsed = JSON.parse(raw); if (typeof parsed === "string") raw = parsed.trim(); else if (parsed && typeof parsed === "object") raw = String((parsed as any).name || (parsed as any).companyName || (parsed as any).displayName || raw).trim(); } catch {}
-  raw = raw.replace(/^(?:name|companyname|displayname|legalname)\s*[:=]\s*/i, "").replace(/^[\"'\s]+|[\"'\s},]+$/g, "").trim();
-  return raw && !/^(?:\{|\[|const |let |var )/i.test(raw) ? raw.slice(0,100) : "Aucune donnée";
-}
-function cleanOfferDescription(value: unknown): string {
-  if (value == null) return "";
-
-  // Certaines sources renvoient la description comme JSON ou comme HTML complet.
-  // On extrait le contenu éditorial avant de l'afficher, jamais le code/source brut.
-  let raw = typeof value === "string" ? value.trim() : "";
-  if (!raw && typeof value === "object") {
-    try { raw = JSON.stringify(value); } catch { raw = ""; }
-  }
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw);
-      const preferred = ["description", "content", "text", "summary", "details", "responsibilities", "requirements", "profile", "missions", "about", "jobDescription", "job_description"];
-      const pick = (node: any, depth = 0): string => {
-        if (typeof node === "string") return node.trim();
-        if (Array.isArray(node)) return node.map(item => pick(item, depth + 1)).filter(Boolean).join("\n\n");
-        if (!node || typeof node !== "object" || depth > 5) return "";
-        const direct = preferred.map(key => pick(node[key], depth + 1)).filter(Boolean);
-        if (direct.length) return direct.join("\n\n");
-        return Object.values(node).map(value => pick(value, depth + 1)).filter(Boolean).join("\n\n");
-      };
-      const extracted = pick(parsed);
-      if (extracted) raw = extracted;
-    } catch {}
-  }
-
-  // Certaines sources sérialisent l'offre sous forme de JSON/JS dans description.
-  // On extrait le texte éditorial au lieu d'afficher le payload technique.
-  if (/^\s*(?:const|let|var|export|import|function|class)\b|^\s*[[{]/i.test(raw)) {
-    const quoted = raw.match(/"(?:description|content|text|summary|details|responsibilities|requirements|profile|missions)"\s*:\s*"([\\s\\S]*?)"/i);
-    if (quoted?.[1]) {
-      try { raw = JSON.parse('"'+quoted[1].replace(/"/g, '\\\"')+'"'); } catch { raw = quoted[1]; }
-    }
-  }
-
-  let text = raw
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<br\s*\/?>(?=.)/gi, "\n")
-    .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
-    .replace(/<li[^>]*>/gi, "• ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/\r/g, "")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n[ \t]+/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/```(?:[a-zA-Z0-9_-]+)?/g, "")
-    .replace(/```/g, "")
-    .trim();
-
-  // Répare les séquences UTF-8 mal décodées (ex. « Ã© », « â€™ ») sans toucher au français normal.
-  if (/[ÃÂâ][\x80-\xBF\x20-\x7E]/.test(text) && [...text].every(ch => ch.charCodeAt(0) <= 255)) {
-    try {
-      const bytes = new Uint8Array([...text].map(ch => ch.charCodeAt(0)));
-      const repaired = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
-      if (repaired && repaired !== text) text = repaired;
-    } catch {}
-  }
-
-  return text
-    .replace(/^[•\-–—]\s*/gm, "• ")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(new RegExp(String.fromCharCode(96) + "{3}", "g"), "")
-    .trim();
-}
-
 function JobDetailInner() {
   const router=useRouter(), params=useParams<{id:string}>(), search=useSearchParams(), source=search.get("source");
   const [job,setJob]=useState<Job|null>(null),[error,setError]=useState(""),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
   useEffect(()=>{if(!params.id||(source!=="discovery"&&source!=="recruiter")){setError("Lien d'offre invalide.");setLoading(false);return;} fetch(`/api/jobs/${encodeURIComponent(params.id)}?source=${encodeURIComponent(source)}`).then(async r=>{const b=await r.json();if(!r.ok)throw Error(b.message||"Offre introuvable.");return b.job}).then(setJob).catch(e=>setError(e instanceof Error?e.message:"Offre introuvable.")).finally(()=>setLoading(false));},[params.id,source]);
   function whatsappPhone(profile:any){const values=Array.isArray(profile?.phoneNumbers)?profile.phoneNumbers:typeof profile?.phone==="string"?[profile.phone]:[];const raw=values.find((v:any)=>/237|^6|^2/.test(String(v)))||values[0];if(!raw)return null;let digits=String(raw).replace(/[^0-9]/g,"");if(digits.startsWith("237"))return digits;if(digits.startsWith("6")&&digits.length===9)return "237"+digits;if(digits.startsWith("2")&&digits.length===9)return "237"+digits;return null;}
   async function openWhatsApp(){const phone=whatsappPhone(job?.applicationProfile);if(!phone)return;try{const s=await getSupabaseClient().auth.getSession();if(!s.data.session){sessionStorage.setItem("jobly:after-login", "/jobs/"+params.id+"?source="+source);router.push("/");return;}const r=await fetch("/api/cv-share",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+s.data.session.access_token},body:JSON.stringify({source,jobId:params.id})});const b=await r.json();if(!r.ok)throw Error(b.message||"Impossible de préparer le CV.");const cvUrl=window.location.origin+"/cv/share/"+b.token;const message="Bonjour, je suis "+b.candidateName+". Je souhaite vous soumettre ma candidature au poste de "+(job?.title||"ce poste")+(company?" chez "+company:"")+".\n\n📄 CV "+b.candidateName+" — Candidature "+(company||job?.title||"ce poste")+"\n"+cvUrl;window.open("https://wa.me/"+phone+"?text="+encodeURIComponent(message),"_blank","noopener,noreferrer");}catch(e){alert(e instanceof Error?e.message:"Impossible d'ouvrir WhatsApp.");}}
-  async function apply(){if(phoneChannel){await openWhatsApp();return;}if(applicationLink){window.open(applicationLink,"_blank","noopener,noreferrer");return;}if(!emailChannel||busy)return;setBusy(true);try{const s=await getSupabaseClient().auth.getSession();if(!s.data.session){sessionStorage.setItem("jobly:after-login", `/jobs/${params.id}?source=${source}`);router.push("/");return;}const r=await fetch("/api/applications",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${s.data.session.access_token}`},body:JSON.stringify({source,jobId:params.id})});const b=await r.json();if(r.status===409){alert("Tu as déjà postulé à cette offre.");return;}if(!r.ok)throw Error(b.message||"Impossible de préparer la candidature.");alert("Candidature préparée par J’IA. Vérifiez-la avant l’envoi.");}catch(e){alert(e instanceof Error?e.message:"Erreur réseau.");}finally{setBusy(false)}}
+  function openEmail(){if(!emailChannel)return;const email=String(job?.applicationProfile?.applicationEmail||job?.applicationProfile?.email||"").trim();if(!email)return;const subject=encodeURIComponent(`Candidature — ${job?.title||"Offre Jobly"}`);const body=encodeURIComponent(`Bonjour,\n\nJe souhaite vous soumettre ma candidature au poste de ${job?.title||"ce poste"}.\n\nVous trouverez mon profil et mon CV via Jobly : ${window.location.origin}/jobs/${params.id}?source=${source}\n\nCordialement.`);window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${subject}&body=${body}`,"_blank","noopener,noreferrer");} async function apply(){if(phoneChannel){await openWhatsApp();return;}if(applicationLink){window.open(applicationLink,"_blank","noopener,noreferrer");return;}if(emailChannel){openEmail();}}
   if(loading)return <main className="talent-shell grid min-h-[100dvh] place-items-center bg-[#F7FAFF] font-bold text-navy">Chargement…</main>;
   if(error||!job)return <main className="talent-shell min-h-[100dvh] bg-[#F7FAFF] text-navy"><PageHeader label="Offre" onBack={()=>router.replace("/jobs")} theme="talent"/><div className="mx-auto mt-8 max-w-2xl px-5"><div className="talent-card rounded-[24px] bg-white p-6 shadow-sm"><h1 className="text-xl font-black">Offre indisponible</h1><p className="mt-2 text-sm text-slate-500">{error||"Cette offre n'est plus disponible."}</p><button onClick={()=>router.replace("/jobs")} className="mt-5 rounded-2xl bg-jobly-blue px-5 py-3 text-sm font-black text-white">Retour aux offres</button></div></div></main>;
   const company=cleanCompanyName(job.company?.name||job.companyName), emailChannel=Boolean(job.applicationProfile?.applicationEmail||job.applicationProfile?.email), phoneChannel=Boolean(job.applicationProfile?.applicationPhone||job.applicationProfile?.phone||job.applicationProfile?.phoneNumbers?.length), applicationLink=String(job.applicationProfile?.applicationUrl||job.applicationProfile?.applyUrl||job.applicationProfile?.url||"").trim(), contract=job.contractType||job.contract, remote=job.remoteMode==="YES"?"Télétravail":job.remoteMode==="PARTIAL"?"Hybride":job.remoteMode==="NO"?"Présentiel":null;
