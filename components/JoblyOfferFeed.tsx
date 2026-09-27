@@ -306,6 +306,7 @@ export function JoblyOfferFeed() {
         const id = body.application?.id;
         if (id) prepared.push({ id, key, job, letter: String(body.prepared?.letter || ""), tailoredCvText: String(body.prepared?.tailoredCvText || ""), letterSource: body.prepared?.letterSource === "CANDIDATE" ? "CANDIDATE" : "JIA", batchId });
       }
+      if (batchId) await fetch("/api/applications/batch", { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ batchId, status: "READY_FOR_REVIEW" }) });
       setPreparedBulk(prepared);
       setBasket(new Set());
       try { localStorage.setItem("jobly:jia:application-basket", "[]"); } catch {}
@@ -334,6 +335,8 @@ export function JoblyOfferFeed() {
       return;
     }
     const remaining: typeof preparedBulk = [];
+    const batchId = preparedBulk[0]?.batchId;
+    if (batchId) await fetch("/api/applications/batch", { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ batchId, status: "SENDING" }) });
     const sentHistory: typeof basketHistory = []; 
     for (const item of preparedBulk) {
       try {
@@ -354,9 +357,13 @@ export function JoblyOfferFeed() {
       });
     }
     if (remaining.length) {
+      if (batchId) await fetch("/api/applications/batch", { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ batchId, status: "PARTIAL_FAILURE" }) });
       setPreparedBulk(remaining);
       setError(`${preparedBulk.length - remaining.length}/${preparedBulk.length} candidatures envoyées. Les autres restent prêtes à être envoyées.`);
-    } else setPreparedBulk([]);
+    } else {
+      if (batchId) await fetch("/api/applications/batch", { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ batchId, status: "COMPLETED" }) });
+      setPreparedBulk([]);
+    }
     setBulkSubmitting(false);
   }
 
