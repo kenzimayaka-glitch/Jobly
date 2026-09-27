@@ -251,7 +251,7 @@ export function JoblyOfferFeed() {
         letter: String(preparedBody.prepared?.letter || ""), tailoredCvText: String(preparedBody.prepared?.tailoredCvText || ""),
         letterSource: preparedBody.prepared?.letterSource === "CANDIDATE" ? "CANDIDATE" : "JIA",
       }]);
-    } catch (e) { setError(e instanceof Error ? e.message : "La préparation de la candidature a échoué."); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    } catch (e) { setError(e instanceof Error ? e.message : "La préparation de la candidature a échoué.");  }
     finally { setBulkPreparing(false); }
   }
 
@@ -266,7 +266,7 @@ export function JoblyOfferFeed() {
     const digits = raw.replace(/\D/g, "");
     const phone = digits.startsWith("237") ? digits : digits.length === 9 ? "237" + digits : "";
     if (!phone) { router.push(`/jobs/${job.id}?source=${job.source}`); return; }
-    if (!token) { setError("Votre session Jobly a expiré. Reconnectez-vous pour postuler."); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+    if (!token) { setError("Votre session Jobly a expiré. Reconnectez-vous pour postuler.");  return; }
     try {
       const res = await fetch("/api/cv-share", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ source: job.source, jobId: job.id }) });
       const body = await res.json().catch(() => ({}));
@@ -274,7 +274,7 @@ export function JoblyOfferFeed() {
       const company = cleanCompanyName(job.company?.name);
       const message = `Bonjour, je suis ${body.candidateName}. Je souhaite vous soumettre ma candidature au poste de ${job.title}${company !== "Aucune donnée" ? ` chez ${company}` : ""}.\n\n📄 CV ${body.candidateName} — Candidature ${company !== "Aucune donnée" ? company : job.title}\n${window.location.origin}/cv/share/${body.token}`;
       window.open("https://wa.me/" + phone + "?text=" + encodeURIComponent(message), "_blank", "noopener,noreferrer");
-    } catch (e) { setError(e instanceof Error ? e.message : "Impossible de préparer la candidature WhatsApp."); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    } catch (e) { setError(e instanceof Error ? e.message : "Impossible de préparer la candidature WhatsApp.");  }
   }
   async function apply(job: Job) {
     const email = applicationEmail(job);
@@ -739,7 +739,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
               {item.candidateValue && <p className="mt-1 text-[10px] text-slate-400">Profil : {item.candidateValue}</p>}
             </div>)}
           </div>
-          <div className="mt-5 rounded-2xl border border-[#FFE135]/60 bg-[#FFFBE0] p-3 text-[10px] leading-5 text-slate-600"><b>Score spécifique à cette offre :</b> seuls les critères détectés dans cette offre influencent le score. Une information absente du profil est signalée comme non renseignée et réduit la confiance plutôt que d’être comptée automatiquement comme un échec.</div>
+
           <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
             <div className="flex items-center gap-4">
               <ScoreRing score={selectedMatch.matchConfidence ?? 100} size={92} label="confiance" />
