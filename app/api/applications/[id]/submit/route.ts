@@ -140,11 +140,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const profile = (offer.applicationProfile && typeof offer.applicationProfile === "object" ? offer.applicationProfile : {}) as Record<string, unknown>;
     const recipient = profileValue(profile, ["applicationEmail", "email", "recipientEmail", "recipient"]);
     const company = application.jobId && offer.companyId ? ((await supabase.from("Company").select("name").eq("id", offer.companyId).maybeSingle()).data?.name || "l'entreprise") : (offer.companyName || "l'entreprise");
+    const subject = profileValue(profile, ["subject", "emailSubject"]) || `Candidature — ${String(offer.title || "Offre Jobly")}`;
     return NextResponse.json({
       application: { id: application.id, status: application.status, letterText: application.letterText, tailoredCvText: application.tailoredCvText },
       job: { title: offer.title, company, location: offer.location || null },
       channel: String(application.sourceType || "EMAIL"),
       recipient,
+      subject,
     });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible de charger la candidature." }, { status: 500 });
@@ -195,6 +197,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const applicationProfile = (offer.applicationProfile && typeof offer.applicationProfile === "object" ? offer.applicationProfile : {}) as Record<string, unknown>;
     const requestedChannel = String(claimedApplication.sourceType || "").toUpperCase();
     if (requestedChannel !== "EMAIL") throw new Error("Ce canal de candidature n'est pas encore automatisable.");
+    if (!String(claimedApplication.tailoredCvText || "").trim() || String(claimedApplication.tailoredCvText).trim() === "CV non disponible.") {
+      throw new Error("Votre CV/profil professionnel est incomplet. Complétez-le avant l'envoi.");
+    }
 
     const recipient = profileValue(applicationProfile, ["applicationEmail", "email", "recipientEmail", "recipient"]);
     if (!recipient || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) throw new Error("L'offre ne fournit pas d'adresse email de candidature vérifiable.");

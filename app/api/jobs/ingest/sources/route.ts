@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient, getAuthUser } from "@/lib/server-auth";
 import { collectPublicJobSources } from "@/lib/jobSourceCollector";
+import { cleanJobDescription, cleanJobTitle } from "@/lib/jobContent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +34,11 @@ export async function POST(request: NextRequest) {
     let created = 0, updated = 0, skipped = 0;
 
     for (const offer of offers) {
+      const cleanedTitle = cleanJobTitle(offer.title);
+      const cleanedDescription = cleanJobDescription(offer.description, cleanedTitle);
+      const cleanedContentHash = crypto.createHash("sha256")
+        .update([cleanedTitle, cleanedDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
+        .digest("hex");
       const companyName = normalizeCompany(offer.company);
       let companyId: string | null = null;
 
@@ -80,8 +86,8 @@ export async function POST(request: NextRequest) {
       const contact = offer.applicationProfile;
       const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
       const payload = {
-        title: offer.title,
-        description: offer.description,
+        title: cleanedTitle,
+        description: cleanedDescription,
         language: "fr",
         location: offer.location,
         contractType: offer.contractType,
@@ -89,7 +95,7 @@ export async function POST(request: NextRequest) {
         sourceUrl: offer.sourceUrl,
         sourceKey: offer.sourceKey,
         externalId: offer.externalId,
-        contentHash: offer.contentHash,
+        contentHash: cleanedContentHash,
         sourcePublishedAt: offer.publishedAt,
         lastSeenAt: now,
         isActive: !isExpired(offer.deadline),
