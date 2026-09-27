@@ -56,14 +56,16 @@ function cleanApplicationSubject(value: string): string {
     .replace(/&(?:nbsp|amp|quot|apos|lt|gt);/gi, match => ({
       "&nbsp;": " ", "&amp;": "&", "&quot;": '"', "&apos;": "'", "&lt;": "<", "&gt;": ">"
     }[match.toLowerCase()] || " "))
-    .replace(/[\r\n\t]+/g, " ")
+    .replace(/[\r
+\t]+/g, " ")
     .replace(/\s+/g, " ")
     .replace(/^["'“”«»\s]+|["'“”«»\s]+$/g, "")
     .trim();
 }
 
 export function extractApplicationSubject(text: string, jobTitle: string): string {
-  const pattern = /(?:objet(?: de (?:la )?candidature| du mail| de l['’]email)?|subject|email subject|mail subject|indiquer en objet|mettre en objet|avec pour objet|mentionner en objet)\s*[:：-]\s*["'“”«»]?([^\n\r<]{3,180})/i;
+  const pattern = /(?:objet(?: de (?:la )?candidature| du mail| de l['’]email)?|subject|email subject|mail subject|indiquer en objet|mettre en objet|avec pour objet|mentionner en objet)\s*[:：-]\s*["'“”«»]?([^
+\r<]{3,180})/i;
   const match = text.match(pattern);
   const subject = match?.[1] ? cleanApplicationSubject(match[1]) : "";
   return subject || `Candidature_${cleanApplicationSubject(jobTitle) || "Offre"}`;
@@ -96,9 +98,12 @@ export function resolveApplicationChannel(profile: Record<string, unknown>): { c
     if (hasJoblyAdapter(adapterKey)) return { channel: "JOBLY", recipient: email, link, adapterKey, reason: "Adaptateur Jobly vérifié disponible." };
     return { channel: "UNSUPPORTED", recipient: null, link: null, adapterKey, reason: "L'offre indique une intégration Jobly, mais aucun adaptateur de soumission vérifié n'est enregistré." };
   }
-  if ((requested === "EMAIL" || requested === "MAIL") && email) return { channel: "EMAIL", recipient: email, link, adapterKey: null, reason: "L'offre indique une candidature par email." };\n  const phone = stringValue(profile.applicationPhone || profile.phone || profile.recipientPhone || profile.whatsappPhone || profile.phoneNumber);\n  if ((requested === "PHONE" || requested === "WHATSAPP" || requested === "WHATSAPP_PHONE" || requested === "TEL" || requested === "TELEPHONE") && phone) return { channel: "PHONE", recipient: phone, link, adapterKey: null, reason: "L'offre indique une candidature par téléphone ou WhatsApp." };
+  if ((requested === "EMAIL" || requested === "MAIL") && email) return { channel: "EMAIL", recipient: email, link, adapterKey: null, reason: "L'offre indique une candidature par email." };
+  const phone = stringValue(profile.applicationPhone || profile.phone || profile.recipientPhone || profile.whatsappPhone || profile.phoneNumber);
+  if ((requested === "PHONE" || requested === "WHATSAPP" || requested === "WHATSAPP_PHONE" || requested === "TEL" || requested === "TELEPHONE") && phone) return { channel: "PHONE", recipient: phone, link, adapterKey: null, reason: "L'offre indique une candidature par téléphone ou WhatsApp." };
   if ((requested === "EXTERNAL" || requested === "PLATFORM" || requested === "LINK") && link) return { channel: "EXTERNAL", recipient: null, link, adapterKey: null, reason: "L'offre exige une plateforme externe non automatisée par Jobly." };
-  if (email) return { channel: "EMAIL", recipient: email, link, adapterKey: null, reason: "Un email de candidature est explicitement indiqué." };\n  if (phone) return { channel: "PHONE", recipient: phone, link, adapterKey: null, reason: "Un numéro de candidature vérifié est indiqué." };
+  if (email) return { channel: "EMAIL", recipient: email, link, adapterKey: null, reason: "Un email de candidature est explicitement indiqué." };
+  if (phone) return { channel: "PHONE", recipient: phone, link, adapterKey: null, reason: "Un numéro de candidature vérifié est indiqué." };
   if (link) return { channel: "EXTERNAL", recipient: null, link, adapterKey: null, reason: "Un lien de candidature est explicitement indiqué, sans adaptateur Jobly vérifié." };
   return { channel: "UNSUPPORTED", recipient: null, link: null, adapterKey: null, reason: "Aucun canal de candidature vérifiable n'est indiqué dans l'offre." };
 }
@@ -109,7 +114,17 @@ function buildGroundedLetter(profile: Record<string, unknown>, jobTitle: string,
   const summary = stringValue(profile.summary);
   const role = headline ? `Mon parcours de ${headline}` : "Mon parcours professionnel";
   const evidence = summary ? ` ${summary}` : "";
-  return `Objet : Candidature — ${jobTitle}\n\nMadame, Monsieur,\n\nJe souhaite vous soumettre ma candidature au poste de ${jobTitle} au sein de ${company}. ${role} m'amène à porter un intérêt particulier à cette opportunité.${evidence}\n\nJe serais heureux(se) de pouvoir échanger avec vous afin de présenter plus précisément mon parcours et les éléments de mon expérience qui correspondent aux besoins du poste.\n\nJe vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.\n\n${firstName}`;
+  return `Objet : Candidature — ${jobTitle}
+
+Madame, Monsieur,
+
+Je souhaite vous soumettre ma candidature au poste de ${jobTitle} au sein de ${company}. ${role} m'amène à porter un intérêt particulier à cette opportunité.${evidence}
+
+Je serais heureux(se) de pouvoir échanger avec vous afin de présenter plus précisément mon parcours et les éléments de mon expérience qui correspondent aux besoins du poste.
+
+Je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.
+
+${firstName}`;
 }
 
 export async function prepareApplication(req: NextRequest, args: {
