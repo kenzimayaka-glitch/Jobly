@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { adminClient } from "@/lib/server-auth";
+import { adminClient, getAuthUser } from "@/lib/server-auth";
 import { collectPublicJobSources } from "@/lib/jobSourceCollector";
 
 export const runtime = "nodejs";
@@ -24,7 +24,7 @@ function isExpired(deadline: string | null): boolean {
 }
 
 export async function POST(request: NextRequest) {
-  if (!authorized(request)) return NextResponse.json({ message: "Non autorisé." }, { status: 401 });
+  if (!(await authorized(request))) return NextResponse.json({ message: "Non autorisé." }, { status: 401 });
 
   try {
     const { offers, sources } = await collectPublicJobSources();
