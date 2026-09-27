@@ -71,7 +71,7 @@ export function JoblyOfferFeed() {
   const [selectedMatch, setSelectedMatch] = useState<Job | null>(null);
   const [basket, setBasket] = useState<Set<string>>(new Set());
   const [bulkLimit, setBulkLimit] = useState(1);
-  const [preparedBulk, setPreparedBulk] = useState<Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string; letterSource: "JIA" | "CANDIDATE" }>>([]);
+  const [preparedBulk, setPreparedBulk] = useState<Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string; letterSource: "JIA" | "CANDIDATE"; batchId?: string }>>([]);
   const [editingLetterId, setEditingLetterId] = useState<string | null>(null);
   const [importingLetterId, setImportingLetterId] = useState<string | null>(null);
   const [bulkPreparing, setBulkPreparing] = useState(false);
@@ -239,7 +239,7 @@ export function JoblyOfferFeed() {
     if (!token || bulkPreparing) return;
     setBulkPreparing(true); setError("");
     try {
-      const prepareRes = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ source: job.source, jobId: job.id }) });
+      const prepareRes = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ source: job.source, jobId: job.id, batchId, readinessScoreAtApply: job.matchPercent, locale: "fr" }) });
       const preparedBody = await prepareRes.json().catch(() => ({}));
       if (!prepareRes.ok) throw new Error(preparedBody.message || "La candidature n'a pas pu être préparée.");
       const applicationId = preparedBody.application?.id;
@@ -286,7 +286,15 @@ export function JoblyOfferFeed() {
     if (!token || basketJobs.length === 0 || bulkPreparing) return;
     setBulkPreparing(true); setError("");
     try {
-      const prepared: Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string; letterSource: "JIA" | "CANDIDATE" }> = [];
+      const batchRes = await fetch("/api/applications/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ offers: basketJobs.map(job => ({ offerId: job.source === "discovery" ? job.id : null })) }),
+      });
+      const batchBody = await batchRes.json().catch(() => ({}));
+      if (!batchRes.ok) throw new Error(batchBody.message || "Impossible de créer le lot de candidatures.");
+      const batchId = String(batchBody.batch?.id || "");
+      const prepared: Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string; letterSource: "JIA" | "CANDIDATE"; batchId?: string }> = [];
       for (const job of basketJobs) {
         const key = `${job.source}:${job.id}`;
         const res = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ source: job.source, jobId: job.id }) });
@@ -296,7 +304,7 @@ export function JoblyOfferFeed() {
           throw new Error(body.message || `Impossible de préparer ${job.title}.`);
         }
         const id = body.application?.id;
-        if (id) prepared.push({ id, key, job, letter: String(body.prepared?.letter || ""), tailoredCvText: String(body.prepared?.tailoredCvText || ""), letterSource: body.prepared?.letterSource === "CANDIDATE" ? "CANDIDATE" : "JIA" });
+        if (id) prepared.push({ id, key, job, letter: String(body.prepared?.letter || ""), tailoredCvText: String(body.prepared?.tailoredCvText || ""), letterSource: body.prepared?.letterSource === "CANDIDATE" ? "CANDIDATE" : "JIA", batchId });
       }
       setPreparedBulk(prepared);
       setBasket(new Set());
