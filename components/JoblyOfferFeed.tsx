@@ -145,6 +145,8 @@ export function JoblyOfferFeed() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => { if (!error) return; const timer = window.setTimeout(() => setError(""), 10000); return () => window.clearTimeout(timer); }, [error]);
+
   useEffect(() => {
     try { setSaved(new Set(JSON.parse(localStorage.getItem("jobly:jia:saved-offers") || "[]"))); } catch {}
     try { setBasket(new Set(JSON.parse(localStorage.getItem("jobly:jia:application-basket") || "[]"))); } catch {}
@@ -461,31 +463,28 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
   }, [featured.length, updateTopMatchArrows]);
 
   useEffect(() => {
-    let frame = 0;
-    const updateBackToTop = () => {
-      if (frame) return;
-      frame = window.requestAnimationFrame(() => {
-        frame = 0;
-        const cards = Array.from(document.querySelectorAll<HTMLElement>("[data-offer-number]"));
-        const thirtiethOffer = cards.find(card => card.dataset.offerNumber === "30");
-        if (!thirtiethOffer) {
-          setShowBackToTop(false);
-          return;
-        }
-        const pageY = window.scrollY;
-        const thirtiethTop = thirtiethOffer.getBoundingClientRect().top + pageY;
-        const showThreshold = Math.max(0, thirtiethTop - window.innerHeight * 0.2);
-        // La détection ne déclenche aucun scroll automatique : elle affiche uniquement le bouton.
-        setShowBackToTop(pageY >= showThreshold);
-      });
+    const syncBackToTop = () => {
+      const card = document.querySelector<HTMLElement>('[data-offer-number="30"]');
+      if (!card) { setShowBackToTop(false); return; }
+      setShowBackToTop(card.getBoundingClientRect().top <= window.innerHeight * 0.8);
     };
-    updateBackToTop();
-    window.addEventListener("scroll", updateBackToTop, { passive: true });
-    window.addEventListener("resize", updateBackToTop);
+    syncBackToTop();
+    const observer = new IntersectionObserver(
+      entries => {
+        const card = document.querySelector<HTMLElement>('[data-offer-number="30"]');
+        setShowBackToTop(entries.some(entry => entry.isIntersecting) || Boolean(card && card.getBoundingClientRect().top <= window.innerHeight * 0.8));
+      },
+      { root: null, rootMargin: "0px 0px -20% 0px", threshold: 0 }
+    );
+    const observe = () => {
+      const card = document.querySelector<HTMLElement>('[data-offer-number="30"]');
+      if (card) observer.observe(card);
+    };
+    observe();
+    window.addEventListener("resize", syncBackToTop, { passive: true });
     return () => {
-      window.removeEventListener("scroll", updateBackToTop);
-      window.removeEventListener("resize", updateBackToTop);
-      if (frame) window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", syncBackToTop);
     };
   }, [filteredJobs.length, featured.length]);
 
@@ -666,22 +665,18 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     </section>
 
     {basketJobs.length > 0 && (
-      <div className="fixed bottom-20 left-1/2 z-[80] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-[24px] border border-slate-200 bg-white p-4 text-[#17212B] shadow-2xl sm:bottom-6">
-        <div className="flex items-center gap-3">
+      <div className="fixed bottom-20 left-1/2 z-[80] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-[24px] border border-slate-200 bg-white p-4 pb-9 text-[#17212B] shadow-2xl sm:bottom-6">
+        <div className="relative flex items-start gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]"><ShoppingBasket size={18}/></div>
-          <div className="min-w-0 flex-1"><p className="text-sm font-black">Panier de candidatures · {basketJobs.length}/{bulkLimit}</p><p className="text-[10px] text-white/65">J’IA préparera chaque candidature séparément avant votre validation.</p></div>
-          <button onClick={() => void prepareBulkApplications()} disabled={bulkPreparing} className="rounded-full bg-[#FFE135] px-4 py-2.5 text-xs font-black text-[#2E3F4F]">{bulkPreparing ? "Préparation…" : "Préparer avec J’IA"}</button>
-          <button type="button" onClick={() => setBasketHistoryOpen(true)} className="rounded-full bg-[#7C3AED] px-3 py-2.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#6D28D9]">Historique</button>
-          <button
-            type="button"
-            aria-label="Fermer et vider le panier de candidatures"
-            title="Annuler et désélectionner les candidatures"
-            onClick={() => {
-              setBasket(new Set());
-              try { localStorage.setItem("jobly:jia:application-basket", "[]"); } catch {}
-            }}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/20 bg-white/10 text-white transition hover:bg-white/20"
-          ><X size={18}/></button>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-black text-[#22448B]">Panier de candidatures ({basketJobs.length}/{bulkLimit})</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button onClick={() => void prepareBulkApplications()} disabled={bulkPreparing} className="rounded-full bg-[#FFE135] px-4 py-2.5 text-xs font-black text-[#2E3F4F]">{bulkPreparing ? "Préparation…" : "Préparer avec J’IA"}</button>
+              <button type="button" onClick={() => setBasketHistoryOpen(true)} className="rounded-full bg-[#7C3AED] px-3 py-2.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#6D28D9]">Historique</button>
+            </div>
+          </div>
+          <button type="button" aria-label="Fermer et vider le panier de candidatures" title="Annuler et désélectionner les candidatures" onClick={() => { setBasket(new Set()); try { localStorage.setItem("jobly:jia:application-basket", "[]"); } catch {} }} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"><X size={18}/></button>
+          <p className="absolute bottom-0 left-0 right-0 text-center text-[10px] font-semibold text-slate-400">J’IA prépare chaque candidature séparément avant votre validation.</p>
         </div>
       </div>
     )}
