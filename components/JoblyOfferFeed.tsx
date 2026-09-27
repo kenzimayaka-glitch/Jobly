@@ -627,7 +627,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                   <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden rounded-[18px] bg-[#EEF2F6]">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,225,53,.28),transparent_38%),radial-gradient(circle_at_80%_80%,rgba(46,63,79,.18),transparent_42%)]"/>
                     <div className="pointer-events-none absolute inset-0 z-[1] flex min-w-0 items-center justify-center overflow-hidden px-4">
-                      <div className="flex h-full w-full min-w-0 items-center justify-center opacity-[0.28]">
+                      <div className="flex h-full w-full min-w-0 items-center justify-center opacity-100">
                         <div className="flex h-full w-full min-w-0 items-center justify-center">
                           <CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl} size={640} className="company-logo-fill-frame !h-full !w-full !rounded-none !border-0 !bg-transparent !p-0"/>
                         </div>
