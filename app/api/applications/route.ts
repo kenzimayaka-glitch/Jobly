@@ -65,7 +65,7 @@ export async function POST(request:NextRequest){try{const authUser=await getAuth
  if (batchId) {
    const { data: batch } = await supabase.from("ApplicationBatch").select("id").eq("id", batchId).eq("userId", user.id).maybeSingle();
    if (batch?.id) {
-     await supabase.from("Application").update({ batchId, readinessScoreAtApply, atsScoreAtApply: prepared.atsScore ?? null, locale }).eq("id", data.id).eq("userId", user.id);
+     await supabase.from("Application").update({ batchId, readinessScoreAtApply, atsScoreAtApply: null, locale }).eq("id", data.id).eq("userId", user.id);
      await supabase.from("ApplicationBatchItem").update({ generatedSubject: prepared.subject, generatedBody: prepared.letter, status: "READY" }).eq("batchId", batchId).eq("offerId", targetId);
    }
  }
