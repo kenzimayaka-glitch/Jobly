@@ -715,7 +715,12 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.82, y: 12 }}
         transition={{ duration: 0.22 }}
-        onClick={() => offersStartRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        onClick={() => {
+      const target = offersStartRef.current;
+      if (!target) return;
+      const top = Math.max(0, target.getBoundingClientRect().top + window.scrollY - 12);
+      window.scrollTo({ top, behavior: "smooth" });
+    }}
         aria-label="Remonter en haut des offres"
         title="Remonter au début des offres"
         className="fixed bottom-24 right-5 z-[999] grid h-12 w-12 place-items-center rounded-full border border-white/70 bg-white/20 text-[#FFE135] shadow-[0_10px_30px_rgba(255,225,53,.45)] backdrop-blur-xl transition hover:bg-white/35 hover:shadow-[0_14px_36px_rgba(255,225,53,.55)] active:scale-95 sm:bottom-8 sm:right-8"
