@@ -38,7 +38,7 @@ const SOURCES: SourceConfig[] = [
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
 const FETCH_TIMEOUT_MS = 8_000;
 const MAX_LISTING_PAGES = 3;
-const MAX_OFFERS_PER_SOURCE = 15;
+const MAX_OFFERS_PER_SOURCE = 30;
 const MAX_DESCRIPTION_CHARS = 30_000;
 
 function normalizeSpace(value: string): string {
@@ -215,6 +215,35 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   return {sourceKey:source.key,externalId:externalId(url,source),sourceUrl:url,title:title.slice(0,300),company:company?.replace(/^(le|la|l[’']|the)\s+/i,"").trim()||null,location:location||null,contractType:contractType||null,description:clean,deadline,publishedAt,applicationProfile,contentHash:crypto.createHash("sha256").update(normalizeSpace(clean)).digest("hex"),logoUrl,companyWebsite};
 }
 
+async function collectWordPressOffers(source: SourceConfig): Promise<CollectedOffer[]> {
+  if (source.key !== "infosconcourseducation") return [];
+  try {
+    const response = await fetch("https://infosconcourseducation.com/wp-json/wp/v2/posts?per_page=30&orderby=date&order=desc&_fields=link,title,content,date", {
+      headers: { "user-agent": USER_AGENT, accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    if (!response.ok) return [];
+    const posts = await response.json();
+    if (!Array.isArray(posts)) return [];
+    const out: CollectedOffer[] = [];
+    for (const post of posts) {
+      const link = typeof post?.link === "string" ? post.link : "";
+      const title = typeof post?.title?.rendered === "string" ? htmlToCleanText(post.title.rendered) : "";
+      if (!link || !title || !isRelevantInfosConcoursLink(new URL(link), title)) continue;
+      const html = typeof post?.content?.rendered === "string" ? post.content.rendered : "";
+      if (!html) continue;
+      try {
+        const offer = extractOffer(source, link, html, title);
+        if (offer) out.push(offer);
+      } catch {}
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
   const seenPages = new Set<string>(), candidates = new Map<string,CandidateLink>();
   for (const firstUrl of source.listingUrls) {
@@ -232,7 +261,14 @@ async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
   for (const candidate of Array.from(candidates.values()).slice(0,MAX_OFFERS_PER_SOURCE)) {
     try { const offer=extractOffer(source,candidate.url,await fetchHtml(candidate.url),candidate.title); if(offer) results.push(offer); } catch {}
   }
-  return results;
+  if (results.length < 5) {
+    const fallback = await collectWordPressOffers(source);
+    for (const offer of fallback) {
+      if (!results.some(existing => existing.sourceUrl === offer.sourceUrl)) results.push(offer);
+      if (results.length >= MAX_OFFERS_PER_SOURCE) break;
+    }
+  }
+  return results.slice(0,MAX_OFFERS_PER_SOURCE);
 }
 
 export async function collectPublicJobSources() {
