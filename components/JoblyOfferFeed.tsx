@@ -430,7 +430,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     return () => window.removeEventListener("jobly:jia-command", onJiaCommand);
   }, [filteredJobs, router, apply, toggleSaved, saved]);
   const featured = useMemo(() => filteredJobs.slice(0, 10), [filteredJobs]);
-  const rest = useMemo(() => filteredJobs.slice(6), [filteredJobs]);
+  const rest = useMemo(() => filteredJobs.slice(10), [filteredJobs]);
   const topMatchRef = useRef<HTMLDivElement | null>(null);
   const updateTopMatchArrows = useCallback(() => {
     const container = topMatchRef.current;
@@ -586,8 +586,8 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     <section className="relative mx-auto max-w-6xl px-5 pb-8 pt-7 sm:px-8">
       <motion.div className="absolute -right-20 top-0 h-72 w-72 rounded-full bg-[#7A9BB5]/30 blur-3xl" animate={{ x: [0, -30, 0], y: [0, 25, 0], scale: [1, 1.1, 1] }} transition={{ duration: 12, repeat: Infinity }} />
       <div className="relative z-10 flex items-end justify-between gap-4"><div><h1 className="mt-2 text-4xl font-black leading-[.95] tracking-[-.045em] text-[#0057B8] sm:text-6xl">Offres</h1><p className="mt-3 max-w-xl text-base font-black text-[#FFE135] font-black">J’IA se charge de tout</p></div><button type="button" onClick={() => load(true)} aria-label="Actualiser les offres d’emploi" title="Actualiser les offres d’emploi" className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[#FFE135] px-4 text-sm font-black text-[#2E3F4F] shadow-[0_8px_24px_rgba(255,225,53,.28)] transition hover:scale-[1.02] active:scale-[.98] disabled:opacity-60" disabled={refreshing}><RefreshCw size={18} className={refreshing ? "animate-spin" : ""}/><span>{refreshing ? "Actualisation…" : "Actualiser les offres"}</span></button></div>
-      {error && <div className="relative z-10 mt-5 rounded-2xl border border-red-300/20 bg-red-400/10 p-3 text-sm font-bold">{error}</div>}
-      <div className="relative z-10 mt-5 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-[1px] text-slate-500"><button type="button" onClick={() => setMatchOnly(v => !v)} className={matchOnly ? "rounded-full border border-[#F97316] bg-[#F97316] px-3 py-2 text-white shadow-[0_8px_22px_rgba(249,115,22,.24)]" : "rounded-full border border-[#F97316]/30 bg-[#FFF7ED] px-3 py-2 text-[#C2410C]"}>Les offres qui vous correspondent · {feedMeta.matchingCount}</button></div>
+      {error && <motion.div initial={{ opacity: 0, scale: 0.92, y: -4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.82 }} className="absolute right-5 top-5 z-30 max-w-sm rounded-2xl border border-red-200 bg-white px-4 py-3 text-xs font-bold text-red-700 shadow-lg">{error}</motion.div>}
+      <div className="relative z-10 mt-5 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-[1px] text-slate-500"><button type="button" onClick={() => setMatchOnly(v => !v)} className={matchOnly ? "rounded-full border border-[#F97316] bg-[#F97316] px-3 py-2 text-white shadow-[0_8px_22px_rgba(249,115,22,.24)]" : "rounded-full border border-[#F97316]/30 bg-[#FFF7ED] px-3 py-2 text-[#C2410C]"}>Les offres qui vous correspondent : <span className="text-[11px] font-black text-[#FFE135]">{feedMeta.matchingCount}</span></button></div>
     </section>
 
     <section ref={offersStartRef} id="jobly-offers-start" className="mx-auto w-full max-w-full min-w-0 overflow-x-clip px-5 scroll-mt-6 sm:px-8 lg:max-w-6xl">
@@ -642,7 +642,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                     <p className="mt-3 text-xs text-slate-500">{[job.location, job.contractType, job.remoteMode].filter(Boolean).join(" · ") || "Toutes localisations"}</p>
                     <div className="mt-3 text-[10px] text-slate-500">Publié · <b className="text-slate-700">{formatDate(job.publishedAt)}</b></div>
                     <div className="mt-4 flex gap-2">
-                      <button onClick={() => void apply(job)} disabled={done || ready || busy} className="flex h-12 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full bg-[#FFE135] px-3 text-sm font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B]">
+                      <button onClick={() => void apply(job)} disabled={done || ready || busy} className={`flex h-12 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full px-3 text-sm font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B] ${ready ? "bg-[#7CFC00]" : "bg-[#FFE135]"}`}>
                         {done ? <><Check size={17} className="mr-2"/>Candidature envoyée</> : ready ? "Candidature prête" : busy ? <><RefreshCw size={17} className="mr-2 animate-spin"/>Envoi en cours…</> : <>{emailChannel ? <GmailIcon size={18}/> : phoneChannel ? <WhatsAppIcon size={18}/> : <Send size={17}/>}<span>Postuler</span></>}
                       </button>
                       <button type="button" onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label="En savoir plus sur l’entreprise" title="En savoir +" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-full bg-[#00A6E8] px-4 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,166,232,.22)] transition hover:bg-[#008FC8] active:scale-[.98]">En savoir +</button>
@@ -666,12 +666,12 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     </section>
 
     {basketJobs.length > 0 && (
-      <div className="fixed bottom-20 left-1/2 z-[80] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-[24px] border border-[#FFE135] bg-[#2E3F4F] p-3 text-white shadow-2xl sm:bottom-6">
+      <div className="fixed bottom-20 left-1/2 z-[80] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-[24px] border border-slate-200 bg-white p-4 text-[#17212B] shadow-2xl sm:bottom-6">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]"><ShoppingBasket size={18}/></div>
           <div className="min-w-0 flex-1"><p className="text-sm font-black">Panier de candidatures · {basketJobs.length}/{bulkLimit}</p><p className="text-[10px] text-white/65">J’IA préparera chaque candidature séparément avant votre validation.</p></div>
           <button onClick={() => void prepareBulkApplications()} disabled={bulkPreparing} className="rounded-full bg-[#FFE135] px-4 py-2.5 text-xs font-black text-[#2E3F4F]">{bulkPreparing ? "Préparation…" : "Préparer avec J’IA"}</button>
-          <button type="button" onClick={() => setBasketHistoryOpen(true)} className="rounded-full border border-white/20 bg-white/10 px-3 py-2.5 text-[10px] font-black text-white">Historique</button>
+          <button type="button" onClick={() => setBasketHistoryOpen(true)} className="rounded-full bg-[#7C3AED] px-3 py-2.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#6D28D9]">Historique</button>
           <button
             type="button"
             aria-label="Fermer et vider le panier de candidatures"
@@ -748,7 +748,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
           <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
             <div className="flex items-center gap-4">
               <ScoreRing score={selectedMatch.matchConfidence ?? 100} size={92} label="confiance" />
-              <p className="min-w-0 flex-1 text-[10px] leading-5 text-slate-500"><b className="text-[#2E3F4F]">Confiance de l’analyse</b> · basée sur les informations réellement disponibles dans votre profil. Le score de correspondance reste spécifique à cette offre et les informations absentes ne sont pas automatiquement comptées comme des échecs.</p>
+              <p className="min-w-0 flex-1 text-[10px] leading-5 text-slate-500"><b className="text-[#2E3F4F]">Confiance de l’analyse</b> · basée sur les informations réellement disponibles dans votre profil. Les informations absentes du profil ne sont pas automatiquement comptées comme des échecs.</p>
             </div>
           </div>
           <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(selectedMatch.id) + "&source=" + encodeURIComponent(selectedMatch.source))} className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#FFE135] px-5 py-3 text-xs font-black text-[#2E3F4F]"><Sparkles size={15}/> Adapter votre CV pour cette candidature</button>
@@ -789,11 +789,11 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         initial={{ opacity: 0, scale: 0.82, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.82, y: 12 }}
-        transition={{ duration: 0.22 }}
+        transition={{ duration: 0.1 }}
         onClick={() => {
           const target = offersStartRef.current || document.getElementById("jobly-offers-start");
           if (!target) return;
-          target.scrollIntoView({ behavior: "smooth", block: "start" });
+          target.scrollIntoView({ behavior: "auto", block: "start" });
         }}
         aria-label="Remonter au début des offres"
         title="Remonter au début des offres"
