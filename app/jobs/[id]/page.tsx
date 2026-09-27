@@ -52,31 +52,130 @@ function JobDetailInner() {
     return new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0}).format(numeric);
   };
   const cleanDescription=cleanJobDescription(job.description, job.title);
-  return <main className="talent-shell relative min-h-[100dvh] bg-[#F7FAFF] pb-28 text-navy"><TalentBackground/><div className="relative z-10"><PageHeader label="Détail de l'offre" onBack={()=>router.replace("/jobs")} theme="talent"/><div className="mx-auto max-w-3xl px-5 py-6"><section className="relative overflow-hidden rounded-[28px] bg-white p-6 shadow-sm"><img src="/jobly-logo-reference.jpg" alt="" aria-hidden="true" className="pointer-events-none absolute right-[-3rem] top-1/2 z-0 w-72 -translate-y-1/2 opacity-[0.055] grayscale" /><div className="relative z-10"><div className="flex items-start gap-4"><CompanyLogo companyName={company} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={56} /><div className="min-w-0"><h1 className="text-2xl font-black">{job.title}</h1><p className="mt-1 font-bold text-jobly-blue">{company}</p><p className="mt-2 text-xs text-slate-500">{[job.location,contract,remote].filter(Boolean).join(" · ")}</p></div></div>
-    <div className="mt-5 flex flex-wrap gap-2">{job.minExperienceYears!=null&&<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{job.minExperienceYears} an{job.minExperienceYears>1?"s":""} min.</span>}{job.sector&&<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{job.sector}</span>}{deadline&&<span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">Candidatures jusqu'au {deadline}</span>}{tags.map((t)=><span key={t} className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-jobly-blue">{t}</span>)}</div>
-    {(emailChannel||phoneChannel)&&<div className="mt-5 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">{emailChannel?<GmailIcon size={24}/>:<WhatsAppIcon size={24}/>}<div><p className="text-sm font-black text-slate-900">Canal de candidature détecté</p><p className="mt-1 text-sm text-slate-600">{emailChannel?"Adresse mail":"Téléphone / WhatsApp"}</p></div></div>}
-    <div className="mt-7 space-y-4">
-      {cleanDescription&&<section className="rounded-2xl border border-slate-100 bg-white p-4">
-        <h2 className="text-lg font-black text-[#FFD60A]">Description</h2>
-        <div className="mt-3 space-y-2 text-sm leading-7 text-slate-600">{cleanDescription.split(/\n\s*\n/).map((paragraph:string,index:number)=>{const lines=paragraph.split("\n").map(x=>x.trim()).filter(Boolean);const first=lines[0]||"";const heading=/^(description|missions?|responsabilités?|compétences?|profil|qualifications?|exigences?|conditions?|avantages?|formation|expérience|poste|candidature|pour postuler)\s*[:：-]?$/i.test(first);const body=heading?lines.slice(1):lines;return <div key={index} className="space-y-1">{heading&&<h3 className="font-black text-[#00A6A6]">{first.replace(/[:：-]+$/,"")}</h3>}{body.map((line:string,lineIndex:number)=>{const bullet=/^[•*-]\s*/.test(line);return <p key={lineIndex} className={bullet?"pl-5 -indent-5":""}>{bullet?"• ":""}{bullet?line.replace(/^[•*-]\s*/,""):line}</p>})}</div>})}</div>
+  type DetailSectionKey = "description"|"missions"|"profile"|"formation"|"experience"|"skills"|"qualities"|"benefits"|"application"|"other";
+  const sectionPatterns: Array<[DetailSectionKey, RegExp]> = [
+    ["description", /^(description|présentation|contexte|à propos du poste)\\s*[:：-]?$/i],
+    ["missions", /^(missions?(\\s+principales?)?|responsabilités?|responsabilités\\s+principales?)\\s*[:：-]?$/i],
+    ["profile", /^(profil(\\s+recherché|\\s+du\\s+candidat)?|candidat(\\s+recherché)?)\\s*[:：-]?$/i],
+    ["formation", /^(formation|dipl[oô]mes?|études)\\s*[:：-]?$/i],
+    ["experience", /^(expérience|expériences?|parcours)\\s*[:：-]?$/i],
+    ["skills", /^(compétences?|compétences\\s+techniques?|savoir[- ]faire)\\s*[:：-]?$/i],
+    ["qualities", /^(qualités?|savoir[- ]être|soft skills|aptitudes)\\s*[:：-]?$/i],
+    ["benefits", /^(avantages?|ce que (l'entreprise|nous) (offre|propose)|nous offrons|conditions de travail|rémunération et avantages?)\\s*[:：-]?$/i],
+    ["application", /^(candidature|pour postuler|modalités? de candidature|comment postuler|documents? (à fournir|demandés?)?)\\s*[:：-]?$/i],
+  ];
+  const detailSections = new Map<DetailSectionKey,string[]>();
+  let currentSection: DetailSectionKey = "description";
+  const lines = cleanDescription.split(/\\r?\\n/).map((line:string)=>line.trim()).filter(Boolean);
+  for (const line of lines) {
+    const match = sectionPatterns.find(([, pattern]) => pattern.test(line.replace(/[:：-]+$/,"").trim()));
+    if (match) {
+      currentSection = match[0];
+      const titleless = line.replace(/[:：-]+$/,"").trim();
+      if (!detailSections.has(currentSection)) detailSections.set(currentSection, []);
+      if (titleless && !match[1].test(titleless + ":")) detailSections.get(currentSection)!.push(titleless);
+      continue;
+    }
+    if (!detailSections.has(currentSection)) detailSections.set(currentSection, []);
+    detailSections.get(currentSection)!.push(line);
+  }
+  const sectionText = (key: DetailSectionKey) => detailSections.get(key) || [];
+  const renderLines = (items:string[], emptyFallback?:string) => {
+    if (!items.length) return emptyFallback ? <p className="text-sm leading-7 text-slate-500">{emptyFallback}</p> : null;
+    return <div className="space-y-3 text-sm leading-7 text-slate-600">{items.map((line:string,index:number)=>{
+      const bullet=/^(?:•|▪|◦|-|–|—)\\s*/.test(line);
+      const value=line.replace(/^(?:•|▪|◦|-|–|—)\\s*/,"");
+      return bullet
+        ? <div key={index} className="flex gap-3"><span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFD60A]" /><p>{value}</p></div>
+        : <p key={index}>{value}</p>;
+    })}</div>;
+  };
+  const profileSections: Array<[DetailSectionKey,string,string]> = [
+    ["formation","Formation","Formation académique, diplôme ou niveau d'études demandé."],
+    ["experience","Expérience",job.minExperienceYears!=null ? `Minimum ${job.minExperienceYears} an${job.minExperienceYears>1?"s":""} d'expérience.` : "Expérience professionnelle précisée dans l'offre."],
+    ["skills","Compétences","Compétences techniques et professionnelles attendues."],
+    ["qualities","Qualités recherchées","Savoir-être et qualités attendues pour le poste."],
+  ];
+  const hasProfileContent = profileSections.some(([key])=>sectionText(key).length>0) || job.minExperienceYears!=null;
+  const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Candidature via la plateforme externe" : "Candidature depuis Jobly";
+  const applicationDocuments = sectionText("application");
+  const headerFacts = [
+    job.location ? `📍 ${job.location}` : null,
+    contract ? `💼 ${formatContract(contract)}` : null,
+    remote ? `🏢 ${remote}` : null,
+    (job.salary||job.salaryMin!=null) ? `💰 ${job.salary ? formatSalary(job.salary) : `${formatSalary(job.salaryMin)}${job.salaryMax!=null ? ` – ${formatSalary(job.salaryMax)}` : ""}`} ${job.salaryCurrency||"XAF"}` : null,
+  ].filter(Boolean);
+  return <main className="talent-shell relative min-h-[100dvh] bg-[#F7FAFF] pb-28 text-navy"><TalentBackground/><div className="relative z-10"><PageHeader label="Détail de l'offre" onBack={()=>router.replace("/jobs")} theme="talent"/><div className="mx-auto max-w-3xl px-5 py-6 sm:px-6">
+    <section className="relative overflow-hidden rounded-[30px] bg-white p-6 shadow-sm sm:p-8">
+      <img src="/jobly-logo-reference.jpg" alt="" aria-hidden="true" className="pointer-events-none absolute right-[-4rem] top-12 z-0 w-80 opacity-[0.035] grayscale"/>
+      <div className="relative z-10">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-[#F3F6FA]"><CompanyLogo companyName={company} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={56}/></div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">Offre d'emploi</p>
+            <h1 className="mt-2 text-3xl font-black leading-[1.08] tracking-[-.025em] text-[#17212B] sm:text-4xl">{job.title}</h1>
+            <p className="mt-2 text-base font-black text-jobly-blue">{company}</p>
+            {headerFacts.length>0 && <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs font-semibold text-slate-500">{headerFacts.map((fact:string)=><span key={fact}>{fact}</span>)}</div>}
+            {deadline && <p className="mt-3 text-xs font-bold text-amber-700">Candidatures jusqu'au {deadline}</p>}
+          </div>
+        </div>
+        {tags.length>0 && <div className="mt-6 flex flex-wrap gap-2">{tags.map((t)=><span key={t} className="rounded-full bg-[#EEF4FF] px-3 py-1.5 text-xs font-bold text-jobly-blue">{t}</span>)}</div>}
+        <div className="mt-7 border-t border-slate-100 pt-6">
+          <button disabled={busy} onClick={apply} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#FFD60A] px-5 py-4 text-sm font-black text-[#17212B] shadow-[0_10px_26px_rgba(255,214,10,.25)] transition hover:brightness-[.98] disabled:opacity-50 sm:w-auto sm:min-w-[220px]">
+            {emailChannel ? <><GmailIcon size={18}/><span>Postuler maintenant</span></> : phoneChannel ? <><WhatsAppIcon size={18}/><span>Postuler maintenant</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler maintenant</span></> : <span>Postuler maintenant</span>}
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <div className="mt-8 space-y-6">
+      {(sectionText("description").length>0 || sectionText("missions").length===0) && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
+        <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">01 · LE POSTE</p>
+        <h2 className="mt-2 text-2xl font-black text-[#17212B]">Description du poste</h2>
+        <div className="mt-5">{renderLines(sectionText("description"), cleanDescription ? undefined : "Description non renseignée.")}</div>
       </section>}
-      {((job.salary||job.salaryMin!=null))&&<section className="rounded-2xl border border-slate-100 bg-white p-4">
-        <h2 className="text-lg font-black text-[#FFD60A]">Salaire</h2>
-        <p className="mt-2 text-sm font-semibold text-slate-600">{job.salary?formatSalary(job.salary):`${formatSalary(job.salaryMin)}${job.salaryMax!=null?` – ${formatSalary(job.salaryMax)}`:""}`} {job.salaryCurrency||"XAF"}</p>
+
+      {sectionText("missions").length>0 && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
+        <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">02 · RESPONSABILITÉS</p>
+        <h2 className="mt-2 text-2xl font-black text-[#17212B]">Missions principales</h2>
+        <div className="mt-6 space-y-4">{sectionText("missions").map((line:string,index:number)=><div key={index} className="rounded-2xl bg-[#F8FAFC] p-4 sm:p-5"><div className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#FFD60A] text-xs font-black text-[#17212B]">{index+1}</span><p className="pt-0.5 text-sm leading-7 text-slate-600">{line.replace(/^(?:•|▪|◦|-|–|—)\\s*/,"")}</p></div></div>)}</div>
       </section>}
-      {contract&&<section className="rounded-2xl border border-slate-100 bg-white p-4">
-        <h2 className="text-lg font-black text-[#FFD60A]">Contrat</h2>
-        <p className="mt-2 text-sm font-semibold text-slate-600">{formatContract(contract)}</p>
+
+      {hasProfileContent && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
+        <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">03 · CANDIDAT</p>
+        <h2 className="mt-2 text-2xl font-black text-[#17212B]">Profil recherché</h2>
+        <div className="mt-7 grid gap-5 sm:grid-cols-2">
+          {profileSections.map(([key,title,fallback]) => {
+            const items=sectionText(key);
+            if (!items.length && key!=="experience") return null;
+            return <div key={key} className="rounded-2xl border border-slate-100 bg-[#FAFBFC] p-5"><h3 className="text-sm font-black text-[#00A6A6]">{title}</h3><div className="mt-3">{renderLines(items, fallback)}</div></div>;
+          })}
+        </div>
       </section>}
+
+      {(sectionText("benefits").length>0 || job.company?.description) && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
+        <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">04 · ENVIRONNEMENT</p>
+        <h2 className="mt-2 text-2xl font-black text-[#17212B]">Ce que l'entreprise offre</h2>
+        {sectionText("benefits").length>0 ? <div className="mt-6">{renderLines(sectionText("benefits"))}</div> : <p className="mt-5 text-sm leading-7 text-slate-600">Informations disponibles sur l'entreprise et son environnement.</p>}
+        {job.company?.description && <div className="mt-6 border-t border-slate-100 pt-6"><p className="text-xs font-black uppercase tracking-[1.2px] text-slate-400">À propos de {company}</p><p className="mt-2 text-sm leading-7 text-slate-600">{job.company.description}</p>{job.company?.website&&<a href={job.company.website.startsWith("http")?job.company.website:`https://${job.company.website}`} target="_blank" rel="noreferrer" className="mt-3 inline-block text-xs font-bold text-jobly-blue underline">Site de l'entreprise</a>}</div>}
+      </section>}
+
+      <section className="rounded-[26px] border border-[#FFE135]/60 bg-[#FFFBE0] p-6 shadow-sm sm:p-7">
+        <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#8C7600]">05 · CANDIDATURE</p>
+        <h2 className="mt-2 text-2xl font-black text-[#17212B]">Postuler</h2>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-2xl bg-white/80 p-5"><p className="text-xs font-black uppercase tracking-[1px] text-slate-400">Mode de candidature</p><p className="mt-2 text-sm font-bold text-slate-700">{applicationMode}</p></div>
+          {deadline && <div className="rounded-2xl bg-white/80 p-5"><p className="text-xs font-black uppercase tracking-[1px] text-slate-400">Échéance</p><p className="mt-2 text-sm font-bold text-slate-700">{deadline}</p></div>}
+        </div>
+        {applicationDocuments.length>0 && <div className="mt-4 rounded-2xl bg-white/80 p-5"><p className="text-xs font-black uppercase tracking-[1px] text-slate-400">Informations de candidature</p><div className="mt-3">{renderLines(applicationDocuments)}</div></div>}
+        {applicationLink && <a href={applicationLink} target="_blank" rel="noreferrer" className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#22448B] bg-white py-4 text-sm font-black text-[#22448B]"><ExternalLink size={17}/>Voir la plateforme de candidature</a>}
+        <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(params.id) + "&source=" + encodeURIComponent(source || ""))} className="mt-3 w-full rounded-2xl border border-[#FFD60A] bg-white py-4 text-sm font-black text-[#2E3F4F]">Adapter votre CV pour cette candidature</button>
+        <button disabled={busy} onClick={apply} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#22448B] py-4 text-sm font-black text-white disabled:opacity-50">{emailChannel?<><GmailIcon size={18}/><span>Postuler maintenant</span></>:phoneChannel?<><WhatsAppIcon size={18}/><span>Postuler maintenant</span></>:applicationLink?<><ExternalLink size={17}/><span>Postuler maintenant</span></>:<span>Postuler maintenant</span>}</button>
+        <button onClick={()=>navigator.clipboard?.writeText(jobPublicUrl(params.id,source||undefined))} className="mt-3 w-full rounded-2xl border border-slate-200 bg-white py-3 text-sm font-black text-slate-600">Copier le lien de l'offre</button>
+      </section>
     </div>
-    {job.company?.description&&<div className="mt-7 rounded-2xl bg-slate-50 p-4"><h2 className="text-sm font-black">À propos de {company}</h2><p className="mt-2 text-sm leading-6 text-slate-600">{job.company.description}</p>{job.company?.website&&<a href={job.company.website.startsWith("http")?job.company.website:`https://${job.company.website}`} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-bold text-jobly-blue underline">Site de l'entreprise</a>}</div>}
-    {applicationLink && <a href={applicationLink} target="_blank" rel="noreferrer" className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl border border-jobly-blue bg-white py-3.5 text-sm font-black text-jobly-blue"><ExternalLink size={17}/>Voir la plateforme de candidature</a>}
-    <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(params.id) + "&source=" + encodeURIComponent(source || ""))} className="mt-3 w-full rounded-2xl border border-[#FFE135] bg-[#FFFBE0] py-3.5 text-sm font-black text-[#2E3F4F]">Adapter votre CV pour cette candidature</button>
-    <button disabled={busy} onClick={apply} className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-jobly-blue py-3.5 text-sm font-black text-white disabled:opacity-50">
-      {emailChannel ? <><GmailIcon size={18}/><span>Postuler</span></> : phoneChannel ? <><WhatsAppIcon size={18}/><span>Postuler</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler</span></> : <span>Postuler</span>}
-    </button>
-    <button onClick={() => navigator.clipboard?.writeText(jobPublicUrl(params.id, source || undefined))} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white py-3 text-sm font-black">Copier le lien de l'offre</button>
-    </div></section></div></div><BottomNav active="/jobs"/></main>;
+  </div></div><BottomNav active="/jobs"/></main>;
+
 }
 export default function JobDetailPage() {
   return <Suspense fallback={<main className="talent-shell grid min-h-[100dvh] place-items-center bg-[#F7FAFF] font-bold text-navy">Chargement…</main>}><JobDetailInner/></Suspense>;
