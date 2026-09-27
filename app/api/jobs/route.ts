@@ -195,9 +195,7 @@ export async function GET(request:NextRequest){
         ...job.applicationProfile,
         ...(contact.email?{applicationEmail:contact.email}:{}),
         ...(contact.phone?{applicationPhone:contact.phone}:{}),
-        ...(!contact.email && !contact.phone && !job.applicationProfile?.applicationUrl && !job.applicationProfile?.applyUrl && !job.applicationProfile?.url && job.sourceUrl
-          ? { channel: "EXTERNAL", applicationUrl: job.sourceUrl, sourceUrl: job.sourceUrl }
-          : {}),
+        ...(job.sourceUrl ? { sourceUrl: job.sourceUrl } : {}),
       },
     };
   });
