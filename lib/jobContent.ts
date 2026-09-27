@@ -34,7 +34,9 @@ export function cleanJobDescription(value: unknown, titleHint?: string | null): 
     .replace(/<\/(p|div|section|article|tr|blockquote)>/gi,"\n\n").replace(/<[^>]+>/g," ");
   raw = raw
     .replace(/(?:window\.(?:dataLayer|a2a_config)|var\s+esadt\s*=|function\s+gtag\s*\(|adsbygoogle|document\.createElement|sspjs\.eskimi)[\s\S]*?(?=Email:|Téléphone|Whatsapp|Contact|Candidature|Postuler|Mission|Description|Profil|Compétences|Qualifications|\n\n|$)/gi,"")
-    .replace(/(?:Aller au contenu principal|Toggle navigation|Main navigation|Menu Bar|Français\s+English|Poster une offre|Publier une offre d'emploi gratuitement)[\s\S]{0,500}?/gi,"")
+    .replace(/(?:Aller au contenu principal|Toggle navigation|Main navigation|Menu Bar|Français\s+English|Poster une offre|Publier une offre d'emploi gratuitement)[\s\S]{0,700}?/gi,"")
+    .replace(/(?:Recrutement|Bourses? d[’']études?|Bourse d[’']Afrique|Bourse d[’']Amérique|Bourse d[’']Europe|Bourse d[’']Asie|Se Connecter|Se connecter|Rejoindre le groupe Whatsapp de ICE|Welcome!\s*Log into your account)[\s\S]{0,900}?/gi,"")
+    .replace(/(?:your username|your password|Forgot your password\??|Remember me|Log in|Login|Register|Sign up|Create an account|Welcome!)/gi,"")
     .replace(/(?:Envoyez moi des offres d'emploi|Nous continuerons de rechercher des offres.*?Adresse email)[\s\S]*$/i,"")
     .replace(/(?:Most Read|Most Popular|LES PLUS CONSULTES|CATEGORIES POPULAIRES|A PROPOS DE NOUS)[\s\S]*$/i,"")
     .replace(/\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*[^\n]{0,500}/g,"")
@@ -42,12 +44,16 @@ export function cleanJobDescription(value: unknown, titleHint?: string | null): 
     .replace(/\x60{3}[\w-]*|\x60{3}/g,"")
     .replace(/^\s*[>|]+\s*/gm,"");
   const lines = repairUtf8(raw).split(/\r?\n/).map(collapseLine);
-  const out:string[]=[]; let blank=false;
+  const out:string[]=[]; let blank=false; const seen = new Set<string>();
   for (const line of lines) {
     if (!line) { if (!blank && out.length) out.push(""); blank=true; continue; }
     blank=false;
+    const normalizedLine = line.toLowerCase().replace(/[^a-z0-9à-ÿ]+/gi," ").trim();
     if (/^(?:Email|B\.P\.|©|copyright|powered by)\s*:/i.test(line) && out.length>2) continue;
     if (/^(?:Français|English|Search|Sign in|Join|Accueil|Home|Read more|Load more)$/i.test(line)) continue;
+    if (/^(?:recrutement|bourses? d études?|bourse d (?:afrique|amérique|europe|asie)|se connecter|welcome log into your account|your username|your password|forgot your password|remember me|log in|login|register|sign up|create an account)$/i.test(normalizedLine)) continue;
+    if (normalizedLine.length > 24 && seen.has(normalizedLine)) continue;
+    if (normalizedLine.length > 24) seen.add(normalizedLine);
     out.push(line);
   }
   let text = out.join("\n").replace(/\n{3,}/g,"\n\n").trim();
