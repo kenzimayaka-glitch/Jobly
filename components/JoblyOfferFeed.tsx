@@ -433,16 +433,17 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
 
       if (thirtiethOffer) {
         const thirtiethRect = thirtiethOffer.getBoundingClientRect();
-        const reached30 = thirtiethRect.top <= window.innerHeight * 0.9 && thirtiethRect.bottom > 0;
+        const reached30 = thirtiethRect.top <= window.innerHeight * 0.8;
 
-        // Dès que la 30e offre entre dans la zone visible, la flèche reste disponible.
+        // La flèche apparaît dès que la 30e offre entre réellement dans la zone de lecture.
         if (reached30) setShowBackToTop(true);
       }
 
       if (scrollingUp && twentyNinthOffer) {
         const twentyNinthRect = twentyNinthOffer.getBoundingClientRect();
-        const reached29Again = twentyNinthRect.top <= window.innerHeight * 0.9 && twentyNinthRect.bottom > 0;
-        if (reached29Again) setShowBackToTop(false);
+        // En remontant, on la masque seulement après être repassé au-dessus de la 29e.
+        const passedAbove29 = twentyNinthRect.top > window.innerHeight * 0.8;
+        if (passedAbove29) setShowBackToTop(false);
       }
 
       previousScrollY = currentScrollY;
