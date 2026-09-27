@@ -157,7 +157,7 @@ export function JoblyOfferFeed() {
     setCompanyWebLoading(true);
     setCompanyWebProfile(null);
     const params = new URLSearchParams({
-      name: cleanCompanyName(selectedCompany.name),
+      name: cleanCompanyName(selectedCompany.name) || "",
       website: selectedCompany.website || "",
       description: selectedCompany.description || "",
       location: selectedCompanyLocation || "",
