@@ -53,12 +53,27 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const existing = await supabase.from("Job")
+      const existingByIdentity = await supabase.from("Job")
         .select("id,contentHash,createdAt,aiProcessed,aiProcessedAt")
         .eq("sourceKey", offer.sourceKey)
         .eq("externalId", offer.externalId)
         .maybeSingle();
-      if (existing.error) throw new Error(existing.error.message);
+      if (existingByIdentity.error) throw new Error(existingByIdentity.error.message);
+
+      // Historical imports used a different sourceKey for JobInfoCamer. The
+      // database also enforces (source, sourceUrl) uniqueness, so sourceUrl
+      // must be treated as a second idempotency key when externalId/sourceKey
+      // changed between collector versions.
+      let existing = existingByIdentity;
+      if (!existing.data?.id && offer.sourceUrl) {
+        const existingBySourceUrl = await supabase.from("Job")
+          .select("id,contentHash,createdAt,aiProcessed,aiProcessedAt")
+          .eq("source", source)
+          .eq("sourceUrl", offer.sourceUrl)
+          .maybeSingle();
+        if (existingBySourceUrl.error) throw new Error(existingBySourceUrl.error.message);
+        existing = existingBySourceUrl;
+      }
 
       const contact = offer.applicationProfile;
       const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
