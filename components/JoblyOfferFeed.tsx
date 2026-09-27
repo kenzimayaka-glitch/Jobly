@@ -314,7 +314,7 @@ export function JoblyOfferFeed() {
       try { localStorage.setItem("jobly:jia:application-basket", "[]"); } catch {}
     } catch (e) {
       setError(e instanceof Error ? e.message : "La préparation groupée a échoué.");
-      window.scrollTo({ top: 0, behavior: "smooth" });
+
     } finally { setBulkPreparing(false); }
   }
 
@@ -585,7 +585,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     <section className="relative mx-auto max-w-6xl px-5 pb-8 pt-7 sm:px-8">
       <motion.div className="absolute -right-20 top-0 h-72 w-72 rounded-full bg-[#7A9BB5]/30 blur-3xl" animate={{ x: [0, -30, 0], y: [0, 25, 0], scale: [1, 1.1, 1] }} transition={{ duration: 12, repeat: Infinity }} />
       <div className="relative z-10 flex items-end justify-between gap-4"><div><h1 className="mt-2 text-4xl font-black leading-[.95] tracking-[-.045em] text-[#0057B8] sm:text-6xl">Offres</h1><p className="mt-3 max-w-xl text-base font-black text-[#FFE135] font-black">J’IA se charge de tout</p></div><button type="button" onClick={() => load(true)} aria-label="Actualiser les offres d’emploi" title="Actualiser les offres d’emploi" className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[#FFE135] px-4 text-sm font-black text-[#2E3F4F] shadow-[0_8px_24px_rgba(255,225,53,.28)] transition hover:scale-[1.02] active:scale-[.98] disabled:opacity-60" disabled={refreshing}><RefreshCw size={18} className={refreshing ? "animate-spin" : ""}/><span>{refreshing ? "Actualisation…" : "Actualiser les offres"}</span></button></div>
-      {error && <motion.div initial={{ opacity: 0, scale: 0.92, y: -4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.82 }} className="absolute right-5 top-5 z-30 max-w-sm rounded-2xl border border-red-200 bg-white px-4 py-3 text-xs font-bold text-red-700 shadow-lg">{error}</motion.div>}
+      {error && <AnimatePresence><motion.div initial={{ opacity: 0, scale: 0.82, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.65 }} transition={{ duration: 0.18 }} className="fixed bottom-24 right-4 z-[120] max-w-sm rounded-2xl border border-red-200 bg-white px-4 py-3 text-xs font-bold text-red-700 shadow-xl sm:right-8">{error}</motion.div></AnimatePresence>}
       <div className="relative z-10 mt-5 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-[1px] text-slate-500"><button type="button" onClick={() => setMatchOnly(v => !v)} className={matchOnly ? "rounded-full border border-[#F97316] bg-[#F97316] px-3 py-2 text-white shadow-[0_8px_22px_rgba(249,115,22,.24)]" : "rounded-full border border-[#F97316]/30 bg-[#FFF7ED] px-3 py-2 text-[#C2410C]"}>Les offres qui vous correspondent : <span className="text-[11px] font-black text-[#FFE135]">{feedMeta.matchingCount}</span></button></div>
     </section>
 
