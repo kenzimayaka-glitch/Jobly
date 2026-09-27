@@ -433,16 +433,17 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
 
       if (thirtiethOffer) {
         const thirtiethRect = thirtiethOffer.getBoundingClientRect();
-        const reached30 = thirtiethRect.top <= window.innerHeight * 0.9 && thirtiethRect.bottom > 0;
+        const reached30 = thirtiethRect.top <= window.innerHeight * 0.8;
 
-        // Dès que la 30e offre entre dans la zone visible, la flèche reste disponible.
+        // La flèche apparaît dès que la 30e offre entre réellement dans la zone de lecture.
         if (reached30) setShowBackToTop(true);
       }
 
       if (scrollingUp && twentyNinthOffer) {
         const twentyNinthRect = twentyNinthOffer.getBoundingClientRect();
-        const reached29Again = twentyNinthRect.top <= window.innerHeight * 0.9 && twentyNinthRect.bottom > 0;
-        if (reached29Again) setShowBackToTop(false);
+        // En remontant, on la masque seulement après être repassé au-dessus de la 29e.
+        const passedAbove29 = twentyNinthRect.top > window.innerHeight * 0.8;
+        if (passedAbove29) setShowBackToTop(false);
       }
 
       previousScrollY = currentScrollY;
@@ -523,7 +524,12 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
 
 
   const scrollTopMatches = useCallback((direction: number) => {
-    topMatchRef.current?.scrollBy({ left: direction * 350, behavior: "smooth" });
+    const container = topMatchRef.current;
+    if (!container) return;
+    const firstCard = container.querySelector<HTMLElement>("[data-top-match-card]");
+    const gap = 16;
+    const step = (firstCard?.getBoundingClientRect().width || container.clientWidth * 0.86) + gap;
+    container.scrollBy({ left: direction * step, behavior: "smooth" });
   }, []);
   const feedSummary = feedMeta.totalAvailable ? `${feedMeta.totalAvailable} offre${feedMeta.totalAvailable > 1 ? "s" : ""} disponible${feedMeta.totalAvailable > 1 ? "s" : ""} aujourd’hui` : "Marché en cours de synchronisation";
 
@@ -581,7 +587,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                 <article
                   key={key}
                   data-top-match-card
-                  className="relative w-[31%] min-w-[31%] max-w-[31%] flex-none snap-start overflow-hidden rounded-[20px] border border-white/15 bg-white p-2 shadow-[0_14px_36px_rgba(23,33,43,.10)] sm:w-[22%] sm:min-w-[22%] sm:max-w-[22%] lg:w-[calc((100%_-_9rem)/10)] lg:min-w-[calc((100%_-_9rem)/10)] lg:max-w-[calc((100%_-_9rem)/10)]"
+                  className="relative w-[86%] min-w-[86%] max-w-[86%] flex-none snap-start overflow-hidden rounded-[20px] border border-white/15 bg-white p-2 shadow-[0_14px_36px_rgba(23,33,43,.10)] sm:w-[48%] sm:min-w-[48%] sm:max-w-[48%] lg:w-[31%] lg:min-w-[31%] lg:max-w-[31%]"
                 >
                   <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden rounded-[18px] bg-[#EEF2F6]">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,225,53,.28),transparent_38%),radial-gradient(circle_at_80%_80%,rgba(46,63,79,.18),transparent_42%)]"/>
@@ -736,9 +742,9 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         exit={{ opacity: 0, scale: 0.82, y: 12 }}
         transition={{ duration: 0.22 }}
         onClick={() => {
-      const target = offersStartRef.current;
+      const target = offersStartRef.current || document.getElementById("jobly-offers-start");
       if (!target) return;
-      const top = Math.max(0, target.getBoundingClientRect().top + window.scrollY - 12);
+      const top = Math.max(0, target.getBoundingClientRect().top + window.scrollY - 16);
       window.scrollTo({ top, behavior: "smooth" });
     }}
         aria-label="Remonter en haut des offres"
