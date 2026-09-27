@@ -75,7 +75,7 @@ function titleFromHtml(html: string): string | null {
 }
 
 function isRelevantInfosConcoursLink(url: URL, title: string): boolean {
-  return /infosconcourseducation\\.com$/i.test(url.hostname) &&
+  return /infosconcourseducation\.com$/i.test(url.hostname) &&
     /(?:offre|emploi|recrut|stage|commercial|assistant|manager|technicien|agent|chauffeur|vendeur|promotrice|promoteur)/i.test(url.pathname + " " + title);
 }
 
