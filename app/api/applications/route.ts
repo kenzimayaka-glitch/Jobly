@@ -35,6 +35,20 @@ export async function POST(request:NextRequest){try{const authUser=await getAuth
    return NextResponse.json({message:"Aucun canal de candidature vérifiable n'est indiqué dans l'offre.",code:"APPLICATION_CONTACT_MISSING"},{status:422});
  }
  const [profileRes,experiencesRes,skillsRes,educationRes]=await Promise.all([supabase.from("Profile").select("firstName,lastName,headline,summary,phone,targetRoles,targetCities,contractPreferences,remotePreference,preferredSectors,location").eq("userId",user.id).maybeSingle(),supabase.from("Experience").select("company,title,startDate,endDate,description,provenance").eq("userId",user.id),supabase.from("Skill").select("name,level,provenance").eq("userId",user.id),supabase.from("Education").select("institution,degree,field,startDate,endDate,provenance").eq("userId",user.id)]);if(profileRes.error)throw new Error(profileRes.error.message);if(experiencesRes.error)throw new Error(experiencesRes.error.message);if(skillsRes.error)throw new Error(skillsRes.error.message);if(educationRes.error)throw new Error(educationRes.error.message);
+ const hasCvProfileData = Boolean(
+   profileRes.data?.summary?.trim() ||
+   profileRes.data?.headline?.trim() ||
+   (experiencesRes.data||[]).length ||
+   (skillsRes.data||[]).length ||
+   (educationRes.data||[]).length
+ );
+ if (!hasCvProfileData) {
+   return NextResponse.json({
+     message:"Votre CV/profil professionnel est incomplet. Renseignez au moins votre résumé, une expérience, une compétence ou une formation avant de postuler par email.",
+     code:"CV_PROFILE_MISSING",
+     redirect:"/cv",
+   },{status:422});
+ }
  const planCode=await getActivePlanCode(supabase,user.id,"TALENT");
  const quotaLimit=getEntitlements(planCode).applicationsPerWeek;
  const unlimited=isTestUnlimited();
