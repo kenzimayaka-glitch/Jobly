@@ -1,4 +1,4 @@
-export type ApplicationChannel = "JOBLY" | "EMAIL" | "EXTERNAL" | "UNSUPPORTED";
+export type ApplicationChannel = "JOBLY" | "EMAIL" | "PHONE" | "EXTERNAL" | "UNSUPPORTED";
 
 export type ApplicationChannelDefinition = {
   channel: ApplicationChannel;
@@ -25,6 +25,14 @@ export const APPLICATION_CHANNELS: Record<ApplicationChannel, ApplicationChannel
     requiresConnection: true,
     supportsProof: true,
     description: "Envoi via la messagerie du candidat après connexion Gmail autorisée.",
+  },
+  PHONE: {
+    channel: "PHONE",
+    label: "Téléphone / WhatsApp",
+    automated: false,
+    requiresConnection: false,
+    supportsProof: false,
+    description: "Préparation assistée par J’IA avec numéro de candidature vérifié. L’action finale reste à la charge du candidat.",
   },
   EXTERNAL: {
     channel: "EXTERNAL",
