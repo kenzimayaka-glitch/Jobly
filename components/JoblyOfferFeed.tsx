@@ -574,7 +574,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                   <div className="p-3">
                     <div className="mt-1 flex items-center gap-2">
                       <CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={36}/>
-                      <p className="min-w-0 truncate text-[10px] font-bold uppercase tracking-[1.5px] text-[#7A9BB5]">{(() => { const companyName = cleanCompanyName(job.company?.name); return companyName.length > 20 ? `${companyName.slice(0, 17)}...` : companyName; })()}</p>
+                      <p className="min-w-0 truncate text-[10px] font-bold uppercase tracking-[1.5px] text-[#7A9BB5]">{(() => { const companyName = cleanCompanyName(job.company?.name) || ""; return companyName.length > 20 ? `${companyName.slice(0, 17)}...` : companyName; })()}</p>
                     </div>
                     <h2 className="mt-1 text-2xl font-black leading-none">{job.title}</h2>
                     <p className="mt-3 text-xs text-slate-500">{[job.location, job.contractType, job.remoteMode].filter(Boolean).join(" · ") || "Toutes localisations"}</p>
