@@ -3358,3 +3358,120 @@ Aucun déploiement Vercel n'est déclenché par ce checkpoint.
 
 ### Discipline de vérité
 CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ : les modifications ci-dessus sont CODÉES ; discover-jobs est aussi DÉPLOYÉ sur Supabase v17. La validation production de /jobs sur téléphone et le prochain build Vercel restent à effectuer avec autorisation de déploiement.
+
+# CHECKPOINT 27/09/2026 — UX DÉTAIL D'OFFRE — « L'OFFRE DOIT RESPIRER »
+
+## Décision produit figée
+
+Lorsqu'un Talent clique sur **« Voir l'offre »**, Jobly doit afficher une page de détail d'offre **aérée, lisible et structurée**, et non un bloc de texte compact.
+
+La référence d'intention UX fournie le 27/09/2026 montre une annonce classique organisée en sections avec des espacements suffisants. Jobly doit reprendre ce principe de **respiration et de hiérarchie**, sans copier le design du site de référence.
+
+## Structure cible
+
+### 1. En-tête de l'offre
+- intitulé du poste clairement dominant ;
+- nom et logo de l'entreprise lorsque disponibles ;
+- localisation ;
+- type de contrat ;
+- modalités pertinentes (présentiel, hybride, remote) lorsqu'elles sont connues ;
+- date/statut lorsque pertinent ;
+- CTA **Postuler** clairement identifiable.
+
+### 2. Résumé rapide
+
+Les informations essentielles doivent être présentées sous forme de blocs/pills espacés, par exemple :
+
+`📍 Localisation` · `💼 Contrat` · `🏢 Modalité` · `💰 Rémunération`
+
+Ne pas compresser ces informations dans un paragraphe.
+
+### 3. Description du poste
+
+La description doit être nettoyée et structurée :
+- paragraphes courts ;
+- retours à la ligne conservés ;
+- listes à puces réellement affichées comme listes ;
+- espaces verticaux entre les idées ;
+- encodage UTF-8 correctement rendu ;
+- aucun long bloc HTML brut ou texte fusionné.
+
+### 4. Missions principales
+
+Section dédiée avec une mission par ligne/bloc :
+
+- Mission 1
+- Mission 2
+- Mission 3
+- Mission 4
+
+Chaque élément doit rester visuellement identifiable.
+
+### 5. Profil recherché
+
+Section séparée avec, lorsque disponibles :
+- formation ;
+- expérience ;
+- compétences ;
+- langues ;
+- qualités/aptitudes ;
+- autres exigences explicites.
+
+Les informations absentes de l'offre ne doivent pas être inventées.
+
+### 6. Ce que l'entreprise propose
+
+Section distincte pour :
+- avantages ;
+- environnement ;
+- évolution ;
+- rémunération ;
+- conditions particulières,
+uniquement lorsque l'information est réellement disponible.
+
+### 7. Candidature
+
+Bloc final clairement séparé :
+- mode de candidature ;
+- pièces demandées ;
+- date limite si elle existe ;
+- source/canal lorsque pertinent ;
+- CTA **Postuler maintenant**.
+
+## Règle de densité
+
+> **1 idée = 1 bloc visuel.**
+>
+> **1 bloc = suffisamment d'espace autour.**
+
+Éviter les séquences compactes du type :
+« Mission 1 - Mission 2 - Mission 3 - Profil - expérience - formation - compétences... »
+
+Le détail d'offre doit privilégier :
+- respiration ;
+- hiérarchie ;
+- lisibilité mobile ;
+- scannabilité ;
+- séparation nette des sections ;
+- CTA visibles sans rendre la page agressive.
+
+## Direction visuelle Jobly
+
+Le détail doit rester cohérent avec le Design System Jobly :
+- Poppins ;
+- identité Jobly ;
+- cartes et surfaces propres ;
+- espaces généreux ;
+- hiérarchie typographique claire ;
+- responsive mobile/desktop ;
+- J’IA peut accompagner discrètement le parcours sans masquer le contenu de l'offre.
+
+**La capture MinaJobs fournie le 27/09/2026 sert uniquement de référence de densité/respiration et de structure éditoriale, pas de référence graphique à reproduire.**
+
+## État
+
+**🟦 SPÉCIFIÉ / DÉCISION FIGÉE — 27/09/2026**
+
+Cette décision concerne d'abord la **présentation du détail d'offre**. Elle n'est pas déclarée CODÉE, TESTÉE, VALIDÉE ou DÉPLOYÉE tant que l'UI réelle, les contenus provenant des différentes sources, le responsive mobile et le parcours « Voir l'offre → Postuler » n'ont pas été vérifiés.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
