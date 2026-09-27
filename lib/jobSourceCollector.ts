@@ -29,8 +29,8 @@ export type CollectedOffer = {
 };
 
 const SOURCES: SourceConfig[] = [
-  { key: "MINAJOBS", name: "MinaJobs", listingUrls: ["https://cameroun.minajobs.net/URL_LANDING_SEARCHED", "https://minajobs.net/"], hostnames: ["cameroun.minajobs.net", "minajobs.net"], offerPattern: /\/emplois-stage-recrutement\/(\d+)\//i },
-  { key: "JOBINFOCAMER", name: "JobInfoCamer", listingUrls: ["https://www.jobinfocamer.com/jobs/", "https://www.jobinfocamer.com/fr/"], hostnames: ["www.jobinfocamer.com", "jobinfocamer.com"], offerPattern: /\/job\/(\d+)\//i },
+  { key: "MINAJOBS", name: "MinaJobs", listingUrls: ["https://cameroun.minajobs.net/index", "https://minajobs.net/"], hostnames: ["cameroun.minajobs.net", "cm2024.minajobs.net", "minajobs.net"], offerPattern: /\/emplois-stage-recrutement\/(\d+)(?:\/|$)/i },
+  { key: "JOBINFOCAMER", name: "JobInfoCamer", listingUrls: ["https://www.jobinfocamer.com/jobs/", "https://www.jobinfocamer.com/fr/"], hostnames: ["www.jobinfocamer.com", "jobinfocamer.com"], offerPattern: /\/(?:job|jobs)\/(\d+)(?:\/|$)/i },
   { key: "INFOSCONCOURSEDUCATION", name: "Infos Concours Education", listingUrls: ["https://infosconcourseducation.com/category/offre-demploiss/", "https://infosconcourseducation.com/"], hostnames: ["infosconcourseducation.com", "www.infosconcourseducation.com"], offerPattern: /\/[^/]+\/?$/i },
 ];
 
@@ -60,7 +60,7 @@ function htmlToCleanText(html: string): string {
 function metaContent(html: string, key: string): string | null {
   const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const re = new RegExp(
-    `<meta\\\\b[^>]+(?:property|name)=['"]${escaped}['"][^>]+content=['"]([^'"]+)['"][^>]*>|<meta\\\\b[^>]+content=['"]([^'"]+)['"][^>]+(?:property|name)=['"]${escaped}['"][^>]*>`,
+    `<meta\\b[^>]+(?:property|name)=['"]${escaped}['"][^>]+content=['"]([^'"]+)['"][^>]*>|<meta\\b[^>]+content=['"]([^'"]+)['"][^>]+(?:property|name)=['"]${escaped}['"][^>]*>`,
     "i"
   );
   const match = html.match(re);
