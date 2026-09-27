@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { adminClient } from "@/lib/server-auth";
+import { adminClient, getAuthUser } from "@/lib/server-auth";
 import { collectPublicJobSources } from "@/lib/jobSourceCollector";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-function authorized(request: NextRequest): boolean {
+async function authorized(request: NextRequest): Promise<boolean> {
   const configured = process.env.CRON_SECRET || process.env.JOB_SOURCE_INGEST_SECRET;
-  if (!configured) return false;
   const header = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
-  return header === configured;
+  if (configured && header === configured) return true;
+  return Boolean(await getAuthUser(request));
 }
 
 function normalizeCompany(value: string | null): string | null {
@@ -24,7 +24,7 @@ function isExpired(deadline: string | null): boolean {
 }
 
 export async function POST(request: NextRequest) {
-  if (!authorized(request)) return NextResponse.json({ message: "Non autorisé." }, { status: 401 });
+  if (!(await authorized(request))) return NextResponse.json({ message: "Non autorisé." }, { status: 401 });
 
   try {
     const { offers, sources } = await collectPublicJobSources();
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
       const contact = offer.applicationProfile;
       const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
-      const source = offer.sourceKey === "MINAJOBS" ? "MinaJobs" : offer.sourceKey === "JOBINFOCAMER" ? "JobInfoCamer" : "Infos Concours Education";
+      const source = offer.sourceKey === "minajobs" ? "MinaJobs" : offer.sourceKey === "jobinfocamer" ? "JobInfoCamer" : "Infos Concours Education";
       const payload = {
         title: offer.title,
         description: offer.description,

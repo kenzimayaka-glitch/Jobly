@@ -40,7 +40,8 @@ type Job = {
   expirationAt: string | null;
   deadline: string | null;
   applicationReady: boolean;
-  applicationProfile: { channel?: string; phoneNumbers?: string[]; comingSoon?: boolean; applicationUrl?: string; applyUrl?: string; url?: string };
+  sourceUrl?: string | null;
+  applicationProfile: { channel?: string; phoneNumbers?: string[]; comingSoon?: boolean; applicationUrl?: string; applyUrl?: string; url?: string; sourceUrl?: string };
   visualUrl: string | null;
   visualSource: string | null;
   matchConfidence?: number;
@@ -151,6 +152,16 @@ export function JoblyOfferFeed() {
     if (!token) return;
     manual ? setRefreshing(true) : setLoading(true); setError("");
     try {
+      if (manual) {
+        const ingestRes = await fetch("/api/jobs/ingest/sources", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!ingestRes.ok) {
+          const ingestBody = await ingestRes.json().catch(() => ({}));
+          throw new Error(ingestBody.message || "Impossible d'actualiser les sources d'offres.");
+        }
+      }
       const [jobsRes, appsRes] = await Promise.all([
         fetch("/api/jobs?limit=200&page=1", { headers: { Authorization: `Bearer ${token}` } }),
         fetch("/api/applications", { headers: { Authorization: `Bearer ${token}` } }),
@@ -263,7 +274,7 @@ export function JoblyOfferFeed() {
   }
 
   async function apply(job: Job) {
-    const applicationLink = String(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl || job.applicationProfile?.url || "").trim();
+    const applicationLink = String(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl || job.applicationProfile?.url || job.applicationProfile?.sourceUrl || job.sourceUrl || "").trim();
     if (applicationLink) {
       window.open(applicationLink, "_blank", "noopener,noreferrer");
       return;
