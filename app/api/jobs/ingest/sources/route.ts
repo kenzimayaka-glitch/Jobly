@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
       const contact = offer.applicationProfile;
       const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
-      const source = offer.sourceKey === "MINAJOBS" ? "MinaJobs" : offer.sourceKey === "JOBINFOCAMER" ? "JobInfoCamer" : "Infos Concours Education";
+      const source = offer.sourceKey === "minajobs" ? "MinaJobs" : offer.sourceKey === "jobinfocamer" ? "JobInfoCamer" : "Infos Concours Education";
       const payload = {
         title: offer.title,
         description: offer.description,
