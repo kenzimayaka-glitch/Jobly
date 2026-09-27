@@ -559,13 +559,13 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                 <article
                   key={key}
                   data-top-match-card
-                  className="relative min-w-[76%] shrink-0 snap-start overflow-hidden rounded-[24px] border border-white/15 bg-white p-2.5 shadow-[0_16px_48px_rgba(23,33,43,.10)] sm:min-w-[58%] lg:min-w-[calc((100%_-_2.5rem)/4)]"
+                  className="relative min-w-[62%] shrink-0 snap-start overflow-hidden rounded-[20px] border border-white/15 bg-white p-2 shadow-[0_14px_36px_rgba(23,33,43,.10)] sm:min-w-[44%] lg:min-w-[calc((100%_-_4rem)/5)]"
                 >
-                  <div className="relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-[20px] bg-[#EEF2F6]">
+                  <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden rounded-[18px] bg-[#EEF2F6]">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,225,53,.28),transparent_38%),radial-gradient(circle_at_80%_80%,rgba(46,63,79,.18),transparent_42%)]"/>
                     {job.visualUrl ? <motion.img src={job.visualUrl} alt="" className="absolute inset-0 h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} animate={{ scale: [1, 1.035, 1] }} transition={{ duration: 8, repeat: Infinity }}/> : null}
                     <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center overflow-hidden">
-                      <div className="scale-[1.55] opacity-[0.16] blur-[0.8px]">
+                      <div className="scale-[1.35] opacity-[0.15] blur-[0.8px]">
                         <CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={180}/>
                       </div>
                     </div>
