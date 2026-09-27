@@ -29,9 +29,9 @@ export type CollectedOffer = {
 };
 
 const SOURCES: SourceConfig[] = [
-  { key: "MINAJOBS", name: "MinaJobs", listingUrls: ["https://cameroun.minajobs.net/index", "https://minajobs.net/"], hostnames: ["cameroun.minajobs.net", "cm2024.minajobs.net", "minajobs.net"], offerPattern: /\/emplois-stage-recrutement\/(\d+)(?:\/|$)/i },
-  { key: "JOBINFOCAMER", name: "JobInfoCamer", listingUrls: ["https://www.jobinfocamer.com/jobs/", "https://www.jobinfocamer.com/fr/"], hostnames: ["www.jobinfocamer.com", "jobinfocamer.com"], offerPattern: /\/(?:job|jobs)\/(\d+)(?:\/|$)/i },
-  { key: "INFOSCONCOURSEDUCATION", name: "Infos Concours Education", listingUrls: ["https://infosconcourseducation.com/category/offre-demploiss/", "https://infosconcourseducation.com/"], hostnames: ["infosconcourseducation.com", "www.infosconcourseducation.com"], offerPattern: /\/[^/]+\/?$/i },
+  { key: "minajobs", name: "MinaJobs", listingUrls: ["https://cameroun.minajobs.net/index", "https://minajobs.net/"], hostnames: ["cameroun.minajobs.net", "cm2024.minajobs.net", "minajobs.net"], offerPattern: /\/emplois-stage-recrutement\/(\d+)(?:\/|$)/i },
+  { key: "jobinfocamer", name: "JobInfoCamer", listingUrls: ["https://www.jobinfocamer.com/jobs/", "https://www.jobinfocamer.com/fr/"], hostnames: ["www.jobinfocamer.com", "jobinfocamer.com"], offerPattern: /\/(?:job|jobs)\/(\d+)(?:\/|$)/i },
+  { key: "infosconcourseducation", name: "Infos Concours Education", listingUrls: ["https://infosconcourseducation.com/category/offre-demploiss/", "https://infosconcourseducation.com/"], hostnames: ["infosconcourseducation.com", "www.infosconcourseducation.com"], offerPattern: /\/[^/]+\/?$/i },
 ];
 
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
@@ -88,7 +88,7 @@ function extractLinks(html: string, baseUrl: string, source: SourceConfig): Cand
       const url = new URL(decodeEntities(match[1]),baseUrl).toString(), parsed = new URL(url);
       if (!source.hostnames.includes(parsed.hostname.toLowerCase())) continue;
       const title = normalizeSpace(htmlToCleanText(match[2]));
-      if (source.key === "INFOSCONCOURSEDUCATION") {
+      if (source.key === "infosconcourseducation") {
         if (!isRelevantInfosConcoursLink(parsed, title)) continue;
       } else if (!source.offerPattern.test(parsed.pathname)) continue;
       if (title.length >= 4) out.push({url,title});
