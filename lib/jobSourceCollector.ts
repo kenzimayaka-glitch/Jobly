@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { resolveApplicationContact, extractApplicationSubject } from "./applicationEngine";
+import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription } from "./jobContent";
 
 type SourceConfig = {
   key: string;
@@ -29,15 +30,15 @@ export type CollectedOffer = {
 };
 
 const SOURCES: SourceConfig[] = [
-  { key: "minajobs", name: "MinaJobs", listingUrls: ["https://cameroun.minajobs.net/index", "https://minajobs.net/"], hostnames: ["cameroun.minajobs.net", "cm2024.minajobs.net", "minajobs.net"], offerPattern: /\/emplois-stage-recrutement\/(\d+)(?:\/|$)/i },
+  { key: "minajobs", name: "MinaJobs", listingUrls: ["https://cm2024.minajobs.net/offres-emplois-stages", "https://cameroun.minajobs.net/offres-emplois-stages", "https://minajobs.net/offres-emplois-stages-a/tout-le-cameroun"], hostnames: ["cameroun.minajobs.net", "cm2024.minajobs.net", "minajobs.net"], offerPattern: /\/emplois-stage-recrutement\/(\d+)(?:\/|$)/i },
   { key: "jobinfocamer", name: "JobInfoCamer", listingUrls: ["https://www.jobinfocamer.com/jobs/", "https://www.jobinfocamer.com/fr/"], hostnames: ["www.jobinfocamer.com", "jobinfocamer.com"], offerPattern: /\/(?:job|jobs)\/(\d+)(?:\/|$)/i },
-  { key: "infosconcourseducation", name: "Infos Concours Education", listingUrls: ["https://infosconcourseducation.com/category/offre-demploiss/", "https://infosconcourseducation.com/"], hostnames: ["infosconcourseducation.com", "www.infosconcourseducation.com"], offerPattern: /\/[^/]+\/?$/i },
+  { key: "infosconcourseducation", name: "Infos Concours Education", listingUrls: ["https://infosconcourseducation.com/category/offre-demploiss/", "https://infosconcourseducation.com/actualite/", "https://infosconcourseducation.com/"], hostnames: ["infosconcourseducation.com", "www.infosconcourseducation.com"], offerPattern: /\/[^/]+\/?$/i },
 ];
 
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
 const FETCH_TIMEOUT_MS = 8_000;
 const MAX_LISTING_PAGES = 3;
-const MAX_OFFERS_PER_SOURCE = 15;
+const MAX_OFFERS_PER_SOURCE = 30;
 const MAX_DESCRIPTION_CHARS = 30_000;
 
 function normalizeSpace(value: string): string {
@@ -192,10 +193,10 @@ function editorialText(clean: string, title: string): string {
 }
 
 function extractOffer(source: SourceConfig,url: string,html: string,listingTitle: string): CollectedOffer | null {
-  const rawClean = htmlToCleanText(html), title = titleFromHtml(html) || listingTitle;
+  const rawClean = htmlToCleanText(html), title = cleanJobTitle(titleFromHtml(html) || listingTitle);
   if (!title || title.length < 3) return null;
-  const clean = editorialText(rawClean, title);
-  const company = firstMatch(clean,[/(?:Nom de l[’']employeur|Nom de l'employeur|Employeur|Entreprise|Company)\s*[:：-]\s*([^|\n]{2,120})/i,/(?:chez|at)\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ0-9 .&'’-]{2,100})/i]);
+  const clean = cleanJobDescription(editorialText(rawClean, title), title);
+  const company = cleanCompanyName(firstMatch(clean,[/(?:Nom de l[’']employeur|Nom de l'employeur|Employeur|Entreprise|Company)\s*[:：-]\s*([^|\n]{2,120})/i,/(?:chez|at)\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ0-9 .&'’-]{2,100})/i])) || extractCompanyNameFromDescription(clean);
   const location = firstMatch(clean,[/(?:Lieu|Localisation|Location)\s*[:：-]\s*([^|\n]{2,100})/i]);
   const contractType = firstMatch(clean,[/(?:Type d[’']emploi|Type d'emploi|Contrat|Contract)\s*[:：-]\s*([^|\n]{2,60})/i]);
   const publishedAt = parseDate(firstMatch(clean,[/(?:Date de publication|Posté|Publié(?:e)?)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
@@ -212,6 +213,35 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   if (applicationUrl) applicationProfile.applicationUrl = applicationUrl;
   applicationProfile.subject = extractApplicationSubject(clean,title);
   return {sourceKey:source.key,externalId:externalId(url,source),sourceUrl:url,title:title.slice(0,300),company:company?.replace(/^(le|la|l[’']|the)\s+/i,"").trim()||null,location:location||null,contractType:contractType||null,description:clean,deadline,publishedAt,applicationProfile,contentHash:crypto.createHash("sha256").update(normalizeSpace(clean)).digest("hex"),logoUrl,companyWebsite};
+}
+
+async function collectWordPressOffers(source: SourceConfig): Promise<CollectedOffer[]> {
+  if (source.key !== "infosconcourseducation") return [];
+  try {
+    const response = await fetch("https://infosconcourseducation.com/wp-json/wp/v2/posts?per_page=30&orderby=date&order=desc&_fields=link,title,content,date", {
+      headers: { "user-agent": USER_AGENT, accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    if (!response.ok) return [];
+    const posts = await response.json();
+    if (!Array.isArray(posts)) return [];
+    const out: CollectedOffer[] = [];
+    for (const post of posts) {
+      const link = typeof post?.link === "string" ? post.link : "";
+      const title = typeof post?.title?.rendered === "string" ? htmlToCleanText(post.title.rendered) : "";
+      if (!link || !title || !isRelevantInfosConcoursLink(new URL(link), title)) continue;
+      const html = typeof post?.content?.rendered === "string" ? post.content.rendered : "";
+      if (!html) continue;
+      try {
+        const offer = extractOffer(source, link, html, title);
+        if (offer) out.push(offer);
+      } catch {}
+    }
+    return out;
+  } catch {
+    return [];
+  }
 }
 
 async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
@@ -231,7 +261,14 @@ async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
   for (const candidate of Array.from(candidates.values()).slice(0,MAX_OFFERS_PER_SOURCE)) {
     try { const offer=extractOffer(source,candidate.url,await fetchHtml(candidate.url),candidate.title); if(offer) results.push(offer); } catch {}
   }
-  return results;
+  if (results.length < 5) {
+    const fallback = await collectWordPressOffers(source);
+    for (const offer of fallback) {
+      if (!results.some(existing => existing.sourceUrl === offer.sourceUrl)) results.push(offer);
+      if (results.length >= MAX_OFFERS_PER_SOURCE) break;
+    }
+  }
+  return results.slice(0,MAX_OFFERS_PER_SOURCE);
 }
 
 export async function collectPublicJobSources() {
