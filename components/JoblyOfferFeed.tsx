@@ -559,13 +559,18 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                 <article
                   key={key}
                   data-top-match-card
-                  className="relative min-w-[88%] shrink-0 snap-start overflow-hidden rounded-[32px] border border-white/15 bg-white p-3 shadow-[0_18px_60px_rgba(23,33,43,.10)] sm:min-w-[70%] lg:min-w-[calc((100%_-_2rem)/3)]"
+                  className="relative min-w-[76%] shrink-0 snap-start overflow-hidden rounded-[24px] border border-white/15 bg-white p-2.5 shadow-[0_16px_48px_rgba(23,33,43,.10)] sm:min-w-[58%] lg:min-w-[calc((100%_-_2.5rem)/4)]"
                 >
-                  <div className="relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-[26px] bg-[#EEF2F6]">
+                  <div className="relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-[20px] bg-[#EEF2F6]">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,225,53,.28),transparent_38%),radial-gradient(circle_at_80%_80%,rgba(46,63,79,.18),transparent_42%)]"/>
                     {job.visualUrl ? <motion.img src={job.visualUrl} alt="" className="absolute inset-0 h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} animate={{ scale: [1, 1.035, 1] }} transition={{ duration: 8, repeat: Infinity }}/> : null}
-                    <div className="relative z-10 grid h-24 w-24 place-items-center rounded-[24px] border border-white/70 bg-white/95 shadow-xl">
-                      <CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={72}/>
+                    <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center overflow-hidden">
+                      <div className="scale-[1.55] opacity-[0.16] blur-[0.8px]">
+                        <CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={180}/>
+                      </div>
+                    </div>
+                    <div className="relative z-10 grid h-20 w-20 place-items-center rounded-[20px] border border-white/70 bg-white/95 shadow-xl">
+                      <CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={60}/>
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-t from-[#2E3F4F]/70 via-transparent to-transparent"/>
                     <span className="absolute left-3 top-3 rounded-full bg-[#FFE135] px-3 py-1 text-[9px] font-black uppercase tracking-[1.4px] text-[#2E3F4F]">Meilleures offres</span>
@@ -576,7 +581,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                       <CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} size={36}/>
                       <p className="min-w-0 truncate text-[10px] font-bold uppercase tracking-[1.5px] text-[#7A9BB5]">{(() => { const companyName = cleanCompanyName(job.company?.name) || ""; return companyName.length > 20 ? `${companyName.slice(0, 17)}...` : companyName; })()}</p>
                     </div>
-                    <h2 className="mt-1 text-2xl font-black leading-none">{job.title}</h2>
+                    <h2 className="mt-1 text-xl font-black leading-tight">{job.title}</h2>
                     <p className="mt-3 text-xs text-slate-500">{[job.location, job.contractType, job.remoteMode].filter(Boolean).join(" · ") || "Toutes localisations"}</p>
                     <div className="mt-3 text-[10px] text-slate-500">Publié · <b className="text-slate-700">{formatDate(job.publishedAt)}</b></div>
                     <div className="mt-4 flex gap-2">
@@ -710,7 +715,12 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.82, y: 12 }}
         transition={{ duration: 0.22 }}
-        onClick={() => offersStartRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        onClick={() => {
+      const target = offersStartRef.current;
+      if (!target) return;
+      const top = Math.max(0, target.getBoundingClientRect().top + window.scrollY - 12);
+      window.scrollTo({ top, behavior: "smooth" });
+    }}
         aria-label="Remonter en haut des offres"
         title="Remonter au début des offres"
         className="fixed bottom-24 right-5 z-[999] grid h-12 w-12 place-items-center rounded-full border border-white/70 bg-white/20 text-[#FFE135] shadow-[0_10px_30px_rgba(255,225,53,.45)] backdrop-blur-xl transition hover:bg-white/35 hover:shadow-[0_14px_36px_rgba(255,225,53,.55)] active:scale-95 sm:bottom-8 sm:right-8"

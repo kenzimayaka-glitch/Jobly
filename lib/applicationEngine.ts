@@ -144,7 +144,9 @@ export async function prepareApplication(req: NextRequest, args: {
   const subject = extractApplicationSubject(args.jobDescription, args.jobTitle);
   if (channel.channel === "UNSUPPORTED") throw new Error(channel.reason);
   const definition = getChannelDefinition(channel.channel);
-  const ai = args.skipAi ? { ok: true as const, output: {}, message: "" } : await runAiGateway(req, "APPLICATION_COPILOT", { jobTitle: args.jobTitle, jobDescription: args.jobDescription });
+  // Email candidature uses the review flow without consuming J’IA AI credits.
+  const skipAi = Boolean(args.skipAi || channel.channel === "EMAIL");
+  const ai = skipAi ? { ok: true as const, output: {}, message: "" } : await runAiGateway(req, "APPLICATION_COPILOT", { jobTitle: args.jobTitle, jobDescription: args.jobDescription });
   if (!ai.ok) throw new Error(ai.message);
   const output = ai.output && typeof ai.output === "object" ? ai.output as Record<string, unknown> : {};
   const warnings = Array.isArray(output.warnings) ? output.warnings.filter((x): x is string => typeof x === "string") : [];
