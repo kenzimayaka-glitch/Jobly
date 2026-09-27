@@ -8,7 +8,8 @@ import { getSupabaseClient } from "@/lib/supabase";
 import { companyAvatar } from "@/lib/avatar";
 import CompanyLogo from "@/components/CompanyLogo";
 import BottomNav, { TALENT_NAV } from "@/components/BottomNav";
-import { cleanCompanyName, cleanJobTitle } from "@/lib/jobContent";
+import { cleanCompanyName, cleanJobTitle, cleanJobDescription } from "@/lib/jobContent";
+import ScoreRing from "@/components/ScoreRing";
 
 type CompanyWebProfile = {
   name: string;
@@ -89,6 +90,8 @@ export function JoblyOfferFeed() {
   const [topMatchHover, setTopMatchHover] = useState(false);
   const [coarsePointer, setCoarsePointer] = useState(false);
   const [focusedOfferKey, setFocusedOfferKey] = useState<string | null>(null);
+  const [basketHistoryOpen, setBasketHistoryOpen] = useState(false);
+  const [basketHistory, setBasketHistory] = useState<Array<{id:string; title:string; company:string; score:number; sentAt:string}>>([]);
   const offersStartRef = useRef<HTMLElement | null>(null);
 
   // Deep link : /jobs?q=stage (ex. CTA « Chercher un stage » de l’espace Campus).
@@ -145,6 +148,7 @@ export function JoblyOfferFeed() {
   useEffect(() => {
     try { setSaved(new Set(JSON.parse(localStorage.getItem("jobly:jia:saved-offers") || "[]"))); } catch {}
     try { setBasket(new Set(JSON.parse(localStorage.getItem("jobly:jia:application-basket") || "[]"))); } catch {}
+    try { setBasketHistory(JSON.parse(localStorage.getItem("jobly:jia:application-history") || "[]")); } catch {}
   }, []);
 
   useEffect(() => {
@@ -280,9 +284,6 @@ export function JoblyOfferFeed() {
     if (!token || basketJobs.length === 0 || bulkPreparing) return;
     setBulkPreparing(true); setError("");
     try {
-      const checkRes = await fetch("/api/applications/bulk-check", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ selectedCount: basketJobs.length }) });
-      const checkBody = await checkRes.json().catch(() => ({}));
-      if (!checkRes.ok) throw new Error(checkBody.message || "La postulation groupée n'est pas disponible avec votre formule.");
       const prepared: Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string; letterSource: "JIA" | "CANDIDATE" }> = [];
       for (const job of basketJobs) {
         const key = `${job.source}:${job.id}`;
@@ -313,14 +314,34 @@ export function JoblyOfferFeed() {
   async function submitBulkApplications() {
     if (!token || preparedBulk.length === 0 || bulkSubmitting) return;
     setBulkSubmitting(true); setError("");
+    try {
+      const checkRes = await fetch("/api/applications/bulk-check", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ selectedCount: preparedBulk.length }) });
+      const checkBody = await checkRes.json().catch(() => ({}));
+      if (!checkRes.ok) throw new Error(checkBody.message || "La postulation groupée n'est pas disponible avec votre formule.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "La postulation groupée n'est pas disponible avec votre formule.");
+      setBulkSubmitting(false);
+      return;
+    }
     const remaining: typeof preparedBulk = [];
+    const sentHistory: typeof basketHistory = []; 
     for (const item of preparedBulk) {
       try {
         const res = await fetch(`/api/applications/${item.id}/submit`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ letterText: item.letter }) });
         const body = await res.json().catch(() => ({}));
         if (!res.ok && res.status !== 202) { remaining.push(item); continue; }
-        if (body.submitted || res.status === 202) setApplied(prev => new Set(prev).add(item.key));
+        if (body.submitted || res.status === 202) {
+          setApplied(prev => new Set(prev).add(item.key));
+          sentHistory.push({ id: item.id, title: cleanJobTitle(item.job.title), company: cleanCompanyName(item.job.company?.name) || "Entreprise non renseignée", score: item.job.matchPercent, sentAt: new Date().toISOString() });
+        }
       } catch { remaining.push(item); }
+    }
+    if (sentHistory.length) {
+      setBasketHistory(prev => {
+        const next = [...sentHistory, ...prev].slice(0, 50);
+        try { localStorage.setItem("jobly:jia:application-history", JSON.stringify(next)); } catch {}
+        return next;
+      });
     }
     if (remaining.length) {
       setPreparedBulk(remaining);
@@ -612,10 +633,10 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                         {done ? <><Check size={17} className="mr-2"/>Candidature envoyée</> : ready ? "Candidature prête" : busy ? <><RefreshCw size={17} className="mr-2 animate-spin"/>Envoi en cours…</> : <>{emailChannel ? <GmailIcon size={18}/> : phoneChannel ? <WhatsAppIcon size={18}/> : <Send size={17}/>}<span>Postuler</span></>}
                       </button>
                       <button type="button" onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label="En savoir plus sur l’entreprise" title="En savoir +" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-full bg-[#00A6E8] px-4 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,166,232,.22)] transition hover:bg-[#008FC8] active:scale-[.98]">En savoir +</button>
-                      <button type="button" onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} aria-label="Voir l'offre" title="Voir l’offre" className="inline-flex h-12 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200 bg-white px-3 text-xs font-black text-[#B59A00] transition hover:border-[#B59A00]/40 hover:bg-[#FFFBE0]"><span>Voir l’offre</span><ArrowUpRight size={17}/></button>
+                      <button type="button" onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} aria-label="Voir l'offre" title="Voir l’offre" className="inline-flex h-12 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-[#7C3AED]/25 bg-[#F3E8FF] px-3 text-xs font-black text-[#6D28D9] transition hover:bg-[#EDE9FE]"><span>Voir l’offre</span><ArrowUpRight size={17}/></button>
                     </div>
                     <div className="mt-2 flex justify-end">
-                      <button onClick={() => toggleBasket(job)} aria-label={basket.has(key) ? "Retirer du panier" : "Ajouter au panier"} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-[10px] font-black text-[#22448B] transition hover:border-[#FFE135] hover:bg-[#FFFBE0]">
+                      <button onClick={() => toggleBasket(job)} aria-label={basket.has(key) ? "Retirer du panier" : "Ajouter au panier"} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#FFE135] px-3 text-[10px] font-black text-[#2E3F4F] transition hover:brightness-95">
                         {basket.has(key) ? <CheckSquare size={15}/> : <ShoppingBasket size={15}/>}
                         {basket.has(key) ? "Retirer du panier" : "Ajouter au panier"}
                       </button>
@@ -637,6 +658,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]"><ShoppingBasket size={18}/></div>
           <div className="min-w-0 flex-1"><p className="text-sm font-black">Panier de candidatures · {basketJobs.length}/{bulkLimit}</p><p className="text-[10px] text-white/65">J’IA préparera chaque candidature séparément avant votre validation.</p></div>
           <button onClick={() => void prepareBulkApplications()} disabled={bulkPreparing} className="rounded-full bg-[#FFE135] px-4 py-2.5 text-xs font-black text-[#2E3F4F]">{bulkPreparing ? "Préparation…" : "Préparer avec J’IA"}</button>
+          <button type="button" onClick={() => setBasketHistoryOpen(true)} className="rounded-full border border-white/20 bg-white/10 px-3 py-2.5 text-[10px] font-black text-white">Historique</button>
           <button
             type="button"
             aria-label="Fermer et vider le panier de candidatures"
@@ -682,6 +704,13 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
       </motion.div>
     )}</AnimatePresence>
 
+    <AnimatePresence>{basketHistoryOpen && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[110] grid place-items-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setBasketHistoryOpen(false)}>
+      <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }} onClick={e => e.stopPropagation()} className="max-h-[80dvh] w-full max-w-2xl overflow-y-auto rounded-[28px] bg-white p-5 shadow-2xl">
+        <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[1.5px] text-[#B59A00]">PANIER</p><h2 className="text-2xl font-black text-[#17212B]">Historique des candidatures</h2></div><button type="button" onClick={() => setBasketHistoryOpen(false)} className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-600" aria-label="Fermer"><X size={17}/></button></div>
+        {!basketHistory.length ? <p className="mt-6 rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">Aucune candidature issue du panier pour le moment.</p> : <div className="mt-5 space-y-3">{basketHistory.map(item => <div key={item.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black text-[#17212B]">{item.title}</p><p className="mt-1 text-xs font-bold text-slate-500">{item.company}</p></div><span className="rounded-full bg-[#EEF4FF] px-2.5 py-1 text-[10px] font-black text-[#22448B]">{item.score}% matching</span></div><p className="mt-3 text-[10px] font-semibold text-slate-400">{new Intl.DateTimeFormat("fr-FR",{dateStyle:"short",timeStyle:"short"}).format(new Date(item.sentAt))}</p></div>)}</div>}
+      </motion.div>
+    </motion.div>}</AnimatePresence>
+
     <AnimatePresence>{selectedMatch && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[105] grid place-items-end bg-black/60 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => closeOfferModal("match")}>
       <motion.div initial={{ y: 30, opacity: 0, scale: .97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 30, opacity: 0 }} onClick={e => e.stopPropagation()} className="w-full max-w-md overflow-hidden rounded-[30px] bg-white text-[#17212B] shadow-2xl">
         <div className="bg-[#2E3F4F] p-5 text-white">
@@ -695,15 +724,20 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
           <p className="text-[10px] font-black uppercase tracking-[1.5px] text-slate-400">Critères détectés dans l’offre</p>
           <div className="mt-4 space-y-3">
             {(selectedMatch.matchBreakdown || []).map(item => <div key={item.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-              <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-bold text-slate-500"><span>{item.label}{item.required ? " · requis" : ""}</span><b className={item.status === "MISMATCH" ? "text-red-600" : item.status === "UNKNOWN" ? "text-amber-600" : "text-[#2E3F4F]"}>{item.score == null ? "Non renseigné" : Math.round(item.score * 100) + "%"}</b></div>
-              <div className="h-2 overflow-hidden rounded-full bg-white">{item.score != null && <motion.div initial={{ width: 0 }} animate={{ width: Math.round(item.score * 100) + "%" }} transition={{ duration: .45 }} className="h-full rounded-full bg-[#FFE135]"/>}</div>
+              <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-bold text-slate-500"><span>{item.label}{item.required ? " · requis" : ""}</span><b className={item.status === "MISMATCH" ? "text-red-600" : item.status === "PARTIAL" ? "text-orange-500" : item.status === "UNKNOWN" ? "text-amber-600" : "text-emerald-600"}>{item.score == null ? "Non renseigné" : Math.round(item.score * 100) + "%"}</b></div>
+              <div className="h-2 overflow-hidden rounded-full bg-white">{item.score != null && <motion.div initial={{ width: 0 }} animate={{ width: Math.round(item.score * 100) + "%" }} transition={{ duration: .45 }} className={`h-full rounded-full ${item.status === "MISMATCH" ? "bg-red-500" : item.status === "PARTIAL" ? "bg-orange-400" : item.status === "UNKNOWN" ? "bg-amber-400" : "bg-emerald-500"}`}/>}</div>
               <p className="mt-2 text-[10px] leading-4 text-slate-500">{item.status === "MATCH" ? "Correspondance confirmée." : item.status === "PARTIAL" ? "Correspondance partielle à vérifier." : item.status === "MISMATCH" ? "Écart identifié avec l’exigence de l’offre." : "Information non renseignée dans les données connues de votre profil."}</p>
               {item.expectedValue && <p className="mt-1 text-[10px] font-semibold text-slate-600">Attendu : {item.expectedValue}</p>}
               {item.candidateValue && <p className="mt-1 text-[10px] text-slate-400">Profil : {item.candidateValue}</p>}
             </div>)}
           </div>
           <div className="mt-5 rounded-2xl border border-[#FFE135]/60 bg-[#FFFBE0] p-3 text-[10px] leading-5 text-slate-600"><b>Score spécifique à cette offre :</b> seuls les critères détectés dans cette offre influencent le score. Une information absente du profil est signalée comme non renseignée et réduit la confiance plutôt que d’être comptée automatiquement comme un échec.</div>
-          <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 text-[10px] leading-5 text-slate-500"><b className="text-[#2E3F4F]">Confiance de l’analyse : {selectedMatch.matchConfidence ?? 100}%</b> · basée sur les informations réellement disponibles dans votre profil.</div>
+          <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="flex items-center gap-4">
+              <ScoreRing score={selectedMatch.matchConfidence ?? 100} size={92} label="confiance" />
+              <p className="min-w-0 flex-1 text-[10px] leading-5 text-slate-500"><b className="text-[#2E3F4F]">Confiance de l’analyse</b> · basée sur les informations réellement disponibles dans votre profil. Le score de correspondance reste spécifique à cette offre et les informations absentes ne sont pas automatiquement comptées comme des échecs.</p>
+            </div>
+          </div>
           <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(selectedMatch.id) + "&source=" + encodeURIComponent(selectedMatch.source))} className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#FFE135] px-5 py-3 text-xs font-black text-[#2E3F4F]"><Sparkles size={15}/> Adapter votre CV pour cette candidature</button>
           <p className="mt-2 text-center text-[10px] text-slate-400">J’IA analyse l’offre et votre CV. Vous validez chaque modification avant utilisation.</p>
         </div></motion.div>
@@ -723,7 +757,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
              <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Nom</p><p className="mt-1 text-sm font-bold">{cleanCompanyName(selectedCompany.name) || "Aucune donnée"}</p></div>
              <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Localisation</p><p className="mt-1 text-sm">{companyWebProfile.address || selectedCompanyLocation || "Non renseignée"}</p></div>
            </div>
-           {companyWebProfile.activity.length>0 && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Domaine d’activité</p><p className="mt-1 text-sm capitalize">{companyWebProfile.activity.join(" · ")}</p></div>}
+           {companyWebProfile.activity.length>0 && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Domaine d’activité</p><p className="mt-1 text-sm capitalize">{companyWebProfile.activity.map((value) => cleanCompanyName(value) || value).join(" · ")}</p></div>}
            {(companyWebProfile.phone || companyWebProfile.website) && <div className="grid gap-3 sm:grid-cols-2">
              {companyWebProfile.phone && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Téléphone</p><a href={`tel:${companyWebProfile.phone}`} className="mt-1 block text-sm font-bold">{companyWebProfile.phone}</a></div>}
              {companyWebProfile.website && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Site officiel</p><a href={companyWebProfile.website.startsWith("http") ? companyWebProfile.website : `https://${companyWebProfile.website}`} target="_blank" rel="noreferrer" className="mt-1 block truncate text-sm font-bold underline">{companyWebProfile.website}</a></div>}
