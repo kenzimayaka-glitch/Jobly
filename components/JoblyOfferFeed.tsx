@@ -589,13 +589,13 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                   <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden rounded-[18px] bg-[#EEF2F6]">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,225,53,.28),transparent_38%),radial-gradient(circle_at_80%_80%,rgba(46,63,79,.18),transparent_42%)]"/>
                     <div className="pointer-events-none absolute inset-0 z-[1] flex min-w-0 items-center justify-center overflow-hidden px-4">
-                      <div className="flex h-full w-full min-w-0 items-center justify-center opacity-[0.26]">
-                        <div className="flex h-[72%] w-[72%] max-w-[120px] min-w-0 items-center justify-center">
-                          <CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl} size={120}/>
+                      <div className="flex h-full w-full min-w-0 items-center justify-center opacity-[0.28]">
+                        <div className="flex h-full w-full min-w-0 items-center justify-center">
+                          <CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl} size={640} className="!h-full !w-full !rounded-none !border-0 !bg-transparent !p-0"/>
                         </div>
                       </div>
                     </div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#2E3F4F]/70 via-transparent to-transparent"/>
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-24 bg-gradient-to-t from-[#2E3F4F]/60 via-[#2E3F4F]/15 to-transparent"/>
                     <span className="absolute left-3 top-3 rounded-full bg-[#FFE135] px-3 py-1 text-[9px] font-black uppercase tracking-[1.4px] text-[#2E3F4F]">Meilleures offres</span>
                     <button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="absolute bottom-2 right-2 rounded-2xl px-2 py-1 text-right transition hover:bg-black/15 focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-4xl font-black text-[#FFE135]">{job.matchPercent}%</strong><span className="text-[8px] font-black uppercase tracking-[1px] text-white/85">Voir mon score</span></button>
                   </div>
@@ -744,17 +744,15 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         exit={{ opacity: 0, scale: 0.82, y: 12 }}
         transition={{ duration: 0.22 }}
         onClick={() => {
-      const target = offersStartRef.current || document.getElementById("jobly-offers-start");
-      if (!target) return;
-      const top = Math.max(0, target.getBoundingClientRect().top + window.scrollY - 16);
-      window.scrollTo({ top, behavior: "smooth" });
-    }}
-        aria-label="Remonter en haut des offres"
+          const target = offersStartRef.current || document.getElementById("jobly-offers-start");
+          if (!target) return;
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+        aria-label="Remonter au début des offres"
         title="Remonter au début des offres"
-        className="fixed bottom-24 right-5 z-[9999] grid h-12 w-12 place-items-center rounded-full border border-white/70 bg-[#2E3F4F]/90 text-[#FFE135] shadow-[0_10px_30px_rgba(255,225,53,.45)] backdrop-blur-xl transition hover:bg-[#2E3F4F] hover:shadow-[0_14px_36px_rgba(255,225,53,.55)] active:scale-95 sm:bottom-8 sm:right-8"
+        className="fixed bottom-24 right-5 z-[9999] grid h-14 w-14 place-items-center rounded-full border border-white/70 bg-white/20 text-white shadow-[0_12px_34px_rgba(23,33,43,.28)] backdrop-blur-md transition hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#17212B] active:scale-95 sm:bottom-8 sm:right-8"
       >
-        <span className="absolute inset-1 rounded-full border border-white/30" />
-        <span className="relative text-xl font-black leading-none">↑</span>
+        <span className="relative text-2xl font-black leading-none text-white">↑</span>
       </motion.button>}
     </AnimatePresence>
     {jobs.length === 0 && !loading && <div className="mx-auto max-w-2xl px-5 py-20 text-center"><Sparkles className="mx-auto text-[#22448B]"/><h2 className="mt-4 text-2xl font-black">Aucune offre disponible pour le moment.</h2><p className="mt-2 text-sm text-white/55">Jobly ne fabrique pas d’offres : les offres affichées proviennent de sources réelles.</p></div>}
