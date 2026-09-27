@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   if (!name) return NextResponse.json({ message: "Nom d'entreprise requis." }, { status: 400 });
 
   const result: CompanyProfile = {
-    name, address: null, location: null, phone: null, website: website || null,
+    name, address: null, location: null, phone: null, website: null,
     mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([name, location].filter(Boolean).join(", "))}`, activity: [], status: null, rating: null, reviewCount: null,
     description: suppliedDescription || null, summary: null, news: [], source: [], logoUrl: null,
   };
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
 
   if (!result.description && website) {
     try {
-      const url = website.startsWith("http") ? website : `https://${website}`;
+      const url = result.website.startsWith("http") ? result.website : `https://${result.website}`;
       const response = await fetch(url, { headers: { "User-Agent": "JoblyBot/1.0 (+https://jobly.cm)" }, signal: AbortSignal.timeout(5000), cache: "no-store" });
       if (response.ok) {
         const html = await response.text();
