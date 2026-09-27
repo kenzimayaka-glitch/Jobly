@@ -8,6 +8,7 @@ type Review = {
   job: { title: string; company: string; location: string | null };
   channel: string;
   recipient: string | null;
+  subject: string;
 };
 
 export default function ApplicationReviewPage() {
@@ -58,9 +59,13 @@ export default function ApplicationReviewPage() {
         <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">J’IA · traitement de candidature</p>
         <h1 className="mt-2 text-2xl font-black">Votre candidature est prête</h1>
         <p className="mt-1 text-sm text-slate-500">{data?.job.title} · {data?.job.company}</p>
-        {data?.recipient && <p className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs font-bold">Envoi prévu par Gmail à <span className="text-[#22448B]">{data.recipient}</span></p>}
+        <div className="mt-4 space-y-2 rounded-2xl bg-slate-50 p-4 text-xs">
+          {data?.recipient && <p><span className="font-black text-slate-400">DESTINATAIRE</span><br/><span className="font-bold text-[#22448B]">{data.recipient}</span></p>}
+          {data?.subject && <p><span className="font-black text-slate-400">OBJET</span><br/><span className="font-bold">{data.subject}</span></p>}
+        </div>
         <label className="mt-5 block text-xs font-black uppercase tracking-[1.2px] text-slate-400">Lettre de candidature</label>
         <textarea value={letter} onChange={e => setLetter(e.target.value)} className="mt-2 min-h-64 w-full rounded-2xl border border-slate-200 p-4 text-sm leading-6 outline-none focus:border-[#FFE135]" />
+        <div className="mt-4 rounded-2xl border border-[#FFE135]/60 bg-[#FFFBE0] p-4 text-xs leading-5 text-slate-600"><b className="text-[#17212B]">Pièce jointe :</b> le CV préparé à partir de votre profil Jobly sera envoyé avec le message.</div>
         <details className="mt-4 rounded-2xl border border-slate-200 p-4">
           <summary className="cursor-pointer text-xs font-black">Voir le CV préparé</summary>
           <pre className="mt-3 whitespace-pre-wrap text-xs leading-5 text-slate-600">{data?.application.tailoredCvText || "CV non disponible."}</pre>
