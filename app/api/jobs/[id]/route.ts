@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient } from "../../../../lib/server-auth";
+import { resolveApplicationContact } from "../../../../lib/applicationEngine";
 
 function companyDomain(website:string|null|undefined):string|null { if(!website) return null; try { const raw=website.startsWith("http")?website:`https://${website}`; return new URL(raw).hostname.toLowerCase().replace(/^www\\./,"") || null; } catch { return null; } }
 
@@ -21,14 +22,18 @@ export async function GET(request: NextRequest, context: Context) {
       if (error) throw new Error(error.message);
       if (!data) return NextResponse.json({ message: "Offre introuvable ou inactive." }, { status: 404 });
       const company = Array.isArray(data.company) ? data.company[0] : data.company;
-      return NextResponse.json({ source, job: { ...data, company: company ? { ...company, domain: companyDomain(company.website) } : null } });
+      const contacts = resolveApplicationContact((data.applicationProfile || {}) as Record<string, unknown>, data.description || "");
+      const applicationProfile = { ...(data.applicationProfile || {}), ...(contacts.email ? { applicationEmail: contacts.email } : {}), ...(contacts.phone ? { applicationPhone: contacts.phone } : {}) };
+      return NextResponse.json({ source, job: { ...data, applicationProfile, company: company ? { ...company, domain: companyDomain(company.website) } : null } });
     }
     const { data, error } = await supabase.from("RecruiterJob")
       .select("id,title,description,location,contract,remoteMode,minExperienceYears,salary,sector,tags,createdAt,companyName,sourceUrl,sourcePlatform,applicationReady,applicationProfile")
       .eq("id", id).eq("status", "published").maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) return NextResponse.json({ message: "Offre introuvable ou non publiée." }, { status: 404 });
-    return NextResponse.json({ source, job: data });
+    const contacts = resolveApplicationContact((data.applicationProfile || {}) as Record<string, unknown>, data.description || "");
+    const applicationProfile = { ...(data.applicationProfile || {}), ...(contacts.email ? { applicationEmail: contacts.email } : {}), ...(contacts.phone ? { applicationPhone: contacts.phone } : {}) };
+    return NextResponse.json({ source, job: { ...data, applicationProfile } });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible de charger l'offre." }, { status: 500 });
   }
