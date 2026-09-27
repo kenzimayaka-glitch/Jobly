@@ -428,26 +428,21 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     const onScroll = () => {
       const twentyNinthOffer = document.querySelector<HTMLElement>('[data-offer-number="29"]');
       const thirtiethOffer = document.querySelector<HTMLElement>('[data-offer-number="30"]');
-      if (!twentyNinthOffer || !thirtiethOffer) {
-        setShowBackToTop(false);
-        previousScrollY = window.scrollY;
-        return;
-      }
-
       const currentScrollY = window.scrollY;
-      const scrollingDown = currentScrollY > previousScrollY;
       const scrollingUp = currentScrollY < previousScrollY;
-      const thirtiethRect = thirtiethOffer.getBoundingClientRect();
-      const twentyNinthRect = twentyNinthOffer.getBoundingClientRect();
 
-      // Downward: offer 30 reached => propose the arrow.
-      if (scrollingDown && thirtiethRect.top <= window.innerHeight * 0.9) {
-        setShowBackToTop(true);
+      if (thirtiethOffer) {
+        const thirtiethRect = thirtiethOffer.getBoundingClientRect();
+        const reached30 = thirtiethRect.top <= window.innerHeight * 0.9 && thirtiethRect.bottom > 0;
+
+        // Dès que la 30e offre entre dans la zone visible, la flèche reste disponible.
+        if (reached30) setShowBackToTop(true);
       }
 
-      // Upward: as soon as offer 29 is reached again => hide the arrow.
-      if (scrollingUp && twentyNinthRect.bottom > 0) {
-        setShowBackToTop(false);
+      if (scrollingUp && twentyNinthOffer) {
+        const twentyNinthRect = twentyNinthOffer.getBoundingClientRect();
+        const reached29Again = twentyNinthRect.top <= window.innerHeight * 0.9 && twentyNinthRect.bottom > 0;
+        if (reached29Again) setShowBackToTop(false);
       }
 
       previousScrollY = currentScrollY;
@@ -586,13 +581,15 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                 <article
                   key={key}
                   data-top-match-card
-                  className="relative min-w-[31%] shrink-0 snap-start overflow-hidden rounded-[20px] border border-white/15 bg-white p-2 shadow-[0_14px_36px_rgba(23,33,43,.10)] sm:min-w-[22%] lg:min-w-[calc((100%_-_9rem)/10)]"
+                  className="relative w-[31%] min-w-[31%] max-w-[31%] flex-none snap-start overflow-hidden rounded-[20px] border border-white/15 bg-white p-2 shadow-[0_14px_36px_rgba(23,33,43,.10)] sm:w-[22%] sm:min-w-[22%] sm:max-w-[22%] lg:w-[calc((100%_-_9rem)/10)] lg:min-w-[calc((100%_-_9rem)/10)] lg:max-w-[calc((100%_-_9rem)/10)]"
                 >
                   <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden rounded-[18px] bg-[#EEF2F6]">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,225,53,.28),transparent_38%),radial-gradient(circle_at_80%_80%,rgba(46,63,79,.18),transparent_42%)]"/>
-                    <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center overflow-hidden">
-                      <div className="scale-[2.25] opacity-[0.24] blur-[0.4px]">
-                        <CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl} size={180}/>
+                    <div className="pointer-events-none absolute inset-0 z-[1] flex min-w-0 items-center justify-center overflow-hidden px-4">
+                      <div className="flex h-full w-full min-w-0 items-center justify-center opacity-[0.24] blur-[0.2px]">
+                        <div className="flex h-[72%] w-[72%] max-w-[120px] min-w-0 items-center justify-center">
+                          <CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl} size={120}/>
+                        </div>
                       </div>
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-t from-[#2E3F4F]/70 via-transparent to-transparent"/>
