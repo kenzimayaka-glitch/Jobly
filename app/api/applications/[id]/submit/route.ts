@@ -140,11 +140,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const profile = (offer.applicationProfile && typeof offer.applicationProfile === "object" ? offer.applicationProfile : {}) as Record<string, unknown>;
     const recipient = profileValue(profile, ["applicationEmail", "email", "recipientEmail", "recipient"]);
     const company = application.jobId && offer.companyId ? ((await supabase.from("Company").select("name").eq("id", offer.companyId).maybeSingle()).data?.name || "l'entreprise") : (offer.companyName || "l'entreprise");
+    const subject = profileValue(profile, ["subject", "emailSubject"]) || `Candidature — ${String(offer.title || "Offre Jobly")}`;
     return NextResponse.json({
       application: { id: application.id, status: application.status, letterText: application.letterText, tailoredCvText: application.tailoredCvText },
       job: { title: offer.title, company, location: offer.location || null },
       channel: String(application.sourceType || "EMAIL"),
       recipient,
+      subject,
     });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible de charger la candidature." }, { status: 500 });
