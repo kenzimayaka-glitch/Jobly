@@ -29,7 +29,6 @@ function extractApplicationEmail(text: string): string | null {
   return best?.email || null;
 }
 
-
 export function extractApplicationPhone(text: string): string | null {
   const matches = Array.from(new Set(
     (text.match(/(?:\+?237[\s.-]?(?:\+?237[\s.-]?)?[26]\d{8}|[26]\d{8})/g) || [])
@@ -64,14 +63,6 @@ function cleanApplicationSubject(value: string): string {
 
 export function extractApplicationSubject(text: string, jobTitle: string): string {
   const pattern = /(?:objet(?: de (?:la )?candidature| du mail| de l['’]email)?|subject|email subject|mail subject|indiquer en objet|mettre en objet|avec pour objet|mentionner en objet)\s*[:：-]\s*[\"'“”«»]?([^\r\n<]{3,180})/i;
-  const match = text.match(pattern);
-  const subject = match?.[1] ? cleanApplicationSubject(match[1]) : "";
-  return subject || `Candidature_${cleanApplicationSubject(jobTitle) || "Offre"}`;
-}
-
-export function extractApplicationSubject(text: string, jobTitle: string): string {
-  const pattern = /(?:objet(?: de (?:la )?candidature| du mail| de l['’]email)?|subject|email subject|mail subject|indiquer en objet|mettre en objet|avec pour objet|mentionner en objet)\s*[:：-]\s*["'“”«»]?([^
-\r<]{3,180})/i;
   const match = text.match(pattern);
   const subject = match?.[1] ? cleanApplicationSubject(match[1]) : "";
   return subject || `Candidature_${cleanApplicationSubject(jobTitle) || "Offre"}`;
