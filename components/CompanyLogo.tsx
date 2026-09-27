@@ -136,10 +136,11 @@ export default function CompanyLogo({
     setSrc(null);
   }
 
+  const fillFrame = className.includes("company-logo-fill-frame");
   const fallback = (
     <span
       className={`grid shrink-0 place-items-center rounded-full border border-[#E5EAF2] bg-[#0F2040] font-black text-white ${className}`}
-      style={{ width: size, height: size, fontSize: Math.max(10, Math.round(size * 0.3)) }}
+      style={{ width: fillFrame ? "100%" : size, height: fillFrame ? "100%" : size, fontSize: Math.max(10, Math.round(size * 0.3)) }}
       aria-label={companyName || "Entreprise"}
       role="img"
     >
@@ -148,7 +149,7 @@ export default function CompanyLogo({
   );
 
   if (failed || (!src && !resolving)) return fallback;
-  if (!src) return <span aria-hidden="true" className={`block shrink-0 rounded-full bg-slate-100 ${className}`} style={{ width: size, height: size }} />;
+  if (!src) return <span aria-hidden="true" className={`block shrink-0 rounded-full bg-slate-100 ${className}`} style={{ width: fillFrame ? "100%" : size, height: fillFrame ? "100%" : size }} />;
 
   return (
     <img
@@ -162,7 +163,7 @@ export default function CompanyLogo({
       onLoad={handleLoad}
       onError={handleError}
       className={`shrink-0 rounded-full border border-[#E5EAF2] bg-white p-1 object-contain ${className}`}
-      style={{ width: size, height: size }}
+      style={{ width: fillFrame ? "100%" : size, height: fillFrame ? "100%" : size }}
     />
   );
 }
