@@ -35,9 +35,9 @@ const SOURCES: SourceConfig[] = [
 ];
 
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
-const FETCH_TIMEOUT_MS = 12_000;
+const FETCH_TIMEOUT_MS = 8_000;
 const MAX_LISTING_PAGES = 3;
-const MAX_OFFERS_PER_SOURCE = 20;
+const MAX_OFFERS_PER_SOURCE = 15;
 const MAX_DESCRIPTION_CHARS = 30_000;
 
 function normalizeSpace(value: string): string {
@@ -235,10 +235,16 @@ async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
 }
 
 export async function collectPublicJobSources() {
-  const offers: CollectedOffer[] = [], sources: Record<string,{discovered:number;errors:number}> = {};
-  for (const source of SOURCES) {
-    try { const found=await collectSource(source); offers.push(...found); sources[source.key]={discovered:found.length,errors:0}; }
-    catch { sources[source.key]={discovered:0,errors:1}; }
-  }
-  return {offers,sources};
+  const results = await Promise.all(SOURCES.map(async source => {
+    try {
+      const found = await collectSource(source);
+      return { source, found, error: false };
+    } catch {
+      return { source, found: [] as CollectedOffer[], error: true };
+    }
+  }));
+  const offers = results.flatMap(item => item.found);
+  const sources: Record<string,{discovered:number;errors:number}> = {};
+  for (const item of results) sources[item.source.key] = { discovered: item.found.length, errors: item.error ? 1 : 0 };
+  return { offers, sources };
 }
