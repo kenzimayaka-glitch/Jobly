@@ -586,7 +586,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                 <article
                   key={key}
                   data-top-match-card
-                  className="relative min-w-[62%] shrink-0 snap-start overflow-hidden rounded-[20px] border border-white/15 bg-white p-2 shadow-[0_14px_36px_rgba(23,33,43,.10)] sm:min-w-[44%] lg:min-w-[calc((100%_-_4rem)/5)]"
+                  className="relative min-w-[31%] shrink-0 snap-start overflow-hidden rounded-[20px] border border-white/15 bg-white p-2 shadow-[0_14px_36px_rgba(23,33,43,.10)] sm:min-w-[22%] lg:min-w-[calc((100%_-_9rem)/10)]"
                 >
                   <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden rounded-[18px] bg-[#EEF2F6]">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,225,53,.28),transparent_38%),radial-gradient(circle_at_80%_80%,rgba(46,63,79,.18),transparent_42%)]"/>
