@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
   const result: CompanyProfile = {
     name, address: null, location: null, phone: null, website: null,
     mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([name, location].filter(Boolean).join(", "))}`, activity: [], status: null, rating: null, reviewCount: null,
-    description: suppliedDescription || null, summary: null, news: [], source: [], logoUrl: null,
+    description: null, summary: null, news: [], source: [], logoUrl: null,
   };
 
   const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
