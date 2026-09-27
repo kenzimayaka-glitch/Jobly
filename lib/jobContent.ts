@@ -28,7 +28,10 @@ export function cleanJobDescription(value: unknown, titleHint?: string | null): 
   const title = typeof titleHint === "string" ? repairUtf8(decodeHtmlEntities(titleHint)).trim() : "";
   if (title) { const idx = raw.toLowerCase().indexOf(title.toLowerCase()); if (idx >= 0 && idx < 12000) raw = raw.slice(idx); }
   raw = raw.replace(/<script[\s\S]*?<\/script>/gi,"\n").replace(/<style[\s\S]*?<\/style>/gi,"\n").replace(/<noscript[\s\S]*?<\/noscript>/gi,"\n").replace(/<svg[\s\S]*?<\/svg>/gi,"\n")
-    .replace(/<br\s*\/?\s*>/gi,"\n").replace(/<\/(p|div|section|article|li|h[1-6]|tr)>/gi,"\n\n").replace(/<li[^>]*>/gi,"• ").replace(/<[^>]+>/g," ");
+    // Preserve the source's semantic structure without exposing HTML/code.
+    .replace(/<(h[1-6])[^>]*>/gi,"\n\n").replace(/<\/(h[1-6])>/gi,"\n\n")
+    .replace(/<br\s*\/?\s*>/gi,"\n").replace(/<li[^>]*>/gi,"\n• ").replace(/<\/(li)>/gi,"\n")
+    .replace(/<\/(p|div|section|article|tr|blockquote)>/gi,"\n\n").replace(/<[^>]+>/g," ");
   raw = raw
     .replace(/(?:window\.(?:dataLayer|a2a_config)|var\s+esadt\s*=|function\s+gtag\s*\(|adsbygoogle|document\.createElement|sspjs\.eskimi)[\s\S]*?(?=Email:|Téléphone|Whatsapp|Contact|Candidature|Postuler|Mission|Description|Profil|Compétences|Qualifications|\n\n|$)/gi,"")
     .replace(/(?:Aller au contenu principal|Toggle navigation|Main navigation|Menu Bar|Français\s+English|Poster une offre|Publier une offre d'emploi gratuitement)[\s\S]{0,500}?/gi,"")
