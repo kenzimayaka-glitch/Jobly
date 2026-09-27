@@ -239,7 +239,7 @@ export function JoblyOfferFeed() {
     if (!token || bulkPreparing) return;
     setBulkPreparing(true); setError("");
     try {
-      const prepareRes = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ source: job.source, jobId: job.id, batchId, readinessScoreAtApply: job.matchPercent, locale: "fr" }) });
+      const prepareRes = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ source: job.source, jobId: job.id, batchId, readinessScoreAtApply: job.matchPercent, locale: typeof navigator !== "undefined" && navigator.language.startsWith("en") ? "en" : "fr" }) });
       const preparedBody = await prepareRes.json().catch(() => ({}));
       if (!prepareRes.ok) throw new Error(preparedBody.message || "La candidature n'a pas pu être préparée.");
       const applicationId = preparedBody.application?.id;
