@@ -53,6 +53,8 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      const source = offer.sourceKey === "minajobs" ? "MinaJobs" : offer.sourceKey === "jobinfocamer" ? "JobInfoCamer" : "Infos Concours Education";
+
       const existingByIdentity = await supabase.from("Job")
         .select("id,contentHash,createdAt,aiProcessed,aiProcessedAt")
         .eq("sourceKey", offer.sourceKey)
@@ -77,7 +79,6 @@ export async function POST(request: NextRequest) {
 
       const contact = offer.applicationProfile;
       const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
-      const source = offer.sourceKey === "minajobs" ? "MinaJobs" : offer.sourceKey === "jobinfocamer" ? "JobInfoCamer" : "Infos Concours Education";
       const payload = {
         title: offer.title,
         description: offer.description,
