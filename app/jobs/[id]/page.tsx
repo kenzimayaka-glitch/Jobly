@@ -25,11 +25,50 @@ function JobDetailInner() {
   const company=cleanCompanyName(job.company?.name||job.companyName), emailChannel=Boolean(job.applicationProfile?.applicationEmail||job.applicationProfile?.email), phoneChannel=Boolean(job.applicationProfile?.applicationPhone||job.applicationProfile?.phone||job.applicationProfile?.phoneNumbers?.length), applicationLink=String(job.applicationProfile?.applicationUrl||job.applicationProfile?.applyUrl||job.applicationProfile?.url||"").trim(), contract=job.contractType||job.contract, remote=job.remoteMode==="YES"?"Télétravail":job.remoteMode==="PARTIAL"?"Hybride":job.remoteMode==="NO"?"Présentiel":null;
   const deadline=job.deadline?new Date(job.deadline).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}):null;
   const tags:string[]=Array.isArray(job.tags)?job.tags:[];
+  const formatContract=(value:any)=>{
+    const raw=String(value||"").trim();
+    const key=raw.toUpperCase().replace(/[\s_-]+/g,"_");
+    const labels:Record<string,string>={
+      FULL_TIME:"Temps plein",
+      FULLTIME:"Temps plein",
+      PART_TIME:"Temps partiel",
+      PARTTIME:"Temps partiel",
+      INTERNSHIP:"Stage",
+      INTERNSHIP_CONTRACT:"Stage",
+      FREELANCE:"Freelance",
+      TEMPORARY:"Temporaire",
+      CDD:"CDD",
+      CDI:"CDI",
+      FIXED_TERM:"CDD",
+      PERMANENT:"CDI",
+    };
+    return labels[key]||raw;
+  };
+  const formatSalary=(value:any)=>{
+    const raw=String(value??"").trim();
+    if(!raw)return "";
+    const numeric=Number(raw.replace(/[^0-9.,-]/g,"").replace(/\.(?=\d{3}(?:\D|$))/g,"").replace(",","."));
+    if(!Number.isFinite(numeric))return raw;
+    return new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0}).format(numeric);
+  };
   const cleanDescription=cleanJobDescription(job.description, job.title);
   return <main className="talent-shell relative min-h-[100dvh] bg-[#F7FAFF] pb-28 text-navy"><TalentBackground/><div className="relative z-10"><PageHeader label="Détail de l'offre" onBack={()=>router.replace("/jobs")} theme="talent"/><div className="mx-auto max-w-3xl px-5 py-6"><section className="rounded-[28px] bg-white p-6 shadow-sm"><div className="flex items-start gap-4"><CompanyLogo companyName={company} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={56} /><div className="min-w-0"><h1 className="text-2xl font-black">{job.title}</h1><p className="mt-1 font-bold text-jobly-blue">{company}</p><p className="mt-2 text-xs text-slate-500">{[job.location,contract,remote].filter(Boolean).join(" · ")}</p></div></div>
     <div className="mt-5 flex flex-wrap gap-2">{job.minExperienceYears!=null&&<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{job.minExperienceYears} an{job.minExperienceYears>1?"s":""} min.</span>}{job.sector&&<span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{job.sector}</span>}{deadline&&<span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">Candidatures jusqu'au {deadline}</span>}{tags.map((t)=><span key={t} className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-jobly-blue">{t}</span>)}</div>
-    {(emailChannel||phoneChannel)&&<div className="mt-5 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">{emailChannel?<GmailIcon size={24}/>:<WhatsAppIcon size={24}/>}<div><p className="text-sm font-black text-slate-900">Canal de candidature détecté</p><p className="mt-1 text-sm text-slate-600">{emailChannel?"Adresse mail":"Téléphone / WhatsApp"}</p></div></div>}{cleanDescription&&<div className="mt-7 rounded-2xl border border-slate-100 bg-white p-1"><h2 className="px-3 pt-3 text-lg font-black text-[#0057B8]">Description du poste</h2><div className="mt-3 space-y-5 px-3 pb-3 text-sm leading-7 text-slate-600">{cleanDescription.split(/\n\s*\n/).map((paragraph:string,index:number)=>{const lines=paragraph.split("\n").map(x=>x.trim()).filter(Boolean);const first=lines[0]||"";const heading=/^(description|missions?|responsabilités?|compétences?|profil|qualifications?|exigences?|conditions?|avantages?|formation|expérience|poste|candidature|pour postuler)\s*[:：-]?$/i.test(first);const body=heading?lines.slice(1):lines;return <section key={index}>{heading&&<h3 className="mb-2 text-lg font-black text-[#00A6A6]">{first.replace(/[:：-]+$/,"")}</h3>}{body.map((line:string,lineIndex:number)=>{const bullet=/^[•*-]\s*/.test(line);return <p key={lineIndex} className={bullet?"pl-5 -indent-5":""}>{bullet?"• ":""}{bullet?line.replace(/^[•*-]\s*/,""):line}</p>})}</section>})}</div></div>}
-    {(job.salary||job.salaryMin!=null)&&<p className="mt-5 text-sm font-bold">Rémunération : {job.salary||`${job.salaryMin??""}${job.salaryMax!=null?` – ${job.salaryMax}`:""} ${job.salaryCurrency||"XAF"}`}</p>}
+    {(emailChannel||phoneChannel)&&<div className="mt-5 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">{emailChannel?<GmailIcon size={24}/>:<WhatsAppIcon size={24}/>}<div><p className="text-sm font-black text-slate-900">Canal de candidature détecté</p><p className="mt-1 text-sm text-slate-600">{emailChannel?"Adresse mail":"Téléphone / WhatsApp"}</p></div></div>}
+    <div className="mt-7 space-y-4">
+      {cleanDescription&&<section className="rounded-2xl border border-slate-100 bg-white p-4">
+        <h2 className="text-sm font-black text-[#0057B8]">Description</h2>
+        <div className="mt-3 space-y-2 text-sm leading-7 text-slate-600">{cleanDescription.split(/\n\s*\n/).map((paragraph:string,index:number)=>{const lines=paragraph.split("\n").map(x=>x.trim()).filter(Boolean);const first=lines[0]||"";const heading=/^(description|missions?|responsabilités?|compétences?|profil|qualifications?|exigences?|conditions?|avantages?|formation|expérience|poste|candidature|pour postuler)\s*[:：-]?$/i.test(first);const body=heading?lines.slice(1):lines;return <div key={index} className="space-y-1">{heading&&<h3 className="font-black text-[#00A6A6]">{first.replace(/[:：-]+$/,"")}</h3>}{body.map((line:string,lineIndex:number)=>{const bullet=/^[•*-]\s*/.test(line);return <p key={lineIndex} className={bullet?"pl-5 -indent-5":""}>{bullet?"• ":""}{bullet?line.replace(/^[•*-]\s*/,""):line}</p>})}</div>})}</div>
+      </section>}
+      {((job.salary||job.salaryMin!=null))&&<section className="rounded-2xl border border-slate-100 bg-white p-4">
+        <h2 className="text-sm font-black text-[#0057B8]">Salaire</h2>
+        <p className="mt-2 text-sm font-semibold text-slate-600">{job.salary?formatSalary(job.salary):`${formatSalary(job.salaryMin)}${job.salaryMax!=null?` – ${formatSalary(job.salaryMax)}`:""}`} {job.salaryCurrency||"XAF"}</p>
+      </section>}
+      {contract&&<section className="rounded-2xl border border-slate-100 bg-white p-4">
+        <h2 className="text-sm font-black text-[#0057B8]">Contrat</h2>
+        <p className="mt-2 text-sm font-semibold text-slate-600">{formatContract(contract)}</p>
+      </section>}
+    </div>
     {job.company?.description&&<div className="mt-7 rounded-2xl bg-slate-50 p-4"><h2 className="text-sm font-black">À propos de {company}</h2><p className="mt-2 text-sm leading-6 text-slate-600">{job.company.description}</p>{job.company?.website&&<a href={job.company.website.startsWith("http")?job.company.website:`https://${job.company.website}`} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-bold text-jobly-blue underline">Site de l'entreprise</a>}</div>}
     {applicationLink && <a href={applicationLink} target="_blank" rel="noreferrer" className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl border border-jobly-blue bg-white py-3.5 text-sm font-black text-jobly-blue"><ExternalLink size={17}/>Voir la plateforme de candidature</a>}
     <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(params.id) + "&source=" + encodeURIComponent(source || ""))} className="mt-3 w-full rounded-2xl border border-[#FFE135] bg-[#FFFBE0] py-3.5 text-sm font-black text-[#2E3F4F]">Adapter votre CV pour cette candidature</button>
