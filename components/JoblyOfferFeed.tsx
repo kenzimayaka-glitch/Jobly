@@ -273,17 +273,33 @@ export function JoblyOfferFeed() {
     finally { setBulkPreparing(false); }
   }
 
+  function applicationEmail(job: Job) {
+    return String(job.applicationProfile?.applicationEmail || job.applicationProfile?.email || "").trim();
+  }
+  function applicationPhone(job: Job) {
+    return String(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.[0] || "").trim();
+  }
+  async function applyViaWhatsApp(job: Job) {
+    const raw = applicationPhone(job);
+    const digits = raw.replace(/\D/g, "");
+    const phone = digits.startsWith("237") ? digits : digits.length === 9 ? "237" + digits : "";
+    if (!phone) { router.push(`/jobs/${job.id}?source=${job.source}`); return; }
+    if (!token) { setError("Votre session Jobly a expiré. Reconnectez-vous pour postuler."); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+    try {
+      const res = await fetch("/api/cv-share", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ source: job.source, jobId: job.id }) });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || "Impossible de préparer la candidature WhatsApp.");
+      const company = cleanCompanyName(job.company?.name);
+      const message = `Bonjour, je suis ${body.candidateName}. Je souhaite vous soumettre ma candidature au poste de ${job.title}${company !== "Aucune donnée" ? ` chez ${company}` : ""}.\n\n📄 CV ${body.candidateName} — Candidature ${company !== "Aucune donnée" ? company : job.title}\n${window.location.origin}/cv/share/${body.token}`;
+      window.open("https://wa.me/" + phone + "?text=" + encodeURIComponent(message), "_blank", "noopener,noreferrer");
+    } catch (e) { setError(e instanceof Error ? e.message : "Impossible de préparer la candidature WhatsApp."); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  }
   async function apply(job: Job) {
-    const applicationLink = String(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl || job.applicationProfile?.url || job.applicationProfile?.sourceUrl || job.sourceUrl || "").trim();
-    if (applicationLink) {
-      window.open(applicationLink, "_blank", "noopener,noreferrer");
-      return;
-    }
-    if (!token) {
-      setError("Votre session Jobly a expiré. Reconnectez-vous pour postuler.");
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
+    const email = applicationEmail(job);
+    const phone = applicationPhone(job);
+    if (!email && !phone) { router.push(`/jobs/${job.id}?source=${job.source}`); return; }
+    if (phone && !email) { await applyViaWhatsApp(job); return; }
+    if (!token) { setError("Votre session Jobly a expiré. Reconnectez-vous pour postuler."); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
     const key = `${job.source}:${job.id}`;
     if (applied.has(key) || applicationReadyKeys.has(key) || submitting.has(key) || bulkPreparing) return;
     await prepareSingleApplication(job);
@@ -442,9 +458,9 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         setShowBackToTop(false);
         return;
       }
-      const twentiethOffer = document.querySelector<HTMLElement>('[data-offer-index="20"]');
-      if (!twentiethOffer) return;
-      setShowBackToTop(twentiethOffer.getBoundingClientRect().top <= window.innerHeight * 0.82);
+      const thirtiethOffer = document.querySelector<HTMLElement>('[data-offer-index="30"]');
+      if (!thirtiethOffer) return;
+      setShowBackToTop(thirtiethOffer.getBoundingClientRect().top <= window.innerHeight * 0.82);
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
