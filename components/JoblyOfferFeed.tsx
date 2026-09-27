@@ -8,6 +8,7 @@ import { getSupabaseClient } from "@/lib/supabase";
 import { companyAvatar } from "@/lib/avatar";
 import CompanyLogo from "@/components/CompanyLogo";
 import BottomNav, { TALENT_NAV } from "@/components/BottomNav";
+import { cleanCompanyName, cleanJobTitle } from "@/lib/jobContent";
 
 type CompanyWebProfile = {
   name: string;
@@ -48,44 +49,6 @@ type Job = {
   matchBreakdown?: Array<{ id: string; label: string; score: number | null; weight: number; required: boolean; status: "MATCH"|"PARTIAL"|"MISMATCH"|"UNKNOWN"; candidateValue?: string | null; expectedValue?: string | null }>;
 };
 
-
-function cleanCompanyName(value: unknown): string {
-  if (typeof value !== "string") return "Aucune donnée";
-  let raw = value.trim();
-  if (!raw) return "Aucune donnée";
-  try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed === "string") raw = parsed.trim();
-    else if (parsed && typeof parsed === "object") {
-      const record = parsed as Record<string, unknown>;
-      const keys = ["name", "companyName", "displayName", "legalName"];
-      for (const key of keys) {
-        if (typeof record[key] === "string" && String(record[key]).trim()) {
-          raw = String(record[key]).trim();
-          break;
-        }
-      }
-    }
-  } catch {}
-  const lower = raw.toLowerCase();
-  const markers = ["name:", "companyname:", "displayname:", "legalname:"];
-  for (const marker of markers) {
-    const index = lower.indexOf(marker);
-    if (index >= 0) {
-      const tail = raw.slice(index + marker.length).trim();
-      const cleaned = tail.replace(/^[ "'']+|[ "'',}]+$/g, "").trim();
-      if (cleaned) {
-        raw = cleaned;
-        break;
-      }
-    }
-  }
-  raw = raw.replace(/^[ "'']+|[ "'']+$/g, "").trim();
-  if (!raw || raw.startsWith("{") || raw.startsWith("[") || lower.startsWith("const ") || lower.startsWith("let ") || lower.startsWith("var ")) {
-    return "Aucune donnée";
-  }
-  return raw.length > 80 ? raw.slice(0, 77) + "..." : raw;
-}
 
 function formatDate(value: string | null) { if (!value) return "Aucune donnée"; return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)); }
 function GmailIcon({size=18}:{size?:number}) { return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"><path d="M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5v13A2.5 2.5 0 0 1 18.5 21H5.5A2.5 2.5 0 0 1 3 18.5v-13Z" fill="white"/><path d="M4.5 6.2 12 12l7.5-5.8V18a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1V6.2Z" fill="#EA4335"/><path d="M4.5 6.2 12 12l7.5-5.8-1.1-1.6L12 9.4 5.6 4.6 4.5 6.2Z" fill="#4285F4"/><path d="M4.5 6.2V18c0 .55.45 1 1 1h2V8.12L4.5 6.2Z" fill="#34A853"/><path d="M19.5 6.2V18c0 .55-.45 1-1 1h-2V8.12l3-1.92Z" fill="#FBBC04"/></svg>; }
@@ -257,6 +220,14 @@ export function JoblyOfferFeed() {
     });
   }, []);
 
+  function openEmail(job: Job) {
+    const email = applicationEmail(job);
+    if (!email) return;
+    const subject = encodeURIComponent(`Candidature — ${cleanJobTitle(job.title)}`);
+    const body = encodeURIComponent(`Bonjour,\n\nJe souhaite vous soumettre ma candidature au poste de ${cleanJobTitle(job.title)}.${job.company?.name ? `\n\nEntreprise : ${cleanCompanyName(job.company.name) || ""}` : ""}\n\nOffre Jobly : ${window.location.origin}/jobs/${job.id}?source=${job.source}\n\nCordialement.`);
+    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${subject}&body=${body}`, "_blank", "noopener,noreferrer");
+  }
+
   async function prepareSingleApplication(job: Job) {
     if (!token || bulkPreparing) return;
     setBulkPreparing(true); setError("");
@@ -299,13 +270,9 @@ export function JoblyOfferFeed() {
   async function apply(job: Job) {
     const email = applicationEmail(job);
     const phone = applicationPhone(job);
-    if (!email && !phone) { router.push(`/jobs/${job.id}?source=${job.source}`); return; }
     if (phone && !email) { await applyViaWhatsApp(job); return; }
-    if (!token) { setError("Votre session Jobly a expiré. Reconnectez-vous pour postuler."); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
-    const key = `${job.source}:${job.id}`;
-    if (applied.has(key) || applicationReadyKeys.has(key) || submitting.has(key) || bulkPreparing) return;
-    await prepareSingleApplication(job);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (email) { openEmail(job); return; }
+    router.push(`/jobs/${job.id}?source=${job.source}`);
   }
 
   async function prepareBulkApplications() {
@@ -456,22 +423,16 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
 
   useEffect(() => {
     const onScroll = () => {
-      if (window.scrollY < 320) {
-        setShowBackToTop(false);
-        return;
-      }
-      const thirtiethOffer = document.querySelector<HTMLElement>('[data-offer-index="30"]');
-      if (!thirtiethOffer) return;
-      setShowBackToTop(thirtiethOffer.getBoundingClientRect().top <= window.innerHeight * 0.82);
+      const thirtiethOffer = document.querySelector<HTMLElement>('[data-offer-number="30"]');
+      if (!thirtiethOffer) { setShowBackToTop(false); return; }
+      const rect = thirtiethOffer.getBoundingClientRect();
+      setShowBackToTop(window.scrollY > 200 && rect.top <= window.innerHeight * 0.9);
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, [jobs.length, filteredJobs.length]);
+    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); };
+  }, [filteredJobs.length, featured.length]);
 
   useEffect(() => {
     const updateVerticalFocus = () => {
@@ -633,7 +594,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         </div>
       )}
 
-      <div className="mx-auto mt-10 grid w-full min-w-0 max-w-full grid-cols-1 gap-3 md:grid-cols-2">{rest.map((job, index) => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const ready = applicationReadyKeys.has(key); const busy = submitting.has(key); const selected = basket.has(key); const emailChannel = Boolean(job.applicationProfile?.applicationEmail || job.applicationProfile?.email); const phoneChannel = Boolean(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.length); const focused = focusedOfferKey === key; return <article key={key} data-offer-index={index + 7} data-offer-key={key} style={{ touchAction: "pan-y" }} className={`group min-w-0 max-w-full transform-gpu transition-[transform,box-shadow] duration-300 ease-out will-change-transform ${focused ? "relative z-10 -translate-y-3 shadow-[0_18px_44px_rgba(255,225,53,.48)] md:-translate-y-2" : "relative z-0 translate-y-0 shadow-[0_10px_32px_rgba(23,33,43,.07)]"} ${selected ? "rounded-[24px] border-2 border-[#FFE135] bg-white p-3 opacity-90" : "rounded-[24px] border border-white/10 bg-white p-3 opacity-90"}`}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={cleanCompanyName(job.company?.name)} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} domain={job.company?.domain} website={job.company?.website} size={50}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{cleanCompanyName(job.company?.name) || "Aucune donnée"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[job.location, job.contractType].filter(Boolean).join(" · ") || "Aucune donnée"}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)}</p></div><button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="rounded-xl px-1 text-right transition hover:bg-[#FFFBE0] focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-xl font-black text-[#FFE135]">{job.matchPercent}%</strong><span className="text-[8px] font-black text-[#FFE135]">Mon score</span></button></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} disabled={done || ready} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBasket size={16}/>}</button><button type="button" onClick={() => void apply(job)} disabled={done || ready || busy} className="flex min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full bg-[#FFE135] px-2.5 py-2.5 text-xs font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B]">{done ? "Candidature envoyée" : ready ? "Candidature prête" : busy ? "Préparation…" : <>{emailChannel ? <GmailIcon size={16}/> : phoneChannel ? <WhatsAppIcon size={16}/> : <Send size={15}/>}<span>Postuler</span></>}</button><button onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label={`En savoir plus sur ${cleanCompanyName(job.company?.name) || "l’entreprise"}`} title="En savoir +" className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#00A6E8] px-3.5 py-2.5 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,166,232,.18)] transition hover:bg-[#008FC8] active:scale-[.98]">En savoir +</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#7C3AED]/25 bg-[#F3E8FF] px-3 py-2.5 text-xs font-black text-[#6D28D9]"><span>Voir l’offre</span><ArrowUpRight size={14}/></button></div></article>; })}</div>
+      <div className="mx-auto mt-10 grid w-full min-w-0 max-w-full grid-cols-1 gap-3 md:grid-cols-2">{rest.map((job, index) => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const ready = applicationReadyKeys.has(key); const busy = submitting.has(key); const selected = basket.has(key); const emailChannel = Boolean(job.applicationProfile?.applicationEmail || job.applicationProfile?.email); const phoneChannel = Boolean(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.length); const focused = focusedOfferKey === key; return <article key={key} data-offer-index={index + featured.length + 1} data-offer-number={index + featured.length + 1} data-offer-key={key} style={{ touchAction: "pan-y" }} className={`group min-w-0 max-w-full transform-gpu transition-[transform,box-shadow] duration-300 ease-out will-change-transform ${focused ? "relative z-10 -translate-y-3 shadow-[0_18px_44px_rgba(255,225,53,.48)] md:-translate-y-2" : "relative z-0 translate-y-0 shadow-[0_10px_32px_rgba(23,33,43,.07)]"} ${selected ? "rounded-[24px] border-2 border-[#FFE135] bg-white p-3 opacity-90" : "rounded-[24px] border border-white/10 bg-white p-3 opacity-90"}`}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={cleanCompanyName(job.company?.name)} logoUrl={job.company?.logoUrl || (job.visualSource === "COMPANY_LOGO" ? job.visualUrl : null)} domain={job.company?.domain} website={job.company?.website} size={50}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{cleanCompanyName(job.company?.name) || "Aucune donnée"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[job.location, job.contractType].filter(Boolean).join(" · ") || "Aucune donnée"}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)}</p></div><button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="rounded-xl px-1 text-right transition hover:bg-[#FFFBE0] focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-xl font-black text-[#FFE135]">{job.matchPercent}%</strong><span className="text-[8px] font-black text-[#FFE135]">Mon score</span></button></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} disabled={done || ready} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBasket size={16}/>}</button><button type="button" onClick={() => void apply(job)} disabled={done || ready || busy} className="flex min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full bg-[#FFE135] px-2.5 py-2.5 text-xs font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B]">{done ? "Candidature envoyée" : ready ? "Candidature prête" : busy ? "Préparation…" : <>{emailChannel ? <GmailIcon size={16}/> : phoneChannel ? <WhatsAppIcon size={16}/> : <Send size={15}/>}<span>Postuler</span></>}</button><button onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label={`En savoir plus sur ${cleanCompanyName(job.company?.name) || "l’entreprise"}`} title="En savoir +" className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#00A6E8] px-3.5 py-2.5 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,166,232,.18)] transition hover:bg-[#008FC8] active:scale-[.98]">En savoir +</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#7C3AED]/25 bg-[#F3E8FF] px-3 py-2.5 text-xs font-black text-[#6D28D9]"><span>Voir l’offre</span><ArrowUpRight size={14}/></button></div></article>; })}</div>
     </section>
 
     {basketJobs.length > 0 && (
