@@ -60,7 +60,7 @@ function htmlToCleanText(html: string): string {
 function metaContent(html: string, key: string): string | null {
   const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const re = new RegExp(
-    "<meta\\b[^>]+(?:property|name)=['\\"]" + escaped + "['\\"][^>]+content=['\\"]([^'\\"]+)['\\"][^>]*>|<meta\\b[^>]+content=['\\"]([^'\\"]+)['\\"][^>]+(?:property|name)=['\\"]" + escaped + "['\\"][^>]*>",
+    `<meta\\\\b[^>]+(?:property|name)=['"]${escaped}['"][^>]+content=['"]([^'"]+)['"][^>]*>|<meta\\\\b[^>]+content=['"]([^'"]+)['"][^>]+(?:property|name)=['"]${escaped}['"][^>]*>`,
     "i"
   );
   const match = html.match(re);
