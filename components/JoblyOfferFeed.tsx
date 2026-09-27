@@ -423,38 +423,35 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
   }, [featured.length, updateTopMatchArrows]);
 
   useEffect(() => {
-    let previousScrollY = window.scrollY;
-
-    const onScroll = () => {
-      const twentyNinthOffer = document.querySelector<HTMLElement>('[data-offer-number="29"]');
-      const thirtiethOffer = document.querySelector<HTMLElement>('[data-offer-number="30"]');
-      const currentScrollY = window.scrollY;
-      const scrollingUp = currentScrollY < previousScrollY;
-
-      if (thirtiethOffer) {
-        const thirtiethRect = thirtiethOffer.getBoundingClientRect();
-        const reached30 = thirtiethRect.top <= window.innerHeight * 0.8;
-
-        // La flèche apparaît dès que la 30e offre entre réellement dans la zone de lecture.
-        if (reached30) setShowBackToTop(true);
-      }
-
-      if (scrollingUp && twentyNinthOffer) {
-        const twentyNinthRect = twentyNinthOffer.getBoundingClientRect();
-        // En remontant, on la masque seulement après être repassé au-dessus de la 29e.
-        const passedAbove29 = twentyNinthRect.top > window.innerHeight * 0.8;
-        if (passedAbove29) setShowBackToTop(false);
-      }
-
-      previousScrollY = currentScrollY;
+    let frame = 0;
+    const updateBackToTop = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        const cards = Array.from(document.querySelectorAll<HTMLElement>("[data-offer-number]"));
+        const thirtiethOffer = cards.find(card => card.dataset.offerNumber === "30");
+        const twentyNinthOffer = cards.find(card => card.dataset.offerNumber === "29");
+        if (!thirtiethOffer) {
+          setShowBackToTop(false);
+          return;
+        }
+        const pageY = window.scrollY;
+        const thirtiethTop = thirtiethOffer.getBoundingClientRect().top + pageY;
+        const showThreshold = Math.max(0, thirtiethTop - window.innerHeight * 0.2);
+        const hideThreshold = twentyNinthOffer
+          ? Math.max(0, twentyNinthOffer.getBoundingClientRect().top + pageY - window.innerHeight * 0.2)
+          : 0;
+        if (pageY >= showThreshold) setShowBackToTop(true);
+        else if (pageY < hideThreshold) setShowBackToTop(false);
+      });
     };
-
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    updateBackToTop();
+    window.addEventListener("scroll", updateBackToTop, { passive: true });
+    window.addEventListener("resize", updateBackToTop);
     return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("scroll", updateBackToTop);
+      window.removeEventListener("resize", updateBackToTop);
+      if (frame) window.cancelAnimationFrame(frame);
     };
   }, [filteredJobs.length, featured.length]);
 
@@ -551,7 +548,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     </main>
   );
 
-  return <main className="min-h-[100dvh] w-full overflow-x-clip bg-[#F5F7F8] pb-28 text-[#17212B]">
+  return <main className="min-h-[100dvh] w-full bg-[#F5F7F8] pb-28 text-[#17212B]">
     <section className="relative mx-auto max-w-6xl px-5 pb-8 pt-7 sm:px-8">
       <motion.div className="absolute -right-20 top-0 h-72 w-72 rounded-full bg-[#7A9BB5]/30 blur-3xl" animate={{ x: [0, -30, 0], y: [0, 25, 0], scale: [1, 1.1, 1] }} transition={{ duration: 12, repeat: Infinity }} />
       <div className="relative z-10 flex items-end justify-between gap-4"><div><h1 className="mt-2 text-4xl font-black leading-[.95] tracking-[-.045em] text-[#0057B8] sm:text-6xl">Offres</h1><p className="mt-3 max-w-xl text-base font-black text-[#FFE135] font-black">J’IA se charge de tout</p></div><button type="button" onClick={() => load(true)} aria-label="Actualiser les offres d’emploi" title="Actualiser les offres d’emploi" className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[#FFE135] px-4 text-sm font-black text-[#2E3F4F] shadow-[0_8px_24px_rgba(255,225,53,.28)] transition hover:scale-[1.02] active:scale-[.98] disabled:opacity-60" disabled={refreshing}><RefreshCw size={18} className={refreshing ? "animate-spin" : ""}/><span>{refreshing ? "Actualisation…" : "Actualiser les offres"}</span></button></div>
@@ -592,7 +589,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                   <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden rounded-[18px] bg-[#EEF2F6]">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,225,53,.28),transparent_38%),radial-gradient(circle_at_80%_80%,rgba(46,63,79,.18),transparent_42%)]"/>
                     <div className="pointer-events-none absolute inset-0 z-[1] flex min-w-0 items-center justify-center overflow-hidden px-4">
-                      <div className="flex h-full w-full min-w-0 items-center justify-center opacity-[0.24] blur-[0.2px]">
+                      <div className="flex h-full w-full min-w-0 items-center justify-center opacity-[0.26]">
                         <div className="flex h-[72%] w-[72%] max-w-[120px] min-w-0 items-center justify-center">
                           <CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} logoUrl={job.company?.logoUrl} size={120}/>
                         </div>
@@ -614,9 +611,14 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                       <button onClick={() => void apply(job)} disabled={done || ready || busy} className="flex h-12 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full bg-[#FFE135] px-3 text-sm font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B]">
                         {done ? <><Check size={17} className="mr-2"/>Candidature envoyée</> : ready ? "Candidature prête" : busy ? <><RefreshCw size={17} className="mr-2 animate-spin"/>Envoi en cours…</> : <>{emailChannel ? <GmailIcon size={18}/> : phoneChannel ? <WhatsAppIcon size={18}/> : <Send size={17}/>}<span>Postuler</span></>}
                       </button>
-                      <button onClick={() => toggleBasket(job)} aria-label={basket.has(key) ? "Retirer du panier" : "Ajouter au panier"} className={basket.has(key) ? "grid h-12 w-12 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid h-12 w-12 place-items-center rounded-full border border-[#22448B]/25 bg-[#EEF4FF] text-[#22448B]"}>{basket.has(key) ? <CheckSquare size={18}/> : <ShoppingBasket size={18}/>}</button>
                       <button type="button" onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label="En savoir plus sur l’entreprise" title="En savoir +" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-full bg-[#00A6E8] px-4 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,166,232,.22)] transition hover:bg-[#008FC8] active:scale-[.98]">En savoir +</button>
                       <button type="button" onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} aria-label="Voir l'offre" title="Voir l’offre" className="inline-flex h-12 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200 bg-white px-3 text-xs font-black text-[#B59A00] transition hover:border-[#B59A00]/40 hover:bg-[#FFFBE0]"><span>Voir l’offre</span><ArrowUpRight size={17}/></button>
+                    </div>
+                    <div className="mt-2 flex justify-end">
+                      <button onClick={() => toggleBasket(job)} aria-label={basket.has(key) ? "Retirer du panier" : "Ajouter au panier"} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-[10px] font-black text-[#22448B] transition hover:border-[#FFE135] hover:bg-[#FFFBE0]">
+                        {basket.has(key) ? <CheckSquare size={15}/> : <ShoppingBasket size={15}/>}
+                        {basket.has(key) ? "Retirer du panier" : "Ajouter au panier"}
+                      </button>
                     </div>
                   </div>
                 </article>
@@ -749,7 +751,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     }}
         aria-label="Remonter en haut des offres"
         title="Remonter au début des offres"
-        className="fixed bottom-24 right-5 z-[999] grid h-12 w-12 place-items-center rounded-full border border-white/70 bg-white/20 text-[#FFE135] shadow-[0_10px_30px_rgba(255,225,53,.45)] backdrop-blur-xl transition hover:bg-white/35 hover:shadow-[0_14px_36px_rgba(255,225,53,.55)] active:scale-95 sm:bottom-8 sm:right-8"
+        className="fixed bottom-24 right-5 z-[9999] grid h-12 w-12 place-items-center rounded-full border border-white/70 bg-[#2E3F4F]/90 text-[#FFE135] shadow-[0_10px_30px_rgba(255,225,53,.45)] backdrop-blur-xl transition hover:bg-[#2E3F4F] hover:shadow-[0_14px_36px_rgba(255,225,53,.55)] active:scale-95 sm:bottom-8 sm:right-8"
       >
         <span className="absolute inset-1 rounded-full border border-white/30" />
         <span className="relative text-xl font-black leading-none">↑</span>
