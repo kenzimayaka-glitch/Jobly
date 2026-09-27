@@ -190,7 +190,7 @@ export async function GET(request:NextRequest){
     const contact=resolveApplicationContact(job.applicationProfile,job.description);
     return {
       ...job,
-      applicationReady:Boolean(contact.email||contact.phone),
+      applicationReady:Boolean(contact.email||contact.phone||job.applicationProfile?.applicationUrl||job.applicationProfile?.applyUrl||job.applicationProfile?.url),
       applicationProfile:{
         ...job.applicationProfile,
         ...(contact.email?{applicationEmail:contact.email}:{}),
