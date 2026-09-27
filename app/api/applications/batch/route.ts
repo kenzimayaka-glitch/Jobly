@@ -59,3 +59,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible de créer le lot de candidatures." }, { status: 500 });
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+    const supabase = adminClient();
+    const user = await ensureUser(supabase, authUser);
+    const body = await request.json().catch(() => ({}));
+    const batchId = typeof body.batchId === "string" ? body.batchId : "";
+    const status = typeof body.status === "string" ? body.status : "";
+    if (!batchId || !["READY_FOR_REVIEW","SENDING","COMPLETED","PARTIAL_FAILURE"].includes(status)) {
+      return NextResponse.json({ message: "Mise à jour du lot invalide." }, { status: 400 });
+    }
+    const { data, error } = await supabase.from("ApplicationBatch").update({ status }).eq("id", batchId).eq("userId", user.id).select("id,status,itemCount").maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) return NextResponse.json({ message: "Lot introuvable." }, { status: 404 });
+    return NextResponse.json({ batch: data });
+  } catch (error) {
+    return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible de mettre à jour le lot." }, { status: 500 });
+  }
+}
