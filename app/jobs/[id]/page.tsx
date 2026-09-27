@@ -57,15 +57,15 @@ function JobDetailInner() {
     {(emailChannel||phoneChannel)&&<div className="mt-5 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">{emailChannel?<GmailIcon size={24}/>:<WhatsAppIcon size={24}/>}<div><p className="text-sm font-black text-slate-900">Canal de candidature détecté</p><p className="mt-1 text-sm text-slate-600">{emailChannel?"Adresse mail":"Téléphone / WhatsApp"}</p></div></div>}
     <div className="mt-7 space-y-4">
       {cleanDescription&&<section className="rounded-2xl border border-slate-100 bg-white p-4">
-        <h2 className="text-lg font-black text-[#0057B8]">Description</h2>
+        <h2 className="text-lg font-black text-[#FFD60A]">Description</h2>
         <div className="mt-3 space-y-2 text-sm leading-7 text-slate-600">{cleanDescription.split(/\n\s*\n/).map((paragraph:string,index:number)=>{const lines=paragraph.split("\n").map(x=>x.trim()).filter(Boolean);const first=lines[0]||"";const heading=/^(description|missions?|responsabilités?|compétences?|profil|qualifications?|exigences?|conditions?|avantages?|formation|expérience|poste|candidature|pour postuler)\s*[:：-]?$/i.test(first);const body=heading?lines.slice(1):lines;return <div key={index} className="space-y-1">{heading&&<h3 className="font-black text-[#00A6A6]">{first.replace(/[:：-]+$/,"")}</h3>}{body.map((line:string,lineIndex:number)=>{const bullet=/^[•*-]\s*/.test(line);return <p key={lineIndex} className={bullet?"pl-5 -indent-5":""}>{bullet?"• ":""}{bullet?line.replace(/^[•*-]\s*/,""):line}</p>})}</div>})}</div>
       </section>}
       {((job.salary||job.salaryMin!=null))&&<section className="rounded-2xl border border-slate-100 bg-white p-4">
-        <h2 className="text-lg font-black text-[#0057B8]">Salaire</h2>
+        <h2 className="text-lg font-black text-[#FFD60A]">Salaire</h2>
         <p className="mt-2 text-sm font-semibold text-slate-600">{job.salary?formatSalary(job.salary):`${formatSalary(job.salaryMin)}${job.salaryMax!=null?` – ${formatSalary(job.salaryMax)}`:""}`} {job.salaryCurrency||"XAF"}</p>
       </section>}
       {contract&&<section className="rounded-2xl border border-slate-100 bg-white p-4">
-        <h2 className="text-lg font-black text-[#0057B8]">Contrat</h2>
+        <h2 className="text-lg font-black text-[#FFD60A]">Contrat</h2>
         <p className="mt-2 text-sm font-semibold text-slate-600">{formatContract(contract)}</p>
       </section>}
     </div>
