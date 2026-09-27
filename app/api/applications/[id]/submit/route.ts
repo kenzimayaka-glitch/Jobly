@@ -121,6 +121,36 @@ async function sendGmail(
   return { messageId: String(json.id), threadId: value(json.threadId) };
 }
 
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+    const supabase = adminClient();
+    const user = await ensureUser(supabase, authUser);
+    const { id } = await params;
+    const { data: application, error } = await supabase.from("Application").select("id,status,letterText,tailoredCvText,jobId,recruiterJobId,sourceType").eq("id", id).eq("userId", user.id).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!application) return NextResponse.json({ message: "Candidature introuvable." }, { status: 404 });
+    const targetId = application.jobId || application.recruiterJobId;
+    if (!targetId) return NextResponse.json({ message: "Offre liée introuvable." }, { status: 404 });
+    const table = application.jobId ? "Job" : "RecruiterJob";
+    const { data: offer, error: offerError } = await supabase.from(table).select("*").eq("id", targetId).maybeSingle();
+    if (offerError) throw new Error(offerError.message);
+    if (!offer) return NextResponse.json({ message: "L'offre n'est plus disponible." }, { status: 404 });
+    const profile = (offer.applicationProfile && typeof offer.applicationProfile === "object" ? offer.applicationProfile : {}) as Record<string, unknown>;
+    const recipient = profileValue(profile, ["applicationEmail", "email", "recipientEmail", "recipient"]);
+    const company = application.jobId && offer.companyId ? ((await supabase.from("Company").select("name").eq("id", offer.companyId).maybeSingle()).data?.name || "l'entreprise") : (offer.companyName || "l'entreprise");
+    return NextResponse.json({
+      application: { id: application.id, status: application.status, letterText: application.letterText, tailoredCvText: application.tailoredCvText },
+      job: { title: offer.title, company, location: offer.location || null },
+      channel: String(application.sourceType || "EMAIL"),
+      recipient,
+    });
+  } catch (error) {
+    return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible de charger la candidature." }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   let supabase: ReturnType<typeof adminClient> | null = null;
   let applicationId: string | null = null;

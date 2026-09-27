@@ -272,7 +272,7 @@ export function JoblyOfferFeed() {
     const email = applicationEmail(job);
     const phone = applicationPhone(job);
     if (phone && !email) { await applyViaWhatsApp(job); return; }
-    if (email) { openEmail(job); return; }
+    if (email) { await prepareSingleApplication(job); return; }
     router.push(`/jobs/${job.id}?source=${job.source}`);
   }
 
