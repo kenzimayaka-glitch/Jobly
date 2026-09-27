@@ -13,6 +13,9 @@ type Job = Record<string, any>;
 function cleanOfferDescription(value: unknown): string {
   if (value == null) return "";
   let text = String(value)
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/(?:window\.)?(?:dataLayer|a2a_config|gtag)\s*=\s*[\s\S]*?(?=(?:Advance IT Group|[A-ZÀ-Ý][^\n]{2,80}\s+recrute)|$)/gi, "")
     .replace(/<br\s*\/?>(?=.)/gi, "\n")
     .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
     .replace(/<li[^>]*>/gi, "• ")

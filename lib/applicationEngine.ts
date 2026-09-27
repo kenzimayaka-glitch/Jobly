@@ -48,7 +48,6 @@ export async function prepareApplication(req: NextRequest, args: {
   skipAi?: boolean;
 }) {
   const channel = resolveApplicationChannel(args.applicationProfile);
-  if (channel.channel === "UNSUPPORTED") throw new Error(channel.reason);
   const definition = getChannelDefinition(channel.channel);
   const ai = args.skipAi ? { ok: true as const, output: {}, message: "" } : await runAiGateway(req, "APPLICATION_COPILOT", { jobTitle: args.jobTitle, jobDescription: args.jobDescription });
   if (!ai.ok) throw new Error(ai.message);
