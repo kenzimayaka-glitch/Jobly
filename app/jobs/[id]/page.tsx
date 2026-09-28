@@ -67,6 +67,13 @@ function JobDetailInner() {
     </div>;
   };
 
+  const renderLines = (items:string[], emptyFallback?:string) => {
+    if (!items.length) return emptyFallback ? <p className="text-sm leading-7 text-slate-500">{emptyFallback}</p> : null;
+    return <div className="space-y-3 text-[15px] leading-7 text-slate-600">
+      {items.map((line:string,index:number) => <p key={index}>{cleanDisplayLine(line)}</p>)}
+    </div>;
+  };
+
   const renderBullets = (items:string[], emptyFallback?:string) => {
     if (!items.length) return emptyFallback ? <p className="text-sm leading-7 text-slate-500">{emptyFallback}</p> : null;
     return <ul className="space-y-3 text-[15px] leading-7 text-slate-600">
