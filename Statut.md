@@ -3727,3 +3727,25 @@ Le détail doit rester cohérent avec le Design System Jobly :
 Cette décision concerne d'abord la **présentation du détail d'offre**. Elle n'est pas déclarée CODÉE, TESTÉE, VALIDÉE ou DÉPLOYÉE tant que l'UI réelle, les contenus provenant des différentes sources, le responsive mobile et le parcours « Voir l'offre → Postuler » n'ont pas été vérifiés.
 
 **Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+
+# CHECKPOINT 28/09/2026 — IDENTITÉ VISUELLE JOBLY — ASSETS OFFICIELS FOURNIS
+
+## Décision figée
+Les trois fichiers fournis dans **Logo 1.zip** constituent la référence officielle :
+- `IMG-20260928-WA6821.jpg` — variante logo/wordmark ;
+- `IMG-20260928-WA1495.jpg` — variante logo/wordmark ;
+- `IMG-20260928-WA9815.jpg` — icône de l'application.
+
+## Règle d'intégration
+- Remplacer les anciens assets/logo Jobly par ces assets officiels.
+- `public/jobly-logo-reference.jpg` est l'ancien asset actuellement référencé par `components/JoblyLogo.tsx` et doit être remplacé lors de l'intégration effective.
+- L'icône officielle doit devenir la référence de l'icône applicative/PWA lorsque les métadonnées concernées sont présentes.
+- Ne pas recréer, redessiner ou substituer le logo avec un autre visuel.
+
+## État de vérité
+**🟨 REÇU / IDENTIFIÉ — INTÉGRATION GITHUB EN ATTENTE DU BINAIRE ACCESSIBLE.**
+
+Le dépôt GitHub est accessible en écriture et l'ancien asset a été identifié. Au moment de cette passe, le ZIP original n'est plus monté dans l'espace d'exécution permettant de transmettre ses octets à GitHub ; aucune fausse substitution n'est donc effectuée.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
