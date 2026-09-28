@@ -10,12 +10,13 @@ create index if not exists "Job_opportunityType_isActive_idx"
 
 update public."Job"
 set "opportunityType" = case
-  when lower(coalesce("title",'') || ' ' || coalesce("description",'')) ~ '\m(concours|admission|examen d.?entree|test d.?entree|entree en|recrutement sur concours|concours de recrutement)\M'
+  when lower(coalesce("title",'') || ' ' || coalesce("description",'')) ~ '(\mconcours\M|\madmission\M|examen d.?entree|test d.?entree|recrutement sur concours|concours de recrutement)'
+       and lower(coalesce("title",'')) ~ '(\mconcours\M|\madmission\M|\mexamen\M|test d.?entree|recrutement sur concours)'
     then 'CONCOURS'
-  when lower(coalesce("title",'') || ' ' || coalesce("description",'')) ~ '\m(formation|formez vous|certification|certificat|masterclass|atelier|webinaire|cours|apprentissage|bootcamp|bourse d.?etude|programme de formation)\M'
+  when lower(coalesce("title",'')) ~ '(\mformation\M|certification|masterclass|bootcamp|\mcours\M|bourse .*\mformation\M|programme de \mformation\M|atelier de \mformation\M|webinaire de \mformation\M)'
     then 'FORMATION'
-  when lower(coalesce("title",'') || ' ' || coalesce("description",'')) ~ '\m(recrutement|appel a candidature|appel aux candidatures|campagne de recrutement)\M'
-       and lower(coalesce("title",'') || ' ' || coalesce("description",'')) !~ '\m(agent|assistant|commercial|manager|responsable|technicien|chauffeur|vendeur|comptable|ingenieur|developpeur|marketing|rh|charge de|chef de|directeur|consultant|coordinateur|superviseur|stagiaire|stage|intern|offre d emploi|emploi|poste)\M'
+  when lower(coalesce("title",'') || ' ' || coalesce("description",'')) ~ '(\mrecrutement\M|appel a candidature|appel aux candidatures|campagne de recrutement)'
+       and lower(coalesce("title",'') || ' ' || coalesce("description",'')) !~ '(\magent\M|\massistant\M|\mcommercial\M|\mmanager\M|\mresponsable\M|\mtechnicien\M|\mchauffeur\M|\mvendeur\M|\mcomptable\M|\mingenieur\M|\mdeveloppeur\M|\mmarketing\M|\mrh\M|charge de|chef de|directeur|consultant|coordinateur|superviseur|stagiaire|stage|intern|offre d emploi|\memploi\M|\mposte\M)'
     then 'RECRUTEMENT_INSUFFISANT'
   else 'EMPLOI'
 end
