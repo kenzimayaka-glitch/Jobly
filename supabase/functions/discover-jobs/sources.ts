@@ -101,7 +101,7 @@ async function fetchInfosConcoursEducation(): Promise<DiscoveryItem[]> {
   if (!response.ok) throw new Error("INFOS_CONCOURS_" + response.status);
   const posts = await response.json();
   if (!Array.isArray(posts)) return [];
-  return posts.map((post:any) => {
+  return (await Promise.all(posts.map(async (post:any) => {
     const link = typeof post?.link === "string" ? post.link : "";
     const title = clean(post?.title?.rendered);
     let description = cleanInfosConcoursContent(post?.content?.rendered);
@@ -131,7 +131,7 @@ async function fetchInfosConcoursEducation(): Promise<DiscoveryItem[]> {
       deadline: null,
       published: typeof post?.date === "string" ? post.date : null,
     };
-  }).filter((x:DiscoveryItem) =>
+  }))).filter((x:DiscoveryItem) =>
     x.title && x.url &&
     /infosconcourseducation\.com\//i.test(x.url) &&
     !/(?:\/category\/|\/tag\/|\/author\/|\/page\/|\/actualite\/)/i.test(x.url) &&
