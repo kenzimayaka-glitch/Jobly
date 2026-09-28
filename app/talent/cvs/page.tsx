@@ -114,7 +114,13 @@ export default function TalentCVs() {
     setFile(f.name); setBusy(true); setMessage("J’IA lit ton CV et prépare les champs…");
     try {
       const form = new FormData(); form.append("file", f);
-      const res = await fetch("/api/talent/cv/import", { method: "POST", body: form });
+      const token = await getAccessToken();
+      if (!token) throw new Error("Session requise. Connecte-toi avant d’importer ton CV.");
+      const res = await fetch("/api/talent/cv/import", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Import impossible.");
       setExtracted(data.cv);
