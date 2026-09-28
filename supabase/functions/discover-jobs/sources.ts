@@ -104,7 +104,23 @@ async function fetchInfosConcoursEducation(): Promise<DiscoveryItem[]> {
   return posts.map((post:any) => {
     const link = typeof post?.link === "string" ? post.link : "";
     const title = clean(post?.title?.rendered);
-    const description = cleanInfosConcoursContent(post?.content?.rendered);
+    let description = cleanInfosConcoursContent(post?.content?.rendered);
+    // Some WordPress REST responses expose only a short excerpt or a builder
+    // fragment. If the cleaned body is suspiciously short, fetch the actual
+    // article and extract the article container before persisting anything.
+    if (description.length < 180 && link) {
+      try {
+        const page = await fetch(link, {
+          headers: { "accept": "text/html,application/xhtml+xml", "user-agent": "JOBLY-Discovery/3.2" },
+          redirect: "follow",
+        });
+        if (page.ok) {
+          const html = await page.text();
+          const full = cleanInfosConcoursContent(html);
+          if (full.length > description.length) description = full;
+        }
+      } catch {}
+    }
     return {
       title,
       description,
