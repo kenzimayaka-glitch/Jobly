@@ -141,11 +141,11 @@ function splitInlineSectionHeadings(value: string): string {
   ];
   const escaped = headingPatterns.map((heading) => heading.replaceAll(" ", "\\\\s+")).join("|");
   return value
-    .replace(new RegExp("(?:^|[\\\\s|•▪◦])((?:" + escaped + "))(?:\\\\s*[:：-]\\\\s*|\\\\s+)", "giu"), (match) =>
-      match.startsWith("\\n") ? match : "\\n" + match.trimStart()
+    .replace(new RegExp("(?:^|[\s|•▪◦])((?:" + escaped + "))(?:\s*[:：-]\s*|\s+)", "giu"), (match) =>
+      match.startsWith("\n") ? match : "\n" + match.trimStart()
     )
-    .replace(/^\\n+/, "")
-    .replace(/\\n{3,}/g, "\\n\\n");
+    .replace(/^\n+/, "")
+    .replace(/\n{3,}/g, "\n\n");
 }
 function cleanSectionLine(value: string): string {
   return collapseLine(value)
