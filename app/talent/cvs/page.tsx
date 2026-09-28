@@ -159,7 +159,7 @@ export default function TalentCVs() {
             <div><h1 className="text-xl font-black">CV Builder + ATS</h1><p className="mt-1 text-xs text-jobly-gray">Importe ton PDF : J’IA extrait les données et remplit automatiquement ton CV.</p></div>
             <div className="flex flex-wrap gap-2">
               <label className={`cursor-pointer rounded-full bg-[#FFE135] px-4 py-3 text-xs font-black ${busy ? "pointer-events-none opacity-50" : ""}`}>Importer mon CV PDF<input type="file" accept="application/pdf,.pdf" onChange={importPdf} className="hidden" disabled={busy} /></label>
-              <button type="button" onClick={extractIntoFields} disabled={!extracted || busy} className="rounded-full bg-jobly-blue px-4 py-3 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-40">Extraire les données</button>
+              <button type="button" onClick={extractIntoFields} disabled={!extracted || busy} className="rounded-full bg-[#BFFF00] px-4 py-3 text-xs font-black text-navy disabled:cursor-not-allowed disabled:opacity-40">Extraire les données</button>
             </div>
           </div>
           {file && <p className="mt-3 text-xs font-bold text-jobly-blue">Fichier : {file}{originalMeta?.pages ? ` · ${originalMeta.pages} page(s)` : ""}</p>}

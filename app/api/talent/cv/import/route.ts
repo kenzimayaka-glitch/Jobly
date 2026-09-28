@@ -7,7 +7,7 @@ import { runAiGateway } from "../../../../../lib/aiGateway";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const MAX_BYTES = 8 * 1024 * 1024;
+const MAX_BYTES = 2 * 1024 * 1024;
 
 async function getAuthUser(request: NextRequest) {
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "PDF_ONLY", message: "J’IA accepte ici uniquement les CV PDF." }, { status: 415 });
     }
     if (file.size <= 0 || file.size > MAX_BYTES) {
-      return NextResponse.json({ error: "PDF_TOO_LARGE", message: "Le CV PDF doit faire au maximum 8 Mo." }, { status: 413 });
+      return NextResponse.json({ error: "PDF_TOO_LARGE", message: "Le CV PDF doit faire au maximum 2 Mo." }, { status: 413 });
     }
 
     const authUser = await getAuthUser(request);
