@@ -22,7 +22,7 @@ import PageHeader from "@/components/PageHeader";
 import BottomNav from "@/components/BottomNav";
 import TalentBackground from "@/components/TalentBackground";
 import CompanyLogo from "@/components/CompanyLogo";
-import { parseJobDetailSections } from "@/lib/jobContent";
+import { parseJobDetailSections, type JobDetailSections } from "@/lib/jobContent";
 import { normalizeJobIdentity } from "@/lib/jobNormalizer";
 import { extractApplicationSubject } from "@/lib/applicationSubject";
 
@@ -229,7 +229,7 @@ function JobDetailInner() {
   const tags: string[] = Array.isArray(job.tags) ? job.tags : [];
   const parsedFromDescription = parseJobDetailSections(normalizedIdentity.description, displayTitle);
   const apiSections = job.detailSections && typeof job.detailSections === "object" ? job.detailSections : {};
-  const mergeSection = (key: string) => Array.from(new Set([
+  const mergeSection = (key: keyof JobDetailSections) => Array.from(new Set([
     ...(Array.isArray(apiSections[key]) ? apiSections[key] : []),
     ...(Array.isArray(parsedFromDescription[key]) ? parsedFromDescription[key] : []),
   ].map((v) => cleanLine(String(v))).filter(Boolean)));
