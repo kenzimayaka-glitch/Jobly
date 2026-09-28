@@ -157,6 +157,41 @@ function pageLinks(html: string, baseUrl: string, source: SourceConfig): string[
   return Array.from(new Set(out));
 }
 
+function stripInfosConcoursWordPressChrome(html: string, titleHint?: string | null): string {
+  // The WordPress REST post body can contain the site's article header
+  // (category, title, date, view/comment counters, author) before the real
+  // offer. Remove that chrome before the generic cleaner sees it.
+  const normalizedTitle = normalizeSpace(titleHint || "");
+  const text = htmlToCleanText(html);
+  const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+  const titleIndex = normalizedTitle
+    ? lines.findIndex(line => line.toLowerCase() === normalizedTitle.toLowerCase())
+    : -1;
+  let start = 0;
+  if (titleIndex >= 0) {
+    start = titleIndex + 1;
+    // Skip publication date, numeric view/comment counters and the author
+    // line when they are present directly after the article title.
+    let skipped = 0;
+    while (start < lines.length && skipped < 6) {
+      const line = lines[start];
+      if (/^(?:\d{1,2}[\/-]\d{1,2}[\/-]\d{4}|\d{1,2}\s+(?:janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+\d{4})$/i.test(line)
+        || /^\d+$/.test(line)
+        || /^Publié par\b/i.test(line)
+        || /^Par\b/i.test(line)) {
+        start++;
+        skipped++;
+        continue;
+      }
+      break;
+    }
+  }
+  // If the category/header title is repeated at the beginning, drop it.
+  while (start < lines.length && /^(?:offres? d['’]?emploi|offres? d['’]?emplois|stages?|actualités?)$/i.test(lines[start])) start++;
+  const cleaned = lines.slice(start).join("\n").trim();
+  return cleaned || text;
+}
+
 async function fetchHtml(url: string): Promise<string> {
   const controller = new AbortController(), timer = setTimeout(() => controller.abort(),FETCH_TIMEOUT_MS);
   try {
@@ -316,9 +351,10 @@ async function collectWordPressOffers(source: SourceConfig): Promise<CollectedOf
       const link = typeof post?.link === "string" ? post.link : "";
       const title = typeof post?.title?.rendered === "string" ? htmlToCleanText(post.title.rendered) : "";
       if (!link || !title || !isRelevantInfosConcoursLink(new URL(link), title)) continue;
-      const html = typeof post?.content?.rendered === "string" ? post.content.rendered : "";
-      if (!html) continue;
+      const rawHtml = typeof post?.content?.rendered === "string" ? post.content.rendered : "";
+      if (!rawHtml) continue;
       try {
+        const html = stripInfosConcoursWordPressChrome(rawHtml, title);
         const offer = extractOffer(source, link, html, title);
         if (offer) out.push(offer);
       } catch {}
@@ -361,6 +397,23 @@ async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
     }
   }
   return results.slice(0,MAX_OFFERS_PER_SOURCE);
+}
+
+export async function recollectOfferByUrl(sourceKey: string, url: string, listingTitle = ""): Promise<CollectedOffer | null> {
+  const source = SOURCES.find(item => item.key === sourceKey);
+  if (!source || !url) return null;
+  try {
+    const parsed = new URL(url);
+    if (!source.hostnames.includes(parsed.hostname.toLowerCase())) return null;
+    if (source.key === "infosconcourseducation" && !isRelevantInfosConcoursLink(parsed, listingTitle || parsed.pathname)) return null;
+    const html = await fetchHtml(url);
+    const cleanHtml = source.key === "infosconcourseducation"
+      ? stripInfosConcoursWordPressChrome(html, listingTitle)
+      : html;
+    return extractOffer(source, url, cleanHtml, listingTitle || titleFromHtml(cleanHtml) || "Offre d'emploi");
+  } catch {
+    return null;
+  }
 }
 
 export async function collectPublicJobSources() {
