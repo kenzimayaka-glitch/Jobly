@@ -22,10 +22,42 @@ export default function JobsReprocessPage() {
     async function run() {
       try {
         const supabase = getSupabaseClient();
-        const { data, error } = await supabase.auth.getSession();
 
-        if (error || !data.session?.access_token) {
-          if (!cancelled) setStatus("Session Jobly introuvable. Connectez-vous puis rechargez cette page.");
+        let session = (await supabase.auth.getSession()).data.session;
+
+        // La restauration de session peut être asynchrone depuis le stockage
+        // du navigateur. On attend l'événement d'authentification avant
+        // d'afficher à tort "Connectez-vous".
+        if (!session) {
+          if (!cancelled) setStatus("Restauration de votre session Jobly…");
+
+          session = await new Promise<typeof session>((resolve) => {
+            let settled = false;
+            let timer: number | undefined;
+            let subscription: { unsubscribe: () => void } | null = null;
+
+            const finish = (value: typeof session) => {
+              if (settled) return;
+              settled = true;
+              if (timer !== undefined) window.clearTimeout(timer);
+              subscription?.unsubscribe();
+              resolve(value);
+            };
+
+            const listener = supabase.auth.onAuthStateChange((_event, nextSession) => {
+              if (nextSession) finish(nextSession);
+            });
+            subscription = listener.data.subscription;
+
+            timer = window.setTimeout(async () => {
+              const refreshed = await supabase.auth.refreshSession();
+              finish(refreshed.data.session ?? null);
+            }, 1500);
+          });
+        }
+
+        if (!session?.access_token) {
+          if (!cancelled) setStatus("Session Jobly introuvable. Ouvrez cette page dans le même navigateur où vous êtes connecté à Jobly, puis rechargez.");
           return;
         }
 
@@ -34,7 +66,7 @@ export default function JobsReprocessPage() {
         const response = await fetch("/api/jobs/ingest/sources?mode=reprocess-all", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${data.session.access_token}`,
+            Authorization: `Bearer ${session.access_token}`,
           },
           cache: "no-store",
         });
