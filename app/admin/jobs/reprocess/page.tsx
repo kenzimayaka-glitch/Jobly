@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
+import type { Session } from "@supabase/supabase-js";
 
 type Result = {
   ok?: boolean;
@@ -12,6 +13,13 @@ type Result = {
   message?: string;
 };
 
+type BridgeResponse = {
+  type: "JOBLY_SESSION_RESPONSE";
+  requestId: string;
+  accessToken: string;
+  refreshToken: string;
+};
+
 export default function JobsReprocessPage() {
   const [status, setStatus] = useState("Préparation de la réindexation…");
   const [result, setResult] = useState<Result | null>(null);
@@ -19,45 +27,63 @@ export default function JobsReprocessPage() {
   useEffect(() => {
     let cancelled = false;
 
+    async function getSessionAcrossTabs(supabase: ReturnType<typeof getSupabaseClient>) {
+      let session = (await supabase.auth.getSession()).data.session;
+      if (session) return session;
+
+      if (!cancelled) setStatus("Récupération de votre session Jobly…");
+
+      if ("BroadcastChannel" in window) {
+        session = await new Promise<Session | null>((resolve) => {
+          const requestId = crypto.randomUUID();
+          const channel = new BroadcastChannel("jobly-session-bridge");
+          let settled = false;
+
+          const finish = (value: Session | null) => {
+            if (settled) return;
+            settled = true;
+            window.clearTimeout(timer);
+            channel.close();
+            resolve(value);
+          };
+
+          const onMessage = (event: MessageEvent<BridgeResponse>) => {
+            if (
+              event.data?.type !== "JOBLY_SESSION_RESPONSE" ||
+              event.data.requestId !== requestId
+            ) return;
+
+            void supabase.auth
+              .setSession({
+                access_token: event.data.accessToken,
+                refresh_token: event.data.refreshToken,
+              })
+              .then(({ data }) => finish(data.session ?? null))
+              .catch(() => finish(null));
+          };
+
+          channel.addEventListener("message", onMessage);
+          channel.postMessage({ type: "JOBLY_SESSION_REQUEST", requestId });
+
+          const timer = window.setTimeout(() => finish(null), 3000);
+        });
+      }
+
+      if (session) return session;
+
+      const refreshed = await supabase.auth.refreshSession();
+      return refreshed.data.session ?? null;
+    }
+
     async function run() {
       try {
         const supabase = getSupabaseClient();
-
-        let session = (await supabase.auth.getSession()).data.session;
-
-        // La restauration de session peut être asynchrone depuis le stockage
-        // du navigateur. On attend l'événement d'authentification avant
-        // d'afficher à tort "Connectez-vous".
-        if (!session) {
-          if (!cancelled) setStatus("Restauration de votre session Jobly…");
-
-          session = await new Promise<import("@supabase/supabase-js").Session | null>((resolve) => {
-            let settled = false;
-            let timer: number | undefined;
-            let subscription: { unsubscribe: () => void } | null = null;
-
-            const finish = (value: typeof session) => {
-              if (settled) return;
-              settled = true;
-              if (timer !== undefined) window.clearTimeout(timer);
-              subscription?.unsubscribe();
-              resolve(value);
-            };
-
-            const listener = supabase.auth.onAuthStateChange((_event, nextSession) => {
-              if (nextSession) finish(nextSession);
-            });
-            subscription = listener.data.subscription;
-
-            timer = window.setTimeout(async () => {
-              const refreshed = await supabase.auth.refreshSession();
-              finish(refreshed.data.session ?? null);
-            }, 1500);
-          });
-        }
+        const session = await getSessionAcrossTabs(supabase);
 
         if (!session?.access_token) {
-          if (!cancelled) setStatus("Session Jobly introuvable. Ouvrez cette page dans le même navigateur où vous êtes connecté à Jobly, puis rechargez.");
+          if (!cancelled) {
+            setStatus("Session Jobly introuvable. Gardez Jobly ouvert dans un autre onglet du même navigateur, puis rechargez cette page.");
+          }
           return;
         }
 
@@ -65,17 +91,12 @@ export default function JobsReprocessPage() {
 
         const response = await fetch("/api/jobs/ingest/sources?mode=reprocess-all", {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
+          headers: { Authorization: `Bearer ${session.access_token}` },
           cache: "no-store",
         });
 
         const payload = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(payload?.message || `Erreur HTTP ${response.status}`);
-        }
+        if (!response.ok) throw new Error(payload?.message || `Erreur HTTP ${response.status}`);
 
         if (!cancelled) {
           setResult(payload);
@@ -97,12 +118,9 @@ export default function JobsReprocessPage() {
   return (
     <main className="min-h-screen bg-white px-6 py-12 text-slate-900">
       <div className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          JOBLY · Maintenance offres
-        </p>
+        <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">JOBLY · Maintenance offres</p>
         <h1 className="text-2xl font-bold">Réindexation des offres</h1>
         <p className="mt-3 text-slate-600">{status}</p>
-
         {result && (
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label="Traitées" value={result.processed ?? 0} />
@@ -111,12 +129,7 @@ export default function JobsReprocessPage() {
             <Stat label="Désactivées" value={result.deactivated ?? 0} />
           </div>
         )}
-
-        {result?.message && (
-          <p className="mt-6 rounded-2xl bg-slate-50 p-4 text-sm font-medium">
-            {result.message}
-          </p>
-        )}
+        {result?.message && <p className="mt-6 rounded-2xl bg-slate-50 p-4 text-sm font-medium">{result.message}</p>}
       </div>
     </main>
   );
