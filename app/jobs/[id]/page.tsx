@@ -53,12 +53,28 @@ function JobDetailInner() {
   };
   const detailSections = parseJobDetailSections(job.description, job.title);
   const sectionText = (key: keyof typeof detailSections) => detailSections[key] || [];
-  const renderLines = (items:string[], emptyFallback?:string) => {
+  const cleanDisplayLine = (line:string) =>
+    line
+      .replace(/^[|>»›•▪◦*✓✔☑\-–—]+\s*/, "")
+      .replace(/\s*[|]+\s*$/g, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+
+  const renderParagraphs = (items:string[], emptyFallback?:string) => {
     if (!items.length) return emptyFallback ? <p className="text-sm leading-7 text-slate-500">{emptyFallback}</p> : null;
-    return <div className="space-y-3 text-sm leading-7 text-slate-600">{items.map((line:string,index:number)=>{
-      const value=line.replace(/^(?:•|▪|◦|-|–|—|\*)\s*/,"");
-      return <p key={index} className="relative pl-5 before:absolute before:left-0 before:top-[0.75em] before:h-1.5 before:w-1.5 before:rounded-full before:bg-[#FFD60A]">{value}</p>;
-    })}</div>;
+    return <div className="space-y-4 text-[15px] leading-8 text-slate-600">
+      {items.map((line:string,index:number) => <p key={index}>{cleanDisplayLine(line)}</p>)}
+    </div>;
+  };
+
+  const renderBullets = (items:string[], emptyFallback?:string) => {
+    if (!items.length) return emptyFallback ? <p className="text-sm leading-7 text-slate-500">{emptyFallback}</p> : null;
+    return <ul className="space-y-3 text-[15px] leading-7 text-slate-600">
+      {items.map((line:string,index:number) => <li key={index} className="flex gap-3">
+        <span aria-hidden="true" className="mt-[0.7em] h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFD60A]" />
+        <span>{cleanDisplayLine(line)}</span>
+      </li>)}
+    </ul>;
   };
   const profileSections: Array<[keyof typeof detailSections,string,string]> = [
     ["formation","Formation","Formation académique, diplôme ou niveau d’études demandé."],
@@ -104,7 +120,7 @@ function JobDetailInner() {
       {sectionText("description").length>0 && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
         <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">01 · LE POSTE</p>
         <h2 className="mt-2 text-2xl font-black text-[#17212B]">Description du poste</h2>
-        <div className="mt-5">{renderLines(sectionText("description"), "Description non renseignée.")}</div>
+        <div className="mt-5">{renderParagraphs(sectionText("description"), "Description non renseignée.")}</div>
       </section>}
 
       {sectionText("missions").length>0 && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
@@ -128,7 +144,7 @@ function JobDetailInner() {
       {(sectionText("benefits").length>0 || job.company?.description) && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
         <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">04 · ENVIRONNEMENT</p>
         <h2 className="mt-2 text-2xl font-black text-[#17212B]">Ce que l'entreprise offre</h2>
-        {sectionText("benefits").length>0 ? <div className="mt-6">{renderLines(sectionText("benefits"))}</div> : <p className="mt-5 text-sm leading-7 text-slate-600">Informations disponibles sur l'entreprise et son environnement.</p>}
+        {sectionText("benefits").length>0 ? <div className="mt-6">{renderBullets(sectionText("benefits"))}</div> : <p className="mt-5 text-sm leading-7 text-slate-600">Informations disponibles sur l'entreprise et son environnement.</p>}
         {job.company?.description && <div className="mt-6 border-t border-slate-100 pt-6"><p className="text-xs font-black uppercase tracking-[1.2px] text-slate-400">À propos de {company}</p><p className="mt-2 text-sm leading-7 text-slate-600">{job.company.description}</p>{job.company?.website&&<a href={job.company.website.startsWith("http")?job.company.website:`https://${job.company.website}`} target="_blank" rel="noreferrer" className="mt-3 inline-block text-xs font-bold text-jobly-blue underline">Site de l'entreprise</a>}</div>}
       </section>}
 
@@ -139,7 +155,7 @@ function JobDetailInner() {
           <div className="rounded-2xl bg-white/80 p-5"><p className="text-xs font-black uppercase tracking-[1px] text-slate-400">Mode de candidature</p><p className="mt-2 text-sm font-bold text-slate-700">{applicationMode}</p></div>
           {deadline && <div className="rounded-2xl bg-white/80 p-5"><p className="text-xs font-black uppercase tracking-[1px] text-slate-400">Échéance</p><p className="mt-2 text-sm font-bold text-slate-700">{deadline}</p></div>}
         </div>
-        {applicationDocuments.length>0 && <div className="mt-4 rounded-2xl bg-white/80 p-5"><p className="text-xs font-black uppercase tracking-[1px] text-slate-400">Informations de candidature</p><div className="mt-3">{renderLines(applicationDocuments)}</div></div>}
+        {applicationDocuments.length>0 && <div className="mt-4 rounded-2xl bg-white/80 p-5"><p className="text-xs font-black uppercase tracking-[1px] text-slate-400">Informations de candidature</p><div className="mt-3">{renderBullets(applicationDocuments)}</div></div>}
         {applicationLink && <a href={applicationLink} target="_blank" rel="noreferrer" className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#22448B] bg-white py-4 text-sm font-black text-[#22448B]"><ExternalLink size={17}/>Voir la plateforme de candidature</a>}
         <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(params.id) + "&source=" + encodeURIComponent(source || ""))} className="mt-3 w-full rounded-2xl border border-[#FFD60A] bg-white py-4 text-sm font-black text-[#2E3F4F]">Adapter votre CV pour cette candidature</button>
         <button disabled={busy} onClick={apply} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#22448B] py-4 text-sm font-black text-white disabled:opacity-50">{emailChannel?<><GmailIcon size={18}/><span>Postuler maintenant</span></>:phoneChannel?<><WhatsAppIcon size={18}/><span>Postuler maintenant</span></>:applicationLink?<><ExternalLink size={17}/><span>Postuler maintenant</span></>:<span>Postuler maintenant</span>}</button>

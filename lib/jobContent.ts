@@ -384,11 +384,12 @@ export function parseJobDetailSections(value: unknown, titleHint?: string | null
 
   const structuredHasData = SECTION_ORDER.some((key) => result[key].length > 0);
 
-  // Second pass: parse the canonical text when the source is HTML/text, or
-  // when structured extraction did not expose recognizable fields.
-  const text = cleanJobDescription(value, titleHint);
+  // Keep native structured sections intact. Re-parsing a flattened
+  // structured payload would collapse missions, profile and benefits
+  // back into the description.
+  const text = structuredHasData ? "" : cleanJobDescription(value, titleHint);
 
-  if (!structuredHasData || text) {
+  if (!structuredHasData) {
     let current: keyof JobDetailSections = "description";
     const lines = text.split(/\r?\n/).map(cleanSectionLine).filter(Boolean);
 
