@@ -6,7 +6,7 @@ export function decodeHtmlEntities(value: string): string {
     "&icirc;":"î","&iuml;":"ï","&ocirc;":"ô","&ouml;":"ö","&ugrave;":"ù","&ucirc;":"û","&uuml;":"ü",
     "&Agrave;":"À","&Acirc;":"Â","&Auml;":"Ä","&Ccedil;":"Ç","&Egrave;":"È","&Eacute;":"É","&Ecirc;":"Ê","&Euml;":"Ë",
     "&Icirc;":"Î","&Iuml;":"Ï","&Ocirc;":"Ô","&Ouml;":"Ö","&Ugrave;":"Ù","&Ucirc;":"Û","&Uuml;":"Ü",
-    "&oelig;":"œ","&OElig;":"Œ","&szlig;":"ß","&copy;":"©","&reg;":"®","&trade;":"™"
+    "&oelig;":"œ","&OElig;":"Œ","&szlig;":"ß","&copy;":"©","&reg;":"®","&trade;":"™","&lsquo;":"‘","&rsquo;":"’","&ldquo;":"“","&rdquo;":"”","&laquo;":"«","&raquo;":"»","&colon;":":"
   };
   return value
     .replace(/&(?:nbsp|amp|quot|apos|lt|gt|ndash|mdash|hellip|bull|middot);|&#39;/gi, token => named[token.toLowerCase()] || token)
