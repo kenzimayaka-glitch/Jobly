@@ -51,11 +51,26 @@ function decodeEntities(value: string): string {
 }
 
 function htmlToCleanText(html: string): string {
-  return normalizeSpace(decodeEntities(
-    html.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ")
-      .replace(/<noscript[\s\S]*?<\/noscript>/gi," ").replace(/<svg[\s\S]*?<\/svg>/gi," ")
-      .replace(/<br\s*\/?>/gi,"\n").replace(/<\/p\s*>/gi,"\n").replace(/<\/li\s*>/gi,"\n").replace(/<[^>]+>/g," ")
-  )).slice(0, MAX_DESCRIPTION_CHARS);
+  const text = decodeEntities(
+    html
+      .replace(/<script[\s\S]*?<\/script>/gi, "\n")
+      .replace(/<style[\s\S]*?<\/style>/gi, "\n")
+      .replace(/<noscript[\s\S]*?<\/noscript>/gi, "\n")
+      .replace(/<svg[\s\S]*?<\/svg>/gi, "\n")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p\s*>/gi, "\n")
+      .replace(/<\/li\s*>/gi, "\n")
+      .replace(/<\/(h[1-6]|div|section|article|blockquote|tr|td|th)>/gi, "\n")
+      .replace(/<[^>]+>/g, " ")
+  );
+  return text
+    .replace(/\u00a0/g, " ")
+    .replace(/\r/g, "")
+    .split(/\n+/)
+    .map(line => line.replace(/[ \t]+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, MAX_DESCRIPTION_CHARS);
 }
 
 function metaContent(html: string, key: string): string | null {
@@ -189,7 +204,14 @@ function editorialText(clean: string, title: string): string {
     const index = text.toLowerCase().indexOf(marker.toLowerCase());
     if (index > 200) text = text.slice(0, index);
   }
-  return normalizeSpace(text).slice(0, MAX_DESCRIPTION_CHARS);
+  return text
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .split(/\n+/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, MAX_DESCRIPTION_CHARS);
 }
 
 function extractOffer(source: SourceConfig,url: string,html: string,listingTitle: string): CollectedOffer | null {
