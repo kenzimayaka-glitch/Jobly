@@ -104,7 +104,7 @@ async function fetchInfosConcoursEducation(): Promise<DiscoveryItem[]> {
   return posts.map((post:any) => {
     const link = typeof post?.link === "string" ? post.link : "";
     const title = clean(post?.title?.rendered);
-    const description = cleanDescription(post?.content?.rendered);
+    const description = cleanInfosConcoursContent(post?.content?.rendered);
     return {
       title,
       description,
