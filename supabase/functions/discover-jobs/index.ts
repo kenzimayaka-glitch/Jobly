@@ -37,14 +37,24 @@ const CITY_NAMES=["Yaoundé","Douala","Bafoussam","Bamenda","Bertoua","Buea","Eb
 function decodeEntities(s:string){return s.replace(/&nbsp;|&#160;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;|&#34;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/&bull;|&#8226;/gi,"•").replace(/&ndash;|&#8211;/gi,"–").replace(/&mdash;|&#8212;/gi,"—");}
 function repairMojibake(s:string){if(!/(?:Ã.|Â.|â.)/.test(s))return s;try{const bytes=new Uint8Array([...s].map(ch=>ch.charCodeAt(0)<=255?ch.charCodeAt(0):63));const repaired=new TextDecoder("utf-8",{fatal:false}).decode(bytes);return repaired&&!repaired.includes("�")?repaired:s}catch{return s}}
 function clean(s:string|null|undefined){return repairMojibake(decodeEntities((s||"").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim()))}
-function cleanDescription(s:string|null|undefined){if(!s)return "";const text=repairMojibake(decodeEntities(String(s).replace(/<br\s*\/?>(?=.)/gi,"\n").replace(/<\/(p|div|section|article|li|h[1-6])>/gi,"\n").replace(/<li[^>]*>/gi,"• ").replace(/<[^>]+>/g," ").replace(/\r/g,"")));return text.replace(/[ \t]+\n/g,"\n").replace(/\n[ \t]+/g,"\n").replace(/[ \t]{2,}/g," ").replace(/\n{3,}/g,"\n\n").trim()}
+function cleanDescription(s:string|null|undefined){if(!s)return "";const text=repairMojibake(decodeEntities(String(s).replace(/<br\s*\/?>(?=.)/gi,"
+").replace(/<\/(p|div|section|article|li|h[1-6])>/gi,"
+").replace(/<li[^>]*>/gi,"• ").replace(/<[^>]+>/g," ").replace(/\r/g,"")));return text.replace(/[ \t]+
+/g,"
+").replace(/
+[ \t]+/g,"
+").replace(/[ \t]{2,}/g," ").replace(/
+{3,}/g,"
+
+").trim()}
 function absolute(base:string,href:string){try{return new URL(href,base).toString()}catch{return href}}
 function hash(s:string){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return(h>>>0).toString(16)}
 function inferContract(text:string){const t=text.toLowerCase();if(/\bcdi\b|permanent|full[- ]?time/.test(t))return"CDI";if(/\bcdd\b|temporary|contract/.test(t))return"CDD";if(/stage|internship|intern/.test(t))return"STAGE";if(/freelance/.test(t))return"FREELANCE";return"AUTRE"}
 function inferRemote(text:string){const t=text.toLowerCase();if(/remote|télétravail|teletravail/.test(t)&&/hybrid|hybride/.test(t))return"PARTIAL";if(/remote|télétravail|teletravail/.test(t))return"YES";return"NO"}
 function inferCity(text:string){const t=text.toLowerCase();return CITY_NAMES.find(c=>t.includes(c.toLowerCase()))||"Cameroon"}
 function inferCompany(text:string){const t=clean(text);const m=t.match(/^(.+?)\s+(?:recrute|is hiring|recruits)\b/i);return m?.[1]?.trim()||""}
-function inferExperience(text:string){const m=text.match(/(\d+)\s*(?:\+|à|-)\s*(?:\d+)?\s*(?:ans?|years?)/i);return m?Number(m[1]):0}\nfunction inferOpportunityType(item:any):"EMPLOI"|"CONCOURS"|"FORMATION"|"RECRUTEMENT_INSUFFISANT"{
+function inferExperience(text:string){const m=text.match(/(\d+)\s*(?:\+|à|-)\s*(?:\d+)?\s*(?:ans?|years?)/i);return m?Number(m[1]):0}
+function inferOpportunityType(item:any):"EMPLOI"|"CONCOURS"|"FORMATION"|"RECRUTEMENT_INSUFFISANT"{
   const title=String(item.title||"");
   const description=String(item.description||"");
   const text=normalize(title+" "+description);
@@ -83,7 +93,10 @@ async function enrich(item:any,source:any){
 
 async function analyzeWithGemini(item:any){
   if(!GEMINI_API_KEY)return null;
-  const prompt=`Tu es l'agent IA de JOBLY, plateforme camerounaise d'agrégation d'offres d'emploi. Analyse l'offre ci-dessous. Retourne UNIQUEMENT un JSON valide avec les clés: title, company, city, region, sector, contractType, remoteMode, minExperienceYears, salaryMin, salaryMax, salaryCurrency, skills, summary, qualityScore, flags. qualityScore est un entier 0-100. skills est un tableau de chaînes. flags est un tableau de chaînes. N'invente jamais une information absente: utilise null ou [] si inconnue. Si la ville n'est pas précisée mais que l'offre est clairement Cameroun-wide, city='Cameroon'. Réponds en français si l'offre est française, sinon dans la langue de l'offre.\n\nOFFRE:\n${JSON.stringify({title:item.title,company:item.company,location:item.location,description:String(item.description||"").slice(0,10000),source:item.source})}`;
+  const prompt=`Tu es l'agent IA de JOBLY, plateforme camerounaise d'agrégation d'offres d'emploi. Analyse l'offre ci-dessous. Retourne UNIQUEMENT un JSON valide avec les clés: title, company, city, region, sector, contractType, remoteMode, minExperienceYears, salaryMin, salaryMax, salaryCurrency, skills, summary, qualityScore, flags. qualityScore est un entier 0-100. skills est un tableau de chaînes. flags est un tableau de chaînes. N'invente jamais une information absente: utilise null ou [] si inconnue. Si la ville n'est pas précisée mais que l'offre est clairement Cameroun-wide, city='Cameroon'. Réponds en français si l'offre est française, sinon dans la langue de l'offre.
+
+OFFRE:
+${JSON.stringify({title:item.title,company:item.company,location:item.location,description:String(item.description||"").slice(0,10000),source:item.source})}`;
   const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
   const r=await fetch(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.1,responseMimeType:"application/json"}})});
   if(!r.ok)throw new Error(`Gemini ${r.status}`);
