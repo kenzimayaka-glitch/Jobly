@@ -41,13 +41,38 @@ function repairUtf8(value: string): string {
 function collapseLine(value: string): string { return value.replace(/\u00a0/g," ").replace(/[ \t]+/g," ").trim(); }
 
 function sanitizeStoredOfferText(value: string): string {
-  return value
+  const chromeLine = /^(?:accueil|home|search|se connecter|connexion|sign in|login|register|rejoindre le groupe whatsapp.*|welcome! log into your account|your username|your password|forgot your password.*|recover your password.*|concours|tous les concours|résultats des concours|resultats des concours|emploi|offres? d['’]emploi|recrutement|stage|communiqués? officiels?|communiques? officiels?|bourses? d['’]études?|bourses? du gouvernement|bourses? d['’]afrique|bourses? d['’]amérique|bourses? d['’]europe|bourses? d['’]asie|se connecter|menu|leave a reply|cancel reply|comment:|name:\*|email:\*|website|please enter.*|save my name.*|tags|previous article|next article|articles similaires|populaires en ce moment|infos utiles|categories populaires|à propos de nous|a propos de nous|suivez nous|mentions légales|mentions legales|conditions générales|conditions generales|copyright.*|powered by.*)$/i;
+
+  const lines = value
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ")
     .replace(/�+/g, " ")
-    .replace(/(?:^|\n)\s*(?:Accueil|Home|Search|Sign in|Login|Register|Get help|Password recovery|Recover your email|Facebook|Instagram|Youtube|WhatsApp|Twitter|Pinterest|Groupe vip)\s*(?=\n|$)/gi, "\n")
-    .replace(/(?:^|\n)\s*(?:Publié par|Publi[eé] par)\s+[^\n]{1,120}\s*(?=\n|$)/gi, "\n")
-    .replace(/(?:^|\n)\s*(?:Share|Partager)\s+(?:Facebook|Twitter|Pinterest|WhatsApp).*?(?=\n|$)/gi, "\n")
-    .replace(/\b(?:Sign in|Join|Create an account|Remember me|Read more|Load more|Toggle navigation|Main navigation)\b/gi, " ")
+    .split(/\r?\n/);
+
+  const cleaned: string[] = [];
+  let footer = false;
+  for (const rawLine of lines) {
+    const line = rawLine.replace(/\s+/g, " ").trim();
+    const normalized = line.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (!line) {
+      if (!footer) cleaned.push("");
+      continue;
+    }
+
+    if (/^(?:cliquez ici pour (?:plus d['’]offres?|rejoindre)|abonnez[- ]vous à|notre page (?:facebook|linkedin|instagram)|notre chaine (?:youtube|whatsapp)|notre chaîne (?:youtube|whatsapp)|phone & whatsapp|contactez nous|follow us|suivez nous|leave a reply|cancel reply|articles similaires|populaires en ce moment|infos utiles|categories populaires|à propos de nous|a propos de nous|mentions légales|mentions legales|©)/i.test(line)) {
+      footer = true;
+      continue;
+    }
+    if (footer) continue;
+
+    if (chromeLine.test(line) || /^(?:facebook|instagram|youtube|twitter|pinterest|whatsapp|groupe vip)$/i.test(line)) continue;
+    if (/^(?:share|partager)\s+(?:facebook|twitter|pinterest|whatsapp)/i.test(line)) continue;
+    if (/\b(?:sign in|join|create an account|remember me|read more|load more|toggle navigation|main navigation)\b/i.test(line)) continue;
+
+    cleaned.push(line);
+  }
+
+  return cleaned
+    .join("\n")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/\n[ \t]+/g, "\n")
     .replace(/[ \t]+\n/g, "\n")
@@ -201,6 +226,7 @@ function isUsefulApplicationLine(value: string): boolean {
   const line = normalizeSectionHeading(value);
   if (!line || line.length < 3) return false;
   if (/^(partager|share|facebook|twitter|whatsapp|instagram|youtube|accueil|home|search|menu|connexion|login|inscription|register|read more|voir plus)$/.test(line)) return false;
+  if (/^(cliquez ici|abonnez vous|rejoindre notre|notre page|notre chaine|notre chaîne|suivez nous|tags|articles similaires|populaires en ce moment|infos utiles|categories populaires)/.test(line)) return false;
   return /candidatur|postuler|soumission|dossier|document|piece|cv|lettre de motivation|email|mail|telephone|whatsapp|contact|adresse|site|plateforme|avant le|date limite|deadline|delai|rejoindre|envoyer|transmettre|deposer|depot|conditions|objet/.test(line);
 }
 
@@ -212,11 +238,29 @@ function cleanSectionLine(value: string): string {
     .trim();
 }
 
+function mergeOfferFragments(items: string[]): string[] {
+  const merged: string[] = [];
+  for (const item of items) {
+    const value = cleanSectionLine(item);
+    if (!value) continue;
+    const previous = merged[merged.length - 1];
+    const startsAsContinuation = /^[a-zà-ÿ(]/.test(value);
+    const previousLooksOpen = previous && /(?:\b(?:de|du|des|la|le|les|un|une|pour|avec|et|ou|à|au|aux|en|dans|sur|sera|doit|peut|afin|ainsi|notamment|par|sans))\s*$/i.test(previous);
+    const shortFragment = value.length < 90 && !/[.!?:;]$/.test(value);
+    if (previous && (startsAsContinuation || previousLooksOpen) && shortFragment) {
+      merged[merged.length - 1] = (previous + " " + value).replace(/\s+/g, " ").trim();
+    } else {
+      merged.push(value);
+    }
+  }
+  return merged;
+}
+
 function normalizeSectionItems(items: string[]): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
 
-  for (const raw of items) {
+  for (const raw of mergeOfferFragments(items)) {
     const value = cleanSectionLine(raw);
     if (!value || value.length < 2) continue;
 

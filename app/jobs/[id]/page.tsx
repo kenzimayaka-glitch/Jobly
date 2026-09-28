@@ -285,7 +285,20 @@ function JobDetailInner() {
           </section>
 
           <div className="mt-6 space-y-4">
-            {sections.description.length > 0 && <DetailSection title="À propos du poste">{renderParagraphs(sections.description)}</DetailSection>}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <DetailSection title="Nom de l'entreprise">
+                <p className="text-[15px] font-extrabold leading-7 text-[#22448B]">
+                  {company || "Informations non disponibles"}
+                </p>
+              </DetailSection>
+              <DetailSection title="Intitulé du poste">
+                <p className="text-[15px] font-extrabold leading-7 text-[#17212B]">
+                  {displayTitle}
+                </p>
+              </DetailSection>
+            </div>
+
+            {sections.description.length > 0 && <DetailSection title="À propos de l'offre">{renderParagraphs(sections.description)}</DetailSection>}
             {sections.missions.length > 0 && <DetailSection title="Missions">{renderBullets(sections.missions)}</DetailSection>}
             {sections.profile.length > 0 && <DetailSection title="Profil recherché">{renderBullets(sections.profile)}</DetailSection>}
             {sections.benefits.length > 0 && <DetailSection title="Avantages">{renderBullets(sections.benefits)}</DetailSection>}

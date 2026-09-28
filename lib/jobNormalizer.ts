@@ -15,15 +15,15 @@ export type NormalizedJobIdentity = {
 function extractCompanyNameFromTitle(title: string): string | null {
   const patterns = [
     /\bchez\s+([^|–—\-]{2,100})$/i,
-    /[–—]\s*([^|–—\-]{2,100})$/i,
+    /[–—]\s*([^|–—\-]{2,100}?)(?:\s+\d{4})?$/i,
     /\brecrutement\s+(?:à|chez)\s+([^:|]{2,100})(?:\s+\d{4})?(?:\s*[:|]|$)/i,
   ];
 
   for (const pattern of patterns) {
     const match = title.match(pattern);
     const candidate = cleanCompanyName(match?.[1] || null);
-    if (candidate && !/^(?:l'entreprise|entreprise|employeur|offre|poste|plusieurs postes)$/i.test(candidate)) {
-      return candidate;
+    if (candidate && !/^(?:l'entreprise|entreprise|employeur|offre|poste|plusieurs postes|202[0-9])$/i.test(candidate)) {
+      return candidate.replace(/\s+20\d{2}$/i, "").trim();
     }
   }
   return null;
@@ -60,7 +60,7 @@ export function normalizeJobIdentity(input: {
   }
 
   const fromDescription = extractCompanyNameFromDescription(description);
-  if (fromDescription && !/^(?:l'entreprise|entreprise|employeur)$/i.test(fromDescription)) {
+  if (fromDescription && !/^(?:l'entreprise|entreprise|employeur|pdf ou jpeg|avec l|du fonds pour la paix)$/i.test(fromDescription)) {
     return {
       title,
       companyName: fromDescription,
