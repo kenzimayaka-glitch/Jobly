@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
         processed++; updated++;
       });
 
-      return NextResponse.json({ ok: true, mode, processed, updated, skipped, deactivated, offset, limit: batchSize, hasMore: (rows || []).length === batchSize, ranAt: now.toISOString() });
+      return NextResponse.json({ ok: true, mode, processed, updated, skipped, deactivated, offset, limit: batchSize, hasMore: (rows || []).length === batchSize, nextOffset: offset + (rows || []).length, ranAt: now.toISOString() });
     }
 
     const { offers, sources } = await collectPublicJobSources();
