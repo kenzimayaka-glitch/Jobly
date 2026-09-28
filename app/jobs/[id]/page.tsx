@@ -22,7 +22,7 @@ import PageHeader from "@/components/PageHeader";
 import BottomNav from "@/components/BottomNav";
 import TalentBackground from "@/components/TalentBackground";
 import CompanyLogo from "@/components/CompanyLogo";
-import { cleanCompanyName, parseJobDetailSections } from "@/lib/jobContent";
+import { parseJobDetailSections } from "@/lib/jobContent";
 import { normalizeJobIdentity } from "@/lib/jobNormalizer";
 import { extractApplicationSubject } from "@/lib/applicationSubject";
 
@@ -144,7 +144,6 @@ function JobDetailInner() {
   const [matchOpen, setMatchOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [shared, setShared] = useState(false);
-  const [activeTab, setActiveTab] = useState("description");
 
   useEffect(() => {
     if (!params.id || (source !== "discovery" && source !== "recruiter")) {
@@ -242,16 +241,6 @@ function JobDetailInner() {
   const applicationSubject = emailChannel ? extractApplicationSubject(job.description || "", displayTitle || "") : "";
 
   const compactItems = (items: string[], limit = 12) => Array.from(new Set(items.map(cleanLine).filter(Boolean))).slice(0, limit);
-  const sourceTabs = ([
-    ["description", "À propos du poste", sections.description],
-    ["missions", "Missions", sections.missions],
-    ["profile", "Profil recherché", sections.profile],
-    ["benefits", "Avantages", sections.benefits],
-    ["application", "Comment postuler", sections.application],
-    ["deadline", "Délai", deadline ? [deadline] : []],
-  ] as const).filter(([, , items]) => items.length > 0);
-  const visibleTab = sourceTabs.some(([key]) => key === activeTab) ? activeTab : (sourceTabs[0]?.[0] || "description");
-  const activeTabData = sourceTabs.find(([key]) => key === visibleTab);
   const renderParagraphs = (items: string[]) => <div className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 8).map((line, i) => <p key={i}>{line}</p>)}</div>;
   const renderBullets = (items: string[]) => <ul className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 12).map((line, i) => <li key={i} className="flex gap-2.5"><span className="mt-[0.72em] h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFD60A]"/><span>{line}</span></li>)}</ul>;
 
@@ -277,12 +266,11 @@ function JobDetailInner() {
 
               {headerFacts.length > 0 && <div className="mt-6 grid gap-2 sm:grid-cols-2">{headerFacts.map(({ icon: Icon, value }) => <div key={value} className="flex min-w-0 items-center gap-2.5 rounded-xl bg-[#F7FAFF] px-3.5 py-3 text-sm font-semibold text-slate-600">{Icon ? <Icon size={16} className="shrink-0 text-[#22448B]"/> : <span className="h-2 w-2 shrink-0 rounded-full bg-[#FFD60A]"/>}<span className="truncate">{value}</span></div>)}</div>}
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto]">
-                <button type="button" onClick={() => setMatchOpen(true)} className="group flex items-center justify-between rounded-2xl border border-[#DDE6F5] bg-[#F7FAFF] p-4 text-left transition hover:border-[#BFCDE5]">
+              <div className="mt-6">
+                <button type="button" onClick={() => setMatchOpen(true)} className="group flex w-full items-center justify-between rounded-2xl border border-[#DDE6F5] bg-[#F7FAFF] p-4 text-left transition hover:border-[#BFCDE5]">
                   <div><p className="text-[10px] font-black uppercase tracking-[1.4px] text-slate-400">Correspondance avec votre profil</p><div className="mt-1 flex items-center gap-2"><span className="text-2xl font-black text-[#17212B]">{matchScore}%</span><span className="rounded-full bg-[#FFF4A8] px-2 py-1 text-[10px] font-black text-[#735F00]">Voir le détail</span></div></div>
                   <ChevronRight size={19} className="text-slate-400 transition group-hover:translate-x-0.5"/>
                 </button>
-                {deadline && <div className="flex items-center gap-3 rounded-2xl border border-amber-100 bg-[#FFFBEA] p-4"><CalendarDays size={18} className="text-amber-700"/><div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-amber-700">Candidatures jusqu’au</p><p className="mt-1 text-sm font-extrabold text-[#17212B]">{deadline}</p></div></div>}
               </div>
 
               {tags.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{tags.slice(0, 8).map(tag => <span key={tag} className="rounded-full bg-[#EEF4FF] px-3 py-1.5 text-xs font-bold text-[#22448B]">{tag}</span>)}</div>}
@@ -297,49 +285,27 @@ function JobDetailInner() {
           </section>
 
           <div className="mt-6 space-y-4">
-            <DetailSection title="Entreprise">
-              <div className="flex items-start gap-4">
-                <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#F3F6FA]">
-                  <CompanyLogo companyName={company} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={48}/>
+            {sections.description.length > 0 && <DetailSection title="À propos du poste">{renderParagraphs(sections.description)}</DetailSection>}
+            {sections.missions.length > 0 && <DetailSection title="Missions">{renderBullets(sections.missions)}</DetailSection>}
+            {sections.profile.length > 0 && <DetailSection title="Profil recherché">{renderBullets(sections.profile)}</DetailSection>}
+            {sections.benefits.length > 0 && <DetailSection title="Avantages">{renderBullets(sections.benefits)}</DetailSection>}
+
+            {(emailChannel || phoneChannel || applicationLink || sections.application.length > 0) && (
+              <DetailSection title="Comment postuler">
+                <div className="space-y-4">
+                  {emailChannel && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl bg-[#F7FAFF] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Mail de candidature</p><p className="mt-1 break-all text-sm font-bold text-[#17212B]">{applicationEmail}</p></div>
+                      <div className="rounded-2xl bg-[#F7FAFF] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Objet du mail</p><p className="mt-1 text-sm font-bold text-[#17212B]">{applicationSubject || "Candidature — " + displayTitle}</p></div>
+                    </div>
+                  )}
+                  {sections.application.length > 0 && renderBullets(sections.application)}
+                  <p className="text-sm leading-6 text-slate-500">{applicationMode}</p>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-base font-black text-[#17212B]">{company || "Employeur non renseigné"}</p>
-                  {job.company?.description && <p className="mt-1.5 text-sm leading-6 text-slate-600">{job.company.description}</p>}
-                  {job.company?.website && <a href={job.company.website.startsWith("http") ? job.company.website : "https://" + job.company.website} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-[#22448B]">Visiter le site <ExternalLink size={14}/></a>}
-                </div>
-              </div>
-            </DetailSection>
+              </DetailSection>
+            )}
 
-            <DetailSection title="Poste">
-              <h2 className="text-xl font-black leading-tight text-[#17212B]">{displayTitle}</h2>
-            </DetailSection>
-
-            {sourceTabs.length > 0 && <DetailSection title="Contenu de l’offre">
-              <div className="-mx-1 overflow-x-auto pb-1"><div className="flex min-w-max gap-2 px-1">
-                {sourceTabs.map(([key, label]) => <button key={key} type="button" onClick={() => setActiveTab(key)} className={`rounded-full px-4 py-2.5 text-sm font-extrabold transition ${visibleTab === key ? "bg-[#FFD60A] text-[#17212B]" : "bg-[#F3F6FA] text-slate-600"}`}>{label}</button>)}
-              </div></div>
-              {activeTabData && <div className="mt-5">
-                {activeTabData[0] === "application" ? (
-                  <div className="space-y-3">
-                    {emailChannel && <div className="grid gap-2 sm:grid-cols-2">
-                      <div className="rounded-xl bg-[#F7FAFF] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Mail de candidature</p><p className="mt-1 break-all text-sm font-bold text-[#17212B]">{applicationEmail}</p></div>
-                      <div className="rounded-xl bg-[#F7FAFF] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Objet du mail</p><p className="mt-1 text-sm font-bold text-[#17212B]">{applicationSubject}</p></div>
-                    </div>}
-                    {sections.application.length > 0 && renderBullets(sections.application)}
-                  </div>
-                ) : activeTabData[0] === "description" ? renderParagraphs(activeTabData[2]) : renderBullets(activeTabData[2])}
-              </div>}
-            </DetailSection>}
-
-            <div className="flex items-center justify-between gap-3 rounded-[22px] border border-slate-100 bg-white px-5 py-4 shadow-[0_6px_24px_rgba(23,33,43,0.035)] sm:px-6">
-              <div>
-                <p className="text-sm font-black text-[#17212B]">Prêt à candidater ?</p>
-                <p className="mt-1 text-xs leading-5 text-slate-500">Retrouvez les modalités complètes dans « Comment postuler ».</p>
-              </div>
-              <button disabled={busy || deadlineExpired} onClick={apply} className="shrink-0 rounded-xl bg-[#FFD60A] px-4 py-3 text-xs font-black text-[#17212B] disabled:opacity-50">
-                {deadlineExpired ? "Offre expirée" : "Postuler"}
-              </button>
-            </div>
+            {deadline && <DetailSection title="Délai"><div className="flex items-start gap-3 rounded-2xl bg-[#FFFBEA] p-4"><CalendarDays size={18} className="mt-0.5 shrink-0 text-amber-700"/><div><p className="text-sm font-black text-[#17212B]">{deadlineExpired ? "Date limite dépassée" : "Candidatures jusqu’au"}</p><p className="mt-1 text-sm leading-6 text-slate-600">{deadline}</p></div></div></DetailSection>}
 
             <section className="rounded-[22px] border border-amber-100 bg-[#FFFBEA] px-5 py-5 sm:px-6">
               <p className="text-sm leading-6 text-[#4A3F00]">
