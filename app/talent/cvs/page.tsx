@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseClient } from "../../../lib/supabase";
 import { useRouter } from "next/navigation";
 import PageHeader from "../../../components/PageHeader";
 import BottomNav, { TALENT_NAV } from "../../../components/BottomNav";
@@ -52,12 +52,14 @@ export default function TalentCVs() {
   const update = (k: keyof CV, v: string) => setCv(x => ({ ...x, [k]: v }));
 
   async function getAccessToken() {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-    if (!url || !key) return null;
-    const supabase = createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true } });
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token || null;
+    try {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase.auth.getSession();
+      if (error) return null;
+      return data.session?.access_token || null;
+    } catch {
+      return null;
+    }
   }
 
   async function extractIntoFields() {
@@ -115,7 +117,7 @@ export default function TalentCVs() {
     try {
       const form = new FormData(); form.append("file", f);
       const token = await getAccessToken();
-      if (!token) throw new Error("Session requise. Connecte-toi avant d’importer ton CV.");
+      if (!token) throw new Error("Impossible de récupérer ta session active. Recharge la page puis réessaie.");
       const res = await fetch("/api/talent/cv/import", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -189,7 +191,7 @@ export default function TalentCVs() {
               <button onClick={() => exportPdf()} disabled={busy} className="rounded-xl bg-[#FFE135] py-3 font-black disabled:opacity-50">Télécharger ATS</button>
               <button onClick={() => router.push("/career-os")} className="rounded-xl border py-3 font-black">Career OS →</button>
             </div>
-            {message && <p className="mt-3 text-xs font-bold text-jobly-blue print:hidden">{message}</p>}
+            {message && <div role="status" aria-live="polite" className="fixed bottom-5 left-1/2 z-[120] w-[min(92vw,520px)] -translate-x-1/2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#17212B] shadow-2xl print:hidden">{message}</div>}
 
             {payment && <div className="mt-4 rounded-2xl border border-[#FFE135] bg-[#FFF9E6] p-4 print:hidden">
               <p className="font-black">Téléchargement ATS — {payment.priceXaf.toLocaleString("fr-FR")} FCFA</p>
