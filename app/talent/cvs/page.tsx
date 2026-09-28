@@ -54,9 +54,14 @@ export default function TalentCVs() {
   async function getAccessToken() {
     try {
       const supabase = getSupabaseClient();
-      const { data, error } = await supabase.auth.getSession();
-      if (error) return null;
-      return data.session?.access_token || null;
+      const current = await supabase.auth.getSession();
+      if (current.data.session?.access_token) return current.data.session.access_token;
+      // A session can exist but need a refresh immediately after waking the tab
+      // or after the access token expires. Retry once through Supabase Auth
+      // before telling the user that authentication is missing.
+      const refreshed = await supabase.auth.refreshSession();
+      if (refreshed.data.session?.access_token) return refreshed.data.session.access_token;
+      return null;
     } catch {
       return null;
     }
@@ -117,7 +122,7 @@ export default function TalentCVs() {
     try {
       const form = new FormData(); form.append("file", f);
       const token = await getAccessToken();
-      if (!token) throw new Error("Impossible de récupérer ta session active. Recharge la page puis réessaie.");
+      if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
       const res = await fetch("/api/talent/cv/import", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
