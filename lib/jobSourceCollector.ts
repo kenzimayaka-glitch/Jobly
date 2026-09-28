@@ -223,7 +223,7 @@ function findApplicationUrl(html: string, pageUrl: string, source: SourceConfig)
   return candidates[0]?.url || null;
 }
 
-function findApplicationEmail(html: string, pageUrl: string): string | null {
+function findApplicationEmail(html: string): string | null {
   const candidates: { email: string; score: number }[] = [];
   const add = (email: string, score: number) => {
     const normalized = email.trim().replace(/[),.;:]+$/, "");
@@ -267,7 +267,7 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   const contractType = firstMatch(clean,[/(?:Type d[’']emploi|Type d'emploi|Contrat|Contract)\s*[:：-]\s*([^|\n]{2,60})/i]);
   const publishedAt = parseDate(firstMatch(clean,[/(?:Date de publication|Posté|Publié(?:e)?)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
   const deadline = parseDate(firstMatch(clean,[/(?:Date expiration|Date limite|Délai|deadline)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
-  const extractedEmail = findApplicationEmail(html, url);
+  const extractedEmail = findApplicationEmail(html);
   const contacts = resolveApplicationContact(
     extractedEmail ? { applicationEmail: extractedEmail } : {},
     clean
