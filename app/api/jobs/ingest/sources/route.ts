@@ -30,20 +30,24 @@ async function runWithConcurrency<T>(
   items: T[],
   concurrency: number,
   worker: (item: T) => Promise<void>,
-): Promise<void> {
+): Promise<{ failed: number }> {
   let cursor = 0;
+  let failed = 0;
   async function runWorker() {
     while (true) {
       const index = cursor++;
       if (index >= items.length) return;
       try {
         await worker(items[index]);
-      } catch {}
+      } catch {
+        failed++;
+      }
     }
   }
   await Promise.all(
     Array.from({ length: Math.min(concurrency, items.length) }, () => runWorker()),
   );
+  return { failed };
 }
 
 export async function POST(request: NextRequest) {
@@ -55,7 +59,7 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
     let created = 0, updated = 0, skipped = 0;
 
-    await runWithConcurrency(offers, INGEST_CONCURRENCY, async (offer) => {
+    const ingestResult = await runWithConcurrency(offers, INGEST_CONCURRENCY, async (offer) => {
       const cleanedTitle = cleanJobTitle(offer.title);
       const cleanedDescription = cleanJobDescription(offer.description, cleanedTitle);
       const cleanedContentHash = crypto.createHash("sha256")
@@ -177,6 +181,7 @@ export async function POST(request: NextRequest) {
       created,
       updated,
       skipped,
+      skipped: ingestResult.failed,
       ranAt: now,
     });
   } catch (error) {
