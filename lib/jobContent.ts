@@ -20,6 +20,21 @@ function repairUtf8(value: string): string {
 }
 function collapseLine(value: string): string { return value.replace(/\u00a0/g," ").replace(/[ \t]+/g," ").trim(); }
 
+function sanitizeStoredOfferText(value: string): string {
+  return value
+    .replace(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]/g, " ")
+    .replace(/�+/g, " ")
+    .replace(/(?:^|\\n)\\s*(?:Accueil|Home|Search|Sign in|Login|Register|Get help|Password recovery|Recover your email|Facebook|Instagram|Youtube|WhatsApp|Twitter|Pinterest|Groupe vip)\\s*(?=\\n|$)/gi, "\\n")
+    .replace(/(?:^|\\n)\\s*(?:Publié par|Publi[eé] par)\\s+[^\\n]{1,120}\\s*(?=\\n|$)/gi, "\\n")
+    .replace(/(?:^|\\n)\\s*(?:Share|Partager)\\s+(?:Facebook|Twitter|Pinterest|WhatsApp).*?(?=\\n|$)/gi, "\\n")
+    .replace(/\\b(?:Sign in|Join|Create an account|Remember me|Read more|Load more|Toggle navigation|Main navigation)\\b/gi, " ")
+    .replace(/[ \\t]{2,}/g, " ")
+    .replace(/\\n[ \\t]+/g, "\\n")
+    .replace(/[ \\t]+\\n/g, "\\n")
+    .replace(/\\n{3,}/g, "\\n\\n")
+    .trim();
+}
+
 export function cleanJobTitle(value: unknown): string {
   let raw = typeof value === "string" ? value : "";
   raw = repairUtf8(decodeHtmlEntities(raw)).replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim();
