@@ -1,9 +1,18 @@
 export function decodeHtmlEntities(value: string): string {
-  const named: Record<string, string> = {"&nbsp;":" ","&amp;":"&","&quot;":"\"","&#39;":"'","&apos;":"'","&lt;":"<","&gt;":">","&ndash;":"–","&mdash;":"—","&hellip;":"…","&bull;":"•","&middot;":"·"};
+  const named: Record<string, string> = {
+    "&nbsp;":" ","&amp;":"&","&quot;":"\"","&#39;":"'","&apos;":"'","&lt;":"<","&gt;":">",
+    "&ndash;":"–","&mdash;":"—","&hellip;":"…","&bull;":"•","&middot;":"·",
+    "&agrave;":"à","&acirc;":"â","&auml;":"ä","&ccedil;":"ç","&egrave;":"è","&eacute;":"é","&ecirc;":"ê","&euml;":"ë",
+    "&icirc;":"î","&iuml;":"ï","&ocirc;":"ô","&ouml;":"ö","&ugrave;":"ù","&ucirc;":"û","&uuml;":"ü",
+    "&Agrave;":"À","&Acirc;":"Â","&Auml;":"Ä","&Ccedil;":"Ç","&Egrave;":"È","&Eacute;":"É","&Ecirc;":"Ê","&Euml;":"Ë",
+    "&Icirc;":"Î","&Iuml;":"Ï","&Ocirc;":"Ô","&Ouml;":"Ö","&Ugrave;":"Ù","&Ucirc;":"Û","&Uuml;":"Ü",
+    "&oelig;":"œ","&OElig;":"Œ","&szlig;":"ß","&copy;":"©","&reg;":"®","&trade;":"™"
+  };
   return value
     .replace(/&(?:nbsp|amp|quot|apos|lt|gt|ndash|mdash|hellip|bull|middot);|&#39;/gi, token => named[token.toLowerCase()] || token)
     .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)));
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&([a-z][a-z0-9]+);/gi, token => named[token.toLowerCase()] || token);
 }
 function repairUtf8(value: string): string {
   if (!/[ÃÂâ][\x80-\xBF\x20-\x7E]/.test(value)) return value;
