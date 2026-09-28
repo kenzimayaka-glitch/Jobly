@@ -50,18 +50,24 @@ function inferOpportunityType(item:any):"EMPLOI"|"CONCOURS"|"FORMATION"|"RECRUTE
   const description=String(item.description||"");
   const titleText=normalize(title);
   const text=normalize(title+" "+description);
-  if(/\bconcours\b|admission|examen d'?entree|test d'?entree|recrutement sur concours|concours de recrutement/.test(titleText)) return "CONCOURS";
-  if(/\bformation\b|certification|masterclass|bootcamp|\bcours\b|bourse .*\bformation\b|programme de \bformation\b|atelier de \bformation\b|webinaire de \bformation\b/.test(titleText)) return "FORMATION";
+  const campusTitle=/\b(concours|admission|examen d'?entree|test d'?entree|formation|certification|masterclass|bootcamp|bourse|programme de formation|atelier de formation|webinaire de formation)\b/.test(titleText);
+  if(campusTitle){
+    if(/\b(concours|admission|examen d'?entree|test d'?entree)\b/.test(titleText)) return "CONCOURS";
+    return "FORMATION";
+  }
   const roleSignal=/\b(agent|assistant|assistante|commercial|commerciale|manager|responsable|technicien|technicienne|chauffeur|vendeur|vendeuse|comptable|ingenieur|ingenieure|developpeur|developpeuse|marketing|rh|ressources humaines|charge de|chef de|directeur|directrice|consultant|consultante|coordinateur|coordinatrice|superviseur|superviseuse|stagiaire|stage|intern|offre d'emploi|emploi|poste|data analyst|operations manager)\b/.test(text);
   const campusSignal=/\b(concours|admission|examen d'?entree|test d'?entree|formation|certification|masterclass|bootcamp|cours|bourse d'?etude|programme de formation)\b/.test(text);
   if(campusSignal && !roleSignal){
     if(/concours|admission|examen d'?entree|test d'?entree/.test(text)) return "CONCOURS";
     return "FORMATION";
   }
-  const genericRecruitment=/\brecrutement\b|appel a candidatures?|appel a candidature|recrute des candidats|campagne de recrutement/.test(titleText);
+  const genericRecruitment=/\b(recrutement|recrute)\b|appel a candidatures?|appel a candidature|campagne de recrutement/.test(titleText);
+  const explicitRoleInTitle=/\b(agent|assistant|assistante|commercial|commerciale|manager|responsable|technicien|technicienne|chauffeur|vendeur|vendeuse|comptable|ingenieur|ingenieure|developpeur|developpeuse|marketing|rh|charge de|chef de|directeur|directrice|consultant|consultante|coordinateur|coordinatrice|superviseur|superviseuse|stagiaire|stage|intern|emploi|poste)\b/.test(titleText);
   const companySignal=Boolean(String(item.company||"").trim()) || /\b(societe|entreprise|cabinet|organisation|ong|groupe|holding|compagnie|agence)\b/.test(text);
   const applicationSignal=/@|https?:\/\/|postuler|candidature|envoyer (?:votre|son) cv|deposer (?:votre|son) cv|apply|application|contactez|contact/.test(text);
-  if(genericRecruitment && (!roleSignal || !companySignal || (!applicationSignal && description.length<180))) return "RECRUTEMENT_INSUFFISANT";
+  const substantiveDescription=description.trim().length>=180;
+  if(genericRecruitment && !explicitRoleInTitle && !roleSignal && (!companySignal || (!applicationSignal && !substantiveDescription))) return "RECRUTEMENT_INSUFFISANT";
+  if(!explicitRoleInTitle && !roleSignal && description.trim().length<80) return "RECRUTEMENT_INSUFFISANT";
   return "EMPLOI";
 }
 function extractPhone(text:string){const matches=text.match(/(?:\+?237[\s.-]?[6-9]\d{2}[\s.-]?\d{3}[\s.-]?\d{3}|6[5-9]\d{7})/g)||[];return matches.map(x=>x.replace(/[\s.-]/g,"")).map(x=>x.startsWith("237")?"+"+x:"+237"+x).filter((x,i,a)=>a.indexOf(x)===i).slice(0,3)}
