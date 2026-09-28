@@ -51,7 +51,7 @@ function inferOpportunityType(item:any):"EMPLOI"|"CONCOURS"|"FORMATION"|"RECRUTE
   const titleText=normalize(title);
   const text=normalize(title+" "+description);
   if(/\bconcours\b|admission|examen d'?entree|test d'?entree|recrutement sur concours|concours de recrutement/.test(titleText)) return "CONCOURS";
-  if(/\bformation\b|certification|masterclass|bootcamp|\bcours\b|bourse .*formation|programme de formation|atelier de formation|webinaire de formation/.test(titleText)) return "FORMATION";
+  if(/\bformation\b|certification|masterclass|bootcamp|\bcours\b|bourse .*\bformation\b|programme de \bformation\b|atelier de \bformation\b|webinaire de \bformation\b/.test(titleText)) return "FORMATION";
   const roleSignal=/\b(agent|assistant|assistante|commercial|commerciale|manager|responsable|technicien|technicienne|chauffeur|vendeur|vendeuse|comptable|ingenieur|ingenieure|developpeur|developpeuse|marketing|rh|ressources humaines|charge de|chef de|directeur|directrice|consultant|consultante|coordinateur|coordinatrice|superviseur|superviseuse|stagiaire|stage|intern|offre d'emploi|emploi|poste|data analyst|operations manager)\b/.test(text);
   const campusSignal=/\b(concours|admission|examen d'?entree|test d'?entree|formation|certification|masterclass|bootcamp|cours|bourse d'?etude|programme de formation)\b/.test(text);
   if(campusSignal && !roleSignal){
