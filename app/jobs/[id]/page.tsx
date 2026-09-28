@@ -221,6 +221,7 @@ function JobDetailInner() {
   const contract = job.contractType || job.contract;
   const remote = job.remoteMode === "YES" ? "Télétravail" : job.remoteMode === "PARTIAL" ? "Hybride" : job.remoteMode === "NO" ? "Présentiel" : null;
   const deadline = job.deadline ? new Date(job.deadline).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : null;
+  const deadlineExpired = Boolean(job.deadlineExpired);
   const tags: string[] = Array.isArray(job.tags) ? job.tags : [];
   const sections = parseJobDetailSections(job.description, job.title);
   const matchScore = Math.max(0, Math.min(100, Number(job.matchPercent ?? 0)));
@@ -259,6 +260,7 @@ function JobDetailInner() {
                   <p className="text-[10px] font-black uppercase tracking-[1.7px] text-[#9B8500]">Offre d’emploi</p>
                   <h1 className="mt-1.5 text-[27px] font-black leading-[1.12] tracking-[-0.03em] text-[#17212B] sm:text-[38px]">{job.title}</h1>
                   <p className="mt-2 text-base font-extrabold text-[#22448B]">{company || "Entreprise non précisée"}</p>
+                  {deadlineExpired && <span className="mt-3 inline-flex rounded-full bg-red-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[1px] text-red-600">Offre expirée</span>}
                 </div>
                 <button onClick={() => setSaved(v => !v)} aria-label={saved ? "Retirer des favoris" : "Ajouter aux favoris"} className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border ${saved ? "border-[#FFD60A] bg-[#FFFBE0] text-[#8C7600]" : "border-slate-200 bg-white text-slate-500"}`}><Heart size={18} fill={saved ? "currentColor" : "none"}/></button>
               </div>
@@ -276,8 +278,8 @@ function JobDetailInner() {
               {tags.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{tags.slice(0, 8).map(tag => <span key={tag} className="rounded-full bg-[#EEF4FF] px-3 py-1.5 text-xs font-bold text-[#22448B]">{tag}</span>)}</div>}
 
               <div className="mt-7 flex flex-col gap-3 border-t border-slate-100 pt-6 sm:flex-row">
-                <button disabled={busy} onClick={apply} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#FFD60A] px-5 py-4 text-sm font-black text-[#17212B] shadow-[0_10px_25px_rgba(255,214,10,.22)] transition hover:brightness-[.98] disabled:opacity-50">
-                  {emailChannel ? <><GmailIcon/><span>Postuler maintenant</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler maintenant</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler maintenant</span></> : <span>Postuler maintenant</span>}
+                <button disabled={busy || deadlineExpired} onClick={apply} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#FFD60A] px-5 py-4 text-sm font-black text-[#17212B] shadow-[0_10px_25px_rgba(255,214,10,.22)] transition hover:brightness-[.98] disabled:opacity-50">
+                  {deadlineExpired ? <span>Offre expirée</span> : emailChannel ? <><GmailIcon/><span>Postuler maintenant</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler maintenant</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler maintenant</span></> : <span>Postuler maintenant</span>}
                 </button>
                 <button type="button" onClick={shareOffer} className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-extrabold text-slate-600">{shared ? <CheckCircle2 size={17} className="text-emerald-600"/> : <Share2 size={17}/>}<span>{shared ? "Lien copié" : "Partager"}</span></button>
               </div>
@@ -314,7 +316,7 @@ function JobDetailInner() {
               {sections.application.length > 0 && <div className="mt-4 rounded-2xl bg-[#FFFBE0] p-5"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#8C7600]">Informations utiles</p><div className="mt-3">{renderBullets(sections.application)}</div></div>}
               {applicationLink && <a href={applicationLink} target="_blank" rel="noreferrer" className="mt-4 flex items-center justify-center gap-2 rounded-2xl border border-[#DDE6F5] bg-white py-4 text-sm font-black text-[#22448B]"><ExternalLink size={17}/>Voir la plateforme de candidature</a>}
               <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(params.id) + "&source=" + encodeURIComponent(source || ""))} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#FFD60A] bg-white py-4 text-sm font-black text-[#2E3F4F]"><Sparkles size={17}/>Adapter mon CV à cette offre</button>
-              <button disabled={busy} onClick={apply} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#22448B] py-4 text-sm font-black text-white disabled:opacity-50">{emailChannel ? <><GmailIcon/><span>Postuler maintenant</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler maintenant</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler maintenant</span></> : <span>Postuler maintenant</span>}</button>
+              <button disabled={busy || deadlineExpired} onClick={apply} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#22448B] py-4 text-sm font-black text-white disabled:opacity-50">{deadlineExpired ? <span>Offre expirée</span> : emailChannel ? <><GmailIcon/><span>Postuler maintenant</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler maintenant</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler maintenant</span></> : <span>Postuler maintenant</span>}</button>
             </DetailSection>
 
             {error && <div role="alert" className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
