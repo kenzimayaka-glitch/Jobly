@@ -131,6 +131,12 @@ export function JoblyOfferFeed() {
           const ingestBody = await ingestRes.json().catch(() => ({}));
           throw new Error(ingestBody.message || "Impossible d'actualiser les sources d'offres.");
         }
+        // The collector fix does not rewrite legacy rows by itself. A manual
+        // refresh also repairs a bounded batch of old public-source offers.
+        await fetch("/api/jobs/ingest/sources?mode=reprocess&limit=20&offset=0", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
       }
       const [jobsRes, appsRes] = await Promise.all([
         fetch("/api/jobs?limit=200&page=1", { headers: { Authorization: `Bearer ${token}` } }),
