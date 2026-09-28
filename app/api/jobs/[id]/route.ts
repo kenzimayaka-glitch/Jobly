@@ -22,6 +22,11 @@ export async function GET(request: NextRequest, context: Context) {
         .eq("id", id).eq("isActive", true).maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) return NextResponse.json({ message: "Offre introuvable ou inactive." }, { status: 404 });
+      const platformExpiration = new Date(new Date(data.createdAt).setMonth(new Date(data.createdAt).getMonth() + 2));
+      if (!Number.isFinite(platformExpiration.getTime()) || platformExpiration.getTime() <= Date.now()) {
+        await supabase.from("Job").update({ isActive: false, updatedAt: new Date().toISOString() }).eq("id", id);
+        return NextResponse.json({ message: "Offre expirée." }, { status: 404 });
+      }
       const company = Array.isArray(data.company) ? data.company[0] : data.company;
       const cleanedTitle = cleanJobTitle(data.title); const cleanedDescription = cleanJobDescription(data.description, cleanedTitle); const cleanedCompanyName = cleanCompanyName(company?.name) || extractCompanyNameFromDescription(cleanedDescription); const contacts = resolveApplicationContact((data.applicationProfile || {}) as Record<string, unknown>, cleanedDescription);
       const applicationProfile = { ...(data.applicationProfile || {}), ...(contacts.email ? { applicationEmail: contacts.email } : {}), ...(contacts.phone ? { applicationPhone: contacts.phone } : {}) };
@@ -35,6 +40,10 @@ export async function GET(request: NextRequest, context: Context) {
       .eq("id", id).eq("status", "published").maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) return NextResponse.json({ message: "Offre introuvable ou non publiée." }, { status: 404 });
+    const platformExpiration = new Date(new Date(data.createdAt).setMonth(new Date(data.createdAt).getMonth() + 2));
+    if (!Number.isFinite(platformExpiration.getTime()) || platformExpiration.getTime() <= Date.now()) {
+      return NextResponse.json({ message: "Offre expirée." }, { status: 404 });
+    }
     const cleanedTitle = cleanJobTitle(data.title); const cleanedDescription = cleanJobDescription(data.description, cleanedTitle); const cleanedCompanyName = cleanCompanyName(data.companyName) || extractCompanyNameFromDescription(cleanedDescription); const contacts = resolveApplicationContact((data.applicationProfile || {}) as Record<string, unknown>, cleanedDescription);
     const applicationProfile = { ...(data.applicationProfile || {}), ...(contacts.email ? { applicationEmail: contacts.email } : {}), ...(contacts.phone ? { applicationPhone: contacts.phone } : {}) };
     return NextResponse.json({ source, job: { ...data, title: cleanedTitle, description: cleanedDescription, companyName: cleanedCompanyName, applicationProfile } });
