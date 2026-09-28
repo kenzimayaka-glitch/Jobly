@@ -3,6 +3,7 @@ import { PDFParse } from "pdf-parse";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 import { runAiGateway } from "../../../../../lib/aiGateway";
+import { getActivePlanCode } from "../../../../../lib/entitlements";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -10,21 +11,18 @@ export const maxDuration = 60;
 const FREE_MAX_BYTES = 1 * 1024 * 1024;
 const PAID_MAX_BYTES = 3 * 1024 * 1024;
 
-async function getPlan(request: NextRequest, authUser: { id: string }) {
+async function getPlan(authUser: { id: string }) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return "FREE";
   const admin = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { data } = await admin.from("User").select("id").eq("authUserId", authUser.id).maybeSingle();
+  const { data } = await admin.from("User").select("id,role").eq("authUserId", authUser.id).maybeSingle();
   if (!data?.id) return "FREE";
-  const { data: subscription } = await admin.from("Subscription")
-    .select("plan,planCode,status")
-    .eq("userId", data.id)
-    .in("status", ["ACTIVE", "TRIAL"])
-    .order("createdAt", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return String(subscription?.planCode || subscription?.plan || "FREE").toUpperCase();
+  try {
+    return String(await getActivePlanCode(admin, data.id, String(data.role) === "RECRUITER" ? "RECRUITER" : "TALENT")).toUpperCase();
+  } catch {
+    return "FREE";
+  }
 }
 
 async function getAuthUser(request: NextRequest) {
@@ -76,7 +74,7 @@ export async function POST(request: NextRequest) {
     if (!authUser) {
       return NextResponse.json({ error: "AUTH_REQUIRED", message: "Session requise. Connecte-toi avant d’importer ton CV." }, { status: 401 });
     }
-    const plan = await getPlan(request, authUser);
+    const plan = await getPlan(authUser);
     const maxBytes = plan === "FREE" ? FREE_MAX_BYTES : PAID_MAX_BYTES;
     const maxLabel = plan === "FREE" ? "1 Mo" : "3 Mo";
     if (file.size <= 0 || file.size > maxBytes) {
