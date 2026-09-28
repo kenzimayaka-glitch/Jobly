@@ -7,7 +7,25 @@ import { runAiGateway } from "../../../../../lib/aiGateway";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const MAX_BYTES = 2 * 1024 * 1024;
+const FREE_MAX_BYTES = 1 * 1024 * 1024;
+const PAID_MAX_BYTES = 3 * 1024 * 1024;
+
+async function getPlan(request: NextRequest, authUser: { id: string }) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return "FREE";
+  const admin = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+  const { data } = await admin.from("User").select("id").eq("authUserId", authUser.id).maybeSingle();
+  if (!data?.id) return "FREE";
+  const { data: subscription } = await admin.from("Subscription")
+    .select("plan,planCode,status")
+    .eq("userId", data.id)
+    .in("status", ["ACTIVE", "TRIAL"])
+    .order("createdAt", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return String(subscription?.planCode || subscription?.plan || "FREE").toUpperCase();
+}
 
 async function getAuthUser(request: NextRequest) {
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
@@ -54,11 +72,21 @@ export async function POST(request: NextRequest) {
     if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
       return NextResponse.json({ error: "PDF_ONLY", message: "J’IA accepte ici uniquement les CV PDF." }, { status: 415 });
     }
-    if (file.size <= 0 || file.size > MAX_BYTES) {
-      return NextResponse.json({ error: "PDF_TOO_LARGE", message: "Le CV PDF doit faire au maximum 2 Mo." }, { status: 413 });
-    }
-
     const authUser = await getAuthUser(request);
+    if (!authUser) {
+      return NextResponse.json({ error: "AUTH_REQUIRED", message: "Session requise. Connecte-toi avant d’importer ton CV." }, { status: 401 });
+    }
+    const plan = await getPlan(request, authUser);
+    const maxBytes = plan === "FREE" ? FREE_MAX_BYTES : PAID_MAX_BYTES;
+    const maxLabel = plan === "FREE" ? "1 Mo" : "3 Mo";
+    if (file.size <= 0 || file.size > maxBytes) {
+      return NextResponse.json({
+        error: "PDF_TOO_LARGE",
+        message: `La taille maximale de ton CV PDF est de ${maxLabel} avec la formule ${plan}.`,
+        plan,
+        maxBytes,
+      }, { status: 413 });
+    }
     const fileBytes = Buffer.from(await file.arrayBuffer());
     const parser = new PDFParse({ data: fileBytes });
     const parsed = await parser.getText();
