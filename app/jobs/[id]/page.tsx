@@ -133,10 +133,11 @@ function JobDetailInner() {
         <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">03 · CANDIDAT</p>
         <h2 className="mt-2 text-2xl font-black text-[#17212B]">Profil recherché</h2>
         <div className="mt-7 grid gap-5 sm:grid-cols-2">
-          {sectionText("profile").length>0 && <div className="sm:col-span-2 rounded-2xl border border-slate-100 bg-[#FAFBFC] p-5"><h3 className="text-sm font-black text-[#00A6A6]">Profil recherché</h3><div className="mt-3">{renderLines(sectionText("profile"))}</div></div>}\n          {profileSections.map(([key,title,fallback]) => {
+          {sectionText("profile").length>0 && <div className="sm:col-span-2 rounded-2xl border border-slate-100 bg-[#FAFBFC] p-5"><h3 className="text-sm font-black text-[#00A6A6]">Profil recherché</h3><div className="mt-3">{renderBullets(sectionText("profile"))}</div></div>}
+          {profileSections.map(([key,title,fallback]) => {
             const items=sectionText(key);
             if (!items.length && key!=="experience") return null;
-            return <div key={key} className="rounded-2xl border border-slate-100 bg-[#FAFBFC] p-5"><h3 className="text-sm font-black text-[#00A6A6]">{title}</h3><div className="mt-3">{renderLines(items, fallback)}</div></div>;
+            return <div key={key} className="rounded-2xl border border-slate-100 bg-[#FAFBFC] p-5"><h3 className="text-sm font-black text-[#00A6A6]">{title}</h3><div className="mt-3">{renderBullets(items, fallback)}</div></div>;
           })}
         </div>
       </section>}
