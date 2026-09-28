@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient, getAuthUser } from "@/lib/server-auth";
-import { collectPublicJobSources } from "@/lib/jobSourceCollector";
+import { collectPublicJobSources, recollectOfferByUrl } from "@/lib/jobSourceCollector";
 import { cleanJobDescription, cleanJobTitle } from "@/lib/jobContent";
 
 export const runtime = "nodejs";
@@ -20,8 +20,19 @@ function normalizeCompany(value: string | null): string | null {
   return clean.length >= 2 ? clean.slice(0, 180) : null;
 }
 
-function isExpired(deadline: string | null): boolean {
-  return Boolean(deadline && Number.isFinite(new Date(deadline).getTime()) && new Date(deadline).getTime() < Date.now());
+function addMonths(date: Date, months: number): Date {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
+}
+
+function platformExpiresAt(createdAt: string, now = new Date()): Date {
+  const created = new Date(createdAt);
+  return Number.isFinite(created.getTime()) ? addMonths(created, 2) : addMonths(now, 2);
+}
+
+function isPlatformExpired(createdAt: string, now = new Date()): boolean {
+  return platformExpiresAt(createdAt, now).getTime() <= now.getTime();
 }
 
 const INGEST_CONCURRENCY = 4;
@@ -54,9 +65,71 @@ export async function POST(request: NextRequest) {
   if (!(await authorized(request))) return NextResponse.json({ message: "Non autorisé." }, { status: 401 });
 
   try {
-    const { offers, sources } = await collectPublicJobSources();
+    const url = new URL(request.url);
+    const mode = url.searchParams.get("mode") || "collect";
+    const batchSize = Math.min(Math.max(Number(url.searchParams.get("limit") || 20), 1), 40);
+    const offset = Math.max(Number(url.searchParams.get("offset") || 0) || 0, 0);
     const supabase = adminClient();
-    const now = new Date().toISOString();
+    const now = new Date();
+    
+    if (mode === "reprocess") {
+      const { data: rows, error } = await supabase.from("Job")
+        .select("id,title,sourceKey,sourceUrl,createdAt,isActive")
+        .not("sourceUrl", "is", null)
+        .not("sourceKey", "is", null)
+        .order("createdAt", { ascending: true })
+        .range(offset, offset + batchSize - 1);
+      if (error) throw new Error(error.message);
+
+      let processed = 0, updated = 0, skipped = 0, deactivated = 0;
+      await runWithConcurrency(rows || [], 3, async (row) => {
+        if (!row.sourceUrl || !row.sourceKey) { skipped++; return; }
+        const parsed = new URL(row.sourceUrl);
+        if (/\/(?:category|tag|author|page)(?:\/|$)/i.test(parsed.pathname)) {
+          const result = await supabase.from("Job").update({ isActive: false, updatedAt: now.toISOString(), lastSeenAt: now.toISOString() }).eq("id", row.id);
+          if (result.error) throw new Error(result.error.message);
+          deactivated++; processed++; return;
+        }
+        if (isPlatformExpired(row.createdAt, now)) {
+          const result = await supabase.from("Job").update({ isActive: false, updatedAt: now.toISOString(), lastSeenAt: now.toISOString() }).eq("id", row.id);
+          if (result.error) throw new Error(result.error.message);
+          deactivated++; processed++; return;
+        }
+        const offer = await recollectOfferByUrl(row.sourceKey, row.sourceUrl, row.title);
+        if (!offer) { skipped++; return; }
+        const cleanedTitle = cleanJobTitle(offer.title);
+        const cleanedDescription = cleanJobDescription(offer.description, cleanedTitle);
+        const cleanedContentHash = crypto.createHash("sha256")
+          .update([cleanedTitle, cleanedDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
+          .digest("hex");
+        const contact = offer.applicationProfile;
+        const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
+        const result = await supabase.from("Job").update({
+          title: cleanedTitle,
+          description: cleanedDescription,
+          location: offer.location,
+          contractType: offer.contractType,
+          sourcePublishedAt: offer.publishedAt,
+          deadline: offer.deadline,
+          contentHash: cleanedContentHash,
+          lastSeenAt: now.toISOString(),
+          isActive: !isPlatformExpired(row.createdAt, now),
+          applicationReady,
+          applicationProfile: contact,
+          applicationCheckedAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+          aiProcessed: false,
+          aiProcessedAt: null,
+        }).eq("id", row.id);
+        if (result.error) throw new Error(result.error.message);
+        processed++; updated++;
+      });
+
+      return NextResponse.json({ ok: true, mode, processed, updated, skipped, deactivated, offset, limit: batchSize, hasMore: (rows || []).length === batchSize, ranAt: now.toISOString() });
+    }
+
+    const { offers, sources } = await collectPublicJobSources();
+    const nowIso = now.toISOString();
     let created = 0, updated = 0;
 
     const ingestResult = await runWithConcurrency(offers, INGEST_CONCURRENCY, async (offer) => {
@@ -123,14 +196,14 @@ export async function POST(request: NextRequest) {
         externalId: offer.externalId,
         contentHash: cleanedContentHash,
         sourcePublishedAt: offer.publishedAt,
-        lastSeenAt: now,
-        isActive: !isExpired(offer.deadline),
+        lastSeenAt: nowIso,
+        isActive: true,
         deadline: offer.deadline,
         applicationReady,
         applicationProfile: contact,
-        applicationCheckedAt: now,
+        applicationCheckedAt: nowIso
         companyId,
-        updatedAt: now,
+        updatedAt: nowIso
       };
 
       if (companyId && (offer.logoUrl || offer.companyWebsite)) {
@@ -145,12 +218,12 @@ export async function POST(request: NextRequest) {
         const contentChanged = existing.data.contentHash !== cleanedContentHash;
         if (!contentChanged && !companyId) {
           const touch = await supabase.from("Job").update({
-            lastSeenAt: now,
-            isActive: !isExpired(offer.deadline),
+            lastSeenAt: nowIso,
+            isActive: !isPlatformExpired(existing.data.createdAt, now),
             applicationReady,
             applicationProfile: contact,
-            applicationCheckedAt: now,
-            updatedAt: now,
+            applicationCheckedAt: nowIso
+            updatedAt: nowIso
           }).eq("id", existing.data.id);
           if (touch.error) throw new Error(touch.error.message);
         } else {
@@ -165,7 +238,7 @@ export async function POST(request: NextRequest) {
         const id = crypto.randomUUID();
         const insert = await supabase.from("Job").insert({
           id,
-          createdAt: now,
+          createdAt: nowIso
           ...payload,
         });
         if (insert.error) throw new Error(insert.error.message);
