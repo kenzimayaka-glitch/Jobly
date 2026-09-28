@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -222,10 +222,6 @@ function JobDetailInner() {
   const tags: string[] = Array.isArray(job.tags) ? job.tags : [];
   const sections = parseJobDetailSections(job.description, job.title);
   const matchScore = Math.max(0, Math.min(100, Number(job.matchPercent ?? 0)));
-  const profileCards = [
-    ["profile", "Profil recherché", "Âge, niveau d’études, compétences, expérience et autres conditions mentionnées dans l’offre."],
-  ] as const;
-
   const headerFacts = [
     job.location ? { icon: MapPin, value: job.location } : null,
     contract ? { icon: Clock3, value: formatContract(contract) } : null,
@@ -239,14 +235,14 @@ function JobDetailInner() {
   const applicationSubject = emailChannel ? extractApplicationSubject(job.description || "", job.title || "") : "";
 
   const compactItems = (items: string[], limit = 12) => Array.from(new Set(items.map(cleanLine).filter(Boolean))).slice(0, limit);
-  const sourceTabs = useMemo(() => ([
+  const sourceTabs = ([
     ["description", "À propos du poste", sections.description],
     ["missions", "Missions", sections.missions],
     ["profile", "Profil recherché", sections.profile],
     ["benefits", "Avantages", sections.benefits],
     ["application", "Comment postuler", sections.application],
     ["deadline", "Délai", deadline ? [deadline] : []],
-  ] as const).filter(([, , items]) => items.length > 0), [sections, deadline]);
+  ] as const).filter(([, , items]) => items.length > 0);
   const visibleTab = sourceTabs.some(([key]) => key === activeTab) ? activeTab : (sourceTabs[0]?.[0] || "description");
   const activeTabData = sourceTabs.find(([key]) => key === visibleTab);
   const renderParagraphs = (items: string[]) => <div className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 8).map((line, i) => <p key={i}>{line}</p>)}</div>;
@@ -294,6 +290,24 @@ function JobDetailInner() {
           </section>
 
           <div className="mt-6 space-y-4">
+            <DetailSection title="Entreprise">
+              <div className="flex items-start gap-4">
+                <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#F3F6FA]">
+                  <CompanyLogo companyName={company} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={48}/>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-base font-black text-[#17212B]">{company || "Entreprise non précisée"}</p>
+                  {job.company?.description && <p className="mt-1.5 text-sm leading-6 text-slate-600">{job.company.description}</p>}
+                  {job.company?.website && <a href={job.company.website.startsWith("http") ? job.company.website : "https://" + job.company.website} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-[#22448B]">Visiter le site <ExternalLink size={14}/></a>}
+                </div>
+              </div>
+            </DetailSection>
+
+            <DetailSection title="Poste">
+              <h2 className="text-xl font-black text-[#17212B]">{job.title}</h2>
+              {headerFacts.length > 0 && <div className="mt-4 grid gap-2 sm:grid-cols-2">{headerFacts.map(({ icon: Icon, value }) => <div key={value} className="flex min-w-0 items-center gap-2.5 rounded-xl bg-[#F7FAFF] px-3.5 py-3 text-sm font-semibold text-slate-600">{Icon ? <Icon size={16} className="shrink-0 text-[#22448B]"/> : <span className="h-2 w-2 shrink-0 rounded-full bg-[#FFD60A]" />}<span className="truncate">{value}</span></div>)}</div>}
+            </DetailSection>
+
             {sourceTabs.length > 0 && <DetailSection title="Contenu de l’offre">
               <div className="-mx-1 overflow-x-auto pb-1"><div className="flex min-w-max gap-2 px-1">
                 {sourceTabs.map(([key, label]) => <button key={key} type="button" onClick={() => setActiveTab(key)} className={`rounded-full px-4 py-2.5 text-sm font-extrabold transition ${visibleTab === key ? "bg-[#FFD60A] text-[#17212B]" : "bg-[#F3F6FA] text-slate-600"}`}>{label}</button>)}
@@ -333,6 +347,16 @@ function JobDetailInner() {
               <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(params.id) + "&source=" + encodeURIComponent(source || ""))} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[#FFD60A] bg-white py-3.5 text-sm font-black text-[#2E3F4F]"><Sparkles size={17}/>Adapter mon CV à cette offre</button>
               <button disabled={busy || deadlineExpired} onClick={apply} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#22448B] py-3.5 text-sm font-black text-white disabled:opacity-50">{deadlineExpired ? <span>Offre expirée</span> : emailChannel ? <><GmailIcon/><span>Postuler maintenant</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler maintenant</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler maintenant</span></> : <span>Postuler maintenant</span>}</button>
             </DetailSection>
+
+            <section className="rounded-[22px] border border-amber-100 bg-[#FFFBEA] px-5 py-5 sm:px-6">
+              <p className="text-sm leading-6 text-[#4A3F00]">
+                <span className="font-black">Important — Sécurité et impartialité.</span>{" "}
+                Jobly agit de manière <strong>impartiale et exclusivement consultative</strong>. Jobly n’intervient pas en faveur d’un candidat et ne peut garantir, influencer ou faciliter son recrutement.
+              </p>
+              <p className="mt-2 text-sm leading-6 text-[#4A3F00]">
+                <strong>Postuler est entièrement gratuit.</strong> Ne versez jamais d’argent, de frais ou de commission à une personne qui vous promettrait un emploi, un recrutement ou un traitement privilégié en échange d’un paiement.
+              </p>
+            </section>
 
             {job.company?.description && <DetailSection title={"À propos de " + (company || "l’entreprise")}>
               <p className="text-sm leading-6 text-slate-600">{job.company.description}</p>
