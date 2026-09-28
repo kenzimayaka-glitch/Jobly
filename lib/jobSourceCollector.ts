@@ -32,7 +32,7 @@ export type CollectedOffer = {
 const SOURCES: SourceConfig[] = [
   { key: "minajobs", name: "MinaJobs", listingUrls: ["https://cm2024.minajobs.net/offres-emplois-stages", "https://cameroun.minajobs.net/offres-emplois-stages", "https://minajobs.net/offres-emplois-stages-a/tout-le-cameroun"], hostnames: ["cameroun.minajobs.net", "cm2024.minajobs.net", "minajobs.net"], offerPattern: /\/emplois-stage-recrutement\/(\d+)(?:\/|$)/i },
   { key: "jobinfocamer", name: "JobInfoCamer", listingUrls: ["https://www.jobinfocamer.com/jobs/", "https://www.jobinfocamer.com/fr/"], hostnames: ["www.jobinfocamer.com", "jobinfocamer.com"], offerPattern: /\/(?:job|jobs)\/(\d+)(?:\/|$)/i },
-  { key: "infosconcourseducation", name: "Infos Concours Education", listingUrls: ["https://infosconcourseducation.com/category/offre-demploiss/", "https://infosconcourseducation.com/actualite/", "https://infosconcourseducation.com/"], hostnames: ["infosconcourseducation.com", "www.infosconcourseducation.com"], offerPattern: /\/[^/]+\/?$/i },
+  { key: "infosconcourseducation", name: "Infos Concours Education", listingUrls: ["https://infosconcourseducation.com/category/offre-demploiss/"], hostnames: ["infosconcourseducation.com", "www.infosconcourseducation.com"], offerPattern: /\/[^/]+\/?$/i },
 ];
 
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
@@ -117,8 +117,11 @@ function titleFromHtml(html: string): string | null {
 }
 
 function isRelevantInfosConcoursLink(url: URL, title: string): boolean {
-  return /infosconcourseducation\.com$/i.test(url.hostname) &&
-    /(?:offre|emploi|recrut|stage|commercial|assistant|manager|technicien|agent|chauffeur|vendeur|promotrice|promoteur)/i.test(url.pathname + " " + title);
+  if (!/infosconcourseducation\.com$/i.test(url.hostname)) return false;
+  // Never ingest archive/category/navigation pages as jobs.
+  if (/\/(?:category|tag|author|page|actualite)(?:\/|$)/i.test(url.pathname)) return false;
+  if (/^(?:offre d'?emplois?|emplois?|stages?|actualites?)$/i.test(title.trim())) return false;
+  return /(?:offre|emploi|recrut|stage|commercial|assistant|manager|technicien|agent|chauffeur|vendeur|promotrice|promoteur)/i.test(url.pathname + " " + title);
 }
 
 function extractLinks(html: string, baseUrl: string, source: SourceConfig): CandidateLink[] {
@@ -161,7 +164,18 @@ async function fetchHtml(url: string): Promise<string> {
     if (!response.ok) throw new Error("HTTP_" + response.status);
     const type = response.headers.get("content-type") || "";
     if (!type.includes("text/html") && !type.includes("application/xhtml")) throw new Error("SOURCE_NOT_HTML");
-    return await response.text();
+
+    // Some public job boards still serve legacy ISO-8859-1/Windows-1252
+    // pages. response.text() assumes UTF-8 and can turn valid French text
+    // into �/Ã/Â sequences. Decode according to the declared charset.
+    const buffer = await response.arrayBuffer();
+    const charset = type.match(/charset=([^;\s]+)/i)?.[1]?.trim().toLowerCase();
+    const decoderName = charset === "iso-8859-1" || charset === "latin1"
+      ? "iso-8859-1"
+      : charset === "windows-1252" || charset === "cp1252"
+        ? "windows-1252"
+        : "utf-8";
+    return new TextDecoder(decoderName, { fatal: false }).decode(buffer);
   } finally { clearTimeout(timer); }
 }
 
@@ -316,6 +330,12 @@ async function collectWordPressOffers(source: SourceConfig): Promise<CollectedOf
 }
 
 async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
+  // Infos Concours Education exposes a stable WordPress REST feed. Use it
+  // directly instead of scraping archive links, which are not job offers.
+  if (source.key === "infosconcourseducation") {
+    return collectWordPressOffers(source);
+  }
+
   const seenPages = new Set<string>(), candidates = new Map<string,CandidateLink>();
   for (const firstUrl of source.listingUrls) {
     let current = firstUrl;
