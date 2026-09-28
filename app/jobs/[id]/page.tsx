@@ -23,6 +23,7 @@ import BottomNav from "@/components/BottomNav";
 import TalentBackground from "@/components/TalentBackground";
 import CompanyLogo from "@/components/CompanyLogo";
 import { cleanCompanyName, parseJobDetailSections } from "@/lib/jobContent";
+import { normalizeJobIdentity } from "@/lib/jobNormalizer";
 import { extractApplicationSubject } from "@/lib/applicationSubject";
 
 type MatchItem = {
@@ -178,7 +179,7 @@ function JobDetailInner() {
       const r = await fetch("/api/cv-share", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + s.data.session.access_token }, body: JSON.stringify({ source, jobId: params.id }) });
       const b = await r.json(); if (!r.ok) throw Error(b.message || "Impossible de préparer le CV.");
       const cvUrl = window.location.origin + "/cv/share/" + b.token;
-      const message = "Bonjour, je suis " + b.candidateName + ". Je souhaite vous soumettre ma candidature au poste de " + (job?.title || "ce poste") + (company ? " chez " + company : "") + ".\n\n📄 CV " + b.candidateName + " — Candidature " + (company || job?.title || "ce poste") + "\n" + cvUrl;
+      const message = "Bonjour, je suis " + b.candidateName + ". Je souhaite vous soumettre ma candidature au poste de " + (displayTitle || "ce poste") + (company ? " chez " + company : "") + ".\n\n📄 CV " + b.candidateName + " — Candidature " + (company || job?.title || "ce poste") + "\n" + cvUrl;
       window.open("https://wa.me/" + phone + "?text=" + encodeURIComponent(message), "_blank", "noopener,noreferrer");
     } catch (e) { setError(e instanceof Error ? e.message : "Impossible d’ouvrir WhatsApp."); }
   }
@@ -211,7 +212,14 @@ function JobDetailInner() {
   if (loading) return <main className="grid min-h-[100dvh] place-items-center bg-[#F7FAFF] font-bold text-[#17212B]">Chargement…</main>;
   if (error || !job) return <main className="talent-shell min-h-[100dvh] bg-[#F7FAFF] text-navy"><PageHeader label="Offre" onBack={() => router.replace("/jobs")} theme="talent"/><div className="mx-auto mt-8 max-w-2xl px-5"><div className="rounded-[24px] bg-white p-6 shadow-sm"><h1 className="text-xl font-black">Offre indisponible</h1><p className="mt-2 text-sm text-slate-500">{error || "Cette offre n’est plus disponible."}</p><button onClick={() => router.replace("/jobs")} className="mt-5 rounded-2xl bg-[#22448B] px-5 py-3 text-sm font-black text-white">Retour aux offres</button></div></div></main>;
 
-  const company = cleanCompanyName(job.company?.name || job.companyName);
+  const normalizedIdentity = normalizeJobIdentity({
+    title: job.displayTitle ?? job.title,
+    companyName: job.displayCompanyName ?? job.company?.name ?? job.companyName,
+    description: job.description,
+  });
+  const displayTitle = normalizedIdentity.title;
+  const displayCompany = normalizedIdentity.companyName;
+  const company = displayCompany;
   const emailChannel = Boolean(job.applicationProfile?.applicationEmail || job.applicationProfile?.email);
   const phoneChannel = Boolean(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.length);
   const applicationLink = String(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl || job.applicationProfile?.url || "").trim();
@@ -220,7 +228,7 @@ function JobDetailInner() {
   const deadline = job.deadline ? new Date(job.deadline).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : null;
   const deadlineExpired = Boolean(job.deadlineExpired);
   const tags: string[] = Array.isArray(job.tags) ? job.tags : [];
-  const sections = parseJobDetailSections(job.description, job.title);
+  const sections = parseJobDetailSections(normalizedIdentity.description, displayTitle);
   const matchScore = Math.max(0, Math.min(100, Number(job.matchPercent ?? 0)));
   const headerFacts = [
     job.location ? { icon: MapPin, value: job.location } : null,
@@ -229,10 +237,9 @@ function JobDetailInner() {
     job.salary || job.salaryMin != null ? { icon: null, value: job.salary ? `${formatSalary(job.salary)} ${job.salaryCurrency || "XAF"}` : `${formatSalary(job.salaryMin)}${job.salaryMax != null ? " – " + formatSalary(job.salaryMax) : ""} ${job.salaryCurrency || "XAF"}` } : null,
   ].filter(Boolean) as Array<{ icon: any; value: string }>;
 
-  const hasProfile = sections.profile.length > 0;
   const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Plateforme externe" : "Candidature depuis Jobly";
   const applicationEmail = String(job.applicationProfile?.applicationEmail || job.applicationProfile?.email || "").trim();
-  const applicationSubject = emailChannel ? extractApplicationSubject(job.description || "", job.title || "") : "";
+  const applicationSubject = emailChannel ? extractApplicationSubject(job.description || "", displayTitle || "") : "";
 
   const compactItems = (items: string[], limit = 12) => Array.from(new Set(items.map(cleanLine).filter(Boolean))).slice(0, limit);
   const sourceTabs = ([
@@ -261,8 +268,8 @@ function JobDetailInner() {
                 <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-[#F3F6FA] sm:h-20 sm:w-20"><CompanyLogo companyName={company} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={64}/></div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-black uppercase tracking-[1.7px] text-[#9B8500]">Offre d’emploi</p>
-                  <h1 className="mt-1.5 text-[27px] font-black leading-[1.12] tracking-[-0.03em] text-[#17212B] sm:text-[38px]">{job.title}</h1>
-                  <p className="mt-2 text-base font-extrabold text-[#22448B]">{company || "Entreprise non précisée"}</p>
+                  <h1 className="mt-1.5 text-[27px] font-black leading-[1.12] tracking-[-0.03em] text-[#17212B] sm:text-[38px]">{displayTitle}</h1>
+                  <p className="mt-2 text-base font-extrabold text-[#22448B]">{company || "Employeur non renseigné"}</p>
                   {deadlineExpired && <span className="mt-3 inline-flex rounded-full bg-red-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[1px] text-red-600">Offre expirée</span>}
                 </div>
                 <button onClick={() => setSaved(v => !v)} aria-label={saved ? "Retirer des favoris" : "Ajouter aux favoris"} className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border ${saved ? "border-[#FFD60A] bg-[#FFFBE0] text-[#8C7600]" : "border-slate-200 bg-white text-slate-500"}`}><Heart size={18} fill={saved ? "currentColor" : "none"}/></button>
@@ -296,7 +303,7 @@ function JobDetailInner() {
                   <CompanyLogo companyName={company} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={48}/>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-base font-black text-[#17212B]">{company || "Entreprise non précisée"}</p>
+                  <p className="text-base font-black text-[#17212B]">{company || "Employeur non renseigné"}</p>
                   {job.company?.description && <p className="mt-1.5 text-sm leading-6 text-slate-600">{job.company.description}</p>}
                   {job.company?.website && <a href={job.company.website.startsWith("http") ? job.company.website : "https://" + job.company.website} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-[#22448B]">Visiter le site <ExternalLink size={14}/></a>}
                 </div>
@@ -304,8 +311,7 @@ function JobDetailInner() {
             </DetailSection>
 
             <DetailSection title="Poste">
-              <h2 className="text-xl font-black text-[#17212B]">{job.title}</h2>
-              {headerFacts.length > 0 && <div className="mt-4 grid gap-2 sm:grid-cols-2">{headerFacts.map(({ icon: Icon, value }) => <div key={value} className="flex min-w-0 items-center gap-2.5 rounded-xl bg-[#F7FAFF] px-3.5 py-3 text-sm font-semibold text-slate-600">{Icon ? <Icon size={16} className="shrink-0 text-[#22448B]"/> : <span className="h-2 w-2 shrink-0 rounded-full bg-[#FFD60A]" />}<span className="truncate">{value}</span></div>)}</div>}
+              <h2 className="text-xl font-black leading-tight text-[#17212B]">{displayTitle}</h2>
             </DetailSection>
 
             {sourceTabs.length > 0 && <DetailSection title="Contenu de l’offre">
@@ -325,28 +331,15 @@ function JobDetailInner() {
               </div>}
             </DetailSection>}
 
-            {sections.missions.length > 0 && <DetailSection title="Missions principales">{renderBullets(sections.missions)}</DetailSection>}
-
-            {hasProfile && <DetailSection title="Profil recherché">
-              {renderBullets(sections.profile)}
-            </DetailSection>}
-
-            {sections.benefits.length > 0 && <DetailSection title="Ce que l’entreprise offre">{renderBullets(sections.benefits)}</DetailSection>}
-
-            <DetailSection title="Candidature">
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="rounded-xl bg-[#F7FAFF] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Mode</p><p className="mt-1 text-sm font-bold text-[#17212B]">{applicationMode}</p></div>
-                {deadline && <div className="rounded-xl bg-[#F7FAFF] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Date limite</p><p className="mt-1 text-sm font-bold text-[#17212B]">{deadline}</p></div>}
+            <div className="flex items-center justify-between gap-3 rounded-[22px] border border-slate-100 bg-white px-5 py-4 shadow-[0_6px_24px_rgba(23,33,43,0.035)] sm:px-6">
+              <div>
+                <p className="text-sm font-black text-[#17212B]">Prêt à candidater ?</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Retrouvez les modalités complètes dans « Comment postuler ».</p>
               </div>
-              {emailChannel && <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <div className="rounded-xl bg-[#F7FAFF] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Mail de candidature</p><p className="mt-1 break-all text-sm font-bold text-[#17212B]">{applicationEmail}</p></div>
-                <div className="rounded-xl bg-[#F7FAFF] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Objet du mail</p><p className="mt-1 text-sm font-bold text-[#17212B]">{applicationSubject}</p></div>
-              </div>}
-              {sections.application.length > 0 && <div className="mt-3 rounded-xl bg-[#FFFBE0] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-[#8C7600]">Instructions de candidature</p><div className="mt-2">{renderBullets(sections.application)}</div></div>}
-              {applicationLink && <a href={applicationLink} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-[#DDE6F5] bg-white py-3.5 text-sm font-black text-[#22448B]"><ExternalLink size={17}/>Voir la plateforme de candidature</a>}
-              <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(params.id) + "&source=" + encodeURIComponent(source || ""))} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[#FFD60A] bg-white py-3.5 text-sm font-black text-[#2E3F4F]"><Sparkles size={17}/>Adapter mon CV à cette offre</button>
-              <button disabled={busy || deadlineExpired} onClick={apply} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#22448B] py-3.5 text-sm font-black text-white disabled:opacity-50">{deadlineExpired ? <span>Offre expirée</span> : emailChannel ? <><GmailIcon/><span>Postuler maintenant</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler maintenant</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler maintenant</span></> : <span>Postuler maintenant</span>}</button>
-            </DetailSection>
+              <button disabled={busy || deadlineExpired} onClick={apply} className="shrink-0 rounded-xl bg-[#FFD60A] px-4 py-3 text-xs font-black text-[#17212B] disabled:opacity-50">
+                {deadlineExpired ? "Offre expirée" : "Postuler"}
+              </button>
+            </div>
 
             <section className="rounded-[22px] border border-amber-100 bg-[#FFFBEA] px-5 py-5 sm:px-6">
               <p className="text-sm leading-6 text-[#4A3F00]">
@@ -358,10 +351,6 @@ function JobDetailInner() {
               </p>
             </section>
 
-            {job.company?.description && <DetailSection title={"À propos de " + (company || "l’entreprise")}>
-              <p className="text-sm leading-6 text-slate-600">{job.company.description}</p>
-              {job.company?.website && <a href={job.company.website.startsWith("http") ? job.company.website : "https://" + job.company.website} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-[#22448B]">Visiter le site <ExternalLink size={14}/></a>}
-            </DetailSection>}
             {error && <div role="alert" className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
           </div>
         </div>

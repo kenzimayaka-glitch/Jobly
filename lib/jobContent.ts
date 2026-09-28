@@ -15,8 +15,28 @@ export function decodeHtmlEntities(value: string): string {
     .replace(/&([a-z][a-z0-9]+);/gi, token => named[token.toLowerCase()] || token);
 }
 function repairUtf8(value: string): string {
-  if (!/[ÃÂâ][\x80-\xBF\x20-\x7E]/.test(value)) return value;
-  try { const bytes = new Uint8Array([...value].map(ch => ch.charCodeAt(0))); const repaired = new TextDecoder("utf-8",{fatal:false}).decode(bytes); return repaired || value; } catch { return value; }
+  // Repair common UTF-8 decoded as Windows-1252/Latin-1 mojibake,
+  // including sequences such as "Ã‰", "Ã©" and "â€™".
+  if (!/[ÃÂâðÐÑ]/.test(value)) return value;
+
+  const cp1252: Record<string, number> = {
+    "€": 0x80, "‚": 0x82, "ƒ": 0x83, "„": 0x84, "…": 0x85, "†": 0x86, "‡": 0x87,
+    "ˆ": 0x88, "‰": 0x89, "Š": 0x8A, "‹": 0x8B, "Œ": 0x8C, "Ž": 0x8E,
+    "‘": 0x91, "’": 0x92, "“": 0x93, "”": 0x94, "•": 0x95, "–": 0x96, "—": 0x97,
+    "˜": 0x98, "™": 0x99, "š": 0x9A, "›": 0x9B, "œ": 0x9C, "ž": 0x9E, "Ÿ": 0x9F,
+  };
+
+  try {
+    const bytes = new Uint8Array([...value].map((char) => {
+      const code = char.charCodeAt(0);
+      return code <= 0xFF ? code : (cp1252[char] ?? 0x3F);
+    }));
+    const repaired = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+    if (!repaired || repaired.includes("\uFFFD")) return value;
+    return repaired;
+  } catch {
+    return value;
+  }
 }
 function collapseLine(value: string): string { return value.replace(/\u00a0/g," ").replace(/[ \t]+/g," ").trim(); }
 
