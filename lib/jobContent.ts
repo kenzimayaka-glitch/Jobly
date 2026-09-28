@@ -139,11 +139,7 @@ function splitInlineSectionHeadings(value: string): string {
     "Application", "How to apply", "Responsibilities", "Requirements", "Education",
     "Experience", "Skills", "Benefits",
   ];
-  const escaped = headingPatterns
-    .sort((a, b) => b.length - a.length)
-    .map((heading) => heading.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&"))
-"))
-    .join("|");
+  const escaped = headingPatterns.map((heading) => heading.replaceAll(" ", "\\\\s+")).join("|");
   return value
     .replace(new RegExp("(?:^|[\\\\s|•▪◦])((?:" + escaped + "))(?:\\\\s*[:：-]\\\\s*|\\\\s+)", "giu"), (match) =>
       match.startsWith("\\n") ? match : "\\n" + match.trimStart()
