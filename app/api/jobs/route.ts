@@ -19,7 +19,9 @@ type MatchableJob = { title:string; description?:string|null; location:string|nu
 
 function computeYearsExperience(experiences:Experience[]):number|null { if(!experiences.length)return null; const earliest=experiences.map(e=>new Date(e.startDate).getTime()).filter(t=>!Number.isNaN(t)).sort((a,b)=>a-b)[0]; if(earliest===undefined)return null; return Math.max(0,Math.floor((Date.now()-earliest)/(1000*60*60*24*365))); }
 function normalize(value:string|null|undefined):string { return (value||"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
-function expirationFor(_publishedAt:string|null|undefined, deadline:string|null|undefined, _createdAt:string):Date|null { if(!deadline)return null; const d=new Date(deadline); return Number.isFinite(d.getTime())?d:null; }
+function addMonths(date: Date, months: number): Date { const next = new Date(date); next.setMonth(next.getMonth() + months); return next; }
+function platformExpiration(createdAt:string):Date|null { const d=new Date(createdAt); return Number.isFinite(d.getTime()) ? addMonths(d,2) : null; }
+function deadlineExpired(deadline:string|null|undefined):boolean { if(!deadline)return false; const d=new Date(deadline); return Number.isFinite(d.getTime()) && d.getTime() < Date.now(); }
 type MatchCriterion = { id:string; label:string; score:number|null; weight:number; required:boolean; status:"MATCH"|"PARTIAL"|"MISMATCH"|"UNKNOWN"; candidateValue?:string|null; expectedValue?:string|null };
 const WEIGHTS:Record<string,number>={role:20,skills:30,experience:20,education:12,language:10,location:5,sector:2,contract:1};
 function detectExp(text:string,min:number|null){if(min!=null&&min>0)return min;const m=normalize(text).match(/(?:minimum|min|au moins|plus de)\s*(\d+)\s*(?:ans?|annees?|years?)/);return m?Number(m[1]):null;}
@@ -203,7 +205,17 @@ export async function GET(request:NextRequest){
   });
   const companyIds=Array.from(new Set(unified.map(j=>j.companyId).filter(Boolean))) as string[];const companiesRes=companyIds.length?await supabase.from("Company").select("id,name,logoUrl,description,website,verified").in("id",companyIds):{data:[] as Company[],error:null};if(companiesRes.error)throw new Error(companiesRes.error.message);const companiesById=new Map((companiesRes.data as Company[]).map(c=>[c.id,c]));
   const ranked=unified.map(job=>{const {matchPercent,confidence,breakdown}=adaptiveMatch(profile,yearsExperience,experiences,skills,education,job);const company=job.companyId?companiesById.get(job.companyId):undefined;const publishedAt=job.publishedAt||job.createdAt;const expirationAt=expirationFor(job.publishedAt,job.deadline,job.createdAt);return{source:job.source,id:job.sourceId,title:job.title,description:job.description,location:job.location,contractType:job.contractType,remoteMode:job.remoteMode,minExperienceYears:job.minExperienceYears,createdAt:job.createdAt,publishedAt,expirationAt:expirationAt?expirationAt.toISOString():null,deadline:job.deadline,sourceUrl:job.sourceUrl,sourcePlatform:job.sourcePlatform,applicationReady:Boolean(job.applicationReady),applicationProfile:job.applicationProfile,applicationCheckedAt:job.applicationCheckedAt,visualUrl:company?.logoUrl||null,visualSource:company?.logoUrl?"COMPANY_LOGO":null,company:(company&&!isGenericCompanyName(company.name))?{id:company.id,name:company.name,logoUrl:company.logoUrl,description:company.description,website:company.website,domain:companyDomain(company.website),verified:company.verified}:(!company&&job.companyName&&!isGenericCompanyName(job.companyName))?{id:null,name:job.companyName,logoUrl:null,description:null,website:null,domain:null,verified:false}:null,matchPercent,matchConfidence:confidence,matchBreakdown:breakdown,feedScore:matchPercent};}).sort((a,b)=>b.feedScore-a.feedScore||new Date(b.publishedAt).getTime()-new Date(a.publishedAt).getTime());
-  const totalAvailable=ranked.length;const start=(page-1)*limit;const results=ranked.slice(start,start+limit);const matchingCount=ranked.reduce((count,job)=>count+(job.matchPercent>=50?1:0),0);
+  // Enforce lifecycle at read time as a safety net: no discovery offer remains
+  // visible beyond two months from its Jobly publication date (createdAt).
+  const staleIds = ranked.filter(job => {
+    const expiresAt = platformExpiration(job.createdAt);
+    return expiresAt ? expiresAt.getTime() <= Date.now() : false;
+  }).map(job => job.id).filter(Boolean);
+  if (staleIds.length) {
+    await supabase.from("Job").update({ isActive:false, updatedAt:new Date().toISOString() }).in("id", staleIds);
+  }
+  const visibleRanked = ranked.filter(job => !staleIds.includes(job.id));
+  const totalAvailable=visibleRanked.length;const start=(page-1)*limit;const results=ranked.slice(start,start+limit);const matchingCount=ranked.reduce((count,job)=>count+(job.matchPercent>=50?1:0),0);
   return NextResponse.json({totalAvailable,matchingCount,count:results.length,page,limit,hasMore:start+limit<totalAvailable,yearsExperience,jobs:results,matchingPolicy:{matchingThreshold:50,ordering:"match_then_publication",externalRequiresApplicationReady:true}});
  }catch(error){return NextResponse.json({message:error instanceof Error?error.message:"Impossible de charger les offres."},{status:500});}
 }
