@@ -135,3 +135,96 @@ export function extractCompanyNameFromDescription(description: string): string |
   for(const pattern of patterns){ const name=cleanCompanyName(text.match(pattern)?.[1]||null); if(name) return name; }
   return null;
 }
+
+
+export type JobDetailSections = {
+  description: string[];
+  profile: string[];
+  missions: string[];
+  formation: string[];
+  experience: string[];
+  skills: string[];
+  qualities: string[];
+  benefits: string[];
+  application: string[];
+};
+
+function normalizeSectionHeading(value: string): string {
+  return repairUtf8(decodeHtmlEntities(value))
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[’']/g, "'")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function sectionFromHeading(value: string): keyof JobDetailSections | null {
+  const h = normalizeSectionHeading(value);
+  if (!h) return null;
+  if (/^(description|presentation|contexte|a propos du poste|le poste)$/.test(h)) return "description";
+  if (/^(missions?|missions principales?|responsabilites?|responsabilites principales?|taches?|activites?|role et responsabilites?)$/.test(h)) return "missions";
+  if (/^(profil|profil recherche|profil du candidat|candidat recherche|exigences?|requirements?|qualifications?)$/.test(h)) return "profile";
+  if (/^(formation|diplomes?|etudes|education)$/.test(h)) return "formation";
+  if (/^(experience|experiences?|parcours|experience professionnelle)$/.test(h)) return "experience";
+  if (/^(competences?|competences techniques?|savoir faire|skills|technical skills)$/.test(h)) return "skills";
+  if (/^(qualites?|savoir etre|soft skills|aptitudes|qualities)$/.test(h)) return "qualities";
+  if (/^(avantages?|ce que l entreprise offre|ce que nous offrons|nous offrons|conditions de travail|remuneration et avantages?|benefits|what we offer)$/.test(h)) return "benefits";
+  if (/^(candidature|pour postuler|modalites? de candidature|comment postuler|documents? a fournir|documents? demandes?|application|how to apply)$/.test(h)) return "application";
+  return null;
+}
+
+function cleanSectionLine(value: string): string {
+  return collapseLine(value)
+    .replace(/^(?:[-–—•▪◦*]+)\s*/, "")
+    .trim();
+}
+
+/**
+ * Converts cleaned offer text into conservative display sections.
+ * It only creates a section when a recognizable heading is present and
+ * never invents missing content.
+ */
+export function parseJobDetailSections(value: unknown, titleHint?: string | null): JobDetailSections {
+  const empty = (): JobDetailSections => ({
+    description: [], profile: [], missions: [], formation: [], experience: [],
+    skills: [], qualities: [], benefits: [], application: [],
+  });
+  const text = cleanJobDescription(value, titleHint);
+  if (!text) return empty();
+
+  const result = empty();
+  let current: keyof JobDetailSections = "description";
+  const lines = text.split(/\r?\n/).map(cleanSectionLine).filter(Boolean);
+
+  for (const rawLine of lines) {
+    // Handle headings followed by content on the same line:
+    // "Missions principales : gérer..., suivre..." .
+    const colon = rawLine.search(/\s*[:：]\s*/);
+    if (colon > 0) {
+      const before = rawLine.slice(0, colon).trim();
+      const section = sectionFromHeading(before);
+      if (section) {
+        current = section;
+        const after = rawLine.slice(colon + 1).trim();
+        if (after) result[current].push(after);
+        continue;
+      }
+    }
+
+    const section = sectionFromHeading(rawLine);
+    if (section) {
+      current = section;
+      continue;
+    }
+
+    // Don't let the offer title become the description.
+    if (titleHint && normalizeSectionHeading(rawLine) === normalizeSectionHeading(titleHint)) continue;
+    result[current].push(rawLine);
+  }
+
+  // A "Profil recherché" heading is a container, not a description.
+  // If its content has no explicit subheading, keep it in description only
+  // when no dedicated profile fields were detected; this avoids data loss.
+  return result;
+}
