@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     const { offers, sources } = await collectPublicJobSources();
     const supabase = adminClient();
     const now = new Date().toISOString();
-    let created = 0, updated = 0, skipped = 0;
+    let created = 0, updated = 0;
 
     const ingestResult = await runWithConcurrency(offers, INGEST_CONCURRENCY, async (offer) => {
       const cleanedTitle = cleanJobTitle(offer.title);
@@ -180,7 +180,6 @@ export async function POST(request: NextRequest) {
       discovered: offers.length,
       created,
       updated,
-      skipped,
       skipped: ingestResult.failed,
       ranAt: now,
     });
