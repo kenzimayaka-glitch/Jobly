@@ -31,7 +31,7 @@ export default function JobsReprocessPage() {
         if (!session) {
           if (!cancelled) setStatus("Restauration de votre session Jobly…");
 
-          session = await new Promise<typeof session>((resolve) => {
+          session = await new Promise<import("@supabase/supabase-js").Session | null>((resolve) => {
             let settled = false;
             let timer: number | undefined;
             let subscription: { unsubscribe: () => void } | null = null;
