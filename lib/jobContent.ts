@@ -423,6 +423,59 @@ export function parseJobDetailSections(value: unknown, titleHint?: string | null
     }
   }
 
+  // A frequent source format stores the entire offer as one long
+  // "description" field, even when that field itself contains headings such
+  // as "Missions", "Profil", "Avantages". Re-parse description items so
+  // those headings cannot leak into one giant paragraph.
+  if (result.description.length) {
+    const reparsed = emptySections();
+    for (const item of result.description) {
+      const cleaned = cleanJobDescription(item, titleHint);
+      if (!cleaned) continue;
+
+      let current: keyof JobDetailSections = "description";
+      const lines = cleaned.split(/\\r?\\n/).map(cleanSectionLine).filter(Boolean);
+
+      for (const rawLine of lines) {
+        if (titleHint && normalizeSectionHeading(rawLine) === normalizeSectionHeading(titleHint)) continue;
+
+        const colonMatch = rawLine.match(/^(.{2,90}?)\\s*[:：]\\s*(.+)$/);
+        if (colonMatch) {
+          const section = sectionFromHeading(colonMatch[1]);
+          if (section) {
+            current = section;
+            addTextToSection(reparsed, current, colonMatch[2]);
+            continue;
+          }
+        }
+
+        const exactSection = sectionFromHeading(rawLine);
+        if (exactSection) {
+          current = exactSection;
+          continue;
+        }
+
+        addTextToSection(reparsed, current, rawLine);
+      }
+    }
+
+    const reparsedHasSections = SECTION_ORDER.some(
+      (key) => key !== "description" && reparsed[key].length > 0
+    );
+
+    if (reparsedHasSections) {
+      // Keep explicitly structured sections, while replacing the flattened
+      // description with the correctly classified text.
+      result.description = reparsed.description;
+      for (const key of SECTION_ORDER) {
+        if (key === "description") continue;
+        if (reparsed[key].length && !result[key].length) {
+          result[key] = reparsed[key];
+        }
+      }
+    }
+  }
+
   for (const key of SECTION_ORDER) {
     result[key] = normalizeSectionItems(result[key]);
   }
