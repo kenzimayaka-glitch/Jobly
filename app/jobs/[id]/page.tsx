@@ -85,21 +85,16 @@ function formatSalary(value: unknown) {
 }
 
 function DetailSection({
-  eyebrow,
   title,
   children,
-  muted = false,
 }: {
-  eyebrow?: string;
   title: string;
   children: ReactNode;
-  muted?: boolean;
 }) {
   return (
-    <section className="rounded-[24px] border border-slate-100 bg-white p-6 shadow-[0_8px_30px_rgba(23,33,43,0.045)] sm:p-7">
-      {eyebrow && <p className="text-[10px] font-extrabold uppercase tracking-[1.7px] text-[#9B8500]">{eyebrow}</p>}
-      <h2 className="mt-1.5 text-[22px] font-black tracking-[-0.02em] text-[#17212B] sm:text-[24px]">{title}</h2>
-      <div className={muted ? "mt-5 text-slate-500" : "mt-5"}>{children}</div>
+    <section className="rounded-[22px] border border-slate-100 bg-white px-5 py-5 shadow-[0_6px_24px_rgba(23,33,43,0.035)] sm:px-6">
+      <h2 className="text-[19px] font-black tracking-[-0.015em] text-[#17212B]">{title}</h2>
+      <div className="mt-4">{children}</div>
     </section>
   );
 }
@@ -242,8 +237,9 @@ function JobDetailInner() {
   const hasProfile = sections.profile.length > 0 || profileCards.some(([key]) => sections[key]?.length) || job.minExperienceYears != null;
   const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Plateforme externe" : "Candidature depuis Jobly";
 
-  const renderParagraphs = (items: string[]) => <div className="space-y-4 text-[15px] leading-7 text-slate-600">{items.map((line, i) => <p key={i}>{cleanLine(line)}</p>)}</div>;
-  const renderBullets = (items: string[]) => <ul className="space-y-3 text-[15px] leading-7 text-slate-600">{items.map((line, i) => <li key={i} className="flex gap-3"><span className="mt-[0.72em] h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFD60A]"/><span>{cleanLine(line)}</span></li>)}</ul>;
+  const compactItems = (items: string[], limit = 12) => Array.from(new Set(items.map(cleanLine).filter(Boolean))).slice(0, limit);
+  const renderParagraphs = (items: string[]) => <div className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 8).map((line, i) => <p key={i}>{line}</p>)}</div>;
+  const renderBullets = (items: string[]) => <ul className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 12).map((line, i) => <li key={i} className="flex gap-2.5"><span className="mt-[0.72em] h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFD60A]"/><span>{line}</span></li>)}</ul>;
 
   return (
     <main className="talent-shell relative min-h-[100dvh] bg-[#F7FAFF] pb-28 text-[#17212B]">
@@ -286,39 +282,39 @@ function JobDetailInner() {
             </div>
           </section>
 
-          <div className="mt-6 space-y-5">
-            {sections.description.length > 0 && <DetailSection eyebrow="01 · LE POSTE" title="Description du poste">{renderParagraphs(sections.description)}</DetailSection>}
-            {sections.missions.length > 0 && <DetailSection eyebrow="02 · RESPONSABILITÉS" title="Missions principales"><div className="space-y-2.5">{sections.missions.map((line, i) => <div key={i} className="flex gap-3 rounded-2xl border border-slate-100 bg-[#FAFBFC] p-4"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#FFD60A] text-xs font-black">{i + 1}</span><p className="pt-0.5 text-[15px] leading-7 text-slate-600">{cleanLine(line)}</p></div>)}</div></DetailSection>}
+          <div className="mt-6 space-y-4">
+            {sections.description.length > 0 && <DetailSection title="À propos du poste">{renderParagraphs(sections.description)}</DetailSection>}
 
-            {hasProfile && <DetailSection eyebrow="03 · VOTRE PROFIL" title="Profil recherché">
-              <div className="space-y-4">
-                {sections.profile.length > 0 && <div className="rounded-2xl bg-[#F7FAFF] p-5"><p className="text-sm font-black text-[#22448B]">Profil recherché</p><div className="mt-3">{renderParagraphs(sections.profile)}</div></div>}
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {profileCards.map(([key, title, fallback]) => {
-                    const items = sections[key] || [];
-                    if (!items.length && key !== "experience") return null;
-                    return <div key={key} className="rounded-2xl border border-slate-100 p-5"><p className="text-sm font-black text-[#17212B]">{title}</p><div className="mt-3">{items.length ? renderBullets(items) : <p className="text-sm leading-6 text-slate-500">{fallback}</p>}</div></div>;
-                  })}
-                </div>
+            {sections.missions.length > 0 && <DetailSection title="Missions principales">{renderBullets(sections.missions)}</DetailSection>}
+
+            {hasProfile && <DetailSection title="Profil recherché">
+              {sections.profile.length > 0 && <div className="mb-4">{renderParagraphs(sections.profile)}</div>}
+              <div className="grid gap-2 sm:grid-cols-2">
+                {profileCards.map(([key, title, fallback]) => {
+                  const items = sections[key] || [];
+                  if (!items.length && key !== "experience") return null;
+                  return <div key={key} className="rounded-xl bg-[#F7FAFF] px-4 py-3"><p className="text-xs font-black text-[#22448B]">{title}</p><div className="mt-1.5">{items.length ? renderBullets(items) : <p className="text-sm leading-6 text-slate-500">{fallback}</p>}</div></div>;
+                })}
               </div>
             </DetailSection>}
 
-            {(sections.benefits.length > 0 || job.company?.description) && <DetailSection eyebrow="04 · ENVIRONNEMENT" title="Ce que l’entreprise offre">
-              {sections.benefits.length > 0 && renderBullets(sections.benefits)}
-              {job.company?.description && <div className={sections.benefits.length > 0 ? "mt-6 border-t border-slate-100 pt-6" : ""}><p className="text-xs font-black uppercase tracking-[1.2px] text-slate-400">À propos de {company || "l’entreprise"}</p><p className="mt-2 text-sm leading-7 text-slate-600">{job.company.description}</p>{job.company?.website && <a href={job.company.website.startsWith("http") ? job.company.website : "https://" + job.company.website} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-[#22448B]">Visiter le site <ExternalLink size={14}/></a>}</div>}
-            </DetailSection>}
+            {sections.benefits.length > 0 && <DetailSection title="Ce que l’entreprise offre">{renderBullets(sections.benefits)}</DetailSection>}
 
-            <DetailSection eyebrow="05 · CANDIDATURE" title="Comment postuler">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl bg-[#F7FAFF] p-5"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-slate-400">Mode de candidature</p><p className="mt-2 text-sm font-bold text-[#17212B]">{applicationMode}</p></div>
-                {deadline && <div className="rounded-2xl bg-[#F7FAFF] p-5"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-slate-400">Date limite</p><p className="mt-2 text-sm font-bold text-[#17212B]">{deadline}</p></div>}
+            <DetailSection title="Candidature">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="rounded-xl bg-[#F7FAFF] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Mode</p><p className="mt-1 text-sm font-bold text-[#17212B]">{applicationMode}</p></div>
+                {deadline && <div className="rounded-xl bg-[#F7FAFF] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Date limite</p><p className="mt-1 text-sm font-bold text-[#17212B]">{deadline}</p></div>}
               </div>
-              {sections.application.length > 0 && <div className="mt-4 rounded-2xl bg-[#FFFBE0] p-5"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#8C7600]">Informations utiles</p><div className="mt-3">{renderBullets(sections.application)}</div></div>}
-              {applicationLink && <a href={applicationLink} target="_blank" rel="noreferrer" className="mt-4 flex items-center justify-center gap-2 rounded-2xl border border-[#DDE6F5] bg-white py-4 text-sm font-black text-[#22448B]"><ExternalLink size={17}/>Voir la plateforme de candidature</a>}
-              <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(params.id) + "&source=" + encodeURIComponent(source || ""))} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#FFD60A] bg-white py-4 text-sm font-black text-[#2E3F4F]"><Sparkles size={17}/>Adapter mon CV à cette offre</button>
-              <button disabled={busy || deadlineExpired} onClick={apply} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#22448B] py-4 text-sm font-black text-white disabled:opacity-50">{deadlineExpired ? <span>Offre expirée</span> : emailChannel ? <><GmailIcon/><span>Postuler maintenant</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler maintenant</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler maintenant</span></> : <span>Postuler maintenant</span>}</button>
+              {sections.application.length > 0 && <div className="mt-3 rounded-xl bg-[#FFFBE0] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-[#8C7600]">À savoir</p><div className="mt-2">{renderBullets(sections.application)}</div></div>}
+              {applicationLink && <a href={applicationLink} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-[#DDE6F5] bg-white py-3.5 text-sm font-black text-[#22448B]"><ExternalLink size={17}/>Voir la plateforme de candidature</a>}
+              <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(params.id) + "&source=" + encodeURIComponent(source || ""))} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[#FFD60A] bg-white py-3.5 text-sm font-black text-[#2E3F4F]"><Sparkles size={17}/>Adapter mon CV à cette offre</button>
+              <button disabled={busy || deadlineExpired} onClick={apply} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#22448B] py-3.5 text-sm font-black text-white disabled:opacity-50">{deadlineExpired ? <span>Offre expirée</span> : emailChannel ? <><GmailIcon/><span>Postuler maintenant</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler maintenant</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler maintenant</span></> : <span>Postuler maintenant</span>}</button>
             </DetailSection>
 
+            {job.company?.description && <DetailSection title={"À propos de " + (company || "l’entreprise")}>
+              <p className="text-sm leading-6 text-slate-600">{job.company.description}</p>
+              {job.company?.website && <a href={job.company.website.startsWith("http") ? job.company.website : "https://" + job.company.website} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-[#22448B]">Visiter le site <ExternalLink size={14}/></a>}
+            </DetailSection>}
             {error && <div role="alert" className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
           </div>
         </div>
