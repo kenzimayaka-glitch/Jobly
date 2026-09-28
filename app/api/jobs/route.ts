@@ -178,7 +178,7 @@ export async function GET(request:NextRequest){
    supabase.from("Skill").select("name,level").eq("userId",user.id),
    supabase.from("Education").select("degree,field").eq("userId",user.id),
    supabase.from("Job").select("*").eq("isActive",true).order("createdAt",{ascending:false}),
-   supabase.from("RecruiterJob").select("*").eq("status","published").eq("applicationReady",true).order("createdAt",{ascending:false})
+   supabase.from("RecruiterJob").select("*").eq("status","published").eq("applicationReady",true).gte("createdAt", new Date(new Date().setMonth(new Date().getMonth() - 2)).toISOString()).order("createdAt",{ascending:false})
   ]);
   if(profileRes.error)throw new Error(profileRes.error.message);if(experiencesRes.error)throw new Error(experiencesRes.error.message);if(skillsRes.error)throw new Error(skillsRes.error.message);if(educationRes.error)throw new Error(educationRes.error.message);if(jobsRes.error)throw new Error(jobsRes.error.message);if(recruiterJobsRes.error)throw new Error(recruiterJobsRes.error.message);
   const profile:Profile=profileRes.data||{targetRoles:[],targetCities:[],contractPreferences:[],remotePreference:"INDIFFERENT",preferredSectors:[]};const experiences=(experiencesRes.data as Experience[])||[];const skills=(skillsRes.data as Skill[])||[];const education=(educationRes.data as Education[])||[];const yearsExperience=computeYearsExperience(experiences);
