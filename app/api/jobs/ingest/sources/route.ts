@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
         .not("sourceKey", "is", null)
         .or("sourceKey.eq.infosconcourseducation,description.like.%�%,description.like.%Ã%,description.like.%Â%,description.like.%\\u0019%,description.like.%\\u0013%,title.like.%�%,title.like.%Ã%,title.like.%Â%")
         .order("createdAt", { ascending: true })
-        .range(offset, offset + batchSize - 1);
+        .range(0, mode === "reprocess-all" ? 999 : batchSize - 1);
       const { data: rows, error } = await rowsQuery;
       if (error) throw new Error(error.message);
 
@@ -127,23 +127,20 @@ export async function POST(request: NextRequest) {
         processed++; updated++;
       });
 
-      if (mode === "reprocess-all" && (rows || []).length === batchSize) {
-        return NextResponse.json({
-          ok: true,
-          mode,
-          processed,
-          updated,
-          skipped,
-          deactivated,
-          offset,
-          limit: batchSize,
-          hasMore: true,
-          nextOffset: offset + batchSize,
-          message: "Lot traité. Relancez la même URL avec mode=reprocess-all&offset=" + (offset + batchSize) + " pour poursuivre.",
-          ranAt: now.toISOString()
-        });
-      }
-      return NextResponse.json({ ok: true, mode, processed, updated, skipped, deactivated, offset, limit: batchSize, hasMore: (rows || []).length === batchSize, nextOffset: offset + (rows || []).length, ranAt: now.toISOString() });
+      return NextResponse.json({
+        ok: true,
+        mode,
+        processed,
+        updated,
+        skipped,
+        deactivated,
+        offset,
+        limit: mode === "reprocess-all" ? 1000 : batchSize,
+        hasMore: false,
+        nextOffset: offset + (rows || []).length,
+        message: mode === "reprocess-all" ? "Réindexation complète terminée." : undefined,
+        ranAt: now.toISOString()
+      });
     }
 
     const { offers, sources } = await collectPublicJobSources();
