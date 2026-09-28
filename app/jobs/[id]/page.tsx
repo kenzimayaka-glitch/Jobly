@@ -104,7 +104,7 @@ function JobDetailInner() {
       {sectionText("description").length>0 && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
         <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">01 · LE POSTE</p>
         <h2 className="mt-2 text-2xl font-black text-[#17212B]">Description du poste</h2>
-        <div className="mt-5">{renderLines(sectionText("description"), cleanDescription ? undefined : "Description non renseignée.")}</div>
+        <div className="mt-5">{renderLines(sectionText("description"), "Description non renseignée.")}</div>
       </section>}
 
       {sectionText("missions").length>0 && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
