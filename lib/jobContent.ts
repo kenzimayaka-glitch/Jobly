@@ -139,6 +139,7 @@ export function extractCompanyNameFromDescription(description: string): string |
 
 export type JobDetailSections = {
   description: string[];
+  profile: string[];
   missions: string[];
   formation: string[];
   experience: string[];
@@ -163,7 +164,7 @@ function sectionFromHeading(value: string): keyof JobDetailSections | null {
   if (!h) return null;
   if (/^(description|presentation|contexte|a propos du poste|le poste)$/.test(h)) return "description";
   if (/^(missions?|missions principales?|responsabilites?|responsabilites principales?|taches?|activites?|role et responsabilites?)$/.test(h)) return "missions";
-  if (/^(profil|profil recherche|profil du candidat|candidat recherche|exigences?|requirements?|qualifications?)$/.test(h)) return "description";
+  if (/^(profil|profil recherche|profil du candidat|candidat recherche|exigences?|requirements?|qualifications?)$/.test(h)) return "profile";
   if (/^(formation|diplomes?|etudes|education)$/.test(h)) return "formation";
   if (/^(experience|experiences?|parcours|experience professionnelle)$/.test(h)) return "experience";
   if (/^(competences?|competences techniques?|savoir faire|skills|technical skills)$/.test(h)) return "skills";
@@ -186,7 +187,7 @@ function cleanSectionLine(value: string): string {
  */
 export function parseJobDetailSections(value: unknown, titleHint?: string | null): JobDetailSections {
   const empty = (): JobDetailSections => ({
-    description: [], missions: [], formation: [], experience: [],
+    description: [], profile: [], missions: [], formation: [], experience: [],
     skills: [], qualities: [], benefits: [], application: [],
   });
   const text = cleanJobDescription(value, titleHint);
