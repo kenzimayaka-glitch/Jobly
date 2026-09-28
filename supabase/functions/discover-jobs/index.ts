@@ -67,7 +67,7 @@ function inferOpportunityType(item:any):"EMPLOI"|"CONCOURS"|"FORMATION"|"RECRUTE
   const applicationSignal=/@|https?:\/\/|postuler|candidature|envoyer (?:votre|son) cv|deposer (?:votre|son) cv|apply|application|contactez|contact/.test(text);
   const substantiveDescription=description.trim().length>=180;
   if(genericRecruitment && !explicitRoleInTitle && !roleSignal && (!companySignal || (!applicationSignal && !substantiveDescription))) return "RECRUTEMENT_INSUFFISANT";
-  if(!explicitRoleInTitle && !roleSignal && description.trim().length<80) return "RECRUTEMENT_INSUFFISANT";
+  // A discovery record is not eligible for Jobly Offres until its source\n  // provides a substantive job description. Weak snippets remain stored for\n  // Campus/recovery workflows but are never exposed as employment offers.\n  if(description.trim().length<180) return "RECRUTEMENT_INSUFFISANT";
   return "EMPLOI";
 }
 function extractPhone(text:string){const matches=text.match(/(?:\+?237[\s.-]?[6-9]\d{2}[\s.-]?\d{3}[\s.-]?\d{3}|6[5-9]\d{7})/g)||[];return matches.map(x=>x.replace(/[\s.-]/g,"")).map(x=>x.startsWith("237")?"+"+x:"+237"+x).filter((x,i,a)=>a.indexOf(x)===i).slice(0,3)}
