@@ -3475,3 +3475,20 @@ Le détail doit rester cohérent avec le Design System Jobly :
 Cette décision concerne d'abord la **présentation du détail d'offre**. Elle n'est pas déclarée CODÉE, TESTÉE, VALIDÉE ou DÉPLOYÉE tant que l'UI réelle, les contenus provenant des différentes sources, le responsive mobile et le parcours « Voir l'offre → Postuler » n'ont pas été vérifiés.
 
 **Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+
+# CHECKPOINT 28/09/2026 — IDENTITÉ VISUELLE OFFICIELLE JOBLY
+
+L'archive **Logo 1.zip** fournie le 28/09/2026 devient la source de référence des assets de marque Jobly.
+
+### Assets officiels
+- `IMG-20260928-WA6821.jpg` — logo/wordmark ;
+- `IMG-20260928-WA1495.jpg` — logo/wordmark ;
+- `IMG-20260928-WA9815.jpg` — icône de l'application.
+
+### Intégration
+Le code actuel référence notamment `/jobly-logo-reference.jpg` depuis `components/JoblyLogo.tsx`. Cet ancien asset doit être remplacé par le nouveau logo officiel, sans redessin manuel.
+
+**État : 🟨 ASSETS IDENTIFIÉS — REMPLACEMENT BINAIRE GITHUB À FINALISER.**
+
+La référence visuelle ne doit pas être recréée avec un autre logo ou une approximation.
