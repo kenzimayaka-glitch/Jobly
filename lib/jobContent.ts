@@ -141,7 +141,7 @@ function splitInlineSectionHeadings(value: string): string {
   ];
   const escaped = headingPatterns.map((heading) => heading.replaceAll(" ", "\\\\s+")).join("|");
   return value
-    .replace(new RegExp("(?:^|[\s|•▪◦])((?:" + escaped + "))(?:\s*[:：-]\s*|\s+)", "giu"), (match) =>
+    .replace(new RegExp("(?:^|[\\s|•▪◦])((?:" + escaped + "))(?:\\s*[:：-]\\s*|\\s+)", "giu"), (match) =>
       match.startsWith("\n") ? match : "\n" + match.trimStart()
     )
     .replace(/^\n+/, "")
