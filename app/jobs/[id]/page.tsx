@@ -1,7 +1,21 @@
 "use client";
-import { Suspense, useEffect, useState } from "react";
+
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ExternalLink } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  ExternalLink,
+  Globe2,
+  Heart,
+  MapPin,
+  Share2,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { jobPublicUrl } from "@/lib/site";
 import PageHeader from "@/components/PageHeader";
@@ -10,168 +24,309 @@ import TalentBackground from "@/components/TalentBackground";
 import CompanyLogo from "@/components/CompanyLogo";
 import { cleanCompanyName, parseJobDetailSections } from "@/lib/jobContent";
 
-type Job = Record<string, any>;
-function GmailIcon({size=18}:{size?:number}) { return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"><path d="M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5v13A2.5 2.5 0 0 1 18.5 21H5.5A2.5 2.5 0 0 1 3 18.5v-13Z" fill="white"/><path d="M4.5 6.2 12 12l7.5-5.8V18a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1V6.2Z" fill="#EA4335"/><path d="M4.5 6.2 12 12l7.5-5.8-1.1-1.6L12 9.4 5.6 4.6 4.5 6.2Z" fill="#4285F4"/><path d="M4.5 6.2V18c0 .55.45 1 1 1h2V8.12L4.5 6.2Z" fill="#34A853"/><path d="M19.5 6.2V18c0 .55-.45 1-1 1h-2V8.12l3-1.92Z" fill="#FBBC04"/></svg>; }
-function WhatsAppIcon({size=18}:{size?:number}) { return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#25D366"/><path d="M8.7 7.6c.3-.3.7-.3 1 0l1.2 1.4c.25.3.25.7.02 1l-.55.72c.5 1 1.35 1.85 2.35 2.35l.72-.55c.3-.23.7-.23 1 .02l1.4 1.2c.3.25.3.7 0 1-.65.75-1.6 1.2-2.65 1.05-1.65-.23-3.4-1.3-4.8-2.7s-2.47-3.15-2.7-4.8c-.15-1.05.3-2 1.05-2.65Z" fill="white"/></svg>; }
-function JobDetailInner() {
-  const router=useRouter(), params=useParams<{id:string}>(), search=useSearchParams(), source=search.get("source");
-  const [job,setJob]=useState<Job|null>(null),[error,setError]=useState(""),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
-  useEffect(()=>{if(!params.id||(source!=="discovery"&&source!=="recruiter")){setError("Lien d'offre invalide.");setLoading(false);return;} fetch(`/api/jobs/${encodeURIComponent(params.id)}?source=${encodeURIComponent(source)}`).then(async r=>{const b=await r.json();if(!r.ok)throw Error(b.message||"Offre introuvable.");return b.job}).then(setJob).catch(e=>setError(e instanceof Error?e.message:"Offre introuvable.")).finally(()=>setLoading(false));},[params.id,source]);
-  function whatsappPhone(profile:any){const values=Array.isArray(profile?.phoneNumbers)?profile.phoneNumbers:typeof profile?.phone==="string"?[profile.phone]:[];const raw=values.find((v:any)=>/237|^6|^2/.test(String(v)))||values[0];if(!raw)return null;let digits=String(raw).replace(/[^0-9]/g,"");if(digits.startsWith("237"))return digits;if(digits.startsWith("6")&&digits.length===9)return "237"+digits;if(digits.startsWith("2")&&digits.length===9)return "237"+digits;return null;}
-  async function openWhatsApp(){const phone=whatsappPhone(job?.applicationProfile);if(!phone)return;try{const s=await getSupabaseClient().auth.getSession();if(!s.data.session){sessionStorage.setItem("jobly:after-login", "/jobs/"+params.id+"?source="+source);router.push("/");return;}const r=await fetch("/api/cv-share",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+s.data.session.access_token},body:JSON.stringify({source,jobId:params.id})});const b=await r.json();if(!r.ok)throw Error(b.message||"Impossible de préparer le CV.");const cvUrl=window.location.origin+"/cv/share/"+b.token;const message="Bonjour, je suis "+b.candidateName+". Je souhaite vous soumettre ma candidature au poste de "+(job?.title||"ce poste")+(company?" chez "+company:"")+".\n\n📄 CV "+b.candidateName+" — Candidature "+(company||job?.title||"ce poste")+"\n"+cvUrl;window.open("https://wa.me/"+phone+"?text="+encodeURIComponent(message),"_blank","noopener,noreferrer");}catch(e){alert(e instanceof Error?e.message:"Impossible d'ouvrir WhatsApp.");}}
-  async function openEmail(){if(!emailChannel||busy)return;setBusy(true);setError("");try{const s=await getSupabaseClient().auth.getSession();if(!s.data.session){sessionStorage.setItem("jobly:after-login",window.location.pathname+window.location.search);router.push("/");return;}const r=await fetch("/api/applications",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+s.data.session.access_token},body:JSON.stringify({source,jobId:params.id})});const b=await r.json().catch(()=>({}));if(!r.ok)throw Error(b.message||"Impossible de préparer la candidature.");router.push("/applications/review/"+encodeURIComponent(b.application.id));}catch(e){setError(e instanceof Error?e.message:"Impossible de préparer la candidature.");}finally{setBusy(false);}} async function apply(){if(phoneChannel){await openWhatsApp();return;}if(applicationLink){window.open(applicationLink,"_blank","noopener,noreferrer");return;}if(emailChannel){await openEmail();}}
-  if(loading)return <main className="talent-shell grid min-h-[100dvh] place-items-center bg-[#F7FAFF] font-bold text-navy">Chargement…</main>;
-  if(error||!job)return <main className="talent-shell min-h-[100dvh] bg-[#F7FAFF] text-navy"><PageHeader label="Offre" onBack={()=>router.replace("/jobs")} theme="talent"/><div className="mx-auto mt-8 max-w-2xl px-5"><div className="talent-card rounded-[24px] bg-white p-6 shadow-sm"><h1 className="text-xl font-black">Offre indisponible</h1><p className="mt-2 text-sm text-slate-500">{error||"Cette offre n'est plus disponible."}</p><button onClick={()=>router.replace("/jobs")} className="mt-5 rounded-2xl bg-jobly-blue px-5 py-3 text-sm font-black text-white">Retour aux offres</button></div></div></main>;
-  const company=cleanCompanyName(job.company?.name||job.companyName), emailChannel=Boolean(job.applicationProfile?.applicationEmail||job.applicationProfile?.email), phoneChannel=Boolean(job.applicationProfile?.applicationPhone||job.applicationProfile?.phone||job.applicationProfile?.phoneNumbers?.length), applicationLink=String(job.applicationProfile?.applicationUrl||job.applicationProfile?.applyUrl||job.applicationProfile?.url||"").trim(), contract=job.contractType||job.contract, remote=job.remoteMode==="YES"?"Télétravail":job.remoteMode==="PARTIAL"?"Hybride":job.remoteMode==="NO"?"Présentiel":null;
-  const deadline=job.deadline?new Date(job.deadline).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}):null;
-  const tags:string[]=Array.isArray(job.tags)?job.tags:[];
-  const formatContract=(value:any)=>{
-    const raw=String(value||"").trim();
-    const key=raw.toUpperCase().replace(/[\s_-]+/g,"_");
-    const labels:Record<string,string>={
-      FULL_TIME:"Temps plein",
-      FULLTIME:"Temps plein",
-      PART_TIME:"Temps partiel",
-      PARTTIME:"Temps partiel",
-      INTERNSHIP:"Stage",
-      INTERNSHIP_CONTRACT:"Stage",
-      FREELANCE:"Freelance",
-      TEMPORARY:"Temporaire",
-      CDD:"CDD",
-      CDI:"CDI",
-      FIXED_TERM:"CDD",
-      PERMANENT:"CDI",
-    };
-    return labels[key]||raw;
-  };
-  const formatSalary=(value:any)=>{
-    const raw=String(value??"").trim();
-    if(!raw)return "";
-    const numeric=Number(raw.replace(/[^0-9.,-]/g,"").replace(/\.(?=\d{3}(?:\D|$))/g,"").replace(",","."));
-    if(!Number.isFinite(numeric))return raw;
-    return new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0}).format(numeric);
-  };
-  const detailSections = parseJobDetailSections(job.description, job.title);
-  const sectionText = (key: keyof typeof detailSections) => detailSections[key] || [];
-  const cleanDisplayLine = (line:string) =>
-    line
-      .replace(/^[|>»›•▪◦*✓✔☑\-–—]+\s*/, "")
-      .replace(/\s*[|]+\s*$/g, "")
-      .replace(/\s{2,}/g, " ")
-      .trim();
+type MatchItem = {
+  id: string;
+  label: string;
+  score: number | null;
+  weight: number;
+  required: boolean;
+  status: "MATCH" | "PARTIAL" | "MISMATCH" | "UNKNOWN";
+  candidateValue?: string | null;
+  expectedValue?: string | null;
+};
 
-  const renderParagraphs = (items:string[], emptyFallback?:string) => {
-    if (!items.length) return emptyFallback ? <p className="text-sm leading-7 text-slate-500">{emptyFallback}</p> : null;
-    return <div className="space-y-4 text-[15px] leading-8 text-slate-600">
-      {items.map((line:string,index:number) => <p key={index}>{cleanDisplayLine(line)}</p>)}
-    </div>;
-  };
+type Job = Record<string, any> & {
+  matchPercent?: number;
+  matchConfidence?: number;
+  matchBreakdown?: MatchItem[];
+};
 
-  const renderLines = (items:string[], emptyFallback?:string) => {
-    if (!items.length) return emptyFallback ? <p className="text-sm leading-7 text-slate-500">{emptyFallback}</p> : null;
-    return <div className="space-y-3 text-[15px] leading-7 text-slate-600">
-      {items.map((line:string,index:number) => <p key={index}>{cleanDisplayLine(line)}</p>)}
-    </div>;
-  };
+function GmailIcon({ size = 18 }: { size?: number }) {
+  return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="5" fill="white"/><path d="M5 7.2 12 12.5l7-5.3V18a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7.2Z" fill="#EA4335"/><path d="M5 7.2 12 12.5l7-5.3" stroke="#4285F4" strokeWidth="1.7"/><path d="M5 7.2V18c0 .55.45 1 1 1h2V9.5L5 7.2Z" fill="#34A853"/><path d="M19 7.2V18c0 .55-.45 1-1 1h-2V9.5l3-2.3Z" fill="#FBBC04"/></svg>;
+}
 
-  const renderBullets = (items:string[], emptyFallback?:string) => {
-    if (!items.length) return emptyFallback ? <p className="text-sm leading-7 text-slate-500">{emptyFallback}</p> : null;
-    return <ul className="space-y-3 text-[15px] leading-7 text-slate-600">
-      {items.map((line:string,index:number) => <li key={index} className="flex gap-3">
-        <span aria-hidden="true" className="mt-[0.7em] h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFD60A]" />
-        <span>{cleanDisplayLine(line)}</span>
-      </li>)}
-    </ul>;
+function WhatsAppIcon({ size = 18 }: { size?: number }) {
+  return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#25D366"/><path d="M8.7 7.8c.3-.3.7-.3 1 0l1.15 1.35c.25.28.25.68.02.98l-.55.7c.52 1.02 1.34 1.84 2.36 2.36l.7-.55c.3-.23.7-.23.98.02l1.35 1.15c.3.25.3.7 0 1-.66.76-1.57 1.12-2.55.98-1.52-.22-3.15-1.18-4.5-2.53s-2.31-2.98-2.53-4.5c-.14-.98.22-1.89.98-2.55Z" fill="white"/></svg>;
+}
+
+function cleanLine(value: string) {
+  return value
+    .replace(/^[|>»›•▪◦*✓✔☑\-–—]+\s*/, "")
+    .replace(/^\d+[.)]\s*/, "")
+    .replace(/\s*\|\s*$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function formatContract(value: unknown) {
+  const key = String(value || "").trim().toUpperCase().replace(/[\s-]+/g, "_");
+  const labels: Record<string, string> = {
+    FULL_TIME: "Temps plein",
+    FULLTIME: "Temps plein",
+    PART_TIME: "Temps partiel",
+    PARTTIME: "Temps partiel",
+    INTERNSHIP: "Stage",
+    INTERNSHIP_CONTRACT: "Stage",
+    FREELANCE: "Freelance",
+    TEMPORARY: "Temporaire",
+    FIXED_TERM: "CDD",
+    PERMANENT: "CDI",
+    CDD: "CDD",
+    CDI: "CDI",
   };
-  const profileSections: Array<[keyof typeof detailSections,string,string]> = [
-    ["formation","Formation","Formation académique, diplôme ou niveau d’études demandé."],
-    ["experience","Expérience",job.minExperienceYears!=null ? `Minimum ${job.minExperienceYears} an${job.minExperienceYears>1?"s":""} d’expérience.` : "Expérience professionnelle précisée dans l’offre."],
-    ["skills","Compétences","Compétences techniques et professionnelles attendues."],
-    ["qualities","Qualités recherchées","Savoir-être et qualités attendues pour le poste."],
-  ];
-  const hasProfileContent = detailSections.profile.length>0 || profileSections.some(([key])=>sectionText(key).length>0) || job.minExperienceYears!=null;
-  const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Candidature via la plateforme externe" : "Candidature depuis Jobly";
-  const applicationDocuments = sectionText("application");
-  const headerFacts: string[] = [
-    job.location ? `📍 ${job.location}` : "",
-    contract ? `💼 ${formatContract(contract)}` : "",
-    remote ? `🏢 ${remote}` : "",
-    (job.salary || job.salaryMin != null)
-      ? `💰 ${job.salary ? formatSalary(job.salary) : `${formatSalary(job.salaryMin)}${job.salaryMax != null ? ` – ${formatSalary(job.salaryMax)}` : ""}`} ${job.salaryCurrency || "XAF"}`
-      : "",
-  ].filter((fact): fact is string => Boolean(fact));
-  return <main className="talent-shell relative min-h-[100dvh] bg-[#F7FAFF] pb-28 text-navy"><TalentBackground/><div className="relative z-10"><PageHeader label="Détail de l'offre" onBack={()=>router.replace("/jobs")} theme="talent"/><div className="mx-auto max-w-3xl px-5 py-6 sm:px-6">
-    <section className="relative overflow-hidden rounded-[30px] bg-white p-6 shadow-sm sm:p-8">
-      <img src="/jobly-logo-reference.jpg" alt="" aria-hidden="true" className="pointer-events-none absolute right-[-4rem] top-12 z-0 w-80 opacity-[0.035] grayscale"/>
-      <div className="relative z-10">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-[#F3F6FA]"><CompanyLogo companyName={company} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={56}/></div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">Offre d'emploi</p>
-            <h1 className="mt-2 text-3xl font-black leading-[1.08] tracking-[-.025em] text-[#17212B] sm:text-4xl">{job.title}</h1>
-            <p className="mt-2 text-base font-black text-jobly-blue">{company}</p>
-            {headerFacts.length>0 && <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs font-semibold text-slate-500">{headerFacts.map((fact:string)=><span key={fact}>{fact}</span>)}</div>}
-            {deadline && <p className="mt-3 text-xs font-bold text-amber-700">Candidatures jusqu'au {deadline}</p>}
-          </div>
+  return labels[key] || String(value || "");
+}
+
+function formatSalary(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const numeric = Number(raw.replace(/[^0-9.,-]/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "").replace(",", "."));
+  return Number.isFinite(numeric) ? new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(numeric) : raw;
+}
+
+function DetailSection({
+  eyebrow,
+  title,
+  children,
+  muted = false,
+}: {
+  eyebrow?: string;
+  title: string;
+  children: ReactNode;
+  muted?: boolean;
+}) {
+  return (
+    <section className="rounded-[24px] border border-slate-100 bg-white p-6 shadow-[0_8px_30px_rgba(23,33,43,0.045)] sm:p-7">
+      {eyebrow && <p className="text-[10px] font-extrabold uppercase tracking-[1.7px] text-[#9B8500]">{eyebrow}</p>}
+      <h2 className="mt-1.5 text-[22px] font-black tracking-[-0.02em] text-[#17212B] sm:text-[24px]">{title}</h2>
+      <div className={muted ? "mt-5 text-slate-500" : "mt-5"}>{children}</div>
+    </section>
+  );
+}
+
+function MatchModal({ job, onClose }: { job: Job; onClose: () => void }) {
+  const score = Math.max(0, Math.min(100, Number(job.matchPercent ?? 0)));
+  const items: MatchItem[] = Array.isArray(job.matchBreakdown) ? job.matchBreakdown : [];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-[#0D1726]/55 p-0 backdrop-blur-[3px] sm:items-center sm:p-5" role="dialog" aria-modal="true" aria-label="Détail de la correspondance">
+      <div className="max-h-[88dvh] w-full overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:max-w-xl sm:rounded-[28px]">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+          <div><p className="text-[10px] font-black uppercase tracking-[1.5px] text-[#9B8500]">Votre correspondance</p><h2 className="mt-1 text-xl font-black text-[#17212B]">Pourquoi ce score ?</h2></div>
+          <button onClick={onClose} aria-label="Fermer" className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-600"><X size={18}/></button>
         </div>
-        {tags.length>0 && <div className="mt-6 flex flex-wrap gap-2">{tags.map((t)=><span key={t} className="rounded-full bg-[#EEF4FF] px-3 py-1.5 text-xs font-bold text-jobly-blue">{t}</span>)}</div>}
-        <div className="mt-7 border-t border-slate-100 pt-6">
-          <button disabled={busy} onClick={apply} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#FFD60A] px-5 py-4 text-sm font-black text-[#17212B] shadow-[0_10px_26px_rgba(255,214,10,.25)] transition hover:brightness-[.98] disabled:opacity-50 sm:w-auto sm:min-w-[220px]">
-            {emailChannel ? <><GmailIcon size={18}/><span>Postuler maintenant</span></> : phoneChannel ? <><WhatsAppIcon size={18}/><span>Postuler maintenant</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler maintenant</span></> : <span>Postuler maintenant</span>}
-          </button>
+        <div className="max-h-[calc(88dvh-86px)] overflow-y-auto p-6">
+          <div className="flex items-center gap-5 rounded-2xl bg-[#F7FAFF] p-5">
+            <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full border-[7px] border-[#FFD60A] bg-white text-xl font-black text-[#17212B]">{score}%</div>
+            <div><p className="font-black text-[#17212B]">{score >= 80 ? "Très bonne correspondance" : score >= 60 ? "Bonne correspondance" : "Correspondance à examiner"}</p><p className="mt-1 text-sm leading-6 text-slate-500">Le score synthétise les éléments de votre profil comparés aux critères disponibles dans l’offre.</p></div>
+          </div>
+          {items.length > 0 ? (
+            <div className="mt-6 space-y-2">
+              {items.map((item) => {
+                const status = item.status === "MATCH" ? "Correspond" : item.status === "PARTIAL" ? "Partiel" : item.status === "MISMATCH" ? "À renforcer" : "Non renseigné";
+                const tone = item.status === "MATCH" ? "text-emerald-700 bg-emerald-50" : item.status === "MISMATCH" ? "text-amber-800 bg-amber-50" : "text-slate-600 bg-slate-100";
+                return <div key={item.id} className="rounded-2xl border border-slate-100 p-4"><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-extrabold text-[#17212B]">{item.label}</p>{(item.expectedValue || item.candidateValue) && <p className="mt-1 text-xs leading-5 text-slate-500">{item.candidateValue ? `Votre profil : ${item.candidateValue}` : ""}{item.expectedValue ? ` · Offre : ${item.expectedValue}` : ""}</p>}</div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-extrabold ${tone}`}>{status}</span></div></div>;
+              })}
+            </div>
+          ) : <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-500">Le détail des critères n’est pas disponible pour cette offre. Le score reste indicatif.</div>}
         </div>
       </div>
-    </section>
-
-    <div className="mt-8 space-y-6">
-      {sectionText("description").length>0 && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
-        <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">01 · LE POSTE</p>
-        <h2 className="mt-2 text-2xl font-black text-[#17212B]">Description du poste</h2>
-        <div className="mt-5">{renderParagraphs(sectionText("description"), "Description non renseignée.")}</div>
-      </section>}
-
-      {sectionText("missions").length>0 && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
-        <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">02 · RESPONSABILITÉS</p>
-        <h2 className="mt-2 text-2xl font-black text-[#17212B]">Missions principales</h2>
-        <div className="mt-6 space-y-4">{sectionText("missions").map((line:string,index:number)=><div key={index} className="rounded-2xl bg-[#F8FAFC] p-4 sm:p-5"><div className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#FFD60A] text-xs font-black text-[#17212B]">{index+1}</span><p className="pt-0.5 text-sm leading-7 text-slate-600">{line.replace(/^(?:•|▪|◦|-|–|—)\s*/,"")}</p></div></div>)}</div>
-      </section>}
-
-      {hasProfileContent && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
-        <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">03 · CANDIDAT</p>
-        <h2 className="mt-2 text-2xl font-black text-[#17212B]">Profil recherché</h2>
-        <div className="mt-7 grid gap-5 sm:grid-cols-2">
-          {sectionText("profile").length>0 && <div className="sm:col-span-2 rounded-2xl border border-slate-100 bg-[#FAFBFC] p-5"><h3 className="text-sm font-black text-[#00A6A6]">Profil recherché</h3><div className="mt-3">{renderLines(sectionText("profile"))}</div></div>}\n          {profileSections.map(([key,title,fallback]) => {
-            const items=sectionText(key);
-            if (!items.length && key!=="experience") return null;
-            return <div key={key} className="rounded-2xl border border-slate-100 bg-[#FAFBFC] p-5"><h3 className="text-sm font-black text-[#00A6A6]">{title}</h3><div className="mt-3">{renderLines(items, fallback)}</div></div>;
-          })}
-        </div>
-      </section>}
-
-      {(sectionText("benefits").length>0 || job.company?.description) && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
-        <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">04 · ENVIRONNEMENT</p>
-        <h2 className="mt-2 text-2xl font-black text-[#17212B]">Ce que l'entreprise offre</h2>
-        {sectionText("benefits").length>0 ? <div className="mt-6">{renderBullets(sectionText("benefits"))}</div> : <p className="mt-5 text-sm leading-7 text-slate-600">Informations disponibles sur l'entreprise et son environnement.</p>}
-        {job.company?.description && <div className="mt-6 border-t border-slate-100 pt-6"><p className="text-xs font-black uppercase tracking-[1.2px] text-slate-400">À propos de {company}</p><p className="mt-2 text-sm leading-7 text-slate-600">{job.company.description}</p>{job.company?.website&&<a href={job.company.website.startsWith("http")?job.company.website:`https://${job.company.website}`} target="_blank" rel="noreferrer" className="mt-3 inline-block text-xs font-bold text-jobly-blue underline">Site de l'entreprise</a>}</div>}
-      </section>}
-
-      <section className="rounded-[26px] border border-[#FFE135]/60 bg-[#FFFBE0] p-6 shadow-sm sm:p-7">
-        <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#8C7600]">05 · CANDIDATURE</p>
-        <h2 className="mt-2 text-2xl font-black text-[#17212B]">Postuler</h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl bg-white/80 p-5"><p className="text-xs font-black uppercase tracking-[1px] text-slate-400">Mode de candidature</p><p className="mt-2 text-sm font-bold text-slate-700">{applicationMode}</p></div>
-          {deadline && <div className="rounded-2xl bg-white/80 p-5"><p className="text-xs font-black uppercase tracking-[1px] text-slate-400">Échéance</p><p className="mt-2 text-sm font-bold text-slate-700">{deadline}</p></div>}
-        </div>
-        {applicationDocuments.length>0 && <div className="mt-4 rounded-2xl bg-white/80 p-5"><p className="text-xs font-black uppercase tracking-[1px] text-slate-400">Informations de candidature</p><div className="mt-3">{renderBullets(applicationDocuments)}</div></div>}
-        {applicationLink && <a href={applicationLink} target="_blank" rel="noreferrer" className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#22448B] bg-white py-4 text-sm font-black text-[#22448B]"><ExternalLink size={17}/>Voir la plateforme de candidature</a>}
-        <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(params.id) + "&source=" + encodeURIComponent(source || ""))} className="mt-3 w-full rounded-2xl border border-[#FFD60A] bg-white py-4 text-sm font-black text-[#2E3F4F]">Adapter votre CV pour cette candidature</button>
-        <button disabled={busy} onClick={apply} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#22448B] py-4 text-sm font-black text-white disabled:opacity-50">{emailChannel?<><GmailIcon size={18}/><span>Postuler maintenant</span></>:phoneChannel?<><WhatsAppIcon size={18}/><span>Postuler maintenant</span></>:applicationLink?<><ExternalLink size={17}/><span>Postuler maintenant</span></>:<span>Postuler maintenant</span>}</button>
-        <button onClick={()=>navigator.clipboard?.writeText(jobPublicUrl(params.id,source||undefined))} className="mt-3 w-full rounded-2xl border border-slate-200 bg-white py-3 text-sm font-black text-slate-600">Copier le lien de l'offre</button>
-      </section>
     </div>
-  </div></div><BottomNav active="/jobs"/></main>;
-
+  );
 }
+
+function JobDetailInner() {
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const search = useSearchParams();
+  const source = search.get("source");
+  const [job, setJob] = useState<Job | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [matchOpen, setMatchOpen] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [shared, setShared] = useState(false);
+
+  useEffect(() => {
+    if (!params.id || (source !== "discovery" && source !== "recruiter")) {
+      setError("Lien d’offre invalide.");
+      setLoading(false);
+      return;
+    }
+    fetch(`/api/jobs/${encodeURIComponent(params.id)}?source=${encodeURIComponent(source)}`)
+      .then(async (r) => { const b = await r.json(); if (!r.ok) throw Error(b.message || "Offre introuvable."); return b.job; })
+      .then(setJob)
+      .catch((e) => setError(e instanceof Error ? e.message : "Offre introuvable."))
+      .finally(() => setLoading(false));
+  }, [params.id, source]);
+
+  function whatsappPhone(profile: any) {
+    const values = Array.isArray(profile?.phoneNumbers) ? profile.phoneNumbers : typeof profile?.phone === "string" ? [profile.phone] : [];
+    const raw = values.find((v: any) => /237|^6|^2/.test(String(v))) || values[0];
+    if (!raw) return null;
+    const digits = String(raw).replace(/[^0-9]/g, "");
+    if (digits.startsWith("237")) return digits;
+    if (digits.startsWith("6") && digits.length === 9) return "237" + digits;
+    if (digits.startsWith("2") && digits.length === 9) return "237" + digits;
+    return null;
+  }
+
+  async function openWhatsApp() {
+    const phone = whatsappPhone(job?.applicationProfile);
+    if (!phone) return;
+    try {
+      const s = await getSupabaseClient().auth.getSession();
+      if (!s.data.session) { sessionStorage.setItem("jobly:after-login", "/jobs/" + params.id + "?source=" + source); router.push("/"); return; }
+      const r = await fetch("/api/cv-share", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + s.data.session.access_token }, body: JSON.stringify({ source, jobId: params.id }) });
+      const b = await r.json(); if (!r.ok) throw Error(b.message || "Impossible de préparer le CV.");
+      const cvUrl = window.location.origin + "/cv/share/" + b.token;
+      const message = "Bonjour, je suis " + b.candidateName + ". Je souhaite vous soumettre ma candidature au poste de " + (job?.title || "ce poste") + (company ? " chez " + company : "") + ".\n\n📄 CV " + b.candidateName + " — Candidature " + (company || job?.title || "ce poste") + "\n" + cvUrl;
+      window.open("https://wa.me/" + phone + "?text=" + encodeURIComponent(message), "_blank", "noopener,noreferrer");
+    } catch (e) { setError(e instanceof Error ? e.message : "Impossible d’ouvrir WhatsApp."); }
+  }
+
+  async function openEmail() {
+    if (!emailChannel || busy) return;
+    setBusy(true); setError("");
+    try {
+      const s = await getSupabaseClient().auth.getSession();
+      if (!s.data.session) { sessionStorage.setItem("jobly:after-login", window.location.pathname + window.location.search); router.push("/"); return; }
+      const r = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + s.data.session.access_token }, body: JSON.stringify({ source, jobId: params.id }) });
+      const b = await r.json().catch(() => ({})); if (!r.ok) throw Error(b.message || "Impossible de préparer la candidature.");
+      router.push("/applications/review/" + encodeURIComponent(b.application.id));
+    } catch (e) { setError(e instanceof Error ? e.message : "Impossible de préparer la candidature."); } finally { setBusy(false); }
+  }
+
+  async function apply() {
+    if (phoneChannel) return openWhatsApp();
+    if (applicationLink) { window.open(applicationLink, "_blank", "noopener,noreferrer"); return; }
+    if (emailChannel) return openEmail();
+  }
+
+  async function shareOffer() {
+    try {
+      await navigator.clipboard?.writeText(jobPublicUrl(params.id, source || undefined));
+      setShared(true); window.setTimeout(() => setShared(false), 1800);
+    } catch {}
+  }
+
+  if (loading) return <main className="grid min-h-[100dvh] place-items-center bg-[#F7FAFF] font-bold text-[#17212B]">Chargement…</main>;
+  if (error || !job) return <main className="talent-shell min-h-[100dvh] bg-[#F7FAFF] text-navy"><PageHeader label="Offre" onBack={() => router.replace("/jobs")} theme="talent"/><div className="mx-auto mt-8 max-w-2xl px-5"><div className="rounded-[24px] bg-white p-6 shadow-sm"><h1 className="text-xl font-black">Offre indisponible</h1><p className="mt-2 text-sm text-slate-500">{error || "Cette offre n’est plus disponible."}</p><button onClick={() => router.replace("/jobs")} className="mt-5 rounded-2xl bg-[#22448B] px-5 py-3 text-sm font-black text-white">Retour aux offres</button></div></div></main>;
+
+  const company = cleanCompanyName(job.company?.name || job.companyName);
+  const emailChannel = Boolean(job.applicationProfile?.applicationEmail || job.applicationProfile?.email);
+  const phoneChannel = Boolean(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.length);
+  const applicationLink = String(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl || job.applicationProfile?.url || "").trim();
+  const contract = job.contractType || job.contract;
+  const remote = job.remoteMode === "YES" ? "Télétravail" : job.remoteMode === "PARTIAL" ? "Hybride" : job.remoteMode === "NO" ? "Présentiel" : null;
+  const deadline = job.deadline ? new Date(job.deadline).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : null;
+  const tags: string[] = Array.isArray(job.tags) ? job.tags : [];
+  const sections = parseJobDetailSections(job.description, job.title);
+  const matchScore = Math.max(0, Math.min(100, Number(job.matchPercent ?? 0)));
+  const profileCards = [
+    ["formation", "Formation", "Formation académique ou niveau d’études demandé."],
+    ["experience", "Expérience", job.minExperienceYears != null ? `Minimum ${job.minExperienceYears} an${job.minExperienceYears > 1 ? "s" : ""} d’expérience.` : "Expérience professionnelle précisée dans l’offre."],
+    ["skills", "Compétences", "Compétences techniques et professionnelles attendues."],
+    ["qualities", "Qualités", "Savoir-être et qualités recherchées."],
+  ] as const;
+
+  const headerFacts = [
+    job.location ? { icon: MapPin, value: job.location } : null,
+    contract ? { icon: Clock3, value: formatContract(contract) } : null,
+    remote ? { icon: Globe2, value: remote } : null,
+    job.salary || job.salaryMin != null ? { icon: null, value: job.salary ? `${formatSalary(job.salary)} ${job.salaryCurrency || "XAF"}` : `${formatSalary(job.salaryMin)}${job.salaryMax != null ? " – " + formatSalary(job.salaryMax) : ""} ${job.salaryCurrency || "XAF"}` } : null,
+  ].filter(Boolean) as Array<{ icon: any; value: string }>;
+
+  const hasProfile = sections.profile.length > 0 || profileCards.some(([key]) => sections[key]?.length) || job.minExperienceYears != null;
+  const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Plateforme externe" : "Candidature depuis Jobly";
+
+  const renderParagraphs = (items: string[]) => <div className="space-y-4 text-[15px] leading-7 text-slate-600">{items.map((line, i) => <p key={i}>{cleanLine(line)}</p>)}</div>;
+  const renderBullets = (items: string[]) => <ul className="space-y-3 text-[15px] leading-7 text-slate-600">{items.map((line, i) => <li key={i} className="flex gap-3"><span className="mt-[0.72em] h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFD60A]"/><span>{cleanLine(line)}</span></li>)}</ul>;
+
+  return (
+    <main className="talent-shell relative min-h-[100dvh] bg-[#F7FAFF] pb-28 text-[#17212B]">
+      <TalentBackground/>
+      <div className="relative z-10">
+        <PageHeader label="Détail de l’offre" onBack={() => router.replace("/jobs")} theme="talent"/>
+        <div className="mx-auto max-w-4xl px-4 py-5 sm:px-6 sm:py-8">
+          <section className="overflow-hidden rounded-[30px] border border-slate-100 bg-white shadow-[0_18px_55px_rgba(23,33,43,0.07)]">
+            <div className="h-1.5 bg-[#FFD60A]"/>
+            <div className="p-5 sm:p-8">
+              <div className="flex items-start gap-4 sm:gap-5">
+                <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-[#F3F6FA] sm:h-20 sm:w-20"><CompanyLogo companyName={company} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={64}/></div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-black uppercase tracking-[1.7px] text-[#9B8500]">Offre d’emploi</p>
+                  <h1 className="mt-1.5 text-[27px] font-black leading-[1.12] tracking-[-0.03em] text-[#17212B] sm:text-[38px]">{job.title}</h1>
+                  <p className="mt-2 text-base font-extrabold text-[#22448B]">{company || "Entreprise non précisée"}</p>
+                </div>
+                <button onClick={() => setSaved(v => !v)} aria-label={saved ? "Retirer des favoris" : "Ajouter aux favoris"} className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border ${saved ? "border-[#FFD60A] bg-[#FFFBE0] text-[#8C7600]" : "border-slate-200 bg-white text-slate-500"}`}><Heart size={18} fill={saved ? "currentColor" : "none"}/></button>
+              </div>
+
+              {headerFacts.length > 0 && <div className="mt-6 grid gap-2 sm:grid-cols-2">{headerFacts.map(({ icon: Icon, value }) => <div key={value} className="flex min-w-0 items-center gap-2.5 rounded-xl bg-[#F7FAFF] px-3.5 py-3 text-sm font-semibold text-slate-600">{Icon ? <Icon size={16} className="shrink-0 text-[#22448B]"/> : <span className="h-2 w-2 shrink-0 rounded-full bg-[#FFD60A]"/>}<span className="truncate">{value}</span></div>)}</div>}
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto]">
+                <button type="button" onClick={() => setMatchOpen(true)} className="group flex items-center justify-between rounded-2xl border border-[#DDE6F5] bg-[#F7FAFF] p-4 text-left transition hover:border-[#BFCDE5]">
+                  <div><p className="text-[10px] font-black uppercase tracking-[1.4px] text-slate-400">Correspondance avec votre profil</p><div className="mt-1 flex items-center gap-2"><span className="text-2xl font-black text-[#17212B]">{matchScore}%</span><span className="rounded-full bg-[#FFF4A8] px-2 py-1 text-[10px] font-black text-[#735F00]">Voir le détail</span></div></div>
+                  <ChevronRight size={19} className="text-slate-400 transition group-hover:translate-x-0.5"/>
+                </button>
+                {deadline && <div className="flex items-center gap-3 rounded-2xl border border-amber-100 bg-[#FFFBEA] p-4"><CalendarDays size={18} className="text-amber-700"/><div><p className="text-[10px] font-black uppercase tracking-[1.2px] text-amber-700">Candidatures jusqu’au</p><p className="mt-1 text-sm font-extrabold text-[#17212B]">{deadline}</p></div></div>}
+              </div>
+
+              {tags.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{tags.slice(0, 8).map(tag => <span key={tag} className="rounded-full bg-[#EEF4FF] px-3 py-1.5 text-xs font-bold text-[#22448B]">{tag}</span>)}</div>}
+
+              <div className="mt-7 flex flex-col gap-3 border-t border-slate-100 pt-6 sm:flex-row">
+                <button disabled={busy} onClick={apply} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#FFD60A] px-5 py-4 text-sm font-black text-[#17212B] shadow-[0_10px_25px_rgba(255,214,10,.22)] transition hover:brightness-[.98] disabled:opacity-50">
+                  {emailChannel ? <><GmailIcon/><span>Postuler maintenant</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler maintenant</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler maintenant</span></> : <span>Postuler maintenant</span>}
+                </button>
+                <button type="button" onClick={shareOffer} className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-extrabold text-slate-600">{shared ? <CheckCircle2 size={17} className="text-emerald-600"/> : <Share2 size={17}/>}<span>{shared ? "Lien copié" : "Partager"}</span></button>
+              </div>
+            </div>
+          </section>
+
+          <div className="mt-6 space-y-5">
+            {sections.description.length > 0 && <DetailSection eyebrow="01 · LE POSTE" title="Description du poste">{renderParagraphs(sections.description)}</DetailSection>}
+            {sections.missions.length > 0 && <DetailSection eyebrow="02 · RESPONSABILITÉS" title="Missions principales"><div className="space-y-2.5">{sections.missions.map((line, i) => <div key={i} className="flex gap-3 rounded-2xl border border-slate-100 bg-[#FAFBFC] p-4"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#FFD60A] text-xs font-black">{i + 1}</span><p className="pt-0.5 text-[15px] leading-7 text-slate-600">{cleanLine(line)}</p></div>)}</div></DetailSection>}
+
+            {hasProfile && <DetailSection eyebrow="03 · VOTRE PROFIL" title="Profil recherché">
+              <div className="space-y-4">
+                {sections.profile.length > 0 && <div className="rounded-2xl bg-[#F7FAFF] p-5"><p className="text-sm font-black text-[#22448B]">Profil recherché</p><div className="mt-3">{renderParagraphs(sections.profile)}</div></div>}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {profileCards.map(([key, title, fallback]) => {
+                    const items = sections[key] || [];
+                    if (!items.length && key !== "experience") return null;
+                    return <div key={key} className="rounded-2xl border border-slate-100 p-5"><p className="text-sm font-black text-[#17212B]">{title}</p><div className="mt-3">{items.length ? renderBullets(items) : <p className="text-sm leading-6 text-slate-500">{fallback}</p>}</div></div>;
+                  })}
+                </div>
+              </div>
+            </DetailSection>}
+
+            {(sections.benefits.length > 0 || job.company?.description) && <DetailSection eyebrow="04 · ENVIRONNEMENT" title="Ce que l’entreprise offre">
+              {sections.benefits.length > 0 && renderBullets(sections.benefits)}
+              {job.company?.description && <div className={sections.benefits.length > 0 ? "mt-6 border-t border-slate-100 pt-6" : ""}><p className="text-xs font-black uppercase tracking-[1.2px] text-slate-400">À propos de {company || "l’entreprise"}</p><p className="mt-2 text-sm leading-7 text-slate-600">{job.company.description}</p>{job.company?.website && <a href={job.company.website.startsWith("http") ? job.company.website : "https://" + job.company.website} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-[#22448B]">Visiter le site <ExternalLink size={14}/></a>}</div>}
+            </DetailSection>}
+
+            <DetailSection eyebrow="05 · CANDIDATURE" title="Comment postuler">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl bg-[#F7FAFF] p-5"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-slate-400">Mode de candidature</p><p className="mt-2 text-sm font-bold text-[#17212B]">{applicationMode}</p></div>
+                {deadline && <div className="rounded-2xl bg-[#F7FAFF] p-5"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-slate-400">Date limite</p><p className="mt-2 text-sm font-bold text-[#17212B]">{deadline}</p></div>}
+              </div>
+              {sections.application.length > 0 && <div className="mt-4 rounded-2xl bg-[#FFFBE0] p-5"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#8C7600]">Informations utiles</p><div className="mt-3">{renderBullets(sections.application)}</div></div>}
+              {applicationLink && <a href={applicationLink} target="_blank" rel="noreferrer" className="mt-4 flex items-center justify-center gap-2 rounded-2xl border border-[#DDE6F5] bg-white py-4 text-sm font-black text-[#22448B]"><ExternalLink size={17}/>Voir la plateforme de candidature</a>}
+              <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(params.id) + "&source=" + encodeURIComponent(source || ""))} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#FFD60A] bg-white py-4 text-sm font-black text-[#2E3F4F]"><Sparkles size={17}/>Adapter mon CV à cette offre</button>
+              <button disabled={busy} onClick={apply} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#22448B] py-4 text-sm font-black text-white disabled:opacity-50">{emailChannel ? <><GmailIcon/><span>Postuler maintenant</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler maintenant</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler maintenant</span></> : <span>Postuler maintenant</span>}</button>
+            </DetailSection>
+
+            {error && <div role="alert" className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
+          </div>
+        </div>
+      </div>
+      <BottomNav active="/jobs"/>
+      {matchOpen && <MatchModal job={job} onClose={() => setMatchOpen(false)}/>}
+    </main>
+  );
+}
+
 export default function JobDetailPage() {
-  return <Suspense fallback={<main className="talent-shell grid min-h-[100dvh] place-items-center bg-[#F7FAFF] font-bold text-navy">Chargement…</main>}><JobDetailInner/></Suspense>;
+  return <Suspense fallback={<main className="grid min-h-[100dvh] place-items-center bg-[#F7FAFF] font-bold text-[#17212B]">Chargement…</main>}><JobDetailInner/></Suspense>;
 }
