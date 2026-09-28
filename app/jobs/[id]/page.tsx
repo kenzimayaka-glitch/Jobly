@@ -227,7 +227,9 @@ function JobDetailInner() {
   const deadline = job.deadline ? new Date(job.deadline).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : null;
   const deadlineExpired = Boolean(job.deadlineExpired);
   const tags: string[] = Array.isArray(job.tags) ? job.tags : [];
-  const sections = parseJobDetailSections(normalizedIdentity.description, displayTitle);
+  const sections = job.detailSections && typeof job.detailSections === "object"
+    ? job.detailSections
+    : parseJobDetailSections(normalizedIdentity.description, displayTitle);
   const matchScore = Math.max(0, Math.min(100, Number(job.matchPercent ?? 0)));
   const headerFacts = [
     job.location ? { icon: MapPin, value: job.location } : null,
