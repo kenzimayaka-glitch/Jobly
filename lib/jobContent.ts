@@ -141,7 +141,7 @@ function splitInlineSectionHeadings(value: string): string {
   ];
   const escaped = headingPatterns
     .sort((a, b) => b.length - a.length)
-    .map((heading) => heading.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\function cleanSectionLine(value: string): string {
+    .map((heading) => heading.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&"))
 "))
     .join("|");
   return value
