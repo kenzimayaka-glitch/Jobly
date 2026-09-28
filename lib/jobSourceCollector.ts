@@ -36,10 +36,36 @@ const SOURCES: SourceConfig[] = [
 ];
 
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
-const FETCH_TIMEOUT_MS = 8_000;
+const FETCH_TIMEOUT_MS = 6_000;
 const MAX_LISTING_PAGES = 3;
-const MAX_OFFERS_PER_SOURCE = 30;
+const MAX_OFFERS_PER_SOURCE = 15;
+const SOURCE_FETCH_CONCURRENCY = 6;
 const MAX_DESCRIPTION_CHARS = 30_000;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<R | null>,
+): Promise<R[]> {
+  const results: R[] = [];
+  let cursor = 0;
+
+  async function runWorker() {
+    while (true) {
+      const index = cursor++;
+      if (index >= items.length) return;
+      try {
+        const result = await worker(items[index]);
+        if (result !== null) results.push(result);
+      } catch {}
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => runWorker()),
+  );
+  return results;
+}
 
 function normalizeSpace(value: string): string {
   return value.replace(/\r/g, " ").replace(/\n/g, " ").replace(/\t/g, " ").replace(/\s+/g, " ").trim();
@@ -279,10 +305,11 @@ async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
       } catch { current=""; }
     }
   }
-  const results: CollectedOffer[] = [];
-  for (const candidate of Array.from(candidates.values()).slice(0,MAX_OFFERS_PER_SOURCE)) {
-    try { const offer=extractOffer(source,candidate.url,await fetchHtml(candidate.url),candidate.title); if(offer) results.push(offer); } catch {}
-  }
+  const candidatesToFetch = Array.from(candidates.values()).slice(0, MAX_OFFERS_PER_SOURCE);
+  const results = await mapWithConcurrency(candidatesToFetch, SOURCE_FETCH_CONCURRENCY, async (candidate) => {
+    const html = await fetchHtml(candidate.url);
+    return extractOffer(source, candidate.url, html, candidate.title);
+  });
   if (results.length < 5) {
     const fallback = await collectWordPressOffers(source);
     for (const offer of fallback) {

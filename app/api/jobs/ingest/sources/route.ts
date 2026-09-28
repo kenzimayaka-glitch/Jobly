@@ -24,6 +24,28 @@ function isExpired(deadline: string | null): boolean {
   return Boolean(deadline && Number.isFinite(new Date(deadline).getTime()) && new Date(deadline).getTime() < Date.now());
 }
 
+const INGEST_CONCURRENCY = 4;
+
+async function runWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>,
+): Promise<void> {
+  let cursor = 0;
+  async function runWorker() {
+    while (true) {
+      const index = cursor++;
+      if (index >= items.length) return;
+      try {
+        await worker(items[index]);
+      } catch {}
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => runWorker()),
+  );
+}
+
 export async function POST(request: NextRequest) {
   if (!(await authorized(request))) return NextResponse.json({ message: "Non autorisé." }, { status: 401 });
 
@@ -33,7 +55,7 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
     let created = 0, updated = 0, skipped = 0;
 
-    for (const offer of offers) {
+    await runWithConcurrency(offers, INGEST_CONCURRENCY, async (offer) => {
       const cleanedTitle = cleanJobTitle(offer.title);
       const cleanedDescription = cleanJobDescription(offer.description, cleanedTitle);
       const cleanedContentHash = crypto.createHash("sha256")
@@ -145,7 +167,7 @@ export async function POST(request: NextRequest) {
         if (insert.error) throw new Error(insert.error.message);
         created++;
       }
-    }
+    });
 
     return NextResponse.json({
       ok: true,
