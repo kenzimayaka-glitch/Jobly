@@ -54,14 +54,20 @@ export default function TalentCVs() {
   async function getAccessToken() {
     try {
       const supabase = getSupabaseClient();
-      const current = await supabase.auth.getSession();
-      if (current.data.session?.access_token) return current.data.session.access_token;
-      // A session can exist but need a refresh immediately after waking the tab
-      // or after the access token expires. Retry once through Supabase Auth
-      // before telling the user that authentication is missing.
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+      if (!session?.access_token) return null;
+
+      // Never send an expired/near-expiry access token to the CV API.
+      // Supabase auto-refresh normally handles this, but a tab resumed from
+      // sleep can still expose the cached token for a short time.
+      const expiresAt = Number(session.expires_at || 0) * 1000;
+      if (!expiresAt || expiresAt - Date.now() > 60_000) {
+        return session.access_token;
+      }
+
       const refreshed = await supabase.auth.refreshSession();
-      if (refreshed.data.session?.access_token) return refreshed.data.session.access_token;
-      return null;
+      return refreshed.data.session?.access_token || null;
     } catch {
       return null;
     }
@@ -121,15 +127,41 @@ export default function TalentCVs() {
     setFile(f.name); setBusy(true); setMessage("J’IA lit ton CV et prépare les champs…");
     try {
       const form = new FormData(); form.append("file", f);
-      const token = await getAccessToken();
-      if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
-      const res = await fetch("/api/talent/cv/import", {
+      let token = await getAccessToken();
+      if (!token) throw new Error("Impossible de récupérer ta session Jobly active. Recharge la page puis réessaie.");
+      let res = await fetch("/api/talent/cv/import", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form,
       });
+
+      // One recovery attempt for a token that became invalid between
+      // getSession() and the API request.
+      if (res.status === 401) {
+        token = await (async () => {
+          try {
+            const refreshed = await getSupabaseClient().auth.refreshSession();
+            return refreshed.data.session?.access_token || null;
+          } catch {
+            return null;
+          }
+        })();
+        if (token) {
+          res = await fetch("/api/talent/cv/import", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: form,
+          });
+        }
+      }
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Import impossible.");
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error("Ta session Jobly n’est plus valide. Reconnecte-toi puis réessaie.");
+        }
+        throw new Error(data.message || "Import impossible.");
+      }
       setExtracted(data.cv);
       setOriginalMeta({ pages: data.pages, storagePath: data.originalCv?.storagePath });
       setMessage(`CV importé${data.originalCv?.stored ? " et conservé comme document original" : ""}. Clique sur « Extraire les données » pour remplir les champs. ${data.credits} crédit(s) IA utilisé(s).`);
