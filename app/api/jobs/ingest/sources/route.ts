@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (existing.data?.id) {
-        const contentChanged = existing.data.contentHash !== offer.contentHash;
+        const contentChanged = existing.data.contentHash !== cleanedContentHash;
         if (!contentChanged && !companyId) {
           const touch = await supabase.from("Job").update({
             lastSeenAt: now,
