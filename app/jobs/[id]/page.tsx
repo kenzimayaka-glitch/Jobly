@@ -227,9 +227,23 @@ function JobDetailInner() {
   const deadline = job.deadline ? new Date(job.deadline).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : null;
   const deadlineExpired = Boolean(job.deadlineExpired);
   const tags: string[] = Array.isArray(job.tags) ? job.tags : [];
-  const sections = job.detailSections && typeof job.detailSections === "object"
-    ? job.detailSections
-    : parseJobDetailSections(normalizedIdentity.description, displayTitle);
+  const parsedFromDescription = parseJobDetailSections(normalizedIdentity.description, displayTitle);
+  const apiSections = job.detailSections && typeof job.detailSections === "object" ? job.detailSections : {};
+  const mergeSection = (key: string) => Array.from(new Set([
+    ...(Array.isArray(apiSections[key]) ? apiSections[key] : []),
+    ...(Array.isArray(parsedFromDescription[key]) ? parsedFromDescription[key] : []),
+  ].map((v) => cleanLine(String(v))).filter(Boolean)));
+  const sections = {
+    description: mergeSection("description"),
+    missions: mergeSection("missions"),
+    profile: mergeSection("profile"),
+    formation: mergeSection("formation"),
+    experience: mergeSection("experience"),
+    skills: mergeSection("skills"),
+    qualities: mergeSection("qualities"),
+    benefits: mergeSection("benefits"),
+    application: mergeSection("application"),
+  };
   const matchScore = Math.max(0, Math.min(100, Number(job.matchPercent ?? 0)));
   const headerFacts = [
     job.location ? { icon: MapPin, value: job.location } : null,
@@ -298,6 +312,13 @@ function JobDetailInner() {
             {sections.missions.length > 0 && <DetailSection title="Missions">{renderBullets(sections.missions)}</DetailSection>}
             {sections.profile.length > 0 && <DetailSection title="Profil recherché">{renderBullets(sections.profile)}</DetailSection>}
             {sections.benefits.length > 0 && <DetailSection title="Avantages">{renderBullets(sections.benefits)}</DetailSection>}
+            {sections.description.length === 0 && sections.missions.length === 0 && sections.profile.length === 0 && sections.benefits.length === 0 && (
+              <DetailSection title="À propos de l'offre">
+                {normalizedIdentity.description
+                  ? <p className="whitespace-pre-wrap text-[15px] leading-7 text-slate-600">{cleanLine(normalizedIdentity.description)}</p>
+                  : <p className="text-[15px] leading-7 text-slate-500">Les détails de cette offre ne sont pas disponibles.</p>}
+              </DetailSection>
+            )}
 
             {(emailChannel || phoneChannel || applicationLink || sections.application.length > 0) && (
               <DetailSection title="Comment postuler">
