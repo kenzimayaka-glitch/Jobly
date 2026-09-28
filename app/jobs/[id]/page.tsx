@@ -8,7 +8,7 @@ import PageHeader from "@/components/PageHeader";
 import BottomNav from "@/components/BottomNav";
 import TalentBackground from "@/components/TalentBackground";
 import CompanyLogo from "@/components/CompanyLogo";
-import { cleanCompanyName, cleanJobDescription } from "@/lib/jobContent";
+import { cleanCompanyName, parseJobDetailSections } from "@/lib/jobContent";
 
 type Job = Record<string, any>;
 function GmailIcon({size=18}:{size?:number}) { return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"><path d="M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5v13A2.5 2.5 0 0 1 18.5 21H5.5A2.5 2.5 0 0 1 3 18.5v-13Z" fill="white"/><path d="M4.5 6.2 12 12l7.5-5.8V18a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1V6.2Z" fill="#EA4335"/><path d="M4.5 6.2 12 12l7.5-5.8-1.1-1.6L12 9.4 5.6 4.6 4.5 6.2Z" fill="#4285F4"/><path d="M4.5 6.2V18c0 .55.45 1 1 1h2V8.12L4.5 6.2Z" fill="#34A853"/><path d="M19.5 6.2V18c0 .55-.45 1-1 1h-2V8.12l3-1.92Z" fill="#FBBC04"/></svg>; }
@@ -51,52 +51,22 @@ function JobDetailInner() {
     if(!Number.isFinite(numeric))return raw;
     return new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0}).format(numeric);
   };
-  const cleanDescription=cleanJobDescription(job.description, job.title);
-  type DetailSectionKey = "description"|"missions"|"profile"|"formation"|"experience"|"skills"|"qualities"|"benefits"|"application"|"other";
-  const sectionPatterns: Array<[DetailSectionKey, RegExp]> = [
-    ["description", /^(description|présentation|contexte|à propos du poste)\s*[:：-]?$/i],
-    ["missions", /^(missions?(\s+principales?)?|responsabilités?|responsabilités\s+principales?)\s*[:：-]?$/i],
-    ["profile", /^(profil(\s+recherché|\s+du\s+candidat)?|candidat(\s+recherché)?)\s*[:：-]?$/i],
-    ["formation", /^(formation|dipl[oô]mes?|études)\s*[:：-]?$/i],
-    ["experience", /^(expérience|expériences?|parcours)\s*[:：-]?$/i],
-    ["skills", /^(compétences?|compétences\s+techniques?|savoir[- ]faire)\s*[:：-]?$/i],
-    ["qualities", /^(qualités?|savoir[- ]être|soft skills|aptitudes)\s*[:：-]?$/i],
-    ["benefits", /^(avantages?|ce que (l'entreprise|nous) (offre|propose)|nous offrons|conditions de travail|rémunération et avantages?)\s*[:：-]?$/i],
-    ["application", /^(candidature|pour postuler|modalités? de candidature|comment postuler|documents? (à fournir|demandés?)?)\s*[:：-]?$/i],
-  ];
-  const detailSections = new Map<DetailSectionKey,string[]>();
-  let currentSection: DetailSectionKey = "description";
-  const lines = cleanDescription.split(/\r?\n/).map((line:string)=>line.trim()).filter(Boolean);
-  for (const line of lines) {
-    const match = sectionPatterns.find(([, pattern]) => pattern.test(line.replace(/[:：-]+$/,"").trim()));
-    if (match) {
-      currentSection = match[0];
-      const titleless = line.replace(/[:：-]+$/,"").trim();
-      if (!detailSections.has(currentSection)) detailSections.set(currentSection, []);
-      if (titleless && !match[1].test(titleless + ":")) detailSections.get(currentSection)!.push(titleless);
-      continue;
-    }
-    if (!detailSections.has(currentSection)) detailSections.set(currentSection, []);
-    detailSections.get(currentSection)!.push(line);
-  }
-  const sectionText = (key: DetailSectionKey) => detailSections.get(key) || [];
+  const detailSections = parseJobDetailSections(job.description, job.title);
+  const sectionText = (key: keyof typeof detailSections) => detailSections[key] || [];
   const renderLines = (items:string[], emptyFallback?:string) => {
     if (!items.length) return emptyFallback ? <p className="text-sm leading-7 text-slate-500">{emptyFallback}</p> : null;
     return <div className="space-y-3 text-sm leading-7 text-slate-600">{items.map((line:string,index:number)=>{
-      const bullet=/^(?:•|▪|◦|-|–|—)\s*/.test(line);
-      const value=line.replace(/^(?:•|▪|◦|-|–|—)\s*/,"");
-      return bullet
-        ? <div key={index} className="flex gap-3"><span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFD60A]" /><p>{value}</p></div>
-        : <p key={index}>{value}</p>;
+      const value=line.replace(/^(?:•|▪|◦|-|–|—|\*)\s*/,"");
+      return <p key={index} className="relative pl-5 before:absolute before:left-0 before:top-[0.75em] before:h-1.5 before:w-1.5 before:rounded-full before:bg-[#FFD60A]">{value}</p>;
     })}</div>;
   };
-  const profileSections: Array<[DetailSectionKey,string,string]> = [
-    ["formation","Formation","Formation académique, diplôme ou niveau d'études demandé."],
-    ["experience","Expérience",job.minExperienceYears!=null ? `Minimum ${job.minExperienceYears} an${job.minExperienceYears>1?"s":""} d'expérience.` : "Expérience professionnelle précisée dans l'offre."],
+  const profileSections: Array<[keyof typeof detailSections,string,string]> = [
+    ["formation","Formation","Formation académique, diplôme ou niveau d’études demandé."],
+    ["experience","Expérience",job.minExperienceYears!=null ? `Minimum ${job.minExperienceYears} an${job.minExperienceYears>1?"s":""} d’expérience.` : "Expérience professionnelle précisée dans l’offre."],
     ["skills","Compétences","Compétences techniques et professionnelles attendues."],
     ["qualities","Qualités recherchées","Savoir-être et qualités attendues pour le poste."],
   ];
-  const hasProfileContent = profileSections.some(([key])=>sectionText(key).length>0) || job.minExperienceYears!=null;
+  const hasProfileContent = detailSections.profile.length>0 || profileSections.some(([key])=>sectionText(key).length>0) || job.minExperienceYears!=null;
   const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Candidature via la plateforme externe" : "Candidature depuis Jobly";
   const applicationDocuments = sectionText("application");
   const headerFacts: string[] = [
@@ -131,7 +101,7 @@ function JobDetailInner() {
     </section>
 
     <div className="mt-8 space-y-6">
-      {(sectionText("description").length>0 || sectionText("missions").length===0) && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
+      {sectionText("description").length>0 && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
         <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">01 · LE POSTE</p>
         <h2 className="mt-2 text-2xl font-black text-[#17212B]">Description du poste</h2>
         <div className="mt-5">{renderLines(sectionText("description"), cleanDescription ? undefined : "Description non renseignée.")}</div>
@@ -147,7 +117,7 @@ function JobDetailInner() {
         <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">03 · CANDIDAT</p>
         <h2 className="mt-2 text-2xl font-black text-[#17212B]">Profil recherché</h2>
         <div className="mt-7 grid gap-5 sm:grid-cols-2">
-          {profileSections.map(([key,title,fallback]) => {
+          {sectionText("profile").length>0 && <div className="sm:col-span-2 rounded-2xl border border-slate-100 bg-[#FAFBFC] p-5"><h3 className="text-sm font-black text-[#00A6A6]">Profil recherché</h3><div className="mt-3">{renderLines(sectionText("profile"))}</div></div>}\n          {profileSections.map(([key,title,fallback]) => {
             const items=sectionText(key);
             if (!items.length && key!=="experience") return null;
             return <div key={key} className="rounded-2xl border border-slate-100 bg-[#FAFBFC] p-5"><h3 className="text-sm font-black text-[#00A6A6]">{title}</h3><div className="mt-3">{renderLines(items, fallback)}</div></div>;
