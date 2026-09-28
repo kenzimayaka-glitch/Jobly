@@ -1,9 +1,7 @@
 name: Jobly Vercel Production
 
 on:
-  push:
-    branches: [main]
-
+  workflow_dispatch:
 
 concurrency:
   group: jobly-vercel-production
@@ -11,7 +9,6 @@ concurrency:
 
 jobs:
   deploy:
-    if: startsWith(github.event.head_commit.message, '[deploy]')
     name: Validate then deploy to Vercel
     runs-on: ubuntu-latest
     timeout-minutes: 25
