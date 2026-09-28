@@ -1,6 +1,9 @@
 export function decodeHtmlEntities(value: string): string {
-  const named: Record<string, string> = {"&nbsp;":" ","&amp;":"&","&quot;":"\"","&#39;":"'","&apos;":"'","&lt;":"<","&gt;":">","&ndash;":"–","&mdash;":"—"};
-  return value.replace(/&(?:nbsp|amp|quot|apos|lt|gt|ndash|mdash);|&#39;/gi, token => named[token.toLowerCase()] || token).replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+  const named: Record<string, string> = {"&nbsp;":" ","&amp;":"&","&quot;":"\"","&#39;":"'","&apos;":"'","&lt;":"<","&gt;":">","&ndash;":"–","&mdash;":"—","&hellip;":"…","&bull;":"•","&middot;":"·"};
+  return value
+    .replace(/&(?:nbsp|amp|quot|apos|lt|gt|ndash|mdash|hellip|bull|middot);|&#39;/gi, token => named[token.toLowerCase()] || token)
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)));
 }
 function repairUtf8(value: string): string {
   if (!/[ÃÂâ][\x80-\xBF\x20-\x7E]/.test(value)) return value;
@@ -139,7 +142,7 @@ function splitInlineSectionHeadings(value: string): string {
     "Application", "How to apply", "Responsibilities", "Requirements", "Education",
     "Experience", "Skills", "Benefits",
   ];
-  const escaped = headingPatterns.map((heading) => heading.replaceAll(" ", "\\\\s+")).join("|");
+  const escaped = headingPatterns.map((heading) => heading.replaceAll(" ", "\\s+")).join("|");
   return value
     .replace(new RegExp("(?:^|[\\s|•▪◦])((?:" + escaped + "))(?:\\s*[:：-]\\s*|\\s+)", "giu"), (match) =>
       match.startsWith("\n") ? match : "\n" + match.trimStart()
@@ -461,7 +464,7 @@ export function parseJobDetailSections(value: unknown, titleHint?: string | null
       for (const rawLine of lines) {
         if (titleHint && normalizeSectionHeading(rawLine) === normalizeSectionHeading(titleHint)) continue;
 
-        const colonMatch = rawLine.match(/^(.{2,90}?)\\s*[:：]\\s*(.+)$/);
+        const colonMatch = rawLine.match(/^(.{2,90}?)\s*[:：]\s*(.+)$/);
         if (colonMatch) {
           const section = sectionFromHeading(colonMatch[1]);
           if (section) {
