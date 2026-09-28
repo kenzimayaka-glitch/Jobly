@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
         .select("id,title,sourceKey,sourceUrl,createdAt,isActive")
         .not("sourceUrl", "is", null)
         .not("sourceKey", "is", null)
-        .or("sourceKey.eq.infosconcourseducation,description.like.%�%")
+        .or("sourceKey.eq.infosconcourseducation,description.like.%�%,description.like.%Ã%,description.like.%Â%,description.like.%\\u0019%,description.like.%\\u0013%,title.like.%�%,title.like.%Ã%,title.like.%Â%")
         .order("createdAt", { ascending: true })
         .range(offset, offset + batchSize - 1);
       if (error) throw new Error(error.message);
