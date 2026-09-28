@@ -125,6 +125,32 @@ function sectionFromHeading(value: string): keyof JobDetailSections | null {
   return null;
 }
 
+function splitInlineSectionHeadings(value: string): string {
+  // Legacy imports sometimes flattened the entire offer into one line.
+  const headingPatterns = [
+    "Missions principales du poste", "Missions principales", "Missions",
+    "Responsabilités principales", "Responsabilités", "Tâches principales", "Tâches",
+    "Profil recherché", "Profil du candidat", "Profil", "Exigences", "Qualifications",
+    "Formation", "Diplômes", "Expérience professionnelle", "Expérience",
+    "Compétences techniques", "Compétences requises", "Compétences", "Savoir-faire",
+    "Savoir-être", "Qualités", "Avantages", "Ce que nous offrons",
+    "Ce que l'entreprise offre", "Conditions de travail", "Candidature",
+    "Pour postuler", "Modalités de candidature", "Comment postuler", "Documents à fournir",
+    "Application", "How to apply", "Responsibilities", "Requirements", "Education",
+    "Experience", "Skills", "Benefits",
+  ];
+  const escaped = headingPatterns
+    .sort((a, b) => b.length - a.length)
+    .map((heading) => heading.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\function cleanSectionLine(value: string): string {
+"))
+    .join("|");
+  return value
+    .replace(new RegExp("(?:^|[\\\\s|•▪◦])((?:" + escaped + "))(?:\\\\s*[:：-]\\\\s*|\\\\s+)", "giu"), (match) =>
+      match.startsWith("\\n") ? match : "\\n" + match.trimStart()
+    )
+    .replace(/^\\n+/, "")
+    .replace(/\\n{3,}/g, "\\n\\n");
+}
 function cleanSectionLine(value: string): string {
   return collapseLine(value)
     .replace(/^(?:[-–—•▪◦*]+)\s*/, "")
@@ -349,7 +375,7 @@ export function cleanJobDescription(value: unknown, titleHint?: string | null): 
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  const lines = raw.split(/\n+/).map(collapseLine).filter(Boolean);
+  const lines = splitInlineSectionHeadings(raw).split(/\n+/).map(collapseLine).filter(Boolean);
   const seen = new Set<string>();
   const output: string[] = [];
 
@@ -391,7 +417,7 @@ export function parseJobDetailSections(value: unknown, titleHint?: string | null
 
   if (!structuredHasData) {
     let current: keyof JobDetailSections = "description";
-    const lines = text.split(/\r?\n/).map(cleanSectionLine).filter(Boolean);
+    const lines = splitInlineSectionHeadings(text).split(/\r?\n/).map(cleanSectionLine).filter(Boolean);
 
     for (const rawLine of lines) {
       if (
@@ -434,7 +460,7 @@ export function parseJobDetailSections(value: unknown, titleHint?: string | null
       if (!cleaned) continue;
 
       let current: keyof JobDetailSections = "description";
-      const lines = cleaned.split(/\\r?\\n/).map(cleanSectionLine).filter(Boolean);
+      const lines = splitInlineSectionHeadings(cleaned).split(/\r?\n/).map(cleanSectionLine).filter(Boolean);
 
       for (const rawLine of lines) {
         if (titleHint && normalizeSectionHeading(rawLine) === normalizeSectionHeading(titleHint)) continue;
