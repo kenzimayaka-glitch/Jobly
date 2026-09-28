@@ -149,12 +149,63 @@ export type JobDetailSections = {
   application: string[];
 };
 
+const SECTION_ALIASES: Record<keyof JobDetailSections, string[]> = {
+  description: [
+    "description", "presentation", "contexte", "a propos du poste", "le poste",
+    "job description", "about the role", "about the job", "overview"
+  ],
+  missions: [
+    "mission", "missions", "missions principales", "responsabilites",
+    "responsabilites principales", "taches", "taches principales", "activites",
+    "role et responsabilites", "responsibilities", "key responsibilities",
+    "main responsibilities", "duties", "what you will do"
+  ],
+  profile: [
+    "profil", "profil recherche", "profil du candidat", "candidat recherche",
+    "exigences", "requirements", "qualifications", "candidate profile",
+    "your profile", "who you are", "what we are looking for"
+  ],
+  formation: [
+    "formation", "formations", "diplome", "diplomes", "etudes", "education",
+    "academic background"
+  ],
+  experience: [
+    "experience", "experiences", "experience professionnelle", "parcours",
+    "professional experience", "work experience", "experience required"
+  ],
+  skills: [
+    "competence", "competences", "competences techniques", "savoir faire",
+    "skills", "technical skills", "hard skills", "required skills"
+  ],
+  qualities: [
+    "qualite", "qualites", "savoir etre", "soft skills", "aptitudes",
+    "qualities", "personal qualities", "behavioral skills"
+  ],
+  benefits: [
+    "avantage", "avantages", "ce que l entreprise offre", "ce que nous offrons",
+    "nous offrons", "conditions de travail", "remuneration et avantages",
+    "benefits", "what we offer", "we offer", "compensation and benefits"
+  ],
+  application: [
+    "candidature", "pour postuler", "modalites de candidature",
+    "comment postuler", "documents a fournir", "documents demandes",
+    "application", "how to apply", "how to apply for this position",
+    "apply", "application process"
+  ],
+};
+
+const SECTION_ORDER: (keyof JobDetailSections)[] = [
+  "description", "missions", "profile", "formation", "experience",
+  "skills", "qualities", "benefits", "application"
+];
+
 function normalizeSectionHeading(value: string): string {
   return repairUtf8(decodeHtmlEntities(value))
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[’']/g, "'")
+    .replace(/&/g, " et ")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
@@ -162,69 +213,331 @@ function normalizeSectionHeading(value: string): string {
 function sectionFromHeading(value: string): keyof JobDetailSections | null {
   const h = normalizeSectionHeading(value);
   if (!h) return null;
-  if (/^(description|presentation|contexte|a propos du poste|le poste)$/.test(h)) return "description";
-  if (/^(missions?|missions principales?|responsabilites?|responsabilites principales?|taches?|activites?|role et responsabilites?)$/.test(h)) return "missions";
-  if (/^(profil|profil recherche|profil du candidat|candidat recherche|exigences?|requirements?|qualifications?)$/.test(h)) return "profile";
-  if (/^(formation|diplomes?|etudes|education)$/.test(h)) return "formation";
-  if (/^(experience|experiences?|parcours|experience professionnelle)$/.test(h)) return "experience";
-  if (/^(competences?|competences techniques?|savoir faire|skills|technical skills)$/.test(h)) return "skills";
-  if (/^(qualites?|savoir etre|soft skills|aptitudes|qualities)$/.test(h)) return "qualities";
-  if (/^(avantages?|ce que l entreprise offre|ce que nous offrons|nous offrons|conditions de travail|remuneration et avantages?|benefits|what we offer)$/.test(h)) return "benefits";
-  if (/^(candidature|pour postuler|modalites? de candidature|comment postuler|documents? a fournir|documents? demandes?|application|how to apply)$/.test(h)) return "application";
+
+  for (const key of SECTION_ORDER) {
+    for (const alias of SECTION_ALIASES[key]) {
+      const a = normalizeSectionHeading(alias);
+      if (h === a) return key;
+      // Accept natural heading extensions such as:
+      // "Missions principales du poste" / "Compétences requises".
+      if (h.startsWith(a + " ") || h.endsWith(" " + a)) return key;
+    }
+  }
+
   return null;
 }
 
 function cleanSectionLine(value: string): string {
   return collapseLine(value)
     .replace(/^(?:[-–—•▪◦*]+)\s*/, "")
+    .replace(/^\d+[.)]\s*/, "")
+    .replace(/^[✓✔☑]\s*/, "")
     .trim();
 }
 
-/**
- * Converts cleaned offer text into conservative display sections.
- * It only creates a section when a recognizable heading is present and
- * never invents missing content.
- */
-export function parseJobDetailSections(value: unknown, titleHint?: string | null): JobDetailSections {
-  const empty = (): JobDetailSections => ({
-    description: [], profile: [], missions: [], formation: [], experience: [],
-    skills: [], qualities: [], benefits: [], application: [],
-  });
-  const text = cleanJobDescription(value, titleHint);
-  if (!text) return empty();
+function normalizeSectionItems(items: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
 
-  const result = empty();
-  let current: keyof JobDetailSections = "description";
-  const lines = text.split(/\r?\n/).map(cleanSectionLine).filter(Boolean);
+  for (const raw of items) {
+    const value = cleanSectionLine(raw);
+    if (!value || value.length < 2) continue;
 
-  for (const rawLine of lines) {
-    // Handle headings followed by content on the same line:
-    // "Missions principales : gérer..., suivre..." .
-    const colon = rawLine.search(/\s*[:：]\s*/);
-    if (colon > 0) {
-      const before = rawLine.slice(0, colon).trim();
-      const section = sectionFromHeading(before);
-      if (section) {
-        current = section;
-        const after = rawLine.slice(colon + 1).trim();
-        if (after) result[current].push(after);
-        continue;
-      }
-    }
+    const key = value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
 
-    const section = sectionFromHeading(rawLine);
-    if (section) {
-      current = section;
+    if (key.length > 12 && seen.has(key)) continue;
+    if (key.length > 12) seen.add(key);
+    result.push(value);
+  }
+
+  return result;
+}
+
+function emptySections(): JobDetailSections {
+  return {
+    description: [],
+    profile: [],
+    missions: [],
+    formation: [],
+    experience: [],
+    skills: [],
+    qualities: [],
+    benefits: [],
+    application: [],
+  };
+}
+
+function addTextToSection(
+  result: JobDetailSections,
+  section: keyof JobDetailSections,
+  value: string
+): void {
+  const cleaned = cleanSectionLine(value);
+  if (cleaned) result[section].push(cleaned);
+}
+
+function collectStructuredValue(
+  value: unknown,
+  result: JobDetailSections,
+  fallback: keyof JobDetailSections = "description",
+  depth = 0
+): void {
+  if (depth > 8 || value == null) return;
+
+  if (typeof value === "string") {
+    const text = cleanJobDescription(value);
+    if (text) addTextToSection(result, fallback, text);
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) collectStructuredValue(item, result, fallback, depth + 1);
+    return;
+  }
+
+  if (typeof value !== "object") return;
+
+  const object = value as Record<string, unknown>;
+
+  for (const [rawKey, rawValue] of Object.entries(object)) {
+    const key = normalizeSectionHeading(rawKey);
+
+    const mapped =
+      sectionFromHeading(key) ??
+      (key === "job description" || key === "jobdescription" || key === "job description text"
+        ? "description"
+        : key === "responsibilities" || key === "key responsibilities"
+          ? "missions"
+          : key === "requirements" || key === "candidate requirements"
+            ? "profile"
+            : key === "education" || key === "academic background"
+              ? "formation"
+              : key === "work experience" || key === "professional experience"
+                ? "experience"
+                : key === "technical skills" || key === "required skills"
+                  ? "skills"
+                  : key === "soft skills"
+                    ? "qualities"
+                    : key === "benefits" || key === "compensation and benefits"
+                      ? "benefits"
+                      : key === "application" || key === "how to apply"
+                        ? "application"
+                        : null);
+
+    if (mapped) {
+      collectStructuredValue(rawValue, result, mapped, depth + 1);
       continue;
     }
 
-    // Don't let the offer title become the description.
-    if (titleHint && normalizeSectionHeading(rawLine) === normalizeSectionHeading(titleHint)) continue;
-    result[current].push(rawLine);
+    // Preserve useful nested fields instead of returning only the first one.
+    if (typeof rawValue === "string" || Array.isArray(rawValue) || (rawValue && typeof rawValue === "object")) {
+      collectStructuredValue(rawValue, result, fallback, depth + 1);
+    }
+  }
+}
+
+function stripChromeFromHtml(html: string): string {
+  return html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "\n")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "\n")
+    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, "\n")
+    .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, "\n")
+    .replace(/<(nav|header|footer|aside|form|dialog)\b[^>]*>[\s\S]*?<\/\1>/gi, "\n")
+    .replace(
+      /<([a-z0-9]+)\b[^>]*(?:id|class)=["'][^"']*(?:nav|menu|sidebar|breadcrumb|cookie|advert|ads|social|login|register|newsletter|pagination|share|search)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi,
+      "\n"
+    )
+    .replace(/<h[1-6]\b[^>]*>/gi, "\n\n")
+    .replace(/<\/h[1-6]>/gi, "\n\n")
+    .replace(/<br\s*\/?\s*>/gi, "\n")
+    .replace(/<li\b[^>]*>/gi, "\n• ")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<\/(p|div|section|article|blockquote|tr|td|th)>/gi, "\n\n")
+    .replace(/<[^>]+>/g, " ");
+}
+
+function htmlToCandidateBlocks(html: string): string[] {
+  const candidates: string[] = [];
+  const add = (value: string) => {
+    const text = repairUtf8(decodeHtmlEntities(stripChromeFromHtml(value))).trim();
+    if (text.length >= 80) candidates.push(text);
+  };
+
+  const broad = /<(article|main)\b[^>]*>([\s\S]*?)<\/\1>/gi;
+  for (const match of html.matchAll(broad)) add(match[2] || "");
+
+  const semantic =
+    /<([a-z0-9]+)\b[^>]*(?:id|class)=["'][^"']*(?:job|offer|posting|description|content|detail|responsibilit|mission|requirement|profile)[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi;
+  for (const match of html.matchAll(semantic)) add(match[2] || "");
+
+  return candidates;
+}
+
+function chooseHtmlCandidates(html: string, titleHint?: string | null): string {
+  const candidates = htmlToCandidateBlocks(html);
+  if (!candidates.length) return stripChromeFromHtml(html);
+
+  const title = titleHint ? normalizeSectionHeading(titleHint) : "";
+  const ranked = candidates
+    .map((text) => {
+      const normalized = normalizeSectionHeading(text);
+      const sectionHits = SECTION_ORDER.filter((key) =>
+        text.toLowerCase().includes(key === "profile" ? "profil" : key)
+      ).length;
+      const titleHit = title && normalized.includes(title) ? 100000 : 0;
+      const lengthScore = Math.min(text.length, 30000) / 100;
+      return { text, score: titleHit + sectionHits * 50 + lengthScore };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  return ranked[0]?.text || stripChromeFromHtml(html);
+}
+
+function rawOfferText(value: unknown, titleHint?: string | null): string {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+    if (/^\s*[\[{]/.test(trimmed)) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && typeof parsed === "object") {
+          const structured = emptySections();
+          collectStructuredValue(parsed, structured);
+          const joined = SECTION_ORDER.flatMap((key) => structured[key]).join("\n");
+          if (joined.trim()) return joined;
+        }
+      } catch {
+        // Continue as raw text/HTML.
+      }
+    }
+    return trimmed;
   }
 
-  // A "Profil recherché" heading is a container, not a description.
-  // If its content has no explicit subheading, keep it in description only
-  // when no dedicated profile fields were detected; this avoids data loss.
+  if (value && typeof value === "object") {
+    const structured = emptySections();
+    collectStructuredValue(value, structured);
+    const joined = SECTION_ORDER.flatMap((key) => structured[key]).join("\n");
+    if (joined.trim()) return joined;
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "";
+    }
+  }
+
+  return "";
+}
+
+export function cleanJobDescription(value: unknown, titleHint?: string | null): string {
+  let raw = rawOfferText(value, titleHint);
+  if (!raw) return "";
+
+  if (/^\s*[<{[]/.test(raw) && /<\/?[a-z][\s\S]*>/i.test(raw)) {
+    raw = chooseHtmlCandidates(raw, titleHint);
+  }
+
+  raw = repairUtf8(decodeHtmlEntities(raw))
+    .replace(/\u00a0/g, " ")
+    .replace(/\r/g, "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  const lines = raw.split(/\n+/).map(collapseLine).filter(Boolean);
+  const seen = new Set<string>();
+  const output: string[] = [];
+
+  for (const line of lines) {
+    const normalized = normalizeSectionHeading(line);
+    if (!normalized) continue;
+
+    if (/^(francais|english|search|sign in|login|register|sign up|create an account|remember me|read more|load more|share|partager|toggle navigation|main navigation)$/.test(normalized)) {
+      continue;
+    }
+
+    if (/^(window|document|function|const|let|var|adsbygoogle|datalayer)/i.test(line)) continue;
+
+    if (normalized.length > 18 && seen.has(normalized)) continue;
+    if (normalized.length > 18) seen.add(normalized);
+
+    output.push(line);
+  }
+
+  return output.join("\n").slice(0, 30000);
+}
+
+export function parseJobDetailSections(value: unknown, titleHint?: string | null): JobDetailSections {
+  const result = emptySections();
+
+  // First pass: preserve native structured data whenever the source already
+  // contains explicit fields. This prevents description from swallowing
+  // responsibilities/requirements/benefits.
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    collectStructuredValue(value, result);
+  }
+
+  const structuredHasData = SECTION_ORDER.some((key) => result[key].length > 0);
+
+  // Second pass: parse the canonical text when the source is HTML/text, or
+  // when structured extraction did not expose recognizable fields.
+  const text = cleanJobDescription(value, titleHint);
+
+  if (!structuredHasData || text) {
+    let current: keyof JobDetailSections = "description";
+    const lines = text.split(/\r?\n/).map(cleanSectionLine).filter(Boolean);
+
+    for (const rawLine of lines) {
+      if (
+        titleHint &&
+        normalizeSectionHeading(rawLine) === normalizeSectionHeading(titleHint)
+      ) {
+        continue;
+      }
+
+      // Recognize same-line headings:
+      // "Missions principales : gérer..., suivre..."
+      const colonMatch = rawLine.match(/^(.{2,90}?)\s*[:：]\s*(.+)$/);
+      if (colonMatch) {
+        const section = sectionFromHeading(colonMatch[1]);
+        if (section) {
+          current = section;
+          addTextToSection(result, current, colonMatch[2]);
+          continue;
+        }
+      }
+
+      const exactSection = sectionFromHeading(rawLine);
+      if (exactSection) {
+        current = exactSection;
+        continue;
+      }
+
+      addTextToSection(result, current, rawLine);
+    }
+  }
+
+  for (const key of SECTION_ORDER) {
+    result[key] = normalizeSectionItems(result[key]);
+  }
+
+  // If a source only says "Profil recherché" and then gives unclassified
+  // profile content, keep it under profile rather than silently discarding it.
+  if (!result.profile.length && result.formation.length + result.experience.length + result.skills.length + result.qualities.length > 0) {
+    result.profile = [
+      ...result.formation,
+      ...result.experience,
+      ...result.skills,
+      ...result.qualities,
+    ];
+  }
+
   return result;
 }
