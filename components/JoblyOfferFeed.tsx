@@ -82,6 +82,7 @@ export function JoblyOfferFeed() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [expiredNoticeOpen, setExpiredNoticeOpen] = useState(false);
   const [feedMeta, setFeedMeta] = useState({ totalAvailable: 0, matchingCount: 0 });
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("Toutes");
@@ -291,6 +292,7 @@ export function JoblyOfferFeed() {
     } catch (e) { setError(e instanceof Error ? e.message : "Impossible de préparer la candidature WhatsApp.");  }
   }
   async function apply(job: Job) {
+    if (job.deadlineExpired) { setExpiredNoticeOpen(true); return; }
     const email = applicationEmail(job);
     const phone = applicationPhone(job);
     if (phone && !email) { await applyViaWhatsApp(job); return; }
@@ -392,7 +394,8 @@ export function JoblyOfferFeed() {
     const result = jobs.filter(job => {
       const haystack = [job.title, job.location, job.contractType, job.remoteMode, cleanCompanyName(job.company?.name)].filter(Boolean).join(" ").toLowerCase();
       const matchesQuery = !q || haystack.includes(q);
-      const matchesFilter = filter === "Toutes" || (filter === "Remote" ? String(job.remoteMode || "").toLowerCase().includes("remote") : String(job.contractType || "").toLowerCase().includes(filter.toLowerCase()));
+      const matchesFilter = filter === "Toutes"
+        || (filter === "En cours" ? !job.deadlineExpired : String(job.contractType || "").toLowerCase().includes(filter.toLowerCase()));
       return matchesQuery && matchesFilter && (!matchOnly || job.matchPercent >= 50);
     });
     return focusMatch ? [...result].sort((a, b) => b.matchPercent - a.matchPercent) : result;
@@ -417,9 +420,9 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
       }
       if (intent === "filter_jobs") {
         const lower = command.toLowerCase();
-        const next = lower.includes("cdi") ? "CDI" : lower.includes("cdd") ? "CDD" : lower.includes("stage") ? "Stage" : lower.includes("remote") || lower.includes("télétravail") ? "Remote" : "Toutes";
+        const next = lower.includes("en cours") ? "En cours" : lower.includes("cdi") ? "CDI" : lower.includes("cdd") ? "CDD" : lower.includes("stage") ? "Stage" : "Toutes";
         setFilter(next);
-        respond(next === "Toutes" ? "Dis-moi le filtre souhaité : CDI, CDD, stage ou télétravail." : "C’est filtré.", "filter");
+        respond(next === "Toutes" ? "Dis-moi le filtre souhaité : En cours, CDI, CDD ou stage." : "C’est filtré.", "filter");
         return;
       }
       if (intent === "open_job") {
@@ -445,8 +448,8 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     window.addEventListener("jobly:jia-command", onJiaCommand);
     return () => window.removeEventListener("jobly:jia-command", onJiaCommand);
   }, [filteredJobs, router, apply, toggleSaved, saved]);
-  const featured = useMemo(() => filteredJobs.slice(0, 10), [filteredJobs]);
-  const rest = useMemo(() => filteredJobs.slice(10), [filteredJobs]);
+  const featured = useMemo(() => filteredJobs.filter(job => !job.deadlineExpired).slice(0, 10), [filteredJobs]);
+  const rest = useMemo(() => filteredJobs.filter(job => !featured.some(featuredJob => featuredJob.source === job.source && featuredJob.id === job.id)), [filteredJobs, featured]);
   const topMatchRef = useRef<HTMLDivElement | null>(null);
   const updateTopMatchArrows = useCallback(() => {
     const container = topMatchRef.current;
@@ -600,7 +603,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     </section>
 
     <section ref={offersStartRef} id="jobly-offers-start" className="mx-auto w-full max-w-full min-w-0 overflow-x-clip px-5 scroll-mt-6 sm:px-8 lg:max-w-6xl">
-      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><h2 className="mt-1 text-xl font-black text-[#00A6A6]">{feedSummary}</h2></div><div className="flex flex-col gap-2 sm:flex-row"><form onSubmit={e => { e.preventDefault(); setQuery(query.trim()); }} className="flex h-11 min-w-[280px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 shadow-sm"><Search size={16} className="text-[#22448B]"/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Métier, entreprise, ville…" aria-label="Rechercher une offre" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"/><button type="submit" aria-label="Rechercher" title="Rechercher" className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#22448B] text-white transition hover:bg-[#17346E]"><Search size={14}/></button></form><div className="flex gap-2 overflow-x-auto">{["Toutes","CDI","CDD","Stage","Remote"].map(item => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "whitespace-nowrap rounded-2xl bg-[#FFE135] px-4 py-3 text-xs font-black text-[#17212B]" : "whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-500"}>{item}</button>)}</div></div></div>
+      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><h2 className="mt-1 text-xl font-black text-[#00A6A6]">{feedSummary}</h2></div><div className="flex flex-col gap-2 sm:flex-row"><form onSubmit={e => { e.preventDefault(); setQuery(query.trim()); }} className="flex h-11 min-w-[280px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 shadow-sm"><Search size={16} className="text-[#22448B]"/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Métier, entreprise, ville…" aria-label="Rechercher une offre" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"/><button type="submit" aria-label="Rechercher" title="Rechercher" className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#22448B] text-white transition hover:bg-[#17346E]"><Search size={14}/></button></form><div className="flex gap-2 overflow-x-auto">{["Toutes","En cours","CDI","CDD","Stage"].map(item => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "whitespace-nowrap rounded-2xl bg-[#FFE135] px-4 py-3 text-xs font-black text-[#17212B]" : "whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-500"}>{item}</button>)}</div></div></div>
       {featured.length > 0 && (
         <div className="relative" onMouseEnter={() => setTopMatchHover(true)} onMouseLeave={() => setTopMatchHover(false)}>
           <div className="mb-3 flex items-center justify-between">
@@ -726,6 +729,15 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
       <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }} onClick={e => e.stopPropagation()} className="max-h-[80dvh] w-full max-w-2xl overflow-y-auto rounded-[28px] bg-white p-5 shadow-2xl">
         <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[1.5px] text-[#B59A00]">PANIER</p><h2 className="text-2xl font-black text-[#17212B]">Historique des candidatures</h2></div><button type="button" onClick={() => setBasketHistoryOpen(false)} className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-600" aria-label="Fermer"><X size={17}/></button></div>
         {!basketHistory.length ? <p className="mt-6 rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">Aucune candidature issue du panier pour le moment.</p> : <div className="mt-5 space-y-3">{basketHistory.map(item => <div key={item.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black text-[#17212B]">{item.title}</p><p className="mt-1 text-xs font-bold text-slate-500">{item.company}</p></div><span className="rounded-full bg-[#EEF4FF] px-2.5 py-1 text-[10px] font-black text-[#22448B]">{item.score}% matching</span></div><p className="mt-3 text-[10px] font-semibold text-slate-400">{new Intl.DateTimeFormat("fr-FR",{dateStyle:"short",timeStyle:"short"}).format(new Date(item.sentAt))}</p></div>)}</div>}
+      </motion.div>
+    </motion.div>}</AnimatePresence>
+
+    <AnimatePresence>{expiredNoticeOpen && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[130] grid place-items-center bg-black/55 p-4 backdrop-blur-sm" onClick={() => setExpiredNoticeOpen(false)}>
+      <motion.div initial={{ y: 18, opacity: 0, scale: .97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 18, opacity: 0 }} onClick={e => e.stopPropagation()} className="w-full max-w-md rounded-[28px] bg-white p-6 text-center shadow-2xl">
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-red-50 text-red-600"><X size={25}/></div>
+        <p className="mt-4 text-sm font-bold leading-6 text-[#17212B]">Nous sommes désolés, cette entreprise n'accepte plus de nouvelles candidatures pour cette offre. Restez connecté sur <span className="font-black text-[#FFE135]">Jobly</span> pour ne rien rater des offres qui vous correspondent.</p>
+        <button type="button" onClick={() => { setExpiredNoticeOpen(false); router.push("/jobs?focus=match"); }} className="mt-5 w-full rounded-full bg-[#FFE135] px-5 py-3 text-xs font-black text-[#2E3F4F]">Des offres qui vous correspondent</button>
+        <button type="button" onClick={() => setExpiredNoticeOpen(false)} className="mt-2 rounded-full px-4 py-2 text-xs font-bold text-slate-400">Fermer</button>
       </motion.div>
     </motion.div>}</AnimatePresence>
 
