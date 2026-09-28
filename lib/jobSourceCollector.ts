@@ -158,11 +158,29 @@ function pageLinks(html: string, baseUrl: string, source: SourceConfig): string[
 }
 
 function stripInfosConcoursWordPressChrome(html: string, titleHint?: string | null): string {
-  // The WordPress REST post body can contain the site's article header
-  // (category, title, date, view/comment counters, author) before the real
-  // offer. Remove that chrome before the generic cleaner sees it.
+  // Info Concours Education is WordPress. Its REST content.rendered can
+  // contain builder/navigation fragments. Select the article-content wrapper
+  // first, then preserve paragraph/list structure before generic cleaning.
   const normalizedTitle = normalizeSpace(titleHint || "");
-  const text = htmlToCleanText(html);
+  let source = html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "\n")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "\n")
+    .replace(/<(?:nav|header|footer|aside|form|dialog)\b[^>]*>[\s\S]*?<\/(?:nav|header|footer|aside|form|dialog)>/gi, "\n")
+    .replace(/<([a-z0-9]+)\b[^>]*(?:class|id)=["'][^"']*(?:sharedaddy|jp-relatedposts|related-posts|sidebar|widget|social|share|newsletter|comment|footer|menu|navigation|breadcrumb|ads|advert|cookie)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi, "\n");
+
+  const containers: string[] = [];
+  const containerRe = /<(article|main|div|section)\b[^>]*(?:class|id)=["'][^"']*(?:entry-content|post-content|article-content|single-post|post-body|article-body|content-area|td-post-content)[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi;
+  for (const match of source.matchAll(containerRe)) {
+    const body = match[2] || "";
+    if (body.length >= 120) containers.push(body);
+  }
+  if (containers.length) source = containers.sort((a,b) => b.length - a.length)[0];
+
+  source = source
+    .replace(/<([a-z0-9]+)\b[^>]*(?:class|id)=["'][^"']*(?:share|related|social|newsletter|comment|widget|sidebar|ads|advert)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi, "\n")
+    .replace(/<a\b[^>]*>(?:\s*(?:facebook|instagram|twitter|youtube|whatsapp|rejoindre|abonnez|suivez)[\s\S]*?)<\/a>/gi, "\n");
+
+  const text = htmlToCleanText(source);
   const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
   const titleIndex = normalizedTitle
     ? lines.findIndex(line => line.toLowerCase() === normalizedTitle.toLowerCase())
@@ -170,8 +188,6 @@ function stripInfosConcoursWordPressChrome(html: string, titleHint?: string | nu
   let start = 0;
   if (titleIndex >= 0) {
     start = titleIndex + 1;
-    // Skip publication date, numeric view/comment counters and the author
-    // line when they are present directly after the article title.
     let skipped = 0;
     while (start < lines.length && skipped < 6) {
       const line = lines[start];
@@ -186,10 +202,8 @@ function stripInfosConcoursWordPressChrome(html: string, titleHint?: string | nu
       break;
     }
   }
-  // If the category/header title is repeated at the beginning, drop it.
-  while (start < lines.length && /^(?:offres? d['’]?emploi|offres? d['’]?emplois|stages?|actualités?)$/i.test(lines[start])) start++;
-  const cleaned = lines.slice(start).join("\n").trim();
-  return cleaned || text;
+  while (start < lines.length && /^(?:offres? d['’]?emploi|offres? d['’]?emplois|stages?|actualités?|concours|tous les concours|résultats des concours)$/i.test(lines[start])) start++;
+  return lines.slice(start).join("\n").trim() || text;
 }
 
 async function fetchHtml(url: string): Promise<string> {

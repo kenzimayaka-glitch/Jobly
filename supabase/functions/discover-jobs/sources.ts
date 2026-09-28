@@ -20,6 +20,40 @@ function repairMojibake(value:string):string {
 }
 const clean=(s:any)=>repairMojibake(decodeEntities(String(s??"").replace(/<[^>]+>/g," "))).replace(/\u00a0/g," ").replace(/\s+/g," ").trim();
 
+function cleanInfosConcoursContent(html:string):string {
+  let source=String(html||"")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,"\n")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,"\n")
+    .replace(/<(?:nav|header|footer|aside|form|dialog)\b[^>]*>[\s\S]*?<\/(?:nav|header|footer|aside|form|dialog)>/gi,"\n")
+    .replace(/<([a-z0-9]+)\b[^>]*(?:class|id)=["'][^"']*(?:sharedaddy|jp-relatedposts|related-posts|sidebar|widget|social|share|newsletter|comment|footer|menu|navigation|breadcrumb|ads|advert|cookie)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi,"\n");
+
+  const containers:string[]=[];
+  const re=/<(article|main|div|section)\b[^>]*(?:class|id)=["'][^"']*(?:entry-content|post-content|article-content|single-post|post-body|article-body|content-area|td-post-content)[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi;
+  for(const match of source.matchAll(re)){const body=match[2]||"";if(body.length>=120)containers.push(body);}
+  if(containers.length)source=containers.sort((a,b)=>b.length-a.length)[0];
+
+  const text=repairMojibake(decodeEntities(
+    source
+      .replace(/<([a-z0-9]+)\b[^>]*(?:class|id)=["'][^"']*(?:share|related|social|newsletter|comment|widget|sidebar|ads|advert)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi,"\n")
+      .replace(/<a\b[^>]*>(?:\s*(?:facebook|instagram|twitter|youtube|whatsapp|rejoindre|abonnez|suivez)[\s\S]*?)<\/a>/gi,"\n")
+      .replace(/<br\s*\/?>/gi,"\n")
+      .replace(/<li\b[^>]*>/gi,"\n• ")
+      .replace(/<\/li>/gi,"\n")
+      .replace(/<\/(p|div|section|article|blockquote|h[1-6])>/gi,"\n")
+      .replace(/<[^>]+>/g," ")
+  ));
+  const lines=text.split(/\n+/).map(x=>x.replace(/\s+/g," ").trim()).filter(Boolean);
+  const filtered:string[]=[];
+  let footer=false;
+  for(const line of lines){
+    if(/^(?:tous les concours|résultats des concours|resultats des concours|concours|bourses? du gouvernement|bourses? d['’]amérique|bourses? d['’]afrique|bourses? d['’]europe|bourses? d['’]asie)$/i.test(line)) continue;
+    if(/^(?:cliquez ici pour|abonnez[- ]vous|notre page|notre chaine|notre chaîne|suivez nous|articles similaires|populaires en ce moment|infos utiles|categories populaires|mentions légales|mentions legales|©)/i.test(line)){footer=true;continue;}
+    if(footer)continue;
+    filtered.push(line);
+  }
+  return filtered.join("\n").trim().slice(0,30000);
+}
+
 function rssItems(xml:string): DiscoveryItem[] {
   const out: DiscoveryItem[] = [];
   const blocks = xml.match(/<(?:item|entry)\b[\s\S]*?<\/(?:item|entry)>/gi) || [];
@@ -58,7 +92,42 @@ async function fetchRss(url:string){
   return rssItems(await r.text());
 }
 
+async function fetchInfosConcoursEducation(): Promise<DiscoveryItem[]> {
+  const endpoint = "https://infosconcourseducation.com/wp-json/wp/v2/posts?per_page=30&orderby=date&order=desc&_fields=link,title,content,date";
+  const response = await fetch(endpoint, {
+    headers: { "accept": "application/json", "user-agent": "JOBLY-Discovery/3.1" },
+    redirect: "follow",
+  });
+  if (!response.ok) throw new Error("INFOS_CONCOURS_" + response.status);
+  const posts = await response.json();
+  if (!Array.isArray(posts)) return [];
+  return posts.map((post:any) => {
+    const link = typeof post?.link === "string" ? post.link : "";
+    const title = clean(post?.title?.rendered);
+    const description = cleanDescription(post?.content?.rendered);
+    return {
+      title,
+      description,
+      company: "",
+      website: null,
+      location: inferCity(title + " " + description),
+      url: link,
+      deadline: null,
+      published: typeof post?.date === "string" ? post.date : null,
+    };
+  }).filter((x:DiscoveryItem) =>
+    x.title && x.url &&
+    /infosconcourseducation\.com\//i.test(x.url) &&
+    !/(?:\/category\/|\/tag\/|\/author\/|\/page\/|\/actualite\/)/i.test(x.url) &&
+    /(?:offre|emploi|recrut|stage|commercial|assistant|manager|technicien|agent|chauffeur|vendeur|promotrice|promoteur)/i.test(x.url + " " + x.title)
+  );
+}
+
 export async function fetchStructuredSource(sourceKey:string):Promise<DiscoveryItem[]|null>{
+  if(sourceKey==="infosconcourseducation"){
+    return await fetchInfosConcoursEducation();
+  }
+
   if(sourceKey==="minajobs_rss"){
     return await fetchRss(Deno.env.get("MINAJOBS_RSS_URL")||"https://cm2024.minajobs.net/rss");
   }

@@ -10,6 +10,7 @@ const SOURCES = [
   { key: "emplois_cameroun", name: "Emplois Cameroun", url: "https://emploiscameroun.com/offres/", enabled: true },
   { key: "jobincamer", name: "Job in Cameroun", url: "https://www.jobincamer.com/adverts/jobs", enabled: true },
   { key: "jobinfocamer", name: "JobInfoCamer", url: "https://www.jobinfocamer.com/", enabled: true },
+  { key: "infosconcourseducation", name: "Infos Concours Education", url: "https://infosconcourseducation.com/category/offre-demploiss/", enabled: true },
   { key: "fne", name: "FNE Cameroun", url: "https://www.fnecm.org/", enabled: true },
   { key: "reliefweb", name: "ReliefWeb", url: "https://reliefweb.int/jobs?advanced-search=%28Cameroun%29", enabled: true },
   { key: "unjobs", name: "UNjobs", url: "https://unjobs.org/duty_stations/cameroon", enabled: true },
