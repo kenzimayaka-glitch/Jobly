@@ -72,14 +72,15 @@ export async function POST(request: NextRequest) {
     const supabase = adminClient();
     const now = new Date();
     
-    if (mode === "reprocess") {
-      const { data: rows, error } = await supabase.from("Job")
-        .select("id,title,sourceKey,sourceUrl,createdAt,isActive")
+    if (mode === "reprocess" || mode === "reprocess-all") {
+      const rowsQuery = supabase.from("Job")
+        .select("id,title,sourceKey,sourceUrl,createdAt,isActive,description")
         .not("sourceUrl", "is", null)
         .not("sourceKey", "is", null)
         .or("sourceKey.eq.infosconcourseducation,description.like.%�%,description.like.%Ã%,description.like.%Â%,description.like.%\\u0019%,description.like.%\\u0013%,title.like.%�%,title.like.%Ã%,title.like.%Â%")
         .order("createdAt", { ascending: true })
         .range(offset, offset + batchSize - 1);
+      const { data: rows, error } = await rowsQuery;
       if (error) throw new Error(error.message);
 
       let processed = 0, updated = 0, skipped = 0, deactivated = 0;
@@ -126,6 +127,22 @@ export async function POST(request: NextRequest) {
         processed++; updated++;
       });
 
+      if (mode === "reprocess-all" && (rows || []).length === batchSize) {
+        return NextResponse.json({
+          ok: true,
+          mode,
+          processed,
+          updated,
+          skipped,
+          deactivated,
+          offset,
+          limit: batchSize,
+          hasMore: true,
+          nextOffset: offset + batchSize,
+          message: "Lot traité. Relancez la même URL avec mode=reprocess-all&offset=" + (offset + batchSize) + " pour poursuivre.",
+          ranAt: now.toISOString()
+        });
+      }
       return NextResponse.json({ ok: true, mode, processed, updated, skipped, deactivated, offset, limit: batchSize, hasMore: (rows || []).length === batchSize, nextOffset: offset + (rows || []).length, ranAt: now.toISOString() });
     }
 
