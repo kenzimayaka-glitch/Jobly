@@ -3,7 +3,22 @@ export type DiscoveryItem = {
   deadline:string|null; published:string|null;
 };
 
-const clean=(s:any)=>String(s??"").replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/\s+/g," ").trim();
+function decodeEntities(value:string):string {
+  const named:Record<string,string>={"&nbsp;":" ","&amp;":"&","&quot;":"\"","&#39;":"'","&apos;":"'","&lt;":"<","&gt;":">","&ndash;":"–","&mdash;":"—","&hellip;":"…","&bull;":"•","&oelig;":"œ","&OElig;":"Œ","&eacute;":"é","&Eacute;":"É","&egrave;":"è","&Egrave;":"È","&ecirc;":"ê","&Ecirc;":"Ê","&agrave;":"à","&Agrave;":"À","&ccedil;":"ç","&Ccedil;":"Ç","&ocirc;":"ô","&Ocirc;":"Ô","&ucirc;":"û","&Ucirc;":"Û","&uuml;":"ü","&Uuml;":"Ü","&iuml;":"ï","&Iuml;":"Ï","&icirc;":"î","&Icirc;":"Î","&ouml;":"ö","&Ouml;":"Ö","&szlig;":"ß","&lsquo;":"‘","&rsquo;":"’","&ldquo;":"“","&rdquo;":"”"};
+  return value
+    .replace(/&([a-z][a-z0-9]+);/gi,(token,name)=>named[token.toLowerCase()]??token)
+    .replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(parseInt(n,16)));
+}
+function repairMojibake(value:string):string {
+  if(!/[ÃÂâðÐÑ]/.test(value)) return value;
+  try {
+    const bytes=new Uint8Array([...value].map(ch=>ch.charCodeAt(0)<=255?ch.charCodeAt(0):63));
+    const repaired=new TextDecoder("utf-8",{fatal:false}).decode(bytes);
+    return repaired&&!repaired.includes("�")?repaired:value;
+  } catch { return value; }
+}
+const clean=(s:any)=>repairMojibake(decodeEntities(String(s??"").replace(/<[^>]+>/g," "))).replace(/\u00a0/g," ").replace(/\s+/g," ").trim();
 
 function rssItems(xml:string): DiscoveryItem[] {
   const out: DiscoveryItem[] = [];

@@ -50,7 +50,23 @@ function extractJsonLd(html:string){const jobs:any[]=[];const re=/<script[^>]+ty
 function isLikelyJobUrl(sourceKey:string,url:string){if(sourceKey==="emplois_cameroun")return /emploiscameroun\.com\/offre\//i.test(url);if(sourceKey==="jobincamer")return /jobincamer\.com\/job\//i.test(url);if(sourceKey==="jobinfocamer")return /jobinfocamer\.com\/job\//i.test(url);if(sourceKey==="emploi_cm")return /emploi\.cm/i.test(url)&&(/job=/i.test(url)||/offre|emploi|recrut/i.test(url));return /job|emploi|offre|advert|career|vacan|recruit|recrut|jobs\//i.test(url)}
 function parseListing(html:string,base:string,sourceKey:string){const items:any[]=[];for(const j of extractJsonLd(html))items.push({title:clean(j.title),description:cleanDescription(j.description),company:clean(j.hiringOrganization?.name),website:clean(j.hiringOrganization?.url||j.hiringOrganization?.sameAs)||null,location:clean(j.jobLocation?.address?.addressLocality||j.jobLocation?.name),url:j.url||base,deadline:j.validThrough||null,published:j.datePosted||null});for(const url of extractLinks(html,base)){if(!isLikelyJobUrl(sourceKey,url))continue;if(items.some(x=>x.url===url))continue;items.push({title:"",description:"",company:"",location:"",url,deadline:null,published:null})}return items.slice(0,60)}
 async function fetchText(url:string){const r=await fetch(url,{headers:{"user-agent":"JOBLY-Discovery/2.0","accept":"text/html,application/xhtml+xml"},redirect:"follow"});if(!r.ok)throw new Error(`${r.status} ${r.statusText}`);return await r.text()}
-async function enrich(item:any,source:any){if(item.title&&item.company)return item;try{const html=await fetchText(item.url);const json=extractJsonLd(html)[0];if(json)return{...item,title:clean(json.title)||item.title,description:cleanDescription(json.description)||item.description,company:clean(json.hiringOrganization?.name)||item.company,website:clean(json.hiringOrganization?.url||json.hiringOrganization?.sameAs)||item.website||null,location:clean(json.jobLocation?.address?.addressLocality||json.jobLocation?.name)||item.location,deadline:json.validThrough||item.deadline,published:json.datePosted||item.published};const title=clean((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]||"")).replace(/\s*[-|].*$/," ");return{...item,title:title||"Offre d'emploi",description:cleanDescription(html).slice(0,6000)||`Offre publiée sur ${source.name}`,location:inferCity(clean(html)),company:item.company||inferCompany(title)||"Employeur non précisé",deadline:parseDate(clean(html))} }catch{return item}}
+function needsSourceRefresh(item:any):boolean {
+  const description=String(item.description||"");
+  if(description.length<180) return true;
+  if(/(?:�|Ã.|Â.|â.|\bIng\s+nieur\b|\bd\s+[’']?\s*Etude\b)/i.test(description)) return true;
+  return false;
+}
+async function enrich(item:any,source:any){
+  if(item.title&&item.company&&!needsSourceRefresh(item)) return item;
+  try{
+    const html=await fetchText(item.url);
+    const json=extractJsonLd(html)[0];
+    if(json)return{...item,title:clean(json.title)||item.title,description:cleanDescription(json.description)||item.description,company:clean(json.hiringOrganization?.name)||item.company,website:clean(json.hiringOrganization?.url||json.hiringOrganization?.sameAs)||item.website||null,location:clean(json.jobLocation?.address?.addressLocality||json.jobLocation?.name)||item.location,deadline:json.validThrough||item.deadline,published:json.datePosted||item.published};
+    const title=clean((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]||"")).replace(/\s*[-|].*$/," ");
+    const sourceDescription=cleanDescription(html).slice(0,10000);
+    return{...item,title:title||item.title||"Offre d'emploi",description:sourceDescription||item.description||`Offre publiée sur ${source.name}`,location:item.location||inferCity(clean(html)),company:item.company||inferCompany(title)||"Employeur non précisé",deadline:item.deadline||parseDate(clean(html))};
+  }catch{return item}
+}
 
 async function analyzeWithGemini(item:any){
   if(!GEMINI_API_KEY)return null;

@@ -200,27 +200,31 @@ async function fetchHtml(url: string): Promise<string> {
     const type = response.headers.get("content-type") || "";
     if (!type.includes("text/html") && !type.includes("application/xhtml")) throw new Error("SOURCE_NOT_HTML");
 
-    // Some public job boards still serve legacy ISO-8859-1/Windows-1252
-    // pages. response.text() assumes UTF-8 and can turn valid French text
-    // into �/Ã/Â sequences. Decode according to the declared charset.
+    // Decode source bytes with the declared charset when available. When a
+    // source omits or misdeclares its charset, compare UTF-8 and Windows-1252
+    // candidates so French accents are preserved instead of being persisted
+    // as mojibake or replacement characters.
     const buffer = await response.arrayBuffer();
     const declared = type.match(/charset=([^;\s]+)/i)?.[1]?.trim().toLowerCase();
-    const head = new TextDecoder("iso-8859-1", { fatal: false }).decode(buffer.slice(0, Math.min(buffer.byteLength, 12000)));
-    const metaCharset = head.match(/<meta\\b[^>]+charset=["']?\\s*([^"'\\s/>]+)/i)?.[1]?.toLowerCase();
+    const head = new TextDecoder("windows-1252", { fatal: false }).decode(buffer.slice(0, Math.min(buffer.byteLength, 12000)));
+    const metaCharset = head.match(/<meta\b[^>]+charset=["']?\s*([^"'\s/>]+)/i)?.[1]?.toLowerCase();
     const charset = declared || metaCharset;
     const decode = (encoding: string) => new TextDecoder(encoding, { fatal: false }).decode(buffer);
-    const utf8 = decode("utf-8");
-    const legacy = decode(charset === "windows-1252" || charset === "cp1252" ? "windows-1252" : "iso-8859-1");
 
-    // Prefer the decoding with the fewest replacement/malformed characters.
-    // This matters for older Cameroon job boards whose HTTP header can claim
-    // UTF-8 while the actual page bytes are ISO-8859-1/Windows-1252.
+    if (charset) {
+      const normalized = charset.replace(/_/g, "-").toLowerCase();
+      if (normalized === "utf-8" || normalized === "utf8") return decode("utf-8");
+      if (normalized === "windows-1252" || normalized === "cp1252") return decode("windows-1252");
+      if (normalized === "iso-8859-1" || normalized === "latin1") return decode("iso-8859-1");
+    }
+
+    const utf8 = decode("utf-8");
+    const legacy = decode("windows-1252");
     const score = (value: string) =>
       (value.match(/�/g)?.length || 0) * 100 +
-      (value.match(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]/g)?.length || 0) * 20 +
-      (value.match(/[ÃÂ][\\x80-\\xBF]/g)?.length || 0) * 10;
-    if (score(legacy) < score(utf8)) return legacy;
-    return utf8;
+      (value.match(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g)?.length || 0) * 20 +
+      (value.match(/(?:Ã.|Â.|â.|ð.)/g)?.length || 0) * 10;
+    return score(legacy) < score(utf8) ? legacy : utf8;
   } finally { clearTimeout(timer); }
 }
 
