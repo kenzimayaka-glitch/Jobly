@@ -197,11 +197,11 @@ export async function POST(request: NextRequest) {
         contentHash: cleanedContentHash,
         sourcePublishedAt: offer.publishedAt,
         lastSeenAt: nowIso,
-        isActive: true,
+        isActive: existing.data ? !isPlatformExpired(existing.data.createdAt, now) : true,
         deadline: offer.deadline,
         applicationReady,
         applicationProfile: contact,
-        applicationCheckedAt: nowIso
+        applicationCheckedAt: nowIso,
         companyId,
         updatedAt: nowIso
       };
@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
             isActive: !isPlatformExpired(existing.data.createdAt, now),
             applicationReady,
             applicationProfile: contact,
-            applicationCheckedAt: nowIso
+            applicationCheckedAt: nowIso,
             updatedAt: nowIso
           }).eq("id", existing.data.id);
           if (touch.error) throw new Error(touch.error.message);
@@ -238,7 +238,7 @@ export async function POST(request: NextRequest) {
         const id = crypto.randomUUID();
         const insert = await supabase.from("Job").insert({
           id,
-          createdAt: nowIso
+          createdAt: nowIso,
           ...payload,
         });
         if (insert.error) throw new Error(insert.error.message);
