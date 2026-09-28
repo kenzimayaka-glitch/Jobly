@@ -156,6 +156,10 @@ model User {
   advertisingVideoDurationMs Int?
   advertisingVideoUpdatedAt DateTime?
   cvPhotoUrl      String?
+  cvOriginalStoragePath String?
+  cvOriginalFileName String?
+  cvOriginalPageCount Int?
+  cvOriginalUploadedAt DateTime?
   englishLevel    String?
   licences        String[]     @default([])
   createdAt       DateTime     @default(now())

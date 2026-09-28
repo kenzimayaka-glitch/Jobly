@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import PageHeader from "../../../components/PageHeader";
 import BottomNav, { TALENT_NAV } from "../../../components/BottomNav";
@@ -33,6 +34,8 @@ export default function TalentCVs() {
   const [cvs, setCvs] = useState<CV[]>([]);
   const [cv, setCv] = useState<CV>({ ...empty, id: crypto.randomUUID(), createdAt: new Date().toISOString() });
   const [file, setFile] = useState("");
+  const [extracted, setExtracted] = useState<any>(null);
+  const [originalMeta, setOriginalMeta] = useState<{ pages?: number; storagePath?: string } | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [plan, setPlan] = useState("FREE");
@@ -47,6 +50,57 @@ export default function TalentCVs() {
 
   const ats = useMemo(() => score(cv), [cv]);
   const update = (k: keyof CV, v: string) => setCv(x => ({ ...x, [k]: v }));
+
+  async function getAccessToken() {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    if (!url || !key) return null;
+    const supabase = createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true } });
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token || null;
+  }
+
+  async function extractIntoFields() {
+    if (!extracted) {
+      setMessage("Importe d’abord ton CV PDF.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const next: CV = {
+        ...cv,
+        fullName: extracted.fullName || cv.fullName,
+        headline: extracted.headline || cv.headline,
+        email: extracted.email || cv.email,
+        phone: extracted.phone || cv.phone,
+        summary: extracted.summary || cv.summary,
+        skills: (extracted.skills || []).join(", "),
+        experience: extracted.experience || cv.experience,
+        education: extracted.education || cv.education,
+        source: file ? `CV original importé : ${file}` : cv.source,
+        ats: Number(extracted.atsScore || 0) || score(cv),
+      };
+      setCv(next);
+      const token = await getAccessToken();
+      if (token) {
+        const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+        const profileRes = await fetch("/api/profile", { method: "PUT", headers, body: JSON.stringify({
+          section: "profil", displayName: next.fullName, phone: next.phone, headline: next.headline, summary: next.summary,
+        })});
+        if (!profileRes.ok) throw new Error((await profileRes.json().catch(() => ({}))).message || "Le profil Jobly n’a pas pu être synchronisé.");
+        const skillsRes = await fetch("/api/profile", { method: "PUT", headers, body: JSON.stringify({
+          section: "skills", skills: (extracted.skills || []).map((name: string) => ({ name })),
+        })});
+        if (!skillsRes.ok) throw new Error("Les compétences n’ont pas pu être synchronisées.");
+      }
+      const all = [next, ...cvs.filter(x => x.id !== next.id)];
+      setCvs(all);
+      localStorage.setItem(KEY, JSON.stringify(all));
+      setMessage(token ? "Données extraites : les champs sont remplis et le profil Talent est synchronisé." : "Données extraites : les champs sont remplis. Connecte-toi pour synchroniser le profil Jobly.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Extraction impossible.");
+    } finally { setBusy(false); }
+  }
 
   function save() {
     const next = { ...cv, ats, createdAt: cv.createdAt || new Date().toISOString(), name: cv.name || "Mon CV Jobly" };
@@ -63,9 +117,9 @@ export default function TalentCVs() {
       const res = await fetch("/api/talent/cv/import", { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Import impossible.");
-      const p = data.cv;
-      setCv(x => ({ ...x, fullName: p.fullName || x.fullName, headline: p.headline || x.headline, email: p.email || x.email, phone: p.phone || x.phone, summary: p.summary || x.summary, skills: (p.skills || []).join(", "), experience: p.experience || x.experience, education: p.education || x.education, source: `Importé par J’IA : ${f.name}`, ats: Number(p.atsScore || 0) || score(x) }));
-      setMessage(`CV analysé par J’IA. ${data.credits} crédit(s) IA utilisé(s). Vérifie les champs avant d’enregistrer.`);
+      setExtracted(data.cv);
+      setOriginalMeta({ pages: data.pages, storagePath: data.originalCv?.storagePath });
+      setMessage(`CV importé${data.originalCv?.stored ? " et conservé comme document original" : ""}. Clique sur « Extraire les données » pour remplir les champs. ${data.credits} crédit(s) IA utilisé(s).`);
     } catch (err) { setMessage(err instanceof Error ? err.message : "Import impossible."); }
     finally { setBusy(false); }
   }
@@ -103,9 +157,13 @@ export default function TalentCVs() {
         <section className="rounded-[24px] bg-white p-5 shadow-sm print:hidden">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div><h1 className="text-xl font-black">CV Builder + ATS</h1><p className="mt-1 text-xs text-jobly-gray">Importe ton PDF : J’IA extrait les données et remplit automatiquement ton CV.</p></div>
-            <label className={`cursor-pointer rounded-full bg-[#FFE135] px-4 py-3 text-xs font-black ${busy ? "pointer-events-none opacity-50" : ""}`}>Importer mon CV PDF<input type="file" accept="application/pdf,.pdf" onChange={importPdf} className="hidden" disabled={busy} /></label>
+            <div className="flex flex-wrap gap-2">
+              <label className={`cursor-pointer rounded-full bg-[#FFE135] px-4 py-3 text-xs font-black ${busy ? "pointer-events-none opacity-50" : ""}`}>Importer mon CV PDF<input type="file" accept="application/pdf,.pdf" onChange={importPdf} className="hidden" disabled={busy} /></label>
+              <button type="button" onClick={extractIntoFields} disabled={!extracted || busy} className="rounded-full bg-jobly-blue px-4 py-3 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-40">Extraire les données</button>
+            </div>
           </div>
-          {file && <p className="mt-3 text-xs font-bold text-jobly-blue">Fichier : {file}</p>}
+          {file && <p className="mt-3 text-xs font-bold text-jobly-blue">Fichier : {file}{originalMeta?.pages ? ` · ${originalMeta.pages} page(s)` : ""}</p>}
+          {extracted && <p className="mt-2 text-[11px] font-semibold text-jobly-gray">Données prêtes à être injectées dans les champs correspondants. Le PDF original reste séparé du CV interne Jobly.</p>}
         </section>
 
         <div className="grid gap-4 lg:grid-cols-[1.4fr_.6fr]">

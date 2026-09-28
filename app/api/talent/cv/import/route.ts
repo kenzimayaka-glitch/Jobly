@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PDFParse } from "pdf-parse";
+import { createClient } from "@supabase/supabase-js";
+import crypto from "node:crypto";
 import { runAiGateway } from "../../../../../lib/aiGateway";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const MAX_BYTES = 8 * 1024 * 1024;
+
+async function getAuthUser(request: NextRequest) {
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  if (!token) return null;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) return null;
+  const supabase = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+  const { data } = await supabase.auth.getUser(token);
+  return data.user || null;
+}
 
 function normalizeOutput(output: any) {
   const profile = output?.profile || {};
@@ -45,12 +58,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "PDF_TOO_LARGE", message: "Le CV PDF doit faire au maximum 8 Mo." }, { status: 413 });
     }
 
-    const parser = new PDFParse({ data: Buffer.from(await file.arrayBuffer()) });
+    const authUser = await getAuthUser(request);
+    const fileBytes = Buffer.from(await file.arrayBuffer());
+    const parser = new PDFParse({ data: fileBytes });
     const parsed = await parser.getText();
     await parser.destroy();
     const cvText = String(parsed.text || "").replace(/\u0000/g, " ").trim();
     if (cvText.length < 80) {
       return NextResponse.json({ error: "PDF_NOT_READABLE", message: "Le PDF ne contient pas assez de texte exploitable. Si c’est un scan image, utilise un PDF OCRisé." }, { status: 422 });
+    }
+
+    let originalCv: { stored: boolean; storagePath?: string; fileName?: string; pages?: number } = { stored: false };
+    if (authUser) {
+      const adminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (adminUrl && serviceKey) {
+        const admin = createClient(adminUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+        const storagePath = `${authUser.id}/${crypto.randomUUID()}.pdf`;
+        const upload = await admin.storage.from("talent-cvs").upload(storagePath, fileBytes, { contentType: "application/pdf", upsert: false });
+        if (!upload.error) {
+          const { data: userRow } = await admin.from("User").select("id").eq("authUserId", authUser.id).maybeSingle();
+          if (userRow?.id) {
+            await admin.from("User").update({
+              cvOriginalStoragePath: storagePath,
+              cvOriginalFileName: file.name,
+              cvOriginalPageCount: parsed.total,
+              cvOriginalUploadedAt: new Date().toISOString(),
+            }).eq("id", userRow.id);
+          }
+          originalCv = { stored: true, storagePath, fileName: file.name, pages: parsed.total };
+        }
+      }
     }
 
     const ai = await runAiGateway(request, "CV_INTELLIGENCE", { cvText });
@@ -65,6 +103,7 @@ export async function POST(request: NextRequest) {
       credits: ai.credits,
       remaining: ai.remaining,
       provider: ai.provider,
+      originalCv,
       cv: normalizeOutput(ai.output),
     });
   } catch (error) {
