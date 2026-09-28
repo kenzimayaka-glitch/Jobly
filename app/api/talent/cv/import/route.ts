@@ -72,7 +72,10 @@ export async function POST(request: NextRequest) {
     }
     const authUser = await getAuthUser(request);
     if (!authUser) {
-      return NextResponse.json({ error: "AUTH_REQUIRED", message: "Session requise. Connecte-toi avant d’importer ton CV." }, { status: 401 });
+      return NextResponse.json({
+        error: "AUTH_REQUIRED",
+        message: "Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.",
+      }, { status: 401 });
     }
     const plan = await getPlan(authUser);
     const maxBytes = plan === "FREE" ? FREE_MAX_BYTES : PAID_MAX_BYTES;
