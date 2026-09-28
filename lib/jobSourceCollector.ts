@@ -223,33 +223,56 @@ function findApplicationUrl(html: string, pageUrl: string, source: SourceConfig)
   return candidates[0]?.url || null;
 }
 
-function editorialText(clean: string, title: string): string {
-  const start = Math.max(0, clean.toLowerCase().indexOf(title.toLowerCase()));
-  let text = start >= 0 ? clean.slice(start) : clean;
-  for (const marker of ["Offres d'emploi récentes", "REJOIGNEZ MinaJobs", "Envoyez moi des offres d'emploi", "Événements", "Vus récemment"]) {
-    const index = text.toLowerCase().indexOf(marker.toLowerCase());
-    if (index > 200) text = text.slice(0, index);
+function findApplicationEmail(html: string, pageUrl: string): string | null {
+  const candidates: { email: string; score: number }[] = [];
+  const add = (email: string, score: number) => {
+    const normalized = email.trim().replace(/[),.;:]+$/, "");
+    if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(normalized)) return;
+    if (/^(aide|info|support|hello|admin|contact)@/i.test(normalized)) score -= 2;
+    candidates.push({ email: normalized, score });
+  };
+
+  const mailto = /href=["']mailto:([^"'?#>\s]+)/gi;
+  let match: RegExpExecArray | null;
+  while ((match = mailto.exec(html))) {
+    const before = html.slice(Math.max(0, match.index - 700), match.index);
+    const after = html.slice(match.index, Math.min(html.length, match.index + 900));
+    const context = htmlToCleanText(before + " " + after);
+    const score = /candidature|candidater|postuler|recrutement|cv|envoyer|apply|application/i.test(context) ? 10 : 3;
+    add(decodeEntities(match[1]), score);
   }
-  return text
-    .replace(/\u00a0/g, " ")
-    .replace(/[ \t]+/g, " ")
-    .split(/\n+/)
-    .map(line => line.trim())
-    .filter(Boolean)
-    .join("\n")
-    .slice(0, MAX_DESCRIPTION_CHARS);
+
+  const visible = htmlToCleanText(html);
+  const emails = visible.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
+  for (const email of emails) {
+    const index = visible.toLowerCase().indexOf(email.toLowerCase());
+    const context = visible.slice(Math.max(0, index - 300), Math.min(visible.length, index + email.length + 300));
+    const score = /candidature|candidater|postuler|recrutement|cv|envoyer|apply|application/i.test(context) ? 8 : 2;
+    add(email, score);
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0]?.score > 0 ? candidates[0].email : null;
 }
 
 function extractOffer(source: SourceConfig,url: string,html: string,listingTitle: string): CollectedOffer | null {
-  const rawClean = htmlToCleanText(html), title = cleanJobTitle(titleFromHtml(html) || listingTitle);
+  // Keep the original HTML until the description cleaner has selected the
+  // actual offer container. Flattening the whole page first mixes navigation,
+  // footer, widgets and the job body into one text stream.
+  const title = cleanJobTitle(titleFromHtml(html) || listingTitle);
   if (!title || title.length < 3) return null;
-  const clean = cleanJobDescription(editorialText(rawClean, title), title);
+  const clean = cleanJobDescription(html, title);
   const company = cleanCompanyName(firstMatch(clean,[/(?:Nom de l[’']employeur|Nom de l'employeur|Employeur|Entreprise|Company)\s*[:：-]\s*([^|\n]{2,120})/i,/(?:chez|at)\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ0-9 .&'’-]{2,100})/i])) || extractCompanyNameFromDescription(clean);
   const location = firstMatch(clean,[/(?:Lieu|Localisation|Location)\s*[:：-]\s*([^|\n]{2,100})/i]);
   const contractType = firstMatch(clean,[/(?:Type d[’']emploi|Type d'emploi|Contrat|Contract)\s*[:：-]\s*([^|\n]{2,60})/i]);
   const publishedAt = parseDate(firstMatch(clean,[/(?:Date de publication|Posté|Publié(?:e)?)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
   const deadline = parseDate(firstMatch(clean,[/(?:Date expiration|Date limite|Délai|deadline)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
-  const contacts = resolveApplicationContact({},clean), applicationUrl = findApplicationUrl(html,url,source);
+  const extractedEmail = findApplicationEmail(html, url);
+  const contacts = resolveApplicationContact(
+    extractedEmail ? { applicationEmail: extractedEmail } : {},
+    clean
+  );
+  const applicationUrl = findApplicationUrl(html,url,source);
   const companyWebsite = extractCompanyWebsite(html,url);
   const logoUrl = extractCompanyLogo(html,url);
   const applicationProfile: Record<string,unknown> = {
