@@ -204,13 +204,23 @@ async function fetchHtml(url: string): Promise<string> {
     // pages. response.text() assumes UTF-8 and can turn valid French text
     // into �/Ã/Â sequences. Decode according to the declared charset.
     const buffer = await response.arrayBuffer();
-    const charset = type.match(/charset=([^;\s]+)/i)?.[1]?.trim().toLowerCase();
-    const decoderName = charset === "iso-8859-1" || charset === "latin1"
-      ? "iso-8859-1"
-      : charset === "windows-1252" || charset === "cp1252"
-        ? "windows-1252"
-        : "utf-8";
-    return new TextDecoder(decoderName, { fatal: false }).decode(buffer);
+    const declared = type.match(/charset=([^;\s]+)/i)?.[1]?.trim().toLowerCase();
+    const head = new TextDecoder("iso-8859-1", { fatal: false }).decode(buffer.slice(0, Math.min(buffer.byteLength, 12000)));
+    const metaCharset = head.match(/<meta\\b[^>]+charset=["']?\\s*([^"'\\s/>]+)/i)?.[1]?.toLowerCase();
+    const charset = declared || metaCharset;
+    const decode = (encoding: string) => new TextDecoder(encoding, { fatal: false }).decode(buffer);
+    const utf8 = decode("utf-8");
+    const legacy = decode(charset === "windows-1252" || charset === "cp1252" ? "windows-1252" : "iso-8859-1");
+
+    // Prefer the decoding with the fewest replacement/malformed characters.
+    // This matters for older Cameroon job boards whose HTTP header can claim
+    // UTF-8 while the actual page bytes are ISO-8859-1/Windows-1252.
+    const score = (value: string) =>
+      (value.match(/�/g)?.length || 0) * 100 +
+      (value.match(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]/g)?.length || 0) * 20 +
+      (value.match(/[ÃÂ][\\x80-\\xBF]/g)?.length || 0) * 10;
+    if (score(legacy) < score(utf8)) return legacy;
+    return utf8;
   } finally { clearTimeout(timer); }
 }
 
