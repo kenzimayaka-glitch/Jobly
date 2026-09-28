@@ -115,7 +115,10 @@ const SECTION_ALIASES: Record<keyof JobDetailSections, string[]> = {
     "candidature", "pour postuler", "modalites de candidature",
     "comment postuler", "documents a fournir", "documents demandes",
     "application", "how to apply", "how to apply for this position",
-    "apply", "application process"
+    "apply", "application process", "conditions de candidature",
+    "conditions de soumission de candidature", "soumission de candidature",
+    "modalites de soumission", "dossier de candidature", "pieces a fournir",
+    "pieces a joindre", "documents a joindre", "documents requis"
   ],
 };
 
@@ -174,6 +177,13 @@ function splitInlineSectionHeadings(value: string): string {
     .replace(/^\n+/, "")
     .replace(/\n{3,}/g, "\n\n");
 }
+function isUsefulApplicationLine(value: string): boolean {
+  const line = normalizeSectionHeading(value);
+  if (!line || line.length < 3) return false;
+  if (/^(partager|share|facebook|twitter|whatsapp|instagram|youtube|accueil|home|search|menu|connexion|login|inscription|register|read more|voir plus)$/.test(line)) return false;
+  return /candidatur|postuler|soumission|dossier|document|piece|cv|lettre de motivation|email|mail|telephone|whatsapp|contact|adresse|site|plateforme|avant le|date limite|deadline|delai|rejoindre|envoyer|transmettre|deposer|depot|conditions|objet/.test(line);
+}
+
 function cleanSectionLine(value: string): string {
   return collapseLine(value)
     .replace(/^(?:[-–—•▪◦*]+)\s*/, "")
@@ -225,7 +235,7 @@ function addTextToSection(
   value: string
 ): void {
   const cleaned = cleanSectionLine(value);
-  if (cleaned) result[section].push(cleaned);
+  if (cleaned && (section !== "application" || isUsefulApplicationLine(cleaned))) result[section].push(cleaned);
 }
 
 function collectStructuredValue(
@@ -327,7 +337,7 @@ function htmlToCandidateBlocks(html: string): string[] {
 
 function chooseHtmlCandidates(html: string, titleHint?: string | null): string {
   const candidates = htmlToCandidateBlocks(html);
-  if (!candidates.length) return stripChromeFromHtml(html);
+  if (!candidates.length) return "";
 
   const title = titleHint ? normalizeSectionHeading(titleHint) : "";
   const ranked = candidates
@@ -529,16 +539,24 @@ export function parseJobDetailSections(value: unknown, titleHint?: string | null
     result[key] = normalizeSectionItems(result[key]);
   }
 
-  // If a source only says "Profil recherché" and then gives unclassified
-  // profile content, keep it under profile rather than silently discarding it.
-  if (!result.profile.length && result.formation.length + result.experience.length + result.skills.length + result.qualities.length > 0) {
-    result.profile = [
-      ...result.formation,
-      ...result.experience,
-      ...result.skills,
-      ...result.qualities,
-    ];
-  }
+  // Jobly presents one single "Profil recherché" section. Formation,
+  // expérience, compétences and qualités are only profile sub-elements; they
+  // are never searched for independently elsewhere in the source page.
+  const profileParts = [
+    ...result.profile,
+    ...result.formation,
+    ...result.experience,
+    ...result.skills,
+    ...result.qualities,
+  ];
+  result.profile = normalizeSectionItems(profileParts);
+
+  // Formation/experience/skills/qualities are implementation buckets only.
+  // They must not create their own UI sections or trigger fallback extraction.
+  result.formation = [];
+  result.experience = [];
+  result.skills = [];
+  result.qualities = [];
 
   return result;
 }

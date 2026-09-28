@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -23,6 +23,7 @@ import BottomNav from "@/components/BottomNav";
 import TalentBackground from "@/components/TalentBackground";
 import CompanyLogo from "@/components/CompanyLogo";
 import { cleanCompanyName, parseJobDetailSections } from "@/lib/jobContent";
+import { extractApplicationSubject } from "@/lib/applicationSubject";
 
 type MatchItem = {
   id: string;
@@ -142,6 +143,7 @@ function JobDetailInner() {
   const [matchOpen, setMatchOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [shared, setShared] = useState(false);
+  const [activeTab, setActiveTab] = useState("description");
 
   useEffect(() => {
     if (!params.id || (source !== "discovery" && source !== "recruiter")) {
@@ -221,10 +223,7 @@ function JobDetailInner() {
   const sections = parseJobDetailSections(job.description, job.title);
   const matchScore = Math.max(0, Math.min(100, Number(job.matchPercent ?? 0)));
   const profileCards = [
-    ["formation", "Formation", "Formation académique ou niveau d’études demandé."],
-    ["experience", "Expérience", job.minExperienceYears != null ? `Minimum ${job.minExperienceYears} an${job.minExperienceYears > 1 ? "s" : ""} d’expérience.` : "Expérience professionnelle précisée dans l’offre."],
-    ["skills", "Compétences", "Compétences techniques et professionnelles attendues."],
-    ["qualities", "Qualités", "Savoir-être et qualités recherchées."],
+    ["profile", "Profil recherché", "Âge, niveau d’études, compétences, expérience et autres conditions mentionnées dans l’offre."],
   ] as const;
 
   const headerFacts = [
@@ -234,10 +233,22 @@ function JobDetailInner() {
     job.salary || job.salaryMin != null ? { icon: null, value: job.salary ? `${formatSalary(job.salary)} ${job.salaryCurrency || "XAF"}` : `${formatSalary(job.salaryMin)}${job.salaryMax != null ? " – " + formatSalary(job.salaryMax) : ""} ${job.salaryCurrency || "XAF"}` } : null,
   ].filter(Boolean) as Array<{ icon: any; value: string }>;
 
-  const hasProfile = sections.profile.length > 0 || profileCards.some(([key]) => sections[key]?.length) || job.minExperienceYears != null;
+  const hasProfile = sections.profile.length > 0;
   const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Plateforme externe" : "Candidature depuis Jobly";
+  const applicationEmail = String(job.applicationProfile?.applicationEmail || job.applicationProfile?.email || "").trim();
+  const applicationSubject = emailChannel ? extractApplicationSubject(job.description || "", job.title || "") : "";
 
   const compactItems = (items: string[], limit = 12) => Array.from(new Set(items.map(cleanLine).filter(Boolean))).slice(0, limit);
+  const sourceTabs = useMemo(() => ([
+    ["description", "À propos du poste", sections.description],
+    ["missions", "Missions", sections.missions],
+    ["profile", "Profil recherché", sections.profile],
+    ["benefits", "Avantages", sections.benefits],
+    ["application", "Comment postuler", sections.application],
+    ["deadline", "Délai", deadline ? [deadline] : []],
+  ] as const).filter(([, , items]) => items.length > 0), [sections, deadline]);
+  const visibleTab = sourceTabs.some(([key]) => key === activeTab) ? activeTab : (sourceTabs[0]?.[0] || "description");
+  const activeTabData = sourceTabs.find(([key]) => key === visibleTab);
   const renderParagraphs = (items: string[]) => <div className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 8).map((line, i) => <p key={i}>{line}</p>)}</div>;
   const renderBullets = (items: string[]) => <ul className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 12).map((line, i) => <li key={i} className="flex gap-2.5"><span className="mt-[0.72em] h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFD60A]"/><span>{line}</span></li>)}</ul>;
 
@@ -283,19 +294,27 @@ function JobDetailInner() {
           </section>
 
           <div className="mt-6 space-y-4">
-            {sections.description.length > 0 && <DetailSection title="À propos du poste">{renderParagraphs(sections.description)}</DetailSection>}
+            {sourceTabs.length > 0 && <DetailSection title="Contenu de l’offre">
+              <div className="-mx-1 overflow-x-auto pb-1"><div className="flex min-w-max gap-2 px-1">
+                {sourceTabs.map(([key, label]) => <button key={key} type="button" onClick={() => setActiveTab(key)} className={`rounded-full px-4 py-2.5 text-sm font-extrabold transition ${visibleTab === key ? "bg-[#FFD60A] text-[#17212B]" : "bg-[#F3F6FA] text-slate-600"}`}>{label}</button>)}
+              </div></div>
+              {activeTabData && <div className="mt-5">
+                {activeTabData[0] === "application" ? (
+                  <div className="space-y-3">
+                    {emailChannel && <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="rounded-xl bg-[#F7FAFF] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Mail de candidature</p><p className="mt-1 break-all text-sm font-bold text-[#17212B]">{applicationEmail}</p></div>
+                      <div className="rounded-xl bg-[#F7FAFF] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Objet du mail</p><p className="mt-1 text-sm font-bold text-[#17212B]">{applicationSubject}</p></div>
+                    </div>}
+                    {sections.application.length > 0 && renderBullets(sections.application)}
+                  </div>
+                ) : activeTabData[0] === "description" ? renderParagraphs(activeTabData[2]) : renderBullets(activeTabData[2])}
+              </div>}
+            </DetailSection>}
 
             {sections.missions.length > 0 && <DetailSection title="Missions principales">{renderBullets(sections.missions)}</DetailSection>}
 
             {hasProfile && <DetailSection title="Profil recherché">
-              {sections.profile.length > 0 && <div className="mb-4">{renderParagraphs(sections.profile)}</div>}
-              <div className="grid gap-2 sm:grid-cols-2">
-                {profileCards.map(([key, title, fallback]) => {
-                  const items = sections[key] || [];
-                  if (!items.length && key !== "experience") return null;
-                  return <div key={key} className="rounded-xl bg-[#F7FAFF] px-4 py-3"><p className="text-xs font-black text-[#22448B]">{title}</p><div className="mt-1.5">{items.length ? renderBullets(items) : <p className="text-sm leading-6 text-slate-500">{fallback}</p>}</div></div>;
-                })}
-              </div>
+              {renderBullets(sections.profile)}
             </DetailSection>}
 
             {sections.benefits.length > 0 && <DetailSection title="Ce que l’entreprise offre">{renderBullets(sections.benefits)}</DetailSection>}
@@ -305,7 +324,11 @@ function JobDetailInner() {
                 <div className="rounded-xl bg-[#F7FAFF] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Mode</p><p className="mt-1 text-sm font-bold text-[#17212B]">{applicationMode}</p></div>
                 {deadline && <div className="rounded-xl bg-[#F7FAFF] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Date limite</p><p className="mt-1 text-sm font-bold text-[#17212B]">{deadline}</p></div>}
               </div>
-              {sections.application.length > 0 && <div className="mt-3 rounded-xl bg-[#FFFBE0] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-[#8C7600]">À savoir</p><div className="mt-2">{renderBullets(sections.application)}</div></div>}
+              {emailChannel && <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className="rounded-xl bg-[#F7FAFF] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Mail de candidature</p><p className="mt-1 break-all text-sm font-bold text-[#17212B]">{applicationEmail}</p></div>
+                <div className="rounded-xl bg-[#F7FAFF] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Objet du mail</p><p className="mt-1 text-sm font-bold text-[#17212B]">{applicationSubject}</p></div>
+              </div>}
+              {sections.application.length > 0 && <div className="mt-3 rounded-xl bg-[#FFFBE0] px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[1px] text-[#8C7600]">Instructions de candidature</p><div className="mt-2">{renderBullets(sections.application)}</div></div>}
               {applicationLink && <a href={applicationLink} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-[#DDE6F5] bg-white py-3.5 text-sm font-black text-[#22448B]"><ExternalLink size={17}/>Voir la plateforme de candidature</a>}
               <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(params.id) + "&source=" + encodeURIComponent(source || ""))} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[#FFD60A] bg-white py-3.5 text-sm font-black text-[#2E3F4F]"><Sparkles size={17}/>Adapter mon CV à cette offre</button>
               <button disabled={busy || deadlineExpired} onClick={apply} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#22448B] py-3.5 text-sm font-black text-white disabled:opacity-50">{deadlineExpired ? <span>Offre expirée</span> : emailChannel ? <><GmailIcon/><span>Postuler maintenant</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler maintenant</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler maintenant</span></> : <span>Postuler maintenant</span>}</button>
