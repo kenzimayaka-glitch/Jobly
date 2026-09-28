@@ -32,15 +32,12 @@ export async function GET(request: NextRequest) {
   const params = new URL(request.url).searchParams;
   const name = clean(params.get("name"));
   const location = clean(params.get("location"));
-  const website = clean(params.get("website"));
-  const suppliedDescription = clean(params.get("description"));
-
   if (!name) return NextResponse.json({ message: "Nom d'entreprise requis." }, { status: 400 });
 
   const result: CompanyProfile = {
-    name, address: null, location: null, phone: null, website: website || null,
+    name, address: null, location: null, phone: null, website: null,
     mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([name, location].filter(Boolean).join(", "))}`, activity: [], status: null, rating: null, reviewCount: null,
-    description: suppliedDescription || null, summary: null, news: [], source: [], logoUrl: null,
+    description: null, summary: null, news: [], source: [], logoUrl: null,
   };
 
   const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
@@ -96,21 +93,7 @@ export async function GET(request: NextRequest) {
     } catch {}
   }
 
-  if (!result.logoUrl && website) { try { const host = new URL(website.startsWith("http") ? website : `https://${website}`).hostname.replace(/^www\\./, ""); result.logoUrl = `/api/company-logo/image?domain=${encodeURIComponent(host)}`; } catch {} }
 
-  if (!result.description && website) {
-    try {
-      const url = website.startsWith("http") ? website : `https://${website}`;
-      const response = await fetch(url, { headers: { "User-Agent": "JoblyBot/1.0 (+https://jobly.cm)" }, signal: AbortSignal.timeout(5000), cache: "no-store" });
-      if (response.ok) {
-        const html = await response.text();
-        const description = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1] ||
-          html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1];
-        if (description) result.description = decodeXml(description).slice(0, 500);
-        result.source.push("Site officiel");
-      }
-    } catch {}
-  }
 
   const summaryParts: string[] = [];
   if (result.description) summaryParts.push(result.description);

@@ -162,7 +162,7 @@ export default function CompanyLogo({
       referrerPolicy="no-referrer"
       onLoad={handleLoad}
       onError={handleError}
-      className={`shrink-0 rounded-full border border-[#E5EAF2] bg-white p-1 object-contain ${className}`}
+      className={`shrink-0 max-h-full max-w-full rounded-full border border-[#E5EAF2] bg-white p-1 object-contain ${className}`}
       style={{ width: fillFrame ? "100%" : size, height: fillFrame ? "100%" : size }}
     />
   );
