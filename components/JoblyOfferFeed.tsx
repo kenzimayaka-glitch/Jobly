@@ -667,18 +667,18 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     </section>
 
     {basketJobs.length > 0 && (
-      <div className="fixed bottom-20 left-1/2 z-[80] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-[24px] border border-slate-200 bg-white p-4 pb-9 text-[#17212B] shadow-2xl sm:bottom-6">
+      <div className="fixed bottom-20 left-1/2 z-[80] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-[24px] border border-[#3B4652] bg-[#2E3F4F] p-4 pb-12 text-white shadow-2xl sm:bottom-6">
         <div className="relative flex items-start gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]"><ShoppingBasket size={18}/></div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-black text-[#22448B]">Panier de candidature ({basketJobs.length}/{bulkLimit})</p>
+            <p className="text-sm font-black text-white">Panier de candidature ({basketJobs.length}/{bulkLimit})</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button onClick={() => void prepareBulkApplications()} disabled={bulkPreparing} className="rounded-full bg-[#FFE135] px-4 py-2.5 text-xs font-black text-[#2E3F4F]">{bulkPreparing ? "Préparation…" : "Préparer avec J’IA"}</button>
               <button type="button" onClick={() => setBasketHistoryOpen(true)} className="rounded-full bg-[#7C3AED] px-3 py-2.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#6D28D9]">Historique</button>
             </div>
           </div>
           <button type="button" aria-label="Fermer et vider le panier de candidatures" title="Annuler et désélectionner les candidatures" onClick={() => { setBasket(new Set()); try { localStorage.setItem("jobly:jia:application-basket", "[]"); } catch {} }} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"><X size={18}/></button>
-          <p className="absolute bottom-0 left-0 right-0 text-center text-[10px] font-semibold text-slate-400">J’IA prépare chaque candidature séparément avant votre validation.</p>
+          <p className="absolute bottom-1 left-0 right-0 text-center text-[10px] font-semibold text-white/55">J’IA prépare chaque candidature séparément avant votre validation.</p>
         </div>
       </div>
     )}
@@ -731,14 +731,35 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
           <div className="mt-5 flex items-center gap-4"><div className="grid h-24 w-24 place-items-center rounded-full border-8 border-[#FFE135] bg-white/10"><span className="text-3xl font-black text-[#FFE135]">{selectedMatch.matchPercent}%</span></div><div className="min-w-0"><p className="text-sm font-black">{selectedMatch.title}</p><p className="mt-1 truncate text-xs text-white/60">{cleanCompanyName(selectedMatch.company?.name) || "Aucune donnée"}</p><p className="mt-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-[9px] font-black uppercase tracking-[1px]">{selectedMatch.matchPercent >= 85 ? "Très forte compatibilité" : selectedMatch.matchPercent >= 70 ? "Bonne compatibilité" : selectedMatch.matchPercent >= 60 ? "Compatibilité intéressante" : "Compatibilité à renforcer"}</p></div></div>
         </div>
         <div className="p-5">
-          <p className="text-[10px] font-black uppercase tracking-[1.5px] text-slate-400">Critères détectés dans l’offre</p>
-          <div className="mt-4 space-y-3">
-            {(selectedMatch.matchBreakdown || []).map(item => <div key={item.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-              <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-bold text-slate-500"><span>{item.label}{item.required ? " · requis" : ""}</span><b className={item.status === "MISMATCH" ? "text-red-600" : item.status === "PARTIAL" ? "text-orange-500" : item.status === "UNKNOWN" ? "text-amber-600" : "text-emerald-600"}>{item.score == null ? "Non renseigné" : Math.round(item.score * 100) + "%"}</b></div>
-              <div className="h-2 overflow-hidden rounded-full bg-white">{item.score != null && <motion.div initial={{ width: 0 }} animate={{ width: Math.round(item.score * 100) + "%" }} transition={{ duration: .45 }} className={`h-full rounded-full ${item.status === "MISMATCH" ? "bg-red-500" : item.status === "PARTIAL" ? "bg-orange-400" : item.status === "UNKNOWN" ? "bg-amber-400" : "bg-emerald-500"}`}/>}</div>
-              <p className="mt-2 text-[10px] leading-4 text-slate-500">{item.status === "MATCH" ? "Correspondance confirmée." : item.status === "PARTIAL" ? "Correspondance partielle à vérifier." : item.status === "MISMATCH" ? "Écart identifié avec l’exigence de l’offre." : "Information non renseignée dans les données connues de votre profil."}</p>
-              {item.expectedValue && <p className="mt-1 text-[10px] font-semibold text-slate-600">Attendu : {item.expectedValue}</p>}
-              {item.candidateValue && <p className="mt-1 text-[10px] text-slate-400">Profil : {item.candidateValue}</p>}
+          <div className="mb-4 grid grid-cols-4 gap-2">
+            {[
+              ["MATCH","bg-emerald-500","Correspondent"],
+              ["PARTIAL","bg-orange-400","Partiels"],
+              ["MISMATCH","bg-red-500","Écarts"],
+              ["UNKNOWN","bg-amber-400","À vérifier"],
+            ].map(([status,color,label]) => {
+              const count = (selectedMatch.matchBreakdown || []).filter(item => item.status === status).length;
+              return <div key={status} className="rounded-2xl bg-[#F8FAFC] p-2.5 text-center">
+                <div className={`mx-auto mb-1 h-2 w-10 rounded-full ${color}`}/>
+                <p className="text-lg font-black text-[#17212B]">{count}</p>
+                <p className="text-[8px] font-black uppercase tracking-[.8px] text-slate-400">{label}</p>
+              </div>;
+            })}
+          </div>
+          <div className="space-y-2.5">
+            {(selectedMatch.matchBreakdown || []).map(item => <div key={item.id} className="rounded-2xl bg-[#F8FAFC] p-3">
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <span className="truncate text-[10px] font-black text-[#17212B]">{item.label}</span>
+                <b className={item.status === "MISMATCH" ? "text-red-600" : item.status === "PARTIAL" ? "text-orange-500" : item.status === "UNKNOWN" ? "text-amber-600" : "text-emerald-600"}>{item.score == null ? "—" : Math.round(item.score * 100) + "%"}</b>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-slate-200">
+                {item.score != null && <motion.div initial={{ width: 0 }} animate={{ width: Math.round(item.score * 100) + "%" }} transition={{ duration: .45 }} className={`h-full rounded-full ${item.status === "MISMATCH" ? "bg-red-500" : item.status === "PARTIAL" ? "bg-orange-400" : item.status === "UNKNOWN" ? "bg-amber-400" : "bg-emerald-500"}`}/>}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {item.required && <span className="rounded-full bg-[#2E3F4F] px-2 py-1 text-[8px] font-black text-white">REQUIS</span>}
+                {item.expectedValue && <span className="rounded-full bg-white px-2 py-1 text-[8px] font-semibold text-slate-500">{item.expectedValue}</span>}
+                {item.candidateValue && <span className="rounded-full bg-white px-2 py-1 text-[8px] font-semibold text-slate-500">Profil · {item.candidateValue}</span>}
+              </div>
             </div>)}
           </div>
 

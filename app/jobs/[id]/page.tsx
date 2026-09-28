@@ -54,19 +54,19 @@ function JobDetailInner() {
   const cleanDescription=cleanJobDescription(job.description, job.title);
   type DetailSectionKey = "description"|"missions"|"profile"|"formation"|"experience"|"skills"|"qualities"|"benefits"|"application"|"other";
   const sectionPatterns: Array<[DetailSectionKey, RegExp]> = [
-    ["description", /^(description|présentation|contexte|à propos du poste)\\s*[:：-]?$/i],
-    ["missions", /^(missions?(\\s+principales?)?|responsabilités?|responsabilités\\s+principales?)\\s*[:：-]?$/i],
-    ["profile", /^(profil(\\s+recherché|\\s+du\\s+candidat)?|candidat(\\s+recherché)?)\\s*[:：-]?$/i],
-    ["formation", /^(formation|dipl[oô]mes?|études)\\s*[:：-]?$/i],
-    ["experience", /^(expérience|expériences?|parcours)\\s*[:：-]?$/i],
-    ["skills", /^(compétences?|compétences\\s+techniques?|savoir[- ]faire)\\s*[:：-]?$/i],
-    ["qualities", /^(qualités?|savoir[- ]être|soft skills|aptitudes)\\s*[:：-]?$/i],
-    ["benefits", /^(avantages?|ce que (l'entreprise|nous) (offre|propose)|nous offrons|conditions de travail|rémunération et avantages?)\\s*[:：-]?$/i],
-    ["application", /^(candidature|pour postuler|modalités? de candidature|comment postuler|documents? (à fournir|demandés?)?)\\s*[:：-]?$/i],
+    ["description", /^(description|présentation|contexte|à propos du poste)\s*[:：-]?$/i],
+    ["missions", /^(missions?(\s+principales?)?|responsabilités?|responsabilités\s+principales?)\s*[:：-]?$/i],
+    ["profile", /^(profil(\s+recherché|\s+du\s+candidat)?|candidat(\s+recherché)?)\s*[:：-]?$/i],
+    ["formation", /^(formation|dipl[oô]mes?|études)\s*[:：-]?$/i],
+    ["experience", /^(expérience|expériences?|parcours)\s*[:：-]?$/i],
+    ["skills", /^(compétences?|compétences\s+techniques?|savoir[- ]faire)\s*[:：-]?$/i],
+    ["qualities", /^(qualités?|savoir[- ]être|soft skills|aptitudes)\s*[:：-]?$/i],
+    ["benefits", /^(avantages?|ce que (l'entreprise|nous) (offre|propose)|nous offrons|conditions de travail|rémunération et avantages?)\s*[:：-]?$/i],
+    ["application", /^(candidature|pour postuler|modalités? de candidature|comment postuler|documents? (à fournir|demandés?)?)\s*[:：-]?$/i],
   ];
   const detailSections = new Map<DetailSectionKey,string[]>();
   let currentSection: DetailSectionKey = "description";
-  const lines = cleanDescription.split(/\\r?\\n/).map((line:string)=>line.trim()).filter(Boolean);
+  const lines = cleanDescription.split(/\r?\n/).map((line:string)=>line.trim()).filter(Boolean);
   for (const line of lines) {
     const match = sectionPatterns.find(([, pattern]) => pattern.test(line.replace(/[:：-]+$/,"").trim()));
     if (match) {
@@ -83,8 +83,8 @@ function JobDetailInner() {
   const renderLines = (items:string[], emptyFallback?:string) => {
     if (!items.length) return emptyFallback ? <p className="text-sm leading-7 text-slate-500">{emptyFallback}</p> : null;
     return <div className="space-y-3 text-sm leading-7 text-slate-600">{items.map((line:string,index:number)=>{
-      const bullet=/^(?:•|▪|◦|-|–|—)\\s*/.test(line);
-      const value=line.replace(/^(?:•|▪|◦|-|–|—)\\s*/,"");
+      const bullet=/^(?:•|▪|◦|-|–|—)\s*/.test(line);
+      const value=line.replace(/^(?:•|▪|◦|-|–|—)\s*/,"");
       return bullet
         ? <div key={index} className="flex gap-3"><span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFD60A]" /><p>{value}</p></div>
         : <p key={index}>{value}</p>;
@@ -140,7 +140,7 @@ function JobDetailInner() {
       {sectionText("missions").length>0 && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
         <p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">02 · RESPONSABILITÉS</p>
         <h2 className="mt-2 text-2xl font-black text-[#17212B]">Missions principales</h2>
-        <div className="mt-6 space-y-4">{sectionText("missions").map((line:string,index:number)=><div key={index} className="rounded-2xl bg-[#F8FAFC] p-4 sm:p-5"><div className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#FFD60A] text-xs font-black text-[#17212B]">{index+1}</span><p className="pt-0.5 text-sm leading-7 text-slate-600">{line.replace(/^(?:•|▪|◦|-|–|—)\\s*/,"")}</p></div></div>)}</div>
+        <div className="mt-6 space-y-4">{sectionText("missions").map((line:string,index:number)=><div key={index} className="rounded-2xl bg-[#F8FAFC] p-4 sm:p-5"><div className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#FFD60A] text-xs font-black text-[#17212B]">{index+1}</span><p className="pt-0.5 text-sm leading-7 text-slate-600">{line.replace(/^(?:•|▪|◦|-|–|—)\s*/,"")}</p></div></div>)}</div>
       </section>}
 
       {hasProfileContent && <section className="rounded-[26px] border border-slate-100 bg-white p-6 shadow-sm sm:p-7">
