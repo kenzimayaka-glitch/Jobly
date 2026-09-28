@@ -275,12 +275,6 @@ function JobDetailInner() {
 
               {tags.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{tags.slice(0, 8).map(tag => <span key={tag} className="rounded-full bg-[#EEF4FF] px-3 py-1.5 text-xs font-bold text-[#22448B]">{tag}</span>)}</div>}
 
-              <div className="mt-7 flex flex-col gap-3 border-t border-slate-100 pt-6 sm:flex-row">
-                <button disabled={busy || deadlineExpired} onClick={apply} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#FFD60A] px-5 py-4 text-sm font-black text-[#17212B] shadow-[0_10px_25px_rgba(255,214,10,.22)] transition hover:brightness-[.98] disabled:opacity-50">
-                  {deadlineExpired ? <span>Offre expirée</span> : emailChannel ? <><GmailIcon/><span>Postuler maintenant</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler maintenant</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler maintenant</span></> : <span>Postuler maintenant</span>}
-                </button>
-                <button type="button" onClick={shareOffer} className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-extrabold text-slate-600">{shared ? <CheckCircle2 size={17} className="text-emerald-600"/> : <Share2 size={17}/>}<span>{shared ? "Lien copié" : "Partager"}</span></button>
-              </div>
             </div>
           </section>
 
@@ -319,6 +313,13 @@ function JobDetailInner() {
             )}
 
             {deadline && <DetailSection title="Délai"><div className="flex items-start gap-3 rounded-2xl bg-[#FFFBEA] p-4"><CalendarDays size={18} className="mt-0.5 shrink-0 text-amber-700"/><div><p className="text-sm font-black text-[#17212B]">{deadlineExpired ? "Date limite dépassée" : "Candidatures jusqu’au"}</p><p className="mt-1 text-sm leading-6 text-slate-600">{deadline}</p></div></div></DetailSection>}
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button disabled={busy || deadlineExpired} onClick={apply} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#FFD60A] px-5 py-4 text-sm font-black text-[#17212B] shadow-[0_10px_25px_rgba(255,214,10,.22)] transition hover:brightness-[.98] disabled:opacity-50">
+                {deadlineExpired ? <span>Offre expirée</span> : emailChannel ? <><GmailIcon/><span>Postuler</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler</span></> : <span>Postuler</span>}
+              </button>
+              <button type="button" onClick={shareOffer} className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-extrabold text-slate-600">{shared ? <CheckCircle2 size={17} className="text-emerald-600"/> : <Share2 size={17}/>}<span>{shared ? "Lien copié" : "Partager"}</span></button>
+            </div>
 
             <section className="rounded-[22px] border border-amber-100 bg-[#FFFBEA] px-5 py-5 sm:px-6">
               <p className="text-sm leading-6 text-[#4A3F00]">
