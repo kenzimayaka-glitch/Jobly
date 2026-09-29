@@ -407,12 +407,28 @@ function chooseHtmlCandidates(html: string, titleHint?: string | null): string {
   const ranked = candidates
     .map((text) => {
       const normalized = normalizeSectionHeading(text);
-      const sectionHits = SECTION_ORDER.filter((key) =>
-        text.toLowerCase().includes(key === "profile" ? "profil" : key)
-      ).length;
-      const titleHit = title && normalized.includes(title) ? 100000 : 0;
-      const lengthScore = Math.min(text.length, 30000) / 100;
-      return { text, score: titleHit + sectionHits * 50 + lengthScore };
+      const lines = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+      const sectionHits = SECTION_ORDER.filter((key) => {
+        const aliases = SECTION_ALIASES[key].map(normalizeSectionHeading);
+        return aliases.some((alias) => alias && (normalized.includes(alias) || lines.some((line) => normalizeSectionHeading(line) === alias)));
+      }).length;
+      const exactTitleIndex = title
+        ? lines.findIndex((line) => normalizeSectionHeading(line) === title)
+        : -1;
+      const titleNearStart = title && normalized.indexOf(title) >= 0 && normalized.indexOf(title) < 900 ? 1 : 0;
+      const boilerplateHits = (text.match(/(?:aller au contenu principal|poster une offre|toggle navigation|main navigation|cookie settings|articles similaires|populaires en ce moment|infos utiles|categories populaires|leave a reply)/gi) || []).length;
+      const bulletHits = (text.match(/(?:^|\n)\s*(?:[•▪◦●*-]|\d+[.)])\s+/g) || []).length;
+      const lengthScore = Math.min(text.length, 30000) / 160;
+      // The old title bonus (100000) made the broad <main> container win
+      // even when a nested article/content container was much cleaner.
+      // Prefer content density and recognizable offer sections instead.
+      const titleScore = exactTitleIndex >= 0 ? 1800 : titleNearStart ? 500 : 0;
+      const structureScore = sectionHits * 700 + Math.min(bulletHits, 24) * 18;
+      const noisePenalty = boilerplateHits * 220;
+      return {
+        text,
+        score: titleScore + structureScore + lengthScore - noisePenalty,
+      };
     })
     .sort((a, b) => b.score - a.score);
 
