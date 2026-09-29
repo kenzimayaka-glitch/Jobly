@@ -116,8 +116,78 @@ function cleanBullet(value: string): string {
     .replace(/\s+/g, " ").trim().replace(/^[,:;|]+|[,:;|]+$/g, "").trim();
 }
 
+function normalizeOfferText(value: string): string {
+  return repairEncoding(decodeEntities(String(value || "")))
+    .normalize("NFC")
+    .replace(/[\\u200B-\\u200D\\uFEFF]/g, "")
+    .replace(/[�□■]+/g, " ")
+    .replace(/[\\u00A0\\u202F]/g, " ")
+    .replace(/[ \\t]+/g, " ")
+    .trim();
+}
+
 function unique(values: string[], max = 40): string[] {
-  return [...new Set(values.map(cleanBullet).filter((x) => x.length >= 2))].slice(0, max);
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of values) {
+    const value = cleanBullet(normalizeOfferText(raw));
+    const signature = key(value);
+    if (value.length < 2 || !signature || seen.has(signature)) continue;
+    seen.add(signature);
+    result.push(value);
+    if (result.length >= max) break;
+  }
+  return result;
+}
+
+type SectionKey = "description" | "missions" | "profile" | "education" | "experience" | "skills" | "qualities" | "benefits" | "application";
+
+const SECTION_PRIORITY: SectionKey[] = [
+  "application", "experience", "education", "skills", "qualities", "missions", "benefits", "profile", "description",
+];
+
+function classifyUnlabelledLine(line: string): SectionKey | null {
+  const normalized = key(line);
+  if (!normalized) return null;
+  if (/@/.test(normalized) || /\\b(?:objet|subject|indiquer en objet|mettre en objet)\\b/.test(normalized) ||
+      /\\b(?:envoyer|envoyez|adressez|transmettez|postulez|candidature)\\b.*\\b(?:cv|candidature|mail|email)\\b/.test(normalized)) return "application";
+  if (/\\b(?:experience|exp\\.?)\\b|\\b\\d+\\s*(?:ans?|annees?)\\b/.test(normalized)) return "experience";
+  if (/\\b(?:bac\\s*\\+|licence|master|mba|doctorat|diplome|formation|etudes|parcours academique)\\b/.test(normalized)) return "education";
+  if (/\\b(?:competence|competences|maitrise|connaissance|savoir-faire|logiciel|excel|word|sql|erp|powerpoint)\\b/.test(normalized)) return "skills";
+  if (/\\b(?:qualite|qualites|rigueur|autonome|autonomie|esprit d equipe|adaptabilite|organisation)\\b/.test(normalized)) return "qualities";
+  if (/\\b(?:aura pour mission|auront pour mission|vous serez charge|vous serez en charge|responsable de|consistera a|missions principales|vos responsabilites)\\b/.test(normalized)) return "missions";
+  if (/\\b(?:avantages|assurance|mutuelle|prime|transport|conges|indemnite)\\b/.test(normalized)) return "benefits";
+  return null;
+}
+
+function enforceSectionExclusivity(sections: Record<SectionKey, string[]>): Record<SectionKey, string[]> {
+  const working = Object.fromEntries(
+    Object.entries(sections).map(([name, values]) => [name, unique(values)]),
+  ) as Record<SectionKey, string[]>;
+
+  // Move strongly identifiable unlabelled lines out of the context section.
+  const context: string[] = [];
+  for (const line of working.description) {
+    const target = classifyUnlabelledLine(line);
+    if (target && target !== "description") working[target].push(line);
+    else context.push(line);
+  }
+  working.description = context;
+
+  // A semantic fact gets one owner. Keep the most specific category first and
+  // never copy the same fact into several sections.
+  const seen = new Set<string>();
+  for (const section of SECTION_PRIORITY) {
+    const next: string[] = [];
+    for (const line of working[section]) {
+      const signature = key(line);
+      if (!signature || seen.has(signature)) continue;
+      seen.add(signature);
+      next.push(line);
+    }
+    working[section] = next;
+  }
+  return working;
 }
 
 function splitKnownHeaders(value: string): string {
@@ -211,43 +281,53 @@ export function normalizeJobContent(input: {
   salaryCurrency?: unknown; deadline?: unknown; source?: unknown; sourceUrl?: unknown;
 }): NormalizedJobContent {
   const title = cleanJobTitle(input.title);
-  const description = cleanJobDescription(input.description ?? "", title);
+  const description = normalizeOfferText(cleanJobDescription(input.description ?? "", title));
   const explicitCompany = cleanCompanyName(input.companyName);
   const companyName = explicitCompany && plausibleExplicitCompany(explicitCompany, title)
     ? explicitCompany : extractCompanyNameFromDescription(description) || extractCompanyNameFromTitle(title);
   // Parse the same canonical description used for identity extraction and storage.
   // The raw input is intentionally unknown, so never pass it directly to a string-only parser.
   const sections = parseSections(description);
-  const experience = stripBoilerplate(sections.experience);
-  const education = stripBoilerplate(sections.education);
-  const skills = stripBoilerplate(sections.skills);
-  const qualities = stripBoilerplate(sections.qualities);
-  const missions = stripBoilerplate(sections.missions);
-  const benefits = stripBoilerplate(sections.benefits);
-  const application = stripBoilerplate(sections.application);
-  const profile = stripBoilerplate(sections.profile);
-  const descriptionSection = stripBoilerplate(sections.description);
-  const location = String(input.location || "").split(/[,;|]/).map(cleanBullet).filter(Boolean);
+  const classified = enforceSectionExclusivity({
+    description: stripBoilerplate(sections.description),
+    missions: stripBoilerplate(sections.missions),
+    profile: stripBoilerplate(sections.profile),
+    education: stripBoilerplate(sections.education),
+    experience: stripBoilerplate(sections.experience),
+    skills: stripBoilerplate(sections.skills),
+    qualities: stripBoilerplate(sections.qualities),
+    benefits: stripBoilerplate(sections.benefits),
+    application: stripBoilerplate(sections.application),
+  });
+  const location = String(input.location || "").split(/[,;|]/).map((value) => cleanBullet(normalizeOfferText(value))).filter(Boolean);
 
   return {
-    version: "jobly-offer-v2", title: title || null, company: companyName || null,
+    version: "jobly-offer-v2", title: normalizeOfferText(title) || null, company: companyName ? normalizeOfferText(companyName) : null,
     location: unique(location, 10), region: null, sector: null,
-    contractType: String(input.contractType || "").trim() || null,
-    remoteMode: String(input.remoteMode || "").trim() || null,
+    contractType: normalizeOfferText(String(input.contractType || "")) || null,
+    remoteMode: normalizeOfferText(String(input.remoteMode || "")) || null,
     salary: {
       min: Number.isFinite(Number(input.salaryMin)) ? Number(input.salaryMin) : null,
       max: Number.isFinite(Number(input.salaryMax)) ? Number(input.salaryMax) : null,
-      currency: String(input.salaryCurrency || "").trim() || null,
+      currency: normalizeOfferText(String(input.salaryCurrency || "")) || null,
     },
-    experience, education, skills, qualities, missions, benefits,
-    profile: sections.profile || [],
-    description: descriptionSection.length ? descriptionSection : stripBoilerplate([description]),
-    application, deadline: input.deadline ? String(input.deadline) : null,
-    source: { name: String(input.source || ""), url: String(input.sourceUrl || "") },
+    experience: classified.experience,
+    education: classified.education,
+    skills: classified.skills,
+    qualities: classified.qualities,
+    missions: classified.missions,
+    benefits: classified.benefits,
+    profile: classified.profile,
+    // "À propos de l'offre" is context only. Never fall back to the full
+    // source description after classification.
+    description: classified.description,
+    application: classified.application,
+    deadline: input.deadline ? normalizeOfferText(String(input.deadline)) : null,
+    source: { name: normalizeOfferText(String(input.source || "")), url: String(input.sourceUrl || "").trim() },
     qualityScore: null,
     flags: [
-      ...(experience.length === 0 && /(?:ans?|annee|experience)/i.test(description) ? ["experience_unresolved"] : []),
-      ...(skills.length === 0 && /(?:competence|aptitude technique|savoir-faire)/i.test(description) ? ["skills_unresolved"] : []),
+      ...(classified.experience.length === 0 && /(?:ans?|annee|experience)/i.test(description) ? ["experience_unresolved"] : []),
+      ...(classified.skills.length === 0 && /(?:competence|aptitude technique|savoir-faire)/i.test(description) ? ["skills_unresolved"] : []),
     ],
   };
 }

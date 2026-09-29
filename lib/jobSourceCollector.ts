@@ -32,7 +32,9 @@ export type CollectedOffer = {
   salaryMin: number | null;
   salaryMax: number | null;
   salaryCurrency: string | null;
-  /** Immutable-ish capture used by the internal pipeline for reprocessing. */
+  /** Immutable source capture. Never replaced by rendered content. */
+  rawHtml: string;
+  /** Browser/API/HTTP representation used for extraction. */
   renderedHtml: string;
   extractedText: string;
   captureMode: "browser" | "http" | "api" | "rss" | "unknown";
@@ -254,8 +256,8 @@ async function fetchHtmlLegacy(url: string): Promise<string> {
 }
 
 async function fetchHtml(url: string): Promise<string> {
-  // Browser-rendered HTML is the primary path whenever a browser provider
-  // is configured. The legacy HTTP collector remains the deterministic fallback.
+  // Browser-rendered HTML is the primary path for extraction. This helper is
+  // intentionally not used as the source archive for an offer.
   const hasCloudflareRenderer =
     process.env.JOB_RENDERER_PROVIDER?.trim().toLowerCase() === "cloudflare" ||
     Boolean(process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN);
@@ -264,6 +266,30 @@ async function fetchHtml(url: string): Promise<string> {
     return rendered.html;
   }
   return fetchHtmlLegacy(url);
+}
+
+async function fetchOfferCapture(url: string): Promise<{
+  rawHtml: string;
+  renderedHtml: string;
+  captureMode: CollectedOffer["captureMode"];
+}> {
+  const hasBrowserRenderer =
+    process.env.JOB_RENDERER_PROVIDER?.trim().toLowerCase() === "cloudflare" ||
+    Boolean(process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN) ||
+    Boolean(process.env.JOB_RENDERER_URL);
+
+  if (!hasBrowserRenderer) {
+    const rawHtml = await fetchHtmlLegacy(url);
+    return { rawHtml, renderedHtml: rawHtml, captureMode: "http" };
+  }
+
+  const [rawResult, renderedResult] = await Promise.allSettled([
+    fetchHtmlLegacy(url),
+    renderPublicSource(url),
+  ]);
+  if (renderedResult.status !== "fulfilled") throw renderedResult.reason;
+  const rawHtml = rawResult.status === "fulfilled" ? rawResult.value : "";
+  return { rawHtml, renderedHtml: renderedResult.value.html, captureMode: "browser" };
 }
 
 function externalId(url: string, source: SourceConfig): string {
@@ -399,7 +425,7 @@ function extractSalary(text: string): { min: number | null; max: number | null; 
   return { min: null, max: null, currency: null };
 }
 
-function extractOffer(source: SourceConfig,url: string,html: string,listingTitle: string): CollectedOffer | null {
+function extractOffer(source: SourceConfig,url: string,html: string,listingTitle: string,rawHtml = html,captureMode?: CollectedOffer["captureMode"]): CollectedOffer | null {
   // Keep the original HTML until the description cleaner has selected the
   // actual offer container. Flattening the whole page first mixes navigation,
   // footer, widgets and the job body into one text stream.
@@ -445,13 +471,15 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   if (contacts.phone) applicationProfile.applicationPhone = contacts.phone;
   if (applicationUrl) applicationProfile.applicationUrl = applicationUrl;
   applicationProfile.subject = extractApplicationSubject(clean,title);
-  const captureMode: CollectedOffer["captureMode"] = source.key === "infosconcourseducation"
-    ? "api"
-    : process.env.JOB_RENDERER_PROVIDER?.trim().toLowerCase() === "cloudflare" ||
-        Boolean(process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN) ||
-        Boolean(process.env.JOB_RENDERER_URL)
-      ? "browser"
-      : "http";
+  const resolvedCaptureMode: CollectedOffer["captureMode"] = captureMode || (
+    source.key === "infosconcourseducation"
+      ? "api"
+      : process.env.JOB_RENDERER_PROVIDER?.trim().toLowerCase() === "cloudflare" ||
+          Boolean(process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN) ||
+          Boolean(process.env.JOB_RENDERER_URL)
+        ? "browser"
+        : "http"
+  );
 
   return {
     sourceKey:source.key,
@@ -472,9 +500,10 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
     salaryMin:salary.min,
     salaryMax:salary.max,
     salaryCurrency:salary.currency,
+    rawHtml: rawHtml.slice(0, 2_000_000),
     renderedHtml: html.slice(0, 2_000_000),
     extractedText: clean,
-    captureMode,
+    captureMode: resolvedCaptureMode,
   };
 }
 
@@ -498,7 +527,7 @@ async function collectWordPressOffers(source: SourceConfig): Promise<CollectedOf
       if (!rawHtml) continue;
       try {
         const html = stripInfosConcoursWordPressChrome(rawHtml, title);
-        const offer = extractOffer(source, link, html, title);
+        const offer = extractOffer(source, link, html, title, rawHtml, "api");
         if (offer) out.push(offer);
       } catch {}
     }
@@ -529,8 +558,8 @@ async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
   }
   const candidatesToFetch = Array.from(candidates.values()).slice(0, MAX_OFFERS_PER_SOURCE);
   const results = await mapWithConcurrency(candidatesToFetch, SOURCE_FETCH_CONCURRENCY, async (candidate) => {
-    const html = await fetchHtml(candidate.url);
-    return extractOffer(source, candidate.url, html, candidate.title);
+    const capture = await fetchOfferCapture(candidate.url);
+    return extractOffer(source, candidate.url, capture.renderedHtml, candidate.title, capture.rawHtml, capture.captureMode);
   });
   if (results.length < 5) {
     const fallback = await collectWordPressOffers(source);
@@ -549,11 +578,13 @@ export async function recollectOfferByUrl(sourceKey: string, url: string, listin
     const parsed = new URL(url);
     if (!source.hostnames.includes(parsed.hostname.toLowerCase())) return null;
     if (source.key === "infosconcourseducation" && !isRelevantInfosConcoursLink(parsed, listingTitle || parsed.pathname)) return null;
-    const html = await fetchHtml(url);
+    const capture = source.key === "infosconcourseducation"
+      ? { rawHtml: await fetchHtmlLegacy(url), renderedHtml: await fetchHtml(url), captureMode: "api" as const }
+      : await fetchOfferCapture(url);
     const cleanHtml = source.key === "infosconcourseducation"
-      ? stripInfosConcoursWordPressChrome(html, listingTitle)
-      : html;
-    return extractOffer(source, url, cleanHtml, listingTitle || titleFromHtml(cleanHtml) || "Offre d'emploi");
+      ? stripInfosConcoursWordPressChrome(capture.renderedHtml, listingTitle)
+      : capture.renderedHtml;
+    return extractOffer(source, url, cleanHtml, listingTitle || titleFromHtml(cleanHtml) || "Offre d'emploi", capture.rawHtml, capture.captureMode);
   } catch {
     return null;
   }

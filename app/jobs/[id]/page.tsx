@@ -272,7 +272,12 @@ function JobDetailInner() {
 
   const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Plateforme externe" : null;
   const applicationEmail = String(job.applicationProfile?.applicationEmail || job.applicationProfile?.email || "").trim();
-  const applicationSubject = emailChannel ? extractApplicationSubject(normalizedDescription, displayTitle || "") : "";
+  const applicationSubject = emailChannel
+    ? extractApplicationSubject(
+        [...(Array.isArray(normalized?.application) ? normalized.application : []), normalizedDescription].join("\n"),
+        displayTitle || "",
+      )
+    : "";
 
   const compactItems = (items: string[], limit = 12) => Array.from(new Set(items.map(cleanLine).filter(Boolean))).slice(0, limit);
   const renderParagraphs = (items: string[]) => <div className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 8).map((line, i) => <p key={i}>{line}</p>)}</div>;
@@ -336,7 +341,7 @@ function JobDetailInner() {
                   {emailChannel && (
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="rounded-2xl bg-[#F7FAFF] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Mail de candidature</p><p className="mt-1 break-all text-sm font-bold text-[#17212B]">{applicationEmail}</p></div>
-                      <div className="rounded-2xl bg-[#F7FAFF] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Objet du mail</p><p className="mt-1 text-sm font-bold text-[#17212B]">{applicationSubject || "Candidature — " + displayTitle}</p></div>
+                      <div className="rounded-2xl bg-[#F7FAFF] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Objet du mail</p>{applicationSubject && <p className="mt-1 text-sm font-bold text-[#17212B]">{applicationSubject}</p>}</div>
                     </div>
                   )}
                   {sections.application.length > 0 && renderBullets(sections.application)}
