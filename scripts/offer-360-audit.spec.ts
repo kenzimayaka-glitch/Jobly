@@ -2,29 +2,7 @@ import { test, expect } from "@playwright/test";
 import { buildCanonicalOffer } from "../lib/jobCanonicalOffer";
 import { extractVisibleOfferBlocks, blocksToStructuredText } from "../lib/jobOfferBlocks";
 
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://mpoyaegtwtmhookdzqdy.supabase.co";
-const SUPABASE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
-if (!SUPABASE_KEY) throw new Error("SUPABASE_PUBLISHABLE_KEY is required");
-
-type JobRow = {
-  id:string; title:string; description:string|null; location:string|null; contractType:string|null;
-  deadline:string|null; sourceKey:string|null; sourceUrl:string|null; normalizedContent:any;
-  normalizedVersion:string|null;
-};
-
-const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
-
-async function loadJobs(): Promise<JobRow[]> {
-  const url = new URL(`${SUPABASE_URL}/rest/v1/Job`);
-  url.searchParams.set("select","id,title,description,location,contractType,deadline,sourceKey,sourceUrl,normalizedContent,normalizedVersion");
-  url.searchParams.set("isActive","eq.true");
-  url.searchParams.set("order","createdAt.asc");
-  url.searchParams.set("limit","1000");
-  const res = await fetch(url, {headers});
-  if (!res.ok) throw new Error(`Job query failed: ${res.status} ${await res.text()}`);
-  return await res.json();
-}
-
+const manifest = require("./offer-360-manifest.json");
 const norm = (s:string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim().toLowerCase();
 const sectionKeys = ["description","missions","profile","skills","experience","education","qualities","benefits","application"] as const;
 
