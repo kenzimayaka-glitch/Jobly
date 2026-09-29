@@ -345,7 +345,7 @@ export async function POST(request: NextRequest) {
 
     const { offers, sources } = await collectPublicJobSources();
     const nowIso = now.toISOString();
-    let created = 0, updated = 0;
+    let created = 0, updated = 0, skipped = 0;
 
     const ingestResult = await runWithConcurrency(offers, INGEST_CONCURRENCY, async (offer) => {
       const source = sourceDisplayName(offer.sourceKey);
