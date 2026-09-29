@@ -290,7 +290,7 @@ function stripBoilerplate(values: string[]): string[] {
 }
 
 function companyNameMatchesTitle(name: string, title: string): boolean {
-  const normalizedName = key(name).replace(/\b(?:s a|sarl|sas|ltd|limited|llc|inc|plc|gmbh)\b/g, " ").replace(/\s+/g, " ").trim();
+  const normalizedName = key(name).replace(/\b(?:s\.?a\.?|sarl|sas|ltd|limited|llc|inc\.?|plc|gmbh)\b/g, " ").replace(/\s+/g, " ").trim();
   const normalizedTitle = key(title);
   return normalizedName.length >= 3 && normalizedTitle.includes(normalizedName);
 }
