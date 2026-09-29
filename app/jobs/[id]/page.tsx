@@ -228,16 +228,6 @@ function JobDetailInner() {
   const displayTitle = normalizedIdentity.title;
   const displayCompany = normalizedIdentity.companyName;
   const company = displayCompany;
-  const canonicalApplication = canonicalSection(normalized?.application);
-  const applicationText = canonicalApplication.join("\n");
-  const applicationEmail = String(
-    job.applicationProfile?.applicationEmail ||
-    job.applicationProfile?.email ||
-    extractApplicationEmail(applicationText) ||
-    "",
-  ).trim();
-  const applicationSubject = extractApplicationSubject(applicationText);
-  const emailChannel = Boolean(applicationEmail);
   const phoneChannel = Boolean(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.length);
   const applicationLink = String(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl || job.applicationProfile?.url || "").trim();
   const contract = normalized?.contractType || null;
@@ -258,6 +248,17 @@ function JobDetailInner() {
     ...(Array.isArray(parsedFromDescription[key]) ? parsedFromDescription[key] : []),
   ].map((v) => cleanLine(String(v))).filter(Boolean)));
   const canonicalSection = (values: unknown) => Array.isArray(values) ? values.map((v) => cleanLine(String(v))).filter(Boolean) : [];
+  const canonicalApplication = canonicalSection(normalized?.application);
+  const applicationText = canonicalApplication.join("\n");
+  const applicationEmail = String(
+    job.applicationProfile?.applicationEmail ||
+    job.applicationProfile?.email ||
+    extractApplicationEmail(applicationText) ||
+    "",
+  ).trim();
+  const applicationSubject = extractApplicationSubject(applicationText);
+  const emailChannel = Boolean(applicationEmail);
+
   const sections = {
     // The detail page is source-agnostic: canonical data is the only
     // representation allowed to reach the UI.
