@@ -6,6 +6,11 @@ import {
   buildCanonicalOffer,
   canonicalIsPublishable,
   type CanonicalOffer,
+  SOURCE_VERSION,
+  RENDER_VERSION,
+  EXTRACTION_VERSION,
+  STRUCTURE_VERSION,
+  VALIDATION_VERSION,
 } from "@/lib/jobCanonicalOffer";
 
 export const runtime = "nodejs";
@@ -76,11 +81,11 @@ async function saveOfferPipeline(
     qualityScore: canonical.quality.score,
     confidence: canonical.quality.confidence,
     status: canonical.quality.status,
-    sourceVersion: "source-v1",
-    renderVersion: "render-v2",
-    extractionVersion: "extract-v3",
-    structureVersion: "structure-v3",
-    validationVersion: "validation-v3",
+    sourceVersion: SOURCE_VERSION,
+    renderVersion: RENDER_VERSION,
+    extractionVersion: EXTRACTION_VERSION,
+    structureVersion: STRUCTURE_VERSION,
+    validationVersion: VALIDATION_VERSION,
     canonicalVersion: canonical.version,
     lastError: canonical.quality.warnings.length ? canonical.quality.warnings.join(",") : null,
     processedAt: new Date().toISOString(),
