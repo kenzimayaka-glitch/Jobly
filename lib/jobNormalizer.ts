@@ -1,3 +1,5 @@
+import { validateSemanticField } from "@/lib/semanticFieldValidator";
+
 import {
   cleanCompanyName,
   cleanJobDescription,
