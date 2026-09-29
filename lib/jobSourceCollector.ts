@@ -344,7 +344,7 @@ function extractRemoteMode(text: string): string | null {
 }
 
 function parseMoney(value: string): number | null {
-  const normalized = value.replace(/\s+/g, " ").trim().replace(/\.(?=\d{3}\b)/g, "").replace(/,(?=\d{3}\b)/g, "");
+  const normalized = value.replace(/\s+/g, "").trim().replace(/\.(?=\d{3}\b)/g, "").replace(/,(?=\d{3}\b)/g, "");
   const match = normalized.match(/(\d+(?:[.,]\d+)?)/);
   if (!match?.[1]) return null;
   const n = Number(match[1].replace(",", "."));
