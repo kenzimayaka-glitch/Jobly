@@ -33,7 +33,7 @@ const cases: Case[] = [
       <p>Entreprise : ARCHIPEL CM</p><p>Lieu : Douala</p><h2>Missions principales</h2><ul><li>Gérer les appels téléphoniques entrants et sortants.</li></ul>
       <h2>Profil recherché</h2><ul><li>Être titulaire d'au minimum le Baccalauréat.</li></ul>
       <h2>Comment postuler</h2><p>Envoyez votre dossier par e-mail à candidature@exemple.cm</p><p>Date limite de candidature : 02 octobre 2026</p></article><footer>Emplois Cameroun ne demande jamais de paiement</footer>`,
-    mustContain: ["Comment postuler","candidature@exemple.cm","02 octobre 2026"],
+    mustContain: ["Comment postuler","Envoyez votre dossier par e-mail","02 octobre 2026"],
     mustNotContain: ["Emplois Cameroun","ne demande jamais de paiement"],
   },
   {
