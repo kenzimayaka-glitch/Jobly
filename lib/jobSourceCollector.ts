@@ -248,9 +248,12 @@ async function fetchHtmlLegacy(url: string): Promise<string> {
 }
 
 async function fetchHtml(url: string): Promise<string> {
-  // Browser-rendered HTML is the primary path whenever JOB_RENDERER_URL is
-  // configured. The legacy HTTP collector remains the deterministic fallback.
-  if (process.env.JOB_RENDERER_URL) {
+  // Browser-rendered HTML is the primary path whenever a browser provider
+  // is configured. The legacy HTTP collector remains the deterministic fallback.
+  const hasCloudflareRenderer =
+    process.env.JOB_RENDERER_PROVIDER?.trim().toLowerCase() === "cloudflare" ||
+    Boolean(process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN);
+  if (hasCloudflareRenderer || process.env.JOB_RENDERER_URL) {
     const rendered = await renderPublicSource(url);
     return rendered.html;
   }
