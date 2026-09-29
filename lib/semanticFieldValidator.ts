@@ -25,7 +25,7 @@ function semantic(value: string): string {
     .trim();
 }
 
-const CONTRACT = /\b(?:cdi|cdd|stage|interim|interim|freelance|consultant|alternance|apprentissage|temps partiel|temps plein|contrat)\b/i;
+const CONTRACT = /\b(?:cdi|cdd|stage|interim|interim|temporaire|freelance|consultant|alternance|apprentissage|temps partiel|temps plein|contrat)\b/i;
 const DURATION = /\b\d+(?:[,.]\d+)?\s*(?:mois|ans?|annees?|semaines?|jours?)\b/i;
 const EXPERIENCE = /\b(?:\d+(?:[,.]\d+)?\s*(?:ans?|annees?)\s*(?:d['’]?experience|d['’]?exp|minimum)?|experience\s+(?:requise|professionnelle|de)?)\b/i;
 const EDUCATION = /\b(?:bac(?:\s*\+\s*\d+)?|bep|cap|bts|dut|licence|master|mba|doctorat|phd|diplome|formation|ingenieur)\b/i;
