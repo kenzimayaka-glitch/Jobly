@@ -272,7 +272,12 @@ function JobDetailInner() {
 
   const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Plateforme externe" : null;
   const applicationEmail = String(job.applicationProfile?.applicationEmail || job.applicationProfile?.email || "").trim();
-  const applicationSubject = emailChannel ? extractApplicationSubject(normalizedDescription, displayTitle || "") : "";
+  const applicationSubject = emailChannel
+    ? extractApplicationSubject(
+        [...(Array.isArray(normalized?.application) ? normalized.application : []), normalizedDescription].join("\n"),
+        displayTitle || "",
+      )
+    : "";
 
   const compactItems = (items: string[], limit = 12) => Array.from(new Set(items.map(cleanLine).filter(Boolean))).slice(0, limit);
   const renderParagraphs = (items: string[]) => <div className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 8).map((line, i) => <p key={i}>{line}</p>)}</div>;
