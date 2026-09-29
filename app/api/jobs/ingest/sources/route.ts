@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     
     if (mode === "reindex") {
       const { data: rows, error } = await supabase.from("Job")
-        .select("id,title,sourceKey,sourceUrl,createdAt,normalizedAt,lastSeenAt")
+        .select("id,title,description,sourceKey,sourceUrl,createdAt,normalizedAt,normalizedVersion,lastSeenAt")
         .not("sourceUrl", "is", null)
         .not("sourceKey", "is", null)
         .eq("isActive", true)
@@ -107,6 +107,22 @@ export async function POST(request: NextRequest) {
         });
         const normalizedExperienceYears = getNormalizedExperienceYears(normalizedContent);
         const canonicalDescription = normalizedContent.description.join("\n\n") || cleanedDescription;
+
+        // Never let a transient renderer/extraction failure destroy a healthy
+        // offer. Legacy rows are intentionally eligible for repair, while a
+        // normalized healthy row is protected against a dramatic content drop.
+        const existingDescription = String(row.description || "").trim();
+        const legacyOrThinRow =
+          !row.normalizedVersion ||
+          existingDescription.length < Math.max(180, cleanJobTitle(row.title).length * 2);
+        const candidateTooThin =
+          canonicalDescription.length < 180 ||
+          canonicalDescription.length < existingDescription.length * 0.55;
+        if (!legacyOrThinRow && candidateTooThin) {
+          skipped++;
+          return;
+        }
+
         const contentHash = crypto.createHash("sha256")
           .update([cleanedTitle, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
           .digest("hex");
