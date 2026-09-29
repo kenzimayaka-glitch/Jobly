@@ -329,9 +329,20 @@ export function normalizeJobContent(input: {
   const companyCandidates = [explicitCompany, descriptionCompany, titleCompany].filter(
     (value): value is string => Boolean(value),
   );
-  const companyName = companyCandidates.find((candidate) =>
-    companyNameMatchesTitle(candidate, title) || plausibleExplicitCompany(candidate, title, description),
-  ) || null;
+  const explicitValidation = explicitCompany
+    ? validateSemanticField("company", explicitCompany, [title, description].filter(Boolean).join("\n"))
+    : null;
+  const explicitSafe = Boolean(
+    explicitCompany &&
+    explicitValidation &&
+    (explicitValidation.accepted || explicitValidation.reason === "insufficient_company_evidence"),
+  );
+  const companyName =
+    (explicitSafe ? explicitCompany : null) ||
+    companyCandidates.find((candidate) =>
+      companyNameMatchesTitle(candidate, title) || plausibleExplicitCompany(candidate, title, description),
+    ) ||
+    null;
   // Parse the same canonical description used for identity extraction and storage.
   // The raw input is intentionally unknown, so never pass it directly to a string-only parser.
   const sections = parseSections(description);
