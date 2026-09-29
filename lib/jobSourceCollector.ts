@@ -38,6 +38,8 @@ const SOURCES: SourceConfig[] = [
   { key: "minajobs", name: "MinaJobs", listingUrls: ["https://cm2024.minajobs.net/offres-emplois-stages", "https://cameroun.minajobs.net/offres-emplois-stages", "https://minajobs.net/offres-emplois-stages-a/tout-le-cameroun"], hostnames: ["cameroun.minajobs.net", "cm2024.minajobs.net", "minajobs.net"], offerPattern: /\/emplois-stage-recrutement\/(\d+)(?:\/|$)/i },
   { key: "jobinfocamer", name: "JobInfoCamer", listingUrls: ["https://www.jobinfocamer.com/jobs/", "https://www.jobinfocamer.com/fr/"], hostnames: ["www.jobinfocamer.com", "jobinfocamer.com"], offerPattern: /\/(?:job|jobs)\/(\d+)(?:\/|$)/i },
   { key: "infosconcourseducation", name: "Infos Concours Education", listingUrls: ["https://infosconcourseducation.com/category/offre-demploiss/"], hostnames: ["infosconcourseducation.com", "www.infosconcourseducation.com"], offerPattern: /\/[^/]+\/?$/i },
+  { key: "fne", name: "FNE Cameroun", listingUrls: ["https://emploi.fnecm.org/offres", "https://fnecm.org/offres"], hostnames: ["emploi.fnecm.org", "fnecm.org", "www.fnecm.org"], offerPattern: /\/offre\/([^/]+)(?:\/|$)/i },
+  { key: "un_cameroon", name: "UN Cameroon", listingUrls: ["https://cameroon.un.org/fr/jobs", "https://cameroon.un.org/en/jobs"], hostnames: ["cameroon.un.org", "jobs.unicef.org", "careers.un.org"], offerPattern: /\/(?:en-us|fr-fr)\/job\/(\d+)(?:\/|$)/i },
 ];
 
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
