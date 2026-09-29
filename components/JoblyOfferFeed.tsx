@@ -8,8 +8,10 @@ import { getSupabaseClient } from "@/lib/supabase";
 import { companyAvatar } from "@/lib/avatar";
 import CompanyLogo from "@/components/CompanyLogo";
 import BottomNav, { TALENT_NAV } from "@/components/BottomNav";
-import { cleanCompanyName, cleanJobTitle, cleanJobDescription } from "@/lib/jobContent";
+import { cleanCompanyName, cleanJobTitle, cleanJobDescription, cleanDisplayText } from "@/lib/jobContent";
 import ScoreRing from "@/components/ScoreRing";
+import ScoreDonut from "@/components/ScoreDonut";
+import { AnchoredNotice } from "@/components/AnchoredNotice";
 
 type CompanyWebProfile = {
   name: string;
@@ -96,6 +98,8 @@ export function JoblyOfferFeed() {
   const [basketHistoryOpen, setBasketHistoryOpen] = useState(false);
   const [basketHistory, setBasketHistory] = useState<Array<{id:string; title:string; company:string; score:number; sentAt:string}>>([]);
   const offersStartRef = useRef<HTMLElement | null>(null);
+  const lastTapRef = useRef<HTMLElement | null>(null);
+  const [noticeAnchor, setNoticeAnchor] = useState<{ top: number; bottom: number; left: number; width: number } | null>(null);
 
   // Deep link : /jobs?q=stage (ex. CTA « Chercher un stage » de l’espace Campus).
   useEffect(() => {
@@ -124,20 +128,17 @@ export function JoblyOfferFeed() {
     manual ? setRefreshing(true) : setLoading(true); setError("");
     try {
       if (manual) {
-        const ingestRes = await fetch("/api/jobs/ingest/sources", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!ingestRes.ok) {
-          const ingestBody = await ingestRes.json().catch(() => ({}));
-          throw new Error(ingestBody.message || "Impossible d'actualiser les sources d'offres.");
+        try {
+          const ingestRes = await fetch("/api/jobs/ingest/sources", { method: "POST", headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20000) });
+          if (!ingestRes.ok) {
+            const ingestBody = await ingestRes.json().catch(() => ({}));
+            setError(ingestBody.message || "Impossible d'actualiser les sources d'offres : les offres déjà disponibles sont affichées.");
+          } else {
+            await fetch("/api/jobs/ingest/sources?mode=reprocess&limit=20&offset=0", { method: "POST", headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20000) }).catch(() => {});
+          }
+        } catch {
+          setError("L'actualisation des sources prend plus de temps que prévu : les offres déjà disponibles sont affichées.");
         }
-        // The collector fix does not rewrite legacy rows by itself. A manual
-        // refresh also repairs a bounded batch of old public-source offers.
-        await fetch("/api/jobs/ingest/sources?mode=reprocess&limit=20&offset=0", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
       }
       const [jobsRes, appsRes] = await Promise.all([
         fetch("/api/jobs?limit=200&page=1", { headers: { Authorization: `Bearer ${token}` } }),
@@ -153,8 +154,21 @@ export function JoblyOfferFeed() {
   }, [token]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      const el = (e.target as HTMLElement | null)?.closest?.("button,a,[role='button']") as HTMLElement | null;
+      if (el) lastTapRef.current = el;
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, []);
+  useEffect(() => {
+    if (!error) { setNoticeAnchor(null); return; }
+    const el = lastTapRef.current;
+    const r = el && el.isConnected ? el.getBoundingClientRect() : null;
+    setNoticeAnchor(r ? { top: r.top, bottom: r.bottom, left: r.left, width: r.width } : null);
+  }, [error]);
 
-  useEffect(() => { if (!error) return; const timer = window.setTimeout(() => setError(""), 10000); return () => window.clearTimeout(timer); }, [error]);
 
   useEffect(() => {
     try { setSaved(new Set(JSON.parse(localStorage.getItem("jobly:jia:saved-offers") || "[]"))); } catch {}
@@ -162,11 +176,6 @@ export function JoblyOfferFeed() {
     try { setBasketHistory(JSON.parse(localStorage.getItem("jobly:jia:application-history") || "[]")); } catch {}
   }, []);
 
-  useEffect(() => {
-    if (!error) return;
-    const timer = window.setTimeout(() => setError(""), 10000);
-    return () => window.clearTimeout(timer);
-  }, [error]);
 
   useEffect(() => {
     if (!selectedCompany?.name) {
@@ -196,6 +205,8 @@ export function JoblyOfferFeed() {
   }, [selectedCompany, selectedCompanyLocation]);
 
   const closeOfferModal = useCallback((kind: "match" | "company") => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setFocusedOfferKey(null);
     if (modalHistoryRef.current) {
       modalHistoryRef.current = false;
       window.history.back();
@@ -223,7 +234,8 @@ export function JoblyOfferFeed() {
 
   const toggleBasket = useCallback((job: Job) => {
     const key = `${job.source}:${job.id}`;
-    if (applied.has(key) || applicationReadyKeys.has(key)) return;
+    if (applied.has(key)) { setError("Vous avez déjà postulé à cette offre : elle ne peut plus être ajoutée au panier."); return; }
+    if (applicationReadyKeys.has(key)) { setError("Cette candidature est déjà préparée et attend votre validation : retrouvez-la dans l’onglet Candidatures."); return; }
     setBasket(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
@@ -291,6 +303,7 @@ export function JoblyOfferFeed() {
       window.open("https://wa.me/" + phone + "?text=" + encodeURIComponent(message), "_blank", "noopener,noreferrer");
     } catch (e) { setError(e instanceof Error ? e.message : "Impossible de préparer la candidature WhatsApp.");  }
   }
+  function handleApplyClick(job: Job, state: { done: boolean; ready: boolean; busy: boolean }) { if (state.busy) { setError("Envoi en cours : patientez quelques secondes."); return; } if (state.done) { setError("Candidature déjà envoyée pour cette offre. Retrouvez-la dans l’onglet Candidatures."); return; } if (state.ready) { setError("Candidature déjà préparée : elle attend votre validation dans l’onglet Candidatures."); return; } void apply(job); }
   async function apply(job: Job) {
     if (job.deadlineExpired) { setExpiredNoticeOpen(true); return; }
     const email = applicationEmail(job);
@@ -486,7 +499,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
       frame = window.requestAnimationFrame(() => {
         frame = 0;
         const card = document.querySelector<HTMLElement>('[data-offer-number="30"]');
-        if (!card) { setShowBackToTop(false); return; }
+        if (!card) { setShowBackToTop(window.scrollY > window.innerHeight * 1.5); return; }
         const threshold = card.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.9;
         setShowBackToTop(window.scrollY >= Math.max(0, threshold));
       });
@@ -598,7 +611,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     <section className="relative mx-auto max-w-6xl px-5 pb-8 pt-7 sm:px-8">
       <motion.div className="absolute -right-20 top-0 h-72 w-72 rounded-full bg-[#7A9BB5]/30 blur-3xl" animate={{ x: [0, -30, 0], y: [0, 25, 0], scale: [1, 1.1, 1] }} transition={{ duration: 12, repeat: Infinity }} />
       <div className="relative z-10 flex items-end justify-between gap-4"><div><h1 className="mt-2 text-4xl font-black leading-[.95] tracking-[-.045em] text-[#0057B8] sm:text-6xl">Offres</h1><p className="mt-3 max-w-xl text-base font-black text-[#FFE135] font-black">J’IA se charge de tout</p></div><button type="button" onClick={() => load(true)} aria-label="Actualiser les offres d’emploi" title="Actualiser les offres d’emploi" className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[#FFE135] px-4 text-sm font-black text-[#2E3F4F] shadow-[0_8px_24px_rgba(255,225,53,.28)] transition hover:scale-[1.02] active:scale-[.98] disabled:opacity-60" disabled={refreshing}><RefreshCw size={18} className={refreshing ? "animate-spin" : ""}/><span>{refreshing ? "Actualisation…" : "Actualiser les offres"}</span></button></div>
-      {error && <AnimatePresence><motion.div initial={{ opacity: 0, scale: 0.86, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.18, y: 4, filter: "blur(2px)" }} transition={{ duration: 0.18 }} className="fixed bottom-24 right-4 z-[120] max-w-sm rounded-2xl border border-red-200 bg-white px-4 py-3 text-xs font-bold text-red-700 shadow-xl sm:right-8" role="status" aria-live="polite">{error}</motion.div></AnimatePresence>}
+      {error && <AnchoredNotice message={error} anchor={noticeAnchor} onDone={() => setError("")} />}
       <div className="relative z-10 mt-5 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-[1px] text-slate-500"><button type="button" onClick={() => setMatchOnly(v => !v)} className={matchOnly ? "rounded-full border border-[#F97316] bg-[#F97316] px-3 py-2 text-white shadow-[0_8px_22px_rgba(249,115,22,.24)]" : "rounded-full border border-[#F97316]/30 bg-[#FFF7ED] px-3 py-2 text-[#C2410C]"}>Les offres qui vous correspondent : <span className="text-xs font-black text-[#FFE135]">{feedMeta.matchingCount}</span></button></div>
     </section>
 
@@ -643,7 +656,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                     </div>
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-24 bg-gradient-to-t from-[#2E3F4F]/60 via-[#2E3F4F]/15 to-transparent"/>
                     <span className="absolute left-3 top-3 z-10 rounded-full bg-[#FFE135] px-3 py-1 text-[9px] font-black uppercase tracking-[1.4px] text-[#2E3F4F] shadow-[0_6px_18px_rgba(23,33,43,.18)]">Meilleures offres</span>
-                    <button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="absolute bottom-2 right-2 z-10 rounded-2xl px-2 py-1 text-right transition hover:bg-black/15 focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-4xl font-black text-[#FFE135]">{job.matchPercent}%</strong><span className="text-[8px] font-black uppercase tracking-[1px] text-white/85">Voir mon score</span></button>
+                    <button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="absolute bottom-2 right-2 z-10 rounded-2xl px-2 py-1 text-right transition [@media(hover:hover)]:hover:bg-black/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFE135] [-webkit-tap-highlight-color:transparent]"><strong className="block text-4xl font-black text-[#FFE135]">{job.matchPercent}%</strong><span className="text-[8px] font-black uppercase tracking-[1px] text-white/85">Voir mon score</span></button>
                   </div>
                   <div className="p-3">
                     <div className="mt-1 flex items-center gap-2">
@@ -651,10 +664,10 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                       <p className="min-w-0 truncate text-[10px] font-bold uppercase tracking-[1.5px] text-[#7A9BB5]">{(() => { const companyName = cleanCompanyName(job.company?.name) || ""; return companyName.length > 20 ? `${companyName.slice(0, 17)}...` : companyName; })()}</p>
                     </div>
                     <h2 className="mt-1 text-xl font-black leading-tight">{job.title}</h2>
-                    <p className="mt-3 text-xs text-slate-500">{[job.location, job.contractType, job.remoteMode].filter(Boolean).join(" · ") || "Toutes localisations"}</p>
+                    <p className="mt-3 text-xs text-slate-500">{[job.location, job.contractType, job.remoteMode].map(cleanDisplayText).filter(Boolean).join(" · ") || "Toutes localisations"}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">Publié · <b className="text-slate-700">{formatDate(job.publishedAt)}</b>{job.deadlineExpired && <span className="rounded-full bg-red-50 px-2 py-1 font-black uppercase tracking-[.8px] text-red-600">Offre expirée</span>}</div>
                     <div className="mt-4 flex gap-2">
-                      <button onClick={() => void apply(job)} disabled={done || ready || busy} className={`flex h-12 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full px-3 text-sm font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B] ${ready ? "bg-[#7CFC00]" : "bg-[#FFE135]"}`}>
+                      <button onClick={() => handleApplyClick(job, { done, ready, busy })} aria-disabled={done || ready || busy} className={`flex h-12 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full px-3 text-sm font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B] ${ready ? "bg-[#7CFC00]" : "bg-[#FFE135]"}`}>
                         {done ? <><Check size={17} className="mr-2"/>Candidature envoyée</> : ready ? "Candidature prête" : busy ? <><RefreshCw size={17} className="mr-2 animate-spin"/>Envoi en cours…</> : <>{emailChannel ? <GmailIcon size={18}/> : phoneChannel ? <WhatsAppIcon size={18}/> : <Send size={17}/>}<span>Postuler</span></>}
                       </button>
                       <button type="button" onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label="En savoir plus sur l’entreprise" title="En savoir +" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-full bg-[#00A6E8] px-4 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,166,232,.22)] transition hover:bg-[#008FC8] active:scale-[.98]">En savoir +</button>
@@ -674,11 +687,11 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         </div>
       )}
 
-      <div className="mx-auto mt-10 grid w-full min-w-0 max-w-full grid-cols-1 gap-3 md:grid-cols-2">{rest.map((job, index) => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const ready = applicationReadyKeys.has(key); const busy = submitting.has(key); const selected = basket.has(key); const emailChannel = Boolean(job.applicationProfile?.applicationEmail || job.applicationProfile?.email); const phoneChannel = Boolean(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.length); const focused = focusedOfferKey === key; return <article key={key} data-offer-index={index + featured.length + 1} data-offer-number={index + featured.length + 1} data-offer-key={key} style={{ touchAction: "pan-y" }} className={`group min-w-0 max-w-full transform-gpu transition-[transform,box-shadow] duration-300 ease-out will-change-transform ${focused ? "relative z-10 -translate-y-3 shadow-[0_18px_44px_rgba(255,225,53,.48)] md:-translate-y-2" : "relative z-0 translate-y-0 shadow-[0_10px_32px_rgba(23,33,43,.07)]"} ${selected ? "rounded-[24px] border-2 border-[#FFE135] bg-white p-3 opacity-90" : "rounded-[24px] border border-white/10 bg-white p-3 opacity-90"}`}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} size={50}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{cleanCompanyName(job.company?.name) || "Aucune donnée"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[job.location, job.contractType].filter(Boolean).join(" · ") || "Aucune donnée"}</p><p className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)} {job.deadlineExpired && <span className="rounded-full bg-red-50 px-2 py-0.5 font-black uppercase tracking-[.7px] text-red-600">Offre expirée</span>}</p></div><button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="rounded-xl px-1 text-right transition hover:bg-[#FFFBE0] focus:outline-none focus:ring-2 focus:ring-[#FFE135]"><strong className="block text-xl font-black text-[#FFE135]">{job.matchPercent}%</strong><span className="text-[8px] font-black text-[#FFE135]">Mon score</span></button></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} disabled={done || ready} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBasket size={16}/>}</button><button type="button" onClick={() => void apply(job)} disabled={done || ready || busy} className={`flex min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full px-2.5 py-2.5 text-xs font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B] ${ready ? "bg-[#7CFC00]" : "bg-[#FFE135]"}`}>{done ? "Candidature envoyée" : ready ? "Candidature prête" : busy ? "Préparation…" : <>{emailChannel ? <GmailIcon size={16}/> : phoneChannel ? <WhatsAppIcon size={16}/> : <Send size={15}/>}<span>Postuler</span></>}</button><button onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label={`En savoir plus sur ${cleanCompanyName(job.company?.name) || "l’entreprise"}`} title="En savoir +" className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#00A6E8] px-3.5 py-2.5 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,166,232,.18)] transition hover:bg-[#008FC8] active:scale-[.98]">En savoir +</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#7C3AED]/25 bg-[#F3E8FF] px-3 py-2.5 text-xs font-black text-[#6D28D9]"><span>Voir l’offre</span><ArrowUpRight size={14}/></button></div></article>; })}</div>
+      <div className="mx-auto mt-10 grid w-full min-w-0 max-w-full grid-cols-1 gap-3 md:grid-cols-2">{rest.map((job, index) => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const ready = applicationReadyKeys.has(key); const busy = submitting.has(key); const selected = basket.has(key); const emailChannel = Boolean(job.applicationProfile?.applicationEmail || job.applicationProfile?.email); const phoneChannel = Boolean(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.length); const focused = focusedOfferKey === key; return <article key={key} data-offer-index={index + featured.length + 1} data-offer-number={index + featured.length + 1} data-offer-key={key} style={{ touchAction: "pan-y" }} className={`group min-w-0 max-w-full transform-gpu transition-[transform,box-shadow] duration-300 ease-out will-change-transform ${focused ? "relative z-10 -translate-y-3 shadow-[0_18px_44px_rgba(255,225,53,.48)] md:-translate-y-2" : "relative z-0 translate-y-0 shadow-[0_10px_32px_rgba(23,33,43,.07)]"} ${selected ? "rounded-[24px] border-2 border-[#FFE135] bg-white p-3 opacity-90" : "rounded-[24px] border border-white/10 bg-white p-3 opacity-90"}`}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} size={50}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{cleanCompanyName(job.company?.name) || "Aucune donnée"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[job.location, job.contractType].map(cleanDisplayText).filter(Boolean).join(" · ") || "Aucune donnée"}</p><p className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)} {job.deadlineExpired && <span className="rounded-full bg-red-50 px-2 py-0.5 font-black uppercase tracking-[.7px] text-red-600">Offre expirée</span>}</p></div><button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="rounded-xl px-1 text-right transition [@media(hover:hover)]:hover:bg-[#FFFBE0] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFE135] [-webkit-tap-highlight-color:transparent]"><strong className="block text-xl font-black text-[#FFE135]">{job.matchPercent}%</strong><span className="text-[8px] font-black text-[#FFE135]">Mon score</span></button></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} aria-disabled={done || ready} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBasket size={16}/>}</button><button type="button" onClick={() => handleApplyClick(job, { done, ready, busy })} aria-disabled={done || ready || busy} className={`flex min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full px-2.5 py-2.5 text-xs font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B] ${ready ? "bg-[#7CFC00]" : "bg-[#FFE135]"}`}>{done ? "Candidature envoyée" : ready ? "Candidature prête" : busy ? "Préparation…" : <>{emailChannel ? <GmailIcon size={16}/> : phoneChannel ? <WhatsAppIcon size={16}/> : <Send size={15}/>}<span>Postuler</span></>}</button><button onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label={`En savoir plus sur ${cleanCompanyName(job.company?.name) || "l’entreprise"}`} title="En savoir +" className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#00A6E8] px-3.5 py-2.5 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,166,232,.18)] transition hover:bg-[#008FC8] active:scale-[.98]">En savoir +</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#7C3AED]/25 bg-[#F3E8FF] px-3 py-2.5 text-xs font-black text-[#6D28D9]"><span>Voir l’offre</span><ArrowUpRight size={14}/></button></div></article>; })}</div>
     </section>
 
     {basketJobs.length > 0 && (
-      <div className="fixed bottom-20 left-1/2 z-[80] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-[24px] border border-[#3B4652] bg-[#2E3F4F] p-4 pb-12 text-white shadow-2xl sm:bottom-6">
+      <div className="fixed bottom-20 left-1/2 z-[80] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-[24px] border border-[#3B4652] bg-[#2E3F4F] p-4  text-white shadow-2xl sm:bottom-6">
         <div className="relative flex items-start gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]"><ShoppingBasket size={18}/></div>
           <div className="min-w-0 flex-1">
@@ -689,7 +702,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
             </div>
           </div>
           <button type="button" aria-label="Fermer et vider le panier de candidatures" title="Annuler et désélectionner les candidatures" onClick={() => { setBasket(new Set()); try { localStorage.setItem("jobly:jia:application-basket", "[]"); } catch {} }} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"><X size={18}/></button>
-          <p className="absolute bottom-1 left-0 right-0 text-center text-[10px] font-semibold text-white/55">J’IA prépare chaque candidature séparément avant votre validation.</p>
+          <p className="mt-3 text-center text-[11px] font-semibold leading-4 text-white/60">J’IA prépare chaque candidature séparément avant votre validation.</p>
         </div>
       </div>
     )}
@@ -746,9 +759,9 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         <div className="bg-[#2E3F4F] p-5 text-white">
           <div className="flex items-start justify-between gap-3">
             <div><p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#FFE135]">JOBLY MATCH</p><h2 className="mt-1 text-2xl font-black">Votre score de compatibilité</h2><p className="mt-1 text-xs text-white/65">Analyse de cette offre par rapport aux informations connues de votre profil.</p></div>
-            <button type="button" onClick={() => setSelectedMatch(null)} aria-label="Fermer le détail du score" className="grid h-9 w-9 place-items-center rounded-full border border-white/15 bg-white/5"><X size={17}/></button>
+            <button type="button" onClick={() => closeOfferModal("match")} aria-label="Fermer le détail du score" className="grid h-9 w-9 place-items-center rounded-full border border-white/15 bg-white/5"><X size={17}/></button>
           </div>
-          <div className="mt-5 flex items-center gap-4"><div className="grid h-24 w-24 place-items-center rounded-full border-8 border-[#FFE135] bg-white/10"><span className="text-3xl font-black text-[#FFE135]">{selectedMatch.matchPercent}%</span></div><div className="min-w-0"><p className="text-sm font-black">{selectedMatch.title}</p><p className="mt-1 truncate text-xs text-white/60">{cleanCompanyName(selectedMatch.company?.name) || "Aucune donnée"}</p><p className="mt-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-[9px] font-black uppercase tracking-[1px]">{selectedMatch.matchPercent >= 85 ? "Très forte compatibilité" : selectedMatch.matchPercent >= 70 ? "Bonne compatibilité" : selectedMatch.matchPercent >= 60 ? "Compatibilité intéressante" : "Compatibilité à renforcer"}</p></div></div>
+          <div className="mt-5 flex items-center gap-4"><ScoreDonut value={selectedMatch.matchPercent} size={104} tone="dark" /><div className="min-w-0"><p className="text-base font-black leading-snug">{cleanJobTitle(selectedMatch.title)}</p><p className="mt-1 truncate text-xs text-white/60">{cleanCompanyName(selectedMatch.company?.name) || "Aucune donnée"}</p><p className="mt-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-[9px] font-black uppercase tracking-[1px]">{selectedMatch.matchPercent >= 85 ? "Très forte compatibilité" : selectedMatch.matchPercent >= 70 ? "Bonne compatibilité" : selectedMatch.matchPercent >= 60 ? "Compatibilité intéressante" : "Compatibilité à renforcer"}</p></div></div>
         </div>
         <div className="p-5">
           <div className="mb-4 grid grid-cols-4 gap-2">
@@ -769,7 +782,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
           <div className="space-y-2.5">
             {(selectedMatch.matchBreakdown || []).map(item => <div key={item.id} className="rounded-2xl bg-[#F8FAFC] p-3">
               <div className="mb-1.5 flex items-center justify-between gap-2">
-                <span className="truncate text-[10px] font-black text-[#17212B]">{item.label}</span>
+                <span className="min-w-0 text-sm font-black leading-snug">{cleanDisplayText(item.label)}</span>
                 <b className={item.status === "MISMATCH" ? "text-red-600" : item.status === "PARTIAL" ? "text-orange-500" : item.status === "UNKNOWN" ? "text-amber-600" : "text-emerald-600"}>{item.score == null ? "—" : Math.round(item.score * 100) + "%"}</b>
               </div>
               <div className="h-3 overflow-hidden rounded-full bg-slate-200">
@@ -777,8 +790,8 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
               </div>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {item.required && <span className="rounded-full bg-[#2E3F4F] px-2 py-1 text-[8px] font-black text-white">REQUIS</span>}
-                {item.expectedValue && <span className="rounded-full bg-white px-2 py-1 text-[8px] font-semibold text-slate-500">{item.expectedValue}</span>}
-                {item.candidateValue && <span className="rounded-full bg-white px-2 py-1 text-[8px] font-semibold text-slate-500">Profil · {item.candidateValue}</span>}
+                {item.expectedValue && <span className="rounded-full bg-white px-2 py-1 text-[8px] font-semibold text-slate-500">{cleanDisplayText(item.expectedValue)}</span>}
+                {item.candidateValue && <span className="rounded-full bg-white px-2 py-1 text-[8px] font-semibold text-slate-500">Profil · {cleanDisplayText(item.candidateValue)}</span>}
               </div>
             </div>)}
           </div>
@@ -801,14 +814,14 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
             <CompanyLogo companyName={cleanCompanyName(selectedCompany.name)} logoUrl={companyWebProfile?.logoUrl || selectedCompany.logoUrl} domain={selectedCompany.domain} website={companyWebProfile?.website || selectedCompany.website} size={60}/>
             <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#FFE135]">Entreprise</p><h2 className="truncate text-xl font-black">{cleanCompanyName(selectedCompany.name)}</h2></div>
           </div>
-          <button onClick={() => setSelectedCompany(null)} aria-label="Fermer les informations de l’entreprise" className="rounded-full border border-white/10 p-2"><X size={18}/></button>
+          <button onClick={() => closeOfferModal("company")} aria-label="Fermer les informations de l’entreprise" className="rounded-full border border-white/10 p-2"><X size={18}/></button>
         </div>
          {companyWebLoading ? <div className="mt-7 flex items-center gap-3 rounded-2xl bg-white/5 p-4 text-sm text-white/70"><RefreshCw size={16} className="animate-spin"/> Recherche des informations publiques…</div> : companyWebProfile ? <div className="mt-6 space-y-4">
            <div className="grid gap-3 sm:grid-cols-2">
              <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Nom</p><p className="mt-1 text-sm font-bold">{cleanCompanyName(selectedCompany.name) || "Aucune donnée"}</p></div>
-             <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Localisation</p><p className="mt-1 text-sm">{companyWebProfile.address || selectedCompanyLocation || "Non renseignée"}</p></div>
+             <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Localisation</p><p className="mt-1 text-sm">{cleanDisplayText(companyWebProfile.address || selectedCompanyLocation) || "Non renseignée"}</p></div>
            </div>
-           {companyWebProfile.activity.length>0 && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Domaine d’activité</p><p className="mt-1 text-sm capitalize">{companyWebProfile.activity.map((value) => cleanCompanyName(value) || value).join(" · ")}</p></div>}
+           {companyWebProfile.activity.length>0 && <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Domaine d’activité</p><p className="mt-1 text-sm capitalize">{companyWebProfile.activity.map((value) => cleanDisplayText(cleanCompanyName(value) || value)).join(" · ")}</p></div>}
            <div className="grid gap-3 sm:grid-cols-2">
              <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Téléphone</p>{companyWebProfile.phone ? <a href={`tel:${companyWebProfile.phone}`} className="mt-1 block text-sm font-bold">{companyWebProfile.phone}</a> : <p className="mt-1 text-sm font-bold">Aucune donnée</p>}</div>
              <div className="rounded-2xl bg-white/5 p-3"><p className="text-[10px] font-black uppercase tracking-[1.2px] text-[#7A9BB5]">Site officiel</p>{companyWebProfile.website ? <a href={companyWebProfile.website.startsWith("http") ? companyWebProfile.website : `https://${companyWebProfile.website}`} target="_blank" rel="noreferrer" className="mt-1 block truncate text-sm font-bold underline">{companyWebProfile.website}</a> : <p className="mt-1 text-sm font-bold">Aucune donnée</p>}</div>
@@ -831,13 +844,13 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         onClick={() => {
           const target = offersStartRef.current || document.getElementById("jobly-offers-start");
           if (!target) return;
-          target.scrollIntoView({ behavior: "auto", block: "start" });
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
         }}
         aria-label="Remonter au début des offres"
         title="Remonter au début des offres"
-        className="fixed bottom-24 right-5 z-[9999] grid h-14 w-14 place-items-center rounded-full border border-white/70 bg-white/20 text-white shadow-[0_12px_34px_rgba(23,33,43,.28)] backdrop-blur-md transition hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#17212B] active:scale-95 sm:bottom-8 sm:right-8"
+        className="fixed bottom-24 right-5 z-[9999] grid h-16 w-16 place-items-center rounded-full border border-[#2E3F4F]/25 bg-white/60 text-[#2E3F4F] shadow-[0_12px_34px_rgba(23,33,43,.22)] backdrop-blur-xl transition [@media(hover:hover)]:hover:bg-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2E3F4F] focus-visible:ring-offset-2 active:scale-95 sm:bottom-8 sm:right-8"
       >
-        <span className="relative text-2xl font-black leading-none text-white">↑</span>
+        <span className="relative text-3xl font-black leading-none text-[#2E3F4F]">↑</span>
       </motion.button>}
     </AnimatePresence>
     {jobs.length === 0 && !loading && <div className="mx-auto max-w-2xl px-5 py-20 text-center"><Sparkles className="mx-auto text-[#22448B]"/><h2 className="mt-4 text-2xl font-black">Aucune offre disponible pour le moment.</h2><p className="mt-2 text-sm text-white/55">Jobly ne fabrique pas d’offres : les offres affichées proviennent de sources réelles.</p></div>}
