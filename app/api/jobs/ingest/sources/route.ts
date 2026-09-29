@@ -286,6 +286,7 @@ export async function POST(request: NextRequest) {
           title: offer.title,
           companyName: offer.company,
           description: offer.description,
+          renderedHtml: offer.renderedHtml,
           location: offer.location,
           contractType: offer.contractType,
           remoteMode: offer.remoteMode,
