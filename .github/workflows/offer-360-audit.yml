@@ -25,7 +25,7 @@ jobs:
         env:
           SUPABASE_URL: https://mpoyaegtwtmhookdzqdy.supabase.co
           SUPABASE_PUBLISHABLE_KEY: sb_publishable_SSXmB7mYKLTiYW5k0W-e-w_TMCDry
-        run: pnpm dlx -p playwright@1.55.0 -p tsx tsx scripts/offer-360-audit.ts
+        run: pnpm dlx @playwright/test@1.55.0 test scripts/offer-360-audit.ts --workers=1 --project=chromium
       - name: Upload audit report
         if: always()
         uses: actions/upload-artifact@v4
