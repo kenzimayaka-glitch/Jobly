@@ -159,6 +159,7 @@ export async function POST(request: NextRequest) {
     const ingestResult = await runWithConcurrency(offers, INGEST_CONCURRENCY, async (offer) => {
       const cleanedTitle = cleanJobTitle(offer.title);
       const cleanedDescription = cleanJobDescription(offer.description, cleanedTitle);
+      const source = offer.sourceKey === "minajobs" ? "MinaJobs" : offer.sourceKey === "jobinfocamer" ? "JobInfoCamer" : "Infos Concours Education";
       const normalizedContent = normalizeJobContent({ title: cleanedTitle, companyName: offer.company, description: offer.description, location: offer.location, contractType: offer.contractType, remoteMode: offer.remoteMode, salaryMin: offer.salaryMin, salaryMax: offer.salaryMax, salaryCurrency: offer.salaryCurrency, deadline: offer.deadline, source, sourceUrl: offer.sourceUrl });
       const normalizedExperienceYears = getNormalizedExperienceYears(normalizedContent);
       const canonicalDescription = normalizedContent.description.join("\n\n") || cleanedDescription;
@@ -185,7 +186,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const source = offer.sourceKey === "minajobs" ? "MinaJobs" : offer.sourceKey === "jobinfocamer" ? "JobInfoCamer" : "Infos Concours Education";
+
 
       const existingByIdentity = await supabase.from("Job")
         .select("id,contentHash,createdAt,aiProcessed,aiProcessedAt")
