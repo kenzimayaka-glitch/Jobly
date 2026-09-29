@@ -1,12 +1,12 @@
 import { cleanJobDescription, cleanJobTitle } from "@/lib/jobContent";
 import { getNormalizedExperienceYears, normalizeJobContent, type NormalizedJobContent } from "@/lib/jobNormalizer";
 
-export const CANONICAL_OFFER_VERSION = "jobly-offer-v3";
-export const SOURCE_VERSION = "source-v1";
+export const CANONICAL_OFFER_VERSION = "jobly-offer-v4";
+export const SOURCE_VERSION = "source-v2";
 export const RENDER_VERSION = "render-v2";
-export const EXTRACTION_VERSION = "extract-v3";
-export const STRUCTURE_VERSION = "structure-v3";
-export const VALIDATION_VERSION = "validation-v3";
+export const EXTRACTION_VERSION = "extract-v4";
+export const STRUCTURE_VERSION = "structure-v4";
+export const VALIDATION_VERSION = "validation-v4";
 
 export type OfferPipelineStatus = "READY" | "QUARANTINED" | "FAILED";
 
