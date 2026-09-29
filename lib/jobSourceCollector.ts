@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
-import { resolveApplicationContact, extractApplicationSubject } from "./applicationEngine";
+import { resolveApplicationContact } from "./applicationEngine";
+import { extractApplicationSubject } from "./applicationSubject";
 import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription } from "./jobContent";
 import { normalizeJobContent } from "./jobNormalizer";
 import { renderPublicSource } from "./jobSourceRenderer";
