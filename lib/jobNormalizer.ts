@@ -240,6 +240,7 @@ export function normalizeJobContent(input: {
       currency: String(input.salaryCurrency || "").trim() || null,
     },
     experience, education, skills, qualities, missions, benefits,
+    profile: sections.profile || [],
     description: descriptionSection.length ? descriptionSection : stripBoilerplate([description]),
     application, deadline: input.deadline ? String(input.deadline) : null,
     source: { name: String(input.source || ""), url: String(input.sourceUrl || "") },
