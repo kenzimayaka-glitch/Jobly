@@ -62,7 +62,7 @@ const SECTION_ALIASES: Record<string, string> = {
   "comment candidater": "application", "modalites pour postuler": "application",
   "modalites pour candidater": "application", "procedure de candidature": "application",
   "processus de candidature": "application", "dossier de candidature": "application",
-  "pieces a fournir": "application", "pieces a joindre": "application",
+  "pieces a fournir": "application", "pieces a joindre": "application", "objet du mail": "application", "objet de candidature": "application",
 };
 
 const KNOWN_HEADERS = [
