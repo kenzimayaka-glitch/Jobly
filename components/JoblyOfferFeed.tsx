@@ -754,61 +754,98 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
       </motion.div>
     </motion.div>}</AnimatePresence>
 
-    <AnimatePresence>{selectedMatch && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[105] grid place-items-end bg-black/60 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => closeOfferModal("match")}>
-      <motion.div initial={{ y: 30, opacity: 0, scale: .97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 30, opacity: 0 }} onClick={e => e.stopPropagation()} className="w-full max-w-md overflow-hidden rounded-[30px] bg-white text-[#17212B] shadow-2xl">
-        <div className="bg-[#2E3F4F] p-5 text-white">
-          <div className="flex items-start justify-between gap-3">
-            <div><p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#FFE135]">JOBLY MATCH</p><h2 className="mt-1 text-2xl font-black">Votre score de compatibilité</h2><p className="mt-1 text-xs text-white/65">Analyse de cette offre par rapport aux informations connues de votre profil.</p></div>
-            <button type="button" onClick={() => closeOfferModal("match")} aria-label="Fermer le détail du score" className="grid h-9 w-9 place-items-center rounded-full border border-white/15 bg-white/5"><X size={17}/></button>
-          </div>
-          <div className="mt-5 flex items-center gap-4"><ScoreDonut value={selectedMatch.matchPercent} size={104} tone="dark" /><div className="min-w-0"><p className="text-base font-black leading-snug">{cleanJobTitle(selectedMatch.title)}</p><p className="mt-1 truncate text-xs text-white/60">{cleanCompanyName(selectedMatch.company?.name) || "Aucune donnée"}</p><p className="mt-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-[9px] font-black uppercase tracking-[1px]">{selectedMatch.matchPercent >= 85 ? "Très forte compatibilité" : selectedMatch.matchPercent >= 70 ? "Bonne compatibilité" : selectedMatch.matchPercent >= 60 ? "Compatibilité intéressante" : "Compatibilité à renforcer"}</p></div></div>
-        </div>
-        <div className="p-5">
-          <div className="mb-4 grid grid-cols-4 gap-2">
-            {[
-              ["MATCH","bg-emerald-500","Correspondent"],
-              ["PARTIAL","bg-orange-400","Partiels"],
-              ["MISMATCH","bg-red-500","Écarts"],
-              ["UNKNOWN","bg-amber-400","À vérifier"],
-            ].map(([status,color,label]) => {
-              const count = (selectedMatch.matchBreakdown || []).filter(item => item.status === status).length;
-              return <div key={status} className="rounded-2xl bg-[#F8FAFC] p-2.5 text-center">
-                <div className={`mx-auto mb-1 h-2 w-10 rounded-full ${color}`}/>
-                <p className="text-lg font-black text-[#17212B]">{count}</p>
-                <p className="text-[8px] font-black uppercase tracking-[.8px] text-slate-400">{label}</p>
-              </div>;
-            })}
-          </div>
-          <div className="space-y-2.5">
-            {(selectedMatch.matchBreakdown || []).map(item => <div key={item.id} className="rounded-2xl bg-[#F8FAFC] p-3">
-              <div className="mb-1.5 flex items-center justify-between gap-2">
-                <span className="min-w-0 text-sm font-black leading-snug">{cleanDisplayText(item.label)}</span>
-                <b className={item.status === "MISMATCH" ? "text-red-600" : item.status === "PARTIAL" ? "text-orange-500" : item.status === "UNKNOWN" ? "text-amber-600" : "text-emerald-600"}>{item.score == null ? "—" : Math.round(item.score * 100) + "%"}</b>
+    <AnimatePresence>{selectedMatch && (() => {
+      const m = selectedMatch;
+      const breakdown = m.matchBreakdown || [];
+      const statuses = [
+        { key: "MATCH", label: "Correspondent", bar: "bg-emerald-500", soft: "bg-emerald-50", text: "text-emerald-700" },
+        { key: "PARTIAL", label: "Partiels", bar: "bg-orange-400", soft: "bg-orange-50", text: "text-orange-600" },
+        { key: "MISMATCH", label: "Écarts", bar: "bg-red-500", soft: "bg-red-50", text: "text-red-600" },
+        { key: "UNKNOWN", label: "À vérifier", bar: "bg-amber-400", soft: "bg-amber-50", text: "text-amber-700" },
+      ] as const;
+      const counts = statuses.map(s => breakdown.filter(item => item.status === s.key).length);
+      const total = Math.max(1, counts.reduce((a, b) => a + b, 0));
+      const verdict = m.matchPercent >= 85 ? "Très forte compatibilité" : m.matchPercent >= 70 ? "Bonne compatibilité" : m.matchPercent >= 60 ? "Compatibilité intéressante" : "Compatibilité à renforcer";
+      const barColor = (status: string) => status === "MISMATCH" ? "bg-red-500" : status === "PARTIAL" ? "bg-orange-400" : status === "UNKNOWN" ? "bg-amber-400" : "bg-emerald-500";
+      const valueColor = (status: string) => status === "MISMATCH" ? "text-red-600" : status === "PARTIAL" ? "text-orange-500" : status === "UNKNOWN" ? "text-amber-600" : "text-emerald-600";
+      return (
+        <motion.div key="match-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[105] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={() => closeOfferModal("match")}>
+          <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} onClick={e => e.stopPropagation()} className="flex max-h-[94dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] bg-white text-[#17212B] shadow-2xl sm:rounded-[28px]">
+            <div className="shrink-0 bg-[#2E3F4F] px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-[1.6px] text-[#FFE135]">JOBLY MATCH</p>
+                  <h2 className="mt-1 text-xl font-black leading-tight">Votre score de compatibilité</h2>
+                </div>
+                <button type="button" onClick={() => closeOfferModal("match")} aria-label="Fermer le détail du score" className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/20 bg-white/10"><X size={20}/></button>
               </div>
-              <div className="h-3 overflow-hidden rounded-full bg-slate-200">
-                {item.score != null && <motion.div initial={{ width: 0 }} animate={{ width: Math.round(item.score * 100) + "%" }} transition={{ duration: .45 }} className={`h-full rounded-full ${item.status === "MISMATCH" ? "bg-red-500" : item.status === "PARTIAL" ? "bg-orange-400" : item.status === "UNKNOWN" ? "bg-amber-400" : "bg-emerald-500"}`}/>}
+              <div className="mt-4 flex items-center gap-4">
+                <ScoreDonut value={m.matchPercent} size={104} tone="dark" />
+                <div className="min-w-0">
+                  <p className="text-base font-black leading-snug">{cleanJobTitle(m.title)}</p>
+                  <p className="mt-1 truncate text-sm text-white/70">{cleanCompanyName(m.company?.name) || "Aucune donnée"}</p>
+                  <p className="mt-2 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-black">{verdict}</p>
+                </div>
               </div>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {item.required && <span className="rounded-full bg-[#2E3F4F] px-2 py-1 text-[8px] font-black text-white">REQUIS</span>}
-                {item.expectedValue && <span className="rounded-full bg-white px-2 py-1 text-[8px] font-semibold text-slate-500">{cleanDisplayText(item.expectedValue)}</span>}
-                {item.candidateValue && <span className="rounded-full bg-white px-2 py-1 text-[8px] font-semibold text-slate-500">Profil · {cleanDisplayText(item.candidateValue)}</span>}
-              </div>
-            </div>)}
-          </div>
-
-          <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="flex items-center gap-4">
-              <ScoreRing score={selectedMatch.matchConfidence ?? 100} size={92} label="confiance" />
-              <p className="min-w-0 flex-1 text-[10px] leading-5 text-slate-500"><b className="text-[#2E3F4F]">Confiance de l’analyse</b> · basée sur les informations réellement disponibles dans votre profil. Les informations absentes du profil ne sont pas automatiquement comptées comme des échecs.</p>
             </div>
-          </div>
-          <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(selectedMatch.id) + "&source=" + encodeURIComponent(selectedMatch.source))} className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#FFE135] px-5 py-3 text-xs font-black text-[#2E3F4F]"><Sparkles size={15}/> Adapter votre CV pour cette candidature</button>
-          <p className="mt-2 text-center text-[10px] text-slate-400">J’IA analyse l’offre et votre CV. Vous validez chaque modification avant utilisation.</p>
-        </div></motion.div>
-    </motion.div>}</AnimatePresence>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6 pt-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {statuses.map((s, i) => (
+                  <div key={s.key} className={`rounded-2xl ${s.soft} p-3 text-center`}>
+                    <p className={`text-3xl font-black leading-none ${s.text}`}>{counts[i]}</p>
+                    <p className="mt-1.5 text-xs font-black text-slate-600">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+              {breakdown.length > 0 && <>
+                <div className="mt-3 flex h-3 w-full overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
+                  {statuses.map((s, i) => counts[i] > 0 && <div key={s.key} className={s.bar} style={{ width: `${(counts[i] / total) * 100}%` }} />)}
+                </div>
+                <p className="mt-1.5 text-xs font-semibold text-slate-500">Répartition des {breakdown.length} critères analysés</p>
+              </>}
+              <h3 className="mt-5 text-sm font-black">Détail par critère</h3>
+              {breakdown.length === 0 && <p className="mt-2 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">Aucun critère détaillé n’est disponible pour cette offre.</p>}
+              <div className="mt-2 space-y-3">
+                {breakdown.map(item => (
+                  <div key={item.id} className="rounded-2xl border border-slate-100 bg-[#F8FAFC] p-3.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="min-w-0 text-sm font-black leading-snug">{cleanDisplayText(item.label)}</span>
+                      <b className={`shrink-0 text-lg ${valueColor(item.status)}`}>{item.score == null ? "—" : Math.round(item.score * 100) + "%"}</b>
+                    </div>
+                    <div className="mt-2 h-3.5 overflow-hidden rounded-full bg-slate-200">
+                      {item.score != null && <motion.div initial={{ width: 0 }} animate={{ width: Math.round(item.score * 100) + "%" }} transition={{ duration: .5 }} className={`h-full rounded-full ${barColor(item.status)}`} />}
+                    </div>
+                    {(item.required || item.expectedValue || item.candidateValue) && (
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-xl bg-white p-2.5">
+                          <p className="font-black uppercase tracking-[.6px] text-slate-400">Attendu{item.required ? " · requis" : ""}</p>
+                          <p className="mt-1 font-semibold leading-snug text-slate-700">{cleanDisplayText(item.expectedValue) || "Non précisé"}</p>
+                        </div>
+                        <div className="rounded-xl bg-white p-2.5">
+                          <p className="font-black uppercase tracking-[.6px] text-slate-400">Votre profil</p>
+                          <p className="mt-1 font-semibold leading-snug text-slate-700">{cleanDisplayText(item.candidateValue) || "Non renseigné"}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="flex items-center gap-4">
+                  <ScoreRing score={m.matchConfidence ?? 100} size={92} label="confiance" />
+                  <p className="min-w-0 flex-1 text-xs leading-5 text-slate-500"><b className="text-[#2E3F4F]">Confiance de l’analyse</b> · basée sur les informations réellement disponibles dans votre profil. Les informations absentes du profil ne sont pas automatiquement comptées comme des échecs.</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => router.push("/cv?mode=adapt&jobId=" + encodeURIComponent(m.id) + "&source=" + encodeURIComponent(m.source))} className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#FFE135] px-5 py-3.5 text-sm font-black text-[#2E3F4F]"><Sparkles size={16}/> Adapter votre CV pour cette candidature</button>
+              <p className="mt-2 text-center text-xs text-slate-400">J’IA analyse l’offre et votre CV. Vous validez chaque modification avant utilisation.</p>
+            </div>
+          </motion.div>
+        </motion.div>
+      );
+    })()}</AnimatePresence>
 
     <AnimatePresence>{selectedCompany && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] grid place-items-end bg-black/60 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => closeOfferModal("company")}>
-      <motion.div initial={{ y: 40, opacity: 0, scale: .97 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 40, opacity: 0 }} onClick={e => e.stopPropagation()} className="max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-[32px] border border-white/15 bg-[#2E3F4F] p-6 text-white shadow-2xl">
+      <motion.div initial={{ y: 40, opacity: 0, scale: .97 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} onClick={e => e.stopPropagation()} className="max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-[32px] border border-white/15 bg-[#2E3F4F] p-6 text-white shadow-2xl">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <CompanyLogo companyName={cleanCompanyName(selectedCompany.name)} logoUrl={companyWebProfile?.logoUrl || selectedCompany.logoUrl} domain={selectedCompany.domain} website={companyWebProfile?.website || selectedCompany.website} size={60}/>
