@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { adminClient, getAuthUser } from "@/lib/server-auth";
 import { collectPublicJobSources, recollectOfferByUrl } from "@/lib/jobSourceCollector";
 import { cleanJobDescription, cleanJobTitle } from "@/lib/jobContent";
+import { getNormalizedExperienceYears, normalizeJobContent } from "@/lib/jobNormalizer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -101,16 +102,24 @@ export async function POST(request: NextRequest) {
         if (!offer) { skipped++; return; }
         const cleanedTitle = cleanJobTitle(offer.title);
         const cleanedDescription = cleanJobDescription(offer.description, cleanedTitle);
+        const normalizedContent = normalizeJobContent({ title: cleanedTitle, description: offer.description, location: offer.location, contractType: offer.contractType, deadline: offer.deadline, source: row.sourceKey, sourceUrl: offer.sourceUrl });
+        const normalizedExperienceYears = getNormalizedExperienceYears(normalizedContent);
+        const canonicalDescription = normalizedContent.description.join("\n\n") || cleanedDescription;
         const cleanedContentHash = crypto.createHash("sha256")
-          .update([cleanedTitle, cleanedDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
+          .update([cleanedTitle, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
           .digest("hex");
         const contact = offer.applicationProfile;
         const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
         const result = await supabase.from("Job").update({
           title: cleanedTitle,
-          description: cleanedDescription,
+          description: canonicalDescription,
           location: offer.location,
           contractType: offer.contractType,
+          normalizedContent,
+          normalizedVersion: normalizedContent.version,
+          normalizedAt: now.toISOString(),
+          minExperienceYears: normalizedExperienceYears,
+          aiSkills: normalizedContent.skills,
           sourcePublishedAt: offer.publishedAt,
           deadline: offer.deadline,
           contentHash: cleanedContentHash,
@@ -150,8 +159,11 @@ export async function POST(request: NextRequest) {
     const ingestResult = await runWithConcurrency(offers, INGEST_CONCURRENCY, async (offer) => {
       const cleanedTitle = cleanJobTitle(offer.title);
       const cleanedDescription = cleanJobDescription(offer.description, cleanedTitle);
+      const normalizedContent = normalizeJobContent({ title: cleanedTitle, companyName: offer.company, description: offer.description, location: offer.location, contractType: offer.contractType, remoteMode: offer.remoteMode, salaryMin: offer.salaryMin, salaryMax: offer.salaryMax, salaryCurrency: offer.salaryCurrency, deadline: offer.deadline, source, sourceUrl: offer.sourceUrl });
+      const normalizedExperienceYears = getNormalizedExperienceYears(normalizedContent);
+      const canonicalDescription = normalizedContent.description.join("\n\n") || cleanedDescription;
       const cleanedContentHash = crypto.createHash("sha256")
-        .update([cleanedTitle, cleanedDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
+        .update([cleanedTitle, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
         .digest("hex");
       const companyName = normalizeCompany(offer.company);
       let companyId: string | null = null;
@@ -218,6 +230,11 @@ export async function POST(request: NextRequest) {
         applicationProfile: contact,
         applicationCheckedAt: nowIso,
         companyId,
+        normalizedContent,
+        normalizedVersion: normalizedContent.version,
+        normalizedAt: nowIso,
+        minExperienceYears: normalizedExperienceYears,
+        aiSkills: normalizedContent.skills,
         updatedAt: nowIso
       };
 
