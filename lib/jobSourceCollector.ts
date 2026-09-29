@@ -458,12 +458,12 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   // normalization is still the next quality gate.
   if (visibleLength < 120 || noiseHits >= 5) return null;
   const company = cleanCompanyName(firstMatch(clean,[/(?:Nom de l[’']employeur|Nom de l'employeur|Employeur|Entreprise|Company)\s*[:：-]\s*([^|\n]{2,120})/i,/(?:chez|at)\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ0-9 .&'’-]{2,100})/i])) || extractCompanyNameFromDescription(clean);
-  const location = firstMatch(clean,[/(?:Lieu|Localisation|Location)\s*[:：-]\s*([^|\n]{2,100})/i]);
+  const location = firstMatch(clean,[/(?:Lieu|Lieu d[’']affectation|Localisation|Location|Ville|Poste basé)\s*[:：-]\s*([^|\n]{2,100})/i]);
   const contractType = firstMatch(clean,[/(?:Type d[’']emploi|Type d'emploi|Contrat|Contract)\s*[:：-]\s*([^|\n]{2,60})/i]);
   const remoteMode = extractRemoteMode(clean);
   const salary = extractSalary(clean);
   const publishedAt = parseDate(firstMatch(clean,[/(?:Date de publication|Posté|Publié(?:e)?)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
-  const deadline = parseDate(firstMatch(clean,[/(?:Date expiration|Date limite|Délai|deadline)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
+  const deadline = parseDate(firstMatch(clean,[/(?:Date expiration|Date limite(?: de candidature)?|Délai|deadline|Postuler avant)\s*[:：-]\s*(?:(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche),?\s*)?(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
   // Derive candidature data from the dedicated semantic application
   // section, not from the whole page. Other contact/footer content must not
   // contaminate the application channel.
