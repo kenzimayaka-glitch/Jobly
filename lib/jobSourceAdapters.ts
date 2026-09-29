@@ -169,8 +169,8 @@ export function adaptSourceOfferInput(input: SourceOfferInput): AdaptedSourceOff
 
   if (description !== originalDescription) warnings.push("source_specific_cleaning");
   if (renderedHtml) warnings.push("rendered_blocks_used");
-  if (rendered?.diagnostics.estimatedRisks.chromeContamination > 0.35) warnings.push("high_chrome_risk");
-  if (rendered?.diagnostics.estimatedRisks.blockLoss > 0.35) warnings.push("high_block_loss_risk");
+  if (rendered && rendered.diagnostics.estimatedRisks.chromeContamination > 0.35) warnings.push("high_chrome_risk");
+  if (rendered && rendered.diagnostics.estimatedRisks.blockLoss > 0.35) warnings.push("high_block_loss_risk");
   if (location && normalizeText(input.location) && key(location) !== key(String(input.location))) warnings.push("source_metadata_location_overridden");
   if (deadline && normalizeText(input.deadline) && key(deadline) !== key(String(input.deadline))) warnings.push("source_metadata_deadline_overridden");
 
