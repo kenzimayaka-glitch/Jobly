@@ -32,6 +32,10 @@ export type CollectedOffer = {
   salaryMin: number | null;
   salaryMax: number | null;
   salaryCurrency: string | null;
+  /** Immutable-ish capture used by the internal pipeline for reprocessing. */
+  renderedHtml: string;
+  extractedText: string;
+  captureMode: "browser" | "http" | "api" | "rss" | "unknown";
 };
 
 const SOURCES: SourceConfig[] = [
@@ -441,7 +445,37 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   if (contacts.phone) applicationProfile.applicationPhone = contacts.phone;
   if (applicationUrl) applicationProfile.applicationUrl = applicationUrl;
   applicationProfile.subject = extractApplicationSubject(clean,title);
-  return {sourceKey:source.key,externalId:externalId(url,source),sourceUrl:url,title:title.slice(0,300),company:company?.replace(/^(le|la|l[’']|the)\s+/i,"").trim()||null,location:location||null,contractType:contractType||null,remoteMode,description:clean,deadline,publishedAt,applicationProfile,contentHash:crypto.createHash("sha256").update(normalizeSpace(clean)).digest("hex"),logoUrl,companyWebsite,salaryMin:salary.min,salaryMax:salary.max,salaryCurrency:salary.currency};
+  const captureMode: CollectedOffer["captureMode"] = source.key === "infosconcourseducation"
+    ? "api"
+    : process.env.JOB_RENDERER_PROVIDER?.trim().toLowerCase() === "cloudflare" ||
+        Boolean(process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN) ||
+        Boolean(process.env.JOB_RENDERER_URL)
+      ? "browser"
+      : "http";
+
+  return {
+    sourceKey:source.key,
+    externalId:externalId(url,source),
+    sourceUrl:url,
+    title:title.slice(0,300),
+    company:company?.replace(/^(le|la|l[’']|the)\s+/i,"").trim()||null,
+    location:location||null,
+    contractType:contractType||null,
+    remoteMode,
+    description:clean,
+    deadline,
+    publishedAt,
+    applicationProfile,
+    contentHash:crypto.createHash("sha256").update(normalizeSpace(clean)).digest("hex"),
+    logoUrl,
+    companyWebsite,
+    salaryMin:salary.min,
+    salaryMax:salary.max,
+    salaryCurrency:salary.currency,
+    renderedHtml: html.slice(0, 2_000_000),
+    extractedText: clean,
+    captureMode,
+  };
 }
 
 async function collectWordPressOffers(source: SourceConfig): Promise<CollectedOffer[]> {

@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient, getAuthUser } from "@/lib/server-auth";
 import { collectPublicJobSources, recollectOfferByUrl } from "@/lib/jobSourceCollector";
-import { cleanJobDescription, cleanJobTitle } from "@/lib/jobContent";
-import { getNormalizedExperienceYears, normalizeJobContent } from "@/lib/jobNormalizer";
+import {
+  buildCanonicalOffer,
+  canonicalIsPublishable,
+  type CanonicalOffer,
+} from "@/lib/jobCanonicalOffer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +22,69 @@ async function authorized(request: NextRequest): Promise<boolean> {
 function normalizeCompany(value: string | null): string | null {
   const clean = (value || "").replace(/\s+/g, " ").trim();
   return clean.length >= 2 ? clean.slice(0, 180) : null;
+}
+
+function sourceDisplayName(sourceKey: string): string {
+  return sourceKey === "minajobs"
+    ? "MinaJobs"
+    : sourceKey === "jobinfocamer"
+      ? "JobInfoCamer"
+      : sourceKey === "infosconcourseducation"
+        ? "Infos Concours Education"
+        : sourceKey === "fne"
+          ? "FNE Cameroun"
+          : sourceKey === "un_cameroon"
+            ? "UN Cameroon"
+            : sourceKey;
+}
+
+async function saveOfferPipeline(
+  supabase: ReturnType<typeof adminClient>,
+  jobId: string,
+  offer: any,
+  canonical: CanonicalOffer,
+  extractedDescription: string,
+): Promise<void> {
+  const result = await supabase.from("JobOfferPipeline").upsert({
+    jobId,
+    sourceKey: offer.sourceKey,
+    sourceUrl: offer.sourceUrl,
+    captureMode: offer.captureMode || "unknown",
+    rawPayload: {
+      sourceKey: offer.sourceKey,
+      externalId: offer.externalId,
+      sourceUrl: offer.sourceUrl,
+      title: offer.title,
+      company: offer.company,
+      location: offer.location,
+      contractType: offer.contractType,
+      remoteMode: offer.remoteMode,
+      deadline: offer.deadline,
+      publishedAt: offer.publishedAt,
+      applicationProfile: offer.applicationProfile,
+      logoUrl: offer.logoUrl,
+      companyWebsite: offer.companyWebsite,
+      salaryMin: offer.salaryMin,
+      salaryMax: offer.salaryMax,
+      salaryCurrency: offer.salaryCurrency,
+    },
+    renderedHtml: offer.renderedHtml || null,
+    extractedText: extractedDescription,
+    canonicalContent: canonical,
+    qualityScore: canonical.quality.score,
+    confidence: canonical.quality.confidence,
+    status: canonical.quality.status,
+    sourceVersion: "source-v1",
+    renderVersion: "render-v2",
+    extractionVersion: "extract-v3",
+    structureVersion: "structure-v3",
+    validationVersion: "validation-v3",
+    canonicalVersion: canonical.version,
+    lastError: canonical.quality.warnings.length ? canonical.quality.warnings.join(",") : null,
+    processedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }, { onConflict: "jobId" });
+  if (result.error) throw new Error(result.error.message);
 }
 
 function addMonths(date: Date, months: number): Date {
@@ -89,10 +155,8 @@ export async function POST(request: NextRequest) {
         const offer = await recollectOfferByUrl(row.sourceKey, row.sourceUrl, row.title);
         if (!offer) { skipped++; return; }
 
-        const cleanedTitle = cleanJobTitle(offer.title);
-        const cleanedDescription = cleanJobDescription(offer.description, cleanedTitle);
-        const normalizedContent = normalizeJobContent({
-          title: cleanedTitle,
+        const prepared = buildCanonicalOffer({
+          title: offer.title,
           companyName: offer.company,
           description: offer.description,
           location: offer.location,
@@ -102,11 +166,17 @@ export async function POST(request: NextRequest) {
           salaryMax: offer.salaryMax,
           salaryCurrency: offer.salaryCurrency,
           deadline: offer.deadline,
-          source: offer.sourceKey,
+          source: sourceDisplayName(offer.sourceKey),
           sourceUrl: offer.sourceUrl,
         });
-        const normalizedExperienceYears = getNormalizedExperienceYears(normalizedContent);
-        const canonicalDescription = normalizedContent.description.join("\n\n") || cleanedDescription;
+        const normalizedContent = prepared.canonical;
+        const normalizedExperienceYears = prepared.experienceYears;
+        const canonicalDescription = normalizedContent.description.join("\n\n") || prepared.extractedDescription;
+        await saveOfferPipeline(supabase, row.id, offer, normalizedContent, prepared.extractedDescription);
+        if (!canonicalIsPublishable(normalizedContent)) {
+          skipped++;
+          return;
+        }
 
         // Never let a transient renderer/extraction failure destroy a healthy
         // offer. Legacy rows are intentionally eligible for repair, while a
@@ -114,7 +184,7 @@ export async function POST(request: NextRequest) {
         const existingDescription = String(row.description || "").trim();
         const legacyOrThinRow =
           !row.normalizedVersion ||
-          existingDescription.length < Math.max(180, cleanJobTitle(row.title).length * 2);
+          existingDescription.length < Math.max(180, String(row.title || "").trim().length * 2);
         const candidateTooThin =
           canonicalDescription.length < 180 ||
           canonicalDescription.length < existingDescription.length * 0.55;
@@ -124,13 +194,13 @@ export async function POST(request: NextRequest) {
         }
 
         const contentHash = crypto.createHash("sha256")
-          .update([cleanedTitle, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
+          .update([normalizedContent.title || offer.title, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
           .digest("hex");
         const contact = offer.applicationProfile;
         const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
 
         const result = await supabase.from("Job").update({
-          title: cleanedTitle,
+          title: normalizedContent.title || offer.title,
           description: canonicalDescription,
           location: offer.location,
           contractType: offer.contractType,
@@ -204,18 +274,35 @@ export async function POST(request: NextRequest) {
         }
         const offer = await recollectOfferByUrl(row.sourceKey, row.sourceUrl, row.title);
         if (!offer) { skipped++; return; }
-        const cleanedTitle = cleanJobTitle(offer.title);
-        const cleanedDescription = cleanJobDescription(offer.description, cleanedTitle);
-        const normalizedContent = normalizeJobContent({ title: cleanedTitle, description: offer.description, location: offer.location, contractType: offer.contractType, salaryMin: offer.salaryMin, salaryMax: offer.salaryMax, salaryCurrency: offer.salaryCurrency, deadline: offer.deadline, source: row.sourceKey, sourceUrl: offer.sourceUrl });
-        const normalizedExperienceYears = getNormalizedExperienceYears(normalizedContent);
-        const canonicalDescription = normalizedContent.description.join("\n\n") || cleanedDescription;
+        const prepared = buildCanonicalOffer({
+          title: offer.title,
+          companyName: offer.company,
+          description: offer.description,
+          location: offer.location,
+          contractType: offer.contractType,
+          remoteMode: offer.remoteMode,
+          salaryMin: offer.salaryMin,
+          salaryMax: offer.salaryMax,
+          salaryCurrency: offer.salaryCurrency,
+          deadline: offer.deadline,
+          source: sourceDisplayName(row.sourceKey),
+          sourceUrl: offer.sourceUrl,
+        });
+        const normalizedContent = prepared.canonical;
+        const normalizedExperienceYears = prepared.experienceYears;
+        const canonicalDescription = normalizedContent.description.join("\n\n") || prepared.extractedDescription;
+        await saveOfferPipeline(supabase, row.id, offer, normalizedContent, prepared.extractedDescription);
+        if (!canonicalIsPublishable(normalizedContent)) {
+          skipped++;
+          return;
+        }
         const cleanedContentHash = crypto.createHash("sha256")
-          .update([cleanedTitle, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
+          .update([normalizedContent.title || offer.title, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
           .digest("hex");
         const contact = offer.applicationProfile;
         const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
         const result = await supabase.from("Job").update({
-          title: cleanedTitle,
+          title: normalizedContent.title || offer.title,
           description: canonicalDescription,
           location: offer.location,
           contractType: offer.contractType,
@@ -261,26 +348,28 @@ export async function POST(request: NextRequest) {
     let created = 0, updated = 0;
 
     const ingestResult = await runWithConcurrency(offers, INGEST_CONCURRENCY, async (offer) => {
-      const cleanedTitle = cleanJobTitle(offer.title);
-      const cleanedDescription = cleanJobDescription(offer.description, cleanedTitle);
-      const source = offer.sourceKey === "minajobs"
-      ? "MinaJobs"
-      : offer.sourceKey === "jobinfocamer"
-        ? "JobInfoCamer"
-        : offer.sourceKey === "infosconcourseducation"
-          ? "Infos Concours Education"
-          : offer.sourceKey === "fne"
-            ? "FNE Cameroun"
-            : offer.sourceKey === "un_cameroon"
-              ? "UN Cameroon"
-              : offer.sourceKey;
-      const normalizedContent = normalizeJobContent({ title: cleanedTitle, companyName: offer.company, description: offer.description, location: offer.location, contractType: offer.contractType, remoteMode: offer.remoteMode, salaryMin: offer.salaryMin, salaryMax: offer.salaryMax, salaryCurrency: offer.salaryCurrency, deadline: offer.deadline, source, sourceUrl: offer.sourceUrl });
-      const normalizedExperienceYears = getNormalizedExperienceYears(normalizedContent);
-      const canonicalDescription = normalizedContent.description.join("\n\n") || cleanedDescription;
+      const source = sourceDisplayName(offer.sourceKey);
+      const prepared = buildCanonicalOffer({
+        title: offer.title,
+        companyName: offer.company,
+        description: offer.description,
+        location: offer.location,
+        contractType: offer.contractType,
+        remoteMode: offer.remoteMode,
+        salaryMin: offer.salaryMin,
+        salaryMax: offer.salaryMax,
+        salaryCurrency: offer.salaryCurrency,
+        deadline: offer.deadline,
+        source,
+        sourceUrl: offer.sourceUrl,
+      });
+      const normalizedContent = prepared.canonical;
+      const normalizedExperienceYears = prepared.experienceYears;
+      const canonicalDescription = normalizedContent.description.join("\n\n") || prepared.extractedDescription;
       const cleanedContentHash = crypto.createHash("sha256")
-        .update([cleanedTitle, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
+        .update([normalizedContent.title || offer.title, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
         .digest("hex");
-      const companyName = normalizeCompany(offer.company);
+      const companyName = normalizeCompany(normalizedContent.company || offer.company);
       let companyId: string | null = null;
 
       if (companyName) {
@@ -327,8 +416,8 @@ export async function POST(request: NextRequest) {
       const contact = offer.applicationProfile;
       const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
       const payload = {
-        title: cleanedTitle,
-        description: cleanedDescription,
+        title: normalizedContent.title || offer.title,
+        description: canonicalDescription,
         language: "fr",
         location: offer.location,
         contractType: offer.contractType,
@@ -348,6 +437,10 @@ export async function POST(request: NextRequest) {
         normalizedContent,
         normalizedVersion: normalizedContent.version,
         normalizedAt: nowIso,
+        aiQualityScore: normalizedContent.quality.score,
+        aiFlags: normalizedContent.quality.warnings,
+        aiProcessed: false,
+        aiProcessedAt: null,
         minExperienceYears: normalizedExperienceYears,
         aiSkills: normalizedContent.skills,
         updatedAt: nowIso
@@ -362,6 +455,11 @@ export async function POST(request: NextRequest) {
       }
 
       if (existing.data?.id) {
+        await saveOfferPipeline(supabase, existing.data.id, offer, normalizedContent, prepared.extractedDescription);
+        if (!canonicalIsPublishable(normalizedContent)) {
+          skipped++;
+          return;
+        }
         const contentChanged = existing.data.contentHash !== cleanedContentHash;
         if (!contentChanged && !companyId) {
           const touch = await supabase.from("Job").update({
@@ -387,8 +485,10 @@ export async function POST(request: NextRequest) {
           id,
           createdAt: nowIso,
           ...payload,
+          isActive: canonicalIsPublishable(normalizedContent),
         });
         if (insert.error) throw new Error(insert.error.message);
+        await saveOfferPipeline(supabase, id, offer, normalizedContent, prepared.extractedDescription);
         created++;
       }
     });

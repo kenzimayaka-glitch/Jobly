@@ -223,7 +223,7 @@ function JobDetailInner() {
   const normalizedIdentity = normalizeJobIdentity({
     title: normalized?.title || job.displayTitle || job.title,
     companyName: normalized?.company || job.displayCompanyName || job.company?.name || job.companyName,
-    description: normalizedDescription || job.description,
+    description: normalizedDescription,
   });
   const displayTitle = normalizedIdentity.title;
   const displayCompany = normalizedIdentity.companyName;
@@ -231,14 +231,14 @@ function JobDetailInner() {
   const emailChannel = Boolean(job.applicationProfile?.applicationEmail || job.applicationProfile?.email || (normalized?.application || []).some((v) => /@/.test(String(v))));
   const phoneChannel = Boolean(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.length);
   const applicationLink = String(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl || job.applicationProfile?.url || "").trim();
-  const contract = normalized?.contractType || job.contractType || job.contract;
-  const remoteMode = normalized?.remoteMode || job.remoteMode;
+  const contract = normalized?.contractType || null;
+  const remoteMode = normalized?.remoteMode || null;
   const remote = remoteMode === "YES" ? "Télétravail" : remoteMode === "PARTIAL" ? "Hybride" : remoteMode === "NO" ? "Présentiel" : null;
   const normalizedSalary = normalized?.salary;
-  const salaryMin = normalizedSalary?.min ?? job.salaryMin;
-  const salaryMax = normalizedSalary?.max ?? job.salaryMax;
-  const salaryCurrency = normalizedSalary?.currency || job.salaryCurrency || "XAF";
-  const deadlineValue = normalized?.deadline || job.deadline;
+  const salaryMin = normalizedSalary?.min ?? null;
+  const salaryMax = normalizedSalary?.max ?? null;
+  const salaryCurrency = normalizedSalary?.currency || "XAF";
+  const deadlineValue = normalized?.deadline || null;
   const deadline = deadlineValue ? new Date(deadlineValue).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : null;
   const deadlineExpired = Boolean(job.deadlineExpired);
   const tags: string[] = Array.isArray(job.tags) ? job.tags : [];
@@ -250,30 +250,29 @@ function JobDetailInner() {
   ].map((v) => cleanLine(String(v))).filter(Boolean)));
   const canonicalSection = (values: unknown) => Array.isArray(values) ? values.map((v) => cleanLine(String(v))).filter(Boolean) : [];
   const sections = {
-    // A normalized v2 offer is the canonical representation. The legacy
-    // detailSections/raw-description fallback is used only for rows that have
-    // not yet been normalized.
-    description: normalized ? canonicalSection(normalized.description) : mergeSection("description"),
-    missions: normalized ? canonicalSection(normalized.missions) : mergeSection("missions"),
-    profile: normalized ? canonicalSection(normalized.profile) : mergeSection("profile"),
-    formation: normalized ? canonicalSection(normalized.education) : mergeSection("formation"),
-    experience: normalized ? canonicalSection(normalized.experience) : mergeSection("experience"),
-    skills: normalized ? canonicalSection(normalized.skills) : mergeSection("skills"),
-    qualities: normalized ? canonicalSection(normalized.qualities) : mergeSection("qualities"),
-    benefits: normalized ? canonicalSection(normalized.benefits) : mergeSection("benefits"),
-    application: normalized ? canonicalSection(normalized.application) : mergeSection("application"),
+    // The detail page is source-agnostic: canonical data is the only
+    // representation allowed to reach the UI.
+    description: canonicalSection(normalized?.description),
+    missions: canonicalSection(normalized?.missions),
+    profile: canonicalSection(normalized?.profile),
+    formation: canonicalSection(normalized?.education),
+    experience: canonicalSection(normalized?.experience),
+    skills: canonicalSection(normalized?.skills),
+    qualities: canonicalSection(normalized?.qualities),
+    benefits: canonicalSection(normalized?.benefits),
+    application: canonicalSection(normalized?.application),
   };
   const matchScore = Math.max(0, Math.min(100, Number(job.matchPercent ?? 0)));
   const headerFacts = [
-    job.location ? { icon: MapPin, value: job.location } : null,
+    Array.isArray(normalized?.location) && normalized.location.length ? { icon: MapPin, value: normalized.location.join(" · ") } : null,
     contract ? { icon: Clock3, value: formatContract(contract) } : null,
     remote ? { icon: Globe2, value: remote } : null,
-    normalizedSalary || salaryMin != null || salaryMax != null ? { icon: null, value: salaryMin != null || salaryMax != null ? `${formatSalary(salaryMin)}${salaryMax != null ? " – " + formatSalary(salaryMax) : ""} ${salaryCurrency}` : "Rémunération non précisée" } : null,
+    salaryMin != null || salaryMax != null ? { icon: null, value: `${formatSalary(salaryMin)}${salaryMax != null ? " – " + formatSalary(salaryMax) : ""} ${salaryCurrency}` } : null,
   ].filter(Boolean) as Array<{ icon: any; value: string }>;
 
-  const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Plateforme externe" : "Candidature depuis Jobly";
+  const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Plateforme externe" : null;
   const applicationEmail = String(job.applicationProfile?.applicationEmail || job.applicationProfile?.email || "").trim();
-  const applicationSubject = emailChannel ? extractApplicationSubject(normalizedDescription || job.description || "", displayTitle || "") : "";
+  const applicationSubject = emailChannel ? extractApplicationSubject(normalizedDescription, displayTitle || "") : "";
 
   const compactItems = (items: string[], limit = 12) => Array.from(new Set(items.map(cleanLine).filter(Boolean))).slice(0, limit);
   const renderParagraphs = (items: string[]) => <div className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 8).map((line, i) => <p key={i}>{line}</p>)}</div>;
@@ -293,7 +292,7 @@ function JobDetailInner() {
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-black uppercase tracking-[1.7px] text-[#9B8500]">Offre d’emploi</p>
                   <h1 className="mt-1.5 text-[27px] font-black leading-[1.12] tracking-[-0.03em] text-[#17212B] sm:text-[38px]">{displayTitle}</h1>
-                  <p className="mt-2 text-base font-extrabold text-[#22448B]">{company || "Employeur non renseigné"}</p>
+                  {company && <p className="mt-2 text-base font-extrabold text-[#22448B]">{company}</p>}
                   {deadlineExpired && <span className="mt-3 inline-flex rounded-full bg-red-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[1px] text-red-600">Offre expirée</span>}
                 </div>
                 <button onClick={() => setSaved(v => !v)} aria-label={saved ? "Retirer des favoris" : "Ajouter aux favoris"} className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border ${saved ? "border-[#FFD60A] bg-[#FFFBE0] text-[#8C7600]" : "border-slate-200 bg-white text-slate-500"}`}><Heart size={18} fill={saved ? "currentColor" : "none"}/></button>
@@ -314,17 +313,13 @@ function JobDetailInner() {
           </section>
 
           <div className="mt-6 space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <DetailSection title="Nom de l'entreprise">
-                <p className="text-[15px] font-extrabold leading-7 text-[#22448B]">
-                  {company || "Informations non disponibles"}
-                </p>
-              </DetailSection>
-              <DetailSection title="Intitulé du poste">
-                <p className="text-[15px] font-extrabold leading-7 text-[#17212B]">
-                  {displayTitle}
-                </p>
-              </DetailSection>
+            <div className={company ? "grid gap-4 sm:grid-cols-2" : "grid gap-4"}>
+              {company && <DetailSection title="Nom de l'entreprise">
+                <p className="text-[15px] font-extrabold leading-7 text-[#22448B]">{company}</p>
+              </DetailSection>}
+              {displayTitle && <DetailSection title="Intitulé du poste">
+                <p className="text-[15px] font-extrabold leading-7 text-[#17212B]">{displayTitle}</p>
+              </DetailSection>}
             </div>
 
             {sections.description.length > 0 && <DetailSection title="À propos de l'offre">{renderParagraphs(sections.description)}</DetailSection>}
@@ -335,14 +330,6 @@ function JobDetailInner() {
             {sections.skills.length > 0 && <DetailSection title="Compétences">{renderBullets(sections.skills)}</DetailSection>}
             {sections.qualities.length > 0 && <DetailSection title="Qualités recherchées">{renderBullets(sections.qualities)}</DetailSection>}
             {sections.benefits.length > 0 && <DetailSection title="Avantages">{renderBullets(sections.benefits)}</DetailSection>}
-            {sections.description.length === 0 && sections.missions.length === 0 && sections.profile.length === 0 && sections.formation.length === 0 && sections.experience.length === 0 && sections.skills.length === 0 && sections.qualities.length === 0 && sections.benefits.length === 0 && (
-              <DetailSection title="À propos de l'offre">
-                {normalizedIdentity.description
-                  ? <p className="whitespace-pre-wrap text-[15px] leading-7 text-slate-600">{cleanLine(normalizedIdentity.description)}</p>
-                  : <p className="text-[15px] leading-7 text-slate-500">Les détails de cette offre ne sont pas disponibles.</p>}
-              </DetailSection>
-            )}
-
             {(emailChannel || phoneChannel || applicationLink || sections.application.length > 0) && (
               <DetailSection title="Comment postuler">
                 <div className="space-y-4">
@@ -353,7 +340,7 @@ function JobDetailInner() {
                     </div>
                   )}
                   {sections.application.length > 0 && renderBullets(sections.application)}
-                  <p className="text-sm leading-6 text-slate-500">{applicationMode}</p>
+                  {applicationMode && <p className="text-sm leading-6 text-slate-500">{applicationMode}</p>}
                 </div>
               </DetailSection>
             )}
