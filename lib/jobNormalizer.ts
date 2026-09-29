@@ -258,6 +258,11 @@ function parseSections(raw: string): Record<string, string[]> {
   for (const rawLine of prepared.split(/\n+/)) {
     const line = cleanBullet(rawLine);
     if (!line) continue;
+    const explicitMailSubject = line.match(/^#?\s*objet\s+(?:du\s+mail|de\s+(?:la\s+)?candidature)\s*[:：-]\s*(.+)$/i);
+    if (explicitMailSubject?.[1]) {
+      sections.application.push(cleanBullet(explicitMailSubject[1]));
+      continue;
+    }
     const colon = line.match(/^(.{2,90}?)\s*[:：]\s*(.*)$/);
     const candidate = key(colon?.[1] || line);
     const alias = SECTION_ALIASES[candidate];
