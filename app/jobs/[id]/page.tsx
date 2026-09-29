@@ -336,7 +336,7 @@ function JobDetailInner() {
                   {emailChannel && (
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="rounded-2xl bg-[#F7FAFF] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Mail de candidature</p><p className="mt-1 break-all text-sm font-bold text-[#17212B]">{applicationEmail}</p></div>
-                      <div className="rounded-2xl bg-[#F7FAFF] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Objet du mail</p><p className="mt-1 text-sm font-bold text-[#17212B]">{applicationSubject || "Candidature — " + displayTitle}</p></div>
+                      <div className="rounded-2xl bg-[#F7FAFF] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Objet du mail</p>{applicationSubject && <p className="mt-1 text-sm font-bold text-[#17212B]">{applicationSubject}</p>}</div>
                     </div>
                   )}
                   {sections.application.length > 0 && renderBullets(sections.application)}
