@@ -14,6 +14,9 @@ function cleanApplicationSubject(value: string): string {
 
 export function extractApplicationSubject(text: string, _jobTitle = ""): string {
   const normalized = text.replace(/[\r\n]+/g, " ");
+  const explicitMailObject = normalized.match(/\bobjet\s+du\s+mail\s*[:：-]\s*([^.;\r\n]{3,180})/i);
+  if (explicitMailObject?.[1]) return cleanApplicationSubject(explicitMailObject[1]);
+
   const labeled = normalized.match(
     /(?:objet(?: de (?:la )?candidature| du mail| de l['’]email)?|subject|email subject|mail subject)\s*[:：-]\s*["'“”«»]?([^"'“”».;\r\n]{3,180})["'“”»]?/i
   );
