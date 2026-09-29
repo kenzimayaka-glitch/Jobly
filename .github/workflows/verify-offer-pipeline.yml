@@ -24,4 +24,5 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm typecheck
+      - run: pnpm dlx tsx scripts/offer-regression.ts
       - run: pnpm build
