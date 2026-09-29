@@ -1,3 +1,5 @@
+import { validateSemanticField } from "@/lib/semanticFieldValidator";
+
 import {
   cleanCompanyName,
   cleanJobDescription,
@@ -252,12 +254,10 @@ function stripBoilerplate(values: string[]): string[] {
   ));
 }
 
-function plausibleExplicitCompany(name: string, title: string): boolean {
+function plausibleExplicitCompany(name: string, title: string, context = ""): boolean {
   if (!name || name.length < 2 || name.length > 120) return false;
   if (/^(?:pdf\s+ou\s+jpeg|exig|avec\s+l|du\s+fonds\s+pour\s+la\s+paix)$/i.test(name)) return false;
-  const normalizedName = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  const normalizedTitle = title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  return normalizedTitle.includes(normalizedName) || /^[A-ZÀ-Ý0-9][^.!?]{1,80}$/.test(name);
+  return validateSemanticField("company", name, [title, context].filter(Boolean).join("\n")).accepted;
 }
 
 function extractCompanyNameFromTitle(title: string): string | null {
@@ -283,8 +283,14 @@ export function normalizeJobContent(input: {
   const title = cleanJobTitle(input.title);
   const description = normalizeOfferText(cleanJobDescription(input.description ?? "", title));
   const explicitCompany = cleanCompanyName(input.companyName);
-  const companyName = explicitCompany && plausibleExplicitCompany(explicitCompany, title)
-    ? explicitCompany : extractCompanyNameFromDescription(description) || extractCompanyNameFromTitle(title);
+  const descriptionCompany = extractCompanyNameFromDescription(description);
+  const titleCompany = extractCompanyNameFromTitle(title);
+  const companyCandidates = [explicitCompany, descriptionCompany, titleCompany].filter(
+    (value): value is string => Boolean(value),
+  );
+  const companyName = companyCandidates.find((candidate) =>
+    plausibleExplicitCompany(candidate, title, description),
+  ) || null;
   // Parse the same canonical description used for identity extraction and storage.
   // The raw input is intentionally unknown, so never pass it directly to a string-only parser.
   const sections = parseSections(description);
@@ -304,7 +310,10 @@ export function normalizeJobContent(input: {
   return {
     version: "jobly-offer-v2", title: normalizeOfferText(title) || null, company: companyName ? normalizeOfferText(companyName) : null,
     location: unique(location, 10), region: null, sector: null,
-    contractType: normalizeOfferText(String(input.contractType || "")) || null,
+    contractType: (() => {
+      const value = normalizeOfferText(String(input.contractType || ""));
+      return validateSemanticField("contract", value, description).accepted ? value || null : null;
+    })(),
     remoteMode: normalizeOfferText(String(input.remoteMode || "")) || null,
     salary: {
       min: Number.isFinite(Number(input.salaryMin)) ? Number(input.salaryMin) : null,
