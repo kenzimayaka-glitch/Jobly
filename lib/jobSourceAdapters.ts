@@ -124,21 +124,37 @@ function extractLocation(text: string): string | null {
 }
 
 function parseFrenchDate(value: string): string | null {
-  const match = value.match(/(?:\b|^)(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:\b|$)/);
-  if (!match) return null;
-  const [, day, month, year] = match;
-  const date = new Date(`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T00:00:00.000Z`);
+  const months: Record<string,string> = {
+    janvier:"01",février:"02",fevrier:"02",mars:"03",avril:"04",mai:"05",juin:"06",
+    juillet:"07",août:"08",aout:"08",septembre:"09",octobre:"10",novembre:"11",décembre:"12",decembre:"12",
+  };
+  const normalized = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const numeric = normalized.match(/\b(\d{1,2})[./-](\d{1,2})[./-](\d{4})\b/);
+  const named = normalized.match(/\b(\d{1,2})(?:er)?\s+([a-z]+)\s+(\d{4})\b/);
+  const day = numeric?.[1] || named?.[1];
+  const month = numeric?.[2]?.padStart(2,"0") || (named?.[2] ? months[named[2]] : undefined);
+  const year = numeric?.[3] || named?.[3];
+  if (!day || !month || !year) return null;
+  const date = new Date(`${year}-${month}-${day.padStart(2,"0")}T23:59:59.000Z`);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
-
 function extractDeadline(text: string): string | null {
-  const labeled = extractLabeled(text, ["Date limite", "Date expiration", "Date d'expiration", "Délai", "Deadline"]);
+  const labeled = extractLabeled(text, [
+    "Date limite", "Date expiration", "Date d'expiration", "Date limite de candidature",
+    "Date de validité", "Délai", "Deadline", "Postuler avant"
+  ]);
   if (labeled) return parseFrenchDate(labeled);
+
+  const period = text.match(/(?:période de candidature|periode de candidature)\s*[:：-]\s*(?:du\s+)?[^\n]*?\b(?:au|a)\s+([^\n|]{4,80})/i)?.[1] || "";
+  if (period) {
+    const parsed = parseFrenchDate(period);
+    if (parsed) return parsed;
+  }
+
   const contextual =
-    text.match(/(?:jusqu'au|avant le|au plus tard le|clôture le)\s+(?:\w+\s*,?\s*)?(\d{1,2}[/-]\d{1,2}[/-]\d{4})/i)?.[1] || "";
+    text.match(/(?:jusqu'au|avant le|au plus tard le|clôture le|postuler avant)\s+(?:\w+\s*,?\s*)?([^\n|]{4,50})/i)?.[1] || "";
   return parseFrenchDate(contextual);
 }
-
 export function adaptSourceOfferInput(input: SourceOfferInput): AdaptedSourceOfferInput {
   const title = normalizeText(input.title);
   const adapter = adapterFor(input.sourceUrl);
