@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - "fix/offer-pipeline-final-validation"
+  pull_request:
+    branches:
+      - main
 
 jobs:
   verify:
