@@ -252,7 +252,7 @@ export function normalizeJobContent(input: {
   };
 }
 
-export function getNormalizedExperienceYears(content: NormalizedJobContent): number | null {
+export function getNormalizedExperienceYears(content: Pick<NormalizedJobContent, "experience">): number | null {
   const text = content.experience.join(" ");
   const numeric = text.match(/(?:minimum|minimale?|au moins|justifier\s+d['’]?une?\s+)?\s*(\d+)\s*(?:\(\s*\d+\s*\))?\s*(?:ans?|annee(?:s)?)/i);
   if (numeric?.[1]) return Number(numeric[1]);
