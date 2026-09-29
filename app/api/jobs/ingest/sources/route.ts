@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
         if (!offer) { skipped++; return; }
         const cleanedTitle = cleanJobTitle(offer.title);
         const cleanedDescription = cleanJobDescription(offer.description, cleanedTitle);
-        const normalizedContent = normalizeJobContent({ title: cleanedTitle, description: offer.description, location: offer.location, contractType: offer.contractType, deadline: offer.deadline, source: row.sourceKey, sourceUrl: offer.sourceUrl });
+        const normalizedContent = normalizeJobContent({ title: cleanedTitle, description: offer.description, location: offer.location, contractType: offer.contractType, salaryMin: offer.salaryMin, salaryMax: offer.salaryMax, salaryCurrency: offer.salaryCurrency, deadline: offer.deadline, source: row.sourceKey, sourceUrl: offer.sourceUrl });
         const normalizedExperienceYears = getNormalizedExperienceYears(normalizedContent);
         const canonicalDescription = normalizedContent.description.join("\n\n") || cleanedDescription;
         const cleanedContentHash = crypto.createHash("sha256")
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
       const cleanedTitle = cleanJobTitle(offer.title);
       const cleanedDescription = cleanJobDescription(offer.description, cleanedTitle);
       const source = offer.sourceKey === "minajobs" ? "MinaJobs" : offer.sourceKey === "jobinfocamer" ? "JobInfoCamer" : "Infos Concours Education";
-      const normalizedContent = normalizeJobContent({ title: cleanedTitle, companyName: offer.company, description: offer.description, location: offer.location, contractType: offer.contractType, remoteMode: offer.remoteMode, deadline: offer.deadline, source, sourceUrl: offer.sourceUrl });
+      const normalizedContent = normalizeJobContent({ title: cleanedTitle, companyName: offer.company, description: offer.description, location: offer.location, contractType: offer.contractType, remoteMode: offer.remoteMode, salaryMin: offer.salaryMin, salaryMax: offer.salaryMax, salaryCurrency: offer.salaryCurrency, deadline: offer.deadline, source, sourceUrl: offer.sourceUrl });
       const normalizedExperienceYears = getNormalizedExperienceYears(normalizedContent);
       const canonicalDescription = normalizedContent.description.join("\n\n") || cleanedDescription;
       const cleanedContentHash = crypto.createHash("sha256")
