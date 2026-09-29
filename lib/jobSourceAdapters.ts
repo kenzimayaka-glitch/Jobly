@@ -31,12 +31,7 @@ function normalizeText(value: unknown): string {
 }
 
 function key(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 function decodeEntities(value: string): string {
@@ -80,52 +75,25 @@ function genericClean(value: string, title: string): string {
   const source = selectMainHtml(value);
   const text = htmlToText(source);
   const titleKey = key(title);
-  const lines = text
-    .split(/\n+/)
-    .map(line => line.trim())
-    .filter(Boolean)
-    .filter(line => !/^(?:aller au contenu principal|toggle navigation|main navigation|poster une offre|connexion|inscription|accueil|menu|recherche|partager|articles similaires|popular posts?|newsletter|cookies?)$/i.test(line));
+  const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean).filter(line =>
+    !/^(?:aller au contenu principal|toggle navigation|main navigation|poster une offre|connexion|inscription|accueil|menu|recherche|partager|articles similaires|popular posts?|newsletter|cookies?)$/i.test(line)
+  );
 
-  let start = 0;
   const titleIndex = lines.findIndex(line => key(line) === titleKey);
-  if (titleIndex >= 0) start = titleIndex + 1;
-
-  const cleaned = lines.slice(start).filter((line, index, all) => {
-    if (index === 0 && /^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(line)) return false;
-    if (/^(?:facebook|twitter|linkedin|instagram|youtube|whatsapp)$/i.test(line)) return false;
-    return !/^(?:copyright|©)\s*\d{4}/i.test(line);
-  });
-
-  return normalizeText(cleaned.join("\n"));
+  const start = titleIndex >= 0 ? titleIndex + 1 : 0;
+  return normalizeText(lines.slice(start).filter(line =>
+    !/^(?:facebook|twitter|linkedin|instagram|youtube|whatsapp)$/i.test(line) &&
+    !/^(?:copyright|©)\s*\d{4}/i.test(line)
+  ).join("\n"));
 }
 
-const GENERIC_ADAPTER: SourceAdapter = {
-  key: "generic",
-  matches: () => true,
-  clean: genericClean,
-};
+const GENERIC_ADAPTER: SourceAdapter = { key: "generic", matches: () => true, clean: genericClean };
 
 const ADAPTERS: SourceAdapter[] = [
-  {
-    key: "jobinfocamer",
-    matches: url => /(?:^|\.)jobinfocamer\.com$/i.test(url.hostname),
-    clean: genericClean,
-  },
-  {
-    key: "minajobs",
-    matches: url => /(?:^|\.)minajobs\.net$/i.test(url.hostname),
-    clean: genericClean,
-  },
-  {
-    key: "fne",
-    matches: url => /(?:^|\.)fnecm\.org$/i.test(url.hostname),
-    clean: genericClean,
-  },
-  {
-    key: "un",
-    matches: url => /(?:^|\.)un\.org$/i.test(url.hostname) || /(?:^|\.)unicef\.org$/i.test(url.hostname),
-    clean: genericClean,
-  },
+  { key: "jobinfocamer", matches: url => /(?:^|\.)jobinfocamer\.com$/i.test(url.hostname), clean: genericClean },
+  { key: "minajobs", matches: url => /(?:^|\.)minajobs\.net$/i.test(url.hostname), clean: genericClean },
+  { key: "fne", matches: url => /(?:^|\.)fnecm\.org$/i.test(url.hostname), clean: genericClean },
+  { key: "un", matches: url => /(?:^|\.)un\.org$/i.test(url.hostname) || /(?:^|\.)unicef\.org$/i.test(url.hostname), clean: genericClean },
 ];
 
 function adapterFor(sourceUrl: unknown): SourceAdapter {
@@ -149,29 +117,25 @@ function extractLabeled(text: string, labels: string[]): string | null {
 function extractLocation(text: string): string | null {
   const explicit = extractLabeled(text, ["Localisation", "Lieu", "Location", "Ville"]);
   if (explicit) return explicit.replace(/[.;,]+$/, "").trim();
-
-  const match = text.match(/\b(?:à|a|dans)/\\s+(Douala|Yaoundé|Yaounde|Bafoussam|Bamenda|Garoua|Maroua|Bertoua|Ebolowa|Kribi|Limbe|Limbé)\\b/i);
+  const match = text.match(/\b(?:à|a|dans)\s+(Douala|Yaoundé|Yaounde|Bafoussam|Bamenda|Garoua|Maroua|Bertoua|Ebolowa|Kribi|Limbe|Limbé)\b/i);
   return match?.[1] || null;
 }
 
 function parseFrenchDate(value: string): string | null {
-  const match = value.match(/(?:\\b|^)(\\d{1,2})[/-](\\d{1,2})[/-](\\d{4})(?:\\b|$)/);
+  const match = value.match(/(?:\b|^)(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:\b|$)/);
   if (!match) return null;
   const [, day, month, year] = match;
-  const iso = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T00:00:00.000Z`;
-  const date = new Date(iso);
+  const date = new Date(`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T00:00:00.000Z`);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 function extractDeadline(text: string): string | null {
   const labeled = extractLabeled(text, ["Date limite", "Date expiration", "Date d'expiration", "Délai", "Deadline"]);
-  const direct = labeled || text.match(/(?:jusqu'au|avant le|au plus tard le|clôture le)\s+(?:\\w+\\s*,?\\s*)?(\\d{1,2}[/-]\\d{1,2}[/-]\\d{4})/i)?.[1] || text.match(/(?:\b(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche),?\s*)?(\\d{1,2}[/-]\\d{1,2}[/-]\\d{4})\\b/i)?.[1];
+  const direct =
+    labeled ||
+    text.match(/(?:jusqu'au|avant le|au plus tard le|clôture le)\s+(?:\w+\s*,?\s*)?(\d{1,2}[/-]\d{1,2}[/-]\d{4})/i)?.[1] ||
+    text.match(/(?:\b(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche),?\s*)?(\d{1,2}[/-]\d{1,2}[/-]\d{4})\b/i)?.[1];
   return parseFrenchDate(direct || "");
-}
-
-function explicitMetadataWins(current: unknown, extracted: string | null): string | null {
-  const existing = normalizeText(current);
-  return extracted || existing || null;
 }
 
 export function adaptSourceOfferInput(input: SourceOfferInput): AdaptedSourceOfferInput {
@@ -181,22 +145,18 @@ export function adaptSourceOfferInput(input: SourceOfferInput): AdaptedSourceOff
   const description = adapter.clean(originalDescription, title);
   const location = extractLocation(description);
   const deadline = extractDeadline(description);
-
   const warnings: string[] = [];
+
   if (description !== originalDescription) warnings.push("source_specific_cleaning");
-  if (location && normalizeText(input.location) && key(location) !== key(String(input.location))) {
-    warnings.push("source_metadata_location_overridden");
-  }
-  if (deadline && normalizeText(input.deadline) && key(deadline) !== key(String(input.deadline))) {
-    warnings.push("source_metadata_deadline_overridden");
-  }
+  if (location && normalizeText(input.location) && key(location) !== key(String(input.location))) warnings.push("source_metadata_location_overridden");
+  if (deadline && normalizeText(input.deadline) && key(deadline) !== key(String(input.deadline))) warnings.push("source_metadata_deadline_overridden");
 
   return {
     ...input,
     title,
     description,
-    location: explicitMetadataWins(input.location, location),
-    deadline: explicitMetadataWins(input.deadline, deadline),
+    location: location || normalizeText(input.location) || null,
+    deadline: deadline || normalizeText(input.deadline) || null,
     adapterKey: adapter.key,
     adapterWarnings: warnings,
   };
