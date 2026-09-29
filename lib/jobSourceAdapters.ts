@@ -120,9 +120,7 @@ function extractLabeled(text: string, labels: string[]): string | null {
 
 function extractLocation(text: string): string | null {
   const explicit = extractLabeled(text, ["Localisation", "Lieu", "Location", "Ville"]);
-  if (explicit) return explicit.replace(/[.;,]+$/, "").trim();
-  const match = text.match(/\b(?:à|a|dans)\s+(Douala|Yaoundé|Yaounde|Bafoussam|Bamenda|Garoua|Maroua|Bertoua|Ebolowa|Kribi|Limbe|Limbé)\b/i);
-  return match?.[1] || null;
+  return explicit ? explicit.replace(/[.;,]+$/, "").trim() : null;
 }
 
 function parseFrenchDate(value: string): string | null {
@@ -135,11 +133,10 @@ function parseFrenchDate(value: string): string | null {
 
 function extractDeadline(text: string): string | null {
   const labeled = extractLabeled(text, ["Date limite", "Date expiration", "Date d'expiration", "Délai", "Deadline"]);
-  const direct =
-    labeled ||
-    text.match(/(?:jusqu'au|avant le|au plus tard le|clôture le)\s+(?:\w+\s*,?\s*)?(\d{1,2}[/-]\d{1,2}[/-]\d{4})/i)?.[1] ||
-    text.match(/(?:\b(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche),?\s*)?(\d{1,2}[/-]\d{1,2}[/-]\d{4})\b/i)?.[1];
-  return parseFrenchDate(direct || "");
+  if (labeled) return parseFrenchDate(labeled);
+  const contextual =
+    text.match(/(?:jusqu'au|avant le|au plus tard le|clôture le)\s+(?:\w+\s*,?\s*)?(\d{1,2}[/-]\d{1,2}[/-]\d{4})/i)?.[1] || "";
+  return parseFrenchDate(contextual);
 }
 
 export function adaptSourceOfferInput(input: SourceOfferInput): AdaptedSourceOfferInput {
