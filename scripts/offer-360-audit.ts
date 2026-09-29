@@ -1,4 +1,4 @@
-import { chromium } from "playwright";
+import { test, expect } from "@playwright/test";
 import { buildCanonicalOffer } from "../lib/jobCanonicalOffer";
 import { extractVisibleOfferBlocks, blocksToStructuredText } from "../lib/jobOfferBlocks";
 
@@ -98,10 +98,11 @@ function auditRow(row:JobRow, html:string) {
   };
 }
 
-async function main() {
+test.setTimeout(60 * 60 * 1000);
+
+test("360° rendered audit — all 248 active offers", async ({ browser }) => {
   const jobs=await loadJobs();
   if(jobs.length!==248) throw new Error(`Expected 248 active offers, got ${jobs.length}`);
-  const browser=await chromium.launch({headless:true});
   const results:any[]=[];
   let cursor=0;
   const worker=async()=> {
@@ -130,7 +131,6 @@ async function main() {
     }
   };
   await Promise.all(Array.from({length:4},worker));
-  await browser.close();
   results.sort((a,b)=>String(a.id).localeCompare(String(b.id)));
   const passed=results.filter(r=>r.score===100).length;
   const failed=results.length-passed;
@@ -144,6 +144,5 @@ async function main() {
   const report={generatedAt:new Date().toISOString(),summary,results};
   await import("node:fs/promises").then(fs=>fs.writeFile("offer-360-audit.json",JSON.stringify(report,null,2)));
   console.log(JSON.stringify(summary,null,2));
-  if(failed>0) process.exit(2);
-}
-main().catch(e=>{console.error(e);process.exit(1)});
+  expect(failed, JSON.stringify(summary, null, 2)).toBe(0);
+});
