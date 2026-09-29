@@ -4,6 +4,7 @@ import { adminClient, getAuthUser } from "@/lib/server-auth";
 import { collectPublicJobSources, recollectOfferByUrl } from "@/lib/jobSourceCollector";
 import { cleanJobDescription, cleanJobTitle } from "@/lib/jobContent";
 import { getNormalizedExperienceYears, normalizeJobContent } from "@/lib/jobNormalizer";
+import { assessJobQuality } from "@/lib/jobQuality";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,7 +63,7 @@ async function runWithConcurrency<T>(
   return { failed };
 }
 
-export async function POST(request: NextRequest) {
+function canonicalDescriptionCandidate(parts: unknown, fallback: string): string {\n  return Array.isArray(parts) && parts.length ? parts.map((v) => String(v)).join("\\n\\n") : fallback;\n}\n\nexport async function POST(request: NextRequest) {
   if (!(await authorized(request))) return NextResponse.json({ message: "Non autorisé." }, { status: 401 });
 
   try {
@@ -112,6 +113,7 @@ export async function POST(request: NextRequest) {
         const cleanedDescription = cleanJobDescription(offer.description, cleanedTitle);
         const normalizedContent = normalizeJobContent({ title: cleanedTitle, description: offer.description, location: offer.location, contractType: offer.contractType, salaryMin: offer.salaryMin, salaryMax: offer.salaryMax, salaryCurrency: offer.salaryCurrency, deadline: offer.deadline, source: row.sourceKey, sourceUrl: offer.sourceUrl });
         const normalizedExperienceYears = getNormalizedExperienceYears(normalizedContent);
+        const quality = assessJobQuality({ title: cleanedTitle, description: canonicalDescriptionCandidate(normalizedContent.description, cleanedDescription) });
         const canonicalDescription = normalizedContent.description.join("\n\n") || cleanedDescription;
         const cleanedContentHash = crypto.createHash("sha256")
           .update([cleanedTitle, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
@@ -132,7 +134,7 @@ export async function POST(request: NextRequest) {
           deadline: offer.deadline,
           contentHash: cleanedContentHash,
           lastSeenAt: now.toISOString(),
-          isActive: !isPlatformExpired(row.createdAt, now),
+          // Reprocessing may never reactivate a quarantined offer.\n          // Only a successful quality gate can move qualityStatus back to ok.\n          qualityStatus: quality.status,\n          isActive: row.isActive === true && !isPlatformExpired(row.createdAt, now),
           applicationReady,
           applicationProfile: contact,
           applicationCheckedAt: now.toISOString(),
@@ -197,7 +199,7 @@ export async function POST(request: NextRequest) {
 
 
       const existingByIdentity = await supabase.from("Job")
-        .select("id,contentHash,createdAt,aiProcessed,aiProcessedAt")
+        .select("id,contentHash,createdAt,isActive,qualityStatus,aiProcessed,aiProcessedAt")
         .eq("sourceKey", offer.sourceKey)
         .eq("externalId", offer.externalId)
         .maybeSingle();
@@ -233,7 +235,7 @@ export async function POST(request: NextRequest) {
         contentHash: cleanedContentHash,
         sourcePublishedAt: offer.publishedAt,
         lastSeenAt: nowIso,
-        isActive: existing.data ? !isPlatformExpired(existing.data.createdAt, now) : true,
+        // Existing rows keep their publication state. New rows start quarantined\n        // until the quality gate has validated the extracted content.\n        isActive: existing.data ? Boolean(existing.data.isActive) : false,\n        qualityStatus: quality.status,
         deadline: offer.deadline,
         applicationReady,
         applicationProfile: contact,
@@ -260,7 +262,7 @@ export async function POST(request: NextRequest) {
         if (!contentChanged && !companyId) {
           const touch = await supabase.from("Job").update({
             lastSeenAt: nowIso,
-            isActive: !isPlatformExpired(existing.data.createdAt, now),
+            // Preserve publication state; ingestion is not allowed to reactivate a row.\n          qualityStatus: quality.status,
             applicationReady,
             applicationProfile: contact,
             applicationCheckedAt: nowIso,
