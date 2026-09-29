@@ -43,10 +43,7 @@ function hasCompanyEvidence(value: string, context: string): boolean {
 }
 
 function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^$()|[\\]\\\\]/g, "\\function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^$()|[\\]\\\\]/g, "\\$&");
-}
-");
+  return value.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
 }
 
 function companyCore(value: string): string {
