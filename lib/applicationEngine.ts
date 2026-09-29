@@ -3,6 +3,7 @@ import { runAiGateway } from "./aiGateway";
 import { getChannelDefinition, hasJoblyAdapter } from "./applicationChannels";
 import { buildTailoredCv, TailoredCvEducation, TailoredCvExperience, TailoredCvProfile, TailoredCvSkill } from "./applicationCv";
 import { extractApplicationEmail, extractApplicationSubject } from "./applicationSubject";
+import { normalizeJobContent } from "./jobNormalizer";
 
 export type ApplicationChannel = "JOBLY" | "EMAIL" | "PHONE" | "EXTERNAL" | "UNSUPPORTED";
 
@@ -99,11 +100,17 @@ export async function prepareApplication(req: NextRequest, args: {
   skipAi?: boolean;
 }) {
   const applicationProfile = { ...args.applicationProfile };
-  const contacts = resolveApplicationContact(applicationProfile, args.jobDescription);
+  // The candidature channel and subject are derived from the dedicated
+  // application section, never from the whole offer body.
+  const applicationText = normalizeJobContent({
+    title: args.jobTitle,
+    description: args.jobDescription,
+  }).application.join("\n");
+  const contacts = resolveApplicationContact(applicationProfile, applicationText);
   if (!stringValue(applicationProfile.applicationEmail) && contacts.email) applicationProfile.applicationEmail = contacts.email;
   if (!stringValue(applicationProfile.applicationPhone) && contacts.phone) applicationProfile.applicationPhone = contacts.phone;
   const channel = resolveApplicationChannel(applicationProfile);
-  const subject = extractApplicationSubject(args.jobDescription, args.jobTitle);
+  const subject = extractApplicationSubject(applicationText);
   if (channel.channel === "UNSUPPORTED") throw new Error(channel.reason);
   const definition = getChannelDefinition(channel.channel);
   // Email candidature uses the review flow without consuming J’IA AI credits.
