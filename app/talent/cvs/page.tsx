@@ -117,7 +117,14 @@ export default function TalentCVs() {
         token = await (async () => { try { const refreshed = await getSupabaseClient().auth.refreshSession(); return refreshed.data.session?.access_token || null; } catch { return null; } })();
         if (token) res = await fetch("/api/talent/cv/import", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
       }
-      const data = await res.json();
+      const responseText = await res.text();
+      let data: any = {};
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        const htmlTitle = responseText.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim();
+        throw new Error(htmlTitle ? `Le serveur a renvoyé une page HTML au lieu de la réponse JSON attendue (${htmlTitle}). Réessaie dans un instant.` : `Le serveur a renvoyé une réponse invalide au lieu du JSON attendu (HTTP ${res.status}).`);
+      }
       if (!res.ok) {
         if (res.status === 401) throw new Error("Ta session Jobly n’est plus valide. Reconnecte-toi puis réessaie.");
         throw new Error(data.message || "Import impossible.");
