@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { resolveApplicationContact, extractApplicationSubject } from "./applicationEngine";
 import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription } from "./jobContent";
+import { normalizeJobContent } from "./jobNormalizer";
 import { renderPublicSource } from "./jobSourceRenderer";
 
 type SourceConfig = {
@@ -350,7 +351,7 @@ function findApplicationUrl(html: string, pageUrl: string, source: SourceConfig)
   return candidates[0]?.url || null;
 }
 
-function findApplicationEmail(html: string): string | null {
+function findApplicationEmail(html: string, applicationText = ""): string | null {
   const candidates: { email: string; score: number }[] = [];
   const add = (email: string, score: number) => {
     const normalized = email.trim().replace(/[),.;:]+$/, "");
@@ -359,23 +360,27 @@ function findApplicationEmail(html: string): string | null {
     candidates.push({ email: normalized, score });
   };
 
+  // Canonical rule: the application section is the primary owner of a
+  // candidature email. This prevents footer/contact emails from becoming
+  // application recipients.
+  const applicationEmails = applicationText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
+  for (const email of applicationEmails) {
+    const index = applicationText.toLowerCase().indexOf(email.toLowerCase());
+    const context = applicationText.slice(Math.max(0, index - 260), Math.min(applicationText.length, index + email.length + 260));
+    const score = /(?:candidature|candidater|postuler|recrutement|cv|lettre|envoyer|envoyez|adresse|mail|email|dossier|apply)/i.test(context) ? 20 : 12;
+    add(email, score);
+  }
+
+  // Secondary evidence: mailto links are accepted only when their local
+  // context explicitly indicates application intent.
   const mailto = /href=["']mailto:([^"'?#>\s]+)/gi;
   let match: RegExpExecArray | null;
   while ((match = mailto.exec(html))) {
     const before = html.slice(Math.max(0, match.index - 700), match.index);
     const after = html.slice(match.index, Math.min(html.length, match.index + 900));
     const context = htmlToCleanText(before + " " + after);
-    const score = /candidature|candidater|postuler|recrutement|cv|envoyer|apply|application/i.test(context) ? 10 : 3;
-    add(decodeEntities(match[1]), score);
-  }
-
-  const visible = htmlToCleanText(html);
-  const emails = visible.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
-  for (const email of emails) {
-    const index = visible.toLowerCase().indexOf(email.toLowerCase());
-    const context = visible.slice(Math.max(0, index - 300), Math.min(visible.length, index + email.length + 300));
-    const score = /candidature|candidater|postuler|recrutement|cv|envoyer|apply|application/i.test(context) ? 8 : 2;
-    add(email, score);
+    if (!/(candidature|candidater|postuler|recrutement|cv|lettre|envoyer|apply|application|dossier)/i.test(context)) continue;
+    add(decodeEntities(match[1]), 10);
   }
 
   candidates.sort((a, b) => b.score - a.score);
@@ -455,10 +460,18 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   const salary = extractSalary(clean);
   const publishedAt = parseDate(firstMatch(clean,[/(?:Date de publication|Posté|Publié(?:e)?)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
   const deadline = parseDate(firstMatch(clean,[/(?:Date expiration|Date limite|Délai|deadline)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
-  const extractedEmail = findApplicationEmail(html);
+  // Derive candidature data from the dedicated semantic application
+  // section, not from the whole page. Other contact/footer content must not
+  // contaminate the application channel.
+  const applicationContent = normalizeJobContent({
+    title,
+    description: clean,
+  }).application;
+  const applicationText = applicationContent.join("\n");
+  const extractedEmail = findApplicationEmail(html, applicationText);
   const contacts = resolveApplicationContact(
     extractedEmail ? { applicationEmail: extractedEmail } : {},
-    clean
+    applicationText
   );
   const applicationUrl = findApplicationUrl(html,url,source);
   const companyWebsite = extractCompanyWebsite(html,url);
@@ -470,7 +483,7 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   if (contacts.email) applicationProfile.applicationEmail = contacts.email;
   if (contacts.phone) applicationProfile.applicationPhone = contacts.phone;
   if (applicationUrl) applicationProfile.applicationUrl = applicationUrl;
-  applicationProfile.subject = extractApplicationSubject(clean,title);
+  applicationProfile.subject = extractApplicationSubject(applicationText);
   const resolvedCaptureMode: CollectedOffer["captureMode"] = captureMode || (
     source.key === "infosconcourseducation"
       ? "api"
