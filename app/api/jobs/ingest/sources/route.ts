@@ -63,7 +63,7 @@ async function runWithConcurrency<T>(
   return { failed };
 }
 
-function canonicalDescriptionCandidate(parts: unknown, fallback: string): string {\n  return Array.isArray(parts) && parts.length ? parts.map((v) => String(v)).join("\\n\\n") : fallback;\n}\n\nexport async function POST(request: NextRequest) {
+function canonicalDescriptionCandidate(parts: unknown, fallback: string): string {\n  return Array.isArray(parts) && parts.length ? parts.map((v) => String(v)).join("\n\n") : fallback;\n}\n\nexport async function POST(request: NextRequest) {
   if (!(await authorized(request))) return NextResponse.json({ message: "Non autorisé." }, { status: 401 });
 
   try {
@@ -76,7 +76,7 @@ function canonicalDescriptionCandidate(parts: unknown, fallback: string): string
     
     if (mode === "reprocess" || mode === "reprocess-all") {
       let rowsQuery = supabase.from("Job")
-        .select("id,title,sourceKey,sourceUrl,createdAt,isActive,description")
+        .select("id,title,sourceKey,sourceUrl,createdAt,isActive,qualityStatus,description")
         .not("sourceUrl", "is", null)
         .not("sourceKey", "is", null);
 
@@ -134,7 +134,7 @@ function canonicalDescriptionCandidate(parts: unknown, fallback: string): string
           deadline: offer.deadline,
           contentHash: cleanedContentHash,
           lastSeenAt: now.toISOString(),
-          // Reprocessing may never reactivate a quarantined offer.\n          // Only a successful quality gate can move qualityStatus back to ok.\n          qualityStatus: quality.status,\n          isActive: row.isActive === true && !isPlatformExpired(row.createdAt, now),
+          // Reprocessing never changes isActive. It only records the new quality result.\n          // Publication/reactivation is a separate explicit step after validation.\n          qualityStatus: quality.status,\n          isActive: Boolean(row.isActive),
           applicationReady,
           applicationProfile: contact,
           applicationCheckedAt: now.toISOString(),
@@ -212,7 +212,7 @@ function canonicalDescriptionCandidate(parts: unknown, fallback: string): string
       let existing = existingByIdentity;
       if (!existing.data?.id && offer.sourceUrl) {
         const existingBySourceUrl = await supabase.from("Job")
-          .select("id,contentHash,createdAt,aiProcessed,aiProcessedAt")
+          .select("id,contentHash,createdAt,isActive,qualityStatus,aiProcessed,aiProcessedAt")
           .eq("source", source)
           .eq("sourceUrl", offer.sourceUrl)
           .maybeSingle();
