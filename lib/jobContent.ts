@@ -101,8 +101,15 @@ export function cleanCompanyName(value: unknown): string | null {
 
 export function extractCompanyNameFromDescription(description: string): string | null {
   const text=cleanJobDescription(description);
-  const patterns=[/(?:nom de l[’']employeur|employeur|entreprise|company|organisation|société|societe)\s*[:：-]\s*([^\n|]{2,120})/i,/(?:chez|au sein de|auprès de)\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ0-9 .&'’()/-]{2,100})/];
-  for(const pattern of patterns){ const name=cleanCompanyName(text.match(pattern)?.[1]||null); if(name) return name; }
+  const patterns=[
+    /(?:nom de l[’']employeur|employeur|entreprise|company|organisation|société|societe)\s*[:：-]\s*([^\n|]{2,120})/i,
+    /(?:chez|au sein de|auprès de)\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ0-9 .&'’()/-]{2,100})/i,
+    /(?:l[’']ong|ong|la société|le groupe|l[’']organisation|association|fondation)\s+(?:[A-Za-zÀ-ÿ-]+\s+){0,2}([A-ZÀ-Ý][A-Za-zÀ-ÿ0-9.&'’()-]{2,100})/i,
+  ];
+  for(const pattern of patterns){
+    const name=cleanCompanyName(text.match(pattern)?.[1]||null);
+    if(name) return name;
+  }
   return null;
 }
 
