@@ -73,6 +73,86 @@ export async function POST(request: NextRequest) {
     const supabase = adminClient();
     const now = new Date();
     
+    if (mode === "reindex") {
+      const { data: rows, error } = await supabase.from("Job")
+        .select("id,title,sourceKey,sourceUrl,createdAt,normalizedAt,lastSeenAt")
+        .not("sourceUrl", "is", null)
+        .not("sourceKey", "is", null)
+        .eq("isActive", true)
+        .order("normalizedAt", { ascending: true, nullsFirst: true })
+        .range(offset, offset + batchSize - 1);
+      if (error) throw new Error(error.message);
+
+      let processed = 0, updated = 0, skipped = 0;
+      await runWithConcurrency(rows || [], 3, async (row) => {
+        if (!row.sourceUrl || !row.sourceKey) { skipped++; return; }
+        const offer = await recollectOfferByUrl(row.sourceKey, row.sourceUrl, row.title);
+        if (!offer) { skipped++; return; }
+
+        const cleanedTitle = cleanJobTitle(offer.title);
+        const cleanedDescription = cleanJobDescription(offer.description, cleanedTitle);
+        const normalizedContent = normalizeJobContent({
+          title: cleanedTitle,
+          companyName: offer.company,
+          description: offer.description,
+          location: offer.location,
+          contractType: offer.contractType,
+          remoteMode: offer.remoteMode,
+          salaryMin: offer.salaryMin,
+          salaryMax: offer.salaryMax,
+          salaryCurrency: offer.salaryCurrency,
+          deadline: offer.deadline,
+          source: offer.sourceKey,
+          sourceUrl: offer.sourceUrl,
+        });
+        const normalizedExperienceYears = getNormalizedExperienceYears(normalizedContent);
+        const canonicalDescription = normalizedContent.description.join("\n\n") || cleanedDescription;
+        const contentHash = crypto.createHash("sha256")
+          .update([cleanedTitle, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
+          .digest("hex");
+        const contact = offer.applicationProfile;
+        const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
+
+        const result = await supabase.from("Job").update({
+          title: cleanedTitle,
+          description: canonicalDescription,
+          location: offer.location,
+          contractType: offer.contractType,
+          normalizedContent,
+          normalizedVersion: normalizedContent.version,
+          normalizedAt: now.toISOString(),
+          minExperienceYears: normalizedExperienceYears,
+          aiSkills: normalizedContent.skills,
+          sourcePublishedAt: offer.publishedAt,
+          deadline: offer.deadline,
+          contentHash,
+          lastSeenAt: now.toISOString(),
+          applicationReady,
+          applicationProfile: contact,
+          applicationCheckedAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+          aiProcessed: false,
+          aiProcessedAt: null,
+        }).eq("id", row.id);
+        if (result.error) throw new Error(result.error.message);
+        processed++;
+        updated++;
+      });
+
+      return NextResponse.json({
+        ok: true,
+        mode,
+        processed,
+        updated,
+        skipped,
+        offset,
+        limit: batchSize,
+        hasMore: (rows || []).length === batchSize,
+        nextOffset: offset + (rows || []).length,
+        ranAt: now.toISOString(),
+      });
+    }
+
     if (mode === "reprocess" || mode === "reprocess-all") {
       let rowsQuery = supabase.from("Job")
         .select("id,title,sourceKey,sourceUrl,createdAt,isActive,description")
