@@ -284,6 +284,8 @@ function parseSections(raw: string): Record<string, string[]> {
     if (mixedAptitudes) sections[classifyMixedAptitude(line)].push(line);
     else sections[current].push(line);
   }
+  const explicitSubject = prepared.match(/\bobjet\s+(?:du\s+mail|de\s+(?:la\s+)?candidature)\s*[:：-]\s*([^.;\n]{3,180})/i)?.[1];
+  if (explicitSubject) sections.application.push(cleanBullet(explicitSubject));
   return sections;
 }
 
