@@ -105,7 +105,9 @@ test("360° rendered audit — all 248 active offers", async ({ browser }) => {
           await page.goto(row.sourceUrl,{waitUntil:"domcontentloaded",timeout:30000});
           try { await page.waitForLoadState("networkidle",{timeout:8000}); } catch {}
           const html=await page.content();
+          const bodyTextLength=(await page.locator("body").innerText().catch(()=>"" )).length;
           const audit=auditRow(row,html);
+          audit.capture={finalUrl:page.url(),title:await page.title().catch(()=>""),htmlLength:html.length,bodyTextLength};
           if(!audit.failures.length){results.push(audit); last=""; break;}
           last=JSON.stringify(audit);
           if(attempt===3) results.push(audit);
