@@ -4,6 +4,7 @@ import { extractApplicationSubject } from "./applicationSubject";
 import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription } from "./jobContent";
 import { normalizeJobContent } from "./jobNormalizer";
 import { renderPublicSource } from "./jobSourceRenderer";
+import { extractOfferBlocks } from "./jobOfferBlocks";
 
 type SourceConfig = {
   key: string;
@@ -437,30 +438,20 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   // footer, widgets and the job body into one text stream.
   const title = cleanJobTitle(titleFromHtml(html) || listingTitle);
   if (!title || title.length < 3) return null;
-  const clean = cleanJobDescription(html, title);
-  const lowerHtml = html.toLowerCase();
-  const chromeSignals = [
-    "aller au contenu principal",
-    "poster une offre",
-    "datalayer",
-    "gtag(",
-    "window.datalayer",
-    "cookie settings",
-    "toggle navigation",
-  ];
-  const noiseHits = chromeSignals.reduce((n, signal) => n + (lowerHtml.includes(signal) ? 1 : 0), 0);
+  const blockExtraction = extractOfferBlocks(html, "", title);
+  const clean = cleanJobDescription(blockExtraction.text, title);
   const visibleLength = clean.length;
-  // A page can contain legitimate navigation, but the extracted offer itself
-  // must remain substantial. Reject only clearly unusable captures here;
-  // normalization is still the next quality gate.
-  if (visibleLength < 120 || noiseHits >= 5) return null;
+  // Chrome is evaluated on the extracted content, never on the complete page.
+  // Navigation is expected to exist in a rendered page and must not invalidate
+  // an otherwise good offer capture.
+  if (visibleLength < 120 || blockExtraction.diagnostics.estimatedRisks.blockLoss > 0.72) return null;
   const company = cleanCompanyName(firstMatch(clean,[/(?:Nom de l[’']employeur|Nom de l'employeur|Employeur|Entreprise|Company)\s*[:：-]\s*([^|\n]{2,120})/i,/(?:chez|at)\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ0-9 .&'’-]{2,100})/i])) || extractCompanyNameFromDescription(clean);
-  const location = firstMatch(clean,[/(?:Lieu|Localisation|Location)\s*[:：-]\s*([^|\n]{2,100})/i]);
+  const location = firstMatch(clean,[/(?:Lieu|Localisation|Location|Ville)\s*[:：-]\s*([^|\n]{2,100})/i]);
   const contractType = firstMatch(clean,[/(?:Type d[’']emploi|Type d'emploi|Contrat|Contract)\s*[:：-]\s*([^|\n]{2,60})/i]);
   const remoteMode = extractRemoteMode(clean);
   const salary = extractSalary(clean);
   const publishedAt = parseDate(firstMatch(clean,[/(?:Date de publication|Posté|Publié(?:e)?)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
-  const deadline = parseDate(firstMatch(clean,[/(?:Date expiration|Date limite|Délai|deadline)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
+  const deadline = parseDate(firstMatch(clean,[/(?:Date expiration|Date limite|Date d'expiration|Date limite de candidature|Délai|deadline)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
   // Derive candidature data from the dedicated semantic application
   // section, not from the whole page. Other contact/footer content must not
   // contaminate the application channel.
