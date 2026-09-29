@@ -306,10 +306,20 @@ function firstMatch(text: string, patterns: RegExp[]): string | null {
 
 function parseDate(value: string | null): string | null {
   if (!value) return null;
-  const date = new Date(value.replace(/(\d{2})-(\d{2})-(\d{4})/,"$3-$2-$1"));
+  const months: Record<string,string> = {
+    janvier:"01",février:"02",fevrier:"02",mars:"03",avril:"04",mai:"05",juin:"06",
+    juillet:"07",août:"08",aout:"08",septembre:"09",octobre:"10",novembre:"11",décembre:"12",decembre:"12",
+  };
+  const normalized = value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  const numeric = normalized.match(/\b(\d{1,2})[./-](\d{1,2})[./-](\d{4})\b/);
+  const named = normalized.match(/\b(\d{1,2})(?:er)?\s+([a-z]+)\s+(\d{4})\b/);
+  const day = numeric?.[1] || named?.[1];
+  const month = numeric?.[2]?.padStart(2,"0") || (named?.[2] ? months[named[2]] : undefined);
+  const year = numeric?.[3] || named?.[3];
+  if (!day || !month || !year) return null;
+  const date = new Date(`${year}-${month}-${day.padStart(2,"0")}T23:59:59.000Z`);
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
-
 function extractCompanyWebsite(html: string, pageUrl: string): string | null {
   const links = Array.from(html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi));
   const scored: { url: string; score: number }[] = [];
@@ -451,7 +461,13 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   const remoteMode = extractRemoteMode(clean);
   const salary = extractSalary(clean);
   const publishedAt = parseDate(firstMatch(clean,[/(?:Date de publication|Posté|Publié(?:e)?)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
-  const deadline = parseDate(firstMatch(clean,[/(?:Date expiration|Date limite|Date d'expiration|Date limite de candidature|Délai|deadline)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
+  const deadline = parseDate(
+    firstMatch(clean,[/(?:Date expiration|Date limite|Date d'expiration|Date limite de candidature|Date de validité|Postuler avant|Délai|deadline)\s*[:：-]\s*([^|\n]{4,80})/i]) ||
+    clean.match(/(?:jusqu'au|avant le|au plus tard le|clôture le|postuler avant)\s+([^|\n]{4,60})/i)?.[1] ||
+    clean.match(/(?:période de candidature|periode de candidature)\s*[:：-]\s*(?:du\s+)?[^\n|]*?\b(?:au|a)\s+([^\n|]{4,60})/i)?.[1] ||
+    null
+  );
+
   // Derive candidature data from the dedicated semantic application
   // section, not from the whole page. Other contact/footer content must not
   // contaminate the application channel.
