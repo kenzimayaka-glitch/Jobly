@@ -56,8 +56,8 @@ function fallbackNormalized(item:any):NormalizedOffer {
   return {version:NORMALIZED_VERSION,title:cleanHumanText(String(item.title||""))||null,company:cleanHumanText(String(item.company||""))||null,
     location:item.location?String(item.location).split(/[,;|]/).map((x:string)=>cleanHumanText(x)).filter(Boolean):[],region:null,sector:null,
     contractType:inferContract(raw),remoteMode:inferRemote(raw),salary:{min:null,max:null,currency:"XAF"},
-    experience:cleanArray(sections.experience),education:cleanArray(sections.formation),skills:cleanArray(sections.skills),qualities:cleanArray(sections.qualities),
-    missions:cleanArray(sections.missions),benefits:cleanArray(sections.benefits),description:cleanArray(sections.description),application:cleanArray(sections.application),
+    experience:Array.from(new Set([...cleanArray(sections.experience),...extractExperience(raw)])).slice(0,10),education:cleanArray(sections.formation),skills:cleanArray(sections.skills),qualities:cleanArray(sections.qualities),
+    missions:cleanArray(sections.missions),benefits:cleanArray(sections.benefits),description:cleanArray(sections.description),application:Array.from(new Set([...cleanArray(sections.application),...extractApplication(raw)])).slice(0,12),
     deadline:item.deadline||null,source:{name:String(item.source||""),url:String(item.url||"")},qualityScore:null,flags:[]};
 }
 
@@ -120,6 +120,8 @@ function inferRemote(text:string){const t=text.toLowerCase();if(/remote|télétr
 function inferCity(text:string){const t=text.toLowerCase();return CITY_NAMES.find(c=>t.includes(c.toLowerCase()))||"Cameroon"}
 function inferCompany(text:string){const t=clean(text);const m=t.match(/^(.+?)\s+(?:recrute|is hiring|recruits)\b/i);return m?.[1]?.trim()||""}
 function inferExperience(text:string){const m=text.match(/(\d+)\s*(?:\+|à|-)\s*(?:\d+)?\s*(?:ans?|years?)/i);return m?Number(m[1]):0}
+function extractExperience(text:string):string[]{const out:string[]=[];const patterns=[/(?:au moins|minimum|minimale?|minimum de)\s+(\d+)\s*(?:ans?|years?)/gi,/(\d+)\s*(?:\+|à|-)\s*(?:\d+)?\s*(?:ans?|years?)/gi,/(?:expérience|experience)\s*(?:professionnelle)?\s*[:：-]?\s*([^\n.;]{3,90})/gi];for(const re of patterns){for(const m of text.matchAll(re)){const v=cleanHumanText(String(m[0]||m[1]||"")).trim();if(v.length>=3)out.push(v)}}return Array.from(new Set(out)).slice(0,10)}
+function extractApplication(text:string):string[]{const out:string[]=[];const emails=text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)||[];for(const e of emails)out.push("Email : "+e);const urls=text.match(/https?:\/\/[^\s<>\"']+/gi)||[];for(const u of urls)if(!/facebook|instagram|youtube|linkedin|twitter|google\./i.test(u))out.push("Lien : "+u.replace(/[),.;]+$/,""));const phones=extractPhone(text);for(const p of phones)out.push("Téléphone : "+p);const lines=text.split(/\n+/).map(x=>x.trim()).filter(Boolean);for(const line of lines)if(/postuler|candidature|envoyer.*cv|déposer.*cv|deposer.*cv|apply|application|pour postuler/i.test(line)&&line.length<300)out.push(cleanHumanText(line));return Array.from(new Set(out)).slice(0,12)}
 function inferOpportunityType(item:any):"EMPLOI"|"CONCOURS"|"FORMATION"|"RECRUTEMENT_INSUFFISANT"{
   const title=String(item.title||"");
   const description=String(item.description||"");
