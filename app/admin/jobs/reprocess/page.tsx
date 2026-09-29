@@ -11,6 +11,8 @@ type Result = {
   skipped?: number;
   deactivated?: number;
   message?: string;
+  hasMore?: boolean;
+  nextOffset?: number;
 };
 
 type BridgeResponse = {
@@ -87,20 +89,59 @@ export default function JobsReprocessPage() {
           return;
         }
 
-        if (!cancelled) setStatus("Réindexation complète en cours…");
+        let offset = 0;
+        let totalProcessed = 0;
+        let totalUpdated = 0;
+        let totalSkipped = 0;
+        let totalDeactivated = 0;
 
-        const response = await fetch("/api/jobs/ingest/sources?mode=reprocess-all", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${session.access_token}` },
-          cache: "no-store",
-        });
+        while (!cancelled) {
+          if (!cancelled) {
+            setStatus(
+              offset === 0
+                ? "Réindexation complète en cours…"
+                : `Réindexation en cours… ${totalProcessed} offres déjà traitées`,
+            );
+          }
 
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(payload?.message || `Erreur HTTP ${response.status}`);
+          const response = await fetch(
+            `/api/jobs/ingest/sources?mode=reprocess-all&limit=10&offset=${offset}`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${session.access_token}` },
+              cache: "no-store",
+            },
+          );
+
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(payload?.message || `Erreur HTTP ${response.status}`);
+          }
+
+          totalProcessed += Number(payload?.processed || 0);
+          totalUpdated += Number(payload?.updated || 0);
+          totalSkipped += Number(payload?.skipped || 0);
+          totalDeactivated += Number(payload?.deactivated || 0);
+
+          if (!cancelled) {
+            setResult({
+              ...payload,
+              processed: totalProcessed,
+              updated: totalUpdated,
+              skipped: totalSkipped,
+              deactivated: totalDeactivated,
+              hasMore: Boolean(payload?.hasMore),
+              nextOffset: Number(payload?.nextOffset || offset),
+            });
+          }
+
+          if (!payload?.hasMore) break;
+          offset = Number(payload?.nextOffset || offset + 10);
+        }
 
         if (!cancelled) {
-          setResult(payload);
           setStatus("Réindexation complète terminée.");
+          setResult((current) => current ? { ...current, hasMore: false, message: "Réindexation complète terminée." } : current);
         }
       } catch (error) {
         if (!cancelled) {
