@@ -289,6 +289,12 @@ function stripBoilerplate(values: string[]): string[] {
   ));
 }
 
+function companyNameMatchesTitle(name: string, title: string): boolean {
+  const normalizedName = key(name).replace(/\b(?:s a|sarl|sas|ltd|limited|llc|inc|plc|gmbh)\b/g, " ").replace(/\s+/g, " ").trim();
+  const normalizedTitle = key(title);
+  return normalizedName.length >= 3 && normalizedTitle.includes(normalizedName);
+}
+
 function plausibleExplicitCompany(name: string, title: string, context = ""): boolean {
   if (!name || name.length < 2 || name.length > 120) return false;
   if (/^(?:pdf\s+ou\s+jpeg|exig|avec\s+l|du\s+fonds\s+pour\s+la\s+paix)$/i.test(name)) return false;
@@ -324,7 +330,7 @@ export function normalizeJobContent(input: {
     (value): value is string => Boolean(value),
   );
   const companyName = companyCandidates.find((candidate) =>
-    plausibleExplicitCompany(candidate, title, description),
+    companyNameMatchesTitle(candidate, title) || plausibleExplicitCompany(candidate, title, description),
   ) || null;
   // Parse the same canonical description used for identity extraction and storage.
   // The raw input is intentionally unknown, so never pass it directly to a string-only parser.
