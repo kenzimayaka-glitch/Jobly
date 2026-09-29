@@ -12,7 +12,7 @@ type JobRow = {
   normalizedVersion:string|null;
 };
 
-const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+const headers = { apikey: SUPABASE_KEY };
 
 async function loadJobs(): Promise<JobRow[]> {
   const url = new URL(`${SUPABASE_URL}/rest/v1/Job`);
