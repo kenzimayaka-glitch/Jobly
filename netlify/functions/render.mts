@@ -32,7 +32,7 @@ export default async (req: Request) => {
     return Response.json({ ok: false, error: "renderer_not_configured" }, { status: 503 });
   }
 
-  const suppliedToken = req.headers.get("authorization")?.replace(/^Bearer\\s+/i, "");
+  const suppliedToken = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!suppliedToken || suppliedToken !== expectedToken) {
     return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
@@ -47,9 +47,6 @@ export default async (req: Request) => {
   if (!isAllowedUrl(body.url)) {
     return Response.json({ ok: false, error: "invalid_url" }, { status: 400 });
   }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
 
@@ -100,7 +97,6 @@ export default async (req: Request) => {
       { status: 502 },
     );
   } finally {
-    clearTimeout(timeout);
     if (browser) {
       await browser.close().catch(() => undefined);
     }
