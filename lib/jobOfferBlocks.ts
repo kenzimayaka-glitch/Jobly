@@ -80,10 +80,9 @@ function stripExcluded(html: string): { html: string; removed: number } {
 }
 
 function attr(tag: string, name: string): string {
-  const match = tag.match(new RegExp('\\\\b' + name + '\\s*=\\s*["\\\\']([^"\\\\']*)["\\\\']', "i"));
+  const match = tag.match(new RegExp("\\b" + name + "\\s*=\\s*[\\\"']([^\\\"']*)[\\\"']", "i"));
   return match?.[1] || "";
 }
-
 function visibleText(fragment: string): string {
   return normalize(
     fragment
