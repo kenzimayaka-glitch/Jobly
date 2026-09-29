@@ -53,7 +53,6 @@ const educaid = check("EducAid / JobInfoCamer", {
   contractType: "CDD",
   deadline: "2026-10-01T23:59:59.000Z",
 });
-console.log("EDUCAID_APPLICATION_DEBUG", JSON.stringify(educaid.application));
 assert.match(educaid.application.join(" "), /candidatures\.cameroun@educaid\.it/i);
 assert.match(educaid.application.join(" "), /Candidature – Business expert – EducAid/i);
 
