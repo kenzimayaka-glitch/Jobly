@@ -1,7 +1,11 @@
+import { extractOfferBlocks } from "@/lib/jobOfferBlocks";
+
 export type SourceOfferInput = {
   sourceUrl?: unknown;
   title?: unknown;
   description?: unknown;
+  renderedHtml?: unknown;
+  rawHtml?: unknown;
   location?: unknown;
   deadline?: unknown;
 };
@@ -73,20 +77,20 @@ function selectMainHtml(value: string): string {
 
 function genericClean(value: string, title: string): string {
   const source = selectMainHtml(value);
+  const extracted = extractOfferBlocks(source, "", title);
+  if (extracted.text.length >= 120) return extracted.text;
   const text = htmlToText(source);
   const titleKey = key(title);
   const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean).filter(line =>
     !/^(?:aller au contenu principal|toggle navigation|main navigation|poster une offre|connexion|inscription|accueil|menu|recherche|partager|articles similaires|popular posts?|newsletter|cookies?)$/i.test(line)
   );
-
   const titleIndex = lines.findIndex(line => key(line) === titleKey);
-  const start = titleIndex >= 0 ? titleIndex + 1 : 0;
-  return normalizeText(lines.slice(start).filter(line =>
+  const startIndex = titleIndex >= 0 ? titleIndex + 1 : 0;
+  return normalizeText(lines.slice(startIndex).filter(line =>
     !/^(?:facebook|twitter|linkedin|instagram|youtube|whatsapp)$/i.test(line) &&
     !/^(?:copyright|©)\s*\d{4}/i.test(line)
   ).join("\n"));
 }
-
 const GENERIC_ADAPTER: SourceAdapter = { key: "generic", matches: () => true, clean: genericClean };
 
 const ADAPTERS: SourceAdapter[] = [
@@ -141,13 +145,19 @@ function extractDeadline(text: string): string | null {
 export function adaptSourceOfferInput(input: SourceOfferInput): AdaptedSourceOfferInput {
   const title = normalizeText(input.title);
   const adapter = adapterFor(input.sourceUrl);
+  const renderedHtml = normalizeText(input.renderedHtml);
   const originalDescription = normalizeText(input.description);
-  const description = adapter.clean(originalDescription, title);
-  const location = extractLocation(description);
-  const deadline = extractDeadline(description);
+  const description = renderedHtml ? adapter.clean(renderedHtml, title) : adapter.clean(originalDescription, title);
+  const rendered = renderedHtml ? extractOfferBlocks(renderedHtml, originalDescription, title) : null;
+  const metadataText = rendered?.text || description;
+  const location = extractLocation(metadataText);
+  const deadline = extractDeadline(metadataText);
   const warnings: string[] = [];
 
   if (description !== originalDescription) warnings.push("source_specific_cleaning");
+  if (renderedHtml) warnings.push("rendered_blocks_used");
+  if (rendered?.diagnostics.estimatedRisks.chromeContamination > 0.35) warnings.push("high_chrome_risk");
+  if (rendered?.diagnostics.estimatedRisks.blockLoss > 0.35) warnings.push("high_block_loss_risk");
   if (location && normalizeText(input.location) && key(location) !== key(String(input.location))) warnings.push("source_metadata_location_overridden");
   if (deadline && normalizeText(input.deadline) && key(deadline) !== key(String(input.deadline))) warnings.push("source_metadata_deadline_overridden");
 
