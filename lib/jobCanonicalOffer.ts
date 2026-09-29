@@ -73,7 +73,7 @@ function hasBoilerplate(text: string): boolean {
   return BOILERPLATE.some((pattern) => pattern.test(text));
 }
 
-function scoreConfidence(content: NormalizedJobContent) {
+function scoreConfidence(content: Omit<NormalizedJobContent, "version">) {
   const descriptionLength = content.description.join("\n").length;
   const allText = [
     content.title || "",
@@ -145,7 +145,7 @@ export function buildCanonicalOffer(input: CanonicalOfferInput): {
     qualities: meaningful(normalized.qualities),
     benefits: meaningful(normalized.benefits),
     application: meaningful(normalized.application),
-  } satisfies NormalizedJobContent;
+  } satisfies Omit<NormalizedJobContent, "version">;
 
   const confidence = scoreConfidence(content);
   const warnings: string[] = [];
