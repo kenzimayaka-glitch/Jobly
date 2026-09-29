@@ -7,16 +7,28 @@ function cleanApplicationSubject(value: string): string {
     .replace(/[\r\n\t]+/g, " ")
     .replace(/\s+/g, " ")
     .replace(/^[\"'“”«»\s]+|[\"'“”«»\s]+$/g, "")
+    .replace(/[.\s]+(?:en|comme)\s+objet\s+(?:de\s+votre\s+mail|du\s+mail|de\s+l['’]email).*$/i, "")
+    .replace(/\s*(?:NB|N\.B\.)\s*:.*$/i, "")
     .trim();
 }
 
 export function extractApplicationSubject(text: string, _jobTitle = ""): string {
-  const pattern = /(?:objet(?: de (?:la )?candidature| du mail| de l['’]email)?|subject|email subject|mail subject|indiquer en objet|mettre en objet|avec pour objet|mentionner en objet)\s*[:：-]\s*[\"'“”«»]?([^\r\n<]{3,180})/i;
-  const match = text.match(pattern);
-  const subject = match?.[1] ? cleanApplicationSubject(match[1]) : "";
-  return subject;
-}
+  const normalized = text.replace(/[\r\n]+/g, " ");
+  const labeled = normalized.match(
+    /(?:objet(?: de (?:la )?candidature| du mail| de l['’]email)?|subject|email subject|mail subject)\s*[:：-]\s*["'“”«»]?([^"'“”»\r\n]{3,180})["'“”»]?/i
+  );
+  if (labeled?.[1]) return cleanApplicationSubject(labeled[1]);
 
+  const quoted = normalized.match(
+    /(?:mentionner|indiquer|mettre|avec)\s+(?:imp[ée]rativement\s+)?["'“”«»]([^"'“”»]{3,180})["'“”»]\s+(?:en\s+)?objet(?:\s+de\s+(?:votre\s+)?mail)?/i
+  );
+  if (quoted?.[1]) return cleanApplicationSubject(quoted[1]);
+
+  const unquoted = normalized.match(
+    /(?:mentionner|indiquer|mettre)\s+(?:imp[ée]rativement\s+)?(?:comme\s+)?objet\s*[:：-]\s*([^.;\n]{3,180})/i
+  );
+  return unquoted?.[1] ? cleanApplicationSubject(unquoted[1]) : "";
+}
 
 export function extractApplicationEmail(text: string): string | null {
   const matches = Array.from(new Set(
