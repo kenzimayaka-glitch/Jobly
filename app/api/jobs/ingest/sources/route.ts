@@ -74,11 +74,20 @@ export async function POST(request: NextRequest) {
     const now = new Date();
     
     if (mode === "reprocess" || mode === "reprocess-all") {
-      const rowsQuery = supabase.from("Job")
+      let rowsQuery = supabase.from("Job")
         .select("id,title,sourceKey,sourceUrl,createdAt,isActive,description")
         .not("sourceUrl", "is", null)
-        .not("sourceKey", "is", null)
-        .or("sourceKey.eq.infosconcourseducation,description.like.%�%,description.like.%Ã%,description.like.%Â%,description.like.%\\u0019%,description.like.%\\u0013%,title.like.%�%,title.like.%Ã%,title.like.%Â%")
+        .not("sourceKey", "is", null);
+
+      // "reprocess-all" must really mean all eligible source-backed offers.
+      // The targeted "reprocess" mode keeps the corruption/legacy filter.
+      if (mode !== "reprocess-all") {
+        rowsQuery = rowsQuery.or(
+          "sourceKey.eq.infosconcourseducation,description.like.%�%,description.like.%Ã%,description.like.%Â%,description.like.%\\u0019%,description.like.%\\u0013%,title.like.%�%,title.like.%Ã%,title.like.%Â%",
+        );
+      }
+
+      const { data: rows, error } = await rowsQuery
         .order("createdAt", { ascending: true })
         .range(0, mode === "reprocess-all" ? 999 : batchSize - 1);
       const { data: rows, error } = await rowsQuery;
