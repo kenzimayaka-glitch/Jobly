@@ -1,12 +1,13 @@
 import { cleanJobDescription, cleanJobTitle } from "@/lib/jobContent";
 import { getNormalizedExperienceYears, normalizeJobContent, type NormalizedJobContent } from "@/lib/jobNormalizer";
+import { adaptSourceOfferInput } from "@/lib/jobSourceAdapters";
 
-export const CANONICAL_OFFER_VERSION = "jobly-offer-v4";
+export const CANONICAL_OFFER_VERSION = "jobly-offer-v5";
 export const SOURCE_VERSION = "source-v2";
 export const RENDER_VERSION = "render-v2";
-export const EXTRACTION_VERSION = "extract-v4";
-export const STRUCTURE_VERSION = "structure-v4";
-export const VALIDATION_VERSION = "validation-v4";
+export const EXTRACTION_VERSION = "extract-v5";
+export const STRUCTURE_VERSION = "structure-v5";
+export const VALIDATION_VERSION = "validation-v5";
 
 export type OfferPipelineStatus = "READY" | "QUARANTINED" | "FAILED";
 
@@ -121,13 +122,22 @@ export function buildCanonicalOffer(input: CanonicalOfferInput): {
   extractedDescription: string;
 } {
   const title = cleanJobTitle(input.title);
-  const rawDescription = typeof input.description === "string" ? input.description : "";
+  const adapted = adaptSourceOfferInput({
+    sourceUrl: input.sourceUrl,
+    title,
+    description: typeof input.description === "string" ? input.description : "",
+    location: input.location,
+    deadline: input.deadline,
+  });
+  const rawDescription = adapted.description;
   const extractedDescription = cleanJobDescription(rawDescription, title);
 
   const normalized = normalizeJobContent({
     ...input,
     title,
     description: extractedDescription,
+    location: adapted.location,
+    deadline: adapted.deadline,
     remoteMode: normalizeRemoteMode(input.remoteMode),
   });
 
@@ -158,6 +168,10 @@ export function buildCanonicalOffer(input: CanonicalOfferInput): {
   if (hasBoilerplate(allText)) warnings.push("source_chrome_detected");
   if (content.flags.includes("experience_unresolved")) warnings.push("experience_unresolved");
   if (content.flags.includes("skills_unresolved")) warnings.push("skills_unresolved");
+  if (adapted.adapterWarnings.includes("source_specific_cleaning")) warnings.push("source_adapter_cleaned");
+  for (const warning of adapted.adapterWarnings.filter(item => item !== "source_specific_cleaning")) {
+    warnings.push(warning);
+  }
 
   const fatal = !content.title || descriptionText.length < 120 || hasBoilerplate(allText);
   const score = Math.max(0, Math.min(100, Math.round(
