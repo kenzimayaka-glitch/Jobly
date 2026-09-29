@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
       const { data: rows, error } = await rowsQuery
         .order("createdAt", { ascending: true })
-        .range(0, mode === "reprocess-all" ? 999 : batchSize - 1);
+        .range(offset, offset + batchSize - 1);
       if (error) throw new Error(error.message);
 
       let processed = 0, updated = 0, skipped = 0, deactivated = 0;
@@ -152,10 +152,10 @@ export async function POST(request: NextRequest) {
         skipped,
         deactivated,
         offset,
-        limit: mode === "reprocess-all" ? 1000 : batchSize,
-        hasMore: false,
+        limit: batchSize,
+        hasMore: (rows || []).length === batchSize,
         nextOffset: offset + (rows || []).length,
-        message: mode === "reprocess-all" ? "Réindexation complète terminée." : undefined,
+        message: mode === "reprocess-all" && (rows || []).length < batchSize ? "Réindexation complète terminée." : undefined,
         ranAt: now.toISOString()
       });
     }
