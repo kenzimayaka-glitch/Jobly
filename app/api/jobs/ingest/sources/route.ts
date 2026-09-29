@@ -54,11 +54,13 @@ async function saveOfferPipeline(
     jobId,
     sourceKey: offer.sourceKey,
     sourceUrl: offer.sourceUrl,
+          renderedHtml: offer.renderedHtml,
     captureMode: offer.captureMode || "unknown",
     rawPayload: {
       sourceKey: offer.sourceKey,
       externalId: offer.externalId,
       sourceUrl: offer.sourceUrl,
+          renderedHtml: offer.renderedHtml,
       title: offer.title,
       company: offer.company,
       location: offer.location,
@@ -175,6 +177,7 @@ export async function POST(request: NextRequest) {
           deadline: offer.deadline,
           source: sourceDisplayName(offer.sourceKey),
           sourceUrl: offer.sourceUrl,
+          renderedHtml: offer.renderedHtml,
         });
         const normalizedContent = prepared.canonical;
         const normalizedExperienceYears = prepared.experienceYears;
@@ -294,6 +297,7 @@ export async function POST(request: NextRequest) {
           deadline: offer.deadline,
           source: sourceDisplayName(row.sourceKey),
           sourceUrl: offer.sourceUrl,
+          renderedHtml: offer.renderedHtml,
         });
         const normalizedContent = prepared.canonical;
         const normalizedExperienceYears = prepared.experienceYears;
@@ -369,6 +373,7 @@ export async function POST(request: NextRequest) {
         deadline: offer.deadline,
         source,
         sourceUrl: offer.sourceUrl,
+          renderedHtml: offer.renderedHtml,
       });
       const normalizedContent = prepared.canonical;
       const normalizedExperienceYears = prepared.experienceYears;
@@ -430,6 +435,7 @@ export async function POST(request: NextRequest) {
         contractType: offer.contractType,
         source,
         sourceUrl: offer.sourceUrl,
+          renderedHtml: offer.renderedHtml,
         sourceKey: offer.sourceKey,
         externalId: offer.externalId,
         contentHash: cleanedContentHash,
