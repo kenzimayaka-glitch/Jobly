@@ -10,7 +10,7 @@ export const VALIDATION_VERSION = "validation-v3";
 
 export type OfferPipelineStatus = "READY" | "QUARANTINED" | "FAILED";
 
-export type CanonicalOffer = NormalizedJobContent & {
+export type CanonicalOffer = Omit<NormalizedJobContent, "version"> & {
   version: typeof CANONICAL_OFFER_VERSION;
   quality: {
     score: number;
@@ -131,8 +131,10 @@ export function buildCanonicalOffer(input: CanonicalOfferInput): {
     remoteMode: normalizeRemoteMode(input.remoteMode),
   });
 
+  const { version: _normalizedVersion, ...normalizedContent } = normalized;
+
   const content = {
-    ...normalized,
+    ...normalizedContent,
     title: normalized.title || title || null,
     description: meaningful(normalized.description),
     missions: meaningful(normalized.missions),
