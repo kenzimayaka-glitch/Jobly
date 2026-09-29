@@ -19,7 +19,7 @@ export async function GET(request: NextRequest, context: Context) {
     const supabase = adminClient();
     if (source === "discovery") {
       const { data, error } = await supabase.from("Job")
-        .select("id,title,description,location,contractType,remoteMode,minExperienceYears,salaryMin,salaryMax,salaryCurrency,deadline,createdAt,sourceUrl,source,applicationReady,applicationProfile,tags,aiSector,company:Company(name,logoUrl,website,description)")
+        .select("id,title,description,location,contractType,remoteMode,minExperienceYears,salaryMin,salaryMax,salaryCurrency,deadline,createdAt,sourceUrl,source,applicationReady,applicationProfile,tags,aiSector,normalizedContent,company:Company(name,logoUrl,website,description)")
         .eq("id", id).eq("isActive", true).maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) return NextResponse.json({ message: "Offre introuvable ou inactive." }, { status: 404 });
@@ -29,10 +29,12 @@ export async function GET(request: NextRequest, context: Context) {
         return NextResponse.json({ message: "Offre expirée." }, { status: 404 });
       }
       const company = Array.isArray(data.company) ? data.company[0] : data.company;
-      const normalized = normalizeJobIdentity({ title: data.title, companyName: company?.name, description: data.description });
+      const normalizedContent = (data as any).normalizedContent || null;
+      const structuredDescription = Array.isArray(normalizedContent?.description) ? normalizedContent.description.join("\n\n") : "";
+      const normalized = normalizeJobIdentity({ title: normalizedContent?.title || data.title, companyName: normalizedContent?.company || company?.name, description: structuredDescription || data.description });
       const cleanedTitle = normalized.title; const cleanedDescription = normalized.description; const cleanedCompanyName = normalized.companyName; const contacts = resolveApplicationContact((data.applicationProfile || {}) as Record<string, unknown>, cleanedDescription);
       const applicationProfile = { ...(data.applicationProfile || {}), ...(contacts.email ? { applicationEmail: contacts.email } : {}), ...(contacts.phone ? { applicationPhone: contacts.phone } : {}) };
-      const parsedSections = parseJobDetailSections(cleanedDescription || data.description, cleanedTitle);
+      const parsedSections = normalizedContent && Object.values(normalizedContent).some((v:any)=>Array.isArray(v)&&v.length) ? { description: normalizedContent.description||[], missions: normalizedContent.missions||[], profile: normalizedContent.profile||[], education: normalizedContent.education||[], experience: normalizedContent.experience||[], skills: normalizedContent.skills||[], qualities: normalizedContent.qualities||[], benefits: normalizedContent.benefits||[], application: normalizedContent.application||[] } : parseJobDetailSections(cleanedDescription || data.description, cleanedTitle);
       const detailSections = Object.values(parsedSections).some((items) => Array.isArray(items) && items.length)
         ? parsedSections
         : (String(data.description || "").trim() ? { ...parsedSections, description: [String(data.description).trim()] } : parsedSections);
