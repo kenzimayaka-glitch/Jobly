@@ -38,6 +38,7 @@ export default function TalentCVs() {
   const [originalMeta, setOriginalMeta] = useState<{ pages?: number; storagePath?: string } | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [originalBusy, setOriginalBusy] = useState(false);
   const [plan, setPlan] = useState("FREE");
   const [paymentPhone, setPaymentPhone] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("MTN MoMo");
@@ -57,27 +58,15 @@ export default function TalentCVs() {
       const { data } = await supabase.auth.getSession();
       const session = data.session;
       if (!session?.access_token) return null;
-
-      // Never send an expired/near-expiry access token to the CV API.
-      // Supabase auto-refresh normally handles this, but a tab resumed from
-      // sleep can still expose the cached token for a short time.
       const expiresAt = Number(session.expires_at || 0) * 1000;
-      if (!expiresAt || expiresAt - Date.now() > 60_000) {
-        return session.access_token;
-      }
-
+      if (!expiresAt || expiresAt - Date.now() > 60_000) return session.access_token;
       const refreshed = await supabase.auth.refreshSession();
       return refreshed.data.session?.access_token || null;
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   }
 
   async function extractIntoFields() {
-    if (!extracted) {
-      setMessage("Importe d’abord ton CV PDF.");
-      return;
-    }
+    if (!extracted) { setMessage("Importe d’abord ton CV PDF."); return; }
     setBusy(true);
     try {
       const next: CV = {
@@ -97,22 +86,16 @@ export default function TalentCVs() {
       const token = await getAccessToken();
       if (token) {
         const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
-        const profileRes = await fetch("/api/profile", { method: "PUT", headers, body: JSON.stringify({
-          section: "profil", displayName: next.fullName, phone: next.phone, headline: next.headline, summary: next.summary,
-        })});
+        const profileRes = await fetch("/api/profile", { method: "PUT", headers, body: JSON.stringify({ section: "profil", displayName: next.fullName, phone: next.phone, headline: next.headline, summary: next.summary })});
         if (!profileRes.ok) throw new Error((await profileRes.json().catch(() => ({}))).message || "Le profil Jobly n’a pas pu être synchronisé.");
-        const skillsRes = await fetch("/api/profile", { method: "PUT", headers, body: JSON.stringify({
-          section: "skills", skills: (extracted.skills || []).map((name: string) => ({ name })),
-        })});
+        const skillsRes = await fetch("/api/profile", { method: "PUT", headers, body: JSON.stringify({ section: "skills", skills: (extracted.skills || []).map((name: string) => ({ name })) })});
         if (!skillsRes.ok) throw new Error("Les compétences n’ont pas pu être synchronisées.");
       }
       const all = [next, ...cvs.filter(x => x.id !== next.id)];
-      setCvs(all);
-      localStorage.setItem(KEY, JSON.stringify(all));
+      setCvs(all); localStorage.setItem(KEY, JSON.stringify(all));
       setMessage(token ? "Données extraites : les champs sont remplis et le profil Talent est synchronisé." : "Données extraites : les champs sont remplis. Connecte-toi pour synchroniser le profil Jobly.");
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Extraction impossible.");
-    } finally { setBusy(false); }
+    } catch (err) { setMessage(err instanceof Error ? err.message : "Extraction impossible."); }
+    finally { setBusy(false); }
   }
 
   function save() {
@@ -129,37 +112,14 @@ export default function TalentCVs() {
       const form = new FormData(); form.append("file", f);
       let token = await getAccessToken();
       if (!token) throw new Error("Impossible de récupérer ta session Jobly active. Recharge la page puis réessaie.");
-      let res = await fetch("/api/talent/cv/import", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-
-      // One recovery attempt for a token that became invalid between
-      // getSession() and the API request.
+      let res = await fetch("/api/talent/cv/import", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
       if (res.status === 401) {
-        token = await (async () => {
-          try {
-            const refreshed = await getSupabaseClient().auth.refreshSession();
-            return refreshed.data.session?.access_token || null;
-          } catch {
-            return null;
-          }
-        })();
-        if (token) {
-          res = await fetch("/api/talent/cv/import", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-            body: form,
-          });
-        }
+        token = await (async () => { try { const refreshed = await getSupabaseClient().auth.refreshSession(); return refreshed.data.session?.access_token || null; } catch { return null; } })();
+        if (token) res = await fetch("/api/talent/cv/import", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
       }
-
       const data = await res.json();
       if (!res.ok) {
-        if (res.status === 401) {
-          throw new Error("Ta session Jobly n’est plus valide. Reconnecte-toi puis réessaie.");
-        }
+        if (res.status === 401) throw new Error("Ta session Jobly n’est plus valide. Reconnecte-toi puis réessaie.");
         throw new Error(data.message || "Import impossible.");
       }
       setExtracted(data.cv);
@@ -167,6 +127,20 @@ export default function TalentCVs() {
       setMessage(`CV importé${data.originalCv?.stored ? " et conservé comme document original" : ""}. Clique sur « Extraire les données » pour remplir les champs. ${data.credits} crédit(s) IA utilisé(s).`);
     } catch (err) { setMessage(err instanceof Error ? err.message : "Import impossible."); }
     finally { setBusy(false); }
+  }
+
+  async function openOriginalCv() {
+    setOriginalBusy(true); setMessage("Préparation du CV original sécurisé…");
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
+      const res = await fetch("/api/talent/cv/original", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) throw new Error(data.message || "CV original indisponible.");
+      window.open(data.url, "_blank", "noopener,noreferrer");
+      setMessage("CV original ouvert dans un nouvel onglet.");
+    } catch (err) { setMessage(err instanceof Error ? err.message : "Impossible d’ouvrir le CV original."); }
+    finally { setOriginalBusy(false); }
   }
 
   async function exportPdf(paymentId?: string) {
@@ -181,9 +155,7 @@ export default function TalentCVs() {
         } else setMessage(data.message || "Paiement requis.");
         return;
       }
-      if (res.status === 202) {
-        const data = await res.json(); setPayment(p => p ? { ...p, pending: true } : p); setMessage(data.message || "Paiement en attente."); return;
-      }
+      if (res.status === 202) { const data = await res.json(); setPayment(p => p ? { ...p, pending: true } : p); setMessage(data.message || "Paiement en attente."); return; }
       if (!res.ok) { const data = await res.json().catch(() => ({})); throw new Error(data.message || "Téléchargement impossible."); }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `${cv.fullName || "CV-Jobly"}-ATS.pdf`; a.click(); URL.revokeObjectURL(url);
@@ -209,6 +181,7 @@ export default function TalentCVs() {
           </div>
           {file && <p className="mt-3 text-xs font-bold text-jobly-blue">Fichier : {file}{originalMeta?.pages ? ` · ${originalMeta.pages} page(s)` : ""}</p>}
           {extracted && <p className="mt-2 text-[11px] font-semibold text-jobly-gray">Données prêtes à être injectées dans les champs correspondants. Le PDF original reste séparé du CV interne Jobly.</p>}
+          {originalMeta?.storagePath && <button type="button" onClick={openOriginalCv} disabled={busy || originalBusy} className="mt-3 rounded-xl border border-jobly-blue px-4 py-2 text-xs font-black text-jobly-blue disabled:opacity-50">{originalBusy ? "Ouverture…" : "Ouvrir mon CV original"}</button>}
         </section>
 
         <div className="grid gap-4 lg:grid-cols-[1.4fr_.6fr]">
@@ -229,7 +202,6 @@ export default function TalentCVs() {
               <button onClick={() => router.push("/career-os")} className="rounded-xl border py-3 font-black">Career OS →</button>
             </div>
             {message && <div role="status" aria-live="polite" className="fixed bottom-5 left-1/2 z-[120] w-[min(92vw,520px)] -translate-x-1/2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#17212B] shadow-2xl print:hidden">{message}</div>}
-
             {payment && <div className="mt-4 rounded-2xl border border-[#FFE135] bg-[#FFF9E6] p-4 print:hidden">
               <p className="font-black">Téléchargement ATS — {payment.priceXaf.toLocaleString("fr-FR")} FCFA</p>
               <p className="mt-1 text-xs">{payment.instructions}</p>
@@ -240,7 +212,6 @@ export default function TalentCVs() {
               <button onClick={() => exportPdf(payment.paymentId)} disabled={busy} className="mt-3 w-full rounded-xl bg-jobly-blue py-3 font-black text-white disabled:opacity-50">{payment.pending ? "Vérifier le paiement" : "J’ai payé — télécharger"}</button>
             </div>}
           </section>
-
           <aside className="space-y-4 print:hidden">
             <section className="rounded-[24px] bg-white p-5 shadow-sm"><span className="text-xs font-black uppercase text-jobly-gray">Score ATS</span><div className="mt-2 text-5xl font-black text-jobly-blue">{ats}%</div><p className="mt-2 text-xs text-jobly-gray">Score déterministe de lisibilité et de complétude. J’IA peut aussi analyser le contenu importé.</p></section>
             <section className="rounded-[24px] bg-white p-5 shadow-sm"><h2 className="font-black">Téléchargement</h2><p className="mt-2 text-xs text-jobly-gray">Premium et Pro : inclus. Free et Start : 1 000 FCFA par CV ATS.</p><p className="mt-2 text-[10px] font-bold uppercase text-jobly-gray">Plan actuel : {plan}</p></section>
