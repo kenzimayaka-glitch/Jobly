@@ -147,6 +147,20 @@ function inferOpportunityType(item:any):"EMPLOI"|"CONCOURS"|"FORMATION"|"RECRUTE
   // A discovery record is not eligible for Jobly Offres until its source\n  // provides a substantive job description. Weak snippets remain stored for\n  // Campus/recovery workflows but are never exposed as employment offers.\n  if(description.trim().length<180) return "RECRUTEMENT_INSUFFISANT";
   return "EMPLOI";
 }
+
+function offerQuality(row:any):number {
+  const description=String(row.description||"").trim();
+  const nc=row.normalizedContent||{};
+  const sections=["missions","profile","education","experience","skills","qualities","benefits","application","description"];
+  const sectionCount=sections.reduce((n,k)=>n+(Array.isArray(nc?.[k])?nc[k].length:0),0);
+  const title=String(row.title||"").trim().length>=4?10:0;
+  const company=row.companyId?8:(String(row.company||"").trim()?5:0);
+  const body=Math.min(45,Math.floor(description.length/40));
+  const structure=Math.min(30,sectionCount*2);
+  const quality=Number(row.aiQualityScore);
+  const ai=Number.isFinite(quality)?Math.max(0,Math.min(100,quality))*0.25:0;
+  return Math.round(title+company+body+structure+ai);
+}
 function extractPhone(text:string){const matches=text.match(/(?:\+?237[\s.-]?[6-9]\d{2}[\s.-]?\d{3}[\s.-]?\d{3}|6[5-9]\d{7})/g)||[];return matches.map(x=>x.replace(/[\s.-]/g,"")).map(x=>x.startsWith("237")?"+"+x:"+237"+x).filter((x,i,a)=>a.indexOf(x)===i).slice(0,3)}
 function extractLinks(html:string,base:string){const out:string[]=[];const re=/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;let m;while((m=re.exec(html))&&out.length<80){const href=absolute(base,m[1]);const label=clean(m[2]);if(label.length>=5&&!/^javascript:/i.test(href)&&!href.includes("#"))out.push(href)}return[...new Set(out)]}
 function extractJsonLd(html:string){const jobs:any[]=[];const re=/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;let m;while((m=re.exec(html))){try{const parsed=JSON.parse(m[1]);for(const x of(Array.isArray(parsed)?parsed:[parsed]))if(x?.['@type']==='JobPosting')jobs.push(x)}catch{}}return jobs}
@@ -192,7 +206,16 @@ Deno.serve(async(req)=>{
     const text=`${item.title} ${item.description}`;const opportunityType=inferOpportunityType(item);const phoneNumbers=extractPhone(text);let companyId:string|null=null;const companyName=String(ai?.company||item.company||"").trim();const companyWebsite=String(item.website||"").trim()||null;let companyLogo:string|null=null;
     if(companyWebsite){try{const host=new URL(companyWebsite.startsWith("http")?companyWebsite:`https://${companyWebsite}`).hostname.replace(/^www\./,"");companyLogo=`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`;}catch{}}
     if(companyName){const existingCompany=await supabase.from("Company").select("id,website,logoUrl").eq("name",companyName).maybeSingle();if(existingCompany.error)throw existingCompany.error;if(existingCompany.data?.id){companyId=existingCompany.data.id;const updates:any={};if(companyWebsite&&!existingCompany.data.website)updates.website=companyWebsite;if(companyLogo&&!existingCompany.data.logoUrl)updates.logoUrl=companyLogo;if(Object.keys(updates).length)await supabase.from("Company").update(updates).eq("id",companyId);}else{const createdCompany=await supabase.from("Company").insert({name:companyName,website:companyWebsite,logoUrl:companyLogo}).select("id").single();if(createdCompany.error)throw createdCompany.error;companyId=createdCompany.data.id}}const row:any={opportunityType,title:normalizedContent.title||ai?.title||item.title,companyId,description:normalizedContent.description.join("\n\n")||cleanDescription(item.description)||`Offre publiée via ${source.name}.`,language:/[àâçéèêëîïôùûüÿœ]/i.test(text)?"fr":"en",location:normalizedContent.location.join(", ")||item.location||inferCity(text),contractType:normalizedContent.contractType||ai?.contractType||inferContract(text),salaryMin:normalizedContent.salary.min,salaryMax:normalizedContent.salary.max,salaryCurrency:normalizedContent.salary.currency||"XAF",source:source.name,sourceKey:source.key,sourceUrl:item.url,externalId,contentHash,deadline:item.deadline||parseDate(item.description),sourcePublishedAt:item.published||null,lastSeenAt:new Date().toISOString(),isActive:true,remoteMode:normalizedContent.remoteMode||ai?.remoteMode||inferRemote(text),minExperienceYears:Number.isFinite(ai?.minExperienceYears)?ai.minExperienceYears:inferExperience(text),aiProcessed:Boolean(ai),aiProcessedAt:ai?new Date().toISOString():null,aiSector:normalizedContent.sector||null,aiSummary:ai?.summary||normalizedContent.description.slice(0,3).join(" "),aiQualityScore:Number.isFinite(normalizedContent.qualityScore)?Math.max(0,Math.min(100,normalizedContent.qualityScore)):null,aiFlags:Array.isArray(ai?.flags)?ai.flags:[],aiSkills:Array.isArray(ai?.skills)?ai.skills:normalizedContent.skills,normalizedContent,normalizedVersion:NORMALIZED_VERSION,normalizedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),applicationReady:phoneNumbers.length===0,applicationProfile:phoneNumbers.length?{channel:"WHATSAPP_PHONE",phoneNumbers,comingSoon:true}:{channel:"EMAIL",comingSoon:false}};
-    const existing=await supabase.from("Job").select("id").eq("sourceKey",source.key).eq("externalId",externalId).maybeSingle();if(existing.data?.id){const{error:e}=await supabase.from("Job").update(row).eq("id",existing.data.id);if(e)throw e;updated++;su++}else{const{error:e}=await supabase.from("Job").insert(row);if(e)throw e;inserted++;si++}}
+    const existing=await supabase.from("Job").select("id,title,description,normalizedContent,normalizedVersion,aiQualityScore,companyId,updatedAt,lastSeenAt,isActive").eq("sourceKey",source.key).eq("externalId",externalId).maybeSingle();if(existing.error)throw existing.error;if(existing.data?.id){
+      const candidateQuality=offerQuality(row);
+      const existingQuality=offerQuality(existing.data);
+      if(!existing.data.normalizedContent || !existing.data.normalizedVersion || candidateQuality>=existingQuality){
+        const{error:e}=await supabase.from("Job").update(row).eq("id",existing.data.id);if(e)throw e;updated++;su++;
+      }else{
+        // Never let a poorer source refresh destroy an already usable canonical offer.
+        const{error:e}=await supabase.from("Job").update({lastSeenAt:row.lastSeenAt,isActive:true,sourcePublishedAt:row.sourcePublishedAt||null}).eq("id",existing.data.id);if(e)throw e;
+      }
+    }else{const{error:e}=await supabase.from("Job").insert(row);if(e)throw e;inserted++;si++}}
    sourceStats.push({source:source.name,found,inserted:si,updated:su})}catch(e){error=e instanceof Error?e.message:String(e);sourceStats.push({source:source.name,found,inserted:si,updated:su,error})}}
  const{data:dead}=await supabase.from("Job").update({isActive:false,updatedAt:new Date().toISOString()}).eq("isActive",true).lt("deadline",new Date().toISOString()).select("id");expired+=dead?.length||0;
  return new Response(JSON.stringify({ok:true,provider:GEMINI_API_KEY?"GEMINI":"RULES_FALLBACK",model:GEMINI_API_KEY?GEMINI_MODEL:null,discovered,inserted,updated,expired,aiProcessed,aiFailed,durationMs:Date.now()-started,sources:sourceStats,lastUpdatedAt:new Date().toISOString()}),{headers:{"content-type":"application/json"}})
