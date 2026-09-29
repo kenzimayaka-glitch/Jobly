@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { resolveApplicationContact, extractApplicationSubject } from "./applicationEngine";
 import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription } from "./jobContent";
+import { renderPublicSource } from "./jobSourceRenderer";
 
 type SourceConfig = {
   key: string;
@@ -210,7 +211,7 @@ function stripInfosConcoursWordPressChrome(html: string, titleHint?: string | nu
   return lines.slice(start).join("\n").trim() || text;
 }
 
-async function fetchHtml(url: string): Promise<string> {
+async function fetchHtmlLegacy(url: string): Promise<string> {
   const controller = new AbortController(), timer = setTimeout(() => controller.abort(),FETCH_TIMEOUT_MS);
   try {
     const response = await fetch(url,{headers:{"user-agent":USER_AGENT,accept:"text/html,application/xhtml+xml"},redirect:"follow",signal:controller.signal,cache:"no-store"});
@@ -244,6 +245,16 @@ async function fetchHtml(url: string): Promise<string> {
       (value.match(/(?:Ã.|Â.|â.|ð.)/g)?.length || 0) * 10;
     return score(legacy) < score(utf8) ? legacy : utf8;
   } finally { clearTimeout(timer); }
+}
+
+async function fetchHtml(url: string): Promise<string> {
+  // Browser-rendered HTML is the primary path whenever JOB_RENDERER_URL is
+  // configured. The legacy HTTP collector remains the deterministic fallback.
+  if (process.env.JOB_RENDERER_URL) {
+    const rendered = await renderPublicSource(url);
+    return rendered.html;
+  }
+  return fetchHtmlLegacy(url);
 }
 
 function externalId(url: string, source: SourceConfig): string {
@@ -386,6 +397,22 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   const title = cleanJobTitle(titleFromHtml(html) || listingTitle);
   if (!title || title.length < 3) return null;
   const clean = cleanJobDescription(html, title);
+  const lowerHtml = html.toLowerCase();
+  const chromeSignals = [
+    "aller au contenu principal",
+    "poster une offre",
+    "datalayer",
+    "gtag(",
+    "window.datalayer",
+    "cookie settings",
+    "toggle navigation",
+  ];
+  const noiseHits = chromeSignals.reduce((n, signal) => n + (lowerHtml.includes(signal) ? 1 : 0), 0);
+  const visibleLength = clean.length;
+  // A page can contain legitimate navigation, but the extracted offer itself
+  // must remain substantial. Reject only clearly unusable captures here;
+  // normalization is still the next quality gate.
+  if (visibleLength < 120 || noiseHits >= 5) return null;
   const company = cleanCompanyName(firstMatch(clean,[/(?:Nom de l[’']employeur|Nom de l'employeur|Employeur|Entreprise|Company)\s*[:：-]\s*([^|\n]{2,120})/i,/(?:chez|at)\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ0-9 .&'’-]{2,100})/i])) || extractCompanyNameFromDescription(clean);
   const location = firstMatch(clean,[/(?:Lieu|Localisation|Location)\s*[:：-]\s*([^|\n]{2,100})/i]);
   const contractType = firstMatch(clean,[/(?:Type d[’']emploi|Type d'emploi|Contrat|Contract)\s*[:：-]\s*([^|\n]{2,60})/i]);
