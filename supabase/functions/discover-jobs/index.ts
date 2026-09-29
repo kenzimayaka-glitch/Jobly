@@ -1,6 +1,81 @@
 import { fetchStructuredSource } from "./sources.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+const NORMALIZED_VERSION = "jobly-offer-v1";
+
+type NormalizedOffer = {
+  version: string; title: string | null; company: string | null; location: string[];
+  region: string | null; sector: string | null; contractType: string | null; remoteMode: string | null;
+  salary: { min: number | null; max: number | null; currency: string | null };
+  experience: string[]; education: string[]; skills: string[]; qualities: string[];
+  missions: string[]; benefits: string[]; description: string[]; application: string[];
+  deadline: string | null; source: { name: string; url: string }; qualityScore: number | null; flags: string[];
+};
+
+function normalize(value:string):string {
+  return repairMojibake(decodeEntities(value||"")).toLowerCase().normalize("NFD")
+    .replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9@.+#/_ -]+/g," ").replace(/\s+/g," ").trim();
+}
+
+function cleanHumanText(value:string):string {
+  let text=String(value||"")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,"\n")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,"\n")
+    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi,"\n")
+    .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi,"\n")
+    .replace(/<(nav|header|footer|aside|form|dialog)\b[^>]*>[\s\S]*?<\/\1>/gi,"\n")
+    .replace(/window\.(?:dataLayer|gtag|fbq)\s*\([^\n]*\)?[;]?/gi,"\n")
+    .replace(/(?:^|\n)\s*(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=.*(?:\n|$)/g,"\n")
+    .replace(/<[^>]+>/g," ");
+  return repairMojibake(decodeEntities(text))
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g," ")
+    .replace(/\uFFFD+/g," ").replace(/\r/g,"")
+    .replace(/[ \t]+\n/g,"\n").replace(/\n[ \t]+/g,"\n")
+    .replace(/[ \t]{2,}/g," ").replace(/\n{3,}/g,"\n\n").trim();
+}
+
+function fallbackNormalized(item:any):NormalizedOffer {
+  const raw=cleanHumanText(String(item.description||""));
+  const sections:Record<string,string[]>={description:[],missions:[],profile:[],formation:[],experience:[],skills:[],qualities:[],benefits:[],application:[]};
+  const aliases:Record<string,string>={
+    mission:"missions",missions:"missions",responsabilites:"missions","responsabilites principales":"missions",taches:"missions",
+    profil:"profile","profil recherche":"profile","profil du candidat":"profile",exigences:"profile",qualifications:"profile",
+    formation:"formation",formations:"formation",diplome:"formation",diplomes:"formation",etudes:"formation",
+    experience:"experience","experience professionnelle":"experience",competence:"skills",competences:"skills","competences techniques":"skills","savoir faire":"skills",
+    qualite:"qualities",qualites:"qualities","savoir etre":"qualities",avantage:"benefits",avantages:"benefits","ce que nous offrons":"benefits","conditions de travail":"benefits",
+    candidature:"application","pour postuler":"application","modalites de candidature":"application","comment postuler":"application","documents a fournir":"application","documents a joindre":"application"
+  };
+  let current="description";
+  for(const line of raw.split(/\n+/).map(x=>x.trim()).filter(Boolean)){
+    const m=line.match(/^(.{2,80}?)\s*[:：]\s*(.+)$/); const key=m?normalize(m[1]):normalize(line);
+    if(aliases[key]){current=aliases[key];if(m?.[2])sections[current].push(m[2].trim());continue;}
+    if(/^(missions|responsabilites|taches|profil|formation|experience|competences|qualites|avantages|candidature|pour postuler|description)$/.test(key))continue;
+    sections[current].push(line);
+  }
+  const cleanArray=(xs:string[])=>Array.from(new Set(xs.map(x=>cleanHumanText(x)).filter(x=>x.length>=2))).slice(0,40);
+  return {version:NORMALIZED_VERSION,title:cleanHumanText(String(item.title||""))||null,company:cleanHumanText(String(item.company||""))||null,
+    location:item.location?String(item.location).split(/[,;|]/).map((x:string)=>cleanHumanText(x)).filter(Boolean):[],region:null,sector:null,
+    contractType:inferContract(raw),remoteMode:inferRemote(raw),salary:{min:null,max:null,currency:"XAF"},
+    experience:cleanArray(sections.experience),education:cleanArray(sections.formation),skills:cleanArray(sections.skills),qualities:cleanArray(sections.qualities),
+    missions:cleanArray(sections.missions),benefits:cleanArray(sections.benefits),description:cleanArray(sections.description),application:cleanArray(sections.application),
+    deadline:item.deadline||null,source:{name:String(item.source||""),url:String(item.url||"")},qualityScore:null,flags:[]};
+}
+
+function normalizeAiResult(ai:any,item:any):NormalizedOffer {
+  const base=fallbackNormalized(item);
+  const arr=(v:any)=>Array.isArray(v)?v.map((x:any)=>cleanHumanText(String(x))).filter((x:string)=>x.length>=2).slice(0,40):[];
+  const n=(v:any)=>Number.isFinite(Number(v))?Number(v):null; const s=ai?.sections||{};
+  return {...base,title:cleanHumanText(String(ai?.title||base.title||""))||null,company:cleanHumanText(String(ai?.company||base.company||""))||null,
+    location:arr(ai?.location).length?arr(ai.location):base.location,region:cleanHumanText(String(ai?.region||""))||null,sector:cleanHumanText(String(ai?.sector||""))||null,
+    contractType:cleanHumanText(String(ai?.contractType||base.contractType||""))||null,remoteMode:cleanHumanText(String(ai?.remoteMode||base.remoteMode||""))||null,
+    salary:{min:n(ai?.salaryMin),max:n(ai?.salaryMax),currency:cleanHumanText(String(ai?.salaryCurrency||"XAF"))||"XAF"},
+    experience:arr(s.experience).length?arr(s.experience):base.experience,education:arr(s.education).length?arr(s.education):base.education,
+    skills:arr(s.skills).length?arr(s.skills):base.skills,qualities:arr(s.qualities).length?arr(s.qualities):base.qualities,
+    missions:arr(s.missions).length?arr(s.missions):base.missions,benefits:arr(s.benefits).length?arr(s.benefits):base.benefits,
+    description:arr(s.description).length?arr(s.description):base.description,application:arr(s.application).length?arr(s.application):base.application,
+    deadline:ai?.deadline||base.deadline,qualityScore:n(ai?.qualityScore),flags:arr(ai?.flags)};
+}
+
 
 const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
@@ -107,10 +182,10 @@ Deno.serve(async(req)=>{
  if(req.method!=="POST")return new Response(JSON.stringify({message:"POST required"}),{status:405,headers:{"content-type":"application/json"}});
  const supabase=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);const started=Date.now();let discovered=0,inserted=0,updated=0,expired=0,aiProcessed=0,aiFailed=0;const sourceStats:any[]=[];
  for(const source of SOURCES.filter(s=>s.enabled)){let found=0,si=0,su=0,error="";try{const structured=await fetchStructuredSource(source.key);const html=structured===null?await fetchText(source.url):"";const raw=structured??parseListing(html,source.url,source.key);found=raw.length;const items=[];for(const r of raw.slice(0,100)){const e=await enrich(r,source);if(e.title&&e.title.length>=4&&e.url)items.push({...e,source:source.name})}discovered+=items.length;
-   for(const item of items){const externalId=hash(item.url||`${item.title}|${item.company}|${item.location}`);const contentHash=hash(`${item.title}|${item.company}|${item.description}|${item.location}|${item.deadline||""}`);let ai:any=null;try{ai=await analyzeWithGemini(item);if(ai)aiProcessed++}catch{aiFailed++}
+   for(const item of items){const externalId=hash(item.url||`${item.title}|${item.company}|${item.location}`);const contentHash=hash(`${item.title}|${item.company}|${item.description}|${item.location}|${item.deadline||""}`);let ai:any=null;try{ai=await analyzeWithGemini(item);if(ai)aiProcessed++}catch{aiFailed++}\n    const normalizedContent=normalizeAiResult(ai,item);
     const text=`${item.title} ${item.description}`;const opportunityType=inferOpportunityType(item);const phoneNumbers=extractPhone(text);let companyId:string|null=null;const companyName=String(ai?.company||item.company||"").trim();const companyWebsite=String(item.website||"").trim()||null;let companyLogo:string|null=null;
     if(companyWebsite){try{const host=new URL(companyWebsite.startsWith("http")?companyWebsite:`https://${companyWebsite}`).hostname.replace(/^www\./,"");companyLogo=`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`;}catch{}}
-    if(companyName){const existingCompany=await supabase.from("Company").select("id,website,logoUrl").eq("name",companyName).maybeSingle();if(existingCompany.error)throw existingCompany.error;if(existingCompany.data?.id){companyId=existingCompany.data.id;const updates:any={};if(companyWebsite&&!existingCompany.data.website)updates.website=companyWebsite;if(companyLogo&&!existingCompany.data.logoUrl)updates.logoUrl=companyLogo;if(Object.keys(updates).length)await supabase.from("Company").update(updates).eq("id",companyId);}else{const createdCompany=await supabase.from("Company").insert({name:companyName,website:companyWebsite,logoUrl:companyLogo}).select("id").single();if(createdCompany.error)throw createdCompany.error;companyId=createdCompany.data.id}}const row:any={opportunityType,title:ai?.title||item.title,companyId,description:cleanDescription(item.description)||`Offre publiée via ${source.name}.`,language:/[àâçéèêëîïôùûüÿœ]/i.test(text)?"fr":"en",location:ai?.city||item.location||inferCity(text),contractType:ai?.contractType||inferContract(text),salaryMin:Number.isFinite(ai?.salaryMin)?ai.salaryMin:null,salaryMax:Number.isFinite(ai?.salaryMax)?ai.salaryMax:null,salaryCurrency:ai?.salaryCurrency||"XAF",source:source.name,sourceKey:source.key,sourceUrl:item.url,externalId,contentHash,deadline:item.deadline||parseDate(item.description),sourcePublishedAt:item.published||null,lastSeenAt:new Date().toISOString(),isActive:true,remoteMode:ai?.remoteMode||inferRemote(text),minExperienceYears:Number.isFinite(ai?.minExperienceYears)?ai.minExperienceYears:inferExperience(text),aiProcessed:Boolean(ai),aiProcessedAt:ai?new Date().toISOString():null,aiSector:ai?.sector||null,aiSummary:ai?.summary||null,aiQualityScore:Number.isFinite(ai?.qualityScore)?Math.max(0,Math.min(100,ai.qualityScore)):null,aiFlags:Array.isArray(ai?.flags)?ai.flags:[],aiSkills:Array.isArray(ai?.skills)?ai.skills:[],updatedAt:new Date().toISOString(),applicationReady:phoneNumbers.length===0,applicationProfile:phoneNumbers.length?{channel:"WHATSAPP_PHONE",phoneNumbers,comingSoon:true}:{channel:"EMAIL",comingSoon:false}};
+    if(companyName){const existingCompany=await supabase.from("Company").select("id,website,logoUrl").eq("name",companyName).maybeSingle();if(existingCompany.error)throw existingCompany.error;if(existingCompany.data?.id){companyId=existingCompany.data.id;const updates:any={};if(companyWebsite&&!existingCompany.data.website)updates.website=companyWebsite;if(companyLogo&&!existingCompany.data.logoUrl)updates.logoUrl=companyLogo;if(Object.keys(updates).length)await supabase.from("Company").update(updates).eq("id",companyId);}else{const createdCompany=await supabase.from("Company").insert({name:companyName,website:companyWebsite,logoUrl:companyLogo}).select("id").single();if(createdCompany.error)throw createdCompany.error;companyId=createdCompany.data.id}}const row:any={opportunityType,title:ai?.title||item.title,companyId,description:cleanDescription(item.description)||`Offre publiée via ${source.name}.`,language:/[àâçéèêëîïôùûüÿœ]/i.test(text)?"fr":"en",location:ai?.city||item.location||inferCity(text),contractType:ai?.contractType||inferContract(text),salaryMin:Number.isFinite(ai?.salaryMin)?ai.salaryMin:null,salaryMax:Number.isFinite(ai?.salaryMax)?ai.salaryMax:null,salaryCurrency:ai?.salaryCurrency||"XAF",source:source.name,sourceKey:source.key,sourceUrl:item.url,externalId,contentHash,deadline:item.deadline||parseDate(item.description),sourcePublishedAt:item.published||null,lastSeenAt:new Date().toISOString(),isActive:true,remoteMode:ai?.remoteMode||inferRemote(text),minExperienceYears:Number.isFinite(ai?.minExperienceYears)?ai.minExperienceYears:inferExperience(text),aiProcessed:Boolean(ai),aiProcessedAt:ai?new Date().toISOString():null,aiSector:ai?.sector||null,aiSummary:ai?.summary||null,aiQualityScore:Number.isFinite(ai?.qualityScore)?Math.max(0,Math.min(100,ai.qualityScore)):null,aiFlags:Array.isArray(ai?.flags)?ai.flags:[],aiSkills:Array.isArray(ai?.skills)?ai.skills:normalizedContent.skills,normalizedContent,normalizedVersion:NORMALIZED_VERSION,normalizedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),applicationReady:phoneNumbers.length===0,applicationProfile:phoneNumbers.length?{channel:"WHATSAPP_PHONE",phoneNumbers,comingSoon:true}:{channel:"EMAIL",comingSoon:false}};
     const existing=await supabase.from("Job").select("id").eq("sourceKey",source.key).eq("externalId",externalId).maybeSingle();if(existing.data?.id){const{error:e}=await supabase.from("Job").update(row).eq("id",existing.data.id);if(e)throw e;updated++;su++}else{const{error:e}=await supabase.from("Job").insert(row);if(e)throw e;inserted++;si++}}
    sourceStats.push({source:source.name,found,inserted:si,updated:su})}catch(e){error=e instanceof Error?e.message:String(e);sourceStats.push({source:source.name,found,inserted:si,updated:su,error})}}
  const cutoff=new Date(Date.now()-72*60*60*1000).toISOString();const{data:stale}=await supabase.from("Job").update({isActive:false,updatedAt:new Date().toISOString()}).eq("isActive",true).not("sourceKey","is",null).lt("lastSeenAt",cutoff).select("id");expired+=stale?.length||0;const{data:dead}=await supabase.from("Job").update({isActive:false,updatedAt:new Date().toISOString()}).eq("isActive",true).lt("deadline",new Date().toISOString()).select("id");expired+=dead?.length||0;
