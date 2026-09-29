@@ -1,6 +1,7 @@
 import { cleanJobDescription, cleanJobTitle } from "@/lib/jobContent";
 import { getNormalizedExperienceYears, normalizeJobContent, type NormalizedJobContent } from "@/lib/jobNormalizer";
 import { adaptSourceOfferInput } from "@/lib/jobSourceAdapters";
+import { blocksToStructuredText, extractVisibleOfferBlocks } from "@/lib/jobOfferBlocks";
 
 export const CANONICAL_OFFER_VERSION = "jobly-offer-v5";
 export const SOURCE_VERSION = "source-v2";
@@ -39,6 +40,7 @@ export type CanonicalOfferInput = {
   deadline?: unknown;
   source?: unknown;
   sourceUrl?: unknown;
+  renderedHtml?: unknown;
 };
 
 const BOILERPLATE = [
@@ -122,10 +124,12 @@ export function buildCanonicalOffer(input: CanonicalOfferInput): {
   extractedDescription: string;
 } {
   const title = cleanJobTitle(input.title);
+  const renderedBlocks = typeof input.renderedHtml === "string" ? extractVisibleOfferBlocks(input.renderedHtml) : [];
+  const renderedStructuredText = blocksToStructuredText(renderedBlocks);
   const adapted = adaptSourceOfferInput({
     sourceUrl: input.sourceUrl,
     title,
-    description: typeof input.description === "string" ? input.description : "",
+    description: renderedStructuredText || (typeof input.description === "string" ? input.description : ""),
     location: input.location,
     deadline: input.deadline,
   });
