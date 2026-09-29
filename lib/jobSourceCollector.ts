@@ -547,8 +547,10 @@ async function collectWordPressOffers(source: SourceConfig): Promise<CollectedOf
       const rawHtml = typeof post?.content?.rendered === "string" ? post.content.rendered : "";
       if (!rawHtml) continue;
       try {
-        const html = stripInfosConcoursWordPressChrome(rawHtml, title);
-        const offer = extractOffer(source, link, html, title, rawHtml, "api");
+        // Keep the WordPress article HTML intact. The universal block extractor
+        // owns chrome removal and semantic context; source-specific cleanup
+        // must not flatten the article before that step.
+        const offer = extractOffer(source, link, rawHtml, title, rawHtml, "api");
         if (offer) out.push(offer);
       } catch {}
     }
