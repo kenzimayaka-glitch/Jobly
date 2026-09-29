@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
+import { extractApplicationEmail, extractApplicationSubject } from "@/lib/applicationSubject";
 import { adminClient, getAuthUser } from "@/lib/server-auth";
 import { collectPublicJobSources, recollectOfferByUrl } from "@/lib/jobSourceCollector";
 import {
@@ -64,7 +65,7 @@ async function saveOfferPipeline(
       location: offer.location,
       contractType: offer.contractType,
       remoteMode: offer.remoteMode,
-      deadline: offer.deadline,
+      deadline: normalizedContent.deadline,
       publishedAt: offer.publishedAt,
       applicationProfile: offer.applicationProfile,
       logoUrl: offer.logoUrl,
@@ -167,13 +168,13 @@ export async function POST(request: NextRequest) {
           companyName: offer.company,
           description: offer.description,
           renderedHtml: offer.renderedHtml,
-          location: offer.location,
-          contractType: offer.contractType,
+          location: normalizedContent.location,
+          contractType: normalizedContent.contractType,
           remoteMode: offer.remoteMode,
           salaryMin: offer.salaryMin,
           salaryMax: offer.salaryMax,
           salaryCurrency: offer.salaryCurrency,
-          deadline: offer.deadline,
+          deadline: normalizedContent.deadline,
           source: sourceDisplayName(offer.sourceKey),
           sourceUrl: offer.sourceUrl,
         });
@@ -204,21 +205,26 @@ export async function POST(request: NextRequest) {
         const contentHash = crypto.createHash("sha256")
           .update([normalizedContent.title || offer.title, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
           .digest("hex");
-        const contact = offer.applicationProfile;
-        const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
+        const applicationText = normalizedContent.application.join("\n");
+        const canonicalEmail = extractApplicationEmail(applicationText);
+        const canonicalSubject = extractApplicationSubject(applicationText);
+        const contact = { ...offer.applicationProfile };
+        if (canonicalEmail) contact.applicationEmail = canonicalEmail;
+        if (canonicalSubject) contact.subject = canonicalSubject;
+        const applicationReady = Boolean(canonicalEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
 
         const result = await supabase.from("Job").update({
           title: normalizedContent.title || offer.title,
           description: canonicalDescription,
-          location: offer.location,
-          contractType: offer.contractType,
+          location: normalizedContent.location,
+          contractType: normalizedContent.contractType,
           normalizedContent,
           normalizedVersion: normalizedContent.version,
           normalizedAt: now.toISOString(),
           minExperienceYears: normalizedExperienceYears,
           aiSkills: normalizedContent.skills,
           sourcePublishedAt: offer.publishedAt,
-          deadline: offer.deadline,
+          deadline: normalizedContent.deadline,
           contentHash,
           lastSeenAt: now.toISOString(),
           applicationReady,
@@ -287,13 +293,13 @@ export async function POST(request: NextRequest) {
           companyName: offer.company,
           description: offer.description,
           renderedHtml: offer.renderedHtml,
-          location: offer.location,
-          contractType: offer.contractType,
+          location: normalizedContent.location,
+          contractType: normalizedContent.contractType,
           remoteMode: offer.remoteMode,
           salaryMin: offer.salaryMin,
           salaryMax: offer.salaryMax,
           salaryCurrency: offer.salaryCurrency,
-          deadline: offer.deadline,
+          deadline: normalizedContent.deadline,
           source: sourceDisplayName(row.sourceKey),
           sourceUrl: offer.sourceUrl,
         });
@@ -308,20 +314,25 @@ export async function POST(request: NextRequest) {
         const cleanedContentHash = crypto.createHash("sha256")
           .update([normalizedContent.title || offer.title, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
           .digest("hex");
-        const contact = offer.applicationProfile;
-        const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
+        const applicationText = normalizedContent.application.join("\n");
+        const canonicalEmail = extractApplicationEmail(applicationText);
+        const canonicalSubject = extractApplicationSubject(applicationText);
+        const contact = { ...offer.applicationProfile };
+        if (canonicalEmail) contact.applicationEmail = canonicalEmail;
+        if (canonicalSubject) contact.subject = canonicalSubject;
+        const applicationReady = Boolean(canonicalEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
         const result = await supabase.from("Job").update({
           title: normalizedContent.title || offer.title,
           description: canonicalDescription,
-          location: offer.location,
-          contractType: offer.contractType,
+          location: normalizedContent.location,
+          contractType: normalizedContent.contractType,
           normalizedContent,
           normalizedVersion: normalizedContent.version,
           normalizedAt: now.toISOString(),
           minExperienceYears: normalizedExperienceYears,
           aiSkills: normalizedContent.skills,
           sourcePublishedAt: offer.publishedAt,
-          deadline: offer.deadline,
+          deadline: normalizedContent.deadline,
           contentHash: cleanedContentHash,
           lastSeenAt: now.toISOString(),
           isActive: !isPlatformExpired(row.createdAt, now),
@@ -363,13 +374,13 @@ export async function POST(request: NextRequest) {
         companyName: offer.company,
         description: offer.description,
         renderedHtml: offer.renderedHtml,
-        location: offer.location,
-        contractType: offer.contractType,
+        location: normalizedContent.location,
+        contractType: normalizedContent.contractType,
         remoteMode: offer.remoteMode,
         salaryMin: offer.salaryMin,
         salaryMax: offer.salaryMax,
         salaryCurrency: offer.salaryCurrency,
-        deadline: offer.deadline,
+        deadline: normalizedContent.deadline,
         source,
         sourceUrl: offer.sourceUrl,
       });
@@ -423,14 +434,19 @@ export async function POST(request: NextRequest) {
         existing = existingBySourceUrl;
       }
 
-      const contact = offer.applicationProfile;
-      const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
+      const applicationText = normalizedContent.application.join("\n");
+      const canonicalEmail = extractApplicationEmail(applicationText);
+      const canonicalSubject = extractApplicationSubject(applicationText);
+      const contact = { ...offer.applicationProfile };
+      if (canonicalEmail) contact.applicationEmail = canonicalEmail;
+      if (canonicalSubject) contact.subject = canonicalSubject;
+      const applicationReady = Boolean(canonicalEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
       const payload = {
         title: normalizedContent.title || offer.title,
         description: canonicalDescription,
         language: "fr",
-        location: offer.location,
-        contractType: offer.contractType,
+        location: normalizedContent.location,
+        contractType: normalizedContent.contractType,
         source,
         sourceUrl: offer.sourceUrl,
         sourceKey: offer.sourceKey,
@@ -439,7 +455,7 @@ export async function POST(request: NextRequest) {
         sourcePublishedAt: offer.publishedAt,
         lastSeenAt: nowIso,
         isActive: existing.data ? !isPlatformExpired(existing.data.createdAt, now) : true,
-        deadline: offer.deadline,
+        deadline: normalizedContent.deadline,
         applicationReady,
         applicationProfile: contact,
         applicationCheckedAt: nowIso,
