@@ -57,7 +57,7 @@ export default function CompanyLogo({
         `/api/company-logo/image?domain=${encodeURIComponent(resolvedDomain)}`,
       );
       urls.push(
-        `https://www.google.com/s2/favicons?domain=${encodeURIComponent(resolvedDomain)}&sz=128`,
+        `https://www.google.com/s2/favicons?domain=${encodeURIComponent(resolvedDomain)}&sz=256`,
       );
       urls.push(
         `https://icons.duckduckgo.com/ip3/${encodeURIComponent(resolvedDomain)}.ico`,
@@ -150,6 +150,26 @@ export default function CompanyLogo({
 
   if (failed || (!src && !resolving)) return fallback;
   if (!src) return <span aria-hidden="true" className={`block shrink-0 rounded-full bg-slate-100 ${className}`} style={{ width: fillFrame ? "100%" : size, height: fillFrame ? "100%" : size }} />;
+
+  if (fillFrame) {
+    return (
+      <span className="relative block h-full w-full overflow-hidden">
+        <img src={src} alt="" aria-hidden="true" loading="lazy" decoding="async" referrerPolicy="no-referrer" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-40 blur-2xl" />
+        <img
+          src={src}
+          alt={companyName ? `Logo de ${companyName}` : "Logo entreprise"}
+          width={size}
+          height={size}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onLoad={handleLoad}
+          onError={handleError}
+          className="absolute left-1/2 top-1/2 h-[72%] w-auto max-w-[80%] -translate-x-1/2 -translate-y-1/2 object-contain opacity-100 drop-shadow-sm"
+        />
+      </span>
+    );
+  }
 
   return (
     <img
