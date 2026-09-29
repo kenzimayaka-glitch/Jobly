@@ -4,6 +4,7 @@ import { extractApplicationSubject } from "./applicationSubject";
 import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription } from "./jobContent";
 import { normalizeJobContent } from "./jobNormalizer";
 import { renderPublicSource } from "./jobSourceRenderer";
+import { blocksToStructuredText, extractVisibleOfferBlocks } from "./jobOfferBlocks";
 
 type SourceConfig = {
   key: string;
@@ -437,7 +438,9 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   // footer, widgets and the job body into one text stream.
   const title = cleanJobTitle(titleFromHtml(html) || listingTitle);
   if (!title || title.length < 3) return null;
-  const clean = cleanJobDescription(html, title);
+  const blocks = extractVisibleOfferBlocks(html);
+  const structured = blocksToStructuredText(blocks);
+  const clean = cleanJobDescription(structured || html, title);
   const lowerHtml = html.toLowerCase();
   const chromeSignals = [
     "aller au contenu principal",
