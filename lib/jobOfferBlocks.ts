@@ -47,15 +47,14 @@ function normalizeHeading(text: string, tag: string): string | null {
 
 function parseTokens(html: string): OfferBlock[] {
   const tokens = html.match(/<!--[\s\S]*?-->|<[^>]+>|[^<]+/g) || [];
-  const stack: Array<{tag:string; attrs:string; skip:boolean; text:string; level:number; childBlock:boolean; context:string[]}> = [];
+  const stack: Array<{tag:string; attrs:string; skip:boolean; text:string; level:number; context:string[]}> = [];
   const blocks: OfferBlock[] = [];
   let skipDepth = 0;
 
   const emit = (frame: typeof stack[number]) => {
     const text = clean(frame.text);
     if (!text || text.length < 2 || frame.skip) return;
-    if (!BLOCK_TAGS.has(frame.tag) && frame.childBlock) return;
-    if (!BLOCK_TAGS.has(frame.tag) && text.length < 30) return;
+    if (!BLOCK_TAGS.has(frame.tag)) return;
     const context = frame.context;
     blocks.push({id:"pending",text,heading:normalizeHeading(text,frame.tag),level:frame.level,order:blocks.length,tag:frame.tag,context});
   };
@@ -71,8 +70,8 @@ function parseTokens(html: string): OfferBlock[] {
           const index = stack.length - 1 - reverseIndex;
           while (stack.length > index) {
             const frame = stack.pop()!;
+            if (stack.length) stack.at(-1)!.text += " " + frame.text;
             emit(frame);
-            if (stack.length && BLOCK_TAGS.has(frame.tag)) stack.at(-1)!.childBlock = true;
             if (frame.skip) skipDepth = Math.max(0, skipDepth - 1);
           }
         }
@@ -83,19 +82,19 @@ function parseTokens(html: string): OfferBlock[] {
       const tag = open[1].toLowerCase();
       const attrs = open[2] || "";
       const isSkip = SKIP_TAGS.has(tag) || hidden(attrs) || NOISE_HINT.test(attr(attrs,"class") + " " + attr(attrs,"id"));
-      stack.push({tag,attrs,skip:isSkip,text:"",level:/^h[1-6]$/i.test(tag) ? Number(tag[1]) : stack.length,childBlock:false,context:stack.map(x => clean(attr(x.attrs,"id") + " " + attr(x.attrs,"class"))).filter(Boolean).slice(-3)});
+      stack.push({tag,attrs,skip:isSkip,text:"",level:/^h[1-6]$/i.test(tag) ? Number(tag[1]) : stack.length,context:stack.map(x => clean(attr(x.attrs,"id") + " " + attr(x.attrs,"class"))).filter(Boolean).slice(-3)});
       if (isSkip) skipDepth++;
       if (/\/\s*>$/.test(token)) {
         const frame = stack.pop()!;
+        if (stack.length) stack.at(-1)!.text += " " + frame.text;
         emit(frame);
-        if (stack.length && BLOCK_TAGS.has(frame.tag)) stack.at(-1)!.childBlock = true;
         if (frame.skip) skipDepth = Math.max(0, skipDepth - 1);
       }
       continue;
     }
     if (skipDepth === 0 && stack.length) stack.at(-1)!.text += token;
   }
-  while (stack.length) { const frame = stack.pop()!; emit(frame); if (stack.length && BLOCK_TAGS.has(frame.tag)) stack.at(-1)!.childBlock = true; }
+  while (stack.length) { const frame = stack.pop()!; if (stack.length) stack.at(-1)!.text += " " + frame.text; emit(frame); }
 
   const result: OfferBlock[] = [];
   const seen = new Set<string>();
