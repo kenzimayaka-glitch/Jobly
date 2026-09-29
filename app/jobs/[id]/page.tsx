@@ -250,6 +250,9 @@ function JobDetailInner() {
   ].map((v) => cleanLine(String(v))).filter(Boolean)));
   const canonicalSection = (values: unknown) => Array.isArray(values) ? values.map((v) => cleanLine(String(v))).filter(Boolean) : [];
   const sections = {
+    // A normalized v2 offer is the canonical representation. The legacy
+    // detailSections/raw-description fallback is used only for rows that have
+    // not yet been normalized.
     description: normalized ? canonicalSection(normalized.description) : mergeSection("description"),
     missions: normalized ? canonicalSection(normalized.missions) : mergeSection("missions"),
     profile: normalized ? canonicalSection(normalized.profile) : mergeSection("profile"),
