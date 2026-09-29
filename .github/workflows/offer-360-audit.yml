@@ -22,9 +22,6 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm dlx @playwright/test@1.55.0 install --with-deps chromium
       - name: Run 248-offer rendered audit
-        env:
-          SUPABASE_URL: https://mpoyaegtwtmhookdzqdy.supabase.co
-          SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wb3lhZWd0d3dtaG9va2R6cWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MTAzODAsImV4cCI6MjEwNDM4NjM4MH0.yVDX02xI6_t3ew6HpFIOYBR8yReDw7rybyH0xq6vwFo
         run: pnpm dlx @playwright/test@1.55.0 test scripts/offer-360-audit.spec.ts --workers=1
       - name: Upload audit report
         if: always()
