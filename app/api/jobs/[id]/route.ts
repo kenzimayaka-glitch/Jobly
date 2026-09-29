@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, context: Context) {
     if (source === "discovery") {
       const { data, error } = await supabase.from("Job")
         .select("id,title,description,location,contractType,remoteMode,minExperienceYears,salaryMin,salaryMax,salaryCurrency,deadline,createdAt,sourceUrl,source,applicationReady,applicationProfile,tags,aiSector,normalizedContent,company:Company(name,logoUrl,website,description)")
-        .eq("id", id).eq("isActive", true).maybeSingle();
+        .eq("id", id).eq("isActive", true).eq("qualityStatus", "ok").maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) return NextResponse.json({ message: "Offre introuvable ou inactive." }, { status: 404 });
       const platformExpiration = new Date(new Date(data.createdAt).setMonth(new Date(data.createdAt).getMonth() + 2));
