@@ -59,6 +59,10 @@ const SECTION_ALIASES: Record<string, string> = {
   candidature: "application", "pour postuler": "application",
   "modalites de candidature": "application", "comment postuler": "application",
   "documents a fournir": "application", "documents a joindre": "application",
+  "comment candidater": "application", "modalites pour postuler": "application",
+  "modalites pour candidater": "application", "procedure de candidature": "application",
+  "processus de candidature": "application", "dossier de candidature": "application",
+  "pieces a fournir": "application", "pieces a joindre": "application",
 };
 
 const KNOWN_HEADERS = [
@@ -121,10 +125,10 @@ function cleanBullet(value: string): string {
 function normalizeOfferText(value: string): string {
   return repairEncoding(decodeEntities(String(value || "")))
     .normalize("NFC")
-    .replace(/[\\u200B-\\u200D\\uFEFF]/g, "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
     .replace(/[�□■]+/g, " ")
-    .replace(/[\\u00A0\\u202F]/g, " ")
-    .replace(/[ \\t]+/g, " ")
+    .replace(/[\u00A0\u202F]/g, " ")
+    .replace(/[ \t]+/g, " ")
     .trim();
 }
 
@@ -151,14 +155,22 @@ const SECTION_PRIORITY: SectionKey[] = [
 function classifyUnlabelledLine(line: string): SectionKey | null {
   const normalized = key(line);
   if (!normalized) return null;
-  if (/@/.test(normalized) || /\\b(?:objet|subject|indiquer en objet|mettre en objet)\\b/.test(normalized) ||
-      /\\b(?:envoyer|envoyez|adressez|transmettez|postulez|candidature)\\b.*\\b(?:cv|candidature|mail|email)\\b/.test(normalized)) return "application";
-  if (/\\b(?:experience|exp\\.?)\\b|\\b\\d+\\s*(?:ans?|annees?)\\b/.test(normalized)) return "experience";
-  if (/\\b(?:bac\\s*\\+|licence|master|mba|doctorat|diplome|formation|etudes|parcours academique)\\b/.test(normalized)) return "education";
-  if (/\\b(?:competence|competences|maitrise|connaissance|savoir-faire|logiciel|excel|word|sql|erp|powerpoint)\\b/.test(normalized)) return "skills";
-  if (/\\b(?:qualite|qualites|rigueur|autonome|autonomie|esprit d equipe|adaptabilite|organisation)\\b/.test(normalized)) return "qualities";
-  if (/\\b(?:aura pour mission|auront pour mission|vous serez charge|vous serez en charge|responsable de|consistera a|missions principales|vos responsabilites)\\b/.test(normalized)) return "missions";
-  if (/\\b(?:avantages|assurance|mutuelle|prime|transport|conges|indemnite)\\b/.test(normalized)) return "benefits";
+
+  // Application has the highest semantic specificity. Once a line contains
+  // explicit candidature signals, it must not leak into profile/qualities.
+  if (
+    /@/.test(normalized) ||
+    /\b(?:objet|subject|indiquer en objet|mettre en objet|avec pour objet)\b/.test(normalized) ||
+    /\b(?:envoyer|envoyez|adressez|transmettez|postulez|candidater|candidature|deposer|déposer|soumettre|apply)\b.*\b(?:cv|curriculum|lettre|mail|email|candidature|dossier|postuler)\b/.test(normalized) ||
+    /\b(?:cv|curriculum|lettre de motivation|dossier de candidature|pieces? a fournir|documents? a (?:fournir|joindre))\b/.test(normalized)
+  ) return "application";
+
+  if (/\b(?:experience|exp\.?)\b|\b\d+\s*(?:ans?|annees?)\b/.test(normalized)) return "experience";
+  if (/\b(?:bac\s*\+|licence|master|mba|doctorat|diplome|formation|etudes|parcours academique)\b/.test(normalized)) return "education";
+  if (/\b(?:competence|competences|maitrise|connaissance|savoir-faire|logiciel|excel|word|sql|erp|powerpoint)\b/.test(normalized)) return "skills";
+  if (/\b(?:qualite|qualites|rigueur|autonome|autonomie|esprit d equipe|adaptabilite|organisation)\b/.test(normalized)) return "qualities";
+  if (/\b(?:aura pour mission|auront pour mission|vous serez charge|vous serez en charge|responsable de|consistera a|missions principales|vos responsabilites)\b/.test(normalized)) return "missions";
+  if (/\b(?:avantages|assurance|mutuelle|prime|transport|conges|indemnite)\b/.test(normalized)) return "benefits";
   return null;
 }
 
