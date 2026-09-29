@@ -3492,3 +3492,156 @@ Le code actuel référence notamment `/jobly-logo-reference.jpg` depuis `compone
 **État : 🟨 ASSETS IDENTIFIÉS — REMPLACEMENT BINAIRE GITHUB À FINALISER.**
 
 La référence visuelle ne doit pas être recréée avec un autre logo ou une approximation.
+
+
+# CHECKPOINT 28/09/2026 — DEMANDES PERSISTANTES / BLOQUANTS DE CONTINUITÉ
+
+> Objectif : empêcher la perte des demandes récurrentes qui font stagner le développement. Une demande n'est pas considérée comme terminée parce qu'un commit existe. Elle suit la chaîne CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.
+
+## 1. Import de CV — session requise malgré une session active
+
+### Demande persistante
+Le Talent doit pouvoir importer son CV lorsqu'il est réellement connecté. Le message historique « connecte-toi avant d'importer ton CV » ne doit plus apparaître à tort.
+
+### Exigence UX
+Toute erreur utilisateur doit respecter la convention de notification Jobly : toast visible, court, non bloquant et accessible, et non un message incohérent ou différent du reste de l'application.
+
+### Architecture attendue
+- session Jobly/Supabase partagée ;
+- vérification de l'expiration du token avant l'upload ;
+- refresh si nécessaire ;
+- retry unique après 401 ;
+- PDF original conservé séparément des données structurées ;
+- stockage privé du CV original ;
+- extraction J’IA vers le profil structuré sans altérer le document source.
+
+### État de vérité au 28/09/2026
+**🟨 CODÉ — NON VALIDÉ EN PRODUCTION.**
+
+Correctif actuel : commit ac395220f54632c86e28e912fd5a2d8ed4cc8bca.
+
+À ne pas déclarer terminé avant :
+1. déploiement Vercel autorisé par l'utilisateur ;
+2. test réel avec une session active ;
+3. import d'un PDF réel ;
+4. vérification du toast ;
+5. vérification du stockage privé et de l'extraction.
+
+---
+
+## 2. Récupération des offres — architecture à stabiliser
+
+### Demande persistante
+Le flux de récupération des offres ne doit plus produire une liste mélangeant emplois crédibles, concours, formations, annonces de recrutement insuffisamment documentées et snippets incomplets.
+
+### Décision produit figée
+**Jobly Offres = emplois réellement exploitables.**
+
+Les contenus suivants restent conservés pour alimenter ultérieurement **Jobly Campus**, mais ne doivent pas apparaître dans la liste Offres :
+- concours ;
+- admissions/examens ;
+- formations/certifications ;
+- bourses/programmes assimilés ;
+- recrutement générique sans poste identifiable ou description crédible ;
+- annonces trop pauvres pour constituer une offre d'emploi exploitable.
+
+### Architecture attendue
+SOURCE → INGESTION → ENRICHISSEMENT → NETTOYAGE/NORMALISATION → CLASSIFICATION → CONTRÔLE D'ÉLIGIBILITÉ → STOCKAGE.
+EMPLOI → JOBLY OFFRES.
+CAMPUS / INSUFFISANT → conservé mais hors OFFRES.
+
+L'enrichissement ne doit pas être contourné uniquement parce qu'une source fournit un objet structuré.
+
+### Règle actuelle
+Une découverte avec une description de moins de 180 caractères n'est pas éligible à Jobly Offres. Elle reste stockée avec RECRUTEMENT_INSUFFISANT lorsqu'elle ne peut pas être qualifiée de véritable emploi.
+
+### État de vérité au 28/09/2026
+**🟨 CODÉ + SUPABASE DÉPLOYÉ — VALIDATION PRODUCTION VERCEL/UI EN ATTENTE.**
+
+Correctifs récents :
+- 6544cb4abf22871ec83fd32410a939db2e44a5ac — enrichissement des listings structurés avant classification ;
+- a86dea7afca18a22f38a2d0cedeb6174559e611e — exigence de description substantielle ;
+- cdaa1ccfb8534157ab0a352762dbf48bc998c0f2 — renforcement de la gate d'éligibilité ;
+- discover-jobs Supabase v24 ACTIVE.
+
+À ne pas déclarer terminé avant :
+1. vérifier le flux complet source → DB → API → /jobs ;
+2. vérifier qu'aucun concours/formation/recrutement insuffisant ne remonte dans Offres ;
+3. vérifier que les vrais emplois restent présents ;
+4. vérifier le comportement mobile réel ;
+5. conserver les contenus exclus pour Campus.
+
+---
+
+## 3. Détail d'une offre — lisibilité et structuration
+
+### Demande persistante
+Une offre ne doit plus être affichée sous forme de bloc de texte touffu, fusionné ou rempli de symboles.
+
+### Exigence
+Le détail doit respirer et séparer clairement :
+- en-tête ;
+- résumé ;
+- description ;
+- missions ;
+- profil ;
+- formation ;
+- expérience ;
+- compétences ;
+- avantages ;
+- candidature ;
+- délai lorsque disponible.
+
+Les informations absentes ne doivent jamais être inventées.
+
+### État de vérité
+Le correctif TypeScript de JobDetailSections a été intégré dans le code, mais la validation de production dépend du prochain build Vercel autorisé.
+
+**🟨 CODÉ — NON VALIDÉ / NON DÉPLOYÉ EN PRODUCTION.**
+
+---
+
+## 4. Discipline de déploiement — règle persistante
+
+**Ne jamais lancer un déploiement Vercel sans validation explicite de l'utilisateur.**
+
+Un commit GitHub ne signifie pas que Vercel a construit, que le build TypeScript est passé, que le runtime est correct, que l'UI mobile est correcte ou que la fonctionnalité est validée.
+
+La documentation doit toujours distinguer :
+**CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+---
+
+## 5. Règle anti-stagnation
+
+Lorsqu'une demande persistante réapparaît, ne pas repartir de zéro et ne pas refaire une micro-correction isolée sans vérifier l'architecture complète.
+
+Pour toute correction importante :
+1. identifier la cause structurelle ;
+2. vérifier les fichiers et flux concernés ;
+3. corriger le point d'architecture ;
+4. tester ;
+5. faire un commit clair ;
+6. vérifier le build/runtime concerné ;
+7. attendre la validation de déploiement ;
+8. mettre à jour cette documentation.
+
+Une fonctionnalité n'est pas « finie » parce qu'elle compile. Elle est finie lorsqu'elle est vérifiée dans le parcours réel.
+
+---
+
+## 6. Tableau de suivi des demandes qui ne doivent plus être perdues
+
+| Demande persistante | État actuel | Blocage restant |
+|---|---|---|
+| Import CV sans faux « session requise » | 🟨 CODÉ | Déploiement + test réel |
+| Toast CV conforme à la convention Jobly | 🟨 CODÉ | Validation production |
+| Séparation CV original / profil structuré | 🟨 CODÉ | Test end-to-end |
+| Offres = emplois crédibles uniquement | 🟨 CODÉ + Supabase v24 | Validation source → API → UI |
+| Concours/formations hors Offres mais conservés pour Campus | 🟨 CODÉ | Vérification complète Campus/Offres |
+| Recrutements insuffisants hors Offres | 🟨 CODÉ + backfill | Vérification des sources et faux positifs |
+| Enrichissement des sources structurées | 🟨 CODÉ + Supabase v24 | Validation sur nouvelles découvertes |
+| Détail d'offre aéré et structuré | 🟨 CODÉ | Build + validation UI réelle |
+| Déploiement Vercel sans contournement du contrôle utilisateur | 🟢 RÈGLE FIGÉE | Respect permanent |
+
+**Cette liste doit être mise à jour à chaque nouvelle résolution ou nouvelle demande persistante.**
