@@ -19,7 +19,7 @@ export async function POST(request:NextRequest){try{const authUser=await getAuth
  if(source==="discovery"){
   const {data,error}=await supabase.from("Job").select("id,title,description,isActive,applicationReady,applicationProfile,normalizedContent,createdAt,sourcePublishedAt,deadline,source,sourceUrl,companyId").eq("id",targetId).maybeSingle();if(error)throw new Error(error.message);offer=data;
   if(!offer||!offer.isActive)return NextResponse.json({message:"Cette offre n'est plus active."},{status:410});
-  if(!offer.applicationReady)return NextResponse.json({message:"J'IA ne peut pas encore candidater à cette offre."},{status:422});
+  if(!offer.applicationReady && !(Array.isArray(offer.normalizedContent?.application) && offer.normalizedContent.application.length))return NextResponse.json({message:"J'IA ne peut pas encore candidater à cette offre."},{status:422});
   if(!isFresh(offer.sourcePublishedAt,offer.deadline,offer.createdAt))return NextResponse.json({message:"Cette offre n'est plus diffusée par Jobly."},{status:410});
   if(!isOpen(offer.deadline))return NextResponse.json({message:"La date limite de candidature est dépassée."},{status:410});
  }else{
