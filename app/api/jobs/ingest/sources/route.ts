@@ -68,6 +68,8 @@ async function saveOfferPipeline(
       salaryMax: offer.salaryMax,
       salaryCurrency: offer.salaryCurrency,
     },
+    // rawHtml and renderedHtml are intentionally persisted in separate columns.
+    rawHtml: offer.rawHtml || null,
     renderedHtml: offer.renderedHtml || null,
     extractedText: extractedDescription,
     canonicalContent: canonical,
