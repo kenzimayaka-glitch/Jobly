@@ -30,6 +30,8 @@ export type CanonicalOfferInput = {
   title: unknown;
   companyName?: unknown;
   description?: unknown;
+  renderedHtml?: unknown;
+  rawHtml?: unknown;
   location?: unknown;
   contractType?: unknown;
   remoteMode?: unknown;
@@ -126,6 +128,8 @@ export function buildCanonicalOffer(input: CanonicalOfferInput): {
     sourceUrl: input.sourceUrl,
     title,
     description: typeof input.description === "string" ? input.description : "",
+    renderedHtml: typeof input.renderedHtml === "string" ? input.renderedHtml : "",
+    rawHtml: typeof input.rawHtml === "string" ? input.rawHtml : "",
     location: input.location,
     deadline: input.deadline,
   });
