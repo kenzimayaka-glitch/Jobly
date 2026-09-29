@@ -28,6 +28,9 @@ export type CollectedOffer = {
   contentHash: string;
   logoUrl: string | null;
   companyWebsite: string | null;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  salaryCurrency: string | null;
 };
 
 const SOURCES: SourceConfig[] = [
@@ -333,6 +336,49 @@ function findApplicationEmail(html: string): string | null {
   return candidates[0]?.score > 0 ? candidates[0].email : null;
 }
 
+function extractRemoteMode(text: string): string | null {
+  if (/(?:100\s*%\s*)?remote|full\s*remote|t[ée]l[ée]travail|travail\s+[àa]\s+distance/i.test(text)) return "REMOTE";
+  if (/(?:hybride|hybrid)/i.test(text)) return "HYBRID";
+  if (/(?:sur\s+site|on[- ]site|pr[ée]sentiel)/i.test(text)) return "ONSITE";
+  return null;
+}
+
+function parseMoney(value: string): number | null {
+  const normalized = value.replace(/\s+/g, "").trim().replace(/\.(?=\d{3}\b)/g, "").replace(/,(?=\d{3}\b)/g, "");
+  const match = normalized.match(/(\d+(?:[.,]\d+)?)/);
+  if (!match?.[1]) return null;
+  const n = Number(match[1].replace(",", "."));
+  return Number.isFinite(n) ? Math.round(n) : null;
+}
+
+function extractSalary(text: string): { min: number | null; max: number | null; currency: string | null } {
+  const currencyPattern = "(?:FCFA|F\\s*CFA|XAF|francs?\\s*CFA|€|EUR|\\$|USD)";
+  const range = new RegExp(
+    "(?:salaire|r[ée]mun[ée]ration|salary|package)\\s*[:：-]?\\s*(\\d[\\d\\s.,]*)\\s*(?:" + currencyPattern + ")?\\s*(?:à|a|[-–—])\\s*(\\d[\\d\\s.,]*)\\s*(" + currencyPattern + ")?",
+    "i"
+  );
+  const match = text.match(range);
+  if (match) {
+    const min = parseMoney(match[1]);
+    const max = parseMoney(match[2]);
+    const rawCurrency = match[3] || match[0];
+    const currency = /€|EUR/i.test(rawCurrency) ? "EUR" : /\$|USD/i.test(rawCurrency) ? "USD" : /FCFA|XAF|CFA/i.test(rawCurrency) ? "XAF" : null;
+    return { min, max, currency };
+  }
+  const single = new RegExp(
+    "(?:salaire|r[ée]mun[ée]ration|salary|package)\\s*[:：-]?\\s*(\\d[\\d\\s.,]*)\\s*(" + currencyPattern + ")?",
+    "i"
+  );
+  const singleMatch = text.match(single);
+  if (singleMatch) {
+    const min = parseMoney(singleMatch[1]);
+    const rawCurrency = singleMatch[2] || singleMatch[0];
+    const currency = /€|EUR/i.test(rawCurrency) ? "EUR" : /\$|USD/i.test(rawCurrency) ? "USD" : /FCFA|XAF|CFA/i.test(rawCurrency) ? "XAF" : null;
+    return { min, max: min, currency };
+  }
+  return { min: null, max: null, currency: null };
+}
+
 function extractOffer(source: SourceConfig,url: string,html: string,listingTitle: string): CollectedOffer | null {
   // Keep the original HTML until the description cleaner has selected the
   // actual offer container. Flattening the whole page first mixes navigation,
@@ -343,6 +389,8 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   const company = cleanCompanyName(firstMatch(clean,[/(?:Nom de l[’']employeur|Nom de l'employeur|Employeur|Entreprise|Company)\s*[:：-]\s*([^|\n]{2,120})/i,/(?:chez|at)\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ0-9 .&'’-]{2,100})/i])) || extractCompanyNameFromDescription(clean);
   const location = firstMatch(clean,[/(?:Lieu|Localisation|Location)\s*[:：-]\s*([^|\n]{2,100})/i]);
   const contractType = firstMatch(clean,[/(?:Type d[’']emploi|Type d'emploi|Contrat|Contract)\s*[:：-]\s*([^|\n]{2,60})/i]);
+  const remoteMode = extractRemoteMode(clean);
+  const salary = extractSalary(clean);
   const publishedAt = parseDate(firstMatch(clean,[/(?:Date de publication|Posté|Publié(?:e)?)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
   const deadline = parseDate(firstMatch(clean,[/(?:Date expiration|Date limite|Délai|deadline)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
   const extractedEmail = findApplicationEmail(html);
@@ -361,7 +409,7 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   if (contacts.phone) applicationProfile.applicationPhone = contacts.phone;
   if (applicationUrl) applicationProfile.applicationUrl = applicationUrl;
   applicationProfile.subject = extractApplicationSubject(clean,title);
-  return {sourceKey:source.key,externalId:externalId(url,source),sourceUrl:url,title:title.slice(0,300),company:company?.replace(/^(le|la|l[’']|the)\s+/i,"").trim()||null,location:location||null,contractType:contractType||null,description:clean,deadline,publishedAt,applicationProfile,contentHash:crypto.createHash("sha256").update(normalizeSpace(clean)).digest("hex"),logoUrl,companyWebsite};
+  return {sourceKey:source.key,externalId:externalId(url,source),sourceUrl:url,title:title.slice(0,300),company:company?.replace(/^(le|la|l[’']|the)\s+/i,"").trim()||null,location:location||null,contractType:contractType||null,remoteMode,description:clean,deadline,publishedAt,applicationProfile,contentHash:crypto.createHash("sha256").update(normalizeSpace(clean)).digest("hex"),logoUrl,companyWebsite,salaryMin:salary.min,salaryMax:salary.max,salaryCurrency:salary.currency};
 }
 
 async function collectWordPressOffers(source: SourceConfig): Promise<CollectedOffer[]> {

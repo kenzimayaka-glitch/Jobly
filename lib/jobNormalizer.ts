@@ -29,6 +29,7 @@ export type NormalizedJobContent = {
   missions: string[];
   benefits: string[];
   description: string[];
+  profile: string[];
   application: string[];
   deadline: string | null;
   source: { name: string; url: string };
@@ -214,7 +215,9 @@ export function normalizeJobContent(input: {
   const explicitCompany = cleanCompanyName(input.companyName);
   const companyName = explicitCompany && plausibleExplicitCompany(explicitCompany, title)
     ? explicitCompany : extractCompanyNameFromDescription(description) || extractCompanyNameFromTitle(title);
-  const sections = parseSections(input.description ?? "");
+  // Parse the same canonical description used for identity extraction and storage.
+  // The raw input is intentionally unknown, so never pass it directly to a string-only parser.
+  const sections = parseSections(description);
   const experience = stripBoilerplate(sections.experience);
   const education = stripBoilerplate(sections.education);
   const skills = stripBoilerplate(sections.skills);
