@@ -113,6 +113,12 @@ function years(xs:string[]){
   const w=t.match(/(?:minimum|minimale?|au moins|justifier\s+d['’]?une?\s+)\s*(un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)\s*(?:ans?|annee(?:s)?)/i);
   return w?.[1]?words[w[1].toLowerCase()]??null:null;
 }
+function qualityStatus(title:string,description:string):"ok"|"needs_review"{
+  const text=`${title}\\n${description}`;
+  if(/window\\.dataLayer|\\bgtag\\s*\\(|toggle navigation|aller au contenu principal|poster une offre|<script\\b|<div\\b/i.test(text)) return "needs_review";
+  if(description.trim().length<120) return "needs_review";
+  return "ok";
+}
 function normalize(row:any){
   const sec=parse(row.description||"");
   const cleanArr=(x:string[])=>unique(x.filter(v=>!/(?:window\.|gtag\(|fbq\(|dataLayer)/i.test(v)));
@@ -143,8 +149,8 @@ Deno.serve(async(req)=>{
   if(error)return new Response(JSON.stringify({error:error.message}),{status:500,headers:{"content-type":"application/json"}});
   let updated=0;
   for(const row of rows||[]){
-    const c=normalize(row), exp=years(c.experience), now=new Date().toISOString();
-    const patch:any={normalizedContent:c,normalizedVersion:VERSION,normalizedAt:now,title:c.title||row.title,
+    const c=normalize(row), exp=years(c.experience), now=new Date().toISOString();\n    const quality=qualityStatus(c.title||row.title||"", c.description.join("\n\n")||clean(row.description||""));
+    const patch:any={normalizedContent:c,normalizedVersion:VERSION,normalizedAt:now,title:c.title||row.title,qualityStatus:quality,
       description:c.description.join("\n\n")||clean(row.description)||"",location:c.location.join(", ")||row.location,
       contractType:c.contractType||row.contractType,remoteMode:c.remoteMode||row.remoteMode,
       salaryMin:c.salary.min,salaryMax:c.salary.max,salaryCurrency:c.salary.currency,

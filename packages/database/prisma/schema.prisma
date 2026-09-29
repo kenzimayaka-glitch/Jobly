@@ -258,6 +258,7 @@ model Job {
   deadline       DateTime?
   lastSeenAt     DateTime?
   isActive       Boolean  @default(true)
+  qualityStatus  String   @default("ok") // "ok" | "needs_review"; publication requires both isActive=true and qualityStatus=ok
   // Ajouts spec 12.1 (calcul du % de correspondance)
   remoteMode          String  @default("NO") // "YES" | "NO" | "PARTIAL"
   minExperienceYears  Int     @default(0)
