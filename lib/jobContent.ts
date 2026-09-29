@@ -624,3 +624,9 @@ export function parseJobDetailSections(value: unknown, titleHint?: string | null
 
   return result;
 }
+
+/** Nettoyage léger pour tout texte affiché (lieu, contrat, adresse, libellés…) : mojibake + entités HTML. */
+export function cleanDisplayText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  return collapseLine(decodeHtmlEntities(repairUtf8(String(value))));
+}
