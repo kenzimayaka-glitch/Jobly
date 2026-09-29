@@ -3,6 +3,10 @@ import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNam
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
 const DEFAULT_FEED_SIZE = 200;
 const MAX_FEED_SIZE = 200;
 
@@ -177,7 +181,7 @@ export async function GET(request:NextRequest){
    supabase.from("Experience").select("startDate,title,description").eq("userId",user.id),
    supabase.from("Skill").select("name,level").eq("userId",user.id),
    supabase.from("Education").select("degree,field").eq("userId",user.id),
-   supabase.from("Job").select("*").eq("isActive",true).order("createdAt",{ascending:false}),
+   supabase.from("Job").select("*").eq("isActive",true).order("createdAt",{ascending:false}).limit(600),
    supabase.from("RecruiterJob").select("*").eq("status","published").eq("applicationReady",true).gte("createdAt", new Date(new Date().setMonth(new Date().getMonth() - 2)).toISOString()).order("createdAt",{ascending:false})
   ]);
   if(profileRes.error)throw new Error(profileRes.error.message);if(experiencesRes.error)throw new Error(experiencesRes.error.message);if(skillsRes.error)throw new Error(skillsRes.error.message);if(educationRes.error)throw new Error(educationRes.error.message);if(jobsRes.error)throw new Error(jobsRes.error.message);if(recruiterJobsRes.error)throw new Error(recruiterJobsRes.error.message);
