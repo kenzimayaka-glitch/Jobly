@@ -148,6 +148,99 @@ export async function POST(request: NextRequest) {
     const supabase = adminClient();
     const now = new Date();
     
+    if (mode === "audit") {
+      const { data: rows, error } = await supabase.from("Job")
+        .select("id,title,description,location,contractType,deadline,sourceKey,sourceUrl,normalizedContent,normalizedVersion,applicationProfile")
+        .eq("isActive", true)
+        .not("sourceUrl", "is", null)
+        .not("sourceKey", "is", null)
+        .order("createdAt", { ascending: true })
+        .range(offset, offset + batchSize - 1);
+      if (error) throw new Error(error.message);
+
+      const audits: Array<Record<string, unknown>> = [];
+      await runWithConcurrency(rows || [], 3, async (row) => {
+        if (!row.sourceUrl || !row.sourceKey) return;
+        const offer = await recollectOfferByUrl(row.sourceKey, row.sourceUrl, row.title);
+        if (!offer) {
+          audits.push({ id: row.id, title: row.title, sourceKey: row.sourceKey, status: "capture_failed", cause: "extraction" });
+          return;
+        }
+        const prepared = buildCanonicalOffer({
+          title: offer.title,
+          companyName: offer.company,
+          description: offer.description,
+          location: offer.location,
+          contractType: offer.contractType,
+          remoteMode: offer.remoteMode,
+          salaryMin: offer.salaryMin,
+          salaryMax: offer.salaryMax,
+          salaryCurrency: offer.salaryCurrency,
+          deadline: offer.deadline,
+          source: sourceDisplayName(row.sourceKey),
+          sourceUrl: offer.sourceUrl,
+          renderedHtml: offer.renderedHtml,
+        });
+        const next = prepared.canonical;
+        const old = row.normalizedContent || {};
+        const oldText = String(row.description || "");
+        const newText = next.description.join("\n");
+        const oldApplication = Array.isArray(old.application) ? old.application.map(String) : [];
+        const oldQualities = Array.isArray(old.qualities) ? old.qualities.map(String) : [];
+        const duplicateApplication = oldApplication.some((value: string) => oldQualities.some((q: string) => q.toLowerCase().includes(value.toLowerCase()) || value.toLowerCase().includes(q.toLowerCase())));
+        const issues: string[] = [];
+        if (/aller au contenu principal|toggle navigation|main navigation|copyright/i.test(oldText) && !/aller au contenu principal|toggle navigation|main navigation|copyright/i.test(newText)) issues.push("menu_footer_removed");
+        if (String(row.location || "").trim() !== String(next.location[0] || "").trim() && next.location.length) issues.push("location_corrected");
+        if (String(row.contractType || "").toUpperCase() === "AUTRE" && next.contractType) issues.push("contract_corrected");
+        if (!row.deadline && offer.deadline) issues.push("deadline_recovered");
+        if (oldApplication.length === 0 && next.application.length > 0) issues.push("application_recovered");
+        if (duplicateApplication) issues.push("application_duplicate_removed");
+        const oldCompany = String(old.company || "");
+        if (/^(?:CDD|CDI|STAGE|TEMPS[- ]PLEIN|TEMPS[- ]PARTIEL)/i.test(oldCompany) && next.company) issues.push("company_recovered");
+        audits.push({
+          id: row.id,
+          title: row.title,
+          sourceKey: row.sourceKey,
+          sourceUrl: row.sourceUrl,
+          status: next.quality.status,
+          qualityScore: next.quality.score,
+          cause: issues.length ? "extraction+classification+arbitration" : "none",
+          issues,
+          before: {
+            company: old.company || null,
+            location: row.location || null,
+            contractType: row.contractType || null,
+            deadline: row.deadline || null,
+            applicationCount: oldApplication.length,
+            descriptionLength: oldText.length,
+            normalizedVersion: row.normalizedVersion || null,
+          },
+          after: {
+            company: next.company,
+            location: next.location,
+            contractType: next.contractType,
+            deadline: next.deadline,
+            applicationCount: next.application.length,
+            descriptionLength: newText.length,
+            application: next.application,
+            warnings: next.quality.warnings,
+          },
+        });
+      });
+
+      return NextResponse.json({
+        ok: true,
+        mode,
+        offset,
+        limit: batchSize,
+        count: audits.length,
+        hasMore: (rows || []).length === batchSize,
+        nextOffset: offset + (rows || []).length,
+        audits: audits.sort((a,b) => String(a.id).localeCompare(String(b.id))),
+        ranAt: now.toISOString(),
+      });
+    }
+
     if (mode === "reindex") {
       const { data: rows, error } = await supabase.from("Job")
         .select("id,title,description,sourceKey,sourceUrl,createdAt,normalizedAt,normalizedVersion,lastSeenAt")
