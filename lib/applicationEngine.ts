@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { runAiGateway } from "./aiGateway";
 import { getChannelDefinition, hasJoblyAdapter } from "./applicationChannels";
 import { buildTailoredCv, TailoredCvEducation, TailoredCvExperience, TailoredCvProfile, TailoredCvSkill } from "./applicationCv";
+import { extractApplicationSubject } from "./applicationSubject";
 
 export type ApplicationChannel = "JOBLY" | "EMAIL" | "PHONE" | "EXTERNAL" | "UNSUPPORTED";
 
@@ -9,7 +10,7 @@ function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function extractApplicationEmail(text: string): string | null {
+export function extractApplicationEmail(text: string): string | null {
   const matches = Array.from(new Set(
     (text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [])
       .map(value => value.trim().replace(/[),.;:]+$/, ""))
@@ -47,18 +48,6 @@ export function extractApplicationPhone(text: string): string | null {
     if (score > 0 && (!best || score > best.score)) best = { phone, score };
   }
   return best?.phone || null;
-}
-
-function cleanApplicationSubject(value: string): string {
-  return value
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&(?:nbsp|amp|quot|apos|lt|gt);/gi, match => ({
-      "&nbsp;": " ", "&amp;": "&", "&quot;": '"', "&apos;": "'", "&lt;": "<", "&gt;": ">"
-    }[match.toLowerCase()] || " "))
-    .replace(/[\r\n\t]+/g, " ")
-    .replace(/\s+/g, " ")
-    .replace(/^[\"'“”«»\s]+|[\"'“”«»\s]+$/g, "")
-    .trim();
 }
 
 export function extractApplicationSubject(text: string, _jobTitle = ""): string {
