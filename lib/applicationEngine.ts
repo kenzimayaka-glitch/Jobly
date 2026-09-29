@@ -2,32 +2,12 @@ import { NextRequest } from "next/server";
 import { runAiGateway } from "./aiGateway";
 import { getChannelDefinition, hasJoblyAdapter } from "./applicationChannels";
 import { buildTailoredCv, TailoredCvEducation, TailoredCvExperience, TailoredCvProfile, TailoredCvSkill } from "./applicationCv";
-import { extractApplicationSubject } from "./applicationSubject";
+import { extractApplicationEmail, extractApplicationSubject } from "./applicationSubject";
 
 export type ApplicationChannel = "JOBLY" | "EMAIL" | "PHONE" | "EXTERNAL" | "UNSUPPORTED";
 
 function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-
-export function extractApplicationEmail(text: string): string | null {
-  const matches = Array.from(new Set(
-    (text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [])
-      .map(value => value.trim().replace(/[),.;:]+$/, ""))
-  ));
-  if (!matches.length) return null;
-  const lower = text.toLowerCase();
-  let best: { email: string; score: number } | null = null;
-  for (const email of matches) {
-    const index = lower.indexOf(email.toLowerCase());
-    const context = lower.slice(Math.max(0, index - 180), Math.min(lower.length, index + email.length + 180));
-    let score = 0;
-    if (/(candidature|candidater|postuler|recrutement|recrute|recruitment|cv|curriculum|envoyer|envoyez|adresse de candidature|modalites de candidature|apply)/i.test(context)) score += 5;
-    if (/(email|mail|e-mail)/i.test(context)) score += 1;
-    if (/^(aide|info|contact|support|hello|admin)@/i.test(email)) score -= 3;
-    if (score > 0 && (!best || score > best.score)) best = { email, score };
-  }
-  return best?.email || null;
 }
 
 export function extractApplicationPhone(text: string): string | null {
