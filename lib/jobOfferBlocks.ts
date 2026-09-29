@@ -27,21 +27,31 @@ export type OfferBlockExtraction = {
   diagnostics: OfferBlockDiagnostics;
 };
 
+type HtmlNode = {
+  tag: string;
+  attrs: Record<string, string>;
+  children: HtmlNode[];
+  text: string;
+  parent: HtmlNode | null;
+};
+
 const BOILERPLATE = [
   /aller au contenu principal/i,
   /toggle navigation/i,
   /main navigation/i,
   /poster une offre/i,
   /cookie(?: settings| policy| consent)?/i,
-  /newsletter/i,
   /articles similaires/i,
   /popular posts?/i,
+  /newsletter/i,
   /copyright/i,
   /window\.(?:dataLayer|gtag)/i,
+  /gtag\s*\(/i,
+  /fbq\s*\(/i,
 ];
 
-const NEGATIVE_CONTAINER = /(?:^|[-_ ])(?:nav|menu|header|footer|sidebar|aside|cookie|consent|modal|popup|advert|ads?|social|share|related|newsletter|breadcrumb)(?:$|[-_ ])/i;
-const POSITIVE_CONTAINER = /(?:article|post-content|entry-content|article-content|article-body|post-body|single-post|content-area|main-content|job-description|job-detail|offer-content|offer-detail|job-content|vacancy|career)/i;
+const EXCLUDED = new Set(["script","style","noscript","template","svg","canvas","nav","header","footer","aside","form","dialog"]);
+const BLOCK_TAGS = new Set(["h1","h2","h3","h4","h5","h6","p","li","blockquote","tr","dt","dd"]);
 
 function decodeEntities(value: string): string {
   return value
@@ -69,99 +79,132 @@ function signature(value: string): string {
   return normalize(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
-function stripExcluded(html: string): { html: string; removed: number } {
-  let removed = 0;
-  const excluded = /<(script|style|noscript|template|svg|canvas|nav|header|footer|aside|form|dialog)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
-  const cleaned = html.replace(excluded, () => {
-    removed++;
-    return "\n";
-  });
-  return { html: cleaned, removed };
+function parseAttributes(raw: string): Record<string, string> {
+  const attrs: Record<string, string> = {};
+  const re = /([:\w-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
+  for (const match of raw.matchAll(re)) attrs[match[1].toLowerCase()] = decodeEntities(match[2] ?? match[3] ?? match[4] ?? "");
+  return attrs;
 }
 
-function attr(tag: string, name: string): string {
-  const match = tag.match(new RegExp("\\b" + name + "\\s*=\\s*[\\\"']([^\\\"']*)[\\\"']", "i"));
-  return match?.[1] || "";
-}
-function visibleText(fragment: string): string {
-  return normalize(
-    fragment
-      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
-      .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, " ")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/\s*(?:p|div|section|article|li|h[1-6]|tr|td|blockquote)>/gi, "\n")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s*\n\s*/g, "\n"),
-  );
+function parseHtml(html: string): HtmlNode {
+  const root: HtmlNode = { tag: "root", attrs: {}, children: [], text: "", parent: null };
+  const stack: HtmlNode[] = [root];
+  const tokenRe = /<!--[\s\S]*?-->|<[^>]+>|[^<]+/g;
+
+  for (const token of html.matchAll(tokenRe)) {
+    const value = token[0];
+    if (value.startsWith("<!--")) continue;
+
+    if (value.startsWith("<")) {
+      const close = value.match(/^<\s*\/\s*([a-z0-9:-]+)/i);
+      if (close) {
+        const target = close[1].toLowerCase();
+        for (let i = stack.length - 1; i > 0; i--) {
+          if (stack[i].tag === target) {
+            stack.length = i;
+            break;
+          }
+        }
+        continue;
+      }
+
+      const open = value.match(/^<\s*([a-z0-9:-]+)([^>]*)>/i);
+      if (!open) continue;
+      const tag = open[1].toLowerCase();
+      if (tag === "doctype" || tag.startsWith("!")) continue;
+
+      const node: HtmlNode = { tag, attrs: parseAttributes(open[2] || ""), children: [], text: "", parent: stack[stack.length - 1] };
+      stack[stack.length - 1].children.push(node);
+      if (!EXCLUDED.has(tag) && !/\/\s*>$/.test(value) && !["br","hr","img","input","meta","link","source","area","base","embed","param","track","wbr"].includes(tag)) {
+        stack.push(node);
+      }
+      continue;
+    }
+
+    const current = stack[stack.length - 1];
+    if (!EXCLUDED.has(current.tag)) current.text += value;
+  }
+  return root;
 }
 
-function linkDensity(fragment: string): number {
-  const total = visibleText(fragment).length;
+function textOf(node: HtmlNode): string {
+  if (EXCLUDED.has(node.tag)) return "";
+  const children = node.children.map(textOf).filter(Boolean);
+  return normalize([node.text, ...children].join(" "));
+}
+
+function allNodes(root: HtmlNode): HtmlNode[] {
+  const result: HtmlNode[] = [];
+  const visit = (node: HtmlNode) => {
+    if (node.tag !== "root") result.push(node);
+    for (const child of node.children) visit(child);
+  };
+  visit(root);
+  return result;
+}
+
+function classKey(node: HtmlNode): string {
+  return [node.attrs.class, node.attrs.id, node.attrs.role, node.attrs.itemprop].filter(Boolean).join(" ");
+}
+
+function linkDensity(node: HtmlNode): number {
+  const total = textOf(node).length;
   if (!total) return 1;
-  const linked = Array.from(fragment.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi))
-    .map(match => visibleText(match[1] || "").length)
-    .reduce((sum, length) => sum + length, 0);
+  const linked = allNodes(node).filter(child => child.tag === "a").reduce((sum, child) => sum + textOf(child).length, 0);
   return Math.min(1, linked / total);
 }
 
-type Candidate = { html: string; score: number; density: number };
-
-function candidatesFromHtml(html: string): Candidate[] {
-  const candidates: Candidate[] = [{ html, score: 0, density: linkDensity(html) }];
-  const pattern = /<(main|article|section|div)\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi;
-  for (const match of html.matchAll(pattern)) {
-    const open = match[0].slice(0, match[0].indexOf(">") + 1);
-    const body = match[3] || "";
-    const text = visibleText(body);
-    if (text.length < 120) continue;
-    const classes = `${attr(open, "class")} ${attr(open, "id")}`;
-    const density = linkDensity(body);
-    const headings = (body.match(/<h[1-6]\b/gi) || []).length;
-    const paragraphs = (body.match(/<(?:p|li|blockquote|tr)\b/gi) || []).length;
-    const positive = POSITIVE_CONTAINER.test(classes) ? 24 : 0;
-    const negative = NEGATIVE_CONTAINER.test(classes) ? 42 : 0;
-    const chrome = BOILERPLATE.reduce((n, re) => n + (re.test(text) ? 1 : 0), 0);
-    const score =
-      Math.min(55, text.length / 90) +
-      Math.min(20, headings * 4) +
-      Math.min(20, paragraphs * 1.5) +
-      positive -
-      negative -
-      density * 35 -
-      chrome * 14;
-    candidates.push({ html: body, score, density });
-  }
-  return candidates.sort((a, b) => b.score - a.score).slice(0, 8);
+function scoreCandidate(node: HtmlNode): number {
+  const text = textOf(node);
+  if (text.length < 120) return -Infinity;
+  const key = classKey(node);
+  const headings = allNodes(node).filter(child => /^h[1-6]$/.test(child.tag)).length;
+  const blocks = allNodes(node).filter(child => ["p","li","blockquote","tr"].includes(child.tag)).length;
+  const chromeHits = BOILERPLATE.reduce((n, pattern) => n + (pattern.test(text) ? 1 : 0), 0);
+  const positive = /(article|entry-content|post-content|article-content|article-body|post-body|single-post|content-area|main-content|job-description|job-detail|offer-content|offer-detail|job-content|vacancy|career)/i.test(key) ? 30 : 0;
+  const negative = /(nav|menu|header|footer|sidebar|aside|cookie|consent|modal|popup|advert|ads|social|share|related|newsletter|breadcrumb|widget)/i.test(key) ? 60 : 0;
+  return Math.min(60, text.length / 80) +
+    Math.min(18, headings * 3) +
+    Math.min(20, blocks * 1.25) +
+    positive -
+    negative -
+    linkDensity(node) * 45 -
+    chromeHits * 16;
 }
 
-function extractBlocks(html: string): OfferBlock[] {
+function bestContentNode(root: HtmlNode): { node: HtmlNode; score: number } {
+  const candidates = allNodes(root).filter(node => ["main","article","section","div","body"].includes(node.tag));
+  const ranked = candidates.map(node => ({ node, score: scoreCandidate(node) })).sort((a,b) => b.score - a.score);
+  return ranked[0] || { node: root, score: 0 };
+}
+
+function collectBlocks(node: HtmlNode): OfferBlock[] {
   const blocks: OfferBlock[] = [];
   let currentHeading: string | null = null;
-  const blockPattern = /<(h[1-6]|p|li|blockquote|tr|dt|dd)\b[^>]*>([\s\S]*?)<\/\1\s*>/gi;
-  for (const match of html.matchAll(blockPattern)) {
-    const tag = String(match[1] || "").toLowerCase();
-    const text = visibleText(match[2] || "");
-    if (text.length < 2) continue;
-    if (BOILERPLATE.some(re => re.test(text))) continue;
-    if (/^h[1-6]$/.test(tag)) {
-      currentHeading = text;
-      blocks.push({ text, heading: null, kind: "heading", order: blocks.length });
-      continue;
-    }
-    const kind = tag === "li" || tag === "tr" ? "list" : "paragraph";
-    blocks.push({ text, heading: currentHeading, kind, order: blocks.length });
-  }
 
-  if (blocks.length === 0) {
-    const text = visibleText(html);
-    return text.split(/\n+/).map(value => normalize(value)).filter(Boolean).map((text, order) => ({
-      text,
-      heading: null,
-      kind: "paragraph" as const,
-      order,
-    }));
-  }
+  const visit = (current: HtmlNode) => {
+    if (EXCLUDED.has(current.tag)) return;
+    if (BLOCK_TAGS.has(current.tag)) {
+      const value = textOf(current);
+      if (value.length >= 2 && !BOILERPLATE.some(pattern => pattern.test(value))) {
+        if (/^h[1-6]$/.test(current.tag)) {
+          currentHeading = value;
+          blocks.push({ text: value, heading: null, kind: "heading", order: blocks.length });
+        } else {
+          blocks.push({
+            text: value,
+            heading: currentHeading,
+            kind: current.tag === "li" || current.tag === "tr" ? "list" : "paragraph",
+            order: blocks.length,
+          });
+        }
+      }
+      return;
+    }
+    for (const child of current.children) visit(child);
+  };
+
+  visit(node);
 
   const seen = new Set<string>();
   return blocks.filter(block => {
@@ -178,14 +221,12 @@ function risk(value: number): number {
 
 export function extractOfferBlocks(renderedHtml: string, fallbackText = "", title = ""): OfferBlockExtraction {
   const sourceHtml = String(renderedHtml || "").trim();
+
   if (!sourceHtml) {
     const fallback = normalize(fallbackText);
-    const blocks = fallback ? fallback.split(/\n+/).map((text, order) => ({
-      text: normalize(text),
-      heading: null,
-      kind: "paragraph" as const,
-      order,
-    })).filter(block => block.text.length >= 2) : [];
+    const blocks = fallback
+      ? fallback.split(/\n+/).map((value, order) => ({ text: normalize(value), heading: null, kind: "paragraph" as const, order })).filter(block => block.text.length >= 2)
+      : [];
     return {
       text: blocks.map(block => block.text).join("\n"),
       blocks,
@@ -197,63 +238,47 @@ export function extractOfferBlocks(renderedHtml: string, fallbackText = "", titl
         removedChrome: 0,
         linkDensity: 0,
         estimatedRisks: {
-          blockLoss: risk(fallback ? 0.38 : 1),
-          chromeContamination: risk(fallback ? 0.28 : 0),
-          semanticCollision: risk(fallback ? 0.32 : 0),
-          applicationLoss: risk(fallback ? 0.34 : 1),
+          blockLoss: risk(fallback ? 0.45 : 1),
+          chromeContamination: risk(fallback ? 0.35 : 0),
+          semanticCollision: risk(fallback ? 0.35 : 0),
+          applicationLoss: risk(fallback ? 0.4 : 1),
         },
-        warnings: fallback ? ["rendered_html_missing"] : ["rendered_html_missing", "content_missing"],
+        warnings: fallback ? ["rendered_html_missing"] : ["rendered_html_missing","content_missing"],
       },
     };
   }
 
-  const stripped = stripExcluded(sourceHtml);
-  const candidates = candidatesFromHtml(stripped.html);
-  const winner = candidates[0] || { html: stripped.html, score: 0, density: linkDensity(stripped.html) };
-  const blocks = extractBlocks(winner.html);
+  const root = parseHtml(sourceHtml);
+  const { node: winner, score } = bestContentNode(root);
   const titleKey = signature(title);
-  const filteredBlocks = blocks.filter(block => !titleKey || signature(block.text) !== titleKey);
-  const text = filteredBlocks.map(block => block.text).join("\n");
-  const boilerplateHits = BOILERPLATE.reduce((n, re) => n + (re.test(text) ? 1 : 0), 0);
-  const shortBlocks = filteredBlocks.filter(block => block.text.length < 35).length;
-  const headingCount = filteredBlocks.filter(block => block.kind === "heading").length;
+  const all = collectBlocks(winner).filter(block => !titleKey || signature(block.text) !== titleKey);
+  const text = all.map(block => block.text).join("\n");
+  const chromeHits = BOILERPLATE.reduce((n, pattern) => n + (pattern.test(text) ? 1 : 0), 0);
+  const headingCount = all.filter(block => block.kind === "heading").length;
+  const linkRisk = linkDensity(winner);
 
   const warnings: string[] = [];
-  if (winner.score < 35) warnings.push("weak_main_candidate");
-  if (winner.density > 0.45) warnings.push("high_link_density");
-  if (boilerplateHits > 0) warnings.push("residual_chrome");
-  if (headingCount === 0) warnings.push("heading_structure_missing");
-  if (shortBlocks > Math.max(4, filteredBlocks.length * 0.55)) warnings.push("fragmented_content");
+  if (score < 35) warnings.push("weak_main_candidate");
+  if (linkRisk > 0.45) warnings.push("high_link_density");
+  if (chromeHits) warnings.push("residual_chrome");
+  if (!headingCount) warnings.push("heading_structure_missing");
+  if (!all.length) warnings.push("no_blocks");
 
   return {
     text,
-    blocks: filteredBlocks,
+    blocks: all,
     diagnostics: {
       source: "rendered-html",
-      candidateScore: Number(winner.score.toFixed(2)),
+      candidateScore: Number(score.toFixed(2)),
       textLength: text.length,
-      blockCount: filteredBlocks.length,
-      removedChrome: stripped.removed,
-      linkDensity: Number(winner.density.toFixed(3)),
+      blockCount: all.length,
+      removedChrome: allNodes(root).filter(node => EXCLUDED.has(node.tag)).length,
+      linkDensity: Number(linkRisk.toFixed(3)),
       estimatedRisks: {
-        blockLoss: risk(
-          (winner.score < 25 ? 0.42 : winner.score < 45 ? 0.22 : 0.08) +
-          (filteredBlocks.length < 5 ? 0.22 : 0) +
-          (winner.density > 0.45 ? 0.12 : 0),
-        ),
-        chromeContamination: risk(
-          (winner.density > 0.45 ? 0.30 : 0) +
-          boilerplateHits * 0.16 +
-          (winner.score < 25 ? 0.18 : 0),
-        ),
-        semanticCollision: risk(
-          (headingCount === 0 ? 0.16 : 0) +
-          (shortBlocks > Math.max(4, filteredBlocks.length * 0.55) ? 0.18 : 0),
-        ),
-        applicationLoss: risk(
-          (filteredBlocks.some(block => /(?:candidature|comment postuler|modalit[ée]s|envoyer|envoyez|objet du mail|recrutement)/i.test(block.text)) ? 0 : 0.32) +
-          (headingCount === 0 ? 0.12 : 0),
-        ),
+        blockLoss: risk(score < 25 ? 0.45 : score < 40 ? 0.25 : score < 60 ? 0.12 : 0.05),
+        chromeContamination: risk((linkRisk > 0.45 ? 0.25 : 0) + chromeHits * 0.12 + (score < 25 ? 0.2 : 0)),
+        semanticCollision: risk((headingCount ? 0.04 : 0.18) + (all.length < 5 ? 0.2 : 0)),
+        applicationLoss: risk(all.some(block => /(?:candidature|comment postuler|modalit[ée]s|pour postuler|envoyer|envoyez|objet du mail|recrutement)/i.test(block.text)) ? 0.04 : 0.32),
       },
       warnings,
     },
