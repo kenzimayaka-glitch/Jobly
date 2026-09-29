@@ -50,14 +50,6 @@ export function extractApplicationPhone(text: string): string | null {
   return best?.phone || null;
 }
 
-export function extractApplicationSubject(text: string, _jobTitle = ""): string {
-  // An email subject is valid only when the source explicitly identifies it as
-  // the subject. Never invent one from the job title when the source is silent.
-  const pattern = /(?:objet(?:\s+(?:du|de\s+(?:la\s+)?(?:candidature|mail|l['’]email)))?|subject|email subject|mail subject|indiquer en objet|mettre en objet|avec pour objet|mentionner en objet)\s*[:：-]\s*[\"'“”«»]?([^\r\n<]{3,180})/i;
-  const match = text.match(pattern);
-  return match?.[1] ? cleanApplicationSubject(match[1]) : "";
-}
-
 export function resolveApplicationContact(applicationProfile: Record<string, unknown>, jobDescription: string): { email: string | null; phone: string | null } {
   const explicitEmail = stringValue(applicationProfile.applicationEmail || applicationProfile.email || applicationProfile.recipientEmail);
   const phoneValues = [
