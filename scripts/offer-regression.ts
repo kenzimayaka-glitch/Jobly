@@ -30,7 +30,7 @@ const oris = check("ORIS / JobInCamer", {
   source: "Job in Cameroun",
   sourceUrl: "https://www.jobincamer.com/job/oris-finance-recrute-des-caissieres-et-des-brands-ambassadeurs",
 }, {
-  company: "ORIS Finance",
+  company: "ORIS Finance S.A.",
   location: ["Douala", "Cameroun"],
   deadline: "2026-09-27T23:59:59.000Z",
 });
