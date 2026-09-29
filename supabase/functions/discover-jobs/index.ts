@@ -197,9 +197,28 @@ ${JSON.stringify({title:item.title,company:item.company,location:item.location,d
   const data=await r.json();const text=data?.candidates?.[0]?.content?.parts?.map((p:any)=>p.text||"").join("")||"";if(!text)throw new Error("Gemini empty response");return JSON.parse(text);
 }
 
+async function backfillExistingOffers(supabase:any){
+  const pageSize=50; let offset=0, scanned=0, repaired=0, skipped=0;
+  while(true){
+    const {data:jobs,error}=await supabase.from("Job").select("id,title,description,companyId,location,deadline,source,sourceKey,sourceUrl,externalId,normalizedContent,normalizedVersion,aiQualityScore").eq("isActive",true).or("normalizedVersion.is.null,normalizedContent.is.null").range(offset,offset+pageSize-1);
+    if(error) throw error; if(!jobs?.length) break;
+    scanned+=jobs.length;
+    for(const job of jobs){
+      const item={title:String(job.title||""),company:"",location:String(job.location||""),description:String(job.description||""),deadline:job.deadline||null,url:String(job.sourceUrl||""),source:String(job.source||"Jobly"),published:null};
+      if(!item.url || item.description.trim().length<2){skipped++;continue;}
+      let ai:any=null; try{ai=await analyzeWithGemini(item)}catch{}
+      const normalized=normalizeAiResult(ai,item);
+      const row={normalizedContent:normalized,normalizedVersion:NORMALIZED_VERSION,normalizedAt:new Date().toISOString(),title:normalized.title||job.title,description:normalized.description.join("\n\n")||job.description,location:normalized.location.join(", ")||job.location,contractType:normalized.contractType||null,remoteMode:normalized.remoteMode||null,salaryMin:normalized.salary.min,salaryMax:normalized.salary.max,salaryCurrency:normalized.salary.currency||"XAF",aiProcessed:Boolean(ai),aiProcessedAt:ai?new Date().toISOString():null,aiQualityScore:Number.isFinite(normalized.qualityScore)?Math.max(0,Math.min(100,normalized.qualityScore)):null,aiSummary:normalized.description.slice(0,3).join(" "),aiFlags:normalized.flags,aiSkills:normalized.skills,updatedAt:new Date().toISOString()};
+      const {error:e}=await supabase.from("Job").update(row).eq("id",job.id); if(e) throw e; repaired++;
+    }
+    if(jobs.length<pageSize) break; offset+=pageSize;
+  }
+  return {scanned,repaired,skipped};
+}
+
 Deno.serve(async(req)=>{
  if(req.method!=="POST")return new Response(JSON.stringify({message:"POST required"}),{status:405,headers:{"content-type":"application/json"}});
- const supabase=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);const started=Date.now();let discovered=0,inserted=0,updated=0,expired=0,aiProcessed=0,aiFailed=0;const sourceStats:any[]=[];
+ const supabase=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);const started=Date.now();let discovered=0,inserted=0,updated=0,expired=0,aiProcessed=0,aiFailed=0;const sourceStats:any[]=[];const runBackfill=req.headers.get("x-jobly-backfill")==="true";let backfill:any=null;
  for(const source of SOURCES.filter(s=>s.enabled)){let found=0,si=0,su=0,error="";try{const structured=await fetchStructuredSource(source.key);const html=structured===null?await fetchText(source.url):"";const raw=structured??parseListing(html,source.url,source.key);found=raw.length;const items=[];for(const r of raw.slice(0,100)){const e=await enrich(r,source);if(e.title&&e.title.length>=4&&e.url)items.push({...e,source:source.name})}discovered+=items.length;
    for(const item of items){const externalId=hash(item.url||`${item.title}|${item.company}|${item.location}`);const contentHash=hash(`${item.title}|${item.company}|${item.description}|${item.location}|${item.deadline||""}`);let ai:any=null;try{ai=await analyzeWithGemini(item);if(ai)aiProcessed++}catch{aiFailed++}
     const normalizedContent=normalizeAiResult(ai,item);
@@ -217,6 +236,7 @@ Deno.serve(async(req)=>{
       }
     }else{const{error:e}=await supabase.from("Job").insert(row);if(e)throw e;inserted++;si++}}
    sourceStats.push({source:source.name,found,inserted:si,updated:su})}catch(e){error=e instanceof Error?e.message:String(e);sourceStats.push({source:source.name,found,inserted:si,updated:su,error})}}
+ if(runBackfill){backfill=await backfillExistingOffers(supabase);}
  const{data:dead}=await supabase.from("Job").update({isActive:false,updatedAt:new Date().toISOString()}).eq("isActive",true).lt("deadline",new Date().toISOString()).select("id");expired+=dead?.length||0;
- return new Response(JSON.stringify({ok:true,provider:GEMINI_API_KEY?"GEMINI":"RULES_FALLBACK",model:GEMINI_API_KEY?GEMINI_MODEL:null,discovered,inserted,updated,expired,aiProcessed,aiFailed,durationMs:Date.now()-started,sources:sourceStats,lastUpdatedAt:new Date().toISOString()}),{headers:{"content-type":"application/json"}})
+ return new Response(JSON.stringify({ok:true,provider:GEMINI_API_KEY?"GEMINI":"RULES_FALLBACK",model:GEMINI_API_KEY?GEMINI_MODEL:null,discovered,inserted,updated,expired,aiProcessed,aiFailed,backfill,durationMs:Date.now()-started,sources:sourceStats,lastUpdatedAt:new Date().toISOString()}),{headers:{"content-type":"application/json"}})
 });
