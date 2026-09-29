@@ -5,6 +5,15 @@ import { extractVisibleOfferBlocks, blocksToStructuredText } from "../lib/jobOff
 const manifest = require("./offer-360-manifest.json");
 const norm = (s:string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim().toLowerCase();
 const sectionKeys = ["description","missions","profile","skills","experience","education","qualities","benefits","application"] as const;
+type JobRow = {
+  id:string; title:string; description:string|null; location:string|null; contractType:string|null;
+  deadline:string|null; sourceKey:string|null; sourceUrl:string|null; normalizedContent:any;
+  normalizedVersion:string|null;
+};
+async function loadJobs(): Promise<JobRow[]> {
+  if (manifest.total !== 248 || manifest.jobs.length !== 248) throw new Error("Audit manifest must contain exactly 248 active offers; got " + manifest.jobs.length);
+  return manifest.jobs as JobRow[];
+}
 
 function dateKey(value:string): string|null {
   const m = value.match(/(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/);
