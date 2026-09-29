@@ -37,10 +37,17 @@ type MatchItem = {
   expectedValue?: string | null;
 };
 
+type NormalizedContent = {
+  version?: string; title?: string | null; company?: string | null; location?: string[];
+  contractType?: string | null; remoteMode?: string | null;
+  salary?: { min?: number | null; max?: number | null; currency?: string | null };
+  deadline?: string | null; description?: string[]; missions?: string[]; profile?: string[];
+  education?: string[]; experience?: string[]; skills?: string[]; qualities?: string[];
+  benefits?: string[]; application?: string[]; source?: { name?: string; url?: string };
+};
 type Job = Record<string, any> & {
-  matchPercent?: number;
-  matchConfidence?: number;
-  matchBreakdown?: MatchItem[];
+  normalizedContent?: NormalizedContent | null;
+  matchPercent?: number; matchConfidence?: number; matchBreakdown?: MatchItem[];
 };
 
 function GmailIcon({ size = 18 }: { size?: number }) {
@@ -211,20 +218,28 @@ function JobDetailInner() {
   if (loading) return <main className="grid min-h-[100dvh] place-items-center bg-[#F7FAFF] font-bold text-[#17212B]">Chargement…</main>;
   if (error || !job) return <main className="talent-shell min-h-[100dvh] bg-[#F7FAFF] text-navy"><PageHeader label="Offre" onBack={() => router.replace("/jobs")} theme="talent"/><div className="mx-auto mt-8 max-w-2xl px-5"><div className="rounded-[24px] bg-white p-6 shadow-sm"><h1 className="text-xl font-black">Offre indisponible</h1><p className="mt-2 text-sm text-slate-500">{error || "Cette offre n’est plus disponible."}</p><button onClick={() => router.replace("/jobs")} className="mt-5 rounded-2xl bg-[#22448B] px-5 py-3 text-sm font-black text-white">Retour aux offres</button></div></div></main>;
 
+  const normalized = job.normalizedContent;
+  const normalizedDescription = Array.isArray(normalized?.description) ? normalized.description.join("\n\n") : "";
   const normalizedIdentity = normalizeJobIdentity({
-    title: job.displayTitle ?? job.title,
-    companyName: job.displayCompanyName ?? job.company?.name ?? job.companyName,
-    description: job.description,
+    title: normalized?.title || job.displayTitle || job.title,
+    companyName: normalized?.company || job.displayCompanyName || job.company?.name || job.companyName,
+    description: normalizedDescription || job.description,
   });
   const displayTitle = normalizedIdentity.title;
   const displayCompany = normalizedIdentity.companyName;
   const company = displayCompany;
-  const emailChannel = Boolean(job.applicationProfile?.applicationEmail || job.applicationProfile?.email);
+  const emailChannel = Boolean(job.applicationProfile?.applicationEmail || job.applicationProfile?.email || (normalized?.application || []).some((v) => /@/.test(String(v))));
   const phoneChannel = Boolean(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.length);
   const applicationLink = String(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl || job.applicationProfile?.url || "").trim();
-  const contract = job.contractType || job.contract;
-  const remote = job.remoteMode === "YES" ? "Télétravail" : job.remoteMode === "PARTIAL" ? "Hybride" : job.remoteMode === "NO" ? "Présentiel" : null;
-  const deadline = job.deadline ? new Date(job.deadline).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : null;
+  const contract = normalized?.contractType || job.contractType || job.contract;
+  const remoteMode = normalized?.remoteMode || job.remoteMode;
+  const remote = remoteMode === "YES" ? "Télétravail" : remoteMode === "PARTIAL" ? "Hybride" : remoteMode === "NO" ? "Présentiel" : null;
+  const normalizedSalary = normalized?.salary;
+  const salaryMin = normalizedSalary?.min ?? job.salaryMin;
+  const salaryMax = normalizedSalary?.max ?? job.salaryMax;
+  const salaryCurrency = normalizedSalary?.currency || job.salaryCurrency || "XAF";
+  const deadlineValue = normalized?.deadline || job.deadline;
+  const deadline = deadlineValue ? new Date(deadlineValue).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : null;
   const deadlineExpired = Boolean(job.deadlineExpired);
   const tags: string[] = Array.isArray(job.tags) ? job.tags : [];
   const parsedFromDescription = parseJobDetailSections(normalizedIdentity.description, displayTitle);
@@ -233,28 +248,29 @@ function JobDetailInner() {
     ...(Array.isArray(apiSections[key]) ? apiSections[key] : []),
     ...(Array.isArray(parsedFromDescription[key]) ? parsedFromDescription[key] : []),
   ].map((v) => cleanLine(String(v))).filter(Boolean)));
+  const canonicalSection = (values: unknown) => Array.isArray(values) ? values.map((v) => cleanLine(String(v))).filter(Boolean) : [];
   const sections = {
-    description: mergeSection("description"),
-    missions: mergeSection("missions"),
-    profile: mergeSection("profile"),
-    formation: mergeSection("formation"),
-    experience: mergeSection("experience"),
-    skills: mergeSection("skills"),
-    qualities: mergeSection("qualities"),
-    benefits: mergeSection("benefits"),
-    application: mergeSection("application"),
+    description: normalized ? canonicalSection(normalized.description) : mergeSection("description"),
+    missions: normalized ? canonicalSection(normalized.missions) : mergeSection("missions"),
+    profile: normalized ? canonicalSection(normalized.profile) : mergeSection("profile"),
+    formation: normalized ? canonicalSection(normalized.education) : mergeSection("formation"),
+    experience: normalized ? canonicalSection(normalized.experience) : mergeSection("experience"),
+    skills: normalized ? canonicalSection(normalized.skills) : mergeSection("skills"),
+    qualities: normalized ? canonicalSection(normalized.qualities) : mergeSection("qualities"),
+    benefits: normalized ? canonicalSection(normalized.benefits) : mergeSection("benefits"),
+    application: normalized ? canonicalSection(normalized.application) : mergeSection("application"),
   };
   const matchScore = Math.max(0, Math.min(100, Number(job.matchPercent ?? 0)));
   const headerFacts = [
     job.location ? { icon: MapPin, value: job.location } : null,
     contract ? { icon: Clock3, value: formatContract(contract) } : null,
     remote ? { icon: Globe2, value: remote } : null,
-    job.salary || job.salaryMin != null ? { icon: null, value: job.salary ? `${formatSalary(job.salary)} ${job.salaryCurrency || "XAF"}` : `${formatSalary(job.salaryMin)}${job.salaryMax != null ? " – " + formatSalary(job.salaryMax) : ""} ${job.salaryCurrency || "XAF"}` } : null,
+    normalizedSalary || salaryMin != null || salaryMax != null ? { icon: null, value: salaryMin != null || salaryMax != null ? `${formatSalary(salaryMin)}${salaryMax != null ? " – " + formatSalary(salaryMax) : ""} ${salaryCurrency}` : "Rémunération non précisée" } : null,
   ].filter(Boolean) as Array<{ icon: any; value: string }>;
 
   const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Plateforme externe" : "Candidature depuis Jobly";
   const applicationEmail = String(job.applicationProfile?.applicationEmail || job.applicationProfile?.email || "").trim();
-  const applicationSubject = emailChannel ? extractApplicationSubject(job.description || "", displayTitle || "") : "";
+  const applicationSubject = emailChannel ? extractApplicationSubject(normalizedDescription || job.description || "", displayTitle || "") : "";
 
   const compactItems = (items: string[], limit = 12) => Array.from(new Set(items.map(cleanLine).filter(Boolean))).slice(0, limit);
   const renderParagraphs = (items: string[]) => <div className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 8).map((line, i) => <p key={i}>{line}</p>)}</div>;
@@ -311,8 +327,12 @@ function JobDetailInner() {
             {sections.description.length > 0 && <DetailSection title="À propos de l'offre">{renderParagraphs(sections.description)}</DetailSection>}
             {sections.missions.length > 0 && <DetailSection title="Missions">{renderBullets(sections.missions)}</DetailSection>}
             {sections.profile.length > 0 && <DetailSection title="Profil recherché">{renderBullets(sections.profile)}</DetailSection>}
+            {sections.formation.length > 0 && <DetailSection title="Formation">{renderBullets(sections.formation)}</DetailSection>}
+            {sections.experience.length > 0 && <DetailSection title="Expérience">{renderBullets(sections.experience)}</DetailSection>}
+            {sections.skills.length > 0 && <DetailSection title="Compétences">{renderBullets(sections.skills)}</DetailSection>}
+            {sections.qualities.length > 0 && <DetailSection title="Qualités recherchées">{renderBullets(sections.qualities)}</DetailSection>}
             {sections.benefits.length > 0 && <DetailSection title="Avantages">{renderBullets(sections.benefits)}</DetailSection>}
-            {sections.description.length === 0 && sections.missions.length === 0 && sections.profile.length === 0 && sections.benefits.length === 0 && (
+            {sections.description.length === 0 && sections.missions.length === 0 && sections.profile.length === 0 && sections.formation.length === 0 && sections.experience.length === 0 && sections.skills.length === 0 && sections.qualities.length === 0 && sections.benefits.length === 0 && (
               <DetailSection title="À propos de l'offre">
                 {normalizedIdentity.description
                   ? <p className="whitespace-pre-wrap text-[15px] leading-7 text-slate-600">{cleanLine(normalizedIdentity.description)}</p>
