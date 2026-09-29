@@ -90,7 +90,6 @@ export async function POST(request: NextRequest) {
       const { data: rows, error } = await rowsQuery
         .order("createdAt", { ascending: true })
         .range(0, mode === "reprocess-all" ? 999 : batchSize - 1);
-      const { data: rows, error } = await rowsQuery;
       if (error) throw new Error(error.message);
 
       let processed = 0, updated = 0, skipped = 0, deactivated = 0;
