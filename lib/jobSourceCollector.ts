@@ -20,6 +20,7 @@ export type CollectedOffer = {
   company: string | null;
   location: string | null;
   contractType: string | null;
+  remoteMode: string | null;
   description: string;
   deadline: string | null;
   publishedAt: string | null;
