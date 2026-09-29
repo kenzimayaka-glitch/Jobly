@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - "fix/offer-pipeline-final-validation"
+      - "fix/offer-360-audit"
   pull_request:
     branches:
       - main
@@ -24,4 +25,5 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm typecheck
+      - run: pnpm dlx tsx scripts/offer-block-regression.ts
       - run: pnpm build
