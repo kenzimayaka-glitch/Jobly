@@ -1,7 +1,10 @@
 import crypto from "node:crypto";
-import { resolveApplicationContact, extractApplicationSubject } from "./applicationEngine";
+import { resolveApplicationContact } from "./applicationEngine";
+import { extractApplicationSubject } from "./applicationSubject";
 import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription } from "./jobContent";
+import { normalizeJobContent } from "./jobNormalizer";
 import { renderPublicSource } from "./jobSourceRenderer";
+import { extractOfferBlocks } from "./jobOfferBlocks";
 
 type SourceConfig = {
   key: string;
@@ -303,10 +306,20 @@ function firstMatch(text: string, patterns: RegExp[]): string | null {
 
 function parseDate(value: string | null): string | null {
   if (!value) return null;
-  const date = new Date(value.replace(/(\d{2})-(\d{2})-(\d{4})/,"$3-$2-$1"));
+  const months: Record<string,string> = {
+    janvier:"01",février:"02",fevrier:"02",mars:"03",avril:"04",mai:"05",juin:"06",
+    juillet:"07",août:"08",aout:"08",septembre:"09",octobre:"10",novembre:"11",décembre:"12",decembre:"12",
+  };
+  const normalized = value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  const numeric = normalized.match(/\b(\d{1,2})[./-](\d{1,2})[./-](\d{4})\b/);
+  const named = normalized.match(/\b(\d{1,2})(?:er)?\s+([a-z]+)\s+(\d{4})\b/);
+  const day = numeric?.[1] || named?.[1];
+  const month = numeric?.[2]?.padStart(2,"0") || (named?.[2] ? months[named[2]] : undefined);
+  const year = numeric?.[3] || named?.[3];
+  if (!day || !month || !year) return null;
+  const date = new Date(`${year}-${month}-${day.padStart(2,"0")}T23:59:59.000Z`);
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
-
 function extractCompanyWebsite(html: string, pageUrl: string): string | null {
   const links = Array.from(html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi));
   const scored: { url: string; score: number }[] = [];
@@ -350,7 +363,7 @@ function findApplicationUrl(html: string, pageUrl: string, source: SourceConfig)
   return candidates[0]?.url || null;
 }
 
-function findApplicationEmail(html: string): string | null {
+function findApplicationEmail(html: string, applicationText = ""): string | null {
   const candidates: { email: string; score: number }[] = [];
   const add = (email: string, score: number) => {
     const normalized = email.trim().replace(/[),.;:]+$/, "");
@@ -359,23 +372,27 @@ function findApplicationEmail(html: string): string | null {
     candidates.push({ email: normalized, score });
   };
 
+  // Canonical rule: the application section is the primary owner of a
+  // candidature email. This prevents footer/contact emails from becoming
+  // application recipients.
+  const applicationEmails = applicationText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
+  for (const email of applicationEmails) {
+    const index = applicationText.toLowerCase().indexOf(email.toLowerCase());
+    const context = applicationText.slice(Math.max(0, index - 260), Math.min(applicationText.length, index + email.length + 260));
+    const score = /(?:candidature|candidater|postuler|recrutement|cv|lettre|envoyer|envoyez|adresse|mail|email|dossier|apply)/i.test(context) ? 20 : 12;
+    add(email, score);
+  }
+
+  // Secondary evidence: mailto links are accepted only when their local
+  // context explicitly indicates application intent.
   const mailto = /href=["']mailto:([^"'?#>\s]+)/gi;
   let match: RegExpExecArray | null;
   while ((match = mailto.exec(html))) {
     const before = html.slice(Math.max(0, match.index - 700), match.index);
     const after = html.slice(match.index, Math.min(html.length, match.index + 900));
     const context = htmlToCleanText(before + " " + after);
-    const score = /candidature|candidater|postuler|recrutement|cv|envoyer|apply|application/i.test(context) ? 10 : 3;
-    add(decodeEntities(match[1]), score);
-  }
-
-  const visible = htmlToCleanText(html);
-  const emails = visible.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
-  for (const email of emails) {
-    const index = visible.toLowerCase().indexOf(email.toLowerCase());
-    const context = visible.slice(Math.max(0, index - 300), Math.min(visible.length, index + email.length + 300));
-    const score = /candidature|candidater|postuler|recrutement|cv|envoyer|apply|application/i.test(context) ? 8 : 2;
-    add(email, score);
+    if (!/(candidature|candidater|postuler|recrutement|cv|lettre|envoyer|apply|application|dossier)/i.test(context)) continue;
+    add(decodeEntities(match[1]), 10);
   }
 
   candidates.sort((a, b) => b.score - a.score);
@@ -431,34 +448,38 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   // footer, widgets and the job body into one text stream.
   const title = cleanJobTitle(titleFromHtml(html) || listingTitle);
   if (!title || title.length < 3) return null;
-  const clean = cleanJobDescription(html, title);
-  const lowerHtml = html.toLowerCase();
-  const chromeSignals = [
-    "aller au contenu principal",
-    "poster une offre",
-    "datalayer",
-    "gtag(",
-    "window.datalayer",
-    "cookie settings",
-    "toggle navigation",
-  ];
-  const noiseHits = chromeSignals.reduce((n, signal) => n + (lowerHtml.includes(signal) ? 1 : 0), 0);
+  const blockExtraction = extractOfferBlocks(html, "", title);
+  const clean = cleanJobDescription(blockExtraction.text, title);
   const visibleLength = clean.length;
-  // A page can contain legitimate navigation, but the extracted offer itself
-  // must remain substantial. Reject only clearly unusable captures here;
-  // normalization is still the next quality gate.
-  if (visibleLength < 120 || noiseHits >= 5) return null;
+  // Chrome is evaluated on the extracted content, never on the complete page.
+  // Navigation is expected to exist in a rendered page and must not invalidate
+  // an otherwise good offer capture.
+  if (visibleLength < 120 || blockExtraction.diagnostics.estimatedRisks.blockLoss > 0.72) return null;
   const company = cleanCompanyName(firstMatch(clean,[/(?:Nom de l[’']employeur|Nom de l'employeur|Employeur|Entreprise|Company)\s*[:：-]\s*([^|\n]{2,120})/i,/(?:chez|at)\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ0-9 .&'’-]{2,100})/i])) || extractCompanyNameFromDescription(clean);
-  const location = firstMatch(clean,[/(?:Lieu|Localisation|Location)\s*[:：-]\s*([^|\n]{2,100})/i]);
+  const location = firstMatch(clean,[/(?:Lieu|Localisation|Location|Ville)\s*[:：-]\s*([^|\n]{2,100})/i]);
   const contractType = firstMatch(clean,[/(?:Type d[’']emploi|Type d'emploi|Contrat|Contract)\s*[:：-]\s*([^|\n]{2,60})/i]);
   const remoteMode = extractRemoteMode(clean);
   const salary = extractSalary(clean);
   const publishedAt = parseDate(firstMatch(clean,[/(?:Date de publication|Posté|Publié(?:e)?)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
-  const deadline = parseDate(firstMatch(clean,[/(?:Date expiration|Date limite|Délai|deadline)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
-  const extractedEmail = findApplicationEmail(html);
+  const deadline = parseDate(
+    firstMatch(clean,[/(?:Date expiration|Date limite|Date d'expiration|Date limite de candidature|Date de validité|Postuler avant|Délai|deadline)\s*[:：-]\s*([^|\n]{4,80})/i]) ||
+    clean.match(/(?:jusqu'au|avant le|au plus tard le|clôture le|postuler avant)\s+([^|\n]{4,60})/i)?.[1] ||
+    clean.match(/(?:période de candidature|periode de candidature)\s*[:：-]\s*(?:du\s+)?[^\n|]*?\b(?:au|a)\s+([^\n|]{4,60})/i)?.[1] ||
+    null
+  );
+
+  // Derive candidature data from the dedicated semantic application
+  // section, not from the whole page. Other contact/footer content must not
+  // contaminate the application channel.
+  const applicationContent = normalizeJobContent({
+    title,
+    description: clean,
+  }).application;
+  const applicationText = applicationContent.join("\n");
+  const extractedEmail = findApplicationEmail(html, applicationText);
   const contacts = resolveApplicationContact(
     extractedEmail ? { applicationEmail: extractedEmail } : {},
-    clean
+    applicationText
   );
   const applicationUrl = findApplicationUrl(html,url,source);
   const companyWebsite = extractCompanyWebsite(html,url);
@@ -470,7 +491,7 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
   if (contacts.email) applicationProfile.applicationEmail = contacts.email;
   if (contacts.phone) applicationProfile.applicationPhone = contacts.phone;
   if (applicationUrl) applicationProfile.applicationUrl = applicationUrl;
-  applicationProfile.subject = extractApplicationSubject(clean,title);
+  applicationProfile.subject = extractApplicationSubject(applicationText);
   const resolvedCaptureMode: CollectedOffer["captureMode"] = captureMode || (
     source.key === "infosconcourseducation"
       ? "api"
@@ -526,8 +547,10 @@ async function collectWordPressOffers(source: SourceConfig): Promise<CollectedOf
       const rawHtml = typeof post?.content?.rendered === "string" ? post.content.rendered : "";
       if (!rawHtml) continue;
       try {
-        const html = stripInfosConcoursWordPressChrome(rawHtml, title);
-        const offer = extractOffer(source, link, html, title, rawHtml, "api");
+        // Keep the WordPress article HTML intact. The universal block extractor
+        // owns chrome removal and semantic context; source-specific cleanup
+        // must not flatten the article before that step.
+        const offer = extractOffer(source, link, rawHtml, title, rawHtml, "api");
         if (offer) out.push(offer);
       } catch {}
     }

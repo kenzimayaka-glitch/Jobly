@@ -17,9 +17,9 @@ export async function GET(request:NextRequest){try{const authUser=await getAuthU
 export async function POST(request:NextRequest){try{const authUser=await getAuthUser(request);if(!authUser)return NextResponse.json({message:"Session requise."},{status:401});const supabase=adminClient();const user=await ensureUser(supabase,authUser);const body=await request.json();const letterOverride=typeof body.letterText==="string"&&body.letterText.trim()?body.letterText.trim().slice(0,30000):null;const source=body.source==="recruiter"?"recruiter":body.source==="discovery"?"discovery":null;const targetId=typeof body.jobId==="string"?body.jobId.trim():"";if(!source||!targetId)return NextResponse.json({message:"Offre invalide (source et identifiant requis)."},{status:400});
  let offer:any=null;
  if(source==="discovery"){
-  const {data,error}=await supabase.from("Job").select("id,title,description,isActive,applicationReady,applicationProfile,createdAt,sourcePublishedAt,deadline,source,sourceUrl,companyId").eq("id",targetId).maybeSingle();if(error)throw new Error(error.message);offer=data;
+  const {data,error}=await supabase.from("Job").select("id,title,description,isActive,applicationReady,applicationProfile,normalizedContent,createdAt,sourcePublishedAt,deadline,source,sourceUrl,companyId").eq("id",targetId).maybeSingle();if(error)throw new Error(error.message);offer=data;
   if(!offer||!offer.isActive)return NextResponse.json({message:"Cette offre n'est plus active."},{status:410});
-  if(!offer.applicationReady)return NextResponse.json({message:"J'IA ne peut pas encore candidater à cette offre."},{status:422});
+  if(!offer.applicationReady && !(Array.isArray(offer.normalizedContent?.application) && offer.normalizedContent.application.length))return NextResponse.json({message:"J'IA ne peut pas encore candidater à cette offre."},{status:422});
   if(!isFresh(offer.sourcePublishedAt,offer.deadline,offer.createdAt))return NextResponse.json({message:"Cette offre n'est plus diffusée par Jobly."},{status:410});
   if(!isOpen(offer.deadline))return NextResponse.json({message:"La date limite de candidature est dépassée."},{status:410});
  }else{
@@ -29,7 +29,7 @@ export async function POST(request:NextRequest){try{const authUser=await getAuth
   if(!isFresh(null,null,offer.createdAt))return NextResponse.json({message:"Cette offre n'est plus diffusée par Jobly."},{status:410});
  }
  const company=source==="discovery"&&offer.companyId?(await supabase.from("Company").select("name").eq("id",offer.companyId).maybeSingle()).data?.name||"l'entreprise":offer.companyName||"l'entreprise";
- const applicationContact=resolveApplicationContact(offer.applicationProfile||{},offer.description||"");
+ const canonicalApplicationText=Array.isArray(offer.normalizedContent?.application)?offer.normalizedContent.application.join("\n"):""; const applicationContact=resolveApplicationContact(offer.applicationProfile||{},canonicalApplicationText||offer.description||"");
  const applicationLink=String((offer.applicationProfile||{}).applicationUrl||(offer.applicationProfile||{}).applyUrl||(offer.applicationProfile||{}).url||"").trim();
  if(!applicationContact.email&&!applicationContact.phone&&!applicationLink){
    return NextResponse.json({message:"Aucun canal de candidature vérifiable n'est indiqué dans l'offre.",code:"APPLICATION_CONTACT_MISSING"},{status:422});

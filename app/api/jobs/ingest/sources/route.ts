@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
+import { extractApplicationEmail, extractApplicationSubject } from "@/lib/applicationSubject";
 import { adminClient, getAuthUser } from "@/lib/server-auth";
 import { collectPublicJobSources, recollectOfferByUrl } from "@/lib/jobSourceCollector";
 import {
@@ -166,6 +167,7 @@ export async function POST(request: NextRequest) {
           title: offer.title,
           companyName: offer.company,
           description: offer.description,
+          renderedHtml: offer.renderedHtml,
           location: offer.location,
           contractType: offer.contractType,
           remoteMode: offer.remoteMode,
@@ -203,14 +205,19 @@ export async function POST(request: NextRequest) {
         const contentHash = crypto.createHash("sha256")
           .update([normalizedContent.title || offer.title, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
           .digest("hex");
-        const contact = offer.applicationProfile;
-        const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
+        const applicationText = normalizedContent.application.join("\n");
+        const canonicalEmail = extractApplicationEmail(applicationText);
+        const canonicalSubject = extractApplicationSubject(applicationText);
+        const contact = { ...offer.applicationProfile };
+        if (canonicalEmail) contact.applicationEmail = canonicalEmail;
+        if (canonicalSubject) contact.subject = canonicalSubject;
+        const applicationReady = Boolean(canonicalEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
 
         const result = await supabase.from("Job").update({
           title: normalizedContent.title || offer.title,
           description: canonicalDescription,
-          location: offer.location,
-          contractType: offer.contractType,
+          location: normalizedContent.location,
+          contractType: normalizedContent.contractType,
           normalizedContent,
           normalizedVersion: normalizedContent.version,
           normalizedAt: now.toISOString(),
@@ -285,6 +292,7 @@ export async function POST(request: NextRequest) {
           title: offer.title,
           companyName: offer.company,
           description: offer.description,
+          renderedHtml: offer.renderedHtml,
           location: offer.location,
           contractType: offer.contractType,
           remoteMode: offer.remoteMode,
@@ -306,13 +314,18 @@ export async function POST(request: NextRequest) {
         const cleanedContentHash = crypto.createHash("sha256")
           .update([normalizedContent.title || offer.title, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
           .digest("hex");
-        const contact = offer.applicationProfile;
-        const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
+        const applicationText = normalizedContent.application.join("\n");
+        const canonicalEmail = extractApplicationEmail(applicationText);
+        const canonicalSubject = extractApplicationSubject(applicationText);
+        const contact = { ...offer.applicationProfile };
+        if (canonicalEmail) contact.applicationEmail = canonicalEmail;
+        if (canonicalSubject) contact.subject = canonicalSubject;
+        const applicationReady = Boolean(canonicalEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
         const result = await supabase.from("Job").update({
           title: normalizedContent.title || offer.title,
           description: canonicalDescription,
-          location: offer.location,
-          contractType: offer.contractType,
+          location: normalizedContent.location,
+          contractType: normalizedContent.contractType,
           normalizedContent,
           normalizedVersion: normalizedContent.version,
           normalizedAt: now.toISOString(),
@@ -360,6 +373,7 @@ export async function POST(request: NextRequest) {
         title: offer.title,
         companyName: offer.company,
         description: offer.description,
+        renderedHtml: offer.renderedHtml,
         location: offer.location,
         contractType: offer.contractType,
         remoteMode: offer.remoteMode,
@@ -420,14 +434,19 @@ export async function POST(request: NextRequest) {
         existing = existingBySourceUrl;
       }
 
-      const contact = offer.applicationProfile;
-      const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
+      const applicationText = normalizedContent.application.join("\n");
+      const canonicalEmail = extractApplicationEmail(applicationText);
+      const canonicalSubject = extractApplicationSubject(applicationText);
+      const contact = { ...offer.applicationProfile };
+      if (canonicalEmail) contact.applicationEmail = canonicalEmail;
+      if (canonicalSubject) contact.subject = canonicalSubject;
+      const applicationReady = Boolean(canonicalEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
       const payload = {
         title: normalizedContent.title || offer.title,
         description: canonicalDescription,
         language: "fr",
-        location: offer.location,
-        contractType: offer.contractType,
+        location: normalizedContent.location,
+        contractType: normalizedContent.contractType,
         source,
         sourceUrl: offer.sourceUrl,
         sourceKey: offer.sourceKey,

@@ -25,7 +25,7 @@ function semantic(value: string): string {
     .trim();
 }
 
-const CONTRACT = /\b(?:cdi|cdd|stage|interim|interim|freelance|consultant|alternance|apprentissage|temps partiel|temps plein|contrat)\b/i;
+const CONTRACT = /\b(?:cdi|cdd|stage|interim|interim|temporaire|freelance|consultant|alternance|apprentissage|temps partiel|temps plein|contrat)\b/i;
 const DURATION = /\b\d+(?:[,.]\d+)?\s*(?:mois|ans?|annees?|semaines?|jours?)\b/i;
 const EXPERIENCE = /\b(?:\d+(?:[,.]\d+)?\s*(?:ans?|annees?)\s*(?:d['’]?experience|d['’]?exp|minimum)?|experience\s+(?:requise|professionnelle|de)?)\b/i;
 const EDUCATION = /\b(?:bac(?:\s*\+\s*\d+)?|bep|cap|bts|dut|licence|master|mba|doctorat|phd|diplome|formation|ingenieur)\b/i;
@@ -43,8 +43,16 @@ function hasCompanyEvidence(value: string, context: string): boolean {
 }
 
 function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^$()|[\\]\\\\]/g, "\\$&");
+  return value.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
 }
+
+function companyCore(value: string): string {
+  return semantic(value)
+    .replace(/\b(?:s\.?a\.?|sarl|sas|ltd|limited|llc|inc\.?|plc|gmbh)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 
 export function validateSemanticField(
   field: SemanticField,
@@ -68,7 +76,8 @@ export function validateSemanticField(
     if (DATE.test(normalized)) return { accepted: false, confidence: 0.01, reason: "value_conflicts_with_date_semantics", competingField: "deadline" };
     const explicit = hasCompanyEvidence(raw, normalizedContext);
     const lexical = /\b(?:ong|association|fondation|groupe|societe|société|entreprise|organisation|university|universite|université|bank|banque)\b/i.test(normalized);
-    const titleEvidence = normalizedContext.includes(normalized);
+    const core = companyCore(raw);
+    const titleEvidence = normalizedContext.includes(normalized) || (core.length >= 3 && normalizedContext.includes(core));
     const confidence = Math.min(1, 0.35 + (explicit ? 0.45 : 0) + (lexical ? 0.12 : 0) + (titleEvidence ? 0.08 : 0));
     if (explicit || lexical || titleEvidence) return { accepted: true, confidence, reason: explicit ? "explicit_company_evidence" : "contextual_company_evidence", competingField: null };
     return { accepted: false, confidence: 0.18, reason: "insufficient_company_evidence", competingField: null };

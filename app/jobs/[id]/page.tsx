@@ -24,7 +24,7 @@ import TalentBackground from "@/components/TalentBackground";
 import CompanyLogo from "@/components/CompanyLogo";
 import { parseJobDetailSections, type JobDetailSections } from "@/lib/jobContent";
 import { normalizeJobIdentity } from "@/lib/jobNormalizer";
-import { extractApplicationSubject } from "@/lib/applicationSubject";
+import { extractApplicationEmail, extractApplicationSubject } from "@/lib/applicationSubject";
 
 type MatchItem = {
   id: string;
@@ -228,7 +228,6 @@ function JobDetailInner() {
   const displayTitle = normalizedIdentity.title;
   const displayCompany = normalizedIdentity.companyName;
   const company = displayCompany;
-  const emailChannel = Boolean(job.applicationProfile?.applicationEmail || job.applicationProfile?.email || (normalized?.application || []).some((v) => /@/.test(String(v))));
   const phoneChannel = Boolean(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.length);
   const applicationLink = String(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl || job.applicationProfile?.url || "").trim();
   const contract = normalized?.contractType || null;
@@ -249,6 +248,17 @@ function JobDetailInner() {
     ...(Array.isArray(parsedFromDescription[key]) ? parsedFromDescription[key] : []),
   ].map((v) => cleanLine(String(v))).filter(Boolean)));
   const canonicalSection = (values: unknown) => Array.isArray(values) ? values.map((v) => cleanLine(String(v))).filter(Boolean) : [];
+  const canonicalApplication = canonicalSection(normalized?.application);
+  const applicationText = canonicalApplication.join("\n");
+  const applicationEmail = String(
+    job.applicationProfile?.applicationEmail ||
+    job.applicationProfile?.email ||
+    extractApplicationEmail(applicationText) ||
+    "",
+  ).trim();
+  const applicationSubject = extractApplicationSubject(applicationText);
+  const emailChannel = Boolean(applicationEmail);
+
   const sections = {
     // The detail page is source-agnostic: canonical data is the only
     // representation allowed to reach the UI.
@@ -260,7 +270,7 @@ function JobDetailInner() {
     skills: canonicalSection(normalized?.skills),
     qualities: canonicalSection(normalized?.qualities),
     benefits: canonicalSection(normalized?.benefits),
-    application: canonicalSection(normalized?.application),
+    application: canonicalApplication,
   };
   const matchScore = Math.max(0, Math.min(100, Number(job.matchPercent ?? 0)));
   const headerFacts = [
@@ -271,13 +281,7 @@ function JobDetailInner() {
   ].filter(Boolean) as Array<{ icon: any; value: string }>;
 
   const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Plateforme externe" : null;
-  const applicationEmail = String(job.applicationProfile?.applicationEmail || job.applicationProfile?.email || "").trim();
-  const applicationSubject = emailChannel
-    ? extractApplicationSubject(
-        [...(Array.isArray(normalized?.application) ? normalized.application : []), normalizedDescription].join("\n"),
-        displayTitle || "",
-      )
-    : "";
+
 
   const compactItems = (items: string[], limit = 12) => Array.from(new Set(items.map(cleanLine).filter(Boolean))).slice(0, limit);
   const renderParagraphs = (items: string[]) => <div className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 8).map((line, i) => <p key={i}>{line}</p>)}</div>;
@@ -341,7 +345,7 @@ function JobDetailInner() {
                   {emailChannel && (
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="rounded-2xl bg-[#F7FAFF] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Mail de candidature</p><p className="mt-1 break-all text-sm font-bold text-[#17212B]">{applicationEmail}</p></div>
-                      <div className="rounded-2xl bg-[#F7FAFF] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Objet du mail</p>{applicationSubject && <p className="mt-1 text-sm font-bold text-[#17212B]">{applicationSubject}</p>}</div>
+                      {applicationSubject && <div className="rounded-2xl bg-[#F7FAFF] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Objet du mail</p><p className="mt-1 text-sm font-bold text-[#17212B]">{applicationSubject}</p></div>}
                     </div>
                   )}
                   {sections.application.length > 0 && renderBullets(sections.application)}

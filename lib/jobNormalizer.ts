@@ -59,6 +59,10 @@ const SECTION_ALIASES: Record<string, string> = {
   candidature: "application", "pour postuler": "application",
   "modalites de candidature": "application", "comment postuler": "application",
   "documents a fournir": "application", "documents a joindre": "application",
+  "comment candidater": "application", "modalites pour postuler": "application",
+  "modalites pour candidater": "application", "procedure de candidature": "application",
+  "processus de candidature": "application", "dossier de candidature": "application",
+  "pieces a fournir": "application", "pieces a joindre": "application", "objet du mail": "application", "objet de candidature": "application",
 };
 
 const KNOWN_HEADERS = [
@@ -121,10 +125,10 @@ function cleanBullet(value: string): string {
 function normalizeOfferText(value: string): string {
   return repairEncoding(decodeEntities(String(value || "")))
     .normalize("NFC")
-    .replace(/[\\u200B-\\u200D\\uFEFF]/g, "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
     .replace(/[�□■]+/g, " ")
-    .replace(/[\\u00A0\\u202F]/g, " ")
-    .replace(/[ \\t]+/g, " ")
+    .replace(/[\u00A0\u202F]/g, " ")
+    .replace(/[ \t]+/g, " ")
     .trim();
 }
 
@@ -151,15 +155,33 @@ const SECTION_PRIORITY: SectionKey[] = [
 function classifyUnlabelledLine(line: string): SectionKey | null {
   const normalized = key(line);
   if (!normalized) return null;
-  if (/@/.test(normalized) || /\\b(?:objet|subject|indiquer en objet|mettre en objet)\\b/.test(normalized) ||
-      /\\b(?:envoyer|envoyez|adressez|transmettez|postulez|candidature)\\b.*\\b(?:cv|candidature|mail|email)\\b/.test(normalized)) return "application";
-  if (/\\b(?:experience|exp\\.?)\\b|\\b\\d+\\s*(?:ans?|annees?)\\b/.test(normalized)) return "experience";
-  if (/\\b(?:bac\\s*\\+|licence|master|mba|doctorat|diplome|formation|etudes|parcours academique)\\b/.test(normalized)) return "education";
-  if (/\\b(?:competence|competences|maitrise|connaissance|savoir-faire|logiciel|excel|word|sql|erp|powerpoint)\\b/.test(normalized)) return "skills";
-  if (/\\b(?:qualite|qualites|rigueur|autonome|autonomie|esprit d equipe|adaptabilite|organisation)\\b/.test(normalized)) return "qualities";
-  if (/\\b(?:aura pour mission|auront pour mission|vous serez charge|vous serez en charge|responsable de|consistera a|missions principales|vos responsabilites)\\b/.test(normalized)) return "missions";
-  if (/\\b(?:avantages|assurance|mutuelle|prime|transport|conges|indemnite)\\b/.test(normalized)) return "benefits";
+
+  // Application has the highest semantic specificity. Once a line contains
+  // explicit candidature signals, it must not leak into profile/qualities.
+  if (
+    /@/.test(normalized) ||
+    /\b(?:objet|subject|indiquer en objet|mettre en objet|avec pour objet)\b/.test(normalized) ||
+    /\b(?:envoyer|envoyez|adressez|transmettez|postulez|candidater|candidature|deposer|déposer|soumettre|apply)\b.*\b(?:cv|curriculum|lettre|mail|email|candidature|dossier|postuler)\b/.test(normalized) ||
+    /\b(?:cv|curriculum|lettre de motivation|dossier de candidature|pieces? a fournir|documents? a (?:fournir|joindre))\b/.test(normalized)
+  ) return "application";
+
+  if (/\b(?:experience|exp\.?)\b|\b\d+\s*(?:ans?|annees?)\b/.test(normalized)) return "experience";
+  if (/\b(?:bac\s*\+|licence|master|mba|doctorat|diplome|formation|etudes|parcours academique)\b/.test(normalized)) return "education";
+  if (/\b(?:competence|competences|maitrise|connaissance|savoir-faire|logiciel|excel|word|sql|erp|powerpoint)\b/.test(normalized)) return "skills";
+  if (/\b(?:qualite|qualites|rigueur|autonome|autonomie|esprit d equipe|adaptabilite|organisation)\b/.test(normalized)) return "qualities";
+  if (/\b(?:aura pour mission|auront pour mission|vous serez charge|vous serez en charge|responsable de|consistera a|missions principales|vos responsabilites)\b/.test(normalized)) return "missions";
+  if (/\b(?:avantages|assurance|mutuelle|prime|transport|conges|indemnite)\b/.test(normalized)) return "benefits";
   return null;
+}
+
+function isStrongApplicationLine(line: string): boolean {
+  const normalized = key(line);
+  return (
+    /@/.test(normalized) ||
+    /\b(?:objet|subject|indiquer en objet|mettre en objet|avec pour objet)\b/.test(normalized) ||
+    /\b(?:envoyer|envoyez|adressez|transmettez|postulez|candidater|soumettre|deposer|déposer|apply)\b.*\b(?:cv|curriculum|lettre|mail|email|dossier|candidature|postuler)\b/.test(normalized) ||
+    /\b(?:cv|curriculum|lettre de motivation|dossier de candidature|pieces? a fournir|documents? a (?:fournir|joindre))\b/.test(normalized)
+  );
 }
 
 function enforceSectionExclusivity(sections: Record<SectionKey, string[]>): Record<SectionKey, string[]> {
@@ -175,6 +197,19 @@ function enforceSectionExclusivity(sections: Record<SectionKey, string[]>): Reco
     else context.push(line);
   }
   working.description = context;
+
+  // A malformed source can accidentally attach candidature lines to a
+  // profile/qualities bucket. Strong application evidence always belongs to
+  // the application section, regardless of the source bucket.
+  for (const section of SECTION_PRIORITY) {
+    if (section === "application") continue;
+    const kept: string[] = [];
+    for (const line of working[section]) {
+      if (isStrongApplicationLine(line)) working.application.push(line);
+      else kept.push(line);
+    }
+    working[section] = kept;
+  }
 
   // A semantic fact gets one owner. Keep the most specific category first and
   // never copy the same fact into several sections.
@@ -223,6 +258,11 @@ function parseSections(raw: string): Record<string, string[]> {
   for (const rawLine of prepared.split(/\n+/)) {
     const line = cleanBullet(rawLine);
     if (!line) continue;
+    const explicitMailSubject = line.match(/^#?\s*objet\s+(?:du\s+mail|de\s+(?:la\s+)?candidature)\s*[:：-]\s*(.+)$/i);
+    if (explicitMailSubject?.[1]) {
+      sections.application.push(cleanBullet(explicitMailSubject[1]));
+      continue;
+    }
     const colon = line.match(/^(.{2,90}?)\s*[:：]\s*(.*)$/);
     const candidate = key(colon?.[1] || line);
     const alias = SECTION_ALIASES[candidate];
@@ -244,6 +284,8 @@ function parseSections(raw: string): Record<string, string[]> {
     if (mixedAptitudes) sections[classifyMixedAptitude(line)].push(line);
     else sections[current].push(line);
   }
+  const explicitSubject = prepared.match(/\bobjet\s+(?:du\s+mail|de\s+(?:la\s+)?candidature)\s*[:：-]\s*([^.;\n]{3,180})/i)?.[1];
+  if (explicitSubject) sections.application.push(cleanBullet(explicitSubject));
   return sections;
 }
 
@@ -252,6 +294,12 @@ function stripBoilerplate(values: string[]): string[] {
     !/^(?:accueil|menu|connexion|inscription|recherche|partager|facebook|twitter|linkedin)$/i.test(value) &&
     !/^(?:window\.|gtag\(|fbq\(|dataLayer)/i.test(value)
   ));
+}
+
+function companyNameMatchesTitle(name: string, title: string): boolean {
+  const normalizedName = key(name).replace(/\b(?:s\.?a\.?|sarl|sas|ltd|limited|llc|inc\.?|plc|gmbh)\b/g, " ").replace(/\s+/g, " ").trim();
+  const normalizedTitle = key(title);
+  return normalizedName.length >= 3 && normalizedTitle.includes(normalizedName);
 }
 
 function plausibleExplicitCompany(name: string, title: string, context = ""): boolean {
@@ -288,9 +336,20 @@ export function normalizeJobContent(input: {
   const companyCandidates = [explicitCompany, descriptionCompany, titleCompany].filter(
     (value): value is string => Boolean(value),
   );
-  const companyName = companyCandidates.find((candidate) =>
-    plausibleExplicitCompany(candidate, title, description),
-  ) || null;
+  const explicitValidation = explicitCompany
+    ? validateSemanticField("company", explicitCompany, [title, description].filter(Boolean).join("\n"))
+    : null;
+  const explicitSafe = Boolean(
+    explicitCompany &&
+    explicitValidation &&
+    (explicitValidation.accepted || explicitValidation.reason === "insufficient_company_evidence"),
+  );
+  const companyName =
+    (explicitSafe ? explicitCompany : null) ||
+    companyCandidates.find((candidate) =>
+      companyNameMatchesTitle(candidate, title) || plausibleExplicitCompany(candidate, title, description),
+    ) ||
+    null;
   // Parse the same canonical description used for identity extraction and storage.
   // The raw input is intentionally unknown, so never pass it directly to a string-only parser.
   const sections = parseSections(description);
