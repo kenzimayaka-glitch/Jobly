@@ -174,6 +174,10 @@ function needsSourceRefresh(item:any):boolean {
   return false;
 }
 async function enrich(item:any,source:any){
+  // Structured/API/RSS payloads are authoritative: do not replace them with
+  // HTML scraped from the source page just because an optional field is empty.
+  // This keeps Jobly based on the source's actual offer data.
+  if(item._structured && item.title && String(item.description||"").trim().length>=180) return item;
   if(item.title&&item.company&&!needsSourceRefresh(item)) return item;
   try{
     const html=await fetchText(item.url);
@@ -219,7 +223,7 @@ async function backfillExistingOffers(supabase:any){
 Deno.serve(async(req)=>{
  if(req.method!=="POST")return new Response(JSON.stringify({message:"POST required"}),{status:405,headers:{"content-type":"application/json"}});
  const supabase=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);const started=Date.now();let discovered=0,inserted=0,updated=0,expired=0,aiProcessed=0,aiFailed=0;const sourceStats:any[]=[];const runBackfill=req.headers.get("x-jobly-backfill")==="true";let backfill:any=null;
- for(const source of SOURCES.filter(s=>s.enabled)){let found=0,si=0,su=0,error="";try{const structured=await fetchStructuredSource(source.key);const html=structured===null?await fetchText(source.url):"";const raw=structured??parseListing(html,source.url,source.key);found=raw.length;const items=[];for(const r of raw.slice(0,100)){const e=await enrich(r,source);if(e.title&&e.title.length>=4&&e.url)items.push({...e,source:source.name})}discovered+=items.length;
+ for(const source of SOURCES.filter(s=>s.enabled)){let found=0,si=0,su=0,error="";try{const structured=await fetchStructuredSource(source.key);const html=structured===null?await fetchText(source.url):"";const raw=(structured??parseListing(html,source.url,source.key)).map((x:any)=>structured!==null?{...x,_structured:true}:x);found=raw.length;const items=[];for(const r of raw.slice(0,100)){const e=await enrich(r,source);if(e.title&&e.title.length>=4&&e.url)items.push({...e,source:source.name})}discovered+=items.length;
    for(const item of items){const externalId=hash(item.url||`${item.title}|${item.company}|${item.location}`);const contentHash=hash(`${item.title}|${item.company}|${item.description}|${item.location}|${item.deadline||""}`);let ai:any=null;try{ai=await analyzeWithGemini(item);if(ai)aiProcessed++}catch{aiFailed++}
     const normalizedContent=normalizeAiResult(ai,item);
     const text=`${item.title} ${item.description}`;const opportunityType=inferOpportunityType(item);const phoneNumbers=extractPhone(text);let companyId:string|null=null;const companyName=String(ai?.company||item.company||"").trim();const companyWebsite=String(item.website||"").trim()||null;let companyLogo:string|null=null;
