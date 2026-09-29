@@ -174,6 +174,16 @@ function classifyUnlabelledLine(line: string): SectionKey | null {
   return null;
 }
 
+function isStrongApplicationLine(line: string): boolean {
+  const normalized = key(line);
+  return (
+    /@/.test(normalized) ||
+    /\b(?:objet|subject|indiquer en objet|mettre en objet|avec pour objet)\b/.test(normalized) ||
+    /\b(?:envoyer|envoyez|adressez|transmettez|postulez|candidater|soumettre|deposer|déposer|apply)\b.*\b(?:cv|curriculum|lettre|mail|email|dossier|candidature|postuler)\b/.test(normalized) ||
+    /\b(?:cv|curriculum|lettre de motivation|dossier de candidature|pieces? a fournir|documents? a (?:fournir|joindre))\b/.test(normalized)
+  );
+}
+
 function enforceSectionExclusivity(sections: Record<SectionKey, string[]>): Record<SectionKey, string[]> {
   const working = Object.fromEntries(
     Object.entries(sections).map(([name, values]) => [name, unique(values)]),
@@ -187,6 +197,19 @@ function enforceSectionExclusivity(sections: Record<SectionKey, string[]>): Reco
     else context.push(line);
   }
   working.description = context;
+
+  // A malformed source can accidentally attach candidature lines to a
+  // profile/qualities bucket. Strong application evidence always belongs to
+  // the application section, regardless of the source bucket.
+  for (const section of SECTION_PRIORITY) {
+    if (section === "application") continue;
+    const kept: string[] = [];
+    for (const line of working[section]) {
+      if (isStrongApplicationLine(line)) working.application.push(line);
+      else kept.push(line);
+    }
+    working[section] = kept;
+  }
 
   // A semantic fact gets one owner. Keep the most specific category first and
   // never copy the same fact into several sections.
