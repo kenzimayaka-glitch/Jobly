@@ -7,9 +7,3 @@ ALTER TABLE public."Job"
 ALTER TABLE public."Job"
   ADD CONSTRAINT "Job_qualityStatus_check"
   CHECK ("qualityStatus" IN ('ok', 'needs_review'));
-
-UPDATE public."Job"
-SET "qualityStatus" = 'needs_review'
-WHERE id IN (
-  SELECT id FROM public.jobs_backup_20260929
-);
