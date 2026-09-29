@@ -2,31 +2,13 @@ import { NextRequest } from "next/server";
 import { runAiGateway } from "./aiGateway";
 import { getChannelDefinition, hasJoblyAdapter } from "./applicationChannels";
 import { buildTailoredCv, TailoredCvEducation, TailoredCvExperience, TailoredCvProfile, TailoredCvSkill } from "./applicationCv";
+import { extractApplicationEmail, extractApplicationSubject } from "./applicationSubject";
+import { normalizeJobContent } from "./jobNormalizer";
 
 export type ApplicationChannel = "JOBLY" | "EMAIL" | "PHONE" | "EXTERNAL" | "UNSUPPORTED";
 
 function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-
-function extractApplicationEmail(text: string): string | null {
-  const matches = Array.from(new Set(
-    (text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [])
-      .map(value => value.trim().replace(/[),.;:]+$/, ""))
-  ));
-  if (!matches.length) return null;
-  const lower = text.toLowerCase();
-  let best: { email: string; score: number } | null = null;
-  for (const email of matches) {
-    const index = lower.indexOf(email.toLowerCase());
-    const context = lower.slice(Math.max(0, index - 180), Math.min(lower.length, index + email.length + 180));
-    let score = 0;
-    if (/(candidature|candidater|postuler|recrutement|recrute|recruitment|cv|curriculum|envoyer|envoyez|adresse de candidature|modalites de candidature|apply)/i.test(context)) score += 5;
-    if (/(email|mail|e-mail)/i.test(context)) score += 1;
-    if (/^(aide|info|contact|support|hello|admin)@/i.test(email)) score -= 3;
-    if (score > 0 && (!best || score > best.score)) best = { email, score };
-  }
-  return best?.email || null;
 }
 
 export function extractApplicationPhone(text: string): string | null {
@@ -47,26 +29,6 @@ export function extractApplicationPhone(text: string): string | null {
     if (score > 0 && (!best || score > best.score)) best = { phone, score };
   }
   return best?.phone || null;
-}
-
-function cleanApplicationSubject(value: string): string {
-  return value
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&(?:nbsp|amp|quot|apos|lt|gt);/gi, match => ({
-      "&nbsp;": " ", "&amp;": "&", "&quot;": '"', "&apos;": "'", "&lt;": "<", "&gt;": ">"
-    }[match.toLowerCase()] || " "))
-    .replace(/[\r\n\t]+/g, " ")
-    .replace(/\s+/g, " ")
-    .replace(/^[\"'“”«»\s]+|[\"'“”«»\s]+$/g, "")
-    .trim();
-}
-
-export function extractApplicationSubject(text: string, _jobTitle = ""): string {
-  // An email subject is valid only when the source explicitly identifies it as
-  // the subject. Never invent one from the job title when the source is silent.
-  const pattern = /(?:objet(?:\s+(?:du|de\s+(?:la\s+)?(?:candidature|mail|l['’]email)))?|subject|email subject|mail subject|indiquer en objet|mettre en objet|avec pour objet|mentionner en objet)\s*[:：-]\s*[\"'“”«»]?([^\r\n<]{3,180})/i;
-  const match = text.match(pattern);
-  return match?.[1] ? cleanApplicationSubject(match[1]) : "";
 }
 
 export function resolveApplicationContact(applicationProfile: Record<string, unknown>, jobDescription: string): { email: string | null; phone: string | null } {
@@ -138,11 +100,17 @@ export async function prepareApplication(req: NextRequest, args: {
   skipAi?: boolean;
 }) {
   const applicationProfile = { ...args.applicationProfile };
-  const contacts = resolveApplicationContact(applicationProfile, args.jobDescription);
+  // The candidature channel and subject are derived from the dedicated
+  // application section, never from the whole offer body.
+  const applicationText = normalizeJobContent({
+    title: args.jobTitle,
+    description: args.jobDescription,
+  }).application.join("\n");
+  const contacts = resolveApplicationContact(applicationProfile, applicationText);
   if (!stringValue(applicationProfile.applicationEmail) && contacts.email) applicationProfile.applicationEmail = contacts.email;
   if (!stringValue(applicationProfile.applicationPhone) && contacts.phone) applicationProfile.applicationPhone = contacts.phone;
   const channel = resolveApplicationChannel(applicationProfile);
-  const subject = extractApplicationSubject(args.jobDescription, args.jobTitle);
+  const subject = extractApplicationSubject(applicationText);
   if (channel.channel === "UNSUPPORTED") throw new Error(channel.reason);
   const definition = getChannelDefinition(channel.channel);
   // Email candidature uses the review flow without consuming J’IA AI credits.
