@@ -203,28 +203,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "PDF_NOT_READABLE", message: "Le PDF ne contient pas assez de texte exploitable. Si c’est un scan image, utilise un PDF OCRisé." }, { status: 422 });
     }
 
-    let originalCv: { stored: boolean; storagePath?: string; fileName?: string; pages?: number } = { stored: false };
-    if (authUser) {
-      const adminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      if (adminUrl && serviceKey) {
-        const admin = createClient(adminUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-        const storagePath = `${authUser.id}/${crypto.randomUUID()}.pdf`;
-        const upload = await admin.storage.from("talent-cvs").upload(storagePath, fileBytes, { contentType: "application/pdf", upsert: false });
-        if (!upload.error) {
-          const { data: userRow } = await admin.from("User").select("id").eq("authUserId", authUser.id).maybeSingle();
-          if (userRow?.id) {
-            await admin.from("User").update({
-              cvOriginalStoragePath: storagePath,
-              cvOriginalFileName: file.name,
-              cvOriginalPageCount: parsed.total,
-              cvOriginalUploadedAt: new Date().toISOString(),
-            }).eq("id", userRow.id);
-          }
-          originalCv = { stored: true, storagePath, fileName: file.name, pages: parsed.total };
-        }
-      }
-    }
+    // Import is preview-only: durable original-file persistence happens only after the user explicitly clicks "Enregistrer".
+    const originalCv: { stored: boolean; storagePath?: string; fileName?: string; pages?: number } = {
+      stored: false,
+      fileName: file.name,
+      pages: parsed.total,
+    };
 
     // PDF text extraction is deterministic and remains available independently
     // of J'IA credits. AI enrichment is a separate, quota-gated step.
