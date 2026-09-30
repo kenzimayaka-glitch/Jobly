@@ -1,3 +1,27 @@
+# CHECKPOINT 30/09/2026 — DUPLICATION V3 PAR CONTRADICTION
+
+**État : 🟨 CODÉ SUR BRANCHE D'ANALYSE — CI / AUDIT RÉEL NON ENCORE CONFIRMÉS.**
+
+Branche : `analysis/duplication-v3-integrated-20260930` (dérivée de `main`). Aucun commit sur `main`, aucune fusion, aucune écriture Supabase et aucun déploiement Vercel.
+
+- Ajout de `scripts/duplication-v3-contradiction.mjs` : segmentation en unités, contexte de section, comparaisons intra/inter-offres, discriminants, contre-preuves, classifications et ventilation par source.
+- `scripts/offer-pipeline-audit.mjs` conserve `normalizedContent` dans le rapport afin d'alimenter la V3 sans aplatir les sections.
+- `.github/workflows/offer-360-audit.yml` lance le self-test V3 puis l'analyse du snapshot 360° dans le même workflow et publie le rapport JSON dans l'artifact d'audit.
+- Architecture et limites consignées dans `docs/DUPLICATION-V3-INTEGRATED.md`.
+
+**Règle d'interprétation :** mot partagé seul = aucune preuve. Les blocs uniques ou ambigus restent en `REVIEW`; les templates sont distingués des duplications d'offres. Les seuils constituent un triage explicable, à calibrer sur un jeu annoté, pas une vérité métier autonome.
+
+**Validation à obtenir :**
+1. Vérifier que le workflow CI démarre sur cette branche et que le self-test passe.
+2. Examiner les artifacts `offers-audit.json` et `duplication-v3-report.json` du même run.
+3. Vérifier le volume réellement audité et la ventilation `sourceKey`, en particulier Infos Concours Education.
+4. Comparer au rapport historique #41 uniquement si le snapshot exact des 254 offres est disponible; un run sur le stock actif actuel n'est pas une reproduction de #41.
+5. Réviser les cas `DUPLICATION`, `TEMPLATE_REUSE` et `REVIEW` avec preuves et contre-preuves avant toute décision produit.
+
+La V3 ne remplace pas encore le contrôle historique et ne doit pas modifier le classement en production.
+
+---
+
 # JOBLY — STATUT DU PROJET
 ## SOURCE DE VÉRITÉ D'EXÉCUTION — JOBLY 20/20
 ### Mise à jour : 26/09/2026 — Offres / Matching adaptatif / UX
