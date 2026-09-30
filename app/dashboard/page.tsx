@@ -146,7 +146,8 @@ export default function DashboardPage() {
 
   return (
     <main className="talent-shell min-h-[100dvh] w-full overflow-x-hidden bg-[#F5F7FB] pb-28 text-[#17212B]">
-      {welcomeBonus?.firstDashboardVisit && welcomeBonus.remaining > 0 && welcomeBonus.message && <JoblyToast title="Bonus J’IA de bienvenue" message={`${welcomeBonus.message} Crédit restant : ${welcomeBonus.remaining}.`} actionLabel="Voir mes crédits" onAction={() => router.push("/talent/settings")} onClose={() => setWelcomeBonus(v => v ? {...v, firstDashboardVisit:false} : v)} />}\n      <PageHeader
+      {welcomeBonus?.firstDashboardVisit && welcomeBonus.remaining > 0 && welcomeBonus.message && <JoblyToast title="Bonus J’IA de bienvenue" message={`${welcomeBonus.message} Crédit restant : ${welcomeBonus.remaining}.`} actionLabel="Voir mes crédits" onAction={() => router.push("/talent/settings")} onClose={() => setWelcomeBonus(v => v ? {...v, firstDashboardVisit:false} : v)} />}
+      <PageHeader
         label=""
         initial={(firstName || "J").charAt(0).toUpperCase()}
         avatarUrl={data?.user.profilePhotoUrl || undefined}
