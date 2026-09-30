@@ -1,4 +1,4 @@
-import { getSourceByKey, type SourceDefinition } from "./source-registry.ts";
+import { getActiveSources, type SourceDefinition } from "./source-registry.ts";
 
 export type ResolvedSourceUrl = {
   sourceKey: string;
@@ -71,5 +71,5 @@ export function resolveSourceUrl(source:SourceDefinition, countryCode:string):Re
 }
 
 export function resolveCountrySources(countryCode:string):ResolvedSourceUrl[] {
-  return [];
+  return getActiveSources(countryCode).map((source) => resolveSourceUrl(source, countryCode));
 }
