@@ -116,6 +116,48 @@ for (const override of [...CENTRAL_AFRICA_INTERNATIONAL, ...CENTRAL_AFRICA_SOURC
 }
 
 
+
+
+
+// West Africa V1 — country-by-country qualified sources from the second audit layer.
+const WEST_AFRICA_SOURCES: SourceDefinition[] = [
+  {key:"anpe_bj",name:"ANPE Bénin",type:"institutional",status:"active",enabled:true,url:"https://anpe.bj/",countries:["BJ"],languages:["fr"],captureMode:"http",renderRequired:false,priority:120,notes:"Service public de l'emploi; portail officiel et offres vérifiées."},
+  {key:"sica_anpe_bj",name:"SICA ANPE Bénin",type:"institutional",status:"active",enabled:true,url:"https://sica.anpe.bj/portail-offres",countries:["BJ"],languages:["fr"],captureMode:"browser",renderRequired:true,priority:125,notes:"Portail d'offres JS; à traiter par navigateur pour la récolte complète."},
+  {key:"gouv_bj_emploi",name:"Gouvernement du Bénin — Offres d'emploi",type:"institutional",status:"active",enabled:true,url:"https://www.gouv.bj/opportunites/offres-emploi/1/",countries:["BJ"],languages:["fr"],captureMode:"http",renderRequired:false,priority:115},
+  {key:"iefp_cv",name:"IEFP / PEPE Cabo Verde",type:"institutional",status:"active",enabled:true,url:"https://pepe.iefp.cv/frontend/web/pt/site/oferta-emprego",countries:["CV"],languages:["pt"],captureMode:"http",renderRequired:false,priority:120},
+  {key:"jobivoire_ci",name:"JobIvoire",type:"national",status:"active",enabled:true,url:"https://www.jobivoire.ci/jobs",countries:["CI"],languages:["fr"],captureMode:"http",renderRequired:false,priority:110},
+  {key:"emploi_ci",name:"Emploi.ci",type:"national",status:"active",enabled:true,url:"https://www.emploi.ci/",countries:["CI"],languages:["fr"],captureMode:"http",renderRequired:false,priority:105},
+  {key:"senjob_west",name:"Senjob",type:"pan_africa",status:"active",enabled:true,url:"https://senjob.com/offres-d-emploi.php",countries:["SN","CI","BF","ML","NE","GN","TG","BJ"],languages:["fr"],captureMode:"http",renderRequired:false,priority:95},
+  {key:"jobcomgh",name:"Jobs.com.gh",type:"national",status:"active",enabled:true,url:"https://jobs.com.gh/",countries:["GH"],languages:["en"],captureMode:"http",renderRequired:false,priority:120},
+  {key:"jobweb_ghana",name:"JobWeb Ghana",type:"national",status:"active",enabled:true,url:"https://www.jobwebghana.com/",countries:["GH"],languages:["en"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"jobberman_gh",name:"Jobberman Ghana",type:"national",status:"active",enabled:true,url:"https://www.jobberman.com.gh/",countries:["GH"],languages:["en"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"myjobmag_ng",name:"MyJobMag Nigeria",type:"national",status:"active",enabled:true,url:"https://www.myjobmag.com/",countries:["NG"],languages:["en"],captureMode:"http",renderRequired:false,priority:115},
+  {key:"hotnigerianjobs",name:"HotNigerianJobs",type:"national",status:"active",enabled:true,url:"https://www.hotnigerianjobs.com/alljobs/",countries:["NG"],languages:["en"],captureMode:"http",renderRequired:false,priority:110},
+  {key:"jobberman_ng",name:"Jobberman Nigeria",type:"national",status:"active",enabled:true,url:"https://www.jobberman.com/",countries:["NG"],languages:["en"],captureMode:"http",renderRequired:false,priority:105},
+  {key:"senjob_sn",name:"Senjob Sénégal",type:"national",status:"active",enabled:true,url:"https://senjob.com/offres-d-emploi.php",countries:["SN"],languages:["fr"],captureMode:"http",renderRequired:false,priority:120},
+  {key:"emploidakar_sn",name:"EmploiDakar",type:"national",status:"active",enabled:true,url:"https://www.emploidakar.com/",countries:["SN"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"lmis_sl",name:"LMIS Sierra Leone",type:"institutional",status:"active",enabled:true,url:"https://lmis.moelss.gov.sl/",countries:["SL"],languages:["en"],captureMode:"http",renderRequired:false,priority:125},
+  {key:"careers_sl",name:"Careers SL",type:"national",status:"active",enabled:true,url:"https://careers.sl/",countries:["SL"],languages:["en"],captureMode:"http",renderRequired:false,priority:115},
+  {key:"hrjobs_liberia",name:"HR Jobs Liberia",type:"institutional",status:"active",enabled:true,url:"https://hrjobsliberia.com/",countries:["LR"],languages:["en"],captureMode:"http",renderRequired:false,priority:120},
+  {key:"malijob",name:"MaliJob",type:"national",status:"active",enabled:true,url:"https://www.malijob.com/",countries:["ML"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"emploi_ml",name:"Emploi.ml",type:"national",status:"discovered",enabled:false,url:"https://www.emploi.ml/",countries:["ML"],languages:["fr"],captureMode:"http",renderRequired:false,priority:90,notes:"À qualifier au prochain smoke crawl."},
+  {key:"anpe_bf",name:"ANPE Burkina Faso",type:"institutional",status:"discovered",enabled:false,url:"https://anpe.bf/",countries:["BF"],languages:["fr"],captureMode:"http",renderRequired:false,priority:120,notes:"URL institutionnelle candidate; activation après smoke audit."},
+  {key:"anpe_ne",name:"ANPE Niger",type:"institutional",status:"discovered",enabled:false,url:"https://anpe.ne/",countries:["NE"],languages:["fr"],captureMode:"http",renderRequired:false,priority:120,notes:"URL institutionnelle candidate; activation après smoke audit."},
+  {key:"anpetogo",name:"ANPE Togo",type:"institutional",status:"discovered",enabled:false,url:"https://anpetogo.org/",countries:["TG"],languages:["fr"],captureMode:"http",renderRequired:false,priority:120,notes:"URL institutionnelle candidate; activation après smoke audit."},
+  {key:"jobguinee",name:"GuineeJob",type:"national",status:"discovered",enabled:false,url:"https://www.guineejob.com/",countries:["GN"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100,notes:"À qualifier par accessibilité et fraîcheur."},
+  {key:"emploi_gw",name:"IEFP Guinea-Bissau",type:"institutional",status:"discovered",enabled:false,url:"https://iefp.gw/",countries:["GW"],languages:["pt"],captureMode:"http",renderRequired:false,priority:100,notes:"À qualifier; portail institutionnel candidat."},
+  {key:"jobsearch_gm",name:"Gambia JobSearch",type:"national",status:"discovered",enabled:false,url:"https://jobsearch.gm/",countries:["GM"],languages:["en"],captureMode:"http",renderRequired:false,priority:100,notes:"À qualifier par smoke crawl."},
+  {key:"jobartis_ao",name:"Jobartis Angola",type:"national",status:"discovered",enabled:false,url:"https://www.jobartis.com/",countries:["AO"],languages:["pt"],captureMode:"http",renderRequired:false,priority:110,notes:"Angola traité dans le lot lusophone; activation après audit d'accès."},
+  {key:"emprego_ao",name:"Emprego.co.ao",type:"national",status:"discovered",enabled:false,url:"https://www.emprego.co.ao/",countries:["AO"],languages:["pt"],captureMode:"http",renderRequired:false,priority:105,notes:"À qualifier par smoke crawl."},
+  {key:"fne_west",name:"FNE/ANPE/Services publics — West Africa discovery",type:"institutional",status:"discovered",enabled:false,url:"",countries:["BJ","BF","CV","CI","GM","GH","GN","GW","LR","ML","NE","NG","SN","SL","TG"],languages:["fr","en","pt"],captureMode:"unknown",renderRequired:false,priority:60,notes:"Placeholder de contrôle; ne doit jamais être récolté comme URL."}
+];
+
+for (const override of WEST_AFRICA_SOURCES) {
+  const index = SOURCE_REGISTRY.findIndex((source) => source.key === override.key);
+  if (index >= 0) SOURCE_REGISTRY[index] = override;
+  else SOURCE_REGISTRY.push(override);
+}
+
 export function getSourceByKey(key:string): SourceDefinition | null {
   return SOURCE_REGISTRY.find((source)=>source.key===key) ?? null;
 }
