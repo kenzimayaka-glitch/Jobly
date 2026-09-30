@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - analysis/duplication-v3-integrated-20260930
   workflow_dispatch:
 
 permissions:
@@ -34,6 +35,25 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Run real offer-by-offer audit
         run: node scripts/offer-pipeline-audit.mjs
+      - name: Run contradiction-based duplication V3
+        run: |
+          node scripts/duplication-v3-contradiction.mjs --self-test
+          node scripts/duplication-v3-contradiction.mjs audit-output/offers-audit.json audit-output/duplication-v3-report.json
+      - name: Publish V3 summary to job
+        if: always()
+        run: |
+          if [ -f audit-output/duplication-v3-report.json ]; then
+            node - <<'NODE'
+            const fs = require('fs');
+            const r = JSON.parse(fs.readFileSync('audit-output/duplication-v3-report.json','utf8'));
+            const s = r.summary || {};
+            const lines = ['## Duplication V3 — contradiction', '', 'Offres: **' + s.offersAnalyzed + '** · unités sémantiques: **' + s.unitsAnalyzed + '** · constats: **' + s.findings + '**', '', '| Décision | Nombre |', '|---|---:|', ...Object.entries(s.byDecision || {}).map(([k,v]) => '| ' + k + ' | **' + v + '** |'), '', '### Ventilation par source', '', '| Source | Offres | Constats | Duplications | Templates | À revoir |', '|---|---:|---:|---:|---:|---:|', ...Object.entries(s.bySource || {}).map(([k,v]) => '| ' + k + ' | ' + v.offers + ' | ' + v.findings + ' | ' + v.duplication + ' | ' + v.templates + ' | ' + v.review + ' |')];
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\\n') + '\\n');
+            NODE
+          else
+            echo 'Rapport V3 absent : audit ou analyse en échec.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Publish audit report summary to job
         if: always()
         run: |
