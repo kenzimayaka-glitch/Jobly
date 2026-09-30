@@ -59,7 +59,7 @@ function analyze(input){
     const substantive=matches.filter(m=>!isNonSubstantiveUnit(m.x)&&!isNonSubstantiveUnit(m.y)&&!isBoilerplateMatch(m));
     const substantiveExact=exact.filter(m=>!isNonSubstantiveUnit(m.x)&&!isNonSubstantiveUnit(m.y)&&!isBoilerplateMatch(m));
     const boilerplateMatches=matches.filter(m=>m.x.boilerplate>=2||m.y.boilerplate>=2);
-    const onlyNonSubstantive=matches.length>0&&matches.every(m=>{const sx=String(m.x.section||"").toLowerCase(),sy=String(m.y.section||"").toLowerCase();return (isNonSubstantiveUnit(m.x)||/^(application|deadline)(_|$)/.test(sx))&&(isNonSubstantiveUnit(m.y)||/^(application|deadline)(_|$)/.test(sy));});
+    const onlyNonSubstantive=matches.length>0&&matches.every(m=>isNonSubstantiveUnit(m.x)&&isNonSubstantiveUnit(m.y));
     const onlyBoilerplate=matches.length>0&&matches.every(isBoilerplateMatch);
     let cls="REVIEW",decision="REVIEW",confidence="LOW",reason="Similarité sans preuve suffisante pour conclure.";
     if(onlyNonSubstantive){
