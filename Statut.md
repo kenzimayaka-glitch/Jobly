@@ -3902,3 +3902,72 @@ Une fonctionnalité n'est pas « finie » parce qu'elle compile. Elle est finie 
 | Déploiement Vercel sans contournement du contrôle utilisateur | 🟢 RÈGLE FIGÉE | Respect permanent |
 
 **Cette liste doit être mise à jour à chaque nouvelle résolution ou nouvelle demande persistante.**
+
+
+# CHECKPOINT 30/09/2026 — AFRIQUE / V3 / SHADOW POC
+
+## Afrique — architecture
+
+| Domaine | État | Preuve / suite |
+|---|---|---|
+| Registre Afrique | 🟢 CODÉ | 54 pays, 54 activés, 6 régions |
+| Scope local | 🟢 CODÉ | pays utilisateur conservé |
+| Explorer l’Afrique | 🟢 CODÉ | scope Afrique séparé du local |
+| Ingestion multi-pays | 🟡 EN VALIDATION | POC shadow en cours |
+| Sources techniques Afrique | 🟡 EN VALIDATION | premières sources structurées intégrées |
+| Multilingue | 🟢 CODÉ | 15 langues + préférence persistée |
+| Matching langue | 🟢 CODÉ | exigence explicite seulement |
+
+## V3 Duplication
+
+| Contrôle | État |
+|---|---|
+| Architecture V3 | 🟢 STABILISÉE |
+| Audit de référence | 🟢 #79 |
+| Population de référence | 🟢 254 offres |
+| DUPLICATION de référence | 🟢 14 |
+| REVIEW de référence | 🟢 58 |
+| Séparation intra-offre / inter-offres | 🟢 |
+| Métadonnées internes non exposées | 🟢 |
+
+## Shadow POC
+
+**Branche :** feature/africa-shadow-poc-20260930
+
+Le POC est conçu pour exécuter la collecte réelle des sources publiques sans écriture Supabase et sans déploiement Vercel. Le workflow produit un rapport par source et un artifact.
+
+### Premier run
+
+Le premier run GitHub a atteint l'installation complète puis a échoué au lancement du runner, avant collecte, à cause de l'utilisation de top-level await avec le format CJS de tsx.
+
+**Cause identifiée :** runner de test, pas collecteur de sources.
+
+**Correction :** commit 0b8dd339869c762412be3849bdd726a60da22577 — runner converti en fonction async main().
+
+### État actuel
+
+**🟨 CODÉ → PREMIER RUN TESTÉ → ÉCHEC TECHNIQUE IDENTIFIÉ → CORRIGÉ → NOUVEAU RUN À CONTRÔLER**
+
+Aucun chiffre d'offres africaines n'est encore déclaré comme résultat réel tant que le run corrigé n'a pas produit son rapport.
+
+## Qualité / modèle canonique
+
+Le pipeline doit distinguer countryCode, eligibilityScope, eligibleCountries, dates source/publication/expiration/dernière observation, salaire avec devise/période, et canaux de candidature.
+
+Les offres panafricaines ou worldwide ne doivent pas être forcées dans un pays unique.
+
+## Règle de déploiement
+
+**Aucun déploiement Vercel sans autorisation explicite.**
+
+Le checkpoint Afrique reste sur branche de travail et ne modifie pas la production.
+
+## Prochaine passe
+
+1. Rejouer le Shadow POC corrigé.
+2. Contrôler les métriques par source.
+3. Corriger les mappings pays/éligibilité réellement observés.
+4. Brancher les contrôles V3 dans la chaîne shadow.
+5. Mesurer retrieved → normalized → valid → duplicate/review → publishable.
+6. Étendre progressivement les sources et pays.
+7. Validation contrôlée avant toute activation production.
