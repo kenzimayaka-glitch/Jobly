@@ -25,6 +25,12 @@
 >
 > **RÈGLE ABSOLUE :** lire `Statut.md` avant toute modification du code. `Statut.md` est la source de vérité de l'état d'avancement. Ce README est la source de vérité de la vision, des principes d'architecture et des décisions de continuité.
 
+> **MISE À JOUR DU 30/09/2026 — DUPLICATION V3**
+>
+> Une architecture de détection par granularité et contradiction est documentée dans `docs/DUPLICATION-V3-INTEGRATED.md`. Le pipeline d'audit conserve les sections `normalizedContent`, puis exécute `scripts/duplication-v3-contradiction.mjs` sur le snapshot JSON du même run. Les répétitions isolées et les ambiguïtés restent en `REVIEW`; les templates de source sont séparés des duplications d'offres.
+>
+> **État : intégration codée sur la branche `analysis/duplication-v3-integrated-20260930`; tests CI et audit réel encore à confirmer.** L'analyse est en lecture seule. Ne pas fusionner dans `main` ni déployer sans autorisation explicite. L'audit courant porte sur le stock actif au moment du run et ne reproduit pas automatiquement l'artifact historique #41 (254 offres).
+
 ---
 
 # 1. JOBLY EN UNE PHRASE
