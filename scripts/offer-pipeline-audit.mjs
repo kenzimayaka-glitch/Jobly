@@ -18,8 +18,26 @@ function firstEmail(t){return(t.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)
 function firstPhone(t){return(t.match(/(?:\+?237[\s.-]?[6-9]\d{2}[\s.-]?\d{3}[\s.-]?\d{3}|6[5-9]\d{7})/g)||[])[0]||null}
 function firstDeadline(j,t){if(j?.validThrough)return String(j.validThrough);const m=t.match(/(?:date limite|deadline|avant le|jusqu'au|jusqu’au|cloture|clôture)[^\n]{0,80}/i);return m?.[0]||null}
 function similarity(a,b){const x=normalize(a),y=normalize(b);if(!x||!y)return 0;if(x===y)return 1;if(x.includes(y)||y.includes(x))return Math.min(x.length,y.length)/Math.max(x.length,y.length);const A=new Set(x.split(" ")),B=new Set(y.split(" "));const inter=[...A].filter(v=>B.has(v)).length;return inter/Math.max(1,new Set([...A,...B]).size)}
-function visibleText(html){return clean(String(html||"").replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gi,"\\n").replace(/<style\\b[^>]*>[\\s\\S]*?<\\/style>/gi,"\\n").replace(/<noscript\\b[^>]*>[\\s\\S]*?<\\/noscript>/gi,"\\n").replace(/<svg\\b[^>]*>[\\s\\S]*?<\\/svg>/gi,"\\n").replace(/<br\\s*\\/?>/gi,"\\n").replace(/<li\\b[^>]*>/gi,"\\n• ").replace(/<\\/li>/gi,"\\n").replace(/<\\/[^>]+>/g,"\\n").replace(/<[^>]+>/g," "));}
-function labeled(text,labels){const lines=text.split(/\\n+/).map(x=>x.trim()).filter(Boolean);for(const line of lines){const m=line.match(new RegExp("^(?:"+labels.join("|")+")[\\\\s:：-]+(.{2,160})$","i"));if(m)return m[1].trim()}return null}
+function visibleText(html){
+  return clean(String(html||"")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,"\n")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,"\n")
+    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi,"\n")
+    .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi,"\n")
+    .replace(/<br\s*\/?\s*>/gi,"\n")
+    .replace(/<li\b[^>]*>/gi,"\n• ")
+    .replace(/<\/li>/gi,"\n")
+    .replace(/<\/[^>]+>/g,"\n")
+    .replace(/<[^>]+>/g," "));
+}
+function labeled(text,labels){
+  const lines=text.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+  const escapeRegex=s=>String(s).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  const pattern=labels.map(escapeRegex).join("|");
+  const re=new RegExp("^(?:"+pattern+")\\s*[:：-]\\s*(.{2,200})$","i");
+  for(const line of lines){const m=line.match(re);if(m)return m[1].trim()}
+  return null;
+}
 function sourceFacts(html){const rawText=visibleText(html),text=clean(html),j=jsonLd(html)[0]||{},sections=parseSections(html),applicationText=(sections.application||[]).join("\\n");return{title:j?.title||labeled(rawText,["Intitulé du Poste","Poste proposé","Titre","Job Title"]),company:j?.hiringOrganization?.name||labeled(rawText,["Entreprise","Nom de l’employeur","Employeur","Company"]),location:j?.jobLocation?.address?.addressLocality||j?.jobLocation?.name||labeled(rawText,["Localisation","Lieu","Location","Ville"]),deadline:firstDeadline(j,rawText),email:firstEmail(rawText),applicationEmail:firstEmail(applicationText),phone:firstPhone(rawText),text,rawText,sections,blockCount:blocks(html).length}}
 function dupCount(sections){const seen=new Map();let dup=0;for(const[k,vals]of Object.entries(sections||{}))for(const v of vals||[]){const s=normalize(v);if(!s)continue;if(seen.has(s))dup++;else seen.set(s,k)}return dup}
 function currentSections(job){const n=job.normalizedContent||{};return{description:n.description||[],missions:n.missions||[],profile:n.profile||[],education:n.education||[],experience:n.experience||[],skills:n.skills||[],qualities:n.qualities||[],benefits:n.benefits||[],application:n.application||[]}}
