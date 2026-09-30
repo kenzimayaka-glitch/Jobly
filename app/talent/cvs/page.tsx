@@ -9,12 +9,15 @@ import TalentBackground from "../../../components/TalentBackground";
 
 type CV = {
   id: string; name: string; source: string; fullName: string; headline: string; email: string; phone: string;
-  summary: string; skills: string; experience: string; education: string; ats: number; createdAt: string;
+  summary: string; skills: string; experience: string; education: string;
+  activities: string[]; interests: string[]; references: string[]; referencesVisible: boolean;
+  languages: string[]; achievements: string[]; atsKeywords: string[];
+  ats: number; createdAt: string;
 };
 type PaymentState = { paymentId: string; instructions: string; priceXaf: number; pending?: boolean } | null;
 
 const KEY = "jobly:talent-cvs";
-const empty: CV = { id: "", name: "Mon CV Jobly", source: "Créé dans Jobly", fullName: "", headline: "", email: "", phone: "", summary: "", skills: "", experience: "", education: "", ats: 0, createdAt: "" };
+const empty: CV = { id: "", name: "Mon CV Jobly", source: "Créé dans Jobly", fullName: "", headline: "", email: "", phone: "", summary: "", skills: "", experience: "", education: "", activities: [], interests: [], references: [], referencesVisible: false, languages: [], achievements: [], atsKeywords: [], ats: 0, createdAt: "" };
 
 function score(c: CV) {
   let n = 0;
@@ -38,6 +41,11 @@ export default function TalentCVs() {
   const [originalMeta, setOriginalMeta] = useState<{ pages?: number; storagePath?: string } | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!message) return;
+    const timer = window.setTimeout(() => setMessage(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [message]);
   const [originalBusy, setOriginalBusy] = useState(false);
   const [plan, setPlan] = useState("FREE");
   const [paymentPhone, setPaymentPhone] = useState("");
@@ -79,6 +87,13 @@ export default function TalentCVs() {
         skills: (extracted.skills || []).join(", "),
         experience: extracted.experience || cv.experience,
         education: extracted.education || cv.education,
+        activities: Array.isArray(extracted.activities) ? extracted.activities : cv.activities,
+        interests: Array.isArray(extracted.interests) ? extracted.interests : cv.interests,
+        references: Array.isArray(extracted.references) ? extracted.references : cv.references,
+        referencesVisible: extracted.referencesVisible === true || cv.referencesVisible,
+        languages: Array.isArray(extracted.languages) ? extracted.languages : cv.languages,
+        achievements: Array.isArray(extracted.achievements) ? extracted.achievements : cv.achievements,
+        atsKeywords: Array.isArray(extracted.atsKeywords) ? extracted.atsKeywords : cv.atsKeywords,
         source: file ? `CV original importé : ${file}` : cv.source,
         ats: Number(extracted.atsScore || 0) || score(cv),
       };
@@ -199,7 +214,7 @@ export default function TalentCVs() {
               <button onClick={() => exportPdf()} disabled={busy} className="rounded-xl bg-[#FFE135] py-3 font-black disabled:opacity-50">Télécharger ATS</button>
               <button onClick={() => router.push("/career-os")} className="rounded-xl border py-3 font-black">Career OS →</button>
             </div>
-            {message && <div role="status" aria-live="polite" className="fixed bottom-5 left-1/2 z-[120] w-[min(92vw,520px)] -translate-x-1/2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#17212B] shadow-2xl print:hidden">{message}</div>}
+            {message && <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-[120] w-[min(92vw,520px)] -translate-x-1/2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#17212B] shadow-2xl print:hidden">{message}</div>}
             {payment && <div className="mt-4 rounded-2xl border border-[#FFE135] bg-[#FFF9E6] p-4 print:hidden">
               <p className="font-black">Téléchargement ATS — {payment.priceXaf.toLocaleString("fr-FR")} FCFA</p>
               <p className="mt-1 text-xs">{payment.instructions}</p>
