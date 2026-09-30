@@ -12,7 +12,7 @@ on:
       countries:
         description: "Optional ISO country codes filter"
         required: false
-        default: "CI,GH,NG,SN,SL,LR,ML"
+        default: ""
       sources:
         description: "Optional comma-separated source keys"
         required: false
