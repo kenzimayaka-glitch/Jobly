@@ -3,6 +3,7 @@ import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNam
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
 import { detectLanguageRequirements, normalizeJobLanguage } from "../../../lib/jobLanguage";
+import { AFRICAN_COUNTRY_NAMES, normalizeAfricanCountryCode } from "../../../lib/africaCountries";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -216,6 +217,6 @@ export async function GET(request:NextRequest){
   }
   const visibleRanked = ranked.filter(job => !staleIds.includes(job.id));
   const totalAvailable=visibleRanked.length;const start=(page-1)*limit;const results=visibleRanked.slice(start,start+limit).map(job=>({...job,deadlineExpired:deadlineExpired(job.deadline),offerStatus:deadlineExpired(job.deadline)?"EXPIRED":"ACTIVE"}));const matchingCount=visibleRanked.reduce((count,job)=>count+(job.matchPercent>=50?1:0),0);
-  return NextResponse.json({totalAvailable,matchingCount,count:results.length,page,limit,hasMore:start+limit<totalAvailable,yearsExperience,preferredLanguages,jobs:results,market:{scope,countryCode:activeCountryCode,countryName:activeCountryCode?(countryNames[activeCountryCode]||"Pays sélectionné"):null,userCountryCode},matchingPolicy:{matchingThreshold:50,ordering:"match_then_publication",externalRequiresApplicationReady:true}});
+  return NextResponse.json({totalAvailable,matchingCount,count:results.length,page,limit,hasMore:start+limit<totalAvailable,yearsExperience,preferredLanguages,jobs:results,market:{scope,countryCode:activeCountryCode,countryName:activeCountryCode?(AFRICAN_COUNTRY_NAMES[activeCountryCode]||"Pays sélectionné"):null,userCountryCode},matchingPolicy:{matchingThreshold:50,ordering:"match_then_publication",externalRequiresApplicationReady:true}});
  }catch(error){return NextResponse.json({message:error instanceof Error?error.message:"Impossible de charger les offres."},{status:500});}
 }
