@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminClient } from "../../../../lib/server-auth";
 import { resolveApplicationContact } from "../../../../lib/applicationEngine";
 import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription, parseJobDetailSections } from "../../../../lib/jobContent";
-import { normalizeJobIdentity } from "../../../../lib/jobNormalizer";
+import { normalizeJobContent, normalizeJobIdentity } from "../../../../lib/jobNormalizer";
 
 function companyDomain(website:string|null|undefined):string|null { if(!website) return null; try { const raw=website.startsWith("http")?website:`https://${website}`; return new URL(raw).hostname.toLowerCase().replace(/^www\\./,"") || null; } catch { return null; } }
 
@@ -32,7 +32,9 @@ export async function GET(request: NextRequest, context: Context) {
       const normalizedContent = (data as any).normalizedContent || null;
       const structuredDescription = Array.isArray(normalizedContent?.description) ? normalizedContent.description.join("\n\n") : "";
       const normalized = normalizeJobIdentity({ title: normalizedContent?.title || data.title, companyName: normalizedContent?.company || company?.name, description: structuredDescription || data.description });
-      const cleanedTitle = normalized.title; const cleanedDescription = normalized.description; const cleanedCompanyName = normalized.companyName; const contacts = resolveApplicationContact((data.applicationProfile || {}) as Record<string, unknown>, cleanedDescription);
+      const canonicalContent = normalizedContent || normalizeJobContent({ title: data.title, companyName: company?.name, description: data.description, location: data.location, contractType: data.contractType, remoteMode: data.remoteMode, salaryMin: data.salaryMin, salaryMax: data.salaryMax, salaryCurrency: data.salaryCurrency, deadline: data.deadline, source: data.source, sourceUrl: data.sourceUrl });
+      const canonicalApplicationText = Array.isArray(canonicalContent?.application) ? canonicalContent.application.join("\n") : "";
+      const cleanedTitle = normalized.title; const cleanedDescription = normalized.description; const cleanedCompanyName = normalized.companyName; const contacts = resolveApplicationContact((data.applicationProfile || {}) as Record<string, unknown>, canonicalApplicationText);
       const applicationProfile = { ...(data.applicationProfile || {}), ...(contacts.email ? { applicationEmail: contacts.email } : {}), ...(contacts.phone ? { applicationPhone: contacts.phone } : {}) };
       const parsedSections = normalizedContent && Object.values(normalizedContent).some((v:any)=>Array.isArray(v)&&v.length) ? { description: normalizedContent.description||[], missions: normalizedContent.missions||[], profile: normalizedContent.profile||[], education: normalizedContent.education||[], experience: normalizedContent.experience||[], skills: normalizedContent.skills||[], qualities: normalizedContent.qualities||[], benefits: normalizedContent.benefits||[], application: normalizedContent.application||[] } : parseJobDetailSections(cleanedDescription || data.description, cleanedTitle);
       const detailSections = Object.values(parsedSections).some((items) => Array.isArray(items) && items.length)
