@@ -73,6 +73,14 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
 const AFRICA_CENSUS_Q3_A: SourceDefinition[] = [{key:"africarrieres_q3",name:"Africarrières",type:"pan_africa",status:"active",enabled:true,url:"https://"+"africarrieres.com/",countries:PAN_AFRICA,languages:["fr","en"],captureMode:"http",renderRequired:false,priority:95}];
 for (const source of AFRICA_CENSUS_Q3_A) SOURCE_REGISTRY.push(source);
 
+const AFRICA_CENSUS_Q3_B: SourceDefinition[] = [
+  {key:"freshtalent_q3",name:"FreshTalent Africa",type:"pan_africa",status:"active",enabled:true,url:"https://"+"freshtalent.africa/",countries:PAN_AFRICA,languages:["en","fr","pt","sw","ar"],captureMode:"http",renderRequired:false,priority:94},
+  {key:"jobaa_q3",name:"Jobaa",type:"pan_africa",status:"active",enabled:true,url:"https://"+"jobaa.org/countries",countries:PAN_AFRICA,languages:["en","fr","pt","ar"],captureMode:"http",renderRequired:false,priority:88},
+  {key:"careerlink_africa_q3",name:"CareerLink Africa",type:"pan_africa",status:"active",enabled:true,url:"https://"+"www.careerlinkafrica.com/",countries:["NG","KE","ZA","GH","EG","ET","MA","UG","TZ","RW","SN","CI","CM","ZM","ZW"],languages:["en","fr"],captureMode:"http",renderRequired:false,priority:85},
+  {key:"perican_q3",name:"Perican",type:"remote",status:"active",enabled:true,url:"https://"+"perican.africa/",countries:PAN_AFRICA,languages:["en"],captureMode:"http",renderRequired:false,priority:75}
+];
+for (const source of AFRICA_CENSUS_Q3_B) SOURCE_REGISTRY.push(source);
+
 // Central Africa V1 — sources qualified during the country-by-country web audit.
 // Cameroon is intentionally excluded from this rollout.
 const CENTRAL_AFRICA_INTERNATIONAL: SourceDefinition[] = [
