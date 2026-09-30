@@ -86,15 +86,15 @@ export async function POST(request: NextRequest) {
     const activePlan = await getActivePlanCode(sb, user.id, "TALENT");
     const service = String(body?.service || "ATS").toUpperCase() === "OPTIMIZED" ? "OPTIMIZED" : "ATS";
     const entitlements = getEntitlements(activePlan);
-    const isIncluded = PREMIUM_PLANS.has(activePlan) && oneOffPrice <= 0;
     const oneOffPrice = service === "OPTIMIZED" ? Number(entitlements.cvOptimizedDownloadPriceXaf || 0) : Number(entitlements.cvAtsDownloadPriceXaf || entitlements.cvDownloadPriceXaf || 0);
+    const isIncluded = PREMIUM_PLANS.has(activePlan) && oneOffPrice <= 0;
 
     if (!isIncluded && oneOffPrice > 0) {
       const paymentId = clean(body?.paymentId, 100);
       if (!paymentId) {
         return NextResponse.json({
           error: "PAYMENT_REQUIRED",
-          message: `Le téléchargement ATS coûte ${oneOffPrice.toLocaleString("fr-FR")} FCFA pour votre formule.`,
+          message: `Le téléchargement ${service === "OPTIMIZED" ? "du CV optimisé" : "ATS"} coûte ${oneOffPrice.toLocaleString("fr-FR")} FCFA pour votre formule.`,
           paymentRequired: true,
           priceXaf: oneOffPrice,
           currency: "XAF",
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
 
       const { data: payment, error: paymentError } = await sb
         .from("Payment")
-        .select("id,userId,subscriptionId,amount,currency,status,provider,externalId")
+        .select("id,userId,subscriptionId,amount,currency,status,provider,externalId,paidAt")
         .eq("id", paymentId)
         .eq("userId", user.id)
         .maybeSingle();
@@ -115,6 +115,10 @@ export async function POST(request: NextRequest) {
       }
       if (payment.status !== "SUCCESSFUL") {
         return NextResponse.json({ error: "PAYMENT_NOT_CONFIRMED", message: "Le paiement doit être confirmé avant le téléchargement." }, { status: 402 });
+      }
+      const paidAt = payment.paidAt ? new Date(payment.paidAt).getTime() : 0;
+      if (!paidAt || Date.now() >= paidAt + ACCESS_WINDOW_MS) {
+        return NextResponse.json({ error: "CV_ACCESS_EXPIRED", message: "L’accès payé à ce service CV a expiré après 2 heures. Un nouveau paiement est nécessaire.", accessWindowHours: 2 }, { status: 402 });
       }
     }
 
