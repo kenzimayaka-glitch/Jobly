@@ -1,0 +1,27 @@
+name: Africa Harvest Processor
+
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: africa-harvest-processor
+  cancel-in-progress: true
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Process pending captures
+        env:
+          PROCESS_URL: ${{ secrets.JOBLY_HARVEST_PROCESS_URL }}
+          INGEST_SECRET: ${{ secrets.JOB_SOURCE_INGEST_SECRET }}
+        run: |
+          test -n "$PROCESS_URL" || { echo "JOBLY_HARVEST_PROCESS_URL is not configured"; exit 1; }
+          test -n "$INGEST_SECRET" || { echo "JOB_SOURCE_INGEST_SECRET is not configured"; exit 1; }
+          curl --fail-with-body --silent --show-error             --retry 3 --retry-delay 5             -X POST "$PROCESS_URL"             -H "Authorization: Bearer $INGEST_SECRET"             -H "Content-Type: application/json"
