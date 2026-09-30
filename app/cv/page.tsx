@@ -2,6 +2,7 @@
 
 import { ChangeEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { getSupabaseClient } from "../../lib/supabase";
 
 type CvData = {
   fullName: string;
@@ -71,15 +72,42 @@ function CvStudioContent() {
 
   async function importCv(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+    event.target.value = "";
     if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      setMessage("J’IA accepte ici uniquement les CV PDF.");
+      return;
+    }
     setMessage("");
     setFileName(file.name);
     setLoading(true);
     try {
+      const supabase = getSupabaseClient();
+      const current = await supabase.auth.getSession();
+      let token = current.data.session?.access_token || null;
+      if (!token) {
+        const refreshed = await supabase.auth.refreshSession();
+        token = refreshed.data.session?.access_token || null;
+      }
+      if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
+
       const body = new FormData();
       body.append("file", file);
-      const response = await fetch("/api/talent/cv/import", { method: "POST", body });
-      const result = await response.json();
+      let response = await fetch("/api/talent/cv/import", {
+        method: "POST",
+        headers: { Authorization: \`Bearer \${token}\` },
+        body,
+      });
+      if (response.status === 401) {
+        const refreshed = await supabase.auth.refreshSession();
+        token = refreshed.data.session?.access_token || null;
+        if (token) response = await fetch("/api/talent/cv/import", { method: "POST", headers: { Authorization: \`Bearer \${token}\` }, body });
+      }
+
+      const text = await response.text();
+      let result: any = {};
+      try { result = text ? JSON.parse(text) : {}; }
+      catch { throw new Error(\`Le serveur a renvoyé une réponse invalide au lieu du JSON attendu (HTTP \${response.status}).\`); }
       if (!response.ok) throw new Error(result?.message || "Impossible d’analyser le CV.");
       setCv((current) => ({ ...current, ...result.cv }));
       setMessage("CV importé. Vérifiez et corrigez les informations avant de générer votre version finale.");
