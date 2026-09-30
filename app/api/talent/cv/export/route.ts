@@ -103,14 +103,14 @@ export async function POST(request: NextRequest) {
 
       const { data: payment, error: paymentError } = await sb
         .from("Payment")
-        .select("id,userId,subscriptionId,amount,currency,status,provider,externalId,paidAt")
+        .select("id,userId,subscriptionId,amount,currency,status,provider,externalId,paidAt,feature")
         .eq("id", paymentId)
         .eq("userId", user.id)
         .maybeSingle();
 
       if (paymentError) throw new Error(paymentError.message);
       if (!payment) return NextResponse.json({ error: "PAYMENT_NOT_FOUND", message: "Paiement CV introuvable." }, { status: 404 });
-      if (Number(payment.amount) !== oneOffPrice || payment.currency !== "XAF" || payment.subscriptionId !== null) {
+      if (Number(payment.amount) !== oneOffPrice || payment.currency !== "XAF" || payment.subscriptionId !== null || payment.feature !== `CV_${service}_DOWNLOAD`) {
         return NextResponse.json({ error: "PAYMENT_INVALID", message: "Ce paiement ne correspond pas à cette opération CV." }, { status: 409 });
       }
       if (payment.status !== "SUCCESSFUL") {
