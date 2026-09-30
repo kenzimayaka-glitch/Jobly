@@ -84,7 +84,7 @@ export default function DashboardPage() {
           fetch("/api/profile", { headers: { Authorization: `Bearer ${token}` } }),
           fetch("/api/jobs", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
           fetch("/api/applications", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
-          fetch("/api/talent/ai-bonus?markSeen=true", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
+          fetch("/api/talent/ai-bonus", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
         ]);
         const [profileBody, jobsBody, applicationsBody, welcomeBody] = await Promise.all([
           profileRes.json().catch(() => null), jobsRes.json().catch(() => null), applicationsRes.json().catch(() => null),
@@ -94,7 +94,7 @@ export default function DashboardPage() {
           if (profileRes.ok) setData(profileBody);
           if (jobsRes.ok) setJobs(jobsBody);
           if (applicationsRes.ok) setApplications(applicationsBody);
-          if (welcomeRes.ok) setWelcomeBonus(welcomeBody);
+          if (welcomeRes.ok) { setWelcomeBonus(welcomeBody); if (welcomeBody?.firstDashboardVisit) void fetch("/api/talent/ai-bonus", { method: "POST", headers: { Authorization: `Bearer ${token}` } }); }
         }
       } catch {
         // The dashboard remains navigable even if one backend request is temporarily unavailable.
