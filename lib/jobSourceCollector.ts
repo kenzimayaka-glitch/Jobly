@@ -61,8 +61,7 @@ const SOURCES: SourceConfig[] = [
 
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
 const FETCH_TIMEOUT_MS = 6_000;
-const MAX_LISTING_PAGES = 10;
-const MAX_OFFERS_PER_SOURCE = 50;
+const MAX_LISTING_PAGES_SAFETY = 5000;
 const SOURCE_FETCH_CONCURRENCY = 6;
 const MAX_DESCRIPTION_CHARS = 30_000;
 
@@ -172,9 +171,14 @@ function pageLinks(html: string, baseUrl: string, source: SourceConfig): string[
   let match: RegExpExecArray | null;
   while ((match = re.exec(html))) {
     const label = normalizeSpace(htmlToCleanText(match[2]));
-    if (!/^([2-9]|10)$/.test(label) && !/^(next|»|suivant)$/i.test(label)) continue;
+    const href = decodeEntities(match[1]);
+    const relNext = /\brel=["'][^"']*next[^"']*["']/i.test(match[0]);
+    const nextLabel = /^(?:next|suivant|suivante|page suivante|»|›|→)$/i.test(label);
+    const numeric = /^\d{1,5}$/.test(label);
+    const pagedHref = /(?:[?&](?:page|paged|p)=\d+|\/page\/\d+\/?(?:$|[?#]))/i.test(href);
+    if (!relNext && !nextLabel && !numeric && !pagedHref) continue;
     try {
-      const url = new URL(decodeEntities(match[1]),baseUrl).toString();
+      const url = new URL(href,baseUrl).toString();
       if (source.hostnames.includes(new URL(url).hostname.toLowerCase())) out.push(url);
     } catch {}
   }
@@ -570,16 +574,20 @@ async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
   const seenPages = new Set<string>(), candidates = new Map<string,CandidateLink>();
   for (const firstUrl of source.listingUrls) {
     let current = firstUrl;
-    for (let page=0;page<MAX_LISTING_PAGES && current && !seenPages.has(current);page++) {
+    for (let page=0;page<MAX_LISTING_PAGES_SAFETY && current && !seenPages.has(current);page++) {
       seenPages.add(current);
       try {
         const html = await fetchHtml(current);
         for (const candidate of extractLinks(html,current,source)) candidates.set(candidate.url,candidate);
-        current = pageLinks(html,current,source).find(x=>!seenPages.has(x)) || "";
+        const nextPages = pageLinks(html,current,source).filter(x => !seenPages.has(x));
+        current = nextPages.find(x => !candidates.has(x)) || nextPages[0] || "";
       } catch { current=""; }
     }
   }
-  const candidatesToFetch = Array.from(candidates.values()).slice(0, MAX_OFFERS_PER_SOURCE);
+  // No offer-count ceiling: every unique candidate discovered through source
+  // pagination is eligible for collection. The crawler stops on exhaustion,
+  // repeated pages, or technical failure; the page bound is only a loop guard.
+  const candidatesToFetch = Array.from(candidates.values());
   const results = await mapWithConcurrency(candidatesToFetch, SOURCE_FETCH_CONCURRENCY, async (candidate) => {
     const capture = await fetchOfferCapture(candidate.url);
     return extractOffer(source, candidate.url, capture.renderedHtml, candidate.title, capture.rawHtml, capture.captureMode);
@@ -588,10 +596,9 @@ async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
     const fallback = await collectWordPressOffers(source);
     for (const offer of fallback) {
       if (!results.some(existing => existing.sourceUrl === offer.sourceUrl)) results.push(offer);
-      if (results.length >= MAX_OFFERS_PER_SOURCE) break;
     }
   }
-  return results.slice(0,MAX_OFFERS_PER_SOURCE);
+  return results;
 }
 
 export async function recollectOfferByUrl(sourceKey: string, url: string, listingTitle = ""): Promise<CollectedOffer | null> {
