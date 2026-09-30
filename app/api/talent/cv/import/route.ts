@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { runAiGateway } from "../../../../../lib/aiGateway";
 import { getActivePlanCode } from "../../../../../lib/entitlements";
 
