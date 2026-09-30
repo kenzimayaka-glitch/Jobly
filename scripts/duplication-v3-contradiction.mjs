@@ -100,7 +100,7 @@ function selfTest(){
     ["matching multiple substantive units and discriminants confirm pair",[mk("a","Comptable senior","Acme",{responsibilities:["Produire les rapports financiers mensuels et superviser la clôture comptable"],requirements:["Licence en comptabilité et cinq années d'expérience professionnelle"]}),mk("b","Comptable senior","Acme",{responsibilities:["Produire les rapports financiers mensuels et superviser la clôture comptable"],requirements:["Licence en comptabilité et cinq années d'expérience professionnelle"]})],"DUPLICATION"],
     ["same source boilerplate is not duplication",[mk("a","Agent","A",{description:["Accueil Offres d'emploi Vous devez être connecté pour postuler Tous nos services sont gratuits"]}),mk("b","Manoeuvre","A",{description:["Accueil Offres d'emploi Vous devez être connecté pour postuler Tous nos services sont gratuits"]})],"NO_DUPLICATION"]
   ];
-  const out=cases.map(([name,jobs,want])=>{const r=analyze(jobs),pair=r.findings.find(f=>f.pair),got=pair?.decision??"REVIEW";return{name,got,pass:got===want}});
+  const out=cases.map(([name,jobs,want])=>{const r=analyze(jobs),pair=r.findings.find(f=>f.pair),got=pair?.decision??"REVIEW";return{name,got,pass:got===want,debug:name==="application-only shared block is not duplication"?{units:jobs.map(j=>units(j.normalizedContent)),findings:r.findings}:undefined}});
   console.log(JSON.stringify({passed:out.filter(x=>x.pass).length,total:out.length,cases:out},null,2));
   if(out.some(x=>!x.pass))process.exitCode=1
 }
