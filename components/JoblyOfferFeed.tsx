@@ -57,6 +57,7 @@ type Job = {
 
 
 function formatDate(value: string | null) { if (!value) return "Aucune donnée"; return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)); }
+function countryFlag(code: string | null | undefined) { const flags: Record<string,string> = { CM:"🇨🇲", SN:"🇸🇳", GA:"🇬🇦", CG:"🇨🇬", CF:"🇨🇫", TD:"🇹🇩", GQ:"🇬🇶", BJ:"🇧🇯", BF:"🇧🇫", CI:"🇨🇮", GN:"🇬🇳", GW:"🇬🇼", ML:"🇲🇱", NE:"🇳🇪", TG:"🇹🇬", NG:"🇳🇬", GH:"🇬🇭", RW:"🇷🇼", ZA:"🇿🇦", ZM:"🇿🇲", UG:"🇺🇬", LR:"🇱🇷", SS:"🇸🇸", SZ:"🇸🇿" }; return flags[String(code || "").toUpperCase()] || "🌍"; }
 function GmailIcon({size=18}:{size?:number}) { return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"><path d="M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5v13A2.5 2.5 0 0 1 18.5 21H5.5A2.5 2.5 0 0 1 3 18.5v-13Z" fill="white"/><path d="M4.5 6.2 12 12l7.5-5.8V18a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1V6.2Z" fill="#EA4335"/><path d="M4.5 6.2 12 12l7.5-5.8-1.1-1.6L12 9.4 5.6 4.6 4.5 6.2Z" fill="#4285F4"/><path d="M4.5 6.2V18c0 .55.45 1 1 1h2V8.12L4.5 6.2Z" fill="#34A853"/><path d="M19.5 6.2V18c0 .55-.45 1-1 1h-2V8.12l3-1.92Z" fill="#FBBC04"/></svg>; }
 function WhatsAppIcon({size=18}:{size?:number}) { return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#25D366"/><path d="M8.7 7.6c.3-.3.7-.3 1 0l1.2 1.4c.25.3.25.7.02 1l-.55.72c.5 1 1.35 1.85 2.35 2.35l.72-.55c.3-.23.7-.23 1 .02l1.4 1.2c.3.25.3.7 0 1-.65.75-1.6 1.2-2.65 1.05-1.65-.23-3.4-1.3-4.8-2.7s-2.47-3.15-2.7-4.8c-.15-1.05.3-2 1.05-2.65Z" fill="white"/></svg>; }
 
@@ -590,7 +591,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     const step = (firstCard?.getBoundingClientRect().width || container.clientWidth * 0.86) + gap;
     container.scrollBy({ left: direction * step, behavior: "smooth" });
   }, []);
-  const marketLabel = marketScope === "africa" ? "🌍 Explorer l’Afrique" : `🇨🇲 ${market.countryName || "Cameroun"}`;
+  const marketLabel = marketScope === "africa" ? "🌍 Explorer l’Afrique" : `${countryFlag(market.countryCode)} ${market.countryName || "Cameroun"}`;
   const feedSummary = feedMeta.totalAvailable ? `${feedMeta.totalAvailable} offre${feedMeta.totalAvailable > 1 ? "s" : ""} disponible${feedMeta.totalAvailable > 1 ? "s" : ""} aujourd’hui` : "Marché en cours de synchronisation";
 
   if (sessionLoading || (loading && !jobs.length)) return (
@@ -631,7 +632,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         </div>
       </div>
       <div className="mb-8 flex items-center justify-between gap-3">
-        <button type="button" onClick={() => { setMarketScope("local"); setFilter("Toutes"); }} className={marketScope === "local" ? "rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>🇨🇲 {market.countryName || "Cameroun"}</button>
+        <button type="button" onClick={() => { setMarketScope("local"); setFilter("Toutes"); }} className={marketScope === "local" ? "rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>{countryFlag(market.countryCode)} {market.countryName || "Cameroun"}</button>
         <button type="button" onClick={() => { setMarketScope("africa"); setFilter("Toutes"); }} className={marketScope === "africa" ? "rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>🌍 Explorer l’Afrique</button>
       </div>
       {featured.length > 0 && (
