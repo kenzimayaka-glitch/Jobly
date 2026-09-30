@@ -219,7 +219,6 @@ export async function POST(request: NextRequest) {
         });
         const normalizedContent = prepared.canonical;
         const languageRequirements = detectLanguageRequirements([offer.title, offer.description].filter(Boolean).join(" "));
-        const languageRequirements = detectLanguageRequirements([offer.title, offer.description].filter(Boolean).join(" "));
         const normalizedExperienceYears = prepared.experienceYears;
         const canonicalDescription = normalizedContent.description.join("\n\n") || prepared.extractedDescription;
         await saveOfferPipeline(supabase, row.id, offer, normalizedContent, prepared.extractedDescription);
@@ -393,7 +392,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const { offers, sources } = await collectPublicJobSources();
+    const sourceKey = url.searchParams.get("source")?.trim() || undefined;
+    const { offers, sources } = await collectPublicJobSources(sourceKey);
     const nowIso = now.toISOString();
     let created = 0, updated = 0, skipped = 0;
 
@@ -401,7 +401,7 @@ export async function POST(request: NextRequest) {
       const source = sourceDisplayName(offer.sourceKey);
       const countryCode = inferCountryCode(offer);
       const languageText = [offer.title, offer.description, offer.location].filter(Boolean).join(" ");
-      const detectedLanguage = detectJobLanguage(languageText, offer.language);
+      const detectedLanguage = detectJobLanguage(languageText, null);
       const prepared = buildCanonicalOffer({
         title: offer.title,
         companyName: offer.company,
@@ -466,7 +466,6 @@ export async function POST(request: NextRequest) {
         existing = existingBySourceUrl;
       }
 
-      const countryCode = inferCountryCode(offer);
       const contact = offer.applicationProfile;
       const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
       const languageRequirements = detectLanguageRequirements([offer.title, offer.description].filter(Boolean).join(" "));
@@ -475,7 +474,7 @@ export async function POST(request: NextRequest) {
         title: normalizedContent.title || offer.title,
         description: canonicalDescription,
         language: detectedLanguage,
-        languageOriginal: offer.language || detectedLanguage,
+        languageOriginal: detectedLanguage,
         languageRequirements,
         location: offer.location,
         contractType: offer.contractType,
