@@ -61,8 +61,8 @@ const SOURCES: SourceConfig[] = [
 
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
 const FETCH_TIMEOUT_MS = 6_000;
-const MAX_LISTING_PAGES = 3;
-const MAX_OFFERS_PER_SOURCE = 10;
+const MAX_LISTING_PAGES = 10;
+const MAX_OFFERS_PER_SOURCE = 50;
 const SOURCE_FETCH_CONCURRENCY = 6;
 const MAX_DESCRIPTION_CHARS = 30_000;
 
@@ -613,8 +613,11 @@ export async function recollectOfferByUrl(sourceKey: string, url: string, listin
   }
 }
 
-export async function collectPublicJobSources() {
-  const results = await Promise.all(SOURCES.map(async source => {
+export async function collectPublicJobSources(sourceKey?: string) {
+  const selectedSources = sourceKey
+    ? SOURCES.filter(source => source.key === sourceKey)
+    : SOURCES;
+  const results = await Promise.all(selectedSources.map(async source => {
     try {
       const found = await collectSource(source);
       return { source, found, error: false };
