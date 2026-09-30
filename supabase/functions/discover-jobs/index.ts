@@ -241,7 +241,7 @@ Deno.serve(async(req)=>{
         const{error:e}=await supabase.from("Job").update({lastSeenAt:row.lastSeenAt,isActive:true,sourcePublishedAt:row.sourcePublishedAt||null}).eq("id",existing.data.id);if(e)throw e;
       }
     }else{const{error:e}=await supabase.from("Job").insert(row);if(e)throw e;inserted++;si++}}
-   sourceStats.push({source:source.name,found,inserted:si,updated:su,...crawl.stats})}catch(e){error=e instanceof Error?e.message:String(e);sourceStats.push({source:source.name,found,inserted:si,updated:su,error,...crawl.stats})}}
+   sourceStats.push({source:source.name,found,inserted:si,updated:su,...crawl.stats})}catch(e){error=e instanceof Error?e.message:String(e);sourceStats.push({source:source.name,found,inserted:si,updated:su,error})}}
  if(runBackfill){backfill=await backfillExistingOffers(supabase);}
  const{data:dead}=await supabase.from("Job").update({isActive:false,updatedAt:new Date().toISOString()}).eq("isActive",true).lt("deadline",new Date().toISOString()).select("id");expired+=dead?.length||0;
  return new Response(JSON.stringify({ok:true,mode:dryRun?"DRY_RUN":"LIVE",publication:!dryRun,deployment:false,provider:GEMINI_API_KEY?"GEMINI":"RULES_FALLBACK",model:GEMINI_API_KEY?GEMINI_MODEL:null,country:SOURCE_COUNTRY,discovered,inserted,updated,expired,aiProcessed,aiFailed,backfill:dryRun?null:backfill,durationMs:Date.now()-started,sources:sourceStats,offers:dryRun?dryRunOffers:undefined,lastUpdatedAt:new Date().toISOString()}),{headers:{"content-type":"application/json"}})
