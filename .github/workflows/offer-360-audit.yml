@@ -55,6 +55,36 @@ jobs:
           fs.writeFileSync("migration-output/reference-measurement.json", JSON.stringify(summary,null,2));
           console.log(JSON.stringify(summary,null,2));
           NODE
+      - name: Measure V5 result with exact APPLICATION_MISCLASSIFIED detector
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const migration = JSON.parse(fs.readFileSync("migration-output/offers-migration.json","utf8"));
+          const baseline = 175;
+          const applicationMisclassifiedCount = (sections) => {
+            const applicationSignal=/(?:postuler|candidature|envoyer.*cv|envoyez.*cv|modalites? de candidature|documents? a (?:fournir|joindre)|pieces? a (?:fournir|joindre)|objet du mail|pour postuler|how to apply|apply now)/i;
+            const contactSignal=/(?:[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}|(?:\\+?237[\\s.-]?[6-9]\\d{2}[\\s.-]?\\d{3}[\\s.-]?\\d{3}|6[5-9]\\d{7}))/i;
+            let count=0;
+            for(const[k,vals] of Object.entries(sections||{})){
+              if(k==="application") continue;
+              for(const v of vals||[]){
+                const line=String(v);
+                if(applicationSignal.test(line)||(contactSignal.test(line)&&/(?:postuler|candidature|cv|candidat|recrut|envoyer|contact|mail|email|telephone|t[ée]l[ée]phone)/i.test(line))) count++;
+              }
+            }
+            return count;
+          };
+          const rows=migration.results||[];
+          const audited=rows.length;
+          const perOffer=rows.map(r=>({id:r.id,title:r.title,applicationMisclassifiedCount:applicationMisclassifiedCount(r.canonical||{})}));
+          const affected=perOffer.filter(x=>x.applicationMisclassifiedCount>0);
+          const occurrences=perOffer.reduce((n,x)=>n+x.applicationMisclassifiedCount,0);
+          const resolved=Math.max(0,baseline-affected.length);
+          const resolutionRate=baseline?resolved/baseline:0;
+          const summary={baselineApplicationMisclassified:baseline,postV5ApplicationMisclassified:affected.length,postV5ApplicationMisclassifiedOccurrences:occurrences,resolved,resolutionRate,audited,criterion:"Exact applicationMisclassifiedCount detector from scripts/offer-pipeline-audit.mjs",mode:migration.mode,targetVersion:migration.targetVersion};
+          fs.writeFileSync("migration-output/v5-reference-audit.json",JSON.stringify({summary,affected},null,2));
+          console.log(JSON.stringify(summary,null,2));
+          NODE
       - name: Run real offer-by-offer audit
         run: node scripts/offer-pipeline-audit.mjs
       - name: Publish audit report
