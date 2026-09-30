@@ -198,8 +198,18 @@ async function backfillExistingOffers(supabase:any){
 
 Deno.serve(async(req)=>{
  if(req.method!=="POST")return new Response(JSON.stringify({message:"POST required"}),{status:405,headers:{"content-type":"application/json"}});
- const supabase=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);const started=Date.now();let discovered=0,inserted=0,updated=0,expired=0,aiProcessed=0,aiFailed=0;const sourceStats:any[]=[];const runBackfill=req.headers.get("x-jobly-backfill")==="true";let backfill:any=null;
+ const supabase=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);const started=Date.now();const dryRun=req.headers.get("x-jobly-dry-run")==="true";let discovered=0,inserted=0,updated=0,expired=0,aiProcessed=0,aiFailed=0;const sourceStats:any[]=[];const dryRunOffers:any[]=[];const runBackfill=req.headers.get("x-jobly-backfill")==="true";let backfill:any=null;
  for(const source of SOURCES.filter(s=>s.enabled)){let found=0,si=0,su=0,error="";try{const structured=await fetchStructuredSource(source.key);const html=structured===null?await fetchText(source.url):"";const raw=(structured??parseListing(html,source.url,source.key)).map((x:any)=>structured!==null?{...x,_structured:true}:x);found=raw.length;const items=[];for(const r of raw.slice(0,100)){const e=await enrich(r,source);if(e.title&&e.title.length>=4&&e.url)items.push({...e,source:source.name})}discovered+=items.length;
+   if(dryRun){
+     for(const item of items){
+       let ai:any=null; try{ai=await analyzeWithGemini(item);if(ai)aiProcessed++}catch{aiFailed++}
+       const normalizedContent=normalizeAiResult(ai,item);
+       const opportunityType=inferOpportunityType(item);
+       dryRunOffers.push({country:SOURCE_COUNTRY,source:source.name,sourceKey:source.key,title:normalizedContent.title||item.title,company:normalizedContent.company||item.company||null,location:normalizedContent.location,opportunityType,qualityScore:normalizedContent.qualityScore,descriptionLength:String(item.description||"").length,url:item.url,normalizedContent});
+     }
+     sourceStats.push({source:source.name,found,inserted:0,updated:0,dryRun:true});
+     continue;
+   }
    for(const item of items){const externalId=hash(item.url||`${item.title}|${item.company}|${item.location}`);const contentHash=hash(`${item.title}|${item.company}|${item.description}|${item.location}|${item.deadline||""}`);let ai:any=null;try{ai=await analyzeWithGemini(item);if(ai)aiProcessed++}catch{aiFailed++}
     const normalizedContent=normalizeAiResult(ai,item);
     const text=`${item.title} ${item.description}`;const opportunityType=inferOpportunityType(item);const phoneNumbers=extractPhone(text);let companyId:string|null=null;const companyName=String(ai?.company||item.company||"").trim();const companyWebsite=String(item.website||"").trim()||null;let companyLogo:string|null=null;
@@ -218,5 +228,5 @@ Deno.serve(async(req)=>{
    sourceStats.push({source:source.name,found,inserted:si,updated:su})}catch(e){error=e instanceof Error?e.message:String(e);sourceStats.push({source:source.name,found,inserted:si,updated:su,error})}}
  if(runBackfill){backfill=await backfillExistingOffers(supabase);}
  const{data:dead}=await supabase.from("Job").update({isActive:false,updatedAt:new Date().toISOString()}).eq("isActive",true).lt("deadline",new Date().toISOString()).select("id");expired+=dead?.length||0;
- return new Response(JSON.stringify({ok:true,provider:GEMINI_API_KEY?"GEMINI":"RULES_FALLBACK",model:GEMINI_API_KEY?GEMINI_MODEL:null,discovered,inserted,updated,expired,aiProcessed,aiFailed,backfill,durationMs:Date.now()-started,sources:sourceStats,lastUpdatedAt:new Date().toISOString()}),{headers:{"content-type":"application/json"}})
+ return new Response(JSON.stringify({ok:true,mode:dryRun?"DRY_RUN":"LIVE",publication:!dryRun,deployment:false,provider:GEMINI_API_KEY?"GEMINI":"RULES_FALLBACK",model:GEMINI_API_KEY?GEMINI_MODEL:null,country:SOURCE_COUNTRY,discovered,inserted,updated,expired,aiProcessed,aiFailed,backfill:dryRun?null:backfill,durationMs:Date.now()-started,sources:sourceStats,offers:dryRun?dryRunOffers:undefined,lastUpdatedAt:new Date().toISOString()}),{headers:{"content-type":"application/json"}})
 });
