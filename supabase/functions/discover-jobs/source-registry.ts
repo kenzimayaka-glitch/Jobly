@@ -93,6 +93,7 @@ const CENTRAL_AFRICA_SOURCES: SourceDefinition[] = [
   {key:"emploi_cd",name:"Emploi.cd",type:"national",status:"active",enabled:true,url:"https://www.emploi.cd/recherche-jobs-congo-rdc",countries:["CD"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
   {key:"kivuhub",name:"KivuHub Job",type:"specialized",status:"active",enabled:true,url:"https://kivuhub.net/find-a-job/",countries:["CD"],languages:["fr","en"],captureMode:"http",renderRequired:false,priority:100},
   {key:"congojob_cd",name:"CongoJob",type:"national",status:"active",enabled:true,url:"https://congojob.cd/",countries:["CD"],languages:["fr"],captureMode:"http",renderRequired:false,priority:70},
+  {key:"onem_app_cd",name:"ONEM RDC — application",type:"institutional",status:"active",enabled:true,url:"https://www.app.onem.cd/demandeurs-demploi/offres-demploi",countries:["CD"],languages:["fr"],captureMode:"http",renderRequired:false,priority:120},
   {key:"onem_cd",name:"ONEM RDC",type:"institutional",status:"active",enabled:true,url:"https://onem.cd/home/offres-demploi",countries:["CD"],languages:["fr"],captureMode:"http",renderRequired:false,priority:115},
   {key:"kaziqo_cd",name:"KAZIQO RDC",type:"aggregator",status:"active",enabled:true,url:"https://kaziqo.com/",countries:["CD"],languages:["fr","en"],captureMode:"http",renderRequired:false,priority:105},
   {key:"ajar_cd",name:"Ajar RDC",type:"aggregator",status:"active",enabled:true,url:"https://seeajar.com/fr/cd",countries:["CD"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
