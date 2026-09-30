@@ -36,6 +36,25 @@ async function getAuthUser(request: NextRequest) {
   return data.user || null;
 }
 
+function section(text: string, names: string[]) {
+  const lower = text.toLowerCase();
+  for (const name of names) {
+    const index = lower.indexOf(name.toLowerCase());
+    if (index < 0) continue;
+    const tail = text.slice(index + name.length);
+    const next = tail.search(/\n\s*(profil|résumé|summary|compétences|skills|expérience|experience|formation|education|éducation|certifications?|activités|activites|intérêts|interests|références|references|langues|languages|réalisations|achievements)\s*[:\-]?\s*\n?/i);
+    return (next >= 0 ? tail.slice(0, next) : tail).trim().slice(0, 6000);
+  }
+  return "";
+}
+
+function listSection(text: string, names: string[]) {
+  return section(text, names).split(/[,;•|\n]/)
+    .map(x => x.replace(/^[\-–—*]+\s*/, "").trim())
+    .filter(x => x.length > 1)
+    .slice(0, 30);
+}
+
 function extractDeterministicCv(text: string) {
   const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] || "";
@@ -45,23 +64,59 @@ function extractDeterministicCv(text: string) {
     return words.length >= 2 && words.length <= 5 && !/@/.test(line) && !/^(cv|curriculum|resume|profil|contact|expérience|experience|formation|education)$/i.test(line);
   }) || "";
   const headline = lines.find(line => line !== name && line.length >= 4 && line.length <= 120 && !/@/.test(line) && !/^\+?\d/.test(line)) || "";
+  const skills = listSection(text, ["compétences", "skills"]);
+  const languages = listSection(text, ["langues", "languages"]);
+  const activities = listSection(text, ["activités", "activites", "activities"]);
+  const interests = listSection(text, ["intérêts", "interests", "hobbies", "centres d'intérêt"]);
+  const references = listSection(text, ["références", "references"]);
+  const achievements = listSection(text, ["réalisations", "achievements", "accomplissements"])
+    .filter(x => /\d|%|€|\$|fcfa|xaf|million|milliard|x[af]/i.test(x));
   return {
-    fullName: name,
-    headline,
-    email,
-    phone,
-    summary: "",
-    skills: [],
-    experience: "",
-    education: "",
-    atsScore: 0,
-    atsKeywords: [],
-    strengths: [],
-    gaps: [],
-    suggestions: [],
+    fullName: name, headline, email, phone,
+    summary: section(text, ["profil professionnel", "résumé professionnel", "profil", "résumé", "summary"]),
+    skills,
+    experience: section(text, ["expérience professionnelle", "expériences professionnelles", "expérience", "experience"]),
+    education: section(text, ["formation", "education", "éducation", "certifications"]),
+    activities, interests, references, referencesVisible: references.length > 0,
+    languages, achievements,
+    atsScore: 0, atsKeywords: skills.slice(0, 20),
+    strengths: skills.slice(0, 5), gaps: [], suggestions: [],
   };
 }
 
+async function extractCvPhoto(parser: any) {
+  try {
+    const result = await parser.getImage({ first: 2, imageThreshold: 60, imageBuffer: true, imageDataUrl: false });
+    const candidates = (result.pages || []).flatMap((page: any) => (page.images || []).map((image: any) => ({
+      data: image.data, width: Number(image.width || 0), height: Number(image.height || 0)
+    }))).filter((image: any) => image.data && image.width >= 100 && image.height >= 100);
+    if (!candidates.length) return "";
+    candidates.sort((a: any, b: any) => {
+      const score = (x: any) => {
+        const ratio = x.width / Math.max(1, x.height);
+        const portraitBonus = ratio >= 0.55 && ratio <= 0.95 ? 300000 : 0;
+        return x.width * x.height + portraitBonus;
+      };
+      return score(b) - score(a);
+    });
+    const image = await loadImage(Buffer.from(candidates[0].data));
+    const maxSide = 640;
+    const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+    const width = Math.max(1, Math.round(image.width * scale));
+    const height = Math.max(1, Math.round(image.height * scale));
+    const canvas = createCanvas(width, height);
+    canvas.getContext("2d").drawImage(image, 0, 0, width, height);
+    let quality = 0.82;
+    let buffer = canvas.toBuffer("image/jpeg", quality);
+    while (buffer.length > 500 * 1024 && quality > 0.5) {
+      quality -= 0.08;
+      buffer = canvas.toBuffer("image/jpeg", quality);
+    }
+    return buffer.length <= 500 * 1024 ? `data:image/jpeg;base64,${buffer.toString("base64")}` : "";
+  } catch {
+    return "";
+  }
+}
 function normalizeOutput(output: any) {
   const profile = output?.profile || {};
   return {
