@@ -67,3 +67,77 @@ jobs:
           name: africa-shadow-crawl
           path: africa-shadow-crawl.json
           retention-days: 14
+
+
+  full-harvest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    permissions:
+      contents: read
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      CRON_SECRET: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.19.0"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Start Jobly API
+        run: |
+          npm run dev -- --hostname 127.0.0.1 --port 3000 > /tmp/jobly-next.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:3000/api/health >/dev/null 2>&1 || curl -fsS http://127.0.0.1:3000/ >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:3000/ >/dev/null
+      - name: Resolve active Africa sources
+        id: sources
+        run: |
+          set -euo pipefail
+          SOURCES="$(node scripts/africa-active-source-keys.mjs)"
+          echo "sources=$SOURCES" >> "$GITHUB_OUTPUT"
+          echo "Resolved $(echo "$SOURCES" | tr ',' '\n' | wc -l) active sources."
+      - name: Harvest every active source
+        env:
+          SOURCES: ${{ steps.sources.outputs.sources }}
+        run: |
+          set -uo pipefail
+          mkdir -p africa-full-harvest
+          IFS=',' read -ra SOURCE_LIST <<< "$SOURCES"
+          failed=0
+          for source in "${SOURCE_LIST[@]}"; do
+            [ -z "$source" ] && continue
+            echo "=== HARVEST $source ==="
+            file="africa-full-harvest/$source.json"
+            set +e
+            curl -sS -o "$file" -w "%{http_code}" -X POST               -H "Authorization: Bearer $CRON_SECRET"               -H "Content-Type: application/json"               "http://127.0.0.1:3000/api/jobs/ingest/sources?source=$source" > "africa-full-harvest/$source.http"
+            status=$(cat "africa-full-harvest/$source.http")
+            set -e
+            echo "HTTP $status"
+            if [ "$status" != "200" ]; then
+              failed=$((failed+1)); cat "$file" || true; continue
+            fi
+            node - "$file" <<'NODE'
+const fs=require("node:fs");
+const d=JSON.parse(fs.readFileSync(process.argv[2],"utf8"));
+console.log(JSON.stringify({source:d.source,discovered:d.discovered,inserted:d.inserted??d.created??0,updated:d.updated??0,skipped:d.skipped??0,rejectedStale:d.rejectedStale??0},null,2));
+NODE
+          done
+          printf '{"failedSources":%s}\n' "$failed" > africa-full-harvest/summary.json
+          exit 0
+      - name: Upload full harvest artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: africa-full-harvest
+          path: africa-full-harvest/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Print API log
+        if: failure()
+        run: cat /tmp/jobly-next.log || true
