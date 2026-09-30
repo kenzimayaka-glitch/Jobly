@@ -43,20 +43,23 @@ jobs:
           import json
           with open("africa-shadow-crawl.json", "r", encoding="utf-8") as f:
               data = json.load(f)
-          required = ["countries", "sources", "accessible", "failed", "pages", "totalDiscovered", "totalExtracted", "totalEligible", "duration"]
-          missing = [k for k in required if k not in data]
+          summary = data.get("summary", data)
+          required = ["countries", "sources", "accessible", "failed", "pages", "totalDiscovered", "totalExtracted", "totalEligible", "durationMs"]
+          missing = [k for k in required if k not in summary]
           if missing:
               raise SystemExit(f"Missing report fields: {missing}")
+          if summary["sources"] != len(data.get("metrics", [])):
+              raise SystemExit("Report source count does not match metrics")
           print(json.dumps({
-              "countries": data["countries"],
-              "sources": data["sources"],
-              "accessible": data["accessible"],
-              "failed": data["failed"],
-              "pages": data["pages"],
-              "totalDiscovered": data["totalDiscovered"],
-              "totalExtracted": data["totalExtracted"],
-              "totalEligible": data["totalEligible"],
-              "duration": data["duration"],
+              "countries": summary["countries"],
+              "sources": summary["sources"],
+              "accessible": summary["accessible"],
+              "failed": summary["failed"],
+              "pages": summary["pages"],
+              "totalDiscovered": summary["totalDiscovered"],
+              "totalExtracted": summary["totalExtracted"],
+              "totalEligible": summary["totalEligible"],
+              "durationMs": summary["durationMs"],
           }, ensure_ascii=False, indent=2))
           PY
       - name: Upload shadow report
