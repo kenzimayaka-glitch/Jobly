@@ -80,7 +80,7 @@ class JoblySessionManager {
     await this.ensureStarted();
     const { data, error } = await getSupabaseClient().auth.getSession();
     if (error) {
-      const normalized = error instanceof Error ? error : new Error(error.message);
+      const normalized = error instanceof Error ? error : new Error("Impossible de récupérer la session Jobly.");
       this.setState({ status: "error", session: null, error: normalized });
       throw normalized;
     }
