@@ -1,6 +1,8 @@
 name: Offer migration to latest version
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       apply:
@@ -22,8 +24,8 @@ jobs:
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      OFFER_MIGRATION_APPLY: ${{ inputs.apply }}
-      OFFER_MIGRATION_LIMIT: ${{ inputs.limit }}
+      OFFER_MIGRATION_APPLY: ${{ inputs.apply || false }}
+      OFFER_MIGRATION_LIMIT: ${{ inputs.limit || '1000' }}
       OFFER_MIGRATION_CONCURRENCY: "5"
       OFFER_TARGET_VERSION: "jobly-offer-v5"
     steps:
