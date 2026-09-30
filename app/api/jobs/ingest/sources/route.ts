@@ -29,6 +29,34 @@ function normalizeCompany(value: string | null): string | null {
   return clean.length >= 2 ? clean.slice(0, 180) : null;
 }
 
+const SOURCE_COUNTRY_CODES: Record<string, string> = {
+  minajobs: "CM",
+  jobinfocamer: "CM",
+  infosconcourseducation: "CM",
+  fne: "CM",
+  un_cameroon: "CM",
+  travailgabon: "GA",
+  acpe_congo: "CG",
+  onape_tchad: "TD",
+  emploi_cf: "CF",
+  saplic_gq: "GQ",
+};
+
+function inferCountryCode(offer: any): string | null {
+  const explicit = String(offer?.countryCode || "").trim().toUpperCase();
+  if (/^[A-Z]{2}$/.test(explicit)) return explicit;
+  const source = String(offer?.sourceKey || "").trim().toLowerCase();
+  if (SOURCE_COUNTRY_CODES[source]) return SOURCE_COUNTRY_CODES[source];
+  const location = String(offer?.location || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (/\b(gabon|libreville|port-gentil)\b/.test(location)) return "GA";
+  if (/\b(congo|brazzaville|pointe-noire)\b/.test(location)) return "CG";
+  if (/\b(tchad|ndjamena|n'djamena)\b/.test(location)) return "TD";
+  if (/\b(centrafrique|bangui|republique centrafricaine)\b/.test(location)) return "CF";
+  if (/\b(guinee equatoriale|malabo|bata)\b/.test(location)) return "GQ";
+  if (/\b(cameroun|cameroon|yaounde|douala|bafoussam|garoua)\b/.test(location)) return "CM";
+  return null;
+}
+
 function sourceDisplayName(sourceKey: string): string {
   return sourceKey === "minajobs"
     ? "MinaJobs"
@@ -356,6 +384,7 @@ export async function POST(request: NextRequest) {
 
     const ingestResult = await runWithConcurrency(offers, INGEST_CONCURRENCY, async (offer) => {
       const source = sourceDisplayName(offer.sourceKey);
+      const countryCode = inferCountryCode(offer);
       const prepared = buildCanonicalOffer({
         title: offer.title,
         companyName: offer.company,
@@ -420,9 +449,11 @@ export async function POST(request: NextRequest) {
         existing = existingBySourceUrl;
       }
 
+      const countryCode = inferCountryCode(offer);
       const contact = offer.applicationProfile;
       const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
       const payload = {
+        countryCode,
         title: normalizedContent.title || offer.title,
         description: canonicalDescription,
         language: "fr",
