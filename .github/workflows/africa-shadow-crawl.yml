@@ -13,19 +13,18 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - "supabase/functions/discover-jobs/source-registry.ts"
-      - "supabase/functions/discover-jobs/source-engine.ts"
-      - "supabase/functions/discover-jobs/country-url-resolver.ts"
-      - "supabase/functions/discover-jobs/shadow-crawl.ts"
 
 permissions:
   contents: read
 
+concurrency:
+  group: africa-shadow-crawl-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   shadow-crawl:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
@@ -36,7 +35,30 @@ jobs:
           COUNTRIES: ${{ inputs.countries || 'CF,TD,CG,CD,GA,GQ,ST,BI' }}
         run: |
           IFS=',' read -ra CODES <<< "$COUNTRIES"
-          deno run --allow-net supabase/functions/discover-jobs/shadow-crawl.ts "${CODES[@]}" > africa-shadow-crawl.json
+          deno run --allow-net supabase/functions/discover-jobs/shadow-crawl.ts "${CODES[@]}" | tee africa-shadow-crawl.json
+      - name: Validate report exists
+        run: |
+          test -s africa-shadow-crawl.json
+          python - <<'PY'
+          import json
+          with open("africa-shadow-crawl.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+          required = ["countries", "sources", "accessible", "failed", "pages", "totalDiscovered", "totalExtracted", "totalEligible", "duration"]
+          missing = [k for k in required if k not in data]
+          if missing:
+              raise SystemExit(f"Missing report fields: {missing}")
+          print(json.dumps({
+              "countries": data["countries"],
+              "sources": data["sources"],
+              "accessible": data["accessible"],
+              "failed": data["failed"],
+              "pages": data["pages"],
+              "totalDiscovered": data["totalDiscovered"],
+              "totalExtracted": data["totalExtracted"],
+              "totalEligible": data["totalEligible"],
+              "duration": data["duration"],
+          }, ensure_ascii=False, indent=2))
+          PY
       - name: Upload shadow report
         uses: actions/upload-artifact@v4
         with:
