@@ -86,7 +86,7 @@ export default function DashboardPage() {
           fetch("/api/applications", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
           fetch("/api/talent/ai-bonus?markSeen=true", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
         ]);
-        const [profileBody, jobsBody, applicationsBody] = await Promise.all([
+        const [profileBody, jobsBody, applicationsBody, welcomeBody] = await Promise.all([
           profileRes.json().catch(() => null), jobsRes.json().catch(() => null), applicationsRes.json().catch(() => null),
           welcomeRes.json().catch(() => null),
         ]);
