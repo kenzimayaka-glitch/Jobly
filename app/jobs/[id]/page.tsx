@@ -60,7 +60,7 @@ function WhatsAppIcon({ size = 18 }: { size?: number }) {
 
 function cleanLine(value: string) {
   return value.normalize("NFC")
-    .replace(/^[|>»›•▪◦*✓✔☑\-–—]+\s*/, "")
+    .replace(/^[|>»›•▪◦*✓✔☑🟡\-–—]+\s*/, "")
     .replace(/^\d+[.)]\s*/, "")
     .replace(/\s*\|\s*$/g, "")
     .replace(/\s{2,}/g, " ")
@@ -285,7 +285,7 @@ function JobDetailInner() {
 
   const compactItems = (items: string[], limit = 12) => Array.from(new Set(items.map(cleanLine).filter(Boolean))).slice(0, limit);
   const renderParagraphs = (items: string[]) => <div className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 8).map((line, i) => <p key={i}>{line}</p>)}</div>;
-  const renderBullets = (items: string[]) => <ul className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 12).map((line, i) => <li key={i} className="flex gap-2.5"><span className="mt-[0.72em] h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFD60A]"/><span>{line}</span></li>)}</ul>;
+  const renderBullets = (items: string[]) => <ul className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 12).map((line, i) => <li key={i} className="flex items-start gap-2.5"><span aria-hidden="true" className="shrink-0 text-[11px] leading-7">🟡</span><span>{line}</span></li>)}</ul>;
 
   return (
     <main className="talent-shell relative min-h-[100dvh] bg-[#F7FAFF] pb-28 text-[#17212B]">
