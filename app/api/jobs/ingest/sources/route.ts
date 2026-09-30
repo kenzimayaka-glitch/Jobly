@@ -243,7 +243,7 @@ export async function POST(request: NextRequest) {
         }
 
         const contentHash = crypto.createHash("sha256")
-          .update([normalizedContent.title || offer.title, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
+          .update([normalizedContent.title || offer.title, canonicalDescription, offer.location || "", offer.contractType || ""].join("\n"))
           .digest("hex");
         const contact = offer.applicationProfile;
         const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
@@ -317,9 +317,12 @@ export async function POST(request: NextRequest) {
           deactivated++; processed++; return;
         }
         if (isPlatformExpired(row.createdAt, now)) {
-          const result = await supabase.from("Job").update({ isActive: false, updatedAt: now.toISOString(), lastSeenAt: now.toISOString() }).eq("id", row.id);
+          const refreshed = await recollectOfferByUrl(row.sourceKey, row.sourceUrl, row.title);
+          if (!refreshed?.deadline) {
+            const result = await supabase.from("Job").update({ isActive: false, updatedAt: now.toISOString(), lastSeenAt: now.toISOString() }).eq("id", row.id);
           if (result.error) throw new Error(result.error.message);
-          deactivated++; processed++; return;
+            deactivated++; processed++; return;
+          }
         }
         const offer = await recollectOfferByUrl(row.sourceKey, row.sourceUrl, row.title);
         if (!offer) { skipped++; return; }
@@ -346,7 +349,7 @@ export async function POST(request: NextRequest) {
           return;
         }
         const cleanedContentHash = crypto.createHash("sha256")
-          .update([normalizedContent.title || offer.title, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
+          .update([normalizedContent.title || offer.title, canonicalDescription, offer.location || "", offer.contractType || ""].join("\n"))
           .digest("hex");
         const contact = offer.applicationProfile;
         const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
@@ -364,7 +367,7 @@ export async function POST(request: NextRequest) {
           deadline: offer.deadline,
           contentHash: cleanedContentHash,
           lastSeenAt: now.toISOString(),
-          isActive: !isPlatformExpired(row.createdAt, now),
+          isActive: !isPlatformExpired(row.createdAt, now) || Boolean(offer.deadline),
           applicationReady,
           applicationProfile: contact,
           applicationCheckedAt: now.toISOString(),
@@ -456,6 +459,18 @@ export async function POST(request: NextRequest) {
       // must be treated as a second idempotency key when externalId/sourceKey
       // changed between collector versions.
       let existing = existingByIdentity;
+      // Cross-source identity: the same canonical offer must retain its
+      // original Jobly publication date. This prevents a second source from
+      // resetting the two-month lifecycle.
+      if (!existing.data?.id && cleanedContentHash) {
+        const existingByContent = await supabase.from("Job")
+          .select("id,contentHash,createdAt,aiProcessed,aiProcessedAt")
+          .eq("contentHash", cleanedContentHash)
+          .limit(1)
+          .maybeSingle();
+        if (existingByContent.error) throw new Error(existingByContent.error.message);
+        if (existingByContent.data?.id) existing = existingByContent;
+      }
       if (!existing.data?.id && offer.sourceUrl) {
         const existingBySourceUrl = await supabase.from("Job")
           .select("id,contentHash,createdAt,aiProcessed,aiProcessedAt")
@@ -485,7 +500,7 @@ export async function POST(request: NextRequest) {
         contentHash: cleanedContentHash,
         sourcePublishedAt: offer.publishedAt,
         lastSeenAt: nowIso,
-        isActive: existing.data ? !isPlatformExpired(existing.data.createdAt, now) : true,
+        isActive: existing.data ? (!isPlatformExpired(existing.data.createdAt, now) || Boolean(offer.deadline)) : true,
         deadline: offer.deadline,
         applicationReady,
         applicationProfile: contact,
