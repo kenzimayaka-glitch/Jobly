@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient, getAuthUser } from "@/lib/server-auth";
 import { collectPublicJobSources, recollectOfferByUrl } from "@/lib/jobSourceCollector";
+import { detectJobLanguage, detectLanguageRequirements } from "@/lib/jobLanguage";
 import {
   buildCanonicalOffer,
   canonicalIsPublishable,
