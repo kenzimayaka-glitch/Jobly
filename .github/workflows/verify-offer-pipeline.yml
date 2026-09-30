@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - "fix/offer-pipeline-final-validation"
+      - "ops/africa-full-harvest-20260930"
   pull_request:
     branches:
       - main
@@ -25,3 +26,53 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm typecheck
       - run: pnpm build
+
+  africa-harvest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    permissions:
+      contents: read
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      CRON_SECRET: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.19.0"
+          cache: "npm"
+      - run: npm ci
+      - name: Start API
+        run: |
+          npm run dev -- --hostname 127.0.0.1 --port 3000 > /tmp/jobly-next.log 2>&1 &
+          for i in {1..90}; do
+            curl -fsS http://127.0.0.1:3000/ >/dev/null 2>&1 && break
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:3000/ >/dev/null
+      - name: Resolve sources
+        id: sources
+        run: echo "sources=$(node scripts/africa-active-source-keys.mjs)" >> "$GITHUB_OUTPUT"
+      - name: Harvest
+        env:
+          SOURCES: ${{ steps.sources.outputs.sources }}
+        run: |
+          mkdir -p africa-full-harvest
+          IFS=',' read -ra A <<< "$SOURCES"
+          for source in "${A[@]}"; do
+            [ -z "$source" ] && continue
+            curl -sS -o "africa-full-harvest/$source.json" -X POST               -H "Authorization: Bearer $CRON_SECRET"               "http://127.0.0.1:3000/api/jobs/ingest/sources?source=$source" || true
+          done
+      - name: Upload harvest artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: africa-full-harvest
+          path: africa-full-harvest/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: API log
+        if: failure()
+        run: cat /tmp/jobly-next.log || true
