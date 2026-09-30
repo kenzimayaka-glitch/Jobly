@@ -83,4 +83,3 @@ export async function completeSignupProfile(payload: {
   if (!response.ok) throw new Error(body.message || "Impossible de finaliser le compte.");
   return body;
 }
-}
