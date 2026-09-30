@@ -111,3 +111,38 @@ Le registry est donc maintenant une source de vérité technique, tandis que `so
 ## Important
 
 Cette V1 **ne lance aucun crawl de masse, ne modifie aucune donnée utilisateur et ne déclenche aucun déploiement Vercel/Supabase**.
+
+
+## V2 — Récolte exhaustive (30-09-2026)
+
+La V1 a été transformée en moteur de récolte exhaustive sur la branche actuelle.
+
+### Corrections appliquées
+
+- suppression du raw.slice(0,100) dans l'ingestion ;
+- nouveau crawler paginé sans plafond artificiel ;
+- parcours de toutes les pages jusqu'à épuisement/cycle détecté ;
+- découverte des fiches détail sur chaque page ;
+- récupération concurrente des fiches ;
+- déduplication par URL canonique ;
+- lecture JSON-LD puis fallback HTML ;
+- extraction de datePosted / validThrough quand disponible ;
+- rejet des offres expirées avant publication ;
+- typage stage / consultance / appel à candidatures ;
+- rejet des appels d'offres / marchés publics / formations / événements du flux emploi ;
+- métriques sourceCount → discovered → extracted → eligible → expired → rejected ;
+- ajout des canaux RDC ONEM, KAZIQO, Ajar et Emplois Congo/Jobartis ;
+- workflow Shadow Crawl porté à 120 minutes pour le ratissage exhaustif.
+
+### Contradiction utile
+
+Le nombre affiché par une source n'est plus considéré comme le nombre importable. Le contrôle distingue désormais :
+1. volume annoncé par la source ;
+2. URLs découvertes ;
+3. fiches effectivement extraites ;
+4. opportunités encore valides ;
+5. expirées ;
+6. rejetées par type ;
+7. écarts inexpliqués.
+
+Aucun merge et aucun déploiement Vercel/Supabase n'est effectué par ce chantier.
