@@ -33,6 +33,7 @@ export const AFRICA_COUNTRIES: AfricaCountry[] = [
   ["ZA","Afrique du Sud","south",["en"]],["ZM","Zambie","south",["en"]],["ZW","Zimbabwe","south",["en"]],["MW","Malawi","south",["en"]],["MZ","Mozambique","south",["pt"]],["NA","Namibie","south",["en"]],["BW","Botswana","south",["en"]],["SZ","Eswatini","south",["en"]],["LS","Lesotho","south",["en"]]
 ].map(([code,name,region,languages])=>({code,name,region,languages})) as AfricaCountry[];
 
+// Q3 census control marker: exhaustive quarterly source discovery is maintained separately.
 const PAN_AFRICA = ["CM","DZ","EG","LY","MA","MR","TN","BJ","BF","CV","CI","GM","GH","GN","GW","LR","ML","NE","NG","SN","SL","TG","CF","TD","CG","CD","GQ","GA","ST","BI","AO","KE","UG","TZ","RW","ET","DJ","ER","SO","SS","SD","KM","MG","MU","SC","ZA","ZM","ZW","MW","MZ","NA","BW","SZ","LS"];
 
 export const SOURCE_REGISTRY: SourceDefinition[] = [
@@ -70,6 +71,42 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
 ];
 
 
+const AFRICA_CENSUS_Q3_A: SourceDefinition[] = [{key:"africarrieres_q3",name:"Africarrières",type:"pan_africa",status:"active",enabled:true,url:"https://"+"africarrieres.com/",countries:PAN_AFRICA,languages:["fr","en"],captureMode:"http",renderRequired:false,priority:95}];
+for (const source of AFRICA_CENSUS_Q3_A) SOURCE_REGISTRY.push(source);
+
+const AFRICA_CENSUS_Q3_B: SourceDefinition[] = [
+  {key:"freshtalent_q3",name:"FreshTalent Africa",type:"pan_africa",status:"active",enabled:true,url:"https://"+"freshtalent.africa/",countries:PAN_AFRICA,languages:["en","fr","pt","sw","ar"],captureMode:"http",renderRequired:false,priority:94},
+  {key:"jobaa_q3",name:"Jobaa",type:"pan_africa",status:"active",enabled:true,url:"https://"+"jobaa.org/countries",countries:PAN_AFRICA,languages:["en","fr","pt","ar"],captureMode:"http",renderRequired:false,priority:88},
+  {key:"careerlink_africa_q3",name:"CareerLink Africa",type:"pan_africa",status:"active",enabled:true,url:"https://"+"www.careerlinkafrica.com/",countries:["NG","KE","ZA","GH","EG","ET","MA","UG","TZ","RW","SN","CI","CM","ZM","ZW"],languages:["en","fr"],captureMode:"http",renderRequired:false,priority:85},
+  {key:"perican_q3",name:"Perican",type:"remote",status:"active",enabled:true,url:"https://"+"perican.africa/",countries:PAN_AFRICA,languages:["en"],captureMode:"http",renderRequired:false,priority:75}
+];
+for (const source of AFRICA_CENSUS_Q3_B) SOURCE_REGISTRY.push(source);
+
+const AFRICA_CENSUS_Q3_C: SourceDefinition[] = [
+  {key:"mapage_africa_q3",name:"MaPage Africa",type:"aggregator",status:"active",enabled:true,url:"https://"+"mapage.africa/index.php/opportunities?cat=jobs&lang=en",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"http",renderRequired:false,priority:72},
+  {key:"emploitic_dz_q3",name:"Emploitic Algérie",type:"national",status:"active",enabled:true,url:"https://"+"emploitic.com/offres-d-emploi",countries:["DZ"],languages:["fr","ar"],captureMode:"http",renderRequired:false,priority:125},
+  {key:"wuzzuf_eg_q3",name:"Wuzzuf Egypt",type:"national",status:"active",enabled:true,url:"https://"+"wuzzuf.net/search/jobs",countries:["EG"],languages:["en","ar"],captureMode:"http",renderRequired:false,priority:125},
+  {key:"rekrute_ma_q3",name:"ReKrute Maroc",type:"national",status:"active",enabled:true,url:"https://"+"www.rekrute.com/fr/offres-emploi-maroc.html",countries:["MA"],languages:["fr","ar"],captureMode:"http",renderRequired:false,priority:120}
+];
+for (const source of AFRICA_CENSUS_Q3_C) SOURCE_REGISTRY.push(source);
+
+const AFRICA_CENSUS_Q3_D: SourceDefinition[] = [
+  {key:"emploi_ma_q3",name:"Emploi.ma",type:"national",status:"active",enabled:true,url:"https://"+"www.emploi.ma/recherche-jobs-maroc",countries:["MA"],languages:["fr","ar"],captureMode:"http",renderRequired:false,priority:118},
+  {key:"tanitjobs_tn_q3",name:"Tanitjobs Tunisie",type:"national",status:"active",enabled:true,url:"https://"+"www.tanitjobs.com/jobs/",countries:["TN"],languages:["fr","ar"],captureMode:"http",renderRequired:false,priority:120},
+  {key:"brightermonday_ke_q3",name:"BrighterMonday Kenya",type:"national",status:"active",enabled:true,url:"https://"+"www.brightermonday.co.ke/jobs",countries:["KE"],languages:["en"],captureMode:"http",renderRequired:false,priority:120},
+  {key:"brightermonday_ug_q3",name:"BrighterMonday Uganda",type:"national",status:"active",enabled:true,url:"https://"+"www.brightermonday.co.ug/jobs",countries:["UG"],languages:["en"],captureMode:"http",renderRequired:false,priority:120}
+];
+for (const source of AFRICA_CENSUS_Q3_D) SOURCE_REGISTRY.push(source);
+
+const AFRICA_CENSUS_Q3_E: SourceDefinition[] = [
+  {key:"fuzu_ug_q3",name:"Fuzu Uganda",type:"national",status:"active",enabled:true,url:"https://"+"www.fuzu.com/uganda",countries:["UG"],languages:["en"],captureMode:"http",renderRequired:false,priority:105},
+  {key:"ethiojobs_et_q3",name:"Ethiojobs",type:"national",status:"active",enabled:true,url:"https://"+"ethiojobs.net/jobs",countries:["ET"],languages:["en","am"],captureMode:"http",renderRequired:false,priority:120},
+  {key:"pnet_za_q3",name:"PNet South Africa",type:"national",status:"active",enabled:true,url:"https://"+"www.pnet.co.za/",countries:["ZA"],languages:["en"],captureMode:"http",renderRequired:false,priority:120},
+  {key:"gozambiajobs_zm_q3",name:"Go Zambia Jobs",type:"national",status:"active",enabled:true,url:"https://"+"gozambiajobs.com/jobs",countries:["ZM"],languages:["en"],captureMode:"http",renderRequired:false,priority:115},
+  {key:"vacancymail_zw_q3",name:"VacancyMail Zimbabwe",type:"national",status:"active",enabled:true,url:"https://"+"vacancymail.co.zw/jobs/",countries:["ZW"],languages:["en"],captureMode:"http",renderRequired:false,priority:115}
+];
+for (const source of AFRICA_CENSUS_Q3_E) SOURCE_REGISTRY.push(source);
+
 // Central Africa V1 — sources qualified during the country-by-country web audit.
 // Cameroon is intentionally excluded from this rollout.
 const CENTRAL_AFRICA_INTERNATIONAL: SourceDefinition[] = [
@@ -89,7 +126,7 @@ const CENTRAL_AFRICA_SOURCES: SourceDefinition[] = [
   {key:"emploi_td",name:"Emploi.td",type:"national",status:"active",enabled:true,url:"https://www.emploi.td/recrutement-n-djamena",countries:["TD"],languages:["fr"],captureMode:"http",renderRequired:false,priority:70},
   {key:"acpe_cg",name:"ACPE Congo",type:"institutional",status:"active",enabled:true,url:"https://acpe.cg/offres-emplois",countries:["CG"],languages:["fr"],captureMode:"http",renderRequired:false,priority:110},
   {key:"emploi_cg",name:"Emploi.cg",type:"national",status:"active",enabled:true,url:"https://www.emploi.cg/recherche-jobs-congo-brazzaville",countries:["CG"],languages:["fr"],captureMode:"http",renderRequired:false,priority:95},
-  {key:"africatalents_cg",name:"AfricaTalents Congo",type:"aggregator",status:"inactive",enabled:false,url:"https://www.emploi.cg/about-us",countries:["CG"],languages:["fr"],captureMode:"http",renderRequired:false,priority:60,notes:"Métadonnée/écosystème uniquement; non récolté séparément pour éviter les doublons avec Emploi.cg."},
+  {key:"africatalents_cg",name:"AfricaTalents Congo",type:"aggregator",status:"retired",enabled:false,url:"https://www.emploi.cg/about-us",countries:["CG"],languages:["fr"],captureMode:"http",renderRequired:false,priority:60,notes:"Métadonnée/écosystème uniquement; non récolté séparément pour éviter les doublons avec Emploi.cg."},
   {key:"emploi_cd",name:"Emploi.cd",type:"national",status:"active",enabled:true,url:"https://www.emploi.cd/recherche-jobs-congo-rdc",countries:["CD"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
   {key:"kivuhub",name:"KivuHub Job",type:"specialized",status:"active",enabled:true,url:"https://kivuhub.net/find-a-job/",countries:["CD"],languages:["fr","en"],captureMode:"http",renderRequired:false,priority:100},
   {key:"congojob_cd",name:"CongoJob",type:"national",status:"active",enabled:true,url:"https://congojob.cd/",countries:["CD"],languages:["fr"],captureMode:"http",renderRequired:false,priority:70},
