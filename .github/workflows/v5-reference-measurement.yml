@@ -1,0 +1,64 @@
+name: Jobly V5 Reference Measurement
+
+on:
+  push:
+    branches:
+      - measure/v5-reference-20260930
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      OFFER_MIGRATION_APPLY: "false"
+      OFFER_MIGRATION_LIMIT: "254"
+      OFFER_MIGRATION_CONCURRENCY: "5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Run V5 canonicalization DRY RUN
+        run: node scripts/migrate-offers-to-v5.mjs
+      - name: Measure post-V5 application leaks
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const r = JSON.parse(fs.readFileSync("migration-output/offers-migration.json","utf8"));
+          const before = 175;
+          const after = r.results.filter(x => (x.issues || []).includes("APPLICATION_LEAK")).length;
+          const resolved = Math.max(0, before - after);
+          const rate = before ? resolved / before : 0;
+          const summary = {
+            baselineApplicationMisclassified: before,
+            postV5ApplicationLeak: after,
+            resolved: resolved,
+            resolutionRate: rate,
+            total: r.total,
+            pass: r.pass,
+            warning: r.warning,
+            blocked: r.blocked,
+            applied: r.applied,
+            mode: r.mode,
+            targetVersion: r.targetVersion
+          };
+          fs.writeFileSync("migration-output/reference-measurement.json", JSON.stringify(summary,null,2));
+          console.log(JSON.stringify(summary,null,2));
+          NODE
+      - name: Publish reference measurement
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jobly-v5-reference-measurement
+          path: migration-output/
+          if-no-files-found: warn
