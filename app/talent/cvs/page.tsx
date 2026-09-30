@@ -48,6 +48,7 @@ export default function TalentCVs() {
   }, [message]);
   const [originalBusy, setOriginalBusy] = useState(false);
   const [plan, setPlan] = useState("FREE");
+  const [cvPaymentAmount, setCvPaymentAmount] = useState(500);
   const [cvPaymentOpen, setCvPaymentOpen] = useState(false);
   const [cvPaymentPhone, setCvPaymentPhone] = useState("");
   const [cvPaymentMethod, setCvPaymentMethod] = useState("MTN MoMo");
@@ -58,7 +59,10 @@ export default function TalentCVs() {
 
   useEffect(() => {
     try { setCvs(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch {}
-    fetch("/api/entitlements", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(x => x?.subscription?.plan && setPlan(x.subscription.plan)).catch(() => {});
+    fetch("/api/entitlements", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(x => {
+      if (x?.subscription?.plan) setPlan(x.subscription.plan);
+      if (Number.isFinite(Number(x?.entitlements?.cvDownloadPriceXaf))) setCvPaymentAmount(Number(x.entitlements.cvDownloadPriceXaf));
+    }).catch(() => {});
   }, []);
 
   const ats = useMemo(() => score(cv), [cv]);
@@ -293,7 +297,7 @@ export default function TalentCVs() {
             <textarea value={cv.education} onChange={e => update("education", e.target.value)} placeholder="Formation / certifications" rows={4} className="mt-3 w-full rounded-xl border px-4 py-3" />
             <div className="mt-4 grid gap-2 sm:grid-cols-3 print:hidden">
               <button onClick={save} className="rounded-xl bg-jobly-blue py-3 font-black text-white">Enregistrer</button>
-              <button onClick={() => exportPdf()} disabled={busy} className="rounded-xl bg-[#FFE135] py-3 font-black disabled:opacity-50"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />Télécharger ATS</span>{plan !== "PREMIUM" && plan !== "PRO" ? <span className="ml-1 text-[10px]">· 500 FCFA / téléchargement</span> : <span className="ml-1 text-[10px]">· inclus</span>}</button>
+              <button onClick={() => exportPdf()} disabled={busy} className="rounded-xl bg-[#FFE135] py-3 font-black disabled:opacity-50"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />Télécharger ATS</span>{plan !== "PREMIUM" && plan !== "PRO" ? <span className="ml-1 text-[10px]">· {cvPaymentAmount.toLocaleString("fr-FR")} FCFA / téléchargement</span> : <span className="ml-1 text-[10px]">· inclus</span>}</button>
               <button onClick={() => router.push("/career-os")} className="rounded-xl border py-3 font-black">Career OS →</button>
             </div>
             {message && <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-[120] w-[min(92vw,520px)] -translate-x-1/2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#17212B] shadow-2xl print:hidden">{message}</div>}
@@ -329,7 +333,7 @@ export default function TalentCVs() {
                 <div className="rounded-2xl bg-[#F7FAFF] p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div><p className="text-xs font-black text-slate-500">Votre formule</p><p className="mt-1 text-lg font-black">{plan}</p></div>
-                    <div className="text-right"><p className="text-xs font-black text-slate-500">Paiement ponctuel</p><p className="mt-1 text-2xl font-black text-jobly-blue">500 FCFA</p></div>
+                    <div className="text-right"><p className="text-xs font-black text-slate-500">Paiement ponctuel</p><p className="mt-1 text-2xl font-black text-jobly-blue">{cvPaymentAmount.toLocaleString("fr-FR")} FCFA</p></div>
                   </div>
                   <p className="mt-3 text-xs leading-5 text-slate-600">Ce paiement concerne uniquement ce téléchargement. Il ne modifie pas votre abonnement et ne crée aucun renouvellement.</p>
                 </div>
@@ -345,7 +349,7 @@ export default function TalentCVs() {
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setCvPaymentOpen(false)} className="flex-1 rounded-xl border px-4 py-3 text-xs font-black">Annuler</button>
                   {!cvPaymentId ? (
-                    <button type="button" onClick={startCvPayment} disabled={cvPaymentBusy || !cvPaymentPhone.trim()} className="flex-1 rounded-xl bg-jobly-blue px-4 py-3 text-xs font-black text-white disabled:opacity-50">{cvPaymentBusy ? "Préparation…" : "Payer 500 FCFA"}</button>
+                    <button type="button" onClick={startCvPayment} disabled={cvPaymentBusy || !cvPaymentPhone.trim()} className="flex-1 rounded-xl bg-jobly-blue px-4 py-3 text-xs font-black text-white disabled:opacity-50">{cvPaymentBusy ? "Préparation…" : `Payer ${cvPaymentAmount.toLocaleString("fr-FR")} FCFA`}</button>
                   ) : (
                     <button type="button" onClick={verifyCvPayment} disabled={cvPaymentBusy} className="flex-1 rounded-xl bg-jobly-blue px-4 py-3 text-xs font-black text-white disabled:opacity-50">{cvPaymentBusy ? "Vérification…" : "Vérifier le paiement"}</button>
                   )}
