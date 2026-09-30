@@ -48,8 +48,7 @@ async function buildPdf(cv: CVPayload) {
   const summary = clean(cv.summary, 5000);
   const experience = clean(cv.experience, 10000);
   const education = clean(cv.education, 6000);
-  const skills = Array.isArray(cv.skills) ? cv.skills.map(x => clean(x, 100)).filter(Boolean) : clean(cv.skills).split(/[,;
-]/).map(x => x.trim()).filter(Boolean);
+  const skills = Array.isArray(cv.skills) ? cv.skills.map(x => clean(x, 100)).filter(Boolean) : clean(cv.skills).split(/[,;\\n]/).map(x => x.trim()).filter(Boolean);
 
   doc.font("Helvetica-Bold").fontSize(22).text(fullName);
   if (headline) doc.moveDown(0.25).font("Helvetica-Bold").fontSize(12).text(headline);
