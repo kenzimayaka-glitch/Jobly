@@ -3645,3 +3645,29 @@ Une fonctionnalité n'est pas « finie » parce qu'elle compile. Elle est finie 
 | Déploiement Vercel sans contournement du contrôle utilisateur | 🟢 RÈGLE FIGÉE | Respect permanent |
 
 **Cette liste doit être mise à jour à chaque nouvelle résolution ou nouvelle demande persistante.**
+
+
+# CHECKPOINT 01/10/2026 — BONUS J’IA FREE + ACCÈS CV PONCTUELS
+
+## Décisions produit figées
+- Talent **Free** : 30 crédits J’IA offerts une seule fois à l’inscription, non renouvelables.
+- Le bonus est visible dans **Paramètres → Crédits J’IA**, avec crédit accordé et crédit restant.
+- À la première ouverture du dashboard Talent, une notification Jobly accessible annonce le bonus et le crédit restant.
+- CV ATS et CV Jobly optimisé : **500 FCFA / service / accès 2 h** pour Free. Pendant les 2 h, plusieurs optimisations/conversions et téléchargements du service payé sont permis ; à l’expiration, un nouveau paiement est requis.
+- Start/Premium/Pro : opérations CV téléchargables incluses selon leurs droits.
+- Les paiements CV sont des **paiements ponctuels**, jamais des abonnements.
+- Le backend associe chaque paiement à son service CV et vérifie la fenêtre `paidAt + 2 h` côté serveur ; aucun contrôle d’accès critique n’est laissé au frontend.
+- Aucun watermark n’est utilisé.
+
+## État de vérité
+**🟨 CODÉ + CONTRÔLÉ — NON DÉPLOYÉ / NON VALIDÉ PRODUCTION.**
+
+Contrôles réalisés :
+1. séparation des services `CV_ATS_DOWNLOAD` / `CV_OPTIMIZED_DOWNLOAD` pour empêcher la réutilisation croisée d’un paiement ;
+2. fenêtre de 2 h vérifiée côté serveur à partir de `Payment.paidAt` ;
+3. bonus Free accordé uniquement lors de la création du compte, avec état persistant `aiWelcomeCredits`, `aiWelcomeGrantedAt`, `aiWelcomeSeenAt` ;
+4. quota Free consommé depuis la date d’octroi du bonus, sans renouvellement mensuel ;
+5. notification première visite et affichage du solde dans les paramètres ;
+6. migration Supabase appliquée au projet connecté, mais validation UI/runtime réelle reste dépendante du déploiement Vercel autorisé par l’utilisateur.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
