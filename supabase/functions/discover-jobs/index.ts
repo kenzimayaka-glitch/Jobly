@@ -1,4 +1,7 @@
 import { fetchStructuredSource } from "./sources.ts";
+import { buildSourceRunPlan } from "./source-engine.ts";
+import { resolveSourceUrl } from "./country-url-resolver.ts";
+import { crawlExhaustiveSource } from "./exhaustive-crawler.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 const NORMALIZED_VERSION = "jobly-offer-v1";
@@ -80,34 +83,8 @@ function normalizeAiResult(ai:any,item:any):NormalizedOffer {
 const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
-const SOURCES = [
-  { key: "emploi_cm", name: "Emploi.cm", url: "https://www.emploi.cm/recherche-jobs-cameroun", enabled: true },
-  { key: "emplois_cameroun", name: "Emplois Cameroun", url: "https://emploiscameroun.com/offres/", enabled: true },
-  { key: "jobincamer", name: "Job in Cameroun", url: "https://www.jobincamer.com/adverts/jobs", enabled: true },
-  { key: "jobinfocamer", name: "JobInfoCamer", url: "https://www.jobinfocamer.com/", enabled: true },
-  { key: "infosconcourseducation", name: "Infos Concours Education", url: "https://infosconcourseducation.com/category/offre-demploiss/", enabled: true },
-  { key: "fne", name: "FNE Cameroun", url: "https://www.fnecm.org/", enabled: true },
-  { key: "reliefweb", name: "ReliefWeb", url: "https://reliefweb.int/jobs?advanced-search=%28Cameroun%29", enabled: true },
-  { key: "unjobs", name: "UNjobs", url: "https://unjobs.org/duty_stations/cameroon", enabled: true },
-  { key: "impactpool", name: "Impactpool", url: "https://www.impactpool.org/jobs?location=Cameroon", enabled: true },
-  // Structured feeds/APIs — activated when the corresponding credential is configured.
-  { key: "minajobs_rss", name: "MinaJobs RSS", url: "https://cm2024.minajobs.net/rss", enabled: true },
-  { key: "techmap_cm", name: "Techmap CM", url: "https://api.techmap.io/", enabled: true },
-  { key: "jobspipe_cm", name: "JobsPipe CM", url: "https://api.jobspipe.dev/v1/jobs/search", enabled: true },
-  { key: "jooble_cm", name: "Jooble CM", url: "https://jooble.org/api/", enabled: true },
-  // ONG / humanitaire / développement international — agrégateurs spécialisés
-  { key: "idealists", name: "Idealist", url: "https://www.idealist.org/en/jobs", enabled: true },
-  { key: "devex", name: "Devex Jobs", url: "https://www.devex.com/jobs", enabled: true },
-  { key: "devnetjobs", name: "DevNetJobs", url: "https://devnetjobs.org/", enabled: true },
-  { key: "unjobnet", name: "UNjobnet", url: "https://www.unjobnet.org/", enabled: true },
-  // Portails officiels d'organisations internationales / agences ONU
-  { key: "un_careers", name: "UN Careers", url: "https://careers.un.org/", enabled: true },
-  { key: "undp_jobs", name: "UNDP Jobs", url: "https://jobs.undp.org/", enabled: true },
-  { key: "unicef_jobs", name: "UNICEF Careers", url: "https://jobs.unicef.org/", enabled: true },
-  { key: "linkedin", name: "LinkedIn", url: "https://www.linkedin.com/jobs/jobs-in-cameroon", enabled: false },
-  { key: "indeed", name: "Indeed", url: "https://cm.indeed.com/jobs?q=&l=Cameroon", enabled: false },
-  { key: "glassdoor", name: "Glassdoor", url: "https://www.glassdoor.com/Job/cameroon-jobs-SRCH_IL.0,8_IN35.htm", enabled: false },
-];
+const SOURCE_COUNTRY = Deno.env.get("JOBLY_SOURCE_COUNTRY") || "CM";
+const SOURCES = buildSourceRunPlan(SOURCE_COUNTRY).map((source) => ({\n  ...source,\n  url: resolveSourceUrl(source, SOURCE_COUNTRY).url || source.url || "",\n})).filter((source) => Boolean(source.url));
 const CITY_NAMES=["Yaoundé","Douala","Bafoussam","Bamenda","Bertoua","Buea","Ebolowa","Garoua","Maroua","Ngaoundéré","Kribi","Limbe","Kousseri","Mbalmayo","Edéa","Dschang","Foumban","Limbé","Kumba","Kumbo","Nkongsamba","Tiko","Cameroon","Tout le Cameroun"];
 function decodeEntities(s:string){return s.replace(/&nbsp;|&#160;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;|&#34;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/&bull;|&#8226;/gi,"•").replace(/&ndash;|&#8211;/gi,"–").replace(/&mdash;|&#8212;/gi,"—");}
 function repairMojibake(s:string){if(!/(?:Ã.|Â.|â.)/.test(s))return s;try{const bytes=new Uint8Array([...s].map(ch=>ch.charCodeAt(0)<=255?ch.charCodeAt(0):63));const repaired=new TextDecoder("utf-8",{fatal:false}).decode(bytes);return repaired&&!repaired.includes("�")?repaired:s}catch{return s}}
@@ -122,11 +99,14 @@ function inferCompany(text:string){const t=clean(text);const m=t.match(/^(.+?)\s
 function inferExperience(text:string){const m=text.match(/(\d+)\s*(?:\+|à|-)\s*(?:\d+)?\s*(?:ans?|years?)/i);return m?Number(m[1]):0}
 function extractExperience(text:string):string[]{const out:string[]=[];const patterns=[/(?:au moins|minimum|minimale?|minimum de)\s+(\d+)\s*(?:ans?|years?)/gi,/(\d+)\s*(?:\+|à|-)\s*(?:\d+)?\s*(?:ans?|years?)/gi,/(?:expérience|experience)\s*(?:professionnelle)?\s*[:：-]?\s*([^\n.;]{3,90})/gi];for(const re of patterns){for(const m of text.matchAll(re)){const v=cleanHumanText(String(m[0]||m[1]||"")).trim();if(v.length>=3)out.push(v)}}return Array.from(new Set(out)).slice(0,10)}
 function extractApplication(text:string):string[]{const out:string[]=[];const emails=text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)||[];for(const e of emails)out.push("Email : "+e);const urls=text.match(/https?:\/\/[^\s<>\"']+/gi)||[];for(const u of urls)if(!/facebook|instagram|youtube|linkedin|twitter|google\./i.test(u))out.push("Lien : "+u.replace(/[),.;]+$/,""));const phones=extractPhone(text);for(const p of phones)out.push("Téléphone : "+p);const lines=text.split(/\n+/).map(x=>x.trim()).filter(Boolean);for(const line of lines)if(/postuler|candidature|envoyer.*cv|déposer.*cv|deposer.*cv|apply|application|pour postuler/i.test(line)&&line.length<300)out.push(cleanHumanText(line));return Array.from(new Set(out)).slice(0,12)}
-function inferOpportunityType(item:any):"EMPLOI"|"CONCOURS"|"FORMATION"|"RECRUTEMENT_INSUFFISANT"{
+function inferOpportunityType(item:any):"EMPLOI"|"STAGE"|"CONSULTANCE"|"CONCOURS"|"FORMATION"|"RECRUTEMENT_INSUFFISANT"|"APPEL_OFFRES"{
   const title=String(item.title||"");
   const description=String(item.description||"");
   const titleText=normalize(title);
   const text=normalize(title+" "+description);
+  if(/\b(appel d[’' ]?offres?|march[ée] public|demande de cotation|tender|procurement|dao|rfq)\b/.test(text)) return "APPEL_OFFRES";
+  if(/\b(stage|stagiaire|internship|intern|graduate trainee)\b/.test(text)) return "STAGE";
+  if(/\b(consultant|consultante|consultancy|expert indépendant|expert independant|prestataire)\b/.test(text)) return "CONSULTANCE";
   const campusTitle=/\b(concours|admission|examen d'?entree|test d'?entree|formation|certification|masterclass|bootcamp|bourse|programme de formation|atelier de formation|webinaire de formation)\b/.test(titleText);
   if(campusTitle){
     if(/\b(concours|admission|examen d'?entree|test d'?entree)\b/.test(titleText)) return "CONCOURS";
@@ -222,11 +202,33 @@ async function backfillExistingOffers(supabase:any){
 
 Deno.serve(async(req)=>{
  if(req.method!=="POST")return new Response(JSON.stringify({message:"POST required"}),{status:405,headers:{"content-type":"application/json"}});
- const supabase=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);const started=Date.now();let discovered=0,inserted=0,updated=0,expired=0,aiProcessed=0,aiFailed=0;const sourceStats:any[]=[];const runBackfill=req.headers.get("x-jobly-backfill")==="true";let backfill:any=null;
- for(const source of SOURCES.filter(s=>s.enabled)){let found=0,si=0,su=0,error="";try{const structured=await fetchStructuredSource(source.key);const html=structured===null?await fetchText(source.url):"";const raw=(structured??parseListing(html,source.url,source.key)).map((x:any)=>structured!==null?{...x,_structured:true}:x);found=raw.length;const items=[];for(const r of raw.slice(0,100)){const e=await enrich(r,source);if(e.title&&e.title.length>=4&&e.url)items.push({...e,source:source.name})}discovered+=items.length;
+ const supabase=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);const started=Date.now();const dryRun=req.headers.get("x-jobly-dry-run")==="true";let body:any={};try{body=await req.clone().json()}catch{}const SOURCE_COUNTRY=String(req.headers.get("x-jobly-country")||body?.country||DEFAULT_SOURCE_COUNTRY).toUpperCase();const run=resolveRunSources(SOURCE_COUNTRY);const SOURCES=run.sources;let discovered=0,inserted=0,updated=0,expired=0,aiProcessed=0,aiFailed=0;const sourceStats:any[]=[];const dryRunOffers:any[]=[];const runBackfill=req.headers.get("x-jobly-backfill")==="true";let backfill:any=null;
+ for(const source of SOURCES.filter(s=>s.enabled)){let found=0,si=0,su=0,error="";try{const structured=await fetchStructuredSource(source.key);
+   const crawl=structured===null
+     ? await crawlExhaustiveSource(source as any,SOURCE_COUNTRY)
+     : {items:structured.map((x:any)=>({...x,_structured:true})),stats:{sourceKey:source.key,sourceName:source.name,countryCode:SOURCE_COUNTRY,listingPages:1,detailPages:structured.length,discoveredUrls:structured.length,extracted:structured.length,eligible:structured.length,fresh:structured.length,expired:0,internships:0,consultancies:0,applications:0,tenders:0,rejected:0,rejectedReasons:{},advertisedCount:null,errors:[]}};
+   const raw=crawl.items.map((x:any)=>({...x,source:source.name}));
+   found=raw.length;
+   const items=[];
+   for(const r of raw){
+     const e=await enrich(r,source);
+     if(e.title&&e.title.length>=4&&e.url)items.push({...e,source:source.name});
+   }
+   discovered+=items.length;
+   if(dryRun){
+     for(const item of items){
+       let ai:any=null; try{ai=await analyzeWithGemini(item);if(ai)aiProcessed++}catch{aiFailed++}
+       const normalizedContent=normalizeAiResult(ai,item);
+       const opportunityType=inferOpportunityType(item);
+       if(opportunityType==="APPEL_OFFRES" || opportunityType==="CONCOURS" || opportunityType==="FORMATION" || opportunityType==="RECRUTEMENT_INSUFFISANT") continue;
+       dryRunOffers.push({country:SOURCE_COUNTRY,source:source.name,sourceKey:source.key,title:normalizedContent.title||item.title,company:normalizedContent.company||item.company||null,location:normalizedContent.location,opportunityType,qualityScore:normalizedContent.qualityScore,descriptionLength:String(item.description||"").length,url:item.url,normalizedContent});
+     }
+     sourceStats.push({source:source.name,found,inserted:0,updated:0,dryRun:true,...crawl.stats});
+     continue;
+   }
    for(const item of items){const externalId=hash(item.url||`${item.title}|${item.company}|${item.location}`);const contentHash=hash(`${item.title}|${item.company}|${item.description}|${item.location}|${item.deadline||""}`);let ai:any=null;try{ai=await analyzeWithGemini(item);if(ai)aiProcessed++}catch{aiFailed++}
     const normalizedContent=normalizeAiResult(ai,item);
-    const text=`${item.title} ${item.description}`;const opportunityType=inferOpportunityType(item);const phoneNumbers=extractPhone(text);let companyId:string|null=null;const companyName=String(ai?.company||item.company||"").trim();const companyWebsite=String(item.website||"").trim()||null;let companyLogo:string|null=null;
+    const text=`${item.title} ${item.description}`;const opportunityType=inferOpportunityType(item);if(opportunityType==="APPEL_OFFRES" || opportunityType==="CONCOURS" || opportunityType==="FORMATION" || opportunityType==="RECRUTEMENT_INSUFFISANT") continue;const phoneNumbers=extractPhone(text);let companyId:string|null=null;const companyName=String(ai?.company||item.company||"").trim();const companyWebsite=String(item.website||"").trim()||null;let companyLogo:string|null=null;
     if(companyWebsite){try{const host=new URL(companyWebsite.startsWith("http")?companyWebsite:`https://${companyWebsite}`).hostname.replace(/^www\./,"");companyLogo=`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`;}catch{}}
     if(companyName){const existingCompany=await supabase.from("Company").select("id,website,logoUrl").eq("name",companyName).maybeSingle();if(existingCompany.error)throw existingCompany.error;if(existingCompany.data?.id){companyId=existingCompany.data.id;const updates:any={};if(companyWebsite&&!existingCompany.data.website)updates.website=companyWebsite;if(companyLogo&&!existingCompany.data.logoUrl)updates.logoUrl=companyLogo;if(Object.keys(updates).length)await supabase.from("Company").update(updates).eq("id",companyId);}else{const createdCompany=await supabase.from("Company").insert({name:companyName,website:companyWebsite,logoUrl:companyLogo}).select("id").single();if(createdCompany.error)throw createdCompany.error;companyId=createdCompany.data.id}}const row:any={opportunityType,title:normalizedContent.title||ai?.title||item.title,companyId,description:normalizedContent.description.join("\n\n")||cleanDescription(item.description)||`Offre publiée via ${source.name}.`,language:/[àâçéèêëîïôùûüÿœ]/i.test(text)?"fr":"en",location:normalizedContent.location.join(", ")||item.location||inferCity(text),contractType:normalizedContent.contractType||ai?.contractType||inferContract(text),salaryMin:normalizedContent.salary.min,salaryMax:normalizedContent.salary.max,salaryCurrency:normalizedContent.salary.currency||"XAF",source:source.name,sourceKey:source.key,sourceUrl:item.url,externalId,contentHash,deadline:item.deadline||parseDate(item.description),sourcePublishedAt:item.published||null,lastSeenAt:new Date().toISOString(),isActive:true,remoteMode:normalizedContent.remoteMode||ai?.remoteMode||inferRemote(text),minExperienceYears:Number.isFinite(ai?.minExperienceYears)?ai.minExperienceYears:inferExperience(text),aiProcessed:Boolean(ai),aiProcessedAt:ai?new Date().toISOString():null,aiSector:normalizedContent.sector||null,aiSummary:ai?.summary||normalizedContent.description.slice(0,3).join(" "),aiQualityScore:Number.isFinite(normalizedContent.qualityScore)?Math.max(0,Math.min(100,normalizedContent.qualityScore)):null,aiFlags:Array.isArray(ai?.flags)?ai.flags:[],aiSkills:Array.isArray(ai?.skills)?ai.skills:normalizedContent.skills,normalizedContent,normalizedVersion:NORMALIZED_VERSION,normalizedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),applicationReady:phoneNumbers.length===0,applicationProfile:phoneNumbers.length?{channel:"WHATSAPP_PHONE",phoneNumbers,comingSoon:true}:{channel:"EMAIL",comingSoon:false}};
     const existing=await supabase.from("Job").select("id,title,description,normalizedContent,normalizedVersion,aiQualityScore,companyId,updatedAt,lastSeenAt,isActive").eq("sourceKey",source.key).eq("externalId",externalId).maybeSingle();if(existing.error)throw existing.error;if(existing.data?.id){
@@ -239,8 +241,8 @@ Deno.serve(async(req)=>{
         const{error:e}=await supabase.from("Job").update({lastSeenAt:row.lastSeenAt,isActive:true,sourcePublishedAt:row.sourcePublishedAt||null}).eq("id",existing.data.id);if(e)throw e;
       }
     }else{const{error:e}=await supabase.from("Job").insert(row);if(e)throw e;inserted++;si++}}
-   sourceStats.push({source:source.name,found,inserted:si,updated:su})}catch(e){error=e instanceof Error?e.message:String(e);sourceStats.push({source:source.name,found,inserted:si,updated:su,error})}}
+   sourceStats.push({source:source.name,found,inserted:si,updated:su,...crawl.stats})}catch(e){error=e instanceof Error?e.message:String(e);sourceStats.push({source:source.name,found,inserted:si,updated:su,error})}}
  if(runBackfill){backfill=await backfillExistingOffers(supabase);}
  const{data:dead}=await supabase.from("Job").update({isActive:false,updatedAt:new Date().toISOString()}).eq("isActive",true).lt("deadline",new Date().toISOString()).select("id");expired+=dead?.length||0;
- return new Response(JSON.stringify({ok:true,provider:GEMINI_API_KEY?"GEMINI":"RULES_FALLBACK",model:GEMINI_API_KEY?GEMINI_MODEL:null,discovered,inserted,updated,expired,aiProcessed,aiFailed,backfill,durationMs:Date.now()-started,sources:sourceStats,lastUpdatedAt:new Date().toISOString()}),{headers:{"content-type":"application/json"}})
+ return new Response(JSON.stringify({ok:true,mode:dryRun?"DRY_RUN":"LIVE",publication:!dryRun,deployment:false,provider:GEMINI_API_KEY?"GEMINI":"RULES_FALLBACK",model:GEMINI_API_KEY?GEMINI_MODEL:null,country:SOURCE_COUNTRY,discovered,inserted,updated,expired,aiProcessed,aiFailed,backfill:dryRun?null:backfill,durationMs:Date.now()-started,sources:sourceStats,offers:dryRun?dryRunOffers:undefined,lastUpdatedAt:new Date().toISOString()}),{headers:{"content-type":"application/json"}})
 });

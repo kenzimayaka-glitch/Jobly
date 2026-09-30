@@ -41,6 +41,18 @@ const SOURCE_COUNTRY_CODES: Record<string, string> = {
   onape_tchad: "TD",
   emploi_cf: "CF",
   saplic_gq: "GQ",
+  jobivoire: "CI",
+  jobs_ghana: "GH",
+  jobweb_ghana: "GH",
+  jobberman_ghana: "GH",
+  myjobmag_ng: "NG",
+  hotnigerianjobs: "NG",
+  jobberman_ng: "NG",
+  senjob: "SN",
+  emploi_dakar: "SN",
+  careers_sl: "SL",
+  hrjobs_liberia: "LR",
+  malijob: "ML",
 };
 
 function inferCountryCode(offer: any): string | null {
@@ -206,7 +218,6 @@ export async function POST(request: NextRequest) {
           sourceUrl: offer.sourceUrl,
         });
         const normalizedContent = prepared.canonical;
-        const languageRequirements = detectLanguageRequirements([offer.title, offer.description].filter(Boolean).join(" "));
         const languageRequirements = detectLanguageRequirements([offer.title, offer.description].filter(Boolean).join(" "));
         const normalizedExperienceYears = prepared.experienceYears;
         const canonicalDescription = normalizedContent.description.join("\n\n") || prepared.extractedDescription;
@@ -381,7 +392,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const { offers, sources } = await collectPublicJobSources();
+    const sourceKey = url.searchParams.get("source")?.trim() || undefined;
+    const { offers, sources } = await collectPublicJobSources(sourceKey);
     const nowIso = now.toISOString();
     let created = 0, updated = 0, skipped = 0;
 
@@ -389,7 +401,7 @@ export async function POST(request: NextRequest) {
       const source = sourceDisplayName(offer.sourceKey);
       const countryCode = inferCountryCode(offer);
       const languageText = [offer.title, offer.description, offer.location].filter(Boolean).join(" ");
-      const detectedLanguage = detectJobLanguage(languageText, offer.language);
+      const detectedLanguage = detectJobLanguage(languageText, null);
       const prepared = buildCanonicalOffer({
         title: offer.title,
         companyName: offer.company,
@@ -454,7 +466,6 @@ export async function POST(request: NextRequest) {
         existing = existingBySourceUrl;
       }
 
-      const countryCode = inferCountryCode(offer);
       const contact = offer.applicationProfile;
       const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
       const languageRequirements = detectLanguageRequirements([offer.title, offer.description].filter(Boolean).join(" "));
@@ -463,7 +474,7 @@ export async function POST(request: NextRequest) {
         title: normalizedContent.title || offer.title,
         description: canonicalDescription,
         language: detectedLanguage,
-        languageOriginal: offer.language || detectedLanguage,
+        languageOriginal: detectedLanguage,
         languageRequirements,
         location: offer.location,
         contractType: offer.contractType,

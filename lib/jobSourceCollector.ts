@@ -43,17 +43,26 @@ export type CollectedOffer = {
 };
 
 const SOURCES: SourceConfig[] = [
-  { key: "minajobs", name: "MinaJobs", listingUrls: ["https://cm2024.minajobs.net/offres-emplois-stages", "https://cameroun.minajobs.net/offres-emplois-stages", "https://minajobs.net/offres-emplois-stages-a/tout-le-cameroun"], hostnames: ["cameroun.minajobs.net", "cm2024.minajobs.net", "minajobs.net"], offerPattern: /\/emplois-stage-recrutement\/(\d+)(?:\/|$)/i },
-  { key: "jobinfocamer", name: "JobInfoCamer", listingUrls: ["https://www.jobinfocamer.com/jobs/", "https://www.jobinfocamer.com/fr/"], hostnames: ["www.jobinfocamer.com", "jobinfocamer.com"], offerPattern: /\/(?:job|jobs)\/(\d+)(?:\/|$)/i },
-  { key: "infosconcourseducation", name: "Infos Concours Education", listingUrls: ["https://infosconcourseducation.com/category/offre-demploiss/"], hostnames: ["infosconcourseducation.com", "www.infosconcourseducation.com"], offerPattern: /\/[^/]+\/?$/i },
-  { key: "fne", name: "FNE Cameroun", listingUrls: ["https://emploi.fnecm.org/offres", "https://fnecm.org/offres"], hostnames: ["emploi.fnecm.org", "fnecm.org", "www.fnecm.org"], offerPattern: /\/offre\/([^/]+)(?:\/|$)/i },
-  { key: "un_cameroon", name: "UN Cameroon", listingUrls: ["https://cameroon.un.org/fr/jobs", "https://cameroon.un.org/en/jobs"], hostnames: ["cameroon.un.org", "jobs.unicef.org", "careers.un.org"], offerPattern: /\/(?:en-us|fr-fr)\/job\/(\d+)(?:\/|$)/i },
-];
+  // West Africa — validated public job channels. Keep patterns broad enough for
+  // source redesigns, then rely on detail-page canonical validation downstream.
+  { key: "jobivoire", name: "JobIvoire", listingUrls: ["https://www.jobivoire.ci/jobs"], hostnames: ["www.jobivoire.ci","jobivoire.ci"], offerPattern: /\/(?:jobs?|offres?|job)\/(?:[^/?#]+)(?:\/?|\?)/i },
+  { key: "jobs_ghana", name: "Jobs.com.gh", listingUrls: ["https://jobs.com.gh/jobs-listing/"], hostnames: ["jobs.com.gh","www.jobs.com.gh"], offerPattern: /\/jobs?\/[^/?#]+/i },
+  { key: "jobweb_ghana", name: "JobWeb Ghana", listingUrls: ["https://www.jobwebghana.com/jobs/"], hostnames: ["www.jobwebghana.com","jobwebghana.com"], offerPattern: /\/jobs?\/[^/?#]+/i },
+  { key: "jobberman_ghana", name: "Jobberman Ghana", listingUrls: ["https://www.jobberman.com.gh/jobs"], hostnames: ["www.jobberman.com.gh","jobberman.com.gh"], offerPattern: /\/jobs?\/[^/?#]+/i },
+  { key: "myjobmag_ng", name: "MyJobMag Nigeria", listingUrls: ["https://www.myjobmag.com/"], hostnames: ["www.myjobmag.com","myjobmag.com"], offerPattern: /\/job\/[0-9a-z-]+/i },
+  { key: "hotnigerianjobs", name: "HotNigerianJobs", listingUrls: ["https://www.hotnigerianjobs.com/alljobs/"], hostnames: ["www.hotnigerianjobs.com","hotnigerianjobs.com"], offerPattern: /\/hiring-now\/[0-9a-z-]+|\/job-[0-9a-z-]+/i },
+  { key: "jobberman_ng", name: "Jobberman Nigeria", listingUrls: ["https://www.jobberman.com/jobs"], hostnames: ["www.jobberman.com","jobberman.com"], offerPattern: /\/listings?\/[^/?#]+|\/job\/[0-9a-z-]+/i },
+  { key: "senjob", name: "Senjob", listingUrls: ["https://senjob.com/offres-d-emploi.php"], hostnames: ["senjob.com","www.senjob.com"], offerPattern: /\/offres?-[^/?#]+|\/offre-[^/?#]+/i },
+  { key: "emploi_dakar", name: "EmploiDakar", listingUrls: ["https://www.emploidakar.com/"], hostnames: ["www.emploidakar.com","emploidakar.com"], offerPattern: /\/(?:offre|emploi|job)\/[^/?#]+/i },
+  { key: "careers_sl", name: "Careers SL", listingUrls: ["https://careers.sl/"], hostnames: ["careers.sl","www.careers.sl"], offerPattern: /\/jobs?\/[^/?#]+/i },
+  { key: "hrjobs_liberia", name: "HR Jobs Liberia", listingUrls: ["https://hrjobsliberia.com/"], hostnames: ["hrjobsliberia.com","www.hrjobsliberia.com"], offerPattern: /\/jobs?\/[^/?#]+/i },
+  { key: "malijob", name: "MaliJob", listingUrls: ["https://www.malijob.com/"], hostnames: ["www.malijob.com","malijob.com"], offerPattern: /\/(?:job|offre|emploi)\/[0-9a-z-]+/i },
+
 
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
 const FETCH_TIMEOUT_MS = 6_000;
-const MAX_LISTING_PAGES = 3;
-const MAX_OFFERS_PER_SOURCE = 10;
+const MAX_LISTING_PAGES = 10;
+const MAX_OFFERS_PER_SOURCE = 50;
 const SOURCE_FETCH_CONCURRENCY = 6;
 const MAX_DESCRIPTION_CHARS = 30_000;
 
@@ -604,8 +613,11 @@ export async function recollectOfferByUrl(sourceKey: string, url: string, listin
   }
 }
 
-export async function collectPublicJobSources() {
-  const results = await Promise.all(SOURCES.map(async source => {
+export async function collectPublicJobSources(sourceKey?: string) {
+  const selectedSources = sourceKey
+    ? SOURCES.filter(source => source.key === sourceKey)
+    : SOURCES;
+  const results = await Promise.all(selectedSources.map(async source => {
     try {
       const found = await collectSource(source);
       return { source, found, error: false };

@@ -1,0 +1,27 @@
+name: Verify Africa source registry
+
+on:
+  push:
+    branches:
+      - main
+      - "feat/africa-source-engine-v1"
+      - "fix/**"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  registry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Audit registry
+        run: deno run supabase/functions/discover-jobs/source-registry-smoke.ts
