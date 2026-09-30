@@ -32,6 +32,13 @@ function normalizeCompany(value: string | null): string | null {
 }
 
 const SOURCE_COUNTRY_CODES: Record<string, string> = {
+  onape_tchad: "TD",
+  acpe_congo: "CG",
+  wuzzuf_egypt: "EG",
+  brightermonday_ke: "KE",
+  jobweb_zambia: "ZM",
+  glmis_ghana: "GH",
+  freshtalent_africa: "ZA",
   minajobs: "CM",
   jobinfocamer: "CM",
   infosconcourseducation: "CM",
@@ -52,7 +59,7 @@ function inferCountryCode(offer: any): string | null {
   const location = String(offer?.location || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const byName = AFRICAN_COUNTRIES.find(country => {
     const name = country.name.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
-    return normalizedLocation.includes(name);
+    return location.includes(name);
   });
   if (byName) return byName.code;
   const aliases = ["cameroun","cameroon","yaounde","douala","gabon","libreville","port-gentil","congo","brazzaville","pointe-noire","tchad","ndjamena","n'djamena","centrafrique","bangui","guinee equatoriale","malabo","bata","ghana","nigeria","kenya","rwanda","senegal","mali","burkina faso","benin","togo","niger","guinee-bissau","guinea-bissau","cote d ivoire","afrique du sud","south africa","zambie","zambia","ouganda","uganda","liberia","soudan du sud","south sudan","eswatini","maroc","morocco","algerie","algeria","tunisie","tunisia","egypte","egypt","ethiopie","ethiopia","tanzanie","tanzania","mozambique","angola","namibie","namibia","zimbabwe","malawi","sierra leone","gambie","gambia","mauritanie","mauritania","libye","libya","somalie","somalia","djibouti","comores","madagascar","maurice","seychelles","cap vert","cape verde","guinee","guinea","soudan","sudan"];
@@ -379,6 +386,73 @@ export async function POST(request: NextRequest) {
         nextOffset: offset + (rows || []).length,
         message: mode === "reprocess-all" && (rows || []).length < batchSize ? "Réindexation complète terminée." : undefined,
         ranAt: now.toISOString()
+      });
+    }
+
+    if (mode === "shadow") {
+      const { offers, sources } = await collectPublicJobSources();
+      const sourceMetrics: Record<string, {
+        discovered: number;
+        normalized: number;
+        countryResolved: number;
+        languageResolved: number;
+        fresh: number;
+        applicationReady: number;
+        publishable: number;
+        rejected: number;
+      }> = {};
+      for (const offer of offers) {
+        const countryCode = inferCountryCode(offer);
+        const text = [offer.title, offer.description, offer.location].filter(Boolean).join(" ");
+        const language = detectJobLanguage(text, (offer as any).language);
+        const prepared = buildCanonicalOffer({
+          title: offer.title,
+          companyName: offer.company,
+          description: offer.description,
+          location: offer.location,
+          contractType: offer.contractType,
+          remoteMode: offer.remoteMode,
+          salaryMin: offer.salaryMin,
+          salaryMax: offer.salaryMax,
+          salaryCurrency: offer.salaryCurrency,
+          deadline: offer.deadline,
+          source: sourceDisplayName(offer.sourceKey),
+          sourceUrl: offer.sourceUrl,
+        });
+        const canonical = prepared.canonical;
+        const application = offer.applicationProfile || {};
+        const applicationReady = Boolean(
+          (application as any).applicationEmail ||
+          (application as any).applicationPhone ||
+          (application as any).applicationUrl ||
+          (application as any).applyUrl ||
+          (application as any).url
+        );
+        const fresh = !offer.deadline || new Date(offer.deadline).getTime() > now.getTime();
+        const key = offer.sourceKey;
+        sourceMetrics[key] ||= {
+          discovered: 0, normalized: 0, countryResolved: 0, languageResolved: 0,
+          fresh: 0, applicationReady: 0, publishable: 0, rejected: 0,
+        };
+        const m = sourceMetrics[key];
+        m.discovered++;
+        if (canonical.title && canonical.description.length > 0) m.normalized++;
+        if (countryCode) m.countryResolved++;
+        if (language) m.languageResolved++;
+        if (fresh) m.fresh++;
+        if (applicationReady) m.applicationReady++;
+        if (canonicalIsPublishable(canonical) && fresh) m.publishable++;
+        else m.rejected++;
+      }
+      return NextResponse.json({
+        ok: true,
+        mode: "shadow",
+        sourceDiscovery: sources,
+        sourceMetrics,
+        totalCollected: offers.length,
+        writes: 0,
+        databaseModified: false,
+        ranAt: now.toISOString(),
       });
     }
 
