@@ -3671,3 +3671,25 @@ Contrôles réalisés :
 6. migration Supabase appliquée au projet connecté, mais validation UI/runtime réelle reste dépendante du déploiement Vercel autorisé par l’utilisateur.
 
 **Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+
+# CHECKPOINT 01/10/2026 — CONTRÔLE PAR CONTRADICTION APRÈS INTÉGRATION CV
+
+La passe de contrôle post-intégration a relevé et corrigé deux contradictions avant validation :
+- le parseur des compétences CV utilisait une séquence échappée qui ne séparait pas correctement les retours à la ligne ; corrigé dans `app/api/talent/cv/export/route.ts` ;
+- le PDF exporté ajoutait un pied de page « CV généré par JOBLY », incompatible avec la décision produit « aucun watermark » ; ce pied de page a été supprimé.
+
+Contrôles croisés effectués :
+- catalogue Talent : Free = 500 FCFA pour ATS et CV optimisé, Start/Premium/Pro = inclus ;
+- paiements : `CV_ATS_DOWNLOAD` et `CV_OPTIMIZED_DOWNLOAD` sont isolés par service ;
+- export serveur : montant, devise, utilisateur, absence d'abonnement, statut SUCCESSFUL, `paidAt + 2 h` et service exact sont contrôlés côté serveur ;
+- schéma Supabase : les colonnes `feature` et `paidAt` existent et les colonnes du bonus J’IA sont présentes ;
+- rôle utilisateur : le défaut DB reste TALENT pour les nouveaux comptes ;
+- les alertes Supabase de sécurité observées sont des alertes préexistantes, principalement des tables volontairement service-only sous RLS et une extension `pg_net` en public, sans nouvelle alerte attribuable à cette fonctionnalité.
+
+## État de vérité
+**🟨 CODÉ + CONTRÔLÉ — PRÊT POUR BUILD/VALIDATION, NON DÉPLOYÉ.**
+
+La validation runtime réelle et la validation UI restent à effectuer après un déploiement Vercel explicitement autorisé par l'utilisateur. Aucun déploiement n'a été lancé.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
