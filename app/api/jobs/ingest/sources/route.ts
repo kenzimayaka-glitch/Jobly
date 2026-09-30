@@ -395,10 +395,20 @@ export async function POST(request: NextRequest) {
     const sourceKey = url.searchParams.get("source")?.trim() || undefined;
     const { offers, sources } = await collectPublicJobSources(sourceKey);
     const nowIso = now.toISOString();
-    let created = 0, updated = 0, skipped = 0;
+    let created = 0, updated = 0, skipped = 0, rejectedStale = 0;
 
     const ingestResult = await runWithConcurrency(offers, INGEST_CONCURRENCY, async (offer) => {
       const source = sourceDisplayName(offer.sourceKey);
+      // Strict freshness gate: an offer already older than two months at the
+      // moment of import must never enter Jobly. If the source provides a
+      // publication date, it is the authoritative pre-ingestion freshness check.
+      if (offer.publishedAt) {
+        const publishedAt = new Date(offer.publishedAt);
+        if (Number.isFinite(publishedAt.getTime()) && isPlatformExpired(publishedAt.toISOString(), now)) {
+          rejectedStale++;
+          return;
+        }
+      }
       const countryCode = inferCountryCode(offer);
       const languageText = [offer.title, offer.description, offer.location].filter(Boolean).join(" ");
       const detectedLanguage = detectJobLanguage(languageText, null);
@@ -558,6 +568,8 @@ export async function POST(request: NextRequest) {
       created,
       updated,
       skipped: ingestResult.failed,
+      rejectedStale,
+      inserted: created,
       ranAt: now,
     });
   } catch (error) {
