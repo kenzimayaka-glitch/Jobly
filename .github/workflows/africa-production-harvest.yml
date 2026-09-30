@@ -1,0 +1,107 @@
+name: Africa Production Harvest
+
+on:
+  push:
+    branches:
+      - ops/africa-production-harvest
+  workflow_dispatch:
+    inputs:
+      countries:
+        description: "Optional ISO country codes filter"
+        required: false
+        default: "CI,GH,NG,SN,SL,LR,ML"
+      sources:
+        description: "Optional comma-separated source keys"
+        required: false
+        default: "jobivoire,jobs_ghana,jobweb_ghana,jobberman_ghana,myjobmag_ng,hotnigerianjobs,jobberman_ng,senjob,emploi_dakar,careers_sl,hrjobs_liberia,malijob"
+
+permissions:
+  contents: read
+
+jobs:
+  harvest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      CRON_SECRET: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.19.0"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Start local Jobly API
+        run: |
+          npm run dev -- --hostname 127.0.0.1 --port 3000 > /tmp/jobly-next.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:3000/api/health >/dev/null 2>&1 || curl -fsS http://127.0.0.1:3000/ >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:3000/ >/dev/null
+      - name: Harvest West Africa sources
+        env:
+          SOURCES: ${{ inputs.sources || 'jobivoire,jobs_ghana,jobweb_ghana,jobberman_ghana,myjobmag_ng,hotnigerianjobs,jobberman_ng,senjob,emploi_dakar,careers_sl,hrjobs_liberia,malijob' }}
+        run: |
+          set -euo pipefail
+          mkdir -p harvest-results
+          IFS=',' read -ra SOURCE_LIST <<< "$SOURCES"
+          total=0
+          failed=0
+          for source in "${SOURCE_LIST[@]}"; do
+            echo "=== HARVEST $source ==="
+            file="harvest-results/$source.json"
+            status=$(curl -sS -o "$file" -w "%{http_code}" \
+              -X POST \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              -H "Content-Type: application/json" \
+              "http://127.0.0.1:3000/api/jobs/ingest/sources?source=$source")
+            echo "HTTP $status"
+            if [ "$status" != "200" ]; then
+              failed=$((failed+1))
+              cat "$file" || true
+              continue
+            fi
+            python - "$file" <<'PY'
+import json, sys
+p=sys.argv[1]
+d=json.load(open(p,encoding="utf-8"))
+print(json.dumps({
+  "source": d.get("source"),
+  "discovered": d.get("discovered"),
+  "inserted": d.get("inserted"),
+  "updated": d.get("updated"),
+  "expired": d.get("expired"),
+  "errors": d.get("errors"),
+}, ensure_ascii=False))
+PY
+          done
+          echo "=== HARVEST COMPLETE ==="
+          python - <<'PY'
+import json, glob
+rows=[]
+for p in glob.glob("harvest-results/*.json"):
+  try:
+    d=json.load(open(p,encoding="utf-8"))
+    rows.append(d)
+  except Exception:
+    pass
+print(json.dumps({"sourcesRun":len(rows),"results":rows},ensure_ascii=False,indent=2))
+with open("harvest-results/summary.json","w",encoding="utf-8") as f:
+  json.dump({"sourcesRun":len(rows),"results":rows},f,ensure_ascii=False,indent=2)
+PY
+      - name: Upload harvest report
+        uses: actions/upload-artifact@v4
+        with:
+          name: africa-production-harvest
+          path: harvest-results/
+          retention-days: 14
+      - name: Print server log on failure
+        if: failure()
+        run: cat /tmp/jobly-next.log || true
