@@ -24,7 +24,11 @@ export async function GET(request: NextRequest, context: Context) {
       if (error) throw new Error(error.message);
       if (!data) return NextResponse.json({ message: "Offre introuvable ou inactive." }, { status: 404 });
       const platformExpiration = new Date(new Date(data.createdAt).setMonth(new Date(data.createdAt).getMonth() + 2));
-      if (!Number.isFinite(platformExpiration.getTime()) || platformExpiration.getTime() <= Date.now()) {
+      const platformExpired = Number.isFinite(platformExpiration.getTime()) && platformExpiration.getTime() <= Date.now();
+      // An offer with no explicit deadline disappears after two months.
+      // An offer with an explicit deadline remains accessible as an archive
+      // after two months, but is clearly marked EXPIRED.
+      if (platformExpired && !data.deadline) {
         await supabase.from("Job").update({ isActive: false, updatedAt: new Date().toISOString() }).eq("id", id);
         return NextResponse.json({ message: "Offre expirée." }, { status: 404 });
       }
@@ -41,9 +45,16 @@ export async function GET(request: NextRequest, context: Context) {
         ? parsedSections
         : (String(data.description || "").trim() ? { ...parsedSections, description: [String(data.description).trim()] } : parsedSections);
       const publishedAt = data.createdAt;
-      const expirationAt = new Date(new Date(data.createdAt).setMonth(new Date(data.createdAt).getMonth() + 2)).toISOString();
+      const expirationAt = platformExpiration.toISOString();
       const deadlineExpired = Boolean(data.deadline && new Date(data.deadline).getTime() < Date.now());
-      return NextResponse.json({ source, job: { ...data, title: cleanedTitle, description: cleanedDescription, publishedAt, expirationAt, deadlineExpired, offerStatus: deadlineExpired ? "EXPIRED" : "ACTIVE", applicationProfile, company: company ? { ...company, name: cleanedCompanyName, domain: companyDomain(company.website) } : (cleanedCompanyName ? { name: cleanedCompanyName, logoUrl: null, website: null, description: null, domain: null } : null),
+      const expired = platformExpired || deadlineExpired;
+      const notification = expired ? {
+        type: "JOB_EXPIRED",
+        title: "Offre expirée",
+        message: "Cette offre a dépassé sa période de visibilité sur Jobly et ne doit plus être utilisée pour candidater.",
+        action: "VIEW_OTHER_OFFERS",
+      } : null;
+      return NextResponse.json({ source, notification, job: { ...data, title: cleanedTitle, description: cleanedDescription, publishedAt, expirationAt, platformExpired, deadlineExpired, offerStatus: expired ? "EXPIRED" : "ACTIVE", applicationReady: expired ? false : data.applicationReady, applicationProfile, company: company ? { ...company, name: cleanedCompanyName, domain: companyDomain(company.website) } : (cleanedCompanyName ? { name: cleanedCompanyName, logoUrl: null, website: null, description: null, domain: null } : null),
           displayTitle: cleanedTitle,
           displayCompanyName: cleanedCompanyName,
           detailSections } });
