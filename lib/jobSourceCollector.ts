@@ -67,11 +67,13 @@ const REGISTRY_GENERIC_TITLE = /\b(job|jobs|emploi|emplois|vacancy|vacancies|car
 
 function buildRegistrySources(): SourceConfig[] {
   const explicit = new Set(SOURCES.map(source => source.key));
+  const explicitHosts = new Set(SOURCES.flatMap(source => source.hostnames));
   return getActiveSources()
     .filter(source => source.url && !explicit.has(source.key))
     .flatMap(source => {
       try {
         const parsed = new URL(source.url!);
+        if (explicitHosts.has(parsed.hostname.toLowerCase())) return [];
         return [{
           key: source.key,
           name: source.name,
