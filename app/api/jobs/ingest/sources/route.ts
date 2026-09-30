@@ -16,7 +16,7 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 async function authorized(request: NextRequest): Promise<boolean> {
   const configured = process.env.CRON_SECRET || process.env.JOB_SOURCE_INGEST_SECRET;
@@ -156,24 +156,28 @@ async function runWithConcurrency<T>(
   items: T[],
   concurrency: number,
   worker: (item: T) => Promise<void>,
-): Promise<{ failed: number }> {
+): Promise<{ failed: number; errorReasons: Record<string, number> }> {
   let cursor = 0;
   let failed = 0;
+  const errorReasons: Record<string, number> = {};
   async function runWorker() {
     while (true) {
       const index = cursor++;
       if (index >= items.length) return;
       try {
         await worker(items[index]);
-      } catch {
+      } catch (error) {
         failed++;
+        const message = error instanceof Error ? error.message : String(error);
+        const reason = message.replace(/\s+/g, " ").trim().slice(0, 240) || "unknown_error";
+        errorReasons[reason] = (errorReasons[reason] || 0) + 1;
       }
     }
   }
   await Promise.all(
     Array.from({ length: Math.min(concurrency, items.length) }, () => runWorker()),
   );
-  return { failed };
+  return { failed, errorReasons };
 }
 
 export async function POST(request: NextRequest) {
@@ -223,7 +227,7 @@ export async function POST(request: NextRequest) {
         const canonicalDescription = normalizedContent.description.join("\n\n") || prepared.extractedDescription;
         await saveOfferPipeline(supabase, row.id, offer, normalizedContent, prepared.extractedDescription);
         if (!canonicalIsPublishable(normalizedContent)) {
-          skipped++;
+          quarantined++;
           return;
         }
 
@@ -395,7 +399,7 @@ export async function POST(request: NextRequest) {
     const sourceKey = url.searchParams.get("source")?.trim() || undefined;
     const { offers, sources } = await collectPublicJobSources(sourceKey);
     const nowIso = now.toISOString();
-    let created = 0, updated = 0, skipped = 0, rejectedStale = 0;
+    let created = 0, updated = 0, skipped = 0, rejectedStale = 0, quarantined = 0;
 
     const ingestResult = await runWithConcurrency(offers, INGEST_CONCURRENCY, async (offer) => {
       const source = sourceDisplayName(offer.sourceKey);
@@ -439,17 +443,12 @@ export async function POST(request: NextRequest) {
         const existingCompany = await supabase.from("Company").select("id").ilike("name", companyName).limit(1).maybeSingle();
         if (existingCompany.error) throw new Error(existingCompany.error.message);
         companyId = existingCompany.data?.id || null;
-        if (!companyId) {
-          const createdCompany = await supabase.from("Company").insert({
-            name: companyName,
-            verified: false,
-            description: null,
-            website: offer.companyWebsite,
-            logoUrl: offer.logoUrl,
-          }).select("id").single();
-          if (createdCompany.error) throw new Error(createdCompany.error.message);
-          companyId = createdCompany.data.id;
-        }
+        // Do not make company creation a prerequisite for importing an offer.
+        // High-volume harvesting can surface the same company concurrently;
+        // a uniqueness race here used to turn otherwise valid offers into
+        // silent "skipped" worker failures. The offer keeps its canonical
+        // company name and can be linked to a Company on a later enrichment pass.
+        if (!companyId) companyId = null;
       }
 
 
@@ -568,6 +567,9 @@ export async function POST(request: NextRequest) {
       created,
       updated,
       skipped: ingestResult.failed,
+      failed: ingestResult.failed,
+      failureReasons: ingestResult.errorReasons,
+      quarantined,
       rejectedStale,
       inserted: created,
       ranAt: now,
