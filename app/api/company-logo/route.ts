@@ -43,19 +43,39 @@ export async function GET(request: NextRequest) {
 
     const results = await response.json();
     const first = Array.isArray(results) ? results[0] : null;
-    const resultDomain = typeof first?.domain === "string" ? first.domain : domain || null;
+    const resultDomain =
+      typeof first?.domain === "string"
+        ? first.domain.toLowerCase().replace(/^www\\./, "")
+        : null;
+    const requestedDomain = domain
+      ? domain.toLowerCase().replace(/^www\\./, "")
+      : null;
+
+    // Logo.dev is authoritative. When a domain is known, never accept a
+    // search result for another domain: that could attach the wrong brand.
+    if (requestedDomain && resultDomain && resultDomain !== requestedDomain) {
+      cache.set(key, { logoUrl: null, expiresAt: Date.now() + 10 * 60 * 1000 });
+      return NextResponse.json({ logoUrl: null }, { status: 404 });
+    }
+
+    const resolvedDomain = resultDomain || requestedDomain;
     const logoUrl =
       typeof first?.logo_url === "string"
         ? first.logo_url
-        : resultDomain
-          ? `https://img.logo.dev/${encodeURIComponent(resultDomain)}?size=128&format=png&fallback=404`
+        : resolvedDomain
+          ? `https://img.logo.dev/${encodeURIComponent(resolvedDomain)}?size=128&format=png&fallback=404`
           : null;
+
+    if (!logoUrl) {
+      cache.set(key, { logoUrl: null, expiresAt: Date.now() + 10 * 60 * 1000 });
+      return NextResponse.json({ logoUrl: null }, { status: 404 });
+    }
 
     cache.set(key, { logoUrl, expiresAt: Date.now() + TTL });
 
     return NextResponse.json({
       logoUrl,
-      domain: resultDomain,
+      domain: resolvedDomain,
       name: typeof first?.name === "string" ? first.name : name || null,
     });
   } catch {
