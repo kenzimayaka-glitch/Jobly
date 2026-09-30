@@ -1,0 +1,27 @@
+name: Africa Source Census
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 1 1,4,7,10 *"
+
+permissions:
+  contents: read
+
+jobs:
+  census:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run 54-country source census
+        run: node scripts/africa-source-census.mjs
+      - name: Upload census report
+        uses: actions/upload-artifact@v4
+        with:
+          name: africa-source-census
+          path: artifacts/africa-source-census.json
+          retention-days: 90

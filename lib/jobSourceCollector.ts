@@ -4,6 +4,7 @@ import { extractApplicationSubject } from "./applicationSubject";
 import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription } from "./jobContent";
 import { normalizeJobContent } from "./jobNormalizer";
 import { renderPublicSource } from "./jobSourceRenderer";
+import { getActiveSources } from "../supabase/functions/discover-jobs/source-registry";
 
 type SourceConfig = {
   key: string;
@@ -11,6 +12,7 @@ type SourceConfig = {
   listingUrls: string[];
   hostnames: string[];
   offerPattern: RegExp;
+  countryCode?: string;
 };
 
 type CandidateLink = { url: string; title: string };
@@ -40,6 +42,7 @@ export type CollectedOffer = {
   renderedHtml: string;
   extractedText: string;
   captureMode: "browser" | "http" | "api" | "rss" | "unknown";
+  countryCode?: string;
 };
 
 const SOURCES: SourceConfig[] = [
@@ -57,12 +60,41 @@ const SOURCES: SourceConfig[] = [
   { key: "careers_sl", name: "Careers SL", listingUrls: ["https://careers.sl/"], hostnames: ["careers.sl","www.careers.sl"], offerPattern: /\/jobs?\/[^/?#]+/i },
   { key: "hrjobs_liberia", name: "HR Jobs Liberia", listingUrls: ["https://hrjobsliberia.com/"], hostnames: ["hrjobsliberia.com","www.hrjobsliberia.com"], offerPattern: /\/jobs?\/[^/?#]+/i },
   { key: "malijob", name: "MaliJob", listingUrls: ["https://www.malijob.com/"], hostnames: ["www.malijob.com","malijob.com"], offerPattern: /\/(?:job|offre|emploi)\/[0-9a-z-]+/i },
+];
 
+const REGISTRY_GENERIC_PATTERN = /\/(?:jobs?|offres?|emploi|vacancy|career|position|recruit|listing|opportunity|work|announcements|jobs-board)\/[^?#]*/i;
+const REGISTRY_GENERIC_TITLE = /\b(job|jobs|emploi|emplois|vacancy|vacancies|career|careers|position|recruit|recruitment|opportunit|offre|offres)\b/i;
+
+function buildRegistrySources(): SourceConfig[] {
+  const explicit = new Set(SOURCES.map(source => source.key));
+  const explicitHosts = new Set(SOURCES.flatMap(source => source.hostnames));
+  return getActiveSources()
+    .filter(source => source.url && !explicit.has(source.key))
+    .flatMap(source => {
+      try {
+        const parsed = new URL(source.url!);
+        if (explicitHosts.has(parsed.hostname.toLowerCase())) return [];
+        return [{
+          key: source.key,
+          name: source.name,
+          listingUrls: [source.url!],
+          hostnames: [parsed.hostname.toLowerCase()],
+          offerPattern: REGISTRY_GENERIC_PATTERN,
+          countryCode: source.countries.length === 1 ? source.countries[0] : undefined,
+        }];
+      } catch {
+        return [];
+      }
+    });
+}
+
+const REGISTRY_SOURCES = buildRegistrySources();
+const ALL_SOURCES = [...SOURCES, ...REGISTRY_SOURCES];
 
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
 const FETCH_TIMEOUT_MS = 6_000;
-const MAX_LISTING_PAGES = 10;
-const MAX_OFFERS_PER_SOURCE = 50;
+const MAX_LISTING_PAGES = Number(process.env.JOB_HARVEST_MAX_LISTING_PAGES || 25);
+const MAX_OFFERS_PER_SOURCE = Number(process.env.JOB_HARVEST_MAX_OFFERS_PER_SOURCE || 100);
 const SOURCE_FETCH_CONCURRENCY = 6;
 const MAX_DESCRIPTION_CHARS = 30_000;
 
@@ -527,6 +559,7 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
     renderedHtml: html.slice(0, 2_000_000),
     extractedText: clean,
     captureMode: resolvedCaptureMode,
+    countryCode: source.countryCode,
   };
 }
 
@@ -595,7 +628,7 @@ async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
 }
 
 export async function recollectOfferByUrl(sourceKey: string, url: string, listingTitle = ""): Promise<CollectedOffer | null> {
-  const source = SOURCES.find(item => item.key === sourceKey);
+  const source = ALL_SOURCES.find(item => item.key === sourceKey);
   if (!source || !url) return null;
   try {
     const parsed = new URL(url);
@@ -615,8 +648,8 @@ export async function recollectOfferByUrl(sourceKey: string, url: string, listin
 
 export async function collectPublicJobSources(sourceKey?: string) {
   const selectedSources = sourceKey
-    ? SOURCES.filter(source => source.key === sourceKey)
-    : SOURCES;
+    ? ALL_SOURCES.filter(source => source.key === sourceKey)
+    : ALL_SOURCES;
   const results = await Promise.all(selectedSources.map(async source => {
     try {
       const found = await collectSource(source);
