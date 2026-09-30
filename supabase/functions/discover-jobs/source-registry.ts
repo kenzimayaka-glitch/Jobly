@@ -97,6 +97,15 @@ const AFRICA_CENSUS_Q3_D: SourceDefinition[] = [
 ];
 for (const source of AFRICA_CENSUS_Q3_D) SOURCE_REGISTRY.push(source);
 
+const AFRICA_CENSUS_Q3_E: SourceDefinition[] = [
+  {key:"fuzu_ug_q3",name:"Fuzu Uganda",type:"national",status:"active",enabled:true,url:"https://"+"www.fuzu.com/uganda",countries:["UG"],languages:["en"],captureMode:"http",renderRequired:false,priority:105},
+  {key:"ethiojobs_et_q3",name:"Ethiojobs",type:"national",status:"active",enabled:true,url:"https://"+"ethiojobs.net/jobs",countries:["ET"],languages:["en","am"],captureMode:"http",renderRequired:false,priority:120},
+  {key:"pnet_za_q3",name:"PNet South Africa",type:"national",status:"active",enabled:true,url:"https://"+"www.pnet.co.za/",countries:["ZA"],languages:["en"],captureMode:"http",renderRequired:false,priority:120},
+  {key:"gozambiajobs_zm_q3",name:"Go Zambia Jobs",type:"national",status:"active",enabled:true,url:"https://"+"gozambiajobs.com/jobs",countries:["ZM"],languages:["en"],captureMode:"http",renderRequired:false,priority:115},
+  {key:"vacancymail_zw_q3",name:"VacancyMail Zimbabwe",type:"national",status:"active",enabled:true,url:"https://"+"vacancymail.co.zw/jobs/",countries:["ZW"],languages:["en"],captureMode:"http",renderRequired:false,priority:115}
+];
+for (const source of AFRICA_CENSUS_Q3_E) SOURCE_REGISTRY.push(source);
+
 // Central Africa V1 — sources qualified during the country-by-country web audit.
 // Cameroon is intentionally excluded from this rollout.
 const CENTRAL_AFRICA_INTERNATIONAL: SourceDefinition[] = [
