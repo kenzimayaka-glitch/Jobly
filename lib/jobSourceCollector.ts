@@ -59,11 +59,11 @@ const SOURCES: SourceConfig[] = [
   { key: "emploi_dakar", name: "EmploiDakar", listingUrls: ["https://www.emploidakar.com/"], hostnames: ["www.emploidakar.com","emploidakar.com"], offerPattern: /\/(?:offre|emploi|job)\/[^/?#]+/i },
   { key: "careers_sl", name: "Careers SL", listingUrls: ["https://careers.sl/"], hostnames: ["careers.sl","www.careers.sl"], offerPattern: /\/jobs?\/[^/?#]+/i },
   { key: "hrjobs_liberia", name: "HR Jobs Liberia", listingUrls: ["https://hrjobsliberia.com/"], hostnames: ["hrjobsliberia.com","www.hrjobsliberia.com"], offerPattern: /\/jobs?\/[^/?#]+/i },
-  { key: "malijob", name: "MaliJob", listingUrls: ["https://www.malijob.com/"], hostnames: ["www.malijob.com","malijob.com"], offerPattern: /\\/(?:job|offre|emploi)\\/[0-9a-z-]+/i },
+  { key: "malijob", name: "MaliJob", listingUrls: ["https://www.malijob.com/"], hostnames: ["www.malijob.com","malijob.com"], offerPattern: /\/(?:job|offre|emploi)\/[0-9a-z-]+/i },
 ];
 
-const REGISTRY_GENERIC_PATTERN = /\\/(?:jobs?|offres?|emploi|vacancy|career|position|recruit|listing|opportunity|work|announcements|jobs-board)\\/[^?#]*/i;
-const REGISTRY_GENERIC_TITLE = /\\b(job|jobs|emploi|emplois|vacancy|vacancies|career|careers|position|recruit|recruitment|opportunit|offre|offres)\\b/i;
+const REGISTRY_GENERIC_PATTERN = /\/(?:jobs?|offres?|emploi|vacancy|career|position|recruit|listing|opportunity|work|announcements|jobs-board)\/[^?#]*/i;
+const REGISTRY_GENERIC_TITLE = /\b(job|jobs|emploi|emplois|vacancy|vacancies|career|careers|position|recruit|recruitment|opportunit|offre|offres)\b/i;
 
 function buildRegistrySources(): SourceConfig[] {
   const explicit = new Set(SOURCES.map(source => source.key));
