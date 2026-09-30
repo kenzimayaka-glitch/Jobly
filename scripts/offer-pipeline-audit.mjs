@@ -49,7 +49,7 @@ function dupCount(sections){
   return dup;
 }
 function applicationMisclassifiedCount(sections){
-  const signal=/(?:postuler|candidature|envoyer.*cv|envoyez.*cv|modalites? de candidature|documents? a (?:fournir|joindre)|pieces? a (?:fournir|joindre)|objet du mail|pour postuler|how to apply|apply now|[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}|(?:\\+?237[\\s.-]?[6-9]\\d{2}[\\s.-]?\\d{3}[\\s.-]?\\d{3}|6[5-9]\\d{7})|https?:\\/\\/)/i;
+  const signal=/(?:postuler|candidature|envoyer.*cv|envoyez.*cv|modalites? de candidature|documents? a (?:fournir|joindre)|pieces? a (?:fournir|joindre)|objet du mail|pour postuler|how to apply|apply now|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|(?:\+?237[\s.-]?[6-9]\d{2}[\s.-]?\d{3}[\s.-]?\d{3}|6[5-9]\d{7})|https?:\/\/)/i;
   let count=0;
   for(const[k,vals] of Object.entries(sections||{})){
     if(k==="application") continue;
