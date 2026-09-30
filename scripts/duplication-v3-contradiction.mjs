@@ -32,7 +32,7 @@ const isNonSubstantiveSection=s=>NON_SUBSTANTIVE.has(s)||s.startsWith("applicati
 const isNonSubstantiveUnit=u=>{const section=String(u.section||"").toLowerCase();const parts=String(u.path||"").toLowerCase().split(/[.\[\]]+/).filter(Boolean);return isNonSubstantiveSection(section)||parts.some(p=>NON_SUBSTANTIVE.has(p)||["application","candidature","postuler","contact","deadline","date_limite","cloture"].includes(p));};
 const isBoilerplateMatch=m=>m.x.boilerplate>=2||m.y.boilerplate>=2;
 function analyze(input){
-  const jobs=input.filter(j=>j&&j.id!=null).map(j=>({...j,__u:units(j.normalizedContent??j.canonicalContent??j.sections??{})})),findings=[];
+  const jobs=input.filter(j=>j&&j.id!=null).map(j=>({...j,__u:units(j.normalizedContent??j.canonicalContent??j.sections??{})})),findings=[],intraOfferFindings=[];
   for(const j of jobs){
     const seen=new Set();
     for(let i=0;i<j.__u.length;i++)for(let k=i+1;k<j.__u.length;k++){
@@ -41,7 +41,7 @@ function analyze(input){
       const key=a.normalized+"|"+[a.section,b.section].sort().join("|");
       if(seen.has(key))continue; seen.add(key);
       const rel=relation(a.section,b.section);
-      findings.push({offerId:j.id,sourceKey:source(j),class:a.section===b.section?"INTRA_SECTION_REPEAT":"CROSS_SECTION_REUSE",decision:"REVIEW",confidence:"LOW",sections:[a.section,b.section],evidence:[{type:"exact_unit_match",text:a.text,pathA:a.path,pathB:b.path},{type:"section_relation",value:rel}],counterEvidence:[{type:"vocabulary_context",value:true}],reason:"Une répétition intra-offre seule ne prouve pas une fuite sémantique."})
+      intraOfferFindings.push({offerId:j.id,sourceKey:source(j),class:a.section===b.section?"INTRA_SECTION_REPEAT":"CROSS_SECTION_REUSE",decision:"REVIEW",confidence:"LOW",sections:[a.section,b.section],evidence:[{type:"exact_unit_match",text:a.text,pathA:a.path,pathB:b.path},{type:"section_relation",value:rel}],counterEvidence:[{type:"vocabulary_context",value:true}],reason:"Une répétition intra-offre seule ne prouve pas une fuite sémantique."})
     }
   }
   for(let i=0;i<jobs.length;i++)for(let k=i+1;k<jobs.length;k++){
@@ -89,7 +89,7 @@ function analyze(input){
   const srcs=[...new Set(jobs.map(source))];
   const bySource=Object.fromEntries(srcs.map(s=>{const ids=new Set(jobs.filter(j=>source(j)===s).map(j=>String(j.id))),f=findings.filter(x=>x.sourceKey===s||(x.sourceKeys||[]).includes(s));return[s,{offers:ids.size,findings:f.length,duplication:f.filter(x=>x.decision==="DUPLICATION").length,templates:f.filter(x=>x.class==="TEMPLATE_REUSE").length,review:f.filter(x=>x.decision==="REVIEW").length}]}));
   const decisions=["DUPLICATION","NO_DUPLICATION","REVIEW"];
-  return{version:"duplication-v3-contradiction-v2",generatedAt:new Date().toISOString(),summary:{offersAnalyzed:jobs.length,unitsAnalyzed:jobs.reduce((n,j)=>n+j.__u.length,0),findings:findings.length,byDecision:Object.fromEntries(decisions.map(d=>[d,findings.filter(f=>f.decision===d).length])),byClass:Object.fromEntries([...new Set(findings.map(f=>f.class))].map(c=>[c,findings.filter(f=>f.class===c).length])),bySource},findings}
+  return{version:"duplication-v3-contradiction-v2",generatedAt:new Date().toISOString(),summary:{offersAnalyzed:jobs.length,unitsAnalyzed:jobs.reduce((n,j)=>n+j.__u.length,0),findings:findings.length,intraOfferReuse:intraOfferFindings.length,byDecision:Object.fromEntries(decisions.map(d=>[d,findings.filter(f=>f.decision===d).length])),byClass:Object.fromEntries([...new Set(findings.map(f=>f.class))].map(c=>[c,findings.filter(f=>f.class===c).length])),byIntraOfferClass:Object.fromEntries([...new Set(intraOfferFindings.map(f=>f.class))].map(c=>[c,intraOfferFindings.filter(f=>f.class===c).length])),bySource},findings,intraOfferFindings}
 }
 function selfTest(){
   const mk=(id,title,company,normalizedContent)=>({id,title,company,location:"Douala",normalizedContent});
@@ -101,6 +101,9 @@ function selfTest(){
     ["same source boilerplate is not duplication",[mk("a","Agent","A",{description:["Accueil Offres d'emploi Vous devez être connecté pour postuler Tous nos services sont gratuits"]}),mk("b","Manoeuvre","A",{description:["Accueil Offres d'emploi Vous devez être connecté pour postuler Tous nos services sont gratuits"]})],"NO_DUPLICATION"]
   ];
   const out=cases.map(([name,jobs,want])=>{const r=analyze(jobs),pair=r.findings.find(f=>f.pair),got=pair?.decision??"REVIEW";return{name,got,pass:got===want,debug:name==="application-only shared block is not duplication"?{units:jobs.map(j=>units(j.normalizedContent)),findings:r.findings}:undefined}});
+  const intra=analyze([{id:"intra",sourceKey:"src",normalizedContent:{skills:["Même bloc métier répété"],profile:["Même bloc métier répété"]}}]);
+  const intraPass=intra.findings.length===0&&intra.summary.intraOfferReuse===1;
+  out.push({name:"intra-offer reuse is tracked separately",got:intra.summary.intraOfferReuse,pass:intraPass,debug:{findings:intra.findings.length,intraOfferFindings:intra.intraOfferFindings.length}});
   console.log(JSON.stringify({passed:out.filter(x=>x.pass).length,total:out.length,cases:out},null,2));
   if(out.some(x=>!x.pass))process.exitCode=1
 }
