@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "./supabase";
+import { getJoblySessionManager } from "./session-manager";
 
 function translateAuthError(message: string) {
   const normalized = message.toLowerCase();
@@ -54,9 +55,8 @@ export async function loginWithUsernamePassword(username: string, password: stri
   if (!response.ok) throw new Error(body.message || "Connexion impossible.");
   const { access_token, refresh_token } = body;
   if (!access_token || !refresh_token) throw new Error("La session n'a pas pu être créée.");
-  const { data, error } = await getSupabaseClient().auth.setSession({ access_token, refresh_token });
-  if (error) throw new Error(translateAuthError(error.message));
-  return data;
+  const session = await getJoblySessionManager().setSession(access_token, refresh_token);
+  return { session, user: session.user };
 }
 
 export async function completeSignupProfile(payload: {
@@ -68,81 +68,19 @@ export async function completeSignupProfile(payload: {
   username: string;
   privacyAccepted: boolean;
 }) {
-  // Bug du 14/09/2026 : ce fetch n'envoyait jamais le token de la session
-  // créée par verifyEmailOtp(), donc le serveur (getAuthUser) ne voyait
-  // jamais d'utilisateur connecté et répondait "Session requise après
-  // vérification de l'e-mail." même quand l'OTP venait d'être validé avec
-  // succès. On récupère explicitement la session courante et on l'attache
-  // en Authorization: Bearer.
-  const supabase = getSupabaseClient();
-  const { data: sessionData } = await supabase.auth.getSession();
-  let accessToken = sessionData.session?.access_token;
-  if (!accessToken) throw new Error("Ta session a expiré après la vérification de l'e-mail. Reviens à l'étape précédente et vérifie ton code à nouveau.");
-
-  async function callApi(token: string) {
-    const response = await fetch("/api/auth/complete-signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify(payload),
-    });
-    const body = await response.json().catch(() => ({}));
-    return { ok: response.ok, status: response.status, body };
+  const sessionManager = getJoblySessionManager();
+  const token = await sessionManager.getAccessToken();
+  if (!token) {
+    throw new Error("Ta session a expiré après la vérification de l'e-mail. Reviens à l'étape précédente et vérifie ton code à nouveau.");
   }
 
-  let result = await callApi(accessToken);
-  // 14/09/2026 : filet de sécurité contre le "Session requise après
-  // vérification de l'e-mail." intermittent — si le token en mémoire vient
-  // d'être renouvelé côté serveur Supabase (juste après updateUser()), on
-  // force un rafraîchissement local puis on retente une seule fois avant
-  // d'abandonner.
-  if (!result.ok && result.status === 401) {
-    const { data: refreshed } = await supabase.auth.refreshSession();
-    accessToken = refreshed.session?.access_token;
-    if (accessToken) result = await callApi(accessToken);
-  }
-  if (!result.ok) throw new Error(result.body.message || "Impossible de finaliser le compte.");
-  return result.body;
-}
-
-// 15/09/2026 : sur demande, la seule contrainte sur le username est
-// désormais l'unicité — plus de règle de format (lettres/chiffres/./_
-// uniquement, 3-15 caractères). On garde un garde-fou technique minimal
-// (non vide, longueur raisonnable pour la colonne en base) mais on ne
-// rejette plus un username pour sa forme.
-export function isValidUsernameFormat(value: string) {
-  const trimmed = value.trim();
-  return trimmed.length > 0 && trimmed.length <= 40;
-}
-
-export async function checkUsernameAvailable(username: string): Promise<boolean> {
-  const value = username.trim().toLowerCase();
-  if (!isValidUsernameFormat(value)) return false;
-  const response = await fetch(`/api/auth/username/check?username=${encodeURIComponent(value)}`);
+  const response = await sessionManager.authenticatedFetch("/api/auth/complete-signup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.message || "Vérification du username impossible.");
-  return Boolean(body.available);
+  if (!response.ok) throw new Error(body.message || "Impossible de finaliser le compte.");
+  return body;
 }
-
-export async function requestPasswordReset(email: string) {
-  const value = email.trim().toLowerCase();
-  if (!value.includes("@")) throw new Error("Entre l'adresse e-mail associée au compte.");
-  const { error } = await getSupabaseClient().auth.resetPasswordForEmail(value, {
-    redirectTo: `${window.location.origin}/auth/reset-password`,
-  });
-  if (error) throw new Error(translateAuthError(error.message));
-}
-
-export async function updatePassword(password: string) {
-  const passwordError = validatePassword(password);
-  if (passwordError) throw new Error(passwordError);
-  const { error } = await getSupabaseClient().auth.updateUser({ password });
-  if (error) throw new Error(translateAuthError(error.message));
-}
-
-export async function signInWithGoogle() {
-  const { error } = await getSupabaseClient().auth.signInWithOAuth({
-    provider: "google",
-    options: { redirectTo: `${window.location.origin}/auth/callback` },
-  });
-  if (error) throw new Error(error.message || "Connexion Google impossible.");
 }
