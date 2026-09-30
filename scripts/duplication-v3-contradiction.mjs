@@ -53,14 +53,16 @@ function analyze(input){
     const titleSame=!!A.title&&A.title===B.title,companySame=!!A.company&&A.company===B.company,locSame=!!A.location&&A.location===B.location,urlSame=!!A.url&&A.url===B.url;
     const discCount=[titleSame,companySame,locSame,urlSame].filter(Boolean).length;
     const sectionMismatch=matches.some(m=>m.rel==="INCOMPATIBLE");
-    const substantive=matches.filter(m=>!NON_SUBSTANTIVE.has(m.x.section)&&!NON_SUBSTANTIVE.has(m.y.section));
-    const substantiveExact=exact.filter(m=>!NON_SUBSTANTIVE.has(m.x.section)&&!NON_SUBSTANTIVE.has(m.y.section));
+    const isNonSubstantiveSection=s=>NON_SUBSTANTIVE.has(s)||s.startsWith("application_")||s.startsWith("deadline_");
+    const isBoilerplateMatch=m=>m.x.boilerplate>=2||m.y.boilerplate>=2;
+    const substantive=matches.filter(m=>!isNonSubstantiveSection(m.x.section)&&!isNonSubstantiveSection(m.y.section)&&!isBoilerplateMatch(m));
+    const substantiveExact=exact.filter(m=>!isNonSubstantiveSection(m.x.section)&&!isNonSubstantiveSection(m.y.section)&&!isBoilerplateMatch(m));
     const boilerplateMatches=matches.filter(m=>m.x.boilerplate>=2||m.y.boilerplate>=2);
     let cls="REVIEW",decision="REVIEW",confidence="LOW",reason="Similarité sans preuve suffisante pour conclure.";
     if(boilerplateMatches.length>=1&&substantive.length===0){
       cls="SOURCE_PAGE_BOILERPLATE";decision="NO_DUPLICATION";confidence="HIGH";reason="La convergence porte principalement sur le gabarit HTML/navigation de la source, pas sur le contenu métier."
     }else if(substantive.length===0){
-      cls="TEMPLATE_REUSE";decision="NO_DUPLICATION";confidence="HIGH";reason="Les seules convergences concernent des blocs non substantifs (candidature/date) d'une même source."
+      cls=boilerplateMatches.length>=1?"SOURCE_PAGE_BOILERPLATE":"TEMPLATE_REUSE";decision="NO_DUPLICATION";confidence="HIGH";reason=boilerplateMatches.length>=1?"Les seules convergences sont du boilerplate/gabarit de source, sans contenu métier partagé.":"Les seules convergences concernent des blocs non substantifs (candidature/date) ou équivalents d'une même source."
     }else if(same&&discCount<2&&matches.length>=1){
       cls="TEMPLATE_REUSE";decision="NO_DUPLICATION";confidence="MEDIUM";reason="Blocs répétés d'une même source avec discriminants non convergents : réutilisation de template présumée."
     }else if(substantive.length===0){
