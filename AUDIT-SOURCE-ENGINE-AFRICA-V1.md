@@ -146,3 +146,8 @@ Le nombre affiché par une source n'est plus considéré comme le nombre importa
 7. écarts inexpliqués.
 
 Aucun merge et aucun déploiement Vercel/Supabase n'est effectué par ce chantier.
+
+
+## Ratissage exhaustif — exécution déclenchée
+
+Exécution GitHub Actions déclenchée par mise à jour de la branche. Aucun déploiement applicatif.
