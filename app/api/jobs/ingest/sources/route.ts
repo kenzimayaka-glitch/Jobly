@@ -41,6 +41,18 @@ const SOURCE_COUNTRY_CODES: Record<string, string> = {
   onape_tchad: "TD",
   emploi_cf: "CF",
   saplic_gq: "GQ",
+  jobivoire: "CI",
+  jobs_ghana: "GH",
+  jobweb_ghana: "GH",
+  jobberman_ghana: "GH",
+  myjobmag_ng: "NG",
+  hotnigerianjobs: "NG",
+  jobberman_ng: "NG",
+  senjob: "SN",
+  emploi_dakar: "SN",
+  careers_sl: "SL",
+  hrjobs_liberia: "LR",
+  malijob: "ML",
 };
 
 function inferCountryCode(offer: any): string | null {
