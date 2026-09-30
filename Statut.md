@@ -9,6 +9,8 @@ Branche : `analysis/duplication-v3-integrated-20260930` (dérivée de `main`). A
 - `.github/workflows/offer-360-audit.yml` lance le self-test V3 puis l'analyse du snapshot 360° dans le même workflow et publie le rapport JSON dans l'artifact d'audit.
 - Architecture et limites consignées dans `docs/DUPLICATION-V3-INTEGRATED.md`.
 
+**Déclenchement CI :** ce checkpoint est volontairement mis à jour sur la branche d'analyse afin de provoquer une nouvelle exécution GitHub Actions du test V3, sans toucher à `main` ni déployer.
+
 **Règle d'interprétation :** mot partagé seul = aucune preuve. Les blocs uniques ou ambigus restent en `REVIEW`; les templates sont distingués des duplications d'offres. Les seuils constituent un triage explicable, à calibrer sur un jeu annoté, pas une vérité métier autonome.
 
 **Validation à obtenir :**
