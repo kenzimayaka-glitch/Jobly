@@ -6,7 +6,7 @@ const ALIASES={education:["education","formation","diplome","diplomes","etudes"]
 const GENERIC=new Set("de du des la le les un une et en au aux a pour dans sur avec par est sont etre the and of to for with or ou poste offre candidat profil emploi travail job".split(" "));
 const NON_SUBSTANTIVE=new Set(["application","deadline"]);
 const BOILERPLATE_MARKERS=["vous devez etre connecte","connectez-vous pour postuler","tous nos services sont gratuits","offres d emploi cvtheque","inscription candidat inscription employeur","tous les programmes","accueil offres d emploi","liens rapides","function initmobiledropdowns","navbar-nav","un instrument de l emploi"];
-const norm=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/https?:\/\/\S+/g," URL ").replace(/[^\p{L}\p{N}+.\#%/@_-]+/gu," ").replace(/\s+/g," ").trim();
+const norm=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/https?:\/\/\S+/g," URL ").replace(/[^\p{L}\p{N}+.#%/@_-]+/gu," ").replace(/\s+/g," ").trim();
 const sectionOf=k=>{const n=norm(k).replace(/[_-]/g," ");for(const[s,as]of Object.entries(ALIASES))if(as.some(a=>norm(a)===n||n.startsWith(norm(a)+" ")))return s;return n.replace(/\s+/g,"_")||"unknown"};
 const tokens=v=>norm(v).split(/\s+/).filter(t=>t.length>1&&!GENERIC.has(t));
 const jac=(a,b)=>{const A=new Set(a),B=new Set(b);let n=0;for(const t of A)if(B.has(t))n++;return n/Math.max(1,A.size+B.size-n)};
