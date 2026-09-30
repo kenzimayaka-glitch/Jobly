@@ -93,8 +93,7 @@ const ALL_SOURCES = [...SOURCES, ...REGISTRY_SOURCES];
 
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
 const FETCH_TIMEOUT_MS = 6_000;
-const MAX_LISTING_PAGES = Number(process.env.JOB_HARVEST_MAX_LISTING_PAGES || 25);
-const MAX_OFFERS_PER_SOURCE = Number(process.env.JOB_HARVEST_MAX_OFFERS_PER_SOURCE || 100);
+const MAX_LISTING_PAGES_SAFETY_SAFETY = Number(process.env.JOB_HARVEST_MAX_LISTING_PAGES_SAFETY || 5000);
 const SOURCE_FETCH_CONCURRENCY = 6;
 const MAX_DESCRIPTION_CHARS = 30_000;
 
@@ -603,7 +602,7 @@ async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
   const seenPages = new Set<string>(), candidates = new Map<string,CandidateLink>();
   for (const firstUrl of source.listingUrls) {
     let current = firstUrl;
-    for (let page=0;page<MAX_LISTING_PAGES && current && !seenPages.has(current);page++) {
+    for (let page=0;page<MAX_LISTING_PAGES_SAFETY && current && !seenPages.has(current);page++) {
       seenPages.add(current);
       try {
         const html = await fetchHtml(current);
@@ -612,7 +611,7 @@ async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
       } catch { current=""; }
     }
   }
-  const candidatesToFetch = Array.from(candidates.values()).slice(0, MAX_OFFERS_PER_SOURCE);
+  const candidatesToFetch = Array.from(candidates.values());
   const results = await mapWithConcurrency(candidatesToFetch, SOURCE_FETCH_CONCURRENCY, async (candidate) => {
     const capture = await fetchOfferCapture(candidate.url);
     return extractOffer(source, candidate.url, capture.renderedHtml, candidate.title, capture.rawHtml, capture.captureMode);
@@ -624,7 +623,7 @@ async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
       if (results.length >= MAX_OFFERS_PER_SOURCE) break;
     }
   }
-  return results.slice(0,MAX_OFFERS_PER_SOURCE);
+  return results;
 }
 
 export async function recollectOfferByUrl(sourceKey: string, url: string, listingTitle = ""): Promise<CollectedOffer | null> {
