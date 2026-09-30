@@ -52,6 +52,7 @@ function CvStudioContent() {
   const [mode, setMode] = useState<ViewMode>("simple");
   const [cv, setCv] = useState<CvData>(EMPTY_CV);
   const [fileName, setFileName] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const searchParams = useSearchParams();
@@ -70,16 +71,28 @@ function CvStudioContent() {
       .catch(() => setAdaptJob(null));
   }, [adaptMode, adaptJobId, adaptSource]);
 
-  async function importCv(event: ChangeEvent<HTMLInputElement>) {
+  function selectCv(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
     if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      setSelectedFile(null);
+      setFileName("");
       setMessage("J’IA accepte ici uniquement les CV PDF.");
       return;
     }
     setMessage("");
+    setSelectedFile(file);
     setFileName(file.name);
+  }
+
+  async function extractCvData() {
+    const file = selectedFile;
+    if (!file) {
+      setMessage("Sélectionnez d’abord votre CV PDF, puis cliquez sur « Extraire les données ».");
+      return;
+    }
+    setMessage("");
     setLoading(true);
     try {
       const supabase = getSupabaseClient();
@@ -144,14 +157,15 @@ function CvStudioContent() {
 
         <section className="mb-6 grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
           <label className="group cursor-pointer rounded-3xl border border-dashed border-slate-300 bg-white p-6 shadow-sm transition hover:border-slate-500">
-            <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={importCv} />
+            <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={selectCv} />
             <div className="flex items-start gap-4">
               <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#0b2447] text-xl text-white">↑</div>
               <div>
                 <h2 className="font-extrabold">Importer mon CV PDF</h2>
-                <p className="mt-1 text-sm text-slate-500">Gratuit pour tous les plans. J’IA extrait les informations et préremplit votre CV Master.</p>
+                <p className="mt-1 text-sm text-slate-500">Gratuit pour tous les plans. Sélectionnez votre PDF puis cliquez sur « Extraire les données » pour préremplir votre CV Master.</p>
                 {fileName && <p className="mt-3 text-xs font-bold text-slate-700">{fileName}</p>}
-                {loading && <p className="mt-3 text-xs font-bold text-[#0b2447]">J’IA analyse votre CV…</p>}
+                {fileName && <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); void extractCvData(); }} disabled={loading} className="mt-4 rounded-xl bg-green-600 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:brightness-95 disabled:cursor-wait disabled:opacity-60">{loading ? "Extraction en cours…" : "Extraire les données"}</button>}
+                {loading && <p className="mt-2 text-xs font-bold text-[#0b2447]">J’IA extrait les données de votre CV…</p>}
               </div>
             </div>
           </label>

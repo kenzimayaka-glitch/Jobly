@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PDFParse } from "pdf-parse";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 import { runAiGateway } from "../../../../../lib/aiGateway";
@@ -89,7 +88,15 @@ export async function POST(request: NextRequest) {
       }, { status: 413 });
     }
     const fileBytes = Buffer.from(await file.arrayBuffer());
-    const parser = new PDFParse({ data: fileBytes });
+
+    // pdf-parse v2 loads PDF.js rendering primitives during module evaluation.
+    // In Vercel's Node runtime, loading it without the worker CanvasFactory
+    // causes "ReferenceError: DOMMatrix is not defined" before the handler
+    // can return JSON. Load the worker first, then PDFParse, as recommended
+    // by pdf-parse for server-side Node deployments.
+    const { CanvasFactory } = await import("pdf-parse/worker");
+    const { PDFParse } = await import("pdf-parse");
+    const parser = new PDFParse({ data: fileBytes, CanvasFactory });
     const parsed = await parser.getText();
     await parser.destroy();
     const cvText = String(parsed.text || "").replace(/\u0000/g, " ").trim();
