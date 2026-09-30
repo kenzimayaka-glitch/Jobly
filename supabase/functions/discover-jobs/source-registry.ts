@@ -1,0 +1,98 @@
+export type SourceType = "national" | "pan_africa" | "institutional" | "specialized" | "aggregator" | "company_careers" | "remote";
+export type CaptureMode = "browser" | "http" | "api" | "rss" | "unknown";
+export type SourceStatus = "active" | "discovered" | "blocked" | "degraded" | "retired";
+
+export type AfricaCountry = {
+  code: string;
+  name: string;
+  region: "north" | "west" | "central" | "east" | "south";
+  languages: string[];
+};
+
+export type SourceDefinition = {
+  key: string;
+  name: string;
+  type: SourceType;
+  status: SourceStatus;
+  enabled: boolean;
+  url?: string;
+  countries: string[];
+  languages: string[];
+  captureMode: CaptureMode;
+  renderRequired: boolean;
+  structuredAdapter?: string;
+  priority: number;
+  notes?: string;
+};
+
+export const AFRICA_COUNTRIES: AfricaCountry[] = [
+  ["DZ","Algérie","north",["fr","ar"]],["EG","Égypte","north",["ar","en"]],["LY","Libye","north",["ar","en"]],["MA","Maroc","north",["fr","ar"]],["MR","Mauritanie","north",["ar","fr"]],["TN","Tunisie","north",["fr","ar"]],
+  ["BJ","Bénin","west",["fr"]],["BF","Burkina Faso","west",["fr"]],["CV","Cap-Vert","west",["pt"]],["CI","Côte d'Ivoire","west",["fr"]],["GM","Gambie","west",["en"]],["GH","Ghana","west",["en"]],["GN","Guinée","west",["fr"]],["GW","Guinée-Bissau","west",["pt"]],["LR","Liberia","west",["en"]],["ML","Mali","west",["fr"]],["NE","Niger","west",["fr"]],["NG","Nigeria","west",["en"]],["SN","Sénégal","west",["fr"]],["SL","Sierra Leone","west",["en"]],["TG","Togo","west",["fr"]],
+  ["CM","Cameroun","central",["fr","en"]],["CF","RCA","central",["fr"]],["TD","Tchad","central",["fr","ar"]],["CG","Congo","central",["fr"]],["CD","RDC","central",["fr"]],["GQ","Guinée équatoriale","central",["es","fr"]],["GA","Gabon","central",["fr"]],["ST","São Tomé-et-Príncipe","central",["pt"]],["BI","Burundi","central",["fr","en"]],["AO","Angola","central",["pt"]],
+  ["KE","Kenya","east",["en"]],["UG","Ouganda","east",["en"]],["TZ","Tanzanie","east",["en","sw"]],["RW","Rwanda","east",["en","fr"]],["ET","Éthiopie","east",["en","am"]],["DJ","Djibouti","east",["fr","ar"]],["ER","Érythrée","east",["en"]],["SO","Somalie","east",["en","so"]],["SS","Soudan du Sud","east",["en"]],["SD","Soudan","east",["ar","en"]],["KM","Comores","east",["fr","ar"]],["MG","Madagascar","east",["fr"]],["MU","Maurice","east",["en","fr"]],["SC","Seychelles","east",["en","fr"]],
+  ["ZA","Afrique du Sud","south",["en"]],["ZM","Zambie","south",["en"]],["ZW","Zimbabwe","south",["en"]],["MW","Malawi","south",["en"]],["MZ","Mozambique","south",["pt"]],["NA","Namibie","south",["en"]],["BW","Botswana","south",["en"]],["SZ","Eswatini","south",["en"]],["LS","Lesotho","south",["en"]]
+].map(([code,name,region,languages])=>({code,name,region,languages})) as AfricaCountry[];
+
+const PAN_AFRICA = ["CM","DZ","EG","LY","MA","MR","TN","BJ","BF","CV","CI","GM","GH","GN","GW","LR","ML","NE","NG","SN","SL","TG","CF","TD","CG","CD","GQ","GA","ST","BI","AO","KE","UG","TZ","RW","ET","DJ","ER","SO","SS","SD","KM","MG","MU","SC","ZA","ZM","ZW","MW","MZ","NA","BW","SZ","LS"];
+
+export const SOURCE_REGISTRY: SourceDefinition[] = [
+  {key:"emploi_cm",name:"Emploi.cm",type:"national",status:"active",enabled:true,url:"https://www.emploi.cm/recherche-jobs-cameroun",countries:["CM"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"emplois_cameroun",name:"Emplois Cameroun",type:"national",status:"active",enabled:true,url:"https://emploiscameroun.com/offres/",countries:["CM"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"jobincamer",name:"Job in Cameroun",type:"national",status:"active",enabled:true,url:"https://www.jobincamer.com/adverts/jobs",countries:["CM"],languages:["fr","en"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"jobinfocamer",name:"JobInfoCamer",type:"national",status:"active",enabled:true,url:"https://www.jobinfocamer.com/",countries:["CM"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"infosconcourseducation",name:"Infos Concours Education",type:"specialized",status:"active",enabled:true,url:"https://infosconcourseducation.com/category/offre-demploiss/",countries:["CM"],languages:["fr"],captureMode:"api",renderRequired:false,structuredAdapter:"infosconcourseducation",priority:80},
+  {key:"fne",name:"FNE Cameroun",type:"institutional",status:"active",enabled:true,url:"https://www.fnecm.org/",countries:["CM"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"reliefweb",name:"ReliefWeb",type:"institutional",status:"active",enabled:true,url:"https://reliefweb.int/jobs?advanced-search=%28Cameroun%29",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"http",renderRequired:false,priority:80},
+  {key:"unjobs",name:"UNjobs",type:"institutional",status:"active",enabled:true,url:"https://unjobs.org/duty_stations/cameroon",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"http",renderRequired:false,priority:80},
+  {key:"impactpool",name:"Impactpool",type:"specialized",status:"active",enabled:true,url:"https://www.impactpool.org/jobs?location=Cameroon",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"http",renderRequired:false,priority:70},
+  {key:"minajobs_rss",name:"MinaJobs RSS",type:"national",status:"active",enabled:true,url:"https://cm2024.minajobs.net/rss",countries:["CM"],languages:["fr"],captureMode:"rss",renderRequired:false,structuredAdapter:"minajobs_rss",priority:80},
+  {key:"techmap_cm",name:"Techmap CM",type:"aggregator",status:"active",enabled:true,url:"https://api.techmap.io/",countries:["CM"],languages:["en","fr"],captureMode:"api",renderRequired:false,structuredAdapter:"techmap_cm",priority:60},
+  {key:"jobspipe_cm",name:"JobsPipe CM",type:"aggregator",status:"active",enabled:true,url:"https://api.jobspipe.dev/v1/jobs/search",countries:["CM"],languages:["en","fr"],captureMode:"api",renderRequired:false,structuredAdapter:"jobspipe_cm",priority:70},
+  {key:"jooble_cm",name:"Jooble CM",type:"aggregator",status:"active",enabled:true,url:"https://jooble.org/api/",countries:["CM"],languages:["en","fr"],captureMode:"api",renderRequired:false,structuredAdapter:"jooble_cm",priority:60},
+  {key:"idealists",name:"Idealist",type:"specialized",status:"active",enabled:true,url:"https://www.idealist.org/en/jobs",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"http",renderRequired:false,priority:50},
+  {key:"devex",name:"Devex Jobs",type:"specialized",status:"active",enabled:true,url:"https://www.devex.com/jobs",countries:PAN_AFRICA,languages:["en"],captureMode:"http",renderRequired:false,priority:60},
+  {key:"devnetjobs",name:"DevNetJobs",type:"specialized",status:"active",enabled:true,url:"https://devnetjobs.org/",countries:PAN_AFRICA,languages:["en"],captureMode:"http",renderRequired:false,priority:60},
+  {key:"unjobnet",name:"UNjobnet",type:"institutional",status:"active",enabled:true,url:"https://www.unjobnet.org/",countries:PAN_AFRICA,languages:["en"],captureMode:"http",renderRequired:false,priority:70},
+  {key:"un_careers",name:"UN Careers",type:"institutional",status:"active",enabled:true,url:"https://careers.un.org/",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"http",renderRequired:true,priority:80},
+  {key:"undp_jobs",name:"UNDP Jobs",type:"institutional",status:"active",enabled:true,url:"https://jobs.undp.org/",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"http",renderRequired:true,priority:80},
+  {key:"unicef_jobs",name:"UNICEF Careers",type:"institutional",status:"active",enabled:true,url:"https://jobs.unicef.org/",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"http",renderRequired:true,priority:80},
+  {key:"linkedin",name:"LinkedIn",type:"aggregator",status:"discovered",enabled:false,url:"https://www.linkedin.com/jobs/jobs-in-cameroon",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"browser",renderRequired:true,priority:30,notes:"Conservé comme découverte; non activé dans le crawler actuel."},
+  {key:"indeed",name:"Indeed",type:"aggregator",status:"discovered",enabled:false,url:"https://cm.indeed.com/jobs?q=&l=Cameroon",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"browser",renderRequired:true,priority:30},
+  {key:"glassdoor",name:"Glassdoor",type:"aggregator",status:"discovered",enabled:false,url:"https://www.glassdoor.com/Job/cameroon-jobs-SRCH_IL.0,8_IN35.htm",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"browser",renderRequired:true,priority:20},
+
+  // V3 discovery catalog: discovered only. URLs/adapters must be qualified before activation.
+  ...([
+    ["africarrieres","Africarrières","pan_africa"],["freshtalent","FreshTalent","pan_africa"],["jobaa","Jobaa","pan_africa"],["africajobconnect","AfricaJobConnect","pan_africa"],["taf4all","TAF4ALL","pan_africa"],["myjobmag","MyJobMag","pan_africa"],["fuzu","Fuzu","pan_africa"],["novojob","Novojob","pan_africa"],["alerte_emploi","Alerte Emploi","pan_africa"],["mapage_africa","MaPage Africa","pan_africa"],["jobfolio_africa","Jobfolio Africa","pan_africa"],["hr_paddy","HR Paddy","specialized"],["jobra","Jobra","pan_africa"],["jobiro","Jobiro","pan_africa"],["clbk","CLBK","pan_africa"],["edmatch","EdoMatch","pan_africa"],["careers_in_africa","Careers in Africa","pan_africa"],["work_in_africa","Work in Africa","pan_africa"],["chantierpro","ChantierPro","specialized"],["affutjob","Affutjob","pan_africa"],["marcheemploi","MarcheEmploi","pan_africa"],["vueradar","VueRadar","pan_africa"],["jobsonline_africa","JobsOnline Africa","pan_africa"],["diaspojob","DiaspoJob","pan_africa"],["akilibrain","AkiliBrain","pan_africa"],
+    ["rekrute","ReKrute","national"],["emploi_ma","Emploi.ma","national"],["marocannonces","MarocAnnonces","national"],["jobs_ma","jobs-ma","national"],["coincarriere","CoinCarrière","national"],["allojob","AlloJob","national"],["alwadifa_maroc","Alwadifa Maroc","national"],["bghit_nekhdem","Bghit Nekhdem","national"],["wetech","Wetech","specialized"],["ejobs","eJobs","specialized"],["hotalents","Hotalents","specialized"],["moncallcenter","Moncallcenter","specialized"],
+    ["wuzzuf","Wuzzuf","national"],["forasna","Forasna","national"],["tanqeeb","Tanqeeb","aggregator"],["jobberman","Jobberman","national"],["jobweb_ghana","JobWeb Ghana","national"],["get_hired_ghana","Get Hired Ghana","national"],["hire_rung","HireRung","national"],["plegma","Plegma","national"],["hotnigerianjobs","HotNigerianJobs","national"],["ngcareers","NgCareers","national"],["jobgurus","JobGurus","national"],["jobsinnigeria","Jobsinnigeria","national"],["quicktojobs","QuickToJobs","national"],["jobstark","JobStark","national"],["gradjobber","GradJobber","specialized"],["xoooth","Xooth","national"],["work_in_edo","Work in Edo","national"],["employdakar","EmploiDakar","national"],["senjob","Senjob","national"],["digijob_guinee","DigiJob Guinée","national"],["jobbissau","JobBissau","national"],
+    ["jobinfocamer_extra","Irelis / PeoJob / Flinkn","national"],["emploi_cd","Emploi.cd","national"],["kivuhub","KivuHub Job","specialized"],["emploi_cg","Emploi.cg","national"],["emploi_ga","Emploi.ga","national"],["africatalents","AfricaTalents","national"],["jobartis","Jobartis","national"],["corporate_staffing","Corporate Staffing","specialized"],["jobweb_kenya","JobWeb Kenya","national"],["myjobsinkenya","MyJobsInKenya","national"],["recruitfinds","RecruitFinds","national"],["linkbase","Linkbase","national"],["ajirazone","AjiraZone","national"],["center_board","Center Board","national"],["great_uganda_jobs","Great Uganda Jobs","national"],["jobweb_uganda","JobWeb Uganda","national"],["job_adverts_uganda","Job Adverts Uganda","national"],["ajirika","Ajirika","national"],["ajira_portal","Ajira Portal","institutional"],["work_tz","Work.tz","national"],["ajira_mwananchi","Ajira Mwananchi","national"],["mshahara","Mshahara","national"],["fadicy","Fadicy","national"],["jobweb_rwanda","JobWeb Rwanda","national"],["kigali_today_jobs","Kigali Today Jobs","national"],["umurimo","Umurimo","national"],["jobs_in_rwanda_ai","JobsInRwanda.ai","specialized"],["ethiojobs","Ethiojobs","national"],["ezega","Ezega","national"],["jobweb_ethiopia","JobWeb Ethiopia","national"],["jobsethiopia","JobsEthiopia","national"],["worklink_ethiopia","WorkLinkEthiopia","national"],["binasmart","BinaSmart","national"],["hornjobs","HornJobs","specialized"],["comores_emploi","Comores Emploi","national"],["jobmada","JobMada","national"],["myjob_mu","MyJob.mu","national"],["hellojob_mu","HelloJob","national"],["jobo_sc","JOBO.sc","national"],["careers24","Careers24","national"],["pnet","PNet","national"],["careerjunction","CareerJunction","national"],["jobmail","Job Mail","national"],["bizcommunity","Bizcommunity Jobs","specialized"],["freerecruit","Freerecruit","national"],["mzansi_jobs","Mzansi Jobs","national"],["sa_career_hub","SA Career Hub","national"],["careers_portal","Careers Portal","national"],["offerzen","OfferZen","specialized"],["graduates24","Graduates24","specialized"],["vacancymail","VacancyMail","national"],["cv_people_africa","CV People Africa","national"],["go_zambia_jobs","GoZambiaJobs","national"],["jobs_zambia","Jobs Zambia","national"],["jobweb_zambia","JobWeb Zambia","national"],["great_zambia_jobs","Great Zambia Jobs","national"],["zambia_jobs_today","Zambia Jobs Today","national"],["ntchito","Ntchito","national"],["todasvagas","TodasVagas","national"],["jobs_eswatini","Jobs Eswatini","national"],["government_lesotho_jobs","Government Jobs Lesotho","institutional"]
+  ] as Array<[string,string,SourceType]>).map(([key,name,type])=>({key,name,type,status:"discovered" as const,enabled:false,countries:PAN_AFRICA,languages:["en","fr","pt","ar"],captureMode:"unknown" as const,renderRequired:false,priority:10,notes:"Découverte V3; URL, pays exacts et méthode d'accès à qualifier avant activation."})),
+];
+
+export function getSourceByKey(key:string): SourceDefinition | null {
+  return SOURCE_REGISTRY.find((source)=>source.key===key) ?? null;
+}
+
+export function getActiveSources(countryCode?:string): SourceDefinition[] {
+  return SOURCE_REGISTRY
+    .filter((source)=>source.enabled && source.status==="active" && (!countryCode || source.countries.includes(countryCode)))
+    .sort((a,b)=>b.priority-a.priority || a.name.localeCompare(b.name));
+}
+
+export function getDiscoveredSources(countryCode?:string): SourceDefinition[] {
+  return SOURCE_REGISTRY.filter((source)=>source.status==="discovered" && (!countryCode || source.countries.includes(countryCode)));
+}
+
+export function getRegistryStats() {
+  const active=SOURCE_REGISTRY.filter((s)=>s.status==="active");
+  const discovered=SOURCE_REGISTRY.filter((s)=>s.status==="discovered");
+  return {
+    countries: AFRICA_COUNTRIES.length,
+    sources: SOURCE_REGISTRY.length,
+    activeSources: active.length,
+    discoveredSources: discovered.length,
+    withUrl: SOURCE_REGISTRY.filter((s)=>Boolean(s.url)).length,
+    renderSources: SOURCE_REGISTRY.filter((s)=>s.renderRequired).length,
+    structuredSources: SOURCE_REGISTRY.filter((s)=>Boolean(s.structuredAdapter)).length,
+  };
+}
