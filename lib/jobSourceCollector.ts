@@ -4,6 +4,7 @@ import { extractApplicationSubject } from "./applicationSubject";
 import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription } from "./jobContent";
 import { normalizeJobContent } from "./jobNormalizer";
 import { renderPublicSource } from "./jobSourceRenderer";
+import { getActiveSources } from "../supabase/functions/discover-jobs/source-registry";
 
 type SourceConfig = {
   key: string;
@@ -11,6 +12,7 @@ type SourceConfig = {
   listingUrls: string[];
   hostnames: string[];
   offerPattern: RegExp;
+  generic?: boolean;
 };
 
 type CandidateLink = { url: string; title: string };
@@ -42,7 +44,7 @@ export type CollectedOffer = {
   captureMode: "browser" | "http" | "api" | "rss" | "unknown";
 };
 
-const SOURCES: SourceConfig[] = [
+const EXPLICIT_SOURCES: SourceConfig[] = [] = [
   // West Africa — validated public job channels. Keep patterns broad enough for
   // source redesigns, then rely on detail-page canonical validation downstream.
   { key: "jobivoire", name: "JobIvoire", listingUrls: ["https://www.jobivoire.ci/jobs"], hostnames: ["www.jobivoire.ci","jobivoire.ci"], offerPattern: /\/(?:jobs?|offres?|job)\/(?:[^/?#]+)(?:\/?|\?)/i },
@@ -56,8 +58,38 @@ const SOURCES: SourceConfig[] = [
   { key: "emploi_dakar", name: "EmploiDakar", listingUrls: ["https://www.emploidakar.com/"], hostnames: ["www.emploidakar.com","emploidakar.com"], offerPattern: /\/(?:offre|emploi|job)\/[^/?#]+/i },
   { key: "careers_sl", name: "Careers SL", listingUrls: ["https://careers.sl/"], hostnames: ["careers.sl","www.careers.sl"], offerPattern: /\/jobs?\/[^/?#]+/i },
   { key: "hrjobs_liberia", name: "HR Jobs Liberia", listingUrls: ["https://hrjobsliberia.com/"], hostnames: ["hrjobsliberia.com","www.hrjobsliberia.com"], offerPattern: /\/jobs?\/[^/?#]+/i },
-  { key: "malijob", name: "MaliJob", listingUrls: ["https://www.malijob.com/"], hostnames: ["www.malijob.com","malijob.com"], offerPattern: /\/(?:job|offre|emploi)\/[0-9a-z-]+/i },
+  { key: "malijob", name: "MaliJob", listingUrls: ["https://www.malijob.com/"], hostnames: ["www.malijob.com","malijob.com"], offerPattern: /\/(?:job|offre|emploi)\/[0-9a-z-]+/i }
+];
 
+
+
+const GENERIC_JOB_PATH = /\/(?:job|jobs|offre|offres|emploi|emplois|vacancy|vacancies|career|careers|position|positions|recruit|recruitment|listing|listings|opportunity|opportunities|work|announcements?|jobs-board)(?:[\/?#]|$)/i;
+const GENERIC_JOB_TITLE = /(?:job|jobs|emploi|emplois|offre|vacancy|vacancies|career|careers|position|positions|recruit|recruitment|opportunity|opportunities|consultant|manager|officer|assistant|engineer|teacher|driver|intern|internship|stage|technician|coordinator|director|analyst|accountant|sales|marketing|finance|human resources|hr|programme|project|chargé|responsable|directeur|ingénieur|enseignant|chauffeur|recrutement)/i;
+const NAV_TITLE = /^(?:home|accueil|about|about us|contact|contacts|login|sign in|register|sign up|privacy|terms|cookies|search|recherche|categories?|category|jobs?|offres?(?: d'emploi)?|careers?|career|companies|employers|candidates?|blog|news|actualités?|next|previous|suivant|précédent|page \d+)$/i;
+
+function buildRegistrySources(): SourceConfig[] {
+  const explicitKeys = new Set(EXPLICIT_SOURCES.map(source => source.key));
+  const registrySources: SourceConfig[] = getActiveSources()
+    .filter(source => source.url && source.countries.some(country => country !== "CM"))
+    .filter(source => !explicitKeys.has(source.key))
+    .map(source => {
+      let parsed: URL | null = null;
+      try { parsed = new URL(source.url!); } catch {}
+      if (!parsed) return null;
+      return {
+        key: source.key,
+        name: source.name,
+        listingUrls: [source.url!],
+        hostnames: Array.from(new Set([parsed.hostname.toLowerCase(), parsed.hostname.toLowerCase().replace(/^www\./, "")])),
+        offerPattern: GENERIC_JOB_PATH,
+        generic: true,
+      };
+    })
+    .filter((source): source is SourceConfig => Boolean(source));
+  return [...EXPLICIT_SOURCES, ...registrySources];
+}
+
+const SOURCES: SourceConfig[] = buildRegistrySources();
 
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
 const FETCH_TIMEOUT_MS = 6_000;
@@ -159,6 +191,11 @@ function extractLinks(html: string, baseUrl: string, source: SourceConfig): Cand
       const title = normalizeSpace(htmlToCleanText(match[2]));
       if (source.key === "infosconcourseducation") {
         if (!isRelevantInfosConcoursLink(parsed, title)) continue;
+      } else if (source.generic) {
+        const pathLooksLikeJob = source.offerPattern.test(parsed.pathname);
+        const titleLooksLikeJob = GENERIC_JOB_TITLE.test(title) && !NAV_TITLE.test(title);
+        if (!pathLooksLikeJob && !titleLooksLikeJob) continue;
+        if (NAV_TITLE.test(title)) continue;
       } else if (!source.offerPattern.test(parsed.pathname)) continue;
       if (title.length >= 4) out.push({url,title});
     } catch {}
