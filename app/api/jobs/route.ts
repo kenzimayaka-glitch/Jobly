@@ -205,17 +205,30 @@ export async function GET(request:NextRequest){
   });
   const companyIds=Array.from(new Set(unified.map(j=>j.companyId).filter(Boolean))) as string[];const companiesRes=companyIds.length?await supabase.from("Company").select("id,name,logoUrl,description,website,verified").in("id",companyIds):{data:[] as Company[],error:null};if(companiesRes.error)throw new Error(companiesRes.error.message);const companiesById=new Map((companiesRes.data as Company[]).map(c=>[c.id,c]));
   const ranked=unified.map(job=>{const {matchPercent,confidence,breakdown}=adaptiveMatch(profile,yearsExperience,experiences,skills,education,job,preferredLanguages);const company=job.companyId?companiesById.get(job.companyId):undefined;const publishedAt=job.publishedAt||job.createdAt;const expirationAt=platformExpiration(job.createdAt);return{source:job.source,id:job.sourceId,countryCode:job.countryCode,normalizedContent:job.normalizedContent||null,title:job.title,description:job.description,location:job.location,contractType:job.contractType,remoteMode:job.remoteMode,minExperienceYears:job.minExperienceYears,createdAt:job.createdAt,publishedAt,expirationAt:expirationAt?expirationAt.toISOString():null,deadline:job.deadline,sourceUrl:job.sourceUrl,sourcePlatform:job.sourcePlatform,applicationReady:Boolean(job.applicationReady),applicationProfile:job.applicationProfile,applicationCheckedAt:job.applicationCheckedAt,visualUrl:company?.logoUrl||null,visualSource:company?.logoUrl?"COMPANY_LOGO":null,company:(company&&!isGenericCompanyName(company.name))?{id:company.id,name:company.name,logoUrl:company.logoUrl,description:company.description,website:company.website,domain:companyDomain(company.website),verified:company.verified}:(!company&&job.companyName&&!isGenericCompanyName(job.companyName))?{id:null,name:job.companyName,logoUrl:null,description:null,website:null,domain:null,verified:false}:null,matchPercent,matchConfidence:confidence,matchBreakdown:breakdown,feedScore:matchPercent};}).sort((a,b)=>b.feedScore-a.feedScore||new Date(b.publishedAt).getTime()-new Date(a.publishedAt).getTime());
-  // Enforce lifecycle at read time as a safety net: no discovery offer remains
-  // visible beyond two months from its Jobly publication date (createdAt).
+  // Lifecycle rule:
+  // - without a clearly stated source deadline: disappear after 2 months;
+  // - with a clearly stated source deadline: remain discoverable after 2 months,
+  //   but become EXPIRED and cannot be treated as an active application.
   const staleIds = ranked.filter(job => {
     const expiresAt = platformExpiration(job.createdAt);
-    return expiresAt ? expiresAt.getTime() <= Date.now() : false;
+    return !job.deadline && expiresAt ? expiresAt.getTime() <= Date.now() : false;
   }).map(job => job.id).filter(Boolean);
   if (staleIds.length) {
     await supabase.from("Job").update({ isActive:false, updatedAt:new Date().toISOString() }).in("id", staleIds);
   }
   const visibleRanked = ranked.filter(job => !staleIds.includes(job.id));
-  const totalAvailable=visibleRanked.length;const start=(page-1)*limit;const results=visibleRanked.slice(start,start+limit).map(job=>({...job,deadlineExpired:deadlineExpired(job.deadline),offerStatus:deadlineExpired(job.deadline)?"EXPIRED":"ACTIVE"}));const matchingCount=visibleRanked.reduce((count,job)=>count+(job.matchPercent>=50?1:0),0);
+  const totalAvailable=visibleRanked.length;const start=(page-1)*limit;const results=visibleRanked.slice(start,start+limit).map(job=>{
+    const platformExpired=Boolean(job.expirationAt && new Date(job.expirationAt).getTime()<=Date.now());
+    const sourceDeadlineExpired=deadlineExpired(job.deadline);
+    const expired=platformExpired || sourceDeadlineExpired;
+    return {
+      ...job,
+      platformExpired,
+      deadlineExpired:sourceDeadlineExpired,
+      offerStatus:expired?"EXPIRED":"ACTIVE",
+      applicationReady:expired?false:Boolean(job.applicationReady),
+    };
+  });const matchingCount=visibleRanked.reduce((count,job)=>count+(job.matchPercent>=50?1:0),0);
   return NextResponse.json({totalAvailable,matchingCount,count:results.length,page,limit,hasMore:start+limit<totalAvailable,yearsExperience,preferredLanguages,jobs:results,market:{scope,countryCode:activeCountryCode,countryName:activeCountryCode?(countryNames[activeCountryCode]||"Pays sélectionné"):null,userCountryCode},matchingPolicy:{matchingThreshold:50,ordering:"match_then_publication",externalRequiresApplicationReady:true}});
  }catch(error){return NextResponse.json({message:error instanceof Error?error.message:"Impossible de charger les offres."},{status:500});}
 }
