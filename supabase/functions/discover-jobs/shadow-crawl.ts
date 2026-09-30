@@ -28,7 +28,7 @@ function descFrom(html:string){
   return clean(html).slice(0,12000);
 }
 function jobLike(title:string,desc:string){return title.length>=4 && /job|emploi|offre|poste|recrut|career|manager|assistant|agent|technicien|consultant|stage|intern|director|responsable|coordinator|chauffeur|commercial|engineer|specialist/i.test(title+" "+desc)}
-async function get(url:string){return await fetch(url,{redirect:"follow",headers:{"user-agent":"JOBLY-Africa-Harvest/2.0","accept":"text/html,application/xhtml+xml,application/json"}})}
+async function get(url:string){return await fetch(url,{redirect:"follow",signal:AbortSignal.timeout(10000),headers:{"user-agent":"JOBLY-Africa-Harvest/2.0","accept":"text/html,application/xhtml+xml,application/json"}})}
 
 async function crawl(countryCode:string):Promise<Metric[]>{
   const results:Metric[]=[];
@@ -47,16 +47,22 @@ async function crawl(countryCode:string):Promise<Metric[]>{
         next=pager||"";
         if(!r.ok){error=`HTTP ${r.status}`;break}
       }
-      for(const u of [...new Set(detailUrls)].slice(0,10)){
+      const detailResults = await Promise.all([...new Set(detailUrls)].slice(0,10).map(async (u)=>{
         try{
-          const r=await get(u); detailChecked++;
-          if(!r.ok)continue;
-          const html=await r.text(); freshSignals+=fresh(html);
+          const r=await get(u);
+          if(!r.ok)return {fresh:0,extracted:0,eligible:0,title:""};
+          const html=await r.text();
           const ld=jsonLdJobs(html);
           const title=clean(ld[0]?.title||titleFrom(html)); const desc=descFrom(html);
-          if(ld.length) extracted+=ld.length;
-          if(jobLike(title,desc)){eligible++; if(samples.length<5 && title)samples.push(title)}
-        }catch{}
+          return {fresh:fresh(html),extracted:ld.length,eligible:jobLike(title,desc)?1:0,title};
+        }catch{return {fresh:0,extracted:0,eligible:0,title:""}}
+      }));
+      detailChecked += detailResults.length;
+      for(const item of detailResults){
+        freshSignals += item.fresh;
+        extracted += item.extracted;
+        eligible += item.eligible;
+        if(item.title && samples.length<5)samples.push(item.title);
       }
       if(extracted===0) extracted=Math.min(detailChecked,discovered);
       if(eligible===0 && discovered>0) eligible=Math.min(detailChecked,discovered);
@@ -68,7 +74,8 @@ async function crawl(countryCode:string):Promise<Metric[]>{
 
 const countries=(Deno.args.length?Deno.args:["CM"]).map(x=>x.toUpperCase());
 const started=Date.now(); const metrics:Metric[]=[];
-for(const country of countries) metrics.push(...await crawl(country));
+const countryResults = await Promise.all(countries.map((country)=>crawl(country)));
+for(const batch of countryResults) metrics.push(...batch.flat());
 const summary={
   generatedAt:new Date().toISOString(),mode:"SHADOW_HARVEST",publication:false,deployment:false,
   countries,sources:metrics.length,accessible:metrics.filter(x=>x.httpStatus!==null&&x.httpStatus<400).length,
