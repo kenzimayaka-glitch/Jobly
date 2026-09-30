@@ -7,19 +7,6 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch:
-    inputs:
-      sources:
-        description: "Optional comma-separated source keys; empty = every active registry source"
-        required: false
-        default: ""
-      countries:
-        description: "Optional country codes for reporting/filtering"
-        required: false
-        default: ""
-
-permissions:
-  contents: read
 
 jobs:
   harvest:
@@ -52,14 +39,9 @@ jobs:
           curl -fsS http://127.0.0.1:3000/ >/dev/null
       - name: Resolve active Africa sources
         id: sources
-        env:
-          SOURCES_INPUT: ${{ inputs.sources }}
         run: |
           set -euo pipefail
-          SOURCES="${SOURCES_INPUT:-}"
-          if [ -z "$SOURCES" ]; then
-            SOURCES="$(node scripts/africa-active-source-keys.mjs)"
-          fi
+          SOURCES="$(node scripts/africa-active-source-keys.mjs)"
           echo "sources=$SOURCES" >> "$GITHUB_OUTPUT"
           echo "Resolved $(echo "$SOURCES" | tr ',' '\n' | wc -l) active sources."
       - name: Harvest every active source
@@ -89,17 +71,18 @@ jobs:
             node - "$file" <<'NODE'
 const fs = require("node:fs");
 const d = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
-console.log(JSON.stringify({source:d.source,discovered:d.discovered,inserted:d.inserted ?? d.created ?? 0,updated:d.updated,skipped:d.skipped,rejectedStale:d.rejectedStale,errors:d.errors}));
+console.log(JSON.stringify({
+  source: d.source,
+  discovered: d.discovered,
+  inserted: d.inserted ?? d.created ?? 0,
+  updated: d.updated ?? 0,
+  skipped: d.skipped ?? 0,
+  rejectedStale: d.rejectedStale ?? 0
+}));
 NODE
           done
           printf "%s\n" "$failed" > harvest-results/_failed_sources.txt
           if [ "$failed" -gt 0 ]; then exit 1; fi
-      - name: Database harvest audit
-        if: always()
-        run: |
-          node - <<'NODE'
-          console.log("Africa harvest run completed. Verify country/source totals from the uploaded result files.");
-          NODE
       - name: Upload harvest report
         if: always()
         uses: actions/upload-artifact@v4
