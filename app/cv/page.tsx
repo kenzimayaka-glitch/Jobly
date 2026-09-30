@@ -95,19 +95,19 @@ function CvStudioContent() {
       body.append("file", file);
       let response = await fetch("/api/talent/cv/import", {
         method: "POST",
-        headers: { Authorization: \`Bearer \${token}\` },
+        headers: { Authorization: `Bearer ${token}` },
         body,
       });
       if (response.status === 401) {
         const refreshed = await supabase.auth.refreshSession();
         token = refreshed.data.session?.access_token || null;
-        if (token) response = await fetch("/api/talent/cv/import", { method: "POST", headers: { Authorization: \`Bearer \${token}\` }, body });
+        if (token) response = await fetch("/api/talent/cv/import", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body });
       }
 
       const text = await response.text();
       let result: any = {};
       try { result = text ? JSON.parse(text) : {}; }
-      catch { throw new Error(\`Le serveur a renvoyé une réponse invalide au lieu du JSON attendu (HTTP \${response.status}).\`); }
+      catch { throw new Error(`Le serveur a renvoyé une réponse invalide au lieu du JSON attendu (HTTP ${response.status}).`); }
       if (!response.ok) throw new Error(result?.message || "Impossible d’analyser le CV.");
       setCv((current) => ({ ...current, ...result.cv }));
       setMessage("CV importé. Vérifiez et corrigez les informations avant de générer votre version finale.");
