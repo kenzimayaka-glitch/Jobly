@@ -91,7 +91,7 @@ function contractType(text,j){
   const m=String(text).match(/(?:type de contrat|contrat|employment type)\s*[:：-]\s*(CDI|CDD|Stage|Temps[- ]plein|Temps[- ]partiel)/i);
   return m?.[1]||null;
 }
-const applicationContactSignal=/(?:[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}|(?:\\+?237[\\s.-]?[6-9]\\d{2}[\\s.-]?\\d{3}[\\s.-]?\\d{3}|6[5-9]\\d{7})|https?:\\/\\/)/i;
+const applicationContactSignal=/(?:[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|(?:\+?237[\s.-]?[6-9]\d{2}[\s.-]?\d{3}[\s.-]?\d{3}|6[5-9]\d{7})|https?:\/\/)/i;
 function tokenSet(value){return new Set(norm(value).split(/\\s+/).filter(Boolean));}
 function semanticSimilarity(a,b){
   const x=norm(a),y=norm(b);
