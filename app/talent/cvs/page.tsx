@@ -107,11 +107,11 @@ export default function TalentCVs() {
     try {
       const next = { ...cv, ats, createdAt: cv.createdAt || new Date().toISOString(), name: cv.name || "Mon CV Jobly" };
       const token = await getAccessToken();
-      if (token) {
+      if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi avant d’enregistrer ton CV.");
+      {
         const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
         const profileRes = await fetch("/api/profile", { method: "PUT", headers, body: JSON.stringify({ section: "profil", displayName: next.fullName, phone: next.phone, headline: next.headline, summary: next.summary })});
         if (!profileRes.ok) throw new Error((await profileRes.json().catch(() => ({}))).message || "Le profil Jobly n’a pas pu être synchronisé.");
-        if (Array.isArray(next.skills)) {}
         const skillsRes = await fetch("/api/profile", { method: "PUT", headers, body: JSON.stringify({ section: "skills", skills: next.skills.split(",").map(name => ({ name: name.trim() })).filter(x => x.name) })});
         if (!skillsRes.ok) throw new Error("Les compétences n’ont pas pu être synchronisées.");
         if (originalFile) {
@@ -124,7 +124,7 @@ export default function TalentCVs() {
       }
       const all = [next, ...cvs.filter(x => x.id !== next.id)];
       setCvs(all); localStorage.setItem(KEY, JSON.stringify(all)); setCv(next);
-      setMessage(token ? "CV enregistré : version Jobly, données de profil et document original sont conservés." : "CV enregistré localement. Connecte-toi pour conserver le document original et synchroniser ton profil.");
+      setMessage("CV enregistré : version Jobly, données de profil et document original sont conservés.");
     } catch (err) { setMessage(err instanceof Error ? err.message : "Enregistrement impossible."); }
     finally { setBusy(false); }
   }
