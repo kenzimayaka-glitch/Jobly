@@ -110,7 +110,7 @@ jobs:
           print(f"Validated harvest candidates: {len(candidates)}")
           PY
       - name: Push candidates to JobHarvestCapture
-        if: github.event_name == 'schedule' || github.ref == 'refs/heads/main'
+        if: github.event_name == 'schedule' || github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
         env:
           INGEST_URL: ${{ secrets.JOBLY_HARVEST_INGEST_URL }}
           INGEST_SECRET: ${{ secrets.JOB_SOURCE_INGEST_SECRET }}
