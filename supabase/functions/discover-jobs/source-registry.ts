@@ -72,6 +72,12 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
 
 // Central Africa V1 — sources qualified during the country-by-country web audit.
 // Cameroon is intentionally excluded from this rollout.
+const CENTRAL_AFRICA_INTERNATIONAL: SourceDefinition[] = [
+  {key:"reliefweb",name:"ReliefWeb Jobs",type:"institutional",status:"active",enabled:true,url:"https://reliefweb.int/jobs",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"http",renderRequired:false,priority:80},
+  {key:"unjobs",name:"UNjobs",type:"institutional",status:"active",enabled:true,url:"https://unjobs.org/",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"http",renderRequired:false,priority:80},
+  {key:"impactpool",name:"Impactpool",type:"specialized",status:"active",enabled:true,url:"https://www.impactpool.org/jobs",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"http",renderRequired:true,priority:70}
+];
+
 const CENTRAL_AFRICA_SOURCES: SourceDefinition[] = [
   {key:"acfpe_cf",name:"ACFPE Centrafrique",type:"institutional",status:"active",enabled:true,url:"https://acfpe.info/offre_emplois/index/25",countries:["CF"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
   {key:"ktzemploi_cf",name:"KTZ Emploi RCA",type:"national",status:"active",enabled:true,url:"https://ktzemploi.com/emplois",countries:["CF"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
@@ -98,7 +104,7 @@ const CENTRAL_AFRICA_SOURCES: SourceDefinition[] = [
   {key:"mae_bi",name:"Ministère des Affaires étrangères du Burundi — Offres d'emplois",type:"institutional",status:"active",enabled:true,url:"https://www.mae.gov.bi/category/offres-demplois/",countries:["BI"],languages:["fr"],captureMode:"http",renderRequired:false,priority:90}
 ];
 
-for (const override of CENTRAL_AFRICA_SOURCES) {
+for (const override of [...CENTRAL_AFRICA_INTERNATIONAL, ...CENTRAL_AFRICA_SOURCES]) {
   const index = SOURCE_REGISTRY.findIndex((source) => source.key === override.key);
   if (index >= 0) SOURCE_REGISTRY[index] = override;
   else SOURCE_REGISTRY.push(override);
