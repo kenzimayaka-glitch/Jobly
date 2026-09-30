@@ -3902,3 +3902,62 @@ Une fonctionnalité n'est pas « finie » parce qu'elle compile. Elle est finie 
 | Déploiement Vercel sans contournement du contrôle utilisateur | 🟢 RÈGLE FIGÉE | Respect permanent |
 
 **Cette liste doit être mise à jour à chaque nouvelle résolution ou nouvelle demande persistante.**
+
+
+# CHECKPOINT 30/09/2026 — DUPLICATION V2 / VOCABULAIRE CONTEXTUEL
+
+## Décision méthodologique figée
+
+Le contrôle DUPLICATION ne doit plus assimiler la présence d'un même mot dans plusieurs sections à une duplication.
+
+Le nouveau protocole distingue :
+
+1. L1 — lexical : même mot → aucune alerte ;
+2. L2 — sémantique : expression proche → analyse du contexte ;
+3. L3 — informationnel : même information → duplication potentielle ;
+4. L4 — propriété : résolution de la section propriétaire.
+
+Une entrée du vocabulaire suit :
+
+expression → catégorie naturelle → catégories compatibles → catégories interdites → priorité → déclencheurs contextuels → exceptions.
+
+### Règle importante
+
+Un terme peut avoir plusieurs catégories légitimes.
+
+Exemple : diplôme appartient naturellement à EDUCATION, mais une phrase telle que « envoyer une copie du diplôme » appartient à APPLICATION grâce aux déclencheurs contextuels « envoyer / copie / joindre / fournir / dossier / candidature ».
+
+### Statut de la source Infos Concours Education
+
+Infos Concours Education n'est pas considérée comme une source fautive par principe.
+
+Ses contenus doivent être analysés avec exactement les mêmes règles de granularité et de propriété que les autres sources.
+
+### Périmètre immédiat
+
+Le prochain contrôle doit reprendre les 132 offres déjà signalées DUPLICATION, sans relancer inutilement les 254 offres.
+
+Objectif : répartir les 132 cas entre :
+
+- NO_DUPLICATION — faux positif lexical/contextuel ;
+- CONTEXT_ANALYSIS — cas nécessitant une analyse complémentaire ;
+- DUPLICATION_CANDIDATE — même information probablement répétée ;
+- DUPLICATION_CONFIRMED — même information confirmée après résolution de propriété.
+
+Aucune suppression ou modification des offres ne doit intervenir pendant cette passe.
+
+### Artefact de référence
+
+Le vocabulaire et les règles sont documentés dans :
+
+docs/OFFER-DUPLICATION-V2.md
+
+### État de vérité
+
+🟦 MÉTHODE DÉFINIE — V2 PRÊTE POUR APPLICATION AUX 132 CAS — AUCUNE DONNÉE MODIFIÉE.
+
+Règle de continuité :
+
+ANALYSER → CLASSER → VÉRIFIER → CORRIGER UNIQUEMENT APRÈS CONFIRMATION.
+
+Aucun déploiement Vercel n'est déclenché par ce checkpoint.
