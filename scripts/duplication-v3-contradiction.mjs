@@ -54,11 +54,12 @@ function analyze(input){
     const discCount=[titleSame,companySame,locSame,urlSame].filter(Boolean).length;
     const sectionMismatch=matches.some(m=>m.rel==="INCOMPATIBLE");
     const isNonSubstantiveSection=s=>NON_SUBSTANTIVE.has(s)||s.startsWith("application_")||s.startsWith("deadline_");
+    const isNonSubstantiveUnit=u=>isNonSubstantiveSection(u.section)||/(^|\\.)(application|candidature|postuler|contact|deadline|date_limite|cloture)([.\\[]|$)/.test(String(u.path||""));
     const isBoilerplateMatch=m=>m.x.boilerplate>=2||m.y.boilerplate>=2;
-    const substantive=matches.filter(m=>!isNonSubstantiveSection(m.x.section)&&!isNonSubstantiveSection(m.y.section)&&!isBoilerplateMatch(m));
-    const substantiveExact=exact.filter(m=>!isNonSubstantiveSection(m.x.section)&&!isNonSubstantiveSection(m.y.section)&&!isBoilerplateMatch(m));
+    const substantive=matches.filter(m=>!isNonSubstantiveUnit(m.x)&&!isNonSubstantiveUnit(m.y)&&!isBoilerplateMatch(m));
+    const substantiveExact=exact.filter(m=>!isNonSubstantiveUnit(m.x)&&!isNonSubstantiveUnit(m.y)&&!isBoilerplateMatch(m));
     const boilerplateMatches=matches.filter(m=>m.x.boilerplate>=2||m.y.boilerplate>=2);
-    const onlyNonSubstantive=matches.length>0&&matches.every(m=>isNonSubstantiveSection(m.x.section)&&isNonSubstantiveSection(m.y.section));
+    const onlyNonSubstantive=matches.length>0&&matches.every(m=>isNonSubstantiveUnit(m.x)&&isNonSubstantiveUnit(m.y));
     const onlyBoilerplate=matches.length>0&&matches.every(isBoilerplateMatch);
     let cls="REVIEW",decision="REVIEW",confidence="LOW",reason="Similarité sans preuve suffisante pour conclure.";
     if(onlyBoilerplate){
