@@ -189,7 +189,9 @@ export default function TalentCVs() {
     }
     setBusy(true); setMessage("Préparation du CV ATS…");
     try {
-      const res = await fetch("/api/talent/cv/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cv: { ...cv, skills: cv.skills.split(",").map(x => x.trim()).filter(Boolean) }, ...(paymentId ? { paymentId } : {}) }) });
+      const token = await getAccessToken();
+      if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
+      const res = await fetch("/api/talent/cv/export", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ cv: { ...cv, skills: cv.skills.split(",").map(x => x.trim()).filter(Boolean) }, ...(paymentId ? { paymentId } : {}) }) });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Téléchargement impossible.");
