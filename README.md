@@ -1589,3 +1589,28 @@ Le code, la base, les tests E2E et le déploiement sont suivis séparément : un
 - **Aucune promotion production n'est déclarée à ce stade.**
 - Les deux dernières validations fonctionnelles (paiement → abonnement → entitlements/quota/idempotence, puis applications) restent ouvertes jusqu'à obtention d'un build final réussi et de tests vérifiables.
 - Règle active : ne jamais transformer un correctif codé en validation tant que le déploiement et le test cible ne sont pas confirmés.
+
+
+# CHECKPOINT 30/09/2026 — DUPLICATION V3 / GRANULARITÉ + CONTRADICTION
+
+La détection historique DUPLICATION est désormais cadrée par une architecture V3 conservatrice.
+
+- Référence analytique: les 254 offres du contrôle historique restent la population de comparaison.
+- Nouvelle unité: offre → section → unité sémantique → valeur normalisée → vocabulaire → relation → contradiction → décision.
+- Un mot commun ne déclenche plus une duplication.
+- Les vocabulaires sont contextuels et peuvent se chevaucher entre sections.
+- Les blocs récurrents d'une même source sont traités comme candidats TEMPLATE_REUSE avant toute conclusion.
+- Les fuites entre sections incompatibles deviennent CROSS_SECTION_LEAK.
+- Les offres fortement convergentes deviennent DUPLICATE_OFFER seulement après contre-vérification des champs discriminants.
+- Les cas ambigus deviennent REVIEW.
+- Infos Concours Education reste explicitement dans le périmètre; aucune source n'est exclue par principe.
+
+### Livrables de cette passe
+- docs/DUPLICATION-V3-ARCHITECTURE.md
+- scripts/duplication-v3.mjs
+
+### Garde-fous
+Cette passe n'a modifié aucune donnée JOBLY-PROD, n'a pas touché main et n'a déclenché aucun déploiement.
+
+### Prochaine étape obligatoire
+Exécuter le moteur V3 sur exactement les 254 offres de référence, produire la ventilation complète par sourceKey / section / classe, puis examiner les cas où V3 contredit le legacy flag.
