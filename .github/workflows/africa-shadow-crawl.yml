@@ -10,6 +10,9 @@ on:
   push:
     branches:
       - feat/africa-central-sources-v1
+  pull_request:
+    branches:
+      - main
     paths:
       - "supabase/functions/discover-jobs/source-registry.ts"
       - "supabase/functions/discover-jobs/source-engine.ts"
