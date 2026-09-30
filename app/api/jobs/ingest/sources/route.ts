@@ -16,7 +16,7 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 async function authorized(request: NextRequest): Promise<boolean> {
   const configured = process.env.CRON_SECRET || process.env.JOB_SOURCE_INGEST_SECRET;
@@ -156,24 +156,28 @@ async function runWithConcurrency<T>(
   items: T[],
   concurrency: number,
   worker: (item: T) => Promise<void>,
-): Promise<{ failed: number }> {
+): Promise<{ failed: number; errorReasons: Record<string, number> }> {
   let cursor = 0;
   let failed = 0;
+  const errorReasons: Record<string, number> = {};
   async function runWorker() {
     while (true) {
       const index = cursor++;
       if (index >= items.length) return;
       try {
         await worker(items[index]);
-      } catch {
+      } catch (error) {
         failed++;
+        const message = error instanceof Error ? error.message : String(error);
+        const reason = message.replace(/\s+/g, " ").trim().slice(0, 240) || "unknown_error";
+        errorReasons[reason] = (errorReasons[reason] || 0) + 1;
       }
     }
   }
   await Promise.all(
     Array.from({ length: Math.min(concurrency, items.length) }, () => runWorker()),
   );
-  return { failed };
+  return { failed, errorReasons };
 }
 
 export async function POST(request: NextRequest) {
@@ -197,7 +201,7 @@ export async function POST(request: NextRequest) {
         .range(offset, offset + batchSize - 1);
       if (error) throw new Error(error.message);
 
-      let processed = 0, updated = 0, skipped = 0;
+      let processed = 0, updated = 0, skipped = 0, quarantined = 0;
       await runWithConcurrency(rows || [], 3, async (row) => {
         if (!row.sourceUrl || !row.sourceKey) { skipped++; return; }
         const offer = await recollectOfferByUrl(row.sourceKey, row.sourceUrl, row.title);
@@ -223,7 +227,7 @@ export async function POST(request: NextRequest) {
         const canonicalDescription = normalizedContent.description.join("\n\n") || prepared.extractedDescription;
         await saveOfferPipeline(supabase, row.id, offer, normalizedContent, prepared.extractedDescription);
         if (!canonicalIsPublishable(normalizedContent)) {
-          skipped++;
+          quarantined++;
           return;
         }
 
@@ -243,7 +247,7 @@ export async function POST(request: NextRequest) {
         }
 
         const contentHash = crypto.createHash("sha256")
-          .update([normalizedContent.title || offer.title, canonicalDescription, offer.location || "", offer.contractType || ""].join("\n"))
+          .update([normalizedContent.title || offer.title, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
           .digest("hex");
         const contact = offer.applicationProfile;
         const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
@@ -317,12 +321,9 @@ export async function POST(request: NextRequest) {
           deactivated++; processed++; return;
         }
         if (isPlatformExpired(row.createdAt, now)) {
-          const refreshed = await recollectOfferByUrl(row.sourceKey, row.sourceUrl, row.title);
-          if (!refreshed?.deadline) {
-            const result = await supabase.from("Job").update({ isActive: false, updatedAt: now.toISOString(), lastSeenAt: now.toISOString() }).eq("id", row.id);
+          const result = await supabase.from("Job").update({ isActive: false, updatedAt: now.toISOString(), lastSeenAt: now.toISOString() }).eq("id", row.id);
           if (result.error) throw new Error(result.error.message);
-            deactivated++; processed++; return;
-          }
+          deactivated++; processed++; return;
         }
         const offer = await recollectOfferByUrl(row.sourceKey, row.sourceUrl, row.title);
         if (!offer) { skipped++; return; }
@@ -349,7 +350,7 @@ export async function POST(request: NextRequest) {
           return;
         }
         const cleanedContentHash = crypto.createHash("sha256")
-          .update([normalizedContent.title || offer.title, canonicalDescription, offer.location || "", offer.contractType || ""].join("\n"))
+          .update([normalizedContent.title || offer.title, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
           .digest("hex");
         const contact = offer.applicationProfile;
         const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
@@ -367,7 +368,7 @@ export async function POST(request: NextRequest) {
           deadline: offer.deadline,
           contentHash: cleanedContentHash,
           lastSeenAt: now.toISOString(),
-          isActive: !isPlatformExpired(row.createdAt, now) || Boolean(offer.deadline),
+          isActive: !isPlatformExpired(row.createdAt, now),
           applicationReady,
           applicationProfile: contact,
           applicationCheckedAt: now.toISOString(),
@@ -398,10 +399,20 @@ export async function POST(request: NextRequest) {
     const sourceKey = url.searchParams.get("source")?.trim() || undefined;
     const { offers, sources } = await collectPublicJobSources(sourceKey);
     const nowIso = now.toISOString();
-    let created = 0, updated = 0, skipped = 0;
+    let created = 0, updated = 0, skipped = 0, rejectedStale = 0, quarantined = 0;
 
     const ingestResult = await runWithConcurrency(offers, INGEST_CONCURRENCY, async (offer) => {
       const source = sourceDisplayName(offer.sourceKey);
+      // Strict freshness gate: an offer already older than two months at the
+      // moment of import must never enter Jobly. If the source provides a
+      // publication date, it is the authoritative pre-ingestion freshness check.
+      if (offer.publishedAt) {
+        const publishedAt = new Date(offer.publishedAt);
+        if (Number.isFinite(publishedAt.getTime()) && isPlatformExpired(publishedAt.toISOString(), now)) {
+          rejectedStale++;
+          return;
+        }
+      }
       const countryCode = inferCountryCode(offer);
       const languageText = [offer.title, offer.description, offer.location].filter(Boolean).join(" ");
       const detectedLanguage = detectJobLanguage(languageText, null);
@@ -432,17 +443,12 @@ export async function POST(request: NextRequest) {
         const existingCompany = await supabase.from("Company").select("id").ilike("name", companyName).limit(1).maybeSingle();
         if (existingCompany.error) throw new Error(existingCompany.error.message);
         companyId = existingCompany.data?.id || null;
-        if (!companyId) {
-          const createdCompany = await supabase.from("Company").insert({
-            name: companyName,
-            verified: false,
-            description: null,
-            website: offer.companyWebsite,
-            logoUrl: offer.logoUrl,
-          }).select("id").single();
-          if (createdCompany.error) throw new Error(createdCompany.error.message);
-          companyId = createdCompany.data.id;
-        }
+        // Do not make company creation a prerequisite for importing an offer.
+        // High-volume harvesting can surface the same company concurrently;
+        // a uniqueness race here used to turn otherwise valid offers into
+        // silent "skipped" worker failures. The offer keeps its canonical
+        // company name and can be linked to a Company on a later enrichment pass.
+        if (!companyId) companyId = null;
       }
 
 
@@ -459,18 +465,6 @@ export async function POST(request: NextRequest) {
       // must be treated as a second idempotency key when externalId/sourceKey
       // changed between collector versions.
       let existing = existingByIdentity;
-      // Cross-source identity: the same canonical offer must retain its
-      // original Jobly publication date. This prevents a second source from
-      // resetting the two-month lifecycle.
-      if (!existing.data?.id && cleanedContentHash) {
-        const existingByContent = await supabase.from("Job")
-          .select("id,contentHash,createdAt,aiProcessed,aiProcessedAt")
-          .eq("contentHash", cleanedContentHash)
-          .limit(1)
-          .maybeSingle();
-        if (existingByContent.error) throw new Error(existingByContent.error.message);
-        if (existingByContent.data?.id) existing = existingByContent;
-      }
       if (!existing.data?.id && offer.sourceUrl) {
         const existingBySourceUrl = await supabase.from("Job")
           .select("id,contentHash,createdAt,aiProcessed,aiProcessedAt")
@@ -500,7 +494,7 @@ export async function POST(request: NextRequest) {
         contentHash: cleanedContentHash,
         sourcePublishedAt: offer.publishedAt,
         lastSeenAt: nowIso,
-        isActive: existing.data ? (!isPlatformExpired(existing.data.createdAt, now) || Boolean(offer.deadline)) : true,
+        isActive: existing.data ? !isPlatformExpired(existing.data.createdAt, now) : true,
         deadline: offer.deadline,
         applicationReady,
         applicationProfile: contact,
@@ -529,7 +523,7 @@ export async function POST(request: NextRequest) {
       if (existing.data?.id) {
         await saveOfferPipeline(supabase, existing.data.id, offer, normalizedContent, prepared.extractedDescription);
         if (!canonicalIsPublishable(normalizedContent)) {
-          skipped++;
+          quarantined++;
           return;
         }
         const contentChanged = existing.data.contentHash !== cleanedContentHash;
@@ -573,6 +567,11 @@ export async function POST(request: NextRequest) {
       created,
       updated,
       skipped: ingestResult.failed,
+      failed: ingestResult.failed,
+      failureReasons: ingestResult.errorReasons,
+      quarantined,
+      rejectedStale,
+      inserted: created,
       ranAt: now,
     });
   } catch (error) {

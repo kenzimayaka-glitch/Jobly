@@ -4,6 +4,7 @@ import { extractApplicationSubject } from "./applicationSubject";
 import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription } from "./jobContent";
 import { normalizeJobContent } from "./jobNormalizer";
 import { renderPublicSource } from "./jobSourceRenderer";
+import { getActiveSources } from "../supabase/functions/discover-jobs/source-registry";
 
 type SourceConfig = {
   key: string;
@@ -11,6 +12,7 @@ type SourceConfig = {
   listingUrls: string[];
   hostnames: string[];
   offerPattern: RegExp;
+  countryCode?: string;
 };
 
 type CandidateLink = { url: string; title: string };
@@ -40,6 +42,7 @@ export type CollectedOffer = {
   renderedHtml: string;
   extractedText: string;
   captureMode: "browser" | "http" | "api" | "rss" | "unknown";
+  countryCode?: string;
 };
 
 const SOURCES: SourceConfig[] = [
@@ -57,11 +60,40 @@ const SOURCES: SourceConfig[] = [
   { key: "careers_sl", name: "Careers SL", listingUrls: ["https://careers.sl/"], hostnames: ["careers.sl","www.careers.sl"], offerPattern: /\/jobs?\/[^/?#]+/i },
   { key: "hrjobs_liberia", name: "HR Jobs Liberia", listingUrls: ["https://hrjobsliberia.com/"], hostnames: ["hrjobsliberia.com","www.hrjobsliberia.com"], offerPattern: /\/jobs?\/[^/?#]+/i },
   { key: "malijob", name: "MaliJob", listingUrls: ["https://www.malijob.com/"], hostnames: ["www.malijob.com","malijob.com"], offerPattern: /\/(?:job|offre|emploi)\/[0-9a-z-]+/i },
+];
 
+const REGISTRY_GENERIC_PATTERN = /\/(?:jobs?|offres?|emploi|vacancy|career|position|recruit|listing|opportunity|work|announcements|jobs-board)\/[^?#]*/i;
+const REGISTRY_GENERIC_TITLE = /\b(job|jobs|emploi|emplois|vacancy|vacancies|career|careers|position|recruit|recruitment|opportunit|offre|offres)\b/i;
+
+function buildRegistrySources(): SourceConfig[] {
+  const explicit = new Set(SOURCES.map(source => source.key));
+  const explicitHosts = new Set(SOURCES.flatMap(source => source.hostnames));
+  return getActiveSources()
+    .filter(source => source.url && !explicit.has(source.key))
+    .flatMap(source => {
+      try {
+        const parsed = new URL(source.url!);
+        if (explicitHosts.has(parsed.hostname.toLowerCase())) return [];
+        return [{
+          key: source.key,
+          name: source.name,
+          listingUrls: [source.url!],
+          hostnames: [parsed.hostname.toLowerCase()],
+          offerPattern: REGISTRY_GENERIC_PATTERN,
+          countryCode: source.countries.length === 1 ? source.countries[0] : undefined,
+        }];
+      } catch {
+        return [];
+      }
+    });
+}
+
+const REGISTRY_SOURCES = buildRegistrySources();
+const ALL_SOURCES = [...SOURCES, ...REGISTRY_SOURCES];
 
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
 const FETCH_TIMEOUT_MS = 6_000;
-const MAX_LISTING_PAGES_SAFETY = 5000;
+const MAX_LISTING_PAGES_SAFETY = Number(process.env.JOB_HARVEST_MAX_LISTING_PAGES_SAFETY || 5000);
 const SOURCE_FETCH_CONCURRENCY = 6;
 const MAX_DESCRIPTION_CHARS = 30_000;
 
@@ -171,14 +203,9 @@ function pageLinks(html: string, baseUrl: string, source: SourceConfig): string[
   let match: RegExpExecArray | null;
   while ((match = re.exec(html))) {
     const label = normalizeSpace(htmlToCleanText(match[2]));
-    const href = decodeEntities(match[1]);
-    const relNext = /\brel=["'][^"']*next[^"']*["']/i.test(match[0]);
-    const nextLabel = /^(?:next|suivant|suivante|page suivante|»|›|→)$/i.test(label);
-    const numeric = /^\d{1,5}$/.test(label);
-    const pagedHref = /(?:[?&](?:page|paged|p)=\d+|\/page\/\d+\/?(?:$|[?#]))/i.test(href);
-    if (!relNext && !nextLabel && !numeric && !pagedHref) continue;
+    if (!/^([2-9]|10)$/.test(label) && !/^(next|»|suivant)$/i.test(label)) continue;
     try {
-      const url = new URL(href,baseUrl).toString();
+      const url = new URL(decodeEntities(match[1]),baseUrl).toString();
       if (source.hostnames.includes(new URL(url).hostname.toLowerCase())) out.push(url);
     } catch {}
   }
@@ -531,6 +558,7 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
     renderedHtml: html.slice(0, 2_000_000),
     extractedText: clean,
     captureMode: resolvedCaptureMode,
+    countryCode: source.countryCode,
   };
 }
 
@@ -579,14 +607,10 @@ async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
       try {
         const html = await fetchHtml(current);
         for (const candidate of extractLinks(html,current,source)) candidates.set(candidate.url,candidate);
-        const nextPages = pageLinks(html,current,source).filter(x => !seenPages.has(x));
-        current = nextPages.find(x => !candidates.has(x)) || nextPages[0] || "";
+        current = pageLinks(html,current,source).find(x=>!seenPages.has(x)) || "";
       } catch { current=""; }
     }
   }
-  // No offer-count ceiling: every unique candidate discovered through source
-  // pagination is eligible for collection. The crawler stops on exhaustion,
-  // repeated pages, or technical failure; the page bound is only a loop guard.
   const candidatesToFetch = Array.from(candidates.values());
   const results = await mapWithConcurrency(candidatesToFetch, SOURCE_FETCH_CONCURRENCY, async (candidate) => {
     const capture = await fetchOfferCapture(candidate.url);
@@ -602,7 +626,7 @@ async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
 }
 
 export async function recollectOfferByUrl(sourceKey: string, url: string, listingTitle = ""): Promise<CollectedOffer | null> {
-  const source = SOURCES.find(item => item.key === sourceKey);
+  const source = ALL_SOURCES.find(item => item.key === sourceKey);
   if (!source || !url) return null;
   try {
     const parsed = new URL(url);
@@ -622,8 +646,8 @@ export async function recollectOfferByUrl(sourceKey: string, url: string, listin
 
 export async function collectPublicJobSources(sourceKey?: string) {
   const selectedSources = sourceKey
-    ? SOURCES.filter(source => source.key === sourceKey)
-    : SOURCES;
+    ? ALL_SOURCES.filter(source => source.key === sourceKey)
+    : ALL_SOURCES;
   const results = await Promise.all(selectedSources.map(async source => {
     try {
       const found = await collectSource(source);
