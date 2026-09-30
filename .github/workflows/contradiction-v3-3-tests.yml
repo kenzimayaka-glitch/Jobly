@@ -1,0 +1,100 @@
+name: Contradictory V3 — 3 parallel tests
+
+on:
+  push:
+    branches:
+      - analysis/contradiction-3-tests-20260930
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  JOB_RENDERER_URL: ${{ secrets.JOB_RENDERER_URL }}
+  JOB_RENDERER_TOKEN: ${{ secrets.JOB_RENDERER_TOKEN }}
+  JOB_RENDERER_WAIT_MS: ${{ secrets.JOB_RENDERER_WAIT_MS }}
+  AUDIT_LIMIT: "1000"
+  AUDIT_CONCURRENCY: "5"
+
+jobs:
+  prepare:
+    name: Prepare one reference audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Run reference offer audit once
+        run: node scripts/offer-pipeline-audit.mjs
+      - name: Run V3 analysis once
+        run: |
+          node scripts/duplication-v3-contradiction.mjs --self-test
+          node scripts/duplication-v3-contradiction.mjs audit-output/offers-audit.json audit-output/duplication-v3-report.json
+      - name: Upload single reference report
+        uses: actions/upload-artifact@v4
+        with:
+          name: contradiction-v3-reference
+          path: audit-output/
+          if-no-files-found: error
+
+  test:
+    name: Contradictory test — ${{ matrix.mode }}
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [strict, semantic, source-aware]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Download the same reference report
+        uses: actions/download-artifact@v4
+        with:
+          name: contradiction-v3-reference
+          path: audit-output
+      - name: Run contradictory case test
+        env:
+          TEST_MODE: ${{ matrix.mode }}
+        run: node scripts/duplication-v3-contradictory-tests.mjs audit-output/duplication-v3-report.json audit-output/contradiction-${{ matrix.mode }}.json
+      - name: Publish test summary
+        if: always()
+        env:
+          TEST_MODE: ${{ matrix.mode }}
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const p=`audit-output/contradiction-${process.env.TEST_MODE}.json`;
+          if(!fs.existsSync(p)) process.exit(0);
+          const r=JSON.parse(fs.readFileSync(p,'utf8'));
+          const s=r.summary;
+          const lines=[
+            `## Contradictory V3 — ${s.mode}`,
+            '',
+            `Cases ciblés: **${s.targetCases}** · DUPLICATION proposée: **${s.proposedDuplication}** · REVIEW: **${s.proposedReview}** · NO_DUPLICATION: **${s.proposedNoDuplication}** · changements: **${s.changed}**`
+          ];
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,lines.join("\\n")+"\\n");
+          NODE
+      - name: Upload test result
+        uses: actions/upload-artifact@v4
+        with:
+          name: contradiction-v3-${{ matrix.mode }}
+          path: audit-output/contradiction-${{ matrix.mode }}.json
+          if-no-files-found: error
