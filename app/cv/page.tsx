@@ -123,7 +123,11 @@ function CvStudioContent() {
       catch { throw new Error(`Le serveur a renvoyé une réponse invalide au lieu du JSON attendu (HTTP ${response.status}).`); }
       if (!response.ok) throw new Error(result?.message || "Impossible d’analyser le CV.");
       setCv((current) => ({ ...current, ...result.cv }));
-      setMessage("CV importé. Vérifiez et corrigez les informations avant de générer votre version finale.");
+      setMessage(
+        result.aiQuotaExceeded
+          ? "CV extrait. L’analyse J’IA est temporairement indisponible car le quota de crédits est atteint. Vous pouvez déjà corriger et compléter votre CV."
+          : "CV importé. Vérifiez et corrigez les informations avant de générer votre version finale."
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Import impossible.");
     } finally {
