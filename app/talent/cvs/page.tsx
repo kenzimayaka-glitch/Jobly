@@ -7,6 +7,7 @@ import PageHeader from "../../../components/PageHeader";
 import BottomNav, { TALENT_NAV } from "../../../components/BottomNav";
 import TalentBackground from "../../../components/TalentBackground";
 import { PLAN_CATALOG, PlanCode } from "../../../lib/billingCatalog";
+import { PremiumDiamond } from "../../../components/ui/PremiumDiamond";
 
 type CV = {
   id: string; name: string; source: string; fullName: string; headline: string; email: string; phone: string;
@@ -223,7 +224,7 @@ export default function TalentCVs() {
             <textarea value={cv.education} onChange={e => update("education", e.target.value)} placeholder="Formation / certifications" rows={4} className="mt-3 w-full rounded-xl border px-4 py-3" />
             <div className="mt-4 grid gap-2 sm:grid-cols-3 print:hidden">
               <button onClick={save} className="rounded-xl bg-jobly-blue py-3 font-black text-white">Enregistrer</button>
-              <button onClick={() => exportPdf()} disabled={busy} className="rounded-xl bg-[#FFE135] py-3 font-black disabled:opacity-50">Télécharger ATS{plan !== "PREMIUM" && plan !== "PRO" ? <span className="ml-1 text-[10px]">· accès Premium/Pro</span> : ""}</button>
+              <button onClick={() => exportPdf()} disabled={busy} className="rounded-xl bg-[#FFE135] py-3 font-black disabled:opacity-50"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />Télécharger ATS</span>{plan !== "PREMIUM" && plan !== "PRO" ? <span className="ml-1 text-[10px]">· accès Premium/Pro</span> : ""}</button>
               <button onClick={() => router.push("/career-os")} className="rounded-xl border py-3 font-black">Career OS →</button>
             </div>
             {message && <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-[120] w-[min(92vw,520px)] -translate-x-1/2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#17212B] shadow-2xl print:hidden">{message}</div>}

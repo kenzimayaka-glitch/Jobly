@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "./cn";
+import { PremiumDiamond } from "./PremiumDiamond";
 
 export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
@@ -35,6 +36,8 @@ type CommonProps = {
   loading?: boolean;
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
+  /** Affiche l’indicateur discret de fonctionnalité Premium/Pro. */
+  premium?: boolean;
   children?: ReactNode;
   className?: string;
 };
@@ -57,11 +60,12 @@ export function Spinner({ className }: { className?: string }) {
  * ouvrable dans un nouvel onglet) ; sinon un <button type="button"> par défaut.
  */
 export function Button(props: ButtonProps | LinkButtonProps) {
-  const { variant = "primary", size = "md", full, loading, leftIcon, rightIcon, children, className, ...rest } = props;
+  const { variant = "primary", size = "md", full, loading, leftIcon, rightIcon, premium = false, children, className, ...rest } = props;
   const classes = cn(BASE, VARIANT[variant], SIZE[size], full && "w-full", className);
   const content = (
     <>
       {loading ? <Spinner /> : leftIcon}
+      {premium && <PremiumDiamond tone={variant === "secondary" ? "red" : "blue"} />}
       {children}
       {!loading && rightIcon}
     </>

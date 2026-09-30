@@ -1,4 +1,5 @@
 "use client";
+import { PremiumDiamond } from "@/components/ui/PremiumDiamond";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -377,7 +378,7 @@ export default function AiCareerAgent({
                                 onClick={() => { void fetch("/api/jia/subscription-nudge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ featureKey: ex.upgradeSuggestion?.featureKey, action: "CLICKED", planCode: ex.upgradeSuggestion?.targetPlan }) }); }}
                                 className="rounded-xl bg-jobly-blue px-4 py-2 text-xs font-black text-white"
                               >
-                                Voir ce que permet cette formule
+                                <span className="inline-flex items-center gap-1.5"><PremiumDiamond tone="red" />Voir ce que permet cette formule</span>
                               </Link>
                               <button
                                 type="button"

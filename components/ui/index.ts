@@ -12,3 +12,5 @@ export { JourneyBar } from "./Journey";
 export type { JourneyStage } from "./Journey";
 export { default as AppShell } from "./AppShell";
 export type { ShellRole } from "./AppShell";
+
+export { PremiumDiamond } from "./PremiumDiamond";

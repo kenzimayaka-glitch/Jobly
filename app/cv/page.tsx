@@ -1,5 +1,6 @@
 "use client";
 
+import { PremiumDiamond } from "@/components/ui/PremiumDiamond";
 import { ChangeEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getSupabaseClient } from "../../lib/supabase";
@@ -296,7 +297,7 @@ function CvStudioContent() {
             )}
             <div className="mx-auto mt-5 flex max-w-[760px] flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between">
               <div><div className="font-extrabold">{mode === 'simple' ? 'CV Simple' : 'CV ATS'}</div><div className="text-xs text-slate-500">Téléchargement soumis aux droits CV de votre plan.</div></div>
-              <button type="button" disabled className="cursor-not-allowed rounded-xl bg-slate-200 px-4 py-2 font-bold text-slate-500">Télécharger · paiement/plan</button>
+              <button type="button" disabled className="cursor-not-allowed rounded-xl bg-slate-200 px-4 py-2 font-bold text-slate-500"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />Télécharger · paiement/plan</span></button>
             </div>
           </section>
         </div>
