@@ -622,7 +622,12 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     </section>
 
     <section ref={offersStartRef} id="jobly-offers-start" className="mx-auto w-full max-w-full min-w-0 overflow-x-clip px-5 scroll-mt-6 sm:px-8 lg:max-w-6xl">
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="mb-8">
+        <div className="mb-4 flex items-center gap-2 overflow-x-auto">
+          <button type="button" onClick={() => { setMarketScope("local"); setFilter("Toutes"); }} className={marketScope === "local" ? "rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>{countryFlag(market.countryCode)} {market.countryName || "Cameroun"}</button>
+          <button type="button" onClick={() => { setMarketScope("africa"); setFilter("Toutes"); }} className={marketScope === "africa" ? "rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>🌍 Explorer l’Afrique</button>
+        </div>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[1.8px] text-[#7A9BB5]">{marketLabel}</p>
           <h2 className="mt-1 text-xl font-black text-[#00A6A6]">{feedSummary}</h2>
@@ -631,10 +636,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
           <form onSubmit={e => { e.preventDefault(); setQuery(query.trim()); }} className="flex h-11 min-w-[280px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 shadow-sm"><Search size={16} className="text-[#22448B]"/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Métier, entreprise, ville…" aria-label="Rechercher une offre" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"/><button type="submit" aria-label="Rechercher" title="Rechercher" className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#22448B] text-white transition hover:bg-[#17346E]"><Search size={14}/></button></form>
           <div className="flex gap-2 overflow-x-auto">{["Toutes","En cours","CDI","CDD","Stage"].map(item => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "whitespace-nowrap rounded-2xl bg-[#FFE135] px-4 py-3 text-xs font-black text-[#17212B]" : "whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-500"}>{item}</button>)}</div>
         </div>
-      </div>
-      <div className="mb-8 flex items-center justify-between gap-3">
-        <button type="button" onClick={() => { setMarketScope("local"); setFilter("Toutes"); }} className={marketScope === "local" ? "rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>{countryFlag(market.countryCode)} {market.countryName || "Cameroun"}</button>
-        <button type="button" onClick={() => { setMarketScope("africa"); setFilter("Toutes"); }} className={marketScope === "africa" ? "rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>🌍 Explorer l’Afrique</button>
+        </div>
       </div>
       {featured.length > 0 && (
         <div className="relative" onMouseEnter={() => setTopMatchHover(true)} onMouseLeave={() => setTopMatchHover(false)}>
