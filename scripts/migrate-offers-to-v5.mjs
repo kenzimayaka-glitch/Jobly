@@ -91,27 +91,34 @@ function contractType(text,j){
   const m=String(text).match(/(?:type de contrat|contrat|employment type)\s*[:：-]\s*(CDI|CDD|Stage|Temps[- ]plein|Temps[- ]partiel)/i);
   return m?.[1]||null;
 }
+const applicationContactSignal=/(?:[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}|(?:\\+?237[\\s.-]?[6-9]\\d{2}[\\s.-]?\\d{3}[\\s.-]?\\d{3}|6[5-9]\\d{7})|https?:\\/\\/)/i;
+function tokenSet(value){return new Set(norm(value).split(/\\s+/).filter(Boolean));}
+function semanticSimilarity(a,b){
+  const x=norm(a),y=norm(b);
+  if(!x||!y)return 0;
+  if(x===y)return 1;
+  if(x.includes(y)||y.includes(x))return Math.min(x.length,y.length)/Math.max(x.length,y.length);
+  const A=tokenSet(x),B=tokenSet(y),inter=[...A].filter(t=>B.has(t)).length;
+  return inter/Math.max(1,new Set([...A,...B]).size);
+}
 function canonicalOwnership(raw){
   const out=Object.fromEntries(sectionOrder.map(k=>[k,[]]));
-  const seen=new Set();
+  const owners=[];
   const priority=["application","missions","profile","education","experience","skills","qualities","benefits","description"];
   const add=(section,value)=>{
     const v=String(value||"").trim();
     if(v.length<2)return;
-    const n=norm(v);
-    if(!n||seen.has(n))return;
-    seen.add(n);
-    out[section].push(v);
+    const target=section==="application"||applicationSignal.test(v)||applicationContactSignal.test(v)?"application":section;
+    if(owners.some(item=>semanticSimilarity(item.value,v)>=0.92))return;
+    owners.push({value:v,section:target});
+    out[target].push(v);
   };
-  for(const v of raw.application) add("application",v);
+  for(const v of raw.application)add("application",v);
   for(const section of priority){
     if(section==="application")continue;
-    for(const v of raw[section]){
-      if(applicationSignal.test(v)) add("application",v);
-      else add(section,v);
-    }
+    for(const v of raw[section])add(section,v);
   }
-  for(const k of sectionOrder) out[k]=out[k].slice(0,100);
+  for(const k of sectionOrder)out[k]=out[k].slice(0,100);
   return out;
 }
 function fetchPage(u){
