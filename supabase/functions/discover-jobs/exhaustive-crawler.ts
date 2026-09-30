@@ -98,7 +98,7 @@ export async function crawlExhaustiveSource(source:SourceDefinition&{url:string}
       if(r.status>=400){stats.errors.push("HTTP "+r.status+" "+pageUrl);continue}
       listingHtmls.push(r.html);if(stats.advertisedCount===null)stats.advertisedCount=advertisedCount(r.html);
       const pageLinks=links(r.html,pageUrl);
-      for(const j of jsonLdJobs(r.html)){const item=extractJob(j,pageUrl);if(item.title){stats.extracted++;detailUrls.set(canonical(item.url),item.url)}}
+      for(const j of jsonLdJobs(r.html)){const item=extractJob(j,pageUrl);if(item.title){detailUrls.set(canonical(item.url),item.url)}}
       for(const link of pageLinks){
         if(isPagination(link)&&sameHost(link.url,source.url)&&!seenPages.has(canonical(link.url)))pagesToVisit.push(link.url);
         if(isDetail(link,source.url))detailUrls.set(canonical(link.url),link.url);
@@ -110,6 +110,7 @@ export async function crawlExhaustiveSource(source:SourceDefinition&{url:string}
   const byUrl=new Map<string,ExhaustiveItem>();
   for(const item of details){if(!item?.title)continue;stats.detailPages++;const key=canonical(item.url),previous=byUrl.get(key);if(!previous||item.description.length>previous.description.length)byUrl.set(key,item)}
   for(const html of listingHtmls)for(const j of jsonLdJobs(html)){const item=extractJob(j,source.url);if(item.title&&!byUrl.has(canonical(item.url)))byUrl.set(canonical(item.url),item)}
+  stats.extracted=byUrl.size;
   for(const item of byUrl.values()){
     if(dateExpired(item.deadline)){stats.expired++;stats.rejected++;stats.rejectedReasons.expired=(stats.rejectedReasons.expired||0)+1;continue}
     if(item.opportunityType==="APPEL_OFFRES"){stats.tenders++;stats.rejected++;stats.rejectedReasons.tender=(stats.rejectedReasons.tender||0)+1;continue}
