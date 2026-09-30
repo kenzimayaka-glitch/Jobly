@@ -19,13 +19,14 @@ export async function POST(request: NextRequest) {
     if (!url || !serviceKey) return NextResponse.json({ error: "STORAGE_UNAVAILABLE", message: "Stockage du CV indisponible." }, { status: 503 });
     const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
     const bytes = Buffer.from(await file.arrayBuffer());
+    if (bytes.length <= 0 || bytes.length > 3 * 1024 * 1024) return NextResponse.json({ error: "PDF_TOO_LARGE", message: "Le CV original dépasse la limite de 3 Mo." }, { status: 413 });
     const storagePath = `${auth.id}/${crypto.randomUUID()}.pdf`;
     const upload = await admin.storage.from("talent-cvs").upload(storagePath, bytes, { contentType: "application/pdf", upsert: false });
     if (upload.error) throw new Error(upload.error.message);
     const { data: user, error: userError } = await admin.from("User").select("id,cvOriginalStoragePath").eq("authUserId", auth.id).maybeSingle();
-    if (userError || !user?.id) throw new Error(userError?.message || "Profil Jobly introuvable.");
+    if (userError || !user?.id) { await admin.storage.from("talent-cvs").remove([storagePath]); throw new Error(userError?.message || "Profil Jobly introuvable."); }
     if (user.cvOriginalStoragePath) await admin.storage.from("talent-cvs").remove([user.cvOriginalStoragePath]);
-    const { error: updateError } = await admin.from("User").update({ cvOriginalStoragePath: storagePath, cvOriginalFileName: file.name, cvOriginalUploadedAt: new Date().toISOString() }).eq("id", user.id);
+    const { error: updateError } = await admin.from("User").update({ cvOriginalStoragePath: storagePath, cvOriginalFileName: file.name, cvOriginalPageCount: Number(form.get("pages") || 0) || null, cvOriginalUploadedAt: new Date().toISOString() }).eq("id", user.id);
     if (updateError) { await admin.storage.from("talent-cvs").remove([storagePath]); throw new Error(updateError.message); }
     return NextResponse.json({ ok: true, stored: true, storagePath, fileName: file.name });
   } catch (error) {
