@@ -136,18 +136,9 @@ export default function TalentCVs() {
     finally { setBusy(false); }
   }
 
-  async function openOriginalCv() {
-    setOriginalBusy(true); setMessage("Préparation du CV original sécurisé…");
-    try {
-      const token = await getAccessToken();
-      if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
-      const res = await fetch("/api/talent/cv/original", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.url) throw new Error(data.message || "CV original indisponible.");
-      window.open(data.url, "_blank", "noopener,noreferrer");
-      setMessage("CV original ouvert dans un nouvel onglet.");
-    } catch (err) { setMessage(err instanceof Error ? err.message : "Impossible d’ouvrir le CV original."); }
-    finally { setOriginalBusy(false); }
+  function openOriginalCv() {
+    setOriginalBusy(true);
+    router.push("/talent/cvs/original");
   }
 
   async function exportPdf(paymentId?: string) {
