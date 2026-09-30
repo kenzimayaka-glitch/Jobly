@@ -69,11 +69,6 @@ export async function completeSignupProfile(payload: {
   privacyAccepted: boolean;
 }) {
   const sessionManager = getJoblySessionManager();
-  const token = await sessionManager.getAccessToken();
-  if (!token) {
-    throw new Error("Ta session a expiré après la vérification de l'e-mail. Reviens à l'étape précédente et vérifie ton code à nouveau.");
-  }
-
   const response = await sessionManager.authenticatedFetch("/api/auth/complete-signup", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -82,4 +77,47 @@ export async function completeSignupProfile(payload: {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.message || "Impossible de finaliser le compte.");
   return body;
+}
+
+// 15/09/2026 : sur demande, la seule contrainte sur le username est
+// désormais l'unicité — plus de règle de format (lettres/chiffres/./_
+// uniquement, 3-15 caractères). On garde un garde-fou technique minimal
+// (non vide, longueur raisonnable pour la colonne en base) mais on ne
+// rejette plus un username pour sa forme.
+export function isValidUsernameFormat(value: string) {
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= 40;
+}
+
+export async function checkUsernameAvailable(username: string): Promise<boolean> {
+  const value = username.trim().toLowerCase();
+  if (!isValidUsernameFormat(value)) return false;
+  const response = await fetch(`/api/auth/username/check?username=${encodeURIComponent(value)}`);
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.message || "Vérification du username impossible.");
+  return Boolean(body.available);
+}
+
+export async function requestPasswordReset(email: string) {
+  const value = email.trim().toLowerCase();
+  if (!value.includes("@")) throw new Error("Entre l'adresse e-mail associée au compte.");
+  const { error } = await getSupabaseClient().auth.resetPasswordForEmail(value, {
+    redirectTo: `${window.location.origin}/auth/reset-password`,
+  });
+  if (error) throw new Error(translateAuthError(error.message));
+}
+
+export async function updatePassword(password: string) {
+  const passwordError = validatePassword(password);
+  if (passwordError) throw new Error(passwordError);
+  const { error } = await getSupabaseClient().auth.updateUser({ password });
+  if (error) throw new Error(translateAuthError(error.message));
+}
+
+export async function signInWithGoogle() {
+  const { error } = await getSupabaseClient().auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: `${window.location.origin}/auth/callback` },
+  });
+  if (error) throw new Error(error.message || "Connexion Google impossible.");
 }
