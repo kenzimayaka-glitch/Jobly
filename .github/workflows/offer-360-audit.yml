@@ -43,7 +43,7 @@ jobs:
         if: always()
         run: |
           if [ -f audit-output/duplication-v3-report.json ]; then
-            node -e 'const fs=require("fs");const r=JSON.parse(fs.readFileSync("audit-output/duplication-v3-report.json","utf8"));const s=r.summary||{};const lines=["## Duplication V3 — contradiction","","Offres: **"+s.offersAnalyzed+"** · unités sémantiques: **"+s.unitsAnalyzed+"** · constats: **"+s.findings+"**","","| Décision | Nombre |","|---|---:|",...Object.entries(s.byDecision||{}).map(([k,v])=>"| "+k+" | **"+v+"** |"),"","### Ventilation par source","","| Source | Offres | Constats | Duplications | Templates | À revoir |","|---|---:|---:|---:|---:|---:|",...Object.entries(s.bySource||{}).map(([k,v])=>"| "+k+" | "+v.offers+" | "+v.findings+" | "+v.duplication+" | "+v.templates+" | "+v.review+" |")];fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,lines.join("\\n")+"\\n")'
+            node -e 'const fs=require("fs");const r=JSON.parse(fs.readFileSync("audit-output/duplication-v3-report.json","utf8"));const s=r.summary||{};const lines=["## Duplication V3 — contradiction","",`Offres: **${s.offersAnalyzed}** · unités sémantiques: **${s.unitsAnalyzed}** · constats: **${s.findings}**`,"","| Décision | Nombre |","|---|---:|"];for(const [k,v] of Object.entries(s.byDecision||{}))lines.push(`| ${k} | **${v}** |`);lines.push("","### Ventilation par source","","| Source | Offres | Constats | Duplications | Templates | À revoir |","|---|---:|---:|---:|---:|---:|");for(const [k,v] of Object.entries(s.bySource||{}))lines.push(`| ${k} | ${v.offers} | ${v.findings} | ${v.duplication} | ${v.templates} | ${v.review} |`);fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,lines.join("\\n")+"\\n")'
           else
             echo 'Rapport V3 absent : audit ou analyse en échec.' >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -52,7 +52,7 @@ jobs:
         if: always()
         run: |
           if [ -f audit-output/offers-audit.json ]; then
-            node -e 'const fs=require("fs");const r=JSON.parse(fs.readFileSync("audit-output/offers-audit.json","utf8"));const s=r.statistics||{};const lines=["# Jobly Offer 360 Audit — reference summary","","Offers analysées: **"+r.total+"**","Score moyen: **"+Number(s.mean??0).toFixed(2)+"**","","| Contrôle | Résultat |","|---|---:|",...Object.entries(s.issueRates||{}).map(([k,v])=>"| "+k+" | **"+v.count+"/"+r.total+"** |"),"","PASS: **"+(s.pass??0)+"** · WARNING: **"+(s.warning??0)+"** · BLOCKED: **"+(s.blocked??0)+"**")];fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,lines.join("\\n")+"\\n")'
+            node -e 'const fs=require("fs");const r=JSON.parse(fs.readFileSync("audit-output/offers-audit.json","utf8"));const s=r.statistics||{};const lines=["# Jobly Offer 360 Audit — reference summary",`"Offers analysées: **${r.total}**"`,`"Score moyen: **${Number(s.mean??0).toFixed(2)}**"`,"","| Contrôle | Résultat |","|---|---:|"];for(const [k,v] of Object.entries(s.issueRates||{}))lines.push(`| ${k} | **${v.count}/${r.total}** |`);lines.push("",`PASS: **${s.pass??0}** · WARNING: **${s.warning??0}** · BLOCKED: **${s.blocked??0}**`);fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,lines.join("\\n")+"\\n")'
           else
             echo 'audit-output/offers-audit.json absent' >> "$GITHUB_STEP_SUMMARY"
           fi
