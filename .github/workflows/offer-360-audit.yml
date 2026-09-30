@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - fix/offer-classification-duplication-v6
+      - measure/v5-reference-20260930
   workflow_dispatch:
   pull_request:
     branches:
@@ -26,6 +27,9 @@ jobs:
       JOB_RENDERER_WAIT_MS: ${{ secrets.JOB_RENDERER_WAIT_MS }}
       AUDIT_LIMIT: "1000"
       AUDIT_CONCURRENCY: "5"
+      OFFER_MIGRATION_APPLY: "false"
+      OFFER_MIGRATION_LIMIT: "254"
+      OFFER_MIGRATION_CONCURRENCY: "5"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -36,6 +40,21 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Run V5 canonicalization DRY RUN
+        run: node scripts/migrate-offers-to-v5.mjs
+      - name: Measure post-V5 application leaks
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const r = JSON.parse(fs.readFileSync("migration-output/offers-migration.json","utf8"));
+          const before = 175;
+          const after = r.results.filter(x => (x.issues || []).includes("APPLICATION_LEAK")).length;
+          const resolved = Math.max(0, before - after);
+          const rate = before ? resolved / before : 0;
+          const summary = {baselineApplicationMisclassified:before,postV5ApplicationLeak:after,resolved,resolutionRate:rate,total:r.total,pass:r.pass,warning:r.warning,blocked:r.blocked,applied:r.applied,mode:r.mode,targetVersion:r.targetVersion};
+          fs.writeFileSync("migration-output/reference-measurement.json", JSON.stringify(summary,null,2));
+          console.log(JSON.stringify(summary,null,2));
+          NODE
       - name: Run real offer-by-offer audit
         run: node scripts/offer-pipeline-audit.mjs
       - name: Publish audit report
@@ -43,5 +62,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: jobly-offer-360-audit
-          path: audit-output/
+          path: |
+            audit-output/
+            migration-output/
           if-no-files-found: warn
