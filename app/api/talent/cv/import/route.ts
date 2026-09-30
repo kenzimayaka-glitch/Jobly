@@ -35,6 +35,32 @@ async function getAuthUser(request: NextRequest) {
   return data.user || null;
 }
 
+function extractDeterministicCv(text: string) {
+  const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] || "";
+  const phone = text.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]?.trim() || "";
+  const name = lines.find(line => {
+    const words = line.split(/\s+/);
+    return words.length >= 2 && words.length <= 5 && !/@/.test(line) && !/^(cv|curriculum|resume|profil|contact|expérience|experience|formation|education)$/i.test(line);
+  }) || "";
+  const headline = lines.find(line => line !== name && line.length >= 4 && line.length <= 120 && !/@/.test(line) && !/^\+?\d/.test(line)) || "";
+  return {
+    fullName: name,
+    headline,
+    email,
+    phone,
+    summary: "",
+    skills: [],
+    experience: "",
+    education: "",
+    atsScore: 0,
+    atsKeywords: [],
+    strengths: [],
+    gaps: [],
+    suggestions: [],
+  };
+}
+
 function normalizeOutput(output: any) {
   const profile = output?.profile || {};
   return {
@@ -127,12 +153,31 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // PDF text extraction is deterministic and remains available independently
+    // of J'IA credits. AI enrichment is a separate, quota-gated step.
+    const deterministicCv = extractDeterministicCv(cvText);
     const ai = await runAiGateway(request, "CV_INTELLIGENCE", { cvText });
-    if (!ai.ok) return NextResponse.json({ error: "CV_AI_UNAVAILABLE", message: ai.message }, { status: ai.status });
+
+    if (!ai.ok) {
+      if (ai.status === 429) {
+        return NextResponse.json({
+          ok: true,
+          aiAvailable: false,
+          aiQuotaExceeded: true,
+          aiMessage: ai.message,
+          fileName: file.name,
+          pages: parsed.total,
+          extractedCharacters: cvText.length,
+          originalCv,
+          cv: deterministicCv,
+        });
+      }
+      return NextResponse.json({ error: "CV_AI_UNAVAILABLE", message: ai.message }, { status: ai.status });
+    }
 
     return NextResponse.json({
       ok: true,
-      aiName: ai.aiName,
+      aiAvailable: true,
       fileName: file.name,
       pages: parsed.total,
       extractedCharacters: cvText.length,
