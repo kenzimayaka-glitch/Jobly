@@ -242,7 +242,9 @@ export default function TalentCVs() {
     setCvPaymentBusy(true);
     setCvPaymentMessage("");
     try {
-      const res = await fetch(`/api/payments/${cvPaymentId}/verify`, { method: "POST" });
+      const token = await getAccessToken();
+      if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
+      const res = await fetch(`/api/payments/${cvPaymentId}/verify`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Vérification impossible.");
       if (data.payment?.status !== "SUCCESSFUL") {
