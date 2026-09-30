@@ -164,7 +164,7 @@ function CvStudioContent() {
                 <h2 className="font-extrabold">Importer mon CV PDF</h2>
                 <p className="mt-1 text-sm text-slate-500">Gratuit pour tous les plans. Sélectionnez votre PDF puis cliquez sur « Extraire les données » pour préremplir votre CV Master.</p>
                 {fileName && <p className="mt-3 text-xs font-bold text-slate-700">{fileName}</p>}
-                {fileName && <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); void extractCvData(); }} disabled={loading} className="mt-4 rounded-xl bg-[#FFD60A] px-4 py-2 text-xs font-black text-[#0b2447] shadow-sm transition hover:brightness-95 disabled:cursor-wait disabled:opacity-60">{loading ? "Extraction en cours…" : "Extraire les données"}</button>}
+                {fileName && <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); void extractCvData(); }} disabled={loading} className="mt-4 rounded-xl bg-green-600 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:brightness-95 disabled:cursor-wait disabled:opacity-60">{loading ? "Extraction en cours…" : "Extraire les données"}</button>}
                 {loading && <p className="mt-2 text-xs font-bold text-[#0b2447]">J’IA extrait les données de votre CV…</p>}
               </div>
             </div>
