@@ -25,10 +25,6 @@ export async function GET(request: NextRequest) {
   }
   const remaining = Math.max(granted - used, 0);
   const firstDashboardVisit = !user.aiWelcomeSeenAt && granted > 0;
-  if (false && firstDashboardVisit && request.nextUrl.searchParams.get("markSeen") === "true") {
-    const { error: seenError } = await sb.from("User").update({ aiWelcomeSeenAt: new Date().toISOString() }).eq("id", user.id).is("aiWelcomeSeenAt", null);
-    if (seenError) return NextResponse.json({ message: seenError.message }, { status: 500 });
-  }
   return NextResponse.json({
     granted,
     used,
