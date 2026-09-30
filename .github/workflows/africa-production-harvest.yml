@@ -16,7 +16,7 @@ on:
       sources:
         description: "Optional comma-separated source keys"
         required: false
-        default: "jobivoire,jobs_ghana,jobweb_ghana,jobberman_ghana,myjobmag_ng,hotnigerianjobs,jobberman_ng,senjob,emploi_dakar,careers_sl,hrjobs_liberia,malijob"
+        default: "idealists,devex,devnetjobs,unjobnet,un_careers,undp_jobs,unicef_jobs,reliefweb,unjobs,impactpool,acfpe_cf,ktzemploi_cf,emploi_cf,banguiconnect,onape_td,tchadjobs,tchad_emploi,emploi_td,acpe_cg,emploi_cg,emploi_cd,kivuhub,congojob_cd,onem_app_cd,onem_cd,kaziqo_cd,ajar_cd,emploiscongo_cd,travail_ga,emploi_ga,mintravail_gq,pe_st,kezir_st,quadife_st,burundijobs,paeej_bi,mae_bi,anpe_bj,sica_anpe_bj,gouv_bj_emploi,iefp_cv,jobivoire_ci,emploi_ci,senjob_west,jobcomgh,jobweb_ghana,jobberman_gh,myjobmag_ng,hotnigerianjobs,jobberman_ng,senjob_sn,emploidakar_sn,lmis_sl,careers_sl,hrjobs_liberia,malijob"
 
 permissions:
   contents: read
@@ -48,7 +48,7 @@ jobs:
             sleep 2
           done
           curl -fsS http://127.0.0.1:3000/ >/dev/null
-      - name: Harvest West Africa sources
+      - name: Harvest all Africa sources except Cameroon
         env:
           SOURCES: ${{ inputs.sources || 'jobivoire,jobs_ghana,jobweb_ghana,jobberman_ghana,myjobmag_ng,hotnigerianjobs,jobberman_ng,senjob,emploi_dakar,careers_sl,hrjobs_liberia,malijob' }}
         run: |
