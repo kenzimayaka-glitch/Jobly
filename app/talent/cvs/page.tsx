@@ -49,6 +49,9 @@ export default function TalentCVs() {
   const [originalBusy, setOriginalBusy] = useState(false);
   const [plan, setPlan] = useState("FREE");
   const [cvPaymentAmount, setCvPaymentAmount] = useState(500);
+  const [cvAtsPaymentAmount, setCvAtsPaymentAmount] = useState(500);
+  const [cvOptimizedPaymentAmount, setCvOptimizedPaymentAmount] = useState(500);
+  const [cvPaymentFeature, setCvPaymentFeature] = useState<"CV_ATS_DOWNLOAD" | "CV_OPTIMIZED_DOWNLOAD">("CV_ATS_DOWNLOAD");
   const [cvPaymentOpen, setCvPaymentOpen] = useState(false);
   const [cvPaymentPhone, setCvPaymentPhone] = useState("");
   const [cvPaymentMethod, setCvPaymentMethod] = useState("MTN MoMo");
@@ -62,6 +65,8 @@ export default function TalentCVs() {
     fetch("/api/entitlements", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(x => {
       if (x?.subscription?.plan) setPlan(x.subscription.plan);
       if (Number.isFinite(Number(x?.entitlements?.cvDownloadPriceXaf))) setCvPaymentAmount(Number(x.entitlements.cvDownloadPriceXaf));
+      if (Number.isFinite(Number(x?.entitlements?.cvAtsDownloadPriceXaf))) setCvAtsPaymentAmount(Number(x.entitlements.cvAtsDownloadPriceXaf));
+      if (Number.isFinite(Number(x?.entitlements?.cvOptimizedDownloadPriceXaf))) setCvOptimizedPaymentAmount(Number(x.entitlements.cvOptimizedDownloadPriceXaf));
     }).catch(() => {});
   }, []);
 
@@ -176,7 +181,8 @@ export default function TalentCVs() {
     router.push("/talent/cvs/original");
   }
 
-  function openCvPayment() {
+  function openCvPayment(feature: "CV_ATS_DOWNLOAD" | "CV_OPTIMIZED_DOWNLOAD" = "CV_ATS_DOWNLOAD") {
+    setCvPaymentFeature(feature);
     setCvPaymentMessage("");
     setCvPaymentId("");
     setCvPaymentOpen(true);
@@ -191,7 +197,7 @@ export default function TalentCVs() {
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
-      const res = await fetch("/api/talent/cv/export", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ cv: { ...cv, skills: cv.skills.split(",").map(x => x.trim()).filter(Boolean) }, ...(paymentId ? { paymentId } : {}) }) });
+      const res = await fetch("/api/talent/cv/export", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ service, cv: { ...cv, skills: cv.skills.split(",").map(x => x.trim()).filter(Boolean) }, ...(paymentId ? { paymentId } : {}) }) });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Téléchargement impossible.");
@@ -217,7 +223,7 @@ export default function TalentCVs() {
           "Idempotency-Key": crypto.randomUUID(),
         },
         body: JSON.stringify({
-          feature: "CV_ATS_DOWNLOAD",
+          feature: cvPaymentFeature,
           provider: "ICLAN",
           phone: cvPaymentPhone.trim(),
           paymentMethod: cvPaymentMethod,
@@ -227,7 +233,7 @@ export default function TalentCVs() {
       if (!res.ok) throw new Error(data.message || "Impossible de lancer le paiement.");
       if (data.included) {
         setCvPaymentOpen(false);
-        await exportPdf();
+        await exportPdf(cvPaymentFeature === "CV_OPTIMIZED_DOWNLOAD" ? "OPTIMIZED" : "ATS");
         return;
       }
       setCvPaymentId(String(data.payment?.id || ""));
@@ -256,7 +262,7 @@ export default function TalentCVs() {
       setCvPaymentOpen(false);
       setCvPaymentId("");
       setMessage("Paiement confirmé. Préparation du CV ATS…");
-      await exportPdf(cvPaymentId);
+      await exportPdf(cvPaymentFeature === "CV_OPTIMIZED_DOWNLOAD" ? "OPTIMIZED" : "ATS", cvPaymentId);
     } catch (err) {
       setCvPaymentMessage(err instanceof Error ? err.message : "Vérification impossible.");
     } finally {
@@ -301,7 +307,8 @@ export default function TalentCVs() {
             <textarea value={cv.education} onChange={e => update("education", e.target.value)} placeholder="Formation / certifications" rows={4} className="mt-3 w-full rounded-xl border px-4 py-3" />
             <div className="mt-4 grid gap-2 sm:grid-cols-3 print:hidden">
               <button onClick={save} className="rounded-xl bg-jobly-blue py-3 font-black text-white">Enregistrer</button>
-              <button onClick={() => exportPdf()} disabled={busy} className="rounded-xl bg-[#FFE135] py-3 font-black disabled:opacity-50"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />Télécharger ATS</span>{plan !== "PREMIUM" && plan !== "PRO" ? <span className="ml-1 text-[10px]">· {cvPaymentAmount.toLocaleString("fr-FR")} FCFA / téléchargement</span> : <span className="ml-1 text-[10px]">· inclus</span>}</button>
+              <button onClick={() => exportPdf("ATS")} disabled={busy} className="rounded-xl bg-[#FFE135] py-3 font-black disabled:opacity-50"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />Télécharger ATS</span>{plan === "FREE" ? <span className="ml-1 text-[10px]">· {cvAtsPaymentAmount.toLocaleString("fr-FR")} FCFA / 2 h</span> : <span className="ml-1 text-[10px]">· inclus</span>}</button>
+              <button onClick={() => exportPdf("OPTIMIZED")} disabled={busy} className="rounded-xl border border-jobly-blue py-3 font-black text-jobly-blue disabled:opacity-50"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />Télécharger CV optimisé</span>{plan === "FREE" ? <span className="ml-1 text-[10px]">· {cvOptimizedPaymentAmount.toLocaleString("fr-FR")} FCFA / 2 h</span> : <span className="ml-1 text-[10px]">· inclus</span>}</button>
               <button onClick={() => router.push("/career-os")} className="rounded-xl border py-3 font-black">Career OS →</button>
             </div>
             {message && <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-[120] w-[min(92vw,520px)] -translate-x-1/2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#17212B] shadow-2xl print:hidden">{message}</div>}
@@ -322,13 +329,13 @@ export default function TalentCVs() {
           {[['Profil', cv.summary], ['Compétences', cv.skills], ['Expérience', cv.experience], ['Formation', cv.education]].map(([h, v]) => v ? <div key={h} className="mt-5"><h3 className="border-b pb-1 text-sm font-black uppercase">{h}</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{v}</p></div> : null)}
         </section>
         {cvPaymentOpen && (
-          <div className="fixed inset-0 z-[140] grid place-items-center bg-slate-950/45 px-4 py-6 print:hidden" role="dialog" aria-modal="true" aria-label="Paiement du téléchargement CV ATS">
+          <div className="fixed inset-0 z-[140] grid place-items-center bg-slate-950/45 px-4 py-6 print:hidden" role="dialog" aria-modal="true" aria-label="Paiement d’un service CV Jobly">
             <div className="w-full max-w-md overflow-hidden rounded-[28px] bg-white shadow-2xl">
               <div className="border-b border-slate-100 px-5 py-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-jobly-gray">Accès CV ATS</p>
-                    <h2 className="mt-1 text-xl font-black">Télécharger mon CV ATS</h2>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-jobly-gray">Accès CV</p>
+                    <h2 className="mt-1 text-xl font-black">{cvPaymentFeature === "CV_OPTIMIZED_DOWNLOAD" ? "Télécharger mon CV optimisé" : "Télécharger mon CV ATS"}</h2>
                   </div>
                   <button type="button" onClick={() => setCvPaymentOpen(false)} className="rounded-full border px-3 py-2 text-sm font-black" aria-label="Fermer">×</button>
                 </div>
@@ -337,9 +344,9 @@ export default function TalentCVs() {
                 <div className="rounded-2xl bg-[#F7FAFF] p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div><p className="text-xs font-black text-slate-500">Votre formule</p><p className="mt-1 text-lg font-black">{plan}</p></div>
-                    <div className="text-right"><p className="text-xs font-black text-slate-500">Paiement ponctuel</p><p className="mt-1 text-2xl font-black text-jobly-blue">{cvPaymentAmount.toLocaleString("fr-FR")} FCFA</p></div>
+                    <div className="text-right"><p className="text-xs font-black text-slate-500">Paiement ponctuel</p><p className="mt-1 text-2xl font-black text-jobly-blue">{(cvPaymentFeature === "CV_OPTIMIZED_DOWNLOAD" ? cvOptimizedPaymentAmount : cvAtsPaymentAmount).toLocaleString("fr-FR")} FCFA · accès 2 h</p></div>
                   </div>
-                  <p className="mt-3 text-xs leading-5 text-slate-600">Ce paiement concerne uniquement ce téléchargement. Il ne modifie pas votre abonnement et ne crée aucun renouvellement.</p>
+                  <p className="mt-3 text-xs leading-5 text-slate-600">Ce paiement est ponctuel : il ouvre pendant 2 heures le service CV choisi. Vous pouvez optimiser/convertir et télécharger autant de fois que nécessaire pendant cette fenêtre. Après expiration, un nouveau paiement est requis.</p>
                 </div>
                 <label className="block text-xs font-black text-slate-700">Numéro Mobile Money
                   <input value={cvPaymentPhone} onChange={e => setCvPaymentPhone(e.target.value)} placeholder="2376XXXXXXXX" className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-jobly-blue" />
@@ -353,7 +360,7 @@ export default function TalentCVs() {
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setCvPaymentOpen(false)} className="flex-1 rounded-xl border px-4 py-3 text-xs font-black">Annuler</button>
                   {!cvPaymentId ? (
-                    <button type="button" onClick={startCvPayment} disabled={cvPaymentBusy || !cvPaymentPhone.trim()} className="flex-1 rounded-xl bg-jobly-blue px-4 py-3 text-xs font-black text-white disabled:opacity-50">{cvPaymentBusy ? "Préparation…" : `Payer ${cvPaymentAmount.toLocaleString("fr-FR")} FCFA`}</button>
+                    <button type="button" onClick={startCvPayment} disabled={cvPaymentBusy || !cvPaymentPhone.trim()} className="flex-1 rounded-xl bg-jobly-blue px-4 py-3 text-xs font-black text-white disabled:opacity-50">{cvPaymentBusy ? "Préparation…" : `Payer ${(cvPaymentFeature === "CV_OPTIMIZED_DOWNLOAD" ? cvOptimizedPaymentAmount : cvAtsPaymentAmount).toLocaleString("fr-FR")} FCFA`}</button>
                   ) : (
                     <button type="button" onClick={verifyCvPayment} disabled={cvPaymentBusy} className="flex-1 rounded-xl bg-jobly-blue px-4 py-3 text-xs font-black text-white disabled:opacity-50">{cvPaymentBusy ? "Vérification…" : "Vérifier le paiement"}</button>
                   )}
