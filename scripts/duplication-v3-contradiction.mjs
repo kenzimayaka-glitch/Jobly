@@ -54,7 +54,7 @@ function analyze(input){
     const discCount=[titleSame,companySame,locSame,urlSame].filter(Boolean).length;
     const sectionMismatch=matches.some(m=>m.rel==="INCOMPATIBLE");
     const isNonSubstantiveSection=s=>NON_SUBSTANTIVE.has(s)||s.startsWith("application_")||s.startsWith("deadline_");
-    const isNonSubstantiveUnit=u=>isNonSubstantiveSection(u.section)||/(^|\\.)(application|candidature|postuler|contact|deadline|date_limite|cloture)([.\\[]|$)/.test(String(u.path||""));
+    const isNonSubstantiveUnit=u=>{const section=String(u.section||"").toLowerCase();const parts=String(u.path||"").toLowerCase().split(/[.\[\]]+/).filter(Boolean);return isNonSubstantiveSection(section)||parts.some(p=>NON_SUBSTANTIVE.has(p)||["application","candidature","postuler","contact","deadline","date_limite","cloture"].includes(p));};
     const isBoilerplateMatch=m=>m.x.boilerplate>=2||m.y.boilerplate>=2;
     const substantive=matches.filter(m=>!isNonSubstantiveUnit(m.x)&&!isNonSubstantiveUnit(m.y)&&!isBoilerplateMatch(m));
     const substantiveExact=exact.filter(m=>!isNonSubstantiveUnit(m.x)&&!isNonSubstantiveUnit(m.y)&&!isBoilerplateMatch(m));
