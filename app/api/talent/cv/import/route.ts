@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
-import { createCanvas, loadImage } from "@napi-rs/canvas";
+import sharp from "sharp";
 import { runAiGateway } from "../../../../../lib/aiGateway";
 import { getActivePlanCode } from "../../../../../lib/entitlements";
 
@@ -87,31 +87,41 @@ function extractDeterministicCv(text: string) {
 async function extractCvPhoto(parser: any) {
   try {
     const result = await parser.getImage({ first: 2, imageThreshold: 60, imageBuffer: true, imageDataUrl: false });
-    const candidates = (result.pages || []).flatMap((page: any) => (page.images || []).map((image: any) => ({
-      data: image.data, width: Number(image.width || 0), height: Number(image.height || 0)
-    }))).filter((image: any) => image.data && image.width >= 100 && image.height >= 100);
+    const candidates = (result.pages || [])
+      .flatMap((page: any) => (page.images || []).map((image: any) => ({
+        data: image.data,
+        width: Number(image.width || 0),
+        height: Number(image.height || 0),
+      })))
+      .filter((image: { data: unknown; width: number; height: number }) => image.data && image.width >= 100 && image.height >= 100);
+
     if (!candidates.length) return "";
-    candidates.sort((a: any, b: any) => {
-      const score = (x: any) => {
+
+    candidates.sort((a: { data: unknown; width: number; height: number }, b: { data: unknown; width: number; height: number }) => {
+      const score = (x: { width: number; height: number }) => {
         const ratio = x.width / Math.max(1, x.height);
         const portraitBonus = ratio >= 0.55 && ratio <= 0.95 ? 300000 : 0;
         return x.width * x.height + portraitBonus;
       };
       return score(b) - score(a);
     });
-    const image = await loadImage(Buffer.from(candidates[0].data));
-    const maxSide = 640;
-    const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
-    const width = Math.max(1, Math.round(image.width * scale));
-    const height = Math.max(1, Math.round(image.height * scale));
-    const canvas = createCanvas(width, height);
-    canvas.getContext("2d").drawImage(image, 0, 0, width, height);
-    let quality = 0.82;
-    let buffer = canvas.toBuffer("image/jpeg", quality);
-    while (buffer.length > 500 * 1024 && quality > 0.5) {
-      quality -= 0.08;
-      buffer = canvas.toBuffer("image/jpeg", quality);
+
+    let quality = 82;
+    let buffer = await sharp(Buffer.from(candidates[0].data as Uint8Array))
+      .rotate()
+      .resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality })
+      .toBuffer();
+
+    while (buffer.length > 500 * 1024 && quality > 50) {
+      quality -= 8;
+      buffer = await sharp(Buffer.from(candidates[0].data as Uint8Array))
+        .rotate()
+        .resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality })
+        .toBuffer();
     }
+
     return buffer.length <= 500 * 1024 ? `data:image/jpeg;base64,${buffer.toString("base64")}` : "";
   } catch {
     return "";
