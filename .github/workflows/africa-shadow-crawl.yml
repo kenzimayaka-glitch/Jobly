@@ -1,0 +1,42 @@
+name: Africa Source Shadow Crawl
+
+on:
+  workflow_dispatch:
+    inputs:
+      countries:
+        description: "Comma-separated ISO country codes"
+        required: false
+        default: "CM"
+  push:
+    branches:
+      - feat/africa-source-engine-v1
+    paths:
+      - "supabase/functions/discover-jobs/source-registry.ts"
+      - "supabase/functions/discover-jobs/source-engine.ts"
+      - "supabase/functions/discover-jobs/country-url-resolver.ts"
+      - "supabase/functions/discover-jobs/shadow-crawl.ts"
+
+permissions:
+  contents: read
+
+jobs:
+  shadow-crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Run shadow crawl
+        env:
+          COUNTRIES: ${{ inputs.countries || 'CM' }}
+        run: |
+          IFS=',' read -ra CODES <<< "$COUNTRIES"
+          deno run --allow-net supabase/functions/discover-jobs/shadow-crawl.ts "${CODES[@]}" > africa-shadow-crawl.json
+      - name: Upload shadow report
+        uses: actions/upload-artifact@v4
+        with:
+          name: africa-shadow-crawl
+          path: africa-shadow-crawl.json
+          retention-days: 14
