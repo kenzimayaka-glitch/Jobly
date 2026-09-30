@@ -9,7 +9,8 @@ import { getActivePlanCode } from "../../../../../lib/entitlements";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const PREMIUM_PLANS = new Set(["PREMIUM", "PRO"]);
+const PREMIUM_PLANS = new Set(["START", "PREMIUM", "PRO"]);
+const ACCESS_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 type CVPayload = {
   name?: string;
@@ -83,11 +84,12 @@ export async function POST(request: NextRequest) {
     const cv: CVPayload = body?.cv && typeof body.cv === "object" ? body.cv : {};
 
     const activePlan = await getActivePlanCode(sb, user.id, "TALENT");
+    const service = String(body?.service || "ATS").toUpperCase() === "OPTIMIZED" ? "OPTIMIZED" : "ATS";
     const entitlements = getEntitlements(activePlan);
-    const isPremium = PREMIUM_PLANS.has(activePlan);
-    const oneOffPrice = Number(entitlements.cvDownloadPriceXaf || 0);
+    const isIncluded = PREMIUM_PLANS.has(activePlan) && oneOffPrice <= 0;
+    const oneOffPrice = service === "OPTIMIZED" ? Number(entitlements.cvOptimizedDownloadPriceXaf || 0) : Number(entitlements.cvAtsDownloadPriceXaf || entitlements.cvDownloadPriceXaf || 0);
 
-    if (!isPremium && oneOffPrice > 0) {
+    if (!isIncluded && oneOffPrice > 0) {
       const paymentId = clean(body?.paymentId, 100);
       if (!paymentId) {
         return NextResponse.json({
@@ -117,7 +119,7 @@ export async function POST(request: NextRequest) {
     }
 
     const pdf = await buildPdf(cv);
-    const filename = `${clean(cv.fullName || "CV-Jobly", 80).replace(/[^a-zA-Z0-9_-]+/g, "-")}-ATS.pdf`;
+    const suffix = service === "OPTIMIZED" ? "Jobly-optimise" : "ATS";\n    const filename = `${clean(cv.fullName || "CV-Jobly", 80).replace(/[^a-zA-Z0-9_-]+/g, "-")}-${suffix}.pdf`;
     return new NextResponse(new Uint8Array(pdf), { status: 200, headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${filename}"`, "Cache-Control": "private, no-store" } });
   } catch (error) {
     return NextResponse.json({ error: "CV_EXPORT_FAILED", message: error instanceof Error ? error.message : "Impossible de générer le CV ATS." }, { status: 500 });
