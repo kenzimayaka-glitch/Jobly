@@ -6,7 +6,7 @@ on:
       countries:
         description: "Comma-separated ISO country codes"
         required: false
-        default: "CM"
+        default: "CF,TD,CG,CD,GA,GQ,ST,BI"
   push:
     branches:
       - feat/africa-source-engine-v1
@@ -30,7 +30,7 @@ jobs:
           deno-version: v2.x
       - name: Run shadow crawl
         env:
-          COUNTRIES: ${{ inputs.countries || 'CM' }}
+          COUNTRIES: ${{ inputs.countries || 'CF,TD,CG,CD,GA,GQ,ST,BI' }}
         run: |
           IFS=',' read -ra CODES <<< "$COUNTRIES"
           deno run --allow-net supabase/functions/discover-jobs/shadow-crawl.ts "${CODES[@]}" > africa-shadow-crawl.json
