@@ -630,11 +630,13 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         <form onSubmit={e => { e.preventDefault(); setQuery(query.trim()); }} className="flex h-11 min-w-[280px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 shadow-sm"><Search size={16} className="text-[#22448B]"/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Métier, entreprise, ville…" aria-label="Rechercher une offre" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"/><button type="submit" aria-label="Rechercher" title="Rechercher" className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#22448B] text-white transition hover:bg-[#17346E]"><Search size={14}/></button></form>
       </div>
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
-        <button type="button" onClick={() => { setMarketScope("local"); setFilter("Toutes"); }} className={marketScope === "local" ? "shrink-0 rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "shrink-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>{countryFlag(market.countryCode)} {market.countryName || "Cameroun"}</button>
-        <div className="flex min-w-0 flex-1 justify-center gap-2 overflow-x-auto px-1">
+        <div className="flex min-w-0 flex-1 justify-start gap-2 overflow-x-auto px-1">
           {["Toutes","En cours","CDI","CDD","Stage"].map(item => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "whitespace-nowrap rounded-2xl bg-[#FFE135] px-4 py-3 text-xs font-black text-[#17212B]" : "whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-500"}>{item}</button>)}
         </div>
-        <button type="button" onClick={() => { setMarketScope("africa"); setFilter("Toutes"); }} className={marketScope === "africa" ? "shrink-0 rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "shrink-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>🌍 Explorer l’Afrique</button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button type="button" onClick={() => { setMarketScope("local"); setFilter("Toutes"); }} className={marketScope === "local" ? "shrink-0 rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "shrink-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>{countryFlag(market.countryCode)} {market.countryName || "Cameroun"}</button>
+          <button type="button" onClick={() => { setMarketScope("africa"); setFilter("Toutes"); }} className={marketScope === "africa" ? "shrink-0 rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "shrink-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>🌍 Explorer l’Afrique</button>
+        </div>
       </div>
       {featured.length > 0 && (
         <div className="relative" onMouseEnter={() => setTopMatchHover(true)} onMouseLeave={() => setTopMatchHover(false)}>
