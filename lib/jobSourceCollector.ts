@@ -12,6 +12,7 @@ type SourceConfig = {
   listingUrls: string[];
   hostnames: string[];
   offerPattern: RegExp;
+  countryCode?: string;
 };
 
 type CandidateLink = { url: string; title: string };
@@ -41,6 +42,7 @@ export type CollectedOffer = {
   renderedHtml: string;
   extractedText: string;
   captureMode: "browser" | "http" | "api" | "rss" | "unknown";
+  countryCode?: string;
 };
 
 const SOURCES: SourceConfig[] = [
@@ -66,7 +68,7 @@ const REGISTRY_GENERIC_TITLE = /\\b(job|jobs|emploi|emplois|vacancy|vacancies|ca
 function buildRegistrySources(): SourceConfig[] {
   const explicit = new Set(SOURCES.map(source => source.key));
   return getActiveSources()
-    .filter(source => source.url && !explicit.has(source.key) && !source.countries.includes("CM"))
+    .filter(source => source.url && !explicit.has(source.key))
     .flatMap(source => {
       try {
         const parsed = new URL(source.url!);
@@ -76,6 +78,7 @@ function buildRegistrySources(): SourceConfig[] {
           listingUrls: [source.url!],
           hostnames: [parsed.hostname.toLowerCase()],
           offerPattern: REGISTRY_GENERIC_PATTERN,
+          countryCode: source.countries.length === 1 ? source.countries[0] : undefined,
         }];
       } catch {
         return [];
@@ -88,8 +91,8 @@ const ALL_SOURCES = [...SOURCES, ...REGISTRY_SOURCES];
 
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
 const FETCH_TIMEOUT_MS = 6_000;
-const MAX_LISTING_PAGES = 10;
-const MAX_OFFERS_PER_SOURCE = 50;
+const MAX_LISTING_PAGES = Number(process.env.JOB_HARVEST_MAX_LISTING_PAGES || 25);
+const MAX_OFFERS_PER_SOURCE = Number(process.env.JOB_HARVEST_MAX_OFFERS_PER_SOURCE || 100);
 const SOURCE_FETCH_CONCURRENCY = 6;
 const MAX_DESCRIPTION_CHARS = 30_000;
 
@@ -554,6 +557,7 @@ function extractOffer(source: SourceConfig,url: string,html: string,listingTitle
     renderedHtml: html.slice(0, 2_000_000),
     extractedText: clean,
     captureMode: resolvedCaptureMode,
+    countryCode: source.countryCode,
   };
 }
 
@@ -643,7 +647,7 @@ export async function recollectOfferByUrl(sourceKey: string, url: string, listin
 export async function collectPublicJobSources(sourceKey?: string) {
   const selectedSources = sourceKey
     ? ALL_SOURCES.filter(source => source.key === sourceKey)
-    : SOURCES;
+    : ALL_SOURCES;
   const results = await Promise.all(selectedSources.map(async source => {
     try {
       const found = await collectSource(source);
