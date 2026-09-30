@@ -70,6 +70,9 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
 ];
 
 
+const AFRICA_CENSUS_Q3_A: SourceDefinition[] = [{key:"africarrieres_q3",name:"Africarrières",type:"pan_africa",status:"active",enabled:true,url:"https://"+"africarrieres.com/",countries:PAN_AFRICA,languages:["fr","en"],captureMode:"http",renderRequired:false,priority:95}];
+for (const source of AFRICA_CENSUS_Q3_A) SOURCE_REGISTRY.push(source);
+
 // Central Africa V1 — sources qualified during the country-by-country web audit.
 // Cameroon is intentionally excluded from this rollout.
 const CENTRAL_AFRICA_INTERNATIONAL: SourceDefinition[] = [
