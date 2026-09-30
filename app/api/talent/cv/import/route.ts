@@ -143,7 +143,7 @@ function normalizeOutput(output: any) {
     references: Array.isArray(profile.references) ? profile.references.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
     referencesVisible: profile.referencesVisible !== false && Array.isArray(profile.references) && profile.references.length > 0,
     languages: Array.isArray(profile.languages) ? profile.languages.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
-    achievements: Array.isArray(profile.achievements) ? profile.achievements.map((x: unknown) => String(x).trim()).filter(x => /\d|%|€|\$|fcfa|xaf|million|milliard|x[af]/i.test(x)).slice(0, 20) : [],
+    achievements: Array.isArray(profile.achievements) ? profile.achievements.map((x: unknown) => String(x).trim()).filter((x: string) => /\d|%|€|\$|fcfa|xaf|million|milliard|x[af]/i.test(x)).slice(0, 20) : [],
     atsScore: Number.isFinite(Number(output?.ats?.score)) ? Math.max(0, Math.min(100, Number(output.ats.score))) : 0,
     atsKeywords: Array.isArray(output?.ats?.keywords) ? output.ats.keywords.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
     strengths: Array.isArray(output?.strengths) ? output.strengths.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 8) : [],
