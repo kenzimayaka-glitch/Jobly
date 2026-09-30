@@ -33,7 +33,8 @@ export const AFRICA_COUNTRIES: AfricaCountry[] = [
   ["ZA","Afrique du Sud","south",["en"]],["ZM","Zambie","south",["en"]],["ZW","Zimbabwe","south",["en"]],["MW","Malawi","south",["en"]],["MZ","Mozambique","south",["pt"]],["NA","Namibie","south",["en"]],["BW","Botswana","south",["en"]],["SZ","Eswatini","south",["en"]],["LS","Lesotho","south",["en"]]
 ].map(([code,name,region,languages])=>({code,name,region,languages})) as AfricaCountry[];
 
-// Q3 census control marker: exhaustive quarterly source discovery is maintained separately.\nconst PAN_AFRICA = ["CM","DZ","EG","LY","MA","MR","TN","BJ","BF","CV","CI","GM","GH","GN","GW","LR","ML","NE","NG","SN","SL","TG","CF","TD","CG","CD","GQ","GA","ST","BI","AO","KE","UG","TZ","RW","ET","DJ","ER","SO","SS","SD","KM","MG","MU","SC","ZA","ZM","ZW","MW","MZ","NA","BW","SZ","LS"];
+// Q3 census control marker: exhaustive quarterly source discovery is maintained separately.
+const PAN_AFRICA = ["CM","DZ","EG","LY","MA","MR","TN","BJ","BF","CV","CI","GM","GH","GN","GW","LR","ML","NE","NG","SN","SL","TG","CF","TD","CG","CD","GQ","GA","ST","BI","AO","KE","UG","TZ","RW","ET","DJ","ER","SO","SS","SD","KM","MG","MU","SC","ZA","ZM","ZW","MW","MZ","NA","BW","SZ","LS"];
 
 export const SOURCE_REGISTRY: SourceDefinition[] = [
   {key:"emploi_cm",name:"Emploi.cm",type:"national",status:"active",enabled:true,url:"https://www.emploi.cm/recherche-jobs-cameroun",countries:["CM"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
