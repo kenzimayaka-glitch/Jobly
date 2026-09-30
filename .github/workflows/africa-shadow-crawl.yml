@@ -9,7 +9,7 @@ on:
         default: "CF,TD,CG,CD,GA,GQ,ST,BI"
   push:
     branches:
-      - feat/africa-source-engine-v1
+      - feat/africa-central-sources-v1
     paths:
       - "supabase/functions/discover-jobs/source-registry.ts"
       - "supabase/functions/discover-jobs/source-engine.ts"
