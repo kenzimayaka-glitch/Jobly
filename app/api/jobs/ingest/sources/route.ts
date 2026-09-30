@@ -523,7 +523,7 @@ export async function POST(request: NextRequest) {
       if (existing.data?.id) {
         await saveOfferPipeline(supabase, existing.data.id, offer, normalizedContent, prepared.extractedDescription);
         if (!canonicalIsPublishable(normalizedContent)) {
-          skipped++;
+          quarantined++;
           return;
         }
         const contentChanged = existing.data.contentHash !== cleanedContentHash;
