@@ -101,7 +101,7 @@ function selfTest(){
     ["same source boilerplate is not duplication",[mk("a","Agent","A",{description:["Accueil Offres d'emploi Vous devez être connecté pour postuler Tous nos services sont gratuits"]}),mk("b","Manoeuvre","A",{description:["Accueil Offres d'emploi Vous devez être connecté pour postuler Tous nos services sont gratuits"]})],"NO_DUPLICATION"]
   ];
   const out=cases.map(([name,jobs,want])=>{const r=analyze(jobs),pair=r.findings.find(f=>f.pair),got=pair?.decision??"REVIEW";return{name,got,pass:got===want,debug:name==="application-only shared block is not duplication"?{units:jobs.map(j=>units(j.normalizedContent)),findings:r.findings}:undefined}});
-  const intra=analyze([{id:"intra",sourceKey:"src",normalizedContent:{skills:["Même bloc métier répété"],profile:["Même bloc métier répété"]}}]);
+  const intra=analyze([{id:"intra",sourceKey:"src",normalizedContent:{skills:["Même bloc métier répété pour le contrôle"],profile:["Même bloc métier répété pour le contrôle"]}}]);
   const intraPass=intra.findings.length===0&&intra.summary.intraOfferReuse===1;
   out.push({name:"intra-offer reuse is tracked separately",got:intra.summary.intraOfferReuse,pass:intraPass,debug:{findings:intra.findings.length,intraOfferFindings:intra.intraOfferFindings.length}});
   console.log(JSON.stringify({passed:out.filter(x=>x.pass).length,total:out.length,cases:out},null,2));
