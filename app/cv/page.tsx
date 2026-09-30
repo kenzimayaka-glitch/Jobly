@@ -18,6 +18,13 @@ type CvData = {
   strengths: string[];
   gaps: string[];
   suggestions: string[];
+  activities: string[];
+  interests: string[];
+  references: string[];
+  referencesVisible: boolean;
+  languages: string[];
+  achievements: string[];
+  photoDataUrl: string;
 };
 
 type ViewMode = "simple" | "ats";
@@ -36,6 +43,13 @@ const EMPTY_CV: CvData = {
   strengths: [],
   gaps: [],
   suggestions: [],
+  activities: [],
+  interests: [],
+  references: [],
+  referencesVisible: false,
+  languages: [],
+  achievements: [],
+  photoDataUrl: "",
 };
 
 function safeFilename(name: string) {
@@ -62,6 +76,19 @@ function CvStudioContent() {
   const [adaptJob, setAdaptJob] = useState<{title:string;companyName?:string;company?:{name?:string}} | null>(null);
 
   const generatedName = useMemo(() => safeFilename(cv.fullName), [cv.fullName]);
+
+  const score = Math.max(0, Math.min(100, Number(cv.atsScore) || 0));
+  const scoreTone = score <= 20
+    ? { bg: "bg-red-400", text: "text-red-600" }
+    : score <= 40
+      ? { bg: "bg-blue-400", text: "text-blue-600" }
+      : score <= 60
+        ? { bg: "bg-green-400", text: "text-green-600" }
+        : score <= 90
+          ? { bg: "bg-orange-400", text: "text-orange-600" }
+          : score < 100
+            ? { bg: "bg-violet-500", text: "text-violet-600" }
+            : { bg: "bg-[#FFD60A]", text: "text-[#8B7400]" };
 
   useEffect(() => {
     if (!adaptMode || !adaptJobId || (adaptSource !== "discovery" && adaptSource !== "recruiter")) return;
@@ -208,33 +235,65 @@ function CvStudioContent() {
 
             {mode === 'simple' ? (
               <article className="mx-auto min-h-[720px] max-w-[760px] overflow-hidden rounded-[28px] bg-white shadow-xl ring-1 ring-slate-200">
-                <div className="grid md:grid-cols-[34%_66%]">
-                  <aside className="min-h-[720px] bg-[#0b2447] p-7 text-white">
-                    <div className="mb-10 grid h-20 w-20 place-items-center rounded-full bg-white/10 text-2xl font-black">{cv.fullName.split(/\s+/).map(x => x[0]).join('').slice(0,2).toUpperCase()}</div>
+                <div className="border-b border-slate-200 bg-white p-7 md:p-10">
+                  <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h2 className="text-4xl font-black tracking-tight">{cv.fullName}</h2>
+                      <p className="mt-2 text-lg font-semibold text-slate-500">{cv.headline}</p>
+                      <p className="mt-3 text-sm text-slate-600">{cv.email} · {cv.phone}</p>
+                      {cv.referencesVisible && cv.references.length > 0 && <p className="mt-2 text-xs font-semibold text-slate-500">Références disponibles · {cv.references.length}</p>}
+                    </div>
+                    <div className="h-28 w-28 shrink-0 overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-slate-200">
+                      {cv.photoDataUrl ? <img src={cv.photoDataUrl} alt="Photo professionnelle" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-xs text-slate-400">Photo</div>}
+                    </div>
+                  </div>
+                  <div className="mt-7 flex items-center gap-4">
+                    <div className={`text-3xl font-black ${scoreTone.text}`}>{score}%</div>
+                    <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-100">
+                      <div className={`h-full rounded-full transition-all ${scoreTone.bg}`} style={{ width: `${score}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-[30%_70%]">
+                  <aside className="bg-[#0b2447] p-7 text-white">
                     <div className="text-xs font-bold uppercase tracking-widest text-white/60">Contact</div>
                     <div className="mt-3 space-y-2 text-sm text-white/90"><div>{cv.email}</div><div>{cv.phone}</div></div>
-                    <div className="mt-9 text-xs font-bold uppercase tracking-widest text-white/60">Compétences</div>
-                    <div className="mt-3 flex flex-wrap gap-2">{cv.skills.map((skill) => <span key={skill} className="rounded-full bg-white/10 px-2.5 py-1 text-xs">{skill}</span>)}</div>
+                    {cv.skills.length > 0 && <><div className="mt-9 text-xs font-bold uppercase tracking-widest text-white/60">Compétences</div><div className="mt-3 flex flex-wrap gap-2">{cv.skills.map(skill => <span key={skill} className="rounded-full bg-white/10 px-2.5 py-1 text-xs">{skill}</span>)}</div></>}
+                    {cv.languages.length > 0 && <><div className="mt-9 text-xs font-bold uppercase tracking-widest text-white/60">Langues</div><div className="mt-3 space-y-1 text-sm">{cv.languages.map(language => <div key={language}>{language}</div>)}</div></>}
+                    {cv.interests.length > 0 && <><div className="mt-9 text-xs font-bold uppercase tracking-widest text-white/60">Intérêts</div><div className="mt-3 space-y-1 text-sm">{cv.interests.map(item => <div key={item}>{item}</div>)}</div></>}
                   </aside>
                   <div className="p-8 md:p-10">
-                    <div className="border-b border-slate-200 pb-7"><h2 className="text-4xl font-black tracking-tight">{cv.fullName}</h2><p className="mt-2 text-lg font-semibold text-slate-500">{cv.headline}</p></div>
-                    <section className="pt-7"><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#0b2447]">Profil</h3><p className="mt-3 text-sm leading-6 text-slate-600">{cv.summary}</p></section>
-                    <section className="pt-7"><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#0b2447]">Expérience</h3><p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-600">{cv.experience}</p></section>
-                    <section className="pt-7"><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#0b2447]">Formation</h3><p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-600">{cv.education}</p></section>
+                    {cv.summary && <section><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#0b2447]">Résumé professionnel</h3><p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-600">{cv.summary}</p></section>}
+                    {cv.experience && <section className="pt-7"><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#0b2447]">Expérience professionnelle</h3><p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-600">{cv.experience}</p></section>}
+                    {cv.education && <section className="pt-7"><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#0b2447]">Formation</h3><p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-600">{cv.education}</p></section>}
+                    {cv.achievements.length > 0 && <section className="pt-7"><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#0b2447]">Réalisations</h3><ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">{cv.achievements.map(item => <li key={item}>• {item}</li>)}</ul></section>}
+                    {cv.activities.length > 0 && <section className="pt-7"><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#0b2447]">Activités</h3><ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">{cv.activities.map(item => <li key={item}>• {item}</li>)}</ul></section>}
+                    {cv.referencesVisible && cv.references.length > 0 && <section className="pt-7"><div className="flex items-center justify-between"><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#0b2447]">Références</h3><label className="flex items-center gap-2 text-[11px] font-semibold text-slate-500"><input type="checkbox" checked={cv.referencesVisible} onChange={e => setCv(current => ({...current, referencesVisible:e.target.checked}))} /> Afficher</label></div><div className="mt-3 space-y-2 text-sm leading-6 text-slate-600">{cv.references.map(item => <div key={item}>{item}</div>)}</div></section>}
                   </div>
                 </div>
               </article>
             ) : (
               <article className="mx-auto min-h-[720px] max-w-[760px] rounded bg-white px-10 py-12 shadow-xl ring-1 ring-slate-200 md:px-16">
-                <header className="border-b border-black pb-5"><h2 className="text-3xl font-black uppercase">{cv.fullName}</h2><p className="mt-1 text-base font-bold">{cv.headline}</p><p className="mt-2 text-xs">{cv.email} · {cv.phone}</p></header>
-                <section className="pt-6"><h3 className="text-sm font-black uppercase">Professional Summary</h3><p className="mt-2 text-sm leading-6">{cv.summary}</p></section>
-                <section className="pt-6"><h3 className="text-sm font-black uppercase">Professional Experience</h3><p className="mt-2 whitespace-pre-line text-sm leading-6">{cv.experience}</p></section>
-                <section className="pt-6"><h3 className="text-sm font-black uppercase">Education & Certifications</h3><p className="mt-2 whitespace-pre-line text-sm leading-6">{cv.education}</p></section>
-                <section className="pt-6"><h3 className="text-sm font-black uppercase">Skills</h3><p className="mt-2 text-sm leading-6">{cv.skills.join(' · ')}</p></section>
+                <header className="border-b border-black pb-5">
+                  <div className="flex items-center justify-between gap-5">
+                    <div><h2 className="text-3xl font-black uppercase">{cv.fullName}</h2><p className="mt-1 text-base font-bold">{cv.headline}</p><p className="mt-2 text-xs">{cv.email} · {cv.phone}</p></div>
+                    {cv.photoDataUrl && <img src={cv.photoDataUrl} alt="Photo professionnelle" className="h-24 w-24 rounded object-cover" />}
+                  </div>
+                  <div className="mt-4 flex items-center gap-3"><span className={`text-xl font-black ${scoreTone.text}`}>{score}%</span><div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><div className={`h-full ${scoreTone.bg}`} style={{width:`${score}%`}} /></div></div>
+                </header>
+                {cv.summary && <section className="pt-6"><h3 className="text-sm font-black uppercase">Professional Summary</h3><p className="mt-2 whitespace-pre-line text-sm leading-6">{cv.summary}</p></section>}
+                {cv.experience && <section className="pt-6"><h3 className="text-sm font-black uppercase">Professional Experience</h3><p className="mt-2 whitespace-pre-line text-sm leading-6">{cv.experience}</p></section>}
+                {cv.education && <section className="pt-6"><h3 className="text-sm font-black uppercase">Education & Certifications</h3><p className="mt-2 whitespace-pre-line text-sm leading-6">{cv.education}</p></section>}
+                {cv.skills.length > 0 && <section className="pt-6"><h3 className="text-sm font-black uppercase">Skills</h3><p className="mt-2 text-sm leading-6">{cv.skills.join(' · ')}</p></section>}
+                {cv.languages.length > 0 && <section className="pt-6"><h3 className="text-sm font-black uppercase">Languages</h3><p className="mt-2 text-sm leading-6">{cv.languages.join(' · ')}</p></section>}
+                {cv.achievements.length > 0 && <section className="pt-6"><h3 className="text-sm font-black uppercase">Achievements</h3><ul className="mt-2 space-y-1 text-sm leading-6">{cv.achievements.map(item => <li key={item}>• {item}</li>)}</ul></section>}
+                {cv.activities.length > 0 && <section className="pt-6"><h3 className="text-sm font-black uppercase">Activities</h3><p className="mt-2 text-sm leading-6">{cv.activities.join(' · ')}</p></section>}
+                {cv.interests.length > 0 && <section className="pt-6"><h3 className="text-sm font-black uppercase">Interests</h3><p className="mt-2 text-sm leading-6">{cv.interests.join(' · ')}</p></section>}
+                {cv.referencesVisible && cv.references.length > 0 && <section className="pt-6"><div className="flex items-center justify-between"><h3 className="text-sm font-black uppercase">References</h3><label className="text-xs"><input type="checkbox" checked={cv.referencesVisible} onChange={e => setCv(current => ({...current, referencesVisible:e.target.checked}))} /> Afficher</label></div><p className="mt-2 whitespace-pre-line text-sm leading-6">{cv.references.join(' · ')}</p></section>}
                 {cv.atsKeywords.length > 0 && <section className="pt-6"><h3 className="text-sm font-black uppercase">Keywords</h3><p className="mt-2 text-sm leading-6">{cv.atsKeywords.join(' · ')}</p></section>}
               </article>
             )}
-
             <div className="mx-auto mt-5 flex max-w-[760px] flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between">
               <div><div className="font-extrabold">{mode === 'simple' ? 'CV Simple' : 'CV ATS'}</div><div className="text-xs text-slate-500">Téléchargement soumis aux droits CV de votre plan.</div></div>
               <button type="button" disabled className="cursor-not-allowed rounded-xl bg-slate-200 px-4 py-2 font-bold text-slate-500">Télécharger · paiement/plan</button>
