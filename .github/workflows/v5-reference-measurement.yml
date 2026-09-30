@@ -30,16 +30,56 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Run V5 canonicalization DRY RUN
         run: node scripts/migrate-offers-to-v5.mjs
-      - name: Measure post-V5 application leaks
+      - name: Measure post-V5 reference defects
         run: |
           node <<'NODE'
           const fs = require("node:fs");
           const r = JSON.parse(fs.readFileSync("migration-output/offers-migration.json","utf8"));
-          const before = 175;
-          const after = r.results.filter(x => (x.issues || []).includes("APPLICATION_LEAK")).length;
-          const resolved = Math.max(0, before - after);
-          const rate = before ? resolved / before : 0;
-          const summary = {baselineApplicationMisclassified:before,postV5ApplicationLeak:after,resolved,resolutionRate:rate,total:r.total,pass:r.pass,warning:r.warning,blocked:r.blocked,applied:r.applied,mode:r.mode,targetVersion:r.targetVersion};
+          const normalize = s => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9@._%+/-]+/g," ").replace(/\s+/g," ").trim();
+          const similarity = (a,b) => {
+            const x=normalize(a), y=normalize(b);
+            if(!x||!y) return 0;
+            if(x===y) return 1;
+            if(x.includes(y)||y.includes(x)) return Math.min(x.length,y.length)/Math.max(x.length,y.length);
+            const A=new Set(x.split(" ")), B=new Set(y.split(" "));
+            const inter=[...A].filter(v=>B.has(v)).length;
+            return inter/Math.max(1,new Set([...A,...B]).size);
+          };
+          const dupCount = sections => {
+            const owners=[]; let dup=0;
+            for(const [section,vals] of Object.entries(sections||{})) for(const value of vals||[]){
+              const s=normalize(value); if(!s) continue;
+              const existing=owners.find(item=>item.section!==section && similarity(item.value,value)>=0.92);
+              if(existing) dup++; else owners.push({value,section});
+            }
+            return dup;
+          };
+          const sectionKeys=["description","missions","profile","education","experience","skills","qualities","benefits","application"];
+          const beforeDuplication = 132;
+          const afterDuplication = r.results.reduce((sum,x) => sum + dupCount(Object.fromEntries(sectionKeys.map(k => [k, x.canonical?.[k] || []]))), 0);
+          const resolvedDuplication = Math.max(0,beforeDuplication-afterDuplication);
+          const duplicationResolutionRate = beforeDuplication ? resolvedDuplication/beforeDuplication : 0;
+          const beforeApplicationMisclassified = 175;
+          const afterApplicationLeak = r.results.filter(x => (x.issues || []).includes("APPLICATION_LEAK")).length;
+          const resolvedApplicationMisclassified = Math.max(0,beforeApplicationMisclassified-afterApplicationLeak);
+          const applicationResolutionRate = beforeApplicationMisclassified ? resolvedApplicationMisclassified/beforeApplicationMisclassified : 0;
+          const summary = {
+            baselineApplicationMisclassified: beforeApplicationMisclassified,
+            postV5ApplicationLeak: afterApplicationLeak,
+            resolvedApplicationMisclassified: resolvedApplicationMisclassified,
+            applicationResolutionRate: applicationResolutionRate,
+            baselineDuplication: beforeDuplication,
+            postV5Duplication: afterDuplication,
+            resolvedDuplication: resolvedDuplication,
+            duplicationResolutionRate: duplicationResolutionRate,
+            audited: r.total,
+            pass: r.pass,
+            warning: r.warning,
+            blocked: r.blocked,
+            applied: r.applied,
+            mode: r.mode,
+            targetVersion: r.targetVersion
+          };
           fs.writeFileSync("migration-output/reference-measurement.json", JSON.stringify(summary,null,2));
           console.log(JSON.stringify(summary,null,2));
           NODE
@@ -51,4 +91,4 @@ jobs:
           path: migration-output/
           if-no-files-found: warn
 
-# trigger second push
+# trigger third push
