@@ -30,12 +30,13 @@ export async function POST(request: NextRequest) {
     const { data: existing, error: existingError } = await supabase.from("User").select("id").eq("authUserId", authUser.id).maybeSingle();
     if (existingError) throw new Error(existingError.message);
     const now = new Date().toISOString();
-    const payload = { authUserId: authUser.id, email, phone, firstName, lastName, displayName: username, username, country, privacyAcceptedAt: now, updatedAt: now };
+    const payload = { authUserId: authUser.id, email, phone, firstName, lastName, displayName: username, username, country, privacyAcceptedAt: now, updatedAt: now };\n    const welcomeFields = existing ? {} : { aiWelcomeCredits: 30, aiWelcomeGrantedAt: now };
+
     let userId = existing?.id;
     if (userId) {
       const { error } = await supabase.from("User").update(payload).eq("id", userId); if (error) throw new Error(error.message);
     } else {
-      const { data, error } = await supabase.from("User").insert({ id: crypto.randomUUID(), ...payload }).select("id").single(); if (error) throw new Error(error.message); userId = data.id;
+      const { data, error } = await supabase.from("User").insert({ id: crypto.randomUUID(), ...payload, ...welcomeFields }).select("id").single(); if (error) throw new Error(error.message); userId = data.id;
     }
     const { data: profile } = await supabase.from("Profile").select("id").eq("userId", userId).maybeSingle();
     const profilePayload = { firstName, lastName, phone, country };
