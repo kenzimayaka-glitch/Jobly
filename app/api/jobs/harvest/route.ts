@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { adminClient, getAuthUser } from "@/lib/server-auth";
 import { collectPublicJobSources, recollectOfferByUrl } from "@/lib/jobSourceCollector";
 import { detectJobLanguage, detectLanguageRequirements } from "@/lib/jobLanguage";
-import { buildCanonicalOffer, canonicalIsPublishable } from "@/lib/jobCanonicalOffer";
+import { buildCanonicalOffer } from "@/lib/jobCanonicalOffer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -229,16 +229,9 @@ async function processCapture(supabase: ReturnType<typeof adminClient>, row: any
     const canonicalDescription = normalizedContent.description.join("\n\n") || prepared.extractedDescription;
     const normalizedExperienceYears = prepared.experienceYears ?? 0;
 
-    if (!canonicalIsPublishable(normalizedContent)) {
-      await supabase.from("JobHarvestCapture").update({
-        status: "QUARANTINED",
-        lastError: normalizedContent.quality.warnings.join(",") || "CANONICAL_NOT_PUBLISHABLE",
-        processedAt: now.toISOString(),
-        updatedAt: now.toISOString(),
-      }).eq("id", row.id);
-      return "quarantined";
-    }
-
+    // Volume-first mode: canonical normalization is retained for stable Job
+    // fields, but no relevance/quality score is used to reject a harvested
+    // offer. Only technical validity, exact identity and freshness gates apply.
     const source = capture.sourceKey;
     const contentHash = crypto.createHash("sha256")
       .update([normalizedContent.title || capture.title || "", canonicalDescription, capture.location || "", capture.contractType || "", capture.sourceUrl || ""].join("\n"))
@@ -377,6 +370,94 @@ export async function POST(request: NextRequest) {
     const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || PROCESS_BATCH), 1), PROCESS_BATCH);
     const supabase = adminClient();
     const now = new Date();
+
+    // Bulk shadow handoff: accept the crawler's raw candidates directly.
+    // No relevance, scoring or quality ranking is applied here.
+    const body = await request.json().catch(() => null);
+    const items = Array.isArray(body?.items) ? body.items : null;
+    if (items) {
+      let inserted = 0, refreshed = 0, expired = 0, skipped = 0;
+      for (const item of items) {
+        const source = String(item?.sourceKey || "").trim();
+        const sourceUrl = String(item?.url || item?.sourceUrl || "").trim();
+        const title = String(item?.title || "").trim();
+        const publishedAt = parseDate(item?.published || item?.publishedAt);
+        if (!source || !sourceUrl || !title || !publishedAt) {
+          skipped++;
+          continue;
+        }
+        if (isSourceExpired(publishedAt, now)) {
+          expired++;
+          continue;
+        }
+
+        const contentHash = crypto.createHash("sha256").update([
+          source, sourceUrl, title, String(item?.company || ""),
+          String(item?.location || ""), publishedAt,
+        ].join("\n")).digest("hex");
+
+        const existing = await supabase.from("JobHarvestCapture")
+          .select("id,status,contentHash")
+          .eq("sourceKey", source)
+          .eq("sourceUrl", sourceUrl)
+          .maybeSingle();
+        if (existing.error) throw new Error(existing.error.message);
+
+        const payload = {
+          sourceKey: source,
+          externalId: crypto.createHash("sha1").update(sourceUrl).digest("hex").slice(0, 20),
+          sourceUrl,
+          title: title.slice(0, 300),
+          company: item?.company ? String(item.company).slice(0, 180) : null,
+          location: item?.location ? String(item.location).slice(0, 180) : null,
+          contractType: item?.contractType ? String(item.contractType).slice(0, 120) : null,
+          remoteMode: item?.remoteMode ? String(item.remoteMode).slice(0, 40) : null,
+          description: item?.description ? String(item.description).slice(0, 30000) : title,
+          deadline: parseDate(item?.deadline),
+          publishedAt,
+          applicationProfile: {},
+          contentHash,
+          rawHtml: null,
+          renderedHtml: null,
+          extractedText: item?.description ? String(item.description).slice(0, 30000) : title,
+          captureMode: "http",
+          payload: {
+            countryCode: item?.countryCode || null,
+            opportunityType: item?.opportunityType || "EMPLOI",
+          },
+          status: "PENDING",
+          attempts: 0,
+          lastError: null,
+          processedAt: null,
+          discoveredAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        };
+
+        if (existing.data?.id) {
+          if (existing.data.contentHash === contentHash && existing.data.status === "PROCESSED") {
+            refreshed++;
+            continue;
+          }
+          const result = await supabase.from("JobHarvestCapture").update(payload).eq("id", existing.data.id);
+          if (result.error) throw new Error(result.error.message);
+          refreshed++;
+        } else {
+          const result = await supabase.from("JobHarvestCapture").insert(payload);
+          if (result.error) throw new Error(result.error.message);
+          inserted++;
+        }
+      }
+      return NextResponse.json({
+        ok: true,
+        mode: "ingest",
+        selected: items.length,
+        inserted,
+        refreshed,
+        expired,
+        skipped,
+        ingestedAt: now.toISOString(),
+      });
+    }
 
     if (mode === "collect") {
       const result = await collectStage(supabase, sourceKey, now);
