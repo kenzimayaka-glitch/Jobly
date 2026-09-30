@@ -178,14 +178,14 @@ export default function TalentCVs() {
     setCvPaymentOpen(true);
   }
 
-  async function exportPdf() {
+  async function exportPdf(paymentId?: string) {
     if (plan !== "PREMIUM" && plan !== "PRO") {
       openCvPayment();
       return;
     }
     setBusy(true); setMessage("Préparation du CV ATS…");
     try {
-      const res = await fetch("/api/talent/cv/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cv: { ...cv, skills: cv.skills.split(",").map(x => x.trim()).filter(Boolean) } }) });
+      const res = await fetch("/api/talent/cv/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cv: { ...cv, skills: cv.skills.split(",").map(x => x.trim()).filter(Boolean) }, ...(paymentId ? { paymentId } : {}) }) });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Téléchargement impossible.");
@@ -248,7 +248,7 @@ export default function TalentCVs() {
       setCvPaymentOpen(false);
       setCvPaymentId("");
       setMessage("Paiement confirmé. Préparation du CV ATS…");
-      await exportPdf();
+      await exportPdf(cvPaymentId);
     } catch (err) {
       setCvPaymentMessage(err instanceof Error ? err.message : "Vérification impossible.");
     } finally {
