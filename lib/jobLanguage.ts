@@ -1,4 +1,4 @@
-export type JobLanguageCode = "fr" | "en" | "es" | "pt" | "ar" | "sw";
+export type JobLanguageCode = "fr" | "en" | "es" | "pt" | "ar" | "sw" | "so" | "ha" | "yo" | "ig" | "am" | "om" | "zu" | "xh" | "af";
 
 export const JOBLY_LANGUAGES: Record<JobLanguageCode, { name: string; nativeName: string }> = {
   fr: { name: "French", nativeName: "Français" },
@@ -7,6 +7,15 @@ export const JOBLY_LANGUAGES: Record<JobLanguageCode, { name: string; nativeName
   pt: { name: "Portuguese", nativeName: "Português" },
   ar: { name: "Arabic", nativeName: "العربية" },
   sw: { name: "Swahili", nativeName: "Kiswahili" },
+  so: { name: "Somali", nativeName: "Soomaali" },
+  ha: { name: "Hausa", nativeName: "Hausa" },
+  yo: { name: "Yoruba", nativeName: "Yorùbá" },
+  ig: { name: "Igbo", nativeName: "Igbo" },
+  am: { name: "Amharic", nativeName: "አማርኛ" },
+  om: { name: "Oromo", nativeName: "Afaan Oromoo" },
+  zu: { name: "Zulu", nativeName: "isiZulu" },
+  xh: { name: "Xhosa", nativeName: "isiXhosa" },
+  af: { name: "Afrikaans", nativeName: "Afrikaans" },
 };
 
 const ALIASES: Record<string, JobLanguageCode> = {
@@ -16,6 +25,15 @@ const ALIASES: Record<string, JobLanguageCode> = {
   pt: "pt", português: "pt", portugues: "pt", portuguese: "pt", portugais: "pt",
   ar: "ar", العربية: "ar", arabic: "ar", arabe: "ar",
   sw: "sw", kiswahili: "sw", swahili: "sw",
+  so: "so", somali: "so", soomaali: "so", somalien: "so",
+  ha: "ha", hausa: "ha",
+  yo: "yo", yoruba: "yo", yorùbá: "yo",
+  ig: "ig", igbo: "ig",
+  am: "am", amh: "am", amharic: "am", አማርኛ: "am",
+  om: "om", oromo: "om", "afaan oromoo": "om",
+  zu: "zu", zulu: "zu", isizulu: "zu",
+  xh: "xh", xhosa: "xh", isixhosa: "xh",
+  af: "af", afrikaans: "af",
 };
 
 export function normalizeJobLanguage(value: unknown): JobLanguageCode | null {
@@ -29,6 +47,15 @@ export function detectJobLanguage(text: string, hint?: unknown): JobLanguageCode
   const n = text.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, " ");
   if (/[\\u0600-\\u06ff]/.test(text) || /arabic|arabe|العربية/.test(text.toLowerCase())) return "ar";
   if (/kiswahili|swahili|nairobi|kampala|kigali/.test(n)) return "sw";
+  if (/somali|soomaali|muqdisho|mogadishu/.test(n)) return "so";
+  if (/hausa|kano|kaduna/.test(n)) return "ha";
+  if (/yoruba|yorùbá|lagos|ibadan/.test(n)) return "yo";
+  if (/igbo|enugu|anambra/.test(n)) return "ig";
+  if (/amharic|አማርኛ|ethiopia|addis ababa/.test(n)) return "am";
+  if (/oromo|afaan oromoo/.test(n)) return "om";
+  if (/zulu|isizulu/.test(n)) return "zu";
+  if (/xhosa|isixhosa/.test(n)) return "xh";
+  if (/afrikaans/.test(n)) return "af";
   if (/portugues|portuguese|portugais|vaga|candidatura|recrutamento/.test(n)) return "pt";
   if (/espanol|espanol|spanish|espagnol|vacante|candidatura|empleo/.test(n)) return "es";
   if (/english|anglais|job title|responsibilities|qualifications|requirements|apply now/.test(n)) return "en";
@@ -45,6 +72,15 @@ export function detectLanguageRequirements(text: string): JobLanguageCode[] {
     ["pt", /portugues|portuguese|portugais/],
     ["ar", /arabe|arabic|العربية/],
     ["sw", /swahili|kiswahili/],
+    ["so", /somali|soomaali/],
+    ["ha", /hausa/],
+    ["yo", /yoruba|yorùbá/],
+    ["ig", /igbo/],
+    ["am", /amharic|አማርኛ/],
+    ["om", /oromo|afaan oromoo/],
+    ["zu", /zulu|isizulu/],
+    ["xh", /xhosa|isixhosa/],
+    ["af", /afrikaans/],
   ];
   const out = patterns.filter(([, pattern]) => {
     const matches = [...n.matchAll(new RegExp(pattern.source, "g"))];

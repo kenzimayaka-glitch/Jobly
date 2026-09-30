@@ -3645,3 +3645,122 @@ Une fonctionnalité n'est pas « finie » parce qu'elle compile. Elle est finie 
 | Déploiement Vercel sans contournement du contrôle utilisateur | 🟢 RÈGLE FIGÉE | Respect permanent |
 
 **Cette liste doit être mise à jour à chaque nouvelle résolution ou nouvelle demande persistante.**
+
+
+# CHECKPOINT 30/09/2026 — AFRIQUE / V3 / SHADOW INGESTION
+
+## Architecture Afrique — 54 pays
+
+L'architecture pays Afrique est désormais intégrée autour d'un registre partagé de 54 pays africains, avec code pays, nom français, drapeau, région, langues principales, alias et normalisation.
+
+La table persistante JoblyCountry contient les 54 pays et les 54 sont actuellement activés. Le périmètre est structuré par six régions : Nord, Ouest, Centre, Est, Australe et Océan Indien.
+
+Le parcours distingue le marché local et l'exploration panafricaine :
+
+    🇨🇲 Cameroun
+      ├── Toutes les offres
+      ├── Meilleures offres
+      ├── CDI / CDD / Stage / ...
+      └── 🌍 Explorer l’Afrique
+
+La couverture géographique est distincte de la disponibilité commerciale ou du paiement dans un pays.
+
+## Multilingue
+
+L'architecture linguistique couvre désormais 15 langues structurées : fr, en, es, pt, ar, sw, so, ha, yo, ig, am, om, zu, xh, af.
+
+La préférence utilisateur est persistée via preferredLanguages avec une interface volontairement simple : **Français | English ▾**.
+
+Le matching distingue la langue du contenu d'une offre d'une exigence linguistique explicite. Une langue ne pénalise donc pas artificiellement le candidat lorsqu'elle n'est pas une exigence.
+
+## Architecture d'ingestion panafricaine
+
+    54 PAYS
+     ↓
+    REGISTRE DES SOURCES
+     ↓
+    COLLECTE / INGESTION
+     ↓
+    NORMALISATION
+     ↓
+    PAYS + LANGUE + SECTEUR + CONTRAT
+     ↓
+    IDENTITÉ DE L’OFFRE / SOURCE
+     ↓
+    V3 DUPLICATION
+     ↓
+    FRAÎCHEUR + QUALITÉ + VALIDITÉ
+     ↓
+    OFFRE CANONIQUE JOBLY
+     ↓
+    INDEX / API
+     ↓
+    LOCAL + EXPLORER L’AFRIQUE
+     ↓
+    MATCHING J’IA
+
+La source n'est pas l'identité de l'offre : une même offre publiée sur plusieurs sources doit être traitée comme une même opportunité lorsque les preuves le justifient.
+
+## Registre initial de sources techniques
+
+Le registre opérationnel du POC couvre notamment ONAPE (Tchad), ACPE (Congo), WUZZUF (Égypte), BrighterMonday (Kenya), Jobweb (Zambie), GLMIS (Ghana), FreshTalent Africa (panafricain/remote), ainsi que les sources existantes Jobly.
+
+Les sources sont conçues pour évoluer vers : DISCOVERED → TECHNICAL_TEST → VALIDATED → SHADOW → ACTIVE → MONITORED.
+
+## V3 Duplication — état de référence
+
+L'architecture V3 de détection de duplication est stabilisée sur l'audit de référence **#79**.
+
+La passe complète V3 sur les **254 offres** a traité toute la population et a séparé les duplications des cas nécessitant une revue. Le résultat de référence comprend notamment **14 DUPLICATION** et **58 REVIEW**.
+
+La V3 est indépendante du pays : le pays, la langue ou la source ne suffisent jamais à déclarer une duplication.
+
+Les métadonnées internes DUPLICATION / REVIEW ne doivent pas être exposées dans le détail public des offres.
+
+## Shadow POC — état d'exécution
+
+La branche feature/africa-shadow-poc-20260930 contient maintenant l'extension du registre africain, le mode shadow sans écriture en base, un runner d'exécution, un workflow GitHub Actions dédié et la génération d'un rapport JSON/artifact.
+
+**Aucune donnée Supabase de production n'est écrite par le mode shadow et aucun déploiement Vercel n'est déclenché.**
+
+La première exécution GitHub a échoué avant toute collecte pour une raison purement technique du runner : top-level await incompatible avec le format CJS utilisé par tsx.
+
+Cette cause a été corrigée dans le commit 0b8dd339869c762412be3849bdd726a60da22577.
+
+### État de vérité
+
+**🟨 SHADOW POC CODÉ + PREMIER RUN TESTÉ + CAUSE D'ÉCHEC IDENTIFIÉE ET CORRIGÉE — NOUVELLE EXÉCUTION À CONTRÔLER.**
+
+Il est interdit de présenter un nombre d'offres africaines comme réel tant que le runner corrigé n'a pas produit son rapport.
+
+## Qualité des données — règles retenues
+
+Le pipeline distingue :
+- countryCode : pays précis de l'offre ;
+- eligibilityScope : COUNTRY, AFRICA, WORLDWIDE, etc. ;
+- eligibleCountries[] : pays multiples lorsqu'une offre est éligible dans plusieurs pays ;
+- sourcePublishedAt, publishedAt, expiresAt, lastSeenAt ;
+- salaire : montant + devise + période, sans conversion silencieuse en FCFA ;
+- candidature : EMAIL, PHONE, EXTERNAL_URL, PORTAL, FORM, UNKNOWN.
+
+Une offre remote/panafricaine ne doit pas être artificiellement rattachée à un seul pays.
+
+## Discipline de vérité
+
+Les développements Afrique suivent obligatoirement :
+
+**SPÉCIFIÉ → CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**
+
+Règle permanente : **aucun déploiement Vercel sans autorisation explicite.**
+
+## Prochaine étape technique
+
+1. Rejouer le Shadow POC corrigé.
+2. Contrôler le rapport par source.
+3. Corriger les mappings pays/éligibilité réellement observés.
+4. Introduire les contrôles V3 dans la chaîne de publication shadow.
+5. Mesurer retrieved → normalized → valid → duplicate/review → publishable.
+6. Étendre progressivement le registre aux autres pays/sources.
+7. Après validation seulement, préparer l'activation contrôlée.
+
+main et la production Vercel restent inchangés par ce checkpoint.

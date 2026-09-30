@@ -8,9 +8,10 @@ import BottomNav, { TALENT_NAV } from "../../components/BottomNav";
 import ScoreRing from "../../components/ScoreRing";
 import TalentHero from "../../components/TalentHero";
 import CompanyLogo from "../../components/CompanyLogo";
+import LanguagePairSelector from "../../components/LanguagePairSelector";
 
 type ProfileData = {
-  user: { id?: string; displayName?: string; email?: string; phone?: string; profilePhotoUrl?: string | null; heroPhotoUrl?: string | null };
+  user: { id?: string; displayName?: string; email?: string; phone?: string; profilePhotoUrl?: string | null; heroPhotoUrl?: string | null; preferredLanguages?: string[] };
   profile: { headline?: string; summary?: string; location?: string; targetRoles?: string[]; preferredSectors?: string[] };
   experiences: unknown[];
   skills: { name?: string }[];

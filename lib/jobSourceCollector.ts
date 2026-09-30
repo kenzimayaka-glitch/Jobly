@@ -43,6 +43,13 @@ export type CollectedOffer = {
 };
 
 const SOURCES: SourceConfig[] = [
+  { key: "onape_tchad", name: "ONAPE Tchad", listingUrls: ["https://onape.td/liste-des-offres-demploi/"], hostnames: ["onape.td", "www.onape.td"], offerPattern: /\/offre(?:s)?-?demploi(?:-.*)?\/([^/?#]+)|\/offre\/([^/?#]+)/i },
+  { key: "acpe_congo", name: "ACPE Congo", listingUrls: ["https://www.acpe.cg/offres-emplois"], hostnames: ["www.acpe.cg", "acpe.cg"], offerPattern: /\/offre(?:s)?-emplois?\/([^/?#]+)|\/offre\/([^/?#]+)/i },
+  { key: "wuzzuf_egypt", name: "WUZZUF Egypt", listingUrls: ["https://wuzzuf.net/search/jobs"], hostnames: ["wuzzuf.net", "www.wuzzuf.net"], offerPattern: /\/jobs\/[^/?#]+/i },
+  { key: "brightermonday_ke", name: "BrighterMonday Kenya", listingUrls: ["https://www.brightermonday.co.ke/jobs"], hostnames: ["www.brightermonday.co.ke", "brightermonday.co.ke"], offerPattern: /\/listings\/[^/?#]+|\/job\/[^/?#]+/i },
+  { key: "jobweb_zambia", name: "Jobweb Zambia", listingUrls: ["https://jobwebzambia.com/job-type/full-time/"], hostnames: ["jobwebzambia.com", "www.jobwebzambia.com"], offerPattern: /\/jobs?\/[^/?#]+/i },
+  { key: "glmis_ghana", name: "GLMIS Ghana", listingUrls: ["https://www.glmis.gov.gh/jobs"], hostnames: ["www.glmis.gov.gh", "glmis.gov.gh"], offerPattern: /\/job[s]?\/[^/?#]+/i },
+  { key: "freshtalent_africa", name: "FreshTalent Africa", listingUrls: ["https://jobs.freshtalent.africa/jobs"], hostnames: ["jobs.freshtalent.africa", "freshtalent.africa"], offerPattern: /\/jobs?\/[^/?#]+/i },
   { key: "minajobs", name: "MinaJobs", listingUrls: ["https://cm2024.minajobs.net/offres-emplois-stages", "https://cameroun.minajobs.net/offres-emplois-stages", "https://minajobs.net/offres-emplois-stages-a/tout-le-cameroun"], hostnames: ["cameroun.minajobs.net", "cm2024.minajobs.net", "minajobs.net"], offerPattern: /\/emplois-stage-recrutement\/(\d+)(?:\/|$)/i },
   { key: "jobinfocamer", name: "JobInfoCamer", listingUrls: ["https://www.jobinfocamer.com/jobs/", "https://www.jobinfocamer.com/fr/"], hostnames: ["www.jobinfocamer.com", "jobinfocamer.com"], offerPattern: /\/(?:job|jobs)\/(\d+)(?:\/|$)/i },
   { key: "infosconcourseducation", name: "Infos Concours Education", listingUrls: ["https://infosconcourseducation.com/category/offre-demploiss/"], hostnames: ["infosconcourseducation.com", "www.infosconcourseducation.com"], offerPattern: /\/[^/]+\/?$/i },

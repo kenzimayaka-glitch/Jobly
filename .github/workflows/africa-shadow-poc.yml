@@ -1,0 +1,50 @@
+name: Jobly Africa Shadow POC
+
+on:
+  push:
+    branches:
+      - feature/africa-shadow-poc-20260930
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shadow:
+    name: Real public-source shadow ingestion
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Run shadow ingestion
+        run: pnpm dlx tsx scripts/africa-shadow-poc.ts
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f shadow-output/africa-shadow-report.json ]; then
+            node - <<'NODE'
+            const fs = require('fs');
+            const r = JSON.parse(fs.readFileSync('shadow-output/africa-shadow-report.json','utf8'));
+            const lines = ['# Africa Shadow POC', '', 'Offers réellement extraites: **' + r.totalOffers + '**', '', '| Source | Découvertes | Normalisées | Pays | Langue | Fraîches | Candidature | Publiables |', '|---|---:|---:|---:|---:|---:|---:|---:|'];
+            for (const [k,v] of Object.entries(r.sources)) lines.push('| ' + k + ' | ' + v.discovered + ' | ' + v.normalized + ' | ' + v.countryResolved + ' | ' + v.languageResolved + ' | ' + v.fresh + ' | ' + v.applicationReady + ' | ' + v.publishable + ' |');
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\\n') + '\\n');
+            NODE
+          fi
+      - name: Upload shadow report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jobly-africa-shadow-poc
+          path: shadow-output/
+          if-no-files-found: warn
