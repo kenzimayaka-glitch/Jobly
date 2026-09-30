@@ -6,10 +6,10 @@ type Metric = {
   detailChecked:number; extracted:number; eligible:number; freshSignals:number; samples:string[]; error:string|null;
 };
 
-function clean(s:string){return String(s||"").replace(/<script[\\s\\S]*?<\\/script>/gi," ").replace(/<style[\\s\\S]*?<\\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;|&#160;/gi," ").replace(/&amp;/gi,"&").replace(/\\s+/g," ").trim();}
+function clean(s:string){return String(s||"").replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;|&#160;/gi," ").replace(/&amp;/gi,"&").replace(/\s+/g," ").trim();}
 function absolute(base:string,href:string){try{return new URL(href,base).toString()}catch{return ""}}
 function links(html:string,base:string){
-  const out:string[]=[]; const re=/<a[^>]+href=["']([^"']+)["'][^>]*>([\\s\\S]*?)<\\/a>/gi; let m;
+  const out:string[]=[]; const re=/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi; let m;
   while((m=re.exec(html)) && out.length<250){
     const u=absolute(base,m[1]); const label=clean(m[2]);
     if(u && !u.includes("#") && /job|emploi|offer|vacan|career|recruit|recrut|advert|poste|opportunit/i.test(u+" "+label)) out.push(u);
@@ -17,12 +17,12 @@ function links(html:string,base:string){
   return [...new Set(out)];
 }
 function jsonLdJobs(html:string){
-  const jobs:any[]=[]; const re=/<script[^>]+type=["']application\\/ld\\+json["'][^>]*>([\\s\\S]*?)<\\/script>/gi; let m;
+  const jobs:any[]=[]; const re=/<script[^>]+type=["']application\/ld\\+json["'][^>]*>([\s\S]*?)<\/script>/gi; let m;
   while((m=re.exec(html))){try{const p=JSON.parse(m[1]); for(const x of (Array.isArray(p)?p:[p])){const t=x?.["@type"];if(t==="JobPosting" || (Array.isArray(t)&&t.includes("JobPosting")))jobs.push(x)}}catch{}}
   return jobs;
 }
 function fresh(html:string){return (html.match(/datePosted|validThrough|published|publication|postDate|updatedAt|deadline|closing/gi)||[]).length;}
-function titleFrom(html:string){return clean(html.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i)?.[1]||"");}
+function titleFrom(html:string){return clean(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]||"");}
 function descFrom(html:string){
   const j=jsonLdJobs(html)[0]; if(j?.description)return clean(String(j.description)).slice(0,12000);
   return clean(html).slice(0,12000);
