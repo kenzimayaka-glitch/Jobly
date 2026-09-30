@@ -181,9 +181,13 @@ function applicationSignalScore(line: string): number {
   if (/@/.test(normalized)) score += 5;
   if (/\b(?:objet|subject|indiquer en objet|mettre en objet|avec pour objet|mentionner en objet)\b/.test(normalized)) score += 5;
   if (/\b(?:adresse de candidature|email de candidature|mail de candidature|telephone de candidature|numero de candidature)\b/.test(normalized)) score += 5;
-  if (/\b(?:envoyer|envoyez|adressez|transmettez|postulez|candidater|deposer|déposer|soumettre|apply|postuler)\b/.test(normalized)) score += 3;
+  if (/\b(?:postulez|postuler|candidater|apply)\b/.test(normalized)) score += 3;
+  if (/\b(?:candidature|candidatures)\b.*\b(?:envoyer|envoyez|envoyee|envoyees|transmettre|transmettez|adressez|deposer|deposez|soumettre)\b/.test(normalized)) score += 3;
+  if (/\b(?:envoyer|envoyez|envoyee|envoyees|adressez|transmettez|deposer|deposez|soumettre)\b/.test(normalized) &&
+      /\b(?:cv|curriculum vitae|lettre de motivation|dossier de candidature|pieces? a fournir|documents? a (?:fournir|joindre)|fichier|pdf|mail|email)\b/.test(normalized)) score += 3;
   if (/\b(?:cv|curriculum vitae|lettre de motivation|dossier de candidature|pieces? a fournir|documents? a (?:fournir|joindre)|fichier|pdf)\b/.test(normalized)) score += 3;
-  if (/\b(?:avant le|au plus tard le|date limite|deadline)\b/.test(normalized) && /\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\b(?:janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\b/.test(normalized)) score += 1;
+  if (/\b(?:avant le|au plus tard le|date limite|deadline)\b/.test(normalized) &&
+      /\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\b(?:janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\b/.test(normalized)) score += 1;
   return score;
 }
 
