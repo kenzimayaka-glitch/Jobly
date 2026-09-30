@@ -1,8 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getAuthUser } from "../../../../../lib/server-auth";
+import crypto from "node:crypto";
 
 export const runtime = "nodejs";
+
+export async function POST(request: NextRequest) {
+  try {
+    const auth = await getAuthUser(request);
+    if (!auth) return NextResponse.json({ error: "UNAUTHENTICATED", message: "Session requise." }, { status: 401 });
+    const form = await request.formData();
+    const file = form.get("file");
+    if (!(file instanceof File) || (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf"))) {
+      return NextResponse.json({ error: "PDF_REQUIRED", message: "Le CV original doit être un PDF." }, { status: 400 });
+    }
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !serviceKey) return NextResponse.json({ error: "STORAGE_UNAVAILABLE", message: "Stockage du CV indisponible." }, { status: 503 });
+    const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const storagePath = `${auth.id}/${crypto.randomUUID()}.pdf`;
+    const upload = await admin.storage.from("talent-cvs").upload(storagePath, bytes, { contentType: "application/pdf", upsert: false });
+    if (upload.error) throw new Error(upload.error.message);
+    const { data: user, error: userError } = await admin.from("User").select("id,cvOriginalStoragePath").eq("authUserId", auth.id).maybeSingle();
+    if (userError || !user?.id) throw new Error(userError?.message || "Profil Jobly introuvable.");
+    if (user.cvOriginalStoragePath) await admin.storage.from("talent-cvs").remove([user.cvOriginalStoragePath]);
+    const { error: updateError } = await admin.from("User").update({ cvOriginalStoragePath: storagePath, cvOriginalFileName: file.name, cvOriginalUploadedAt: new Date().toISOString() }).eq("id", user.id);
+    if (updateError) { await admin.storage.from("talent-cvs").remove([storagePath]); throw new Error(updateError.message); }
+    return NextResponse.json({ ok: true, stored: true, storagePath, fileName: file.name });
+  } catch (error) {
+    return NextResponse.json({ error: "CV_ORIGINAL_SAVE_FAILED", message: error instanceof Error ? error.message : "Impossible d’enregistrer le CV original." }, { status: 500 });
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
