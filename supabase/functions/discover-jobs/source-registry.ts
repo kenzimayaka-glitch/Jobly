@@ -69,6 +69,42 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
   ] as Array<[string,string,SourceType]>).map(([key,name,type])=>({key,name,type,status:"discovered" as const,enabled:false,countries:PAN_AFRICA,languages:["en","fr","pt","ar"],captureMode:"unknown" as const,renderRequired:false,priority:10,notes:"Découverte V3; URL, pays exacts et méthode d'accès à qualifier avant activation."})),
 ];
 
+
+// Central Africa V1 — sources qualified during the country-by-country web audit.
+// Cameroon is intentionally excluded from this rollout.
+const CENTRAL_AFRICA_SOURCES: SourceDefinition[] = [
+  {key:"acfpe_cf",name:"ACFPE Centrafrique",type:"institutional",status:"active",enabled:true,url:"https://acfpe.info/offre_emplois/index/25",countries:["CF"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"ktzemploi_cf",name:"KTZ Emploi RCA",type:"national",status:"active",enabled:true,url:"https://ktzemploi.com/emplois",countries:["CF"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"emploi_cf",name:"Emploi.cf",type:"national",status:"active",enabled:true,url:"https://www.emploi.cf/",countries:["CF"],languages:["fr","en"],captureMode:"http",renderRequired:false,priority:90},
+  {key:"banguiconnect",name:"BanguiConnect",type:"specialized",status:"active",enabled:true,url:"https://www.banguiconnect.com/categories/emploi",countries:["CF"],languages:["fr"],captureMode:"http",renderRequired:false,priority:90},
+  {key:"onape_td",name:"ONAPE Tchad",type:"institutional",status:"active",enabled:true,url:"https://onape.td/liste-des-offres-demploi/",countries:["TD"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"tchadjobs",name:"TchadJobs",type:"national",status:"active",enabled:true,url:"https://tchadjobs.com/",countries:["TD"],languages:["fr"],captureMode:"http",renderRequired:false,priority:70,notes:"Surveillance; le contrôle du 30-09-2026 affichait 0 offre."},
+  {key:"tchad_emploi",name:"Tchad-Emploi",type:"national",status:"active",enabled:true,url:"https://tchad-emploi.com/fr",countries:["TD"],languages:["fr"],captureMode:"http",renderRequired:false,priority:60,notes:"Surveillance; aucune offre active exposée lors du dernier contrôle."},
+  {key:"emploi_td",name:"Emploi.td",type:"national",status:"active",enabled:true,url:"https://www.emploi.td/recrutement-n-djamena",countries:["TD"],languages:["fr"],captureMode:"http",renderRequired:false,priority:70},
+  {key:"acpe_cg",name:"ACPE Congo",type:"institutional",status:"active",enabled:true,url:"https://acpe.cg/offres-emplois",countries:["CG"],languages:["fr"],captureMode:"http",renderRequired:false,priority:110},
+  {key:"emploi_cg",name:"Emploi.cg",type:"national",status:"active",enabled:true,url:"https://www.emploi.cg/recherche-jobs-congo-brazzaville",countries:["CG"],languages:["fr"],captureMode:"http",renderRequired:false,priority:95},
+  {key:"africatalents_cg",name:"AfricaTalents Congo",type:"aggregator",status:"active",enabled:true,url:"https://www.emploi.cg/about-us",countries:["CG"],languages:["fr"],captureMode:"http",renderRequired:false,priority:60,notes:"Métadonnée/écosystème; déduplication avec Emploi.cg."},
+  {key:"emploi_cd",name:"Emploi.cd",type:"national",status:"active",enabled:true,url:"https://www.emploi.cd/recherche-jobs-congo-rdc",countries:["CD"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"kivuhub",name:"KivuHub Job",type:"specialized",status:"active",enabled:true,url:"https://kivuhub.net/find-a-job/",countries:["CD"],languages:["fr","en"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"congojob_cd",name:"CongoJob",type:"national",status:"active",enabled:true,url:"https://congojob.cd/",countries:["CD"],languages:["fr"],captureMode:"http",renderRequired:false,priority:70},
+  {key:"travail_ga",name:"TRAVAIL.GA / PNPE",type:"institutional",status:"active",enabled:true,url:"https://travail.ga/",countries:["GA"],languages:["fr"],captureMode:"http",renderRequired:false,priority:110},
+  {key:"emploi_ga",name:"Emploi.ga",type:"national",status:"active",enabled:true,url:"https://www.emploi.ga/recherche-jobs-gabon",countries:["GA"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"mintravail_gq",name:"Ministère du Travail Guinée équatoriale",type:"institutional",status:"active",enabled:true,url:"https://mintrabajo.gob.gq/",countries:["GQ"],languages:["es","fr"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"pe_stp",name:"PE-STP — Plataforma Nacional de Empregabilidade",type:"institutional",status:"active",enabled:true,url:"https://emprego.gov.st/",countries:["ST"],languages:["pt"],captureMode:"http",renderRequired:false,priority:110},
+  {key:"kezir_st",name:"Kezir São Tomé",type:"national",status:"active",enabled:true,url:"https://www.kezir.st/announcements?category=Emprego&sort=newest",countries:["ST"],languages:["pt"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"quadife_st",name:"QuaDiFe",type:"national",status:"active",enabled:true,url:"https://quadife.st/",countries:["ST"],languages:["pt"],captureMode:"http",renderRequired:false,priority:70},
+  {key:"burundijobs",name:"BurundiJobs",type:"national",status:"active",enabled:true,url:"https://www.burundijobs.bi/",countries:["BI"],languages:["fr","en"],captureMode:"http",renderRequired:false,priority:100},
+  {key:"paeej_bi",name:"PAEEJ Burundi",type:"institutional",status:"active",enabled:true,url:"https://www.job.paeej.bi/offres/",countries:["BI"],languages:["fr"],captureMode:"http",renderRequired:false,priority:95},
+  {key:"mae_bi",name:"Ministère des Affaires étrangères du Burundi — Offres d'emplois",type:"institutional",status:"active",enabled:true,url:"https://www.mae.gov.bi/category/offres-demplois/",countries:["BI"],languages:["fr"],captureMode:"http",renderRequired:false,priority:90}
+];
+
+for (const override of CENTRAL_AFRICA_SOURCES) {
+  const index = SOURCE_REGISTRY.findIndex((source) => source.key === override.key);
+  if (index >= 0) SOURCE_REGISTRY[index] = override;
+  else SOURCE_REGISTRY.push(override);
+}
+
+
 export function getSourceByKey(key:string): SourceDefinition | null {
   return SOURCE_REGISTRY.find((source)=>source.key===key) ?? null;
 }
