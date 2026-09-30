@@ -16,6 +16,7 @@ const batches=await Promise.all(countries.map(async country=>{
   }));
 }));
 const metrics=batches.flat();
+const control=metrics.map(x=>({country:x.countryCode,source:x.sourceName,sourceCount:x.advertisedCount,discovered:x.discoveredUrls,extracted:x.extracted,eligible:x.eligible,expired:x.expired,rejected:x.rejected,internships:x.internships,consultancies:x.consultancies,tenders:x.tenders,errors:x.errors.length,gap:x.advertisedCount===null?null:x.advertisedCount-x.eligible}));
 const summary={
   generatedAt:new Date().toISOString(),mode:"EXHAUSTIVE_SHADOW_HARVEST",publication:false,deployment:false,
   countries,sources:metrics.length,accessible:metrics.filter(x=>x.errors.length===0).length,
@@ -27,4 +28,4 @@ const summary={
   consultancies:metrics.reduce((n,x)=>n+x.consultancies,0),tenders:metrics.reduce((n,x)=>n+x.tenders,0),
   durationMs:Date.now()-started
 };
-console.log(JSON.stringify({summary,metrics},null,2));
+console.log(JSON.stringify({summary,control,metrics},null,2));
