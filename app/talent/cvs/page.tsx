@@ -48,7 +48,6 @@ export default function TalentCVs() {
   }, [message]);
   const [originalBusy, setOriginalBusy] = useState(false);
   const [plan, setPlan] = useState("FREE");
-  const [cvPaymentAmount, setCvPaymentAmount] = useState(500);
   const [cvAtsPaymentAmount, setCvAtsPaymentAmount] = useState(500);
   const [cvOptimizedPaymentAmount, setCvOptimizedPaymentAmount] = useState(500);
   const [cvPaymentFeature, setCvPaymentFeature] = useState<"CV_ATS_DOWNLOAD" | "CV_OPTIMIZED_DOWNLOAD">("CV_ATS_DOWNLOAD");
@@ -64,7 +63,6 @@ export default function TalentCVs() {
     try { setCvs(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch {}
     fetch("/api/entitlements", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(x => {
       if (x?.subscription?.plan) setPlan(x.subscription.plan);
-      if (Number.isFinite(Number(x?.entitlements?.cvDownloadPriceXaf))) setCvPaymentAmount(Number(x.entitlements.cvDownloadPriceXaf));
       if (Number.isFinite(Number(x?.entitlements?.cvAtsDownloadPriceXaf))) setCvAtsPaymentAmount(Number(x.entitlements.cvAtsDownloadPriceXaf));
       if (Number.isFinite(Number(x?.entitlements?.cvOptimizedDownloadPriceXaf))) setCvOptimizedPaymentAmount(Number(x.entitlements.cvOptimizedDownloadPriceXaf));
     }).catch(() => {});
@@ -188,12 +186,13 @@ export default function TalentCVs() {
     setCvPaymentOpen(true);
   }
 
-  async function exportPdf(paymentId?: string) {
-    if (plan !== "PREMIUM" && plan !== "PRO") {
-      openCvPayment();
+  async function exportPdf(service: "ATS" | "OPTIMIZED" = "ATS", paymentId?: string) {
+    const included = plan !== "FREE";
+    if (!included) {
+      openCvPayment(service === "OPTIMIZED" ? "CV_OPTIMIZED_DOWNLOAD" : "CV_ATS_DOWNLOAD");
       return;
     }
-    setBusy(true); setMessage("Préparation du CV ATS…");
+    setBusy(true); setMessage(service === "OPTIMIZED" ? "Préparation du CV optimisé…" : "Préparation du CV ATS…");
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
@@ -203,8 +202,8 @@ export default function TalentCVs() {
         throw new Error(data.message || "Téléchargement impossible.");
       }
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `${cv.fullName || "CV-Jobly"}-ATS.pdf`; a.click(); URL.revokeObjectURL(url);
-      setMessage("CV ATS téléchargé.");
+      const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `${cv.fullName || "CV-Jobly"}-${service === "OPTIMIZED" ? "Jobly-optimise" : "ATS"}.pdf`; a.click(); URL.revokeObjectURL(url);
+      setMessage(service === "OPTIMIZED" ? "CV Jobly optimisé téléchargé." : "CV ATS téléchargé.");
     } catch (err) { setMessage(err instanceof Error ? err.message : "Téléchargement impossible."); }
     finally { setBusy(false); }
   }
