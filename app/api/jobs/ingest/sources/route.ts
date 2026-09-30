@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { adminClient, getAuthUser } from "@/lib/server-auth";
 import { collectPublicJobSources, recollectOfferByUrl } from "@/lib/jobSourceCollector";
 import { detectJobLanguage, detectLanguageRequirements } from "@/lib/jobLanguage";
+import { AFRICAN_COUNTRIES, normalizeAfricanCountryCode } from "@/lib/africaCountries";
 import {
   buildCanonicalOffer,
   canonicalIsPublishable,
@@ -49,13 +50,14 @@ function inferCountryCode(offer: any): string | null {
   const source = String(offer?.sourceKey || "").trim().toLowerCase();
   if (SOURCE_COUNTRY_CODES[source]) return SOURCE_COUNTRY_CODES[source];
   const location = String(offer?.location || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (/\b(gabon|libreville|port-gentil)\b/.test(location)) return "GA";
-  if (/\b(congo|brazzaville|pointe-noire)\b/.test(location)) return "CG";
-  if (/\b(tchad|ndjamena|n'djamena)\b/.test(location)) return "TD";
-  if (/\b(centrafrique|bangui|republique centrafricaine)\b/.test(location)) return "CF";
-  if (/\b(guinee equatoriale|malabo|bata)\b/.test(location)) return "GQ";
-  if (/\b(cameroun|cameroon|yaounde|douala|bafoussam|garoua)\b/.test(location)) return "CM";
-  return null;
+  const byName = AFRICAN_COUNTRIES.find(country => {
+    const name = country.name.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
+    return normalizedLocation.includes(name);
+  });
+  if (byName) return byName.code;
+  const aliases = ["cameroun","cameroon","yaounde","douala","gabon","libreville","port-gentil","congo","brazzaville","pointe-noire","tchad","ndjamena","n'djamena","centrafrique","bangui","guinee equatoriale","malabo","bata","ghana","nigeria","kenya","rwanda","senegal","mali","burkina faso","benin","togo","niger","guinee-bissau","guinea-bissau","cote d ivoire","afrique du sud","south africa","zambie","zambia","ouganda","uganda","liberia","soudan du sud","south sudan","eswatini","maroc","morocco","algerie","algeria","tunisie","tunisia","egypte","egypt","ethiopie","ethiopia","tanzanie","tanzania","mozambique","angola","namibie","namibia","zimbabwe","malawi","sierra leone","gambie","gambia","mauritanie","mauritania","libye","libya","somalie","somalia","djibouti","comores","madagascar","maurice","seychelles","cap vert","cape verde","guinee","guinea","soudan","sudan"];
+  const hit = aliases.find(alias => normalizedLocation.includes(alias));
+  return hit ? normalizeAfricanCountryCode(hit) : null;
 }
 
 function sourceDisplayName(sourceKey: string): string {
@@ -206,7 +208,6 @@ export async function POST(request: NextRequest) {
           sourceUrl: offer.sourceUrl,
         });
         const normalizedContent = prepared.canonical;
-        const languageRequirements = detectLanguageRequirements([offer.title, offer.description].filter(Boolean).join(" "));
         const languageRequirements = detectLanguageRequirements([offer.title, offer.description].filter(Boolean).join(" "));
         const normalizedExperienceYears = prepared.experienceYears;
         const canonicalDescription = normalizedContent.description.join("\n\n") || prepared.extractedDescription;
