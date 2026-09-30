@@ -89,6 +89,14 @@ const AFRICA_CENSUS_Q3_C: SourceDefinition[] = [
 ];
 for (const source of AFRICA_CENSUS_Q3_C) SOURCE_REGISTRY.push(source);
 
+const AFRICA_CENSUS_Q3_D: SourceDefinition[] = [
+  {key:"emploi_ma_q3",name:"Emploi.ma",type:"national",status:"active",enabled:true,url:"https://"+"www.emploi.ma/recherche-jobs-maroc",countries:["MA"],languages:["fr","ar"],captureMode:"http",renderRequired:false,priority:118},
+  {key:"tanitjobs_tn_q3",name:"Tanitjobs Tunisie",type:"national",status:"active",enabled:true,url:"https://"+"www.tanitjobs.com/jobs/",countries:["TN"],languages:["fr","ar"],captureMode:"http",renderRequired:false,priority:120},
+  {key:"brightermonday_ke_q3",name:"BrighterMonday Kenya",type:"national",status:"active",enabled:true,url:"https://"+"www.brightermonday.co.ke/jobs",countries:["KE"],languages:["en"],captureMode:"http",renderRequired:false,priority:120},
+  {key:"brightermonday_ug_q3",name:"BrighterMonday Uganda",type:"national",status:"active",enabled:true,url:"https://"+"www.brightermonday.co.ug/jobs",countries:["UG"],languages:["en"],captureMode:"http",renderRequired:false,priority:120}
+];
+for (const source of AFRICA_CENSUS_Q3_D) SOURCE_REGISTRY.push(source);
+
 // Central Africa V1 — sources qualified during the country-by-country web audit.
 // Cameroon is intentionally excluded from this rollout.
 const CENTRAL_AFRICA_INTERNATIONAL: SourceDefinition[] = [
