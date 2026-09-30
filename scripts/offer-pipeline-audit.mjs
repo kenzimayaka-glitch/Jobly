@@ -43,17 +43,21 @@ function dupCount(sections){
   const owners=[]; let dup=0;
   for(const[k,vals]of Object.entries(sections||{})) for(const v of vals||[]){
     const s=normalize(v); if(!s) continue;
-    const existing=owners.find(item=>similarity(item.value,v)>=0.92);
+    const existing=owners.find(item=>item.section!==k&&similarity(item.value,v)>=0.92);
     if(existing) dup++; else owners.push({value:v,section:k});
   }
   return dup;
 }
 function applicationMisclassifiedCount(sections){
-  const signal=/(?:postuler|candidature|envoyer.*cv|envoyez.*cv|modalites? de candidature|documents? a (?:fournir|joindre)|pieces? a (?:fournir|joindre)|objet du mail|pour postuler|how to apply|apply now|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|(?:\+?237[\s.-]?[6-9]\d{2}[\s.-]?\d{3}[\s.-]?\d{3}|6[5-9]\d{7})|https?:\/\/)/i;
+  const applicationSignal=/(?:postuler|candidature|envoyer.*cv|envoyez.*cv|modalites? de candidature|documents? a (?:fournir|joindre)|pieces? a (?:fournir|joindre)|objet du mail|pour postuler|how to apply|apply now)/i;
+  const contactSignal=/(?:[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|(?:\+?237[\s.-]?[6-9]\d{2}[\s.-]?\d{3}[\s.-]?\d{3}|6[5-9]\d{7}))/i;
   let count=0;
   for(const[k,vals] of Object.entries(sections||{})){
     if(k==="application") continue;
-    for(const v of vals||[]) if(signal.test(String(v))) count++;
+    for(const v of vals||[]){
+      const line=String(v);
+      if(applicationSignal.test(line)||(contactSignal.test(line)&&/(?:postuler|candidature|cv|candidat|recrut|envoyer|contact|mail|email|telephone|t[ée]l[ée]phone)/i.test(line))) count++;
+    }
   }
   return count;
 }
