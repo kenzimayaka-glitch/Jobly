@@ -358,6 +358,7 @@ model Subscription {
 
 model Payment {
   id              String   @id @default(cuid())
+  feature         String?
   userId          String
   subscriptionId  String?
   provider        String
