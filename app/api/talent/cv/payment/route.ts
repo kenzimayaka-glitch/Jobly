@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
       .insert({
         id: paymentId,
         userId: user.id,
+        feature,
         subscriptionId: null,
         provider: providerName,
         amount,
