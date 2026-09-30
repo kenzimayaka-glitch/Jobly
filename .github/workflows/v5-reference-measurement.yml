@@ -39,19 +39,7 @@ jobs:
           const after = r.results.filter(x => (x.issues || []).includes("APPLICATION_LEAK")).length;
           const resolved = Math.max(0, before - after);
           const rate = before ? resolved / before : 0;
-          const summary = {
-            baselineApplicationMisclassified: before,
-            postV5ApplicationLeak: after,
-            resolved: resolved,
-            resolutionRate: rate,
-            total: r.total,
-            pass: r.pass,
-            warning: r.warning,
-            blocked: r.blocked,
-            applied: r.applied,
-            mode: r.mode,
-            targetVersion: r.targetVersion
-          };
+          const summary = {baselineApplicationMisclassified:before,postV5ApplicationLeak:after,resolved,resolutionRate:rate,total:r.total,pass:r.pass,warning:r.warning,blocked:r.blocked,applied:r.applied,mode:r.mode,targetVersion:r.targetVersion};
           fs.writeFileSync("migration-output/reference-measurement.json", JSON.stringify(summary,null,2));
           console.log(JSON.stringify(summary,null,2));
           NODE
@@ -62,3 +50,5 @@ jobs:
           name: jobly-v5-reference-measurement
           path: migration-output/
           if-no-files-found: warn
+
+# trigger second push
