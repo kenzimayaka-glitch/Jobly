@@ -620,7 +620,6 @@ async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
     const fallback = await collectWordPressOffers(source);
     for (const offer of fallback) {
       if (!results.some(existing => existing.sourceUrl === offer.sourceUrl)) results.push(offer);
-      if (results.length >= MAX_OFFERS_PER_SOURCE) break;
     }
   }
   return results;
