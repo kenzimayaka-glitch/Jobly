@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "../lib/supabase";
 import SubscriptionCard from "./SubscriptionCard";
 import JiaPreferences from "./JiaPreferences";
-import { useEffect } from "react";
 
 export default function AccountSettings({ ecosystem, backHref, accent = "blue" }: { ecosystem: "TALENT" | "RECRUITER" | "PARTNER"; backHref: string; accent?: "blue" | "yellow" }) {
   const router = useRouter();
