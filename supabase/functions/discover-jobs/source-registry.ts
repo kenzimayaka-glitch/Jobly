@@ -81,6 +81,14 @@ const AFRICA_CENSUS_Q3_B: SourceDefinition[] = [
 ];
 for (const source of AFRICA_CENSUS_Q3_B) SOURCE_REGISTRY.push(source);
 
+const AFRICA_CENSUS_Q3_C: SourceDefinition[] = [
+  {key:"mapage_africa_q3",name:"MaPage Africa",type:"aggregator",status:"active",enabled:true,url:"https://"+"mapage.africa/index.php/opportunities?cat=jobs&lang=en",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"http",renderRequired:false,priority:72},
+  {key:"emploitic_dz_q3",name:"Emploitic Algérie",type:"national",status:"active",enabled:true,url:"https://"+"emploitic.com/offres-d-emploi",countries:["DZ"],languages:["fr","ar"],captureMode:"http",renderRequired:false,priority:125},
+  {key:"wuzzuf_eg_q3",name:"Wuzzuf Egypt",type:"national",status:"active",enabled:true,url:"https://"+"wuzzuf.net/search/jobs",countries:["EG"],languages:["en","ar"],captureMode:"http",renderRequired:false,priority:125},
+  {key:"rekrute_ma_q3",name:"ReKrute Maroc",type:"national",status:"active",enabled:true,url:"https://"+"www.rekrute.com/fr/offres-emploi-maroc.html",countries:["MA"],languages:["fr","ar"],captureMode:"http",renderRequired:false,priority:120}
+];
+for (const source of AFRICA_CENSUS_Q3_C) SOURCE_REGISTRY.push(source);
+
 // Central Africa V1 — sources qualified during the country-by-country web audit.
 // Cameroon is intentionally excluded from this rollout.
 const CENTRAL_AFRICA_INTERNATIONAL: SourceDefinition[] = [
