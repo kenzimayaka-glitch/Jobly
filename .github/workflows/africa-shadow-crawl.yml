@@ -20,7 +20,7 @@ permissions:
 jobs:
   shadow-crawl:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
@@ -40,7 +40,7 @@ jobs:
           with open("africa-shadow-crawl.json", "r", encoding="utf-8") as f:
               data = json.load(f)
           summary = data.get("summary", data)
-          required = ["countries", "sources", "accessible", "failed", "pages", "totalDiscovered", "totalExtracted", "totalEligible", "durationMs"]
+          required = ["countries", "sources", "accessible", "failed", "listingPages", "detailPages", "discoveredUrls", "totalExtracted", "totalEligible", "expired", "rejected", "durationMs"]
           missing = [k for k in required if k not in summary]
           if missing:
               raise SystemExit(f"Missing report fields: {missing}")
@@ -51,8 +51,11 @@ jobs:
               "sources": summary["sources"],
               "accessible": summary["accessible"],
               "failed": summary["failed"],
-              "pages": summary["pages"],
-              "totalDiscovered": summary["totalDiscovered"],
+              "listingPages": summary["listingPages"],
+              "detailPages": summary["detailPages"],
+              "discoveredUrls": summary["discoveredUrls"],
+              "expired": summary["expired"],
+              "rejected": summary["rejected"],
               "totalExtracted": summary["totalExtracted"],
               "totalEligible": summary["totalEligible"],
               "durationMs": summary["durationMs"],
