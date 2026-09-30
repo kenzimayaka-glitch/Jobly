@@ -48,7 +48,7 @@ async function buildPdf(cv: CVPayload) {
   const summary = clean(cv.summary, 5000);
   const experience = clean(cv.experience, 10000);
   const education = clean(cv.education, 6000);
-  const skills = Array.isArray(cv.skills) ? cv.skills.map(x => clean(x, 100)).filter(Boolean) : clean(cv.skills).split(/[,;\\n]/).map(x => x.trim()).filter(Boolean);
+  const skills = Array.isArray(cv.skills) ? cv.skills.map(x => clean(x, 100)).filter(Boolean) : clean(cv.skills).split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
 
   doc.font("Helvetica-Bold").fontSize(22).text(fullName);
   if (headline) doc.moveDown(0.25).font("Helvetica-Bold").fontSize(12).text(headline);
@@ -68,7 +68,6 @@ async function buildPdf(cv: CVPayload) {
   section("Expérience professionnelle", experience);
   section("Formation et certifications", education);
 
-  doc.moveDown(1).font("Helvetica").fontSize(7.5).fillColor("#666666").text("CV généré par JOBLY — version ATS structurée", { align: "right" });
   doc.end();
   return promise;
 }
