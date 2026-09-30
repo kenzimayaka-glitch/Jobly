@@ -57,9 +57,9 @@ function analyze(input){
     const substantiveExact=exact.filter(m=>!NON_SUBSTANTIVE.has(m.x.section)&&!NON_SUBSTANTIVE.has(m.y.section));
     const boilerplateMatches=matches.filter(m=>m.x.boilerplate>=2||m.y.boilerplate>=2);
     let cls="REVIEW",decision="REVIEW",confidence="LOW",reason="Similarité sans preuve suffisante pour conclure.";
-    if(boilerplateMatches.length>=2&&substantive.length===0){
+    if(boilerplateMatches.length>=1&&substantive.length===0){
       cls="SOURCE_PAGE_BOILERPLATE";decision="NO_DUPLICATION";confidence="HIGH";reason="La convergence porte principalement sur le gabarit HTML/navigation de la source, pas sur le contenu métier."
-    }else if(same&&substantive.length===0){
+    }else if(substantive.length===0){
       cls="TEMPLATE_REUSE";decision="NO_DUPLICATION";confidence="HIGH";reason="Les seules convergences concernent des blocs non substantifs (candidature/date) d'une même source."
     }else if(same&&discCount<2&&matches.length>=1){
       cls="TEMPLATE_REUSE";decision="NO_DUPLICATION";confidence="MEDIUM";reason="Blocs répétés d'une même source avec discriminants non convergents : réutilisation de template présumée."
