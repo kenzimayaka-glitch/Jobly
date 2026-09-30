@@ -76,7 +76,20 @@ jobs:
           };
           const rows=migration.results||[];
           const audited=rows.length;
-          const perOffer=rows.map(r=>({id:r.id,title:r.title,applicationMisclassifiedCount:applicationMisclassifiedCount(r.canonical||{})}));
+          // The V5 canonical payload contains scalar metadata alongside section arrays.
+          // Adapt only the payload shape; keep the exact APPLICATION_MISCLASSIFIED detector unchanged.
+          const canonicalSections = canonical => ({
+            description: canonical?.description || [],
+            missions: canonical?.missions || [],
+            profile: canonical?.profile || [],
+            education: canonical?.education || [],
+            experience: canonical?.experience || [],
+            skills: canonical?.skills || [],
+            qualities: canonical?.qualities || [],
+            benefits: canonical?.benefits || [],
+            application: canonical?.application || []
+          });
+          const perOffer=rows.map(r=>({id:r.id,title:r.title,applicationMisclassifiedCount:applicationMisclassifiedCount(canonicalSections(r.canonical))}));
           const affected=perOffer.filter(x=>x.applicationMisclassifiedCount>0);
           const occurrences=perOffer.reduce((n,x)=>n+x.applicationMisclassifiedCount,0);
           const resolved=Math.max(0,baseline-affected.length);
