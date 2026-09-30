@@ -45,7 +45,7 @@ function analyze(input){
     const a=jobs[i],b=jobs[k],A=disc(a),B=disc(b),same=source(a)!=="UNKNOWN"&&source(a)===source(b),matches=[];
     for(const x of a.__u)for(const y of b.__u){
       const sim=jac(x.tokens,y.tokens);
-      if((x.normalized===y.normalized&&x.normalized.length>=24)||(sim>=.78&&Math.min(x.tokens.length,y.tokens.length)>=5))matches.push({x,y,sim,rel:relation(x.section,y.section)})
+      if((x.normalized===y.normalized&&(x.normalized.length>=24||isNonSubstantiveSection(x.section)&&isNonSubstantiveSection(y.section)&&x.normalized.length>=8))||(sim>=.78&&Math.min(x.tokens.length,y.tokens.length)>=5))matches.push({x,y,sim,rel:relation(x.section,y.section)})
     }
     if(!matches.length)continue;
     matches.sort((x,y)=>y.sim-x.sim);
