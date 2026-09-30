@@ -1,0 +1,76 @@
+name: Africa Rest Source Exhaustive Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      countries:
+        description: "Comma-separated ISO codes; empty = all remaining 45 countries"
+        required: false
+        default: ""
+  push:
+    branches:
+      - feat/africa-rest-sources-v1
+
+permissions:
+  contents: read
+
+jobs:
+  exhaustive-rest-africa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Run three-level exhaustive audit
+        env:
+          COUNTRIES: ${{ inputs.countries || '' }}
+        run: |
+          if [ -n "$COUNTRIES" ]; then
+            IFS=',' read -ra CODES <<< "$COUNTRIES"
+            deno run --allow-net supabase/functions/discover-jobs/shadow-crawl-africa-rest.ts "${CODES[@]}" | tee africa-rest-audit.json
+          else
+            deno run --allow-net supabase/functions/discover-jobs/shadow-crawl-africa-rest.ts | tee africa-rest-audit.json
+          fi
+      - name: Validate global conformity
+        run: |
+          test -s africa-rest-audit.json
+          python - <<'PY'
+          import json, os
+          d=json.load(open("africa-rest-audit.json","r",encoding="utf-8"))
+          s=d["summary"]
+          required=["countries","sources","firstPassSources","finalSweepTargets","finalSweepRuns","listingPages","detailPages","discoveredUrls","totalExtracted","totalEligible","totalUniqueEligible","expired","rejected","errors","durationMs"]
+          missing=[k for k in required if k not in s]
+          if missing: raise SystemExit("Missing: "+",".join(missing))
+          if len(s["countries"]) != 45 and not os.environ.get("COUNTRIES"):
+              raise SystemExit(f"Expected 45 remaining countries, got {len(s['countries'])}")
+          if s["sources"] != len(d["metrics"]): raise SystemExit("Source/metrics mismatch")
+          if s["finalSweepRuns"] != s["finalSweepTargets"]: raise SystemExit("Final sweep did not execute for every target")
+          if s["totalUniqueEligible"] > s["totalEligible"]: raise SystemExit("Unique eligible cannot exceed eligible")
+          if any(x["sources"] == 0 for x in d["countrySummary"]): raise SystemExit("Country without source channel")
+          print(json.dumps({
+            "countries":len(s["countries"]),
+            "sources":s["sources"],
+            "accessible":s["accessible"],
+            "failed":s["failed"],
+            "listingPages":s["listingPages"],
+            "detailPages":s["detailPages"],
+            "discoveredUrls":s["discoveredUrls"],
+            "extracted":s["totalExtracted"],
+            "eligible":s["totalEligible"],
+            "uniqueEligible":s["totalUniqueEligible"],
+            "expired":s["expired"],
+            "rejected":s["rejected"],
+            "finalSweepTargets":s["finalSweepTargets"],
+            "finalSweepRuns":s["finalSweepRuns"],
+            "errors":s["errors"],
+            "durationMs":s["durationMs"]
+          },ensure_ascii=False,indent=2))
+          PY
+      - name: Upload country/source control report
+        uses: actions/upload-artifact@v4
+        with:
+          name: africa-rest-exhaustive-audit
+          path: africa-rest-audit.json
+          retention-days: 30
