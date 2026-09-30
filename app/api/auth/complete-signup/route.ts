@@ -30,7 +30,8 @@ export async function POST(request: NextRequest) {
     const { data: existing, error: existingError } = await supabase.from("User").select("id").eq("authUserId", authUser.id).maybeSingle();
     if (existingError) throw new Error(existingError.message);
     const now = new Date().toISOString();
-    const payload = { authUserId: authUser.id, email, phone, firstName, lastName, displayName: username, username, country, privacyAcceptedAt: now, updatedAt: now };\n    const welcomeFields = existing ? {} : { aiWelcomeCredits: 30, aiWelcomeGrantedAt: now };
+    const payload = { authUserId: authUser.id, email, phone, firstName, lastName, displayName: username, username, country, privacyAcceptedAt: now, updatedAt: now };
+    const welcomeFields = existing ? {} : { aiWelcomeCredits: 30, aiWelcomeGrantedAt: now };
 
     let userId = existing?.id;
     if (userId) {
