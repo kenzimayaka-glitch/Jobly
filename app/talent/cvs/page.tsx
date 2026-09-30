@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import PageHeader from "../../../components/PageHeader";
 import BottomNav, { TALENT_NAV } from "../../../components/BottomNav";
 import TalentBackground from "../../../components/TalentBackground";
-import { PLAN_CATALOG, PlanCode } from "../../../lib/billingCatalog";
+import { PremiumDiamond } from "../../../components/ui/PremiumDiamond";
 
 type CV = {
   id: string; name: string; source: string; fullName: string; headline: string; email: string; phone: string;
@@ -48,12 +48,21 @@ export default function TalentCVs() {
   }, [message]);
   const [originalBusy, setOriginalBusy] = useState(false);
   const [plan, setPlan] = useState("FREE");
-  const [accessOffersOpen, setAccessOffersOpen] = useState(false);
+  const [cvPaymentAmount, setCvPaymentAmount] = useState(500);
+  const [cvPaymentOpen, setCvPaymentOpen] = useState(false);
+  const [cvPaymentPhone, setCvPaymentPhone] = useState("");
+  const [cvPaymentMethod, setCvPaymentMethod] = useState("MTN MoMo");
+  const [cvPaymentBusy, setCvPaymentBusy] = useState(false);
+  const [cvPaymentId, setCvPaymentId] = useState("");
+  const [cvPaymentMessage, setCvPaymentMessage] = useState("");
   const [previewVersion, setPreviewVersion] = useState<"jobly" | "ats" | null>(null);
 
   useEffect(() => {
     try { setCvs(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch {}
-    fetch("/api/entitlements", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(x => x?.subscription?.plan && setPlan(x.subscription.plan)).catch(() => {});
+    fetch("/api/entitlements", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(x => {
+      if (x?.subscription?.plan) setPlan(x.subscription.plan);
+      if (Number.isFinite(Number(x?.entitlements?.cvDownloadPriceXaf))) setCvPaymentAmount(Number(x.entitlements.cvDownloadPriceXaf));
+    }).catch(() => {});
   }, []);
 
   const ats = useMemo(() => score(cv), [cv]);
@@ -167,14 +176,22 @@ export default function TalentCVs() {
     router.push("/talent/cvs/original");
   }
 
-  async function exportPdf() {
+  function openCvPayment() {
+    setCvPaymentMessage("");
+    setCvPaymentId("");
+    setCvPaymentOpen(true);
+  }
+
+  async function exportPdf(paymentId?: string) {
     if (plan !== "PREMIUM" && plan !== "PRO") {
-      setAccessOffersOpen(true);
+      openCvPayment();
       return;
     }
     setBusy(true); setMessage("Préparation du CV ATS…");
     try {
-      const res = await fetch("/api/talent/cv/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cv: { ...cv, skills: cv.skills.split(",").map(x => x.trim()).filter(Boolean) } }) });
+      const token = await getAccessToken();
+      if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
+      const res = await fetch("/api/talent/cv/export", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ cv: { ...cv, skills: cv.skills.split(",").map(x => x.trim()).filter(Boolean) }, ...(paymentId ? { paymentId } : {}) }) });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Téléchargement impossible.");
@@ -184,6 +201,67 @@ export default function TalentCVs() {
       setMessage("CV ATS téléchargé.");
     } catch (err) { setMessage(err instanceof Error ? err.message : "Téléchargement impossible."); }
     finally { setBusy(false); }
+  }
+
+  async function startCvPayment() {
+    setCvPaymentBusy(true);
+    setCvPaymentMessage("");
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
+      const res = await fetch("/api/talent/cv/payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "Idempotency-Key": crypto.randomUUID(),
+        },
+        body: JSON.stringify({
+          feature: "CV_ATS_DOWNLOAD",
+          provider: "ICLAN",
+          phone: cvPaymentPhone.trim(),
+          paymentMethod: cvPaymentMethod,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Impossible de lancer le paiement.");
+      if (data.included) {
+        setCvPaymentOpen(false);
+        await exportPdf();
+        return;
+      }
+      setCvPaymentId(String(data.payment?.id || ""));
+      setCvPaymentMessage(data.instructions || "Validez le paiement sur votre téléphone, puis cliquez sur « Vérifier le paiement ».");
+    } catch (err) {
+      setCvPaymentMessage(err instanceof Error ? err.message : "Impossible de lancer le paiement.");
+    } finally {
+      setCvPaymentBusy(false);
+    }
+  }
+
+  async function verifyCvPayment() {
+    if (!cvPaymentId) return;
+    setCvPaymentBusy(true);
+    setCvPaymentMessage("");
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
+      const res = await fetch(`/api/payments/${cvPaymentId}/verify`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Vérification impossible.");
+      if (data.payment?.status !== "SUCCESSFUL") {
+        setCvPaymentMessage(`Statut du paiement : ${data.verification?.status || data.payment?.status || "inconnu"}. Validez le paiement puis réessayez.`);
+        return;
+      }
+      setCvPaymentOpen(false);
+      setCvPaymentId("");
+      setMessage("Paiement confirmé. Préparation du CV ATS…");
+      await exportPdf(cvPaymentId);
+    } catch (err) {
+      setCvPaymentMessage(err instanceof Error ? err.message : "Vérification impossible.");
+    } finally {
+      setCvPaymentBusy(false);
+    }
   }
 
   function openVersion(version: "jobly" | "ats") {
@@ -223,7 +301,7 @@ export default function TalentCVs() {
             <textarea value={cv.education} onChange={e => update("education", e.target.value)} placeholder="Formation / certifications" rows={4} className="mt-3 w-full rounded-xl border px-4 py-3" />
             <div className="mt-4 grid gap-2 sm:grid-cols-3 print:hidden">
               <button onClick={save} className="rounded-xl bg-jobly-blue py-3 font-black text-white">Enregistrer</button>
-              <button onClick={() => exportPdf()} disabled={busy} className="rounded-xl bg-[#FFE135] py-3 font-black disabled:opacity-50">Télécharger ATS{plan !== "PREMIUM" && plan !== "PRO" ? <span className="ml-1 text-[10px]">· accès Premium/Pro</span> : ""}</button>
+              <button onClick={() => exportPdf()} disabled={busy} className="rounded-xl bg-[#FFE135] py-3 font-black disabled:opacity-50"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />Télécharger ATS</span>{plan !== "PREMIUM" && plan !== "PRO" ? <span className="ml-1 text-[10px]">· {cvPaymentAmount.toLocaleString("fr-FR")} FCFA / téléchargement</span> : <span className="ml-1 text-[10px]">· inclus</span>}</button>
               <button onClick={() => router.push("/career-os")} className="rounded-xl border py-3 font-black">Career OS →</button>
             </div>
             {message && <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-[120] w-[min(92vw,520px)] -translate-x-1/2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#17212B] shadow-2xl print:hidden">{message}</div>}
@@ -243,11 +321,44 @@ export default function TalentCVs() {
           <h2 className="text-3xl font-black">{cv.fullName || "Nom complet"}</h2><p className="mt-1 text-lg font-bold text-jobly-blue">{cv.headline || "Titre professionnel"}</p><p className="mt-2 text-xs">{[cv.email, cv.phone].filter(Boolean).join(" · ")}</p>
           {[['Profil', cv.summary], ['Compétences', cv.skills], ['Expérience', cv.experience], ['Formation', cv.education]].map(([h, v]) => v ? <div key={h} className="mt-5"><h3 className="border-b pb-1 text-sm font-black uppercase">{h}</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{v}</p></div> : null)}
         </section>
-        {accessOffersOpen && (
-          <div className="fixed inset-0 z-[140] grid place-items-center bg-slate-950/45 px-5 print:hidden" role="dialog" aria-modal="true" aria-label="Offres d'abonnement pour le téléchargement ATS">
-            <div className="w-full max-w-4xl rounded-[28px] bg-white p-5 shadow-2xl">
-              <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-jobly-gray">Fonctionnalité payante</p><h2 className="mt-1 text-2xl font-black">Accéder au téléchargement de mon CV ATS</h2><p className="mt-1 text-sm text-jobly-gray">Choisis l'offre qui correspond à ton besoin, puis ouvre l'offre d'abonnement concernée.</p></div><button type="button" onClick={() => setAccessOffersOpen(false)} className="rounded-full border px-3 py-2 text-sm font-black" aria-label="Fermer">×</button></div>
-              <div className="mt-5 grid gap-3 md:grid-cols-3">{(["START","PREMIUM","PRO"] as PlanCode[]).map(code => { const p=PLAN_CATALOG[code]; return <div key={code} className="rounded-2xl border p-4"><div className="flex items-center justify-between"><h3 className="font-black">{p.name}</h3>{code !== "START" && <span className="text-[10px] font-black uppercase text-jobly-blue">CV ATS inclus</span>}</div><p className="mt-1 text-xs text-jobly-gray">{p.tagline}</p><p className="mt-4 text-xl font-black">{p.annualPriceXaf.toLocaleString("fr-FR")} FCFA/an</p><p className="mt-2 text-xs font-bold text-slate-600">{code === "START" ? "Conversion CV → ATS incluse. Téléchargement selon les conditions de l'offre." : "Conversion et téléchargement CV inclus."}</p><button type="button" onClick={() => router.push(`/abonnement?feature=cv-ats-download&plan=${code}`)} className="mt-4 w-full rounded-xl bg-jobly-blue py-3 text-xs font-black text-white">Voir cette offre</button></div>; })}</div>
+        {cvPaymentOpen && (
+          <div className="fixed inset-0 z-[140] grid place-items-center bg-slate-950/45 px-4 py-6 print:hidden" role="dialog" aria-modal="true" aria-label="Paiement du téléchargement CV ATS">
+            <div className="w-full max-w-md overflow-hidden rounded-[28px] bg-white shadow-2xl">
+              <div className="border-b border-slate-100 px-5 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-jobly-gray">Accès CV ATS</p>
+                    <h2 className="mt-1 text-xl font-black">Télécharger mon CV ATS</h2>
+                  </div>
+                  <button type="button" onClick={() => setCvPaymentOpen(false)} className="rounded-full border px-3 py-2 text-sm font-black" aria-label="Fermer">×</button>
+                </div>
+              </div>
+              <div className="space-y-4 p-5">
+                <div className="rounded-2xl bg-[#F7FAFF] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div><p className="text-xs font-black text-slate-500">Votre formule</p><p className="mt-1 text-lg font-black">{plan}</p></div>
+                    <div className="text-right"><p className="text-xs font-black text-slate-500">Paiement ponctuel</p><p className="mt-1 text-2xl font-black text-jobly-blue">{cvPaymentAmount.toLocaleString("fr-FR")} FCFA</p></div>
+                  </div>
+                  <p className="mt-3 text-xs leading-5 text-slate-600">Ce paiement concerne uniquement ce téléchargement. Il ne modifie pas votre abonnement et ne crée aucun renouvellement.</p>
+                </div>
+                <label className="block text-xs font-black text-slate-700">Numéro Mobile Money
+                  <input value={cvPaymentPhone} onChange={e => setCvPaymentPhone(e.target.value)} placeholder="2376XXXXXXXX" className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-jobly-blue" />
+                </label>
+                <label className="block text-xs font-black text-slate-700">Mode de paiement
+                  <select value={cvPaymentMethod} onChange={e => setCvPaymentMethod(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none">
+                    <option>MTN MoMo</option><option>Orange Money</option>
+                  </select>
+                </label>
+                {cvPaymentMessage && <div role="status" aria-live="polite" className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">{cvPaymentMessage}</div>}
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setCvPaymentOpen(false)} className="flex-1 rounded-xl border px-4 py-3 text-xs font-black">Annuler</button>
+                  {!cvPaymentId ? (
+                    <button type="button" onClick={startCvPayment} disabled={cvPaymentBusy || !cvPaymentPhone.trim()} className="flex-1 rounded-xl bg-jobly-blue px-4 py-3 text-xs font-black text-white disabled:opacity-50">{cvPaymentBusy ? "Préparation…" : `Payer ${cvPaymentAmount.toLocaleString("fr-FR")} FCFA`}</button>
+                  ) : (
+                    <button type="button" onClick={verifyCvPayment} disabled={cvPaymentBusy} className="flex-1 rounded-xl bg-jobly-blue px-4 py-3 text-xs font-black text-white disabled:opacity-50">{cvPaymentBusy ? "Vérification…" : "Vérifier le paiement"}</button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
