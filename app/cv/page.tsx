@@ -18,6 +18,13 @@ type CvData = {
   strengths: string[];
   gaps: string[];
   suggestions: string[];
+  activities: string[];
+  interests: string[];
+  references: string[];
+  referencesVisible: boolean;
+  languages: string[];
+  achievements: string[];
+  photoDataUrl: string;
 };
 
 type ViewMode = "simple" | "ats";
@@ -36,6 +43,13 @@ const EMPTY_CV: CvData = {
   strengths: [],
   gaps: [],
   suggestions: [],
+  activities: [],
+  interests: [],
+  references: [],
+  referencesVisible: false,
+  languages: [],
+  achievements: [],
+  photoDataUrl: "",
 };
 
 function safeFilename(name: string) {
@@ -62,6 +76,19 @@ function CvStudioContent() {
   const [adaptJob, setAdaptJob] = useState<{title:string;companyName?:string;company?:{name?:string}} | null>(null);
 
   const generatedName = useMemo(() => safeFilename(cv.fullName), [cv.fullName]);
+
+  const score = Math.max(0, Math.min(100, Number(cv.atsScore) || 0));
+  const scoreTone = score <= 20
+    ? { bg: "bg-red-400", text: "text-red-600" }
+    : score <= 40
+      ? { bg: "bg-blue-400", text: "text-blue-600" }
+      : score <= 60
+        ? { bg: "bg-green-400", text: "text-green-600" }
+        : score <= 90
+          ? { bg: "bg-orange-400", text: "text-orange-600" }
+          : score < 100
+            ? { bg: "bg-violet-500", text: "text-violet-600" }
+            : { bg: "bg-[#FFD60A]", text: "text-[#8B7400]" };
 
   useEffect(() => {
     if (!adaptMode || !adaptJobId || (adaptSource !== "discovery" && adaptSource !== "recruiter")) return;
