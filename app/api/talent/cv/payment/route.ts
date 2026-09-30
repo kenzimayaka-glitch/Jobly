@@ -44,7 +44,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const amount = Number(entitlements.cvDownloadPriceXaf);
     const phone = String(body.phone || auth.phone || "").trim();
     const paymentMethod = String(body.paymentMethod || "MTN MoMo");
 
