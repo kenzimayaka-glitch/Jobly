@@ -39,14 +39,17 @@ jobs:
       CRON_SECRET: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: "20.19.0"
-          cache: "npm"
-      - run: npm ci
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Start API
         run: |
-          npm run dev -- --hostname 127.0.0.1 --port 3000 > /tmp/jobly-next.log 2>&1 &
+          pnpm dev -- --hostname 127.0.0.1 --port 3000 > /tmp/jobly-next.log 2>&1 &
           for i in {1..90}; do
             curl -fsS http://127.0.0.1:3000/ >/dev/null 2>&1 && break
             sleep 2
