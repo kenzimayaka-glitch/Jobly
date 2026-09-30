@@ -115,7 +115,7 @@ export default function TalentCVs() {
         const skillsRes = await fetch("/api/profile", { method: "PUT", headers, body: JSON.stringify({ section: "skills", skills: next.skills.split(",").map(name => ({ name: name.trim() })).filter(x => x.name) })});
         if (!skillsRes.ok) throw new Error("Les compétences n’ont pas pu être synchronisées.");
         if (originalFile) {
-          const form = new FormData(); form.append("file", originalFile);
+          const form = new FormData(); form.append("file", originalFile); if (originalMeta?.pages) form.append("pages", String(originalMeta.pages));
           const originalRes = await fetch("/api/talent/cv/original", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
           const originalBody = await originalRes.json().catch(() => ({}));
           if (!originalRes.ok) throw new Error(originalBody.message || "Le CV original n’a pas pu être enregistré.");
