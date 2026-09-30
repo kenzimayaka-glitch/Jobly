@@ -128,6 +128,12 @@ function normalizeOutput(output: any) {
     skills: Array.isArray(profile.skills) ? profile.skills.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 30) : [],
     experience: typeof profile.experience === "string" ? profile.experience.trim() : "",
     education: typeof profile.education === "string" ? profile.education.trim() : "",
+    activities: Array.isArray(profile.activities) ? profile.activities.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
+    interests: Array.isArray(profile.interests) ? profile.interests.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
+    references: Array.isArray(profile.references) ? profile.references.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
+    referencesVisible: profile.referencesVisible !== false && Array.isArray(profile.references) && profile.references.length > 0,
+    languages: Array.isArray(profile.languages) ? profile.languages.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
+    achievements: Array.isArray(profile.achievements) ? profile.achievements.map((x: unknown) => String(x).trim()).filter(x => /\d|%|€|\$|fcfa|xaf|million|milliard|x[af]/i.test(x)).slice(0, 20) : [],
     atsScore: Number.isFinite(Number(output?.ats?.score)) ? Math.max(0, Math.min(100, Number(output.ats.score))) : 0,
     atsKeywords: Array.isArray(output?.ats?.keywords) ? output.ats.keywords.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
     strengths: Array.isArray(output?.strengths) ? output.strengths.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 8) : [],
@@ -180,6 +186,7 @@ export async function POST(request: NextRequest) {
     const { PDFParse } = await import("pdf-parse");
     const parser = new PDFParse({ data: fileBytes, CanvasFactory });
     const parsed = await parser.getText();
+    const extractedPhoto = await extractCvPhoto(parser);
     await parser.destroy();
     const cvText = String(parsed.text || "").replace(/\u0000/g, " ").trim();
     if (cvText.length < 80) {
@@ -211,7 +218,7 @@ export async function POST(request: NextRequest) {
 
     // PDF text extraction is deterministic and remains available independently
     // of J'IA credits. AI enrichment is a separate, quota-gated step.
-    const deterministicCv = extractDeterministicCv(cvText);
+    const deterministicCv = { ...extractDeterministicCv(cvText), photoDataUrl: extractedPhoto };
     const ai = await runAiGateway(request, "CV_INTELLIGENCE", { cvText });
 
     if (!ai.ok) {
@@ -241,7 +248,7 @@ export async function POST(request: NextRequest) {
       remaining: ai.remaining,
       provider: ai.provider,
       originalCv,
-      cv: normalizeOutput(ai.output),
+      cv: { ...normalizeOutput(ai.output), photoDataUrl: extractedPhoto },
     });
   } catch (error) {
     return NextResponse.json({ error: "CV_IMPORT_FAILED", message: error instanceof Error ? error.message : "Impossible d’analyser le CV PDF." }, { status: 500 });
