@@ -1,6 +1,7 @@
 import { fetchStructuredSource } from "./sources.ts";
 import { buildSourceRunPlan } from "./source-engine.ts";
 import { resolveSourceUrl } from "./country-url-resolver.ts";
+import { crawlExhaustiveSource } from "./exhaustive-crawler.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 const NORMALIZED_VERSION = "jobly-offer-v1";
@@ -199,7 +200,18 @@ async function backfillExistingOffers(supabase:any){
 Deno.serve(async(req)=>{
  if(req.method!=="POST")return new Response(JSON.stringify({message:"POST required"}),{status:405,headers:{"content-type":"application/json"}});
  const supabase=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);const started=Date.now();const dryRun=req.headers.get("x-jobly-dry-run")==="true";let body:any={};try{body=await req.clone().json()}catch{}const SOURCE_COUNTRY=String(req.headers.get("x-jobly-country")||body?.country||DEFAULT_SOURCE_COUNTRY).toUpperCase();const run=resolveRunSources(SOURCE_COUNTRY);const SOURCES=run.sources;let discovered=0,inserted=0,updated=0,expired=0,aiProcessed=0,aiFailed=0;const sourceStats:any[]=[];const dryRunOffers:any[]=[];const runBackfill=req.headers.get("x-jobly-backfill")==="true";let backfill:any=null;
- for(const source of SOURCES.filter(s=>s.enabled)){let found=0,si=0,su=0,error="";try{const structured=await fetchStructuredSource(source.key);const html=structured===null?await fetchText(source.url):"";const raw=(structured??parseListing(html,source.url,source.key)).map((x:any)=>structured!==null?{...x,_structured:true}:x);found=raw.length;const items=[];for(const r of raw.slice(0,100)){const e=await enrich(r,source);if(e.title&&e.title.length>=4&&e.url)items.push({...e,source:source.name})}discovered+=items.length;
+ for(const source of SOURCES.filter(s=>s.enabled)){let found=0,si=0,su=0,error="";try{const structured=await fetchStructuredSource(source.key);
+   const crawl=structured===null
+     ? await crawlExhaustiveSource(source as any,SOURCE_COUNTRY)
+     : {items:structured.map((x:any)=>({...x,_structured:true})),stats:{sourceKey:source.key,sourceName:source.name,countryCode:SOURCE_COUNTRY,listingPages:1,detailPages:structured.length,discoveredUrls:structured.length,extracted:structured.length,eligible:structured.length,fresh:structured.length,expired:0,internships:0,consultancies:0,applications:0,tenders:0,rejected:0,rejectedReasons:{},advertisedCount:null,errors:[]}};
+   const raw=crawl.items.map((x:any)=>({...x,source:source.name}));
+   found=raw.length;
+   const items=[];
+   for(const r of raw){
+     const e=await enrich(r,source);
+     if(e.title&&e.title.length>=4&&e.url)items.push({...e,source:source.name});
+   }
+   discovered+=items.length;
    if(dryRun){
      for(const item of items){
        let ai:any=null; try{ai=await analyzeWithGemini(item);if(ai)aiProcessed++}catch{aiFailed++}
