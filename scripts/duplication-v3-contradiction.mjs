@@ -58,8 +58,14 @@ function analyze(input){
     const substantive=matches.filter(m=>!isNonSubstantiveSection(m.x.section)&&!isNonSubstantiveSection(m.y.section)&&!isBoilerplateMatch(m));
     const substantiveExact=exact.filter(m=>!isNonSubstantiveSection(m.x.section)&&!isNonSubstantiveSection(m.y.section)&&!isBoilerplateMatch(m));
     const boilerplateMatches=matches.filter(m=>m.x.boilerplate>=2||m.y.boilerplate>=2);
+    const onlyNonSubstantive=matches.length>0&&matches.every(m=>isNonSubstantiveSection(m.x.section)&&isNonSubstantiveSection(m.y.section));
+    const onlyBoilerplate=matches.length>0&&matches.every(isBoilerplateMatch);
     let cls="REVIEW",decision="REVIEW",confidence="LOW",reason="Similarité sans preuve suffisante pour conclure.";
-    if(boilerplateMatches.length>=1&&substantive.length===0){
+    if(onlyBoilerplate){
+      cls="SOURCE_PAGE_BOILERPLATE";decision="NO_DUPLICATION";confidence="HIGH";reason="Toutes les convergences détectées sont du boilerplate/gabarit de source, sans contenu métier partagé."
+    }else if(onlyNonSubstantive){
+      cls="TEMPLATE_REUSE";decision="NO_DUPLICATION";confidence="HIGH";reason="Toutes les convergences détectées concernent uniquement les blocs non substantifs candidature/date."
+    }else if(boilerplateMatches.length>=1&&substantive.length===0){
       cls="SOURCE_PAGE_BOILERPLATE";decision="NO_DUPLICATION";confidence="HIGH";reason="La convergence porte principalement sur le gabarit HTML/navigation de la source, pas sur le contenu métier."
     }else if(substantive.length===0){
       cls=boilerplateMatches.length>=1?"SOURCE_PAGE_BOILERPLATE":"TEMPLATE_REUSE";decision="NO_DUPLICATION";confidence="HIGH";reason=boilerplateMatches.length>=1?"Les seules convergences sont du boilerplate/gabarit de source, sans contenu métier partagé.":"Les seules convergences concernent des blocs non substantifs (candidature/date) ou équivalents d'une même source."
