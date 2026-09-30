@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
         .range(offset, offset + batchSize - 1);
       if (error) throw new Error(error.message);
 
-      let processed = 0, updated = 0, skipped = 0;
+      let processed = 0, updated = 0, skipped = 0, quarantined = 0;
       await runWithConcurrency(rows || [], 3, async (row) => {
         if (!row.sourceUrl || !row.sourceKey) { skipped++; return; }
         const offer = await recollectOfferByUrl(row.sourceKey, row.sourceUrl, row.title);
