@@ -49,6 +49,9 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
   {key:"techmap_cm",name:"Techmap CM",type:"aggregator",status:"active",enabled:true,url:"https://api.techmap.io/",countries:["CM"],languages:["en","fr"],captureMode:"api",renderRequired:false,structuredAdapter:"techmap_cm",priority:60},
   {key:"jobspipe_cm",name:"JobsPipe CM",type:"aggregator",status:"active",enabled:true,url:"https://api.jobspipe.dev/v1/jobs/search",countries:["CM"],languages:["en","fr"],captureMode:"api",renderRequired:false,structuredAdapter:"jobspipe_cm",priority:70},
   {key:"jooble_cm",name:"Jooble CM",type:"aggregator",status:"active",enabled:true,url:"https://jooble.org/api/",countries:["CM"],languages:["en","fr"],captureMode:"api",renderRequired:false,structuredAdapter:"jooble_cm",priority:60},
+  {key:"reliefweb_africa",name:"ReliefWeb Africa",type:"institutional",status:"active",enabled:true,url:"https://reliefweb.int/jobs",countries:PAN_AFRICA.filter(c=>c!=="CM"),languages:["en","fr"],captureMode:"http",renderRequired:false,priority:80},
+  {key:"unjobs_africa",name:"UNjobs Africa",type:"institutional",status:"active",enabled:true,url:"https://unjobs.org/",countries:PAN_AFRICA.filter(c=>c!=="CM"),languages:["en","fr"],captureMode:"http",renderRequired:false,priority:80},
+  {key:"impactpool_africa",name:"Impactpool Africa",type:"specialized",status:"active",enabled:true,url:"https://www.impactpool.org/jobs",countries:PAN_AFRICA.filter(c=>c!=="CM"),languages:["en","fr"],captureMode:"http",renderRequired:false,priority:70},
   {key:"idealists",name:"Idealist",type:"specialized",status:"active",enabled:true,url:"https://www.idealist.org/en/jobs",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"http",renderRequired:false,priority:50},
   {key:"devex",name:"Devex Jobs",type:"specialized",status:"active",enabled:true,url:"https://www.devex.com/jobs",countries:PAN_AFRICA,languages:["en"],captureMode:"http",renderRequired:false,priority:60},
   {key:"devnetjobs",name:"DevNetJobs",type:"specialized",status:"active",enabled:true,url:"https://devnetjobs.org/",countries:PAN_AFRICA,languages:["en"],captureMode:"http",renderRequired:false,priority:60},
@@ -175,13 +178,20 @@ export function getDiscoveredSources(countryCode?:string): SourceDefinition[] {
 export function getRegistryStats() {
   const active=SOURCE_REGISTRY.filter((s)=>s.status==="active");
   const discovered=SOURCE_REGISTRY.filter((s)=>s.status==="discovered");
+  const nonCameroon = AFRICA_COUNTRIES.filter(c=>c.code!=="CM").map(c=>c.code);
+  const activeNonCameroon = active.filter(s=>s.countries.some(c=>c!=="CM"));
+  const coverage = Object.fromEntries(nonCameroon.map(code => [code, activeNonCameroon.filter(s=>s.countries.includes(code)).length]));
   return {
     countries: AFRICA_COUNTRIES.length,
+    nonCameroonCountries: nonCameroon.length,
     sources: SOURCE_REGISTRY.length,
     activeSources: active.length,
     discoveredSources: discovered.length,
     withUrl: SOURCE_REGISTRY.filter((s)=>Boolean(s.url)).length,
     renderSources: SOURCE_REGISTRY.filter((s)=>s.renderRequired).length,
+    nonCameroonActiveSources: activeNonCameroon.length,
+    countriesWithoutActiveSource: nonCameroon.filter(code=>coverage[code]===0),
+    sourceCoverageByCountry: coverage,
     structuredSources: SOURCE_REGISTRY.filter((s)=>Boolean(s.structuredAdapter)).length,
   };
 }
