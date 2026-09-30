@@ -1,4 +1,5 @@
 import { fetchStructuredSource } from "./sources.ts";
+import { buildSourceRunPlan } from "./source-engine.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 const NORMALIZED_VERSION = "jobly-offer-v1";
@@ -80,34 +81,8 @@ function normalizeAiResult(ai:any,item:any):NormalizedOffer {
 const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
-const SOURCES = [
-  { key: "emploi_cm", name: "Emploi.cm", url: "https://www.emploi.cm/recherche-jobs-cameroun", enabled: true },
-  { key: "emplois_cameroun", name: "Emplois Cameroun", url: "https://emploiscameroun.com/offres/", enabled: true },
-  { key: "jobincamer", name: "Job in Cameroun", url: "https://www.jobincamer.com/adverts/jobs", enabled: true },
-  { key: "jobinfocamer", name: "JobInfoCamer", url: "https://www.jobinfocamer.com/", enabled: true },
-  { key: "infosconcourseducation", name: "Infos Concours Education", url: "https://infosconcourseducation.com/category/offre-demploiss/", enabled: true },
-  { key: "fne", name: "FNE Cameroun", url: "https://www.fnecm.org/", enabled: true },
-  { key: "reliefweb", name: "ReliefWeb", url: "https://reliefweb.int/jobs?advanced-search=%28Cameroun%29", enabled: true },
-  { key: "unjobs", name: "UNjobs", url: "https://unjobs.org/duty_stations/cameroon", enabled: true },
-  { key: "impactpool", name: "Impactpool", url: "https://www.impactpool.org/jobs?location=Cameroon", enabled: true },
-  // Structured feeds/APIs — activated when the corresponding credential is configured.
-  { key: "minajobs_rss", name: "MinaJobs RSS", url: "https://cm2024.minajobs.net/rss", enabled: true },
-  { key: "techmap_cm", name: "Techmap CM", url: "https://api.techmap.io/", enabled: true },
-  { key: "jobspipe_cm", name: "JobsPipe CM", url: "https://api.jobspipe.dev/v1/jobs/search", enabled: true },
-  { key: "jooble_cm", name: "Jooble CM", url: "https://jooble.org/api/", enabled: true },
-  // ONG / humanitaire / développement international — agrégateurs spécialisés
-  { key: "idealists", name: "Idealist", url: "https://www.idealist.org/en/jobs", enabled: true },
-  { key: "devex", name: "Devex Jobs", url: "https://www.devex.com/jobs", enabled: true },
-  { key: "devnetjobs", name: "DevNetJobs", url: "https://devnetjobs.org/", enabled: true },
-  { key: "unjobnet", name: "UNjobnet", url: "https://www.unjobnet.org/", enabled: true },
-  // Portails officiels d'organisations internationales / agences ONU
-  { key: "un_careers", name: "UN Careers", url: "https://careers.un.org/", enabled: true },
-  { key: "undp_jobs", name: "UNDP Jobs", url: "https://jobs.undp.org/", enabled: true },
-  { key: "unicef_jobs", name: "UNICEF Careers", url: "https://jobs.unicef.org/", enabled: true },
-  { key: "linkedin", name: "LinkedIn", url: "https://www.linkedin.com/jobs/jobs-in-cameroon", enabled: false },
-  { key: "indeed", name: "Indeed", url: "https://cm.indeed.com/jobs?q=&l=Cameroon", enabled: false },
-  { key: "glassdoor", name: "Glassdoor", url: "https://www.glassdoor.com/Job/cameroon-jobs-SRCH_IL.0,8_IN35.htm", enabled: false },
-];
+const SOURCE_COUNTRY = Deno.env.get("JOBLY_SOURCE_COUNTRY") || "CM";
+const SOURCES = buildSourceRunPlan(SOURCE_COUNTRY);
 const CITY_NAMES=["Yaoundé","Douala","Bafoussam","Bamenda","Bertoua","Buea","Ebolowa","Garoua","Maroua","Ngaoundéré","Kribi","Limbe","Kousseri","Mbalmayo","Edéa","Dschang","Foumban","Limbé","Kumba","Kumbo","Nkongsamba","Tiko","Cameroon","Tout le Cameroun"];
 function decodeEntities(s:string){return s.replace(/&nbsp;|&#160;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;|&#34;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/&bull;|&#8226;/gi,"•").replace(/&ndash;|&#8211;/gi,"–").replace(/&mdash;|&#8212;/gi,"—");}
 function repairMojibake(s:string){if(!/(?:Ã.|Â.|â.)/.test(s))return s;try{const bytes=new Uint8Array([...s].map(ch=>ch.charCodeAt(0)<=255?ch.charCodeAt(0):63));const repaired=new TextDecoder("utf-8",{fatal:false}).decode(bytes);return repaired&&!repaired.includes("�")?repaired:s}catch{return s}}
