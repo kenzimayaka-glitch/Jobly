@@ -36,6 +36,7 @@ export default function TalentCVs() {
   const [cvs, setCvs] = useState<CV[]>([]);
   const [cv, setCv] = useState<CV>({ ...empty, id: crypto.randomUUID(), createdAt: new Date().toISOString() });
   const [file, setFile] = useState("");
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [extracted, setExtracted] = useState<any>(null);
   const [originalMeta, setOriginalMeta] = useState<{ pages?: number; storagePath?: string } | null>(null);
   const [message, setMessage] = useState("");
@@ -82,7 +83,7 @@ export default function TalentCVs() {
         email: extracted.email || cv.email,
         phone: extracted.phone || cv.phone,
         summary: extracted.summary || cv.summary,
-        skills: (extracted.skills || []).join(", "),
+        skills: Array.isArray(extracted.skills) ? extracted.skills.join(", ") : cv.skills,
         experience: extracted.experience || cv.experience,
         education: extracted.education || cv.education,
         activities: Array.isArray(extracted.activities) ? extracted.activities : cv.activities,
@@ -96,25 +97,36 @@ export default function TalentCVs() {
         ats: Number(extracted.atsScore || 0) || score(cv),
       };
       setCv(next);
+      setMessage("Données extraites : les champs sont remplis. Vérifie-les puis clique sur « Enregistrer » pour les conserver.");
+    } catch (err) { setMessage(err instanceof Error ? err.message : "Extraction impossible."); }
+    finally { setBusy(false); }
+  }
+
+  async function save() {
+    setBusy(true);
+    try {
+      const next = { ...cv, ats, createdAt: cv.createdAt || new Date().toISOString(), name: cv.name || "Mon CV Jobly" };
       const token = await getAccessToken();
       if (token) {
         const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
         const profileRes = await fetch("/api/profile", { method: "PUT", headers, body: JSON.stringify({ section: "profil", displayName: next.fullName, phone: next.phone, headline: next.headline, summary: next.summary })});
         if (!profileRes.ok) throw new Error((await profileRes.json().catch(() => ({}))).message || "Le profil Jobly n’a pas pu être synchronisé.");
-        const skillsRes = await fetch("/api/profile", { method: "PUT", headers, body: JSON.stringify({ section: "skills", skills: (extracted.skills || []).map((name: string) => ({ name })) })});
+        if (Array.isArray(next.skills)) {}
+        const skillsRes = await fetch("/api/profile", { method: "PUT", headers, body: JSON.stringify({ section: "skills", skills: next.skills.split(",").map(name => ({ name: name.trim() })).filter(x => x.name) })});
         if (!skillsRes.ok) throw new Error("Les compétences n’ont pas pu être synchronisées.");
+        if (originalFile) {
+          const form = new FormData(); form.append("file", originalFile);
+          const originalRes = await fetch("/api/talent/cv/original", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+          const originalBody = await originalRes.json().catch(() => ({}));
+          if (!originalRes.ok) throw new Error(originalBody.message || "Le CV original n’a pas pu être enregistré.");
+          setOriginalMeta({ storagePath: originalBody.storagePath });
+        }
       }
       const all = [next, ...cvs.filter(x => x.id !== next.id)];
-      setCvs(all); localStorage.setItem(KEY, JSON.stringify(all));
-      setMessage(token ? "Données extraites : les champs sont remplis et le profil Talent est synchronisé." : "Données extraites : les champs sont remplis. Connecte-toi pour synchroniser le profil Jobly.");
-    } catch (err) { setMessage(err instanceof Error ? err.message : "Extraction impossible."); }
+      setCvs(all); localStorage.setItem(KEY, JSON.stringify(all)); setCv(next);
+      setMessage(token ? "CV enregistré : version Jobly, données de profil et document original sont conservés." : "CV enregistré localement. Connecte-toi pour conserver le document original et synchroniser ton profil.");
+    } catch (err) { setMessage(err instanceof Error ? err.message : "Enregistrement impossible."); }
     finally { setBusy(false); }
-  }
-
-  function save() {
-    const next = { ...cv, ats, createdAt: cv.createdAt || new Date().toISOString(), name: cv.name || "Mon CV Jobly" };
-    const all = [next, ...cvs.filter(x => x.id !== next.id)];
-    setCvs(all); localStorage.setItem(KEY, JSON.stringify(all)); setCv(next); setMessage("CV enregistré.");
   }
 
   async function importPdf(e: ChangeEvent<HTMLInputElement>) {
@@ -143,8 +155,9 @@ export default function TalentCVs() {
         throw new Error(data.message || "Import impossible.");
       }
       setExtracted(data.cv);
-      setOriginalMeta({ pages: data.pages, storagePath: data.originalCv?.storagePath });
-      setMessage(`CV importé${data.originalCv?.stored ? " et conservé comme document original" : ""}. Clique sur « Extraire les données » pour remplir les champs. ${data.credits} crédit(s) IA utilisé(s).`);
+      setOriginalMeta({ pages: data.pages });
+      setOriginalFile(f);
+      setMessage(`CV importé en prévisualisation. Clique sur « Extraire les données », vérifie les champs, puis « Enregistrer » pour conserver le CV. ${data.credits ?? 0} crédit(s) IA utilisé(s).`);
     } catch (err) { setMessage(err instanceof Error ? err.message : "Import impossible."); }
     finally { setBusy(false); }
   }
