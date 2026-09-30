@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import PageHeader from "../../../components/PageHeader";
 import BottomNav, { TALENT_NAV } from "../../../components/BottomNav";
 import TalentBackground from "../../../components/TalentBackground";
-import { PLAN_CATALOG, PlanCode } from "../../../lib/billingCatalog";
 import { PremiumDiamond } from "../../../components/ui/PremiumDiamond";
 
 type CV = {
