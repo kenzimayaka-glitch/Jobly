@@ -205,6 +205,8 @@ export async function POST(request: NextRequest) {
           sourceUrl: offer.sourceUrl,
         });
         const normalizedContent = prepared.canonical;
+        const languageRequirements = detectLanguageRequirements([offer.title, offer.description].filter(Boolean).join(" "));
+        const languageRequirements = detectLanguageRequirements([offer.title, offer.description].filter(Boolean).join(" "));
         const normalizedExperienceYears = prepared.experienceYears;
         const canonicalDescription = normalizedContent.description.join("\n\n") || prepared.extractedDescription;
         await saveOfferPipeline(supabase, row.id, offer, normalizedContent, prepared.extractedDescription);
@@ -385,6 +387,8 @@ export async function POST(request: NextRequest) {
     const ingestResult = await runWithConcurrency(offers, INGEST_CONCURRENCY, async (offer) => {
       const source = sourceDisplayName(offer.sourceKey);
       const countryCode = inferCountryCode(offer);
+      const languageText = [offer.title, offer.description, offer.location].filter(Boolean).join(" ");
+      const detectedLanguage = detectJobLanguage(languageText, offer.language);
       const prepared = buildCanonicalOffer({
         title: offer.title,
         companyName: offer.company,
@@ -452,11 +456,14 @@ export async function POST(request: NextRequest) {
       const countryCode = inferCountryCode(offer);
       const contact = offer.applicationProfile;
       const applicationReady = Boolean(contact.applicationEmail || contact.applicationPhone || contact.applicationUrl || contact.applyUrl || contact.url);
+      const languageRequirements = detectLanguageRequirements([offer.title, offer.description].filter(Boolean).join(" "));
       const payload = {
         countryCode,
         title: normalizedContent.title || offer.title,
         description: canonicalDescription,
-        language: "fr",
+        language: detectedLanguage,
+        languageOriginal: offer.language || detectedLanguage,
+        languageRequirements,
         location: offer.location,
         contractType: offer.contractType,
         source,
