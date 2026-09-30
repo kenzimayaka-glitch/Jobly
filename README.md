@@ -3645,3 +3645,73 @@ Une fonctionnalité n'est pas « finie » parce qu'elle compile. Elle est finie 
 | Déploiement Vercel sans contournement du contrôle utilisateur | 🟢 RÈGLE FIGÉE | Respect permanent |
 
 **Cette liste doit être mise à jour à chaque nouvelle résolution ou nouvelle demande persistante.**
+
+
+# CHECKPOINT 30/09/2026 — CONTINUITÉ AUDIT 360 OFFRES — ÉTAPE COURANTE
+
+## Référence exacte à reprendre
+
+La passe de référence est GitHub Actions — Jobly Offer 360 Audit #41, run `36658619038`, sur le commit `b703e57c022e2b4dfe91987f3eb59a0e85c5df6a` de `fix/offer-classification-duplication-v6`.
+
+- 254 / 254 offres analysées.
+- `APPLICATION_MISCLASSIFIED` : 0 dans cette passe V5 de référence.
+- `DUPLICATION` : 132 / 254 offres signalées.
+- `dupCount` cumulé sur ces 132 : 2 477 occurrences internes.
+- Artefact : `jobly-offer-360-audit`, artifact `11072424621`.
+- Ne pas relancer les 254 uniquement pour reproduire ce résultat : exploiter l'artefact existant.
+
+## Correction importante — Infos Concours Education
+
+Le premier découpage des 132 DUPLICATION n'était pas une ventilation par source. Le croisement du rapport réel donne :
+
+| Source | DUPLICATION |
+|---|---:|
+| Job in Cameroun | 54 |
+| Emplois Cameroun | 54 |
+| JobInfoCamer | 19 |
+| FNE Cameroun | 5 |
+| Infos Concours Education | 0 |
+| **Total** | **132** |
+
+Infos Concours Education est bien présente : 32 offres ont `sourceKey = infosconcourseducation` et `dupCount = 0` dans cette passe.
+
+**Conséquence : ne pas modifier ou incriminer Infos Concours Education sur la base des 132 DUPLICATION. Cette source est hors du problème DUPLICATION identifié par la passe #41.**
+
+## Travail à poursuivre — même logique
+
+Reprendre les 132 DUPLICATION déjà identifiées et les ventiler par :
+1. offre concernée ;
+2. source / `sourceKey` ;
+3. version / canonicalisation V5 ;
+4. type précis de duplication ;
+5. sections/valeurs réellement dupliquées ;
+6. `dupCount` ;
+7. caractère légitime, lié au scraping/normalisation, ou réellement actionnable.
+
+### Ordre de travail figé
+**DUPLICATION → DEADLINE → CHROME**, avec le contrôle V5 conservé comme mesure de référence séparée.
+
+V5 doit continuer à vérifier qu'aucune correction ne réintroduit `APPLICATION_MISCLASSIFIED`.
+
+### Règles de méthode
+- Même population de 254 lorsque le rapport existant suffit.
+- Ne pas changer de stratégie à chaque anomalie.
+- Ne pas refaire une passe complète si l'artefact répond déjà à la question.
+- Distinguer anomalie détectée et anomalie actionnable.
+- Une information absente/non renseignée n'est pas une anomalie sans dénominateur explicite.
+- Concours/éducation restent un sujet de classification/Jobly Campus, mais ne doivent pas être mélangés au diagnostic DUPLICATION sans preuve dans le rapport.
+
+## État au moment du transfert
+
+**ÉTAPE COURANTE : analyse des 132 DUPLICATION du rapport #41.**
+
+**Dernier fait établi : Infos Concours Education = 0 DUPLICATION / 32 offres présentes / `dupCount = 0`.**
+
+**Prochaine action : exploiter l'artefact #41 pour identifier précisément ce qui est dupliqué dans les 132 offres, avant toute modification du code.**
+
+## Discipline Git / déploiement
+
+- Aucun déploiement Vercel sans autorisation explicite de l'utilisateur.
+- Aucun commit sur `main` sans autorisation explicite.
+- Préférer branche/PR de travail pour les corrections.
+- Ne rien recréer. Vérifier l'état existant avant toute modification. Corriger uniquement ce qui manque, tester, puis continuer.
