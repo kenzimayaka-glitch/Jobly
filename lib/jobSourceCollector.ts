@@ -4,6 +4,7 @@ import { extractApplicationSubject } from "./applicationSubject";
 import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription } from "./jobContent";
 import { normalizeJobContent } from "./jobNormalizer";
 import { renderPublicSource } from "./jobSourceRenderer";
+import { getActiveSources } from "../supabase/functions/discover-jobs/source-registry";
 
 type SourceConfig = {
   key: string;
@@ -56,8 +57,34 @@ const SOURCES: SourceConfig[] = [
   { key: "emploi_dakar", name: "EmploiDakar", listingUrls: ["https://www.emploidakar.com/"], hostnames: ["www.emploidakar.com","emploidakar.com"], offerPattern: /\/(?:offre|emploi|job)\/[^/?#]+/i },
   { key: "careers_sl", name: "Careers SL", listingUrls: ["https://careers.sl/"], hostnames: ["careers.sl","www.careers.sl"], offerPattern: /\/jobs?\/[^/?#]+/i },
   { key: "hrjobs_liberia", name: "HR Jobs Liberia", listingUrls: ["https://hrjobsliberia.com/"], hostnames: ["hrjobsliberia.com","www.hrjobsliberia.com"], offerPattern: /\/jobs?\/[^/?#]+/i },
-  { key: "malijob", name: "MaliJob", listingUrls: ["https://www.malijob.com/"], hostnames: ["www.malijob.com","malijob.com"], offerPattern: /\/(?:job|offre|emploi)\/[0-9a-z-]+/i },
+  { key: "malijob", name: "MaliJob", listingUrls: ["https://www.malijob.com/"], hostnames: ["www.malijob.com","malijob.com"], offerPattern: /\\/(?:job|offre|emploi)\\/[0-9a-z-]+/i },
+];
 
+const REGISTRY_GENERIC_PATTERN = /\\/(?:jobs?|offres?|emploi|vacancy|career|position|recruit|listing|opportunity|work|announcements|jobs-board)\\/[^?#]*/i;
+const REGISTRY_GENERIC_TITLE = /\\b(job|jobs|emploi|emplois|vacancy|vacancies|career|careers|position|recruit|recruitment|opportunit|offre|offres)\\b/i;
+
+function buildRegistrySources(): SourceConfig[] {
+  const explicit = new Set(SOURCES.map(source => source.key));
+  return getActiveSources()
+    .filter(source => source.url && !explicit.has(source.key) && !source.countries.includes("CM"))
+    .flatMap(source => {
+      try {
+        const parsed = new URL(source.url!);
+        return [{
+          key: source.key,
+          name: source.name,
+          listingUrls: [source.url!],
+          hostnames: [parsed.hostname.toLowerCase()],
+          offerPattern: REGISTRY_GENERIC_PATTERN,
+        }];
+      } catch {
+        return [];
+      }
+    });
+}
+
+const REGISTRY_SOURCES = buildRegistrySources();
+const ALL_SOURCES = [...SOURCES, ...REGISTRY_SOURCES];
 
 const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
 const FETCH_TIMEOUT_MS = 6_000;
@@ -595,7 +622,7 @@ async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
 }
 
 export async function recollectOfferByUrl(sourceKey: string, url: string, listingTitle = ""): Promise<CollectedOffer | null> {
-  const source = SOURCES.find(item => item.key === sourceKey);
+  const source = ALL_SOURCES.find(item => item.key === sourceKey);
   if (!source || !url) return null;
   try {
     const parsed = new URL(url);
@@ -615,7 +642,7 @@ export async function recollectOfferByUrl(sourceKey: string, url: string, listin
 
 export async function collectPublicJobSources(sourceKey?: string) {
   const selectedSources = sourceKey
-    ? SOURCES.filter(source => source.key === sourceKey)
+    ? ALL_SOURCES.filter(source => source.key === sourceKey)
     : SOURCES;
   const results = await Promise.all(selectedSources.map(async source => {
     try {
