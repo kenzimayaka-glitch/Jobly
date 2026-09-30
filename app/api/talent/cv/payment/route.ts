@@ -6,7 +6,7 @@ import { getEntitlements } from "../../../../../lib/billingCatalog";
 import { getIdempotentResult, saveIdempotentResult } from "../../../../../lib/idempotency";
 import { getProvider } from "../../../../../lib/paymentProviders";
 
-const FEATURE = "CV_ATS_DOWNLOAD";
+const FEATURES = new Set(["CV_ATS_DOWNLOAD","CV_OPTIMIZED_DOWNLOAD"]);
 
 function error(message: string, status: number, code = message) {
   return NextResponse.json({ error: code, message }, { status });
@@ -18,7 +18,8 @@ export async function POST(request: NextRequest) {
     if (!auth) return error("Session requise.", 401, "UNAUTHENTICATED");
 
     const body = await request.json().catch(() => ({}));
-    if (String(body.feature || "").toUpperCase() !== FEATURE) {
+    const feature = String(body.feature || "").toUpperCase();
+    if (!FEATURES.has(feature)) {
       return error("Fonctionnalité de paiement invalide.", 400, "INVALID_FEATURE");
     }
 
@@ -32,7 +33,8 @@ export async function POST(request: NextRequest) {
     const plan = await getActivePlanCode(sb, user.id, "TALENT");
     const entitlements = getEntitlements(plan);
 
-    if (entitlements.cvDownloadPriceXaf <= 0) {
+    const amount = feature === "CV_OPTIMIZED_DOWNLOAD" ? Number(entitlements.cvOptimizedDownloadPriceXaf || 0) : Number(entitlements.cvAtsDownloadPriceXaf || entitlements.cvDownloadPriceXaf || 0);
+    if (amount <= 0) {
       return NextResponse.json({
         paid: false,
         included: true,
@@ -42,7 +44,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const amount = Number(entitlements.cvDownloadPriceXaf);
     const phone = String(body.phone || auth.phone || "").trim();
     const paymentMethod = String(body.paymentMethod || "MTN MoMo");
 
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
       .insert({
         id: paymentId,
         userId: user.id,
+        feature,
         subscriptionId: null,
         provider: providerName,
         amount,
@@ -107,7 +109,7 @@ export async function POST(request: NextRequest) {
       const response = {
         paid: true,
         included: false,
-        feature: FEATURE,
+        feature,
         plan,
         payment: pendingPayment,
         provider: intent.provider,

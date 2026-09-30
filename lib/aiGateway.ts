@@ -36,7 +36,8 @@ export async function runAiGateway(req:NextRequest, raw:string, input:any={}):Pr
   const row=Array.isArray(reservation)?reservation[0]:reservation;
   if(!row?.allowed){
     const upgradeSuggestion = await maybeCreateJiaUpgradeNudge(sb,user.id,plan,"AI_CREDITS",`La tâche demandée nécessite encore des crédits IA, mais le quota de ta formule est atteint.`,`Continuer les analyses J’IA au-delà du quota inclus`,plan === "FREE" ? "START" : plan === "START" ? "PREMIUM" : "PRO");
-    return {ok:false,status:429,message:`Quota IA mensuel atteint (${Number(row?.used_credits||0)}/${quota} crédits).`,upgradeSuggestion};
+    const quotaMessage = plan === "FREE" ? `Le bonus J’IA de bienvenue est épuisé (${Number(row?.used_credits||0)}/${quota} crédits).` : `Quota IA mensuel atteint (${Number(row?.used_credits||0)}/${quota} crédits).`;
+    return {ok:false,status:429,message:quotaMessage,upgradeSuggestion};
   }
   const usageId=String(row.usage_id);
   const supabaseUrl=process.env.NEXT_PUBLIC_SUPABASE_URL; const supabaseKey=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; const authorization=req.headers.get("authorization");

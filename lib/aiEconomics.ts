@@ -18,7 +18,7 @@ export type AiOperation =
 export const AI_BUDGET_XAF_PER_CREDIT = 1;
 
 export const AI_CREDITS_BY_PLAN: Record<AiPlan, number> = {
-  FREE: 5,
+  FREE: 30,
   START: 30,
   PREMIUM: 120,
   PRO: 300,

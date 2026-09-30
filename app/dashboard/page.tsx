@@ -8,6 +8,7 @@ import BottomNav, { TALENT_NAV } from "../../components/BottomNav";
 import ScoreRing from "../../components/ScoreRing";
 import TalentHero from "../../components/TalentHero";
 import CompanyLogo from "../../components/CompanyLogo";
+import JoblyToast from "../../components/JoblyToast";
 
 type ProfileData = {
   user: { id?: string; displayName?: string; email?: string; phone?: string; profilePhotoUrl?: string | null; heroPhotoUrl?: string | null };
@@ -70,6 +71,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<ProfileData | null>(null);
   const [jobs, setJobs] = useState<JobsResponse | null>(null);
   const [applications, setApplications] = useState<ApplicationsResponse | null>(null);
+  const [welcomeBonus, setWelcomeBonus] = useState<{remaining:number; firstDashboardVisit:boolean; message:string|null} | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,18 +80,21 @@ export default function DashboardPage() {
       if (!session.data.session) { router.replace("/"); return; }
       const token = session.data.session.access_token;
       try {
-        const [profileRes, jobsRes, applicationsRes] = await Promise.all([
+        const [profileRes, jobsRes, applicationsRes, welcomeRes] = await Promise.all([
           fetch("/api/profile", { headers: { Authorization: `Bearer ${token}` } }),
           fetch("/api/jobs", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
           fetch("/api/applications", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
+          fetch("/api/talent/ai-bonus", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
         ]);
-        const [profileBody, jobsBody, applicationsBody] = await Promise.all([
+        const [profileBody, jobsBody, applicationsBody, welcomeBody] = await Promise.all([
           profileRes.json().catch(() => null), jobsRes.json().catch(() => null), applicationsRes.json().catch(() => null),
+          welcomeRes.json().catch(() => null),
         ]);
         if (!cancelled) {
           if (profileRes.ok) setData(profileBody);
           if (jobsRes.ok) setJobs(jobsBody);
           if (applicationsRes.ok) setApplications(applicationsBody);
+          if (welcomeRes.ok) { setWelcomeBonus(welcomeBody); if (welcomeBody?.firstDashboardVisit) void fetch("/api/talent/ai-bonus", { method: "POST", headers: { Authorization: `Bearer ${token}` } }); }
         }
       } catch {
         // The dashboard remains navigable even if one backend request is temporarily unavailable.
@@ -141,6 +146,7 @@ export default function DashboardPage() {
 
   return (
     <main className="talent-shell min-h-[100dvh] w-full overflow-x-hidden bg-[#F5F7FB] pb-28 text-[#17212B]">
+      {welcomeBonus?.firstDashboardVisit && welcomeBonus.remaining > 0 && welcomeBonus.message && <JoblyToast title="Bonus J’IA de bienvenue" message={`${welcomeBonus.message} Crédit restant : ${welcomeBonus.remaining}.`} actionLabel="Voir mes crédits" onAction={() => router.push("/talent/settings")} onClose={() => setWelcomeBonus(v => v ? {...v, firstDashboardVisit:false} : v)} />}
       <PageHeader
         label=""
         initial={(firstName || "J").charAt(0).toUpperCase()}

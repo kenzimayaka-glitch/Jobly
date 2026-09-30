@@ -9,7 +9,8 @@ import { getActivePlanCode } from "../../../../../lib/entitlements";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const PREMIUM_PLANS = new Set(["PREMIUM", "PRO"]);
+const PREMIUM_PLANS = new Set(["START", "PREMIUM", "PRO"]);
+const ACCESS_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 type CVPayload = {
   name?: string;
@@ -47,7 +48,7 @@ async function buildPdf(cv: CVPayload) {
   const summary = clean(cv.summary, 5000);
   const experience = clean(cv.experience, 10000);
   const education = clean(cv.education, 6000);
-  const skills = Array.isArray(cv.skills) ? cv.skills.map(x => clean(x, 100)).filter(Boolean) : clean(cv.skills).split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
+  const skills = Array.isArray(cv.skills) ? cv.skills.map(x => clean(x, 100)).filter(Boolean) : clean(cv.skills).split(/[,;\\n]/).map(x => x.trim()).filter(Boolean);
 
   doc.font("Helvetica-Bold").fontSize(22).text(fullName);
   if (headline) doc.moveDown(0.25).font("Helvetica-Bold").fontSize(12).text(headline);
@@ -83,16 +84,17 @@ export async function POST(request: NextRequest) {
     const cv: CVPayload = body?.cv && typeof body.cv === "object" ? body.cv : {};
 
     const activePlan = await getActivePlanCode(sb, user.id, "TALENT");
+    const service = String(body?.service || "ATS").toUpperCase() === "OPTIMIZED" ? "OPTIMIZED" : "ATS";
     const entitlements = getEntitlements(activePlan);
-    const isPremium = PREMIUM_PLANS.has(activePlan);
-    const oneOffPrice = Number(entitlements.cvDownloadPriceXaf || 0);
+    const oneOffPrice = service === "OPTIMIZED" ? Number(entitlements.cvOptimizedDownloadPriceXaf || 0) : Number(entitlements.cvAtsDownloadPriceXaf || entitlements.cvDownloadPriceXaf || 0);
+    const isIncluded = PREMIUM_PLANS.has(activePlan) && oneOffPrice <= 0;
 
-    if (!isPremium && oneOffPrice > 0) {
+    if (!isIncluded && oneOffPrice > 0) {
       const paymentId = clean(body?.paymentId, 100);
       if (!paymentId) {
         return NextResponse.json({
           error: "PAYMENT_REQUIRED",
-          message: `Le téléchargement ATS coûte ${oneOffPrice.toLocaleString("fr-FR")} FCFA pour votre formule.`,
+          message: `Le téléchargement ${service === "OPTIMIZED" ? "du CV optimisé" : "ATS"} coûte ${oneOffPrice.toLocaleString("fr-FR")} FCFA pour votre formule.`,
           paymentRequired: true,
           priceXaf: oneOffPrice,
           currency: "XAF",
@@ -101,23 +103,28 @@ export async function POST(request: NextRequest) {
 
       const { data: payment, error: paymentError } = await sb
         .from("Payment")
-        .select("id,userId,subscriptionId,amount,currency,status,provider,externalId")
+        .select("id,userId,subscriptionId,amount,currency,status,provider,externalId,paidAt,feature")
         .eq("id", paymentId)
         .eq("userId", user.id)
         .maybeSingle();
 
       if (paymentError) throw new Error(paymentError.message);
       if (!payment) return NextResponse.json({ error: "PAYMENT_NOT_FOUND", message: "Paiement CV introuvable." }, { status: 404 });
-      if (Number(payment.amount) !== oneOffPrice || payment.currency !== "XAF" || payment.subscriptionId !== null) {
+      if (Number(payment.amount) !== oneOffPrice || payment.currency !== "XAF" || payment.subscriptionId !== null || payment.feature !== `CV_${service}_DOWNLOAD`) {
         return NextResponse.json({ error: "PAYMENT_INVALID", message: "Ce paiement ne correspond pas à cette opération CV." }, { status: 409 });
       }
       if (payment.status !== "SUCCESSFUL") {
         return NextResponse.json({ error: "PAYMENT_NOT_CONFIRMED", message: "Le paiement doit être confirmé avant le téléchargement." }, { status: 402 });
       }
+      const paidAt = payment.paidAt ? new Date(payment.paidAt).getTime() : 0;
+      if (!paidAt || Date.now() >= paidAt + ACCESS_WINDOW_MS) {
+        return NextResponse.json({ error: "CV_ACCESS_EXPIRED", message: "L’accès payé à ce service CV a expiré après 2 heures. Un nouveau paiement est nécessaire.", accessWindowHours: 2 }, { status: 402 });
+      }
     }
 
     const pdf = await buildPdf(cv);
-    const filename = `${clean(cv.fullName || "CV-Jobly", 80).replace(/[^a-zA-Z0-9_-]+/g, "-")}-ATS.pdf`;
+    const suffix = service === "OPTIMIZED" ? "Jobly-optimise" : "ATS";
+    const filename = `${clean(cv.fullName || "CV-Jobly", 80).replace(/[^a-zA-Z0-9_-]+/g, "-")}-${suffix}.pdf`;
     return new NextResponse(new Uint8Array(pdf), { status: 200, headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${filename}"`, "Cache-Control": "private, no-store" } });
   } catch (error) {
     return NextResponse.json({ error: "CV_EXPORT_FAILED", message: error instanceof Error ? error.message : "Impossible de générer le CV ATS." }, { status: 500 });

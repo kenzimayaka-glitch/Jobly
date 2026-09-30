@@ -18,8 +18,8 @@ export default function OriginalCvViewer() {
     (async () => {
       try {
         const supabase = getSupabaseClient();
-        const { data } = await supabase.auth.getSession();
-        let token = data.session?.access_token || null;
+        const { data: sessionData } = await supabase.auth.getSession();
+        let token = sessionData.session?.access_token || null;
         if (!token) {
           const refreshed = await supabase.auth.refreshSession();
           token = refreshed.data.session?.access_token || null;
@@ -42,11 +42,11 @@ export default function OriginalCvViewer() {
           }
         }
 
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || !data.url) throw new Error(data.message || "CV original indisponible.");
+        const responseData = await response.json().catch(() => ({}));
+        if (!response.ok || !responseData.url) throw new Error(responseData.message || "CV original indisponible.");
         if (!active) return;
-        setUrl(data.url);
-        setFileName(data.fileName || "CV-Jobly.pdf");
+        setUrl(responseData.url);
+        setFileName(responseData.fileName || "CV-Jobly.pdf");
       } catch (error) {
         if (active) setMessage(error instanceof Error ? error.message : "Impossible d’ouvrir le CV original.");
       } finally {
