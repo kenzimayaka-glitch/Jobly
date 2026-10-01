@@ -249,6 +249,54 @@ async function saveExport(
   return row;
 }
 
+export async function GET(request: NextRequest) {
+  try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return bad("Session requise.", 401);
+    const supabase = adminClient();
+    const user = await ensureUser(supabase, authUser);
+    const { data: roles, error: roleError } = await supabase
+      .from("RecruitmentRole")
+      .select("recruitmentId,role")
+      .eq("userId", user.id)
+      .in("role", Array.from(ROLES));
+    if (roleError) throw new Error(roleError.message);
+    const recruitmentIds = Array.from(new Set((roles || []).map((r:any)=>r.recruitmentId).filter(Boolean)));
+    if (!recruitmentIds.length) return NextResponse.json({ ok:true, recruitments:[] });
+    const { data: recruitments, error } = await supabase
+      .from("Recruitment360")
+      .select("id,recruiterJobId,currentState,version,updatedAt")
+      .in("id", recruitmentIds)
+      .order("updatedAt", { ascending:false });
+    if (error) throw new Error(error.message);
+    const jobIds=(recruitments||[]).map((r:any)=>r.recruiterJobId).filter(Boolean);
+    const versionIds=(recruitments||[]).map((r:any)=>r.id);
+    const [jobsRes,versionsRes]=await Promise.all([
+      jobIds.length ? supabase.from("RecruiterJob").select("id,title,companyName,status").in("id",jobIds) : Promise.resolve({data:[],error:null}),
+      versionIds.length ? supabase.from("RecruitmentAnnouncementVersion").select("id,recruitmentId,versionNumber,title,status").in("recruitmentId",versionIds).order("versionNumber",{ascending:false}) : Promise.resolve({data:[],error:null}),
+    ]);
+    if (jobsRes.error) throw new Error(jobsRes.error.message);
+    if (versionsRes.error) throw new Error(versionsRes.error.message);
+    const jobs=new Map((jobsRes.data||[]).map((j:any)=>[j.id,j]));
+    const versionsByRecruitment=new Map<string,any[]>();
+    for(const v of (versionsRes.data||[])) {
+      const list=versionsByRecruitment.get(v.recruitmentId)||[];
+      list.push(v);
+      versionsByRecruitment.set(v.recruitmentId,list);
+    }
+    return NextResponse.json({
+      ok:true,
+      recruitments:(recruitments||[]).map((r:any)=>({
+        ...r,
+        job:jobs.get(r.recruiterJobId)||null,
+        versions:versionsByRecruitment.get(r.id)||[],
+      })),
+    });
+  } catch(error) {
+    return NextResponse.json({ok:false,message:error instanceof Error?error.message:"Impossible de charger les recrutements."},{status:500});
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
@@ -336,7 +384,7 @@ export async function POST(request: NextRequest) {
     const row = await saveExport(supabase, data, user.id, format, storagePath, digest, width, height, metadata, publicExpiresAt);
     const { data: signed, error: signError } = await supabase.storage.from(bucket).createSignedUrl(storagePath, 3600);
     if (signError) throw new Error(signError.message);
-    return NextResponse.json({ ok: true, export: row, downloadUrl: signed?.signedUrl || null, ...metadata });
+    return NextResponse.json({ ok: true, export: row, publicUrl: data.publicUrl, downloadUrl: signed?.signedUrl || null, ...metadata });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Export impossible.";
     const status = message === "FORBIDDEN" ? 403 : message.endsWith("_NOT_FOUND") ? 404 : 500;
