@@ -1,6 +1,6 @@
 # JOBLY — STATUT DU PROJET
 ## SOURCE DE VÉRITÉ D'EXÉCUTION — JOBLY 20/20
-### Mise à jour : 01/10/2026 — Recrutement 360° v2 / Lot 2
+### Mise à jour : 01/10/2026 — Recrutement 360° v2 / Lot 7
 
 > Règle : une fonctionnalité n'est terminée que si elle traverse **SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**.
 > Les anciens checkpoints restent conservés comme historique et ne remplacent jamais l'état courant.
@@ -16,11 +16,12 @@ Le CEO a validé le démarrage du parcours **Recrutement 360° v2**. Pendant ce 
 | **1 — Fondations** | 🟨 **CODÉ + BASE VÉRIFIÉE / BUILD À VALIDER** | États serveur, rôles, audit, notifications, double coche, codes uniques, FREE_TEST/PRODUCTION livrés ; migrations appliquées et tests DB ciblés passés ; build/lint/typecheck non exécutables depuis l'environnement connecté actuel |
 | **2 — Lancer** | 🟨 **CODÉ + DB VÉRIFIÉE / BUILD À VALIDER** | Annonces versionnées, critères, salaire, échéance, publication, clôture et prorogation ; RPC serveur + API + UI Recruiter livrés ; scénario DB complet CREATE_VERSION→PUBLISH→EXTEND→CLOSE passé ; build/lint/typecheck non exécutables ici |
 | 3 — Candidatures & sélection | ⚪ EN ATTENTE | Matching détaillé, CV, justificatifs, ATS, vivier, refus différés |
-| 3 — Candidatures & sélection | ⚪ EN ATTENTE | Matching détaillé, CV, justificatifs, ATS, vivier, refus différés |
 | 4 — Tests | ⚪ EN ATTENTE | Sessions, timer serveur, sauvegarde, surveillance, reprise |
-| 5 — Entretiens | ⚪ EN ATTENTE | Créneaux, jury, rappels, présence, Meet |
-| 6 — Décision | ⚪ EN ATTENTE | Pondération, J'IA, réserve, offre, négociation |
-| 7 — Rapports & avis | ⚪ EN ATTENTE | PDF, liens sécurisés, dashboard, avis |
+| 5 — Entretiens | 🟨 CODÉ + DB VÉRIFIÉE / BUILD À VALIDER | Créneaux, jury, rappels, présence ; Google Meet/OAuth et scheduler externe encore à finaliser |
+| 6 — Décision | 🟨 CODÉ + STRUCTURE VÉRIFIÉE / TEST À VALIDER | Décision finale, votes jury, verrouillage, audit, notification, workspace recruteur |
+| 7 — Rapports & avis | 🟨 CODÉ + STRUCTURE VÉRIFIÉE / TEST À VALIDER | Rapports recrutement/candidat, avis structurés, visibilité candidat, audit, dashboard |
+| 8 — Fiabilité avancée | ⚪ EN ATTENTE | Proctoring appareil, signaux anti-IA, réseau faible, secours |
+| 9 — Native + visio | ⚪ EN ATTENTE | Capacitor, FCM/APNs, alerte native, visio intégrée |
 | 8 — Fiabilité avancée | ⚪ EN ATTENTE | Proctoring appareil, signaux anti-IA, réseau faible, secours |
 | 9 — Native + visio | ⚪ EN ATTENTE | Capacitor, FCM/APNs, alerte native, visio intégrée |
 
