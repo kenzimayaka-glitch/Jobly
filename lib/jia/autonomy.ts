@@ -17,6 +17,7 @@ export type JiaObservation = {
   matchingOffers?: number;
   pendingApplications?: number;
   currentLanguage?: JiaLang;
+  externalSignal?: { summary: string; confidence: number; status: "CONFIRMED" | "LIKELY" | "CONTESTED" | "UNKNOWN" };
 };
 
 export type JiaDecision = {
@@ -85,6 +86,9 @@ export function evaluate(o: JiaObservation) {
   if (/\/career|\/career-os/.test(o.path) && o.idleMs >= 10_000) {
     signals.push({ id: "career_next_step", priority: 6, reason: "Le parcours carrière est ouvert sans action récente." });
   }
+  if (o.externalSignal && o.externalSignal.confidence >= 0.78 && o.externalSignal.status !== "CONTESTED") {
+    signals.push({ id: "external_signal", priority: 9, reason: "Le Internet Brain a détecté une information externe suffisamment crédible pour une initiative." });
+  }
   if (o.lastAction && /rechercher|search|filtr|filter|offre|job/i.test(o.lastAction) && o.idleMs >= 7_000) {
     signals.push({ id: "search_assist", priority: 7, reason: "Une intention de recherche vient d’être détectée." });
   }
@@ -128,6 +132,15 @@ const DECISIONS: Record<string, Omit<JiaDecision, "id">> = {
       es: "Estás en tu espacio profesional. Puedo ayudarte a elegir el siguiente paso.",
     },
     gesture: "reassure", move: "listen_tilt", priority: 6, speak: false,
+  },
+  external_signal: {
+    reason: "signal externe vérifié par le Internet Brain",
+    message: {
+      fr: "J’ai détecté une information externe pertinente. Je peux t’aider à examiner ce qu’elle change.",
+      en: "I detected a relevant external signal. I can help examine what it changes.",
+      es: "He detectado una señal externa relevante. Puedo ayudarte a analizar qué cambia.",
+    },
+    gesture: "analyze", move: "explain_open", priority: 9, speak: false,
   },
   search_assist: {
     reason: "anticipation après recherche",
