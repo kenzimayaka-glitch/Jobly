@@ -152,7 +152,7 @@ function renderPageSvg(
   const bodySize = Math.max(13, Math.round(18 * s));
   const nameSize = Math.max(11, Math.round(22 * s));
   const lineH = Math.round(nameSize * 1.55);
-  const cols = names.length > 55 ? 2 : 1;
+  const normalNameSize = Math.max(13, Math.round(22 * s));\n  const normalOneColumnCapacity = Math.max(1, Math.floor(l.namesH / (normalNameSize * 1.45)));\n  const cols = names.length > normalOneColumnCapacity ? 2 : 1;
   const colWidth = (width - 2 * l.pad) / cols;
   const rows = Math.ceil(names.length / cols);
   const minReadable = Math.max(11, Math.round(width * 0.017));
@@ -222,9 +222,12 @@ export async function renderJpeg(
   const qr = await qrDataUrl(data.qrPayload, Math.max(180, Math.round(120 * effective.width / 640)));
   const names = namesOverride || flattenNames(data);
   const l = fixedLayout(effective.width, effective.height);
-  const maxRowsOneColumn = Math.max(1, Math.floor(l.namesH / (Math.max(11, Math.round(22*l.scale)) * 1.45)));
-  const twoColumn = Math.max(2, maxRowsOneColumn * 2);
-  const capacity = names.length <= maxRowsOneColumn ? maxRowsOneColumn : twoColumn;
+  const normalNameSize = Math.max(13, Math.round(22 * l.scale));
+  const minReadable = Math.max(11, Math.round(effective.width * 0.017));
+  const normalOneColumnCapacity = Math.max(1, Math.floor(l.namesH / (normalNameSize * 1.45)));
+  const minFontTwoColumnRows = Math.max(1, Math.floor(l.namesH / (minReadable * 1.45)));
+  const twoColumnCapacity = Math.max(2, minFontTwoColumnRows * 2);
+  const capacity = names.length <= normalOneColumnCapacity ? normalOneColumnCapacity : twoColumnCapacity;
   const chunks = splitNames(names, capacity);
   const files = [];
   for (let i = 0; i < chunks.length; i++) {
