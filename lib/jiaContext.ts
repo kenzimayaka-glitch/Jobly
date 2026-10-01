@@ -16,7 +16,7 @@ export async function buildJiaContext(sb:SupabaseClient,userId:string,request:Ji
     sb.from("jia_memory_unified").select("id,memory_type,content,confidence,source,last_seen_at,importance,relevance,storage_kind").eq("user_id",userId).order("last_seen_at",{ascending:false}).limit(75),
     sb.from("JiaEvent").select("eventType,path,durationMs,occurredAt").eq("userId",userId).order("occurredAt",{ascending:false}).limit(100),
   ]);
-  const firstError=userResult.error||profileResult.error||skillsResult.error||experiencesResult.error||memoryResult.error||cognitiveMemoryResult.error||eventsResult.error;
+  const firstError=userResult.error||profileResult.error||skillsResult.error||experiencesResult.error||memoryResult.error||eventsResult.error;
   if(firstError)return{context:null,error:firstError.message};
   const profile:any=profileResult.data||{};
   const skills=(skillsResult.data||[]).map((x:any)=>({name:redact(x.name),level:redact(x.level)}));

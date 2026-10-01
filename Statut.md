@@ -4092,3 +4092,52 @@ Règle de vérité : présence de code ≠ validation. Échec = 🔴. Partiel/no
 
 ### Condition de fin
 Passage au vert uniquement après : CI complet, typecheck/build, intégration DB/migrations, E2E navigateur, scénarios d’échec, vérification des permissions, persistance réelle, ultimate loop et absence de contradiction critique.
+
+
+# CHECKPOINT 01/10/2026 — J’IA CANONICAL MEMORY LOOP / CONTINUOUS EXECUTION
+
+## Cause structurelle corrigée
+Le contrôle post-audit a confirmé une contradiction réelle : `JiaContext` lisait déjà `jia_memory_unified`, mais la vue n’existait pas encore dans la base JOBLY-PROD, et le chemin comportemental continuait à écrire principalement dans l’ancien `JiaMemory`.
+
+## Correction livrée sur la branche `feat/jia-internet-brain-20261001`
+- `lib/jiaContext.ts` : suppression d’une référence inexistante `cognitiveMemoryResult` qui pouvait casser le build TypeScript.
+- `lib/jia/cognitive.ts` : le snapshot cognitif lit désormais le modèle canonique `jia_memory_unified`, incluant mémoire historique + mémoire cognitive.
+- `lib/jiaMemory.ts` : les événements comportementaux pertinents alimentent désormais aussi `jia_memory` via `remember()` ; le double système de lecture est donc fermé côté runtime.
+- `test_jia_cognitive.py` : garde ajoutée pour empêcher la régression du chemin d’écriture canonique.
+
+## Base JOBLY-PROD
+La vue `public.jia_memory_unified` a été créée et vérifiée :
+- vue présente ;
+- 5 lignes actuellement visibles dans le modèle unifié ;
+- SELECT refusé à `anon` ;
+- SELECT refusé à `authenticated` ;
+- SELECT autorisé à `service_role`.
+
+## Preuve / état
+- Commit de construction : `f5e926c52f3c4bcbcacec92eb8ad8a566fc3e5ff`.
+- 1 commit d’avance par rapport au checkpoint précédent.
+- Aucun merge vers `main`.
+- Aucun déploiement Vercel lancé.
+- Aucun build Vercel lancé.
+
+## Verdict
+**🟢 CORRIGÉ / INTÉGRÉ — VALIDATION CI/E2E encore requise.**
+
+Ce checkpoint ferme un gap structurel de mémoire, mais ne permet pas encore de déclarer J’IA à 100 % : les preuves runtime/E2E, l’exécution réelle des outils, l’autonomie contrôlée, la présence 3D/voix et les gates de production restent obligatoires.
+
+
+# CHECKPOINT 01/10/2026 — J’IA SECURITY CONTRADICTION / AI CREDIT RPC
+
+## Contradiction détectée
+L’audit Supabase a trouvé une fonction public.reserve_ai_credit(...) en SECURITY DEFINER avec le droit EXECUTE hérité de PUBLIC. La vérification interne auth.uid() ne protégeait donc pas correctement l’appel anonyme lorsque auth.uid() était NULL.
+
+## Correction
+- Révocation de EXECUTE à PUBLIC, anon et authenticated.
+- EXECUTE conservé uniquement pour service_role, cohérent avec l’utilisation serveur du RPC.
+- Migration versionnée ajoutée sur la branche : supabase/migrations/20261001020000_jia_harden_ai_credit_rpc_execute.sql.
+- Vérification directe : anon_execute=false, authenticated_execute=false, service_execute=true.
+
+## État
+**🟢 CORRIGÉ + VÉRIFIÉ EN BASE.**
+
+Les alertes Supabase restantes sont indépendantes de cette correction : tables service-only volontairement sans policies, pg_net dans public, protection des mots de passe compromis désactivée.

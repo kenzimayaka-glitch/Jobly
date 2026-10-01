@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "./server-auth";
 import { publishJiaEvent } from "./jia/eventBus";
+import { remember } from "./jia/cognitive";
 
 export const JIA_MEMORY_CATEGORIES = ["career","mobility","campus","community","financial_signal","interaction_style"] as const;
 export type JiaMemoryCategory = (typeof JIA_MEMORY_CATEGORIES)[number];
@@ -43,6 +44,19 @@ export async function recordJiaEvent(req:NextRequest,payload:{eventType:string;s
     eventType.startsWith("campus_")?"campus":
     (eventType.startsWith("event_")||eventType==="community_post_shared"||eventType==="mentorship_requested")?"community":
     (["JOB_VIEW","JOB_SAVE","JOB_APPLY_START","JOB_APPLY_COMPLETE","application_submitted","assessment_completed"].includes(eventType))?"career":"interaction_style";
+  if(["PAGE_VIEW","SESSION_START","JOB_VIEW","JOB_SAVE","JOB_APPLY_START","JOB_APPLY_COMPLETE","application_submitted","assessment_completed","campus_onboarded","event_checked_in","community_post_shared","mentorship_requested","mobility_plan_simulated","mobility_advance_requested","PROFILE_UPDATE","LEARNING_ACTIVITY","NOTIFICATION_OPEN"].includes(eventType)){
+    await remember({
+      userId:user.id,
+      type:eventType.startsWith("mobility_")?"MOBILITY":eventType.startsWith("campus_")?"EVENT":eventType.startsWith("community_")||eventType.startsWith("mentorship_")?"EVENT":"EPISODIC",
+      content:{kind:"JIA_BEHAVIOR_EVENT",eventType,path,metadata},
+      source:"JIA_EVENT_BUS",
+      confidence:.7,
+      importance:eventType.includes("APPLY")||eventType==="application_submitted"?.8:.45,
+      relevance:eventType.includes("JOB")||eventType.includes("APPLICATION")?.85:.65,
+      contradictionKey:"behavior:"+eventType+":"+path,
+      futureUtility:.8,
+    });
+  }
   if(["PAGE_VIEW","SESSION_START","JOB_VIEW","application_submitted","assessment_completed","campus_onboarded","event_checked_in","community_post_shared","mentorship_requested","mobility_plan_simulated","mobility_advance_requested"].includes(eventType)){
     const key=eventType==="JOB_VIEW"?"last_job_view":"last_"+eventType.toLowerCase();
     await sb.from("JiaMemory").upsert({userId:user.id,category:memoryCategory,key,value:{eventType,path,metadata},confidence:0.5,source:"behavioral",lastObservedAt:new Date().toISOString(),updatedAt:new Date().toISOString()},{onConflict:"userId,category,key"});

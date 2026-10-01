@@ -104,7 +104,7 @@ export async function upsertSelfState(userId: string, state: Record<string, unkn
 export async function getCognitiveSnapshot(userId: string) {
   const sb = adminClient();
   const [memory, beliefs, predictions, reflections, self] = await Promise.all([
-    sb.from("jia_memory").select("*").eq("user_id", userId).order("last_seen_at", { ascending: false }).limit(30),
+    sb.from("jia_memory_unified").select("*").eq("user_id", userId).order("last_seen_at", { ascending: false }).limit(75),
     sb.from("jia_beliefs").select("*").eq("user_id", userId).order("updated_at", { ascending: false }).limit(30),
     sb.from("jia_predictions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(30),
     sb.from("jia_reflections").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
