@@ -4298,3 +4298,62 @@ L’audit Supabase a trouvé une fonction public.reserve_ai_credit(...) en SECUR
 **🟢 CORRIGÉ + VÉRIFIÉ EN BASE.**
 
 Les alertes Supabase restantes sont indépendantes de cette correction : tables service-only volontairement sans policies, pg_net dans public, protection des mots de passe compromis désactivée.
+
+
+# CHECKPOINT 01/10/2026 — RECRUTEMENT 360° LOT 7 — RAPPORTS & AVIS
+
+## État réel
+- Lot 7 développé sur `feat/recruitment-360-lot7-reports-reviews-complete`.
+- Tables nouvelles : `RecruitmentReportShare` et `RecruitmentReview`, toutes deux avec RLS activée.
+- Rapports : snapshot serveur, entonnoir, délai d'embauche, taux d'abandon, avis publiés, score d'expérience entreprise, export PDF réel, lien sécurisé expirant et révocable.
+- Avis : Talent et Recruiter, 1–5 étoiles, commentaire borné, modération PENDING → PUBLISHED/REJECTED, agrégats uniquement sur avis publiés.
+- Notification de demande d'avis : trigger serveur sur fin de candidature, avec mail + push + in-app dans la matrice existante.
+
+## Livré
+- `/recruiter/recruitment360/reports` : tableau de bord réel.
+- `/api/recruitment360/reports` : lecture rapport, création/révocation de lien, soumission d'avis, modération.
+- `/api/recruitment360/reports/share` : lecture publique par token hashé, expiration/révocation, données sensibles exclues.
+- `/api/recruitment360/reports/pdf` : export PDF serveur via PDFKit.
+- `/recruitment360/report/share` : lecteur de rapport partagé.
+- `/career/recruitment360/[applicationId]/review` : avis Talent.
+- Le miroir Talent existant expose désormais l'action « Donner mon avis » quand la candidature est terminée.
+- Le dashboard Recruiter permet de noter le processus et de modérer les avis en attente.
+
+## Preuves réelles Lot 7
+- Supabase `mpoyaegtwtmhookdzqdy` : migrations Lot 7 appliquées avec succès.
+- `RecruitmentReportShare` : RLS active.
+- `RecruitmentReview` : RLS active.
+- Fonctions Lot 7 : 4 présentes, dont soumission, modération, rapport et notification trigger.
+- EXECUTE des fonctions Lot 7 : 4/4 accordés à `service_role`, 0 à `anon/authenticated`.
+- Trigger `recruitment360_lot7_review_request` : 1 présent sur `RecruitmentApplicationState`.
+- Données métier Lot 7 : 0 avis, 0 lien partagé ; aucune donnée synthétique persistée.
+- Appel réel de `recruitment360_lot7_get_report` sur le recrutement existant `f80198ce-7627-44f4-8844-7cf57c1abe09` : succès ; rapport retourné avec job, funnel vide, 0 candidature, métriques et avis à zéro.
+- Advisor sécurité après Lot 7 : aucune nouvelle alerte RLS sur les deux tables Lot 7 ; les alertes restantes sont préexistantes (tables service-only sans policy, pg_net public, protection des mots de passe compromis).
+- Advisor performance : les deux nouvelles FK Lot 7 ont d'abord été signalées comme non indexées ; les index `RecruitmentReportShare_createdByUserId_idx` et `RecruitmentReview_moderatedByUserId_idx` ont ensuite été ajoutés. Les alertes restantes sont préexistantes/non liées au Lot 7.
+
+## Limites de certification
+- `npm run build` : NON EXÉCUTÉ.
+- lint : NON EXÉCUTÉ.
+- typecheck : NON EXÉCUTÉ.
+- Tests navigateur/E2E : NON EXÉCUTÉS.
+- Test réel Recruiter → rapport → PDF → lien → Talent → avis → modération : NON EXÉCUTÉ, car la base de production ne contient actuellement aucune candidature 360° exploitable et aucun faux candidat ne doit être créé en production.
+- Déploiement Vercel : aucun.
+- Merge `main` : aucun.
+
+**Verdict Lot 7 : CODÉ + CONNECTÉ + DB/RLS TESTÉES ; BUILD/LINT/TYPECHECK/E2E restent obligatoires avant VALIDATION.**
+
+## Fichiers Lot 7
+- `supabase/migrations/20261001220000_recruitment360_lot7_tables.sql`
+- `supabase/migrations/20261001220100_recruitment360_lot7_review_submit.sql`
+- `supabase/migrations/20261001220200_recruitment360_lot7_review_moderation.sql`
+- `supabase/migrations/20261001220300_recruitment360_lot7_report_function.sql`
+- `supabase/migrations/20261001220400_recruitment360_lot7_review_notifications.sql`
+- `supabase/migrations/20261001220500_recruitment360_lot7_fk_indexes.sql`
+- `app/api/recruitment360/reports/route.ts`
+- `app/api/recruitment360/reports/share/route.ts`
+- `app/api/recruitment360/reports/pdf/route.ts`
+- `app/recruiter/recruitment360/reports/page.tsx`
+- `app/recruitment360/report/share/page.tsx`
+- `app/career/recruitment360/[applicationId]/review/page.tsx`
+- modification de `app/career/recruitment360/[applicationId]/page.tsx`
+
