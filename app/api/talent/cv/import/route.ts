@@ -6,6 +6,21 @@ import { runAiGateway } from "../../../../../lib/aiGateway";
 import { getActivePlanCode } from "../../../../../lib/entitlements";
 
 export const runtime = "nodejs";
+function safeFilePart(value: unknown) {
+  return String(value || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "Utilisateur";
+}
+async function canonicalCvFileName(authUserId: string) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  const admin = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+  const { data } = await admin.from("User").select("username,firstName").eq("authUserId", authUserId).maybeSingle();
+  const now = new Date();
+  const month = new Intl.DateTimeFormat("fr-FR", { month: "long" }).format(now);
+  return `CV_${safeFilePart(data?.username)}_${safeFilePart(data?.firstName)}_${safeFilePart(month)}_${now.getFullYear()}.pdf`;
+}
 export const maxDuration = 60;
 
 const FREE_MAX_BYTES = 1 * 1024 * 1024;
@@ -204,9 +219,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Import is preview-only: durable original-file persistence happens only after the user explicitly clicks "Enregistrer".
+    const canonicalFileName = await canonicalCvFileName(authUser.id);
     const originalCv: { stored: boolean; storagePath?: string; fileName?: string; pages?: number } = {
       stored: false,
-      fileName: file.name,
+      fileName: canonicalFileName || "CV_Utilisateur.pdf",
       pages: parsed.total,
     };
 
@@ -222,7 +238,7 @@ export async function POST(request: NextRequest) {
           aiAvailable: false,
           aiQuotaExceeded: true,
           aiMessage: ai.message,
-          fileName: file.name,
+          fileName: canonicalFileName || "CV_Utilisateur.pdf",
           pages: parsed.total,
           extractedCharacters: cvText.length,
           originalCv,
@@ -235,7 +251,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       aiAvailable: true,
-      fileName: file.name,
+      fileName: canonicalFileName || "CV_Utilisateur.pdf",
       pages: parsed.total,
       extractedCharacters: cvText.length,
       credits: ai.credits,
