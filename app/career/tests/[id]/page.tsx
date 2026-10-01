@@ -45,6 +45,10 @@ export default function CandidateTest(){
   },[session?.id,session?.expiresAt]);
 
   async function answer(q:any,value:any){
+    const started=Number((window as any).__joblyQuestionStartedAt?.[q.id]||Date.now());
+    const elapsedMs=Date.now()-started;
+    (window as any).__joblyQuestionStartedAt={...((window as any).__joblyQuestionStartedAt||{}),[q.id]:Date.now()};
+    if(elapsedMs>0&&elapsedMs<1500)window.dispatchEvent(new CustomEvent("jobly-proctor-event",{detail:{event:"RAPID_ANSWER",metadata:{questionId:q.id,elapsedMs}}}));
     setAnswers(v=>({...v,[q.id]:value}));
     if(!session)return;
     if(!navigator.onLine){saveOfflineAnswer(session.id,q.id,value);return;}
@@ -55,8 +59,7 @@ export default function CandidateTest(){
   async function submit(){
     if(!session)return;
     if(!navigator.onLine){setError("Reconnecte-toi pour envoyer la soumission finale. Tes réponses sont conservées localement.");return;}
-    const queued=drainOfflineAnswers(session.id);for(const [questionId,value] of Object.entries(queued)){await fetch("/api/recruitment360/tests/"+session.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"answer",questionId,answer:{value}})}).catch(()=>saveOfflineAnswer(session.id,questionId,value));}
-    if(Object.keys(drainOfflineAnswers(session.id)).length){setError("Synchronisation des réponses incomplète.");return;}
+    const queued=drainOfflineAnswers(session.id);for(const [questionId,value] of Object.entries(queued)){const sync=await fetch("/api/recruitment360/tests/"+session.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"answer",questionId,answer:{value}})}).catch(()=>null);if(!sync||!sync.ok){saveOfflineAnswer(session.id,questionId,value);setError("Synchronisation des réponses incomplète.");return;}}
     const r=await fetch("/api/recruitment360/tests/"+session.id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"submit"})});const d=await r.json();if(!r.ok){setError(d.message);return;}
     await fetch("/api/recruitment360/tests/proctoring/finalize",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:session.id})}).catch(()=>undefined);
     setSession(d.session);setLeft(0);
