@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { loadPublicOfficialListing } from "../../../../lib/recruitment360/publicListing";
 import { renderWebHtml } from "../../../../lib/recruitment360/officialListing";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";\nexport const runtime = "nodejs";
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }) {
   return {
