@@ -478,8 +478,8 @@ export default function JiaPresence() {
         idleMs: Math.min(300_000, w.__jiaIdleMs || 0),
         recentActions: [lastAction.current].filter(Boolean),
         profileCompletion: percent ? Math.min(100, Number(percent)) : undefined,
-        matchingOffers: /\\/jobs(?:\\/|$)/.test(pathname) ? document.querySelectorAll('a[href*="/jobs/"]').length : 0,
-        pendingApplications: /\\/candidatures/.test(pathname) ? document.querySelectorAll('[data-application], a[href*="candidatures"]').length : 0,
+        matchingOffers: pathname.includes("/jobs") ? document.querySelectorAll('a[href*="/jobs/"]').length : 0,
+        pendingApplications: pathname.includes("/candidatures") ? document.querySelectorAll('[data-application], a[href*="candidatures"]').length : 0,
         currentLanguage: langRef.current === "en" ? "en" : "fr",
       }));
       if (!decision) return;
