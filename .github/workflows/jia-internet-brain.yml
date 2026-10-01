@@ -1,16 +1,21 @@
 name: J'IA Internet Brain Hard Mode
 
 on:
-  push:
-    branches:
-      - feat/jia-internet-brain-20261001
   pull_request:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   internet-brain:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

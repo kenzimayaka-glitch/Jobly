@@ -1,17 +1,25 @@
 name: J'IA Cognitive Core
+
 on:
-  push:
-    branches:
-      - feat/jia-internet-brain-20261001
   pull_request:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   cognitive-core:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python test_jia_cognitive.py
+      - name: Cognitive core contract
+        run: python test_jia_cognitive.py
