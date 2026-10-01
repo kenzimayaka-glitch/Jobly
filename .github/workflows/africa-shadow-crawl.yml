@@ -64,20 +64,7 @@ jobs:
               raise SystemExit("Report source count does not match metrics")
           if summary["durationMs"] > 115 * 60 * 1000:
               raise SystemExit("Shadow crawl exceeded the 115 minute safety budget")
-          print(json.dumps({
-              "countries": summary["countries"],
-              "sources": summary["sources"],
-              "accessible": summary["accessible"],
-              "failed": summary["failed"],
-              "listingPages": summary["listingPages"],
-              "detailPages": summary["detailPages"],
-              "discoveredUrls": summary["discoveredUrls"],
-              "expired": summary["expired"],
-              "rejected": summary["rejected"],
-              "totalExtracted": summary["totalExtracted"],
-              "totalEligible": summary["totalEligible"],
-              "durationMs": summary["durationMs"],
-          }, ensure_ascii=False, indent=2))
+          print(json.dumps({k: summary[k] for k in required}, ensure_ascii=False, indent=2))
           PY
           python - <<'PY'
           import json
@@ -115,12 +102,12 @@ jobs:
       - name: Push candidates to JobHarvestCapture
         if: github.event_name == 'schedule' || github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
         env:
-    INGEST_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-ingest
+          INGEST_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-ingest
         run: |
-          OIDC_TOKEN="$(curl --fail-with-body --silent --show-error -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=jobly-harvest")"
-    TOKEN="$(python -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "$OIDC_TOKEN")"
-    test -n "$TOKEN" || { echo "GitHub Actions OIDC token unavailable"; exit 1; }
-    python - <<'PY'
+          OIDC_TOKEN="$(curl --fail-with-body --silent --show-error             -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=jobly-harvest")"
+          TOKEN="$(python -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "$OIDC_TOKEN")"
+          test -n "$TOKEN" || { echo "GitHub Actions OIDC token unavailable"; exit 1; }
+          python - <<'PY'
           import json
           candidates = json.load(open("africa-shadow-harvest-candidates.json", encoding="utf-8"))
           for i in range(0, len(candidates), 500):

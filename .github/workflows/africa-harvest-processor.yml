@@ -4,9 +4,13 @@ on:
   schedule:
     - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: africa-harvest-processor
@@ -19,9 +23,9 @@ jobs:
     steps:
       - name: Process pending captures
         env:
-          PROCESS_URL: ${{ secrets.JOBLY_HARVEST_PROCESS_URL }}
-          INGEST_SECRET: ${{ secrets.JOB_SOURCE_INGEST_SECRET }}
+          PROCESS_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-process
         run: |
-          test -n "$PROCESS_URL" || { echo "JOBLY_HARVEST_PROCESS_URL is not configured"; exit 1; }
-          test -n "$INGEST_SECRET" || { echo "JOB_SOURCE_INGEST_SECRET is not configured"; exit 1; }
-          curl --fail-with-body --silent --show-error             --retry 3 --retry-delay 5             -X POST "$PROCESS_URL"             -H "Authorization: Bearer $INGEST_SECRET"             -H "Content-Type: application/json"
+          OIDC_TOKEN="$(curl --fail-with-body --silent --show-error             -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=jobly-harvest")"
+          TOKEN="$(python -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "$OIDC_TOKEN")"
+          test -n "$TOKEN" || { echo "GitHub Actions OIDC token unavailable"; exit 1; }
+          curl --fail-with-body --silent --show-error             --retry 3 --retry-delay 5             -X POST "$PROCESS_URL"             -H "Authorization: Bearer $TOKEN"             -H "Content-Type: application/json"             --data '{"limit":40}'
