@@ -4141,3 +4141,42 @@ L’audit Supabase a trouvé une fonction public.reserve_ai_credit(...) en SECUR
 **🟢 CORRIGÉ + VÉRIFIÉ EN BASE.**
 
 Les alertes Supabase restantes sont indépendantes de cette correction : tables service-only volontairement sans policies, pg_net dans public, protection des mots de passe compromis désactivée.
+
+# RECRUTEMENT 360° V2 — ÉTAPE 0 — 01/10/2026
+
+## Gouvernance active
+- **Tâche active unique :** Recrutement 360° v2.
+- **Ordre de construction :** lots 1 → 8 → 10 → 11 → 9, conformément à l’Avenant 1.
+- **Lot actuellement en cours :** lot 8 — Fiabilité avancée. Aucun démarrage du lot 9.
+- **Point d’arrêt courant :** Étape 0 de cadrage avant poursuite du lot 8. Aucun code de lot modifié à cette étape.
+- **Déploiement :** aucun déploiement Vercel ne doit être lancé sans validation explicite du CEO.
+
+## État des lots Recrutement 360°
+| Lot | Périmètre | État au cadrage |
+|---|---|---|
+| 1 | Fondations recrutement, états, audit, rôles, notifications, double coche | 🟡 À auditer/certifier |
+| 2 | Lancer : annonces, versions, clôture/prorogation, scheduler | 🟡 À auditer/certifier |
+| 3 | Candidatures, matching, notation CV, justificatifs, ATS, vivier, refus différés | 🟡 À auditer/certifier |
+| 4 | Tests, passage Talent, surveillance, résultats, correction | 🟡 À auditer/certifier |
+| 5 | Entretiens, créneaux, confirmation, grille, rappels, absents, Meet provisoire | 🟡 À auditer/certifier |
+| 6 | Décision, pondération, J’IA explicable, offre, négociation, réserve | 🟡 À auditer/certifier |
+| 7 | Rapports, liens sécurisés, PDF, tableau de bord, avis | 🟡 À auditer/certifier |
+| 8 | Fiabilité avancée : proctoring renforcé, signaux anti-IA, réseau faible, secours SMS/appel | 🧪 EN COURS — point d’arrêt CEO requis après réalisation |
+| 10 | Recrutement groupé, migration rétrocompatible, multi-postes | ⏸️ Après Étape 0 bis et OK CEO |
+| 11 | Listings officiels PDF/XLSX/web/JPEG 1:2, intégrité, consentement, versions | ⏸️ Après lot 10 et OK CEO |
+| 9 | App native Capacitor + push + visio Jobly intégrée | ⏸️ Après lots 10 et 11 |
+
+## Avenant 1 — contrainte de continuité
+Après validation du lot 8, **Étape 0 bis obligatoire avant tout code** : impact rétroactif sur les lots 1 à 8, migration sans perte vers campagne/poste, notifications, écrans, APIs, permissions et rapports. Le lot 10 devra rejouer les scénarios de non-régression des lots précédents.
+
+## Mode Free-First
+La configuration cible doit distinguer **FREE_TEST** et **PRODUCTION**, avec abstractions des services externes (Scheduler, visio, SMS/appel, push, rendu/export). Aucun service payant ne doit être simulé comme actif.
+
+## Définition de vérité
+Ce checkpoint ne certifie aucun lot par simple présence de code. Pour chaque lot, la chaîne exigée reste : **SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**, avec preuves réelles et validation CEO.
+
+## Étape 0 — cadrage
+- Lecture de Statut.md : effectuée avant toute modification de lot.
+- Lecture du projet : fondations Next.js/Supabase/Prisma et surfaces Recruiter/Talent existantes inspectées.
+- Spécification Recrutement 360° v2 + Avenant 1 : prise comme référence de construction.
+- **État :** Étape 0 en cours ; arrêt obligatoire avant tout développement de lot.
