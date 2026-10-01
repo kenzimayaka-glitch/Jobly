@@ -2,7 +2,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 type Props = { speaking: boolean; move?: string };
@@ -17,6 +17,13 @@ export default function JIAProcedural3D({ speaking }: Props) {
   const leftArm = useRef<THREE.Group>(null);
   const rightArm = useRef<THREE.Group>(null);
   const mouth = useRef<THREE.Mesh>(null);
+  const [move, setMove] = useState("idle");
+
+  useEffect(() => {
+    const onMove = (event: Event) => setMove((event as CustomEvent<{ move?: string }>).detail?.move || "idle");
+    window.addEventListener("jobly:jia-move", onMove);
+    return () => window.removeEventListener("jobly:jia-move", onMove);
+  }, []);
 
   useFrame(({ clock }, delta) => {
     const t = clock.getElapsedTime();
@@ -25,8 +32,12 @@ export default function JIAProcedural3D({ speaking }: Props) {
       head.current.rotation.z = THREE.MathUtils.damp(head.current.rotation.z, Math.sin(t * 0.7) * 0.018, 4, delta);
     }
     const breath = Math.sin(t * (speaking ? 2.2 : 1.1));
-    if (leftArm.current) leftArm.current.rotation.z = THREE.MathUtils.damp(leftArm.current.rotation.z, -0.08, 4, delta);
-    if (rightArm.current) rightArm.current.rotation.z = THREE.MathUtils.damp(rightArm.current.rotation.z, 0.08, 4, delta);
+    const leftTarget = move === "explain_open" || move === "celebrate_jump" || move === "hand_chest" ? -0.38 : -0.08;
+    const rightTarget = move === "point_button" || move === "point_you" ? -0.55 : move === "explain_open" || move === "celebrate_jump" ? 0.38 : 0.08;
+    if (leftArm.current) leftArm.current.rotation.z = THREE.MathUtils.damp(leftArm.current.rotation.z, leftTarget, 6, delta);
+    if (rightArm.current) rightArm.current.rotation.z = THREE.MathUtils.damp(rightArm.current.rotation.z, rightTarget, 6, delta);
+    if (head.current && move === "listen_tilt") head.current.rotation.z = THREE.MathUtils.damp(head.current.rotation.z, -0.14, 6, delta);
+    if (head.current && move === "nod_slow") head.current.rotation.x = THREE.MathUtils.damp(head.current.rotation.x, 0.12, 6, delta);
     if (mouth.current) mouth.current.scale.y = speaking ? 0.72 + (breath + 1) * 0.12 : 0.25;
   });
 
