@@ -30,16 +30,16 @@ Un provider noop actif interdit le lancement commercial.
 
 Configurer LiveKit ou le provider retenu : URL, clé, secret, quota, présence, salle d'attente et enregistrement. L'enregistrement reste soumis au consentement explicite des deux parties.
 
-## 6. Applications natives
+## 6. Visio Lot 9\n\n- Choisir JOBLY_VIDEO_PROVIDER=LIVEKIT pour le provider production retenu, ou JITSI pour un déploiement Jitsi maîtrisé.\n- Avec LiveKit, fournir LIVEKIT_URL, LIVEKIT_API_KEY et LIVEKIT_API_SECRET uniquement côté serveur. Les tokens de session sont courts et signés backend.\n- Vérifier salle d’attente, présence, durée réelle, consentement des deux parties et enregistrement.\n- Vérifier l’indicateur de quota avant toute utilisation commerciale d’un quota gratuit.\n\n## 7. Applications natives
 
 Android : compte Google Play Developer, signature, FCM, permissions d'alarme et test sur appareil réel.
 iOS : compte Apple Developer, signatures, APNs, mécanisme d'appel entrant validé par Apple et test sur appareil réel.
 
-## 7. Scheduler
+## 8. Scheduler
 
 Tester réellement les rappels test 30 min/5 min, entretien 30 min/5 min, ouverture exacte d'un test, clôtures automatiques et reprise après incident du scheduler.
 
-## 8. Lot 8 — contrôle obligatoire avant commercialisation
+## 9. Lot 8 — contrôle obligatoire avant commercialisation
 
 - [ ] aucun faux SMS/appel
 - [ ] provider réel configuré et testé
@@ -56,7 +56,7 @@ Tester réellement les rappels test 30 min/5 min, entretien 30 min/5 min, ouvert
 - [ ] sortie plein écran testée
 - [ ] rapport de signaux testé côté recruteur
 
-## 9. Vérification finale
+## 10. Lot 9 — contrôle obligatoire avant commercialisation\n\n- [ ] provider vidéo réel configuré\n- [ ] salle créée par Jobly\n- [ ] accès candidat/recruteur contrôlé serveur\n- [ ] présence et durée vérifiées\n- [ ] notes internes invisibles au Talent\n- [ ] consentement des deux parties vérifié avant enregistrement\n- [ ] enregistrement testé avec provider compatible\n- [ ] quota surveillé\n- [ ] Android réel testé\n- [ ] iOS réel testé\n\n## 11. Vérification finale
 
 - [ ] profil PRODUCTION actif
 - [ ] migrations appliquées
