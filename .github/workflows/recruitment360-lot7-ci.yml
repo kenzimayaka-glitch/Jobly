@@ -1,0 +1,32 @@
+name: Recruitment 360 Lot 7 CI
+
+on:
+  push:
+    branches:
+      - feat/recruitment-360-lot7-reports-reviews-complete
+  pull_request:
+    paths:
+      - "app/**"
+      - "lib/**"
+      - "supabase/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/recruitment360-lot7-ci.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.1
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - run: pnpm run lint
+      - run: pnpm run build
