@@ -20,7 +20,7 @@ Les secrets de production doivent être fournis dans l'environnement serveur cor
 
 - Vérifier le plan et le quota.
 - Vérifier sauvegardes, capacité, RLS et Data API.
-- Les nouvelles tables publiques doivent être explicitement exposées seulement si nécessaire ; Supabase ne les expose plus automatiquement par défaut dans le nouveau modèle de plateforme. citeturn0search10
+- Les nouvelles tables publiques doivent être explicitement exposées seulement si nécessaire ; Supabase ne les expose plus automatiquement par défaut dans le nouveau modèle de plateforme.
 
 ## 4. Notifications
 
