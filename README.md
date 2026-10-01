@@ -1,3 +1,38 @@
+# CHECKPOINT 01/10/2026 — J’IA MASTER SCOPE / CEO & TRANSVERSAL INTELLIGENCE
+
+## Périmètre maître réconcilié
+
+J’IA est conçue comme une **intelligence fonctionnelle/simulée transversale de Jobly**, et non comme un simple chatbot. Le système doit partager un même socle de mémoire, croyances, modèle du monde, raisonnement, prédiction, anticipation, politique et apprentissage.
+
+### Couches spécialisées prévues
+
+1. **J’IA CEO** — direction, objectifs, priorisation, arbitrage, risques, scénarios, décisions proposées, suivi d’exécution.
+2. **Business Intelligence** — KPI, activation, rétention, conversion, revenus, coûts, performance par écosystème/pays.
+3. **Growth Intelligence** — acquisition, activation, expérimentation, croissance géographique et mesure.
+4. **Commercial Intelligence** — pipeline entreprises, prospects, recrutement, partenariats et conversions.
+5. **Finance Intelligence** — revenus, coûts, rentabilité, scénarios et alertes, sans exécution automatique de paiements.
+6. **Market Intelligence** — marché de l’emploi, compétences, concurrence, réglementation, tendances et signaux faibles.
+7. **Operations Intelligence** — qualité des données, pipelines, incidents, performance technique et opérations critiques.
+8. **Customer Intelligence** — besoins, problèmes récurrents, satisfaction et signaux Talent/Recruiter/Partner.
+9. **Career Intelligence** — Career Twin, Career Gap, Career GPS, Readiness, Opportunity Radar et anticipation personnalisée.
+
+### CEO Cockpit cible
+
+Situation → KPI → alertes → risques → opportunités → prévisions 7/30/90 → scénarios → priorités → actions proposées → résultats → réflexion → apprentissage.
+
+Le CEO Core doit consommer les mêmes données cognitives que les autres intelligences. Il ne doit pas devenir une IA parallèle.
+
+### Boucle cognitive cible
+
+PERCEIVE → UNDERSTAND → MEMORY → BELIEF → WORLD MODEL → REASON → PREDICT → ANTICIPATE → GOAL → PLAN → POLICY → PROPOSE/ACT → VERIFY → EVALUATE → REFLECT → LEARN → MEMORY → NEXT CYCLE
+
+### État de vérité
+
+- **Déjà codé sur la branche :** autonomie offline V10, J’IA Presence/JIA3D fallback, Cognitive Core initial, Internet Brain V1, World Model initial, Policy Engine initial, Agent Action Runs, Watcher et premières APIs cognitives.
+- **À construire/valider :** CEO Core complet, 7 autres intelligences spécialisées, CEO Cockpit, Event Bus cognitif unifié, Tool Registry, Career Intelligence complète, Agent Runtime complet, Self Model connecté au runtime, E2E réel et intégration transversale complète.
+- **Règle :** un élément non vérifié reste NON VALIDÉ. Aucun déploiement Vercel ni merge `main` sans validation explicite.
+
+---
 # JOBLY — README DE CONTINUITÉ PRODUIT & TECHNIQUE
 ## JOBLY 20/20 — Your Career OS
 ### Référence de continuité — 26 septembre 2026
