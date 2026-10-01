@@ -1,0 +1,18 @@
+-- Jobly Recruitment 360° v2 — Lot 7 report snapshot
+create or replace function public.recruitment360_lot7_get_report(p_recruitment_id uuid,p_actor_user_id text) returns jsonb language plpgsql security definer set search_path='' as $$
+declare r public."Recruitment360"; j public."RecruiterJob"; apps jsonb; funnel jsonb; metrics jsonb; reviews jsonb;
+begin
+ select * into r from public."Recruitment360" where id=p_recruitment_id;
+ if not found then raise exception 'RECRUITMENT_NOT_FOUND'; end if;
+ if not exists(select 1 from public."RecruitmentRole" rr where rr."recruitmentId"=r.id and rr."userId"=p_actor_user_id and rr.role in('OWNER','HR','MANAGER','DG_READONLY','DELEGATE')) then raise exception 'FORBIDDEN'; end if;
+ select * into j from public."RecruiterJob" where id=r."recruiterJobId";
+ select coalesce(jsonb_agg(jsonb_build_object('applicationId',a.id,'candidateName',coalesce(nullif(trim(u."displayName"),''),nullif(trim(concat_ws(' ',u."firstName",u."lastName")),''),'Candidat'),'state',coalesce(s."currentState",a."recruitment360Status",'SENT'),'submittedAt',a."submittedAt",'updatedAt',a."updatedAt",'atsScore',a."atsScore",'decisionOutcome',d.outcome,'decisionAt',d."decisionAt",'scoreTotal',d."scoreTotal')),'[]'::jsonb) into apps
+ from public."Application" a left join public."User" u on u.id::text=a."userId"::text left join public."RecruitmentApplicationState" s on s."applicationId"=a.id left join public."RecruitmentDecision" d on d."applicationId"=a.id where a."recruiterJobId"=r."recruiterJobId";
+ select coalesce(jsonb_object_agg(x.state,x.cnt),'{}'::jsonb) into funnel from(select coalesce(s."currentState",a."recruitment360Status",'SENT') as state,count(*) as cnt from public."Application" a left join public."RecruitmentApplicationState" s on s."applicationId"=a.id where a."recruiterJobId"=r."recruiterJobId" group by 1)x;
+ select jsonb_build_object('applicationCount',(select count(*) from public."Application" a where a."recruiterJobId"=r."recruiterJobId"),'completedCount',(select count(*) from public."Application" a where a."recruiterJobId"=r."recruiterJobId" and a."recruitment360Status"='HIRED'),'rejectedCount',(select count(*) from public."Application" a where a."recruiterJobId"=r."recruiterJobId" and a."recruitment360Status"='REJECTED'),'poolCount',(select count(*) from public."Application" a where a."recruiterJobId"=r."recruiterJobId" and a."recruitment360Status"='POOL'),'withdrawnCount',(select count(*) from public."Application" a where a."recruiterJobId"=r."recruiterJobId" and a."recruitment360Status"='WITHDRAWN')) into metrics;
+ select jsonb_build_object('count',(select count(*) from public."RecruitmentReview" rv where rv."recruitmentId"=r.id and rv.status='PUBLISHED'),'processAverage',(select round(avg(rv."processRating")::numeric,2) from public."RecruitmentReview" rv where rv."recruitmentId"=r.id and rv.status='PUBLISHED'),'experienceAverage',(select round(avg(rv."experienceRating")::numeric,2) from public."RecruitmentReview" rv where rv."recruitmentId"=r.id and rv.status='PUBLISHED'),'joblyAverage',(select round(avg(rv."joblyRating")::numeric,2) from public."RecruitmentReview" rv where rv."recruitmentId"=r.id and rv.status='PUBLISHED')) into reviews;
+ return jsonb_build_object('recruitment',to_jsonb(r),'job',to_jsonb(j),'funnel',funnel,'metrics',metrics,'reviews',reviews,'applications',apps);
+end;
+$$;
+revoke execute on function public.recruitment360_lot7_get_report(uuid,text) from public,anon,authenticated;
+grant execute on function public.recruitment360_lot7_get_report(uuid,text) to service_role;
