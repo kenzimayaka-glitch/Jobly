@@ -10,12 +10,13 @@ on:
   push:
     branches:
       - feat/africa-central-sources-v1
-  pull_request:
-    branches:
-      - main
 
 permissions:
   contents: read
+
+concurrency:
+  group: africa-shadow-crawl
+  cancel-in-progress: true
 
 jobs:
   shadow-crawl:
