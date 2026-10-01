@@ -1,4 +1,5 @@
 name: Generate Jobly PWA icons
+# WA9815 source -> square any + maskable variants
 
 on:
   push:
