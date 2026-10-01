@@ -462,6 +462,51 @@ export default function JiaPresence() {
     return () => { window.removeEventListener("jobly:jia-play", onPlay); delete window.jia; };
   }, [say, dismissBubble]);
 
+  // ── Autonomie locale : OBSERVER → ÉVALUER → DÉCIDER → AGIR ───────────────
+  // Moteur gratuit : aucune API payante n’est nécessaire pour l’initiative de base.
+  useEffect(() => {
+    if (!visible || !prefs.proactive) return;
+    let lastAutonomousAt = 0;
+    const cycle = () => {
+      if (document.hidden || suspended || panelOpen || bubble || Date.now() - lastAutonomousAt < 12_000) return;
+      const text = document.body.innerText.slice(0, 5000);
+      const percent = text.match(/(?:profil|profile)[^%]{0,80}(\\d{1,3})\\s*%/i)?.[1];
+      const w = window as Window & { __jiaIdleMs?: number };
+      const decision = decideAutonomy(observeAutonomy({
+        path: pathname,
+        lastAction: lastAction.current,
+        idleMs: Math.min(300_000, w.__jiaIdleMs || 0),
+        recentActions: [lastAction.current].filter(Boolean),
+        profileCompletion: percent ? Math.min(100, Number(percent)) : undefined,
+        matchingOffers: /\\/jobs(?:\\/|$)/.test(pathname) ? document.querySelectorAll('a[href*="/jobs/"]').length : 0,
+        pendingApplications: /\\/candidatures/.test(pathname) ? document.querySelectorAll('[data-application], a[href*="candidatures"]').length : 0,
+        currentLanguage: langRef.current === "en" ? "en" : "fr",
+      }));
+      if (!decision) return;
+      lastAutonomousAt = Date.now();
+      say(decision.message[langRef.current === "en" ? "en" : "fr"], {
+        gesture: decision.gesture,
+        move: decision.move,
+        speak: decision.speak,
+      });
+      window.dispatchEvent(new CustomEvent("jobly:jia-autonomous-decision", { detail: decision }));
+    };
+    const onActivity = () => { (window as Window & { __jiaIdleMs?: number }).__jiaIdleMs = 0; };
+    const idleTimer = window.setInterval(() => {
+      const w = window as Window & { __jiaIdleMs?: number };
+      w.__jiaIdleMs = Math.min(300_000, (w.__jiaIdleMs || 0) + 1_000);
+      cycle();
+    }, 5_000);
+    window.addEventListener("pointerdown", onActivity, { passive: true });
+    window.addEventListener("keydown", onActivity, { passive: true });
+    cycle();
+    return () => {
+      window.clearInterval(idleTimer);
+      window.removeEventListener("pointerdown", onActivity);
+      window.removeEventListener("keydown", onActivity);
+    };
+  }, [visible, prefs.proactive, pathname, suspended, panelOpen, bubble, say]);
+
   // ── Proactivité (si autorisée) ───────────────────────���───────────────────
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
