@@ -4357,3 +4357,10 @@ Les alertes Supabase restantes sont indépendantes de cette correction : tables 
 - `app/career/recruitment360/[applicationId]/review/page.tsx`
 - modification de `app/career/recruitment360/[applicationId]/page.tsx`
 
+
+
+## CHECKPOINT LOT 7 — GATE TECHNIQUE
+- Une tentative de clone GitHub depuis l'environnement d'exécution a échoué : résolution réseau GitHub indisponible. Aucun build local n'a donc été inventé.
+- Un workflow GitHub Actions dédié a été ajouté : `.github/workflows/recruitment360-lot7-ci.yml` avec `pnpm install --frozen-lockfile`, `typecheck`, `lint`, `build`.
+- Pour le dernier commit du lot 7, GitHub a retourné **0 workflow run** ; il n'existe donc aucune preuve CI à déclarer.
+- La règle de vérité reste : absence de sortie réelle = non validé. Aucun déploiement Vercel ni merge `main`.
