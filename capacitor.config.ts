@@ -1,4 +1,10 @@
-import type {CapacitorConfig} from "@capacitor/cli";
+type CapacitorConfig={
+ appId:string;
+ appName:string;
+ webDir:string;
+ server?:{cleartext?:boolean};
+ plugins?:Record<string,unknown>;
+};
 
 const config:CapacitorConfig={
  appId:"com.jobly.app",
