@@ -266,7 +266,7 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
     setSaving(true);
     setError(null);
     const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
-    const payload = { title, description, location, mode, contract, salary, sector, tags, status: nextStatus, sourceUrl };
+    const payload = { title, description, location, mode, contract, salary, sector, tags, status: nextStatus === "published" ? "draft" : nextStatus, sourceUrl };
 
     try {
       const res = await fetch(isNew ? "/api/recruiter/jobs" : `/api/recruiter/jobs/${id}`, {
