@@ -397,8 +397,13 @@ using (
 
 
 -- Bootstrap the new source-of-truth rows for existing RecruiterJob/Application data.
-insert into public."Recruitment360" ("recruiterJobId")
-select rj.id
+insert into public."Recruitment360" ("recruiterJobId","currentState")
+select rj.id,
+  case rj.status::text
+    when 'published' then 'PUBLISHED'
+    when 'closed' then 'APPLICATIONS_CLOSED'
+    else 'DRAFT'
+  end
 from public."RecruiterJob" rj
 where not exists (
   select 1 from public."Recruitment360" r where r."recruiterJobId" = rj.id
@@ -432,3 +437,82 @@ where a."recruiterJobId" is not null
     select 1 from public."RecruitmentApplicationState" ras
     where ras."applicationId" = a.id
   );
+
+
+create or replace function public.recruitment360_bootstrap_recruiter_job()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_recruitment_id uuid;
+begin
+  insert into public."Recruitment360" ("recruiterJobId","currentState")
+  values (
+    new.id,
+    case new.status::text when 'published' then 'PUBLISHED' when 'closed' then 'APPLICATIONS_CLOSED' else 'DRAFT' end
+  )
+  on conflict ("recruiterJobId") do nothing
+  returning id into v_recruitment_id;
+
+  select id into v_recruitment_id
+  from public."Recruitment360"
+  where "recruiterJobId" = new.id;
+
+  insert into public."RecruitmentRole" ("recruitmentId","userId",role)
+  values (v_recruitment_id,new."recruiterUserId"::text,'OWNER')
+  on conflict ("recruitmentId","userId","role") do nothing;
+
+  return new;
+end;
+$$;
+
+revoke execute on function public.recruitment360_bootstrap_recruiter_job() from public, anon, authenticated;
+
+drop trigger if exists recruitment360_bootstrap_recruiter_job on public."RecruiterJob";
+create trigger recruitment360_bootstrap_recruiter_job
+after insert on public."RecruiterJob"
+for each row execute function public.recruitment360_bootstrap_recruiter_job();
+
+create or replace function public.recruitment360_bootstrap_application()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new."recruiterJobId" is not null then
+    insert into public."RecruitmentApplicationState" ("applicationId","currentState")
+    values (
+      new.id,
+      case new.status::text
+        when 'SUBMITTED' then 'SENT'
+        when 'ACKNOWLEDGED' then 'RECEIVED'
+        when 'INTERVIEW' then 'INTERVIEW'
+        when 'OFFER' then 'OFFER'
+        when 'REJECTED' then 'REJECTED'
+        when 'WITHDRAWN' then 'WITHDRAWN'
+        else 'REVIEW'
+      end
+    )
+    on conflict ("applicationId") do nothing;
+
+    update public."Application"
+    set "recruitment360Status" = (
+      select ras."currentState"
+      from public."RecruitmentApplicationState" ras
+      where ras."applicationId" = new.id
+    )
+    where id = new.id;
+  end if;
+  return new;
+end;
+$$;
+
+revoke execute on function public.recruitment360_bootstrap_application() from public, anon, authenticated;
+
+drop trigger if exists recruitment360_bootstrap_application on public."Application";
+create trigger recruitment360_bootstrap_application
+after insert on public."Application"
+for each row execute function public.recruitment360_bootstrap_application();
