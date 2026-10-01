@@ -23,6 +23,7 @@ export default function RecruiterOfficialListingsPage() {
   const [stage, setStage] = useState<(typeof stages)[number]>("CV");
   const [theme, setTheme] = useState<(typeof themes)[number]>("OFFICIAL_CONCOURS");
   const [jpegSize, setJpegSize] = useState("640");
+  const [recruitment360Allowed, setRecruitment360Allowed] = useState<boolean | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -32,6 +33,11 @@ export default function RecruiterOfficialListingsPage() {
       setError("Session recruteur requise.");
       setLoading(false);
       return;
+    }
+    const entitlementResponse = await fetch("/api/entitlements", { headers: { Authorization: `Bearer ${session.data.session.access_token}` }, cache: "no-store" });
+    if (entitlementResponse.ok) {
+      const entitlementPayload = await entitlementResponse.json();
+      setRecruitment360Allowed(entitlementPayload?.entitlements?.recruitment360 === true);
     }
     const response = await fetch("/api/recruitment360/listings", {
       headers: { Authorization: `Bearer ${session.data.session.access_token}` },
@@ -81,6 +87,11 @@ export default function RecruiterOfficialListingsPage() {
   return (
     <main className="min-h-screen bg-white px-4 pb-28 pt-6 text-slate-900 md:px-8">
       <div className="mx-auto max-w-5xl">
+        {recruitment360Allowed === false && <section className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <p className="text-sm font-extrabold text-amber-900">Organisation d’un recrutement : abonnement recruteur payant requis</p>
+          <p className="mt-1 text-sm text-amber-800">La publication d’une offre reste gratuite. Le workflow Recruitment 360° (sélection, tests, entretiens, décisions et listings officiels) est réservé aux formules recruteur payantes.</p>
+        </section>}
+
         <header className="mb-6">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#22448B]">Recrutement</p>
           <h1 className="mt-1 text-3xl font-bold">Listings officiels</h1>
@@ -111,7 +122,7 @@ export default function RecruiterOfficialListingsPage() {
 
         {error && <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
-        {loading ? <div className="rounded-2xl border p-6 text-sm text-slate-500">Chargement…</div> :
+        {recruitment360Allowed === false ? <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">Activez une formule recruteur payante pour organiser ce recrutement dans Jobly.</div> : loading ? <div className="rounded-2xl border p-6 text-sm text-slate-500">Chargement…</div> :
           items.length === 0 ? <div className="rounded-2xl border p-6 text-sm text-slate-500">Aucun recrutement accessible.</div> :
           <div className="space-y-4">
             {items.map(item => {
