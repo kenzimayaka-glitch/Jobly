@@ -160,11 +160,21 @@ export async function ingestExternalSignal(userId: string, observation: {
     importance: Number(observation.context?.impact ?? .5), contradictionKey: "external:" + observation.query.trim().toLowerCase(),
     futureUtility: .7,
   });
-  await upsertWorldEntity({
+  const signalEntity=await upsertWorldEntity({
     userId, type: "EXTERNAL_SIGNAL", key: "query:" + observation.query.trim().toLowerCase(),
     attributes: { query: observation.query, facts: observation.facts ?? [], status, context: observation.context ?? {} },
     confidence: observation.confidence, sources: observation.supportingSources ?? [],
   });
+  const supporting=observation.supportingSources ?? [];
+  const contradicting=observation.contradictingSources ?? [];
+  await Promise.all(supporting.map(async (sourceRef)=>{
+    const source=await upsertWorldEntity({userId,type:"SOURCE",key:"url:"+sourceRef,attributes:{url:sourceRef,kind:"SUPPORTING"},confidence:observation.confidence,sources:[sourceRef]});
+    await relateWorldEntities({userId,fromId:signalEntity.id,relation:"SUPPORTED_BY",toId:source.id,confidence:observation.confidence,sources:[sourceRef]});
+  }));
+  await Promise.all(contradicting.map(async (sourceRef)=>{
+    const source=await upsertWorldEntity({userId,type:"SOURCE",key:"url:"+sourceRef,attributes:{url:sourceRef,kind:"CONTRADICTING"},confidence:observation.confidence,sources:[sourceRef]});
+    await relateWorldEntities({userId,fromId:signalEntity.id,relation:"CONTRADICTED_BY",toId:source.id,confidence:Math.max(0,observation.confidence-.1),sources:[sourceRef]});
+  }));
   if (fact) await updateBelief({
     userId, key: "external:" + observation.query.trim().toLowerCase(), belief: fact,
     confidence: observation.confidence, status,
