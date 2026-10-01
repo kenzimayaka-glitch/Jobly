@@ -23,7 +23,7 @@ const IconStar = <svg {...svgp} className={ic}><path d="m12 3 2.7 5.6 6.1.9-4.4 
 const IconMail = <svg {...svgp} className={ic}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>;
 const IconGlobe = <svg {...svgp} className={ic}><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg>;
 const IconBuilding = <svg {...svgp} className={ic}><path d="M4 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16M14 9h5a1 1 0 0 1 1 1v11M2 21h20M8 8h2M8 12h2M8 16h2" /></svg>;
-const IconGear = <svg {...svgp} className={ic}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" /></svg>;
+const IconGear = <svg {...svgp} className={ic}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a2 2 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" /></svg>;
 
 export default function RecruiterDashboard() {
   const { t } = useI18n();
@@ -43,7 +43,6 @@ export default function RecruiterDashboard() {
       const [pr, jr, ar, br] = await Promise.all([
         fetch("/api/recruiter/profile", { headers }),
         fetch("/api/recruiter/jobs", { headers }),
-        // Lecture passive : ouvrir le dashboard ne marque plus les candidatures comme « Vues ».
         fetch("/api/recruiter/applications?markViewed=0", { headers }),
         fetch("/api/recruiter/ai-bonus", { headers, cache: "no-store" }),
       ]);
@@ -59,7 +58,6 @@ export default function RecruiterDashboard() {
       setApps(((await ar.json()).applications ?? []) as Application[]);
       setStatus("ready");
 
-      // Parcours fermé : profil entreprise incomplet → onboarding, une seule fois par session.
       const incomplete = !prof || !prof.companyName || prof.companyName === "Mon entreprise" || !prof.sector;
       if (incomplete && !sessionStorage.getItem(ONBOARDING_FLAG)) {
         sessionStorage.setItem(ONBOARDING_FLAG, "1");
@@ -85,81 +83,91 @@ export default function RecruiterDashboard() {
   const initial = (profile?.companyName ?? "R").trim().charAt(0).toUpperCase() || "R";
 
   return (
-    {welcomeBonus?.firstDashboardVisit && welcomeBonus.remaining > 0 && welcomeBonus.message && <JoblyToast title="Bonus J’IA recruteur" message={`${welcomeBonus.message} Crédit restant : ${welcomeBonus.remaining}.`} actionLabel="Voir mes crédits" onAction={() => router.push("/recruiter/settings")} onClose={() => setWelcomeBonus(v => v ? {...v, firstDashboardVisit:false} : v)} />}
-    <AppShell role="recruiter" active="/recruiter" title={profile?.companyName && profile.companyName !== "Mon entreprise" ? profile.companyName : t("common.recruiter")} eyebrow={t("common.recruiter").toUpperCase()} initial={initial} width="lg">
-      <PageIntro eyebrow={t("rdash.eyebrow")} title={t("rdash.title")} subtitle={t("rdash.subtitle")}
-        actions={<Button href="/recruiter/jobs/new">{t("rdash.jobs.create")}</Button>} />
-
-      {status === "loading" && <LoadingState />}
-      {status === "error" && <ErrorState title={t("rdash.loadError")} onRetry={load} />}
-
-      {status === "ready" && (
-        <>
-          {profileIncomplete && (
-            <Card tone="highlight" className="mt-5">
-              <h2 className="text-base font-black text-ink">{t("rdash.onboardingTitle")}</h2>
-              <p className="mt-1 text-sm leading-6 text-muted">{t("rdash.onboardingBody")}</p>
-              <Button href="/recruiter/onboarding" size="sm" className="mt-3">{t("rdash.onboardingCta")}</Button>
-            </Card>
-          )}
-
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <StatCard label={t("rdash.kpi.toReview")} value={k.toReview} tone={k.toReview ? "yellow" : "slate"} href="/recruiter/candidatures" />
-            <StatCard label={t("rdash.kpi.applications")} value={k.total} tone="blue" href="/recruiter/candidatures" />
-            <StatCard label={t("rdash.kpi.interviews")} value={k.interviews} tone="blue" href="/recruiter/ats" />
-            <StatCard label={t("rdash.kpi.published")} value={k.published} tone="green" href="/recruiter/jobs" />
-            <StatCard label={t("rdash.kpi.drafts")} value={k.drafts} tone="slate" href="/recruiter/jobs" />
-            <StatCard label={t("rdash.kpi.accepted")} value={k.accepted} tone="green" href="/recruiter/ats" />
-          </div>
-
-          <Section title={t("rdash.actions.title")}>
-            <div className="space-y-3">
-              {k.toReview > 0 && <DashboardCard accent="yellow" title={t("rdash.actions.review", { n: k.toReview })} description={t("rdash.actions.reviewDesc")} href="/recruiter/candidatures" icon={IconAts} badge={<Badge tone="yellow">{t("common.new")}</Badge>} />}
-              {k.drafts > 0 && <DashboardCard title={t("rdash.actions.draft", { n: k.drafts })} description={t("rdash.actions.draftDesc")} href="/recruiter/jobs" icon={IconBuilding} />}
-              {jobs.length === 0 && <DashboardCard accent="yellow" title={t("rdash.actions.noJob")} description={t("rdash.actions.noJobDesc")} href="/recruiter/jobs/new" icon={IconBuilding} />}
-              {k.toReview === 0 && k.drafts === 0 && jobs.length > 0 && <EmptyState title={t("rdash.actions.allClear")} body={t("rdash.actions.allClearDesc")} />}
-            </div>
-          </Section>
-
-          <div className="grid gap-x-6 lg:grid-cols-2">
-            <Section title={t("rdash.recent.title")} action={apps.length > 4 ? <Button href="/recruiter/candidatures" variant="ghost" size="sm">{t("common.seeAll")}</Button> : undefined}>
-              {apps.length ? (
-                <ul className="space-y-3">
-                  {apps.slice(0, 4).map((a) => (
-                    <li key={a.id}><ApplicationCard title={a.candidateName || t("common.candidate")} subtitle={a.jobTitle} status={a.status} date={a.createdAt} avatarUrl={a.profilePhotoUrl} score={a.atsScore} href="/recruiter/candidatures" /></li>
-                  ))}
-                </ul>
-              ) : <EmptyState title={t("rdash.recent.empty")} />}
-            </Section>
-
-            <Section title={t("rdash.jobs.title")} action={<Button href="/recruiter/jobs" variant="ghost" size="sm">{t("rdash.jobs.manage")}</Button>}>
-              {jobs.length ? (
-                <ul className="space-y-3">
-                  {jobs.slice(0, 4).map((j) => (
-                    <li key={j.id}><DashboardCard title={j.title} description={[j.location, j.contract].filter(Boolean).join(" · ")} href={`/recruiter/jobs/${j.id}`} badge={<Badge tone={JOB_TONE[j.status]}>{t(`rdash.job.${j.status}` as "rdash.job.draft")}</Badge>} /></li>
-                  ))}
-                </ul>
-              ) : <EmptyState title={t("rdash.jobs.empty")} action={<Button href="/recruiter/jobs/new" size="sm">{t("rdash.jobs.create")}</Button>} />}
-            </Section>
-          </div>
-
-          <Section title={t("rdash.pitch.title")}>
-            <p className="-mt-1 mb-3 text-sm text-muted">{t("rdash.pitch.desc")}</p>
-            <div className="mx-auto max-w-md"><PitchReel candidates={apps} /></div>
-          </Section>
-
-          <Section title={t("rdash.quick.title")}>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <DashboardCard title={t("rdash.quick.ats")} href="/recruiter/ats" icon={IconAts} />
-              <DashboardCard title="⭐ Top Talent" href="/recruiter/talents" icon={IconStar} />
-              <DashboardCard title={t("rdash.quick.gmail")} href="/recruiter/candidatures" icon={IconMail} />
-              <DashboardCard title={t("rdash.quick.mobility")} href="/recruiter/mobility" icon={IconGlobe} />
-              <DashboardCard title={t("rdash.quick.profile")} href="/recruiter/profile" icon={IconBuilding} />
-              <DashboardCard title={t("rdash.quick.settings")} href="/recruiter/settings" icon={IconGear} />
-            </div>
-          </Section>
-        </>
+    <>
+      {welcomeBonus?.firstDashboardVisit && welcomeBonus.remaining > 0 && welcomeBonus.message && (
+        <JoblyToast
+          title="Bonus J’IA recruteur"
+          message={`${welcomeBonus.message} Crédit restant : ${welcomeBonus.remaining}.`}
+          actionLabel="Voir mes crédits"
+          onAction={() => router.push("/recruiter/settings")}
+          onClose={() => setWelcomeBonus(v => v ? {...v, firstDashboardVisit:false} : v)}
+        />
       )}
-    </AppShell>
+      <AppShell role="recruiter" active="/recruiter" title={profile?.companyName && profile.companyName !== "Mon entreprise" ? profile.companyName : t("common.recruiter")} eyebrow={t("common.recruiter").toUpperCase()} initial={initial} width="lg">
+        <PageIntro eyebrow={t("rdash.eyebrow")} title={t("rdash.title")} subtitle={t("rdash.subtitle")}
+          actions={<Button href="/recruiter/jobs/new">{t("rdash.jobs.create")}</Button>} />
+
+        {status === "loading" && <LoadingState />}
+        {status === "error" && <ErrorState title={t("rdash.loadError")} onRetry={load} />}
+
+        {status === "ready" && (
+          <>
+            {profileIncomplete && (
+              <Card tone="highlight" className="mt-5">
+                <h2 className="text-base font-black text-ink">{t("rdash.onboardingTitle")}</h2>
+                <p className="mt-1 text-sm leading-6 text-muted">{t("rdash.onboardingBody")}</p>
+                <Button href="/recruiter/onboarding" size="sm" className="mt-3">{t("rdash.onboardingCta")}</Button>
+              </Card>
+            )}
+
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <StatCard label={t("rdash.kpi.toReview")} value={k.toReview} tone={k.toReview ? "yellow" : "slate"} href="/recruiter/candidatures" />
+              <StatCard label={t("rdash.kpi.applications")} value={k.total} tone="blue" href="/recruiter/candidatures" />
+              <StatCard label={t("rdash.kpi.interviews")} value={k.interviews} tone="blue" href="/recruiter/ats" />
+              <StatCard label={t("rdash.kpi.published")} value={k.published} tone="green" href="/recruiter/jobs" />
+              <StatCard label={t("rdash.kpi.drafts")} value={k.drafts} tone="slate" href="/recruiter/jobs" />
+              <StatCard label={t("rdash.kpi.accepted")} value={k.accepted} tone="green" href="/recruiter/ats" />
+            </div>
+
+            <Section title={t("rdash.actions.title")}>
+              <div className="space-y-3">
+                {k.toReview > 0 && <DashboardCard accent="yellow" title={t("rdash.actions.review", { n: k.toReview })} description={t("rdash.actions.reviewDesc")} href="/recruiter/candidatures" icon={IconAts} badge={<Badge tone="yellow">{t("common.new")}</Badge>} />}
+                {k.drafts > 0 && <DashboardCard title={t("rdash.actions.draft", { n: k.drafts })} description={t("rdash.actions.draftDesc")} href="/recruiter/jobs" icon={IconBuilding} />}
+                {jobs.length === 0 && <DashboardCard accent="yellow" title={t("rdash.actions.noJob")} description={t("rdash.actions.noJobDesc")} href="/recruiter/jobs/new" icon={IconBuilding} />}
+                {k.toReview === 0 && k.drafts === 0 && jobs.length > 0 && <EmptyState title={t("rdash.actions.allClear")} body={t("rdash.actions.allClearDesc")} />}
+              </div>
+            </Section>
+
+            <div className="grid gap-x-6 lg:grid-cols-2">
+              <Section title={t("rdash.recent.title")} action={apps.length > 4 ? <Button href="/recruiter/candidatures" variant="ghost" size="sm">{t("common.seeAll")}</Button> : undefined}>
+                {apps.length ? (
+                  <ul className="space-y-3">
+                    {apps.slice(0, 4).map((a) => (
+                      <li key={a.id}><ApplicationCard title={a.candidateName || t("common.candidate")} subtitle={a.jobTitle} status={a.status} date={a.createdAt} avatarUrl={a.profilePhotoUrl} score={a.atsScore} href="/recruiter/candidatures" /></li>
+                    ))}
+                  </ul>
+                ) : <EmptyState title={t("rdash.recent.empty")} />}
+              </Section>
+
+              <Section title={t("rdash.jobs.title")} action={<Button href="/recruiter/jobs" variant="ghost" size="sm">{t("rdash.jobs.manage")}</Button>}>
+                {jobs.length ? (
+                  <ul className="space-y-3">
+                    {jobs.slice(0, 4).map((j) => (
+                      <li key={j.id}><DashboardCard title={j.title} description={[j.location, j.contract].filter(Boolean).join(" · ")} href={`/recruiter/jobs/${j.id}`} badge={<Badge tone={JOB_TONE[j.status]}>{t(`rdash.job.${j.status}` as "rdash.job.draft")}</Badge>} /></li>
+                    ))}
+                  </ul>
+                ) : <EmptyState title={t("rdash.jobs.empty")} action={<Button href="/recruiter/jobs/new" size="sm">{t("rdash.jobs.create")}</Button>} />}
+              </Section>
+            </div>
+
+            <Section title={t("rdash.pitch.title")}>
+              <p className="-mt-1 mb-3 text-sm text-muted">{t("rdash.pitch.desc")}</p>
+              <div className="mx-auto max-w-md"><PitchReel candidates={apps} /></div>
+            </Section>
+
+            <Section title={t("rdash.quick.title")}>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <DashboardCard title={t("rdash.quick.ats")} href="/recruiter/ats" icon={IconAts} />
+                <DashboardCard title="⭐ Top Talent" href="/recruiter/talents" icon={IconStar} />
+                <DashboardCard title={t("rdash.quick.gmail")} href="/recruiter/candidatures" icon={IconMail} />
+                <DashboardCard title={t("rdash.quick.mobility")} href="/recruiter/mobility" icon={IconGlobe} />
+                <DashboardCard title={t("rdash.quick.profile")} href="/recruiter/profile" icon={IconBuilding} />
+                <DashboardCard title={t("rdash.quick.settings")} href="/recruiter/settings" icon={IconGear} />
+              </div>
+            </Section>
+          </>
+        )}
+      </AppShell>
+    </>
   );
 }
