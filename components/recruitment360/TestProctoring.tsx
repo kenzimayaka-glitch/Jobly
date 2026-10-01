@@ -81,6 +81,7 @@ export default function TestProctoring({ sessionId, consentCamera, onStatus }: P
   useEffect(() => {
     if (!consentCamera) return;
     let cancelled = false;
+    let faceTimer: number | null = null;
     (async () => {
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
@@ -98,7 +99,7 @@ export default function TestProctoring({ sessionId, consentCamera, onStatus }: P
           return;
         }
         const detector = new Detector({ fastMode: true, maxDetectedFaces: 3 });
-        const timer = window.setInterval(async () => {
+        faceTimer = window.setInterval(async () => {
           if (cancelled || !videoRef.current || videoRef.current.readyState < 2) return;
           try {
             const faces = await detector.detect(videoRef.current);
@@ -109,13 +110,13 @@ export default function TestProctoring({ sessionId, consentCamera, onStatus }: P
             emit("FACE_DETECTION_ERROR");
           }
         }, 5000);
-        return () => window.clearInterval(timer);
       } catch {
         setCamera("denied"); emit("CAMERA_DENIED");
       }
     })();
     return () => {
       cancelled = true;
+      if (faceTimer !== null) window.clearInterval(faceTimer);
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
