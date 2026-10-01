@@ -12,6 +12,13 @@ import JoblyToast from "../JoblyToast";
 type Job = { id: string; title: string; status: "draft" | "published" | "closed"; location: string | null; contract: string | null; createdAt: string };
 type Application = ReelCandidate & { status: string; createdAt: string; atsScore: number | null; candidateEmail?: string };
 type Profile = { companyName?: string | null; sector?: string | null; website?: string | null; location?: string | null };
+type RecruiterIntelligence = {
+  funnel:{publishedJobs:number;applications:number;interviews:number;submitted:number;acknowledged:number;hiredOrClosed:number};
+  quality:{averageAts:number|null;averageReadiness:number|null;scoredApplications:number};
+  staleApplications:Array<{id:string;ageDays:number}>;
+  opportunities:Array<{id:string;title:string;reason:string}>;
+  limitations:string[];
+};
 
 const JOB_TONE: Record<Job["status"], BadgeTone> = { draft: "slate", published: "green", closed: "red" };
 const ONBOARDING_FLAG = "jobly:recruiter-onboarding-prompted";
@@ -33,6 +40,7 @@ export default function RecruiterDashboard() {
   const [apps, setApps] = useState<Application[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [welcomeBonus, setWelcomeBonus] = useState<{remaining:number; firstDashboardVisit:boolean; message:string|null} | null>(null);
+  const [jia, setJia] = useState<RecruiterIntelligence | null>(null);
 
   const load = useCallback(async () => {
     setStatus("loading");
@@ -40,14 +48,19 @@ export default function RecruiterDashboard() {
       const { data: { session } } = await getSupabaseClient().auth.getSession();
       if (!session) { router.replace("/"); return; }
       const headers = { Authorization: `Bearer ${session.access_token}` };
-      const [pr, jr, ar, br] = await Promise.all([
+      const [pr, jr, ar, br, jir] = await Promise.all([
         fetch("/api/recruiter/profile", { headers }),
         fetch("/api/recruiter/jobs", { headers }),
         fetch("/api/recruiter/applications?markViewed=0", { headers }),
         fetch("/api/recruiter/ai-bonus", { headers, cache: "no-store" }),
+        fetch("/api/recruiter/jia/intelligence", { headers, cache: "no-store" }),
       ]);
       if (!jr.ok || !ar.ok) throw new Error("load");
       const prof: Profile | null = pr.ok ? (await pr.json()).profile ?? null : null;
+      if (jir.ok) {
+        const payload = await jir.json();
+        if (payload?.intelligence) setJia(payload.intelligence as RecruiterIntelligence);
+      }
       if (br.ok) {
         const bonus = await br.json();
         setWelcomeBonus(bonus);
@@ -118,6 +131,23 @@ export default function RecruiterDashboard() {
               <StatCard label={t("rdash.kpi.drafts")} value={k.drafts} tone="slate" href="/recruiter/jobs" />
               <StatCard label={t("rdash.kpi.accepted")} value={k.accepted} tone="green" href="/recruiter/ats" />
             </div>
+
+            {jia && (
+              <Section title="J’IA · Intelligence Recruiter">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <StatCard label="Candidatures analysées" value={jia.funnel.applications} tone="blue" href="/recruiter/candidatures" />
+                  <StatCard label="Entretiens" value={jia.funnel.interviews} tone="blue" href="/recruiter/ats" />
+                  <StatCard label="ATS moyen" value={jia.quality.averageAts ?? "—"} tone={jia.quality.averageAts !== null && jia.quality.averageAts < 70 ? "yellow" : "green"} href="/recruiter/ats" />
+                  <StatCard label="Stagnantes ≥ 7j" value={jia.staleApplications.length} tone={jia.staleApplications.length ? "yellow" : "green"} href="/recruiter/candidatures" />
+                </div>
+                {(jia.opportunities.length > 0 || jia.limitations.length > 0) && (
+                  <div className="mt-3 space-y-2">
+                    {jia.opportunities.slice(0, 3).map((o) => <DashboardCard key={o.id} accent="yellow" title={o.title} description={o.reason} href="/recruiter/candidatures" />)}
+                    {jia.limitations.slice(0, 2).map((l) => <p key={l} className="text-xs text-muted">{l}</p>)}
+                  </div>
+                )}
+              </Section>
+            )}
 
             <Section title={t("rdash.actions.title")}>
               <div className="space-y-3">

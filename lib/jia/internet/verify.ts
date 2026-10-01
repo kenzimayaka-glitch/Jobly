@@ -1,0 +1,1 @@
+import type {SourceEvidence} from "./types";import {crossCheck} from "./crossCheck";export function verifyEvidence(query:string,sources:SourceEvidence[]){return crossCheck(query,sources);}

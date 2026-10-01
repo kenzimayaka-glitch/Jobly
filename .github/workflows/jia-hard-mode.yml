@@ -1,0 +1,28 @@
+name: J'IA Hard Mode
+run-name: "${{ github.workflow }} @ ${{ github.sha }}"
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  jia-hard-mode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Lexicon
+        run: python test_lexicon.py
+      - name: Autonomy C1-C7
+        run: python test_jia.py

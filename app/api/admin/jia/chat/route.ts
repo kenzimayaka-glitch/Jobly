@@ -1,6 +1,9 @@
 import {NextRequest,NextResponse} from "next/server";
 import {adminClient,ensureUser,getAuthUser} from "@/lib/server-auth";
 import {buildCEOIntelligence} from "@/lib/ceoIntelligence";
+import {remember,reflect} from "@/lib/jia/cognitive";
+import {publishTraceEvent} from "@/lib/jia/eventBus";
+import {runUnifiedCognitiveCycle} from "@/lib/jia/runtime";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -57,6 +60,7 @@ export async function POST(req:NextRequest){
     const terms=message.toLowerCase().split(/\W+/).filter((x:string)=>x.length>3).slice(0,20);
     const knowledge=(allKnowledge||[]).map((x:any)=>{const hay=(String(x.title||"")+" "+String(x.domain||"")+" "+String(x.content||"")).toLowerCase();const score=terms.reduce((n:number,t:string)=>n+(hay.includes(t)?1:0),0);return {...x,_score:score};}).filter((x:any)=>x._score>0).sort((a:any,b:any)=>b._score-a._score).slice(0,30).map(({_score,...x}:any)=>x);
     const ceoSnapshot=await buildCEOIntelligence(admin.sb);
+    const cognitive=await runUnifiedCognitiveCycle(admin.sb,{userId:String(admin.user.id),ecosystem:"ADMIN",scope:"ADMIN",ceoSnapshot,action:"CEO_CHAT",message});
     const {error:insertUserError}=await admin.sb.from("JiaCEOMessage").insert({conversationId,role:"user",content:message});
     if(insertUserError)throw new Error(insertUserError.message);
 
@@ -74,7 +78,8 @@ export async function POST(req:NextRequest){
           enterpriseKnowledge:knowledge||[],
           conversationHistory:(history||[]).reverse(),
           adminRole:"ADMIN",
-          ceoSnapshot
+          ceoSnapshot,
+          cognitiveCycle:cognitive
         }
       }),
       signal:AbortSignal.timeout(45000)
@@ -84,15 +89,51 @@ export async function POST(req:NextRequest){
     const output=aiBody.output||{};
     const reply=typeof output.reply==="string"?output.reply:(typeof output.text==="string"?output.text:"J’IA n’a pas produit de réponse exploitable.");
     const metadata:Record<string,any>={provider:aiBody.provider||null,model:aiBody.model||null,confidence:output.confidence||null,sources:output.sources||[],webResearchUsed:Array.isArray(output.sources)&&output.sources.some((x:any)=>typeof x?.url==="string"&&x.url.length>0),keyPoints:output.keyPoints||[],suggestedActions:output.suggestedActions||[]};
-    const traceBase={userId:admin.user.id,actorRole:"ADMIN",conversationId,entityType:"CEO_CHAT",title:"J’IA CEO Copilot",evidence:output.sources||[],sourceType:"CEO_CHAT",sourceRef:"/api/admin/jia/chat",metadata:{provider:aiBody.provider||null,model:aiBody.model||null,webResearchUsed:metadata.webResearchUsed}};
-    const {data:observationTrace}=await admin.sb.from("JiaIntelligenceTrace").insert({...traceBase,stage:"OBSERVATION",content:message,confidence:"HIGH"}).select("id").single();
-    const {data:recommendationTrace}=await admin.sb.from("JiaIntelligenceTrace").insert({...traceBase,parentId:observationTrace?.id||null,stage:"RECOMMENDATION",content:reply,confidence:output.confidence||"LOW",status:Array.isArray(output.suggestedActions)&&output.suggestedActions.length?"PENDING_APPROVAL":"RECORDED"}).select("id").single();
-    if(observationTrace?.id)metadata.traceId=recommendationTrace?.id||observationTrace.id;
+    const observationTrace=await publishTraceEvent(admin.sb,{
+      userId:String(admin.user.id),type:"JIA_CEO_OBSERVATION",ecosystem:"ADMIN",source:"CEO_CHAT",
+      correlationId:String(conversationId),payload:{messageLength:message.length}
+    },{
+      stage:"OBSERVATION",title:"CEO Copilot — observation",content:message,confidence:"HIGH",
+      evidence:[],metadata:{conversationId}
+    });
+    const recommendationTrace=await publishTraceEvent(admin.sb,{
+      userId:String(admin.user.id),type:"JIA_CEO_RECOMMENDATION",ecosystem:"ADMIN",source:"CEO_CHAT",
+      correlationId:String(conversationId),payload:{suggestedActions:Array.isArray(output.suggestedActions)?output.suggestedActions.length:0}
+    },{
+      stage:"RECOMMENDATION",title:"CEO Copilot — recommandation",content:reply,
+      confidence:output.confidence||"LOW",evidence:output.sources||[],
+      status:Array.isArray(output.suggestedActions)&&output.suggestedActions.length?"PENDING_APPROVAL":"RECORDED",
+      metadata:{conversationId,webResearchUsed:metadata.webResearchUsed,autoPromoteToMemory:false}
+    });
+    metadata.traceId=recommendationTrace.trace?.id||observationTrace.trace?.id||null;
     const {data:saved,error:savedError}=await admin.sb.from("JiaCEOMessage").insert({conversationId,role:"assistant",content:reply,metadata}).select("id,role,content,metadata,createdAt").single();
     if(savedError)throw new Error(savedError.message);
     await admin.sb.from("JiaCEOConversation").update({updatedAt:new Date().toISOString()}).eq("id",conversationId).eq("adminUserId",admin.user.id);
+    await publishTraceEvent(admin.sb,{
+      userId:String(admin.user.id),type:"JIA_CEO_CHAT",ecosystem:"ADMIN",source:"CEO_CHAT",
+      correlationId:String(conversationId),payload:{messageLength:message.length,suggestedActions:Array.isArray(output.suggestedActions)?output.suggestedActions.length:0}
+    },{
+      stage:"RECOMMENDATION",title:"CEO Copilot — échange cognitif",
+      content:reply,confidence:typeof output.confidence==="string"?output.confidence:"LOW",
+      evidence:output.sources||[],metadata:{conversationId,webResearchUsed:metadata.webResearchUsed,autoPromoteToMemory:false}
+    });
+    await remember({
+      userId:String(admin.user.id),type:"WORKING",
+      content:{kind:"CEO_CHAT_CONTEXT",conversationId,userMessage:message,assistantReply:reply,suggestedActions:output.suggestedActions||[]},
+      source:"CEO_CHAT",confidence:typeof output.confidence==="string"&&output.confidence==="HIGH"?0.9:0.65,
+      importance:0.6,relevance:0.9,futureUtility:0.8,
+      contradictionKey:"ceo-chat:"+conversationId
+    });
+    if(Array.isArray(output.suggestedActions)&&output.suggestedActions.length){
+      await reflect({
+        userId:String(admin.user.id),triggerType:"CEO_RECOMMENDATION",
+        expectation:{conversationId,message},result:{suggestedActions:output.suggestedActions},
+        error:{autoExecution:false},learning:{policy:"HUMAN_APPROVAL_REQUIRED"},
+        nextStrategy:{reviewActions:true,autoPromoteToCanonicalMemory:false}
+      });
+    }
     await admin.sb.from("CEOAuditLog").insert({adminUserId:admin.user.id,action:"CEO_CHAT",endpoint:"/api/admin/jia/chat",metadata:{conversationId,provider:aiBody.provider||null,model:aiBody.model||null}});
-    return NextResponse.json({conversationId,message:saved});
+    return NextResponse.json({conversationId,message:saved,cognitive});
   }catch(e){
     return NextResponse.json({message:e instanceof Error?e.message:"J’IA est momentanément indisponible."},{status:500});
   }

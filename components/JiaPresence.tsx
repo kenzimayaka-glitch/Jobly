@@ -32,6 +32,8 @@ import { GESTURES, type GestureId } from "@/lib/jia/gestures";
 import { commandIntent, extractWakeCommand, isFinancialRequest } from "@/lib/jia/guard";
 import { getSupabaseClient } from "../lib/supabase";
 import { useI18n, type DictKey } from "@/lib/i18n";
+import { decide as decideAutonomy, observe as observeAutonomy } from "@/lib/jia/autonomy";
+
 
 type Ecosystem = "TALENT" | "RECRUITER" | "PARTNER";
 type Bubble = { id: number; text: string; gesture?: JiaGesture; move?: JIAMove };
@@ -158,6 +160,7 @@ export default function JiaPresence() {
   const lastAction = useRef("");
   const lastPrediction = useRef("");
   const lastRequest = useRef(0);
+  const externalSignalRef = useRef<{ summary: string; confidence: number; status: "CONFIRMED" | "LIKELY" | "CONTESTED" | "UNKNOWN" } | undefined>(undefined);
   const bubbleTimer = useRef<number | null>(null);
   const idSeq = useRef(0);
   const introSpoken = useRef(false);
@@ -193,6 +196,9 @@ export default function JiaPresence() {
     setBubble({ id: idSeq.current, text, gesture: opts?.gesture, move: opts?.move });
     if (opts?.gesture) setGesture(opts.gesture);
     setMove(opts?.move);
+    if (opts?.move && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("jobly:jia-move", { detail: { move: opts.move, autonomous: true } }));
+    }
     if (bubbleTimer.current) window.clearTimeout(bubbleTimer.current);
     if (!opts?.sticky) bubbleTimer.current = window.setTimeout(() => setBubble(null), 12_000);
     if (opts?.speak !== false && modeRef.current === "voice") {
@@ -457,6 +463,136 @@ export default function JiaPresence() {
     window.addEventListener("jobly:jia-play", onPlay);
     return () => { window.removeEventListener("jobly:jia-play", onPlay); delete window.jia; };
   }, [say, dismissBubble]);
+
+  // ── Autonomie locale : OBSERVER → ÉVALUER → DÉCIDER → AGIR ───────────────
+  // Moteur gratuit : aucune API payante n’est nécessaire pour l’initiative de base.
+  useEffect(() => {
+    if (!visible || !prefs.proactive) return;
+    let lastAutonomousAt = 0;
+    const cycle = () => {
+      if (document.hidden || suspended || panelOpen || bubble || Date.now() - lastAutonomousAt < 12_000) return;
+      const text = document.body.innerText.slice(0, 5000);
+      const percent = text.match(/(?:profil|profile)[^%]{0,80}(\d{1,3})\s*%/i)?.[1];
+      const w = window as Window & { __jiaIdleMs?: number };
+      const decision = decideAutonomy(observeAutonomy({
+        path: pathname,
+        lastAction: lastAction.current,
+        idleMs: Math.min(300_000, w.__jiaIdleMs || 0),
+        recentActions: [lastAction.current].filter(Boolean),
+        profileCompletion: percent ? Math.min(100, Number(percent)) : undefined,
+        matchingOffers: pathname.includes("/jobs") ? document.querySelectorAll('a[href*="/jobs/"]').length : 0,
+        pendingApplications: pathname.includes("/candidatures") ? document.querySelectorAll('[data-application], a[href*="candidatures"]').length : 0,
+        currentLanguage: langRef.current === "en" ? "en" : "fr",
+        externalSignal: externalSignalRef.current,
+      }));
+      if (!decision) return;
+      lastAutonomousAt = Date.now();
+      say(decision.message[langRef.current === "en" ? "en" : "fr"], {
+        gesture: decision.gesture,
+        move: decision.move,
+        speak: decision.speak,
+      });
+      window.dispatchEvent(new CustomEvent("jobly:jia-autonomous-decision", { detail: decision }));
+    };
+    const onActivity = () => { (window as Window & { __jiaIdleMs?: number }).__jiaIdleMs = 0; };
+    const idleTimer = window.setInterval(() => {
+      const w = window as Window & { __jiaIdleMs?: number };
+      w.__jiaIdleMs = Math.min(300_000, (w.__jiaIdleMs || 0) + 1_000);
+      cycle();
+    }, 5_000);
+    window.addEventListener("pointerdown", onActivity, { passive: true });
+    window.addEventListener("keydown", onActivity, { passive: true });
+    cycle();
+    return () => {
+      window.clearInterval(idleTimer);
+      window.removeEventListener("pointerdown", onActivity);
+      window.removeEventListener("keydown", onActivity);
+    };
+  }, [visible, prefs.proactive, pathname, suspended, panelOpen, bubble, say]);
+
+  // ── Cycle cognitif unifié : la présence UI alimente le même cerveau que le reste du produit ──
+  useEffect(() => {
+    if (!visible || !prefs.proactive || sensitiveRoute) return;
+    let active = true;
+    const runCycle = async () => {
+      try {
+        const { data: { session } } = await getSupabaseClient().auth.getSession();
+        if (!session?.access_token || document.hidden || !active) return;
+        const response = await fetch("/api/jia/cycle", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({
+            ecosystem: ecosystemOf(pathname),
+            path: pathRef.current,
+            action: lastAction.current,
+            includeInternet: false,
+          }),
+        });
+        if (!response.ok || !active) return;
+        const result = await response.json();
+        window.dispatchEvent(new CustomEvent("jobly:jia-cognitive-cycle", { detail: result }));
+        const recommendation = result?.recommendations?.[0];
+        if (recommendation?.title && recommendation?.confidence !== "LOW") {
+          externalSignalRef.current = undefined;
+          say(recommendation.title, { gesture: "analyze", speak: false });
+        }
+      } catch {
+        // Le cycle cognitif est opportuniste côté UI : l’autonomie offline reste indépendante.
+      }
+    };
+    const initial = window.setTimeout(runCycle, 15_000);
+    const interval = window.setInterval(runCycle, 300_000);
+    return () => { active = false; window.clearTimeout(initial); window.clearInterval(interval); };
+  }, [visible, prefs.proactive, pathname, sensitiveRoute, say]);
+
+  // ── Internet Brain : perception externe proactive ───────────────────────
+  useEffect(() => {
+    if (!visible || !prefs.proactive || sensitiveRoute) return;
+    if (!/\/jobs|\/career|\/recruiter|\/partner|\/candidatures/.test(pathname)) return;
+    let active = true;
+    const queryForRoute = () => {
+      const action = lastAction.current.replace(/[^a-zA-ZÀ-ÿ0-9 _-]/g, " ").trim().slice(0, 100);
+      if (pathname.startsWith("/recruiter")) return "recrutement emploi Cameroun " + action;
+      if (pathname.startsWith("/partner")) return "partenariat emploi Cameroun " + action;
+      if (pathname.includes("/career")) return "carrière compétences emploi Cameroun " + action;
+      if (pathname.includes("/candidatures")) return "candidature recrutement emploi Cameroun " + action;
+      return "offres emploi Cameroun " + action;
+    };
+    const requestExternalSignal = async () => {
+      try {
+        const { data: { session } } = await getSupabaseClient().auth.getSession();
+        if (!session?.access_token || document.hidden || !active) return;
+        const res = await fetch("/api/jia/internet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ query: queryForRoute(), mode: "PROACTIVE", maxQueries: 1, maxSources: 5 }),
+        });
+        if (!res.ok || !active) return;
+        const signal = await res.json() as {
+          type?: string; proposal?: string;
+          beliefCandidate?: { confidence?: number; status?: "CONFIRMED"|"LIKELY"|"CONTESTED"|"UNKNOWN"; belief?: string };
+          observation?: { internetAvailable?: boolean; confidence?: number; status?: "CONFIRMED"|"LIKELY"|"CONTESTED"|"UNKNOWN"; facts?: string[]; sourcesUsed?: Array<{title?:string;url?:string}> };
+        };
+        window.dispatchEvent(new CustomEvent("jobly:jia-external-signal", { detail: signal }));
+        const o = signal.observation;
+        const confidence = signal.beliefCandidate?.confidence ?? o?.confidence ?? 0;
+        const status = signal.beliefCandidate?.status ?? o?.status ?? "UNKNOWN";
+        const summary = signal.beliefCandidate?.belief || o?.facts?.[0] || "";
+        if (o?.internetAvailable && summary) {
+          externalSignalRef.current = { summary: summary.slice(0, 280), confidence, status };
+          try {
+            const key = "jobly-jia-internet-memory-v1";
+            const prior = JSON.parse(window.localStorage.getItem(key) || "[]") as Array<{summary:string;confidence:number;status:string;at:string}>;
+            const next = [{summary:summary.slice(0,280),confidence,status,at:new Date().toISOString()},...prior].slice(0,50);
+            window.localStorage.setItem(key, JSON.stringify(next));
+          } catch {}
+        }
+      } catch { /* Internet Brain failure never stops offline autonomy. */ }
+    };
+    const timer = window.setTimeout(requestExternalSignal, 20_000);
+    const interval = window.setInterval(requestExternalSignal, 300_000);
+    return () => { active = false; window.clearTimeout(timer); window.clearInterval(interval); };
+  }, [visible, prefs.proactive, pathname, sensitiveRoute]);
 
   // ── Proactivité (si autorisée) ───────────────────────���───────────────────
   useEffect(() => {

@@ -1,0 +1,3 @@
+import type {EvidenceStatus,SourceEvidence} from "./types";
+export function evidenceConfidence(s:SourceEvidence[],support:number,contradictions:number){if(!s.length)return 0;const a=s.reduce((n,x)=>n+x.authority,0)/s.length;const r=s.reduce((n,x)=>n+x.reliability,0)/s.length;const bonus=Math.min(.18,Math.max(0,(support-1)*.09));const penalty=Math.min(.45,contradictions*.22);return Math.max(0,Math.min(.99,a*.38+r*.22+bonus+.18-penalty));}
+export function evidenceStatus(c:number,support:number,contradictions:number):EvidenceStatus{if(contradictions>0)return"CONTESTED";if(support>=2&&c>=.78)return"CONFIRMED";if(support>=1&&c>=.58)return"LIKELY";return"UNKNOWN";}

@@ -1,3 +1,38 @@
+# CHECKPOINT 01/10/2026 — J’IA MASTER SCOPE / CEO & TRANSVERSAL INTELLIGENCE
+
+## Périmètre maître réconcilié
+
+J’IA est conçue comme une **intelligence fonctionnelle/simulée transversale de Jobly**, et non comme un simple chatbot. Le système doit partager un même socle de mémoire, croyances, modèle du monde, raisonnement, prédiction, anticipation, politique et apprentissage.
+
+### Couches spécialisées prévues
+
+1. **J’IA CEO** — direction, objectifs, priorisation, arbitrage, risques, scénarios, décisions proposées, suivi d’exécution.
+2. **Business Intelligence** — KPI, activation, rétention, conversion, revenus, coûts, performance par écosystème/pays.
+3. **Growth Intelligence** — acquisition, activation, expérimentation, croissance géographique et mesure.
+4. **Commercial Intelligence** — pipeline entreprises, prospects, recrutement, partenariats et conversions.
+5. **Finance Intelligence** — revenus, coûts, rentabilité, scénarios et alertes, sans exécution automatique de paiements.
+6. **Market Intelligence** — marché de l’emploi, compétences, concurrence, réglementation, tendances et signaux faibles.
+7. **Operations Intelligence** — qualité des données, pipelines, incidents, performance technique et opérations critiques.
+8. **Customer Intelligence** — besoins, problèmes récurrents, satisfaction et signaux Talent/Recruiter/Partner.
+9. **Career Intelligence** — Career Twin, Career Gap, Career GPS, Readiness, Opportunity Radar et anticipation personnalisée.
+
+### CEO Cockpit cible
+
+Situation → KPI → alertes → risques → opportunités → prévisions 7/30/90 → scénarios → priorités → actions proposées → résultats → réflexion → apprentissage.
+
+Le CEO Core doit consommer les mêmes données cognitives que les autres intelligences. Il ne doit pas devenir une IA parallèle.
+
+### Boucle cognitive cible
+
+PERCEIVE → UNDERSTAND → MEMORY → BELIEF → WORLD MODEL → REASON → PREDICT → ANTICIPATE → GOAL → PLAN → POLICY → PROPOSE/ACT → VERIFY → EVALUATE → REFLECT → LEARN → MEMORY → NEXT CYCLE
+
+### État de vérité
+
+- **Déjà codé sur la branche :** autonomie offline V10, J’IA Presence/JIA3D fallback, Cognitive Core initial, Internet Brain V1, World Model initial, Policy Engine initial, Agent Action Runs, Watcher et premières APIs cognitives.
+- **À construire/valider :** CEO Core complet, 7 autres intelligences spécialisées, CEO Cockpit, Event Bus cognitif unifié, Tool Registry, Career Intelligence complète, Agent Runtime complet, Self Model connecté au runtime, E2E réel et intégration transversale complète.
+- **Règle :** un élément non vérifié reste NON VALIDÉ. Aucun déploiement Vercel ni merge `main` sans validation explicite.
+
+---
 # JOBLY — README DE CONTINUITÉ PRODUIT & TECHNIQUE
 ## JOBLY 20/20 — Your Career OS
 ### Référence de continuité — 26 septembre 2026
@@ -3727,3 +3762,68 @@ Contrôles : fonction SQL vérifiée directement sur Supabase sans écriture de 
 **État : 🟨 CODÉ + CONTRÔLÉ — NON DÉPLOYÉ / NON VALIDÉ PRODUCTION.**
 
 **Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+# CHECKPOINT 01/10/2026 — J’IA CONTINUOUS EXECUTION / UNIFIED RUNTIME
+
+Le chantier maître J’IA est désormais traité comme un système unique. Les briques existantes sont réutilisées plutôt que dupliquées.
+
+### Consolidation réalisée sur cette branche
+- Policy Engine central renforcé avec comparaison réelle du niveau requis/accordé, consentement pour les actions sensibles et blocage paiement.
+- Event Bus cognitif central : événements + traces corrélées dans JiaEvent / JiaIntelligenceTrace.
+- Tool Registry centralisé avec capacités, niveau minimal, risque, réversibilité et contrôle Policy.
+- Self Model fonctionnel persistant : mode, disponibilité Web, santé mémoire/prédiction, objectif, écosystème, permissions, limites et confiance.
+- Unified Cognitive Runtime : PERCEIVE → UNDERSTAND → MEMORY → BELIEF → WORLD_MODEL → REASON → PREDICT → ANTICIPATE → GOAL → PLAN → POLICY → PROPOSE → ACT → VERIFY → EVALUATE → REFLECT → LEARN.
+- Brain utilisateur raccordé au cycle cognitif unifié.
+- Ancien parcours d’événements raccordé au nouvel Event Bus.
+- Internet Brain devient la source commune de recherche Web du Brain utilisateur.
+- Les signaux externes alimentent désormais mémoire cognitive + croyances + World Model.
+- Les résultats de prédiction alimentent mémoire réflexive et boucle de calibration.
+- CEO Intelligence enrichie avec risques, opportunités et scénarios 7/30/90 jours.
+- CEO Cockpit expose les neuf couches d’intelligence transversale.
+- Endpoint de cycle cognitif unifié et endpoint ADMIN d’intelligence transversale ajoutés.
+- Gate CI d’architecture/contradiction ajouté.
+
+### Vérité de maturité
+Ces briques sont CODÉES sur la branche mais ne sont pas déclarées VALIDÉES/DEPLOYÉES avant exécution complète des contrôles CI, runtime, persistance, sécurité et E2E.
+
+### Contradictions encore surveillées
+- coexistence historique de JiaMemory et jia_memory : pont actif, consolidation complète encore requise ;
+- exécution agentique réelle des outils : planner + Policy + vérification présents, exécution outillée complète encore à prouver ;
+- Market/Customer Intelligence : couches connectées au socle, enrichment analytique avancé encore à valider ;
+- migration cognitive 20261001 : tables présentes sur l’environnement connecté, cohérence migration/reproductibilité à vérifier ;
+- tests Hard Mode/E2E : verdict final encore en attente des runs GitHub.
+
+Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ. Aucun merge main ni déploiement Vercel sans validation explicite de l’utilisateur.
+
+# CHECKPOINT 01/10/2026 — J’IA MASTER CONTINUOUS EXECUTION / CONSOLIDATION
+
+La branche courante poursuit le mandat maître par **consolidation progressive, raisonnement par contradiction et validation en continu**.
+
+### Nouvelles consolidations
+- **Cognitive Runtime ADMIN/USER** : même cycle, contexte ADMIN isolé pour CEO.
+- **CEO Copilot** : conversation reliée au runtime cognitif, Event Bus et mémoire réflexive contrôlée; aucune auto-promotion vers mémoire canonique.
+- **Memory read model** : `jia_memory_unified` comme lecture serveur canonique de transition entre mémoire historique et Cognitive Core.
+- **Agent Runtime** : échec Web et échec de planification mémorisés + stratégie alternative.
+- **Tool Registry** : consentement déclaré désormais réellement appliqué.
+- **Recruiter Intelligence** : funnel, ATS, readiness, candidatures stagnantes et recommandations.
+- **Partner Intelligence** : KYC, accord et consentement de localisation, sans exposition des données de paiement.
+- **Mobility Intelligence** : dossiers, coût déclaré, distance, mobility-fit, étapes et recommandations.
+- **Transversal API** : point d’entrée unique pour les écosystèmes.
+- **Market Watch** : recherches externes vérifiées, contradictions/confiance visibles et signaux injectables dans Memory/Belief/World Model.
+- **CEO 7/30/90** : horizons, risques, opportunités et scénarios documentés.
+- **Master CI Gate** : architecture + cognitive core + Internet Brain + offline hard mode + lexicon.
+- **Hard Mode CI** : déclenché également sur la branche J’IA actuelle.
+
+### Vérité actuelle
+Le code est **CODÉ** et l’architecture est en consolidation. Les checks GitHub du dernier état sont en file d’attente; aucun vert CI final n’a encore été observé.
+
+La base Supabase connectée confirme RLS activé sur les tables cognitives et absence de grants directs `anon/authenticated`; les nouvelles tables cognitives restent à **0 ligne** sur l’environnement connecté tant que le runtime de cette branche n’est pas exécuté en environnement de déploiement.
+
+### Contradictions encore actives
+1. La mémoire historique est encore dual-write potentiel; la **lecture** est unifiée, mais la stratégie de dépréciation des écritures legacy reste à finaliser.
+2. L’Agent Runtime sait planifier/proposer/exécuter uniquement les actions Jobly sûres prévues; l’exécution générique d’outils externes n’est pas encore prouvée.
+3. Les couches Business/Growth/Commercial/Finance/Market/Operations/Customer sont connectées au socle; plusieurs restent des **baselines analytiques**.
+4. Le calcul de rentabilité exige encore des coûts opérationnels fiables; aucune marge fictive n’est affichée.
+5. Migration `20261001000000_jia_cognitive_core` et vue `20261001010000_jia_memory_unified_view` présentes dans le code mais non encore confirmées dans l’historique de migrations appliquées.
+6. Browser E2E et production restent volontairement non validés sur cette branche.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ. Aucun merge `main` ni déploiement Vercel sans validation explicite.**

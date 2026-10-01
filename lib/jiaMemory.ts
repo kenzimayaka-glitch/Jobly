@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "./server-auth";
+import { publishJiaEvent } from "./jia/eventBus";
+import { remember } from "./jia/cognitive";
 
 export const JIA_MEMORY_CATEGORIES = ["career","mobility","campus","community","financial_signal","interaction_style"] as const;
 export type JiaMemoryCategory = (typeof JIA_MEMORY_CATEGORIES)[number];
@@ -32,13 +34,29 @@ export async function recordJiaEvent(req:NextRequest,payload:{eventType:string;s
   const path=typeof payload.path==="string"?payload.path.slice(0,500):null;
   const sessionId=typeof payload.sessionId==="string"?payload.sessionId.slice(0,100):null;
   const metadata=safeJiaMetadata(payload.metadata);
-  const {error}=await sb.from("JiaEvent").insert({userId:user.id,eventType,sessionId,path,durationMs,metadata});
-  if(error)return{ok:false as const,status:500,message:error.message};
+  try {
+    await publishJiaEvent(sb,{userId:user.id,type:eventType,source:"JIA_EVENT_BUS",payload:{sessionId,path,durationMs,metadata}});
+  } catch (error) {
+    return {ok:false as const,status:500,message:error instanceof Error?error.message:"Impossible d’enregistrer l’événement J’IA."};
+  }
   const memoryCategory:JiaMemoryCategory =
     eventType.startsWith("mobility_")?"mobility":
     eventType.startsWith("campus_")?"campus":
     (eventType.startsWith("event_")||eventType==="community_post_shared"||eventType==="mentorship_requested")?"community":
     (["JOB_VIEW","JOB_SAVE","JOB_APPLY_START","JOB_APPLY_COMPLETE","application_submitted","assessment_completed"].includes(eventType))?"career":"interaction_style";
+  if(["PAGE_VIEW","SESSION_START","JOB_VIEW","JOB_SAVE","JOB_APPLY_START","JOB_APPLY_COMPLETE","application_submitted","assessment_completed","campus_onboarded","event_checked_in","community_post_shared","mentorship_requested","mobility_plan_simulated","mobility_advance_requested","PROFILE_UPDATE","LEARNING_ACTIVITY","NOTIFICATION_OPEN"].includes(eventType)){
+    await remember({
+      userId:user.id,
+      type:eventType.startsWith("mobility_")?"MOBILITY":eventType.startsWith("campus_")?"EVENT":eventType.startsWith("community_")||eventType.startsWith("mentorship_")?"EVENT":"EPISODIC",
+      content:{kind:"JIA_BEHAVIOR_EVENT",eventType,path,metadata},
+      source:"JIA_EVENT_BUS",
+      confidence:.7,
+      importance:eventType.includes("APPLY")||eventType==="application_submitted"?.8:.45,
+      relevance:eventType.includes("JOB")||eventType.includes("APPLICATION")?.85:.65,
+      contradictionKey:"behavior:"+eventType+":"+path,
+      futureUtility:.8,
+    });
+  }
   if(["PAGE_VIEW","SESSION_START","JOB_VIEW","application_submitted","assessment_completed","campus_onboarded","event_checked_in","community_post_shared","mentorship_requested","mobility_plan_simulated","mobility_advance_requested"].includes(eventType)){
     const key=eventType==="JOB_VIEW"?"last_job_view":"last_"+eventType.toLowerCase();
     await sb.from("JiaMemory").upsert({userId:user.id,category:memoryCategory,key,value:{eventType,path,metadata},confidence:0.5,source:"behavioral",lastObservedAt:new Date().toISOString(),updatedAt:new Date().toISOString()},{onConflict:"userId,category,key"});
