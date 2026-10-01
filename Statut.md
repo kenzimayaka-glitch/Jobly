@@ -3984,3 +3984,41 @@ Contrôles : fonction SQL vérifiée directement sur Supabase sans écriture de 
 **État : 🟨 CODÉ + CONTRÔLÉ — NON DÉPLOYÉ / NON VALIDÉ PRODUCTION.**
 
 **Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+# CHECKPOINT 01/10/2026 — J’IA MASTER AUDIT / CEO & TRANSVERSAL SCOPE
+
+## Correction du périmètre de référence
+
+L’audit de continuité confirme que le chantier J’IA dépasse le Cognitive Core et l’Internet Brain. Le périmètre maître comprend également **J’IA CEO**, Business Intelligence, Growth Intelligence, Commercial Intelligence, Finance Intelligence, Market Intelligence, Operations Intelligence, Customer Intelligence et l’ensemble Career Intelligence.
+
+| Chantier | État de vérité | Reste |
+|---|---|---|
+| Autonomie offline V10 | 🟢 Référence testée | Intégration runtime complète |
+| Cognitive Core | 🟨 Codé / à valider runtime | Persistance réelle + E2E |
+| Internet Brain V1 | 🟨 Codé / à valider | CI, sources, persistance, E2E |
+| World Model | 🟨 Initial | Modèle riche + évolution |
+| Policy Engine | 🟨 Initial | Intégration à tous les points d’action |
+| Agent Runtime | 🟨 Initial | Tool Registry, exécution, vérification, rollback |
+| Career Twin / Career Intelligence | 🟨 Initial | Gap, GPS, readiness, opportunity loop |
+| Self Model | 🟨 Initial | Connexion aux états réels du runtime |
+| **J’IA CEO** | 🔴 À construire/valider | CEO Core + décisions + mémoire institutionnelle |
+| **Business Intelligence** | 🔴 À construire/valider | KPI + métriques + analyse |
+| **Growth Intelligence** | 🔴 À construire/valider | Acquisition + expérimentation |
+| **Commercial Intelligence** | 🔴 À construire/valider | Pipeline + prospects + conversion |
+| **Finance Intelligence** | 🔴 À construire/valider | Rentabilité + scénarios + garde paiements |
+| **Market Intelligence** | 🔴 À construire/valider | Veille + tendances + concurrence |
+| **Operations Intelligence** | 🔴 À construire/valider | Santé opérationnelle + incidents |
+| **Customer Intelligence** | 🔴 À construire/valider | Signaux utilisateurs + satisfaction |
+| **CEO Cockpit** | 🔴 À construire/valider | KPI, alertes, prévisions, scénarios, actions |
+| Event Bus cognitif | 🔴 À construire | Événements unifiés et traçables |
+| Tool Registry | 🔴 À construire | Capacités/outils déclarés et contrôlés |
+| Transversal Talent/Recruiter/Partner/Mobility/Community/Business/Admin | 🟨 Partiel | Contextualisation complète |
+| UI/Voice/3D J’IA | 🟨 Partiel | E2E navigateur + mobile |
+| E2E ultime | 🔴 | Internet → mémoire → décision → action → résultat → learning |
+
+## Règle de continuité
+
+Le chantier ne peut être déclaré terminé que lorsque le même cycle cognitif alimente les couches Career, CEO, Business, Growth, Commercial, Finance, Market, Operations et Customer, avec permissions, preuves, persistance, vérification et apprentissage.
+
+**Aucun merge vers `main` et aucun déploiement Vercel sans validation explicite de l’utilisateur.**
+
+---
