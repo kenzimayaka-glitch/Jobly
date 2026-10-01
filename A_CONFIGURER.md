@@ -16,7 +16,7 @@ Le code métier ne change pas entre les profils.
 | NEXT_PUBLIC_SUPABASE_URL | requis | requis | Supabase Project Settings |
 | NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY | requis | requis | Supabase API |
 | SUPABASE_SERVICE_ROLE_KEY | requis serveur | requis serveur | Supabase API |
-| LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET | non requis | requis lot 9 | LiveKit |
+| JOBLY_VIDEO_PROVIDER | JITSI par défaut | LIVEKIT ou JITSI | choix du provider vidéo |\n| JOBLY_JITSI_DOMAIN | meet.jit.si par défaut | domaine Jitsi retenu | Jitsi |\n| LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET | non requis si JITSI | requis si LIVEKIT | LiveKit |
 | FCM_PROJECT_ID / FCM_CLIENT_EMAIL / FCM_PRIVATE_KEY | non requis | requis | Firebase |
 | APNS_KEY_ID / APNS_TEAM_ID / APNS_PRIVATE_KEY | non requis | requis iOS | Apple Developer |
 | SMS_PROVIDER_URL / SMS_PROVIDER_TOKEN | noop journalisé | requis | fournisseur SMS |
