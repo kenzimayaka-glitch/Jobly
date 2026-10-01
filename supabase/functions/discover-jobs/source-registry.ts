@@ -152,6 +152,86 @@ const WEST_AFRICA_SOURCES: SourceDefinition[] = [
   {key:"fne_west",name:"FNE/ANPE/Services publics — West Africa discovery",type:"institutional",status:"discovered",enabled:false,url:"",countries:["BJ","BF","CV","CI","GM","GH","GN","GW","LR","ML","NE","NG","SN","SL","TG"],languages:["fr","en","pt"],captureMode:"unknown",renderRequired:false,priority:60,notes:"Placeholder de contrôle; ne doit jamais être récolté comme URL."}
 ];
 
+
+// Second-pass pan-African/source-ratissage qualification — 30 Sep 2026.
+const RATISSAGE_VERIFIED_SOURCES: SourceDefinition[] = [
+  {key:"afriquejob",name:"AfriqueJob",type:"pan_africa",status:"active",enabled:true,url:"https://www.afriquejob.com/en/",countries:PAN_AFRICA,languages:["fr","en","ar"],captureMode:"http",renderRequired:false,priority:75,notes:"Pan-African country directory; second-pass source census."},
+  {key:"africarrieres",name:"Africarrières",type:"pan_africa",status:"active",enabled:true,url:"https://africarrieres.com/",countries:PAN_AFRICA,languages:["fr","en","es"],captureMode:"http",renderRequired:false,priority:75,notes:"Pan-African jobs portal; country-level listings visible for the 54-country scope."},
+  {key:"jobafrik",name:"JobAfrik",type:"pan_africa",status:"active",enabled:true,url:"https://www.jobafrik.com/",countries:["CM","SN","CI","TN"],languages:["fr"],captureMode:"http",renderRequired:false,priority:75,notes:"Verified current listings in Cameroon, Senegal, Côte d'Ivoire and Tunisia."},
+  {key:"africa_jobline",name:"Africa Jobline",type:"pan_africa",status:"active",enabled:true,url:"https://africajobline.com/",countries:PAN_AFRICA,languages:["en","fr"],captureMode:"http",renderRequired:false,priority:70,notes:"Pan-African talent/job portal; country filter available."},
+  {key:"eastworka",name:"Eastworka",type:"pan_africa",status:"active",enabled:true,url:"https://eastworka.com/jobs",countries:["KE","UG","TZ","RW","ET","BI","CD","SO","SC","DJ","SS","MU","KM","ER"],languages:["en"],captureMode:"http",renderRequired:false,priority:70,notes:"East/Horn/Indian Ocean coverage verified during second-pass census."},
+  {key:"kazi_pamoja",name:"Kazi Pamoja",type:"pan_africa",status:"active",enabled:true,url:"https://kazipamoja.online/",countries:["BI","DJ","CD","ER","ET","KE","RW","SO","SS","SD","TZ","UG"],languages:["en"],captureMode:"http",renderRequired:false,priority:70,notes:"Multi-country East Africa source; country filters exposed."},
+  {key:"ajirika_east",name:"Ajirika",type:"pan_africa",status:"active",enabled:true,url:"https://ajirika.com/",countries:["KE","TZ","UG","RW"],languages:["en"],captureMode:"http",renderRequired:false,priority:70,notes:"Employer/government/job-board aggregation across four East African markets."},
+  {key:"work_ke",name:"work.ke",type:"national",status:"active",enabled:true,url:"https://work.ke/jobs",countries:["KE"],languages:["en"],captureMode:"http",renderRequired:false,priority:105,notes:"Current Kenya openings with source attribution and freshness checks."},
+  {key:"uemoa_careers",name:"UEMOA Carrières",type:"institutional",status:"active",enabled:true,url:"https://e-recrutement.uemoa.int/",countries:["BJ","BF","CI","GW","ML","NE","SN","TG"],languages:["fr"],captureMode:"http",renderRequired:false,priority:100,notes:"Official UEMOA recruitment channel covering eight member states."},
+  {key:"ecowas_careers",name:"CEDEAO Careers",type:"institutional",status:"active",enabled:true,url:"https://www.ecowas.int/careers/?lang=fr",countries:["BJ","CV","CI","GM","GH","GN","GW","LR","NG","SN","SL","TG"],languages:["fr","en","pt"],captureMode:"http",renderRequired:false,priority:100,notes:"Official ECOWAS recruitment channel; regional institutional source."},
+  {key:"bayt_africa",name:"Bayt Africa",type:"aggregator",status:"active",enabled:true,url:"https://www.bayt.com/",countries:["DZ","EG","LY","MA","TN"],languages:["en","fr","ar"],captureMode:"http",renderRequired:false,priority:65,notes:"MENA jobs portal with explicit African country destinations."},
+  {key:"south_africa_gov_jobs",name:"South African Government Jobs",type:"institutional",status:"active",enabled:true,url:"https://www.gov.za/jobs",countries:["ZA"],languages:["en"],captureMode:"http",renderRequired:false,priority:120,notes:"Official public-service vacancy source."},
+  {key:"essa_sa",name:"ESSA South Africa",type:"institutional",status:"active",enabled:true,url:"https://essa.labour.gov.za/EssaOnline/",countries:["ZA"],languages:["en"],captureMode:"http",renderRequired:false,priority:120,notes:"Official Employment Services of South Africa."},
+  {key:"kenya_psc_jobs",name:"Kenya Public Service Commission Jobs",type:"institutional",status:"active",enabled:true,url:"https://www.psckjobs.go.ke/",countries:["KE"],languages:["en"],captureMode:"http",renderRequired:false,priority:120,notes:"Official Kenya public-service recruitment portal."},
+];
+
+
+// Third-pass channel census — live web re-check, 30 Sep 2026.
+
+// Fourth-pass channel census — under-covered countries, live web re-check, 30 Sep 2026.
+const RATISSAGE_WAVE_4_SOURCES: SourceDefinition[] = [
+  {key:"lesotho_gov_jobs",name:"Government of Lesotho Jobs",type:"institutional",status:"active",enabled:true,url:"https://www.gov.ls/jobs/",countries:["LS"],languages:["en"],captureMode:"http",renderRequired:false,priority:120,notes:"Official Lesotho government jobs page with current 2026 vacancies."},
+  {key:"jobs_eswatini",name:"Jobs Eswatini",type:"national",status:"active",enabled:true,url:"https://jobs.eswazi.org/jobs/",countries:["SZ"],languages:["en"],captureMode:"http",renderRequired:true,priority:110,notes:"Active Eswatini job board with recent listings."},
+  {key:"inep_mozambique",name:"INEP Mozambique",type:"institutional",status:"active",enabled:true,url:"https://www.nepmz.com/",countries:["MZ"],languages:["pt"],captureMode:"http",renderRequired:false,priority:125,notes:"Official national employment portal; current vacancies exposed."},
+  {key:"portal_juventude_mz",name:"Portal da Juventude Mozambique",type:"institutional",status:"active",enabled:true,url:"https://www.juventude.mjd.gov.mz/emprego",countries:["MZ"],languages:["pt"],captureMode:"http",renderRequired:false,priority:105,notes:"Official Ministry of Youth employment/opportunity channel; links to INEP."},
+  {key:"beta_mauritania",name:"BETA Conseils Mauritanie",type:"national",status:"active",enabled:true,url:"https://www.beta.mr/",countries:["MR"],languages:["fr","ar"],captureMode:"http",renderRequired:false,priority:115,notes:"Mauritanian recruitment portal with current job listings."},
+  {key:"recruteo_mg",name:"Recruteo Madagascar",type:"national",status:"active",enabled:true,url:"https://recruteo.mg/",countries:["MG"],languages:["fr"],captureMode:"http",renderRequired:false,priority:105,notes:"Madagascar employment portal with active offer surface."},
+];
+
+const RATISSAGE_WAVE_3_SOURCES: SourceDefinition[] = [
+  {key:"goafricajobs",name:"Go Africa Jobs",type:"pan_africa",status:"active",enabled:true,url:"https://goafricajobs.com/",countries:["ZA","ZM","NA","ZW"],languages:["en"],captureMode:"http",renderRequired:false,priority:80},
+  {key:"africawork",name:"AfricaWork",type:"pan_africa",status:"active",enabled:true,url:"https://www.africawork.com/",countries:["DZ","BJ","BW","BF","BI","CM","CF","TD","CG","CD","CI","EG","ET","GA","GH","GN","KE","LR","MW","ML","MR","MA","MZ","NA","NE","NG","RW","SN","SL","ZA","TZ","TG","TN","UG","ZM","ZW"],languages:["fr","en"],captureMode:"http",renderRequired:false,priority:80},
+  {key:"njorku_jobs",name:"Njorku Jobs",type:"specialized",status:"active",enabled:true,url:"https://jobs.njorku.net/",countries:["CM","NG"],languages:["en","fr"],captureMode:"http",renderRequired:false,priority:75},
+  {key:"brightermonday_ke",name:"BrighterMonday Kenya",type:"national",status:"active",enabled:true,url:"https://www.brightermonday.co.ke/jobs",countries:["KE"],languages:["en"],captureMode:"http",renderRequired:false,priority:115},
+  {key:"brightermonday_ug",name:"BrighterMonday Uganda",type:"national",status:"active",enabled:true,url:"https://www.brightermonday.co.ug/",countries:["UG"],languages:["en"],captureMode:"http",renderRequired:false,priority:115},
+  {key:"triemploi_dz",name:"Triemploi",type:"national",status:"active",enabled:true,url:"https://www.triemploi.com/jobs",countries:["DZ"],languages:["fr","ar"],captureMode:"http",renderRequired:false,priority:110},
+  {key:"vacancyupdate_za",name:"Vacancy Update",type:"national",status:"active",enabled:true,url:"https://www.vacancyupdate.co.za/",countries:["ZA"],languages:["en"],captureMode:"http",renderRequired:false,priority:95},
+  {key:"sercanto_za",name:"Sercanto South Africa",type:"aggregator",status:"active",enabled:true,url:"https://za.sercanto.com/",countries:["ZA"],languages:["en"],captureMode:"http",renderRequired:false,priority:65},
+  {key:"workinafrica_ci",name:"Work in Africa",type:"specialized",status:"active",enabled:true,url:"https://www.workinafrica.com/",countries:["CI","SN","GH","NG"],languages:["fr","en"],captureMode:"http",renderRequired:false,priority:70},
+  {key:"mapage_africa_jobs",name:"MaPage Africa Jobs",type:"pan_africa",status:"active",enabled:true,url:"https://mapage.africa/index.php/opportunities?cat=jobs&lang=fr&region=africa",countries:PAN_AFRICA,languages:["fr","en","ar","pt"],captureMode:"http",renderRequired:false,priority:80},
+];
+
+// Fifth-pass channel census — live web re-check, 30 Sep 2026.
+const RATISSAGE_WAVE_5_SOURCES: SourceDefinition[] = [
+  {key:"oppz_zambia_jobs",name:"Office of the Public Protector Zambia Jobs",type:"institutional",status:"active",enabled:true,url:"https://www.oppz.gov.zm/jobs/",countries:["ZM"],languages:["en"],captureMode:"http",renderRequired:false,priority:120,notes:"Official Zambian institutional jobs page exposing current vacancies."},
+  {key:"botswana_mof_recruitment",name:"Botswana Ministry of Finance Recruitment",type:"institutional",status:"active",enabled:true,url:"https://www.finance.gov.bw/index.php?Itemid=114&id=37&option=com_content&view=category",countries:["BW"],languages:["en"],captureMode:"http",renderRequired:false,priority:115,notes:"Government recruitment channel with current vacancy notices."},
+  {key:"zimbabwe_psc_erecruitment",name:"Zimbabwe Public Service Commission e-Recruitment",type:"institutional",status:"active",enabled:true,url:"https://erecruitment.psc.gov.zw/",countries:["ZW"],languages:["en"],captureMode:"http",renderRequired:false,priority:125,notes:"Official PSC e-recruitment portal with current vacancies and deadlines."},
+  {key:"namibia_moj_vacancies",name:"Namibia Ministry of Justice Vacancies",type:"institutional",status:"active",enabled:true,url:"https://moj.gov.na/vacancies",countries:["NA"],languages:["en"],captureMode:"http",renderRequired:false,priority:115,notes:"Official ministry vacancy page with September 2026 vacancies."},
+  {key:"malawi_education_recruitment",name:"Malawi Government Teachers Recruitment Portal",type:"institutional",status:"discovered",enabled:false,url:"https://recruitment.education.gov.mw/",countries:["MW"],languages:["en"],captureMode:"http",renderRequired:false,priority:100,notes:"Official government recruitment portal; latest indexed vacancy was closed at census time, so retained for surveillance rather than active harvest."},
+  {key:"malawi_health_opportunities",name:"Malawi Ministry of Health Opportunities",type:"institutional",status:"discovered",enabled:false,url:"https://www.health.gov.mw/",countries:["MW"],languages:["en"],captureMode:"http",renderRequired:false,priority:95,notes:"Official health ministry opportunity channel; vacancy surface requires further qualification before activation."},
+  {key:"mozambique_incm_recruitment",name:"Mozambique INCM Recruitment Portal",type:"institutional",status:"discovered",enabled:false,url:"https://candidaturas.incm.gov.mz/",countries:["MZ"],languages:["pt"],captureMode:"http",renderRequired:true,priority:100,notes:"Official recruitment portal; census showed zero current opportunities, retained for periodic recheck."},
+];
+
+for (const source of RATISSAGE_WAVE_5_SOURCES) {
+  const index = SOURCE_REGISTRY.findIndex((candidate) => candidate.key === source.key);
+  if (index >= 0) SOURCE_REGISTRY[index] = source;
+  else SOURCE_REGISTRY.push(source);
+}
+
+for (const source of RATISSAGE_WAVE_3_SOURCES) {
+  const index = SOURCE_REGISTRY.findIndex((candidate) => candidate.key === source.key);
+  if (index >= 0) SOURCE_REGISTRY[index] = source;
+  else SOURCE_REGISTRY.push(source);
+}
+
+for (const source of RATISSAGE_WAVE_4_SOURCES) {
+  const index = SOURCE_REGISTRY.findIndex((candidate) => candidate.key === source.key);
+  if (index >= 0) SOURCE_REGISTRY[index] = source;
+  else SOURCE_REGISTRY.push(source);
+}
+
+for (const source of RATISSAGE_VERIFIED_SOURCES) {
+  const index = SOURCE_REGISTRY.findIndex((candidate) => candidate.key === source.key);
+  if (index >= 0) SOURCE_REGISTRY[index] = source;
+  else SOURCE_REGISTRY.push(source);
+}
+
 for (const override of WEST_AFRICA_SOURCES) {
   const index = SOURCE_REGISTRY.findIndex((source) => source.key === override.key);
   if (index >= 0) SOURCE_REGISTRY[index] = override;

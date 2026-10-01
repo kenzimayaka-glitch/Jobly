@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
         });
         const normalizedContent = prepared.canonical;
         const languageRequirements = detectLanguageRequirements([offer.title, offer.description].filter(Boolean).join(" "));
-        const normalizedExperienceYears = prepared.experienceYears;
+        const normalizedExperienceYears = prepared.experienceYears ?? 0;
         const canonicalDescription = normalizedContent.description.join("\n\n") || prepared.extractedDescription;
         await saveOfferPipeline(supabase, row.id, offer, normalizedContent, prepared.extractedDescription);
         if (!canonicalIsPublishable(normalizedContent)) {
@@ -341,7 +341,7 @@ export async function POST(request: NextRequest) {
           sourceUrl: offer.sourceUrl,
         });
         const normalizedContent = prepared.canonical;
-        const normalizedExperienceYears = prepared.experienceYears;
+        const normalizedExperienceYears = prepared.experienceYears ?? 0;
         const canonicalDescription = normalizedContent.description.join("\n\n") || prepared.extractedDescription;
         await saveOfferPipeline(supabase, row.id, offer, normalizedContent, prepared.extractedDescription);
         if (!canonicalIsPublishable(normalizedContent)) {
@@ -420,7 +420,7 @@ export async function POST(request: NextRequest) {
         sourceUrl: offer.sourceUrl,
       });
       const normalizedContent = prepared.canonical;
-      const normalizedExperienceYears = prepared.experienceYears;
+      const normalizedExperienceYears = prepared.experienceYears ?? 0;
       const canonicalDescription = normalizedContent.description.join("\n\n") || prepared.extractedDescription;
       const cleanedContentHash = crypto.createHash("sha256")
         .update([normalizedContent.title || offer.title, canonicalDescription, offer.location || "", offer.contractType || "", offer.sourceUrl || ""].join("\n"))
