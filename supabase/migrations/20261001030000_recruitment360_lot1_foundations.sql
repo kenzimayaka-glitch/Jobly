@@ -172,8 +172,13 @@ declare
   v_current_rank integer;
   v_recruitment_id uuid;
   v_actor text;
+  v_auth_user_id uuid;
 begin
-  v_actor := public.recruitment360_user_id();
+  v_auth_user_id := (select auth.uid());
+  select u.id into v_actor
+  from public."User" u
+  where u."authUserId" = v_auth_user_id::text
+  limit 1;
 
   if v_actor is null then
     raise exception 'AUTH_REQUIRED' using errcode = '42501';
@@ -202,11 +207,13 @@ begin
     select 1 from public."Recruitment360" r
     join public."RecruitmentRole" rr on rr."recruitmentId" = r.id
     where r."recruiterJobId" = v_recruitment_id
-      and rr."userId" = v_actor
+      and rr."authUserId" = v_auth_user_id
       and rr.role in ('OWNER','HR','MANAGER','DG_READONLY','JURY','DELEGATE')
   ) and not exists (
-    select 1 from public."Application" a
-    where a.id = p_application_id and a."userId"::text = v_actor
+    select 1
+    from public."Application" a
+    where a.id = p_application_id
+      and a."userId"::text = v_actor
   ) then
     raise exception 'FORBIDDEN' using errcode = '42501';
   end if;
