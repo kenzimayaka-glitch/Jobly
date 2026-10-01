@@ -4,6 +4,17 @@ import { getAuthUser } from "../../../../../lib/server-auth";
 import crypto from "node:crypto";
 
 export const runtime = "nodejs";
+function safeFilePart(value: unknown) {
+  return String(value || "")
+    .normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "Utilisateur";
+}
+async function canonicalCvFileName(admin: ReturnType<typeof createClient>, authUserId: string) {
+  const { data } = await admin.from("User").select("username,firstName").eq("authUserId", authUserId).maybeSingle();
+  const now = new Date();
+  const month = new Intl.DateTimeFormat("fr-FR", { month: "long" }).format(now);
+  return `CV_${safeFilePart(data?.username)}_${safeFilePart(data?.firstName)}_${safeFilePart(month)}_${now.getFullYear()}.pdf`;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,17 +31,38 @@ export async function POST(request: NextRequest) {
     const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
     const bytes = Buffer.from(await file.arrayBuffer());
     if (bytes.length <= 0 || bytes.length > 3 * 1024 * 1024) return NextResponse.json({ error: "PDF_TOO_LARGE", message: "Le CV original dépasse la limite de 3 Mo." }, { status: 413 });
+    const canonicalFileName = await canonicalCvFileName(admin, auth.id);
     const storagePath = `${auth.id}/${crypto.randomUUID()}.pdf`;
     const upload = await admin.storage.from("talent-cvs").upload(storagePath, bytes, { contentType: "application/pdf", upsert: false });
     if (upload.error) throw new Error(upload.error.message);
     const { data: user, error: userError } = await admin.from("User").select("id,cvOriginalStoragePath").eq("authUserId", auth.id).maybeSingle();
     if (userError || !user?.id) { await admin.storage.from("talent-cvs").remove([storagePath]); throw new Error(userError?.message || "Profil Jobly introuvable."); }
     if (user.cvOriginalStoragePath) await admin.storage.from("talent-cvs").remove([user.cvOriginalStoragePath]);
-    const { error: updateError } = await admin.from("User").update({ cvOriginalStoragePath: storagePath, cvOriginalFileName: file.name, cvOriginalPageCount: Number(form.get("pages") || 0) || null, cvOriginalUploadedAt: new Date().toISOString() }).eq("id", user.id);
+    const { error: updateError } = await admin.from("User").update({ cvOriginalStoragePath: storagePath, cvOriginalFileName: canonicalFileName, cvOriginalPageCount: Number(form.get("pages") || 0) || null, cvOriginalUploadedAt: new Date().toISOString() }).eq("id", user.id);
     if (updateError) { await admin.storage.from("talent-cvs").remove([storagePath]); throw new Error(updateError.message); }
-    return NextResponse.json({ ok: true, stored: true, storagePath, fileName: file.name });
+    return NextResponse.json({ ok: true, stored: true, storagePath, fileName: canonicalFileName });
   } catch (error) {
     return NextResponse.json({ error: "CV_ORIGINAL_SAVE_FAILED", message: error instanceof Error ? error.message : "Impossible d’enregistrer le CV original." }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const auth = await getAuthUser(request);
+    if (!auth) return NextResponse.json({ error: "UNAUTHENTICATED", message: "Session requise." }, { status: 401 });
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !serviceKey) return NextResponse.json({ error: "STORAGE_UNAVAILABLE", message: "Stockage du CV indisponible." }, { status: 503 });
+    const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+    const { data: user, error } = await admin.from("User").select("id,cvOriginalStoragePath").eq("authUserId", auth.id).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!user?.id) return NextResponse.json({ error: "USER_NOT_FOUND", message: "Profil Jobly introuvable." }, { status: 404 });
+    if (user.cvOriginalStoragePath) await admin.storage.from("talent-cvs").remove([user.cvOriginalStoragePath]);
+    const { error: updateError } = await admin.from("User").update({ cvOriginalStoragePath: null, cvOriginalFileName: null, cvOriginalPageCount: null, cvOriginalUploadedAt: null, updatedAt: new Date().toISOString() }).eq("id", user.id);
+    if (updateError) throw new Error(updateError.message);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json({ error: "CV_ORIGINAL_DELETE_FAILED", message: error instanceof Error ? error.message : "Impossible de supprimer le CV original." }, { status: 500 });
   }
 }
 
