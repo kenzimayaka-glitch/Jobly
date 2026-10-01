@@ -1,0 +1,22 @@
+name: J'IA Hard Mode
+
+on:
+  push:
+    branches:
+      - feat/jia-complete-build-20261001
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  jia-hard-mode:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Lexicon
+        run: python test_lexicon.py
+      - name: Autonomy C1-C7
+        run: python test_jia.py
