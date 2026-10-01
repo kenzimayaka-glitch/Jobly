@@ -171,3 +171,36 @@ export async function ingestExternalSignal(userId: string, observation: {
   });
   return memory;
 }
+
+export async function recordPredictionOutcome(args:{userId:string;predictionId:string;outcome:Record<string,unknown>;probability:number;observed:boolean}){
+  const error=Math.abs(clamp(args.probability)-(args.observed?1:0));
+  const sb=adminClient();
+  const {data,error:dbError}=await sb.from("jia_predictions").update({
+    outcome:args.outcome,outcome_at:new Date().toISOString(),calibration_error:error,updated_at:new Date().toISOString(),
+  }).eq("id",args.predictionId).eq("user_id",args.userId).select("*").single();
+  if(dbError) throw new Error(dbError.message);
+  await reflect({userId:args.userId,triggerType:"PREDICTION_OUTCOME",
+    expectation:{predictionId:args.predictionId,probability:args.probability},
+    result:args.outcome,error:{calibrationError:error,observed:args.observed},
+    learning:{calibratedProbability:args.observed ? Math.min(1,args.probability+.05) : Math.max(0,args.probability-.05)},
+    nextStrategy:{reviewCalibration:true}});
+  return data;
+}
+
+export async function upsertWorldEntity(args:{userId:string;type:string;key:string;attributes:Record<string,unknown>;confidence:number;sources?:string[]}){
+  const sb=adminClient();
+  const {data,error}=await sb.from("jia_world_entities").upsert({
+    user_id:args.userId,entity_type:args.type,canonical_key:args.key,attributes:args.attributes,
+    confidence:clamp(args.confidence),source_refs:args.sources??[],last_seen_at:new Date().toISOString(),updated_at:new Date().toISOString(),
+  },{onConflict:"user_id,entity_type,canonical_key"}).select("*").single();
+  if(error) throw new Error(error.message); return data;
+}
+
+export async function relateWorldEntities(args:{userId:string;fromId:string;relation:string;toId:string;confidence:number;sources?:string[]}){
+  const sb=adminClient();
+  const {data,error}=await sb.from("jia_world_relations").upsert({
+    user_id:args.userId,from_entity_id:args.fromId,relation_type:args.relation,to_entity_id:args.toId,
+    confidence:clamp(args.confidence),source_refs:args.sources??[],
+  },{onConflict:"user_id,from_entity_id,relation_type,to_entity_id"}).select("*").single();
+  if(error) throw new Error(error.message); return data;
+}
