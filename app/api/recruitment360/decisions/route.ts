@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
 import { runJiaBrain } from "@/lib/jia/brain";
 
-function errStatus(message:string){return message==="FORBIDDEN"?403:message.includes("REQUIRED")||message.includes("INVALID")||message.includes("BOUNDS")?400:409;}
+function errStatus(message:string){return message==="FORBIDDEN"?403:message.includes("REQUIRED")||message.includes("INVALID")||message.includes("BOUNDS")||message.includes("WEIGHTS")?400:409;}
 
 export async function GET(req:NextRequest){
  const auth=await getAuthUser(req); if(!auth)return NextResponse.json({message:"Session requise."},{status:401});
