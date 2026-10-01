@@ -34,6 +34,7 @@ import { getSupabaseClient } from "../lib/supabase";
 import { useI18n, type DictKey } from "@/lib/i18n";
 import { decide as decideAutonomy, observe as observeAutonomy } from "@/lib/jia/autonomy";
 
+
 type Ecosystem = "TALENT" | "RECRUITER" | "PARTNER";
 type Bubble = { id: number; text: string; gesture?: JiaGesture; move?: JIAMove };
 type Prefs = { enabled: boolean; mode: "text" | "voice"; proactive: boolean };
