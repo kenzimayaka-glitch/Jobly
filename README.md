@@ -3714,3 +3714,16 @@ La validation runtime réelle et la validation UI restent à effectuer après un
 Contrôles : fonction SQL vérifiée directement sur Supabase sans écriture de crédit lors du test ; séparation paiement/CV conservée ; routes d'import et de stockage relues après correction ; aucun déploiement Vercel lancé.
 
 **Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+
+# CHECKPOINT 01/10/2026 — BONUS J’IA : 1 COMPTE = 1 BONUS
+
+- Règle renforcée : un compte Jobly reçoit **30 crédits de bienvenue une seule fois**, soit comme **Talent**, soit comme **Recruteur**, jamais les deux.
+- Le bonus est attaché au compte `User` via `aiWelcomeGrantedAt` ; il ne dépend pas d'un simple affichage côté interface.
+- Une fonction PostgreSQL atomique verrouille la ligne du compte avant attribution et vérifie le rôle demandé. Un appel recruteur sur un compte Talent déjà doté de crédits est refusé sans nouvelle attribution, et inversement.
+- Les routes Talent et Recruteur utilisent désormais cette garde serveur commune afin de fermer le contournement par appel direct d'API ou concurrence de requêtes.
+- Vérification Supabase effectuée sur un compte Talent existant : appel avec le rôle `RECRUITER` → `granted=false`, solde inchangé à 30.
+
+**État : 🟨 CODÉ + CONTRÔLÉ — NON DÉPLOYÉ / NON VALIDÉ PRODUCTION.**
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
