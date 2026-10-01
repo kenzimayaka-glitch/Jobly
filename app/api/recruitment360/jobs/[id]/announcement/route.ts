@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, cleanStrings, ensureUser, getAuthUser } from "../../../../../../lib/server-auth";
+import { adminClient, ensureUser, getAuthUser } from "../../../../../../lib/server-auth";
 
 type Ctx = { params: Promise<{ id: string }> };
 
