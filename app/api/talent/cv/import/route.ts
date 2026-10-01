@@ -1,211 +1,211 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { NextReqest, NextResponse } from "next/server";
+import { createClient } from "@spabase/spabase-js";
 import crypto from "node:crypto";
 import sharp from "sharp";
-import { runAiGateway } from "../../../../../lib/aiGateway";
+import { rnAiGateway } from "../../../../../lib/aiGateway";
 import { getActivePlanCode } from "../../../../../lib/entitlements";
 
-export const runtime = "nodejs";
-function safeFilePart(value: unknown) {
-  return String(value || "")
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "Utilisateur";
+export const rntime = "nodejs";
+fnction safeFilePart(vale: nknown) {
+  retrn String(vale || "")
+    .normalize("NFD").replace(/[3-36f]/g, "")
+    .replace(/[^a-zA-Z-9]+/g, "_").replace(/^_+|_+$/g, "") || "Utilisater";
 }
-async function canonicalCvFileName(authUserId: string) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+async fnction canonicalCvFileName(athUserId: string) {
+  const rl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  const admin = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { data } = await admin.from("User").select("username,firstName").eq("authUserId", authUserId).maybeSingle();
+  if (!rl || !key) retrn nll;
+  const admin = createClient(rl, key, { ath: { atoRefreshToken: false, persistSession: false } });
+  const { data } = await admin.from("User").select("sername,firstName").eq("athUserId", athUserId).maybeSingle();
   const now = new Date();
   const month = new Intl.DateTimeFormat("fr-FR", { month: "long" }).format(now);
-  return `CV_${safeFilePart(data?.username)}_${safeFilePart(data?.firstName)}_${safeFilePart(month)}_${now.getFullYear()}.pdf`;
+  retrn `CV_${safeFilePart(data?.sername)}_${safeFilePart(data?.firstName)}_${safeFilePart(month)}_${now.getFllYear()}.pdf`;
 }
-export const maxDuration = 60;
+export const maxDration = 6;
 
-const FREE_MAX_BYTES = 1 * 1024 * 1024;
-const PAID_MAX_BYTES = 3 * 1024 * 1024;
+const FREE_MAX_BYTES = 1 * 124 * 124;
+const PAID_MAX_BYTES = 3 * 124 * 124;
 
-async function getPlan(authUser: { id: string }) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+async fnction getPlan(athUser: { id: string }) {
+  const rl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return "FREE";
-  const admin = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { data } = await admin.from("User").select("id,role").eq("authUserId", authUser.id).maybeSingle();
-  if (!data?.id) return "FREE";
+  if (!rl || !key) retrn "FREE";
+  const admin = createClient(rl, key, { ath: { atoRefreshToken: false, persistSession: false } });
+  const { data } = await admin.from("User").select("id,role").eq("athUserId", athUser.id).maybeSingle();
+  if (!data?.id) retrn "FREE";
   try {
-    return String(await getActivePlanCode(admin, data.id, String(data.role) === "RECRUITER" ? "RECRUITER" : "TALENT")).toUpperCase();
+    retrn String(await getActivePlanCode(admin, data.id, String(data.role) === "RECRUITER" ? "RECRUITER" : "TALENT")).toUpperCase();
   } catch {
-    return "FREE";
+    retrn "FREE";
   }
 }
 
-async function getAuthUser(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!token) return null;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+async fnction getAthUser(reqest: NextReqest) {
+  const token = reqest.headers.get("athorization")?.replace(/^Bearers+/i, "");
+  if (!token) retrn nll;
+  const rl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return null;
-  const supabase = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { data } = await supabase.auth.getUser(token);
-  return data.user || null;
+  if (!rl || !key) retrn nll;
+  const spabase = createClient(rl, key, { ath: { atoRefreshToken: false, persistSession: false } });
+  const { data } = await spabase.ath.getUser(token);
+  retrn data.ser || nll;
 }
 
-function section(text: string, names: string[]) {
+fnction section(text: string, names: string[]) {
   const lower = text.toLowerCase();
   for (const name of names) {
     const index = lower.indexOf(name.toLowerCase());
-    if (index < 0) continue;
+    if (index < ) contine;
     const tail = text.slice(index + name.length);
-    const next = tail.search(/\n\s*(profil|résumé|summary|compétences|skills|expérience|experience|formation|education|éducation|certifications?|activités|activites|intérêts|interests|références|references|langues|languages|réalisations|achievements)\s*[:\-]?\s*\n?/i);
-    return (next >= 0 ? tail.slice(0, next) : tail).trim().slice(0, 6000);
+    const next = tail.search(/ns*(profil|résmé|smmary|compétences|skills|expérience|experience|formation|edcation|édcation|certifications?|activités|activites|intérêts|interests|références|references|langes|langages|réalisations|achievements)s*[:-]?s*n?/i);
+    retrn (next >=  ? tail.slice(, next) : tail).trim().slice(, 6);
   }
-  return "";
+  retrn "";
 }
 
-function listSection(text: string, names: string[]) {
-  return section(text, names).split(/[,;•|\n]/)
-    .map(x => x.replace(/^[\-–—*]+\s*/, "").trim())
+fnction listSection(text: string, names: string[]) {
+  retrn section(text, names).split(/[,;•|n]/)
+    .map(x => x.replace(/^[-–—*]+s*/, "").trim())
     .filter(x => x.length > 1)
-    .slice(0, 30);
+    .slice(, 3);
 }
 
-function extractDeterministicCv(text: string) {
-  const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-  const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] || "";
-  const phone = text.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]?.trim() || "";
+fnction extractDeterministicCv(text: string) {
+  const lines = text.split(/r?n/).map(line => line.trim()).filter(Boolean);
+  const email = text.match(/[A-Z-9._%+-]+@[A-Z-9.-]+.[A-Z]{2,}/i)?.[] || "";
+  const phone = text.match(/(?:+?d[ds().-]{7,}d)/)?.[]?.trim() || "";
   const name = lines.find(line => {
-    const words = line.split(/\s+/);
-    return words.length >= 2 && words.length <= 5 && !/@/.test(line) && !/^(cv|curriculum|resume|profil|contact|expérience|experience|formation|education)$/i.test(line);
+    const words = line.split(/s+/);
+    retrn words.length >= 2 && words.length <= 5 && !/@/.test(line) && !/^(cv|crriclm|resme|profil|contact|expérience|experience|formation|edcation)$/i.test(line);
   }) || "";
-  const headline = lines.find(line => line !== name && line.length >= 4 && line.length <= 120 && !/@/.test(line) && !/^\+?\d/.test(line)) || "";
+  const headline = lines.find(line => line !== name && line.length >= 4 && line.length <= 12 && !/@/.test(line) && !/^+?d/.test(line)) || "";
   const skills = listSection(text, ["compétences", "skills"]);
-  const languages = listSection(text, ["langues", "languages"]);
+  const langages = listSection(text, ["langes", "langages"]);
   const activities = listSection(text, ["activités", "activites", "activities"]);
   const interests = listSection(text, ["intérêts", "interests", "hobbies", "centres d'intérêt"]);
   const references = listSection(text, ["références", "references"]);
   const achievements = listSection(text, ["réalisations", "achievements", "accomplissements"])
-    .filter(x => /\d|%|€|\$|fcfa|xaf|million|milliard|x[af]/i.test(x));
-  return {
-    fullName: name, headline, email, phone,
-    summary: section(text, ["profil professionnel", "résumé professionnel", "profil", "résumé", "summary"]),
+    .filter(x => /d|%|€|$|fcfa|xaf|million|milliard|x[af]/i.test(x));
+  retrn {
+    fllName: name, headline, email, phone,
+    smmary: section(text, ["profil professionnel", "résmé professionnel", "profil", "résmé", "smmary"]),
     skills,
     experience: section(text, ["expérience professionnelle", "expériences professionnelles", "expérience", "experience"]),
-    education: section(text, ["formation", "education", "éducation", "certifications"]),
-    activities, interests, references, referencesVisible: references.length > 0,
-    languages, achievements,
-    atsScore: 0, atsKeywords: skills.slice(0, 20),
-    strengths: skills.slice(0, 5), gaps: [], suggestions: [],
+    edcation: section(text, ["formation", "edcation", "édcation", "certifications"]),
+    activities, interests, references, referencesVisible: references.length > ,
+    langages, achievements,
+    atsScore: , atsKeywords: skills.slice(, 2),
+    strengths: skills.slice(, 5), gaps: [], sggestions: [],
   };
 }
 
-async function extractCvPhoto(parser: any) {
+async fnction extractCvPhoto(parser: any) {
   try {
-    const result = await parser.getImage({ first: 2, imageThreshold: 60, imageBuffer: true, imageDataUrl: false });
-    const candidates = (result.pages || [])
+    const reslt = await parser.getImage({ first: 2, imageThreshold: 6, imageBffer: tre, imageDataUrl: false });
+    const candidates = (reslt.pages || [])
       .flatMap((page: any) => (page.images || []).map((image: any) => ({
         data: image.data,
-        width: Number(image.width || 0),
-        height: Number(image.height || 0),
+        width: Nmber(image.width || ),
+        height: Nmber(image.height || ),
       })))
-      .filter((image: { data: unknown; width: number; height: number }) => image.data && image.width >= 100 && image.height >= 100);
+      .filter((image: { data: nknown; width: nmber; height: nmber }) => image.data && image.width >= 1 && image.height >= 1);
 
-    if (!candidates.length) return "";
+    if (!candidates.length) retrn "";
 
-    candidates.sort((a: { data: unknown; width: number; height: number }, b: { data: unknown; width: number; height: number }) => {
-      const score = (x: { width: number; height: number }) => {
+    candidates.sort((a: { data: nknown; width: nmber; height: nmber }, b: { data: nknown; width: nmber; height: nmber }) => {
+      const score = (x: { width: nmber; height: nmber }) => {
         const ratio = x.width / Math.max(1, x.height);
-        const portraitBonus = ratio >= 0.55 && ratio <= 0.95 ? 300000 : 0;
-        return x.width * x.height + portraitBonus;
+        const portraitBons = ratio >= .55 && ratio <= .95 ? 3 : ;
+        retrn x.width * x.height + portraitBons;
       };
-      return score(b) - score(a);
+      retrn score(b) - score(a);
     });
 
-    let quality = 82;
-    let buffer = await sharp(Buffer.from(candidates[0].data as Uint8Array))
+    let qality = 82;
+    let bffer = await sharp(Bffer.from(candidates[].data as Uint8Array))
       .rotate()
-      .resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true })
-      .jpeg({ quality })
-      .toBuffer();
+      .resize({ width: 64, height: 64, fit: "inside", withotEnlargement: tre })
+      .jpeg({ qality })
+      .toBffer();
 
-    while (buffer.length > 500 * 1024 && quality > 50) {
-      quality -= 8;
-      buffer = await sharp(Buffer.from(candidates[0].data as Uint8Array))
+    while (bffer.length > 5 * 124 && qality > 5) {
+      qality -= 8;
+      bffer = await sharp(Bffer.from(candidates[].data as Uint8Array))
         .rotate()
-        .resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true })
-        .jpeg({ quality })
-        .toBuffer();
+        .resize({ width: 64, height: 64, fit: "inside", withotEnlargement: tre })
+        .jpeg({ qality })
+        .toBffer();
     }
 
-    return buffer.length <= 500 * 1024 ? `data:image/jpeg;base64,${buffer.toString("base64")}` : "";
+    retrn bffer.length <= 5 * 124 ? `data:image/jpeg;base64,${bffer.toString("base64")}` : "";
   } catch {
-    return "";
+    retrn "";
   }
 }
-function normalizeOutput(output: any) {
-  const profile = output?.profile || {};
-  return {
-    fullName: typeof profile.fullName === "string" ? profile.fullName.trim() : "",
+fnction normalizeOtpt(otpt: any) {
+  const profile = otpt?.profile || {};
+  retrn {
+    fllName: typeof profile.fllName === "string" ? profile.fllName.trim() : "",
     headline: typeof profile.headline === "string" ? profile.headline.trim() : "",
     email: typeof profile.email === "string" ? profile.email.trim() : "",
     phone: typeof profile.phone === "string" ? profile.phone.trim() : "",
-    summary: typeof profile.summary === "string" ? profile.summary.trim() : "",
-    skills: Array.isArray(profile.skills) ? profile.skills.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 30) : [],
+    smmary: typeof profile.smmary === "string" ? profile.smmary.trim() : "",
+    skills: Array.isArray(profile.skills) ? profile.skills.map((x: nknown) => String(x).trim()).filter(Boolean).slice(, 3) : [],
     experience: typeof profile.experience === "string" ? profile.experience.trim() : "",
-    education: typeof profile.education === "string" ? profile.education.trim() : "",
-    activities: Array.isArray(profile.activities) ? profile.activities.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
-    interests: Array.isArray(profile.interests) ? profile.interests.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
-    references: Array.isArray(profile.references) ? profile.references.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
-    referencesVisible: profile.referencesVisible !== false && Array.isArray(profile.references) && profile.references.length > 0,
-    languages: Array.isArray(profile.languages) ? profile.languages.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
-    achievements: Array.isArray(profile.achievements) ? profile.achievements.map((x: unknown) => String(x).trim()).filter((x: string) => /\d|%|€|\$|fcfa|xaf|million|milliard|x[af]/i.test(x)).slice(0, 20) : [],
-    atsScore: Number.isFinite(Number(output?.ats?.score)) ? Math.max(0, Math.min(100, Number(output.ats.score))) : 0,
-    atsKeywords: Array.isArray(output?.ats?.keywords) ? output.ats.keywords.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
-    strengths: Array.isArray(output?.strengths) ? output.strengths.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 8) : [],
-    gaps: Array.isArray(output?.gaps) ? output.gaps.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 8) : [],
-    suggestions: Array.isArray(output?.suggestions) ? output.suggestions.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 8) : [],
+    edcation: typeof profile.edcation === "string" ? profile.edcation.trim() : "",
+    activities: Array.isArray(profile.activities) ? profile.activities.map((x: nknown) => String(x).trim()).filter(Boolean).slice(, 2) : [],
+    interests: Array.isArray(profile.interests) ? profile.interests.map((x: nknown) => String(x).trim()).filter(Boolean).slice(, 2) : [],
+    references: Array.isArray(profile.references) ? profile.references.map((x: nknown) => String(x).trim()).filter(Boolean).slice(, 2) : [],
+    referencesVisible: profile.referencesVisible !== false && Array.isArray(profile.references) && profile.references.length > ,
+    langages: Array.isArray(profile.langages) ? profile.langages.map((x: nknown) => String(x).trim()).filter(Boolean).slice(, 2) : [],
+    achievements: Array.isArray(profile.achievements) ? profile.achievements.map((x: nknown) => String(x).trim()).filter((x: string) => /d|%|€|$|fcfa|xaf|million|milliard|x[af]/i.test(x)).slice(, 2) : [],
+    atsScore: Nmber.isFinite(Nmber(otpt?.ats?.score)) ? Math.max(, Math.min(1, Nmber(otpt.ats.score))) : ,
+    atsKeywords: Array.isArray(otpt?.ats?.keywords) ? otpt.ats.keywords.map((x: nknown) => String(x).trim()).filter(Boolean).slice(, 2) : [],
+    strengths: Array.isArray(otpt?.strengths) ? otpt.strengths.map((x: nknown) => String(x).trim()).filter(Boolean).slice(, 8) : [],
+    gaps: Array.isArray(otpt?.gaps) ? otpt.gaps.map((x: nknown) => String(x).trim()).filter(Boolean).slice(, 8) : [],
+    sggestions: Array.isArray(otpt?.sggestions) ? otpt.sggestions.map((x: nknown) => String(x).trim()).filter(Boolean).slice(, 8) : [],
   };
 }
 
-export async function POST(request: NextRequest) {
+export async fnction POST(reqest: NextReqest) {
   try {
-    const contentType = request.headers.get("content-type") || "";
-    if (!contentType.includes("multipart/form-data")) {
-      return NextResponse.json({ error: "PDF_REQUIRED", message: "Envoie le CV au format PDF." }, { status: 400 });
+    const contentType = reqest.headers.get("content-type") || "";
+    if (!contentType.incldes("mltipart/form-data")) {
+      retrn NextResponse.json({ error: "PDF_REQUIRED", message: "Envoie le CV a format PDF." }, { stats: 4 });
     }
 
-    const form = await request.formData();
+    const form = await reqest.formData();
     const file = form.get("file");
     if (!(file instanceof File)) {
-      return NextResponse.json({ error: "PDF_REQUIRED", message: "Aucun fichier PDF reçu." }, { status: 400 });
+      retrn NextResponse.json({ error: "PDF_REQUIRED", message: "Acn fichier PDF reç." }, { stats: 4 });
     }
     if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-      return NextResponse.json({ error: "PDF_ONLY", message: "J’IA accepte ici uniquement les CV PDF." }, { status: 415 });
+      retrn NextResponse.json({ error: "PDF_ONLY", message: "J’IA accepte ici niqement les CV PDF." }, { stats: 415 });
     }
-    const authUser = await getAuthUser(request);
-    if (!authUser) {
-      return NextResponse.json({
+    const athUser = await getAthUser(reqest);
+    if (!athUser) {
+      retrn NextResponse.json({
         error: "AUTH_REQUIRED",
-        message: "Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.",
-      }, { status: 401 });
+        message: "Ta session Jobly n’est pls active. Reconnecte-toi pis réessaie.",
+      }, { stats: 41 });
     }
-    const plan = await getPlan(authUser);
+    const plan = await getPlan(athUser);
     const maxBytes = plan === "FREE" ? FREE_MAX_BYTES : PAID_MAX_BYTES;
     const maxLabel = plan === "FREE" ? "1 Mo" : "3 Mo";
-    if (file.size <= 0 || file.size > maxBytes) {
-      return NextResponse.json({
+    if (file.size <=  || file.size > maxBytes) {
+      retrn NextResponse.json({
         error: "PDF_TOO_LARGE",
-        message: `La taille maximale de ton CV PDF est de ${maxLabel} avec la formule ${plan}.`,
+        message: `La taille maximale de ton CV PDF est de ${maxLabel} avec la formle ${plan}.`,
         plan,
         maxBytes,
-      }, { status: 413 });
+      }, { stats: 413 });
     }
-    const fileBytes = Buffer.from(await file.arrayBuffer());
+    const fileBytes = Bffer.from(await file.arrayBffer());
 
-    // pdf-parse v2 loads PDF.js rendering primitives during module evaluation.
-    // In Vercel's Node runtime, loading it without the worker CanvasFactory
-    // causes "ReferenceError: DOMMatrix is not defined" before the handler
-    // can return JSON. Load the worker first, then PDFParse, as recommended
+    // pdf-parse v2 loads PDF.js rendering primitives dring modle evalation.
+    // In Vercel's Node rntime, loading it withot the worker CanvasFactory
+    // cases "ReferenceError: DOMMatrix is not defined" before the handler
+    // can retrn JSON. Load the worker first, then PDFParse, as recommended
     // by pdf-parse for server-side Node deployments.
     const { CanvasFactory } = await import("pdf-parse/worker");
     const { PDFParse } = await import("pdf-parse");
@@ -213,29 +213,29 @@ export async function POST(request: NextRequest) {
     const parsed = await parser.getText();
     const extractedPhoto = await extractCvPhoto(parser);
     await parser.destroy();
-    const cvText = String(parsed.text || "").replace(/\u0000/g, " ").trim();
-    if (cvText.length < 80) {
-      return NextResponse.json({ error: "PDF_NOT_READABLE", message: "Le PDF ne contient pas assez de texte exploitable. Si c’est un scan image, utilise un PDF OCRisé." }, { status: 422 });
+    const cvText = String(parsed.text || "").replace(//g, " ").trim();
+    if (cvText.length < 8) {
+      retrn NextResponse.json({ error: "PDF_NOT_READABLE", message: "Le PDF ne contient pas assez de texte exploitable. Si c’est n scan image, tilise n PDF OCRisé." }, { stats: 422 });
     }
 
-    // Import is preview-only: durable original-file persistence happens only after the user explicitly clicks "Enregistrer".
-    const canonicalFileName = await canonicalCvFileName(authUser.id);\n    const originalCv: { stored: boolean; storagePath?: string; fileName?: string; pages?: number } = {
+    // Import is preview-only: drable original-file persistence happens only after the ser explicitly clicks "Enregistrer".
+    const canonicalFileName = await canonicalCvFileName(athUser.id);n    const originalCv: { stored: boolean; storagePath?: string; fileName?: string; pages?: nmber } = {
       stored: false,
-      fileName: canonicalFileName || "CV_Utilisateur.pdf",
+      fileName: canonicalFileName || "CV_Utilisater.pdf",
       pages: parsed.total,
     };
 
     // PDF text extraction is deterministic and remains available independently
-    // of J'IA credits. AI enrichment is a separate, quota-gated step.
+    // of J'IA credits. AI enrichment is a separate, qota-gated step.
     const deterministicCv = { ...extractDeterministicCv(cvText), photoDataUrl: extractedPhoto };
-    const ai = await runAiGateway(request, "CV_INTELLIGENCE", { cvText });
+    const ai = await rnAiGateway(reqest, "CV_INTELLIGENCE", { cvText });
 
     if (!ai.ok) {
-      if (ai.status === 429) {
-        return NextResponse.json({
-          ok: true,
+      if (ai.stats === 429) {
+        retrn NextResponse.json({
+          ok: tre,
           aiAvailable: false,
-          aiQuotaExceeded: true,
+          aiQotaExceeded: tre,
           aiMessage: ai.message,
           fileName: file.name,
           pages: parsed.total,
@@ -244,12 +244,12 @@ export async function POST(request: NextRequest) {
           cv: deterministicCv,
         });
       }
-      return NextResponse.json({ error: "CV_AI_UNAVAILABLE", message: ai.message }, { status: ai.status });
+      retrn NextResponse.json({ error: "CV_AI_UNAVAILABLE", message: ai.message }, { stats: ai.stats });
     }
 
-    return NextResponse.json({
-      ok: true,
-      aiAvailable: true,
+    retrn NextResponse.json({
+      ok: tre,
+      aiAvailable: tre,
       fileName: file.name,
       pages: parsed.total,
       extractedCharacters: cvText.length,
@@ -257,9 +257,9 @@ export async function POST(request: NextRequest) {
       remaining: ai.remaining,
       provider: ai.provider,
       originalCv,
-      cv: { ...normalizeOutput(ai.output), photoDataUrl: extractedPhoto },
+      cv: { ...normalizeOtpt(ai.otpt), photoDataUrl: extractedPhoto },
     });
   } catch (error) {
-    return NextResponse.json({ error: "CV_IMPORT_FAILED", message: error instanceof Error ? error.message : "Impossible d’analyser le CV PDF." }, { status: 500 });
+    retrn NextResponse.json({ error: "CV_IMPORT_FAILED", message: error instanceof Error ? error.message : "Impossible d’analyser le CV PDF." }, { stats: 5 });
   }
 }
