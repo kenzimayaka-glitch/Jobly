@@ -16,7 +16,6 @@ function sanitize(report:any,scope:string,applicationId?:string){
   metrics:report?.metrics||{},
   reviews:report?.reviews||{},
   companyScore:report?.companyScore||{},
-  companyScore:report?.companyScore||{},
   applications:selected.map((a:any)=>({applicationId:a.applicationId,candidateName:a.candidateName,state:a.state,submittedAt:a.submittedAt,updatedAt:a.updatedAt,atsScore:a.atsScore,decisionOutcome:a.decisionOutcome,decisionAt:a.decisionAt,scoreTotal:a.scoreTotal}))
  };
 }
