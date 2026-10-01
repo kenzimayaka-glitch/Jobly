@@ -298,7 +298,8 @@ export async function renderXlsx(data: OfficialListingData): Promise<Buffer> {
   for (const post of data.posts) {
     const ws = workbook.addWorksheet(post.title.slice(0, 31) || "Poste");
     ws.columns = [{ header: "N°", key: "n", width: 8 }, { header: "Nom et Prénom", key: "name", width: 46 }, { header: "Dossier", key: "dossier", width: 24 }];
-    namesForPost(post).forEach((name, i) => ws.addRow({ n: i + 1, name, dossier: post.candidates[i]?.dossierNumber || "" }));
+    const orderedCandidates = [...post.candidates].sort((a, b) => safeName(a).localeCompare(safeName(b), "fr", { sensitivity: "base" }));
+    orderedCandidates.forEach((candidate, i) => ws.addRow({ n: i + 1, name: safeName(candidate), dossier: candidate.dossierNumber }));
     ws.views = [{ state: "frozen", ySplit: 1 }];
     ws.autoFilter = { from: "A1", to: "C1" };
     ws.protect("JOBLY_OFFICIAL_LISTING", { selectLockedCells: true, selectUnlockedCells: true });
