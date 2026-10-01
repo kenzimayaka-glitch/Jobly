@@ -1,7 +1,17 @@
 import type {SourceEvidence} from "./types";
-const previous=new Map<string,string>();
-export function detectChanges(sources:SourceEvidence[]){
+
+const previousByQuery=new Map<string,Set<string>>();
+
+export function detectChanges(query:string,sources:SourceEvidence[]){
+  const current=new Set(sources.map(s=>s.url));
+  const previous=previousByQuery.get(query);
   const changes:Array<{url:string;type:"NEW"|"MODIFIED"|"DISAPPEARED"|"STALE"}>=[];
-  for(const s of sources){const old=previous.get(s.url);if(!old)changes.push({url:s.url,type:"NEW"});else if(old!==s.contentHash)changes.push({url:s.url,type:"MODIFIED"});previous.set(s.url,s.contentHash);}
+  if(previous){
+    for(const url of previous) if(!current.has(url)) changes.push({url,type:"DISAPPEARED"});
+  }
+  for(const source of sources){
+    if(!previous||!previous.has(source.url)) changes.push({url:source.url,type:"NEW"});
+  }
+  previousByQuery.set(query,current);
   return changes;
 }
