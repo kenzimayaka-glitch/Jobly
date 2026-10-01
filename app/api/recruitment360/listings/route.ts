@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import crypto from "node:crypto";\nimport { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
 import {
   checksum,
@@ -94,7 +94,7 @@ async function getOrCreatePublicLink(
   if (block?.publicUrl) {
     const match = String(block.publicUrl).match(/\/public\/recruitment-listing\/([^/?#]+)$/);
     if (match?.[1]) {
-      const tokenHash = require("node:crypto").createHash("md5").update(match[1]).digest("hex");
+      const tokenHash = crypto.createHash("md5").update(match[1]).digest("hex");
       const { data: activeLink } = await supabase
         .from("RecruitmentListingPublicLink")
         .select("id,expiresAt,stage,theme")
@@ -171,7 +171,7 @@ async function loadListing(
 
   const publicLink = await getOrCreatePublicLink(supabase, versionId, actorUserId, stage, theme, origin);
   const qrPayload = publicLink.url;
-  const canonicalChecksum = require("node:crypto").createHash("sha256").update(JSON.stringify({
+  const canonicalChecksum = crypto.createHash("sha256").update(JSON.stringify({
     defaultText: "Propulsé par Jobly",
     publicUrl: publicLink.url,
     qrPayload,
