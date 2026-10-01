@@ -241,7 +241,7 @@ create or replace function public.recruitment360_lot6_finalize_decision(
  p_application_id uuid,p_actor_user_id text,p_outcome text,p_rationale text,p_next_action text default null,
  p_score_total numeric default null,p_score_breakdown jsonb default '{}'::jsonb
 ) returns public."RecruitmentDecision" language plpgsql security definer set search_path='' as $$
-declare v_r public."Recruitment360";v_d public."RecruitmentDecision";v_state text;v_old text;v_policy public."RecruitmentDecisionPolicy";
+declare v_r public."Recruitment360";v_d public."RecruitmentDecision";v_state text;v_old text;v_policy public."RecruitmentDecisionPolicy";v_did uuid;
 begin
  if p_outcome not in('OFFER','REJECTED','POOL') then raise exception 'INVALID_OUTCOME'; end if;
  if coalesce(length(trim(p_rationale)),0)<5 then raise exception 'DECISION_RATIONALE_REQUIRED'; end if;
@@ -252,9 +252,11 @@ begin
  select "currentState" into v_state from public."RecruitmentApplicationState" where "applicationId"=p_application_id for update;
  if v_state not in('SELECTED','TEST','INTERVIEW','FINALIST','OFFER','POOL') then raise exception 'INVALID_DECISION_STAGE'; end if;
  select * into v_policy from public."RecruitmentDecisionPolicy" where "recruitmentId"=v_r.id;
+ select id into v_did from public."RecruitmentDecision" where "applicationId"=p_application_id;
  if p_outcome='OFFER' and coalesce(v_policy."requireReferences",false) and exists(select 1 from public."RecruitmentDecisionReference" ref where ref."applicationId"=p_application_id and ref.status not in('VERIFIED')) then raise exception 'REFERENCES_REQUIRED'; end if;
- if p_outcome='OFFER' and coalesce(v_policy."requireTwoStepApproval",false) and exists(select 1 from public."RecruitmentDecisionApproval" ap where ap."decisionId"=(select d.id from public."RecruitmentDecision" d where d."applicationId"=p_application_id) and ap.role='HR' and ap.status='REJECTED') then raise exception 'HR_APPROVAL_REJECTED'; end if;
- if p_outcome='OFFER' and coalesce(v_policy."requireTwoStepApproval",false) and not exists(select 1 from public."RecruitmentDecisionApproval" ap where ap."decisionId"=(select d.id from public."RecruitmentDecision" d where d."applicationId"=p_application_id) and ap.role='HR' and ap.status='APPROVED') then raise exception 'HR_APPROVAL_REQUIRED'; end if;
+ if p_outcome='OFFER' and coalesce(v_policy."requireTwoStepApproval",false) and not exists(select 1 from public."RecruitmentDecisionApproval" ap where ap."decisionId"=v_did and ap.role='HR' and ap.status='APPROVED') then raise exception 'HR_APPROVAL_REQUIRED'; end if;
+ if p_outcome='OFFER' and coalesce(v_policy."requireTwoStepApproval",false) and not exists(select 1 from public."RecruitmentDecisionApproval" ap where ap."decisionId"=v_did and ap.role='DG' and ap.status='APPROVED') then raise exception 'DG_APPROVAL_REQUIRED'; end if;
+ if p_outcome='OFFER' and coalesce(v_policy."requireTwoStepApproval",false) and exists(select 1 from public."RecruitmentDecisionApproval" ap where ap."decisionId"=v_did and ap.role in('HR','DG') and ap.status='REJECTED') then raise exception 'APPROVAL_REJECTED'; end if;
  select outcome into v_old from public."RecruitmentDecision" where "applicationId"=p_application_id for update;
  if v_old='HIRED' or (v_old='REJECTED' and p_outcome<>'REJECTED') then raise exception 'DECISION_LOCKED'; end if;
  insert into public."RecruitmentDecision"("recruitmentId","applicationId",outcome,"decidedByUserId",rationale,"nextAction","scoreTotal","scoreBreakdown")
@@ -269,11 +271,9 @@ begin
    values(v_d.id,v_r.id,p_application_id,coalesce((select "salaryExpectation" from public."Application" where id=p_application_id),coalesce(v_policy."salaryMin",0)),v_policy."salaryMin",v_policy."salaryMax",coalesce(v_policy."salaryCurrency",'XAF'),p_actor_user_id)
    on conflict("decisionId") do nothing;
    update public."RecruitmentApplicationState" set "currentState"='POOL',"stepNumber"=6,"lastTransitionAt"=now(),"updatedAt"=now()
-   where "applicationId"<>p_application_id and "applicationId" in(select a2.id from public."Application" a2 join public."Recruitment360" r2 on r2."recruiterJobId"=a2."recruiterJobId" where r2.id=v_r.id)
-   and "currentState" in('FINALIST','INTERVIEW','SELECTED');
+   where "applicationId"<>p_application_id and "applicationId" in(select a2.id from public."Application" a2 join public."Recruitment360" r2 on r2."recruiterJobId"=a2."recruiterJobId" where r2.id=v_r.id) and "currentState" in('FINALIST','INTERVIEW','SELECTED');
    update public."Application" set "recruitment360Status"='POOL',"updatedAt"=now()
-   where id<>p_application_id and "recruiterJobId"=v_r."recruiterJobId"
-   and id in(select "applicationId" from public."RecruitmentApplicationState" where "currentState"='POOL');
+   where id<>p_application_id and "recruiterJobId"=v_r."recruiterJobId" and id in(select "applicationId" from public."RecruitmentApplicationState" where "currentState"='POOL');
  elsif p_outcome='POOL' then
    update public."RecruitmentApplicationState" set "currentState"='POOL',"stepNumber"=6,"lastTransitionAt"=now(),"updatedAt"=now() where "applicationId"=p_application_id;
    update public."Application" set "recruitment360Status"='POOL',"updatedAt"=now() where id=p_application_id;
@@ -285,6 +285,9 @@ begin
  values(v_r.id,p_application_id,p_actor_user_id,'DECISION_FINALIZED',v_state,p_outcome,jsonb_build_object('outcome',p_outcome,'nextAction',p_next_action,'scoreTotal',p_score_total));
  return v_d;
 end; $$;
+
+revoke execute on function public.recruitment360_lot6_finalize_decision(uuid,text,text,text,text,numeric,jsonb) from public,anon,authenticated;
+grant execute on function public.recruitment360_lot6_finalize_decision(uuid,text,text,text,text,numeric,jsonb) to service_role;
 
 create or replace function public.recruitment360_lot6_send_offer(
  p_offer_id uuid,p_actor_user_id text,p_salary integer,p_deadline timestamptz,p_channel text,p_message text
@@ -311,7 +314,7 @@ end; $$;
 create or replace function public.recruitment360_lot6_respond_offer(
  p_offer_id uuid,p_actor_user_id text,p_action text,p_salary integer default null,p_channel text default 'JOBLY',p_message text default null,p_service_date date default null
 ) returns public."RecruitmentOffer" language plpgsql security definer set search_path='' as $$
-declare o public."RecruitmentOffer";a public."Application";r public."Recruitment360";
+declare o public."RecruitmentOffer";a public."Application";r public."Recruitment360";v_recruiter_user uuid;
 begin
  select * into o from public."RecruitmentOffer" where id=p_offer_id for update;
  if not found then raise exception 'OFFER_NOT_FOUND'; end if;
@@ -321,6 +324,7 @@ begin
  if o."responseDeadline" is not null and o."responseDeadline"<now() then update public."RecruitmentOffer" set status='EXPIRED',"updatedAt"=now() where id=o.id; raise exception 'OFFER_EXPIRED'; end if;
  if p_action not in('COUNTER','ACCEPT','DECLINE') then raise exception 'INVALID_OFFER_ACTION'; end if;
  if p_channel not in('EMAIL','WHATSAPP','CALL','JOBLY') then raise exception 'INVALID_CHANNEL'; end if;
+ select * into r from public."Recruitment360" where id=o."recruitmentId" for update;
  if p_action='COUNTER' then
    if p_salary is null then raise exception 'COUNTER_SALARY_REQUIRED'; end if;
    if p_salary<coalesce(o."salaryMin",0) or (o."salaryMax" is not null and p_salary>o."salaryMax") then raise exception 'SALARY_OUT_OF_BOUNDS'; end if;
@@ -334,20 +338,28 @@ begin
    update public."RecruitmentOffer" set status='ACCEPTED',"respondedAt"=now(),"serviceDate"=p_service_date,"updatedAt"=now() where id=o.id returning * into o;
    update public."RecruitmentApplicationState" set "currentState"='HIRED',"stepNumber"=8,"lockedAt"=now(),"lastTransitionAt"=now(),"updatedAt"=now() where "applicationId"=o."applicationId";
    update public."Application" set "recruitment360Status"='HIRED',"updatedAt"=now() where id=o."applicationId";
-   select * into r from public."Recruitment360" where id=o."recruitmentId" for update;
    update public."Recruitment360" set "currentState"='COMPLETED',"completedAt"=now(),"updatedAt"=now() where id=r.id;
-   update public."RecruitmentApplicationState" set "currentState"='REJECTED',"stepNumber"=9,"lockedAt"=now(),"lastTransitionAt"=now(),"updatedAt"=now()
-   where "applicationId"<>o."applicationId" and "applicationId" in(select a2.id from public."Application" a2 where a2."recruiterJobId"=r."recruiterJobId") and "currentState"='POOL';
-   update public."Application" set "recruitment360Status"='REJECTED',"updatedAt"=now()
-   where "recruiterJobId"=r."recruiterJobId" and id<>o."applicationId" and "recruitment360Status"='POOL';
+   update public."RecruitmentApplicationState" set "currentState"='REJECTED',"stepNumber"=9,"lockedAt"=now(),"lastTransitionAt"=now(),"updatedAt"=now() where "applicationId"<>o."applicationId" and "applicationId" in(select a2.id from public."Application" a2 where a2."recruiterJobId"=r."recruiterJobId") and "currentState"='POOL';
+   update public."Application" set "recruitment360Status"='REJECTED',"updatedAt"=now() where "recruiterJobId"=r."recruiterJobId" and id<>o."applicationId" and "recruitment360Status"='POOL';
    insert into public."Notification"("userId",type,title,body,link,"entityId","recruitmentId","applicationId","actionType","actionPayload",locale,channels)
    select a2."userId",'RECRUITMENT_DECISION','Candidature clôturée','Le recrutement est terminé. Merci pour votre participation.','/career/recruitment360/'||a2.id,o.id,r.id,a2.id,'OPEN_DECISION',jsonb_build_object('outcome','REJECTED'),coalesce(a2.locale,'fr'),jsonb_build_object('email',true,'push',true,'inApp',true)
    from public."Application" a2 where a2."recruiterJobId"=r."recruiterJobId" and a2.id<>o."applicationId" and a2."userId" is not null and a2."recruitment360Status"='REJECTED';
  end if;
  insert into public."RecruitmentOfferNegotiation"("offerId","actorUserId","actorRole",action,"proposedSalary",channel,message)
  values(o.id,p_actor_user_id,'TALENT',p_action,p_salary,p_channel,coalesce(nullif(trim(p_message),''),case p_action when 'ACCEPT' then 'Offre acceptée.' when 'DECLINE' then 'Offre déclinée.' else 'Contre-proposition envoyée.' end));
+ select "recruiterUserId" into v_recruiter_user from public."RecruiterJob" where id=r."recruiterJobId";
+ if v_recruiter_user is not null then
+   insert into public."Notification"("userId",type,title,body,link,"entityId","recruitmentId","applicationId","actionType","actionPayload",locale,channels)
+   values(v_recruiter_user,'RECRUITMENT_OFFER_RESPONSE',
+     case p_action when 'ACCEPT' then 'Offre acceptée' when 'DECLINE' then 'Offre déclinée' else 'Contre-proposition reçue' end,
+     case p_action when 'ACCEPT' then 'Le candidat a accepté l’offre.' when 'DECLINE' then 'Le candidat a décliné l’offre.' else 'Le candidat a envoyé une contre-proposition.' end,
+     '/recruiter/decisions',o.id,r.id,o."applicationId",'OPEN_DECISION',jsonb_build_object('offerId',o.id,'action',p_action,'salary',p_salary),coalesce(a.locale,'fr'),jsonb_build_object('email',true,'push',true,'inApp',true));
+ end if;
  return o;
 end; $$;
+
+revoke execute on function public.recruitment360_lot6_respond_offer(uuid,text,text,integer,text,text,date) from public,anon,authenticated;
+grant execute on function public.recruitment360_lot6_respond_offer(uuid,text,text,integer,text,text,date) to service_role;
 
 create or replace function public.recruitment360_lot6_get_workspace(p_application_id uuid,p_actor_user_id text)
 returns jsonb language plpgsql security definer set search_path='' as $$
