@@ -7,6 +7,7 @@ import PageHeader from "../../../components/PageHeader";
 import BottomNav, { TALENT_NAV } from "../../../components/BottomNav";
 import TalentBackground from "../../../components/TalentBackground";
 import { PremiumDiamond } from "../../../components/ui/PremiumDiamond";
+import JoblyToast from "../../../components/JoblyToast";
 
 type CV = {
   id: string; name: string; source: string; fullName: string; headline: string; email: string; phone: string;
@@ -16,6 +17,13 @@ type CV = {
   ats: number; createdAt: string;
 };
 const KEY = "jobly:talent-cvs";
+const CV_TEMPLATES = [
+  { id: "classic", name: "Jobly Classic", access: "FREE", description: "Sobre, lisible et ATS-friendly." },
+  { id: "modern", name: "Jobly Modern", access: "FREE", description: "Équilibre visuel et impact professionnel." },
+  { id: "executive", name: "Jobly Executive", access: "PREMIUM", description: "Hiérarchie premium pour profils expérimentés." },
+  { id: "impact", name: "Jobly Impact", access: "PREMIUM", description: "Mise en avant des réalisations et résultats." },
+  { id: "minimal", name: "Jobly Minimal", access: "PREMIUM", description: "Élégant, dense et très lisible." },
+] as const;
 const empty: CV = { id: "", name: "Mon CV Jobly", source: "Créé dans Jobly", fullName: "", headline: "", email: "", phone: "", summary: "", skills: "", experience: "", education: "", activities: [], interests: [], references: [], referencesVisible: false, languages: [], achievements: [], atsKeywords: [], ats: 0, createdAt: "" };
 
 function score(c: CV) {
@@ -40,6 +48,8 @@ export default function TalentCVs() {
   const [extracted, setExtracted] = useState<any>(null);
   const [originalMeta, setOriginalMeta] = useState<{ pages?: number; storagePath?: string } | null>(null);
   const [message, setMessage] = useState("");
+  const [messageKind, setMessageKind] = useState<"info" | "error" | "success">("info");
+  const [templateId, setTemplateId] = useState("classic");
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!message) return;
@@ -58,6 +68,8 @@ export default function TalentCVs() {
   const [cvPaymentId, setCvPaymentId] = useState("");
   const [cvPaymentMessage, setCvPaymentMessage] = useState("");
   const [previewVersion, setPreviewVersion] = useState<"jobly" | "ats" | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const activeTemplate = CV_TEMPLATES.find(item => item.id === templateId) || CV_TEMPLATES[0];
 
   useEffect(() => {
     try { setCvs(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch {}
@@ -70,6 +82,21 @@ export default function TalentCVs() {
 
   const ats = useMemo(() => score(cv), [cv]);
   const update = (k: keyof CV, v: string) => setCv(x => ({ ...x, [k]: v }));
+  const notify = (text: string, kind: "info" | "error" | "success" = "info") => { setMessageKind(kind); setMessage(text); };
+  async function removeImportedCv() {
+    setBusy(true);
+    try {
+      const token = await getAccessToken();
+      if (originalMeta?.storagePath && token) {
+        const res = await fetch("/api/talent/cv/original", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Suppression impossible.");
+      }
+      setFile(""); setOriginalFile(null); setOriginalMeta(null); setExtracted(null);
+      setCv({ ...empty, id: cv.id, createdAt: cv.createdAt });
+      notify("Le CV importé a été supprimé. Tu peux en importer un nouveau.", "success");
+    } catch (err) { notify(err instanceof Error ? err.message : "Suppression impossible.", "error"); }
+    finally { setBusy(false); }
+  }
 
   async function getAccessToken() {
     try {
@@ -85,7 +112,7 @@ export default function TalentCVs() {
   }
 
   async function extractIntoFields() {
-    if (!extracted) { setMessage("Importe d’abord ton CV PDF."); return; }
+    if (!extracted) { notify("Importe d’abord ton CV PDF.", "error"); return; }
     setBusy(true);
     try {
       const next: CV = {
@@ -109,8 +136,8 @@ export default function TalentCVs() {
         ats: Number(extracted.atsScore || 0) || score(cv),
       };
       setCv(next);
-      setMessage("Données extraites : les champs sont remplis. Vérifie-les puis clique sur « Enregistrer » pour les conserver.");
-    } catch (err) { setMessage(err instanceof Error ? err.message : "Extraction impossible."); }
+      notify("Données extraites : les champs sont remplis. Vérifie-les puis clique sur « Enregistrer » pour les conserver.", "success");
+    } catch (err) { notify(err instanceof Error ? err.message : "Extraction impossible.", "error"); }
     finally { setBusy(false); }
   }
 
@@ -136,15 +163,15 @@ export default function TalentCVs() {
       }
       const all = [next, ...cvs.filter(x => x.id !== next.id)];
       setCvs(all); localStorage.setItem(KEY, JSON.stringify(all)); setCv(next);
-      setMessage("CV enregistré : version Jobly, données de profil et document original sont conservés.");
-    } catch (err) { setMessage(err instanceof Error ? err.message : "Enregistrement impossible."); }
+      notify("CV enregistré : version Jobly, données de profil et document original sont conservés.", "success");
+    } catch (err) { notify(err instanceof Error ? err.message : "Enregistrement impossible.", "error"); }
     finally { setBusy(false); }
   }
 
   async function importPdf(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    setFile(f.name); setBusy(true); setMessage("J’IA lit ton CV et prépare les champs…");
+    setFile(f.name); setBusy(true); notify("J’IA lit ton CV et prépare les champs…");
     try {
       const form = new FormData(); form.append("file", f);
       let token = await getAccessToken();
@@ -169,8 +196,8 @@ export default function TalentCVs() {
       setExtracted(data.cv);
       setOriginalMeta({ pages: data.pages });
       setOriginalFile(f);
-      setMessage(`CV importé en prévisualisation. Clique sur « Extraire les données », vérifie les champs, puis « Enregistrer » pour conserver le CV. ${data.credits ?? 0} crédit(s) IA utilisé(s).`);
-    } catch (err) { setMessage(err instanceof Error ? err.message : "Import impossible."); }
+      setFile(data.fileName || f.name); notify(`CV importé en prévisualisation. Clique sur « Extraire les données », vérifie les champs, puis « Enregistrer » pour conserver le CV. ${data.credits ?? 0} crédit(s) IA utilisé(s).`, "success");
+    } catch (err) { notify(err instanceof Error ? err.message : "Import impossible.", "error"); }
     finally { setBusy(false); }
   }
 
@@ -203,8 +230,8 @@ export default function TalentCVs() {
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `${cv.fullName || "CV-Jobly"}-${service === "OPTIMIZED" ? "Jobly-optimise" : "ATS"}.pdf`; a.click(); URL.revokeObjectURL(url);
-      setMessage(service === "OPTIMIZED" ? "CV Jobly optimisé téléchargé." : "CV ATS téléchargé.");
-    } catch (err) { setMessage(err instanceof Error ? err.message : "Téléchargement impossible."); }
+      notify(service === "OPTIMIZED" ? "CV Jobly optimisé téléchargé." : "CV ATS téléchargé.", "success");
+    } catch (err) { notify(err instanceof Error ? err.message : "Téléchargement impossible.", "error"); }
     finally { setBusy(false); }
   }
 
@@ -260,7 +287,7 @@ export default function TalentCVs() {
       }
       setCvPaymentOpen(false);
       setCvPaymentId("");
-      setMessage("Paiement confirmé. Préparation du CV ATS…");
+      notify("Paiement confirmé. Préparation du CV…", "success");
       await exportPdf(cvPaymentFeature === "CV_OPTIMIZED_DOWNLOAD" ? "OPTIMIZED" : "ATS", cvPaymentId);
     } catch (err) {
       setCvPaymentMessage(err instanceof Error ? err.message : "Vérification impossible.");
@@ -271,6 +298,7 @@ export default function TalentCVs() {
 
   function openVersion(version: "jobly" | "ats") {
     setPreviewVersion(version);
+    setPreviewOpen(true);
   }
 
 
@@ -287,7 +315,7 @@ export default function TalentCVs() {
               <button type="button" onClick={extractIntoFields} disabled={!extracted || busy} className="rounded-full bg-[#BFFF00] px-4 py-3 text-xs font-black text-navy disabled:cursor-not-allowed disabled:opacity-40">Extraire les données</button>
             </div>
           </div>
-          {file && <p className="mt-3 text-xs font-bold text-jobly-blue">Fichier : {file}{originalMeta?.pages ? ` · ${originalMeta.pages} page(s)` : ""}</p>}
+          {file && <div className="mt-3 flex items-center gap-2 text-xs font-bold text-jobly-blue"><span className="min-w-0 truncate">Fichier : {file}{originalMeta?.pages ? ` · ${originalMeta.pages} page(s)` : ""}</span><button type="button" onClick={removeImportedCv} disabled={busy} aria-label="Supprimer le CV importé" title="Supprimer le CV importé" className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-red-50 text-red-600 transition hover:bg-red-100 disabled:opacity-50">🗑</button></div>}
           {extracted && <p className="mt-2 text-[11px] font-semibold text-jobly-gray">Données prêtes à être injectées dans les champs correspondants. Le PDF original reste séparé du CV interne Jobly.</p>}
           {originalMeta?.storagePath && <button type="button" onClick={openOriginalCv} disabled={busy || originalBusy} className="mt-3 rounded-xl border border-jobly-blue px-4 py-2 text-xs font-black text-jobly-blue disabled:opacity-50">{originalBusy ? "Ouverture…" : "Ouvrir mon CV original"}</button>}
         </section>
@@ -304,13 +332,18 @@ export default function TalentCVs() {
             <textarea value={cv.skills} onChange={e => update("skills", e.target.value)} placeholder="Compétences (séparées par des virgules)" rows={3} className="mt-3 w-full rounded-xl border px-4 py-3" />
             <textarea value={cv.experience} onChange={e => update("experience", e.target.value)} placeholder="Expériences professionnelles" rows={7} className="mt-3 w-full rounded-xl border px-4 py-3" />
             <textarea value={cv.education} onChange={e => update("education", e.target.value)} placeholder="Formation / certifications" rows={4} className="mt-3 w-full rounded-xl border px-4 py-3" />
-            <div className="mt-4 grid gap-2 sm:grid-cols-3 print:hidden">
-              <button onClick={save} className="rounded-xl bg-jobly-blue py-3 font-black text-white">Enregistrer</button>
-              <button onClick={() => exportPdf("ATS")} disabled={busy} className="rounded-xl bg-[#FFE135] py-3 font-black disabled:opacity-50"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />Télécharger ATS</span>{plan === "FREE" ? <span className="ml-1 text-[10px]">· {cvAtsPaymentAmount.toLocaleString("fr-FR")} FCFA / 2 h</span> : <span className="ml-1 text-[10px]">· inclus</span>}</button>
-              <button onClick={() => exportPdf("OPTIMIZED")} disabled={busy} className="rounded-xl border border-jobly-blue py-3 font-black text-jobly-blue disabled:opacity-50"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />Télécharger CV optimisé</span>{plan === "FREE" ? <span className="ml-1 text-[10px]">· {cvOptimizedPaymentAmount.toLocaleString("fr-FR")} FCFA / 2 h</span> : <span className="ml-1 text-[10px]">· inclus</span>}</button>
-              <button onClick={() => router.push("/career-os")} className="rounded-xl border py-3 font-black">Career OS →</button>
+            <div className="relative mt-4 space-y-2 print:hidden">
+              <button onClick={save} className="w-full rounded-xl bg-jobly-blue py-3 font-black text-white">Enregistrer</button>
+              <button onClick={() => setPreviewOpen(true)} type="button" className="w-full rounded-xl border-2 border-[#0057B8] bg-white py-3 font-black text-[#0057B8]">Voir le CV</button>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <button onClick={() => exportPdf("ATS")} disabled={busy} className="rounded-xl bg-[#FFE135] py-3 font-black disabled:opacity-50"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />Télécharger version ATS</span></button>
+                <button onClick={() => exportPdf("OPTIMIZED")} disabled={busy} className="rounded-xl border border-jobly-blue py-3 font-black text-jobly-blue disabled:opacity-50"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />Télécharger CV optimisé</span></button>
+                <button onClick={() => router.push("/career-os")} className="rounded-xl border py-3 font-black">Career OS →</button>
+              </div>
+              <p className="text-center text-[9px] font-semibold text-jobly-gray">L’accès aux conditions et au tarif s’affiche lorsque tu sélectionnes le téléchargement.</p>
+              {message && <div className="absolute left-full top-0 ml-3 hidden w-[min(92vw,390px)] lg:block"><JoblyToast title={messageKind === "error" ? "Attention" : "Jobly"} message={message} variant={messageKind} placement="inline" onClose={() => setMessage("")} /></div>}
+              {message && <div className="mt-2 lg:hidden"><JoblyToast title={messageKind === "error" ? "Attention" : "Jobly"} message={message} variant={messageKind} placement="inline" onClose={() => setMessage("")} /></div>}
             </div>
-            {message && <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-[120] w-[min(92vw,520px)] -translate-x-1/2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#17212B] shadow-2xl print:hidden">{message}</div>}
 
           </section>
           <aside className="space-y-4 print:hidden">
@@ -324,7 +357,7 @@ export default function TalentCVs() {
         </div>
 
         <section id="cv-print" className="mx-auto max-w-3xl rounded-[8px] bg-white p-8 shadow-sm print:mt-0 print:p-0 print:shadow-none">
-          <h2 className="text-3xl font-black">{cv.fullName || "Nom complet"}</h2><p className="mt-1 text-lg font-bold text-jobly-blue">{cv.headline || "Titre professionnel"}</p><p className="mt-2 text-xs">{[cv.email, cv.phone].filter(Boolean).join(" · ")}</p>
+          <h2 className="text-3xl font-black">{cv.fullName || "Nom complet"}</h2><p className="mt-1 text-lg font-bold text-jobly-blue">{cv.headline || "Titre professionnel"}</p><p className="mt-2 text-xs">{[cv.email, cv.phone].filter(Boolean).join(" · ")}</p><p className="mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{activeTemplate.name}</p>
           {[['Profil', cv.summary], ['Compétences', cv.skills], ['Expérience', cv.experience], ['Formation', cv.education]].map(([h, v]) => v ? <div key={h} className="mt-5"><h3 className="border-b pb-1 text-sm font-black uppercase">{h}</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{v}</p></div> : null)}
         </section>
         {cvPaymentOpen && (
@@ -343,7 +376,7 @@ export default function TalentCVs() {
                 <div className="rounded-2xl bg-[#F7FAFF] p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div><p className="text-xs font-black text-slate-500">Votre formule</p><p className="mt-1 text-lg font-black">{plan}</p></div>
-                    <div className="text-right"><p className="text-xs font-black text-slate-500">Paiement ponctuel</p><p className="mt-1 text-2xl font-black text-jobly-blue">{(cvPaymentFeature === "CV_OPTIMIZED_DOWNLOAD" ? cvOptimizedPaymentAmount : cvAtsPaymentAmount).toLocaleString("fr-FR")} FCFA · accès 2 h</p></div>
+                    <div className="text-right"><p className="text-xs font-black text-slate-500">Paiement ponctuel</p><p className="mt-1 text-2xl font-black text-jobly-blue">{(cvPaymentFeature === "CV_OPTIMIZED_DOWNLOAD" ? cvOptimizedPaymentAmount : cvAtsPaymentAmount).toLocaleString("fr-FR")} FCFA <span className="text-xs font-bold text-slate-500">· accès 2 h</span></p></div>
                   </div>
                   <p className="mt-3 text-xs leading-5 text-slate-600">Ce paiement est ponctuel : il ouvre pendant 2 heures le service CV choisi. Vous pouvez optimiser/convertir et télécharger autant de fois que nécessaire pendant cette fenêtre. Après expiration, un nouveau paiement est requis.</p>
                 </div>
@@ -369,11 +402,11 @@ export default function TalentCVs() {
           </div>
         )}
 
-        {previewVersion && (
-          <div className="fixed inset-0 z-[135] overflow-y-auto bg-slate-950/45 px-4 py-8 print:hidden" role="dialog" aria-modal="true" aria-label={previewVersion === "jobly" ? "Mon CV Jobly" : "Mon CV ATS"}>
-            <div className="mx-auto max-w-3xl rounded-[8px] bg-white p-8 shadow-2xl">
-              <div className="mb-6 flex items-center justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-jobly-gray">Visualisation uniquement</p><h2 className="mt-1 text-2xl font-black">{previewVersion === "jobly" ? "Mon CV Jobly" : "Mon CV ATS"}</h2></div><button type="button" onClick={() => setPreviewVersion(null)} className="rounded-full border px-3 py-2 text-sm font-black">Fermer</button></div>
-              <h3 className="text-3xl font-black">{cv.fullName || "Nom complet"}</h3><p className="mt-1 text-lg font-bold text-jobly-blue">{cv.headline || "Titre professionnel"}</p><p className="mt-2 text-xs">{[cv.email, cv.phone].filter(Boolean).join(" · ")}</p>
+        {message && <div className="relative min-h-0 print:hidden"><JoblyToast title={messageKind === "error" ? "Attention" : "Jobly"} message={message} variant={messageKind} placement="inline" onClose={() => setMessage("")} /></div>}\n        {previewOpen && (
+          <div className="fixed inset-0 z-[135] overflow-y-auto bg-slate-950/45 px-4 py-8 print:hidden" role="dialog" aria-modal="true" aria-label="Visualisation du CV">
+            <div className={`mx-auto max-w-3xl rounded-[8px] bg-white p-8 shadow-2xl ${templateId === "modern" ? "border-t-8 border-[#0057B8]" : templateId === "executive" ? "border-l-8 border-[#FFD60A]" : templateId === "impact" ? "border-t-8 border-[#7C3AED]" : templateId === "minimal" ? "border border-slate-300" : ""}`}>
+              <div className="mb-6 flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-jobly-gray">Visualisation & modèles</p><h2 className="mt-1 text-2xl font-black">Voir le CV</h2></div><button type="button" onClick={() => { setPreviewOpen(false); setPreviewVersion(null); }} className="rounded-full border px-3 py-2 text-sm font-black">Fermer</button></div>\n              <div className="mb-6 grid gap-2 sm:grid-cols-2">{CV_TEMPLATES.map(template => <button key={template.id} type="button" onClick={() => selectTemplate(template.id)} className={`rounded-2xl border p-3 text-left transition ${templateId === template.id ? "border-[#0057B8] bg-[#EEF5FF]" : "border-slate-200 bg-white"}`}><div className="flex items-center justify-between gap-2"><span className="text-sm font-black">{template.name}</span>{template.access === "PREMIUM" && <span className="inline-flex items-center gap-1 text-[10px] font-black text-[#0057B8]"><PremiumDiamond />Premium</span>}</div><p className="mt-1 text-[10px] text-jobly-gray">{template.description}</p></button>)}</div>
+              <div className={`${templateId === "modern" ? "text-center" : templateId === "executive" ? "border-b-2 border-[#FFD60A] pb-4" : ""}`}><h3 className="text-3xl font-black">{cv.fullName || "Nom complet"}</h3><p className="mt-1 text-lg font-bold text-jobly-blue">{cv.headline || "Titre professionnel"}</p></div><p className="mt-2 text-xs">{[cv.email, cv.phone].filter(Boolean).join(" · ")}</p>
               {[["Profil", cv.summary], ["Compétences", cv.skills], ["Expérience", cv.experience], ["Formation", cv.education]].map(([h,v]) => v ? <div key={h} className="mt-5"><h3 className="border-b pb-1 text-sm font-black uppercase">{h}</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{v}</p></div> : null)}
             </div>
           </div>
