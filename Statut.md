@@ -4416,3 +4416,63 @@ La capacité FaceDetector est traitée en progressive enhancement : aucune déte
 **CODÉ + CONNECTÉ + MIGRATION/RLS VÉRIFIÉES ; NON VALIDÉ 10/10 tant que build, lint, typecheck, E2E navigateur et test appareil réel n'ont pas produit de preuves réelles.**
 
 Règle de vérité : absence de sortie réelle = non validé.
+
+
+# CHECKPOINT 01/10/2026 — RECRUTEMENT 360° LOT 9 — APP NATIVE & VISIO INTÉGRÉE
+
+## État réel
+
+Lot 9 développé sur la branche feat/recruitment-360-lot8-reliability. Aucun merge vers main et aucun déploiement Vercel.
+
+### Livré
+
+- Salle vidéo Jobly intégrée à un entretien existant.
+- Provider Jitsi en FREE_TEST, avec domaine configurable et fallback lien externe honnête.
+- Provider LiveKit supporté lorsque JOBLY_VIDEO_PROVIDER=LIVEKIT et LIVEKIT_URL/API_KEY/API_SECRET sont configurés.
+- Token LiveKit signé côté serveur avec durée courte ; aucune clé secrète côté client.
+- Salle persistante par entretien, nom de salle opaque.
+- Présence JOINED/LEFT et durée réelle calculée côté serveur.
+- Consentement d'enregistrement individuel par participant.
+- Enregistrement refusé si les deux participants n'ont pas consenti.
+- Enregistrement désactivé en FREE_TEST.
+- Notes d'entretien réservées au recruteur/jury ; le Talent ne reçoit pas les notes internes.
+- Indicateur de quota LiveKit côté recruteur.
+- Pont natif Capacitor côté web : notifications locales/push et événements pour l'alerte critique/appel entrant.
+- Configuration Capacitor et contrat Android/iOS documentés.
+- A_CONFIGURER.md, PASSAGE_EN_PRODUCTION.md et .env.example mis à jour.
+
+## Preuves réelles
+
+- Migration Lot 9 exécutée sur JOBLY-PROD : succès.
+- 3/3 tables Lot 9 présentes.
+- 3/3 tables Lot 9 ont relrowsecurity=true.
+- recruitment360_lot9_finalize_video : anon=false, authenticated=false, service_role=true.
+- RLS sous authenticated : 0 session vidéo, 0 consentement, 0 note visible.
+- Données Lot 9 initiales : 0 session, 0 consentement, 0 note ; aucune donnée artificielle injectée.
+- Workflow CI Lot 9 ajouté avec install frozen, typecheck, lint et build.
+- GitHub ne retourne actuellement aucune workflow run ni status pour le commit courant ; aucune preuve CI n'est donc déclarée.
+
+## Limites de certification
+
+- pnpm typecheck : NON PROUVÉ.
+- pnpm lint : NON PROUVÉ.
+- pnpm build : NON PROUVÉ.
+- E2E navigateur : NON EXÉCUTÉ.
+- Visio Jitsi réelle : NON EXÉCUTÉE.
+- Visio LiveKit réelle : NON EXÉCUTÉE.
+- Enregistrement réel avec provider compatible : NON EXÉCUTÉ.
+- Test Android réel : NON EXÉCUTÉ.
+- Test iOS réel : NON EXÉCUTÉ.
+- APNs/FCM réels : NON CONFIGURÉS.
+- CallKit/PushKit iOS : NON CONFIGURÉS.
+- Projets Android/iOS Capacitor générés : NON GÉNÉRÉS dans cette session, car le SDK natif et les comptes développeur externes ne sont pas disponibles ici.
+
+## Limite technique importante
+
+La couche web/native bridge est réelle et prépare l'intégration Capacitor, mais la présence d'un pont JS ne constitue pas une preuve d'alarme plein écran Android ou d'écran d'appel entrant iOS. Ces deux capacités exigent les plugins natifs, permissions, signatures et tests sur appareils réels. Jobly ne les prétend pas disponibles tant que ces preuves ne sont pas produites.
+
+## Verdict Lot 9
+
+**CODÉ + MIGRATION/RLS VÉRIFIÉES + VISIO WEB INTÉGRÉE ; NON VALIDÉ 10/10.**
+
+La certification finale reste bloquée par les preuves build/typecheck/lint, E2E, provider vidéo réel et appareils natifs. Règle de vérité : absence de sortie réelle = non validé.
