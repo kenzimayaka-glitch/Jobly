@@ -32,6 +32,7 @@ import { GESTURES, type GestureId } from "@/lib/jia/gestures";
 import { commandIntent, extractWakeCommand, isFinancialRequest } from "@/lib/jia/guard";
 import { getSupabaseClient } from "../lib/supabase";
 import { useI18n, type DictKey } from "@/lib/i18n";
+import { decide as decideAutonomy, observe as observeAutonomy } from "@/lib/jia/autonomy";
 
 type Ecosystem = "TALENT" | "RECRUITER" | "PARTNER";
 type Bubble = { id: number; text: string; gesture?: JiaGesture; move?: JIAMove };
@@ -193,6 +194,9 @@ export default function JiaPresence() {
     setBubble({ id: idSeq.current, text, gesture: opts?.gesture, move: opts?.move });
     if (opts?.gesture) setGesture(opts.gesture);
     setMove(opts?.move);
+    if (opts?.move && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("jobly:jia-move", { detail: { move: opts.move, autonomous: true } }));
+    }
     if (bubbleTimer.current) window.clearTimeout(bubbleTimer.current);
     if (!opts?.sticky) bubbleTimer.current = window.setTimeout(() => setBubble(null), 12_000);
     if (opts?.speak !== false && modeRef.current === "voice") {
@@ -457,6 +461,51 @@ export default function JiaPresence() {
     window.addEventListener("jobly:jia-play", onPlay);
     return () => { window.removeEventListener("jobly:jia-play", onPlay); delete window.jia; };
   }, [say, dismissBubble]);
+
+  // ── Autonomie locale : OBSERVER → ÉVALUER → DÉCIDER → AGIR ───────────────
+  // Moteur gratuit : aucune API payante n’est nécessaire pour l’initiative de base.
+  useEffect(() => {
+    if (!visible || !prefs.proactive) return;
+    let lastAutonomousAt = 0;
+    const cycle = () => {
+      if (document.hidden || suspended || panelOpen || bubble || Date.now() - lastAutonomousAt < 12_000) return;
+      const text = document.body.innerText.slice(0, 5000);
+      const percent = text.match(/(?:profil|profile)[^%]{0,80}(\d{1,3})\s*%/i)?.[1];
+      const w = window as Window & { __jiaIdleMs?: number };
+      const decision = decideAutonomy(observeAutonomy({
+        path: pathname,
+        lastAction: lastAction.current,
+        idleMs: Math.min(300_000, w.__jiaIdleMs || 0),
+        recentActions: [lastAction.current].filter(Boolean),
+        profileCompletion: percent ? Math.min(100, Number(percent)) : undefined,
+        matchingOffers: pathname.includes("/jobs") ? document.querySelectorAll('a[href*="/jobs/"]').length : 0,
+        pendingApplications: pathname.includes("/candidatures") ? document.querySelectorAll('[data-application], a[href*="candidatures"]').length : 0,
+        currentLanguage: langRef.current === "en" ? "en" : "fr",
+      }));
+      if (!decision) return;
+      lastAutonomousAt = Date.now();
+      say(decision.message[langRef.current === "en" ? "en" : "fr"], {
+        gesture: decision.gesture,
+        move: decision.move,
+        speak: decision.speak,
+      });
+      window.dispatchEvent(new CustomEvent("jobly:jia-autonomous-decision", { detail: decision }));
+    };
+    const onActivity = () => { (window as Window & { __jiaIdleMs?: number }).__jiaIdleMs = 0; };
+    const idleTimer = window.setInterval(() => {
+      const w = window as Window & { __jiaIdleMs?: number };
+      w.__jiaIdleMs = Math.min(300_000, (w.__jiaIdleMs || 0) + 1_000);
+      cycle();
+    }, 5_000);
+    window.addEventListener("pointerdown", onActivity, { passive: true });
+    window.addEventListener("keydown", onActivity, { passive: true });
+    cycle();
+    return () => {
+      window.clearInterval(idleTimer);
+      window.removeEventListener("pointerdown", onActivity);
+      window.removeEventListener("keydown", onActivity);
+    };
+  }, [visible, prefs.proactive, pathname, suspended, panelOpen, bubble, say]);
 
   // ── Proactivité (si autorisée) ───────────────────────���───────────────────
   useEffect(() => {
