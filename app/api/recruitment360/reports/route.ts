@@ -27,7 +27,9 @@ export async function GET(req:NextRequest){
    return NextResponse.json({recruitments:(recs??[]).map((r:any)=>({...r,title:jm.get(r.recruiterJobId)?.title||"Recrutement",companyName:jm.get(r.recruiterJobId)?.companyName||""}))});
   }
   const report=await getWorkspaceReport(sb,id,user.id);
-  return NextResponse.json({report});
+  const {data:reviews,error:rvError}=await sb.from("RecruitmentReview").select("id,applicationId,reviewerUserId,reviewerRole,processRating,experienceRating,joblyRating,recommendation,comment,status,createdAt").eq("recruitmentId",id).order("createdAt",{ascending:false});
+  if(rvError)throw new Error(rvError.message);
+  return NextResponse.json({report,reviews:reviews||[]});
  }catch(e){const m=e instanceof Error?e.message:"Erreur.";return NextResponse.json({message:m},{status:m==="FORBIDDEN"?403:500});}
 }
 
