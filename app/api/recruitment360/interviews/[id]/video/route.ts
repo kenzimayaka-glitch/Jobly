@@ -18,10 +18,12 @@ export async function GET(req:NextRequest,c:Ctx){
  try{
   const id=(await c.params).id,s=adminClient(),u=await ensureUser(s,auth),{i}=await workspace(s,id,u.id);
   const {data:session}=await s.from("RecruitmentInterviewVideoSession").select("*").eq("interviewId",id).maybeSingle();
+  const room=session?createVideoRoom(session.roomName):null;
+  const livekit=session&&room?.provider==="LIVEKIT"?createLiveKitToken(session.roomName,u.id,true):null;
   const {data:consents}=await s.from("RecruitmentInterviewRecordingConsent").select("userId,consented,consentedAt,revokedAt,consentVersion").eq("interviewId",id);
   const mine=(consents||[]).find((x:any)=>String(x.userId)===String(u.id));
   const {data:notes}=r?await s.from("RecruitmentInterviewNote").select("id,authorUserId,body,createdAt,updatedAt").eq("interviewId",id).order("createdAt",{ascending:true}):{data:[]};
-  return NextResponse.json({interview:i,video:session,viewerRole:r?.role||"TALENT",myConsent:mine||null,consentCount:(consents||[]).filter((x:any)=>x.consented&&!x.revokedAt).length,notes:notes||[],recordingAllowed:session?recordingIsAllowed(session.provider):false});
+  return NextResponse.json({interview:i,video:session,room,livekit,viewerRole:r?.role||"TALENT",myConsent:mine||null,consentCount:(consents||[]).filter((x:any)=>x.consented&&!x.revokedAt).length,notes:notes||[],recordingAllowed:session?recordingIsAllowed(session.provider):false});
  }catch(e){const m=e instanceof Error?e.message:"Erreur.";return NextResponse.json({message:m},{status:m==="FORBIDDEN"?403:m==="INTERVIEW_NOT_FOUND"?404:500});}
 }
 export async function POST(req:NextRequest,c:Ctx){
