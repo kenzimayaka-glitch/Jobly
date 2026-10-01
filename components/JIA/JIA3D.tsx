@@ -144,24 +144,29 @@ function Model({ speaking }: { speaking: boolean }) {
 export default function JIA3D({ speaking }: { speaking: boolean }) {
   return (
     <div className="h-full w-full overflow-hidden rounded-[28px]" aria-hidden="true">
-      <JIA3DErrorBoundary fallback={\n        <Canvas camera={{ position: [0, 0.05, 2.35], fov: 32 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: true }}>
-          <ambientLight intensity={1.7} />
-          <directionalLight position={[2, 3, 4]} intensity={2.2} color="#fff6df" />
-          <JIAProcedural3D speaking={speaking} />
-        </Canvas>\n      }>
-      <Canvas
-        camera={{ position: [0, 0.05, 2.35], fov: 32 }}
-        dpr={[1, 1.5]}
-        gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+      <JIA3DErrorBoundary
+        fallback={
+          <Canvas camera={{ position: [0, 0.05, 2.35], fov: 32 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: true }}>
+            <ambientLight intensity={1.7} />
+            <directionalLight position={[2, 3, 4]} intensity={2.2} color="#fff6df" />
+            <JIAProcedural3D speaking={speaking} />
+          </Canvas>
+        }
       >
-        <ambientLight intensity={1.5} />
-        <directionalLight position={[2, 3, 4]} intensity={2.1} color="#fff6df" />
-        <directionalLight position={[-2, 1, 2]} intensity={0.7} color="#8fc9ff" />
-        <Suspense fallback={null}>
-          <Model speaking={speaking} />
-          <Environment preset="studio" />
-        </Suspense>
-      </Canvas>
+        <Canvas
+          camera={{ position: [0, 0.05, 2.35], fov: 32 }}
+          dpr={[1, 1.5]}
+          gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+        >
+          <ambientLight intensity={1.5} />
+          <directionalLight position={[2, 3, 4]} intensity={2.1} color="#fff6df" />
+          <directionalLight position={[-2, 1, 2]} intensity={0.7} color="#8fc9ff" />
+          <Suspense fallback={null}>
+            <Model speaking={speaking} />
+            <Environment preset="studio" />
+          </Suspense>
+        </Canvas>
+      </JIA3DErrorBoundary>
     </div>
   );
 }
