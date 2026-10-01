@@ -142,6 +142,14 @@ create index if not exists "RecruitmentDecisionApproval_decisionId_idx" on publi
 create index if not exists "RecruitmentDecisionReference_applicationId_idx" on public."RecruitmentDecisionReference"("applicationId");
 create index if not exists "RecruitmentOffer_recruitmentId_status_idx" on public."RecruitmentOffer"("recruitmentId","status");
 create index if not exists "RecruitmentOfferNegotiation_offerId_createdAt_idx" on public."RecruitmentOfferNegotiation"("offerId","createdAt" desc);
+create index if not exists "RecruitmentDecision_decidedByUserId_idx" on public."RecruitmentDecision"("decidedByUserId");
+create index if not exists "RecruitmentDecisionApproval_approverUserId_idx" on public."RecruitmentDecisionApproval"("approverUserId");
+create index if not exists "RecruitmentDecisionPolicy_updatedByUserId_idx" on public."RecruitmentDecisionPolicy"("updatedByUserId");
+create index if not exists "RecruitmentDecisionReference_checkedByUserId_idx" on public."RecruitmentDecisionReference"("checkedByUserId");
+create index if not exists "RecruitmentDecisionVote_interviewId_idx" on public."RecruitmentDecisionVote"("interviewId");
+create index if not exists "RecruitmentDecisionVote_juryUserId_idx" on public."RecruitmentDecisionVote"("juryUserId");
+create index if not exists "RecruitmentOffer_createdByUserId_idx" on public."RecruitmentOffer"("createdByUserId");
+create index if not exists "RecruitmentOfferNegotiation_actorUserId_idx" on public."RecruitmentOfferNegotiation"("actorUserId");
 
 alter table public."RecruitmentDecisionPolicy" enable row level security;
 alter table public."RecruitmentDecisionApproval" enable row level security;
