@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loadPublicOfficialListing } from "../../../../../../../lib/recruitment360/publicListing";
-import { renderPdf } from "../../../../../../../lib/recruitment360/officialListing";
+import { loadPublicOfficialListing } from "../../../../../../lib/recruitment360/publicListing";
+import { renderPdf } from "../../../../../../lib/recruitment360/officialListing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
