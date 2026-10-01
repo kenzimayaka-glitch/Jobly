@@ -23,7 +23,8 @@ export const JIA_CHARACTER = {
   motion: {
     rig: "V3",
     required: ["skeleton", "head", "eyes", "facial motion", "speech gestures", "idle", "walking"],
-    rule: "semantic gestures only; no random autonomous movement",
+    rule: "autonomous contextual semantic movement; never random relocation",
+    autonomy: "observe → evaluate → decide → act",
   },
   presence: {
     draggable: true,
@@ -35,6 +36,7 @@ export const JIA_CHARACTER = {
     wakeWord: "J’IA",
     wakeWordRequired: true,
     textAndVoiceModesIndependent: true,
+    supportedLanguages: ["fr", "en", "es"],
     notificationModeIndependent: true,
   },
   safety: {
