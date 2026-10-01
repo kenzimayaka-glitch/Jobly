@@ -1,0 +1,78 @@
+name: Generate Jobly PWA icons
+
+on:
+  push:
+    branches:
+      - fix/pwa-icon-wa9815
+    paths:
+      - IMG-20260928-WA9815.jpg
+      - .github/workflows/generate-pwa-icons.yml
+
+permissions:
+  contents: write
+
+jobs:
+  icons:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate square PWA icons
+        run: |
+          set -euo pipefail
+          mkdir -p public/icons
+          magick IMG-20260928-WA9815.jpg \
+            -resize '192x192^' \
+            -gravity center \
+            -extent 192x192 \
+            -strip \
+            public/icons/jobly-wa9815-192.png
+          magick IMG-20260928-WA9815.jpg \
+            -resize '512x512^' \
+            -gravity center \
+            -extent 512x512 \
+            -strip \
+            public/icons/jobly-wa9815-512.png
+
+      - name: Generate maskable PWA icons
+        run: |
+          set -euo pipefail
+          magick IMG-20260928-WA9815.jpg \
+            -resize '154x154^' \
+            -gravity center \
+            -extent 154x154 \
+            -strip \
+            /tmp/jobly-core-154.png
+          magick -size 192x192 xc:'#FFD60A' \
+            /tmp/jobly-core-154.png \
+            -gravity center \
+            -composite \
+            -strip \
+            public/icons/jobly-wa9815-192-maskable.png
+
+          magick IMG-20260928-WA9815.jpg \
+            -resize '410x410^' \
+            -gravity center \
+            -extent 410x410 \
+            -strip \
+            /tmp/jobly-core-410.png
+          magick -size 512x512 xc:'#FFD60A' \
+            /tmp/jobly-core-410.png \
+            -gravity center \
+            -composite \
+            -strip \
+            public/icons/jobly-wa9815-512-maskable.png
+
+      - name: Commit generated icons
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/icons/jobly-wa9815-*.png
+          if git diff --cached --quiet; then
+            echo "No icon changes."
+            exit 0
+          fi
+          git commit -m "chore(pwa): generate WA9815 app icon variants"
+          git push
