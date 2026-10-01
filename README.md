@@ -3693,3 +3693,24 @@ Contrôles croisés effectués :
 La validation runtime réelle et la validation UI restent à effectuer après un déploiement Vercel explicitement autorisé par l'utilisateur. Aucun déploiement n'a été lancé.
 
 **Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+
+# CHECKPOINT 01/10/2026 — CV IMPORT / NOTIFICATIONS / MODÈLES / BONUS RECRUTEUR
+
+## Correctifs
+- Erreur d'import CV « Operator doesn't exist » : la fonction SQL de réservation des crédits utilisait des types incompatibles entre `User.id` (text) et `AiUsage.userId` (uuid). La fonction garde désormais un paramètre UUID et caste explicitement `User.id`; l'ancienne surcharge ambiguë a été supprimée.
+- Le contrôle Supabase de la fonction renvoie désormais correctement un refus avec le solde au lieu de l'erreur PostgreSQL.
+- Les comptes Talent Free existants sans bonus ont reçu une seule fois 30 crédits de bienvenue.
+- Recruteur Free : bonus de bienvenue de 30 crédits J’IA, solde accessible dans Paramètres et notification au premier dashboard.
+- Notification Jobly : bulle locale, apparition douce, texte progressif caractère par caractère, explosion en particules visibles puis disparition à 5 secondes.
+- CV importé : nom normalisé `CV_NomUtilisateur_Prenom_Mois_Année.pdf`, indépendant du nom du fichier source.
+- Suppression du CV importé : poubelle rouge, suppression serveur du document original et nettoyage de l'état local.
+- « Voir le CV » placé directement sous « Enregistrer », avec modèles gratuits et modèles Premium verrouillés jusqu'à l'abonnement ; la sélection modifie réellement le rendu de prévisualisation.
+- Boutons : « Télécharger version ATS » et « Télécharger CV optimisé » sans afficher prix/durée ; ces informations restent dans l'interface de paiement après clic. « accès 2 h » est volontairement réduit visuellement dans cette interface.
+
+## État de vérité
+**🟨 CODÉ + CONTRÔLÉ — NON DÉPLOYÉ / NON VALIDÉ PRODUCTION.**
+
+Contrôles : fonction SQL vérifiée directement sur Supabase sans écriture de crédit lors du test ; séparation paiement/CV conservée ; routes d'import et de stockage relues après correction ; aucun déploiement Vercel lancé.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
