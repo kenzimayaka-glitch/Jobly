@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
+import type {FormEvent} from "react";
 import {useParams,useRouter} from "next/navigation";
 import AppShell from "@/components/ui/AppShell";
 import {Button,Card,ErrorState,LoadingState,PageIntro,Section} from "@/components/ui";
@@ -9,7 +10,7 @@ export default function Recruitment360ReviewPage(){
  const {applicationId}=useParams<{applicationId:string}>(),router=useRouter(),[state,setState]=useState("loading"),[error,setError]=useState(""),[form,setForm]=useState({process:5,experience:5,jobly:5,recommendation:true,comment:""}),[saved,setSaved]=useState(false);
  async function headers(){const{data:{session}}=await getSupabaseClient().auth.getSession();if(!session)throw new Error("Session requise.");return{Authorization:"Bearer "+session.access_token,"Content-Type":"application/json"}}
  useEffect(()=>{void (async()=>{try{await headers();setState("ready")}catch(e){setError(e instanceof Error?e.message:"Erreur");setState("error")}})()},[]);
- async function submit(e:React.FormEvent){e.preventDefault();try{const h=await headers();const r=await fetch("/api/recruitment360/reports",{method:"POST",headers:h,body:JSON.stringify({action:"review",applicationId,reviewerRole:"TALENT",processRating:form.process,experienceRating:form.experience,joblyRating:form.jobly,recommendation:form.recommendation,comment:form.comment})});const d=await r.json();if(!r.ok)throw new Error(d.message);setSaved(true)}catch(e){setError(e instanceof Error?e.message:"Erreur")}}
+ async function submit(e:FormEvent){e.preventDefault();try{const h=await headers();const r=await fetch("/api/recruitment360/reports",{method:"POST",headers:h,body:JSON.stringify({action:"review",applicationId,reviewerRole:"TALENT",processRating:form.process,experienceRating:form.experience,joblyRating:form.jobly,recommendation:form.recommendation,comment:form.comment})});const d=await r.json();if(!r.ok)throw new Error(d.message);setSaved(true)}catch(e){setError(e instanceof Error?e.message:"Erreur")}}
  if(state==="loading")return <AppShell role="talent" active="/career" title="Votre avis"><LoadingState/></AppShell>;
  if(state==="error")return <AppShell role="talent" active="/career" title="Votre avis"><ErrorState title={error} onRetry={()=>location.reload()}/></AppShell>;
  return <AppShell role="talent" active="/career" title="Votre avis" initial="J" width="lg">
