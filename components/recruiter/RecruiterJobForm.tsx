@@ -306,8 +306,25 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
         }
         setShareJob(body.job || { id: body.job?.id || id, title, description, location, mode, contract, companyName: "Mon entreprise" });
       } else {
-        if (!isNew) await createAndPublishAnnouncement("draft");
-        else router.push("/recruiter");
+        if (!isNew) {
+          await createAndPublishAnnouncement("draft");
+        } else {
+          const criteria = criteriaInput.split(",").map((label) => label.trim()).filter(Boolean).map((label, index) => ({
+            criterion: label.toUpperCase().replace(/[^A-Z0-9]+/g, "_"),
+            label,
+            required: false,
+            weight: 1,
+            sortOrder: index,
+          }));
+          const versionRes = await fetch("/api/recruitment360/jobs/" + (body.job?.id as string) + "/announcement", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+            body: JSON.stringify({ title, description, salary, deadlineAt: deadlineAt ? new Date(deadlineAt).toISOString() : null, criteria }),
+          });
+          const versionBody = await versionRes.json();
+          if (!versionRes.ok) throw new Error(versionBody.message || "Version impossible à créer.");
+          router.push("/recruiter/jobs/" + body.job.id);
+        }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur d'enregistrement.");
