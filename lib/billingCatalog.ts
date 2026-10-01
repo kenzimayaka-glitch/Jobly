@@ -28,14 +28,14 @@ export const PLAN_CATALOG: Record<PlanCode, PlanDefinition> = {
   FREE: {
     code: "FREE", name: "Free", tagline: "Découvrir et utiliser JOBLY manuellement.", monthlyPriceXaf: 0, annualPriceXaf: 0,
     aiCredits: 30, storageMb: 25, applicationsPerWeek: 15, bulkApplicationLimit: 1, cvVersions: 1, savedJobs: 20, alerts: 1,
-    atsConversionIncluded: false, atsConversionPriceXaf: 500, cvDownloadPriceXaf: 500, cvAtsDownloadPriceXaf: 500, cvOptimizedDownloadPriceXaf: 500, recruiterEmailConnect: 0, recruiterAtsFilters: "none",
-    features: ["Profil et CV", "Recherche illimitée", "15 candidatures / semaine", "Matching de base", "Mobility de base", "Career Brain limité", "30 crédits J’IA de bienvenue", "CV ATS : 500 FCFA / accès 2 h", "CV optimisé : 500 FCFA / accès 2 h"],
+    atsConversionIncluded: false, atsConversionPriceXaf: 0, cvDownloadPriceXaf: 0, cvAtsDownloadPriceXaf: 0, cvOptimizedDownloadPriceXaf: 0, recruiterEmailConnect: 0, recruiterAtsFilters: "none",
+    features: ["Profil et CV", "Recherche illimitée", "15 candidatures / semaine", "Matching de base", "Mobility de base", "Career Brain limité", "30 crédits J’IA de bienvenue"],
   },
   START: {
     code: "START", name: "Start", tagline: "Accélérer sa recherche.", monthlyPriceXaf: 1800, annualPriceXaf: 5000,
     aiCredits: 30, storageMb: 100, applicationsPerWeek: 30, bulkApplicationLimit: 1, cvVersions: 3, savedJobs: 100, alerts: 5,
     atsConversionIncluded: true, atsConversionPriceXaf: 0, cvDownloadPriceXaf: 0, cvAtsDownloadPriceXaf: 0, cvOptimizedDownloadPriceXaf: 0, recruiterEmailConnect: 0, recruiterAtsFilters: "limited",
-    features: ["Tout Free", "30 candidatures / semaine", "Matching amélioré", "Analyse CV 10/mois", "Alertes personnalisées", "Career Brain amélioré", "Conversion CV → ATS incluse", "Téléchargements CV ATS et optimisés inclus"],
+    features: ["Tout Free", "30 candidatures / semaine", "Matching amélioré", "Analyse CV 10/mois", "Alertes personnalisées", "Career Brain amélioré", "Conversion CV → ATS incluse", "Optimisation du CV ATS incluse", "Téléchargements CV ATS et optimisés inclus"],
   },
   PREMIUM: {
     code: "PREMIUM", name: "Premium", tagline: "JOBLY travaille avec moi.", monthlyPriceXaf: 3500, annualPriceXaf: 15500,
@@ -66,8 +66,8 @@ export type RecruiterPlanDefinition = {
 export const RECRUITER_PLAN_CATALOG: Record<PlanCode, RecruiterPlanDefinition> = {
   FREE: { code: "FREE", name: "Free", tagline: "Publier des offres et gérer les candidatures de base.", monthlyPriceXaf: 0, annualPriceXaf: 0, aiCredits: 5, recruitment360: false, features: ["Profil entreprise", "Publication et gestion de base", "Recherche Talent de base"] },
   START: { code: "START", name: "Start", tagline: "Structurer son recrutement.", monthlyPriceXaf: 15000, annualPriceXaf: 50000, aiCredits: 30, recruitment360: true, features: ["Tout Free", "Recherche Talent améliorée", "ATS de base", "Matching J’IA"] },
-  PREMIUM: { code: "PREMIUM", name: "Premium", tagline: "Accélérer ses recrutements.", monthlyPriceXaf: 30000, annualPriceXaf: 80000, aiCredits: 120, recruitment360: true, features: ["Tout Start", "Talent Intelligence", "ATS avancé", "Matching avancé", "Gmail ATS", "Multiposting"] },
-  PRO: { code: "PRO", name: "Pro", tagline: "Piloter son recrutement avec J’IA.", monthlyPriceXaf: 50000, annualPriceXaf: 100000, aiCredits: 300, recruitment360: true, features: ["Tout Premium", "J’IA recrutement avancée", "Automatisations", "Talent 360", "Recherche avancée", "Support prioritaire"] },
+  PREMIUM: { code: "PREMIUM", name: "Premium", tagline: "Accélérer ses recrutements.", monthlyPriceXaf: 25000, annualPriceXaf: 80000, aiCredits: 120, recruitment360: true, features: ["Tout Start", "Talent Intelligence", "ATS avancé", "Matching avancé", "Gmail ATS", "Multiposting"] },
+  PRO: { code: "PRO", name: "Pro", tagline: "Piloter son recrutement avec J’IA.", monthlyPriceXaf: 40000, annualPriceXaf: 100000, aiCredits: 300, recruitment360: true, features: ["Tout Premium", "J’IA recrutement avancée", "Automatisations", "Talent 360", "Recherche avancée", "Support prioritaire"] },
 };
 
 export const RECRUITER_BA_COMMISSION_RATES: Record<Exclude<PlanCode, "FREE">, number> = {
