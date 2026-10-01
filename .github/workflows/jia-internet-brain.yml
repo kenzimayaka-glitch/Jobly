@@ -1,0 +1,20 @@
+name: J'IA Internet Brain Hard Mode
+
+on:
+  push:
+    branches:
+      - feat/jia-internet-brain-20261001
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  internet-brain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Internet Brain invariants
+        run: python test_internet_brain.py
