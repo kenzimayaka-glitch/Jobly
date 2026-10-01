@@ -32,6 +32,7 @@ import { GESTURES, type GestureId } from "@/lib/jia/gestures";
 import { commandIntent, extractWakeCommand, isFinancialRequest } from "@/lib/jia/guard";
 import { getSupabaseClient } from "../lib/supabase";
 import { useI18n, type DictKey } from "@/lib/i18n";
+import { decide as decideAutonomy, observe as observeAutonomy } from "@/lib/jia/autonomy";
 
 type Ecosystem = "TALENT" | "RECRUITER" | "PARTNER";
 type Bubble = { id: number; text: string; gesture?: JiaGesture; move?: JIAMove };
@@ -193,6 +194,9 @@ export default function JiaPresence() {
     setBubble({ id: idSeq.current, text, gesture: opts?.gesture, move: opts?.move });
     if (opts?.gesture) setGesture(opts.gesture);
     setMove(opts?.move);
+    if (opts?.move && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("jobly:jia-move", { detail: { move: opts.move, autonomous: true } }));
+    }
     if (bubbleTimer.current) window.clearTimeout(bubbleTimer.current);
     if (!opts?.sticky) bubbleTimer.current = window.setTimeout(() => setBubble(null), 12_000);
     if (opts?.speak !== false && modeRef.current === "voice") {
