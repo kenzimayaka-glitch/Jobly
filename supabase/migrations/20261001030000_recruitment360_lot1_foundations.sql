@@ -42,6 +42,7 @@ create table if not exists public."RecruitmentRole" (
   id uuid primary key default gen_random_uuid(),
   "recruitmentId" uuid not null references public."Recruitment360"(id) on delete cascade,
   "userId" text not null references public."User"(id) on delete cascade,
+  "authUserId" uuid,
   role text not null check (role in ('OWNER','HR','MANAGER','DG_READONLY','JURY','DELEGATE')),
   "grantedByUserId" text references public."User"(id) on delete set null,
   "createdAt" timestamptz not null default now(),
@@ -97,6 +98,8 @@ create index if not exists "RecruitmentApplicationState_currentState_idx"
   on public."RecruitmentApplicationState" ("currentState");
 create index if not exists "RecruitmentRole_userId_idx"
   on public."RecruitmentRole" ("userId");
+create index if not exists "RecruitmentRole_authUserId_idx"
+  on public."RecruitmentRole" ("authUserId");
 create index if not exists "RecruitmentAuditLog_recruitmentId_createdAt_idx"
   on public."RecruitmentAuditLog" ("recruitmentId","createdAt" desc);
 create index if not exists "RecruitmentAuditLog_applicationId_createdAt_idx"
@@ -343,9 +346,8 @@ using (
   exists (
     select 1
     from public."RecruitmentRole" rr
-    join public."User" u on u.id = rr."userId"
     where rr."recruitmentId" = "Recruitment360".id
-      and u."authUserId" = (select auth.uid())::text
+      and rr."authUserId" = (select auth.uid())
   )
 );
 
@@ -357,18 +359,16 @@ using (
     from public."Application" a
     where a.id = "applicationId"
       and (
-        a."userId"::text = (
-          select u.id from public."User" u
-          where u."authUserId" = (select auth.uid())::text
-          limit 1
-        )
+        a."userId"::text = (select rr."userId" from public."RecruitmentRole" rr
+          where rr."authUserId" = (select auth.uid())
+            and rr."recruitmentId" = r.id
+          limit 1)
         or exists (
           select 1
           from public."Recruitment360" r
           join public."RecruitmentRole" rr on rr."recruitmentId" = r.id
-          join public."User" u on u.id = rr."userId"
           where r."recruiterJobId" = a."recruiterJobId"
-            and u."authUserId" = (select auth.uid())::text
+            and rr."authUserId" = (select auth.uid())
         )
       )
   )
@@ -376,28 +376,22 @@ using (
 
 create policy "Recruitment members can read roles"
 on public."RecruitmentRole" for select to authenticated
-using (
-  exists (
-    select 1 from public."User" u
-    where u.id = "userId"
-      and u."authUserId" = (select auth.uid())::text
-  )
-);
+using ("authUserId" = (select auth.uid()));
 
 create policy "Recruitment members can read audit"
 on public."RecruitmentAuditLog" for select to authenticated
 using (
   "actorUserId" = (
-    select u.id from public."User" u
-    where u."authUserId" = (select auth.uid())::text
+    select rr."userId"
+    from public."RecruitmentRole" rr
+    where rr."authUserId" = (select auth.uid())
     limit 1
   )
   or exists (
     select 1
     from public."RecruitmentRole" rr
-    join public."User" u on u.id = rr."userId"
     where rr."recruitmentId" = "RecruitmentAuditLog"."recruitmentId"
-      and u."authUserId" = (select auth.uid())::text
+      and rr."authUserId" = (select auth.uid())
   )
 );
 
@@ -407,9 +401,12 @@ using (
   exists (
     select 1
     from public."Application" a
-    join public."User" u on u.id::text = a."userId"::text
     where a.id = "applicationId"
-      and u."authUserId" = (select auth.uid())::text
+      and a."userId"::text = (
+        select u.id::text from public."User" u
+        where u."authUserId" = (select auth.uid())::text
+        limit 1
+      )
   )
 );
 
@@ -430,10 +427,13 @@ where not exists (
   select 1 from public."Recruitment360" r where r."recruiterJobId" = rj.id
 );
 
-insert into public."RecruitmentRole" ("recruitmentId","userId",role)
-select r.id, rj."recruiterUserId"::text, 'OWNER'
+insert into public."RecruitmentRole" ("recruitmentId","userId","authUserId",role)
+select r.id, rj."recruiterUserId"::text, u."authUserId"::uuid, 'OWNER'
+from public."RecruiterJob" rj
+join public."User" u on u.id::text = rj."recruiterUserId"::text
 from public."Recruitment360" r
 join public."RecruiterJob" rj on rj.id = r."recruiterJobId"
+join public."User" u on u.id::text = rj."recruiterUserId"::text
 where not exists (
   select 1 from public."RecruitmentRole" rr
   where rr."recruitmentId" = r.id
@@ -482,7 +482,12 @@ begin
   where "recruiterJobId" = new.id;
 
   insert into public."RecruitmentRole" ("recruitmentId","userId",role)
-  values (v_recruitment_id,new."recruiterUserId"::text,'OWNER')
+  values (
+    v_recruitment_id,
+    new."recruiterUserId"::text,
+    (select u."authUserId"::uuid from public."User" u where u.id::text = new."recruiterUserId"::text limit 1),
+    'OWNER'
+  )
   on conflict ("recruitmentId","userId","role") do nothing;
 
   return new;
