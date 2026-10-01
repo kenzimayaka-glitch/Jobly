@@ -24,10 +24,8 @@ export default function TestProctoring({ sessionId, consentCamera, onStatus }: P
     }
     try {
       const r = await fetch("/api/recruitment360/tests/proctoring", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, events }),
-        keepalive: true,
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, events }), keepalive: true,
       });
       if (!r.ok) throw new Error("sync_failed");
       const queued = drainOfflineEvents(sessionId);
@@ -38,16 +36,16 @@ export default function TestProctoring({ sessionId, consentCamera, onStatus }: P
   }
 
   function emit(event: string, metadata: Record<string, unknown> = {}) {
-    const item = { event, metadata, occurredAt: new Date().toISOString() };
-    void send([item]);
+    void send([{ event, metadata, occurredAt: new Date().toISOString() }]);
   }
 
   useEffect(() => {
-    if (!sessionId) return;
+    const custom = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.event) emit(String(detail.event), detail.metadata || {});
+    };
     const visibility = () => {
-      const hidden = document.visibilityState !== "visible";
-      setOnline(navigator.onLine);
-      if (hidden) emit("TAB_HIDDEN");
+      if (document.visibilityState !== "visible") emit("TAB_HIDDEN");
       else emit("TAB_VISIBLE");
     };
     const blur = () => emit("WINDOW_BLUR");
@@ -57,15 +55,10 @@ export default function TestProctoring({ sessionId, consentCamera, onStatus }: P
       if (!active) emit("FULLSCREEN_EXIT");
     };
     const paste = () => emit("PASTE");
-    const onlineHandler = () => {
-      setOnline(true);
-      void send(drainOfflineEvents(sessionId));
-      emit("NETWORK_RESTORED");
-    };
-    const offlineHandler = () => {
-      setOnline(false);
-      emit("NETWORK_LOST");
-    };
+    const onlineHandler = () => { setOnline(true); void send(drainOfflineEvents(sessionId)); emit("NETWORK_RESTORED"); };
+    const offlineHandler = () => { setOnline(false); emit("NETWORK_LOST"); };
+
+    window.addEventListener("jobly-proctor-event", custom);
     document.addEventListener("visibilitychange", visibility);
     window.addEventListener("blur", blur);
     document.addEventListener("fullscreenchange", full);
@@ -73,7 +66,9 @@ export default function TestProctoring({ sessionId, consentCamera, onStatus }: P
     window.addEventListener("online", onlineHandler);
     window.addEventListener("offline", offlineHandler);
     void send(drainOfflineEvents(sessionId));
+
     return () => {
+      window.removeEventListener("jobly-proctor-event", custom);
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("blur", blur);
       document.removeEventListener("fullscreenchange", full);
@@ -89,25 +84,34 @@ export default function TestProctoring({ sessionId, consentCamera, onStatus }: P
     (async () => {
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
-          setCamera("unavailable");
-          emit("CAMERA_UNAVAILABLE");
-          return;
+          setCamera("unavailable"); emit("CAMERA_UNAVAILABLE"); return;
         }
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        streamRef.current = stream;
+        if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play().catch(() => undefined); }
+        setCamera("active"); emit("CAMERA_ACTIVE");
+
+        const Detector = (window as any).FaceDetector;
+        if (typeof Detector !== "function") {
+          emit("FACE_DETECTION_UNAVAILABLE");
           return;
         }
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => undefined);
-        }
-        setCamera("active");
-        emit("CAMERA_ACTIVE");
+        const detector = new Detector({ fastMode: true, maxDetectedFaces: 3 });
+        const timer = window.setInterval(async () => {
+          if (cancelled || !videoRef.current || videoRef.current.readyState < 2) return;
+          try {
+            const faces = await detector.detect(videoRef.current);
+            if (faces.length === 0) emit("FACE_ABSENT");
+            else if (faces.length > 1) emit("MULTIPLE_FACES", { count: faces.length });
+            else emit("FACE_PRESENT");
+          } catch {
+            emit("FACE_DETECTION_ERROR");
+          }
+        }, 5000);
+        return () => window.clearInterval(timer);
       } catch {
-        setCamera("denied");
-        emit("CAMERA_DENIED");
+        setCamera("denied"); emit("CAMERA_DENIED");
       }
     })();
     return () => {
@@ -121,33 +125,23 @@ export default function TestProctoring({ sessionId, consentCamera, onStatus }: P
     const id = window.setInterval(() => {
       if (!navigator.onLine) return;
       const started = performance.now();
-      fetch("/api/health", { cache: "no-store" })
-        .then(() => {
-          const rtt = Math.round(performance.now() - started);
-          if (rtt > 1500) emit("NETWORK_DEGRADED", { rttMs: rtt });
-        })
-        .catch(() => emit("NETWORK_DEGRADED", { rttMs: null }));
+      fetch("/api/health", { cache: "no-store" }).then(() => {
+        const rtt = Math.round(performance.now() - started);
+        if (rtt > 1500) emit("NETWORK_DEGRADED", { rttMs: rtt });
+      }).catch(() => emit("NETWORK_DEGRADED", { rttMs: null }));
     }, 15000);
     return () => window.clearInterval(id);
   }, [sessionId]);
 
-  useEffect(() => {
-    onStatus?.({ online, fullscreen, camera });
-  }, [online, fullscreen, camera, onStatus]);
+  useEffect(() => { onStatus?.({ online, fullscreen, camera }); }, [online, fullscreen, camera, onStatus]);
 
-  return (
-    <div className="rounded-2xl border p-3 text-xs">
-      <div className="flex flex-wrap gap-3">
-        <span>Réseau : {online ? "connecté" : "hors ligne — sauvegarde locale active"}</span>
-        <span>Plein écran : {fullscreen ? "actif" : "à activer"}</span>
-        {consentCamera && <span>Caméra : {camera}</span>}
-      </div>
-      {consentCamera && (
-        <video ref={videoRef} muted playsInline className="mt-3 aspect-video w-full rounded-xl object-cover" aria-label="Prévisualisation caméra locale" />
-      )}
-      <p className="mt-2 opacity-70">
-        Aucune vidéo caméra n'est envoyée par ce composant. Les événements techniques uniquement sont transmis au serveur.
-      </p>
+  return <div className="rounded-2xl border p-3 text-xs">
+    <div className="flex flex-wrap gap-3">
+      <span>Réseau : {online ? "connecté" : "hors ligne — sauvegarde locale active"}</span>
+      <span>Plein écran : {fullscreen ? "actif" : "à activer"}</span>
+      {consentCamera && <span>Caméra : {camera}</span>}
     </div>
-  );
+    {consentCamera && <video ref={videoRef} muted playsInline className="mt-3 aspect-video w-full rounded-xl object-cover" aria-label="Prévisualisation caméra locale" />}
+    <p className="mt-2 opacity-70">Aucune vidéo caméra n'est envoyée. Les événements techniques uniquement sont transmis au serveur. La détection de visage dépend de la capacité locale du navigateur ; aucune absence de capacité n'est présentée comme une détection réussie.</p>
+  </div>;
 }
