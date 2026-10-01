@@ -95,4 +95,5 @@ jobs:
             exit 0
           fi
           git commit -m "chore(pwa): generate WA9815 icon variants"
+          git pull --rebase origin fix/pwa-icon-wa9815
           git push
