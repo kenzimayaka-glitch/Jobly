@@ -4022,3 +4022,73 @@ Le chantier ne peut être déclaré terminé que lorsque le même cycle cognitif
 **Aucun merge vers `main` et aucun déploiement Vercel sans validation explicite de l’utilisateur.**
 
 ---
+# CHECKPOINT 01/10/2026 — J’IA CONTINUOUS EXECUTION / TRUTH UPDATE
+
+| Composant | État après consolidation | Verdict |
+|---|---|---|
+| Policy Engine | niveau requis réellement comparé + guard paiement | 🟨 CODÉ / CI à valider |
+| Event Bus | connecté à JiaEvent + IntelligenceTrace | 🟨 CODÉ / runtime à valider |
+| Tool Registry | registre centralisé + Policy | 🟨 CODÉ / exécution à valider |
+| Self Model | persistant dans jia_self_state | 🟨 CODÉ / runtime à valider |
+| Unified Cognitive Runtime | boucle complète exposée | 🟨 CODÉ / E2E à valider |
+| Brain utilisateur | branché sur le cycle unifié | 🟨 CODÉ / E2E à valider |
+| Internet Brain | source Web commune pour le Brain | 🟨 CODÉ / hard mode à valider |
+| Memory + Belief + World Model | signaux externes reliés aux trois | 🟨 CODÉ / persistance à valider |
+| Prediction + Reflection | calibration + mémoire réflexive | 🟨 CODÉ / outcomes à valider |
+| J’IA CEO | KPI + alertes + actions + risques + opportunités | 🟨 CODÉ / validation à poursuivre |
+| CEO Cockpit | 7/30/90 + 9 couches transversales | 🟨 CODÉ / browser E2E à valider |
+| Business / Growth / Commercial / Finance | métriques réelles reliées au socle CEO | 🟨 BASELINE / approfondissement analytique |
+| Market Intelligence | interne + point d’entrée Internet Brain | 🟨 BASELINE / veille croisée à valider |
+| Operations Intelligence | AiUsage + traces + approvals | 🟨 CODÉ / runtime à valider |
+| Customer Intelligence | User + Application + JiaEvent | 🟨 BASELINE / signaux satisfaction à enrichir |
+| Career Intelligence | Career Twin + Gap + Readiness + Next Best Action | 🟨 CODÉ / E2E à valider |
+| Séparation CEO / Talent | route ADMIN dédiée + non-exposition utilisateur | 🟨 CODÉ / tests de fuite à valider |
+| Architecture Gate | test de contradictions/invariants | 🟨 CODÉ / run CI en attente |
+| Production | aucun merge/deploy effectué | ⚪ NON DÉPLOYÉ |
+
+## Contradictions actives avant le vert final
+1. Deux couches mémoire historiques existent encore ; le pont est en place mais le canonical read path doit être unifié.
+2. Le runtime agent sait planifier/proposer/vérifier, mais l’exécution réelle de chaque outil doit encore être démontrée.
+3. Les couches Market/Customer restent des baselines analytiques à enrichir.
+4. Les migrations cognitives doivent être reproductibles sur un environnement neuf.
+5. Les runs CI/Hard Mode/E2E doivent tous conclure sans échec critique.
+
+Règle de vérité : présence de code ≠ validation. Échec = 🔴. Partiel/non vérifié = 🟨.
+
+# CHECKPOINT 01/10/2026 — J’IA MASTER GATE / ÉTAT RÉEL
+
+| Domaine | État | Preuve / reste |
+|---|---|---|
+| Cognitive Runtime USER | 🟨 | cycle unifié codé; runtime CI à valider |
+| Cognitive Runtime ADMIN / CEO | 🟨 | même runtime, contexte isolé; E2E à valider |
+| Memory read model | 🟨 | vue unifiée codée; migration non confirmée appliquée |
+| Belief | 🟨 | persistance codée; données runtime encore à prouver |
+| World Model | 🟨 | signaux externes reliés; couverture des entités/relations à enrichir |
+| Prediction / Calibration | 🟨 | outcome → reflection → mémoire; série runtime non prouvée |
+| Agent Runtime | 🟨 | plan + policy + actions sûres + verification |
+| Tool Registry | 🟨 | registre + consentement + Policy |
+| Event Bus | 🟨 | événements/traces corrélés; consommation événementielle avancée à poursuivre |
+| Watcher | 🟨 | veille + ingestion + traces |
+| Self Model | 🟨 | persistant; dépendance runtime à valider |
+| Career Intelligence | 🟨 | Career Twin + gaps/readiness/next action |
+| Recruiter Intelligence | 🟨 | funnel + ATS/readiness + stagnation |
+| Partner Intelligence | 🟨 | KYC/agreement/location consent |
+| Mobility Intelligence | 🟨 | coûts/distances/fit/status |
+| CEO Intelligence | 🟨 | KPI + alertes + actions + risques/opportunités + 7/30/90 |
+| Business Intelligence | 🟨 | données réelles reliées au snapshot CEO |
+| Growth Intelligence | 🟨 | acquisition/candidatures; activation avancée à enrichir |
+| Commercial Intelligence | 🟨 | subscriptions/recruiter jobs/commissions |
+| Finance Intelligence | 🟨 | revenus/recurring/commissions; rentabilité bloquée sans coûts |
+| Market Intelligence | 🟨 | Market Watch vérifié optionnel |
+| Operations Intelligence | 🟨 | AiUsage + traces + approbations |
+| Customer Intelligence | 🟨 | activité/candidatures/events; feedback satisfaction avancé à enrichir |
+| Community / Campus | 🟨 | contexte événementiel partagé; modèle dédié non confirmé |
+| UI / Voice / 3D | 🟨 | présence J’IA + fallback procédural; E2E visuel restant |
+| Hard Mode | 🟨 | workflows présents; résultat final en attente |
+| Master Gate | 🟨 | architecture/cognitive/internet/offline/lexicon; résultat final en attente |
+| Database persistence | 🟨 | tables cognitives présentes + RLS; 0 ligne runtime sur environnement connecté |
+| Security | 🟨 | server-only cognitive tables; payment guard; E2E sécurité restant |
+| Production | ⚪ | aucun merge main / aucun déploiement |
+
+### Condition de fin
+Passage au vert uniquement après : CI complet, typecheck/build, intégration DB/migrations, E2E navigateur, scénarios d’échec, vérification des permissions, persistance réelle, ultimate loop et absence de contradiction critique.

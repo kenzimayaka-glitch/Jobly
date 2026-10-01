@@ -510,6 +510,41 @@ export default function JiaPresence() {
     };
   }, [visible, prefs.proactive, pathname, suspended, panelOpen, bubble, say]);
 
+  // ── Cycle cognitif unifié : la présence UI alimente le même cerveau que le reste du produit ──
+  useEffect(() => {
+    if (!visible || !prefs.proactive || sensitiveRoute) return;
+    let active = true;
+    const runCycle = async () => {
+      try {
+        const { data: { session } } = await getSupabaseClient().auth.getSession();
+        if (!session?.access_token || document.hidden || !active) return;
+        const response = await fetch("/api/jia/cycle", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({
+            ecosystem: ecosystemOf(pathname),
+            path: pathRef.current,
+            action: lastAction.current,
+            includeInternet: false,
+          }),
+        });
+        if (!response.ok || !active) return;
+        const result = await response.json();
+        window.dispatchEvent(new CustomEvent("jobly:jia-cognitive-cycle", { detail: result }));
+        const recommendation = result?.recommendations?.[0];
+        if (recommendation?.title && recommendation?.confidence !== "LOW") {
+          externalSignalRef.current = undefined;
+          say(recommendation.title, { gesture: "analyze", speak: false });
+        }
+      } catch {
+        // Le cycle cognitif est opportuniste côté UI : l’autonomie offline reste indépendante.
+      }
+    };
+    const initial = window.setTimeout(runCycle, 15_000);
+    const interval = window.setInterval(runCycle, 300_000);
+    return () => { active = false; window.clearTimeout(initial); window.clearInterval(interval); };
+  }, [visible, prefs.proactive, pathname, sensitiveRoute, say]);
+
   // ── Internet Brain : perception externe proactive ───────────────────────
   useEffect(() => {
     if (!visible || !prefs.proactive || sensitiveRoute) return;

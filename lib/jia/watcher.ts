@@ -1,5 +1,7 @@
 import {observeInternet} from "@/lib/jia/internet";
 import {ingestExternalSignal} from "@/lib/jia/cognitive";
+import {publishTraceEvent} from "@/lib/jia/eventBus";
+import {adminClient} from "@/lib/server-auth";
 
 export type JiaWatchTarget={key:string;query:string;domain:string;intervalMs?:number};
 
@@ -13,6 +15,17 @@ export async function watchExternal(userId:string,target:JiaWatchTarget){
     supportingSources:signal.observation.supportingSources,
     contradictingSources:signal.observation.contradictingSources,
     context:{...signal.observation.context,watchKey:target.key,domain:target.domain},
+  });
+  await publishTraceEvent(adminClient(), {
+    userId, type: "JIA_EXTERNAL_WATCH", ecosystem: target.domain, source: "JIA_WATCHER",
+    payload: { watchKey: target.key, query: target.query, status: signal.observation.status, confidence: signal.observation.confidence },
+  }, {
+    stage: signal.observation.status === "CONTESTED" ? "HYPOTHESIS" : "INSIGHT",
+    title: "Signal externe surveillé",
+    content: signal.observation.facts?.[0] || "Aucun fait exploitable.",
+    confidence: signal.observation.confidence >= .78 ? "HIGH" : signal.observation.confidence >= .58 ? "MEDIUM" : "LOW",
+    evidence: signal.observation.sourcesUsed.map((s) => ({ url: s.url, title: s.title, authority: s.authority, confidence: s.confidence })),
+    metadata: { watchKey: target.key, memoryDecision: signal.observation.memoryDecision, changes: signal.observation.changes },
   });
   return signal;
 }

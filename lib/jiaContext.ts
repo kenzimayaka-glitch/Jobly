@@ -13,15 +13,20 @@ export async function buildJiaContext(sb:SupabaseClient,userId:string,request:Ji
     sb.from("Profile").select("headline,summary,location,targetRoles,preferredSectors,targetCities,contractPreferences,remotePreference").eq("userId",userId).maybeSingle(),
     sb.from("Skill").select("name,level").eq("userId",userId).limit(50),
     sb.from("Experience").select("title,company,description,startDate,endDate").eq("userId",userId).limit(20),
-    sb.from("JiaMemory").select("category,key,value,confidence,source,lastObservedAt").eq("userId",userId).order("lastObservedAt",{ascending:false}).limit(50),
+    sb.from("jia_memory_unified").select("id,memory_type,content,confidence,source,last_seen_at,importance,relevance,storage_kind").eq("user_id",userId).order("last_seen_at",{ascending:false}).limit(75),
     sb.from("JiaEvent").select("eventType,path,durationMs,occurredAt").eq("userId",userId).order("occurredAt",{ascending:false}).limit(100),
   ]);
-  const firstError=userResult.error||profileResult.error||skillsResult.error||experiencesResult.error||memoryResult.error||eventsResult.error;
+  const firstError=userResult.error||profileResult.error||skillsResult.error||experiencesResult.error||memoryResult.error||cognitiveMemoryResult.error||eventsResult.error;
   if(firstError)return{context:null,error:firstError.message};
   const profile:any=profileResult.data||{};
   const skills=(skillsResult.data||[]).map((x:any)=>({name:redact(x.name),level:redact(x.level)}));
   const experiences=(experiencesResult.data||[]).map((x:any)=>({title:redact(x.title),company:redact(x.company),description:redact(x.description),startDate:x.startDate,endDate:x.endDate}));
-  const memory=(memoryResult.data||[]).map((x:any)=>({category:redact(x.category),key:redact(x.key),value:x.value,confidence:decayedConfidence(Number(x.confidence||0),x.lastObservedAt),source:redact(x.source),lastObservedAt:x.lastObservedAt}));
+  const memory=(memoryResult.data||[]).map((x:any)=>({
+    category:redact(x.memory_type),key:redact(x.content?.key||x.id),value:x.content||{},
+    confidence:decayedConfidence(Number(x.confidence||0),x.last_seen_at),
+    source:redact(x.source),lastObservedAt:x.last_seen_at,
+    importance:Number(x.importance||0.5),relevance:Number(x.relevance||0.5),storageKind:x.storage_kind,
+  }));
   const events=(eventsResult.data||[]) as any[],eventTypes:Record<string,number>={},pathCounts:Record<string,number>={};
   for(const event of events){const type=redact(event.eventType).slice(0,80)||"unknown";eventTypes[type]=(eventTypes[type]||0)+1;const path=typeof event.path==="string"&&event.path?event.path.slice(0,160):null;if(path)pathCounts[path]=(pathCounts[path]||0)+1;}
   const gaps:string[]=[];

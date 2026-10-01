@@ -2,6 +2,8 @@ import type { AiOperation } from "../aiEconomics";
 import { runAiOrchestrator } from "../ai/orchestrator";
 import { adminClient } from "../server-auth";
 import { actionForIntent, isFinancialRequest } from "./guard";
+import { observeInternet } from "./internet";
+import { buildJiaContext } from "@/lib/jiaContext";
 
 export type JiaBrainInput = {
   userId: string;
@@ -105,61 +107,19 @@ function normalizeIntent(message: string) {
   return "CAREER";
 }
 
-type WebSource = { title: string; url: string; snippet: string; domain: string; trust: "HIGH" | "MEDIUM" };
-
-const TRUSTED_WEB_DOMAINS = new Set([
-  "francetravail.fr", "service-public.fr", "legifrance.gouv.fr", "insee.fr", "who.int", "europa.eu",
-  "linkedin.com", "indeed.com", "glassdoor.fr", "apec.fr", "oniseptv.onisep.fr", "onisep.fr",
-]);
-
-function normalizeWebUrl(raw: string) {
-  try {
-    const url = new URL(raw);
-    if (!/^https?:$/.test(url.protocol) || url.hostname === "localhost" || url.hostname.endsWith(".local")) return null;
-    [...url.searchParams.keys()].forEach((key) => { if (/^utm_|^gclid$|^fbclid$/i.test(key)) url.searchParams.delete(key); });
-    return url;
-  } catch { return null; }
-}
-
 function needsWebResearch(message: string) {
   return /\b(aujourd'hui|actualit|dernier|dernière|récent|maintenant|sur internet|en ligne|cherche|recherche|compare|prix|salaire|marché|offre|emploi|formation|événement|réglementation|202[4-9])\b/i.test(message);
 }
 
-async function searchWeb(query: string): Promise<WebSource[]> {
-  if (!query.trim()) return [];
-  try {
-    const response = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query.slice(0, 300))}`, {
-      headers: { "User-Agent": "Jobly-JIA/1.0" },
-      signal: AbortSignal.timeout(7000),
-      cache: "no-store",
-    });
-    if (!response.ok) return [];
-    const html = await response.text();
-    const sources: WebSource[] = [];
-    const pattern = /result__a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?result__snippet[^>]*>([\s\S]*?)<\/a?>/gi;
-    for (const match of html.matchAll(pattern)) {
-      const parsed = normalizeWebUrl(match[1].replace(/&amp;/g, "&"));
-      if (!parsed || sources.some((source) => source.url === parsed.href) || sources.some((source) => source.domain === parsed.hostname)) continue;
-      const cleanText = (value: string) => value.replace(/<[^>]+>/g, "").replace(/&(?:amp|quot|#39|lt|gt);/g, " ").replace(/\s+/g, " ").trim();
-      const domain = parsed.hostname.replace(/^www\./, "");
-      sources.push({ title: cleanText(match[2]).slice(0, 180), url: parsed.href, domain, trust: TRUSTED_WEB_DOMAINS.has(domain) ? "HIGH" : "MEDIUM", snippet: cleanText(match[3]).slice(0, 400) });
-      if (sources.length === 5) break;
-    }
-    sources.sort((a, b) => Number(b.trust === "HIGH") - Number(a.trust === "HIGH"));
-    return sources;
-  } catch {
-    return [];
-  }
-}
 
 export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult> {
   const sb = adminClient();
-  const [memory, events, assessment] = await Promise.all([
-    sb.from("JiaMemory").select("category,key,value,confidence,lastObservedAt").eq("userId", input.userId).order("confidence",{ascending:false}).order("lastObservedAt",{ascending:false}).limit(24),
-    sb.from("JiaEvent").select("eventType,path,metadata,createdAt").eq("userId", input.userId).order("createdAt",{ascending:false}).limit(20),
+  const [{ context: userContext }, assessment] = await Promise.all([
+    buildJiaContext(sb, input.userId, { operation: "BRAIN" }),
     sb.from("CareerAssessment").select("readiness,gaps,nextBestAction,computedAt").eq("userId", input.userId).order("computedAt",{ascending:false}).limit(1).maybeSingle(),
   ]);
-
+  const memory = userContext?.memory || [];
+  const events = userContext?.behavior?.recent || [];
   const lang: "fr" | "en" = input.lang === "en" ? "en" : "fr";
   const context = {
     responseLanguage: lang === "en" ? "English" : "français",
@@ -168,8 +128,8 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     action: clean(input.action, 240),
     message: clean(input.message, 1200),
     proactive: Boolean(input.proactive),
-    memory: memory.data || [],
-    recentEvents: events.data || [],
+    memory,
+    recentEvents: events,
     assessment: assessment.data || null,
   };
 
@@ -187,10 +147,11 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     return { message, intent: "GREETING", confidence: "HIGH", provider: "DETERMINISTIC", ...(trace.data?.id ? { traceId: String(trace.data.id) } : {}) };
   }
 
-  const sources = needsWebResearch(context.message) ? await searchWeb(context.message) : [];
+  const webSignal = needsWebResearch(context.message) ? await observeInternet(context.message, { mode: "ON_DEMAND", maxQueries: 3, maxSources: 5 }) : null;
+  const sources = webSignal?.observation.sourcesUsed.map((source) => ({ title: source.title, url: source.url, snippet: source.snippet, trust: source.authority >= 0.8 ? "HIGH" : "MEDIUM" as const })) || [];
   const webResearch = sources.length > 0
-    ? `Sources web récentes (à vérifier, jamais des faits garantis; confiance: HIGH = domaine institutionnel ou spécialisé connu, MEDIUM = source à vérifier):\n${sources.map((source) => `- [${source.trust}] ${source.title} — ${source.url}\n  ${source.snippet}`).join("\n")}`
-    : "Aucune source web fiable trouvée.";
+    ? `Sources web vérifiées par Internet Brain; elles restent des preuves, pas des faits garantis:\n${sources.map((source) => `- [${source.trust}] ${source.title} — ${source.url}\n  ${source.snippet}`).join("\n")}`
+    : (webSignal?.observation.limitations?.join("; ") || "Aucune source web exploitable trouvée.");
 
   const operation: AiOperation =
     input.ecosystem === "RECRUITER" ? "OFFER_INTELLIGENCE" :
@@ -214,7 +175,7 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
   // Barrière financière : évaluée AVANT toute action (cf. lib/jia/guard.ts).
   const fallbackAction = financialRequest ? undefined : actionForIntent(intent, context.message);
   const fallbackPool = CONTEXTUAL_FALLBACKS[intent] || CONTEXTUAL_FALLBACKS.CAREER;
-  const fallbackMessage = fallbackPool[(context.message.length + (events.data?.length || 0)) % fallbackPool.length];
+  const fallbackMessage = fallbackPool[(context.message.length + events.length) % fallbackPool.length];
   const message = financialRequest
     ? FINANCIAL_REPLY[lang]
     : (clean(generated?.message, 1200) || (sources.length > 0
@@ -231,7 +192,7 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     title: "J’IA Brain decision",
     content: message,
     confidence,
-    evidence: { path: context.path, action: context.action, intent, memoryCount: memory.data?.length || 0, eventCount: events.data?.length || 0, webSources: sources.map((source) => source.url) },
+    evidence: { path: context.path, action: context.action, intent, memoryCount: memory.data?.length || 0, eventCount: events.length, webSources: sources.map((source) => source.url), webConfidence: webSignal?.observation.confidence ?? 0, webStatus: webSignal?.observation.status ?? "UNKNOWN", contradictions: webSignal?.observation.contradictingSources ?? [] },
     sourceType: "JIA_BRAIN",
     sourceRef: "lib/jia/brain",
     status: "COMPLETED",

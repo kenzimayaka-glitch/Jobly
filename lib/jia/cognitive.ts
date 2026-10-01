@@ -160,6 +160,11 @@ export async function ingestExternalSignal(userId: string, observation: {
     importance: Number(observation.context?.impact ?? .5), contradictionKey: "external:" + observation.query.trim().toLowerCase(),
     futureUtility: .7,
   });
+  await upsertWorldEntity({
+    userId, type: "EXTERNAL_SIGNAL", key: "query:" + observation.query.trim().toLowerCase(),
+    attributes: { query: observation.query, facts: observation.facts ?? [], status, context: observation.context ?? {} },
+    confidence: observation.confidence, sources: observation.supportingSources ?? [],
+  });
   if (fact) await updateBelief({
     userId, key: "external:" + observation.query.trim().toLowerCase(), belief: fact,
     confidence: observation.confidence, status,
@@ -179,12 +184,18 @@ export async function recordPredictionOutcome(args:{userId:string;predictionId:s
     outcome:args.outcome,outcome_at:new Date().toISOString(),calibration_error:error,updated_at:new Date().toISOString(),
   }).eq("id",args.predictionId).eq("user_id",args.userId).select("*").single();
   if(dbError) throw new Error(dbError.message);
-  await reflect({userId:args.userId,triggerType:"PREDICTION_OUTCOME",
+  const reflection = await reflect({userId:args.userId,triggerType:"PREDICTION_OUTCOME",
     expectation:{predictionId:args.predictionId,probability:args.probability},
     result:args.outcome,error:{calibrationError:error,observed:args.observed},
     learning:{calibratedProbability:args.observed ? Math.min(1,args.probability+.05) : Math.max(0,args.probability-.05)},
     nextStrategy:{reviewCalibration:true}});
-  return data;
+  await remember({
+    userId:args.userId,type:"REFLECTIVE",
+    content:{kind:"PREDICTION_CALIBRATION",predictionId:args.predictionId,outcome:args.outcome,calibrationError:error},
+    source:"PREDICTION_OUTCOME",confidence:1-error,importance:.7,relevance:.8,futureUtility:.9,
+    contradictionKey:"prediction-learning:"+args.predictionId
+  });
+  return {prediction:data,reflection};
 }
 
 export async function upsertWorldEntity(args:{userId:string;type:string;key:string;attributes:Record<string,unknown>;confidence:number;sources?:string[]}){

@@ -1,0 +1,26 @@
+name: J'IA Master Continuous Gate
+on:
+  push:
+    branches:
+      - feat/jia-internet-brain-20261001
+  pull_request:
+    branches:
+      - main
+jobs:
+  master-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Architecture contradiction gate
+        run: python test_jia_architecture.py
+      - name: Cognitive core contract
+        run: python test_jia_cognitive.py
+      - name: Internet Brain invariants
+        run: python test_internet_brain.py
+      - name: Offline autonomy hard mode
+        run: python test_jia.py
+      - name: Lexicon
+        run: python test_lexicon.py

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "./server-auth";
+import { publishJiaEvent } from "./jia/eventBus";
 
 export const JIA_MEMORY_CATEGORIES = ["career","mobility","campus","community","financial_signal","interaction_style"] as const;
 export type JiaMemoryCategory = (typeof JIA_MEMORY_CATEGORIES)[number];
@@ -32,8 +33,11 @@ export async function recordJiaEvent(req:NextRequest,payload:{eventType:string;s
   const path=typeof payload.path==="string"?payload.path.slice(0,500):null;
   const sessionId=typeof payload.sessionId==="string"?payload.sessionId.slice(0,100):null;
   const metadata=safeJiaMetadata(payload.metadata);
-  const {error}=await sb.from("JiaEvent").insert({userId:user.id,eventType,sessionId,path,durationMs,metadata});
-  if(error)return{ok:false as const,status:500,message:error.message};
+  try {
+    await publishJiaEvent(sb,{userId:user.id,type:eventType,source:"JIA_EVENT_BUS",payload:{sessionId,path,durationMs,metadata}});
+  } catch (error) {
+    return {ok:false as const,status:500,message:error instanceof Error?error.message:"Impossible d’enregistrer l’événement J’IA."};
+  }
   const memoryCategory:JiaMemoryCategory =
     eventType.startsWith("mobility_")?"mobility":
     eventType.startsWith("campus_")?"campus":
