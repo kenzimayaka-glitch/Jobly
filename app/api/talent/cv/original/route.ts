@@ -31,7 +31,8 @@ export async function POST(request: NextRequest) {
     const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
     const bytes = Buffer.from(await file.arrayBuffer());
     if (bytes.length <= 0 || bytes.length > 3 * 1024 * 1024) return NextResponse.json({ error: "PDF_TOO_LARGE", message: "Le CV original dépasse la limite de 3 Mo." }, { status: 413 });
-    const canonicalFileName = await canonicalCvFileName(admin, auth.id);\n    const storagePath = `${auth.id}/${crypto.randomUUID()}.pdf`;
+    const canonicalFileName = await canonicalCvFileName(admin, auth.id);
+    const storagePath = `${auth.id}/${crypto.randomUUID()}.pdf`;
     const upload = await admin.storage.from("talent-cvs").upload(storagePath, bytes, { contentType: "application/pdf", upsert: false });
     if (upload.error) throw new Error(upload.error.message);
     const { data: user, error: userError } = await admin.from("User").select("id,cvOriginalStoragePath").eq("authUserId", auth.id).maybeSingle();
