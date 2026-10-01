@@ -5,6 +5,57 @@
 > Règle : une fonctionnalité n'est terminée que si elle traverse **SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**.
 > La Partie A est maintenant implémentée de bout en bout pour les lots 1 à 5 sur une branche dédiée. Les migrations Lot 3/4/indices ont été appliquées sur JOBLY-PROD et vérifiées par SQL. Aucun merge vers \`main\` et aucun déploiement Vercel n'a été effectué.
 
+## Partie A — Lots 1 à 6 — état au 01/10/2026
+
+| Lot | État réel | Preuve |
+|---|---|---|
+| 1 — Fondations | CODÉ + DB EXISTANTE + CONTRÔLES SQL PASSÉS | états, rôles, audit, invitations, notifications, RLS |
+| 2 — Lancer | CODÉ + DB EXISTANTE + SCÉNARIO DB PASSÉ | versions, critères, publication, prorogation, clôture |
+| 3 — Candidatures & sélection | CODÉ + MIGRATION APPLIQUÉE + ASSERTIONS PASSÉES | ATS, complétude, justificatifs, shortlist, vivier, différé |
+| 4 — Tests | CODÉ + MIGRATION APPLIQUÉE + ASSERTIONS PASSÉES | timer serveur, autosave, heartbeat, expiration, soumission |
+| 5 — Entretiens | CODÉ + DB EXISTANTE + SCHEDULER CORRIGÉ | créneaux, jury, présence, rappels T-30/T-5 |
+| 6 — Décision | CODÉ + DB APPLIQUÉE + RLS/PRIVILEGES CONTRÔLÉS | décision server-authoritative, pondération, votes, validation RH/DG optionnelle, références, recommandation J’IA, offre, négociation, réserve et refus après acceptation |
+
+### Lot 6 — périmètre livré
+
+- RecruitmentDecision + RecruitmentDecisionVote : décision canonique et avis jury.
+- RecruitmentDecisionPolicy : pondération CV/test/entretien, bornes salariales, validation à deux niveaux optionnelle et références obligatoires optionnelles.
+- RecruitmentDecisionApproval : approbations RH/DG tracées.
+- RecruitmentDecisionReference : vérification des références avant offre lorsqu’activée.
+- RecruitmentDecisionRecommendation : recommandation J’IA explicable, avec provider, confiance et preuves ; elle ne décide jamais.
+- RecruitmentOffer : offre formelle, délai de réponse, bornes salariales et date de prise de service.
+- RecruitmentOfferNegotiation : journal des propositions, contre-propositions, acceptation/refus et canal.
+- API Recruiter : /api/recruitment360/decisions.
+- API Talent : /api/recruitment360/offers/[id]/respond.
+- UI Recruiter : /recruiter/decisions.
+- UI Talent : /career/recruitment360/[applicationId].
+- Lorsqu’une offre est choisie, les autres finalistes passent en POOL ; aucun refus définitif n’est envoyé avant l’acceptation de l’offre.
+- À l’acceptation, la candidature devient HIRED, le recrutement devient COMPLETED et les candidats restés en réserve passent en REJECTED avec notification.
+- Les fonctions sensibles sont service_role uniquement ; les nouvelles tables ont RLS activée.
+- Les notifications de décision/offre portent l’intention email + push + inApp ; leur délivrabilité externe reste à certifier avec les fournisseurs configurés.
+
+### Preuves réelles Lot 6
+
+- Projet Supabase : mpoyaegtwtmhookdzqdy, ACTIVE_HEALTHY.
+- Migration Lot 6 exécutée directement sur JOBLY-PROD : succès, sans données métier de démonstration.
+- 8/8 tables Lot 6 présentes avec relrowsecurity = true.
+- anon et authenticated ne peuvent pas exécuter recruitment360_lot6_finalize_decision ; service_role le peut.
+- service_role peut exécuter recruitment360_lot6_respond_offer.
+- Compteurs après migration : décisions 0, offres 0, négociations 0, références 0.
+- Advisor sécurité après correction : aucune nouvelle alerte liée aux tables Lot 6 ; les alertes globales restantes sont préexistantes.
+
+### Limite de certification Lot 6
+
+- npm run build : non exécuté dans cette session.
+- lint : non exécuté.
+- typecheck : non exécuté.
+- E2E navigateur : non exécuté.
+- Scénario métier Recruiter → offre → Talent → négociation → acceptation : non exécuté, car aucune candidature 360° exploitable n’est présente et aucune donnée de démonstration ne doit être laissée en production.
+- Déploiement Vercel : aucun.
+- Merge main : aucun.
+
+**Verdict Lot 6 : CODÉ + CONNECTÉ + DB TESTÉE ; BUILD/TYPECHECK/LINT/E2E restent nécessaires avant VALIDÉ.**
+
 ## Partie A — Lots 1 à 5
 
 | Lot | État réel | Preuve |
