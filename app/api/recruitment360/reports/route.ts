@@ -22,7 +22,9 @@ export async function GET(req:NextRequest){
    if(!recruiterAllowed&&!candidateAllowed)return NextResponse.json({message:"FORBIDDEN"},{status:403});
    const {data:reviews,error}=await s.from("RecruitmentReview").select("*").eq("applicationId",aid).eq("visibleToCandidate",candidateAllowed&&!recruiterAllowed?true:true).order("createdAt",{ascending:false});
    if(error)throw new Error(error.message);
-   const {data:reports,error:re}=await s.from("RecruitmentReport").select("*").eq("applicationId",aid).order("generatedAt",{ascending:false});
+   let reportQuery=s.from("RecruitmentReport").select("*").eq("applicationId",aid);
+   if(candidateAllowed&&!recruiterAllowed)reportQuery=reportQuery.eq("reportType","CANDIDATE");
+   const {data:reports,error:re}=await reportQuery.order("generatedAt",{ascending:false});
    if(re)throw new Error(re.message);
    return NextResponse.json({reviews:reviews??[],reports:reports??[]});
   }
