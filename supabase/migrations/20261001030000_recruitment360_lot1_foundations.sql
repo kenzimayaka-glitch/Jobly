@@ -344,7 +344,7 @@ using (
     select 1
     from public."RecruitmentRole" rr
     join public."User" u on u.id = rr."userId"
-    where rr."recruitmentId" = id
+    where rr."recruitmentId" = "Recruitment360".id
       and u."authUserId" = (select auth.uid())::text
   )
 );
