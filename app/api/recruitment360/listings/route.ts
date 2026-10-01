@@ -67,13 +67,21 @@ function qualifies(stage: ListingStage, application: any, state: any, shortlist:
     return ["SELECTED", "RETAINED", "SHORTLISTED", "CV_SELECTED"].includes(shortlistStatus)
       || ["RETAINED", "SHORTLISTED", "CV_SELECTED"].includes(stateName);
   }
+  // Server-authoritative integrity rule: stage evidence alone never makes a
+  // candidate publishable. TEST/INTERVIEW/DECISION require an explicit retained
+  // shortlist/state signal first, preventing non-retained applicants from entering
+  // an official listing even if a downstream object exists.
+  const retained =
+    ["SELECTED", "RETAINED", "SHORTLISTED", "CV_SELECTED", "TEST_SELECTED", "INTERVIEW_SELECTED", "FINALIST"].includes(shortlistStatus)
+    || ["RETAINED", "SHORTLISTED", "CV_SELECTED", "TEST_SELECTED", "INTERVIEW_SELECTED", "FINALIST"].includes(stateName);
+
   if (stage === "TEST") {
-    return hasTest || ["TEST", "TEST_SELECTED", "TEST_COMPLETED", "TEST_PASSED"].includes(stateName);
+    return retained && (hasTest || ["TEST", "TEST_SELECTED", "TEST_COMPLETED", "TEST_PASSED"].includes(stateName));
   }
   if (stage === "INTERVIEW") {
-    return hasInterview || ["INTERVIEW", "FINALIST", "INTERVIEW_SELECTED"].includes(stateName);
+    return retained && (hasInterview || ["INTERVIEW", "FINALIST", "INTERVIEW_SELECTED"].includes(stateName));
   }
-  return hasDecision || ["FINALIST", "DECISION", "OFFER", "HIRED"].includes(stateName);
+  return retained && (hasDecision || ["FINALIST", "DECISION", "OFFER", "HIRED"].includes(stateName));
 }
 
 async function getOrCreatePublicLink(
