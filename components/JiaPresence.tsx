@@ -160,6 +160,7 @@ export default function JiaPresence() {
   const lastAction = useRef("");
   const lastPrediction = useRef("");
   const lastRequest = useRef(0);
+  const externalSignalRef = useRef<{ summary: string; confidence: number; status: "CONFIRMED" | "LIKELY" | "CONTESTED" | "UNKNOWN" } | undefined>(undefined);
   const bubbleTimer = useRef<number | null>(null);
   const idSeq = useRef(0);
   const introSpoken = useRef(false);
@@ -482,6 +483,7 @@ export default function JiaPresence() {
         matchingOffers: pathname.includes("/jobs") ? document.querySelectorAll('a[href*="/jobs/"]').length : 0,
         pendingApplications: pathname.includes("/candidatures") ? document.querySelectorAll('[data-application], a[href*="candidatures"]').length : 0,
         currentLanguage: langRef.current === "en" ? "en" : "fr",
+        externalSignal: externalSignalRef.current,
       }));
       if (!decision) return;
       lastAutonomousAt = Date.now();
@@ -507,6 +509,55 @@ export default function JiaPresence() {
       window.removeEventListener("keydown", onActivity);
     };
   }, [visible, prefs.proactive, pathname, suspended, panelOpen, bubble, say]);
+
+  // ── Internet Brain : perception externe proactive ───────────────────────
+  useEffect(() => {
+    if (!visible || !prefs.proactive || sensitiveRoute) return;
+    if (!/\/jobs|\/career|\/recruiter|\/partner|\/candidatures/.test(pathname)) return;
+    let active = true;
+    const queryForRoute = () => {
+      const action = lastAction.current.replace(/[^a-zA-ZÀ-ÿ0-9 _-]/g, " ").trim().slice(0, 100);
+      if (pathname.startsWith("/recruiter")) return "recrutement emploi Cameroun " + action;
+      if (pathname.startsWith("/partner")) return "partenariat emploi Cameroun " + action;
+      if (pathname.includes("/career")) return "carrière compétences emploi Cameroun " + action;
+      if (pathname.includes("/candidatures")) return "candidature recrutement emploi Cameroun " + action;
+      return "offres emploi Cameroun " + action;
+    };
+    const requestExternalSignal = async () => {
+      try {
+        const { data: { session } } = await getSupabaseClient().auth.getSession();
+        if (!session?.access_token || document.hidden || !active) return;
+        const res = await fetch("/api/jia/internet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ query: queryForRoute(), mode: "PROACTIVE", maxQueries: 1, maxSources: 5 }),
+        });
+        if (!res.ok || !active) return;
+        const signal = await res.json() as {
+          type?: string; proposal?: string;
+          beliefCandidate?: { confidence?: number; status?: "CONFIRMED"|"LIKELY"|"CONTESTED"|"UNKNOWN"; belief?: string };
+          observation?: { internetAvailable?: boolean; confidence?: number; status?: "CONFIRMED"|"LIKELY"|"CONTESTED"|"UNKNOWN"; facts?: string[]; sourcesUsed?: Array<{title?:string;url?:string}> };
+        };
+        window.dispatchEvent(new CustomEvent("jobly:jia-external-signal", { detail: signal }));
+        const o = signal.observation;
+        const confidence = signal.beliefCandidate?.confidence ?? o?.confidence ?? 0;
+        const status = signal.beliefCandidate?.status ?? o?.status ?? "UNKNOWN";
+        const summary = signal.beliefCandidate?.belief || o?.facts?.[0] || "";
+        if (o?.internetAvailable && summary) {
+          externalSignalRef.current = { summary: summary.slice(0, 280), confidence, status };
+          try {
+            const key = "jobly-jia-internet-memory-v1";
+            const prior = JSON.parse(window.localStorage.getItem(key) || "[]") as Array<{summary:string;confidence:number;status:string;at:string}>;
+            const next = [{summary:summary.slice(0,280),confidence,status,at:new Date().toISOString()},...prior].slice(0,50);
+            window.localStorage.setItem(key, JSON.stringify(next));
+          } catch {}
+        }
+      } catch { /* Internet Brain failure never stops offline autonomy. */ }
+    };
+    const timer = window.setTimeout(requestExternalSignal, 20_000);
+    const interval = window.setInterval(requestExternalSignal, 300_000);
+    return () => { active = false; window.clearTimeout(timer); window.clearInterval(interval); };
+  }, [visible, prefs.proactive, pathname, sensitiveRoute]);
 
   // ── Proactivité (si autorisée) ───────────────────────���───────────────────
   useEffect(() => {
