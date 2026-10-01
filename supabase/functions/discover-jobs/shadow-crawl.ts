@@ -3,9 +3,17 @@ import { crawlExhaustiveSource } from "./exhaustive-crawler.ts";
 
 const countries=(Deno.args.length?Deno.args:["CF","TD","CG","CD","GA","GQ","ST","BI"]).map(x=>x.toUpperCase());
 const started=Date.now();
+const SOURCE_CONCURRENCY=6;
+async function mapConcurrent<T,R>(items:T[],fn:(item:T)=>Promise<R>,limit=SOURCE_CONCURRENCY):Promise<R[]> {
+  const out:R[]=new Array(items.length); let cursor=0;
+  const workers=Array.from({length:Math.min(limit,Math.max(1,items.length))},async()=>{
+    while(true){const i=cursor++; if(i>=items.length) break; out[i]=await fn(items[i]);}
+  });
+  await Promise.all(workers); return out;
+}
 const batches=await Promise.all(countries.map(async country=>{
   const resolved=resolveCountrySources(country);
-  return await Promise.all(resolved.map(async source=>{
+  return await mapConcurrent(resolved,async source=>{
     if(!source.url) return {sourceKey:source.sourceKey,sourceName:source.sourceKey,countryCode:country,listingPages:0,detailPages:0,discoveredUrls:0,extracted:0,eligible:0,fresh:0,expired:0,internships:0,consultancies:0,applications:0,tenders:0,rejected:0,rejectedReasons:{unresolved:1},advertisedCount:null,errors:["UNRESOLVED_SOURCE"]};
     try{
       const result=await crawlExhaustiveSource({...source,enabled:true,status:"active",name:source.sourceKey,countries:[country],languages:[],captureMode:"http",renderRequired:false,priority:0},country);
@@ -13,7 +21,7 @@ const batches=await Promise.all(countries.map(async country=>{
     }catch(e){
       return {sourceKey:source.sourceKey,sourceName:source.sourceKey,countryCode:country,listingPages:0,detailPages:0,discoveredUrls:0,extracted:0,eligible:0,fresh:0,expired:0,internships:0,consultancies:0,applications:0,tenders:0,rejected:0,rejectedReasons:{runtime:1},advertisedCount:null,errors:[e instanceof Error?e.message:String(e)]};
     }
-  }));
+  });
 }));
 const metrics=batches.flat();
 const control=metrics.map(x=>({country:x.countryCode,source:x.sourceName,sourceCount:x.advertisedCount,discovered:x.discoveredUrls,extracted:x.extracted,eligible:x.eligible,expired:x.expired,rejected:x.rejected,internships:x.internships,consultancies:x.consultancies,tenders:x.tenders,errors:x.errors.length,gap:x.advertisedCount===null?null:x.advertisedCount-x.eligible}));
@@ -26,6 +34,7 @@ const summary={
   totalEligible:metrics.reduce((n,x)=>n+x.eligible,0),expired:metrics.reduce((n,x)=>n+x.expired,0),
   rejected:metrics.reduce((n,x)=>n+x.rejected,0),internships:metrics.reduce((n,x)=>n+x.internships,0),
   consultancies:metrics.reduce((n,x)=>n+x.consultancies,0),tenders:metrics.reduce((n,x)=>n+x.tenders,0),
-  durationMs:Date.now()-started
+  durationMs:Date.now()-started,
+  guardrails:{sourceConcurrency:SOURCE_CONCURRENCY,description:"bounded source concurrency prevents runner/network saturation"}
 };
 console.log(JSON.stringify({summary,control,metrics},null,2));

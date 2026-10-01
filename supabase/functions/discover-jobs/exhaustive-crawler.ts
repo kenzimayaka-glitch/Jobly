@@ -12,6 +12,8 @@ export type ExhaustiveStats = {
   rejectedReasons:Record<string,number>; advertisedCount:number|null; errors:string[];
 };
 const REQUEST_TIMEOUT_MS=12000, CONCURRENCY=24;
+const MAX_LISTING_PAGES=25;
+const MAX_DETAIL_URLS=500;
 const JOB_WORDS=/\b(job|jobs|emploi|emplois|offre|offres|poste|postes|vacan|career|careers|recruit|recrut|recrutement|opportunit|stage|intern|consultan|consultancy|contract|position|vacancy|hiring|work|talent|manager|assistant|agent|technicien|commercial|engineer|specialist|director|responsable|coordinateur|chauffeur|comptable)\b/i;
 const TENDER_WORDS=/\b(appel d['’]?offres?|march[ée] public|demande de cotation|fourniture|acquisition|soumission|tender|procurement|dao|rfq|rfi|manifestation d['’]?int[ée]r[êe]t)\b/i;
 const TRAINING_WORDS=/\b(formation|certification|masterclass|bootcamp|webinaire|atelier de formation|cours|bourse d['’]?[ée]tude|scholarship)\b/i;
@@ -91,14 +93,14 @@ async function mapConcurrent<T,R>(items:T[],fn:(item:T)=>Promise<R>,limit=CONCUR
 export async function crawlExhaustiveSource(source:SourceDefinition&{url:string},countryCode:string):Promise<{items:ExhaustiveItem[];stats:ExhaustiveStats}> {
   const stats:ExhaustiveStats={sourceKey:source.key,sourceName:source.name,countryCode,listingPages:0,detailPages:0,discoveredUrls:0,extracted:0,eligible:0,fresh:0,expired:0,internships:0,consultancies:0,applications:0,tenders:0,rejected:0,rejectedReasons:{},advertisedCount:null,errors:[]};
   const pagesToVisit=[source.url],seenPages=new Set<string>(),detailUrls=new Map<string,string>(),listingHtmls:string[]=[];
-  while(pagesToVisit.length){
+  while(pagesToVisit.length && stats.listingPages<MAX_LISTING_PAGES){
     const pageUrl=pagesToVisit.shift()!,key=canonical(pageUrl);if(seenPages.has(key))continue;seenPages.add(key);
     try{
       const r=await fetchPage(pageUrl);stats.listingPages++;
       if(r.status>=400){stats.errors.push("HTTP "+r.status+" "+pageUrl);continue}
       listingHtmls.push(r.html);if(stats.advertisedCount===null)stats.advertisedCount=advertisedCount(r.html);
       const pageLinks=links(r.html,pageUrl);
-      for(const j of jsonLdJobs(r.html)){const item=extractJob(j,pageUrl);if(item.title){detailUrls.set(canonical(item.url),item.url)}}
+      for(const j of jsonLdJobs(r.html)){const item=extractJob(j,pageUrl);if(item.title && detailUrls.size<MAX_DETAIL_URLS){detailUrls.set(canonical(item.url),item.url)}}
       for(const link of pageLinks){
         if(isPagination(link)&&sameHost(link.url,source.url)&&!seenPages.has(canonical(link.url)))pagesToVisit.push(link.url);
         if(isDetail(link,source.url))detailUrls.set(canonical(link.url),link.url);
@@ -106,6 +108,8 @@ export async function crawlExhaustiveSource(source:SourceDefinition&{url:string}
     }catch(e){stats.errors.push(pageUrl+": "+(e instanceof Error?e.message:String(e)))}
   }
   stats.discoveredUrls=detailUrls.size;
+  if(stats.listingPages>=MAX_LISTING_PAGES)stats.errors.push("LISTING_PAGE_LIMIT_REACHED");
+  if(stats.discoveredUrls>=MAX_DETAIL_URLS)stats.errors.push("DETAIL_URL_LIMIT_REACHED");
   const details=await mapConcurrent([...detailUrls.values()],async(url)=>{try{const r=await fetchPage(url);if(r.status>=400)return null;return extractHtmlItem(r.html,url)}catch{return null}});
   const byUrl=new Map<string,ExhaustiveItem>();
   for(const item of details){if(!item?.title)continue;stats.detailPages++;const key=canonical(item.url),previous=byUrl.get(key);if(!previous||item.description.length>previous.description.length)byUrl.set(key,item)}
