@@ -1,62 +1,51 @@
 # JOBLY — STATUT DU PROJET
 ## SOURCE DE VÉRITÉ D'EXÉCUTION — JOBLY 20/20
-### Mise à jour : 01/10/2026 — Recrutement 360° v2 / Lot 2
+### Mise à jour : 01/10/2026 — Recrutement 360° v2 / Partie A complète
 
 > Règle : une fonctionnalité n'est terminée que si elle traverse **SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**.
-> Les anciens checkpoints restent conservés comme historique et ne remplacent jamais l'état courant.
+> La Partie A est maintenant implémentée de bout en bout pour les lots 1 à 5 sur une branche dédiée. Les migrations Lot 3/4/indices ont été appliquées sur JOBLY-PROD et vérifiées par SQL. Aucun merge vers \`main\` et aucun déploiement Vercel n'a été effectué.
 
-# 🔵 TÂCHE ACTIVE UNIQUE — RECRUTEMENT 360° v2
+## Partie A — Lots 1 à 5
 
-Le CEO a validé le démarrage du parcours **Recrutement 360° v2**. Pendant ce chantier, aucun autre domaine n'est la tâche active principale.
-
-## Lots
-
-| Lot | État courant | Preuve / reste |
+| Lot | État réel | Preuve |
 |---|---|---|
-| **1 — Fondations** | 🟨 **CODÉ + BASE VÉRIFIÉE / BUILD À VALIDER** | États serveur, rôles, audit, notifications, double coche, codes uniques, FREE_TEST/PRODUCTION livrés ; migrations appliquées et tests DB ciblés passés ; build/lint/typecheck non exécutables depuis l'environnement connecté actuel |
-| **2 — Lancer** | 🟨 **CODÉ + DB VÉRIFIÉE / BUILD À VALIDER** | Annonces versionnées, critères, salaire, échéance, publication, clôture et prorogation ; RPC serveur + API + UI Recruiter livrés ; scénario DB complet CREATE_VERSION→PUBLISH→EXTEND→CLOSE passé ; build/lint/typecheck non exécutables ici |
-| 3 — Candidatures & sélection | ⚪ EN ATTENTE | Matching détaillé, CV, justificatifs, ATS, vivier, refus différés |
-| 3 — Candidatures & sélection | ⚪ EN ATTENTE | Matching détaillé, CV, justificatifs, ATS, vivier, refus différés |
-| 4 — Tests | ⚪ EN ATTENTE | Sessions, timer serveur, sauvegarde, surveillance, reprise |
-| 5 — Entretiens | ⚪ EN ATTENTE | Créneaux, jury, rappels, présence, Meet |
-| 6 — Décision | ⚪ EN ATTENTE | Pondération, J'IA, réserve, offre, négociation |
-| 7 — Rapports & avis | ⚪ EN ATTENTE | PDF, liens sécurisés, dashboard, avis |
-| 8 — Fiabilité avancée | ⚪ EN ATTENTE | Proctoring appareil, signaux anti-IA, réseau faible, secours |
-| 9 — Native + visio | ⚪ EN ATTENTE | Capacitor, FCM/APNs, alerte native, visio intégrée |
+| **1 — Fondations** | **CODÉ + DB EXISTANTE + CONTRÔLES SQL PASSÉS** | états serveur, rôles, audit, invitations, notifications, RLS ; tables présentes et RLS activée |
+| **2 — Lancer** | **CODÉ + DB EXISTANTE + SCÉNARIO DB DÉJÀ PASSÉ** | versions, critères, publication, prorogation, clôture ; migrations 20261001204011–20261001204259 présentes |
+| **3 — Candidatures & sélection** | **CODÉ + MIGRATION APPLIQUÉE + ASSERTIONS PASSÉES** | ATS, complétude, justificatifs, vivier, présélection, refus différé ; migration 20261001 lot 3 |
+| **4 — Tests** | **CODÉ + MIGRATION APPLIQUÉE + ASSERTIONS PASSÉES** | définition, questions, session, timer serveur, réponses, heartbeat, expiration, soumission ; migration 20261001 lot 4 |
+| **5 — Entretiens** | **CODÉ + DB EXISTANTE + SCHEDULER ROUTE CORRIGÉE** | créneaux, jury, présence, rappels T-30/T-5, API/UI ; migrations 20261001204907–20261001205044 |
 
-## Lot 2 — Lancer : périmètre livré
+### Preuves réelles exécutées sur JOBLY-PROD
 
-### Annonces 360° versionnées
-- `RecruitmentAnnouncementVersion` conserve chaque version publiée/brouillon avec titre, description, salaire, visibilité salaire, échéance, publication, clôture et motif de prolongation.
-- `RecruitmentCriterion` normalise les critères avec obligation, poids et ordre.
-- `RecruitmentPublicationEvent` journalise création de version, publication, prolongation et clôture.
+- Projet Supabase identifié : \`mpoyaegtwtmhookdzqdy\`, état **ACTIVE_HEALTHY**, PostgreSQL 17.
+- Vérification SQL : **21/21 tables Partie A présentes avec RLS activée**.
+- Vérification SQL Lot 3 : **3/3 tables**, RLS active, accès SELECT anon refusé, RPC sensible non exécutable par \`authenticated\`.
+- Vérification SQL Lot 4 : **5/5 tables**, RLS active, RPC \`start_session\` non exécutable par \`authenticated\`.
+- Vérification des fonctions : RPC Lot 3/4 exécutables par \`service_role\`, pas par \`authenticated\`.
+- Compteurs actuels : **1 recrutement**, **0 candidature 360**, **0 assessment**, **0 shortlist**, **0 test**, **0 session**, **0 entretien**. Il n'y a donc pas de donnée métier existante permettant de certifier un parcours runtime Recruiter↔Talent complet sans créer de données de test.
+- Advisor performance : les nouvelles FK Lot 3/4 ont été indexées par migration dédiée ; les avertissements restants sont majoritairement préexistants ou concernent des index encore inutilisés.
+- Advisor sécurité : aucun avertissement n'a été créé spécifiquement par Lot 3/4 sur les RPC publiques ; les alertes globales restantes concernent notamment des tables historiques service-only, \`pg_net\` en public et la protection des mots de passe compromis.
 
-### Machine serveur de lancement
-- `recruitment360_lot2_create_version` crée une version atomiquement avec critères et validations.
-- `recruitment360_lot2_publish` publie une version et synchronise `RecruiterJob.status`.
-- `recruitment360_lot2_extend` exige une nouvelle échéance future et un motif d'au moins 5 caractères.
-- `recruitment360_lot2_close` clôture l'annonce, ferme les candidatures et verrouille le recrutement.
-- Toutes les RPC Lot 2 sont `service_role`-only ; l'API authentifie d'abord l'utilisateur puis transmet son `User.id` interne.
+### Code livré sur la branche Partie A
 
-### API / UX Recruiter
-- `GET/POST /api/recruitment360/jobs/[id]/announcement` : lecture des versions/critères/événements et création d'une nouvelle version.
-- `POST .../publish` : publication serveur.
-- `POST .../extend` : prorogation serveur.
-- `POST .../close` : clôture serveur.
-- `RecruiterJobForm` expose échéance, critères, versions, prolongation et clôture.
-- Une publication passe par la version 360 ; l'ancien `RecruiterJob` reste synchronisé pour compatibilité.
+Branche : \`feat/recruitment-360-partie-a-complete\`
 
-### Preuves Lot 2
-- 1 version existante backfillée pour l'offre Recruiter historique.
-- 1 critère initial backfillé.
-- Scénario synthétique complet exécuté et nettoyé : création de version, publication, prolongation, clôture.
-- Les 3 nouvelles tables ont RLS + policies SELECT ; `anon/authenticated` ne disposent pas des droits d'écriture.
-- Index FK Lot 2 ajoutés après passage de l'advisor performance.
-- Aucun déploiement Vercel ; aucun merge `main`.
+Fonctionnalités ajoutées :
+- \`/recruiter/applications360\` : traitement réel des candidatures 360°.
+- \`/api/recruitment360/applications\` : scoring ATS, justificatifs, shortlist, réserve, différé, refus.
+- \`/recruiter/tests\` : création/publication des tests.
+- \`/career/tests/[id]\` : passage candidat avec timer basé sur \`expiresAt\` serveur, autosauvegarde et heartbeat.
+- correction du scheduler Lot 5 : le dispatch T-30/T-5 est désormais appelable par secret serveur sans session navigateur.
+- tests SQL dédiés Lot 3 et Lot 4.
+- indexes FK Partie A.
 
 ### Limite de certification
-- Le build/lint/typecheck Next.js n'a pas pu être exécuté depuis l'environnement connecté actuel ; aucun check CI n'est attaché au head au moment de ce checkpoint.
-- Les fournisseurs e-mail/push restent ceux du chantier notifications ; Lot 2 ne prétend pas livrer les canaux externes.
+
+Le dépôt connecté n'expose pas de runner local permettant d'exécuter honnêtement \`npm run build\`, typecheck et lint depuis cette session, et aucun workflow GitHub n'est attaché au dernier commit de la branche. Ces commandes ne sont donc **pas déclarées exécutées**. La validation DB est réelle et a été exécutée sur JOBLY-PROD.
+
+**État de sortie Partie A : CODÉ + CONNECTÉ + DB TESTÉE ; BUILD/TYPECHECK/LINT/E2E applicatifs à certifier avant validation finale.**
+
+Aucun merge \`main\`. Aucun déploiement Vercel.
 
 ---
 
