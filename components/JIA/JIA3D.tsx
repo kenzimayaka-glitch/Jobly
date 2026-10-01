@@ -3,6 +3,7 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Environment, useAnimations, useGLTF } from "@react-three/drei";
 import { Suspense, useEffect, useMemo, useRef } from "react";
+import { JIA3DErrorBoundary, JIAFallback } from "./JIAFallback";
 import * as THREE from "three";
 
 type Move =
@@ -142,6 +143,7 @@ function Model({ speaking }: { speaking: boolean }) {
 export default function JIA3D({ speaking }: { speaking: boolean }) {
   return (
     <div className="h-full w-full overflow-hidden rounded-[28px]" aria-hidden="true">
+      <JIA3DErrorBoundary fallback={<JIAFallback speaking={speaking} />}>
       <Canvas
         camera={{ position: [0, 0.05, 2.35], fov: 32 }}
         dpr={[1, 1.5]}
