@@ -101,8 +101,11 @@ begin
  values(a.id,r.id,p_status,p_rank,score,trim(p_reason),p_defer_until,p_actor_user_id,now())
  on conflict("applicationId") do update set status=excluded.status,rank=excluded.rank,score=excluded.score,reason=excluded.reason,"deferUntil"=excluded."deferUntil","decidedByUserId"=excluded."decidedByUserId","decidedAt"=excluded."decidedAt","updatedAt"=now()
  returning * into s;
- if p_status='SHORTLISTED' then perform public.recruitment360_transition_application(a.id,'SELECTED',null); end if;
- if p_status='REJECTED' then perform public.recruitment360_transition_application(a.id,'REJECTED',p_reason); end if;
+ if p_status in('SHORTLISTED','REJECTED') then
+   update public."RecruitmentApplicationState" set "currentState"=case when p_status='SHORTLISTED' then 'SELECTED' else 'REJECTED' end,"stepNumber"=case when p_status='SHORTLISTED' then 3 else 9 end,"lockedAt"=case when p_status='REJECTED' then now() else "lockedAt" end,"lastTransitionAt"=now(),"updatedAt"=now() where "applicationId"=a.id;
+   update public."Application" set "recruitment360Status"=case when p_status='SHORTLISTED' then 'SELECTED' else 'REJECTED' end,"updatedAt"=now() where id=a.id;
+   insert into public."RecruitmentAuditLog"("applicationId","recruitmentId","actorUserId",action,"toState","exceptionReason") values(a.id,r.id,p_actor_user_id,case when p_status='SHORTLISTED' then 'SHORTLISTED' else 'REJECTED' end,case when p_status='SHORTLISTED' then 'SELECTED' else 'REJECTED' end,p_reason);
+ end if;
  return s;
 end; $$;
 revoke all on function public.recruitment360_lot3_score_application(uuid,text) from public,anon,authenticated;
