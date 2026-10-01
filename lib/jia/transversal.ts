@@ -1,10 +1,13 @@
 import type {SupabaseClient} from "@supabase/supabase-js";
 import {buildCEOIntelligence,type CEOSnapshot} from "@/lib/ceoIntelligence";
 import {buildJiaContext} from "@/lib/jiaContext";
+import {buildRecruiterIntelligence} from "./recruiterIntelligence";
+import {buildPartnerIntelligence} from "./partnerIntelligence";
+import {buildMobilityIntelligence} from "./mobilityIntelligence";
 import {buildNextBestActions,type Signal} from "./intelligence";
 import {buildMarketWatch,type JiaMarketWatchItem} from "./marketWatch";
 
-export const JIA_INTELLIGENCE_LAYERS=["CEO","BUSINESS","GROWTH","COMMERCIAL","FINANCE","MARKET","OPERATIONS","CUSTOMER","CAREER"] as const;
+export const JIA_INTELLIGENCE_LAYERS=["CEO","BUSINESS","GROWTH","COMMERCIAL","FINANCE","MARKET","OPERATIONS","CUSTOMER","CAREER","RECRUITER","PARTNER","MOBILITY"] as const;
 export type JiaIntelligenceLayer=(typeof JIA_INTELLIGENCE_LAYERS)[number];
 export type JiaLayerResult={layer:JiaIntelligenceLayer;status:"BASELINE"|"CONNECTED"|"BLOCKED";confidence:"HIGH"|"MEDIUM"|"LOW";summary:string;metrics:Record<string,number|string|null>;evidence:string[];actions:string[]};
 export type JiaTransversalSnapshot={generatedAt:string;cycle:string[];layers:JiaLayerResult[];ceo?:CEOSnapshot;marketWatch?:JiaMarketWatchItem[]};
@@ -28,21 +31,34 @@ export async function buildAdminTransversalIntelligence(sb:SupabaseClient,includ
  return{generatedAt:new Date().toISOString(),cycle:CYCLE,layers,ceo,...(marketWatch?{marketWatch}: {})};
 }
 
-export async function buildUserTransversalIntelligence(sb:SupabaseClient,userId:string):Promise<JiaTransversalSnapshot>{
- const {context}=await buildJiaContext(sb,userId,{operation:"TRANSVERSAL_SNAPSHOT"});
+export async function buildUserTransversalIntelligence(sb:SupabaseClient,userId:string,ecosystem:string="TALENT"):Promise<JiaTransversalSnapshot>{
+ const [{context},recruiter,partner,mobility]=await Promise.all([
+  buildJiaContext(sb,userId,{operation:"TRANSVERSAL_SNAPSHOT"}),
+  ecosystem==="RECRUITER"?buildRecruiterIntelligence(sb,userId):Promise.resolve(null),
+  ecosystem==="PARTNER"?buildPartnerIntelligence(sb,userId):Promise.resolve(null),
+  ecosystem==="MOBILITY"?buildMobilityIntelligence(sb,userId):Promise.resolve(null)
+ ]);
  const signals:Signal[]=[];
  if(context?.gaps?.length)signals.push({id:"career-gap",type:"CAREER_GAP",title:"Gap de carrière",detail:context.gaps.join(", "),confidence:"HIGH"});
  if((context?.readiness??0)>=70)signals.push({id:"career-readiness",type:"PROFILE_TO_OPPORTUNITY",title:"Profil prêt",detail:"Le profil atteint un niveau de préparation élevé.",confidence:"MEDIUM"});
  const actions=buildNextBestActions(signals),common=["Même Policy Engine","Même Event Bus","Même mémoire cognitive","Même cycle cognitif"];
+ const focused:Partial<Record<JiaIntelligenceLayer,{summary:string;metrics:Record<string,number|string|null>;evidence:string[];actions:string[];confidence:"HIGH"|"MEDIUM"|"LOW"}>>={};
+ if(recruiter)focused.RECRUITER={summary:"Funnel Recruiter et qualité des candidatures du compte.",metrics:{applications:recruiter.funnel.applications,interviews:recruiter.funnel.interviews,averageAts:recruiter.quality.averageAts,staleApplications:recruiter.staleApplications.length},evidence:["RecruiterJob","Application"],actions:recruiter.opportunities.map(o=>o.title),confidence:"HIGH"};
+ if(partner)focused.PARTNER={summary:"État KYC, accord et consentements du compte Partner.",metrics:{referrals:partner.metrics.referrals,kycStatus:String(partner.profile?.kycStatus??""),locationConsent:String(partner.profile?.locationConsent??"")},evidence:["Partner","JiaEvent"],actions:partner.opportunities.map(o=>o.title),confidence:"HIGH"};
+ if(mobility)focused.MOBILITY={summary:"Dossiers de mobilité, coût déclaré et mobility-fit du compte.",metrics:{requests:mobility.metrics.requests,activeRequests:mobility.metrics.activeRequests,averageMobilityFit:mobility.metrics.averageMobilityFit,totalDeclaredCost:mobility.metrics.totalDeclaredCost},evidence:["MobilityRequest"],actions:mobility.opportunities.map(o=>o.title),confidence:"HIGH"};
+ const scopedLayer=(name:JiaIntelligenceLayer,info?:{summary:string;metrics:Record<string,number|string|null>;evidence:string[];actions:string[];confidence:"HIGH"|"MEDIUM"|"LOW"})=>info?{layer:name,status:"CONNECTED" as const,confidence:info.confidence,summary:info.summary,metrics:info.metrics,evidence:info.evidence,actions:info.actions}:layer(name,"Couche hors écosystème courant.",{},common,["Basculer sur cet écosystème pour une analyse dédiée."],"HIGH");
  return{generatedAt:new Date().toISOString(),cycle:CYCLE,layers:[
- layer("CAREER",context?"Readiness "+context.readiness+"/100. Prochaine étape : "+context.nextBestAction:"Contexte carrière indisponible.",{readiness:context?.readiness??null,gaps:context?.gaps?.length??null},["Career Twin","JiaContext","CareerAssessment"],actions.map(a=>a.title),context?"HIGH":"LOW"),
- layer("CEO","Non exposé au Talent.",{},common,["Conserver la séparation CEO."],"HIGH"),
- layer("BUSINESS","Non exposé au Talent.",{},common,["Conserver la séparation business."],"HIGH"),
- layer("GROWTH","Non exposé au Talent.",{},common,["Conserver la séparation growth."],"HIGH"),
- layer("COMMERCIAL","Non exposé au Talent.",{},common,["Conserver la séparation commerciale."],"HIGH"),
- layer("FINANCE","Non exposé au Talent.",{},common,["Aucune donnée financière interne."],"HIGH"),
- layer("MARKET","Accessible uniquement via les signaux externes vérifiés.",{},common,["Utiliser Internet Brain."],"MEDIUM"),
- layer("OPERATIONS","Non exposé au Talent.",{},common,["Ne pas divulguer d'indicateurs internes."],"HIGH"),
- layer("CUSTOMER","Analyse personnelle uniquement.",{},common,["Limiter aux signaux du compte."],"HIGH")
+  layer("CAREER",context?"Readiness "+context.readiness+"/100. Prochaine étape : "+context.nextBestAction:"Contexte carrière indisponible.",{readiness:context?.readiness??null,gaps:context?.gaps?.length??null},["Career Twin","JiaContext","CareerAssessment"],actions.map(a=>a.title),context?"HIGH":"LOW"),
+  layer("CEO","Non exposé aux comptes non ADMIN.",{},common,["Conserver la séparation CEO."],"HIGH"),
+  layer("BUSINESS","Contexte business global non exposé.",{},common,["Conserver la séparation business."],"HIGH"),
+  layer("GROWTH","Contexte growth global non exposé.",{},common,["Conserver la séparation growth."],"HIGH"),
+  layer("COMMERCIAL","Contexte commercial global non exposé.",{},common,["Conserver la séparation commerciale."],"HIGH"),
+  layer("FINANCE","Contexte financier global non exposé.",{},common,["Aucune donnée financière interne."],"HIGH"),
+  layer("MARKET","Accessible uniquement via les signaux externes vérifiés.",{},common,["Utiliser Internet Brain."],"MEDIUM"),
+  layer("OPERATIONS","Contexte opérations global non exposé.",{},common,["Ne pas divulguer d'indicateurs internes."],"HIGH"),
+  layer("CUSTOMER","Analyse personnelle uniquement.",{},common,["Limiter aux signaux du compte."],"HIGH"),
+  scopedLayer("RECRUITER",focused.RECRUITER),
+  scopedLayer("PARTNER",focused.PARTNER),
+  scopedLayer("MOBILITY",focused.MOBILITY),
  ]};
 }
