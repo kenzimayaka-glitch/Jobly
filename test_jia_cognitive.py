@@ -22,3 +22,10 @@ def test_policy_contract():
     text = Path("lib/jia/policy.ts").read_text()
     for token in ["OBSERVE", "READ", "ANALYZE", "PROPOSE", "PREPARE", "EXECUTE", "SENSITIVE_EXECUTE", "JIA_NEVER_EXECUTES_PAYMENTS"]:
         assert token in text
+
+
+if __name__ == "__main__":
+    test_cognitive_core_contract()
+    test_cognitive_pipeline_keywords()
+    test_policy_contract()
+    print("JIA cognitive core contract: PASS")
