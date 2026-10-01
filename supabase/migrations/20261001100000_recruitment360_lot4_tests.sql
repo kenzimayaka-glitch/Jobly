@@ -137,7 +137,11 @@ begin
  end loop;
  update public."RecruitmentTestSession" set status=case when "expiresAt"<=now() then 'EXPIRED' else 'SUBMITTED' end,"submittedAt"=now(),score=case when total>0 then round(earned/total*100,2) else null end,"lastHeartbeatAt"=now() where id=s.id returning * into submitted;
  insert into public."RecruitmentTestEvent"("sessionId",event,metadata) values(s.id,case when submitted.status='EXPIRED' then 'AUTO_EXPIRE' else 'SUBMIT' end,jsonb_build_object('score',submitted.score));
- if submitted.status='SUBMITTED' then perform public.recruitment360_transition_application(a.id,'TEST',null); end if;
+ if submitted.status='SUBMITTED' then
+   update public."RecruitmentApplicationState" set "currentState"='TEST',"stepNumber"=4,"lastTransitionAt"=now(),"updatedAt"=now() where "applicationId"=a.id;
+   update public."Application" set "recruitment360Status"='TEST',"updatedAt"=now() where id=a.id;
+   insert into public."RecruitmentAuditLog"("applicationId","actorUserId",action,"toState") values(a.id,p_actor_user_id,'TEST_SUBMITTED','TEST');
+ end if;
  return submitted;
 end; $$;
 revoke all on function public.recruitment360_lot4_start_session(uuid,uuid,text),public.recruitment360_lot4_save_answer(uuid,uuid,jsonb,text),public.recruitment360_lot4_heartbeat(uuid,text),public.recruitment360_lot4_submit_session(uuid,text) from public,anon,authenticated;
