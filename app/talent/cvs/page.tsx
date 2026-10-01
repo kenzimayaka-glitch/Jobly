@@ -69,6 +69,7 @@ export default function TalentCVs() {
   const [cvPaymentMessage, setCvPaymentMessage] = useState("");
   const [previewVersion, setPreviewVersion] = useState<"jobly" | "ats" | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const activeTemplate = CV_TEMPLATES.find(item => item.id === templateId) || CV_TEMPLATES[0];
 
   useEffect(() => {
     try { setCvs(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch {}
@@ -356,7 +357,7 @@ export default function TalentCVs() {
         </div>
 
         <section id="cv-print" className="mx-auto max-w-3xl rounded-[8px] bg-white p-8 shadow-sm print:mt-0 print:p-0 print:shadow-none">
-          <h2 className="text-3xl font-black">{cv.fullName || "Nom complet"}</h2><p className="mt-1 text-lg font-bold text-jobly-blue">{cv.headline || "Titre professionnel"}</p><p className="mt-2 text-xs">{[cv.email, cv.phone].filter(Boolean).join(" · ")}</p>
+          <h2 className="text-3xl font-black">{cv.fullName || "Nom complet"}</h2><p className="mt-1 text-lg font-bold text-jobly-blue">{cv.headline || "Titre professionnel"}</p><p className="mt-2 text-xs">{[cv.email, cv.phone].filter(Boolean).join(" · ")}</p><p className="mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{activeTemplate.name}</p>
           {[['Profil', cv.summary], ['Compétences', cv.skills], ['Expérience', cv.experience], ['Formation', cv.education]].map(([h, v]) => v ? <div key={h} className="mt-5"><h3 className="border-b pb-1 text-sm font-black uppercase">{h}</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{v}</p></div> : null)}
         </section>
         {cvPaymentOpen && (
@@ -375,7 +376,7 @@ export default function TalentCVs() {
                 <div className="rounded-2xl bg-[#F7FAFF] p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div><p className="text-xs font-black text-slate-500">Votre formule</p><p className="mt-1 text-lg font-black">{plan}</p></div>
-                    <div className="text-right"><p className="text-xs font-black text-slate-500">Paiement ponctuel</p><p className="mt-1 text-2xl font-black text-jobly-blue">{(cvPaymentFeature === "CV_OPTIMIZED_DOWNLOAD" ? cvOptimizedPaymentAmount : cvAtsPaymentAmount).toLocaleString("fr-FR")} FCFA · accès 2 h</p></div>
+                    <div className="text-right"><p className="text-xs font-black text-slate-500">Paiement ponctuel</p><p className="mt-1 text-2xl font-black text-jobly-blue">{(cvPaymentFeature === "CV_OPTIMIZED_DOWNLOAD" ? cvOptimizedPaymentAmount : cvAtsPaymentAmount).toLocaleString("fr-FR")} FCFA <span className="text-xs font-bold text-slate-500">· accès 2 h</span></p></div>
                   </div>
                   <p className="mt-3 text-xs leading-5 text-slate-600">Ce paiement est ponctuel : il ouvre pendant 2 heures le service CV choisi. Vous pouvez optimiser/convertir et télécharger autant de fois que nécessaire pendant cette fenêtre. Après expiration, un nouveau paiement est requis.</p>
                 </div>
@@ -403,9 +404,9 @@ export default function TalentCVs() {
 
         {message && <div className="relative min-h-0 print:hidden"><JoblyToast title={messageKind === "error" ? "Attention" : "Jobly"} message={message} variant={messageKind} placement="inline" onClose={() => setMessage("")} /></div>}\n        {previewOpen && (
           <div className="fixed inset-0 z-[135] overflow-y-auto bg-slate-950/45 px-4 py-8 print:hidden" role="dialog" aria-modal="true" aria-label="Visualisation du CV">
-            <div className="mx-auto max-w-3xl rounded-[8px] bg-white p-8 shadow-2xl">
+            <div className={`mx-auto max-w-3xl rounded-[8px] bg-white p-8 shadow-2xl ${templateId === "modern" ? "border-t-8 border-[#0057B8]" : templateId === "executive" ? "border-l-8 border-[#FFD60A]" : templateId === "impact" ? "border-t-8 border-[#7C3AED]" : templateId === "minimal" ? "border border-slate-300" : ""}`}>
               <div className="mb-6 flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-jobly-gray">Visualisation & modèles</p><h2 className="mt-1 text-2xl font-black">Voir le CV</h2></div><button type="button" onClick={() => { setPreviewOpen(false); setPreviewVersion(null); }} className="rounded-full border px-3 py-2 text-sm font-black">Fermer</button></div>\n              <div className="mb-6 grid gap-2 sm:grid-cols-2">{CV_TEMPLATES.map(template => <button key={template.id} type="button" onClick={() => selectTemplate(template.id)} className={`rounded-2xl border p-3 text-left transition ${templateId === template.id ? "border-[#0057B8] bg-[#EEF5FF]" : "border-slate-200 bg-white"}`}><div className="flex items-center justify-between gap-2"><span className="text-sm font-black">{template.name}</span>{template.access === "PREMIUM" && <span className="inline-flex items-center gap-1 text-[10px] font-black text-[#0057B8]"><PremiumDiamond />Premium</span>}</div><p className="mt-1 text-[10px] text-jobly-gray">{template.description}</p></button>)}</div>
-              <h3 className="text-3xl font-black">{cv.fullName || "Nom complet"}</h3><p className="mt-1 text-lg font-bold text-jobly-blue">{cv.headline || "Titre professionnel"}</p><p className="mt-2 text-xs">{[cv.email, cv.phone].filter(Boolean).join(" · ")}</p>
+              <div className={`${templateId === "modern" ? "text-center" : templateId === "executive" ? "border-b-2 border-[#FFD60A] pb-4" : ""}`}><h3 className="text-3xl font-black">{cv.fullName || "Nom complet"}</h3><p className="mt-1 text-lg font-bold text-jobly-blue">{cv.headline || "Titre professionnel"}</p></div><p className="mt-2 text-xs">{[cv.email, cv.phone].filter(Boolean).join(" · ")}</p>
               {[["Profil", cv.summary], ["Compétences", cv.skills], ["Expérience", cv.experience], ["Formation", cv.education]].map(([h,v]) => v ? <div key={h} className="mt-5"><h3 className="border-b pb-1 text-sm font-black uppercase">{h}</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{v}</p></div> : null)}
             </div>
           </div>
