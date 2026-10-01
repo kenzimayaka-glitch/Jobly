@@ -10,7 +10,7 @@ checks={
 "app/api/jia/cycle/route.ts":["runUnifiedCognitiveCycle","privacyAcceptedAt","ADMIN"],
 "app/api/admin/jia/intelligence/route.ts":["buildAdminTransversalIntelligence","ADMIN"],
 "lib/jia/agent.ts":["runJiaSafeAction","verifyJiaAction"],
-"lib/jia/cognitive.ts":["upsertWorldEntity","REFLECTIVE","recordPredictionOutcome"],
+"lib/jia/cognitive.ts":["upsertWorldEntity","relateWorldEntities","SUPPORTED_BY","CONTRADICTED_BY","REFLECTIVE","recordPredictionOutcome"],
 "lib/jiaContext.ts":["jia_memory_unified","memoryResult"],
 "supabase/migrations/20261001010000_jia_memory_unified_view.sql":["jia_memory_unified","security_invoker = true","revoke all"],
 "lib/jia/brain.ts":["observeInternet","webSignal"],
