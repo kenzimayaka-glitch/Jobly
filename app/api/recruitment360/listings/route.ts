@@ -78,43 +78,29 @@ function qualifies(stage: ListingStage, application: any, state: any, shortlist:
 
 async function getOrCreatePublicLink(
   supabase: ReturnType<typeof adminClient>,
-  recruitmentId: string,
   versionId: string,
   actorUserId: string,
+  stage: ListingStage,
+  theme: ListingTheme,
   origin: string,
 ) {
   const publicBase = String(process.env.JOBLY_PUBLIC_URL || origin).replace(/\/$/, "");
-  const { data: existing } = await supabase
-    .from("RecruitmentListingPublicLink")
-    .select("id,expiresAt,revokedAt")
-    .eq("versionId", versionId)
-    .is("revokedAt", null)
-    .gt("expiresAt", new Date().toISOString())
-    .order("createdAt", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (existing?.id) {
-    const { data: current } = await supabase
-      .from("RecruitmentListingPublicLink")
-      .select("id,expiresAt")
-      .eq("id", existing.id)
-      .maybeSingle();
-    if (current?.id) {
-      return { url: publicBase + "/public/recruitment-listing/" + String(current.id), linkId: current.id, expiresAt: current.expiresAt };
-    }
-  }
-
   const ttl = Math.max(1, Math.min(720, Number(process.env.JOBLY_LISTING_PUBLIC_LINK_TTL_HOURS || "168")));
-  const { data, error } = await supabase.rpc("recruitment360_lot11_create_public_link", {
+  const { data, error } = await supabase.rpc("recruitment360_lot11_create_public_link_v2", {
     p_version_id: versionId,
     p_actor_user_id: actorUserId,
     p_ttl_hours: ttl,
+    p_stage: stage,
+    p_theme: theme,
   });
   if (error) throw new Error(error.message);
   const result = data as { linkId?: string; token?: string; expiresAt?: string };
   if (!result?.token || !result?.linkId) throw new Error("Impossible de créer le lien public sécurisé.");
-  return { url: publicBase + "/public/recruitment-listing/" + result.token, linkId: result.linkId, expiresAt: result.expiresAt || null };
+  return {
+    url: publicBase + "/public/recruitment-listing/" + result.token,
+    linkId: result.linkId,
+    expiresAt: result.expiresAt || null,
+  };
 }
 
 async function loadListing(
@@ -159,7 +145,7 @@ async function loadListing(
   const companyLocation = String((recruiterJob || job)?.location || "");
   const recruiterUserId = String((recruiterJob || job)?.recruiterUserId || role?.userId || actorUserId);
 
-  const publicLink = await getOrCreatePublicLink(supabase, recruitmentId, versionId, actorUserId, origin);
+  const publicLink = await getOrCreatePublicLink(supabase, versionId, actorUserId, stage, theme, origin);
   const qrPayload = publicLink.url;
 
   const { data: applications, error: appError } = await supabase
