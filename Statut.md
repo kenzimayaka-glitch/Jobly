@@ -4364,3 +4364,55 @@ Les alertes Supabase restantes sont indépendantes de cette correction : tables 
 - Un workflow GitHub Actions dédié a été ajouté : `.github/workflows/recruitment360-lot7-ci.yml` avec `pnpm install --frozen-lockfile`, `typecheck`, `lint`, `build`.
 - Pour le dernier commit du lot 7, GitHub a retourné **0 workflow run** ; il n'existe donc aucune preuve CI à déclarer.
 - La règle de vérité reste : absence de sortie réelle = non validé. Aucun déploiement Vercel ni merge `main`.
+
+
+# CHECKPOINT 01/10/2026 — RECRUTEMENT 360° LOT 8 — FIABILITÉ AVANCÉE
+
+## État réel
+
+Lot 8 développé sur la branche feat/recruitment-360-lot8-reliability, sans merge vers main et sans déploiement Vercel.
+
+### Livré
+
+- Proctoring côté appareil : plein écran, changement d'onglet/fenêtre, collage, réseau, consentement caméra.
+- Caméra locale optionnelle : aucun flux vidéo n'est envoyé par le composant.
+- Détection de visage locale progressive : si le navigateur expose FaceDetector, les événements visage absent / plusieurs visages sont journalisés ; sinon Jobly signale explicitement l'absence de capacité.
+- Signal d'intégrité heuristique multi-signaux : collage, sorties d'onglet/plein écran, coupures réseau, réponses très rapides et événements caméra.
+- Aucun score heuristique n'est utilisé comme preuve ou rejet automatique.
+- Réponses de test conservées localement en cas de coupure puis resynchronisées au retour réseau.
+- Événements de proctoring conservés localement puis resynchronisés.
+- Rapport recruteur enrichi avec les signaux d'intégrité par session.
+- Fournisseurs SMS/appel abstraits : en FREE_TEST, noop journalisé ; aucun faux envoi.
+- Endpoint d'escalade d'urgence côté serveur.
+- Tables Lot 8 : RecruitmentTestProctoringEvent, RecruitmentTestIncident, RecruitmentTestSignal, Recruitment360DeliveryLog.
+- RLS activée sur les quatre tables ; les fonctions sensibles sont exécutables uniquement par service_role.
+- A_CONFIGURER.md et PASSAGE_EN_PRODUCTION.md mis à jour.
+
+## Preuves réelles Lot 8
+
+- Migration appliquée sur JOBLY-PROD : succès.
+- 4/4 tables Lot 8 présentes.
+- 4/4 tables Lot 8 ont relrowsecurity=true.
+- recruitment360_lot8_record_events : anon=false, authenticated=false, service_role=true.
+- recruitment360_lot8_finalize_signals : anon=false, authenticated=false, service_role=true.
+- Une lecture sous le rôle authenticated sur RecruitmentTestProctoringEvent retourne 0 ligne, sans exposition directe des données de surveillance.
+- Advisor sécurité : les quatre nouvelles tables apparaissent comme RLS activée sans policy ; elles sont volontairement service-only et ne sont pas exposées directement au client. Les autres alertes sont préexistantes.
+
+## Limites de certification
+
+- npm/pnpm build : NON EXÉCUTÉ dans cette session.
+- typecheck : NON EXÉCUTÉ.
+- lint : NON EXÉCUTÉ.
+- E2E navigateur : NON EXÉCUTÉ.
+- Test sur appareil réel : NON EXÉCUTÉ.
+- CI GitHub : workflow Lot 8 ajouté, mais aucune run observable via le connecteur pour le commit courant.
+- Déploiement Vercel : aucun.
+- Merge main : aucun.
+
+La capacité FaceDetector est traitée en progressive enhancement : aucune détection n'est inventée lorsqu'elle n'est pas disponible. Une validation appareil réel reste obligatoire avant de déclarer le proctoring 10/10.
+
+## Verdict Lot 8
+
+**CODÉ + CONNECTÉ + MIGRATION/RLS VÉRIFIÉES ; NON VALIDÉ 10/10 tant que build, lint, typecheck, E2E navigateur et test appareil réel n'ont pas produit de preuves réelles.**
+
+Règle de vérité : absence de sortie réelle = non validé.
