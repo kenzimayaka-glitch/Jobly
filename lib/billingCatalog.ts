@@ -58,15 +58,16 @@ export type RecruiterPlanDefinition = {
   monthlyPriceXaf: number;
   annualPriceXaf: number;
   aiCredits: number;
+  recruitment360: boolean;
   features: string[];
 };
 
 /** Recruiter pricing is intentionally independent from the Talent catalog. */
 export const RECRUITER_PLAN_CATALOG: Record<PlanCode, RecruiterPlanDefinition> = {
-  FREE: { code: "FREE", name: "Free", tagline: "Recruter simplement sur JOBLY.", monthlyPriceXaf: 0, annualPriceXaf: 0, aiCredits: 5, features: ["Profil entreprise", "Publication et gestion de base", "Recherche Talent de base"] },
-  START: { code: "START", name: "Start", tagline: "Structurer son recrutement.", monthlyPriceXaf: 15000, annualPriceXaf: 50000, aiCredits: 30, features: ["Tout Free", "Recherche Talent améliorée", "ATS de base", "Matching J’IA"] },
-  PREMIUM: { code: "PREMIUM", name: "Premium", tagline: "Accélérer ses recrutements.", monthlyPriceXaf: 30000, annualPriceXaf: 80000, aiCredits: 120, features: ["Tout Start", "Talent Intelligence", "ATS avancé", "Matching avancé", "Gmail ATS", "Multiposting"] },
-  PRO: { code: "PRO", name: "Pro", tagline: "Piloter son recrutement avec J’IA.", monthlyPriceXaf: 50000, annualPriceXaf: 100000, aiCredits: 300, features: ["Tout Premium", "J’IA recrutement avancée", "Automatisations", "Talent 360", "Recherche avancée", "Support prioritaire"] },
+  FREE: { code: "FREE", name: "Free", tagline: "Publier des offres et gérer les candidatures de base.", monthlyPriceXaf: 0, annualPriceXaf: 0, aiCredits: 5, recruitment360: false, features: ["Profil entreprise", "Publication et gestion de base", "Recherche Talent de base"] },
+  START: { code: "START", name: "Start", tagline: "Structurer son recrutement.", monthlyPriceXaf: 15000, annualPriceXaf: 50000, aiCredits: 30, recruitment360: true, features: ["Tout Free", "Recherche Talent améliorée", "ATS de base", "Matching J’IA"] },
+  PREMIUM: { code: "PREMIUM", name: "Premium", tagline: "Accélérer ses recrutements.", monthlyPriceXaf: 30000, annualPriceXaf: 80000, aiCredits: 120, recruitment360: true, features: ["Tout Start", "Talent Intelligence", "ATS avancé", "Matching avancé", "Gmail ATS", "Multiposting"] },
+  PRO: { code: "PRO", name: "Pro", tagline: "Piloter son recrutement avec J’IA.", monthlyPriceXaf: 50000, annualPriceXaf: 100000, aiCredits: 300, recruitment360: true, features: ["Tout Premium", "J’IA recrutement avancée", "Automatisations", "Talent 360", "Recherche avancée", "Support prioritaire"] },
 };
 
 export const RECRUITER_BA_COMMISSION_RATES: Record<Exclude<PlanCode, "FREE">, number> = {
@@ -92,4 +93,4 @@ export function getPrice(code: PlanCode, interval: BillingInterval): number { co
 export function getRecruiterPlan(code: string): RecruiterPlanDefinition | null { return RECRUITER_PLAN_CATALOG[code as PlanCode] ?? null; }
 export function getRecruiterPrice(code: PlanCode, interval: BillingInterval): number { const plan = RECRUITER_PLAN_CATALOG[code]; return interval === "ANNUAL" ? plan.annualPriceXaf : plan.monthlyPriceXaf; }
 export function getEntitlements(code: PlanCode) { const plan = PLAN_CATALOG[code]; return { plan: plan.code, name: plan.name, aiCredits: plan.aiCredits, storageMb: plan.storageMb, applicationsPerWeek: plan.applicationsPerWeek, bulkApplicationLimit: plan.bulkApplicationLimit, cvVersions: plan.cvVersions, savedJobs: plan.savedJobs, alerts: plan.alerts, atsConversionIncluded: plan.atsConversionIncluded, atsConversionPriceXaf: plan.atsConversionPriceXaf, cvDownloadPriceXaf: plan.cvDownloadPriceXaf, cvAtsDownloadPriceXaf: plan.cvAtsDownloadPriceXaf, cvOptimizedDownloadPriceXaf: plan.cvOptimizedDownloadPriceXaf, recruiterEmailConnect: plan.recruiterEmailConnect, recruiterAtsFilters: plan.recruiterAtsFilters, features: plan.features, premium: code !== "FREE" }; }
-export function getRecruiterEntitlements(code: PlanCode) { const plan = RECRUITER_PLAN_CATALOG[code]; return { plan: plan.code, name: plan.name, aiCredits: plan.aiCredits, features: plan.features, premium: code !== "FREE" }; }
+export function getRecruiterEntitlements(code: PlanCode) { const plan = RECRUITER_PLAN_CATALOG[code]; return { plan: plan.code, name: plan.name, aiCredits: plan.aiCredits, recruitment360: plan.recruitment360, features: plan.features, premium: code !== "FREE" }; }
