@@ -11,7 +11,7 @@ export async function GET(req:NextRequest){
   const ecosystem=(req.nextUrl.searchParams.get("ecosystem")||"TALENT").toUpperCase();
   if(!ECOSYSTEMS.includes(ecosystem as typeof ECOSYSTEMS[number]))return NextResponse.json({message:"Écosystème invalide."},{status:400});
   if(ecosystem==="ADMIN"&&String(user.role)!=="ADMIN")return NextResponse.json({message:"Accès ADMIN requis."},{status:403});
-  const snapshot=ecosystem==="ADMIN"?await buildAdminTransversalIntelligence(sb,req.nextUrl.searchParams.get("includeMarketWatch")==="true"):await buildUserTransversalIntelligence(sb,String(user.id));
+  const snapshot=ecosystem==="ADMIN"?await buildAdminTransversalIntelligence(sb,req.nextUrl.searchParams.get("includeMarketWatch")==="true"):await buildUserTransversalIntelligence(sb,String(user.id),ecosystem);
   return NextResponse.json({ok:true,ecosystem,snapshot});
  }catch(error){return NextResponse.json({message:error instanceof Error?error.message:"Intelligence transversale indisponible."},{status:500});}
 }
