@@ -1,5 +1,45 @@
 -- Jobly Recruitment 360° v2 — Lot 6: Decision, offer, negotiation and reserve
 -- Server-authoritative. No client can execute these RPCs directly.
+-- Core decision entities are included here so Lot 6 is independently reproducible.
+create table if not exists public."RecruitmentDecision"(
+ id uuid primary key default gen_random_uuid(),
+ "recruitmentId" uuid not null references public."Recruitment360"(id) on delete cascade,
+ "applicationId" uuid not null unique references public."Application"(id) on delete cascade,
+ outcome text not null check(outcome in('OFFER','HIRED','REJECTED','POOL')),
+ "decisionAt" timestamptz not null default now(),
+ "decidedByUserId" text not null references public."User"(id) on delete restrict,
+ rationale text not null check(length(trim(rationale))>=5),
+ "scoreTotal" numeric(8,3) check("scoreTotal" is null or ("scoreTotal">=0 and "scoreTotal"<=100)),
+ "scoreBreakdown" jsonb not null default '{}'::jsonb,
+ "nextAction" text check("nextAction" is null or "nextAction" in('PREPARE_OFFER','NOTIFY_REJECTION','KEEP_POOL','CLOSE_RECRUITMENT')),
+ "createdAt" timestamptz not null default now(),
+ "updatedAt" timestamptz not null default now()
+);
+create table if not exists public."RecruitmentDecisionVote"(
+ id uuid primary key default gen_random_uuid(),
+ "decisionId" uuid not null references public."RecruitmentDecision"(id) on delete cascade,
+ "interviewId" uuid references public."RecruitmentInterview"(id) on delete set null,
+ "juryUserId" text not null references public."User"(id) on delete cascade,
+ recommendation text not null check(recommendation in('STRONG_YES','YES','RESERVE','NO','STRONG_NO')),
+ score numeric(8,3) check(score is null or(score>=0 and score<=100)),
+ rationale text,
+ "submittedAt" timestamptz not null default now(),
+ unique("decisionId","juryUserId")
+);
+alter table public."RecruitmentDecision" enable row level security;
+alter table public."RecruitmentDecisionVote" enable row level security;
+revoke all on public."RecruitmentDecision",public."RecruitmentDecisionVote" from anon,authenticated;
+grant select on public."RecruitmentDecision",public."RecruitmentDecisionVote" to authenticated;
+create policy "Lot6 decisions recruiter or candidate" on public."RecruitmentDecision" for select to authenticated using(
+ exists(select 1 from public."RecruitmentRole" rr where rr."recruitmentId"="RecruitmentDecision"."recruitmentId" and rr."authUserId"=(select auth.uid()))
+ or exists(select 1 from public."Application" a where a.id="RecruitmentDecision"."applicationId" and a."userId"::text=(select u.id::text from public."User" u where u."authUserId"=(select auth.uid())::text limit 1))
+);
+create policy "Lot6 votes recruiter members" on public."RecruitmentDecisionVote" for select to authenticated using(
+ exists(select 1 from public."RecruitmentDecision" d join public."RecruitmentRole" rr on rr."recruitmentId"=d."recruitmentId" where d.id="RecruitmentDecisionVote"."decisionId" and rr."authUserId"=(select auth.uid()))
+);
+create index if not exists "RecruitmentDecision_recruitmentId_decisionAt_idx" on public."RecruitmentDecision"("recruitmentId","decisionAt" desc);
+create index if not exists "RecruitmentDecisionVote_decisionId_idx" on public."RecruitmentDecisionVote"("decisionId");
+
 create table if not exists public."RecruitmentDecisionPolicy"(
  id uuid primary key default gen_random_uuid(),
  "recruitmentId" uuid not null unique references public."Recruitment360"(id) on delete cascade,
