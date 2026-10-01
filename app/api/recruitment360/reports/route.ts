@@ -29,6 +29,24 @@ export async function GET(req:NextRequest){
   const report=await getWorkspaceReport(sb,id,user.id);
   const {data:reviews,error:rvError}=await sb.from("RecruitmentReview").select("id,applicationId,reviewerUserId,reviewerRole,processRating,experienceRating,joblyRating,recommendation,comment,status,createdAt").eq("recruitmentId",id).order("createdAt",{ascending:false});
   if(rvError)throw new Error(rvError.message);
+  const apps=Array.isArray(report?.applications)?report.applications:[];
+  const firstSubmitted=apps.map((a:any)=>a.submittedAt).filter(Boolean).map((x:string)=>new Date(x).getTime()).sort((a:number,b:number)=>a-b)[0];
+  if(report?.recruitment?.completedAt&&firstSubmitted){
+   const days=Math.round(((new Date(report.recruitment.completedAt).getTime()-firstSubmitted)/86400000)*100)/100;
+   report.metrics={...(report.metrics||{}),timeToHireDays:days};
+  }
+  const total=Number(report?.metrics?.applicationCount||0),withdrawn=Number(report?.metrics?.withdrawnCount||0);
+  report.metrics={...(report.metrics||{}),abandonmentRate:total?Math.round((withdrawn/total)*10000)/100:0};
+  const companyName=String(report?.job?.companyName||"").trim();
+  if(companyName){
+   const {data:jobs,error:je}=await sb.from("RecruiterJob").select("id").eq("companyName",companyName); if(je)throw new Error(je.message);
+   const jobIds=(jobs||[]).map((j:any)=>j.id);
+   const {data:recs,error:ce}=jobIds.length?await sb.from("Recruitment360").select("id").in("recruiterJobId",jobIds):{data:[],error:null}; if(ce)throw new Error(ce.message);
+   const recIds=(recs||[]).map((r:any)=>r.id);
+   const {data:companyReviews,error:cre}=recIds.length?await sb.from("RecruitmentReview").select("processRating,experienceRating,joblyRating").in("recruitmentId",recIds).eq("status","PUBLISHED"): {data:[],error:null}; if(cre)throw new Error(cre.message);
+   const avg=(key:string)=>companyReviews?.length?Math.round((companyReviews.reduce((s:any,x:any)=>s+Number(x[key]||0),0)/companyReviews.length)*100)/100:null;
+   report.companyScore={companyName,processAverage:avg("processRating"),experienceAverage:avg("experienceRating"),joblyAverage:avg("joblyRating"),publishedReviewCount:companyReviews?.length||0};
+  }
   return NextResponse.json({report,reviews:reviews||[]});
  }catch(e){const m=e instanceof Error?e.message:"Erreur.";return NextResponse.json({message:m},{status:m==="FORBIDDEN"?403:500});}
 }
