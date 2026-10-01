@@ -1,4 +1,4 @@
-import { getEntitlements, getPlan, PlanCode } from "./billingCatalog";
+import { getEntitlements, getPlan, getRecruiterPlan, PlanCode } from "./billingCatalog";
 
 export function isTestUnlimited(): boolean { return String(process.env.JOBLY_TEST_UNLIMITED || "").toLowerCase() === "true"; }
 
@@ -9,6 +9,11 @@ export async function getActivePlanCode(supabase: any, userId: string, productTy
   const { data } = await supabase.from("Subscription").select("planCode,status").eq("userId", userId).eq("productType", productType).order("createdAt", { ascending: false }).limit(1).maybeSingle();
   const active = data && (data.status === "ACTIVE" || data.status === "TRIAL");
   return (active ? data.planCode : "FREE") as PlanCode;
+}
+
+export async function requirePaidRecruitment360(supabase: any, userId: string): Promise<{ allowed: true; plan: PlanCode } | { allowed: false; plan: PlanCode }> {
+  const plan = await getActivePlanCode(supabase, userId, "RECRUITER");
+  return getRecruiterPlan(plan)?.code !== "FREE" ? { allowed: true, plan } : { allowed: false, plan };
 }
 
 export type QuotaCheck = { allowed: boolean; used: number; limit: number; unlimited: boolean; message?: string };

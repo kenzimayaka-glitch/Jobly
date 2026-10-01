@@ -4180,3 +4180,58 @@ Ce checkpoint ne certifie aucun lot par simple présence de code. Pour chaque lo
 - Lecture du projet : fondations Next.js/Supabase/Prisma et surfaces Recruiter/Talent existantes inspectées.
 - Spécification Recrutement 360° v2 + Avenant 1 : prise comme référence de construction.
 - **État :** Étape 0 en cours ; arrêt obligatoire avant tout développement de lot.
+
+
+# CHECKPOINT 02/10/2026 — RECRUTEMENT 360° — LOT 11 — LISTINGS OFFICIELS
+
+## Périmètre exécuté
+Le Lot 11 intègre désormais C2/C3, y compris le nouveau format JPEG vertical 1:2.
+
+### Backend / Supabase
+- Consentement candidat Application.officialListingConsent + correction d'affichage officialListingDisplayName.
+- Bucket privé recruitment-listings.
+- Liens publics versionnés avec étape et thème, expiration et révocation.
+- API serveur de génération protégée par rôle OWNER/HR/MANAGER/DELEGATE/DG.
+- Export enregistré dans RecruitmentListingExport avec checksum, statut, dimensions et métadonnées.
+- Journalisation RecruitmentAuditLog.
+- Bloc Jobly réinjecté côté serveur à chaque génération.
+- Aucun accès client direct aux exports sensibles.
+
+### Formats codés
+- PDF A4 serveur.
+- XLSX avec récapitulatif + une feuille par poste, feuille protégée.
+- Page Web non indexée, mobile, avec bouton PDF et code iframe retourné à l'interface recruteur.
+- JPEG 1:2 : 640×1280, 2160×4320, 4320×8640.
+- Cascade JPEG : une colonne → deux colonnes → réduction progressive → découpage numéroté si nécessaire.
+- QR généré côté serveur.
+- Repli 8K FREE_TEST vers 2160×4320 selon plafond mémoire/pixels ou erreur de rendu.
+- Trois thèmes : OFFICIAL_CONCOURS, MODERNE, SOBRE.
+- FR/EN sur les textes principaux du générateur.
+
+### Écrans
+- /recruiter/listings : espace recruteur réel, données Supabase, génération PDF/XLSX/WEB/JPEG.
+- Bouton « Générer un listing officiel » ajouté à /recruiter/jobs.
+- /public/recruitment-listing/[token] : page publique non indexée.
+- /api/public/recruitment-listing/[token]/pdf : PDF officiel.
+- /api/applications/official-listing-consent : consentement talent.
+
+### Preuves réalisées
+- RLS activée sur les tables Lot 11.
+- anon et authenticated ne peuvent pas supprimer le bloc immuable ni insérer directement un export.
+- Le public peut uniquement appeler la fonction de consultation d'un lien valide.
+- Consentement exécuté via RPC serveur avec contrôle du propriétaire de la candidature.
+- Aucun lien public de test n'a été créé en production pendant cette passe afin de ne pas publier involontairement un recrutement réel.
+- Les migrations SQL Lot 11 sont maintenant présentes dans GitHub.
+
+### Validation restante
+- Build/typecheck complet sur runner CI.
+- Exécution réelle des scénarios JPEG 5/40/120/400, dimensions exactes et QR scan.
+- Ouverture réelle PDF/XLSX.
+- E2E public link expiration/revocation.
+- Test UI de tentative de retrait du bloc et ajout d'un candidat non retenu.
+- Validation manuelle mobile.
+- Synchronisation complète des anciennes migrations Lot 10 encore absentes du dépôt.
+
+**État : 🔧 CODÉ + INTÉGRÉ + contrôles DB exécutés — 🟡 VALIDATION E2E/CI RESTANTE.**
+
+**Aucun merge vers main. Aucun déploiement Vercel.**
