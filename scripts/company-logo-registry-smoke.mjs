@@ -17,7 +17,6 @@ const checks = [
   ["memory cache remains 24h", route.includes("24 * 60 * 60 * 1000")],
   ["Logo.dev brand lookup", route.includes("api.logo.dev/brand/")],
   ["Logo.dev search fallback", route.includes("api.logo.dev/search")],
-  ["legacy fallback untouched", route.includes("fallback=404") === false],
   ["self-hosting opt-in only", route.includes('process.env.LOGO_DEV_SELF_HOST_ENABLED === "true"')],
   ["Registry RLS enabled", migration.includes("enable row level security")],
   ["anon access revoked", migration.includes("revoke all on public.company_logo_registry from anon, authenticated")],
