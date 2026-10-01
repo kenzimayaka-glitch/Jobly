@@ -537,3 +537,30 @@ drop trigger if exists recruitment360_bootstrap_application on public."Applicati
 create trigger recruitment360_bootstrap_application
 after insert on public."Application"
 for each row execute function public.recruitment360_bootstrap_application();
+
+
+-- Existing Application notification trigger predates Lot 1 and compared
+-- User.id (text) directly to Application.userId (uuid). Fix the type boundary
+-- without replacing its established notification behavior.
+do $$
+declare
+  ddl text;
+begin
+  select pg_get_functiondef(p.oid)
+    into ddl
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and p.proname = 'jobly_application_notification'
+  limit 1;
+
+  if ddl is not null then
+    ddl := replace(
+      ddl,
+      'WHERE "id" = NEW."userId"',
+      'WHERE "id"::text = NEW."userId"::text'
+    );
+    execute ddl;
+  end if;
+end;
+$$;
