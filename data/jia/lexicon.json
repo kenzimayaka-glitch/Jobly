@@ -1199,6 +1199,86 @@
     "aide immédiat": {
       "intent": "survival",
       "action": "aide"
+    },
+    "réussite": {
+      "intent": "jobly",
+      "action": "réussite"
+    },
+    "échec": {
+      "intent": "jobly",
+      "action": "échec"
+    },
+    "résultat": {
+      "intent": "jobly",
+      "action": "résultat"
+    },
+    "signal": {
+      "intent": "jobly",
+      "action": "signal"
+    },
+    "contexte": {
+      "intent": "jobly",
+      "action": "contexte"
+    },
+    "priorité": {
+      "intent": "jobly",
+      "action": "priorité"
+    },
+    "risque": {
+      "intent": "jobly",
+      "action": "risque"
+    },
+    "option": {
+      "intent": "jobly",
+      "action": "option"
+    },
+    "choix": {
+      "intent": "jobly",
+      "action": "choix"
+    },
+    "besoin": {
+      "intent": "jobly",
+      "action": "besoin"
+    },
+    "avenir": {
+      "intent": "jobly",
+      "action": "avenir"
+    },
+    "expérience": {
+      "intent": "jobly",
+      "action": "expérience"
+    },
+    "objectif": {
+      "intent": "jobly",
+      "action": "objectif"
+    },
+    "progrès": {
+      "intent": "jobly",
+      "action": "progrès"
+    },
+    "solution": {
+      "intent": "jobly",
+      "action": "solution"
+    },
+    "réponse": {
+      "intent": "jobly",
+      "action": "réponse"
+    },
+    "question": {
+      "intent": "jobly",
+      "action": "question"
+    },
+    "donnée": {
+      "intent": "jobly",
+      "action": "donnée"
+    },
+    "source": {
+      "intent": "jobly",
+      "action": "source"
+    },
+    "canal": {
+      "intent": "jobly",
+      "action": "canal"
     }
   },
   "en": {
@@ -2397,6 +2477,86 @@
     "help immédiat": {
       "intent": "survival",
       "action": "help"
+    },
+    "success": {
+      "intent": "jobly",
+      "action": "success"
+    },
+    "failure": {
+      "intent": "jobly",
+      "action": "failure"
+    },
+    "result": {
+      "intent": "jobly",
+      "action": "result"
+    },
+    "signal": {
+      "intent": "jobly",
+      "action": "signal"
+    },
+    "context": {
+      "intent": "jobly",
+      "action": "context"
+    },
+    "priority": {
+      "intent": "jobly",
+      "action": "priority"
+    },
+    "risk": {
+      "intent": "jobly",
+      "action": "risk"
+    },
+    "option": {
+      "intent": "jobly",
+      "action": "option"
+    },
+    "choice": {
+      "intent": "jobly",
+      "action": "choice"
+    },
+    "need": {
+      "intent": "jobly",
+      "action": "need"
+    },
+    "future": {
+      "intent": "jobly",
+      "action": "future"
+    },
+    "experience": {
+      "intent": "jobly",
+      "action": "experience"
+    },
+    "goal": {
+      "intent": "jobly",
+      "action": "goal"
+    },
+    "progress": {
+      "intent": "jobly",
+      "action": "progress"
+    },
+    "solution": {
+      "intent": "jobly",
+      "action": "solution"
+    },
+    "answer": {
+      "intent": "jobly",
+      "action": "answer"
+    },
+    "question": {
+      "intent": "jobly",
+      "action": "question"
+    },
+    "data": {
+      "intent": "jobly",
+      "action": "data"
+    },
+    "source": {
+      "intent": "jobly",
+      "action": "source"
+    },
+    "channel": {
+      "intent": "jobly",
+      "action": "channel"
     }
   },
   "es": {
@@ -3567,6 +3727,86 @@
     "ayuda immédiat": {
       "intent": "survival",
       "action": "ayuda"
+    },
+    "éxito": {
+      "intent": "jobly",
+      "action": "éxito"
+    },
+    "fracaso": {
+      "intent": "jobly",
+      "action": "fracaso"
+    },
+    "resultado": {
+      "intent": "jobly",
+      "action": "resultado"
+    },
+    "señal": {
+      "intent": "jobly",
+      "action": "señal"
+    },
+    "contexto": {
+      "intent": "jobly",
+      "action": "contexto"
+    },
+    "prioridad": {
+      "intent": "jobly",
+      "action": "prioridad"
+    },
+    "riesgo": {
+      "intent": "jobly",
+      "action": "riesgo"
+    },
+    "opción": {
+      "intent": "jobly",
+      "action": "opción"
+    },
+    "elección": {
+      "intent": "jobly",
+      "action": "elección"
+    },
+    "necesidad": {
+      "intent": "jobly",
+      "action": "necesidad"
+    },
+    "futuro": {
+      "intent": "jobly",
+      "action": "futuro"
+    },
+    "experiencia": {
+      "intent": "jobly",
+      "action": "experiencia"
+    },
+    "objetivo": {
+      "intent": "jobly",
+      "action": "objetivo"
+    },
+    "progreso": {
+      "intent": "jobly",
+      "action": "progreso"
+    },
+    "solución": {
+      "intent": "jobly",
+      "action": "solución"
+    },
+    "respuesta": {
+      "intent": "jobly",
+      "action": "respuesta"
+    },
+    "pregunta": {
+      "intent": "jobly",
+      "action": "pregunta"
+    },
+    "dato": {
+      "intent": "jobly",
+      "action": "dato"
+    },
+    "fuente": {
+      "intent": "jobly",
+      "action": "fuente"
+    },
+    "canal": {
+      "intent": "jobly",
+      "action": "canal"
     }
   }
 }
