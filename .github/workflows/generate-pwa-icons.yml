@@ -1,13 +1,9 @@
 name: Generate Jobly PWA icons
-# WA9815 source -> square any + maskable variants
 
 on:
   push:
     branches:
       - fix/pwa-icon-wa9815
-    paths:
-      - IMG-20260928-WA9815.jpg
-      - .github/workflows/generate-pwa-icons.yml
 
 permissions:
   contents: write
@@ -19,51 +15,74 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install image processor
+        run: npm install --no-save --ignore-scripts=false sharp@0.33.5
+
       - name: Generate square PWA icons
         run: |
-          set -euo pipefail
-          mkdir -p public/icons
-          convert IMG-20260928-WA9815.jpg \
-            -resize '192x192^' \
-            -gravity center \
-            -extent 192x192 \
-            -strip \
-            public/icons/jobly-wa9815-192.png
-          convert IMG-20260928-WA9815.jpg \
-            -resize '512x512^' \
-            -gravity center \
-            -extent 512x512 \
-            -strip \
-            public/icons/jobly-wa9815-512.png
+          node <<'NODE'
+          const sharp = require('sharp');
+          const fs = require('fs');
+          const src = 'IMG-20260928-WA9815.jpg';
+          fs.mkdirSync('public/icons', { recursive: true });
 
-      - name: Generate maskable PWA icons
+          async function makeSquare(size, out) {
+            await sharp(src)
+              .resize(size, size, { fit: 'cover', position: 'centre' })
+              .png()
+              .toFile(out);
+          }
+
+          async function makeMaskable(size, core, out) {
+            const margin = Math.round(size * 0.20);
+            const inner = size - margin;
+            const coreBuffer = await sharp(src)
+              .resize(inner, inner, { fit: 'cover', position: 'centre' })
+              .png()
+              .toBuffer();
+
+            await sharp({
+              create: {
+                width: size,
+                height: size,
+                channels: 4,
+                background: { r: 255, g: 214, b: 10, alpha: 1 }
+              }
+            })
+              .composite([{ input: coreBuffer, gravity: 'centre' }])
+              .png()
+              .toFile(out);
+          }
+
+          (async () => {
+            await makeSquare(192, 'public/icons/jobly-wa9815-192.png');
+            await makeSquare(512, 'public/icons/jobly-wa9815-512.png');
+            await makeMaskable(192, 154, 'public/icons/jobly-wa9815-192-maskable.png');
+            await makeMaskable(512, 410, 'public/icons/jobly-wa9815-512-maskable.png');
+          })().catch(err => { console.error(err); process.exit(1); });
+          NODE
+
+      - name: Verify icon dimensions
         run: |
-          set -euo pipefail
-          convert IMG-20260928-WA9815.jpg \
-            -resize '154x154^' \
-            -gravity center \
-            -extent 154x154 \
-            -strip \
-            /tmp/jobly-core-154.png
-          convert -size 192x192 xc:'#FFD60A' \
-            /tmp/jobly-core-154.png \
-            -gravity center \
-            -composite \
-            -strip \
-            public/icons/jobly-wa9815-192-maskable.png
-
-          convert IMG-20260928-WA9815.jpg \
-            -resize '410x410^' \
-            -gravity center \
-            -extent 410x410 \
-            -strip \
-            /tmp/jobly-core-410.png
-          convert -size 512x512 xc:'#FFD60A' \
-            /tmp/jobly-core-410.png \
-            -gravity center \
-            -composite \
-            -strip \
-            public/icons/jobly-wa9815-512-maskable.png
+          node <<'NODE'
+          const sharp = require('sharp');
+          const fs = require('fs');
+          const expected = {
+            'public/icons/jobly-wa9815-192.png': [192, 192],
+            'public/icons/jobly-wa9815-512.png': [512, 512],
+            'public/icons/jobly-wa9815-192-maskable.png': [192, 192],
+            'public/icons/jobly-wa9815-512-maskable.png': [512, 512]
+          };
+          (async () => {
+            for (const [file, [w, h]] of Object.entries(expected)) {
+              if (!fs.existsSync(file)) throw new Error('Missing ' + file);
+              const m = await sharp(file).metadata();
+              if (m.width !== w || m.height !== h) {
+                throw new Error(file + ' is ' + m.width + 'x' + m.height);
+              }
+            }
+          })().catch(err => { console.error(err); process.exit(1); });
+          NODE
 
       - name: Commit generated icons
         run: |
@@ -75,5 +94,5 @@ jobs:
             echo "No icon changes."
             exit 0
           fi
-          git commit -m "chore(pwa): generate WA9815 app icon variants"
+          git commit -m "chore(pwa): generate WA9815 icon variants"
           git push
