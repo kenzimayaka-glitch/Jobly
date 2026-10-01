@@ -147,6 +147,31 @@ async function loadListing(
 
   const publicLink = await getOrCreatePublicLink(supabase, versionId, actorUserId, stage, theme, origin);
   const qrPayload = publicLink.url;
+  const canonicalChecksum = require("node:crypto").createHash("sha256").update(JSON.stringify({
+    defaultText: "Propulsé par Jobly",
+    publicUrl: publicLink.url,
+    qrPayload,
+    logoKey: "jobly",
+  })).digest("hex");
+  const { data: existingBlock } = await supabase
+    .from("RecruitmentListingImmutableBlock")
+    .select("id,publicUrl,qrPayload,checksum")
+    .eq("versionId", versionId)
+    .maybeSingle();
+  if (existingBlock && (existingBlock.publicUrl !== publicLink.url || existingBlock.qrPayload !== qrPayload || existingBlock.checksum !== canonicalChecksum)) {
+    throw new Error("JOBLY_BLOCK_INTEGRITY_FAILED");
+  }
+  if (!existingBlock) {
+    const { error: blockError } = await supabase.from("RecruitmentListingImmutableBlock").insert({
+      versionId,
+      defaultText: "Propulsé par Jobly",
+      publicUrl: publicLink.url,
+      qrPayload,
+      logoKey: "jobly",
+      checksum: canonicalChecksum,
+    });
+    if (blockError) throw new Error(blockError.message);
+  }
 
   const { data: applications, error: appError } = await supabase
     .from("Application")
