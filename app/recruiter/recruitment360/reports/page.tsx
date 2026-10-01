@@ -1,0 +1,32 @@
+"use client";
+import {useEffect,useMemo,useState} from "react";
+import Link from "next/link";
+import AppShell from "@/components/ui/AppShell";
+import {Button,Card,EmptyState,ErrorState,LoadingState,PageIntro,Section} from "@/components/ui";
+import {getSupabaseClient} from "@/lib/supabase";
+
+export default function Recruitment360ReportsPage(){
+ const [state,setState]=useState("loading"),[items,setItems]=useState<any[]>([]),[selected,setSelected]=useState(""),[report,setReport]=useState<any>(null),[error,setError]=useState(""),[share,setShare]=useState<any>(null);
+ async function headers(){const{data:{session}}=await getSupabaseClient().auth.getSession();if(!session)throw new Error("Session requise.");return{Authorization:"Bearer "+session.access_token,"Content-Type":"application/json"}}
+ async function loadList(){try{const h=await headers();const r=await fetch("/api/recruitment360/reports",{headers:h});const d=await r.json();if(!r.ok)throw new Error(d.message);setItems(d.recruitments||[]);if(!selected&&d.recruitments?.[0])setSelected(d.recruitments[0].id);setState("ready")}catch(e){setError(e instanceof Error?e.message:"Erreur");setState("error")}}
+ async function loadReport(id:string){if(!id)return;try{const h=await headers();const r=await fetch("/api/recruitment360/reports?recruitmentId="+encodeURIComponent(id),{headers:h});const d=await r.json();if(!r.ok)throw new Error(d.message);setReport(d.report);setShare(null)}catch(e){setError(e instanceof Error?e.message:"Erreur")}}
+ useEffect(()=>{void loadList()},[]);
+ useEffect(()=>{if(selected)void loadReport(selected)},[selected]);
+ async function createShare(){try{const h=await headers();const r=await fetch("/api/recruitment360/reports",{method:"POST",headers:h,body:JSON.stringify({action:"createShare",recruitmentId:selected,hours:24})});const d=await r.json();if(!r.ok)throw new Error(d.message);setShare(d.share)}catch(e){setError(e instanceof Error?e.message:"Erreur")}}
+ const metrics=report?.metrics||{}, reviews=report?.reviews||{};
+ return <AppShell role="recruiter" active="/recruiter/decisions" title="Rapports 360°" eyebrow="RECRUTEMENT 360°" initial="J" width="lg">
+  <PageIntro eyebrow="LOT 7" title="Rapports & avis" subtitle="Rapport réel, export PDF, partage sécurisé et retours modérés."/>
+  {error&&<p className="mt-3 rounded-xl border p-3 text-sm">{error}</p>}
+  {state==="loading"&&<LoadingState/>}{state==="error"&&<ErrorState title={error||"Erreur"} onRetry={loadList}/>}
+  {state==="ready"&&<>{items.length===0?<EmptyState title="Aucun recrutement accessible."/>:<>
+   <Section title="Recrutement"><Card><select value={selected} onChange={e=>setSelected(e.target.value)} className="w-full rounded-xl border p-3">{items.map(x=><option key={x.id} value={x.id}>{x.title}{x.companyName?" · "+x.companyName:""} · {x.currentState}</option>)}</select></Card></Section>
+   {report&&<><Section title="Tableau de bord"><div className="grid grid-cols-2 gap-3 sm:grid-cols-5">{[["Candidatures",metrics.applicationCount??0],["Embauchés",metrics.completedCount??0],["Refusés",metrics.rejectedCount??0],["Vivier",metrics.poolCount??0],["Retraits",metrics.withdrawnCount??0]].map(([k,v])=><Card key={String(k)}><p className="text-xs opacity-70">{k}</p><p className="mt-1 text-2xl font-black">{String(v)}</p></Card>)}</div></Section>
+   <Section title="Entonnoir"><Card><div className="grid gap-2">{Object.entries(report.funnel||{}).map(([k,v])=><div key={k} className="flex justify-between border-b py-2 text-sm"><span>{k}</span><strong>{String(v)}</strong></div>)}</div></Card></Section>
+   <Section title="Avis publiés"><Card><p className="text-sm">Processus : <strong>{reviews.processAverage??"—"}/5</strong> · Expérience : <strong>{reviews.experienceAverage??"—"}/5</strong> · Jobly : <strong>{reviews.joblyAverage??"—"}/5</strong></p></Card></Section>
+   <Section title="Candidatures"><div className="space-y-2">{(report.applications||[]).map((a:any)=><Card key={a.applicationId}><div className="flex items-start justify-between gap-3"><div><p className="font-bold">{a.candidateName}</p><p className="text-xs opacity-70">{a.state} · ATS {a.atsScore??"—"} · score {a.scoreTotal??"—"}</p></div><span className="text-xs opacity-70">{a.decisionOutcome||"—"}</span></div></Card>)}</div></Section>
+   <Section title="Partager"><Card><div className="flex flex-wrap gap-2"><Button onClick={()=>void createShare()}>Créer un lien sécurisé 24 h</Button><a href={"/api/recruitment360/reports/pdf?recruitmentId="+encodeURIComponent(selected)} className="inline-flex items-center rounded-xl border px-4 py-2 text-sm font-bold">Exporter PDF</a>{share&&<Button variant="ghost" onClick={()=>void navigator.clipboard?.writeText(window.location.origin+share.url)}>Copier le lien</Button>}</div>{share&&<p className="mt-3 break-all rounded-xl border p-3 text-xs">{window.location.origin+share.url}<br/>Expire : {new Date(share.expiresAt).toLocaleString()}</p>}</Card></Section>
+   <Section title="Modération"><Card><p className="text-sm">Les avis sont PENDING par défaut. Seuls les avis publiés alimentent les moyennes du rapport et le score d'expérience de l'entreprise.</p></Card></Section>
+   <Link className="text-sm font-bold underline" href="/recruiter/decisions">Retour aux décisions</Link>
+   </>}</>}
+ </AppShell>
+}
