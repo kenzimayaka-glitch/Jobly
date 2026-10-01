@@ -70,6 +70,11 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
   const [shareTab, setShareTab] = useState<"linkedin" | "facebook" | "whatsapp">("linkedin");
   const [shareToast, setShareToast] = useState("");
   const [recruiterEmail, setRecruiterEmail] = useState("rh@jobly.cm");
+  const [deadlineAt, setDeadlineAt] = useState("");
+  const [criteriaInput, setCriteriaInput] = useState("");
+  const [announcement, setAnnouncement] = useState<any | null>(null);
+  const [announcementBusy, setAnnouncementBusy] = useState(false);
+  const [announcementMessage, setAnnouncementMessage] = useState<string | null>(null);
 
   const [applications, setApplications] = useState<ReceivedApplication[]>([]);
   const [interviewDraft, setInterviewDraft] = useState<Record<string, string>>({});
@@ -102,7 +107,10 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
       setTagsInput((job.tags || []).join(", "));
       setSourceUrl(job.sourceUrl || "");
       setStatus(job.status || "draft");
+      setDeadlineAt(job.deadlineAt ? new Date(job.deadlineAt).toISOString().slice(0, 16) : "");
+      setCriteriaInput((job.tags || []).join(", "));
       await loadApplications(t);
+      await loadAnnouncement(t);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur de chargement.");
     } finally {
@@ -148,6 +156,103 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
     }
   }
 
+  const loadAnnouncement = useCallback(async (t: string) => {
+    if (isNew) return;
+    try {
+      const res = await fetch(`/api/recruitment360/jobs/${id}/announcement`, { headers: { Authorization: `Bearer ${t}` } });
+      const body = await res.json();
+      if (res.ok) setAnnouncement(body);
+    } catch {
+      // The legacy offer remains usable; announcement controls expose their own errors.
+    }
+  }, [id, isNew]);
+
+  async function createAndPublishAnnouncement(nextStatus: "draft" | "published") {
+    if (!token || isNew) return false;
+    setAnnouncementBusy(true);
+    setAnnouncementMessage(null);
+    try {
+      const criteria = criteriaInput.split(",").map((label) => label.trim()).filter(Boolean).map((label, index) => ({
+        criterion: label.toUpperCase().replace(/[^A-Z0-9]+/g, "_"),
+        label,
+        required: false,
+        weight: 1,
+        sortOrder: index,
+      }));
+      const createRes = await fetch(`/api/recruitment360/jobs/${id}/announcement`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title, description, salary, deadlineAt: deadlineAt ? new Date(deadlineAt).toISOString() : null, criteria }),
+      });
+      const createBody = await createRes.json();
+      if (!createRes.ok) throw new Error(createBody.message || "Version impossible à créer.");
+      if (nextStatus === "published") {
+        const pubRes = await fetch(`/api/recruitment360/jobs/${id}/announcement/publish`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ versionId: createBody.versionId }),
+        });
+        const pubBody = await pubRes.json();
+        if (!pubRes.ok) throw new Error(pubBody.message || "Publication impossible.");
+        setStatus("published");
+        await loadAnnouncement(token);
+      } else {
+        await loadAnnouncement(token);
+      }
+      return true;
+    } catch (e) {
+      setAnnouncementMessage(e instanceof Error ? e.message : "Erreur du parcours 360.");
+      return false;
+    } finally {
+      setAnnouncementBusy(false);
+    }
+  }
+
+  async function extendAnnouncement() {
+    if (!token || !deadlineAt) return;
+    const reason = window.prompt("Motif de la prolongation (5 caractères minimum) :")?.trim() || "";
+    if (reason.length < 5) return;
+    setAnnouncementBusy(true);
+    try {
+      const res = await fetch(`/api/recruitment360/jobs/${id}/announcement/extend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ deadlineAt: new Date(deadlineAt).toISOString(), reason }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.message || "Prolongation impossible.");
+      setAnnouncementMessage("Échéance prolongée et journalisée.");
+      await loadAnnouncement(token);
+    } catch (e) {
+      setAnnouncementMessage(e instanceof Error ? e.message : "Prolongation impossible.");
+    } finally {
+      setAnnouncementBusy(false);
+    }
+  }
+
+  async function closeAnnouncement() {
+    if (!token || isNew) return;
+    const reason = window.prompt("Motif de clôture (optionnel) :")?.trim() || null;
+    if (!window.confirm("Clôturer réellement cette annonce et fermer les candidatures ?")) return;
+    setAnnouncementBusy(true);
+    try {
+      const res = await fetch(`/api/recruitment360/jobs/${id}/announcement/close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.message || "Clôture impossible.");
+      setStatus("closed");
+      setAnnouncementMessage("Annonce clôturée côté serveur.");
+      await loadAnnouncement(token);
+    } catch (e) {
+      setAnnouncementMessage(e instanceof Error ? e.message : "Clôture impossible.");
+    } finally {
+      setAnnouncementBusy(false);
+    }
+  }
+
   useEffect(() => {
     load();
   }, [load]);
@@ -172,9 +277,14 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
       const body = await res.json();
       if (!res.ok) throw new Error(body.message || "Enregistrement impossible.");
       if (nextStatus === "published") {
-        setShareJob(body.job || { id: id, title, description, location, mode, contract, companyName: "Mon entreprise" });
+        if (!isNew) {
+          const ok360 = await createAndPublishAnnouncement("published");
+          if (!ok360) return;
+        }
+        setShareJob(body.job || { id: body.job?.id || id, title, description, location, mode, contract, companyName: "Mon entreprise" });
       } else {
-        router.push("/recruiter");
+        if (!isNew) await createAndPublishAnnouncement("draft");
+        else router.push("/recruiter");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur d'enregistrement.");
@@ -330,6 +440,17 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
             </label>
 
             <label className="block">
+              <span className="mb-1.5 block text-xs font-extrabold text-navy">Date limite de candidature</span>
+              <input type="datetime-local" value={deadlineAt} onChange={(e) => setDeadlineAt(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-navy outline-none focus:border-jobly-blue" />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-extrabold text-navy">Critères de sélection</span>
+              <input value={criteriaInput} onChange={(e) => setCriteriaInput(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-navy outline-none focus:border-jobly-blue" placeholder="Ex. Expérience, diplôme, compétences, langue" />
+              <span className="mt-1 block text-[10px] text-jobly-gray">Sépare les critères par des virgules. Ils seront versionnés avec l'annonce.</span>
+            </label>
+
+            <label className="block">
               <span className="mb-1.5 block text-xs font-extrabold text-navy">URL source (optionnel)</span>
               <input value={sourceUrl} onChange={(e)=>setSourceUrl(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-navy outline-none focus:border-jobly-blue" placeholder="https://…" />
             </label>
@@ -345,6 +466,36 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
             </label>
             </div>
           </section>
+
+          {!isNew && (
+            <section className="mt-6 rounded-[24px] border border-blue-100 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-heading text-base font-extrabold text-navy">Recrutement 360° · Lancer</h2>
+                  <p className="mt-1 text-xs text-jobly-gray">Chaque publication crée une version immuable et chaque prolongation/clôture est journalisée côté serveur.</p>
+                </div>
+                {announcement?.recruitment?.currentState && (
+                  <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-black text-jobly-blue">{announcement.recruitment.currentState}</span>
+                )}
+              </div>
+              {announcementMessage && <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{announcementMessage}</div>}
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {announcement?.versions?.slice(0, 3).map((v: any) => (
+                  <div key={v.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                    <div className="flex justify-between gap-2 text-xs font-extrabold"><span>Version {v.versionNumber}</span><span>{v.status}</span></div>
+                    <p className="mt-1 text-xs text-jobly-gray line-clamp-2">{v.title}</p>
+                    {v.deadlineAt && <p className="mt-1 text-[10px] text-jobly-gray">Échéance : {new Date(v.deadlineAt).toLocaleString("fr-FR")}</p>}
+                  </div>
+                ))}
+              </div>
+              {announcement?.versions?.length > 0 && (
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  {status === "published" && <button type="button" disabled={announcementBusy} onClick={extendAnnouncement} className="flex-1 rounded-xl bg-[#FFE135] px-4 py-3 text-xs font-black text-navy disabled:opacity-50">Prolonger l'annonce</button>}
+                  {status === "published" && <button type="button" disabled={announcementBusy} onClick={closeAnnouncement} className="flex-1 rounded-xl bg-red-50 px-4 py-3 text-xs font-black text-red-600 disabled:opacity-50">Clôturer</button>}
+                </div>
+              )}
+            </section>
+          )}
 
           {/* Prévisualisation */}
           <section className="mt-6">
