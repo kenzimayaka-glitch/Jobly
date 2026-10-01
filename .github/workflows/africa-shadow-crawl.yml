@@ -1,5 +1,6 @@
 name: Africa Source Shadow Crawl
 # Capture handoff uses GitHub OIDC directly to Supabase; Vercel deployment is not required.
+# This path is deliberately independent from the Next.js/Vercel deployment.
 
 on:
   workflow_dispatch:
