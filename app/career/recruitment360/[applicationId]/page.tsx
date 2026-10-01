@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useState} from "react";
 import {useParams,useRouter} from "next/navigation";
+import Link from "next/link";
 import AppShell from "@/components/ui/AppShell";
 import {Button,Card,ErrorState,LoadingState,PageIntro,Section} from "@/components/ui";
 import {getSupabaseClient} from "@/lib/supabase";
@@ -22,6 +23,7 @@ export default function TalentRecruitment360Page(){
   {!w?.offer?<Section title={t.offer}><Card><p className="text-sm">{t.noOffer}</p></Card></Section>:<Section title={t.offer}><Card><div className="space-y-2"><p><strong>{w.offer.salaryProposed} {w.offer.salaryCurrency}</strong></p><p className="text-sm">Statut : {w.offer.status}</p>{w.offer.responseDeadline&&<p className="text-sm">Réponse avant : {new Date(w.offer.responseDeadline).toLocaleString(lang==="en"?"en-US":"fr-FR")}</p>}</div>
    {["SENT","COUNTERED"].includes(w.offer.status)&&<div className="mt-4 grid gap-3"><input type="number" min={w.offer.salaryMin??0} max={w.offer.salaryMax??undefined} value={form.salary} onChange={e=>setForm(f=>({...f,salary:e.target.value}))} placeholder={t.salary} className="rounded-xl border p-3"/><input type="date" value={form.serviceDate} onChange={e=>setForm(f=>({...f,serviceDate:e.target.value}))} className="rounded-xl border p-3"/><select value={form.channel} onChange={e=>setForm(f=>({...f,channel:e.target.value}))} className="rounded-xl border p-3"><option value="JOBLY">{t.jobly}</option><option value="EMAIL">{t.email}</option><option value="WHATSAPP">{t.whatsapp}</option><option value="CALL">{t.call}</option></select><textarea value={form.message} onChange={e=>setForm(f=>({...f,message:e.target.value}))} placeholder={t.message} className="min-h-24 rounded-xl border p-3"/><div className="flex flex-wrap gap-2"><Button onClick={()=>void respond("ACCEPT")}>{t.accept}</Button><Button variant="ghost" onClick={()=>void respond("COUNTER")}>{t.counter}</Button><Button variant="ghost" onClick={()=>void respond("DECLINE")}>{t.decline}</Button></div></div>}
   </Card></Section>}
+  {["REJECTED","HIRED","OFFER_DECLINED","WITHDRAWN"].includes(w?.application?.recruitment360Status)&&<Section title="Avis"><Card><p className="text-sm mb-3">Votre retour aide Jobly à améliorer le processus. Il est modéré avant publication.</p><Link href={"/career/recruitment360/"+p.applicationId+"/review"} className="inline-flex rounded-xl border px-4 py-2 text-sm font-bold">Donner mon avis</Link></Card></Section>}
   {w?.negotiations?.length>0&&<Section title={t.history}><div className="space-y-2">{w.negotiations.map((n:any)=><Card key={n.id}><p className="text-xs opacity-70">{n.actorRole} · {n.action} · {n.channel}</p><p className="text-sm mt-1">{n.message}</p>{n.proposedSalary!=null&&<p className="text-sm font-bold mt-1">{n.proposedSalary}</p>}</Card>)}</div></Section>}
  </AppShell>
 }
