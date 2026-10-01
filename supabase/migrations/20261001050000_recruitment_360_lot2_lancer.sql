@@ -58,6 +58,10 @@ create index if not exists "RecruitmentCriterion_versionId_sortOrder_idx"
  on public."RecruitmentCriterion" ("versionId","sortOrder");
 create index if not exists "RecruitmentPublicationEvent_recruitmentId_effectiveAt_idx"
  on public."RecruitmentPublicationEvent" ("recruitmentId","effectiveAt" desc);
+create index if not exists "RecruitmentAnnouncementVersion_createdByUserId_idx" on public."RecruitmentAnnouncementVersion" ("createdByUserId");
+create index if not exists "RecruitmentPublicationEvent_actorUserId_idx" on public."RecruitmentPublicationEvent" ("actorUserId");
+create index if not exists "RecruitmentPublicationEvent_versionId_idx" on public."RecruitmentPublicationEvent" ("versionId");
+create index if not exists "Notification_recruitmentId_idx" on public."Notification" ("recruitmentId");
 
 alter table public."RecruitmentAnnouncementVersion" enable row level security;
 alter table public."RecruitmentCriterion" enable row level security;
