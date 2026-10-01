@@ -19,8 +19,9 @@ export async function GET(req:NextRequest,c:Ctx){
   const id=(await c.params).id,s=adminClient(),u=await ensureUser(s,auth),{i}=await workspace(s,id,u.id);
   const {data:session}=await s.from("RecruitmentInterviewVideoSession").select("*").eq("interviewId",id).maybeSingle();
   const {data:consents}=await s.from("RecruitmentInterviewRecordingConsent").select("userId,consented,consentedAt,revokedAt,consentVersion").eq("interviewId",id);
-  const {data:notes}=await s.from("RecruitmentInterviewNote").select("id,authorUserId,body,createdAt,updatedAt").eq("interviewId",id).order("createdAt",{ascending:true});
-  return NextResponse.json({interview:i,video:session,consents:consents||[],notes:notes||[],recordingAllowed:session?recordingIsAllowed(session.provider):false});
+  const mine=(consents||[]).find((x:any)=>String(x.userId)===String(u.id));
+  const {data:notes}=r?await s.from("RecruitmentInterviewNote").select("id,authorUserId,body,createdAt,updatedAt").eq("interviewId",id).order("createdAt",{ascending:true}):{data:[]};
+  return NextResponse.json({interview:i,video:session,viewerRole:r?.role||"TALENT",myConsent:mine||null,consentCount:(consents||[]).filter((x:any)=>x.consented&&!x.revokedAt).length,notes:notes||[],recordingAllowed:session?recordingIsAllowed(session.provider):false});
  }catch(e){const m=e instanceof Error?e.message:"Erreur.";return NextResponse.json({message:m},{status:m==="FORBIDDEN"?403:m==="INTERVIEW_NOT_FOUND"?404:500});}
 }
 export async function POST(req:NextRequest,c:Ctx){
@@ -47,12 +48,14 @@ export async function POST(req:NextRequest,c:Ctx){
    return NextResponse.json({consent:updated});
   }
   if(b.action==="recording"){
+   if(!r)throw new Error("FORBIDDEN");
    if(!recordingIsAllowed(session.provider))throw new Error("RECORDING_DISABLED_IN_FREE_TEST");
    const {data:all}=await s.from("RecruitmentInterviewRecordingConsent").select("userId,consented,revokedAt").eq("interviewId",id);
    if((all||[]).length<2||(all||[]).some((x:any)=>!x.consented||x.revokedAt))throw new Error("BOTH_PARTIES_MUST_CONSENT");
    const next=b.enabled?"RECORDING":"READY";const {data:updated,error}=await s.from("RecruitmentInterviewVideoSession").update({recordingStatus:next,recordingStartedAt:b.enabled?new Date().toISOString():session.recordingStartedAt,recordingEndedAt:b.enabled?null:new Date().toISOString(),updatedAt:new Date().toISOString()}).eq("id",session.id).select("*").single();if(error)throw new Error(error.message);return NextResponse.json({video:updated});
   }
   if(b.action==="note"){
+   if(!r)throw new Error("FORBIDDEN");
    const body=String(b.body||"").trim();if(!body||body.length>10000)throw new Error("NOTE_REQUIRED");
    const {data:note,error}=await s.from("RecruitmentInterviewNote").insert({interviewId:id,authorUserId:u.id,body}).select("*").single();if(error)throw new Error(error.message);return NextResponse.json({note});
   }
