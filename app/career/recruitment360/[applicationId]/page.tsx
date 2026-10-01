@@ -1,0 +1,27 @@
+"use client";
+import {useEffect,useState} from "react";
+import {useParams,useRouter} from "next/navigation";
+import AppShell from "@/components/ui/AppShell";
+import {Button,Card,ErrorState,LoadingState,PageIntro,Section} from "@/components/ui";
+import {getSupabaseClient} from "@/lib/supabase";
+
+const labels={fr:{title:"Ma candidature",offer:"Offre",accept:"Accepter",decline:"Refuser",counter:"Négocier",salary:"Montant proposé",service:"Date de prise de service",message:"Message",channel:"Canal",history:"Historique de négociation",noOffer:"Aucune offre formelle pour le moment.",confirm:"Cette action modifie définitivement votre candidature. Continuer ?",jobly:"Jobly",email:"Email",whatsapp:"WhatsApp",call:"Appel"},en:{title:"My application",offer:"Offer",accept:"Accept",decline:"Decline",counter:"Negotiate",salary:"Proposed amount",service:"Start date",message:"Message",channel:"Channel",history:"Negotiation history",noOffer:"No formal offer yet.",confirm:"This action changes your application permanently. Continue?",jobly:"Jobly",email:"Email",whatsapp:"WhatsApp",call:"Call"}};
+export default function TalentRecruitment360Page(){
+ const p=useParams<{applicationId:string}>(),router=useRouter(),[lang,setLang]=useState<"fr"|"en">("fr"),[state,setState]=useState("loading"),[w,setW]=useState<any>(null),[error,setError]=useState(""),[form,setForm]=useState({salary:"",serviceDate:"",message:"",channel:"JOBLY"});
+ const t=labels[lang];
+ useEffect(()=>{setLang((document.documentElement.lang||"fr").toLowerCase().startsWith("en")?"en":"fr")},[]);
+ async function load(){try{const{data:{session}}=await getSupabaseClient().auth.getSession();if(!session){router.replace("/");return}const r=await fetch("/api/recruitment360/decisions?applicationId="+encodeURIComponent(p.applicationId),{headers:{Authorization:"Bearer "+session.access_token}});const d=await r.json();if(!r.ok)throw new Error(d.message);setW(d.workspace);setState("ready")}catch(e){setError(e instanceof Error?e.message:"Erreur");setState("error")}}
+ useEffect(()=>{void load()},[p.applicationId]);
+ async function respond(action:string){if(!confirm(t.confirm))return;try{const{data:{session}}=await getSupabaseClient().auth.getSession();if(!session)throw new Error("Session requise.");const r=await fetch("/api/recruitment360/offers/"+encodeURIComponent(w.offer.id)+"/respond",{method:"POST",headers:{Authorization:"Bearer "+session.access_token,"Content-Type":"application/json"},body:JSON.stringify({action,salary:form.salary===""?null:Number(form.salary),serviceDate:form.serviceDate||null,message:form.message||null,channel:form.channel})});const d=await r.json();if(!r.ok)throw new Error(d.message);await load();setError("")}catch(e){setError(e instanceof Error?e.message:"Erreur")}}
+ if(state==="loading")return <AppShell role="talent" active="/career" title={t.title}><LoadingState/></AppShell>;
+ if(state==="error")return <AppShell role="talent" active="/career" title={t.title}><ErrorState title={error} onRetry={load}/></AppShell>;
+ return <AppShell role="talent" active="/career" title={t.title} initial="J" width="lg">
+  <PageIntro eyebrow="RECRUTEMENT 360°" title={t.title} subtitle={w?.recruitment?.currentState||""}/>
+  {error&&<p className="mb-3 rounded-xl border p-3 text-sm">{error}</p>}
+  <Section title="Statut"><Card><p className="font-black">{w?.application?.recruitment360Status||"—"}</p><p className="text-sm opacity-70 mt-1">La décision recruteur, l’offre et les négociations sont conservées côté serveur.</p></Card></Section>
+  {!w?.offer?<Section title={t.offer}><Card><p className="text-sm">{t.noOffer}</p></Card></Section>:<Section title={t.offer}><Card><div className="space-y-2"><p><strong>{w.offer.salaryProposed} {w.offer.salaryCurrency}</strong></p><p className="text-sm">Statut : {w.offer.status}</p>{w.offer.responseDeadline&&<p className="text-sm">Réponse avant : {new Date(w.offer.responseDeadline).toLocaleString(lang==="en"?"en-US":"fr-FR")}</p>}</div>
+   {["SENT","COUNTERED"].includes(w.offer.status)&&<div className="mt-4 grid gap-3"><input type="number" min={w.offer.salaryMin??0} max={w.offer.salaryMax??undefined} value={form.salary} onChange={e=>setForm(f=>({...f,salary:e.target.value}))} placeholder={t.salary} className="rounded-xl border p-3"/><input type="date" value={form.serviceDate} onChange={e=>setForm(f=>({...f,serviceDate:e.target.value}))} className="rounded-xl border p-3"/><select value={form.channel} onChange={e=>setForm(f=>({...f,channel:e.target.value}))} className="rounded-xl border p-3"><option value="JOBLY">{t.jobly}</option><option value="EMAIL">{t.email}</option><option value="WHATSAPP">{t.whatsapp}</option><option value="CALL">{t.call}</option></select><textarea value={form.message} onChange={e=>setForm(f=>({...f,message:e.target.value}))} placeholder={t.message} className="min-h-24 rounded-xl border p-3"/><div className="flex flex-wrap gap-2"><Button onClick={()=>void respond("ACCEPT")}>{t.accept}</Button><Button variant="ghost" onClick={()=>void respond("COUNTER")}>{t.counter}</Button><Button variant="ghost" onClick={()=>void respond("DECLINE")}>{t.decline}</Button></div></div>}
+  </Card></Section>}
+  {w?.negotiations?.length>0&&<Section title={t.history}><div className="space-y-2">{w.negotiations.map((n:any)=><Card key={n.id}><p className="text-xs opacity-70">{n.actorRole} · {n.action} · {n.channel}</p><p className="text-sm mt-1">{n.message}</p>{n.proposedSalary!=null&&<p className="text-sm font-bold mt-1">{n.proposedSalary}</p>}</Card>)}</div></Section>}
+ </AppShell>
+}
