@@ -219,7 +219,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Import is preview-only: durable original-file persistence happens only after the user explicitly clicks "Enregistrer".
-    const canonicalFileName = await canonicalCvFileName(authUser.id);\n    const originalCv: { stored: boolean; storagePath?: string; fileName?: string; pages?: number } = {
+    const canonicalFileName = await canonicalCvFileName(authUser.id);
+    const originalCv: { stored: boolean; storagePath?: string; fileName?: string; pages?: number } = {
       stored: false,
       fileName: canonicalFileName || "CV_Utilisateur.pdf",
       pages: parsed.total,
@@ -250,7 +251,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       aiAvailable: true,
-      fileName: file.name,
+      fileName: canonicalFileName || "CV_Utilisateur.pdf",
       pages: parsed.total,
       extractedCharacters: cvText.length,
       credits: ai.credits,
