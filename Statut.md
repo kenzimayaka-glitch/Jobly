@@ -1,12 +1,92 @@
 # JOBLY — STATUT DU PROJET
 ## SOURCE DE VÉRITÉ D'EXÉCUTION — JOBLY 20/20
-### Mise à jour : 26/09/2026 — Offres / Matching adaptatif / UX
+### Mise à jour : 01/10/2026 — Recrutement 360° v2 / Lot 1
 
 > Règle : une fonctionnalité n'est terminée que si elle traverse **SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**.
 > Les anciens checkpoints restent conservés comme historique et ne remplacent jamais l'état courant.
 
----
+# 🔵 TÂCHE ACTIVE UNIQUE — RECRUTEMENT 360° v2
 
+Le CEO a validé le démarrage du parcours **Recrutement 360° v2**. Pendant ce chantier, aucun autre domaine n'est la tâche active principale.
+
+## Lots
+
+| Lot | État courant | Preuve / reste |
+|---|---|---|
+| **1 — Fondations** | 🟨 **CODÉ + BASE VÉRIFIÉE / BUILD À VALIDER** | États serveur, rôles, audit, notifications, double coche, codes uniques, FREE_TEST/PRODUCTION livrés ; migrations appliquées et tests DB ciblés passés ; build/lint/typecheck non exécutables depuis l'environnement connecté actuel |
+| 2 — Lancer | ⚪ EN ATTENTE | Annonces 360°, versions, critères, salaire, publication, prorogation |
+| 3 — Candidatures & sélection | ⚪ EN ATTENTE | Matching détaillé, CV, justificatifs, ATS, vivier, refus différés |
+| 4 — Tests | ⚪ EN ATTENTE | Sessions, timer serveur, sauvegarde, surveillance, reprise |
+| 5 — Entretiens | ⚪ EN ATTENTE | Créneaux, jury, rappels, présence, Meet |
+| 6 — Décision | ⚪ EN ATTENTE | Pondération, J'IA, réserve, offre, négociation |
+| 7 — Rapports & avis | ⚪ EN ATTENTE | PDF, liens sécurisés, dashboard, avis |
+| 8 — Fiabilité avancée | ⚪ EN ATTENTE | Proctoring appareil, signaux anti-IA, réseau faible, secours |
+| 9 — Native + visio | ⚪ EN ATTENTE | Capacitor, FCM/APNs, alerte native, visio intégrée |
+
+## Lot 1 — Fondations : périmètre livré
+
+### Base de données
+- `Recruitment360` : état unique du recrutement.
+- `RecruitmentApplicationState` : état canonique d'une candidature dans le parcours 360°.
+- `RecruitmentRole` : OWNER / HR / MANAGER / DG_READONLY / JURY / DELEGATE.
+- `RecruitmentAuditLog` : transitions et corrections exceptionnelles.
+- `RecruitmentInvitationCode` : code à usage unique, hashé, expirant, lié à l'e-mail.
+- `Notification` étendue : recrutement, candidature, action, canaux, ouverture, double coche.
+- RLS activée sur les cinq nouvelles tables, avec grants minimaux.
+- Bootstrap des recrutements existants et création automatique des fondations pour les nouveaux RecruiterJob/Application.
+
+### Machine d'état serveur
+- Transitions de candidature exécutées par RPC serveur.
+- Avancement normal uniquement vers l'avant.
+- États terminaux verrouillés.
+- Retour arrière impossible sans motif d'au moins 5 caractères.
+- Toute correction exceptionnelle produit une entrée `EXCEPTION_STATE_CORRECTION` dans l'audit.
+- L'interface ne peut pas contourner cette règle.
+
+### Notifications
+- `GET /api/notifications` lit les notifications réelles.
+- `POST /api/notifications/[id]/open` marque la notification comme ouverte.
+- L'ouverture liée à une candidature encore active renseigne `recruiterSeenAt`, base serveur de la double coche.
+- Le centre `/notifications` n'est plus une maquette : loading / error / empty / data réels.
+- Action/link de notification conservé pour les prochains lots.
+- FR/EN au niveau de la surface de notification.
+
+### Codes d'invitation
+- `POST /api/recruitment360/invitations` : génération sécurisée.
+- `POST /api/recruitment360/invitations/redeem` : vérification e-mail, expiration, usage unique et rattachement.
+- Le code en clair n'est jamais stocké en base.
+
+### FREE_TEST / PRODUCTION
+- `config/environment-profiles.ts`.
+- `A_CONFIGURER.md`.
+- `PASSAGE_EN_PRODUCTION.md`.
+- `/api/health`.
+- Indicateur du profil et quota visio dans l'admin.
+
+### Régression détectée et corrigée pendant le lot
+Le test d'insertion d'une candidature a exposé une incompatibilité préexistante entre `User.id` (text) et `Application.userId` (uuid) dans `jobly_application_notification()`. La fonction existante a été durcie sans supprimer son comportement de notification.
+
+## Preuves DB Lot 1
+- 5/5 tables de fondation présentes.
+- 5/5 tables RLS activées.
+- 5/5 tables disposent d'une policy SELECT.
+- `anon` n'a pas de SELECT sur les nouvelles tables.
+- Le compte Recruiter propriétaire voit son `Recruitment360` avec un contexte Auth simulé contrôlé : **1 ligne**.
+- Un autre utilisateur ne voit aucune ligne : **0 ligne**.
+- Transition `SENT → REVIEW` exécutée avec succès.
+- Tentative `REVIEW → SENT` sans motif rejetée par `BACKWARD_TRANSITION_REQUIRES_REASON`.
+- Correction avec motif exécutée et auditée.
+- Ouverture d'une notification liée à une candidature active renseigne réellement `recruiterSeenAt`.
+- Les données synthétiques utilisées pour les tests fonctionnels ont été supprimées après vérification.
+
+## Validation technique restante
+Le dépôt connecté ne fournit pas actuellement un environnement d'exécution local permettant de lancer directement `npm run build`, lint et typecheck. Une tentative de clone réseau depuis l'environnement d'exécution a échoué faute de résolution réseau GitHub, et aucun check CI n'est attaché au commit de branche au moment de ce checkpoint.
+
+**Donc : CODÉ + BASE VÉRIFIÉE ≠ VALIDÉ 10/10.**
+
+Aucun merge vers `main`. Aucun déploiement Vercel.
+
+---
 # 0.1 — MISE À JOUR DU 26/09/2026 — OFFRES & MATCHING
 
 ## Matching adaptatif — 🔧 CODÉ / 🟡 À VALIDER E2E
