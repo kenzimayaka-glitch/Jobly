@@ -50,7 +50,7 @@ async function cropHash(buffer: Buffer, top: number, bottom: number, width: numb
 }
 
 async function qrScan(buffer: Buffer) {
-  const mod: any = await import("jsqr");
+  // @ts-ignore — jsqr is installed only for the smoke run.\n  const mod: any = await import("jsqr");
   const jsqr = mod.default || mod;
   const { data, info } = await sharp(buffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const decoded = jsqr(new Uint8ClampedArray(data), info.width, info.height);
