@@ -85,6 +85,30 @@ async function getOrCreatePublicLink(
   origin: string,
 ) {
   const publicBase = String(process.env.JOBLY_PUBLIC_URL || origin).replace(/\/$/, "");
+  const { data: block } = await supabase
+    .from("RecruitmentListingImmutableBlock")
+    .select("publicUrl")
+    .eq("versionId", versionId)
+    .maybeSingle();
+
+  if (block?.publicUrl) {
+    const match = String(block.publicUrl).match(/\/public\/recruitment-listing\/([^/?#]+)$/);
+    if (match?.[1]) {
+      const tokenHash = require("node:crypto").createHash("md5").update(match[1]).digest("hex");
+      const { data: activeLink } = await supabase
+        .from("RecruitmentListingPublicLink")
+        .select("id,expiresAt,stage,theme")
+        .eq("versionId", versionId)
+        .eq("tokenHash", tokenHash)
+        .is("revokedAt", null)
+        .gt("expiresAt", new Date().toISOString())
+        .maybeSingle();
+      if (activeLink && activeLink.stage === stage && activeLink.theme === theme) {
+        return { url: block.publicUrl, linkId: activeLink.id, expiresAt: activeLink.expiresAt };
+      }
+    }
+  }
+
   const ttl = Math.max(1, Math.min(720, Number(process.env.JOBLY_LISTING_PUBLIC_LINK_TTL_HOURS || "168")));
   const { data, error } = await supabase.rpc("recruitment360_lot11_create_public_link_v2", {
     p_version_id: versionId,
