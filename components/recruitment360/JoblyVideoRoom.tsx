@@ -1,11 +1,11 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
 
-type Props={interviewId:string;room?:{provider:string;roomName:string;joinUrl:string;domain?:string}|null;onEvent?:(event:string)=>void;};
+type Props={interviewId:string;room?:{provider:string;roomName:string;joinUrl:string;domain?:string}|null;onEvent?:(event:string)=>void;recordingEnabled?:boolean;canRecord?:boolean;};
 
 declare global {interface Window {JitsiMeetExternalAPI?:new(domain:string,options:any)=>any;}}
 
-export default function JoblyVideoRoom({interviewId,room,onEvent}:Props){
+export default function JoblyVideoRoom({interviewId,room,onEvent,recordingEnabled=false,canRecord=false}:Props){
  const host=useRef<HTMLDivElement|null>(null);const api=useRef<any>(null);
  const [ready,setReady]=useState(false),[joined,setJoined]=useState(false),[participants,setParticipants]=useState(0),[error,setError]=useState("");
  useEffect(()=>{
@@ -22,10 +22,11 @@ export default function JoblyVideoRoom({interviewId,room,onEvent}:Props){
     }
     if(cancelled||!host.current||!window.JitsiMeetExternalAPI)return;
     api.current=new window.JitsiMeetExternalAPI(domain,{roomName:room.roomName,parentNode:host.current,width:"100%",height:520,configOverwrite:{prejoinConfig:{enabled:true},disableDeepLinking:true},interfaceConfigOverwrite:{MOBILE_APP_PROMO:false}});
-    api.current.addListener("videoConferenceJoined",()=>{setJoined(true);setReady(true);onEvent?.("JOINED");void fetch("/api/recruitment360/interviews/"+encodeURIComponent(interviewId)+"/video",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"presence",status:"JOINED"})})});
+    api.current.addListener("videoConferenceJoined",()=>{setJoined(true);setReady(true);onEvent?.("JOINED");void fetch("/api/recruitment360/interviews/"+encodeURIComponent(interviewId)+"/video",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"start"})});void fetch("/api/recruitment360/interviews/"+encodeURIComponent(interviewId)+"/video",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"presence",status:"JOINED"})})});
     api.current.addListener("videoConferenceLeft",()=>{setJoined(false);onEvent?.("LEFT");void fetch("/api/recruitment360/interviews/"+encodeURIComponent(interviewId)+"/video",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"presence",status:"LEFT"})})});
     api.current.addListener("participantJoined",()=>setParticipants(p=>p+1));
     api.current.addListener("participantLeft",()=>setParticipants(p=>Math.max(0,p-1)));
+    api.current.addListener("recordingStatusChanged",(payload:any)=>{const active=payload?.on===true||payload?.status==="on";if(canRecord)void fetch("/api/recruitment360/interviews/"+encodeURIComponent(interviewId)+"/video",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"recording",enabled:active})});});
     api.current.addListener("readyToClose",()=>setReady(false));
    }catch(e){if(!cancelled)setError(e instanceof Error?e.message:"VIDEO_PROVIDER_UNAVAILABLE");}
   };
