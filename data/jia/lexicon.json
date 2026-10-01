@@ -1,0 +1,3572 @@
+{
+  "fr": {
+    "bonjour": {
+      "intent": "greetings",
+      "action": "bonjour"
+    },
+    "bonjour à tous": {
+      "intent": "greetings",
+      "action": "bonjour"
+    },
+    "bonjour encore": {
+      "intent": "greetings",
+      "action": "bonjour"
+    },
+    "salut": {
+      "intent": "greetings",
+      "action": "salut"
+    },
+    "salut à tous": {
+      "intent": "greetings",
+      "action": "salut"
+    },
+    "salut encore": {
+      "intent": "greetings",
+      "action": "salut"
+    },
+    "bienvenue": {
+      "intent": "greetings",
+      "action": "bienvenue"
+    },
+    "bienvenue à tous": {
+      "intent": "greetings",
+      "action": "bienvenue"
+    },
+    "bienvenue encore": {
+      "intent": "greetings",
+      "action": "bienvenue"
+    },
+    "merci": {
+      "intent": "greetings",
+      "action": "merci"
+    },
+    "merci à tous": {
+      "intent": "greetings",
+      "action": "merci"
+    },
+    "merci encore": {
+      "intent": "greetings",
+      "action": "merci"
+    },
+    "pardon": {
+      "intent": "greetings",
+      "action": "pardon"
+    },
+    "pardon à tous": {
+      "intent": "greetings",
+      "action": "pardon"
+    },
+    "pardon encore": {
+      "intent": "greetings",
+      "action": "pardon"
+    },
+    "bravo": {
+      "intent": "greetings",
+      "action": "bravo"
+    },
+    "bravo à tous": {
+      "intent": "greetings",
+      "action": "bravo"
+    },
+    "bravo encore": {
+      "intent": "greetings",
+      "action": "bravo"
+    },
+    "courage": {
+      "intent": "greetings",
+      "action": "courage"
+    },
+    "courage à tous": {
+      "intent": "greetings",
+      "action": "courage"
+    },
+    "courage encore": {
+      "intent": "greetings",
+      "action": "courage"
+    },
+    "bienvenue à nouveau": {
+      "intent": "greetings",
+      "action": "bienvenue à nouveau"
+    },
+    "bienvenue à nouveau à tous": {
+      "intent": "greetings",
+      "action": "bienvenue à nouveau"
+    },
+    "bienvenue à nouveau encore": {
+      "intent": "greetings",
+      "action": "bienvenue à nouveau"
+    },
+    "bonne chance": {
+      "intent": "greetings",
+      "action": "bonne chance"
+    },
+    "bonne chance à tous": {
+      "intent": "greetings",
+      "action": "bonne chance"
+    },
+    "bonne chance encore": {
+      "intent": "greetings",
+      "action": "bonne chance"
+    },
+    "à bientôt": {
+      "intent": "greetings",
+      "action": "à bientôt"
+    },
+    "à bientôt à tous": {
+      "intent": "greetings",
+      "action": "à bientôt"
+    },
+    "à bientôt encore": {
+      "intent": "greetings",
+      "action": "à bientôt"
+    },
+    "chercher": {
+      "intent": "actions",
+      "action": "chercher"
+    },
+    "chercher maintenant": {
+      "intent": "actions",
+      "action": "chercher"
+    },
+    "chercher vite": {
+      "intent": "actions",
+      "action": "chercher"
+    },
+    "chercher ensemble": {
+      "intent": "actions",
+      "action": "chercher"
+    },
+    "chercher demain": {
+      "intent": "actions",
+      "action": "chercher"
+    },
+    "trouver": {
+      "intent": "actions",
+      "action": "trouver"
+    },
+    "trouver maintenant": {
+      "intent": "actions",
+      "action": "trouver"
+    },
+    "trouver vite": {
+      "intent": "actions",
+      "action": "trouver"
+    },
+    "trouver ensemble": {
+      "intent": "actions",
+      "action": "trouver"
+    },
+    "trouver demain": {
+      "intent": "actions",
+      "action": "trouver"
+    },
+    "ouvrir": {
+      "intent": "actions",
+      "action": "ouvrir"
+    },
+    "ouvrir maintenant": {
+      "intent": "actions",
+      "action": "ouvrir"
+    },
+    "ouvrir vite": {
+      "intent": "actions",
+      "action": "ouvrir"
+    },
+    "ouvrir ensemble": {
+      "intent": "actions",
+      "action": "ouvrir"
+    },
+    "ouvrir demain": {
+      "intent": "actions",
+      "action": "ouvrir"
+    },
+    "fermer": {
+      "intent": "actions",
+      "action": "fermer"
+    },
+    "fermer maintenant": {
+      "intent": "actions",
+      "action": "fermer"
+    },
+    "fermer vite": {
+      "intent": "actions",
+      "action": "fermer"
+    },
+    "fermer ensemble": {
+      "intent": "actions",
+      "action": "fermer"
+    },
+    "fermer demain": {
+      "intent": "actions",
+      "action": "fermer"
+    },
+    "lire": {
+      "intent": "actions",
+      "action": "lire"
+    },
+    "lire maintenant": {
+      "intent": "actions",
+      "action": "lire"
+    },
+    "lire vite": {
+      "intent": "actions",
+      "action": "lire"
+    },
+    "lire ensemble": {
+      "intent": "actions",
+      "action": "lire"
+    },
+    "lire demain": {
+      "intent": "actions",
+      "action": "lire"
+    },
+    "écrire": {
+      "intent": "actions",
+      "action": "écrire"
+    },
+    "écrire maintenant": {
+      "intent": "actions",
+      "action": "écrire"
+    },
+    "écrire vite": {
+      "intent": "actions",
+      "action": "écrire"
+    },
+    "écrire ensemble": {
+      "intent": "actions",
+      "action": "écrire"
+    },
+    "écrire demain": {
+      "intent": "actions",
+      "action": "écrire"
+    },
+    "écouter": {
+      "intent": "actions",
+      "action": "écouter"
+    },
+    "écouter maintenant": {
+      "intent": "actions",
+      "action": "écouter"
+    },
+    "écouter vite": {
+      "intent": "actions",
+      "action": "écouter"
+    },
+    "écouter ensemble": {
+      "intent": "actions",
+      "action": "écouter"
+    },
+    "écouter demain": {
+      "intent": "actions",
+      "action": "écouter"
+    },
+    "parler": {
+      "intent": "actions",
+      "action": "parler"
+    },
+    "parler maintenant": {
+      "intent": "actions",
+      "action": "parler"
+    },
+    "parler vite": {
+      "intent": "actions",
+      "action": "parler"
+    },
+    "parler ensemble": {
+      "intent": "actions",
+      "action": "parler"
+    },
+    "parler demain": {
+      "intent": "actions",
+      "action": "parler"
+    },
+    "aider": {
+      "intent": "actions",
+      "action": "aider"
+    },
+    "aider maintenant": {
+      "intent": "actions",
+      "action": "aider"
+    },
+    "aider vite": {
+      "intent": "actions",
+      "action": "aider"
+    },
+    "aider ensemble": {
+      "intent": "actions",
+      "action": "aider"
+    },
+    "aider demain": {
+      "intent": "actions",
+      "action": "aider"
+    },
+    "guider": {
+      "intent": "actions",
+      "action": "guider"
+    },
+    "guider maintenant": {
+      "intent": "actions",
+      "action": "guider"
+    },
+    "guider vite": {
+      "intent": "actions",
+      "action": "guider"
+    },
+    "guider ensemble": {
+      "intent": "actions",
+      "action": "guider"
+    },
+    "guider demain": {
+      "intent": "actions",
+      "action": "guider"
+    },
+    "joie": {
+      "intent": "emotions",
+      "action": "joie"
+    },
+    "joie intense": {
+      "intent": "emotions",
+      "action": "joie"
+    },
+    "joie sincère": {
+      "intent": "emotions",
+      "action": "joie"
+    },
+    "joie profonde": {
+      "intent": "emotions",
+      "action": "joie"
+    },
+    "joie nouvelle": {
+      "intent": "emotions",
+      "action": "joie"
+    },
+    "peur": {
+      "intent": "emotions",
+      "action": "peur"
+    },
+    "peur intense": {
+      "intent": "emotions",
+      "action": "peur"
+    },
+    "peur sincère": {
+      "intent": "emotions",
+      "action": "peur"
+    },
+    "peur profonde": {
+      "intent": "emotions",
+      "action": "peur"
+    },
+    "peur nouvelle": {
+      "intent": "emotions",
+      "action": "peur"
+    },
+    "espoir": {
+      "intent": "emotions",
+      "action": "espoir"
+    },
+    "espoir intense": {
+      "intent": "emotions",
+      "action": "espoir"
+    },
+    "espoir sincère": {
+      "intent": "emotions",
+      "action": "espoir"
+    },
+    "espoir profonde": {
+      "intent": "emotions",
+      "action": "espoir"
+    },
+    "espoir nouvelle": {
+      "intent": "emotions",
+      "action": "espoir"
+    },
+    "confiance": {
+      "intent": "emotions",
+      "action": "confiance"
+    },
+    "confiance intense": {
+      "intent": "emotions",
+      "action": "confiance"
+    },
+    "confiance sincère": {
+      "intent": "emotions",
+      "action": "confiance"
+    },
+    "confiance profonde": {
+      "intent": "emotions",
+      "action": "confiance"
+    },
+    "confiance nouvelle": {
+      "intent": "emotions",
+      "action": "confiance"
+    },
+    "doute": {
+      "intent": "emotions",
+      "action": "doute"
+    },
+    "doute intense": {
+      "intent": "emotions",
+      "action": "doute"
+    },
+    "doute sincère": {
+      "intent": "emotions",
+      "action": "doute"
+    },
+    "doute profonde": {
+      "intent": "emotions",
+      "action": "doute"
+    },
+    "doute nouvelle": {
+      "intent": "emotions",
+      "action": "doute"
+    },
+    "calme": {
+      "intent": "emotions",
+      "action": "calme"
+    },
+    "calme intense": {
+      "intent": "emotions",
+      "action": "calme"
+    },
+    "calme sincère": {
+      "intent": "emotions",
+      "action": "calme"
+    },
+    "calme profonde": {
+      "intent": "emotions",
+      "action": "calme"
+    },
+    "calme nouvelle": {
+      "intent": "emotions",
+      "action": "calme"
+    },
+    "fierté": {
+      "intent": "emotions",
+      "action": "fierté"
+    },
+    "fierté intense": {
+      "intent": "emotions",
+      "action": "fierté"
+    },
+    "fierté sincère": {
+      "intent": "emotions",
+      "action": "fierté"
+    },
+    "fierté profonde": {
+      "intent": "emotions",
+      "action": "fierté"
+    },
+    "fierté nouvelle": {
+      "intent": "emotions",
+      "action": "fierté"
+    },
+    "amour": {
+      "intent": "emotions",
+      "action": "amour"
+    },
+    "amour intense": {
+      "intent": "emotions",
+      "action": "amour"
+    },
+    "amour sincère": {
+      "intent": "emotions",
+      "action": "amour"
+    },
+    "amour profonde": {
+      "intent": "emotions",
+      "action": "amour"
+    },
+    "amour nouvelle": {
+      "intent": "emotions",
+      "action": "amour"
+    },
+    "curiosité": {
+      "intent": "emotions",
+      "action": "curiosité"
+    },
+    "curiosité intense": {
+      "intent": "emotions",
+      "action": "curiosité"
+    },
+    "curiosité sincère": {
+      "intent": "emotions",
+      "action": "curiosité"
+    },
+    "curiosité profonde": {
+      "intent": "emotions",
+      "action": "curiosité"
+    },
+    "curiosité nouvelle": {
+      "intent": "emotions",
+      "action": "curiosité"
+    },
+    "fatigue": {
+      "intent": "emotions",
+      "action": "fatigue"
+    },
+    "fatigue intense": {
+      "intent": "emotions",
+      "action": "fatigue"
+    },
+    "fatigue sincère": {
+      "intent": "emotions",
+      "action": "fatigue"
+    },
+    "fatigue profonde": {
+      "intent": "emotions",
+      "action": "fatigue"
+    },
+    "fatigue nouvelle": {
+      "intent": "emotions",
+      "action": "fatigue"
+    },
+    "ordinateur": {
+      "intent": "objects",
+      "action": "ordinateur"
+    },
+    "ordinateur principal": {
+      "intent": "objects",
+      "action": "ordinateur"
+    },
+    "ordinateur numérique": {
+      "intent": "objects",
+      "action": "ordinateur"
+    },
+    "ordinateur professionnel": {
+      "intent": "objects",
+      "action": "ordinateur"
+    },
+    "ordinateur partagé": {
+      "intent": "objects",
+      "action": "ordinateur"
+    },
+    "téléphone": {
+      "intent": "objects",
+      "action": "téléphone"
+    },
+    "téléphone principal": {
+      "intent": "objects",
+      "action": "téléphone"
+    },
+    "téléphone numérique": {
+      "intent": "objects",
+      "action": "téléphone"
+    },
+    "téléphone professionnel": {
+      "intent": "objects",
+      "action": "téléphone"
+    },
+    "téléphone partagé": {
+      "intent": "objects",
+      "action": "téléphone"
+    },
+    "écran": {
+      "intent": "objects",
+      "action": "écran"
+    },
+    "écran principal": {
+      "intent": "objects",
+      "action": "écran"
+    },
+    "écran numérique": {
+      "intent": "objects",
+      "action": "écran"
+    },
+    "écran professionnel": {
+      "intent": "objects",
+      "action": "écran"
+    },
+    "écran partagé": {
+      "intent": "objects",
+      "action": "écran"
+    },
+    "clavier": {
+      "intent": "objects",
+      "action": "clavier"
+    },
+    "clavier principal": {
+      "intent": "objects",
+      "action": "clavier"
+    },
+    "clavier numérique": {
+      "intent": "objects",
+      "action": "clavier"
+    },
+    "clavier professionnel": {
+      "intent": "objects",
+      "action": "clavier"
+    },
+    "clavier partagé": {
+      "intent": "objects",
+      "action": "clavier"
+    },
+    "livre": {
+      "intent": "objects",
+      "action": "livre"
+    },
+    "livre principal": {
+      "intent": "objects",
+      "action": "livre"
+    },
+    "livre numérique": {
+      "intent": "objects",
+      "action": "livre"
+    },
+    "livre professionnel": {
+      "intent": "objects",
+      "action": "livre"
+    },
+    "livre partagé": {
+      "intent": "objects",
+      "action": "livre"
+    },
+    "bureau": {
+      "intent": "objects",
+      "action": "bureau"
+    },
+    "bureau principal": {
+      "intent": "objects",
+      "action": "bureau"
+    },
+    "bureau numérique": {
+      "intent": "objects",
+      "action": "bureau"
+    },
+    "bureau professionnel": {
+      "intent": "objects",
+      "action": "bureau"
+    },
+    "bureau partagé": {
+      "intent": "objects",
+      "action": "bureau"
+    },
+    "profil": {
+      "intent": "objects",
+      "action": "profil"
+    },
+    "profil principal": {
+      "intent": "objects",
+      "action": "profil"
+    },
+    "profil numérique": {
+      "intent": "objects",
+      "action": "profil"
+    },
+    "profil professionnel": {
+      "intent": "objects",
+      "action": "profil"
+    },
+    "profil partagé": {
+      "intent": "objects",
+      "action": "profil"
+    },
+    "offre": {
+      "intent": "objects",
+      "action": "offre"
+    },
+    "offre principal": {
+      "intent": "objects",
+      "action": "offre"
+    },
+    "offre numérique": {
+      "intent": "objects",
+      "action": "offre"
+    },
+    "offre professionnel": {
+      "intent": "objects",
+      "action": "offre"
+    },
+    "offre partagé": {
+      "intent": "objects",
+      "action": "offre"
+    },
+    "candidature": {
+      "intent": "objects",
+      "action": "candidature"
+    },
+    "candidature principal": {
+      "intent": "objects",
+      "action": "candidature"
+    },
+    "candidature numérique": {
+      "intent": "objects",
+      "action": "candidature"
+    },
+    "candidature professionnel": {
+      "intent": "objects",
+      "action": "candidature"
+    },
+    "candidature partagé": {
+      "intent": "objects",
+      "action": "candidature"
+    },
+    "emploi": {
+      "intent": "objects",
+      "action": "emploi"
+    },
+    "emploi principal": {
+      "intent": "objects",
+      "action": "emploi"
+    },
+    "emploi numérique": {
+      "intent": "objects",
+      "action": "emploi"
+    },
+    "emploi professionnel": {
+      "intent": "objects",
+      "action": "emploi"
+    },
+    "emploi partagé": {
+      "intent": "objects",
+      "action": "emploi"
+    },
+    "gauche": {
+      "intent": "directions",
+      "action": "gauche"
+    },
+    "gauche directe": {
+      "intent": "directions",
+      "action": "gauche"
+    },
+    "gauche précise": {
+      "intent": "directions",
+      "action": "gauche"
+    },
+    "gauche rapide": {
+      "intent": "directions",
+      "action": "gauche"
+    },
+    "gauche sûre": {
+      "intent": "directions",
+      "action": "gauche"
+    },
+    "droite": {
+      "intent": "directions",
+      "action": "droite"
+    },
+    "droite directe": {
+      "intent": "directions",
+      "action": "droite"
+    },
+    "droite précise": {
+      "intent": "directions",
+      "action": "droite"
+    },
+    "droite rapide": {
+      "intent": "directions",
+      "action": "droite"
+    },
+    "droite sûre": {
+      "intent": "directions",
+      "action": "droite"
+    },
+    "haut": {
+      "intent": "directions",
+      "action": "haut"
+    },
+    "haut directe": {
+      "intent": "directions",
+      "action": "haut"
+    },
+    "haut précise": {
+      "intent": "directions",
+      "action": "haut"
+    },
+    "haut rapide": {
+      "intent": "directions",
+      "action": "haut"
+    },
+    "haut sûre": {
+      "intent": "directions",
+      "action": "haut"
+    },
+    "bas": {
+      "intent": "directions",
+      "action": "bas"
+    },
+    "bas directe": {
+      "intent": "directions",
+      "action": "bas"
+    },
+    "bas précise": {
+      "intent": "directions",
+      "action": "bas"
+    },
+    "bas rapide": {
+      "intent": "directions",
+      "action": "bas"
+    },
+    "bas sûre": {
+      "intent": "directions",
+      "action": "bas"
+    },
+    "devant": {
+      "intent": "directions",
+      "action": "devant"
+    },
+    "devant directe": {
+      "intent": "directions",
+      "action": "devant"
+    },
+    "devant précise": {
+      "intent": "directions",
+      "action": "devant"
+    },
+    "devant rapide": {
+      "intent": "directions",
+      "action": "devant"
+    },
+    "devant sûre": {
+      "intent": "directions",
+      "action": "devant"
+    },
+    "derrière": {
+      "intent": "directions",
+      "action": "derrière"
+    },
+    "derrière directe": {
+      "intent": "directions",
+      "action": "derrière"
+    },
+    "derrière précise": {
+      "intent": "directions",
+      "action": "derrière"
+    },
+    "derrière rapide": {
+      "intent": "directions",
+      "action": "derrière"
+    },
+    "derrière sûre": {
+      "intent": "directions",
+      "action": "derrière"
+    },
+    "près": {
+      "intent": "directions",
+      "action": "près"
+    },
+    "près directe": {
+      "intent": "directions",
+      "action": "près"
+    },
+    "près précise": {
+      "intent": "directions",
+      "action": "près"
+    },
+    "près rapide": {
+      "intent": "directions",
+      "action": "près"
+    },
+    "près sûre": {
+      "intent": "directions",
+      "action": "près"
+    },
+    "loin": {
+      "intent": "directions",
+      "action": "loin"
+    },
+    "loin directe": {
+      "intent": "directions",
+      "action": "loin"
+    },
+    "loin précise": {
+      "intent": "directions",
+      "action": "loin"
+    },
+    "loin rapide": {
+      "intent": "directions",
+      "action": "loin"
+    },
+    "loin sûre": {
+      "intent": "directions",
+      "action": "loin"
+    },
+    "ici": {
+      "intent": "directions",
+      "action": "ici"
+    },
+    "ici directe": {
+      "intent": "directions",
+      "action": "ici"
+    },
+    "ici précise": {
+      "intent": "directions",
+      "action": "ici"
+    },
+    "ici rapide": {
+      "intent": "directions",
+      "action": "ici"
+    },
+    "ici sûre": {
+      "intent": "directions",
+      "action": "ici"
+    },
+    "là": {
+      "intent": "directions",
+      "action": "là"
+    },
+    "là directe": {
+      "intent": "directions",
+      "action": "là"
+    },
+    "là précise": {
+      "intent": "directions",
+      "action": "là"
+    },
+    "là rapide": {
+      "intent": "directions",
+      "action": "là"
+    },
+    "là sûre": {
+      "intent": "directions",
+      "action": "là"
+    },
+    "maintenant": {
+      "intent": "time",
+      "action": "maintenant"
+    },
+    "maintenant prochain": {
+      "intent": "time",
+      "action": "maintenant"
+    },
+    "maintenant récent": {
+      "intent": "time",
+      "action": "maintenant"
+    },
+    "maintenant prévu": {
+      "intent": "time",
+      "action": "maintenant"
+    },
+    "maintenant utile": {
+      "intent": "time",
+      "action": "maintenant"
+    },
+    "aujourd'hui": {
+      "intent": "time",
+      "action": "aujourd'hui"
+    },
+    "aujourd'hui prochain": {
+      "intent": "time",
+      "action": "aujourd'hui"
+    },
+    "aujourd'hui récent": {
+      "intent": "time",
+      "action": "aujourd'hui"
+    },
+    "aujourd'hui prévu": {
+      "intent": "time",
+      "action": "aujourd'hui"
+    },
+    "aujourd'hui utile": {
+      "intent": "time",
+      "action": "aujourd'hui"
+    },
+    "demain": {
+      "intent": "time",
+      "action": "demain"
+    },
+    "demain prochain": {
+      "intent": "time",
+      "action": "demain"
+    },
+    "demain récent": {
+      "intent": "time",
+      "action": "demain"
+    },
+    "demain prévu": {
+      "intent": "time",
+      "action": "demain"
+    },
+    "demain utile": {
+      "intent": "time",
+      "action": "demain"
+    },
+    "hier": {
+      "intent": "time",
+      "action": "hier"
+    },
+    "hier prochain": {
+      "intent": "time",
+      "action": "hier"
+    },
+    "hier récent": {
+      "intent": "time",
+      "action": "hier"
+    },
+    "hier prévu": {
+      "intent": "time",
+      "action": "hier"
+    },
+    "hier utile": {
+      "intent": "time",
+      "action": "hier"
+    },
+    "matin": {
+      "intent": "time",
+      "action": "matin"
+    },
+    "matin prochain": {
+      "intent": "time",
+      "action": "matin"
+    },
+    "matin récent": {
+      "intent": "time",
+      "action": "matin"
+    },
+    "matin prévu": {
+      "intent": "time",
+      "action": "matin"
+    },
+    "matin utile": {
+      "intent": "time",
+      "action": "matin"
+    },
+    "soir": {
+      "intent": "time",
+      "action": "soir"
+    },
+    "soir prochain": {
+      "intent": "time",
+      "action": "soir"
+    },
+    "soir récent": {
+      "intent": "time",
+      "action": "soir"
+    },
+    "soir prévu": {
+      "intent": "time",
+      "action": "soir"
+    },
+    "soir utile": {
+      "intent": "time",
+      "action": "soir"
+    },
+    "nuit": {
+      "intent": "time",
+      "action": "nuit"
+    },
+    "nuit prochain": {
+      "intent": "time",
+      "action": "nuit"
+    },
+    "nuit récent": {
+      "intent": "time",
+      "action": "nuit"
+    },
+    "nuit prévu": {
+      "intent": "time",
+      "action": "nuit"
+    },
+    "nuit utile": {
+      "intent": "time",
+      "action": "nuit"
+    },
+    "semaine": {
+      "intent": "time",
+      "action": "semaine"
+    },
+    "semaine prochain": {
+      "intent": "time",
+      "action": "semaine"
+    },
+    "semaine récent": {
+      "intent": "time",
+      "action": "semaine"
+    },
+    "semaine prévu": {
+      "intent": "time",
+      "action": "semaine"
+    },
+    "semaine utile": {
+      "intent": "time",
+      "action": "semaine"
+    },
+    "mois": {
+      "intent": "time",
+      "action": "mois"
+    },
+    "mois prochain": {
+      "intent": "time",
+      "action": "mois"
+    },
+    "mois récent": {
+      "intent": "time",
+      "action": "mois"
+    },
+    "mois prévu": {
+      "intent": "time",
+      "action": "mois"
+    },
+    "mois utile": {
+      "intent": "time",
+      "action": "mois"
+    },
+    "année": {
+      "intent": "time",
+      "action": "année"
+    },
+    "année prochain": {
+      "intent": "time",
+      "action": "année"
+    },
+    "année récent": {
+      "intent": "time",
+      "action": "année"
+    },
+    "année prévu": {
+      "intent": "time",
+      "action": "année"
+    },
+    "année utile": {
+      "intent": "time",
+      "action": "année"
+    },
+    "eau": {
+      "intent": "survival",
+      "action": "eau"
+    },
+    "eau immédiat": {
+      "intent": "survival",
+      "action": "eau"
+    },
+    "nourriture": {
+      "intent": "survival",
+      "action": "nourriture"
+    },
+    "nourriture immédiat": {
+      "intent": "survival",
+      "action": "nourriture"
+    },
+    "abri": {
+      "intent": "survival",
+      "action": "abri"
+    },
+    "abri immédiat": {
+      "intent": "survival",
+      "action": "abri"
+    },
+    "secours": {
+      "intent": "survival",
+      "action": "secours"
+    },
+    "secours immédiat": {
+      "intent": "survival",
+      "action": "secours"
+    },
+    "urgence": {
+      "intent": "survival",
+      "action": "urgence"
+    },
+    "urgence immédiat": {
+      "intent": "survival",
+      "action": "urgence"
+    },
+    "danger": {
+      "intent": "survival",
+      "action": "danger"
+    },
+    "danger immédiat": {
+      "intent": "survival",
+      "action": "danger"
+    },
+    "médecin": {
+      "intent": "survival",
+      "action": "médecin"
+    },
+    "médecin immédiat": {
+      "intent": "survival",
+      "action": "médecin"
+    },
+    "hôpital": {
+      "intent": "survival",
+      "action": "hôpital"
+    },
+    "hôpital immédiat": {
+      "intent": "survival",
+      "action": "hôpital"
+    },
+    "police": {
+      "intent": "survival",
+      "action": "police"
+    },
+    "police immédiat": {
+      "intent": "survival",
+      "action": "police"
+    },
+    "aide": {
+      "intent": "survival",
+      "action": "aide"
+    },
+    "aide immédiat": {
+      "intent": "survival",
+      "action": "aide"
+    }
+  },
+  "en": {
+    "hello": {
+      "intent": "greetings",
+      "action": "hello"
+    },
+    "hello à tous": {
+      "intent": "greetings",
+      "action": "hello"
+    },
+    "hello encore": {
+      "intent": "greetings",
+      "action": "hello"
+    },
+    "hi": {
+      "intent": "greetings",
+      "action": "hi"
+    },
+    "hi à tous": {
+      "intent": "greetings",
+      "action": "hi"
+    },
+    "hi encore": {
+      "intent": "greetings",
+      "action": "hi"
+    },
+    "welcome": {
+      "intent": "greetings",
+      "action": "welcome"
+    },
+    "welcome à tous": {
+      "intent": "greetings",
+      "action": "welcome"
+    },
+    "welcome encore": {
+      "intent": "greetings",
+      "action": "welcome"
+    },
+    "thanks": {
+      "intent": "greetings",
+      "action": "thanks"
+    },
+    "thanks à tous": {
+      "intent": "greetings",
+      "action": "thanks"
+    },
+    "thanks encore": {
+      "intent": "greetings",
+      "action": "thanks"
+    },
+    "sorry": {
+      "intent": "greetings",
+      "action": "sorry"
+    },
+    "sorry à tous": {
+      "intent": "greetings",
+      "action": "sorry"
+    },
+    "sorry encore": {
+      "intent": "greetings",
+      "action": "sorry"
+    },
+    "well done": {
+      "intent": "greetings",
+      "action": "well done"
+    },
+    "well done à tous": {
+      "intent": "greetings",
+      "action": "well done"
+    },
+    "well done encore": {
+      "intent": "greetings",
+      "action": "well done"
+    },
+    "keep going": {
+      "intent": "greetings",
+      "action": "keep going"
+    },
+    "keep going à tous": {
+      "intent": "greetings",
+      "action": "keep going"
+    },
+    "keep going encore": {
+      "intent": "greetings",
+      "action": "keep going"
+    },
+    "welcome back": {
+      "intent": "greetings",
+      "action": "welcome back"
+    },
+    "welcome back à tous": {
+      "intent": "greetings",
+      "action": "welcome back"
+    },
+    "welcome back encore": {
+      "intent": "greetings",
+      "action": "welcome back"
+    },
+    "good luck": {
+      "intent": "greetings",
+      "action": "good luck"
+    },
+    "good luck à tous": {
+      "intent": "greetings",
+      "action": "good luck"
+    },
+    "good luck encore": {
+      "intent": "greetings",
+      "action": "good luck"
+    },
+    "see you soon": {
+      "intent": "greetings",
+      "action": "see you soon"
+    },
+    "see you soon à tous": {
+      "intent": "greetings",
+      "action": "see you soon"
+    },
+    "see you soon encore": {
+      "intent": "greetings",
+      "action": "see you soon"
+    },
+    "search": {
+      "intent": "actions",
+      "action": "search"
+    },
+    "search maintenant": {
+      "intent": "actions",
+      "action": "search"
+    },
+    "search vite": {
+      "intent": "actions",
+      "action": "search"
+    },
+    "search ensemble": {
+      "intent": "actions",
+      "action": "search"
+    },
+    "search demain": {
+      "intent": "actions",
+      "action": "search"
+    },
+    "find": {
+      "intent": "actions",
+      "action": "find"
+    },
+    "find maintenant": {
+      "intent": "actions",
+      "action": "find"
+    },
+    "find vite": {
+      "intent": "actions",
+      "action": "find"
+    },
+    "find ensemble": {
+      "intent": "actions",
+      "action": "find"
+    },
+    "find demain": {
+      "intent": "actions",
+      "action": "find"
+    },
+    "open": {
+      "intent": "actions",
+      "action": "open"
+    },
+    "open maintenant": {
+      "intent": "actions",
+      "action": "open"
+    },
+    "open vite": {
+      "intent": "actions",
+      "action": "open"
+    },
+    "open ensemble": {
+      "intent": "actions",
+      "action": "open"
+    },
+    "open demain": {
+      "intent": "actions",
+      "action": "open"
+    },
+    "close": {
+      "intent": "actions",
+      "action": "close"
+    },
+    "close maintenant": {
+      "intent": "actions",
+      "action": "close"
+    },
+    "close vite": {
+      "intent": "actions",
+      "action": "close"
+    },
+    "close ensemble": {
+      "intent": "actions",
+      "action": "close"
+    },
+    "close demain": {
+      "intent": "actions",
+      "action": "close"
+    },
+    "read": {
+      "intent": "actions",
+      "action": "read"
+    },
+    "read maintenant": {
+      "intent": "actions",
+      "action": "read"
+    },
+    "read vite": {
+      "intent": "actions",
+      "action": "read"
+    },
+    "read ensemble": {
+      "intent": "actions",
+      "action": "read"
+    },
+    "read demain": {
+      "intent": "actions",
+      "action": "read"
+    },
+    "write": {
+      "intent": "actions",
+      "action": "write"
+    },
+    "write maintenant": {
+      "intent": "actions",
+      "action": "write"
+    },
+    "write vite": {
+      "intent": "actions",
+      "action": "write"
+    },
+    "write ensemble": {
+      "intent": "actions",
+      "action": "write"
+    },
+    "write demain": {
+      "intent": "actions",
+      "action": "write"
+    },
+    "listen": {
+      "intent": "actions",
+      "action": "listen"
+    },
+    "listen maintenant": {
+      "intent": "actions",
+      "action": "listen"
+    },
+    "listen vite": {
+      "intent": "actions",
+      "action": "listen"
+    },
+    "listen ensemble": {
+      "intent": "actions",
+      "action": "listen"
+    },
+    "listen demain": {
+      "intent": "actions",
+      "action": "listen"
+    },
+    "speak": {
+      "intent": "actions",
+      "action": "speak"
+    },
+    "speak maintenant": {
+      "intent": "actions",
+      "action": "speak"
+    },
+    "speak vite": {
+      "intent": "actions",
+      "action": "speak"
+    },
+    "speak ensemble": {
+      "intent": "actions",
+      "action": "speak"
+    },
+    "speak demain": {
+      "intent": "actions",
+      "action": "speak"
+    },
+    "help": {
+      "intent": "survival",
+      "action": "help"
+    },
+    "help maintenant": {
+      "intent": "actions",
+      "action": "help"
+    },
+    "help vite": {
+      "intent": "actions",
+      "action": "help"
+    },
+    "help ensemble": {
+      "intent": "actions",
+      "action": "help"
+    },
+    "help demain": {
+      "intent": "actions",
+      "action": "help"
+    },
+    "guide": {
+      "intent": "actions",
+      "action": "guide"
+    },
+    "guide maintenant": {
+      "intent": "actions",
+      "action": "guide"
+    },
+    "guide vite": {
+      "intent": "actions",
+      "action": "guide"
+    },
+    "guide ensemble": {
+      "intent": "actions",
+      "action": "guide"
+    },
+    "guide demain": {
+      "intent": "actions",
+      "action": "guide"
+    },
+    "joy": {
+      "intent": "emotions",
+      "action": "joy"
+    },
+    "joy intense": {
+      "intent": "emotions",
+      "action": "joy"
+    },
+    "joy sincère": {
+      "intent": "emotions",
+      "action": "joy"
+    },
+    "joy profonde": {
+      "intent": "emotions",
+      "action": "joy"
+    },
+    "joy nouvelle": {
+      "intent": "emotions",
+      "action": "joy"
+    },
+    "fear": {
+      "intent": "emotions",
+      "action": "fear"
+    },
+    "fear intense": {
+      "intent": "emotions",
+      "action": "fear"
+    },
+    "fear sincère": {
+      "intent": "emotions",
+      "action": "fear"
+    },
+    "fear profonde": {
+      "intent": "emotions",
+      "action": "fear"
+    },
+    "fear nouvelle": {
+      "intent": "emotions",
+      "action": "fear"
+    },
+    "hope": {
+      "intent": "emotions",
+      "action": "hope"
+    },
+    "hope intense": {
+      "intent": "emotions",
+      "action": "hope"
+    },
+    "hope sincère": {
+      "intent": "emotions",
+      "action": "hope"
+    },
+    "hope profonde": {
+      "intent": "emotions",
+      "action": "hope"
+    },
+    "hope nouvelle": {
+      "intent": "emotions",
+      "action": "hope"
+    },
+    "confidence": {
+      "intent": "emotions",
+      "action": "confidence"
+    },
+    "confidence intense": {
+      "intent": "emotions",
+      "action": "confidence"
+    },
+    "confidence sincère": {
+      "intent": "emotions",
+      "action": "confidence"
+    },
+    "confidence profonde": {
+      "intent": "emotions",
+      "action": "confidence"
+    },
+    "confidence nouvelle": {
+      "intent": "emotions",
+      "action": "confidence"
+    },
+    "doubt": {
+      "intent": "emotions",
+      "action": "doubt"
+    },
+    "doubt intense": {
+      "intent": "emotions",
+      "action": "doubt"
+    },
+    "doubt sincère": {
+      "intent": "emotions",
+      "action": "doubt"
+    },
+    "doubt profonde": {
+      "intent": "emotions",
+      "action": "doubt"
+    },
+    "doubt nouvelle": {
+      "intent": "emotions",
+      "action": "doubt"
+    },
+    "calm": {
+      "intent": "emotions",
+      "action": "calm"
+    },
+    "calm intense": {
+      "intent": "emotions",
+      "action": "calm"
+    },
+    "calm sincère": {
+      "intent": "emotions",
+      "action": "calm"
+    },
+    "calm profonde": {
+      "intent": "emotions",
+      "action": "calm"
+    },
+    "calm nouvelle": {
+      "intent": "emotions",
+      "action": "calm"
+    },
+    "pride": {
+      "intent": "emotions",
+      "action": "pride"
+    },
+    "pride intense": {
+      "intent": "emotions",
+      "action": "pride"
+    },
+    "pride sincère": {
+      "intent": "emotions",
+      "action": "pride"
+    },
+    "pride profonde": {
+      "intent": "emotions",
+      "action": "pride"
+    },
+    "pride nouvelle": {
+      "intent": "emotions",
+      "action": "pride"
+    },
+    "love": {
+      "intent": "emotions",
+      "action": "love"
+    },
+    "love intense": {
+      "intent": "emotions",
+      "action": "love"
+    },
+    "love sincère": {
+      "intent": "emotions",
+      "action": "love"
+    },
+    "love profonde": {
+      "intent": "emotions",
+      "action": "love"
+    },
+    "love nouvelle": {
+      "intent": "emotions",
+      "action": "love"
+    },
+    "curiosity": {
+      "intent": "emotions",
+      "action": "curiosity"
+    },
+    "curiosity intense": {
+      "intent": "emotions",
+      "action": "curiosity"
+    },
+    "curiosity sincère": {
+      "intent": "emotions",
+      "action": "curiosity"
+    },
+    "curiosity profonde": {
+      "intent": "emotions",
+      "action": "curiosity"
+    },
+    "curiosity nouvelle": {
+      "intent": "emotions",
+      "action": "curiosity"
+    },
+    "fatigue": {
+      "intent": "emotions",
+      "action": "fatigue"
+    },
+    "fatigue intense": {
+      "intent": "emotions",
+      "action": "fatigue"
+    },
+    "fatigue sincère": {
+      "intent": "emotions",
+      "action": "fatigue"
+    },
+    "fatigue profonde": {
+      "intent": "emotions",
+      "action": "fatigue"
+    },
+    "fatigue nouvelle": {
+      "intent": "emotions",
+      "action": "fatigue"
+    },
+    "computer": {
+      "intent": "objects",
+      "action": "computer"
+    },
+    "computer principal": {
+      "intent": "objects",
+      "action": "computer"
+    },
+    "computer numérique": {
+      "intent": "objects",
+      "action": "computer"
+    },
+    "computer professionnel": {
+      "intent": "objects",
+      "action": "computer"
+    },
+    "computer partagé": {
+      "intent": "objects",
+      "action": "computer"
+    },
+    "phone": {
+      "intent": "objects",
+      "action": "phone"
+    },
+    "phone principal": {
+      "intent": "objects",
+      "action": "phone"
+    },
+    "phone numérique": {
+      "intent": "objects",
+      "action": "phone"
+    },
+    "phone professionnel": {
+      "intent": "objects",
+      "action": "phone"
+    },
+    "phone partagé": {
+      "intent": "objects",
+      "action": "phone"
+    },
+    "screen": {
+      "intent": "objects",
+      "action": "screen"
+    },
+    "screen principal": {
+      "intent": "objects",
+      "action": "screen"
+    },
+    "screen numérique": {
+      "intent": "objects",
+      "action": "screen"
+    },
+    "screen professionnel": {
+      "intent": "objects",
+      "action": "screen"
+    },
+    "screen partagé": {
+      "intent": "objects",
+      "action": "screen"
+    },
+    "keyboard": {
+      "intent": "objects",
+      "action": "keyboard"
+    },
+    "keyboard principal": {
+      "intent": "objects",
+      "action": "keyboard"
+    },
+    "keyboard numérique": {
+      "intent": "objects",
+      "action": "keyboard"
+    },
+    "keyboard professionnel": {
+      "intent": "objects",
+      "action": "keyboard"
+    },
+    "keyboard partagé": {
+      "intent": "objects",
+      "action": "keyboard"
+    },
+    "book": {
+      "intent": "objects",
+      "action": "book"
+    },
+    "book principal": {
+      "intent": "objects",
+      "action": "book"
+    },
+    "book numérique": {
+      "intent": "objects",
+      "action": "book"
+    },
+    "book professionnel": {
+      "intent": "objects",
+      "action": "book"
+    },
+    "book partagé": {
+      "intent": "objects",
+      "action": "book"
+    },
+    "office": {
+      "intent": "objects",
+      "action": "office"
+    },
+    "office principal": {
+      "intent": "objects",
+      "action": "office"
+    },
+    "office numérique": {
+      "intent": "objects",
+      "action": "office"
+    },
+    "office professionnel": {
+      "intent": "objects",
+      "action": "office"
+    },
+    "office partagé": {
+      "intent": "objects",
+      "action": "office"
+    },
+    "profile": {
+      "intent": "objects",
+      "action": "profile"
+    },
+    "profile principal": {
+      "intent": "objects",
+      "action": "profile"
+    },
+    "profile numérique": {
+      "intent": "objects",
+      "action": "profile"
+    },
+    "profile professionnel": {
+      "intent": "objects",
+      "action": "profile"
+    },
+    "profile partagé": {
+      "intent": "objects",
+      "action": "profile"
+    },
+    "job offer": {
+      "intent": "objects",
+      "action": "job offer"
+    },
+    "job offer principal": {
+      "intent": "objects",
+      "action": "job offer"
+    },
+    "job offer numérique": {
+      "intent": "objects",
+      "action": "job offer"
+    },
+    "job offer professionnel": {
+      "intent": "objects",
+      "action": "job offer"
+    },
+    "job offer partagé": {
+      "intent": "objects",
+      "action": "job offer"
+    },
+    "application": {
+      "intent": "objects",
+      "action": "application"
+    },
+    "application principal": {
+      "intent": "objects",
+      "action": "application"
+    },
+    "application numérique": {
+      "intent": "objects",
+      "action": "application"
+    },
+    "application professionnel": {
+      "intent": "objects",
+      "action": "application"
+    },
+    "application partagé": {
+      "intent": "objects",
+      "action": "application"
+    },
+    "job": {
+      "intent": "objects",
+      "action": "job"
+    },
+    "job principal": {
+      "intent": "objects",
+      "action": "job"
+    },
+    "job numérique": {
+      "intent": "objects",
+      "action": "job"
+    },
+    "job professionnel": {
+      "intent": "objects",
+      "action": "job"
+    },
+    "job partagé": {
+      "intent": "objects",
+      "action": "job"
+    },
+    "left": {
+      "intent": "directions",
+      "action": "left"
+    },
+    "left directe": {
+      "intent": "directions",
+      "action": "left"
+    },
+    "left précise": {
+      "intent": "directions",
+      "action": "left"
+    },
+    "left rapide": {
+      "intent": "directions",
+      "action": "left"
+    },
+    "left sûre": {
+      "intent": "directions",
+      "action": "left"
+    },
+    "right": {
+      "intent": "directions",
+      "action": "right"
+    },
+    "right directe": {
+      "intent": "directions",
+      "action": "right"
+    },
+    "right précise": {
+      "intent": "directions",
+      "action": "right"
+    },
+    "right rapide": {
+      "intent": "directions",
+      "action": "right"
+    },
+    "right sûre": {
+      "intent": "directions",
+      "action": "right"
+    },
+    "up": {
+      "intent": "directions",
+      "action": "up"
+    },
+    "up directe": {
+      "intent": "directions",
+      "action": "up"
+    },
+    "up précise": {
+      "intent": "directions",
+      "action": "up"
+    },
+    "up rapide": {
+      "intent": "directions",
+      "action": "up"
+    },
+    "up sûre": {
+      "intent": "directions",
+      "action": "up"
+    },
+    "down": {
+      "intent": "directions",
+      "action": "down"
+    },
+    "down directe": {
+      "intent": "directions",
+      "action": "down"
+    },
+    "down précise": {
+      "intent": "directions",
+      "action": "down"
+    },
+    "down rapide": {
+      "intent": "directions",
+      "action": "down"
+    },
+    "down sûre": {
+      "intent": "directions",
+      "action": "down"
+    },
+    "front": {
+      "intent": "directions",
+      "action": "front"
+    },
+    "front directe": {
+      "intent": "directions",
+      "action": "front"
+    },
+    "front précise": {
+      "intent": "directions",
+      "action": "front"
+    },
+    "front rapide": {
+      "intent": "directions",
+      "action": "front"
+    },
+    "front sûre": {
+      "intent": "directions",
+      "action": "front"
+    },
+    "behind": {
+      "intent": "directions",
+      "action": "behind"
+    },
+    "behind directe": {
+      "intent": "directions",
+      "action": "behind"
+    },
+    "behind précise": {
+      "intent": "directions",
+      "action": "behind"
+    },
+    "behind rapide": {
+      "intent": "directions",
+      "action": "behind"
+    },
+    "behind sûre": {
+      "intent": "directions",
+      "action": "behind"
+    },
+    "near": {
+      "intent": "directions",
+      "action": "near"
+    },
+    "near directe": {
+      "intent": "directions",
+      "action": "near"
+    },
+    "near précise": {
+      "intent": "directions",
+      "action": "near"
+    },
+    "near rapide": {
+      "intent": "directions",
+      "action": "near"
+    },
+    "near sûre": {
+      "intent": "directions",
+      "action": "near"
+    },
+    "far": {
+      "intent": "directions",
+      "action": "far"
+    },
+    "far directe": {
+      "intent": "directions",
+      "action": "far"
+    },
+    "far précise": {
+      "intent": "directions",
+      "action": "far"
+    },
+    "far rapide": {
+      "intent": "directions",
+      "action": "far"
+    },
+    "far sûre": {
+      "intent": "directions",
+      "action": "far"
+    },
+    "here": {
+      "intent": "directions",
+      "action": "here"
+    },
+    "here directe": {
+      "intent": "directions",
+      "action": "here"
+    },
+    "here précise": {
+      "intent": "directions",
+      "action": "here"
+    },
+    "here rapide": {
+      "intent": "directions",
+      "action": "here"
+    },
+    "here sûre": {
+      "intent": "directions",
+      "action": "here"
+    },
+    "there": {
+      "intent": "directions",
+      "action": "there"
+    },
+    "there directe": {
+      "intent": "directions",
+      "action": "there"
+    },
+    "there précise": {
+      "intent": "directions",
+      "action": "there"
+    },
+    "there rapide": {
+      "intent": "directions",
+      "action": "there"
+    },
+    "there sûre": {
+      "intent": "directions",
+      "action": "there"
+    },
+    "now": {
+      "intent": "time",
+      "action": "now"
+    },
+    "now prochain": {
+      "intent": "time",
+      "action": "now"
+    },
+    "now récent": {
+      "intent": "time",
+      "action": "now"
+    },
+    "now prévu": {
+      "intent": "time",
+      "action": "now"
+    },
+    "now utile": {
+      "intent": "time",
+      "action": "now"
+    },
+    "today": {
+      "intent": "time",
+      "action": "today"
+    },
+    "today prochain": {
+      "intent": "time",
+      "action": "today"
+    },
+    "today récent": {
+      "intent": "time",
+      "action": "today"
+    },
+    "today prévu": {
+      "intent": "time",
+      "action": "today"
+    },
+    "today utile": {
+      "intent": "time",
+      "action": "today"
+    },
+    "tomorrow": {
+      "intent": "time",
+      "action": "tomorrow"
+    },
+    "tomorrow prochain": {
+      "intent": "time",
+      "action": "tomorrow"
+    },
+    "tomorrow récent": {
+      "intent": "time",
+      "action": "tomorrow"
+    },
+    "tomorrow prévu": {
+      "intent": "time",
+      "action": "tomorrow"
+    },
+    "tomorrow utile": {
+      "intent": "time",
+      "action": "tomorrow"
+    },
+    "yesterday": {
+      "intent": "time",
+      "action": "yesterday"
+    },
+    "yesterday prochain": {
+      "intent": "time",
+      "action": "yesterday"
+    },
+    "yesterday récent": {
+      "intent": "time",
+      "action": "yesterday"
+    },
+    "yesterday prévu": {
+      "intent": "time",
+      "action": "yesterday"
+    },
+    "yesterday utile": {
+      "intent": "time",
+      "action": "yesterday"
+    },
+    "morning": {
+      "intent": "time",
+      "action": "morning"
+    },
+    "morning prochain": {
+      "intent": "time",
+      "action": "morning"
+    },
+    "morning récent": {
+      "intent": "time",
+      "action": "morning"
+    },
+    "morning prévu": {
+      "intent": "time",
+      "action": "morning"
+    },
+    "morning utile": {
+      "intent": "time",
+      "action": "morning"
+    },
+    "evening": {
+      "intent": "time",
+      "action": "evening"
+    },
+    "evening prochain": {
+      "intent": "time",
+      "action": "evening"
+    },
+    "evening récent": {
+      "intent": "time",
+      "action": "evening"
+    },
+    "evening prévu": {
+      "intent": "time",
+      "action": "evening"
+    },
+    "evening utile": {
+      "intent": "time",
+      "action": "evening"
+    },
+    "night": {
+      "intent": "time",
+      "action": "night"
+    },
+    "night prochain": {
+      "intent": "time",
+      "action": "night"
+    },
+    "night récent": {
+      "intent": "time",
+      "action": "night"
+    },
+    "night prévu": {
+      "intent": "time",
+      "action": "night"
+    },
+    "night utile": {
+      "intent": "time",
+      "action": "night"
+    },
+    "week": {
+      "intent": "time",
+      "action": "week"
+    },
+    "week prochain": {
+      "intent": "time",
+      "action": "week"
+    },
+    "week récent": {
+      "intent": "time",
+      "action": "week"
+    },
+    "week prévu": {
+      "intent": "time",
+      "action": "week"
+    },
+    "week utile": {
+      "intent": "time",
+      "action": "week"
+    },
+    "month": {
+      "intent": "time",
+      "action": "month"
+    },
+    "month prochain": {
+      "intent": "time",
+      "action": "month"
+    },
+    "month récent": {
+      "intent": "time",
+      "action": "month"
+    },
+    "month prévu": {
+      "intent": "time",
+      "action": "month"
+    },
+    "month utile": {
+      "intent": "time",
+      "action": "month"
+    },
+    "year": {
+      "intent": "time",
+      "action": "year"
+    },
+    "year prochain": {
+      "intent": "time",
+      "action": "year"
+    },
+    "year récent": {
+      "intent": "time",
+      "action": "year"
+    },
+    "year prévu": {
+      "intent": "time",
+      "action": "year"
+    },
+    "year utile": {
+      "intent": "time",
+      "action": "year"
+    },
+    "water": {
+      "intent": "survival",
+      "action": "water"
+    },
+    "water immédiat": {
+      "intent": "survival",
+      "action": "water"
+    },
+    "food": {
+      "intent": "survival",
+      "action": "food"
+    },
+    "food immédiat": {
+      "intent": "survival",
+      "action": "food"
+    },
+    "shelter": {
+      "intent": "survival",
+      "action": "shelter"
+    },
+    "shelter immédiat": {
+      "intent": "survival",
+      "action": "shelter"
+    },
+    "rescue": {
+      "intent": "survival",
+      "action": "rescue"
+    },
+    "rescue immédiat": {
+      "intent": "survival",
+      "action": "rescue"
+    },
+    "emergency": {
+      "intent": "survival",
+      "action": "emergency"
+    },
+    "emergency immédiat": {
+      "intent": "survival",
+      "action": "emergency"
+    },
+    "danger": {
+      "intent": "survival",
+      "action": "danger"
+    },
+    "danger immédiat": {
+      "intent": "survival",
+      "action": "danger"
+    },
+    "doctor": {
+      "intent": "survival",
+      "action": "doctor"
+    },
+    "doctor immédiat": {
+      "intent": "survival",
+      "action": "doctor"
+    },
+    "hospital": {
+      "intent": "survival",
+      "action": "hospital"
+    },
+    "hospital immédiat": {
+      "intent": "survival",
+      "action": "hospital"
+    },
+    "police": {
+      "intent": "survival",
+      "action": "police"
+    },
+    "police immédiat": {
+      "intent": "survival",
+      "action": "police"
+    },
+    "help immédiat": {
+      "intent": "survival",
+      "action": "help"
+    }
+  },
+  "es": {
+    "hola": {
+      "intent": "greetings",
+      "action": "hola"
+    },
+    "hola à tous": {
+      "intent": "greetings",
+      "action": "hola"
+    },
+    "hola encore": {
+      "intent": "greetings",
+      "action": "hola"
+    },
+    "bienvenido": {
+      "intent": "greetings",
+      "action": "bienvenido"
+    },
+    "bienvenido à tous": {
+      "intent": "greetings",
+      "action": "bienvenido"
+    },
+    "bienvenido encore": {
+      "intent": "greetings",
+      "action": "bienvenido"
+    },
+    "gracias": {
+      "intent": "greetings",
+      "action": "gracias"
+    },
+    "gracias à tous": {
+      "intent": "greetings",
+      "action": "gracias"
+    },
+    "gracias encore": {
+      "intent": "greetings",
+      "action": "gracias"
+    },
+    "perdón": {
+      "intent": "greetings",
+      "action": "perdón"
+    },
+    "perdón à tous": {
+      "intent": "greetings",
+      "action": "perdón"
+    },
+    "perdón encore": {
+      "intent": "greetings",
+      "action": "perdón"
+    },
+    "bien hecho": {
+      "intent": "greetings",
+      "action": "bien hecho"
+    },
+    "bien hecho à tous": {
+      "intent": "greetings",
+      "action": "bien hecho"
+    },
+    "bien hecho encore": {
+      "intent": "greetings",
+      "action": "bien hecho"
+    },
+    "ánimo": {
+      "intent": "greetings",
+      "action": "ánimo"
+    },
+    "ánimo à tous": {
+      "intent": "greetings",
+      "action": "ánimo"
+    },
+    "ánimo encore": {
+      "intent": "greetings",
+      "action": "ánimo"
+    },
+    "bienvenido de nuevo": {
+      "intent": "greetings",
+      "action": "bienvenido de nuevo"
+    },
+    "bienvenido de nuevo à tous": {
+      "intent": "greetings",
+      "action": "bienvenido de nuevo"
+    },
+    "bienvenido de nuevo encore": {
+      "intent": "greetings",
+      "action": "bienvenido de nuevo"
+    },
+    "buena suerte": {
+      "intent": "greetings",
+      "action": "buena suerte"
+    },
+    "buena suerte à tous": {
+      "intent": "greetings",
+      "action": "buena suerte"
+    },
+    "buena suerte encore": {
+      "intent": "greetings",
+      "action": "buena suerte"
+    },
+    "hasta pronto": {
+      "intent": "greetings",
+      "action": "hasta pronto"
+    },
+    "hasta pronto à tous": {
+      "intent": "greetings",
+      "action": "hasta pronto"
+    },
+    "hasta pronto encore": {
+      "intent": "greetings",
+      "action": "hasta pronto"
+    },
+    "buscar": {
+      "intent": "actions",
+      "action": "buscar"
+    },
+    "buscar maintenant": {
+      "intent": "actions",
+      "action": "buscar"
+    },
+    "buscar vite": {
+      "intent": "actions",
+      "action": "buscar"
+    },
+    "buscar ensemble": {
+      "intent": "actions",
+      "action": "buscar"
+    },
+    "buscar demain": {
+      "intent": "actions",
+      "action": "buscar"
+    },
+    "encontrar": {
+      "intent": "actions",
+      "action": "encontrar"
+    },
+    "encontrar maintenant": {
+      "intent": "actions",
+      "action": "encontrar"
+    },
+    "encontrar vite": {
+      "intent": "actions",
+      "action": "encontrar"
+    },
+    "encontrar ensemble": {
+      "intent": "actions",
+      "action": "encontrar"
+    },
+    "encontrar demain": {
+      "intent": "actions",
+      "action": "encontrar"
+    },
+    "abrir": {
+      "intent": "actions",
+      "action": "abrir"
+    },
+    "abrir maintenant": {
+      "intent": "actions",
+      "action": "abrir"
+    },
+    "abrir vite": {
+      "intent": "actions",
+      "action": "abrir"
+    },
+    "abrir ensemble": {
+      "intent": "actions",
+      "action": "abrir"
+    },
+    "abrir demain": {
+      "intent": "actions",
+      "action": "abrir"
+    },
+    "cerrar": {
+      "intent": "actions",
+      "action": "cerrar"
+    },
+    "cerrar maintenant": {
+      "intent": "actions",
+      "action": "cerrar"
+    },
+    "cerrar vite": {
+      "intent": "actions",
+      "action": "cerrar"
+    },
+    "cerrar ensemble": {
+      "intent": "actions",
+      "action": "cerrar"
+    },
+    "cerrar demain": {
+      "intent": "actions",
+      "action": "cerrar"
+    },
+    "leer": {
+      "intent": "actions",
+      "action": "leer"
+    },
+    "leer maintenant": {
+      "intent": "actions",
+      "action": "leer"
+    },
+    "leer vite": {
+      "intent": "actions",
+      "action": "leer"
+    },
+    "leer ensemble": {
+      "intent": "actions",
+      "action": "leer"
+    },
+    "leer demain": {
+      "intent": "actions",
+      "action": "leer"
+    },
+    "escribir": {
+      "intent": "actions",
+      "action": "escribir"
+    },
+    "escribir maintenant": {
+      "intent": "actions",
+      "action": "escribir"
+    },
+    "escribir vite": {
+      "intent": "actions",
+      "action": "escribir"
+    },
+    "escribir ensemble": {
+      "intent": "actions",
+      "action": "escribir"
+    },
+    "escribir demain": {
+      "intent": "actions",
+      "action": "escribir"
+    },
+    "escuchar": {
+      "intent": "actions",
+      "action": "escuchar"
+    },
+    "escuchar maintenant": {
+      "intent": "actions",
+      "action": "escuchar"
+    },
+    "escuchar vite": {
+      "intent": "actions",
+      "action": "escuchar"
+    },
+    "escuchar ensemble": {
+      "intent": "actions",
+      "action": "escuchar"
+    },
+    "escuchar demain": {
+      "intent": "actions",
+      "action": "escuchar"
+    },
+    "hablar": {
+      "intent": "actions",
+      "action": "hablar"
+    },
+    "hablar maintenant": {
+      "intent": "actions",
+      "action": "hablar"
+    },
+    "hablar vite": {
+      "intent": "actions",
+      "action": "hablar"
+    },
+    "hablar ensemble": {
+      "intent": "actions",
+      "action": "hablar"
+    },
+    "hablar demain": {
+      "intent": "actions",
+      "action": "hablar"
+    },
+    "ayudar": {
+      "intent": "actions",
+      "action": "ayudar"
+    },
+    "ayudar maintenant": {
+      "intent": "actions",
+      "action": "ayudar"
+    },
+    "ayudar vite": {
+      "intent": "actions",
+      "action": "ayudar"
+    },
+    "ayudar ensemble": {
+      "intent": "actions",
+      "action": "ayudar"
+    },
+    "ayudar demain": {
+      "intent": "actions",
+      "action": "ayudar"
+    },
+    "guiar": {
+      "intent": "actions",
+      "action": "guiar"
+    },
+    "guiar maintenant": {
+      "intent": "actions",
+      "action": "guiar"
+    },
+    "guiar vite": {
+      "intent": "actions",
+      "action": "guiar"
+    },
+    "guiar ensemble": {
+      "intent": "actions",
+      "action": "guiar"
+    },
+    "guiar demain": {
+      "intent": "actions",
+      "action": "guiar"
+    },
+    "alegría": {
+      "intent": "emotions",
+      "action": "alegría"
+    },
+    "alegría intense": {
+      "intent": "emotions",
+      "action": "alegría"
+    },
+    "alegría sincère": {
+      "intent": "emotions",
+      "action": "alegría"
+    },
+    "alegría profonde": {
+      "intent": "emotions",
+      "action": "alegría"
+    },
+    "alegría nouvelle": {
+      "intent": "emotions",
+      "action": "alegría"
+    },
+    "miedo": {
+      "intent": "emotions",
+      "action": "miedo"
+    },
+    "miedo intense": {
+      "intent": "emotions",
+      "action": "miedo"
+    },
+    "miedo sincère": {
+      "intent": "emotions",
+      "action": "miedo"
+    },
+    "miedo profonde": {
+      "intent": "emotions",
+      "action": "miedo"
+    },
+    "miedo nouvelle": {
+      "intent": "emotions",
+      "action": "miedo"
+    },
+    "esperanza": {
+      "intent": "emotions",
+      "action": "esperanza"
+    },
+    "esperanza intense": {
+      "intent": "emotions",
+      "action": "esperanza"
+    },
+    "esperanza sincère": {
+      "intent": "emotions",
+      "action": "esperanza"
+    },
+    "esperanza profonde": {
+      "intent": "emotions",
+      "action": "esperanza"
+    },
+    "esperanza nouvelle": {
+      "intent": "emotions",
+      "action": "esperanza"
+    },
+    "confianza": {
+      "intent": "emotions",
+      "action": "confianza"
+    },
+    "confianza intense": {
+      "intent": "emotions",
+      "action": "confianza"
+    },
+    "confianza sincère": {
+      "intent": "emotions",
+      "action": "confianza"
+    },
+    "confianza profonde": {
+      "intent": "emotions",
+      "action": "confianza"
+    },
+    "confianza nouvelle": {
+      "intent": "emotions",
+      "action": "confianza"
+    },
+    "duda": {
+      "intent": "emotions",
+      "action": "duda"
+    },
+    "duda intense": {
+      "intent": "emotions",
+      "action": "duda"
+    },
+    "duda sincère": {
+      "intent": "emotions",
+      "action": "duda"
+    },
+    "duda profonde": {
+      "intent": "emotions",
+      "action": "duda"
+    },
+    "duda nouvelle": {
+      "intent": "emotions",
+      "action": "duda"
+    },
+    "calma": {
+      "intent": "emotions",
+      "action": "calma"
+    },
+    "calma intense": {
+      "intent": "emotions",
+      "action": "calma"
+    },
+    "calma sincère": {
+      "intent": "emotions",
+      "action": "calma"
+    },
+    "calma profonde": {
+      "intent": "emotions",
+      "action": "calma"
+    },
+    "calma nouvelle": {
+      "intent": "emotions",
+      "action": "calma"
+    },
+    "orgullo": {
+      "intent": "emotions",
+      "action": "orgullo"
+    },
+    "orgullo intense": {
+      "intent": "emotions",
+      "action": "orgullo"
+    },
+    "orgullo sincère": {
+      "intent": "emotions",
+      "action": "orgullo"
+    },
+    "orgullo profonde": {
+      "intent": "emotions",
+      "action": "orgullo"
+    },
+    "orgullo nouvelle": {
+      "intent": "emotions",
+      "action": "orgullo"
+    },
+    "amor": {
+      "intent": "emotions",
+      "action": "amor"
+    },
+    "amor intense": {
+      "intent": "emotions",
+      "action": "amor"
+    },
+    "amor sincère": {
+      "intent": "emotions",
+      "action": "amor"
+    },
+    "amor profonde": {
+      "intent": "emotions",
+      "action": "amor"
+    },
+    "amor nouvelle": {
+      "intent": "emotions",
+      "action": "amor"
+    },
+    "curiosidad": {
+      "intent": "emotions",
+      "action": "curiosidad"
+    },
+    "curiosidad intense": {
+      "intent": "emotions",
+      "action": "curiosidad"
+    },
+    "curiosidad sincère": {
+      "intent": "emotions",
+      "action": "curiosidad"
+    },
+    "curiosidad profonde": {
+      "intent": "emotions",
+      "action": "curiosidad"
+    },
+    "curiosidad nouvelle": {
+      "intent": "emotions",
+      "action": "curiosidad"
+    },
+    "fatiga": {
+      "intent": "emotions",
+      "action": "fatiga"
+    },
+    "fatiga intense": {
+      "intent": "emotions",
+      "action": "fatiga"
+    },
+    "fatiga sincère": {
+      "intent": "emotions",
+      "action": "fatiga"
+    },
+    "fatiga profonde": {
+      "intent": "emotions",
+      "action": "fatiga"
+    },
+    "fatiga nouvelle": {
+      "intent": "emotions",
+      "action": "fatiga"
+    },
+    "computadora": {
+      "intent": "objects",
+      "action": "computadora"
+    },
+    "computadora principal": {
+      "intent": "objects",
+      "action": "computadora"
+    },
+    "computadora numérique": {
+      "intent": "objects",
+      "action": "computadora"
+    },
+    "computadora professionnel": {
+      "intent": "objects",
+      "action": "computadora"
+    },
+    "computadora partagé": {
+      "intent": "objects",
+      "action": "computadora"
+    },
+    "teléfono": {
+      "intent": "objects",
+      "action": "teléfono"
+    },
+    "teléfono principal": {
+      "intent": "objects",
+      "action": "teléfono"
+    },
+    "teléfono numérique": {
+      "intent": "objects",
+      "action": "teléfono"
+    },
+    "teléfono professionnel": {
+      "intent": "objects",
+      "action": "teléfono"
+    },
+    "teléfono partagé": {
+      "intent": "objects",
+      "action": "teléfono"
+    },
+    "pantalla": {
+      "intent": "objects",
+      "action": "pantalla"
+    },
+    "pantalla principal": {
+      "intent": "objects",
+      "action": "pantalla"
+    },
+    "pantalla numérique": {
+      "intent": "objects",
+      "action": "pantalla"
+    },
+    "pantalla professionnel": {
+      "intent": "objects",
+      "action": "pantalla"
+    },
+    "pantalla partagé": {
+      "intent": "objects",
+      "action": "pantalla"
+    },
+    "teclado": {
+      "intent": "objects",
+      "action": "teclado"
+    },
+    "teclado principal": {
+      "intent": "objects",
+      "action": "teclado"
+    },
+    "teclado numérique": {
+      "intent": "objects",
+      "action": "teclado"
+    },
+    "teclado professionnel": {
+      "intent": "objects",
+      "action": "teclado"
+    },
+    "teclado partagé": {
+      "intent": "objects",
+      "action": "teclado"
+    },
+    "libro": {
+      "intent": "objects",
+      "action": "libro"
+    },
+    "libro principal": {
+      "intent": "objects",
+      "action": "libro"
+    },
+    "libro numérique": {
+      "intent": "objects",
+      "action": "libro"
+    },
+    "libro professionnel": {
+      "intent": "objects",
+      "action": "libro"
+    },
+    "libro partagé": {
+      "intent": "objects",
+      "action": "libro"
+    },
+    "oficina": {
+      "intent": "objects",
+      "action": "oficina"
+    },
+    "oficina principal": {
+      "intent": "objects",
+      "action": "oficina"
+    },
+    "oficina numérique": {
+      "intent": "objects",
+      "action": "oficina"
+    },
+    "oficina professionnel": {
+      "intent": "objects",
+      "action": "oficina"
+    },
+    "oficina partagé": {
+      "intent": "objects",
+      "action": "oficina"
+    },
+    "perfil": {
+      "intent": "objects",
+      "action": "perfil"
+    },
+    "perfil principal": {
+      "intent": "objects",
+      "action": "perfil"
+    },
+    "perfil numérique": {
+      "intent": "objects",
+      "action": "perfil"
+    },
+    "perfil professionnel": {
+      "intent": "objects",
+      "action": "perfil"
+    },
+    "perfil partagé": {
+      "intent": "objects",
+      "action": "perfil"
+    },
+    "oferta": {
+      "intent": "objects",
+      "action": "oferta"
+    },
+    "oferta principal": {
+      "intent": "objects",
+      "action": "oferta"
+    },
+    "oferta numérique": {
+      "intent": "objects",
+      "action": "oferta"
+    },
+    "oferta professionnel": {
+      "intent": "objects",
+      "action": "oferta"
+    },
+    "oferta partagé": {
+      "intent": "objects",
+      "action": "oferta"
+    },
+    "candidatura": {
+      "intent": "objects",
+      "action": "candidatura"
+    },
+    "candidatura principal": {
+      "intent": "objects",
+      "action": "candidatura"
+    },
+    "candidatura numérique": {
+      "intent": "objects",
+      "action": "candidatura"
+    },
+    "candidatura professionnel": {
+      "intent": "objects",
+      "action": "candidatura"
+    },
+    "candidatura partagé": {
+      "intent": "objects",
+      "action": "candidatura"
+    },
+    "empleo": {
+      "intent": "objects",
+      "action": "empleo"
+    },
+    "empleo principal": {
+      "intent": "objects",
+      "action": "empleo"
+    },
+    "empleo numérique": {
+      "intent": "objects",
+      "action": "empleo"
+    },
+    "empleo professionnel": {
+      "intent": "objects",
+      "action": "empleo"
+    },
+    "empleo partagé": {
+      "intent": "objects",
+      "action": "empleo"
+    },
+    "izquierda": {
+      "intent": "directions",
+      "action": "izquierda"
+    },
+    "izquierda directe": {
+      "intent": "directions",
+      "action": "izquierda"
+    },
+    "izquierda précise": {
+      "intent": "directions",
+      "action": "izquierda"
+    },
+    "izquierda rapide": {
+      "intent": "directions",
+      "action": "izquierda"
+    },
+    "izquierda sûre": {
+      "intent": "directions",
+      "action": "izquierda"
+    },
+    "derecha": {
+      "intent": "directions",
+      "action": "derecha"
+    },
+    "derecha directe": {
+      "intent": "directions",
+      "action": "derecha"
+    },
+    "derecha précise": {
+      "intent": "directions",
+      "action": "derecha"
+    },
+    "derecha rapide": {
+      "intent": "directions",
+      "action": "derecha"
+    },
+    "derecha sûre": {
+      "intent": "directions",
+      "action": "derecha"
+    },
+    "arriba": {
+      "intent": "directions",
+      "action": "arriba"
+    },
+    "arriba directe": {
+      "intent": "directions",
+      "action": "arriba"
+    },
+    "arriba précise": {
+      "intent": "directions",
+      "action": "arriba"
+    },
+    "arriba rapide": {
+      "intent": "directions",
+      "action": "arriba"
+    },
+    "arriba sûre": {
+      "intent": "directions",
+      "action": "arriba"
+    },
+    "abajo": {
+      "intent": "directions",
+      "action": "abajo"
+    },
+    "abajo directe": {
+      "intent": "directions",
+      "action": "abajo"
+    },
+    "abajo précise": {
+      "intent": "directions",
+      "action": "abajo"
+    },
+    "abajo rapide": {
+      "intent": "directions",
+      "action": "abajo"
+    },
+    "abajo sûre": {
+      "intent": "directions",
+      "action": "abajo"
+    },
+    "delante": {
+      "intent": "directions",
+      "action": "delante"
+    },
+    "delante directe": {
+      "intent": "directions",
+      "action": "delante"
+    },
+    "delante précise": {
+      "intent": "directions",
+      "action": "delante"
+    },
+    "delante rapide": {
+      "intent": "directions",
+      "action": "delante"
+    },
+    "delante sûre": {
+      "intent": "directions",
+      "action": "delante"
+    },
+    "detrás": {
+      "intent": "directions",
+      "action": "detrás"
+    },
+    "detrás directe": {
+      "intent": "directions",
+      "action": "detrás"
+    },
+    "detrás précise": {
+      "intent": "directions",
+      "action": "detrás"
+    },
+    "detrás rapide": {
+      "intent": "directions",
+      "action": "detrás"
+    },
+    "detrás sûre": {
+      "intent": "directions",
+      "action": "detrás"
+    },
+    "cerca": {
+      "intent": "directions",
+      "action": "cerca"
+    },
+    "cerca directe": {
+      "intent": "directions",
+      "action": "cerca"
+    },
+    "cerca précise": {
+      "intent": "directions",
+      "action": "cerca"
+    },
+    "cerca rapide": {
+      "intent": "directions",
+      "action": "cerca"
+    },
+    "cerca sûre": {
+      "intent": "directions",
+      "action": "cerca"
+    },
+    "lejos": {
+      "intent": "directions",
+      "action": "lejos"
+    },
+    "lejos directe": {
+      "intent": "directions",
+      "action": "lejos"
+    },
+    "lejos précise": {
+      "intent": "directions",
+      "action": "lejos"
+    },
+    "lejos rapide": {
+      "intent": "directions",
+      "action": "lejos"
+    },
+    "lejos sûre": {
+      "intent": "directions",
+      "action": "lejos"
+    },
+    "aquí": {
+      "intent": "directions",
+      "action": "aquí"
+    },
+    "aquí directe": {
+      "intent": "directions",
+      "action": "aquí"
+    },
+    "aquí précise": {
+      "intent": "directions",
+      "action": "aquí"
+    },
+    "aquí rapide": {
+      "intent": "directions",
+      "action": "aquí"
+    },
+    "aquí sûre": {
+      "intent": "directions",
+      "action": "aquí"
+    },
+    "allí": {
+      "intent": "directions",
+      "action": "allí"
+    },
+    "allí directe": {
+      "intent": "directions",
+      "action": "allí"
+    },
+    "allí précise": {
+      "intent": "directions",
+      "action": "allí"
+    },
+    "allí rapide": {
+      "intent": "directions",
+      "action": "allí"
+    },
+    "allí sûre": {
+      "intent": "directions",
+      "action": "allí"
+    },
+    "ahora": {
+      "intent": "time",
+      "action": "ahora"
+    },
+    "ahora prochain": {
+      "intent": "time",
+      "action": "ahora"
+    },
+    "ahora récent": {
+      "intent": "time",
+      "action": "ahora"
+    },
+    "ahora prévu": {
+      "intent": "time",
+      "action": "ahora"
+    },
+    "ahora utile": {
+      "intent": "time",
+      "action": "ahora"
+    },
+    "hoy": {
+      "intent": "time",
+      "action": "hoy"
+    },
+    "hoy prochain": {
+      "intent": "time",
+      "action": "hoy"
+    },
+    "hoy récent": {
+      "intent": "time",
+      "action": "hoy"
+    },
+    "hoy prévu": {
+      "intent": "time",
+      "action": "hoy"
+    },
+    "hoy utile": {
+      "intent": "time",
+      "action": "hoy"
+    },
+    "mañana": {
+      "intent": "time",
+      "action": "mañana"
+    },
+    "mañana prochain": {
+      "intent": "time",
+      "action": "mañana"
+    },
+    "mañana récent": {
+      "intent": "time",
+      "action": "mañana"
+    },
+    "mañana prévu": {
+      "intent": "time",
+      "action": "mañana"
+    },
+    "mañana utile": {
+      "intent": "time",
+      "action": "mañana"
+    },
+    "ayer": {
+      "intent": "time",
+      "action": "ayer"
+    },
+    "ayer prochain": {
+      "intent": "time",
+      "action": "ayer"
+    },
+    "ayer récent": {
+      "intent": "time",
+      "action": "ayer"
+    },
+    "ayer prévu": {
+      "intent": "time",
+      "action": "ayer"
+    },
+    "ayer utile": {
+      "intent": "time",
+      "action": "ayer"
+    },
+    "tarde": {
+      "intent": "time",
+      "action": "tarde"
+    },
+    "tarde prochain": {
+      "intent": "time",
+      "action": "tarde"
+    },
+    "tarde récent": {
+      "intent": "time",
+      "action": "tarde"
+    },
+    "tarde prévu": {
+      "intent": "time",
+      "action": "tarde"
+    },
+    "tarde utile": {
+      "intent": "time",
+      "action": "tarde"
+    },
+    "noche": {
+      "intent": "time",
+      "action": "noche"
+    },
+    "noche prochain": {
+      "intent": "time",
+      "action": "noche"
+    },
+    "noche récent": {
+      "intent": "time",
+      "action": "noche"
+    },
+    "noche prévu": {
+      "intent": "time",
+      "action": "noche"
+    },
+    "noche utile": {
+      "intent": "time",
+      "action": "noche"
+    },
+    "semana": {
+      "intent": "time",
+      "action": "semana"
+    },
+    "semana prochain": {
+      "intent": "time",
+      "action": "semana"
+    },
+    "semana récent": {
+      "intent": "time",
+      "action": "semana"
+    },
+    "semana prévu": {
+      "intent": "time",
+      "action": "semana"
+    },
+    "semana utile": {
+      "intent": "time",
+      "action": "semana"
+    },
+    "mes": {
+      "intent": "time",
+      "action": "mes"
+    },
+    "mes prochain": {
+      "intent": "time",
+      "action": "mes"
+    },
+    "mes récent": {
+      "intent": "time",
+      "action": "mes"
+    },
+    "mes prévu": {
+      "intent": "time",
+      "action": "mes"
+    },
+    "mes utile": {
+      "intent": "time",
+      "action": "mes"
+    },
+    "año": {
+      "intent": "time",
+      "action": "año"
+    },
+    "año prochain": {
+      "intent": "time",
+      "action": "año"
+    },
+    "año récent": {
+      "intent": "time",
+      "action": "año"
+    },
+    "año prévu": {
+      "intent": "time",
+      "action": "año"
+    },
+    "año utile": {
+      "intent": "time",
+      "action": "año"
+    },
+    "agua": {
+      "intent": "survival",
+      "action": "agua"
+    },
+    "agua immédiat": {
+      "intent": "survival",
+      "action": "agua"
+    },
+    "comida": {
+      "intent": "survival",
+      "action": "comida"
+    },
+    "comida immédiat": {
+      "intent": "survival",
+      "action": "comida"
+    },
+    "refugio": {
+      "intent": "survival",
+      "action": "refugio"
+    },
+    "refugio immédiat": {
+      "intent": "survival",
+      "action": "refugio"
+    },
+    "rescate": {
+      "intent": "survival",
+      "action": "rescate"
+    },
+    "rescate immédiat": {
+      "intent": "survival",
+      "action": "rescate"
+    },
+    "emergencia": {
+      "intent": "survival",
+      "action": "emergencia"
+    },
+    "emergencia immédiat": {
+      "intent": "survival",
+      "action": "emergencia"
+    },
+    "peligro": {
+      "intent": "survival",
+      "action": "peligro"
+    },
+    "peligro immédiat": {
+      "intent": "survival",
+      "action": "peligro"
+    },
+    "médico": {
+      "intent": "survival",
+      "action": "médico"
+    },
+    "médico immédiat": {
+      "intent": "survival",
+      "action": "médico"
+    },
+    "hospital": {
+      "intent": "survival",
+      "action": "hospital"
+    },
+    "hospital immédiat": {
+      "intent": "survival",
+      "action": "hospital"
+    },
+    "policía": {
+      "intent": "survival",
+      "action": "policía"
+    },
+    "policía immédiat": {
+      "intent": "survival",
+      "action": "policía"
+    },
+    "ayuda": {
+      "intent": "survival",
+      "action": "ayuda"
+    },
+    "ayuda immédiat": {
+      "intent": "survival",
+      "action": "ayuda"
+    }
+  }
+}
