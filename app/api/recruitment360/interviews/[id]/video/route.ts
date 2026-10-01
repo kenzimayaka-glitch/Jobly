@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient, ensureUser, getAuthUser } from "../../../../../../../lib/server-auth";
-import { createVideoRoom, recordingIsAllowed } from "../../../../../../../lib/recruitment360/video-provider";
+import { createLiveKitToken, createVideoRoom, recordingIsAllowed } from "../../../../../../../lib/recruitment360/video-provider";
 
 type Ctx={params:Promise<{id:string}>};
 
@@ -37,7 +37,8 @@ export async function POST(req:NextRequest,c:Ctx){
     if(error)throw new Error(error.message);session=created;
    }
    const room=createVideoRoom(session.roomName);
-   return NextResponse.json({video:session,room,moderator:Boolean(r)});
+   const livekit=room.provider==="LIVEKIT"?createLiveKitToken(session.roomName,u.id,true):null;
+   return NextResponse.json({video:session,room,livekit,moderator:Boolean(r)});
   }
   const {data:session,error:se}=await s.from("RecruitmentInterviewVideoSession").select("*").eq("interviewId",id).single();
   if(se||!session)throw new Error("VIDEO_SESSION_NOT_FOUND");
