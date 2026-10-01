@@ -15,7 +15,17 @@ export async function GET(req:NextRequest){
  const auth=await getAuthUser(req); if(!auth)return NextResponse.json({message:"Session requise."},{status:401});
  try{
   const sb=adminClient(),user=await ensureUser(sb,auth),id=req.nextUrl.searchParams.get("recruitmentId");
-  if(!id)return bad("RECRUITMENT_ID_REQUIRED");
+  if(!id){
+   const {data:roles,error:re}=await sb.from("RecruitmentRole").select("recruitmentId,role").eq("userId",user.id).in("role",["OWNER","HR","MANAGER","DG_READONLY","DELEGATE"]);
+   if(re)throw new Error(re.message);
+   const ids=[...new Set((roles??[]).map((x:any)=>x.recruitmentId))];
+   if(!ids.length)return NextResponse.json({recruitments:[]});
+   const {data:recs,error:ce}=await sb.from("Recruitment360").select("id,recruiterJobId,currentState,createdAt,completedAt").in("id",ids); if(ce)throw new Error(ce.message);
+   const jobIds=(recs??[]).map((x:any)=>x.recruiterJobId);
+   const {data:jobs,error:je}=jobIds.length?await sb.from("RecruiterJob").select("id,title,companyName").in("id",jobIds):{data:[],error:null}; if(je)throw new Error(je.message);
+   const jm=new Map((jobs??[]).map((j:any)=>[j.id,j]));
+   return NextResponse.json({recruitments:(recs??[]).map((r:any)=>({...r,title:jm.get(r.recruiterJobId)?.title||"Recrutement",companyName:jm.get(r.recruiterJobId)?.companyName||""}))});
+  }
   const report=await getWorkspaceReport(sb,id,user.id);
   return NextResponse.json({report});
  }catch(e){const m=e instanceof Error?e.message:"Erreur.";return NextResponse.json({message:m},{status:m==="FORBIDDEN"?403:500});}
