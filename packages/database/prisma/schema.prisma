@@ -577,3 +577,36 @@ model AiUsage {
   @@index([userId, createdAt])
   @@index([operation, createdAt])
 }
+
+model JobHarvestCapture {
+  id                  String   @id @default(uuid()) @db.Uuid
+  sourceKey           String
+  externalId          String?
+  sourceUrl           String
+  title               String?
+  company             String?
+  location            String?
+  contractType        String?
+  remoteMode          String?
+  description         String?
+  deadline            DateTime?
+  publishedAt         DateTime?
+  applicationProfile  Json     @default("{}")
+  contentHash         String?
+  rawHtml             String?
+  renderedHtml        String?
+  extractedText       String?
+  captureMode         String   @default("unknown")
+  payload             Json     @default("{}")
+  status              String   @default("PENDING")
+  attempts            Int      @default(0)
+  lastError           String?
+  jobId               String?
+  discoveredAt        DateTime @default(now())
+  processedAt         DateTime?
+  updatedAt            DateTime @updatedAt
+
+  @@unique([sourceKey, sourceUrl])
+  @@index([status, discoveredAt])
+  @@index([sourceKey, publishedAt])
+}

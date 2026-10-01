@@ -39,7 +39,13 @@ function jsonLdJobs(html:string):any[] {
   while((m=re.exec(html))){try{const parsed=JSON.parse(m[1]);const values=Array.isArray(parsed)?parsed:[parsed];const walk=(x:any)=>{if(!x||typeof x!=="object")return;const t=x["@type"];if(t==="JobPosting"||(Array.isArray(t)&&t.includes("JobPosting")))jobs.push(x);if(Array.isArray(x["@graph"]))x["@graph"].forEach(walk)};values.forEach(walk)}catch{}} return jobs;
 }
 function meta(html:string,names:string[]):string|null {
-  for(const name of names){const escaped=name.replace(/[.*+?^()|[\]\\]/g,"\\$&");const re=new RegExp("<meta\\b[^>]+(?:name|property)=['\"]"+escaped+"['\"][^>]+content=['\"]([^'\"]+)['\"]","i");const m=html.match(re);if(m?.[1])return clean(m[1]);}return null;
+  for(const name of names){
+    const escaped=name.replace(/[.*+?^\${}()|[\]\\]/g,"\\$&");
+    const re=new RegExp("<meta\\\\b[^>]+(?:name|property)=['\\\"]"+escaped+"['\\\"][^>]+content=['\\\"]([^'\\\"]+)['\\\"]","i");
+    const m=html.match(re);
+    if(m?.[1])return clean(m[1]);
+  }
+  return null;
 }
 function firstDate(values:any[]):string|null {for(const v of values){if(!v)continue;const d=new Date(String(v));if(Number.isFinite(d.getTime()))return d.toISOString()}return null}
 function inferType(title:string,description:string):ExhaustiveItem["opportunityType"] {
@@ -66,8 +72,10 @@ function extractHtmlItem(html:string,url:string):ExhaustiveItem {
   return {title,description:body,company:"",location:"",url,deadline:firstDate([meta(html,["validThrough","deadline","dateDeadline","article:expiration_time"])]),
     published:firstDate([meta(html,["article:published_time","datePublished","date"]) ]),opportunityType:inferType(title,body)};
 }
-async function fetchPage(url:string):Promise<{status:number;html:string}> {
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),REQUEST_TIMEOUT_MS);
+async function fetchPage(url:string,deadlineAt=Number.POSITIVE_INFINITY):Promise<{status:number;html:string}> {
+  const controller=new AbortController();
+  const remaining=Math.max(1,Math.min(REQUEST_TIMEOUT_MS,deadlineAt-Date.now()));
+  const timer=setTimeout(()=>controller.abort(),remaining);
   try{const r=await fetch(url,{redirect:"follow",signal:controller.signal,headers:{"user-agent":"JOBLY-Africa-Exhaustive/3.0 (+https://jobly-c0651.vercel.app)","accept":"text/html,application/xhtml+xml,application/json"}});return {status:r.status,html:await r.text()}}finally{clearTimeout(timer)}
 }
 function isPagination(link:{url:string;label:string;rel:string}):boolean {
@@ -77,24 +85,48 @@ function isPagination(link:{url:string;label:string;rel:string}):boolean {
 }
 function isDetail(link:{url:string;label:string},sourceUrl:string):boolean {
   if(!sameHost(link.url,sourceUrl)||isPagination(link))return false;
-  return JOB_WORDS.test(link.url+" "+link.label)||/\/(?:job|jobs|emploi|emplois|offre|offres|career|careers|vacancy|vacancies|position|recruitment|recrutement|postes?)\//i.test(link.url);
+  try {
+    const parsed=new URL(link.url);
+    const path=parsed.pathname.replace(/\/+$/,"").toLowerCase();
+    const query=parsed.search.toLowerCase();
+    // Reject source navigation/search/category pages that frequently contain
+    // job-related words but are not individual opportunities.
+    if(/^\/(?:en\/)?(?:jobs?|careers?|career|emploi|emplois|offres?|vacancies?|positions?|recruitment|recrutement)$/.test(path))return false;
+    if(/^\/(?:en\/)?jobs?\/(?:search|category|categories|themes?|tag|tags|page|filters?)(?:\/|$)/.test(path))return false;
+    if(/\/(?:themes?|categories?|tags?|organization|grad-schools)\//.test(path))return false;
+    if(/job_posting\.aspx$/i.test(path) && !/(?:[?&](?:job|jobid|id|posting)=)[^&]+/i.test(query))return false;
+    if(/(?:^|\/)job-seeker(?:\/|$)|(?:^|\/)login(?:\/|$)|(?:^|\/)register(?:\/|$)/i.test(path))return false;
+    const depth=path.split("/").filter(Boolean).length;
+    const looksLikeDetail=/(?:^|\/)(?:job|jobs|emploi|emplois|offre|offres|career|careers|vacancy|vacancies|position|recruitment|recrutement|postes?)(?:\/|$)/i.test(path);
+    return depth>=2 && (looksLikeDetail || JOB_WORDS.test(link.label));
+  } catch {
+    return false;
+  }
 }
 function advertisedCount(html:string):number|null {
   const text=clean(html),patterns=[/(?:plus de|over|more than)\s*([\d\s,.]+)\s*(?:offres?|emplois?|jobs?|positions?)/i,/([\d\s,.]+)\s*(?:offres?|emplois?|jobs?|positions?)\s*(?:disponibles?|ouvertes?|trouvées?|enregistrées?|actives?)/i,/(?:voir|afficher|show)\s*([\d\s,.]+)\s*(?:offres?|emplois?|jobs?)/i];
   for(const re of patterns){const m=text.match(re);if(m){const n=Number(String(m[1]).replace(/[\s,.]/g,""));if(Number.isFinite(n)&&n>0&&n<1000000)return n}}return null;
 }
 function dateExpired(value:string|null):boolean {if(!value)return false;const t=new Date(value).getTime();return Number.isFinite(t)&&t<Date.now()}
-async function mapConcurrent<T,R>(items:T[],fn:(item:T)=>Promise<R>,limit=CONCURRENCY):Promise<R[]> {
-  const out:R[]=new Array(items.length);let cursor=0;const workers=Array.from({length:Math.min(limit,Math.max(1,items.length))},async()=>{while(true){const i=cursor++;if(i>=items.length)break;try{out[i]=await fn(items[i])}catch{out[i]=undefined as R}}});await Promise.all(workers);return out;
+async function mapConcurrent<T,R>(items:T[],fn:(item:T)=>Promise<R>,limit=CONCURRENCY,deadlineAt=Number.POSITIVE_INFINITY):Promise<R[]> {
+  const out:R[]=new Array(items.length);let cursor=0;
+  const workers=Array.from({length:Math.min(limit,Math.max(1,items.length))},async()=>{
+    while(Date.now()<deadlineAt){
+      const i=cursor++;if(i>=items.length)break;
+      try{out[i]=await fn(items[i])}catch{out[i]=undefined as R}
+    }
+  });
+  await Promise.all(workers);return out;
 }
 
-export async function crawlExhaustiveSource(source:SourceDefinition&{url:string},countryCode:string):Promise<{items:ExhaustiveItem[];stats:ExhaustiveStats}> {
+export async function crawlExhaustiveSource(source:SourceDefinition&{url:string},countryCode:string,options:{deadlineAt?:number}={}):Promise<{items:ExhaustiveItem[];stats:ExhaustiveStats}> {
+  const deadlineAt=options.deadlineAt??(Date.now()+180000);
   const stats:ExhaustiveStats={sourceKey:source.key,sourceName:source.name,countryCode,listingPages:0,detailPages:0,discoveredUrls:0,extracted:0,eligible:0,fresh:0,expired:0,internships:0,consultancies:0,applications:0,tenders:0,rejected:0,rejectedReasons:{},advertisedCount:null,errors:[]};
   const pagesToVisit=[source.url],seenPages=new Set<string>(),detailUrls=new Map<string,string>(),listingHtmls:string[]=[];
-  while(pagesToVisit.length){
+  while(pagesToVisit.length && Date.now()<deadlineAt){
     const pageUrl=pagesToVisit.shift()!,key=canonical(pageUrl);if(seenPages.has(key))continue;seenPages.add(key);
     try{
-      const r=await fetchPage(pageUrl);stats.listingPages++;
+      const r=await fetchPage(pageUrl,deadlineAt);stats.listingPages++;
       if(r.status>=400){stats.errors.push("HTTP "+r.status+" "+pageUrl);continue}
       listingHtmls.push(r.html);if(stats.advertisedCount===null)stats.advertisedCount=advertisedCount(r.html);
       const pageLinks=links(r.html,pageUrl);
@@ -106,7 +138,10 @@ export async function crawlExhaustiveSource(source:SourceDefinition&{url:string}
     }catch(e){stats.errors.push(pageUrl+": "+(e instanceof Error?e.message:String(e)))}
   }
   stats.discoveredUrls=detailUrls.size;
-  const details=await mapConcurrent([...detailUrls.values()],async(url)=>{try{const r=await fetchPage(url);if(r.status>=400)return null;return extractHtmlItem(r.html,url)}catch{return null}});
+  const details=await mapConcurrent([...detailUrls.values()],async(url)=>{
+    try{const r=await fetchPage(url,deadlineAt);if(r.status>=400)return null;return extractHtmlItem(r.html,url)}catch{return null}
+  },CONCURRENCY,deadlineAt);
+  if(Date.now()>=deadlineAt) stats.errors.push("SOURCE_TIME_BUDGET_EXCEEDED");
   const byUrl=new Map<string,ExhaustiveItem>();
   for(const item of details){if(!item?.title)continue;stats.detailPages++;const key=canonical(item.url),previous=byUrl.get(key);if(!previous||item.description.length>previous.description.length)byUrl.set(key,item)}
   for(const html of listingHtmls)for(const j of jsonLdJobs(html)){const item=extractJob(j,source.url);if(item.title&&!byUrl.has(canonical(item.url)))byUrl.set(canonical(item.url),item)}

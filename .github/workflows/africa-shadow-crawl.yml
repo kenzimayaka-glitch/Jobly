@@ -6,16 +6,22 @@ on:
       countries:
         description: "Comma-separated ISO country codes"
         required: false
-        default: "CF,TD,CG,CD,GA,GQ,ST,BI"
+        default: "CM,DZ,EG,LY,MA,MR,TN,BJ,BF,CV,CI,GM,GH,GN,GW,LR,ML,NE,NG,SN,SL,TG,CF,TD,CG,CD,GQ,GA,ST,BI,AO,KE,UG,TZ,RW,ET,DJ,ER,SO,SS,SD,KM,MG,MU,SC,ZA,ZM,ZW,MW,MZ,NA,BW,SZ,LS"
+  schedule:
+    - cron: "17 */6 * * *"
   push:
     branches:
-      - feat/africa-central-sources-v1
+      - main
   pull_request:
     branches:
       - main
 
 permissions:
   contents: read
+
+concurrency:
+  group: africa-shadow-crawl
+  cancel-in-progress: true
 
 jobs:
   shadow-crawl:
@@ -28,13 +34,20 @@ jobs:
           deno-version: v2.x
       - name: Run shadow crawl
         env:
-          COUNTRIES: ${{ inputs.countries || 'CF,TD,CG,CD,GA,GQ,ST,BI' }}
+          COUNTRIES: ${{ inputs.countries || 'CM,DZ,EG,LY,MA,MR,TN,BJ,BF,CV,CI,GM,GH,GN,GW,LR,ML,NE,NG,SN,SL,TG,CF,TD,CG,CD,GQ,GA,ST,BI,AO,KE,UG,TZ,RW,ET,DJ,ER,SO,SS,SD,KM,MG,MU,SC,ZA,ZM,ZW,MW,MZ,NA,BW,SZ,LS' }}
         run: |
           IFS=',' read -ra CODES <<< "$COUNTRIES"
-          deno run --allow-net supabase/functions/discover-jobs/shadow-crawl.ts "${CODES[@]}" | tee africa-shadow-crawl.json
+          set -o pipefail
+          deno run --allow-net --allow-write supabase/functions/discover-jobs/shadow-crawl.ts "${CODES[@]}" | tee africa-shadow-crawl.json
       - name: Validate report exists
         run: |
           test -s africa-shadow-crawl.json
+          test -s africa-shadow-harvest-candidates.json
+          python - <<'PY'
+          import json
+          with open("africa-shadow-crawl.json", "r", encoding="utf-8") as f:
+              json.load(f)
+          PY
           python - <<'PY'
           import json
           with open("africa-shadow-crawl.json", "r", encoding="utf-8") as f:
@@ -46,6 +59,8 @@ jobs:
               raise SystemExit(f"Missing report fields: {missing}")
           if summary["sources"] != len(data.get("metrics", [])):
               raise SystemExit("Report source count does not match metrics")
+          if summary["durationMs"] > 115 * 60 * 1000:
+              raise SystemExit("Shadow crawl exceeded the 115 minute safety budget")
           print(json.dumps({
               "countries": summary["countries"],
               "sources": summary["sources"],
@@ -61,9 +76,66 @@ jobs:
               "durationMs": summary["durationMs"],
           }, ensure_ascii=False, indent=2))
           PY
+          python - <<'PY'
+          import json
+          with open("africa-shadow-harvest-candidates.json", "r", encoding="utf-8") as f:
+              candidates = json.load(f)
+          if not isinstance(candidates, list):
+              raise SystemExit("Harvest candidates must be a JSON array")
+          print(f"Harvest candidates: {len(candidates)}")
+          PY
+      - name: Validate harvest handoff
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          with open("africa-shadow-harvest-candidates.json", "r", encoding="utf-8") as f:
+              candidates = json.load(f)
+          invalid = [x for x in candidates if not x.get("sourceKey") or not x.get("url") or not x.get("title") or not x.get("countryCode")]
+          if invalid:
+              raise SystemExit(f"Invalid harvest candidates: {len(invalid)}")
+          now = datetime.now(timezone.utc)
+          stale = []
+          for x in candidates:
+              p = x.get("published")
+              if p:
+                  try:
+                      dt = datetime.fromisoformat(p.replace("Z", "+00:00"))
+                      if (now - dt).total_seconds() > 62 * 86400:
+                          stale.append(x)
+                  except Exception:
+                      pass
+          if stale:
+              raise SystemExit(f"Candidates older than two months: {len(stale)}")
+          print(f"Validated harvest candidates: {len(candidates)}")
+          PY
+      - name: Push candidates to JobHarvestCapture
+        if: github.event_name == 'schedule' || github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        env:
+          INGEST_URL: ${{ secrets.JOBLY_HARVEST_INGEST_URL }}
+          INGEST_SECRET: ${{ secrets.JOB_SOURCE_INGEST_SECRET }}
+        run: |
+          test -n "$INGEST_URL" || { echo "JOBLY_HARVEST_INGEST_URL is not configured"; exit 1; }
+          test -n "$INGEST_SECRET" || { echo "JOB_SOURCE_INGEST_SECRET is not configured"; exit 1; }
+          python - <<'PY'
+          import json
+          candidates = json.load(open("africa-shadow-harvest-candidates.json", encoding="utf-8"))
+          for i in range(0, len(candidates), 500):
+              with open(f"/tmp/jobly-harvest-{i//500}.json", "w", encoding="utf-8") as f:
+                  json.dump({"items": candidates[i:i+500]}, f, ensure_ascii=False)
+          print(f"Prepared {(len(candidates)+499)//500} ingestion batch(es)")
+          PY
+          shopt -s nullglob
+          for batch in /tmp/jobly-harvest-*.json; do
+            echo "Sending $batch"
+            curl --fail-with-body --silent --show-error               --retry 3 --retry-delay 5               -X POST "$INGEST_URL"               -H "Authorization: Bearer $INGEST_SECRET"               -H "Content-Type: application/json"               --data-binary "@$batch"
+            echo
+          done
       - name: Upload shadow report
         uses: actions/upload-artifact@v4
         with:
           name: africa-shadow-crawl
-          path: africa-shadow-crawl.json
+          path: |
+            africa-shadow-crawl.json
+            africa-shadow-harvest-candidates.json
           retention-days: 14
