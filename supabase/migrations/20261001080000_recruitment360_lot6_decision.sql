@@ -84,3 +84,19 @@ begin
 end;$$;
 revoke execute on function public.recruitment360_lot6_finalize_decision(uuid,text,text,text,text,numeric,jsonb) from public,anon,authenticated;
 grant execute on function public.recruitment360_lot6_finalize_decision(uuid,text,text,text,text,numeric,jsonb) to service_role;
+
+create or replace function public.recruitment360_lot6_list_candidates(p_recruitment_id uuid,p_actor_user_id text)
+returns table(application_id uuid,candidate_state text,decision_outcome text,decision_at timestamptz,score_total numeric,rationale text)
+language sql security definer set search_path='' as $$
+ select a.id,ras."currentState",d.outcome,d."decisionAt",d."scoreTotal",d.rationale
+ from public."Application" a
+ join public."Recruitment360" r on r."recruiterJobId"=a."recruiterJobId"
+ join public."RecruitmentApplicationState" ras on ras."applicationId"=a.id
+ left join public."RecruitmentDecision" d on d."applicationId"=a.id
+ where r.id=p_recruitment_id
+ and exists(select 1 from public."RecruitmentRole" rr where rr."recruitmentId"=p_recruitment_id and rr."userId"=p_actor_user_id and rr.role in('OWNER','HR','MANAGER','DELEGATE','JURY'))
+ and ras."currentState" in('TEST','SELECTED','INTERVIEW','FINALIST','OFFER','POOL','REJECTED','HIRED')
+ order by coalesce(d."decisionAt",'infinity'::timestamptz),a.id;
+$$;
+revoke execute on function public.recruitment360_lot6_list_candidates(uuid,text) from public,anon,authenticated;
+grant execute on function public.recruitment360_lot6_list_candidates(uuid,text) to service_role;
