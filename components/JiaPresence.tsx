@@ -470,7 +470,7 @@ export default function JiaPresence() {
     const cycle = () => {
       if (document.hidden || suspended || panelOpen || bubble || Date.now() - lastAutonomousAt < 12_000) return;
       const text = document.body.innerText.slice(0, 5000);
-      const percent = text.match(/(?:profil|profile)[^%]{0,80}(\\d{1,3})\\s*%/i)?.[1];
+      const percent = text.match(/(?:profil|profile)[^%]{0,80}(\d{1,3})\s*%/i)?.[1];
       const w = window as Window & { __jiaIdleMs?: number };
       const decision = decideAutonomy(observeAutonomy({
         path: pathname,
