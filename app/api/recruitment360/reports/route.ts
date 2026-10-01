@@ -30,6 +30,17 @@ export async function GET(req:NextRequest){
   const {data:reviews,error:rvError}=await sb.from("RecruitmentReview").select("id,applicationId,reviewerUserId,reviewerRole,processRating,experienceRating,joblyRating,recommendation,comment,status,createdAt").eq("recruitmentId",id).order("createdAt",{ascending:false});
   if(rvError)throw new Error(rvError.message);
   const apps=Array.isArray(report?.applications)?report.applications:[];
+  const applicationIds=apps.map((a:any)=>a.applicationId).filter(Boolean);
+  if(applicationIds.length){
+   const {data:sessions,error:sessionError}=await sb.from("RecruitmentTestSession").select("id,applicationId,status,submittedAt").in("applicationId",applicationIds);
+   if(sessionError)throw new Error(sessionError.message);
+   const sessionIds=(sessions||[]).map((x:any)=>x.id);
+   const {data:signals,error:signalError}=sessionIds.length?await sb.from("RecruitmentTestSignal").select("id,sessionId,signalType,score,evidence,createdAt").in("sessionId",sessionIds).order("createdAt",{ascending:false}):{data:[],error:null};
+   if(signalError)throw new Error(signalError.message);
+   const sm=new Map<string,any[]>();
+   (signals||[]).forEach((s:any)=>{const list=sm.get(s.sessionId)||[];list.push(s);sm.set(s.sessionId,list);});
+   report.proctoring=Object.fromEntries((sessions||[]).map((s:any)=>[s.applicationId,{sessionId:s.id,status:s.status,submittedAt:s.submittedAt,signals:sm.get(s.id)||[]}]));
+  }
   const firstSubmitted=apps.map((a:any)=>a.submittedAt).filter(Boolean).map((x:string)=>new Date(x).getTime()).sort((a:number,b:number)=>a-b)[0];
   if(report?.recruitment?.completedAt&&firstSubmitted){
    const days=Math.round(((new Date(report.recruitment.completedAt).getTime()-firstSubmitted)/86400000)*100)/100;
