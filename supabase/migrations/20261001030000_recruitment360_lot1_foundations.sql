@@ -359,10 +359,12 @@ using (
     from public."Application" a
     where a.id = "applicationId"
       and (
-        a."userId"::text = (select rr."userId" from public."RecruitmentRole" rr
-          where rr."authUserId" = (select auth.uid())
-            and rr."recruitmentId" = r.id
-          limit 1)
+        a."userId"::text = (
+          select u.id::text
+          from public."User" u
+          where u."authUserId" = (select auth.uid())::text
+          limit 1
+        )
         or exists (
           select 1
           from public."Recruitment360" r
@@ -429,8 +431,6 @@ where not exists (
 
 insert into public."RecruitmentRole" ("recruitmentId","userId","authUserId",role)
 select r.id, rj."recruiterUserId"::text, u."authUserId"::uuid, 'OWNER'
-from public."RecruiterJob" rj
-join public."User" u on u.id::text = rj."recruiterUserId"::text
 from public."Recruitment360" r
 join public."RecruiterJob" rj on rj.id = r."recruiterJobId"
 join public."User" u on u.id::text = rj."recruiterUserId"::text
@@ -481,7 +481,7 @@ begin
   from public."Recruitment360"
   where "recruiterJobId" = new.id;
 
-  insert into public."RecruitmentRole" ("recruitmentId","userId",role)
+  insert into public."RecruitmentRole" ("recruitmentId","userId","authUserId",role)
   values (
     v_recruitment_id,
     new."recruiterUserId"::text,
