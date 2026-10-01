@@ -1,5 +1,6 @@
 import crypto from "node:crypto";\nimport { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
+import { requirePaidRecruitment360 } from "../../../../lib/entitlements";
 import {
   checksum,
   exportFilename,
@@ -312,6 +313,10 @@ export async function GET(request: NextRequest) {
     if (!authUser) return bad("Session requise.", 401);
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    const recruitmentAccess = await requirePaidRecruitment360(supabase, user.id);
+    if (!recruitmentAccess.allowed) {
+      return bad("L’organisation d’un recrutement via Jobly nécessite un abonnement recruteur payant.", 402);
+    }
     const { data: roles, error: roleError } = await supabase
       .from("RecruitmentRole")
       .select("recruitmentId,role")
@@ -360,6 +365,10 @@ export async function POST(request: NextRequest) {
     if (!authUser) return bad("Session requise.", 401);
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    const recruitmentAccess = await requirePaidRecruitment360(supabase, user.id);
+    if (!recruitmentAccess.allowed) {
+      return bad("L’organisation d’un recrutement via Jobly nécessite un abonnement recruteur payant.", 402);
+    }
     const body = await request.json().catch(() => ({}));
     const recruitmentId = String(body.recruitmentId || "").trim();
     const versionId = String(body.versionId || "").trim();
