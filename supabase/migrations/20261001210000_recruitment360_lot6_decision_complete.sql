@@ -153,13 +153,6 @@ alter table public."RecruitmentOfferNegotiation" enable row level security;
 revoke all on public."RecruitmentDecisionPolicy",public."RecruitmentDecisionApproval",public."RecruitmentDecisionReference",public."RecruitmentDecisionRecommendation",public."RecruitmentOffer",public."RecruitmentOfferNegotiation" from anon,authenticated;
 grant select on public."RecruitmentDecisionPolicy",public."RecruitmentDecisionApproval",public."RecruitmentDecisionReference",public."RecruitmentDecisionRecommendation",public."RecruitmentOffer",public."RecruitmentOfferNegotiation" to authenticated;
 
-create or replace function public.recruitment360_lot6_user_id()
-returns text language sql stable security definer set search_path='' as $$
- select u.id::text from public."User" u where u."authUserId"=(select auth.uid())::text limit 1
-$$;
-revoke execute on function public.recruitment360_lot6_user_id() from public,anon,authenticated;
-grant execute on function public.recruitment360_lot6_user_id() to service_role;
-
 create policy "Lot6 policy recruiter members" on public."RecruitmentDecisionPolicy" for select to authenticated
 using(exists(select 1 from public."RecruitmentRole" rr where rr."recruitmentId"="RecruitmentDecisionPolicy"."recruitmentId" and rr."authUserId"=(select auth.uid())));
 create policy "Lot6 approvals recruiter members" on public."RecruitmentDecisionApproval" for select to authenticated
@@ -171,7 +164,7 @@ using(exists(select 1 from public."RecruitmentDecision" d join public."Recruitme
 create policy "Lot6 offer recruiter or candidate" on public."RecruitmentOffer" for select to authenticated
 using(
  exists(select 1 from public."RecruitmentRole" rr where rr."recruitmentId"="RecruitmentOffer"."recruitmentId" and rr."authUserId"=(select auth.uid()))
- or exists(select 1 from public."Application" a where a.id="RecruitmentOffer"."applicationId" and a."userId"::text=public.recruitment360_lot6_user_id())
+ or exists(select 1 from public."Application" a where a.id="RecruitmentOffer"."applicationId" and a."userId"::text=(select u.id::text from public."User" u where u."authUserId"=(select auth.uid())::text limit 1))
 );
 create policy "Lot6 negotiation recruiter or candidate" on public."RecruitmentOfferNegotiation" for select to authenticated
 using(
