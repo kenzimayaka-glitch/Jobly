@@ -1,4 +1,5 @@
 name: J'IA Master Continuous Gate
+run-name: "${{ github.workflow }} @ ${{ github.sha }}"
 
 on:
   pull_request:
