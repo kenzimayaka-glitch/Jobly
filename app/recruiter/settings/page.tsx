@@ -21,10 +21,12 @@ export default function RecruiterSettingsPage() {
   const [whatsapp, setWhatsapp] = useState("");
   const [whatsappEnabled, setWhatsappEnabled] = useState(false);
   const [message, setMessage] = useState("");
+  const [aiBonus, setAiBonus] = useState<{remaining:number; granted:number} | null>(null);
 
   useEffect(() => {
     const gmailCallback = new URLSearchParams(window.location.search).get("gmail");
     (async () => {
+      try { const session = await (await import("@/lib/supabase")).getSupabaseClient().auth.getSession(); if (session.data.session) { const res = await fetch("/api/recruiter/ai-bonus", { headers: { Authorization: `Bearer ${session.data.session.access_token}` }, cache: "no-store" }); if (res.ok) setAiBonus(await res.json()); } } catch {}
       if (gmailCallback === "1") {
         const current = await refreshGmailConnection();
         setGmail(current);
@@ -71,6 +73,7 @@ export default function RecruiterSettingsPage() {
         <PageHeader label="Paramètres" eyebrow="RECRUTEUR" initial="R" onBack={() => router.push("/recruiter")} />
         <div className="mx-auto max-w-3xl space-y-4 px-5 py-5">
           {message && <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-xs font-extrabold text-emerald-700">{message}</div>}
+          {aiBonus && <section className="rounded-[24px] border border-[#DCE5F1] bg-white p-5 shadow-sm"><div className="flex items-center justify-between gap-4"><div><h2 className="font-heading text-lg font-extrabold">Crédits J’IA</h2><p className="mt-1 text-xs text-jobly-gray">Bonus recruteur à usage unique.</p></div><div className="rounded-full bg-[#FFF7C7] px-4 py-2 text-sm font-black text-[#0A1931]">{aiBonus.remaining} / {aiBonus.granted}</div></div><p className="mt-3 text-xs leading-5 text-jobly-gray">Les crédits servent aux fonctions J’IA de recrutement et le bonus de bienvenue ne se renouvelle pas.</p></section>}
           <JiaPreferences ecosystem="RECRUITER" />
           <SubscriptionCard ecosystem="RECRUITER" />
 

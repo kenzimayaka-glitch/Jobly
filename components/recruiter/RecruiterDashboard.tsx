@@ -7,6 +7,7 @@ import AppShell from "../ui/AppShell";
 import { ApplicationCard, Badge, Button, Card, DashboardCard, EmptyState, ErrorState, LoadingState, PageIntro, Section, StatCard, type BadgeTone } from "../ui";
 import PitchReel, { type ReelCandidate } from "./PitchReel";
 import { useI18n } from "@/lib/i18n";
+import JoblyToast from "../JoblyToast";
 
 type Job = { id: string; title: string; status: "draft" | "published" | "closed"; location: string | null; contract: string | null; createdAt: string };
 type Application = ReelCandidate & { status: string; createdAt: string; atsScore: number | null; candidateEmail?: string };
@@ -31,6 +32,7 @@ export default function RecruiterDashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [apps, setApps] = useState<Application[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [welcomeBonus, setWelcomeBonus] = useState<{remaining:number; firstDashboardVisit:boolean; message:string|null} | null>(null);
 
   const load = useCallback(async () => {
     setStatus("loading");
@@ -38,14 +40,20 @@ export default function RecruiterDashboard() {
       const { data: { session } } = await getSupabaseClient().auth.getSession();
       if (!session) { router.replace("/"); return; }
       const headers = { Authorization: `Bearer ${session.access_token}` };
-      const [pr, jr, ar] = await Promise.all([
+      const [pr, jr, ar, br] = await Promise.all([
         fetch("/api/recruiter/profile", { headers }),
         fetch("/api/recruiter/jobs", { headers }),
         // Lecture passive : ouvrir le dashboard ne marque plus les candidatures comme « Vues ».
         fetch("/api/recruiter/applications?markViewed=0", { headers }),
+        fetch("/api/recruiter/ai-bonus", { headers, cache: "no-store" }),
       ]);
       if (!jr.ok || !ar.ok) throw new Error("load");
       const prof: Profile | null = pr.ok ? (await pr.json()).profile ?? null : null;
+      if (br.ok) {
+        const bonus = await br.json();
+        setWelcomeBonus(bonus);
+        if (bonus?.firstDashboardVisit) void fetch("/api/recruiter/ai-bonus", { method: "POST", headers });
+      }
       setProfile(prof);
       setJobs(((await jr.json()).jobs ?? []) as Job[]);
       setApps(((await ar.json()).applications ?? []) as Application[]);
@@ -77,6 +85,7 @@ export default function RecruiterDashboard() {
   const initial = (profile?.companyName ?? "R").trim().charAt(0).toUpperCase() || "R";
 
   return (
+    {welcomeBonus?.firstDashboardVisit && welcomeBonus.remaining > 0 && welcomeBonus.message && <JoblyToast title="Bonus J’IA recruteur" message={`${welcomeBonus.message} Crédit restant : ${welcomeBonus.remaining}.`} actionLabel="Voir mes crédits" onAction={() => router.push("/recruiter/settings")} onClose={() => setWelcomeBonus(v => v ? {...v, firstDashboardVisit:false} : v)} />}
     <AppShell role="recruiter" active="/recruiter" title={profile?.companyName && profile.companyName !== "Mon entreprise" ? profile.companyName : t("common.recruiter")} eyebrow={t("common.recruiter").toUpperCase()} initial={initial} width="lg">
       <PageIntro eyebrow={t("rdash.eyebrow")} title={t("rdash.title")} subtitle={t("rdash.subtitle")}
         actions={<Button href="/recruiter/jobs/new">{t("rdash.jobs.create")}</Button>} />
