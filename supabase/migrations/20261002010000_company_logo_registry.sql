@@ -25,18 +25,3 @@ alter table public.company_logo_registry enable row level security;
 revoke all on public.company_logo_registry from anon, authenticated;
 grant all on public.company_logo_registry to service_role;
 
-insert into storage.buckets (
-  id,
-  name,
-  public,
-  file_size_limit,
-  allowed_mime_types
-)
-values (
-  'company-logos',
-  'company-logos',
-  true,
-  2097152,
-  array['image/png','image/jpeg','image/webp','image/gif']::text[]
-)
-on conflict (id) do nothing;
