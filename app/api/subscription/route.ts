@@ -71,7 +71,8 @@ export async function DELETE(request: NextRequest) {
   try {
     const auth = await getAuthUser(request); if (!auth) return jsonError("Session requise.", 401, "UNAUTHENTICATED");
     const sb = adminClient(); const user = await ensureUser(sb, auth);
-    const { data: sub, error } = await sb.from("Subscription").select("id,status").eq("userId", user.id).order("createdAt", { ascending: false }).limit(1).maybeSingle();
+    const productType: "TALENT" | "RECRUITER" = String(user.role) === "RECRUITER" ? "RECRUITER" : "TALENT";
+    const { data: sub, error } = await sb.from("Subscription").select("id,status,productType").eq("userId", user.id).eq("productType", productType).order("createdAt", { ascending: false }).limit(1).maybeSingle();
     if (error) throw new Error(error.message); if (!sub) return jsonError("Abonnement introuvable.", 404, "SUBSCRIPTION_NOT_FOUND");
     if (sub.status === "CANCELED") return NextResponse.json({ subscription: sub, idempotent: true });
     const { data: updated, error: updateError } = await sb.from("Subscription").update({ status: "CANCELED", canceledAt: new Date().toISOString(), updatedAt: new Date().toISOString() }).eq("id", sub.id).select("*").single();
