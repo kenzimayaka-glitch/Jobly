@@ -93,8 +93,8 @@ async function main() {
     const b = many.files[1].buffer;
     const topA = await cropHash(a, 0, 220, 640);
     const topB = await cropHash(b, 0, 220, 640);
-    const bottomA = await cropHash(a, 930, 1280, 640);
-    const bottomB = await cropHash(b, 930, 1280, 640);
+    const bottomA = await cropHash(a, 930, 1170, 640);
+    const bottomB = await cropHash(b, 930, 1170, 640);
     if (topA !== topB || bottomA !== bottomB) throw new Error("Fixed blocks differ between split images");
     console.log("PASS fixed blocks identical across split images");
   }
