@@ -297,6 +297,7 @@ export default function TalentCVs() {
 
   function openVersion(version: "jobly" | "ats") {
     setPreviewVersion(version);
+    setPreviewOpen(true);
   }
 
 
@@ -330,7 +331,7 @@ export default function TalentCVs() {
             <textarea value={cv.skills} onChange={e => update("skills", e.target.value)} placeholder="Compétences (séparées par des virgules)" rows={3} className="mt-3 w-full rounded-xl border px-4 py-3" />
             <textarea value={cv.experience} onChange={e => update("experience", e.target.value)} placeholder="Expériences professionnelles" rows={7} className="mt-3 w-full rounded-xl border px-4 py-3" />
             <textarea value={cv.education} onChange={e => update("education", e.target.value)} placeholder="Formation / certifications" rows={4} className="mt-3 w-full rounded-xl border px-4 py-3" />
-            <div className="mt-4 space-y-2 print:hidden">
+            <div className="relative mt-4 space-y-2 print:hidden">
               <button onClick={save} className="w-full rounded-xl bg-jobly-blue py-3 font-black text-white">Enregistrer</button>
               <button onClick={() => setPreviewOpen(true)} type="button" className="w-full rounded-xl border-2 border-[#0057B8] bg-white py-3 font-black text-[#0057B8]">Voir le CV</button>
               <div className="grid gap-2 sm:grid-cols-3">
@@ -339,6 +340,8 @@ export default function TalentCVs() {
                 <button onClick={() => router.push("/career-os")} className="rounded-xl border py-3 font-black">Career OS →</button>
               </div>
               <p className="text-center text-[9px] font-semibold text-jobly-gray">L’accès aux conditions et au tarif s’affiche lorsque tu sélectionnes le téléchargement.</p>
+              {message && <div className="absolute left-full top-0 ml-3 hidden w-[min(92vw,390px)] lg:block"><JoblyToast title={messageKind === "error" ? "Attention" : "Jobly"} message={message} variant={messageKind} placement="inline" onClose={() => setMessage("")} /></div>}
+              {message && <div className="mt-2 lg:hidden"><JoblyToast title={messageKind === "error" ? "Attention" : "Jobly"} message={message} variant={messageKind} placement="inline" onClose={() => setMessage("")} /></div>}
             </div>
 
           </section>
@@ -401,7 +404,7 @@ export default function TalentCVs() {
         {message && <div className="relative min-h-0 print:hidden"><JoblyToast title={messageKind === "error" ? "Attention" : "Jobly"} message={message} variant={messageKind} placement="inline" onClose={() => setMessage("")} /></div>}\n        {previewOpen && (
           <div className="fixed inset-0 z-[135] overflow-y-auto bg-slate-950/45 px-4 py-8 print:hidden" role="dialog" aria-modal="true" aria-label="Visualisation du CV">
             <div className="mx-auto max-w-3xl rounded-[8px] bg-white p-8 shadow-2xl">
-              <div className="mb-6 flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-jobly-gray">Visualisation & modèles</p><h2 className="mt-1 text-2xl font-black">Voir le CV</h2></div><button type="button" onClick={() => { setPreviewOpen(false); setPreviewOpen(false); setPreviewVersion(null); }} className="rounded-full border px-3 py-2 text-sm font-black">Fermer</button></div>\n              <div className="mb-6 grid gap-2 sm:grid-cols-2">{CV_TEMPLATES.map(template => <button key={template.id} type="button" onClick={() => selectTemplate(template.id)} className={`rounded-2xl border p-3 text-left transition ${templateId === template.id ? "border-[#0057B8] bg-[#EEF5FF]" : "border-slate-200 bg-white"}`}><div className="flex items-center justify-between gap-2"><span className="text-sm font-black">{template.name}</span>{template.access === "PREMIUM" && <span className="inline-flex items-center gap-1 text-[10px] font-black text-[#0057B8]"><PremiumDiamond />Premium</span>}</div><p className="mt-1 text-[10px] text-jobly-gray">{template.description}</p></button>)}</div>
+              <div className="mb-6 flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-jobly-gray">Visualisation & modèles</p><h2 className="mt-1 text-2xl font-black">Voir le CV</h2></div><button type="button" onClick={() => { setPreviewOpen(false); setPreviewVersion(null); }} className="rounded-full border px-3 py-2 text-sm font-black">Fermer</button></div>\n              <div className="mb-6 grid gap-2 sm:grid-cols-2">{CV_TEMPLATES.map(template => <button key={template.id} type="button" onClick={() => selectTemplate(template.id)} className={`rounded-2xl border p-3 text-left transition ${templateId === template.id ? "border-[#0057B8] bg-[#EEF5FF]" : "border-slate-200 bg-white"}`}><div className="flex items-center justify-between gap-2"><span className="text-sm font-black">{template.name}</span>{template.access === "PREMIUM" && <span className="inline-flex items-center gap-1 text-[10px] font-black text-[#0057B8]"><PremiumDiamond />Premium</span>}</div><p className="mt-1 text-[10px] text-jobly-gray">{template.description}</p></button>)}</div>
               <h3 className="text-3xl font-black">{cv.fullName || "Nom complet"}</h3><p className="mt-1 text-lg font-bold text-jobly-blue">{cv.headline || "Titre professionnel"}</p><p className="mt-2 text-xs">{[cv.email, cv.phone].filter(Boolean).join(" · ")}</p>
               {[["Profil", cv.summary], ["Compétences", cv.skills], ["Expérience", cv.experience], ["Formation", cv.education]].map(([h,v]) => v ? <div key={h} className="mt-5"><h3 className="border-b pb-1 text-sm font-black uppercase">{h}</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{v}</p></div> : null)}
             </div>
