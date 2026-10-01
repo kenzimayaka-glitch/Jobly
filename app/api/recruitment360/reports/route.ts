@@ -7,7 +7,20 @@ export async function GET(req:NextRequest){
   const s=adminClient(),u=await ensureUser(s,auth),rid=req.nextUrl.searchParams.get("recruitmentId"),aid=req.nextUrl.searchParams.get("applicationId");
   if(!rid)return NextResponse.json({message:"recruitmentId requis."},{status:400});
   if(aid){
-   const {data:reviews,error}=await s.from("RecruitmentReview").select("*").eq("applicationId",aid).order("createdAt",{ascending:false});
+   const {data:app,error:ae}=await s.from("Application").select("userId,recruiterJobId").eq("id",aid).maybeSingle();
+   if(ae)throw new Error(ae.message);
+   if(!app)return NextResponse.json({message:"Candidature introuvable."},{status:404});
+   const {data:rec,error:re0}=await s.from("Recruitment360").select("id").eq("recruiterJobId",app.recruiterJobId).maybeSingle();
+   if(re0)throw new Error(re0.message);
+   if(!rec||rec.id!==rid)return NextResponse.json({message:"Candidature hors recrutement."},{status:404});
+   const {data:roles,error:roleError}=await s.from("RecruitmentRole").select("role").eq("recruitmentId",rid).eq("userId",u.id);
+   if(roleError)throw new Error(roleError.message);
+   const recruiterAllowed=(roles??[]).some((x:any)=>["OWNER","HR","MANAGER","DELEGATE","JURY"].includes(x.role));
+   const {data:me,error:meError}=await s.from("User").select("id").eq("id",u.id).eq("authUserId",auth.id).maybeSingle();
+   if(meError)throw new Error(meError.message);
+   const candidateAllowed=String(app.userId)===String(me?.id);
+   if(!recruiterAllowed&&!candidateAllowed)return NextResponse.json({message:"FORBIDDEN"},{status:403});
+   const {data:reviews,error}=await s.from("RecruitmentReview").select("*").eq("applicationId",aid).eq("visibleToCandidate",candidateAllowed&&!recruiterAllowed?true:true).order("createdAt",{ascending:false});
    if(error)throw new Error(error.message);
    const {data:reports,error:re}=await s.from("RecruitmentReport").select("*").eq("applicationId",aid).order("generatedAt",{ascending:false});
    if(re)throw new Error(re.message);
