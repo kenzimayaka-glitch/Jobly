@@ -341,9 +341,11 @@ create policy "Recruitment owners and members can read recruitment"
 on public."Recruitment360" for select to authenticated
 using (
   exists (
-    select 1 from public."RecruitmentRole" rr
+    select 1
+    from public."RecruitmentRole" rr
+    join public."User" u on u.id = rr."userId"
     where rr."recruitmentId" = id
-      and rr."userId" = public.recruitment360_user_id()
+      and u."authUserId" = (select auth.uid())::text
   )
 );
 
@@ -351,16 +353,22 @@ create policy "Application owner or recruitment member can read state"
 on public."RecruitmentApplicationState" for select to authenticated
 using (
   exists (
-    select 1 from public."Application" a
+    select 1
+    from public."Application" a
     where a.id = "applicationId"
       and (
-        a."userId"::text = public.recruitment360_user_id()
+        a."userId"::text = (
+          select u.id from public."User" u
+          where u."authUserId" = (select auth.uid())::text
+          limit 1
+        )
         or exists (
           select 1
           from public."Recruitment360" r
           join public."RecruitmentRole" rr on rr."recruitmentId" = r.id
+          join public."User" u on u.id = rr."userId"
           where r."recruiterJobId" = a."recruiterJobId"
-            and rr."userId" = public.recruitment360_user_id()
+            and u."authUserId" = (select auth.uid())::text
         )
       )
   )
@@ -368,17 +376,28 @@ using (
 
 create policy "Recruitment members can read roles"
 on public."RecruitmentRole" for select to authenticated
-using ("userId" = public.recruitment360_user_id());
+using (
+  exists (
+    select 1 from public."User" u
+    where u.id = "userId"
+      and u."authUserId" = (select auth.uid())::text
+  )
+);
 
 create policy "Recruitment members can read audit"
 on public."RecruitmentAuditLog" for select to authenticated
 using (
-  "actorUserId" = public.recruitment360_user_id()
+  "actorUserId" = (
+    select u.id from public."User" u
+    where u."authUserId" = (select auth.uid())::text
+    limit 1
+  )
   or exists (
     select 1
     from public."RecruitmentRole" rr
+    join public."User" u on u.id = rr."userId"
     where rr."recruitmentId" = "RecruitmentAuditLog"."recruitmentId"
-      and rr."userId" = public.recruitment360_user_id()
+      and u."authUserId" = (select auth.uid())::text
   )
 );
 
@@ -386,9 +405,11 @@ create policy "Candidate can read own invitation code metadata"
 on public."RecruitmentInvitationCode" for select to authenticated
 using (
   exists (
-    select 1 from public."Application" a
+    select 1
+    from public."Application" a
+    join public."User" u on u.id::text = a."userId"::text
     where a.id = "applicationId"
-      and a."userId"::text = public.recruitment360_user_id()
+      and u."authUserId" = (select auth.uid())::text
   )
 );
 
