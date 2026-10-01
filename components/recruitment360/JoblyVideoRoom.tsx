@@ -1,11 +1,11 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
 
-type Props={interviewId:string;room?:{provider:string;roomName:string;joinUrl:string;domain?:string}|null;onEvent?:(event:string)=>void;recordingEnabled?:boolean;canRecord?:boolean;};
+type Props={interviewId:string;room?:{provider:string;roomName:string;joinUrl:string;domain?:string}|null;onEvent?:(event:string)=>void;canRecord?:boolean;};
 
 declare global {interface Window {JitsiMeetExternalAPI?:new(domain:string,options:any)=>any;}}
 
-export default function JoblyVideoRoom({interviewId,room,onEvent,recordingEnabled=false,canRecord=false}:Props){
+export default function JoblyVideoRoom({interviewId,room,onEvent,canRecord=false}:Props){
  const host=useRef<HTMLDivElement|null>(null);const api=useRef<any>(null);
  const [ready,setReady]=useState(false),[joined,setJoined]=useState(false),[participants,setParticipants]=useState(0),[error,setError]=useState("");
  useEffect(()=>{
