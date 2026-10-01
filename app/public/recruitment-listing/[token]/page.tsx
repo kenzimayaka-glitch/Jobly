@@ -17,8 +17,16 @@ export default async function PublicRecruitmentListingPage({ params }: { params:
   try {
     const data = await loadPublicOfficialListing(token);
     const html = renderWebHtml(data);
-    const body = html.replace(/^<!doctype html>/i, "").replace(/<html[^>]*>/i, "").replace(/<\/html>/i, "");
-    return <div dangerouslySetInnerHTML={{ __html: body }} />;
+    return (
+      <main className="min-h-screen bg-white">
+        <iframe
+          title="Listing officiel Jobly"
+          srcDoc={html}
+          className="min-h-screen w-full border-0"
+          sandbox="allow-same-origin"
+        />
+      </main>
+    );
   } catch {
     notFound();
   }
