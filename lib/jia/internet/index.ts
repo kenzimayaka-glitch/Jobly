@@ -16,7 +16,12 @@ export async function observeInternet(query:string,overrides?:Partial<JiaInterne
   const base=getJiaInternetConfig();const c={...base,...overrides};const q=query.trim().slice(0,300);if(!q)throw new Error("query_required");
   const cached=getObservationCache(q);if(cached)return signal(cached);if(!canInternetRead(c))return signal(empty(q,"Internet Brain désactivé."));
   const limitations:string[]=[];const results:SearchResult[]=[];let internetAvailable=true;
-  try{results.push(...await search(q,c));}catch(e){internetAvailable=false;limitations.push(e instanceof Error?e.message:"search_failed");}
+  const queryVariants=[q,q+" official source",q+" Cameroon"].slice(0,c.maxQueries);
+  for(const candidate of queryVariants){
+    try{results.push(...await search(candidate,c));}
+    catch(e){internetAvailable=false;limitations.push(e instanceof Error?e.message:"search_failed");}
+    if(results.length>=c.maxSources)break;
+  }
   const unique=Array.from(new Map(results.map(r=>[r.url,r])).values()).slice(0,c.maxSources);const sources:SourceEvidence[]=[];
   for(const r of unique){try{const cachedSource=getSourceCache(r.url);const s=cachedSource||await fetchSource(r.url,c.timeoutMs);if(!cachedSource)setSourceCache(r.url,s,c.cacheTtlMs);s.freshness=freshnessPolicy({informationType:q,publishedAt:s.publishedAt,retrievedAt:s.retrievedAt});sources.push(s);}catch(e){limitations.push(r.url+": "+(e instanceof Error?e.message:"fetch_failed"));}}
   const v=verifyEvidence(q,sources);const o=contextualize(q,{query:q,sourcesFound:unique.length,sourcesUsed:sources,facts:v.facts,supportingSources:v.supportingSources,contradictingSources:v.contradictingSources,status:v.status,confidence:v.confidence,freshness:sources.some(s=>s.freshness==="fresh")?"fresh":sources.some(s=>s.freshness==="recent")?"recent":"unknown",changes:detectChanges(q,sources),context:{domains:[],relevance:0,impact:0,urgency:0},memoryDecision:"IGNORE",internetAvailable,limitations});
