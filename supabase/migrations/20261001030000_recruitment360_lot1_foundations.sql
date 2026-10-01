@@ -176,12 +176,18 @@ begin
     raise exception 'AUTH_REQUIRED' using errcode = '42501';
   end if;
 
-  select ras.*, a."recruiterJobId"
-    into v_row, v_recruitment_id
+  select ras.*
+    into v_row
   from public."RecruitmentApplicationState" ras
-  join public."Application" a on a.id = ras."applicationId"
   where ras."applicationId" = p_application_id
   for update;
+
+  select r.id
+    into v_recruitment_id
+  from public."Recruitment360" r
+  join public."Application" a on a."recruiterJobId" = r."recruiterJobId"
+  where a.id = p_application_id
+  limit 1;
 
   if not found then
     raise exception 'APPLICATION_360_NOT_FOUND' using errcode = 'P0002';
@@ -388,3 +394,41 @@ using (
 
 -- Notification table already existed; its RLS is preserved. Add only a
 -- supporting index for the new application relationship.
+
+
+-- Bootstrap the new source-of-truth rows for existing RecruiterJob/Application data.
+insert into public."Recruitment360" ("recruiterJobId")
+select rj.id
+from public."RecruiterJob" rj
+where not exists (
+  select 1 from public."Recruitment360" r where r."recruiterJobId" = rj.id
+);
+
+insert into public."RecruitmentRole" ("recruitmentId","userId",role)
+select r.id, rj."recruiterUserId"::text, 'OWNER'
+from public."Recruitment360" r
+join public."RecruiterJob" rj on rj.id = r."recruiterJobId"
+where not exists (
+  select 1 from public."RecruitmentRole" rr
+  where rr."recruitmentId" = r.id
+    and rr."userId" = rj."recruiterUserId"::text
+    and rr.role = 'OWNER'
+);
+
+insert into public."RecruitmentApplicationState" ("applicationId","currentState")
+select a.id,
+  case a.status::text
+    when 'SUBMITTED' then 'SENT'
+    when 'ACKNOWLEDGED' then 'RECEIVED'
+    when 'INTERVIEW' then 'INTERVIEW'
+    when 'OFFER' then 'OFFER'
+    when 'REJECTED' then 'REJECTED'
+    when 'WITHDRAWN' then 'WITHDRAWN'
+    else 'REVIEW'
+  end
+from public."Application" a
+where a."recruiterJobId" is not null
+  and not exists (
+    select 1 from public."RecruitmentApplicationState" ras
+    where ras."applicationId" = a.id
+  );
