@@ -22,6 +22,7 @@ checks={
 "app/api/recruiter/jia/intelligence/route.ts":["buildRecruiterIntelligence","RECRUITER"],
 "app/api/partner/jia/intelligence/route.ts":["buildPartnerIntelligence","PARTNER"],
 "app/api/mobility/jia/intelligence/route.ts":["buildMobilityIntelligence"],
+"app/api/jia/tools/route.ts":["listJiaTools","checkJiaToolAccess","ADMIN"],
 }
 for rel,needles in checks.items():
  text=(ROOT/rel).read_text(encoding="utf-8")
