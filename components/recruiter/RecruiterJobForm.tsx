@@ -277,7 +277,30 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
       const body = await res.json();
       if (!res.ok) throw new Error(body.message || "Enregistrement impossible.");
       if (nextStatus === "published") {
-        if (!isNew) {
+        const targetJobId = (body.job?.id as string | undefined) || id;
+        if (isNew) {
+          const criteria = criteriaInput.split(",").map((label) => label.trim()).filter(Boolean).map((label, index) => ({
+            criterion: label.toUpperCase().replace(/[^A-Z0-9]+/g, "_"),
+            label,
+            required: false,
+            weight: 1,
+            sortOrder: index,
+          }));
+          const versionRes = await fetch("/api/recruitment360/jobs/" + targetJobId + "/announcement", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+            body: JSON.stringify({ title, description, salary, deadlineAt: deadlineAt ? new Date(deadlineAt).toISOString() : null, criteria }),
+          });
+          const versionBody = await versionRes.json();
+          if (!versionRes.ok) throw new Error(versionBody.message || "Version impossible à créer.");
+          const pubRes = await fetch("/api/recruitment360/jobs/" + targetJobId + "/announcement/publish", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+            body: JSON.stringify({ versionId: versionBody.versionId }),
+          });
+          const pubBody = await pubRes.json();
+          if (!pubRes.ok) throw new Error(pubBody.message || "Publication impossible.");
+        } else {
           const ok360 = await createAndPublishAnnouncement("published");
           if (!ok360) return;
         }
