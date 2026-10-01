@@ -8,7 +8,7 @@ import { getActivePlanCode } from "../../../../../lib/entitlements";
 export const runtime = "nodejs";
 function safeFilePart(value: unknown) {
   return String(value || "")
-    .normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "Utilisateur";
 }
 async function canonicalCvFileName(authUserId: string) {
