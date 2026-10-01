@@ -112,3 +112,24 @@ La validation sur appareil mobile réel reste requise.
 ## Verdict du lot
 
 **🔧 CODÉ + INTÉGRÉ + DB contrôlée — 🟡 NON CERTIFIÉ 10/10 tant que CI/E2E/validation mobile ne sont pas passés.**
+
+
+## 8. Audit ciblé J’IA × Lots 10–11 — 02/10/2026
+
+### Compatibilité J’IA
+- J’IA peut désormais expliquer le fonctionnement d’un listing officiel et les étapes CV / TEST / INTERVIEW / DECISION.
+- J’IA est explicitement empêchée, au niveau doctrine/prompt, d’ajouter, retirer ou publier un candidat dans un listing.
+- Le consentement de publication est traité comme une condition d’affichage du nom : sans consentement, le numéro de dossier reste la représentation publiée.
+- Les recommandations de recrutement groupé doivent rester rattachées au poste concerné ; J’IA ne doit pas mélanger les candidats ou scores entre postes.
+- Les corrections proposées par J’IA restent des propositions : l’action réelle reste sous contrôle du recruteur et du serveur.
+
+### Incompatibilités trouvées et corrigées
+1. Éligibilité TEST / INTERVIEW / DECISION : l’ancien garde pouvait considérer l’existence d’un test, d’un entretien ou d’une décision comme suffisante pour publier un candidat. Correction : ces étapes exigent désormais aussi un signal explicite de rétention/shortlist côté serveur.
+2. RPC de création de lien public : le RPC SECURITY DEFINER était exécutable par authenticated et recevait un p_actor_user_id fourni par l’appelant. Un utilisateur authentifié pouvait donc tenter de se faire passer pour un acteur autorisé. Correction appliquée sur JOBLY-PROD : EXECUTE retiré à PUBLIC/anon/authenticated et accordé uniquement à service_role. La migration correspondante est versionnée dans le dépôt.
+
+### Vérification DB après correction
+- recruitment360_lot11_create_public_link_v2 : public=false, anon=false, authenticated=false, service_role=true.
+- recruitment360_lot11_get_public_listing reste accessible publiquement pour la consultation d’un token valide, avec expiration/révocation côté fonction.
+- Aucun déploiement Vercel ni merge main.
+
+**Verdict audit J’IA × Lots 10–11 : 🟢 garde-fous principaux alignés après correction ciblée ; 🟡 certification E2E globale encore requise.**
