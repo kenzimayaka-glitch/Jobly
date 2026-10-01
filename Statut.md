@@ -1,6 +1,6 @@
 # JOBLY — STATUT DU PROJET
 ## SOURCE DE VÉRITÉ D'EXÉCUTION — JOBLY 20/20
-### Mise à jour : 01/10/2026 — Recrutement 360° v2 / Lot 1
+### Mise à jour : 01/10/2026 — Recrutement 360° v2 / Lot 2
 
 > Règle : une fonctionnalité n'est terminée que si elle traverse **SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**.
 > Les anciens checkpoints restent conservés comme historique et ne remplacent jamais l'état courant.
@@ -14,7 +14,8 @@ Le CEO a validé le démarrage du parcours **Recrutement 360° v2**. Pendant ce 
 | Lot | État courant | Preuve / reste |
 |---|---|---|
 | **1 — Fondations** | 🟨 **CODÉ + BASE VÉRIFIÉE / BUILD À VALIDER** | États serveur, rôles, audit, notifications, double coche, codes uniques, FREE_TEST/PRODUCTION livrés ; migrations appliquées et tests DB ciblés passés ; build/lint/typecheck non exécutables depuis l'environnement connecté actuel |
-| 2 — Lancer | ⚪ EN ATTENTE | Annonces 360°, versions, critères, salaire, publication, prorogation |
+| **2 — Lancer** | 🟨 **CODÉ + DB VÉRIFIÉE / BUILD À VALIDER** | Annonces versionnées, critères, salaire, échéance, publication, clôture et prorogation ; RPC serveur + API + UI Recruiter livrés ; scénario DB complet CREATE_VERSION→PUBLISH→EXTEND→CLOSE passé ; build/lint/typecheck non exécutables ici |
+| 3 — Candidatures & sélection | ⚪ EN ATTENTE | Matching détaillé, CV, justificatifs, ATS, vivier, refus différés |
 | 3 — Candidatures & sélection | ⚪ EN ATTENTE | Matching détaillé, CV, justificatifs, ATS, vivier, refus différés |
 | 4 — Tests | ⚪ EN ATTENTE | Sessions, timer serveur, sauvegarde, surveillance, reprise |
 | 5 — Entretiens | ⚪ EN ATTENTE | Créneaux, jury, rappels, présence, Meet |
@@ -22,6 +23,42 @@ Le CEO a validé le démarrage du parcours **Recrutement 360° v2**. Pendant ce 
 | 7 — Rapports & avis | ⚪ EN ATTENTE | PDF, liens sécurisés, dashboard, avis |
 | 8 — Fiabilité avancée | ⚪ EN ATTENTE | Proctoring appareil, signaux anti-IA, réseau faible, secours |
 | 9 — Native + visio | ⚪ EN ATTENTE | Capacitor, FCM/APNs, alerte native, visio intégrée |
+
+## Lot 2 — Lancer : périmètre livré
+
+### Annonces 360° versionnées
+- `RecruitmentAnnouncementVersion` conserve chaque version publiée/brouillon avec titre, description, salaire, visibilité salaire, échéance, publication, clôture et motif de prolongation.
+- `RecruitmentCriterion` normalise les critères avec obligation, poids et ordre.
+- `RecruitmentPublicationEvent` journalise création de version, publication, prolongation et clôture.
+
+### Machine serveur de lancement
+- `recruitment360_lot2_create_version` crée une version atomiquement avec critères et validations.
+- `recruitment360_lot2_publish` publie une version et synchronise `RecruiterJob.status`.
+- `recruitment360_lot2_extend` exige une nouvelle échéance future et un motif d'au moins 5 caractères.
+- `recruitment360_lot2_close` clôture l'annonce, ferme les candidatures et verrouille le recrutement.
+- Toutes les RPC Lot 2 sont `service_role`-only ; l'API authentifie d'abord l'utilisateur puis transmet son `User.id` interne.
+
+### API / UX Recruiter
+- `GET/POST /api/recruitment360/jobs/[id]/announcement` : lecture des versions/critères/événements et création d'une nouvelle version.
+- `POST .../publish` : publication serveur.
+- `POST .../extend` : prorogation serveur.
+- `POST .../close` : clôture serveur.
+- `RecruiterJobForm` expose échéance, critères, versions, prolongation et clôture.
+- Une publication passe par la version 360 ; l'ancien `RecruiterJob` reste synchronisé pour compatibilité.
+
+### Preuves Lot 2
+- 1 version existante backfillée pour l'offre Recruiter historique.
+- 1 critère initial backfillé.
+- Scénario synthétique complet exécuté et nettoyé : création de version, publication, prolongation, clôture.
+- Les 3 nouvelles tables ont RLS + policies SELECT ; `anon/authenticated` ne disposent pas des droits d'écriture.
+- Index FK Lot 2 ajoutés après passage de l'advisor performance.
+- Aucun déploiement Vercel ; aucun merge `main`.
+
+### Limite de certification
+- Le build/lint/typecheck Next.js n'a pas pu être exécuté depuis l'environnement connecté actuel ; aucun check CI n'est attaché au head au moment de ce checkpoint.
+- Les fournisseurs e-mail/push restent ceux du chantier notifications ; Lot 2 ne prétend pas livrer les canaux externes.
+
+---
 
 ## Lot 1 — Fondations : périmètre livré
 
