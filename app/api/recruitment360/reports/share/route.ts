@@ -48,15 +48,12 @@ export async function GET(req:NextRequest){
  if(error||!share||share.revokedAt||new Date(share.expiresAt).getTime()<=Date.now())return NextResponse.json({message:"Lien expiré ou révoqué."},{status:410});
  const {data:report,error:re}=await sb.rpc("recruitment360_lot7_get_report",{p_recruitment_id:share.recruitmentId,p_actor_user_id:share.createdByUserId});
  if(re){
-   const {data:r}=await sb.from("Recruitment360").select("id,recruiterJobId").eq("id",share.recruitmentId).single();
-   if(!r)return NextResponse.json({message:"Rapport introuvable."},{status:404});
-   const {data:raw,error:rr}=await sb.rpc("recruitment360_lot7_get_report",{p_recruitment_id:share.recruitmentId,p_actor_user_id:(await sb.from("RecruitmentRole").select("userId").eq("recruitmentId",share.recruitmentId).in("role",["OWNER","HR","MANAGER","DG_READONLY","DELEGATE"]).limit(1).maybeSingle()).data?.userId});
-   if(rr||!raw)return NextResponse.json({message:"Rapport indisponible."},{status:404});
-   const clean=sanitize(raw,share.scope,share.applicationId||undefined);
-   await sb.from("RecruitmentReportShare").update({"lastAccessedAt":new Date().toISOString(),"accessCount":Number(share.accessCount||0)+1}).eq("id",share.id);
-   return NextResponse.json({report:clean,expiresAt:share.expiresAt});
+   return NextResponse.json({message:"Rapport indisponible."},{status:404});
  }
  const clean=sanitize(report,share.scope,share.applicationId||undefined);
+ await sb.from("RecruitmentReportShare").update({"lastAccessedAt":new Date().toISOString(),"accessCount":Number(share.accessCount||0)+1}).eq("id",share.id);
+ return NextResponse.json({report:clean,expiresAt:share.expiresAt});
+ }
  await sb.from("RecruitmentReportShare").update({"lastAccessedAt":new Date().toISOString(),"accessCount":Number(share.accessCount||0)+1}).eq("id",share.id);
  return NextResponse.json({report:clean,expiresAt:share.expiresAt});
 }
