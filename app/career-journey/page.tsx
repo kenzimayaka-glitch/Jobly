@@ -10,10 +10,17 @@ export default function CareerJourneyPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [evidenceFor, setEvidenceFor] = useState<string | null>(null);
+  const [evidenceTitle, setEvidenceTitle] = useState("");
+  const [evidenceDescription, setEvidenceDescription] = useState("");
+  const [evidenceMetric, setEvidenceMetric] = useState("");
+  const [evidenceValue, setEvidenceValue] = useState("");
 
   const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
     const { data: session } = await getSupabaseClient().auth.getSession();
-    return session.session?.access_token ? { Authorization: `Bearer ${session.session.access_token}` } : {};
+    const headers: Record<string, string> = {};
+    if (session.session?.access_token) headers.Authorization = `Bearer ${session.session.access_token}`;
+    return headers;
   }, []);
 
   const load = useCallback(async () => {
@@ -80,7 +87,14 @@ export default function CareerJourneyPage() {
                 <div key={r.id} className="rounded-2xl border border-slate-200 p-4">
                   <p className="font-semibold">{r.title}</p>
                   <p className="mt-1 text-sm text-slate-600">{r.rationale}</p>
-                  <p className="mt-2 text-xs text-slate-400">{r.type}</p>
+                  <p className="mt-2 text-xs font-medium uppercase tracking-wide text-slate-400">{r.type === "LEARN" ? "Formation / apprentissage" : r.type}</p>
+                  {r.type === "LEARN" && Array.isArray(r.alternatives) && r.alternatives.length > 0 && (
+                    <div className="mt-3 space-y-1 text-xs text-slate-500">
+                      {r.alternatives.slice(0, 3).map((option: any, index: number) => (
+                        <p key={index}>• {typeof option === "string" ? option : option.label}</p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               {!data?.recommendations?.length && <p className="text-sm text-slate-500">Aucune recommandation enregistrée.</p>}
@@ -95,9 +109,23 @@ export default function CareerJourneyPage() {
                 <div className="flex items-start justify-between gap-3"><h3 className="font-semibold">{m.title}</h3><span className="text-xs text-slate-400">{m.status}</span></div>
                 <p className="mt-2 text-sm text-slate-600">{m.objective}</p>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-slate-900" style={{ width: `${m.progressPercent || 0}%` }} /></div>
+                <button disabled={busy} onClick={() => { setEvidenceFor(m.id); setEvidenceTitle(""); setEvidenceDescription(""); setEvidenceMetric(""); setEvidenceValue(""); }} className="mt-3 rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold">Ajouter une preuve terrain</button>
+                {evidenceFor === m.id && <div className="mt-3 space-y-2 rounded-2xl bg-slate-50 p-3">
+                  <input value={evidenceTitle} onChange={e => setEvidenceTitle(e.target.value)} placeholder="Ex. Résultat terrain / challenge géré" className="w-full rounded-xl border border-slate-200 bg-white p-2 text-sm" />
+                  <textarea value={evidenceDescription} onChange={e => setEvidenceDescription(e.target.value)} placeholder="Ce qui a réellement été réalisé…" className="w-full rounded-xl border border-slate-200 bg-white p-2 text-sm" />
+                  <div className="grid grid-cols-2 gap-2"><input value={evidenceMetric} onChange={e => setEvidenceMetric(e.target.value)} placeholder="Métrique (ex. CA)" className="rounded-xl border border-slate-200 bg-white p-2 text-sm" /><input value={evidenceValue} onChange={e => setEvidenceValue(e.target.value)} placeholder="Valeur" inputMode="decimal" className="rounded-xl border border-slate-200 bg-white p-2 text-sm" /></div>
+                  <div className="flex gap-2"><button disabled={busy || !evidenceTitle.trim()} onClick={async () => { await post({ action: "ADD_EVIDENCE", missionId: m.id, title: evidenceTitle, description: evidenceDescription, type: "DOCUMENT", terrainKind: "PHOTO_OR_TERRAIN", metric: evidenceMetric, value: evidenceValue ? Number(evidenceValue) : undefined, acceptedByUser: true }); setEvidenceFor(null); }} className="rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white">Enregistrer</button><button onClick={() => setEvidenceFor(null)} className="rounded-full border border-slate-300 px-3 py-1.5 text-xs">Annuler</button></div>
+                </div>}
               </div>
             ))}
             {!data?.missions?.length && <p className="text-sm text-slate-500">J’IA pourra proposer une mission après identification d’un écart concret.</p>}
+          </div>
+        </Panel>
+
+        <Panel title="Preuves de terrain et matière carrière">
+          <div className="grid gap-3 md:grid-cols-2">
+            {(data?.evidence || []).slice(0, 10).map((e: any) => <div key={e.id} className="rounded-2xl border border-slate-200 p-4"><div className="flex justify-between gap-3"><p className="font-semibold">{e.title}</p><span className="text-xs text-slate-400">{e.verified ? "Vérifiée" : "À vérifier"}</span></div><p className="mt-1 text-sm text-slate-600">{e.description || "Preuve capturée dans Career Journey."}</p>{e.metadata?.metric && <p className="mt-2 text-xs font-medium text-slate-500">{e.metadata.metric} : {e.metadata.value ?? "—"} {e.metadata.unit || ""}</p>}</div>)}
+            {!data?.evidence?.length && <p className="text-sm text-slate-500">Chaque mission peut produire une preuve : photo terrain, résultat, document, cas concret ou challenge géré.</p>}
           </div>
         </Panel>
 
