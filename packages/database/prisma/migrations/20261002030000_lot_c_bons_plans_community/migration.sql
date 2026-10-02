@@ -82,13 +82,36 @@ create table "CommunityPost" (
   "authorId" text not null references "User"("id") on delete cascade,
   "content" text not null,
   "status" text not null default 'PUBLISHED',
+  "sourceType" text,
+  "sourceId" text,
+  "mediaUrl" text,
+  "sourceUrl" text,
   "createdAt" timestamptz not null default now(),
-  "updatedAt" timestamptz not null default now()
+  "updatedAt" timestamptz not null default now(),
+  constraint "CommunityPost_communityId_sourceType_sourceId_key"
+    unique ("communityId","sourceType","sourceId")
 );
 create index "CommunityPost_communityId_createdAt_idx"
   on "CommunityPost" ("communityId","createdAt");
 create index "CommunityPost_authorId_createdAt_idx"
   on "CommunityPost" ("authorId","createdAt");
+
+-- Jobly is the system author for automatic Community creation/publications.
+insert into "User" ("id","displayName","role","createdAt","updatedAt")
+values ('jobly-community-system','J’IA Jobly','ADMIN',now(),now())
+on conflict ("id") do nothing;
+
+insert into "Community" ("id","createdById","name","slug","description","category","status")
+values
+('jobly-community-tech-digital','jobly-community-system','Tech & Digital','tech-digital','Développement, IA, Data, cybersécurité et métiers du numérique.','Tech & Digital','ACTIVE'),
+('jobly-community-business-sales','jobly-community-system','Business & Sales','business-sales','Vente, business development, commerce, entrepreneuriat et partenariats.','Business & Sales','ACTIVE'),
+('jobly-community-marketing-communication','jobly-community-system','Marketing & Communication','marketing-communication','Marketing, communication, contenu, marque et acquisition.','Marketing & Communication','ACTIVE'),
+('jobly-community-finance-comptabilite','jobly-community-system','Finance & Comptabilité','finance-comptabilite','Finance, banque, audit, fiscalité et comptabilité.','Finance & Comptabilité','ACTIVE'),
+('jobly-community-ressources-humaines','jobly-community-system','Ressources humaines','ressources-humaines','Recrutement, talent, RH, développement des personnes et organisation.','Ressources humaines','ACTIVE'),
+('jobly-community-ingenierie-industrie','jobly-community-system','Ingénierie & Industrie','ingenierie-industrie','Ingénierie, industrie, construction et métiers techniques.','Ingénierie & Industrie','ACTIVE'),
+('jobly-community-design-creativite','jobly-community-system','Design & Créativité','design-creativite','Design, UX/UI, création, image, vidéo et métiers créatifs.','Design & Créativité','ACTIVE'),
+('jobly-community-education-formation','jobly-community-system','Éducation & Formation','education-formation','Éducation, enseignement, formation, apprentissage et transmission.','Éducation & Formation','ACTIVE')
+on conflict ("id") do nothing;
 
 create table "CommunityPostComment" (
   "id" text primary key,
