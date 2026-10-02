@@ -4402,3 +4402,11 @@ JOBLY-PROD ne contient pas encore les tables Career* de Career Journey ; aucune 
 | Vercel / production | ⏸️ Aucun déploiement |
 
 Règle : CODÉ ≠ CONNECTÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.
+
+
+## Mise à jour — raccordement API Talent multi-pays
+- `GET /api/jobs?scope=countries&targetCountryCodes=CM,SN` raccordé au contrôle serveur du plan Talent actif.
+- Préparation multi-pays permise à partir de START; FREE refusé avec réponse 403 et code `TALENT_MARKET_ENTITLEMENT_REQUIRED`.
+- Le filtrage multi-pays utilise les codes des offres existantes; offres sans `countryCode` exclues de ce scope.
+- UI, activation veille, veille PRO, quotas/crédits et tests restent à faire.
+- Aucun schéma Supabase modifié, aucun merge main et aucun déploiement.
