@@ -37,19 +37,19 @@ export const PLAN_CATALOG: Record<PlanCode, PlanDefinition> = {
     code: "START", name: "Start", tagline: "Accélérer sa recherche.", monthlyPriceXaf: 1800, annualPriceXaf: 5000,
     aiCredits: 30, storageMb: 100, applicationsPerWeek: 30, bulkApplicationLimit: 1, cvVersions: 3, savedJobs: 100, alerts: 5,
     atsConversionIncluded: true, atsConversionPriceXaf: 0, cvDownloadPriceXaf: 0, cvAtsDownloadPriceXaf: 0, cvOptimizedDownloadPriceXaf: 0, recruiterEmailConnect: 0, recruiterAtsFilters: "limited", communityAccess: true, blueBadge: false,
-    features: ["Tout Free", "30 candidatures / semaine", "Matching amélioré", "Analyse CV 10/mois", "Alertes personnalisées", "Career Brain amélioré", "Conversion CV → ATS incluse", "Téléchargements CV ATS et optimisés inclus"],
+    features: ["Tout Free", "30 candidatures / semaine", "Matching amélioré", "Analyse CV 10/mois", "Alertes personnalisées", "Career Brain amélioré", "Conversion CV → ATS incluse", "Téléchargements CV ATS et optimisés inclus", "Community professionnelle"],
   },
   PREMIUM: {
     code: "PREMIUM", name: "Premium", tagline: "JOBLY travaille avec moi.", monthlyPriceXaf: 3500, annualPriceXaf: 15500,
     aiCredits: 120, storageMb: 250, applicationsPerWeek: 100, bulkApplicationLimit: 10, cvVersions: Infinity, savedJobs: Infinity, alerts: 20,
     atsConversionIncluded: true, atsConversionPriceXaf: 0, cvDownloadPriceXaf: 0, cvAtsDownloadPriceXaf: 0, cvOptimizedDownloadPriceXaf: 0, recruiterEmailConnect: 1, recruiterAtsFilters: "full", communityAccess: true, blueBadge: true,
-    features: ["Tout Start", "100 candidatures / semaine", "Multi-postulation jusqu'à 10 offres", "Matching avancé", "Optimisation CV", "Lettre de motivation", "Career Brain complet", "Préparation entretien", "Job Search Assistant", "Connexion boîte mail recruteur", "ATS & matching recruteur", "CV → ATS inclus", "Téléchargements CV inclus"],
+    features: ["Tout Start", "100 candidatures / semaine", "Multi-postulation jusqu'à 10 offres", "Matching avancé", "Optimisation CV", "Lettre de motivation", "Career Brain complet", "Préparation entretien", "Job Search Assistant", "Connexion boîte mail recruteur", "ATS & matching recruteur", "CV → ATS inclus", "Téléchargements CV inclus", "Community professionnelle", "Badge bleu vérifié ✔️"],
   },
   PRO: {
     code: "PRO", name: "Pro", tagline: "JOBLY pilote activement ma stratégie de carrière.", monthlyPriceXaf: 5000, annualPriceXaf: 25800,
     aiCredits: 300, storageMb: 500, applicationsPerWeek: 200, bulkApplicationLimit: 10, cvVersions: Infinity, savedJobs: Infinity, alerts: Infinity,
     atsConversionIncluded: true, atsConversionPriceXaf: 0, cvDownloadPriceXaf: 0, cvAtsDownloadPriceXaf: 0, cvOptimizedDownloadPriceXaf: 0, recruiterEmailConnect: Infinity, recruiterAtsFilters: "advanced", communityAccess: true, blueBadge: true,
-    features: ["Tout Premium", "200 candidatures / semaine", "Career Brain avancé", "Career Twin avancé", "Simulation entretien", "Adaptation avancée des candidatures", "Recherche priorisée", "Mobility avancée", "Automatisations recruteur avancées", "Support prioritaire", "Opérations CV incluses"],
+    features: ["Tout Premium", "200 candidatures / semaine", "Career Brain avancé", "Career Twin avancé", "Simulation entretien", "Adaptation avancée des candidatures", "Recherche priorisée", "Mobility avancée", "Automatisations recruteur avancées", "Support prioritaire", "Opérations CV incluses", "Community professionnelle", "Badge bleu vérifié ✔️"],
   },
 };
 
@@ -68,9 +68,9 @@ export type RecruiterPlanDefinition = {
 /** Recruiter pricing is intentionally independent from the Talent catalog. */
 export const RECRUITER_PLAN_CATALOG: Record<PlanCode, RecruiterPlanDefinition> = {
   FREE: { code: "FREE", name: "Free", tagline: "Recruter simplement sur JOBLY.", monthlyPriceXaf: 0, annualPriceXaf: 0, aiCredits: 5, communityAccess: false, blueBadge: false, features: ["Profil entreprise", "Publication et gestion de base", "Recherche Talent de base"] },
-  START: { code: "START", name: "Start", tagline: "Structurer son recrutement.", monthlyPriceXaf: 15000, annualPriceXaf: 50000, aiCredits: 30, communityAccess: true, blueBadge: false, features: ["Tout Free", "Recherche Talent améliorée", "ATS de base", "Matching J’IA"] },
-  PREMIUM: { code: "PREMIUM", name: "Premium", tagline: "Accélérer ses recrutements.", monthlyPriceXaf: 30000, annualPriceXaf: 80000, aiCredits: 120, communityAccess: true, blueBadge: true, features: ["Tout Start", "Talent Intelligence", "ATS avancé", "Matching avancé", "Gmail ATS", "Multiposting"] },
-  PRO: { code: "PRO", name: "Pro", tagline: "Piloter son recrutement avec J’IA.", monthlyPriceXaf: 50000, annualPriceXaf: 100000, aiCredits: 300, communityAccess: true, blueBadge: true, features: ["Tout Premium", "J’IA recrutement avancée", "Automatisations", "Talent 360", "Recherche avancée", "Support prioritaire"] },
+  START: { code: "START", name: "Start", tagline: "Structurer son recrutement.", monthlyPriceXaf: 15000, annualPriceXaf: 50000, aiCredits: 30, communityAccess: true, blueBadge: false, features: ["Tout Free", "Recherche Talent améliorée", "ATS de base", "Matching J’IA", "Community professionnelle"] },
+  PREMIUM: { code: "PREMIUM", name: "Premium", tagline: "Accélérer ses recrutements.", monthlyPriceXaf: 30000, annualPriceXaf: 80000, aiCredits: 120, communityAccess: true, blueBadge: true, features: ["Tout Start", "Talent Intelligence", "ATS avancé", "Matching avancé", "Gmail ATS", "Multiposting", "Community professionnelle", "Badge bleu vérifié ✔️"] },
+  PRO: { code: "PRO", name: "Pro", tagline: "Piloter son recrutement avec J’IA.", monthlyPriceXaf: 50000, annualPriceXaf: 100000, aiCredits: 300, communityAccess: true, blueBadge: true, features: ["Tout Premium", "J’IA recrutement avancée", "Automatisations", "Talent 360", "Recherche avancée", "Support prioritaire", "Community professionnelle", "Badge bleu vérifié ✔️"] },
 };
 
 export const RECRUITER_BA_COMMISSION_RATES: Record<Exclude<PlanCode, "FREE">, number> = {
