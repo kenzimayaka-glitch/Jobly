@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, ensureUser, getAuthUser, newId, cleanStrings } from "../../../lib/server-auth";
+import { adminClient, ensureUser, getAuthUser, newId } from "../../../lib/server-auth";
+import { announceEventToCommunities } from "@/lib/community/automation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,5 +70,20 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await db.from("BonPlan").insert(payload).select("*").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ item: data }, { status: 201 });
+
+  const normalizedCategory = category.toLowerCase();
+  let communityAnnouncement = null;
+  if (["event", "events", "événement", "événements"].includes(normalizedCategory)) {
+    communityAnnouncement = await announceEventToCommunities(db, {
+      id: data.id,
+      title: data.title,
+      description: data.description,
+      imageUrl: data.imageUrl,
+      sourceUrl: data.sourceUrl,
+      discipline: normalize(body.discipline) || null,
+      categories: Array.isArray(body.communityCategories) ? body.communityCategories.filter((value: unknown): value is string => typeof value === "string") : [],
+    });
+  }
+
+  return NextResponse.json({ item: data, communityAnnouncement }, { status: 201 });
 }
