@@ -193,7 +193,8 @@ export async function POST(request: NextRequest) {
         .not("sourceUrl", "is", null)
         .not("sourceKey", "is", null)
         .eq("isActive", true)
-        .order("normalizedAt", { ascending: true, nullsFirst: true })
+        .order("createdAt", { ascending: true })
+        .order("id", { ascending: true })
         .range(offset, offset + batchSize - 1);
       if (error) throw new Error(error.message);
 
