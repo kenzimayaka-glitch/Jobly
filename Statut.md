@@ -4696,3 +4696,8 @@ Le premier typecheck de la reconstruction a révélé que `lib/community/access.
 ## Correction build — Prisma schema
 
 Le premier build complet a révélé une erreur de validation Prisma masquée tant que `prisma generate` n'était pas exécuté explicitement : plusieurs enums Career Journey étaient écrits sur une seule ligne, format refusé par le parseur Prisma 6.19.3. Ils ont été normalisés en blocs multi-lignes. Cette correction reste sur la branche jusqu'à validation typecheck + build.
+
+
+## Correction build — Prisma relations User ↔ Mobility/Partner
+
+Le build complet a ensuite révélé deux relations Prisma sans champ opposé dans `User` : `MobilityRequest.user` et `PartnerExtended.user`. Les champs `mobilityRequests` et `partnerExtended` ont été ajoutés au modèle `User` afin de fermer ces relations sans modifier le contrat applicatif.

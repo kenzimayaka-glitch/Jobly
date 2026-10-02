@@ -186,6 +186,8 @@ model User {
   careerAssessments CareerCompetencyAssessment[]
   careerAttempts CareerCompetencyAttempt[]
   careerReviews CareerReview[]
+  mobilityRequests MobilityRequest[]
+  partnerExtended PartnerExtended?
 }
 
 model Profile {
