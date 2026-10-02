@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
       activePaidPlan,
     });
     if (eligibility.status === "INELIGIBLE") {
+      await sb.from("MobilityRecruiterGuarantee").delete().eq("id", guarantee.id);
       return NextResponse.json({ message: "La garantie recruteur ne peut pas contourner une inéligibilité Mobility.", eligibility }, { status: 422 });
     }
     const monthly = Math.round(total / repaymentMonths);
