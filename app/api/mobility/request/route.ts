@@ -62,9 +62,9 @@ export async function POST(req: NextRequest) {
       approvedSalary: salary,
       salaryCurrency: currency,
       costs: [
-        { category: "TRANSPORT", amount: costs.transport, currency, source: "SYSTEM_ESTIMATE" },
-        { category: "HOUSING", amount: costs.housing, currency, source: "SYSTEM_ESTIMATE" },
-        { category: "INSTALLATION", amount: costs.moving, currency, source: "SYSTEM_ESTIMATE" },
+        { category: "TRANSPORT", amount: costs.transportCost, currency, source: "SYSTEM_ESTIMATE" },
+        { category: "HOUSING", amount: costs.housingCost, currency, source: "SYSTEM_ESTIMATE" },
+        { category: "INSTALLATION", amount: costs.movingCost, currency, source: "SYSTEM_ESTIMATE" },
       ],
       companyMobilityAgreementAccepted: true,
       recruiterGuaranteeAccepted: false,
@@ -119,9 +119,9 @@ export async function POST(req: NextRequest) {
     if (error) throw new Error(error.message);
 
     await gate.sb.from("MobilityCostItem").insert([
-      { mobilityRequestId: requestId, category: "TRANSPORT", amount: costs.transport, currency, source: "SYSTEM_ESTIMATE", eligibilityStatus: "PENDING" },
-      { mobilityRequestId: requestId, category: "HOUSING", amount: costs.housing, currency, source: "SYSTEM_ESTIMATE", eligibilityStatus: "PENDING" },
-      { mobilityRequestId: requestId, category: "INSTALLATION", amount: costs.moving, currency, source: "SYSTEM_ESTIMATE", eligibilityStatus: "PENDING" },
+      { mobilityRequestId: requestId, category: "TRANSPORT", amount: costs.transportCost, currency, source: "SYSTEM_ESTIMATE", eligibilityStatus: "PENDING" },
+      { mobilityRequestId: requestId, category: "HOUSING", amount: costs.housingCost, currency, source: "SYSTEM_ESTIMATE", eligibilityStatus: "PENDING" },
+      { mobilityRequestId: requestId, category: "INSTALLATION", amount: costs.movingCost, currency, source: "SYSTEM_ESTIMATE", eligibilityStatus: "PENDING" },
     ]);
 
     await gate.sb.from("MobilityEligibilityDecision").insert({
