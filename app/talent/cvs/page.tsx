@@ -69,7 +69,12 @@ export default function TalentCVs() {
   const [cvPaymentMessage, setCvPaymentMessage] = useState("");
   const [previewVersion, setPreviewVersion] = useState<"jobly" | "ats" | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const activeTemplate = CV_TEMPLATES.find(item => item.id === templateId) || CV_TEMPLATES[0];\n  const selectTemplate = (id: string) => {\n    const template = CV_TEMPLATES.find(item => item.id === id);\n    if (!template) return;\n    setTemplateId(id);\n  };
+  const activeTemplate = CV_TEMPLATES.find(item => item.id === templateId) || CV_TEMPLATES[0];
+  const selectTemplate = (id: string) => {
+    const template = CV_TEMPLATES.find(item => item.id === id);
+    if (!template) return;
+    setTemplateId(id);
+  };
 
   useEffect(() => {
     try { setCvs(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch {}
