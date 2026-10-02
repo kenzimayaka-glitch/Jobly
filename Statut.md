@@ -4277,3 +4277,199 @@ Le Lot 11 intègre désormais C2/C3, y compris le nouveau format JPEG vertical 1
 **État : 🔧 CODÉ + INTÉGRÉ + contrôles DB exécutés — 🟡 VALIDATION E2E/CI RESTANTE.**
 
 **Aucun merge vers main. Aucun déploiement Vercel.**
+
+
+# CHECKPOINT 02/10/2026 — JOBLY AFRICA / INSTITUTIONAL HUB / J’IA ORCHESTRATION
+
+## Décision produit
+
+La vision « Jobly commence au Cameroun, mais connecte dès maintenant ses utilisateurs à l’Afrique » est structurée comme une **dimension transversale de Jobly**, et non comme un produit ou un silo séparé « Jobly Africa ».
+
+Principe :
+> **Ne pas multiplier les onglets. Enrichir les écosystèmes existants et faire de J’IA le liant fonctionnel.**
+
+## Mon Afrique
+- « Mon Marché » n’est pas créé.
+- Structure : **Le pays / Mon Afrique / Découvrir l’Afrique**.
+- Mon Afrique = flux professionnel africain personnalisé.
+- Filtre cible : **Tous / Pays / En cours / CDD / CDI / Stage / Remote**.
+- Filtrage possible par pays : actuel, origine, intérêt ou tous.
+- Direction : ne pas créer un deuxième job board ; personnaliser le flux avec Career Brain, Mobility et préférences.
+
+## Découvrir l’Afrique
+Exploration progressive :
+- emplois ;
+- stages ;
+- CDD/CDI ;
+- remote ;
+- formations ;
+- bourses ;
+- programmes ;
+- événements ;
+- opportunités institutionnelles.
+
+La couverture opérationnelle doit progresser par étapes ; ne pas prétendre disposer immédiatement d’une infrastructure complète dans tous les pays africains.
+
+## J’IA — veille et QCM conversationnel
+J’IA peut comprendre :
+- « Fais une veille sur mon pays natal. »
+- « Surveille la Côte d’Ivoire. »
+- « Je veux suivre les CDI au Sénégal. »
+- « Construis mon Afrique professionnelle. »
+
+J’IA peut **proposer** l’action avant de l’exécuter.
+
+Les paramètres peuvent être présentés sous forme de **QCM/choix multiples interactifs** : pays, métier, secteur, contrat, remote, expérience, compatibilité, fréquence.
+
+**Règle :** toute action persistante ou sensible est confirmée par l’utilisateur.
+
+## Africa Alert
+Africa Alert n’est pas une nouvelle rubrique : c’est une capacité de veille J’IA permettant de créer, modifier, suspendre, reprendre, supprimer ou proposer une veille.
+
+## Jobly Community
+Un seul espace **Jobly Community**, sans multiplication d’onglets.
+Filtres possibles : Toutes / Pays / Étudiants / Métiers / Universités / Associations / Professionnels.
+
+J’IA peut proposer une communauté pertinente avec choix **Découvrir / Plus tard / Ne plus proposer**.
+
+Aucun ajout automatique à une communauté.
+
+## Institutional Hub
+**Institutional Hub est ajouté au choix des écosystèmes Jobly.**
+
+Publics cibles :
+- universités/écoles ;
+- mairies/collectivités ;
+- ambassades/consulats ;
+- ONG/fondations ;
+- organismes publics ;
+- organisations internationales ;
+- organismes de formation.
+
+Un hub vérifié peut publier et présenter :
+- opportunités ;
+- programmes ;
+- formations ;
+- bourses ;
+- événements ;
+- appels à candidatures ;
+- actualités ;
+- contacts.
+
+### Opportunity Intelligence intégrée
+L’intelligence d’opportunité est intégrée à Institutional Hub :
+- statistiques ;
+- rapports ;
+- suivi des programmes ;
+- insertion ;
+- mobilité ;
+- tendances ;
+- suivi postuniversitaire lorsque les données et consentements le permettent.
+
+Pour les universités : suivi des diplômés, promotions, insertion, mobilité, secteurs, métiers, employeurs, compétences et rapports alumni.
+
+Pour mairies/ONG : suivi des jeunes accompagnés, formations, programmes, opportunités et insertion.
+
+Pour ambassades : bourses, stages, programmes, événements, appels à candidatures et opportunités.
+
+**Principe data :** statistiques agrégées et données autorisées ; pas de commercialisation de données personnelles individuelles.
+
+## Jobly Recruiter — diffusion multi-marchés
+Pas de « Jobly Africa Recruiter » séparé.
+
+Lors de la publication d’une offre, le recruteur choisit le marché cible :
+- son pays par défaut ;
+- un autre pays ;
+- plusieurs pays ;
+- Afrique.
+
+La diffusion multi-marchés/panafricaine est une capacité **PRO**, avec contrôle d’entitlement côté serveur.
+
+J’IA peut proposer l’extension et afficher des choix de marchés.
+
+## Jobly Mobility
+« Africa Mobility » est intégré à **Jobly Mobility** et étend sa logique à l’Afrique :
+- pays actuel ;
+- pays d’origine ;
+- pays souhaités ;
+- mobilité ;
+- présentiel ;
+- hybride ;
+- remote ;
+- disponibilité.
+
+J’IA peut détecter une opportunité de mobilité et proposer une action.
+
+## Career Brain — Africa Professional Card
+« Africa Professional Passport » devient une **carte professionnelle Jobly partageable** dans Career Brain.
+
+Contenu possible :
+- identité professionnelle ;
+- métier ;
+- compétences ;
+- expériences ;
+- formations ;
+- langues ;
+- pays d’origine ;
+- pays de résidence ;
+- mobilité ;
+- préférences.
+
+Le QR doit idéalement pointer vers une fiche Jobly sécurisée et partageable afin de permettre mise à jour, révocation, confidentialité et expiration éventuelle.
+
+Ce n’est pas un document officiel.
+
+## Jobly Events
+« Africa Campaigns » est intégré à **Jobly Events** :
+- Career Days ;
+- forums ;
+- salons ;
+- conférences ;
+- journées universitaires ;
+- Scholarship Days ;
+- Africa Career Week ;
+- campagnes de recrutement ;
+- programmes jeunesse.
+
+Le sponsoring d’événements est intégré avec identification claire du sponsor et statistiques adaptées.
+
+J’IA peut recommander des événements pertinents et proposer **Voir / S’inscrire / Plus tard**.
+
+## J’IA devient le liant
+J’IA orchestre :
+**Offres / Mon Afrique / Découvrir l’Afrique / Career Brain / Mobility / Community / Events / Recruiter / Institutional Hub.**
+
+Elle peut détecter, expliquer, proposer, préconfigurer, demander confirmation, exécuter une action autorisée et vérifier le résultat.
+
+Elle ne doit pas rejoindre automatiquement une communauté, créer silencieusement une veille permanente, inscrire automatiquement à un événement, modifier silencieusement des préférences, postuler sans autorisation ou contourner un entitlement.
+
+## Écosystèmes cible
+Choix d’écosystèmes :
+- Career ;
+- Community ;
+- Institutional Hub ;
+- Recruiter ;
+- Events.
+
+J’IA reste transversale.
+
+## Gouvernance
+Avant toute implémentation : **FREE / START / PREMIUM / PRO / Institutional**, profondeur, quotas, crédits J’IA, entitlement, enforcement serveur, UI et tests.
+
+Lots cibles :
+A. Mon Afrique
+B. Veille J’IA
+C. Jobly Community
+D. Jobly Mobility
+E. Career Brain / Africa Professional Card
+F. Jobly Events / Sponsoring
+G. Institutional Hub / Opportunity Intelligence
+H. Recruiter / marché multi-pays
+I. Orchestration J’IA / QCM / propositions contextuelles
+
+## État de vérité
+**🟦 DÉCISION PRODUIT VALIDÉE — NON IMPLÉMENTÉE COMME LOT COMPLET.**
+
+Ce checkpoint documente la direction cible et ne constitue pas une preuve d’implémentation.
+
+**Aucun merge vers `main`. Aucun déploiement Vercel.**
