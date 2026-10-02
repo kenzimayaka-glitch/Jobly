@@ -63,7 +63,7 @@ Le Hub est une **fonction B2B contractuelle payante, de profondeur PRO**, distin
 - J’IA institutionnelle : **surface préparée**, intelligence métier approfondie à poursuivre au Lot D.
 - E2E/runtime : **À TESTER**.
 - Vercel : **AUCUN DÉPLOIEMENT**.
-- Main : sera intégré après contrôle CI/PR.
+- Main : 🟢 intégré via PR #159, commit `ba7baf3bd0faddf2b9c4435033e65c348f1c66370` (documentation mise à jour ensuite).
 
 > Règle : la présence des fichiers et le merge ne valent pas validation E2E ni déploiement.
 
