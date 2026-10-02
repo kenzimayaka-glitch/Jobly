@@ -71,7 +71,7 @@ export async function createOrUpdateWatchSubscription(
 }
 
 export async function runPersistentWatch(subscription: PersistentWatchRow) {
-  const scheduledFor = subscription.nextCheckAt ?? new Date().toISOString();
+  const scheduledFor = subscription.nextCheckAt ?? new Date(Date.now() - (Date.now() % 60000)).toISOString();
   const db = adminClient();
   const runId = randomUUID();
 
