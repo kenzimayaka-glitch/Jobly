@@ -18,7 +18,7 @@ type Post = {
   createdAt: string;
   mediaUrl?: string | null;
   sourceUrl?: string | null;
-  author?: { id: string; displayName?: string | null; username?: string | null; profilePhotoUrl?: string | null };
+  author?: { id: string; displayName?: string | null; username?: string | null; profilePhotoUrl?: string | null; blueBadge?: boolean };
 };
 
 type Access = { allowed: boolean; reason: "ACTIVE" | "SUBSCRIPTION_REQUIRED" | "UNAUTHENTICATED"; blueBadge?: boolean };
@@ -182,7 +182,7 @@ export default function CommunityPage() {
                   ) : posts.map((post) => (
                     <article key={post.id} className="rounded-[24px] bg-white p-5 shadow-sm">
                       <div className="flex items-start gap-3">
-                        <CommunityAvatar photoUrl={post.author?.profilePhotoUrl} name={post.author?.displayName || post.author?.username} verified={Boolean(access.blueBadge)} />
+                        <CommunityAvatar photoUrl={post.author?.profilePhotoUrl} name={post.author?.displayName || post.author?.username} verified={post.author?.blueBadge === true} />
                         <div className="min-w-0">
                           <p className="text-xs font-black text-[#0B1F4B]">{post.author?.displayName || post.author?.username || "Membre Jobly"}</p>
                           <p className="mt-2 text-sm leading-6 text-slate-700 whitespace-pre-line">{post.content}</p>
