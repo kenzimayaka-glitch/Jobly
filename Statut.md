@@ -48,6 +48,39 @@ Le score expose maintenant matchBreakdown[] avec le critère, le poids, l'état,
 
 Ces changements sont poussés sur main par commits successifs et doivent être considérés **CODÉS**, pas encore **VALIDÉS**, jusqu'à vérification du build Vercel et du parcours /jobs en production.
 
+# LOT A — MON AFRIQUE — ÉTAT D’EXÉCUTION — 02/10/2026
+
+| Dimension | État | Détail |
+|---|---|---|
+| Spécifié | ✅ | Architecture minimale arrêtée |
+| Catalogue pays | 🔧 | 54 États dans `lib/countries/africa.ts` |
+| Feed / UI | 🔧 | Multi-pays au-dessus de `local/africa` existant |
+| API Jobs | 🔧 | `countries` + contexte `monAfrique`, sans modification User/Profile |
+| J’IA Brain | 🔧 | Contexte pays transmis au Brain existant |
+| Watcher | 🔧 | Extension personnalisée + confirmation explicite |
+| Matching | 🟢 inchangé | Aucun remplacement du moteur |
+| Candidatures | 🟢 inchangées | Aucun changement de flux |
+| User/Profile | 🟢 inchangé | Aucun champ de pays d’intérêt |
+| Tests architecture | ✅ | Contrôles statiques Lot A passés |
+| CI typecheck/build | ⚠️ BLOQUÉ | `lib/jobSourceCollector.ts:61` — erreur TS1128 hors Lot A |
+| Merge main | ⏸️ | Aucun |
+| Déploiement | ⏸️ | Aucun |
+
+## Contrat d’implémentation Lot A
+
+- Une seule source canonique pays.
+- Les scopes `local` et `africa` existants restent fonctionnels.
+- Mon Afrique ne crée pas de nouveau profil utilisateur.
+- Les pays sont un contexte J’IA explicite.
+- Le watcher historique n’est ni supprimé ni réduit.
+- Une veille personnalisée ne démarre qu’après confirmation explicite.
+- Stage reste hors des filtres Mon Afrique.
+- Aucun Premium n’est déclenché par une vulnérabilité ou un signal émotionnel.
+
+## Validation CI
+
+La PR **#152** a déclenché le CI. L’installation des dépendances réussit, puis le typecheck échoue sur `lib/jobSourceCollector.ts(61,1): TS1128`. Le fichier est hors périmètre Lot A et l’échec empêche mécaniquement l’étape build. Lot A n’est donc pas déclaré « validé E2E ».
+
 # 0. ÉTAT EXÉCUTIF — 20/09/2026
 
 **JOBLY est déployé en production sur le projet Vercel canonique `jobly-c0.6.5.1`.**
