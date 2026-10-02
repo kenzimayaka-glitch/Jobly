@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getOrCreateJourney, generateJourneyRecommendations } from "@/lib/careerJourney";
+import { getCareerJourneyEntitlements } from "@/lib/careerJourneyEntitlements";
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,6 +14,7 @@ export async function GET(request: NextRequest) {
       recommendations: ctx.recommendations,
       scenarios: ctx.scenarios,
       reviews: ctx.reviews,
+      entitlements: await getCareerJourneyEntitlements(ctx.supabase, ctx.user.id),
       profileContext: {
         targetRoles: ctx.context.profile?.targetRoles ?? [],
         preferredSectors: ctx.context.profile?.preferredSectors ?? [],
@@ -63,6 +65,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.action === "CREATE_SCENARIO") {
+      const entitlements = await getCareerJourneyEntitlements(ctx.supabase, ctx.user.id);
+      if (!entitlements.canScenarioSimulation) return NextResponse.json({ message: "La simulation de trajectoire avancée est disponible à partir de Premium.", requiredPlan: "PREMIUM" }, { status: 403 });
       const targetRole = typeof body.targetRole === "string" ? body.targetRole.trim() : "";
       if (!targetRole) return NextResponse.json({ message: "Le rôle cible est requis." }, { status: 400 });
       const { data, error } = await ctx.supabase.from("CareerPathScenario").insert({
