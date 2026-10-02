@@ -36,7 +36,7 @@ Réutiliser :
 - Seuil automatique 1 000 abonnés codé.
 - Notification de création de communauté branchée sur la table Notification existante.
 - Publication événementielle vers les communautés pertinentes codée.
-- Validation CI Typecheck/Build en cours sur la branche `feat/lot-c-bons-plans-community`.
+- La passe CI Typecheck/Build reste rouge à cause d'erreurs TypeScript hors Lot C ; aucune erreur Community n'est signalée dans le rapport. Le déploiement Vercel est donc volontairement bloqué tant que la gate de build n'est pas verte.
 - Aucun changement de `main` ni déploiement Vercel effectué à ce stade.
 
 ---
