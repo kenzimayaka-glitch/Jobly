@@ -3,6 +3,8 @@ import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNam
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
 import { detectLanguageRequirements, normalizeJobLanguage } from "../../../lib/jobLanguage";
+import { getActivePlanCode } from "../../../lib/entitlements";
+import { evaluateTalentMarketAction, normalizeTargetCountryCodes } from "../../../lib/talentMarketEntitlements";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -161,7 +163,14 @@ export async function GET(request:NextRequest){
   const authUser=await getAuthUser(request);if(!authUser)return NextResponse.json({message:"Session requise."},{status:401});
   const supabase=adminClient();const user=await ensureUser(supabase,authUser);const {searchParams}=new URL(request.url);
   const filterContract=searchParams.get("contractType"),filterCity=searchParams.get("city"),filterRemote=searchParams.get("remote"),search=searchParams.get("q");
-  const scope=searchParams.get("scope")==="africa" ? "africa" : "local";
+  const requestedScope=searchParams.get("scope") || "local";
+  const scope=requestedScope==="africa" ? "africa" : requestedScope==="countries" ? "countries" : "local";
+  const targetCountryCodes=normalizeTargetCountryCodes((searchParams.get("targetCountryCodes")||"").split(","));
+  if(scope==="countries"){
+    const plan=await getActivePlanCode(supabase,user.id,"TALENT");
+    const decision=evaluateTalentMarketAction({plan,action:"PREPARE_MULTI_COUNTRY",scope:"COUNTRIES",targetCountryCodes});
+    if(!decision.allowed)return NextResponse.json({message:decision.reason,code:"TALENT_MARKET_ENTITLEMENT_REQUIRED",market:{scope,targetCountryCodes,action:"PREPARE_MULTI_COUNTRY",requiredPlan:"START"}},{status:403});
+  }
   const requestedSize=Number(searchParams.get("limit")||DEFAULT_FEED_SIZE);const limit=Math.min(Math.max(Number.isFinite(requestedSize)?requestedSize:DEFAULT_FEED_SIZE,1),MAX_FEED_SIZE);
   const page=Math.max(Number(searchParams.get("page")||1)||1,1);
   const [profileRes,experiencesRes,skillsRes,educationRes,jobsRes,recruiterJobsRes,userRes]=await Promise.all([
@@ -180,7 +189,7 @@ export async function GET(request:NextRequest){
   const normalizeCountryCode=(value:unknown)=>{const raw=String(value||"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");if(/^[A-Z]{2}$/.test(raw))return raw;return countryAliases[raw]||null;};
   const userCountryCode=normalizeCountryCode((userRes.data as any)?.country);
   const countryNames:Record<string,string>={CM:"Cameroun",SN:"Sénégal",GA:"Gabon",CG:"Congo",CF:"République centrafricaine",TD:"Tchad",GQ:"Guinée équatoriale",BJ:"Bénin",BF:"Burkina Faso",CI:"Côte d’Ivoire",GN:"Guinée",GW:"Guinée-Bissau",ML:"Mali",NE:"Niger",TG:"Togo",NG:"Nigeria",GH:"Ghana",RW:"Rwanda",ZA:"Afrique du Sud",ZM:"Zambie",UG:"Ouganda",LR:"Liberia",SS:"Soudan du Sud",SZ:"Eswatini"};
-  const activeCountryCode=scope==="africa"?null:userCountryCode;const experiences=(experiencesRes.data as Experience[])||[];const skills=(skillsRes.data as Skill[])||[];const education=(educationRes.data as Education[])||[];const yearsExperience=computeYearsExperience(experiences);
+  const activeCountryCode=scope==="africa"||scope==="countries"?null:userCountryCode;const experiences=(experiencesRes.data as Experience[])||[];const skills=(skillsRes.data as Skill[])||[];const education=(educationRes.data as Education[])||[];const yearsExperience=computeYearsExperience(experiences);
   type Unified={normalizedContent?:NormalizedContent|null;source:"discovery"|"recruiter";sourceId:string;countryCode:string|null;title:string;description:string;location:string|null;contractType:string|null;remoteMode:string|null;minExperienceYears:number|null;companyName:string|null;companyId:string|null;createdAt:string;publishedAt:string|null;deadline:string|null;sourceUrl:string|null;sourcePlatform:string|null;applicationReady:boolean;applicationProfile:Record<string,unknown>;visualUrl:string|null;visualSource:string|null;applicationCheckedAt:string|null;sector:string|null;tags:string[];language?:string|null;languageRequirements?:string[]|null};
   const discovery=((jobsRes.data as Job[])||[]);
   const recruiter=((recruiterJobsRes.data as RecruiterJobRow[])||[]);
@@ -195,7 +204,7 @@ export async function GET(request:NextRequest){
     const location = normalize(job.location);
     return Boolean(localCountryName && location.includes(localCountryName));
   };
-  unified=unified.filter(j=>scope==="africa" ? !isLocalCountryOffer(j) : Boolean(activeCountryCode) ? normalizeCountryCode(j.countryCode)===activeCountryCode : true);
+  unified=unified.filter(j=>scope==="africa" ? !isLocalCountryOffer(j) : scope==="countries" ? targetCountryCodes.includes(normalizeCountryCode(j.countryCode)||"") : Boolean(activeCountryCode) ? normalizeCountryCode(j.countryCode)===activeCountryCode : true);
   unified=unified.map(job=>{const description=cleanJobDescription(job.description,job.title);const title=cleanJobTitle(job.title);const companyName=cleanCompanyName(job.companyName)||extractCompanyNameFromDescription(description);return {...job,title,description,companyName};});
   if(filterContract)unified=unified.filter(j=>normalize(j.contractType)===normalize(filterContract));if(filterCity)unified=unified.filter(j=>normalize(j.location).includes(normalize(filterCity)));if(filterRemote)unified=unified.filter(j=>normalize(j.remoteMode)===normalize(filterRemote));if(search){const n=normalize(search);unified=unified.filter(j=>normalize(j.title).includes(n)||normalize(j.companyName).includes(n));}
   // Discovery visibility is limited to offers with a verifiable direct application contact.
@@ -239,6 +248,6 @@ export async function GET(request:NextRequest){
       applicationReady:expired?false:Boolean(job.applicationReady),
     };
   });const matchingCount=visibleRanked.reduce((count,job)=>count+(job.matchPercent>=50?1:0),0);
-  return NextResponse.json({totalAvailable,matchingCount,count:results.length,page,limit,hasMore:start+limit<totalAvailable,yearsExperience,preferredLanguages,jobs:results,market:{scope,countryCode:activeCountryCode,countryName:activeCountryCode?(countryNames[activeCountryCode]||"Pays sélectionné"):null,userCountryCode},matchingPolicy:{matchingThreshold:50,ordering:"match_then_publication",externalRequiresApplicationReady:true}});
+  return NextResponse.json({totalAvailable,matchingCount,count:results.length,page,limit,hasMore:start+limit<totalAvailable,yearsExperience,preferredLanguages,jobs:results,market:{scope,countryCode:activeCountryCode,countryName:activeCountryCode?(countryNames[activeCountryCode]||"Pays sélectionné"):null,userCountryCode,targetCountryCodes:scope==="countries"?targetCountryCodes:[]},matchingPolicy:{matchingThreshold:50,ordering:"match_then_publication",externalRequiresApplicationReady:true}});
  }catch(error){return NextResponse.json({message:error instanceof Error?error.message:"Impossible de charger les offres."},{status:500});}
 }
