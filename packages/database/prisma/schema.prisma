@@ -1610,7 +1610,7 @@ model MobilityEligibilityDecision {
   approvedSalary Decimal? @db.Decimal(18,2)
   salaryCurrency String @default("XAF")
   totalMobilityCost Decimal @default(0) @db.Decimal(18,2)
-  thresholdPercent Decimal @default(35) @db.Decimal(5,2)
+  thresholdPercent Decimal @default(50) @db.Decimal(5,2)
   maximumEligibleCost Decimal? @db.Decimal(18,2)
   burdenPercent Decimal? @db.Decimal(8,2)
   companyMobilityAgreementAccepted Boolean @default(false)
@@ -1649,7 +1649,7 @@ model MobilityProgram {
   budgetTotal Decimal? @db.Decimal(18,2)
   currency String @default("XAF")
   eligibleExpenses Json @default("[]")
-  eligibilityRule Json @default("{\"mobilityThresholdPercent\":35,\"requiresEmployerAgreement\":true,\"requiresRecruiterGuarantee\":true,\"repaymentMonths\":3}")
+  eligibilityRule Json @default("{\"mobilityThresholdPercent\":50,\"requiresEmployerAgreement\":true,\"requiresRecruiterGuarantee\":true,\"repaymentMonths\":3}")
   fundingModel String @default("REPAYABLE_ADVANCE")
   startsAt DateTime?
   endsAt DateTime?
