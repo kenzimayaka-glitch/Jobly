@@ -152,7 +152,9 @@ function renderPageSvg(
   const bodySize = Math.max(13, Math.round(18 * s));
   const nameSize = Math.max(11, Math.round(22 * s));
   const lineH = Math.round(nameSize * 1.55);
-  const normalNameSize = Math.max(13, Math.round(22 * s));\n  const normalOneColumnCapacity = Math.max(1, Math.floor(l.namesH / (normalNameSize * 1.45)));\n  const cols = names.length > normalOneColumnCapacity ? 2 : 1;
+  const normalNameSize = Math.max(13, Math.round(22 * s));
+  const normalOneColumnCapacity = Math.max(1, Math.floor(l.namesH / (normalNameSize * 1.45)));
+  const cols = names.length > normalOneColumnCapacity ? 2 : 1;
   const colWidth = (width - 2 * l.pad) / cols;
   const rows = Math.ceil(names.length / cols);
   const minReadable = Math.max(11, Math.round(width * 0.017));
