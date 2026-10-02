@@ -4382,3 +4382,23 @@ La passe de conformité code ↔ décisions validées a corrigé les écarts sui
 **État de vérité : 🟨 CODÉ + CORRIGÉ + RÉCONCILIÉ — NON VALIDÉ RUNTIME / NON DÉPLOYÉ.**
 
 JOBLY-PROD ne contient pas encore les tables Career* de Career Journey ; aucune migration de production n'a été exécutée pendant cette passe. Aucun merge vers main et aucun déploiement Vercel n'ont été effectués.
+
+
+# LOT TALENT — MOBILITÉ, RECHERCHE ET VEILLE PAR ABONNEMENT — 02/10/2026
+
+| Élément | État |
+|---|---|
+| Accès aux offres locales et africaines pour tous | 🟢 Décision validée |
+| START : préparation multi-pays seulement | 🟢 Décision validée |
+| START : activation veille multi-pays | 🔒 Refusée par la règle codée |
+| PREMIUM : veille multi-pays + optimisation avancée | 🔒 Règle codée |
+| PRO : veille panafricaine + automatisation avancée | 🔒 Règle codée |
+| Module `lib/talentMarketEntitlements.ts` | 🟢 CODÉ |
+| Raccordement APIs Talent / UI / scheduler | ⏳ À FAIRE |
+| Quotas précis et crédits J’IA aux points d'exécution | ⏳ À AUDITER / RACCORDER |
+| Migration Supabase | — Non requise dans cette passe |
+| Build / typecheck / E2E | ⏳ À TESTER après intégration |
+| Merge main | ⏸️ Non effectué |
+| Vercel / production | ⏸️ Aucun déploiement |
+
+Règle : CODÉ ≠ CONNECTÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.
