@@ -4291,3 +4291,18 @@ Ce checkpoint ne certifie aucun lot par simple présence de code. Pour chaque lo
 - Lecture du projet : fondations Next.js/Supabase/Prisma et surfaces Recruiter/Talent existantes inspectées.
 - Spécification Recrutement 360° v2 + Avenant 1 : prise comme référence de construction.
 - **État :** Étape 0 en cours ; arrêt obligatoire avant tout développement de lot.
+
+
+# CHECKPOINT 02/10/2026 — CAREER JOURNEY 360 — CONTRÔLE DE CONFORMITÉ FINALISÉ
+
+La passe de conformité code ↔ décisions validées a corrigé les écarts suivants :
+- candidature recommandée directement lorsque l'analyse indique une préparation suffisante ;
+- mission toujours proposée d'abord, puis explicitement acceptée avant progression ;
+- transitions de mission serveur contrôlées ;
+- rattachement des preuves limité aux ressources du compte courant ;
+- politiques RLS de la migration séparées par opération, sans FOR ALL ;
+- migration Prisma localisée et réconciliée avec le schéma de la branche.
+
+**État de vérité : 🟨 CODÉ + CORRIGÉ + RÉCONCILIÉ — NON VALIDÉ RUNTIME / NON DÉPLOYÉ.**
+
+JOBLY-PROD ne contient pas encore les tables Career* de Career Journey ; aucune migration de production n'a été exécutée pendant cette passe. Aucun merge vers main et aucun déploiement Vercel n'ont été effectués.
