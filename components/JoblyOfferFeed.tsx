@@ -441,7 +441,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
       }
       if (intent === "filter_jobs") {
         const lower = command.toLowerCase();
-        const next = lower.includes("en cours") ? "En cours" : lower.includes("cdi") ? "CDI" : lower.includes("cdd") ? "CDD" : lower.includes("stage") ? "Stage" : "Toutes";
+        const next = lower.includes("en cours") ? "En cours" : lower.includes("cdi") ? "CDI" : lower.includes("cdd") ? "CDD" : (lower.includes("remote") || lower.includes("télétravail")) ? "Remote" : "Toutes";
         setFilter(next);
         respond(next === "Toutes" ? "Dis-moi le filtre souhaité : En cours, CDI, CDD ou télétravail." : "C’est filtré.", "filter");
         return;
