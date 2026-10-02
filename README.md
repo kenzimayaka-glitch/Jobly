@@ -1,3 +1,46 @@
+# CHECKPOINT 02/10/2026 — COMMUNITY / BONS PLANS — RÈGLES CONSOLIDÉES
+
+Community est une composante de **Bons plans**, pas un nouvel écosystème et pas un réseau social.
+
+### Modèle produit
+- 8 communautés professionnelles globales au lancement.
+- À **1 000 talents abonnés** partageant une même discipline, Jobly crée automatiquement la communauté spécialisée correspondante.
+- La discipline v1 réutilise `Profile.preferredSectors` ; aucun champ parallèle n'est créé.
+- J’IA notifie les abonnés concernés et les invite à rejoindre.
+- Accès actif uniquement pour les abonnés payants avec coche bleue.
+- Expiration de l'abonnement = accès Community suspendu ; réactivation = accès restauré.
+- Écran limité : quelques communautés visibles, puis « Voir les autres ».
+- Seul le **nombre de membres** est affiché comme métrique sociale.
+- Dans les discussions : photo + nom d'affichage visibles, mais non cliquables.
+- Aucun profil, DM, contact ou accès Recruiter depuis Community.
+- Le Recruiter reste dans son portail dédié.
+- Invitation : copie du lien ou WhatsApp ; le parcours impose création de compte et contrôle d'abonnement.
+- J’IA peut publier des événements/Bons plans pertinents avec texte, flyer/image et lien, sans créer de nouveau système social.
+- J’IA modère les comportements problématiques au niveau de la communauté.
+- Les réactions/icônes J’IA restent une amélioration additive de l'existant.
+
+### Architecture
+Réutiliser :
+- Subscription/entitlements existants ;
+- Notification existante ;
+- Profile.preferredSectors ;
+- J’IA/Event Bus existants ;
+- CommunityPost comme surface de publication.
+
+**Ne pas créer un deuxième système de mémoire, notification, profil ou réseau social.**
+
+### État au 02/10/2026
+- Migration Community appliquée à JOBLY-PROD.
+- 8 communautés globales présentes.
+- APIs et UI Community enrichies.
+- Seuil automatique 1 000 abonnés codé.
+- Notification de création de communauté branchée sur la table Notification existante.
+- Publication événementielle vers les communautés pertinentes codée.
+- Validation CI Typecheck/Build en cours sur la branche `feat/lot-c-bons-plans-community`.
+- Aucun changement de `main` ni déploiement Vercel effectué à ce stade.
+
+---
+
 # CHECKPOINT 01/10/2026 — J’IA MASTER SCOPE / CEO & TRANSVERSAL INTELLIGENCE
 
 ## Périmètre maître réconcilié
