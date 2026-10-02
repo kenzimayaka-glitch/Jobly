@@ -5,7 +5,7 @@ import { Environment, useAnimations, useGLTF } from "@react-three/drei";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import { JIA3DErrorBoundary } from "./JIAFallback";
 import JIAProcedural3D from "./JIAProcedural3D";
-import * as THREE from "three";
+import * as THREE from "three";\n// GLTF runtime: the official J’IA model is loaded through drei/useGLTF.
 
 type Move =
   | "idle" | "breathe_deep" | "blink_slow" | "smile_soft" | "wave_hi" | "wave_bye"
