@@ -4646,3 +4646,43 @@ Le contexte J’IA consomme maintenant Career Brain. Les mécanismes existants d
 Le prochain travail doit connecter les briques existantes entre elles : Opportunity/Matching, Mobility, Learning, Interview, CV/Evidence et boucle Outcome → Review → Reassessment. Aucun nouveau Career State ne doit être créé.
 
 **Vérité d'exécution :** CODÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.
+
+# CHECKPOINT 02/10/2026 — RECRUTEMENT 360° — LOT 11 — LISTINGS OFFICIELS
+
+## Périmètre consolidé
+Le Lot 11 intègre désormais les listings officiels, leurs exports et leur surface publique versionnée.
+
+### Backend / Supabase
+- Consentement candidat pour la publication officielle.
+- Bucket privé `recruitment-listings` et exports protégés.
+- Liens publics versionnés avec étape/thème, expiration et révocation.
+- Génération serveur protégée par rôle.
+- Exports journalisés avec checksum, statut, dimensions et métadonnées.
+- Bloc Jobly réinjecté côté serveur à chaque génération.
+- Migrations Lot 11 et durcissement des grants présents dans le dépôt.
+
+### Formats et surfaces
+- PDF, XLSX, Web non indexé et JPEG vertical 1:2.
+- Cascade JPEG et QR généré côté serveur.
+- `/recruiter/listings` raccordé aux données réelles.
+- Accès « Générer un listing officiel » depuis `/recruiter/jobs`.
+- Consentement candidat et téléchargement PDF public versionné.
+
+### Validation
+- Le code et les migrations sont consolidés dans cette branche de travail.
+- Les validations E2E/CI/runtime et la migration effective de JOBLY-PROD restent à exécuter avant toute certification de production.
+
+**Règle : CODÉ ≠ ACCESSIBLE ≠ CONNECTÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.**
+
+
+# CHECKPOINT 02/10/2026 — RECONSTRUCTION LOTS A–C + RECRUITMENT360 LOT 11
+
+Cette reconstruction repart du dernier déploiement production READY 09e07f9 et réunit les ajouts fonctionnels des Lots A–C et du Recruitment360 Lot 11 dans une seule base de travail, sans reprendre la chaîne de commits ayant produit les quatre échecs Vercel.
+
+- Base : 09e07f9.
+- Branche : chore/rebuild-lots-a-c-recruitment11-20261002.
+- Garde obligatoire : install → typecheck global → lint → build.
+- Prisma : génération explicitement exécutée avant next build ; les scripts d'installation ne sont plus ignorés par CI.
+- Node : majeure fixée à 22 ; pnpm : 10.28.0.
+- Vercel canonique : jobly-c0.6.5.1. v0-project déploie également ce même dépôt, y compris en production ; il est traité comme surface concurrente/non canonique tant que son rattachement aux domaines de production n'est pas démontré.
+- Aucun statut READY/VALIDÉ/DÉPLOYÉ ne sera déclaré sans preuve correspondante.
