@@ -1,3 +1,21 @@
+# CAREER JOURNEY 360 — ÉVOLUTION CONTRÔLÉE — 02/10/2026
+
+## Ajout : recommandations de formation
+
+Le diagnostic Career Journey peut désormais produire une recommandation `LEARN` lorsque le gap détecté concerne une compétence ou un besoin de formation/certification. J’IA propose alors jusqu'à trois voies d'action : **formation ciblée**, **apprentissage autonome** ou **mise en pratique/projet**.
+
+Cette évolution respecte la conception validée : J’IA conseille, l'utilisateur décide. Aucun fournisseur de formation, prix, certification ou résultat n'est présenté comme vrai sans donnée vérifiée. La formation est intégrée au cycle **gap → apprentissage → preuve → réévaluation**.
+
+### État
+- Code : 🟢 corrigé sur la branche Career Journey.
+- UI : 🟢 la recommandation `LEARN` est rendue explicitement comme « Formation / apprentissage » avec ses options.
+- DB : 🟢 aucun changement de schéma requis ; l'enum `CareerRecommendationType` contient déjà `LEARN`.
+- JOBLY-PROD : ⏸️ migration Career Journey toujours non appliquée.
+- Validation runtime complète : ⏸️ à poursuivre.
+- Déploiement Vercel : ⏸️ aucun.
+
+---
+
 
 
 # CHECKPOINT 02/10/2026 — AUDIT DE RÉCONCILIATION CODE ↔ DOCUMENTATION (PASSE DE CONTRÔLE)
