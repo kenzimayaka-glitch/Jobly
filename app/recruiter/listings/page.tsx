@@ -122,7 +122,7 @@ export default function RecruiterOfficialListingsPage() {
                     <h2 className="text-lg font-bold">{item.job?.title || version?.title || "Poste"}</h2>
                     <p className="text-sm text-slate-500">{item.job?.companyName || "Organisation"} · {item.currentState}</p>
                   </div>
-                  <span className="text-xs text-slate-500">Version {version?.versionNumber || item.version}</span>
+                  <span className="text-xs text-slate-500">Version {version?.versionNumber ?? "—"}</span>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
                   {(["PDF","XLSX","WEB","JPEG"] as const).map(format =>
