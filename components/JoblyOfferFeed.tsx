@@ -115,7 +115,7 @@ export function JoblyOfferFeed() {
     manual ? setRefreshing(true) : setLoading(true); setError("");
     try {
       const [jobsRes, appsRes] = await Promise.all([
-        fetch("/api/jobs?limit=200&page=1", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`/api/jobs?limit=200&page=1&reindex=${manual ? Date.now() : "initial"}`, { cache: "no-store", headers: { Authorization: `Bearer ${token}`, "Cache-Control": "no-cache" } }),
         fetch("/api/applications", { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       const jobsBody = await jobsRes.json(); if (!jobsRes.ok) throw new Error(jobsBody.message || "Impossible de charger les offres.");

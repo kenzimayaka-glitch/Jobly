@@ -148,6 +148,9 @@ function adaptiveMatch(profile:Profile,years:number|null,experiences:Experience[
   return {matchPercent,confidence,breakdown:criteria};
 }
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(request:NextRequest){
  try{
   const authUser=await getAuthUser(request);if(!authUser)return NextResponse.json({message:"Session requise."},{status:401});
