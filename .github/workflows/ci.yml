@@ -40,5 +40,8 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: J’IA Watch B3.1 smoke
+        run: pnpm test:jia-watch
+
       - name: Production build
         run: pnpm build
