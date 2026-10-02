@@ -84,7 +84,12 @@ const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
 const SOURCE_COUNTRY = Deno.env.get("JOBLY_SOURCE_COUNTRY") || "CM";
-const SOURCES = buildSourceRunPlan(SOURCE_COUNTRY).map((source) => ({\n  ...source,\n  url: resolveSourceUrl(source, SOURCE_COUNTRY).url || source.url || "",\n})).filter((source) => Boolean(source.url));
+const SOURCES = buildSourceRunPlan(SOURCE_COUNTRY)
+  .map((source) => ({
+    ...source,
+    url: resolveSourceUrl(source, SOURCE_COUNTRY).url || source.url || "",
+  }))
+  .filter((source) => Boolean(source.url));
 const CITY_NAMES=["Yaoundé","Douala","Bafoussam","Bamenda","Bertoua","Buea","Ebolowa","Garoua","Maroua","Ngaoundéré","Kribi","Limbe","Kousseri","Mbalmayo","Edéa","Dschang","Foumban","Limbé","Kumba","Kumbo","Nkongsamba","Tiko","Cameroon","Tout le Cameroun"];
 function decodeEntities(s:string){return s.replace(/&nbsp;|&#160;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;|&#34;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/&bull;|&#8226;/gi,"•").replace(/&ndash;|&#8211;/gi,"–").replace(/&mdash;|&#8212;/gi,"—");}
 function repairMojibake(s:string){if(!/(?:Ã.|Â.|â.)/.test(s))return s;try{const bytes=new Uint8Array([...s].map(ch=>ch.charCodeAt(0)<=255?ch.charCodeAt(0):63));const repaired=new TextDecoder("utf-8",{fatal:false}).decode(bytes);return repaired&&!repaired.includes("�")?repaired:s}catch{return s}}

@@ -4731,3 +4731,8 @@ La passe `typecheck + build` est verte sur le commit `d919e3a`. Le run lint `8b8
 ## Ajustement lint — sortie erreurs uniquement
 
 Le gate Oxlint source détecte actuellement 129 avertissements et 1 erreur. Pour isoler le blocant sans bruit tiers/non bloquant, la commande `pnpm lint` est temporairement passée en mode `--quiet`, qui conserve les erreurs et masque les avertissements. L'erreur unique sera corrigée avant certification.
+
+
+## Correction lint — artefact de saut de ligne
+
+Oxlint a isolé un dernier blocant : `supabase/functions/discover-jobs/index.ts:87` contenait des `\\n` littéraux dans une expression TypeScript. Le bloc a été réécrit avec de vrais retours à la ligne. Cette correction est conforme à la règle anti-artefact de la reconstruction.
