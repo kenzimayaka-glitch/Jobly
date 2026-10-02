@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { adminClient, getAuthUser } from "@/lib/server-auth";
+import { adminClient } from "@/lib/server-auth";
 import { collectPublicJobSources, recollectOfferByUrl } from "@/lib/jobSourceCollector";
 import { detectJobLanguage, detectLanguageRequirements } from "@/lib/jobLanguage";
 import { buildCanonicalOffer } from "@/lib/jobCanonicalOffer";
@@ -36,11 +36,10 @@ function parseDate(value: unknown): string | null {
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 
-async function authorized(request: NextRequest): Promise<boolean> {
+function authorized(request: NextRequest): boolean {
   const configured = process.env.CRON_SECRET || process.env.JOB_SOURCE_INGEST_SECRET;
   const header = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
-  if (configured && header === configured) return true;
-  return Boolean(await getAuthUser(request));
+  return Boolean(configured && header && header === configured);
 }
 
 async function mapWithConcurrency<T>(
