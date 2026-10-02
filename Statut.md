@@ -4701,3 +4701,8 @@ Le premier build complet a révélé une erreur de validation Prisma masquée ta
 ## Correction build — Prisma relations User ↔ Mobility/Partner
 
 Le build complet a ensuite révélé deux relations Prisma sans champ opposé dans `User` : `MobilityRequest.user` et `PartnerExtended.user`. Les champs `mobilityRequests` et `partnerExtended` ont été ajoutés au modèle `User` afin de fermer ces relations sans modifier le contrat applicatif.
+
+
+## Correction build — PartnerExtended cardinalité
+
+Prisma a ensuite signalé que `PartnerExtended.user` était déclaré 1–1 alors que `partnerUserId` n'était pas unique. La contrainte `@unique` a été ajoutée pour rendre la cardinalité cohérente avec `User.partnerExtended`.

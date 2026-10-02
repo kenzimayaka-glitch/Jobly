@@ -547,7 +547,7 @@ model MobilityRequest {
 
 model PartnerExtended {
   id             String   @id @default(cuid())
-  partnerUserId  String?
+  partnerUserId  String? @unique
   type           String
   code           String   @unique
   lat            Float?
