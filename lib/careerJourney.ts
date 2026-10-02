@@ -120,8 +120,8 @@ export async function generateJourneyRecommendations(ctx: Awaited<ReturnType<typ
   const created = [];
   if (assessment.gaps[0]) {
     created.push(await createRecommendation(supabase, user.id, journey.id, {
-      type: assessment.readiness >= 70 ? "READY_TO_APPLY" : "PRACTICE",
-      title: assessment.readiness >= 70 ? "Vérifier la préparation avant de postuler" : "Réduire l'écart prioritaire",
+      type: assessment.readiness >= 70 ? "APPLY" : "PRACTICE",
+      title: assessment.readiness >= 70 ? "Postuler sur les offres suffisamment alignées" : "Réduire l'écart prioritaire",
       rationale: assessment.nextBestAction,
       gap: assessment.gaps[0],
       expectedOutcome: "Obtenir un nouvel élément exploitable pour la prochaine réévaluation.",
@@ -158,6 +158,18 @@ export async function updateMission(supabase: any, userId: string, missionId: st
     ACCEPT: "ACCEPTED", REFUSE: "ABANDONED", DEFER: "DEFERRED", COMPLETE: "COMPLETED", ABANDON: "ABANDONED", REASSESS: undefined,
   };
   const status = statusByAction[action];
+  const transitions: Record<JourneyAction, string[]> = {
+    ACCEPT: ["PROPOSED", "DEFERRED"],
+    REFUSE: ["PROPOSED", "DEFERRED"],
+    DEFER: ["PROPOSED", "ACCEPTED", "IN_PROGRESS"],
+    COMPLETE: ["IN_PROGRESS", "ACCEPTED"],
+    ABANDON: ["ACCEPTED", "IN_PROGRESS", "DEFERRED"],
+    REASSESS: [],
+  };
+  if (action === "REASSESS") throw Object.assign(new Error("La réévaluation est une action de parcours, pas une transition de mission."), { status: 400 });
+  if (!transitions[action].includes(mission.status)) {
+    throw Object.assign(new Error("Transition de mission invalide : " + mission.status + " → " + (status ?? action) + "."), { status: 409 });
+  }
   const progress = patch.progress == null ? mission.progressPercent : clamp(Number(patch.progress));
   const data: any = { progressPercent: progress, updatedAt: now };
   if (status) data.status = status;
