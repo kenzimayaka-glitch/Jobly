@@ -1,3 +1,71 @@
+# CHECKPOINT 02/10/2026 — RÉCONCILIATION CODE / DOCUMENTATION
+
+## Career Journey 360 — état réel
+
+| Élément | État |
+|---|---|
+| Spécification fonctionnelle | ✅ |
+| Page `/career-journey` | 🔧 CODÉ |
+| `/api/career-journey` | 🔧 CODÉ |
+| Service `lib/careerJourney.ts` | 🔧 CODÉ |
+| Modèle/migration Career Journey | 🔧 CODÉ |
+| Missions + cycle de vie | 🔧 CODÉ |
+| Recommandations / réévaluation | 🔧 CODÉ |
+| Career Radar contextualisé | 🔧 CODÉ |
+| Revue périodique consentie | 🔧 CODÉ |
+| Entitlements serveur | 🔧 CODÉ |
+| RLS | 🔧 DURCIE |
+| Vercel commit modèle `89b5055` | 🟢 READY |
+| Vercel commit RLS `88fe82f` | 🟢 READY |
+| Vercel commit UI `62cd1de` | 🔴 ERROR |
+| Validation E2E complète | ⏸️ non acquise |
+| Déploiement production autorisé | ⏸️ non |
+
+## Lots A/B/C — audit de réconciliation
+
+### Lot A — Mon Afrique
+- Branche : `feature/lot-a-mon-afrique-20261002`.
+- 54 pays via `lib/countries/africa.ts`.
+- Multi-pays au-dessus des scopes existants.
+- Filtres : Toutes / Pays / En cours / CDD / CDI / Remote.
+- Aucun nouveau champ User/Profile de pays d'intérêt.
+- Brain J’IA et Watcher existants réutilisés.
+- Architecture statique : **OK**.
+- CI : **BLOQUÉE** par `lib/jobSourceCollector.ts:61` (TS1128 hors périmètre).
+- Merge/deploiement : **aucun**.
+- Verdict : **CODÉ, NON VALIDÉ E2E**.
+
+### Lot B — Veille J’IA
+- Branche de clôture : `feat/jia-watch-intelligence-b3-20261002`.
+- B1 watcher existant réutilisé.
+- B2 persistance/idempotence : `JiaWatchSubscription`, `JiaWatchRun`, `JiaWatchSnapshot`.
+- Scheduler `/api/cron/jia-watch` protégé.
+- B3 pipeline : signal → nouveauté → pertinence → impact → confiance → contradictions → mémoire → décision.
+- Décisions : SUPPRESS / DIGEST / NOTIFY / REVIEW.
+- B3.1 scoring isolé + smoke test des quatre décisions.
+- Notifications limitées à l'in-app ; pas de push/email automatique.
+- Commit documentaire de clôture : `175cfc7`.
+- Verdict : **TECHNIQUEMENT FERMÉ SUR BRANCHE**, sans merge/deploiement. La validation runtime complète reste distincte.
+
+### Lot C — Bons Plans + Community
+- Branche : `feat/lot-c-bons-plans-community`.
+- Community appartient à Bons Plans et n'est pas un quatrième écosystème ni un réseau social.
+- 8 communautés globales.
+- Spécialisation automatique à 1 000 talents abonnés d'une même discipline.
+- Matrice : FREE ❌ / START ✅ / PREMIUM ✅ + badge / PRO ✅ + badge.
+- Badge dérivé côté serveur pour l'auteur du post.
+- Pas de profils cliquables, pas de DM, pas d'accès Recruiter depuis Community.
+- Invitations par lien/WhatsApp.
+- Modèle Prisma + migration SQL appliqués à JOBLY-PROD ; notifications existantes réutilisées.
+- CI : fichiers Community franchis ; gate globale encore rouge sur des erreurs TypeScript hors Lot C.
+- Verdict : **CODÉ + STRUCTURELLEMENT CONTRÔLÉ, NON VALIDÉ E2E / NON DÉPLOYÉ**.
+
+## Conclusion de réconciliation
+
+La documentation ne doit plus confondre **présence du code** avec **validation** ou **déploiement**. Les lots A, B et C sont bien matérialisés dans le code selon leur périmètre, mais leurs niveaux de validation diffèrent. Career Journey est également codé sur sa branche dédiée ; sa dernière couche UI a un déploiement Vercel en ERROR et reste donc non validée.
+
+---
+
 # JOBLY — STATUT DU PROJET
 ## SOURCE DE VÉRITÉ D'EXÉCUTION — JOBLY 20/20
 ### Mise à jour : 26/09/2026 — Offres / Matching adaptatif / UX
