@@ -13,9 +13,10 @@ function qualifies(stage: ListingStage, application: any, state: any, shortlist:
   const stateName = String(state?.currentState || "").toUpperCase();
   const shortlistStatus = String(shortlist?.status || "").toUpperCase();
   if (stage === "CV") return ["SELECTED","RETAINED","SHORTLISTED","CV_SELECTED"].includes(shortlistStatus) || ["RETAINED","SHORTLISTED","CV_SELECTED"].includes(stateName);
-  if (stage === "TEST") return hasTest || ["TEST","TEST_SELECTED","TEST_COMPLETED","TEST_PASSED"].includes(stateName);
-  if (stage === "INTERVIEW") return hasInterview || ["INTERVIEW","FINALIST","INTERVIEW_SELECTED"].includes(stateName);
-  return hasDecision || ["FINALIST","DECISION","OFFER","HIRED"].includes(stateName);
+  const retained = ["SELECTED","RETAINED","SHORTLISTED","CV_SELECTED","TEST_SELECTED","INTERVIEW_SELECTED","FINALIST"].includes(shortlistStatus) || ["RETAINED","SHORTLISTED","CV_SELECTED","TEST_SELECTED","INTERVIEW_SELECTED","FINALIST"].includes(stateName);
+  if (stage === "TEST") return retained && (hasTest || ["TEST","TEST_SELECTED","TEST_COMPLETED","TEST_PASSED"].includes(stateName));
+  if (stage === "INTERVIEW") return retained && (hasInterview || ["INTERVIEW","FINALIST","INTERVIEW_SELECTED"].includes(stateName));
+  return retained && (hasDecision || ["FINALIST","DECISION","OFFER","HIRED"].includes(stateName));
 }
 
 export async function loadPublicOfficialListing(token: string): Promise<OfficialListingData> {
