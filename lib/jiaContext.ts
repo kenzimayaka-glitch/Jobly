@@ -2,26 +2,28 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildCareerBrainContext, type CareerBrainContext } from "@/lib/careerBrain";
 
 export type JiaContextInput={operation:string;input?:Record<string,unknown>};
-export type JiaContext={profile:Record<string,unknown>;skills:Array<Record<string,unknown>>;experiences:Array<Record<string,unknown>>;memory:Array<Record<string,unknown>>;behavior:{consented:boolean;eventCount:number;eventTypes:Record<string,number>;paths:Array<{path:string;count:number}>;recent:Array<{eventType:string;path:string|null;occurredAt:string;durationMs:number|null}>;lastActivityAt:string|null};gaps:string[];readiness:number;nextBestAction:string;careerBrain:CareerBrainContext;input:Record<string,unknown>;requestedModule:string};
+export type JiaContext={profile:Record<string,unknown>;skills:Array<Record<string,unknown>>;experiences:Array<Record<string,unknown>>;education:Array<Record<string,unknown>>;memory:Array<Record<string,unknown>>;behavior:{consented:boolean;eventCount:number;eventTypes:Record<string,number>;paths:Array<{path:string;count:number}>;recent:Array<{eventType:string;path:string|null;occurredAt:string;durationMs:number|null}>;lastActivityAt:string|null};gaps:string[];readiness:number;nextBestAction:string;careerBrain:CareerBrainContext;input:Record<string,unknown>;requestedModule:string};
 
 const redact=(value:unknown)=>String(value??"").replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,"[email]").replace(/(?:\+?\d[\d\s().-]{7,}\d)/g,"[phone]").slice(0,4000);
 const safeArray=(value:unknown,max=10)=>Array.isArray(value)?value.map(item=>redact(item)).slice(0,max):[];
 const decayedConfidence=(confidence:number,lastObservedAt:string)=>{const ageDays=Math.max(0,(Date.now()-new Date(lastObservedAt).getTime())/86400000);return Math.max(0,Math.min(1,confidence*Math.exp(-ageDays/180)));};
 
 export async function buildJiaContext(sb:SupabaseClient,userId:string,request:JiaContextInput):Promise<{context:JiaContext|null;error:string|null}>{
-  const [userResult,profileResult,skillsResult,experiencesResult,memoryResult,eventsResult]=await Promise.all([
+  const [userResult,profileResult,skillsResult,experiencesResult,educationResult,memoryResult,eventsResult]=await Promise.all([
     sb.from("User").select("privacyAcceptedAt").eq("id",userId).maybeSingle(),
     sb.from("Profile").select("headline,summary,location,targetRoles,preferredSectors,targetCities,contractPreferences,remotePreference").eq("userId",userId).maybeSingle(),
     sb.from("Skill").select("name,level").eq("userId",userId).limit(50),
     sb.from("Experience").select("title,company,description,startDate,endDate").eq("userId",userId).limit(20),
+    sb.from("Education").select("institution,degree,field,startDate,endDate").eq("userId",userId).limit(20),
     sb.from("jia_memory_unified").select("id,memory_type,content,confidence,source,last_seen_at,importance,relevance,storage_kind").eq("user_id",userId).order("last_seen_at",{ascending:false}).limit(75),
     sb.from("JiaEvent").select("eventType,path,durationMs,occurredAt").eq("userId",userId).order("occurredAt",{ascending:false}).limit(100),
   ]);
-  const firstError=userResult.error||profileResult.error||skillsResult.error||experiencesResult.error||memoryResult.error||eventsResult.error;
+  const firstError=userResult.error||profileResult.error||skillsResult.error||experiencesResult.error||educationResult.error||memoryResult.error||eventsResult.error;
   if(firstError)return{context:null,error:firstError.message};
   const profile:any=profileResult.data||{};
   const skills=(skillsResult.data||[]).map((x:any)=>({name:redact(x.name),level:redact(x.level)}));
   const experiences=(experiencesResult.data||[]).map((x:any)=>({title:redact(x.title),company:redact(x.company),description:redact(x.description),startDate:x.startDate,endDate:x.endDate}));
+  const education=(educationResult.data||[]).map((x:any)=>({institution:redact(x.institution),degree:redact(x.degree),field:redact(x.field),startDate:x.startDate,endDate:x.endDate}));
   const memory=(memoryResult.data||[]).map((x:any)=>({
     category:redact(x.memory_type),key:redact(x.content?.key||x.id),value:x.content||{},
     confidence:decayedConfidence(Number(x.confidence||0),x.last_seen_at),
@@ -42,5 +44,5 @@ export async function buildJiaContext(sb:SupabaseClient,userId:string,request:Ji
   const safeProfile={headline:redact(profile.headline),summary:redact(profile.summary),location:redact(profile.location),targetRoles:safeArray(profile.targetRoles),preferredSectors:safeArray(profile.preferredSectors),targetCities:safeArray(profile.targetCities),contractPreferences:safeArray(profile.contractPreferences),remotePreference:redact(profile.remotePreference)};
   const effectiveReadiness=careerBrain.careerTwin.readiness ?? Math.max(0,100-gaps.length*15);
   const effectiveNextAction=careerBrain.careerTwin.nextBestAction || gaps[0] || "Consulter les opportunités pertinentes";
-  return{context:{profile:safeProfile,skills,experiences,memory,behavior,gaps,readiness:effectiveReadiness,nextBestAction:effectiveNextAction,careerBrain,input:request.input||{},requestedModule:request.operation},error:null};
+  return{context:{profile:safeProfile,skills,experiences,education,memory,behavior,gaps,readiness:effectiveReadiness,nextBestAction:effectiveNextAction,careerBrain,input:request.input||{},requestedModule:request.operation},error:null};
 }
