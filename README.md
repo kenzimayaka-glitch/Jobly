@@ -4123,3 +4123,25 @@ Les champs d'intelligence écrits par `watchIntelligence.ts` sont maintenant pr�
 - Migration Supabase versionnée dans le dépôt mais non appliquée à JOBLY-PROD pendant cette passe.
 - Tests GitHub à exécuter après consolidation : typecheck, smoke B3.1, build et scénarios entitlement.
 - Merge vers `main` effectué uniquement après passage des contrôles disponibles.
+
+
+# CHECKPOINT 02/10/2026 — LOT TALENT MOBILITÉ — ÉTAT POST-MERGE
+
+- PR #163 est fusionnée dans `main` par le commit `05fe542e1909c49df2060e16ff22749a8e4091af`.
+- Les anciennes branches/PR de travail #156 et #162 ont été fermées comme superseded : leur contenu fonctionnel a été consolidé dans #163.
+- Entitlements Talent, préparation multi-pays, activation Premium, veille panafricaine PRO, persistance Watcher et intelligence B3 sont présents sur `main`.
+- Aucun déploiement Vercel n'a été lancé.
+- La migration de veille est versionnée dans le dépôt mais n'a pas été appliquée à JOBLY-PROD pendant cette exécution.
+
+## Validation CI réelle
+- J'IA Master Continuous Gate : 🟢 SUCCESS
+- J'IA Hard Mode : 🟢 SUCCESS
+- J'IA Architecture 10-10 Gate : 🟢 SUCCESS
+- J'IA Cognitive Core : 🟢 SUCCESS
+- J'IA Internet Brain Hard Mode : 🟢 SUCCESS
+- Jobly CI — Typecheck & Build : 🔴 FAILURE sur des erreurs préexistantes hors fichiers de ce chantier (Career Journey / Institution).
+- Verify offer pipeline : 🔴 FAILURE sur le même socle de typecheck global ; le build a été sauté par le workflow.
+- Le smoke B3 n'a pas été exécuté par ce workflow après l'échec typecheck.
+
+**Vérité : 🟨 MERGÉ MAIN / INTÉGRÉ — VALIDATION GLOBALE NON VERTE.**
+Le chantier est intégré dans `main`, mais ne doit pas être déclaré « totalement validé » tant que les erreurs CI globales et le smoke B3 n'ont pas été résolus/exécutés. Aucun déploiement n'a été effectué.
