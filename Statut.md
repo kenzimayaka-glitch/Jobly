@@ -187,6 +187,22 @@ La documentation ne doit plus confondre **présence du code** avec **validation*
 
 # JOBLY — STATUT DU PROJET
 ## SOURCE DE VÉRITÉ D'EXÉCUTION — JOBLY 20/20
+### Mise à jour : 30/09/2026 — Validation fonctionnelle CV
+
+## Import / upload de CV — ✅ VALIDÉ
+
+Validation utilisateur effectuée : **le CV est désormais correctement uploadé dans le parcours réel**.
+
+- Sélection du fichier PDF : ✅
+- Extraction du CV : ✅
+- Upload/conservation du document : ✅
+- Parcours CV utilisable après correction du problème de quota IA : ✅
+- Le quota de crédits IA ne bloque plus l'extraction déterministe du CV : ✅
+
+**Statut de vérité : TESTÉ → VALIDÉ par vérification réelle utilisateur.**
+
+> Règle de continuité : toute fonctionnalité vérifiée réellement doit être marquée **VALIDÉE** dans cette documentation. Une fonctionnalité simplement codée ou compilée reste **CODÉE / TESTÉE** tant qu'une vérification réelle n'a pas été effectuée.
+
 ### Mise à jour : 26/09/2026 — Offres / Matching adaptatif / UX
 
 > Règle : une fonctionnalité n'est terminée que si elle traverse **SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**.
