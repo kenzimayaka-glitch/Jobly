@@ -1,47 +1,73 @@
-# Lot B — Veille J’IA : état d’implémentation
+# Lot B — Veille J’IA : état de clôture technique
 
-## Branche
-`feat/jia-watch-persistence-20261002`
+## Branche de travail
+`feat/jia-watch-intelligence-b3-20261002`
 
-## Étape B1 réalisée
-- Ajout d’un stockage persistant des abonnements de veille côté architecture.
-- Ajout de `lib/jia/watchPersistence.ts` :
-  - abonnements dus ;
-  - création/mise à jour ;
-  - exécution idempotente ;
-  - hash d’état ;
-  - snapshots persistants ;
-  - historique des runs ;
-  - planification du prochain passage.
-- Ajout de `GET/POST /api/jia/watch-subscriptions`.
-- Ajout de `GET /api/cron/jia-watch` protégé par `CRON_SECRET`.
-- Ajout du dispatcher quotidien dans `vercel.json`.
-- La fréquence minimale est volontairement de 24 h dans cette première étape afin de rester compatible avec l’infrastructure Vercel existante.
+## B1 — Watcher existant
+- Réutilisation du pipeline existant `watchExternal → observeInternet → ingestExternalSignal`.
+- Aucun nouveau moteur de recherche créé.
 
-## Architecture conservée
-La veille réutilise :
-`watchExternal → observeInternet → ingestExternalSignal → JiaEvent/JiaMemory/trace`.
+## B2 — Orchestration / persistance
+- `JiaWatchSubscription`, `JiaWatchRun`, `JiaWatchSnapshot` persistés.
+- Exécution idempotente par abonnement + créneau.
+- Hash d’état pour les snapshots.
+- Historisation des échecs en `FAILED`.
+- Correction appliquée : génération explicite de l’identifiant de subscription à la création, conservation de l’identifiant lors d'une mise à jour.
+- Scheduler `/api/cron/jia-watch` protégé par `CRON_SECRET`.
+- Aucun abonnement orphelin sans id observé en production au contrôle de clôture.
 
-Aucun nouveau moteur de recherche, de mémoire ou de notification n’est créé.
+## B3 — Intelligence de veille
+Pipeline :
+`SIGNAL → NOUVEAUTÉ → PERTINENCE → IMPACT → CONFIANCE → CONTRADICTIONS → MÉMOIRE → DÉCISION`
 
-## Persistance prévue
-Trois modèles SQL :
-- `JiaWatchSubscription`
-- `JiaWatchRun`
-- `JiaWatchSnapshot`
+Décisions :
+- `SUPPRESS` : aucun changement substantiel.
+- `DIGEST` : changement utile mais sous le seuil d’alerte immédiate.
+- `NOTIFY` : signal nouveau, suffisamment pertinent, impactant et fiable.
+- `REVIEW` : signal important mais contesté ; la contradiction réduit la certitude sans supprimer le signal.
 
-Ils doivent être ajoutés via une migration contrôlée avant activation du scheduler.
+Rattachement mémoire :
+- clé cognitive `external:<query>`.
+- récupération de récurrence, confiance, pertinence et importance depuis `jia_memory`.
 
-## B2 à venir
-- intégration complète aux préférences `jia_preferences` ;
-- qualification de pertinence ;
-- déduplication des notifications ;
-- digest/proactif ;
-- branchement du QCM conversationnel ;
-- tests de reprise après erreur et de concurrence.
+Traçabilité :
+- scores et décision enregistrés dans `JiaWatchRun`.
+- émission de `JIA_WATCH_INTELLIGENCE` via l’Event Bus / trace cognitive.
+- notification uniquement in-app pour `NOTIFY` et `REVIEW`.
+- aucun push/email automatique activé.
 
-## Sécurité
-- RLS prévu sur les trois tables ;
-- lecture utilisateur limitée à ses abonnements/runs/snapshots ;
-- exécution cron protégée par `CRON_SECRET` ;
-- aucun déploiement ou changement de production effectué.
+## B3.1 — Validation contrôlée
+Le moteur de scoring est isolé dans :
+`lib/jia/watchIntelligenceScoring.ts`
+
+Le smoke test :
+`scripts/jia-watch-intelligence-smoke.mjs`
+
+couvre les quatre décisions :
+1. `SUPPRESS`
+2. `DIGEST`
+3. `NOTIFY`
+4. `REVIEW`
+
+et vérifie également l’atténuation de la certitude lorsque des sources contradictoires sont présentes.
+
+La CI exécute désormais :
+- typecheck ;
+- smoke B3.1 ;
+- build de production.
+
+## Clôture du Lot B
+**B est techniquement fermé sur la branche de travail.**
+
+Conditions de clôture :
+- architecture B1/B2/B3 présente ;
+- persistance et idempotence en place ;
+- moteur de décision intelligent en place ;
+- mémoire et traçabilité connectées ;
+- matrice des quatre décisions couverte par test ;
+- aucune activation push/email ;
+- aucun déploiement Vercel ;
+- aucun merge vers `main`.
+
+## Étape suivante
+Le chantier suivant peut être ouvert séparément, après revue/validation de cette branche. Il ne doit pas modifier `main` ni déclencher de déploiement sans autorisation explicite.
