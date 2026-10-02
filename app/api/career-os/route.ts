@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
 import { buildJiaContext } from "@/lib/jiaContext";
 import { buildCareerOsSnapshot } from "@/lib/careerOs";
+import { assessCareer, levelLabel } from "@/lib/careerEngine";
 import { localizeCareerList, localizeCareerText, type CareerLang } from "@/lib/careerText";
 
 export const runtime = "nodejs";
@@ -45,6 +46,18 @@ export async function GET(req: NextRequest) {
     const snapshot = buildCareerOsSnapshot(result.context.careerBrain, {
       jobs: (jobs ?? []) as Array<Record<string, unknown>>,
     });
+    const assessment = assessCareer({
+      experiences: result.context.experiences,
+      skills: result.context.skills,
+      education: result.context.education,
+      targetRole: snapshot.careerTwin.targetRole,
+    });
+    const roadmap = [
+      { step: 1, title: "Établir le niveau actuel", done: snapshot.careerTwin.currentLevel != null, action: snapshot.careerTwin.currentLevel == null ? "Compléter les données d'expérience." : "Niveau " + snapshot.careerTwin.currentLevel + " — " + levelLabel(snapshot.careerTwin.currentLevel) },
+      { step: 2, title: "Construire les preuves", done: snapshot.careerTwin.evidenceStrength >= 60, action: "Documenter des résultats vérifiables liés au rôle cible." },
+      { step: 3, title: "Combler les écarts", done: snapshot.gps.gaps.length === 0, action: snapshot.gps.nextBestAction || "Aucun écart prioritaire détecté." },
+      { step: 4, title: "Tester le marché", done: snapshot.opportunity.opportunities.length > 0, action: "Comparer les opportunités avec le niveau et les preuves réellement disponibles." },
+    ];
 
     return NextResponse.json({
       ok: true,
@@ -55,15 +68,16 @@ export async function GET(req: NextRequest) {
       targetCity,
       currentLevel: snapshot.careerTwin.currentLevel,
       targetLevel: snapshot.careerTwin.targetLevel,
-      currentLevelLabel: snapshot.careerTwin.currentLevel == null ? null : L("Niveau " + snapshot.careerTwin.currentLevel),
-      targetLevelLabel: snapshot.careerTwin.targetLevel == null ? null : L("Niveau " + snapshot.careerTwin.targetLevel),
+      yearsExperience: assessment.yearsExperience,
+      currentLevelLabel: snapshot.careerTwin.currentLevel == null ? null : L(levelLabel(snapshot.careerTwin.currentLevel)),
+      targetLevelLabel: snapshot.careerTwin.targetLevel == null ? null : L(levelLabel(snapshot.careerTwin.targetLevel)),
       readiness: snapshot.readiness.score,
       readinessBand: snapshot.readiness.band,
-      dimensions: {},
-      criteria: localizeCareerList(snapshot.gps.gaps, lang),
+      dimensions: Object.fromEntries(Object.entries(assessment.dimensions).map(([k, v]) => [k, { ...v, evidence: localizeCareerList(v.evidence, lang) }])),
+      criteria: localizeCareerList(assessment.criteria, lang),
       gap: localizeCareerList(snapshot.gps.gaps, lang),
       nextBestAction: snapshot.companion.nextBestAction ? L(snapshot.companion.nextBestAction) : null,
-      roadmap: snapshot.gps.route.map((item) => ({ ...item, label: L(item.label) })),
+      roadmap: roadmap.map((item) => ({ ...item, title: L(item.title), action: L(item.action) })),
       publicDiscoverable: Boolean(profile.publicDiscoverable),
       profileCompleteness: {
         skills: result.context.skills.length,
