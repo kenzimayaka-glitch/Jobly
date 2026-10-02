@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { adminClient } from "@/lib/server-auth";
 import { watchExternal, type JiaWatchTarget } from "@/lib/jia/watcher";
+import { evaluateWatchSignal } from "@/lib/jia/watchIntelligence";
 
 export type PersistentWatchRow = {
   id: string;
