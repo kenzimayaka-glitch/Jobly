@@ -54,7 +54,7 @@ async function linkCareerMissionToJiaAction(userId:string, actionType:string, ne
    gapTarget: null,
    steps: [{ type: "ACTION", actionType, next }],
    expectedResult: "Une progression observable et un élément de preuve validé par l'utilisateur.",
-   expectedEvidence: ["Résultat de pratique", "Feedback ou assessment", "Preuve acceptée par l'utilisateur"],
+   expectedEvidence: JSON.stringify(["Résultat de pratique", "Feedback ou assessment", "Preuve acceptée par l'utilisateur"]),
    status: "PROPOSED",
  });
  if (error) return null;
