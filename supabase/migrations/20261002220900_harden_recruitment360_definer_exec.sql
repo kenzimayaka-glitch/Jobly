@@ -12,3 +12,7 @@ grant execute on function public.recruitment360_lot11_get_public_listing(text) t
 grant execute on function public.recruitment360_lot9_create_video_session(uuid, text) to service_role;
 grant execute on function public.recruitment360_lot9_start_video_session(uuid, text) to service_role;
 grant execute on function public.recruitment360_lot9_finalize_video_by_participant(uuid, text, integer) to service_role;
+
+-- Internal service-only tables: RLS remains enabled and the Data API roles have no direct table privileges.
+revoke all on table public."Community", public."CommunityMembership", public."CommunityPost", public."CommunityPostComment", public."CommunityPostReaction", public."JobHarvestCapture", public."RecruitmentListingErratum", public."RecruitmentListingExport", public."RecruitmentListingImmutableBlock", public."RecruitmentListingPublicLink", public."RecruitmentListingPublicationConsent" from public, anon, authenticated;
+grant select, insert, update, delete on table public."Community", public."CommunityMembership", public."CommunityPost", public."CommunityPostComment", public."CommunityPostReaction", public."JobHarvestCapture", public."RecruitmentListingErratum", public."RecruitmentListingExport", public."RecruitmentListingImmutableBlock", public."RecruitmentListingPublicLink", public."RecruitmentListingPublicationConsent" to service_role;
