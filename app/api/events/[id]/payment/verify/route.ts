@@ -1,6 +1,7 @@
 import { NextRequest,NextResponse } from "next/server";
 import { adminClient,ensureUser,getAuthUser } from "../../../../../../lib/server-auth";
 import { estimateAndDistributeEvent } from "../../../../../../lib/eventDistribution";
+import { discoverEventPartners } from "../../../../../../lib/eventPartnerDiscovery";
 const fail=(message:string,status=400,code="EVENT_PAYMENT_ERROR")=>NextResponse.json({error:code,message},{status});
 export async function POST(request:NextRequest,context:{params:Promise<{id:string}>}){
   try{
@@ -20,6 +21,6 @@ export async function POST(request:NextRequest,context:{params:Promise<{id:strin
     await sb.from("EventPayment").update({status:"PAID",updatedAt:now}).eq("id",ep.id);
     await sb.from("Event").update({status:"PUBLISHED",updatedAt:now}).eq("id",id);
     const distribution=await estimateAndDistributeEvent(sb,event,user.id);
-    return NextResponse.json({status:"PUBLISHED",eventId:id,distribution,audienceEstimate:distribution.audienceEstimate});
+    return NextResponse.json({status:"PUBLISHED",eventId:id,distribution,partnerDiscovery,audienceEstimate:distribution.audienceEstimate});
   }catch(e){return fail(e instanceof Error?e.message:"Vérification impossible.",500);}
 }
