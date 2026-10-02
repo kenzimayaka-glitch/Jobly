@@ -4721,3 +4721,8 @@ La reconstruction atteint désormais `typecheck + production build` verts sur Gi
 ## Ajustement lint
 
 Oxlint a d'abord parcouru `node_modules` et remonté des avertissements de dépendances tierces. Le périmètre du gate est maintenant explicitement limité au code source Jobly (`app`, `components`, `lib`, `scripts`, `supabase`) afin que la preuve porte sur notre code et non sur les dépendances installées.
+
+
+## Validation CI — état intermédiaire
+
+La passe `typecheck + build` est verte sur le commit `d919e3a`. Le run lint `8b8c157` a échoué uniquement parce que le périmètre Oxlint initial incluait `node_modules`; le script a été corrigé sur `5b9e750` pour cibler exclusivement le code Jobly. Un nouveau run CI doit être obtenu sur ce SHA avant merge.

@@ -4399,3 +4399,7 @@ La suite doit **compléter les connexions existantes**, pas reconstruire les bri
 4. raccorder Learning / Interview / CV Studio aux missions et preuves existantes ;
 5. exécuter typecheck/build + runtime/E2E ;
 6. seulement après preuve, préparer la promotion vers `main` et le déploiement autorisé.
+
+## Build gate Jobly
+
+La chaîne de validation de référence est : `pnpm install --frozen-lockfile` → `pnpm lint` → `pnpm typecheck` → `pnpm build`. `pnpm build` exécute explicitement `prisma generate` avant Next.js.
