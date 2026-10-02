@@ -1,3 +1,50 @@
+# CHECKPOINT 02/10/2026 — RÉCONCILIATION CAREER JOURNEY + LOTS A/B/C
+
+## Réconciliation code ↔ documentation
+
+Le contrôle du code réel a été effectué avant mise à jour documentaire.
+
+### Career Journey 360
+
+- Branche : `feat/jia-career-journey-360-main-20261002`.
+- Page : `app/career-journey/page.tsx` — **CODÉE**.
+- API : `app/api/career-journey/route.ts` — **CODÉE**.
+- Service : `lib/careerJourney.ts` — **CODÉ**.
+- Parcours actuellement relié : Career Journey → CareerJourney → objectifs → missions → recommandations → scénarios → revues périodiques.
+- Réévaluation et génération de recommandations : **CODÉES**.
+- Missions : cycle acceptation/refus/report/complétion/abandon + progression : **CODÉ**.
+- Revue périodique avec consentement : **CODÉE**.
+- Career Radar contextualisé : **CODÉ**.
+- Portfolio/preuves et évaluation optionnelle : **CODÉS** sur la branche.
+- Entitlements existants : **réutilisés** ; les fonctions avancées sont protégées côté serveur.
+- RLS Career Journey : **durcie** au commit `88fe82f`.
+
+### État Vercel Career Journey
+
+- Projet canonique : `jobly-c0.6.5.1`.
+- Commit `89b5055` — modèle : **READY**.
+- Commit `88fe82f` — RLS : **READY**.
+- Commit `62cd1de` — interface Career Journey : **ERROR**.
+- Aucun de ces changements n'est considéré comme déployé en production tant qu'il n'a pas été explicitement autorisé et validé.
+
+### Lots A/B/C — contrôle croisé
+
+| Lot | Chantier | Code | Documentation | Tests/validation | Déploiement |
+|---|---|---|---|---|---|
+| A | Mon Afrique | 🟢 codé | 🟢 reporté | 🟡 architecture OK, CI bloquée | ⏸️ aucun |
+| B | Veille J’IA | 🟢 codé B1→B3.1 | 🟢 clôture reportée | 🟢 matrice B3.1 couverte ; validation runtime complète distincte | ⏸️ aucun |
+| C | Bons Plans + Community | 🟢 codé + DB appliquée | 🟢 reporté | 🟡 structure contrôlée, build global encore rouge | ⏸️ aucun |
+
+### Règle de vérité
+
+Aucun lot A/B/C n'est déclaré **DÉPLOYÉ** ou **VALIDÉ E2E** sur la seule base du code ou de la documentation. Le statut reste séparé entre CODÉ, TESTÉ, VALIDÉ et DÉPLOYÉ.
+
+## Décision de continuité
+
+Ne pas recréer les briques existantes. Les prochains travaux doivent corriger uniquement les écarts constatés, puis tester avant toute nouvelle extension. Aucun merge `main` ni déploiement Vercel sans autorisation explicite.
+
+---
+
 # CHECKPOINT 01/10/2026 — J’IA MASTER SCOPE / CEO & TRANSVERSAL INTELLIGENCE
 
 ## Périmètre maître réconcilié
