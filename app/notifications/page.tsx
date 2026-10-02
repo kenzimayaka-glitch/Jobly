@@ -58,11 +58,11 @@ export default function NotificationsPage() {
     return () => { active = false; };
   }, [router, load]);
 
-  function openNotification(item: Notification) {
+  async function openNotification(item: Notification) {
     const destination = typeof item.link === "string" && item.link.startsWith("/") && !item.link.startsWith("//")
       ? item.link
       : null;
-    if (destination) router.push(destination);
+    if (token && !item.readAt) {\n      await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: item.id }) }).catch(() => {});\n      setItems((current) => current.map((notification) => notification.id === item.id ? { ...notification, readAt: new Date().toISOString() } : notification));\n    }\n    if (destination) router.push(destination);
   }
 
   return (
@@ -106,7 +106,7 @@ export default function NotificationsPage() {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => openNotification(item)}
+                    onClick={() => void openNotification(item)}
                     disabled={!clickable}
                     className="flex w-full items-start gap-3 rounded-[20px] border border-slate-100 bg-white p-4 text-left shadow-sm disabled:cursor-default"
                   >
