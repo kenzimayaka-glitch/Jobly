@@ -49,19 +49,19 @@ export default function CommunitiesPage() {
 
   async function join(id: string) {
     if (!access.allowed) {
-      router.push(access.reason === "UNAUTHENTICATED" ? \`/login?next=/communities/\${id}\` : "/abonnement");
+      router.push(access.reason === "UNAUTHENTICATED" ? `/login?next=/communities/${id}` : "/abonnement");
       return;
     }
-    const response = await fetch(\`/api/community/\${id}/membership\`, { method: "POST" });
+    const response = await fetch(`/api/community/${id}/membership`, { method: "POST" });
     if (response.status === 401) {
-      router.push(\`/login?next=/communities/\${id}\`);
+      router.push(`/login?next=/communities/${id}`);
       return;
     }
     if (response.status === 403) {
       router.push("/abonnement");
       return;
     }
-    if (response.ok) router.push(\`/communities/\${id}\`);
+    if (response.ok) router.push(`/communities/${id}`);
   }
 
   return (
@@ -97,7 +97,7 @@ export default function CommunitiesPage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 {visible.map((community) => (
                   <article key={community.id} className="rounded-[26px] border border-white bg-white p-5 shadow-sm">
-                    <button type="button" onClick={() => router.push(\`/communities/\${community.id}\`)} className="block w-full text-left">
+                    <button type="button" onClick={() => router.push(`/communities/${community.id}`)} className="block w-full text-left">
                       <div className="flex items-start justify-between gap-3">
                         <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#EEF2FF] text-lg">◉</span>
                         <span className="text-xs font-black text-slate-500">{community.memberCount} membres</span>
