@@ -4264,5 +4264,10 @@ Supabase : migration appliquée et vérifiée ; programme DEMO présent.
 Advisors : les nouvelles tables sont signalées comme RLS enabled / no policy, ce qui correspond au choix actuel de service-only server-mediated. Les alertes historiques du projet restent distinctes.
 Vercel : **aucun déploiement**.
 
-## Blocage restant pour l'accès personnel
-Pour connecter le compte Jobly de l'utilisateur au Hub institutionnel sans inventer ni dupliquer un compte, il faut identifier son **compte Jobly existant** (email exact ou identifiant de compte). Une fois identifié, il sera ajouté à InstitutionMember avec un rôle institutionnel approprié, sans créer de nouveau compte Auth.
+## Accès de test institutionnel
+- Un espace institutionnel DEMO **Jobly Mobility Lab — DEMO** a été créé dans JOBLY-PROD.
+- Le compte Jobly existant de l'utilisateur a été relié à InstitutionMember avec le rôle **INSTITUTION_ADMIN**.
+- Le programme **JOBLY-MOBILITY-DEMO-001** est rattaché à cet espace.
+- Aucun nouveau compte Auth n'a été créé et aucun mot de passe fictif n'a été généré.
+- Le dashboard est disponible côté code sur /institution/mobility.
+- Le dashboard et les nouvelles APIs restent **NON DÉPLOYÉS** tant que l'utilisateur n'a pas autorisé le déploiement.
