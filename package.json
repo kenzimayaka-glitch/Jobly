@@ -13,7 +13,8 @@
     "db:migrate:deploy": "prisma migrate deploy --schema packages/database/prisma/schema.prisma",
     "uat:iclan": "node scripts/iclan-uat-smoke.mjs",
     "uat:iclan:pay": "node scripts/iclan-uat-smoke.mjs --pay",
-    "netlify:prepare-renderer": "npm install --no-save --package-lock=false playwright-core@1.55.0 @sparticuz/chromium@138.0.2"
+    "netlify:prepare-renderer": "npm install --no-save --package-lock=false playwright-core@1.55.0 @sparticuz/chromium@138.0.2",
+    "test:jia-watch": "node scripts/jia-watch-intelligence-smoke.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
