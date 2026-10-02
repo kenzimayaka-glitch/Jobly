@@ -4686,3 +4686,8 @@ Cette reconstruction repart du dernier déploiement production READY 09e07f9 et 
 - Node : majeure fixée à 22 ; pnpm : 10.28.0.
 - Vercel canonique : jobly-c0.6.5.1. v0-project déploie également ce même dépôt, y compris en production ; il est traité comme surface concurrente/non canonique tant que son rattachement aux domaines de production n'est pas démontré.
 - Aucun statut READY/VALIDÉ/DÉPLOYÉ ne sera déclaré sans preuve correspondante.
+
+
+## Correction build — Community entitlements
+
+Le premier typecheck de la reconstruction a révélé que `lib/community/access.ts` consommait `communityAccess` et `blueBadge` alors que `getEntitlements()` ne les exposait pas. Correction intégrée dans `lib/billingCatalog.ts` : accès Community pour START/PREMIUM/PRO ; badge pour PREMIUM/PRO. Le prochain typecheck doit confirmer le reste du socle avant tout merge.
