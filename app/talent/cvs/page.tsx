@@ -296,6 +296,16 @@ export default function TalentCVs() {
     }
   }
 
+  function selectTemplate(id: string) {
+    const template = CV_TEMPLATES.find(item => item.id === id);
+    if (!template) return;
+    if (template.access === "PREMIUM" && plan === "FREE") {
+      notify("Ce modèle est réservé aux formules Premium. Passe à une formule payante pour l’utiliser.", "info");
+      return;
+    }
+    setTemplateId(template.id);
+  }
+
   function openVersion(version: "jobly" | "ats") {
     setPreviewVersion(version);
     setPreviewOpen(true);
