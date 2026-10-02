@@ -45,6 +45,27 @@ export async function POST(request: NextRequest) {
       ctx.journey = data;
     }
 
+    if (body.action === "CREATE_REVIEW") {
+      const entitlements = await getCareerJourneyEntitlements(ctx.supabase, ctx.user.id);
+      if (!entitlements.canPeriodicReview) return NextResponse.json({ message: "La revue périodique est disponible à partir de Start.", requiredPlan: "START" }, { status: 403 });
+      if (!ctx.journey.consentFollowUp || ctx.journey.reviewFrequency === "OFF") return NextResponse.json({ message: "La revue périodique nécessite le consentement de suivi et une fréquence active." }, { status: 400 });
+      const end = new Date();
+      const start = new Date(end);
+      start.setDate(end.getDate() - (ctx.journey.reviewFrequency === "WEEKLY" ? 7 : 30));
+      const completed = ctx.missions.filter((m: any) => m.status === "COMPLETED" && new Date(m.updatedAt) >= start).length;
+      const pending = ctx.missions.filter((m: any) => ["PROPOSED","ACCEPTED","IN_PROGRESS","DEFERRED"].includes(m.status)).length;
+      const { data, error } = await ctx.supabase.from("CareerReview").insert({
+        id: crypto.randomUUID(), userId: ctx.user.id, journeyId: ctx.journey.id,
+        frequency: ctx.journey.reviewFrequency, periodStart: start.toISOString(), periodEnd: end.toISOString(),
+        summary: `Revue ${ctx.journey.reviewFrequency === "WEEKLY" ? "hebdomadaire" : "mensuelle"} : ${completed} mission(s) terminée(s), ${pending} en attente.`,
+        completedMissions: completed, pendingMissions: pending,
+        readinessBefore: ctx.journey.latestReadiness, readinessAfter: ctx.journey.latestReadiness,
+        nextPriorities: ctx.journey.latestSnapshot?.gaps ?? [],
+      }).select("*").single();
+      if (error) throw new Error(error.message);
+      return NextResponse.json({ ok: true, review: data });
+    }
+
     if (body.action === "REASSESS" || body.action === "RECOMMEND") {
       const result = await generateJourneyRecommendations(ctx);
       return NextResponse.json({ ok: true, journey: ctx.journey, assessment: result.assessment, recommendations: result.created });
