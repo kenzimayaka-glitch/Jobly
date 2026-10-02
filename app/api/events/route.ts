@@ -20,7 +20,7 @@ export async function GET(request:NextRequest){
     const allEvents=events??[];
 
     const auth=await getAuthUser(request);
-    let recommended=allEvents.slice(0,12).map(e=>({event:e,score:null}));
+    let recommended: Array<{event:any;score:number|null}>=allEvents.slice(0,12).map(e=>({event:e,score:null}));
     let personalized=false;
     if(auth){
       const user=await ensureUser(sb,auth);
