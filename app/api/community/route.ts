@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     const access = await getCommunityAccess(request);
     return NextResponse.json({
       communities: (data || []).map((community) => ({ ...community, memberCount: counts.get(community.id) || 0 })),
-      access: { allowed: access.allowed, reason: access.reason },
+      access: { allowed: access.allowed, reason: access.reason, blueBadge: access.blueBadge },
     });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Communautés indisponibles." }, { status: 500 });
