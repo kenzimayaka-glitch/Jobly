@@ -1,3 +1,39 @@
+
+
+# CHECKPOINT LOT G — CAREER OS G2→G10 — 02/10/2026
+
+## Completion pass
+
+Les couches restantes de Lot G ont été consolidées au-dessus de Career Journey 360 — Architecture B, sans création d'un second état Career.
+
+- **G2 Career Twin** : projection calculée du Journey.
+- **G3 Career GPS / Gap Intelligence** : gaps et prochaine action provenant du snapshot canonique.
+- **G4 Readiness Intelligence** : readiness et force des preuves réutilisées depuis Journey.
+- **G5 Opportunity Intelligence** : projection des opportunités actives ; le matching/Career Radar existant reste la mécanique de décision de référence.
+- **G6 Learning / Interview / Application** : priorités de mission dérivées des gaps + outcomes de candidatures existants.
+- **G7 Mobility Intelligence** : projection des dossiers Mobility existants.
+- **G8 Career Companion** : J’IA expose une proposition de prochaine action ; les actions externes restent soumises à Policy/consentement.
+- **G9 Outcome → Review → Reassessment** : outcomes, revue récente et endpoint de réévaluation reliés dans une même surface.
+- **G10 Runtime / Production** : gate d'architecture ajouté à la CI ; typecheck/build et déploiement restent des preuves distinctes.
+
+### Correction structurante
+
+L'ancien endpoint GET /api/career-os écrivait un CareerAssessment pendant une lecture. Cette écriture a été supprimée : Career OS est désormais strictement calculé à partir de CareerJourney/CareerBrain et ne crée plus d'état parallèle.
+
+### Nouvelle surface
+
+GET /api/career-os expose désormais un snapshot unifié :
+Career Twin → GPS → Readiness → Opportunity → Learning → Mobility → Companion → Outcome loop.
+
+### État de vérité
+
+- Code : **INTÉGRÉ MAIN**
+- Architecture : **COHÉRENTE avec Career Journey comme source unique**
+- Migration DB : **aucune nouvelle migration requise pour cette passe**
+- Gate Career OS : **ajouté à CI**
+- Validation typecheck/build GitHub : **à observer sur le pipeline déclenché après merge**
+- Vercel production : **à observer ; aucune déclaration de production READY sans preuve de déploiement**
+
 ## CAREER — SOURCE UNIQUE DE VÉRITÉ — 02/10/2026
 
 ### Décision architecturale figée
