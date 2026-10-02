@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
 import { getEventDomain, getEventPricing, estimateEventAudience, validateEventMedia, EVENT_MAX_DAYS } from "../../../lib/events";
+import { buildEventEcosystemConnections, scoreEventForProfile } from "../../../lib/eventEcosystem";
 
 export const dynamic = "force-dynamic";
 const fail=(message:string,status=400,code="EVENT_ERROR")=>NextResponse.json({error:code,message},{status});
 
-export async function GET(){
+export async function GET(request:NextRequest){
   try{
     const sb=adminClient(),now=new Date().toISOString();
     const {data:events,error}=await sb.from("Event").select("*").eq("status","PUBLISHED").lte("campaignStartAt",now).gte("campaignEndAt",now).order("createdAt",{ascending:false}).limit(100);
@@ -14,7 +15,42 @@ export async function GET(){
     const {data:featured,error:fe}=await sb.from("EventFeaturedCampaign").select("eventId,startAt,endAt,slot,status").eq("status","ACTIVE").lte("startAt",now).gte("endAt",now).order("slot",{ascending:true}).limit(6);
     if(fe)throw new Error(fe.message);
     const ids=(featured??[]).map(x=>x.eventId);
-    return NextResponse.json({featured:(events??[]).filter(e=>ids.includes(e.id)),events:(events??[]).filter(e=>!ids.includes(e.id)),featuredSlots:6});
+    const allEvents=events??[];
+
+    const auth=await getAuthUser(request);
+    let recommended=allEvents.slice(0,12).map(e=>({event:e,score:null}));
+    let personalized=false;
+    if(auth){
+      const user=await ensureUser(sb,auth);
+      const [{data:profile},{data:journey},{data:mobility}]=await Promise.all([
+        sb.from("Profile").select("targetRoles,targetCities,preferredSectors,location").eq("userId",user.id).maybeSingle(),
+        sb.from("CareerJourney").select("targetRole,targetDescription").eq("userId",user.id).maybeSingle(),
+        sb.from("MobilityRequest").select("departCity,arriveeCity,status").eq("userId",user.id).order("updatedAt",{ascending:false}).limit(1).maybeSingle(),
+      ]);
+      const mobilityContext=mobility?.arriveeCity||mobility?.departCity;
+      const enrichedProfile={...(profile??{}),targetCities:[...((profile?.targetCities??[]) as string[]),...(mobilityContext?[mobilityContext]:[])]};
+      recommended=allEvents.map(event=>({event,score:scoreEventForProfile(event,enrichedProfile,journey)})).sort((a,b)=>(b.score??0)-(a.score??0)).slice(0,12);
+      personalized=true;
+    }
+
+    return NextResponse.json({
+      featured:allEvents.filter(e=>ids.includes(e.id)),
+      events:allEvents.filter(e=>!ids.includes(e.id)),
+      recommended:recommended.map(x=>({...x.event,relevanceScore:x.score})),
+      personalized,
+      featuredSlots:6,
+      ecosystem:allEvents.slice(0,1).map(e=>buildEventEcosystemConnections(e))[0]??{
+        eventSourceOfTruth:true,
+        consumers:[
+          {key:"COMMUNITY",status:"ADAPTER_READY"},
+          {key:"CAMPUS",status:"AVAILABLE"},
+          {key:"MOBILITY",status:"AVAILABLE"},
+          {key:"OFFERS",status:"AVAILABLE"},
+          {key:"CAREER_JOURNEY",status:"RELEVANT"},
+          {key:"HUB",status:"AVAILABLE"}
+        ]
+      }
+    });
   }catch(e){return fail(e instanceof Error?e.message:"Impossible de charger les événements.",500,"EVENTS_UNAVAILABLE");}
 }
 
@@ -32,7 +68,7 @@ export async function POST(request:NextRequest){
     if(durationDays<1||durationDays>EVENT_MAX_DAYS)return fail("La durée doit être comprise entre 1 et 90 jours.");
     const media=validateEventMedia({mediaType:body.mediaType,mediaSizeBytes:body.mediaSizeBytes,mediaDurationSeconds:body.mediaDurationSeconds});
     if(!media.ok)return fail(media.error??"Média invalide.");
-    if(body.safetyAccepted!==true||body.rightsAccepted!==true)return fail("Les règles de sécurité et les droits de contenu doivent être acceptés.");
+    if(body.safetyAccepted!==true||body.rightsAccepted!==true)return fail("Les règles de sécurité et des droits de contenu doivent être acceptés.");
     const sb=adminClient(),user=await ensureUser(sb,auth),now=new Date().toISOString();
     const {data:entitlement}=await sb.from("EventEntitlement").select("*").eq("organizerUserId",user.id).eq("active",true).lte("validFrom",now).or("validUntil.is.null,validUntil.gte."+now).maybeSingle();
     const free=user.role==="ADMIN"||Boolean(entitlement?.freePublication);
