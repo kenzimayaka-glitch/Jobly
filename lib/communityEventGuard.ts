@@ -8,7 +8,7 @@ export type EventBypassDecision = {
 const normalize=(v:string)=>v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const rendezvous=/\b(rendez[- ]?vous|rdv|rencontre|rejoignez[- ]?nous|venez|retrouvez[- ]?nous|presence|stand|salon|forum|conference|job ?dating|job ?fair|afterwork|atelier|webinaire|masterclass)\b/i;
 const dateTime=/\b(?:0?[1-9]|[12]\d|3[01])(?:[\/.-](?:0?[1-9]|1[0-2]))?(?:[\/.-]\d{2,4})?\b|\b(?:\d{1,2}h(?:\d{2})?|\d{1,2}:\d{2})\b/i;
-const contact=/\b(?:whatsapp|telegram|signal|t[ée]l(?:ephone)?|appelez|contactez|+?\d[\d .()-]{7,})\b/i;
+const contact=/\b(?:whatsapp|telegram|signal|t[ée]l(?:ephone)?|appelez|contactez|\+?\d[\d .()-]{7,})\b/i;
 const bypass=/\b(?:inscription|inscrivez|inscris|participer|participation|candidature|recrutement|paiement|frais|billet|ticket)\b/i;
 
 export function inspectCommunityMessage(content:string):EventBypassDecision{
