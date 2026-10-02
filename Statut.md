@@ -4362,3 +4362,30 @@ Une même réalisation peut produire plusieurs actifs : **performance + compéte
 Le modèle doit pouvoir évoluer vers : suivi périodique des KPI, collecte de preuves, transformation en cas concret, portfolio, quantification CV, réévaluation et chaînage de missions. Les intégrations automatiques de données métier restent une étape distincte et ne sont pas prétendues comme déjà connectées.
 
 **État : 🟨 CODÉ + CONSOLIDÉ — NON VALIDÉ RUNTIME / NON DÉPLOYÉ.**
+
+
+## CHECKPOINT 02/10/2026 — CAREER JOURNEY — PERFORMANCE / PREUVES / CV
+
+La consolidation fonctionnelle est raccordée au runtime existant, sans créer de nouveaux modèles Career*.
+
+### Chaîne connectée
+**Mission → progression → preuve → quantification → portfolio/CV → réévaluation.**
+
+- `CareerMission.steps` porte les données structurées de performance lorsqu'une mission utilise un KPI.
+- `CareerEvidence` est réutilisé pour les preuves terrain via `metadata.terrainKind` et les champs existants.
+- Les preuves restent rattachées au compte et, lorsqu'elles concernent une mission, à `CareerMission`.
+- `CareerPortfolioItem` est réutilisé pour les cas professionnels structurés et reste protégé par l'entitlement portfolio avancé.
+- `QUANTIFY_EVIDENCE` extrait uniquement les éléments mesurables vérifiés et retourne une matière CV soumise à validation utilisateur.
+- L'interface Career Journey permet maintenant de capturer une preuve directement depuis une mission.
+- Les quotas de missions actives existants sont appliqués côté serveur.
+
+### Garde-fous
+Aucune métrique n'est inventée. Une preuve déclarée n'est pas présentée comme vérifiée. Aucune modification automatique du CV n'est effectuée. Les intégrations automatiques de KPI métier restent hors périmètre tant qu'elles ne sont pas réellement connectées.
+
+### Architecture / migration
+**Aucune migration Prisma ou Supabase supplémentaire créée pour cette consolidation.** Les modèles existants couvrent déjà les relations nécessaires.
+
+### État de vérité
+**🟨 CODÉ + CONNECTÉ — TESTS BUILD/RUNTIME À EFFECTUER — NON DÉPLOYÉ.**
+
+Aucun merge vers `main` et aucun déploiement Vercel n'ont été effectués.
