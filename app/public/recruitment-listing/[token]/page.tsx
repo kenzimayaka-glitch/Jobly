@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
 export default async function PublicRecruitmentListingPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   try {
-    const data = await loadPublicOfficialListing(token);
+    const data = await loadPublicOfficialListing(token, "");
     const html = renderWebHtml(data);
     return (
       <main className="min-h-screen bg-white">
