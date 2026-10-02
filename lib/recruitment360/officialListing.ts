@@ -177,7 +177,7 @@ function renderPageSvg(
   });
 
   const logoText = "Jobly";
-  const joblyLink = data.publicUrl.replace(/^https?:\\/\\//, "").slice(0, 52);
+  const joblyLink = data.publicUrl.replace(/^https?:\/\//, "").slice(0, 52);
   const qrSize = Math.round(120 * s);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
