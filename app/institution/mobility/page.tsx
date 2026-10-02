@@ -69,7 +69,7 @@ export default function InstitutionalMobilityDashboard() {
                     </div>
                     <p className="mt-3 text-sm text-slate-600">{p.description}</p>
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm"><Stat label="Capacité" value={p.capacity ?? "—"} /><Stat label="Budget" value={p.budgetTotal ? Number(p.budgetTotal).toLocaleString("fr-FR") + " " + p.currency : "—"} /></div>
-                    <div className="mt-4 rounded-xl bg-[#FFF8D9] p-3 text-xs font-bold">Règles : Premium · convention employeur obligatoire · garantie recruteur · plafond 50 % · remboursement 3 mois.</div>
+                    <div className="mt-4 rounded-xl bg-[#FFF8D9] p-3 text-xs font-bold">Règles : pack payant actif · convention employeur obligatoire · garantie recruteur · plafond 50 % · remboursement 3 mois.</div>
                   </div>
                 ))
               }
@@ -77,7 +77,7 @@ export default function InstitutionalMobilityDashboard() {
 
             <div className="rounded-[28px] border bg-white p-6 shadow-sm">
               <h2 className="text-xl font-black">État du flux Jobly</h2>
-              <Flow label="Talent Premium" ok />
+              <Flow label="Talent — pack payant actif" ok />
               <Flow label="Emploi obtenu" ok />
               <Flow label="Demande Mobility" ok={requests.length > 0} />
               <Flow label="Éligibilité J’IA" ok={eligible > 0} />
