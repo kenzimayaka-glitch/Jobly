@@ -107,7 +107,7 @@ export async function buildCareerBrainContext(sb: SupabaseClient, userId: string
   const normalizedStatuses = applications.map((a) => String(a.status || "").toUpperCase());
   const applicationOutcomes = {
     total: applications.length,
-    interviews: normalizedStatuses.filter((s) => s.includes("INTERVIEW") || Boolean(applications.find((a) => String(a.id) === String(a.id) && a.interviewAt))).length,
+    interviews: applications.filter((a, index) => normalizedStatuses[index]?.includes("INTERVIEW") || Boolean(a.interviewAt)).length,
     offers: normalizedStatuses.filter((s) => s.includes("OFFER") || s.includes("HIRED") || s.includes("ACCEPTED")).length,
     rejections: normalizedStatuses.filter((s) => s.includes("REJECT") || s.includes("DECLIN")).length,
     pending: normalizedStatuses.filter((s) => !s.includes("INTERVIEW") && !s.includes("OFFER") && !s.includes("HIRED") && !s.includes("ACCEPTED") && !s.includes("REJECT") && !s.includes("DECLIN")).length,
