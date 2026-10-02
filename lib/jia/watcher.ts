@@ -2,7 +2,7 @@ import {observeInternet} from "@/lib/jia/internet";
 import {ingestExternalSignal} from "@/lib/jia/cognitive";
 import {publishTraceEvent} from "@/lib/jia/eventBus";
 import {adminClient} from "@/lib/server-auth";
-import { AFRICA_COUNTRIES, getAfricaCountry } from "@/lib/countries/africa";
+import { getAfricaCountry } from "@/lib/countries/africa";
 
 export type JiaWatchTarget={key:string;query:string;domain:string;intervalMs?:number;countries?:string[]};
 
