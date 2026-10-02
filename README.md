@@ -4158,7 +4158,7 @@ Le chantier est intégré dans `main`, mais ne doit pas être déclaré « total
 - Entitlements : contrôlés côté serveur ; aucun contournement par payload/query attendu.
 - Watcher : réutilisation de `JiaWatchSubscription/JiaWatchRun/JiaWatchSnapshot` et scheduler existant ; aucun second scheduler.
 - Intelligence B3 : `SUPPRESS / DIGEST / NOTIFY / REVIEW` désormais exécutée après chaque run Watcher réussi et persistée sur `JiaWatchRun`.
-- Migration de veille : versionnée dans le dépôt ; aucune migration de production exécutée dans cette passe.
+- Schéma de veille JOBLY-PROD : `JiaWatchSubscription`, `JiaWatchRun`, `JiaWatchSnapshot` sont déjà présents et leurs colonnes B3 sont vérifiées ; aucune opération DDL n’a été exécutée pendant cette passe. La migration Prisma `20261002060000_jia_watch_persistence` reste versionnée dans le dépôt ; elle n’apparaît pas dans l’historique des migrations Supabase, ce qui est documenté comme un point de réconciliation et non comme une nouvelle migration à appliquer aveuglément.
 - Typecheck : 🟢 SUCCESS.
 - Build production : 🟢 SUCCESS.
 - Smoke B3.1 : 🟢 SUCCESS (4/4 décisions + atténuation par contradiction).
