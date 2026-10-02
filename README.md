@@ -4212,3 +4212,57 @@ Le chantier est intégré dans `main`, mais ne doit pas être déclaré « total
 - Offer pipeline verification : 🟢 SUCCESS sur la validation finale.
 - Vercel : aucun déploiement manuel/production lancé ; le workflow de production est `workflow_dispatch` uniquement.
 - État : **CODÉ → CONNECTÉ → TESTÉ → VALIDÉ techniquement → NON DÉPLOYÉ**.
+
+
+# CHECKPOINT 02/10/2026 — MOBILITY F1 — ÉLIGIBILITÉ + CONVENTION EMPLOYEUR + HUB INSTITUTIONNEL
+
+## Nouvelle règle métier validée
+- Mobility est réservée au **Talent Premium**.
+- Le Talent doit avoir obtenu un emploi via une candidature Jobly reliée à une **RecruitmentOffer**.
+- Le salaire de référence est exclusivement le **salaryProposed de l'offre recruteur acceptée/validée** ; le Talent ne peut plus imposer le salaire de calcul.
+- Une **convention Mobility employeur** acceptée est obligatoire. Sans convention, le dossier est refusé.
+- La convention engage l'entreprise à garantir le remboursement de l'avance sur **3 mois**.
+- La garantie reste due même en cas de fin de contrat avant l'échéance : les champs contractuels terminationDoesNotRelease / terminationStillDue sont explicites.
+- Le plafond d'éligibilité reste **35 % du salaire approuvé**.
+- Le financement n'est possible qu'après activation de la garantie recruteur.
+- Le remboursement cible est PAYROLL_API, avec 3 échéances ; aucune API de paiement réelle n'est encore branchée.
+
+## F1 codé
+- lib/mobilityEligibility.ts passe en mobility-eligibility-v2.
+- Conditions obligatoires : salaire approuvé + coûts Mobility + convention employeur + garantie recruteur.
+- Calcul explicable : coût total, charge %, plafond 35 %, montant maximal éligible, mensualité sur 3 mois.
+- MobilityRequest est maintenant rattachable à Application et conserve la provenance du salaire.
+- MobilityCostItem persiste le détail transport/logement/installation/etc.
+- MobilityEligibilityDecision persiste une décision versionnée.
+- /api/mobility/request récupère le salaire depuis RecruitmentOffer et refuse l'invention d'un salaire.
+- /api/mobility/recruiter/agreement permet l'acceptation explicite de la convention.
+- /api/mobility/recruiter/guarantee vérifie que l'acteur est réellement le recruteur du dossier et crée une garantie structurée.
+
+## Fondation institutionnelle
+- MobilityProgram
+- MobilityFundingRule
+- MobilityFundingAllocation
+- MobilityFundingTransaction
+- MobilityRepaymentPlan
+- InstitutionMember
+- InstitutionCommunication
+- Les nouvelles tables sont RLS activées et servies via les APIs serveur ; elles ne sont pas exposées directement aux clients.
+- Un programme DEMO a été créé dans JOBLY-PROD pour les tests : JOBLY-MOBILITY-DEMO-001 / Programme Pilote Mobility — DEMO.
+- Le programme est explicitement fictif : aucune institution réelle n'est présentée comme partenaire et aucun financement réel n'est déclaré.
+
+## Hub institutionnel
+- /institution/mobility
+- /api/institution/mobility/dashboard
+- Le dashboard expose programmes, demandes, éligibilité, allocations, montants engagés et communications.
+- Le bridge InstitutionCommunication alimente l'univers Jobly via JiaEvent + Notification lors d'une communication institutionnelle.
+- L'accès individuel doit être lié à InstitutionMember ; aucun compte ou identifiant personnel n'a été créé artificiellement.
+
+## État de vérité
+**🟨 CODÉ → CONNECTÉ DB → TESTÉ SCHÉMA → NON DÉPLOYÉ.**
+
+Supabase : migration appliquée et vérifiée ; programme DEMO présent.
+Advisors : les nouvelles tables sont signalées comme RLS enabled / no policy, ce qui correspond au choix actuel de service-only server-mediated. Les alertes historiques du projet restent distinctes.
+Vercel : **aucun déploiement**.
+
+## Blocage restant pour l'accès personnel
+Pour connecter le compte Jobly de l'utilisateur au Hub institutionnel sans inventer ni dupliquer un compte, il faut identifier son **compte Jobly existant** (email exact ou identifiant de compte). Une fois identifié, il sera ajouté à InstitutionMember avec un rôle institutionnel approprié, sans créer de nouveau compte Auth.
