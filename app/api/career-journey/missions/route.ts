@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getOrCreateJourney, updateMission } from "@/lib/careerJourney";
+import { getCareerJourneyEntitlements } from "@/lib/careerJourneyEntitlements";
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,6 +25,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, mission });
     }
 
+    const entitlements = await getCareerJourneyEntitlements(ctx.supabase, ctx.user.id);
+    const { count: activeCount } = await ctx.supabase.from("CareerMission").select("id", { count: "exact", head: true }).eq("userId", ctx.user.id).in("status", ["ACCEPTED","IN_PROGRESS"]);
+    if ((activeCount ?? 0) >= entitlements.maxActiveMissions) return NextResponse.json({ message: "Le nombre maximal de missions actives de votre formule est atteint.", limit: entitlements.maxActiveMissions, plan: entitlements.plan }, { status: 403 });
     const title = typeof body.title === "string" ? body.title.trim() : "";
     const objective = typeof body.objective === "string" ? body.objective.trim() : "";
     const description = typeof body.description === "string" ? body.description.trim() : "";
