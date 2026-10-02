@@ -24,6 +24,19 @@ export async function POST(request: NextRequest) {
 
     if (body.action === "EVIDENCE") {
       const title = typeof body.title === "string" ? body.title.trim() : "";
+      for (const relation of [
+        ["missionId", "CareerMission"],
+        ["assessmentId", "CareerCompetencyAssessment"],
+        ["portfolioId", "CareerPortfolioItem"],
+      ] as const) {
+        const value = body[relation[0]];
+        if (value) {
+          const ownerColumn = relation[1] === "CareerMission" || relation[1] === "CareerCompetencyAssessment" || relation[1] === "CareerPortfolioItem" ? "userId" : "userId";
+          const check = await ctx.supabase.from(relation[1]).select("id").eq("id", value).eq(ownerColumn, ctx.user.id).maybeSingle();
+          if (check.error) throw new Error(check.error.message);
+          if (!check.data) return NextResponse.json({ message: "La ressource liée n'appartient pas à ce compte." }, { status: 403 });
+        }
+      }
       if (!title) return NextResponse.json({ message: "title requis." }, { status: 400 });
       const provenance = ["DECLARED","DOCUMENTED","AI_EVALUATED","CONVERGENT"].includes(body.provenance) ? body.provenance : "DECLARED";
       const type = ["DECLARATION","DOCUMENT","PORTFOLIO","PROJECT","EXPERIENCE","ASSESSMENT","FEEDBACK"].includes(body.type) ? body.type : "DECLARATION";
