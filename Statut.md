@@ -44,6 +44,15 @@ Bons plans et Community cohabitent comme deux surfaces métier distinctes :
 ### État de vérité
 **🟡 CODÉ + CONTRÔLÉ STRUCTURELLEMENT — BUILD/E2E À CONFIRMER.**
 
+### Validation CI au 02/10/2026 — dernier état observé
+- PR #153 : ouverte, mergeable, **aucun merge `main`**.
+- Dernier head : `137570b62cad590117f2c32fe686278ba1d4b0f7`.
+- **Jobly CI — Typecheck & Build #901 : en cours** au dernier contrôle ; aucun verdict final ne doit être déduit avant sa fin.
+- Les gates J’IA Architecture 10-10, Cognitive Core et Internet Brain du même cycle sont vertes.
+- La gate J’IA Master Continuous reste rouge sur un contrôle préexistant de cohérence textuelle : `test_jia_critical_9.py` attend le terme `contradict` dans `test_internet_brain.py`. Ce point est hors matrice Community/billing.
+- Supabase **JOBLY-PROD** est `ACTIVE_HEALTHY` ; 8 communautés sont présentes et actives.
+- Les advisors Supabase signalent des alertes existantes de gouvernance/RLS et quelques warnings de sécurité/performance hors de cette matrice ; aucune modification de schéma n’a été nécessaire pour le badge.
+
 Le modèle de droits est cohérent et centralisé. La validation complète reste conditionnée au passage du build/typecheck et au test réel du parcours Community après déploiement explicitement autorisé.
 
 ## Implémentation actuelle — 🟡 CODÉ / 🟡 À VALIDER BUILD/E2E
