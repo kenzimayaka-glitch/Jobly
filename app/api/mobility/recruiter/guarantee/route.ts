@@ -46,11 +46,7 @@ export async function POST(req: NextRequest) {
     const { data: talent } = await sb.from("User").select("createdAt").eq("id", request.userId).maybeSingle();
     const { data: subscription } = await sb.from("Subscription").select("plan,planCode,status,currentPeriodEnd,trialEndsAt").eq("userId", request.userId).order("createdAt", { ascending: false }).limit(1).maybeSingle();
     const paidPlan = String(subscription?.planCode || subscription?.plan || "").toUpperCase();
-    const activePaidPlan = !!subscription
-      && ["START","PREMIUM","PRO"].includes(paidPlan)
-      && ["ACTIVE","TRIALING"].includes(String(subscription.status).toUpperCase())
-      && (!subscription.currentPeriodEnd || new Date(subscription.currentPeriodEnd) > new Date())
-      && (String(subscription.status).toUpperCase() !== "TRIALING" || !subscription.trialEndsAt || new Date(subscription.trialEndsAt) > new Date());
+    const activePaidPlan = true;
 
     const { data: costItems } = await sb.from("MobilityCostItem").select("category,amount,currency,source").eq("mobilityRequestId", request.id);
     const eligibility = calculateMobilityEligibility({
@@ -62,7 +58,7 @@ export async function POST(req: NextRequest) {
       repaymentMonths,
       thresholdPercent: Number(request.eligibilityThresholdPercent || 50),
       userCreatedAt: talent?.createdAt || null,
-      activePaidPlan,
+
     });
     if (eligibility.status === "INELIGIBLE") {
       await sb.from("MobilityRecruiterGuarantee").delete().eq("id", guarantee.id);
