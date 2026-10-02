@@ -1,0 +1,23 @@
+name: Recruitment 360 Lot 11 validation
+
+on:
+  push:
+    branches:
+      - recruitment360-lot10-11-9-20261002
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - run: npm install --no-save --no-audit --no-fund tsx jsqr
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npx tsx scripts/official-listing-jpeg-smoke.ts

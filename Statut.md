@@ -4646,3 +4646,30 @@ Le contexte J’IA consomme maintenant Career Brain. Les mécanismes existants d
 Le prochain travail doit connecter les briques existantes entre elles : Opportunity/Matching, Mobility, Learning, Interview, CV/Evidence et boucle Outcome → Review → Reassessment. Aucun nouveau Career State ne doit être créé.
 
 **Vérité d'exécution :** CODÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.
+
+# CHECKPOINT 02/10/2026 — RECRUTEMENT 360° — LOT 11 — LISTINGS OFFICIELS
+
+## Périmètre consolidé
+Le Lot 11 intègre désormais les listings officiels, leurs exports et leur surface publique versionnée.
+
+### Backend / Supabase
+- Consentement candidat pour la publication officielle.
+- Bucket privé `recruitment-listings` et exports protégés.
+- Liens publics versionnés avec étape/thème, expiration et révocation.
+- Génération serveur protégée par rôle.
+- Exports journalisés avec checksum, statut, dimensions et métadonnées.
+- Bloc Jobly réinjecté côté serveur à chaque génération.
+- Migrations Lot 11 et durcissement des grants présents dans le dépôt.
+
+### Formats et surfaces
+- PDF, XLSX, Web non indexé et JPEG vertical 1:2.
+- Cascade JPEG et QR généré côté serveur.
+- `/recruiter/listings` raccordé aux données réelles.
+- Accès « Générer un listing officiel » depuis `/recruiter/jobs`.
+- Consentement candidat et téléchargement PDF public versionné.
+
+### Validation
+- Le code et les migrations sont consolidés dans cette branche de travail.
+- Les validations E2E/CI/runtime et la migration effective de JOBLY-PROD restent à exécuter avant toute certification de production.
+
+**Règle : CODÉ ≠ ACCESSIBLE ≠ CONNECTÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.**
