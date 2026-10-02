@@ -35,8 +35,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "title, objective et description sont requis." }, { status: 400 });
     }
 
-    const status = body.status === "ACCEPTED" ? "ACCEPTED" : "PROPOSED";
-    const acceptedAt = status === "ACCEPTED" ? new Date().toISOString() : null;
+    // A mission is always proposed first. Starting it requires the explicit ACCEPT action.
+    const status = "PROPOSED";
+    const acceptedAt = null;
     const { data, error } = await ctx.supabase.from("CareerMission").insert({
       id: crypto.randomUUID(),
       userId: ctx.user.id,
