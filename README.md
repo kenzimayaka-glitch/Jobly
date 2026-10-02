@@ -1,3 +1,61 @@
+
+## Mise à jour — critères Mobility & validation Administration Jobly
+
+- **Ancienneté utilisateur >= 3 mois : OUI** — critère maintenu.
+- **Pack payant obligatoire : NON** — supprimé comme critère d'éligibilité. Tous les abonnements sont compatibles avec Mobility ; aucune restriction START/PREMIUM/PRO n'est utilisée pour décider l'éligibilité.
+- **Seuil Mobility : 50 %** du salaire approuvé.
+- **Administration Jobly : OUI** — intégrée à la chaîne de validation via `/admin/mobility` et `/api/mobility/admin/dossiers`.
+- L'Administration Jobly peut consulter le portefeuille des dossiers, filtrer par statut et ouvrir le dossier pour contrôle central.
+- La validation des pièces reste opérée par un rôle autorisé et les accès aux documents demeurent privés/scopés.
+
+Chaîne cible : **Talent → Recruiter/Entreprise → Administration Jobly → Programme/Institution (si financement) → Mobilité → Départ → Arrivée → Prise de poste → Remboursement → Clôture**.
+
+
+# CHECKPOINT 02/10/2026 — MOBILITY — VRAI DOSSIER CASE MANAGEMENT
+
+## Mise à jour
+
+Mobility évolue du simple formulaire/estimatif vers un **dossier opérationnel partagé** reliant Talent, Recruitment, Recruiter, J’IA, financement et traitement institutionnel.
+
+### Règle d'éligibilité figée
+- ancienneté Jobly : **>= 3 mois** ;
+- pack payant actif : **START / PREMIUM / PRO** ;
+- emploi obtenu + offre Recruiter identifiable ;
+- salaire de référence = salaire approuvé par l'offre Recruiter ;
+- convention employeur Mobility ;
+- garantie Recruiter lorsque requise ;
+- charge Mobility **<= 50 %** du salaire approuvé.
+
+### Dossier documentaire
+- CNI recto/verso ou passeport valide ;
+- plan de localisation ;
+- lettre d'engagement sur l'honneur ;
+- stockage privé `mobility-documents` ;
+- statuts PENDING / UNDER_REVIEW / VERIFIED / REJECTED / EXPIRED ;
+- timeline `MobilityProcessEvent` visible selon les rôles.
+
+### Surfaces codées
+- `/api/mobility/documents` : dépôt/liste sécurisé côté Talent ;
+- `/api/mobility/documents/verify` : vérification opérateur autorisé ;
+- `/api/mobility/dossier` : dossier + timeline ;
+- `/bons-plans/mobility/talent/status` : espace dossier partagé Talent.
+
+### Correction de sécurité métier
+La garantie Recruiter **ne peut plus transformer une décision INELIGIBLE en ELIGIBLE**. Elle satisfait uniquement le critère de garantie puis le moteur d'éligibilité est recalculé.
+
+### Production / déploiement
+- Storage bucket privé créé dans JOBLY-PROD : 🟢
+- Vercel : **AUCUN DÉPLOIEMENT**
+- Main : **NON MODIFIÉ**
+- Branche de travail : `mobility/f1-eligibility-institutional`
+
+### État
+**CODÉ → MIGRÉ POUR LE STORAGE → À TESTER EN RUNTIME → NON DÉPLOYÉ**
+
+> La création du bucket privé est une modification JOBLY-PROD explicitement limitée au socle Storage Mobility ; aucun déploiement applicatif n'a été effectué.
+
+---
+
 # JOBLY — ÉTAT COURANT DE GOUVERNANCE — 02/10/2026
 
 ## MASTER CONSOLIDATION — ÉTAT CANONIQUE
@@ -4212,3 +4270,99 @@ Le chantier est intégré dans `main`, mais ne doit pas être déclaré « total
 - Offer pipeline verification : 🟢 SUCCESS sur la validation finale.
 - Vercel : aucun déploiement manuel/production lancé ; le workflow de production est `workflow_dispatch` uniquement.
 - État : **CODÉ → CONNECTÉ → TESTÉ → VALIDÉ techniquement → NON DÉPLOYÉ**.
+
+
+# CHECKPOINT 02/10/2026 — MOBILITY F1 — ÉLIGIBILITÉ + CONVENTION EMPLOYEUR + HUB INSTITUTIONNEL
+
+## Nouvelle règle métier validée
+- Mobility est réservée au **Talent Premium**.
+- Le Talent doit avoir obtenu un emploi via une candidature Jobly reliée à une **RecruitmentOffer**.
+- Le salaire de référence est exclusivement le **salaryProposed de l'offre recruteur acceptée/validée** ; le Talent ne peut plus imposer le salaire de calcul.
+- Une **convention Mobility employeur** acceptée est obligatoire. Sans convention, le dossier est refusé.
+- La convention engage l'entreprise à garantir le remboursement de l'avance sur **3 mois**.
+- La garantie reste due même en cas de fin de contrat avant l'échéance : les champs contractuels terminationDoesNotRelease / terminationStillDue sont explicites.
+- Le plafond d'éligibilité reste **35 % du salaire approuvé**.
+- Le financement n'est possible qu'après activation de la garantie recruteur.
+- Le remboursement cible est PAYROLL_API, avec 3 échéances ; aucune API de paiement réelle n'est encore branchée.
+
+## F1 codé
+- lib/mobilityEligibility.ts passe en mobility-eligibility-v2.
+- Conditions obligatoires : salaire approuvé + coûts Mobility + convention employeur + garantie recruteur.
+- Calcul explicable : coût total, charge %, plafond 35 %, montant maximal éligible, mensualité sur 3 mois.
+- MobilityRequest est maintenant rattachable à Application et conserve la provenance du salaire.
+- MobilityCostItem persiste le détail transport/logement/installation/etc.
+- MobilityEligibilityDecision persiste une décision versionnée.
+- /api/mobility/request récupère le salaire depuis RecruitmentOffer et refuse l'invention d'un salaire.
+- /api/mobility/recruiter/agreement permet l'acceptation explicite de la convention.
+- /api/mobility/recruiter/guarantee vérifie que l'acteur est réellement le recruteur du dossier et crée une garantie structurée.
+
+## Fondation institutionnelle
+- MobilityProgram
+- MobilityFundingRule
+- MobilityFundingAllocation
+- MobilityFundingTransaction
+- MobilityRepaymentPlan
+- InstitutionMember
+- InstitutionCommunication
+- Les nouvelles tables sont RLS activées et servies via les APIs serveur ; elles ne sont pas exposées directement aux clients.
+- Un programme DEMO a été créé dans JOBLY-PROD pour les tests : JOBLY-MOBILITY-DEMO-001 / Programme Pilote Mobility — DEMO.
+- Le programme est explicitement fictif : aucune institution réelle n'est présentée comme partenaire et aucun financement réel n'est déclaré.
+
+## Hub institutionnel
+- /institution/mobility
+- /api/institution/mobility/dashboard
+- Le dashboard expose programmes, demandes, éligibilité, allocations, montants engagés et communications.
+- Le bridge InstitutionCommunication alimente l'univers Jobly via JiaEvent + Notification lors d'une communication institutionnelle.
+- L'accès individuel doit être lié à InstitutionMember ; aucun compte ou identifiant personnel n'a été créé artificiellement.
+
+## État de vérité
+**🟨 CODÉ → CONNECTÉ DB → TESTÉ SCHÉMA → NON DÉPLOYÉ.**
+
+Supabase : migration appliquée et vérifiée ; programme DEMO présent.
+Advisors : les nouvelles tables sont signalées comme RLS enabled / no policy, ce qui correspond au choix actuel de service-only server-mediated. Les alertes historiques du projet restent distinctes.
+Vercel : **aucun déploiement**.
+
+## Accès de test institutionnel
+- Un espace institutionnel DEMO **Jobly Mobility Lab — DEMO** a été créé dans JOBLY-PROD.
+- Le compte Jobly existant de l'utilisateur a été relié à InstitutionMember avec le rôle **INSTITUTION_ADMIN**.
+- Le programme **JOBLY-MOBILITY-DEMO-001** est rattaché à cet espace.
+- Aucun nouveau compte Auth n'a été créé et aucun mot de passe fictif n'a été généré.
+- Le dashboard est disponible côté code sur /institution/mobility.
+- Le dashboard et les nouvelles APIs restent **NON DÉPLOYÉS** tant que l'utilisateur n'a pas autorisé le déploiement.
+
+
+## CHECKPOINT 02/10/2026 — MOBILITY F1.1 — TENURE + PACK PAYANT + DOSSIER PARTAGÉ
+
+### Nouvelles conditions d'éligibilité
+- Le Talent doit utiliser Jobly depuis **au moins 3 mois**.
+- Le Talent doit disposer d'un **pack payant actif** au moment de la demande.
+- Ces contrôles sont effectués côté serveur à partir de User.createdAt et Subscription active.
+- L'ancienneté et le pack sont contrôlés **avant la collecte des pièces sensibles**.
+
+### Dossier documentaire
+Nouvelles tables :
+- MobilityDocument
+- MobilityProcessEvent
+
+Pièces prévues :
+- CNI recto + verso ou passeport valide ;
+- plan de localisation ;
+- lettre d'engagement sur l'honneur.
+
+Chaque pièce dispose d'un cycle PENDING / UNDER_REVIEW / VERIFIED / REJECTED / EXPIRED.
+
+### Logique SharePoint-like
+Mobility devient un dossier partagé :
+Demande → Éligibilité → Pièces → Vérification → Garantie → Financement → Départ → Arrivée → Prise de poste → Clôture.
+
+Le Talent voit l'avancement, les pièces manquantes, l'acteur attendu et la prochaine action. Recruiter et Institution ne voient que les éléments autorisés par leur périmètre.
+
+Les fichiers d'identité sont destinés à un Storage privé avec URLs signées ; les nouvelles tables ne constituent que la couche de métadonnées et de workflow.
+
+### État
+**🟨 CODÉ → CONNECTÉ DB → TESTS UNITAIRES AJOUTÉS → NON DÉPLOYÉ.**
+
+Document d'architecture :
+JOBLY-MOBILITY-DOCUMENT-WORKSPACE-2026-10-02.md
+
+Reste avant validation F1 complète : implémentation du flux Storage privé/upload, vérification documentaire, timeline UI Talent, contrôles d'accès Recruiter/Institution et tests E2E de bout en bout.

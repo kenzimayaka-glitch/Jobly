@@ -1,3 +1,61 @@
+
+## Mise à jour — critères Mobility & validation Administration Jobly
+
+- **Ancienneté utilisateur >= 3 mois : OUI** — critère maintenu.
+- **Pack payant obligatoire : NON** — supprimé comme critère d'éligibilité. Tous les abonnements sont compatibles avec Mobility ; aucune restriction START/PREMIUM/PRO n'est utilisée pour décider l'éligibilité.
+- **Seuil Mobility : 50 %** du salaire approuvé.
+- **Administration Jobly : OUI** — intégrée à la chaîne de validation via `/admin/mobility` et `/api/mobility/admin/dossiers`.
+- L'Administration Jobly peut consulter le portefeuille des dossiers, filtrer par statut et ouvrir le dossier pour contrôle central.
+- La validation des pièces reste opérée par un rôle autorisé et les accès aux documents demeurent privés/scopés.
+
+Chaîne cible : **Talent → Recruiter/Entreprise → Administration Jobly → Programme/Institution (si financement) → Mobilité → Départ → Arrivée → Prise de poste → Remboursement → Clôture**.
+
+
+# CHECKPOINT 02/10/2026 — MOBILITY — VRAI DOSSIER CASE MANAGEMENT
+
+## Mise à jour
+
+Mobility évolue du simple formulaire/estimatif vers un **dossier opérationnel partagé** reliant Talent, Recruitment, Recruiter, J’IA, financement et traitement institutionnel.
+
+### Règle d'éligibilité figée
+- ancienneté Jobly : **>= 3 mois** ;
+- pack payant actif : **START / PREMIUM / PRO** ;
+- emploi obtenu + offre Recruiter identifiable ;
+- salaire de référence = salaire approuvé par l'offre Recruiter ;
+- convention employeur Mobility ;
+- garantie Recruiter lorsque requise ;
+- charge Mobility **<= 50 %** du salaire approuvé.
+
+### Dossier documentaire
+- CNI recto/verso ou passeport valide ;
+- plan de localisation ;
+- lettre d'engagement sur l'honneur ;
+- stockage privé `mobility-documents` ;
+- statuts PENDING / UNDER_REVIEW / VERIFIED / REJECTED / EXPIRED ;
+- timeline `MobilityProcessEvent` visible selon les rôles.
+
+### Surfaces codées
+- `/api/mobility/documents` : dépôt/liste sécurisé côté Talent ;
+- `/api/mobility/documents/verify` : vérification opérateur autorisé ;
+- `/api/mobility/dossier` : dossier + timeline ;
+- `/bons-plans/mobility/talent/status` : espace dossier partagé Talent.
+
+### Correction de sécurité métier
+La garantie Recruiter **ne peut plus transformer une décision INELIGIBLE en ELIGIBLE**. Elle satisfait uniquement le critère de garantie puis le moteur d'éligibilité est recalculé.
+
+### Production / déploiement
+- Storage bucket privé créé dans JOBLY-PROD : 🟢
+- Vercel : **AUCUN DÉPLOIEMENT**
+- Main : **NON MODIFIÉ**
+- Branche de travail : `mobility/f1-eligibility-institutional`
+
+### État
+**CODÉ → MIGRÉ POUR LE STORAGE → À TESTER EN RUNTIME → NON DÉPLOYÉ**
+
+> La création du bucket privé est une modification JOBLY-PROD explicitement limitée au socle Storage Mobility ; aucun déploiement applicatif n'a été effectué.
+
+---
+
 # MASTER CONSOLIDATION GIT — 02/10/2026
 
 ## État canonique
