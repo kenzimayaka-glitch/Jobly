@@ -247,3 +247,39 @@ Chaque étape doit être validée avant la suivante. Toute réalisation reste su
 
 ---
 **Règle de vérité :** SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ. À ce stade, le présent document ne fait que formaliser la spécification.
+
+## 17. Capacités complémentaires validées — Career Journey enrichi
+
+Les propositions complémentaires ci-dessous sont validées pour intégration au périmètre fonctionnel. Elles restent soumises à l’audit des briques existantes et à la classification produit avant implémentation.
+
+### 17.1 Career Radar — veille de carrière contextualisée
+J’IA peut comparer les compétences, expériences et objectifs du talent avec les offres accessibles et les tendances de marché observables. Elle distingue les signaux observés des données manquantes et ne présente jamais une tendance comme une prédiction certaine.
+
+### 17.2 Parcours professionnels alternatifs
+Lorsqu’un objectif paraît éloigné ou que plusieurs voies sont possibles, J’IA peut présenter quelques trajectoires alternatives, leurs prérequis, écarts, contraintes et étapes. Le talent choisit librement la voie à explorer ; aucune trajectoire n’est imposée ni classée comme verdict global.
+
+### 17.3 Portfolio de réalisations
+J’IA peut aider le talent à consigner des projets, responsabilités, objectifs, actions, résultats et contributions concrètes. Avec validation du talent, ces éléments peuvent enrichir le Career Twin, le CV ou un portfolio. J’IA ne transforme pas une affirmation en fait vérifié et conserve la provenance de chaque élément.
+
+### 17.4 Revue périodique de progression
+Selon la préférence de fréquence et le consentement du talent, J’IA peut proposer une revue hebdomadaire ou mensuelle : missions réalisées ou en attente, compétences nouvellement déclarées ou documentées, évolution des écarts et du matching, ainsi que prochaines priorités. Les rappels sont désactivables et l’absence de réponse ne vaut pas validation.
+
+### 17.5 Simulateur de décisions de carrière
+Le talent peut explorer des scénarios du type « Et si je visais un poste de Responsable commercial ? ». J’IA compare alors les exigences du scénario avec le profil disponible, les écarts, les expériences et contraintes à considérer, ainsi que différentes étapes possibles. Les résultats sont exploratoires et conditionnels, sans prédiction ni décision à la place du talent.
+
+### 17.6 Détection de compétences sous-représentées
+J’IA peut repérer dans les expériences, projets et responsabilités renseignés des compétences potentiellement absentes ou insuffisamment visibles dans le CV ou le Career Twin. Elle les présente comme des suggestions à confirmer par le talent avant toute modification du profil, du CV ou du matching.
+
+### 17.7 Prévention de la surcharge et replanification
+À partir du volume de missions, des échéances acceptées, des reports et des indications explicitement fournies par le talent, J’IA peut signaler qu’un plan semble trop chargé et proposer de réduire, différer ou réordonner les actions. Elle ne réalise aucun diagnostic psychologique et ne déduit pas un état de santé mentale.
+
+### 17.8 Conseil « prêt à postuler »
+J’IA doit pouvoir conclure qu’aucune formation ou mission supplémentaire n’est actuellement nécessaire pour tenter une candidature, lorsque les éléments disponibles montrent un alignement suffisant avec les critères essentiels. Elle peut alors proposer de postuler, d’adapter le CV ou de préparer l’entretien, tout en rappelant les incertitudes et en laissant la décision au talent. La recommandation ne constitue jamais une garantie de sélection.
+
+### Règles communes
+- Ces capacités s’appuient sur les données autorisées et disponibles, avec indication des informations manquantes.
+- Toute suggestion concernant le profil ou le CV exige la confirmation du talent avant enregistrement ou utilisation externe.
+- Les scénarios et signaux sont explicables, révisables et non déterministes.
+- Aucune capacité ne doit créer un moteur, une mémoire, un système de tâches ou une notification en doublon si une brique existante peut être étendue.
+- Le périmètre Free/START/PREMIUM/PRO, la profondeur fonctionnelle, les quotas et les crédits IA restent à arbitrer après audit, selon les entitlements existants.
+
