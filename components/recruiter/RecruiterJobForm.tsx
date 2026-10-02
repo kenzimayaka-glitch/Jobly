@@ -59,6 +59,9 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
+  const [countryCode, setCountryCode] = useState("");
+  const [distributionScope, setDistributionScope] = useState<"LOCAL" | "COUNTRIES" | "AFRICA">("LOCAL");
+  const [targetCountryCodesInput, setTargetCountryCodesInput] = useState("");
   const [mode, setMode] = useState("Hybride");
   const [contract, setContract] = useState("CDI");
   const [salary, setSalary] = useState("");
@@ -95,6 +98,9 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
       setTitle(job.title || "");
       setDescription(job.description || "");
       setLocation(job.location || "");
+      setCountryCode(job.countryCode || "");
+      setDistributionScope(job.distributionScope || "LOCAL");
+      setTargetCountryCodesInput((job.targetCountryCodes || []).join(", "));
       setMode(job.mode || "Hybride");
       setContract(job.contract || "CDI");
       setSalary(job.salary || "");
@@ -161,7 +167,8 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
     setSaving(true);
     setError(null);
     const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
-    const payload = { title, description, location, mode, contract, salary, sector, tags, status: nextStatus, sourceUrl };
+    const targetCountryCodes = targetCountryCodesInput.split(",").map((v) => v.trim().toUpperCase()).filter(Boolean);
+    const payload = { title, description, location, countryCode, distributionScope, targetCountryCodes, mode, contract, salary, sector, tags, status: nextStatus, sourceUrl };
 
     try {
       const res = await fetch(isNew ? "/api/recruiter/jobs" : `/api/recruiter/jobs/${id}`, {
@@ -323,6 +330,33 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
               <span className="mb-1.5 block text-xs font-extrabold text-navy">Localisation</span>
               <input value={location} onChange={(e) => setLocation(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-navy outline-none focus:border-jobly-blue" placeholder="Ex. Douala, Cameroun" />
             </label>
+
+            <section className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+              <h3 className="font-heading text-sm font-extrabold text-navy">Marché de diffusion</h3>
+              <p className="mt-1 text-xs text-jobly-gray">Le pays actuel reste le marché par défaut. La diffusion multi-pays et panafricaine est contrôlée selon votre formule Recruiter.</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-extrabold text-navy">Pays principal (ISO)</span>
+                  <input value={countryCode} onChange={(e) => setCountryCode(e.target.value.toUpperCase().slice(0, 2))} maxLength={2} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-navy outline-none focus:border-jobly-blue" placeholder="CM" />
+                </label>
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-extrabold text-navy">Portée</span>
+                  <select value={distributionScope} onChange={(e) => setDistributionScope(e.target.value as "LOCAL" | "COUNTRIES" | "AFRICA")} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-navy outline-none focus:border-jobly-blue">
+                    <option value="LOCAL">Un seul pays</option>
+                    <option value="COUNTRIES">Plusieurs pays</option>
+                    <option value="AFRICA">Afrique</option>
+                  </select>
+                </label>
+              </div>
+              {distributionScope === "COUNTRIES" && (
+                <label className="mt-3 block">
+                  <span className="mb-1.5 block text-xs font-extrabold text-navy">Pays ciblés (codes ISO séparés par des virgules)</span>
+                  <input value={targetCountryCodesInput} onChange={(e) => setTargetCountryCodesInput(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-navy outline-none focus:border-jobly-blue" placeholder="CM, CI, SN" />
+                  <span className="mt-1 block text-[10px] text-jobly-gray">La diffusion effective multi-pays est réservée à Recruiter PRO.</span>
+                </label>
+              )}
+              {distributionScope === "AFRICA" && <p className="mt-3 rounded-xl bg-white px-3 py-2 text-[11px] font-semibold text-jobly-gray">Diffusion panafricaine : Recruiter PRO. J’IA peut proposer un marché, mais la décision et la publication restent au recruteur.</p>}
+            </section>
 
             <label className="block">
               <span className="mb-1.5 block text-xs font-extrabold text-navy">Salaire (optionnel)</span>
