@@ -1,5 +1,5 @@
-export const MOBILITY_ELIGIBILITY_VERSION = "mobility-eligibility-v3";
-export const DEFAULT_MOBILITY_THRESHOLD_PERCENT = 35;
+export const MOBILITY_ELIGIBILITY_VERSION = "mobility-eligibility-v4";
+export const DEFAULT_MOBILITY_THRESHOLD_PERCENT = 50;
 export const DEFAULT_REPAYMENT_MONTHS = 3;
 export const DEFAULT_MIN_USER_TENURE_MONTHS = 3;
 
