@@ -253,3 +253,64 @@ ALTER TABLE "CareerCompetencyAttempt" ADD CONSTRAINT "CareerCompetencyAttempt_us
 ALTER TABLE "CareerCompetencyAttempt" ADD CONSTRAINT "CareerCompetencyAttempt_assessmentId_fkey" FOREIGN KEY ("assessmentId") REFERENCES "CareerCompetencyAssessment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "CareerReview" ADD CONSTRAINT "CareerReview_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "CareerReview" ADD CONSTRAINT "CareerReview_journeyId_fkey" FOREIGN KEY ("journeyId") REFERENCES "CareerJourney"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+
+-- Defense-in-depth: all Career Journey tables are exposed-schema data and are
+-- protected even though the application routes use a server-side service key.
+ALTER TABLE "CareerJourney" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "CareerGoal" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "CareerMission" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "CareerMissionUpdate" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "CareerEvidence" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "CareerPortfolioItem" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "CareerRecommendation" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "CareerPathScenario" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "CareerCompetencyAssessment" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "CareerCompetencyAttempt" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "CareerReview" ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "career_journey_owner_select" ON "CareerJourney" FOR SELECT TO authenticated
+USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerJourney"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "career_journey_owner_write" ON "CareerJourney" FOR ALL TO authenticated
+USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerJourney"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
+WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerJourney"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+
+CREATE POLICY "career_goal_owner" ON "CareerGoal" FOR ALL TO authenticated
+USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerGoal"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
+WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerGoal"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+
+CREATE POLICY "career_mission_owner" ON "CareerMission" FOR ALL TO authenticated
+USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerMission"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
+WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerMission"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+
+CREATE POLICY "career_mission_update_owner" ON "CareerMissionUpdate" FOR ALL TO authenticated
+USING (EXISTS (SELECT 1 FROM "CareerMission" m JOIN "User" u ON u.id = m."userId" WHERE m.id = "CareerMissionUpdate"."missionId" AND u."authUserId" = (SELECT auth.uid())::text))
+WITH CHECK (EXISTS (SELECT 1 FROM "CareerMission" m JOIN "User" u ON u.id = m."userId" WHERE m.id = "CareerMissionUpdate"."missionId" AND u."authUserId" = (SELECT auth.uid())::text));
+
+CREATE POLICY "career_evidence_owner" ON "CareerEvidence" FOR ALL TO authenticated
+USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerEvidence"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
+WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerEvidence"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+
+CREATE POLICY "career_portfolio_owner" ON "CareerPortfolioItem" FOR ALL TO authenticated
+USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerPortfolioItem"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
+WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerPortfolioItem"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+
+CREATE POLICY "career_recommendation_owner" ON "CareerRecommendation" FOR ALL TO authenticated
+USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerRecommendation"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
+WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerRecommendation"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+
+CREATE POLICY "career_scenario_owner" ON "CareerPathScenario" FOR ALL TO authenticated
+USING (EXISTS (SELECT 1 FROM "CareerJourney" j JOIN "User" u ON u.id = j."userId" WHERE j.id = "CareerPathScenario"."journeyId" AND u."authUserId" = (SELECT auth.uid())::text))
+WITH CHECK (EXISTS (SELECT 1 FROM "CareerJourney" j JOIN "User" u ON u.id = j."userId" WHERE j.id = "CareerPathScenario"."journeyId" AND u."authUserId" = (SELECT auth.uid())::text));
+
+CREATE POLICY "career_assessment_owner" ON "CareerCompetencyAssessment" FOR ALL TO authenticated
+USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAssessment"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
+WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAssessment"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+
+CREATE POLICY "career_attempt_owner" ON "CareerCompetencyAttempt" FOR ALL TO authenticated
+USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAttempt"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
+WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAttempt"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+
+CREATE POLICY "career_review_owner" ON "CareerReview" FOR ALL TO authenticated
+USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerReview"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
+WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerReview"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
