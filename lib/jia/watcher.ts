@@ -92,7 +92,7 @@ export async function upsertWatchSubscription(userId:string,target:JiaWatchTarge
     id:createHash("sha256").update(userId+":"+target.key).digest("hex").slice(0,32),userId,key:target.key,
     query:target.query,domain:target.domain,country:target.countries?.join(",")||null,frequencyMinutes,active:true,
     notificationMode:options?.notificationMode??"DIGEST",validationMode:"EXPLICIT_CONFIRMATION",
-    nextCheckAt:nextCheck(frequencyMinutes),updatedAt:new Date().toISOString(),
+    nextCheckAt:nextCheck(frequencyMinutes),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),
   };
   const {data,error}=await sb.from("JiaWatchSubscription").upsert(payload,{onConflict:"userId,key"}).select("*").single();
   if(error) throw new Error(error.message);
