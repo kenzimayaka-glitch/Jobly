@@ -1,4 +1,35 @@
 
+# CHECKPOINT 02/10/2026 — LOTS C + D — INSTITUTIONAL HUB
+
+| Élément | État |
+|---|---|
+| Architecture C+D validée | 🟢 SPÉCIFIÉ |
+| Accès privé institutionnel | 🔧 CODÉ |
+| Dashboard direct après credentials | 🔧 CODÉ |
+| Partenariats / projets / rapports | 🔧 CODÉ |
+| KPIs initiaux | 🔧 CODÉ |
+| RLS + absence de grants anon/authenticated | 🔧 CODÉ |
+| Migration | 🔧 CODÉ / ⏸️ NON APPLIQUÉE PROD |
+| J’IA institutionnelle approfondie | ⏳ LOT D À POURSUIVRE |
+| E2E/runtime | ⏳ À TESTER |
+| Merge main | ⏳ EN ATTENTE CI/PR |
+| Vercel | ⏸️ AUCUN DÉPLOIEMENT |
+
+### Entitlement
+
+Le Hub institutionnel est une capacité **B2B contractuelle payante, profondeur PRO**, indépendante des abonnements Talent/Recruiter. Aucun accès public ou inscription institutionnelle libre.
+
+### Règle d'accès
+
+Un visiteur non autorisé ne reçoit pas de formulaire de credentials sur la surface publique. Il reçoit un message de confidentialité et un chemin de contact. Les credentials sont saisis uniquement sur la surface partenaire dédiée.
+
+### Vérité d'exécution
+
+CODÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ. Cette passe ne déploie pas Vercel et n'applique pas la migration à JOBLY-PROD.
+
+---
+
+
 
 # CHECKPOINT 02/10/2026 — AUDIT DE RÉCONCILIATION CODE ↔ DOCUMENTATION (PASSE DE CONTRÔLE)
 
