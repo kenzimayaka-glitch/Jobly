@@ -21,7 +21,7 @@ type Post = {
   author?: { id: string; displayName?: string | null; username?: string | null; profilePhotoUrl?: string | null };
 };
 
-type Access = { allowed: boolean; reason: "ACTIVE" | "SUBSCRIPTION_REQUIRED" | "UNAUTHENTICATED" };
+type Access = { allowed: boolean; reason: "ACTIVE" | "SUBSCRIPTION_REQUIRED" | "UNAUTHENTICATED"; blueBadge?: boolean };
 
 function CommunityAvatar({ photoUrl, name, verified }: { photoUrl?: string | null; name?: string | null; verified?: boolean }) {
   const label = (name || "Membre Jobly").trim();
@@ -182,7 +182,7 @@ export default function CommunityPage() {
                   ) : posts.map((post) => (
                     <article key={post.id} className="rounded-[24px] bg-white p-5 shadow-sm">
                       <div className="flex items-start gap-3">
-                        <CommunityAvatar photoUrl={post.author?.profilePhotoUrl} name={post.author?.displayName || post.author?.username} verified={false} />
+                        <CommunityAvatar photoUrl={post.author?.profilePhotoUrl} name={post.author?.displayName || post.author?.username} verified={Boolean(access.blueBadge)} />
                         <div className="min-w-0">
                           <p className="text-xs font-black text-[#0B1F4B]">{post.author?.displayName || post.author?.username || "Membre Jobly"}</p>
                           <p className="mt-2 text-sm leading-6 text-slate-700 whitespace-pre-line">{post.content}</p>
