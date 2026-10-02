@@ -23,6 +23,19 @@ type Post = {
 
 type Access = { allowed: boolean; reason: "ACTIVE" | "SUBSCRIPTION_REQUIRED" | "UNAUTHENTICATED" };
 
+function CommunityAvatar({ photoUrl, name, verified }: { photoUrl?: string | null; name?: string | null; verified?: boolean }) {
+  const label = (name || "Membre Jobly").trim();
+  const initials = label.split(/\\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "J";
+  return (
+    <span className="relative inline-grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#EEF2FF] text-sm font-black text-[#22448B]">
+      {photoUrl ? <img src={photoUrl} alt="" className="h-full w-full rounded-full object-cover" /> : initials}
+      {verified && (
+        <span aria-label="Profil vérifié" title="Profil vérifié" className="absolute -bottom-0.5 -right-0.5 grid h-[15px] w-[15px] place-items-center rounded-full border-2 border-white bg-[#1877F2] text-[8px] font-black leading-none text-white shadow-sm">✓</span>
+      )}
+    </span>
+  );
+}
+
 export default function CommunityPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -169,9 +182,7 @@ export default function CommunityPage() {
                   ) : posts.map((post) => (
                     <article key={post.id} className="rounded-[24px] bg-white p-5 shadow-sm">
                       <div className="flex items-start gap-3">
-                        <span className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-[#EEF2FF]">
-                          {post.author?.profilePhotoUrl ? <img src={post.author.profilePhotoUrl} alt="" className="h-full w-full object-cover" /> : <span className="grid h-full w-full place-items-center text-sm">J</span>}
-                        </span>
+                        <CommunityAvatar photoUrl={post.author?.profilePhotoUrl} name={post.author?.displayName || post.author?.username} verified={false} />
                         <div className="min-w-0">
                           <p className="text-xs font-black text-[#0B1F4B]">{post.author?.displayName || post.author?.username || "Membre Jobly"}</p>
                           <p className="mt-2 text-sm leading-6 text-slate-700 whitespace-pre-line">{post.content}</p>
