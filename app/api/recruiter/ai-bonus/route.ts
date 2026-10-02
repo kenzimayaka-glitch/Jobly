@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
 import { getActivePlanCode } from "../../../../lib/entitlements";
 
+type WelcomeCreditClaim = { granted: boolean; credits: number; granted_at: string | null };
+
 async function loadRecruiter(request: NextRequest) {
   const auth = await getAuthUser(request);
   if (!auth) return { error: NextResponse.json({ message: "Session requise." }, { status: 401 }) };
@@ -21,11 +23,12 @@ export async function GET(request: NextRequest) {
     const plan = String(await getActivePlanCode(sb, user.id, "RECRUITER")).toUpperCase();
 
     if (plan === "FREE") {
-      const { data: claim, error: claimError } = await sb.rpc("claim_ai_welcome_credit", {
+      const { data: claimRaw, error: claimError } = await sb.rpc("claim_ai_welcome_credit", {
         p_user_id: String(user.id),
         p_role: "RECRUITER",
       }).maybeSingle();
       if (claimError) throw new Error(claimError.message);
+      const claim = claimRaw as unknown as WelcomeCreditClaim | null;
       if (claim?.granted) {
         user.aiWelcomeCredits = claim.credits;
         user.aiWelcomeGrantedAt = claim.granted_at;
