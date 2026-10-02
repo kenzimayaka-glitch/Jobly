@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import {adminClient} from "@/lib/server-auth";
 import {evaluateJiaPolicy,canAutoExecute,type JiaPolicyInput} from "@/lib/jia/policy";
 import {checkJiaToolAccess} from "@/lib/jia/toolRegistry";
+import {getCareerJourneyEntitlements} from "@/lib/careerJourneyEntitlements";
 
 export async function planJiaAction(args:{userId:string;goal:Record<string,unknown>;plan:Record<string,unknown>;policy:JiaPolicyInput;precondition?:Record<string,unknown>;action:Record<string,unknown>}){
  const decision=evaluateJiaPolicy(args.policy); const sb=adminClient();
@@ -20,6 +21,9 @@ async function linkCareerMissionToJiaAction(userId:string, actionType:string, ne
  const sb = adminClient();
  const { data: journey } = await sb.from("CareerJourney").select("id").eq("userId", userId).maybeSingle();
  if (!journey?.id) return null;
+ const entitlements = await getCareerJourneyEntitlements(sb, userId);
+ const { count: activeCount } = await sb.from("CareerMission").select("id", { count: "exact", head: true }).eq("userId", userId).eq("journeyId", journey.id).in("status", ["PROPOSED","ACCEPTED","IN_PROGRESS","DEFERRED"]);
+ if ((activeCount ?? 0) >= entitlements.maxActiveMissions) return null;
 
  const title = actionType === "START_INTERVIEW_COACHING"
    ? "Préparer un entretien avec J’IA"
