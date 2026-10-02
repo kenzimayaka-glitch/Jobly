@@ -26,6 +26,11 @@
 - Les tables Career Journey, Community, Recruitment360 Listing et JobHarvestCapture sont présentes dans JOBLY-PROD ; RLS est active.
 
 ## Audit d'interconnexion — premiers écarts corrigés
+- Career Journey : sortie explicite vers Career OS ajoutée.
+- Events : sortie explicite vers Bons Plans ajoutée.
+- Notifications : lecture marquée côté serveur avant deep link.
+- Public listing Web : origine dérivée des headers de requête ; aucun fallback vide n'est conservé.
+
 
 | Problème | Fichier | Correctif |
 |---|---|---|
