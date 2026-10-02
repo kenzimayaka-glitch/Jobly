@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const target = (ctx.journey.targetRole ?? ctx.context.profile?.targetRoles?.[0] ?? "").toLowerCase();
     const { data: jobs, error } = await ctx.supabase.from("Job").select("id,title,location,contractType,lastSeenAt,createdAt").eq("isActive", true).order("lastSeenAt", { ascending: false }).limit(200);
     if (error) throw new Error(error.message);
-    const relevant = target ? (jobs ?? []).filter((job: any) => String(job.title || "").toLowerCase().includes(target) || target.split(/\s+/).some((w) => w.length > 3 && String(job.title || "").toLowerCase().includes(w))) : [];
+    const relevant = target ? (jobs ?? []).filter((job: any) => String(job.title || "").toLowerCase().includes(target) || target.split(/\s+/).some((w: string) => w.length > 3 && String(job.title || "").toLowerCase().includes(w))) : [];
     const titleCounts = new Map<string, number>();
     for (const job of relevant) titleCounts.set(job.title, (titleCounts.get(job.title) ?? 0) + 1);
     const observedTitles = [...titleCounts.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([title,count])=>({title,count}));
