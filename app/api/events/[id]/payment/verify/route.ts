@@ -19,7 +19,7 @@ export async function POST(request:NextRequest,context:{params:Promise<{id:strin
     await sb.from("Payment").update({status:"PAID",paidAt:now,updatedAt:now}).eq("id",payment.id);
     await sb.from("EventPayment").update({status:"PAID",updatedAt:now}).eq("id",ep.id);
     await sb.from("Event").update({status:"PUBLISHED",updatedAt:now}).eq("id",id);
-    const distribution=await estimateAndDistributeEvent(sb,event);
+    const distribution=await estimateAndDistributeEvent(sb,event,user.id);
     return NextResponse.json({status:"PUBLISHED",eventId:id,distribution,audienceEstimate:distribution.audienceEstimate});
   }catch(e){return fail(e instanceof Error?e.message:"Vérification impossible.",500);}
 }
