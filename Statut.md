@@ -4716,3 +4716,8 @@ La reconstruction atteint désormais `typecheck + production build` verts sur Gi
 ## Correction build — lint non interactif
 
 `next lint` déclenchait une configuration ESLint interactive et ne pouvait donc pas servir de gate CI non interactif. Le script `pnpm lint` utilise désormais Oxlint 1.86.0, linter TypeScript/JavaScript sans configuration interactive. Cette version est épinglée pour rendre la preuve reproductible.
+
+
+## Ajustement lint
+
+Oxlint a d'abord parcouru `node_modules` et remonté des avertissements de dépendances tierces. Le périmètre du gate est maintenant explicitement limité au code source Jobly (`app`, `components`, `lib`, `scripts`, `supabase`) afin que la preuve porte sur notre code et non sur les dépendances installées.
