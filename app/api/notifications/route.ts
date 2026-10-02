@@ -22,3 +22,27 @@ export async function GET(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ notifications: data || [], count: data?.length || 0 });
 }
+
+
+export async function PATCH(request: NextRequest) {
+  const auth = await getAuthUser(request);
+  if (!auth) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+
+  const body = await request.json().catch(() => ({}));
+  const notificationId = typeof body.id === "string" ? body.id.trim() : "";
+  if (!notificationId) return NextResponse.json({ error: "id est requis." }, { status: 400 });
+
+  const db = adminClient();
+  const user = await ensureUser(db, auth);
+  const { data, error } = await db
+    .from("Notification")
+    .update({ readAt: new Date().toISOString() })
+    .eq("id", notificationId)
+    .eq("userId", user.id)
+    .select("id,readAt")
+    .maybeSingle();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Notification introuvable." }, { status: 404 });
+  return NextResponse.json({ notification: data });
+}

@@ -419,7 +419,7 @@ export async function POST(request: NextRequest) {
         const { error } = await supabase.storage.from(bucket).upload(path, file.buffer, {
           contentType: "image/jpeg",
           cacheControl: "31536000",
-          upsert: false,
+          upsert: true,
         });
         if (error) throw new Error(error.message);
         uploaded.push(path);

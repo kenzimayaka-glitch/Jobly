@@ -1,3 +1,76 @@
+# CHECKPOINT 02/10/2026 — STEP 1 / BUILD + INTERCONNEXION — PASSE AUTONOME
+
+## État réel au 22:17 WAT
+
+- Base READY de repli : Vercel 09e07f9 — READY, rollback candidate.
+- Production canonique actuelle : jobly-c0.6.5.1, dernier déploiement e655ff1 — ERROR. La production n'est donc pas déclarée saine.
+- Branche de travail : chore/jobly-step1-build-hardening-20261002, reconstruite depuis 09e07f9 puis réconciliée avec le contenu consolidé de main pour validation.
+- PR de validation : #179 — ouverte, aucun merge vers main effectué.
+- Projet Vercel v0-project : même dépôt GitHub, déploiements historiques des branches Career/J'IA ; aucun élément ne justifie de le considérer comme projet Vercel canonique de production. Il est traité comme projet secondaire/historique à désactiver ou documenter.
+- Git deployment Vercel : désactivé dans vercel.json ; aucune preview automatique du chantier n'est donc disponible par push Git.
+
+## Corrections Step 1 livrées sur la branche
+
+- lib/recruitment360/officialListing.ts : artefacts de nouvelle ligne/regex vérifiés ; PDF sécurisé contre l'async executor non résolu ; capacité PDF corrigée ; XLSX avec noms d'onglets uniques/valides et filtre étendu aux lignes ; exports répétés rendus idempotents côté stockage.
+- app/recruiter/listings/page.tsx : suppression de la référence inexistante item.version, affichage fondé sur versions[0]?.versionNumber.
+- lib/community/access.ts : restauration de PLAN_RANK comme symbole réel.
+- package.json : Node fixé sur 22.x ; pnpm fixé sur 10.28.0 ; pnpm build lance explicitement prisma generate avant next build.
+- CI Vercel : pnpm aligné sur 10.28.0 ; lint ajouté au gate.
+- Ingestion Harvest : /api/jobs/harvest et /shadow n'acceptent plus une simple session utilisateur : secret serveur obligatoire.
+- Notifications : /notifications consomme maintenant /api/notifications et ses deep links réels.
+- Community : /communities n'est plus une surface générique coming soon : elle charge les communautés réelles, recherche/filtre et ouvre /communities/[id].
+- Public listing : origine canonique dérivée de JOBLY_PUBLIC_URL ou de la requête ; erreurs de rendu PDF distinguées des liens invalides ; stockage des exports répétables.
+- RPC SECURITY DEFINER : les anciennes fonctions Recruitment360 Lot 11 et les fonctions vidéo Lot 9 ne sont plus exécutables par anon/authenticated ; exécution réservée à service_role.
+- Grants directs sur tables internes Community / Harvest / Listing : révoqués pour anon/authenticated, service_role conservé.
+- Migration de durcissement versionnée dans le dépôt : supabase/migrations/20261002220900_harden_recruitment360_definer_exec.sql.
+- Les tables Career Journey, Community, Recruitment360 Listing et JobHarvestCapture sont présentes dans JOBLY-PROD ; RLS est active.
+
+## Audit d'interconnexion — premiers écarts corrigés
+- Career Journey : sortie explicite vers Career OS ajoutée.
+- Events : sortie explicite vers Bons Plans ajoutée.
+- Notifications : lecture marquée côté serveur avant deep link.
+- Public listing Web : origine dérivée des headers de requête ; aucun fallback vide n'est conservé.
+
+
+| Problème | Fichier | Correctif |
+|---|---|---|
+| Notifications UI ne consommait pas l'API réelle | app/notifications/page.tsx | lecture réelle + retry + deep links |
+| Community list générique/orpheline | app/communities/page.tsx | annuaire réel + recherche + catégories + entrée détail |
+| Harvest accessible à tout utilisateur authentifié | app/api/jobs/harvest/route.ts, shadow/route.ts | secret serveur obligatoire |
+| RPC SECURITY DEFINER exécutables par client authentifié | Supabase RPC Lot 9/11 | revoke anon/authenticated, grant service_role |
+| Tables internes exposées par grants Data API malgré RLS sans policies | Community / Harvest / Listing | revoke des grants client |
+| Public listing dépendant implicitement de JOBLY_PUBLIC_URL | lib/recruitment360/publicListing.ts + routes | origine de requête en fallback |
+| Exports officiels répétés susceptibles de collision stockage | app/api/recruitment360/listings/route.ts | upload idempotent |
+| XLSX : collision de feuilles / filtre limité à l'en-tête | lib/recruitment360/officialListing.ts | noms uniques + plage de filtre complète |
+
+## J'IA
+
+La présence globale reste montée dans app/layout.tsx via JiaPresence/JiaObserver. Le rig par calques, GLB et clips WebM alpha est présent dans le dépôt. Les routes d'authentification/onboarding restent volontairement masquées pour ne pas interférer avec ces parcours sensibles. La présence utilise les gestes, le regard, la parole et les données de contexte déjà raccordées ; aucune aide à la triche n'est introduite.
+
+## Preuve de validation — règle stricte
+
+NON CERTIFIÉE À CE CHECKPOINT.
+
+Le runtime d'exécution disponible ici ne contient ni pnpm ni un checkout local complet et l'accès réseau sortant GitHub est indisponible. Je n'ai donc pas fabriqué une fausse preuve de pnpm install, tsc, lint ou next build.
+
+- Typecheck local : non exécuté dans cet environnement
+- Lint local : non exécuté dans cet environnement
+- Build local : non exécuté dans cet environnement
+- CI GitHub sur la branche : aucun status exploitable retourné par l'API à ce stade
+- Preview Vercel : non déclenchable automatiquement car Git deployment est désactivé
+- Production Vercel : ERROR sur e655ff1
+- Rollback 09e07f9 : reste la base READY/candidate ; aucune opération de rollback n'a été simulée ou déclarée comme exécutée.
+
+Règle : CODÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.
+
+## Hypothèses explicites
+
+1. v0-project est considéré comme une cible Vercel secondaire/historique tant qu'aucun usage produit distinct n'est démontré.
+2. Les tables Community/Harvest/Listing sont traitées comme service-only parce que les routes applicatives utilisent service_role et que leurs RLS n'ont pas de policies client.
+3. La migration de durcissement est idempotente ; son SQL a déjà été appliqué et vérifié sur JOBLY-PROD, puis versionné dans le dépôt pour empêcher la dérive documentaire.
+
+---
+
 
 
 # CHECKPOINT LOT G — CAREER OS G2→G10 — 02/10/2026

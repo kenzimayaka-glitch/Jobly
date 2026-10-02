@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "pnpm db:generate && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -58,6 +58,7 @@
     "typescript": "^5.8.2"
   },
   "engines": {
-    "node": ">=20.9.0"
-  }
+    "node": "22.x"
+  },
+  "packageManager": "pnpm@10.28.0"
 }

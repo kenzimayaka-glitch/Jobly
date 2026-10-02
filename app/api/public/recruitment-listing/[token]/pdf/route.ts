@@ -6,10 +6,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ token: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await params;
-    const data = await loadPublicOfficialListing(token);
+    const data = await loadPublicOfficialListing(token, new URL(request.url).origin);
     const pdf = await renderPdf(data);
     return new NextResponse(pdf as BodyInit, {
       status: 200,

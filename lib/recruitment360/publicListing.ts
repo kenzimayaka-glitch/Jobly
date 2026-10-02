@@ -19,7 +19,7 @@ function qualifies(stage: ListingStage, application: any, state: any, shortlist:
   return retained && (hasDecision || ["FINALIST","DECISION","OFFER","HIRED"].includes(stateName));
 }
 
-export async function loadPublicOfficialListing(token: string): Promise<OfficialListingData> {
+export async function loadPublicOfficialListing(token: string, origin?: string): Promise<OfficialListingData> {
   if (!token || token.length < 20 || token.length > 100) throw new Error("PUBLIC_LINK_INVALID");
   const supabase = adminClient();
   const { data: raw, error } = await supabase.rpc("recruitment360_lot11_get_public_listing", { p_token: token.trim() });
@@ -76,7 +76,9 @@ export async function loadPublicOfficialListing(token: string): Promise<Official
     }))
     .sort((a:any,b:any)=>String(a.consented?a.lastName||"":a.dossierNumber).localeCompare(String(b.consented?b.lastName||"":b.dossierNumber),"fr",{sensitivity:"base"}));
 
-  const publicUrl = String(process.env.JOBLY_PUBLIC_URL || "").replace(/\/$/,"") + "/public/recruitment-listing/" + token.trim();
+  const publicBase = String(process.env.JOBLY_PUBLIC_URL || origin || "").replace(/\/$/, "");
+  if (!publicBase) throw new Error("PUBLIC_LISTING_ORIGIN_MISSING");
+  const publicUrl = publicBase + "/public/recruitment-listing/" + token.trim();
   const block = raw.joblyBlock || {};
   const canonicalUrl = publicUrl;
   const qrPayload = canonicalUrl;
