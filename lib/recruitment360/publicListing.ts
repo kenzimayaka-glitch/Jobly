@@ -76,7 +76,9 @@ export async function loadPublicOfficialListing(token: string, origin?: string):
     }))
     .sort((a:any,b:any)=>String(a.consented?a.lastName||"":a.dossierNumber).localeCompare(String(b.consented?b.lastName||"":b.dossierNumber),"fr",{sensitivity:"base"}));
 
-  const publicBase = String(process.env.JOBLY_PUBLIC_URL || origin || "").replace(/\/$/,"");\n  if (!publicBase) throw new Error("PUBLIC_LISTING_ORIGIN_MISSING");\n  const publicUrl = publicBase + "/public/recruitment-listing/" + token.trim();
+  const publicBase = String(process.env.JOBLY_PUBLIC_URL || origin || "").replace(/\/$/, "");
+  if (!publicBase) throw new Error("PUBLIC_LISTING_ORIGIN_MISSING");
+  const publicUrl = publicBase + "/public/recruitment-listing/" + token.trim();
   const block = raw.joblyBlock || {};
   const canonicalUrl = publicUrl;
   const qrPayload = canonicalUrl;
