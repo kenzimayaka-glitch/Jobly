@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
   }).maybeSingle();
   if (claimError) return NextResponse.json({ message: claimError.message }, { status: 500 });
 
-  const granted = Number(claim?.credits ?? user.aiWelcomeCredits ?? 0);
-  const grantedAt = claim?.granted_at ?? user.aiWelcomeGrantedAt;
+  const granted = Number((claim as any)?.credits ?? user.aiWelcomeCredits ?? 0);
+  const grantedAt = (claim as any)?.granted_at ?? user.aiWelcomeGrantedAt;
   let used = 0;
   if (granted > 0 && grantedAt) {
     const { data: usage, error: usageError } = await sb.from("AiUsage")
