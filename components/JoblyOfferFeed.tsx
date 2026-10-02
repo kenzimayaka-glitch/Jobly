@@ -12,6 +12,7 @@ import { cleanCompanyName, cleanJobTitle, cleanJobDescription, cleanDisplayText 
 import ScoreRing from "@/components/ScoreRing";
 import ScoreDonut from "@/components/ScoreDonut";
 import { AnchoredNotice } from "@/components/AnchoredNotice";
+import { AFRICA_COUNTRIES } from "@/lib/countries/africa";
 
 type CompanyWebProfile = {
   name: string;
@@ -57,8 +58,8 @@ type Job = {
 
 
 function formatDate(value: string | null) { if (!value) return "Aucune donnée"; return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)); }
-function countryFlag(code: string | null | undefined) { const flags: Record<string,string> = { CM:"🇨🇲", SN:"🇸🇳", GA:"🇬🇦", CG:"🇨🇬", CF:"🇨🇫", TD:"🇹🇩", GQ:"🇬🇶", BJ:"🇧🇯", BF:"🇧🇫", CI:"🇨🇮", GN:"🇬🇳", GW:"🇬🇼", ML:"🇲🇱", NE:"🇳🇪", TG:"🇹🇬", NG:"🇳🇬", GH:"🇬🇭", RW:"🇷🇼", ZA:"🇿🇦", ZM:"🇿🇲", UG:"🇺🇬", LR:"🇱🇷", SS:"🇸🇸", SZ:"🇸🇿" }; return flags[String(code || "").toUpperCase()] || "🌍"; }
-function countryName(code: string | null | undefined) { const names: Record<string,string> = { CM:"Cameroun", SN:"Sénégal", GA:"Gabon", CG:"Congo", CF:"République centrafricaine", TD:"Tchad", GQ:"Guinée équatoriale", BJ:"Bénin", BF:"Burkina Faso", CI:"Côte d’Ivoire", GN:"Guinée", GW:"Guinée-Bissau", ML:"Mali", NE:"Niger", TG:"Togo", NG:"Nigeria", GH:"Ghana", RW:"Rwanda", ZA:"Afrique du Sud", ZM:"Zambie", UG:"Ouganda", LR:"Liberia", SS:"Soudan du Sud", SZ:"Eswatini" }; return names[String(code || "").toUpperCase()] || "Pays non renseigné"; }
+function countryFlag(code: string | null | undefined) { return AFRICA_COUNTRIES.find(country => country.code === String(code || "").toUpperCase())?.flag || "🌍"; }
+function countryName(code: string | null | undefined) { return AFRICA_COUNTRIES.find(country => country.code === String(code || "").toUpperCase())?.name || "Pays non renseigné"; }
 function GmailIcon({size=18}:{size?:number}) { return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"><path d="M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5v13A2.5 2.5 0 0 1 18.5 21H5.5A2.5 2.5 0 0 1 3 18.5v-13Z" fill="white"/><path d="M4.5 6.2 12 12l7.5-5.8V18a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1V6.2Z" fill="#EA4335"/><path d="M4.5 6.2 12 12l7.5-5.8-1.1-1.6L12 9.4 5.6 4.6 4.5 6.2Z" fill="#4285F4"/><path d="M4.5 6.2V18c0 .55.45 1 1 1h2V8.12L4.5 6.2Z" fill="#34A853"/><path d="M19.5 6.2V18c0 .55-.45 1-1 1h-2V8.12l3-1.92Z" fill="#FBBC04"/></svg>; }
 function WhatsAppIcon({size=18}:{size?:number}) { return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#25D366"/><path d="M8.7 7.6c.3-.3.7-.3 1 0l1.2 1.4c.25.3.25.7.02 1l-.55.72c.5 1 1.35 1.85 2.35 2.35l.72-.55c.3-.23.7-.23 1 .02l1.4 1.2c.3.25.3.7 0 1-.65.75-1.6 1.2-2.65 1.05-1.65-.23-3.4-1.3-4.8-2.7s-2.47-3.15-2.7-4.8c-.15-1.05.3-2 1.05-2.65Z" fill="white"/></svg>; }
 
@@ -94,6 +95,8 @@ export function JoblyOfferFeed() {
   const [marketScope, setMarketScope] = useState<"local" | "africa">("local");
   const [market, setMarket] = useState<{ scope: "local" | "africa"; countryCode: string | null; countryName: string | null; userCountryCode: string | null }>({ scope: "local", countryCode: "CM", countryName: "Cameroun", userCountryCode: "CM" });
   const [matchOnly, setMatchOnly] = useState(false);
+  const [countryPickerOpen, setCountryPickerOpen] = useState(false);
+  const [selectedAfricaCountries, setSelectedAfricaCountries] = useState<string[]>([]);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [topMatchCanScrollLeft, setTopMatchCanScrollLeft] = useState(false);
   const [topMatchCanScrollRight, setTopMatchCanScrollRight] = useState(true);
@@ -146,7 +149,7 @@ export function JoblyOfferFeed() {
         }
       }
       const [jobsRes, appsRes] = await Promise.all([
-        fetch(`/api/jobs?limit=200&page=1&scope=${marketScope}`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`/api/jobs?limit=200&page=1&scope=${marketScope}${marketScope === "africa" && selectedAfricaCountries.length ? `&monAfrique=true&countries=${encodeURIComponent(selectedAfricaCountries.join(","))}` : ""}`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch("/api/applications", { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       const jobsBody = await jobsRes.json(); if (!jobsRes.ok) throw new Error(jobsBody.message || "Impossible de charger les offres.");
@@ -156,7 +159,7 @@ export function JoblyOfferFeed() {
       if (bulkInfoRes.ok) { const bulkInfo = await bulkInfoRes.json().catch(() => ({})); setBulkLimit(Number(bulkInfo.bulkApplicationLimit || 1)); }
     } catch (e) { setError(e instanceof Error ? e.message : "Erreur réseau."); }
     finally { setLoading(false); setRefreshing(false); }
-  }, [token, marketScope]);
+  }, [token, marketScope, selectedAfricaCountries]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -413,7 +416,7 @@ export function JoblyOfferFeed() {
       const haystack = [job.title, job.location, job.contractType, job.remoteMode, cleanCompanyName(job.company?.name)].filter(Boolean).join(" ").toLowerCase();
       const matchesQuery = !q || haystack.includes(q);
       const matchesFilter = filter === "Toutes"
-        || (filter === "En cours" ? !job.deadlineExpired : String(job.contractType || "").toLowerCase().includes(filter.toLowerCase()));
+        || (filter === "En cours" ? !job.deadlineExpired : filter === "Remote" ? Boolean(job.remoteMode && !["no","false","non","none"].includes(String(job.remoteMode).toLowerCase())) : String(job.contractType || "").toLowerCase().includes(filter.toLowerCase()));
       return matchesQuery && matchesFilter && (!matchOnly || job.matchPercent >= 50);
     });
     return focusMatch ? [...result].sort((a, b) => b.matchPercent - a.matchPercent) : result;
@@ -438,9 +441,9 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
       }
       if (intent === "filter_jobs") {
         const lower = command.toLowerCase();
-        const next = lower.includes("en cours") ? "En cours" : lower.includes("cdi") ? "CDI" : lower.includes("cdd") ? "CDD" : lower.includes("stage") ? "Stage" : "Toutes";
+        const next = lower.includes("en cours") ? "En cours" : lower.includes("cdi") ? "CDI" : lower.includes("cdd") ? "CDD" : (lower.includes("remote") || lower.includes("télétravail")) ? "Remote" : "Toutes";
         setFilter(next);
-        respond(next === "Toutes" ? "Dis-moi le filtre souhaité : En cours, CDI, CDD ou stage." : "C’est filtré.", "filter");
+        respond(next === "Toutes" ? "Dis-moi le filtre souhaité : En cours, CDI, CDD ou télétravail." : "C’est filtré.", "filter");
         return;
       }
       if (intent === "open_job") {
@@ -592,7 +595,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     const step = (firstCard?.getBoundingClientRect().width || container.clientWidth * 0.86) + gap;
     container.scrollBy({ left: direction * step, behavior: "smooth" });
   }, []);
-  const marketLabel = marketScope === "africa" ? "🌍 Explorer l’Afrique" : `${countryFlag(market.countryCode)} ${market.countryName || "Cameroun"}`;
+  const marketLabel = marketScope === "africa" ? "🌍 Mon Afrique" : `${countryFlag(market.countryCode)} ${market.countryName || "Cameroun"}`;
   const feedSummary = feedMeta.totalAvailable ? `${feedMeta.totalAvailable} offre${feedMeta.totalAvailable > 1 ? "s" : ""} disponible${feedMeta.totalAvailable > 1 ? "s" : ""} aujourd’hui` : "Marché en cours de synchronisation";
 
   if (sessionLoading || (loading && !jobs.length)) return (
@@ -631,13 +634,38 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
       </div>
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-1 justify-start gap-2 overflow-x-auto px-1">
-          {["Toutes","En cours","CDI","CDD","Stage"].map(item => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "whitespace-nowrap rounded-2xl bg-[#FFE135] px-4 py-3 text-xs font-black text-[#17212B]" : "whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-500"}>{item}</button>)}
+          {["Toutes","En cours","CDI","CDD","Remote"].map(item => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "whitespace-nowrap rounded-2xl bg-[#FFE135] px-4 py-3 text-xs font-black text-[#17212B]" : "whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-500"}>{item}</button>)}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <button type="button" onClick={() => { setMarketScope("local"); setFilter("Toutes"); }} className={marketScope === "local" ? "shrink-0 rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "shrink-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>{countryFlag(market.countryCode)} {market.countryName || "Cameroun"}</button>
-          <button type="button" onClick={() => { setMarketScope("africa"); setFilter("Toutes"); }} className={marketScope === "africa" ? "shrink-0 rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "shrink-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>🌍 Explorer l’Afrique</button>
+          <button type="button" onClick={() => { setMarketScope("local"); setSelectedAfricaCountries([]); setCountryPickerOpen(false); setFilter("Toutes"); }} className={marketScope === "local" ? "shrink-0 rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "shrink-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>{countryFlag(market.countryCode)} {market.countryName || "Cameroun"}</button>
+          <button type="button" onClick={() => { setMarketScope("africa"); setFilter("Toutes"); }} className={marketScope === "africa" ? "shrink-0 rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "shrink-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>🌍 Mon Afrique</button>
+          {marketScope === "africa" && <div className="relative">
+            <button type="button" onClick={() => setCountryPickerOpen(v => !v)} className="shrink-0 rounded-2xl border border-[#22448B]/20 bg-white px-4 py-3 text-xs font-black text-[#22448B]">Pays{selectedAfricaCountries.length ? ` · ${selectedAfricaCountries.length}` : ""}</button>
+            {countryPickerOpen && <div className="absolute right-0 top-14 z-50 w-[min(92vw,430px)] rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div><p className="text-sm font-black text-[#17212B]">Mon Afrique</p><p className="text-[11px] text-slate-500">Choisis un ou plusieurs pays.</p></div>
+                <button type="button" onClick={() => setCountryPickerOpen(false)} aria-label="Fermer" className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-600"><X size={16}/></button>
+              </div>
+              <div className="grid max-h-[55vh] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3">
+                {AFRICA_COUNTRIES.map(country => {
+                  const active=selectedAfricaCountries.includes(country.code);
+                  return <button key={country.code} type="button" onClick={() => setSelectedAfricaCountries(prev => active ? prev.filter(code => code !== country.code) : [...prev, country.code])} className={active ? "flex items-center gap-2 rounded-2xl bg-[#22448B] px-3 py-2 text-left text-xs font-black text-white" : "flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-bold text-slate-600"}>
+                    <span className="text-base">{country.flag}</span><span className="truncate">{country.name}</span>
+                  </button>;
+                })}
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                <button type="button" onClick={() => setSelectedAfricaCountries([])} className="rounded-full px-3 py-2 text-[11px] font-black text-slate-500">Tous les pays</button>
+                <button type="button" onClick={() => setCountryPickerOpen(false)} className="rounded-full bg-[#FFE135] px-4 py-2 text-[11px] font-black text-[#17212B]">Confirmer</button>
+              </div>
+            </div>}
+          </div>}
         </div>
       </div>
+      {marketScope === "africa" && selectedAfricaCountries.length > 0 && <div className="mb-5 flex flex-wrap items-center gap-2 rounded-2xl border border-[#22448B]/10 bg-white px-4 py-3 shadow-sm">
+        <span className="text-[10px] font-black uppercase tracking-[1.4px] text-slate-500">Pays suivis</span>
+        {selectedAfricaCountries.map(code => { const country=AFRICA_COUNTRIES.find(item => item.code === code); return country ? <span key={code} className="rounded-full bg-[#EEF3FF] px-3 py-1.5 text-xs font-black text-[#22448B]">{country.flag} {country.name}</span> : null; })}
+      </div>}
       {featured.length > 0 && (
         <div className="relative" onMouseEnter={() => setTopMatchHover(true)} onMouseLeave={() => setTopMatchHover(false)}>
           <div className="mb-3 flex items-center justify-between">

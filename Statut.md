@@ -48,6 +48,39 @@ Le score expose maintenant matchBreakdown[] avec le critère, le poids, l'état,
 
 Ces changements sont poussés sur main par commits successifs et doivent être considérés **CODÉS**, pas encore **VALIDÉS**, jusqu'à vérification du build Vercel et du parcours /jobs en production.
 
+# LOT A — MON AFRIQUE — ÉTAT D’EXÉCUTION — 02/10/2026
+
+| Dimension | État | Détail |
+|---|---|---|
+| Spécifié | ✅ | Architecture minimale arrêtée |
+| Catalogue pays | 🔧 | 54 États dans `lib/countries/africa.ts` |
+| Feed / UI | 🔧 | Multi-pays au-dessus de `local/africa` existant |
+| API Jobs | 🔧 | `countries` + contexte `monAfrique`, sans modification User/Profile |
+| J’IA Brain | 🔧 | Contexte pays transmis au Brain existant |
+| Watcher | 🔧 | Extension personnalisée + confirmation explicite |
+| Matching | 🟢 inchangé | Aucun remplacement du moteur |
+| Candidatures | 🟢 inchangées | Aucun changement de flux |
+| User/Profile | 🟢 inchangé | Aucun champ de pays d’intérêt |
+| Tests architecture | ✅ | Contrôles statiques Lot A passés |
+| CI typecheck/build | ⚠️ BLOQUÉ | `lib/jobSourceCollector.ts:61` — erreur TS1128 hors Lot A |
+| Merge main | ⏸️ | Aucun |
+| Déploiement | ⏸️ | Aucun |
+
+## Contrat d’implémentation Lot A
+
+- Une seule source canonique pays.
+- Les scopes `local` et `africa` existants restent fonctionnels.
+- Mon Afrique ne crée pas de nouveau profil utilisateur.
+- Les pays sont un contexte J’IA explicite.
+- Le watcher historique n’est ni supprimé ni réduit.
+- Une veille personnalisée ne démarre qu’après confirmation explicite.
+- Stage reste hors des filtres Mon Afrique.
+- Aucun Premium n’est déclenché par une vulnérabilité ou un signal émotionnel.
+
+## Validation CI
+
+La PR **#152** a déclenché le CI. L’installation des dépendances réussit, puis le typecheck échoue sur `lib/jobSourceCollector.ts(61,1): TS1128`. Le fichier est hors périmètre Lot A et l’échec empêche mécaniquement l’étape build. Lot A n’est donc pas déclaré « validé E2E ».
+
 # 0. ÉTAT EXÉCUTIF — 20/09/2026
 
 **JOBLY est déployé en production sur le projet Vercel canonique `jobly-c0.6.5.1`.**
@@ -4180,3 +4213,87 @@ Ce checkpoint ne certifie aucun lot par simple présence de code. Pour chaque lo
 - Lecture du projet : fondations Next.js/Supabase/Prisma et surfaces Recruiter/Talent existantes inspectées.
 - Spécification Recrutement 360° v2 + Avenant 1 : prise comme référence de construction.
 - **État :** Étape 0 en cours ; arrêt obligatoire avant tout développement de lot.
+
+
+## CHECKPOINT 02/10/2026 — J’IA QCM CONVERSATIONNEL BORNÉ
+
+### Décision UX
+Le QCM conversationnel J’IA devient un composant générique : **4 choix maximum**, puis **« Autre… »**, avec petit champ de saisie. Les questions compatibles autorisent plusieurs sélections. La réponse vocale est un canal de réponse équivalent au texte.
+
+### Architecture
+- `lib/jia/qcm.ts` : contrat, limitation à 4 options, fusion des sélections, parsing des réponses textuelles/vocales et QCM canonique de veille.
+- `components/jia/JiaConversationalQcm.tsx` : surface UI réutilisable.
+- `lib/jia/brain.ts` : expose le QCM lorsque l’intention détectée est une demande de veille.
+- Aucun nouveau modèle Supabase : le QCM reste une couche conversationnelle au-dessus du Watcher existant.
+
+### Monétisation / accès
+**FREE-FIRST.** Le QCM de configuration et la réponse vocale ne sont pas artificiellement verrouillés. Les éventuelles limites de nombre de veilles ou de profondeur de surveillance restent rattachées au système d’entitlements existant et ne sont pas recréées ici.
+
+### État de vérité
+**🟨 CODÉ — CI/typecheck et validation runtime encore requis.**
+Aucun déploiement Vercel et aucun merge vers `main`.
+
+# CHECKPOINT 02/10/2026 — LOT C COMMUNITY — AUDIT ARCHITECTURAL INITIAL
+
+## État de vérité
+**🟨 AUDIT ARCHITECTURAL EFFECTUÉ — IMPLÉMENTATION NON COMMENCÉE.**
+
+### Résultat de l'audit
+| Domaine | État | Constat |
+|---|---|---|
+| Module Community dédié | 🔴 | Absent du socle actuel |
+| Tables métier Community | 🔴 | Aucun modèle dédié communauté/publication/commentaire/groupe/follow/réaction identifié |
+| User/Profile | 🟢 | Réutilisable, aucune extension nécessaire à ce stade |
+| Mémoire J’IA | 🟢 | Réutilisable via le socle existant |
+| JiaEvent / IntelligenceTrace | 🟢 | Réutilisables pour les événements et traces |
+| World Model | 🟢 | Réutilisable pour les relations cognitives, pas comme stockage transactionnel social |
+| Notifications | 🟢 | Infrastructure existante à raccorder ultérieurement |
+| Preferences | 🟢 | Infrastructure existante à conserver |
+| Action Runs / Policy | 🟢 | Réutilisables pour les actions J’IA nécessitant permission/confirmation |
+| Nouvelle IA Community | 🔴 | Inutile : Community doit utiliser J’IA transversale |
+| Matching / offres / candidatures | 🟢 | Hors périmètre de cet audit |
+| Migration Supabase | ⚪ | Non commencée |
+| Déploiement | ⚪ | Aucun |
+| Merge `main` | ⚪ | Aucun |
+
+## Architecture de principe
+Community doit devenir une **couche métier dédiée**, branchée sur les primitives existantes de Jobly et sur J’IA, sans créer de socles parallèles.
+
+À ne pas créer :
+- `CommunityAI` ou une IA parallèle ;
+- `CommunityMemory` ;
+- `CommunityUser` ;
+- deuxième système de notifications/préférences ;
+- nouveau modèle relationnel cognitif en parallèle du World Model ;
+- champs artificiels dans User/Profile pour porter la logique Community.
+
+Le stockage des publications, commentaires et autres contenus sociaux devra rester distinct du modèle cognitif `jia_world_*`; ce dernier peut représenter les relations utiles au raisonnement de J’IA.
+
+## Free-First
+- **FREE :** découverte, lecture, participation et interactions communautaires de base.
+- **START / PREMIUM / PRO :** profondeur fonctionnelle, quotas et consommation de crédits à définir avant implémentation, uniquement lorsqu'une limitation fonctionnelle réelle le justifie.
+- Aucune monétisation fondée sur la vulnérabilité émotionnelle.
+
+## Point d'arrêt obligatoire
+**Aucune table, migration ou route Community ne doit être créée à ce stade.** La prochaine étape est la spécification fonctionnelle précise, puis la définition du modèle de données minimal et des permissions avant implémentation.
+
+**Aucun déploiement Vercel et aucun merge vers `main` n'ont été effectués.**
+
+
+# LOT B — VEILLE J’IA — CORRECTION — 02/10/2026
+
+| Dimension | État | Détail |
+|---|---|---|
+| Brain / intent WATCH | 🔧 | Intention désormais détectable et QCM retourné |
+| QCM global J’IA | 🔧 | 4 choix max + Autre activable + texte + voix |
+| Subscription persistante | 🔧 | Réutilise JiaWatchSubscription existante |
+| Runs / snapshots | 🔧 | Réutilise JiaWatchRun et JiaWatchSnapshot |
+| Détection de changement | 🔧 | Hash de signal + snapshot précédent |
+| Notifications | 🔧 | Réutilise Notification, uniquement sur nouveauté |
+| Arrêt / pause logique | 🔧 | Désactivation persistante de la veille |
+| Scheduler | 🔧 | /api/cron/jia-watch + cron 15 min |
+| Migration DB | 🟢 | Aucune : les tables nécessaires existent déjà |
+| Déploiement | ⏸️ | Aucun |
+| Merge main | ⏸️ | Aucun |
+
+Le Lot B est maintenant codé sur toute sa chaîne métier : intention → QCM → confirmation → persistance → exécution planifiée → détection de changement → notification → arrêt. La validation CI/E2E reste à exécuter avant de le déclarer VALIDÉ.

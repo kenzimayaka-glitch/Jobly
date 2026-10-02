@@ -4,6 +4,8 @@ import { adminClient } from "../server-auth";
 import { actionForIntent, isFinancialRequest } from "./guard";
 import { observeInternet } from "./internet";
 import { buildJiaContext } from "@/lib/jiaContext";
+import { buildMonAfriqueContext } from "@/lib/jia/monAfrique";
+import { WATCH_INTENT_QCM, type JiaQcmQuestion } from "@/lib/jia/qcm";
 
 export type JiaBrainInput = {
   userId: string;
@@ -14,6 +16,7 @@ export type JiaBrainInput = {
   proactive?: boolean;
   /** Langue de l’interface (FR par défaut) : pilote la langue de la réponse. */
   lang?: "fr" | "en";
+  monAfriqueCountries?: string[];
 };
 
 export type JiaBrainResult = {
@@ -24,6 +27,8 @@ export type JiaBrainResult = {
   provider: string;
   sources?: Array<{ title: string; url: string; snippet: string }>;
   traceId?: string;
+  monAfrique?: { enabled: boolean; countries: string[]; confirmed: boolean };
+  qcm?: JiaQcmQuestion;
 };
 
 const EMPTY: Record<"fr" | "en", string> = {
@@ -102,6 +107,7 @@ function normalizeIntent(message: string) {
   if (/\b(entretien|interview)\b/.test(m)) return "INTERVIEW";
   if (/\b(apprendre|formation|skill|compétence)\b/.test(m)) return "LEARNING";
   if (/\b(mobilité|déménag|ville|pays)\b/.test(m)) return "MOBILITY";
+  if (/\b(veille|surveill|alerte|alertes|monitor|watch|suivre|nouvelles?)\b/.test(m)) return "WATCH";
   if (/\b(recrut|candidat|talent)\b/.test(m)) return "RECRUITMENT";
   if (/\b(partenaire|commission|parrain)\b/.test(m)) return "PARTNER";
   return "CAREER";
@@ -121,6 +127,7 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
   const memory = userContext?.memory || [];
   const events = userContext?.behavior?.recent || [];
   const lang: "fr" | "en" = input.lang === "en" ? "en" : "fr";
+  const monAfrique = buildMonAfriqueContext(`${clean(input.message, 1200)} ${clean(input.action, 240)}`, input.monAfriqueCountries || []);
   const context = {
     responseLanguage: lang === "en" ? "English" : "français",
     ecosystem: input.ecosystem || "TALENT",
@@ -131,6 +138,7 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     memory,
     recentEvents: events,
     assessment: assessment.data || null,
+    monAfrique,
   };
 
   const greeting = /^(bonjour|bonsoir|salut|hello|coucou|hey|bjr)\b[!?., ]*$/i.test(context.message);
@@ -172,6 +180,7 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
 
   const intent = normalizeIntent(context.message);
   const financialRequest = isFinancialRequest(context.message);
+  const qcm = intent === "WATCH" ? WATCH_INTENT_QCM : undefined;
   // Barrière financière : évaluée AVANT toute action (cf. lib/jia/guard.ts).
   const fallbackAction = financialRequest ? undefined : actionForIntent(intent, context.message);
   const fallbackPool = CONTEXTUAL_FALLBACKS[intent] || CONTEXTUAL_FALLBACKS.CAREER;
@@ -196,8 +205,8 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     sourceType: "JIA_BRAIN",
     sourceRef: "lib/jia/brain",
     status: "COMPLETED",
-    metadata: { provider, ecosystem: context.ecosystem, proactive: context.proactive },
+    metadata: { provider, ecosystem: context.ecosystem, proactive: context.proactive, monAfrique },
   }).select("id").single();
 
-  return { message, intent, confidence, proposedAction, provider, sources, ...(trace.data?.id ? { traceId:String(trace.data.id) } : {}) };
+  return { message, intent, confidence, proposedAction, provider, sources, monAfrique, ...(qcm ? { qcm } : {}), ...(trace.data?.id ? { traceId:String(trace.data.id) } : {}) };
 }

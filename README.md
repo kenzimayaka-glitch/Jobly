@@ -62,6 +62,53 @@ PERCEIVE → UNDERSTAND → MEMORY → BELIEF → WORLD MODEL → REASON → PRE
 
 ---
 
+# LOT A — MON AFRIQUE — 02/10/2026
+
+## Architecture retenue
+
+**Mon Afrique est une expérience J’IA au-dessus du moteur d’offres existant.** Aucun nouveau modèle User/Profile de pays d’intérêt n’est introduit.
+
+Flux :
+
+```
+Profil / mémoire J’IA existants
+        ↓
+contexte explicite « Mon Afrique »
+        ↓
+/api/jobs?scope=africa&countries=...
+        ↓
+JoblyOfferFeed existant
+```
+
+### Implémentation
+
+- Catalogue canonique partagé : `lib/countries/africa.ts` — **54 États africains**.
+- `JoblyOfferFeed` conserve `local | africa` et ajoute le contexte multi-pays Mon Afrique.
+- Sélecteur multi-pays par drapeaux : **Pays**.
+- Filtres Mon Afrique : **Toutes · Pays · En cours · CDD · CDI · Remote**.
+- **Stage n’est pas un filtre Mon Afrique**.
+- `/api/jobs` accepte les pays explicitement sélectionnés sans modifier User/Profile.
+- J’IA reçoit le contexte pays via son Brain existant.
+- Watcher existant conservé ; une veille Mon Afrique personnalisée est proposée puis exécutée uniquement après **confirmation explicite**.
+- Aucun changement au moteur de matching, aux cartes, aux candidatures ou aux scopes existants.
+
+### Règle de persistance
+
+Les pays Mon Afrique sont un **contexte d’utilisation J’IA**, pas un nouveau champ de profil. Les pays explicitement sélectionnés peuvent être transmis au Brain/API ; aucune colonne `favoriteCountries`, `interestedCountries` ou `africaCountries` n’est créée.
+
+### Validation
+
+Un contrôle architectural statique Lot A a confirmé :
+- 54 pays ;
+- scopes existants conservés ;
+- filtres Mon Afrique conformes ;
+- absence de nouveau modèle de pays dans User/Profile ;
+- contexte J’IA raccordé ;
+- watcher personnalisé protégé par confirmation ;
+- watchers historiques conservés.
+
+Le CI GitHub a démarré sur la PR **#152**. Le typecheck est actuellement bloqué par une erreur de syntaxe préexistante dans `lib/jobSourceCollector.ts:61`, hors périmètre Lot A ; le build n’a donc pas été exécuté. **Aucun merge ni déploiement n’a été effectué.**
+
 # 1. JOBLY EN UNE PHRASE
 
 **JOBLY n'est pas un job board.**
@@ -3827,3 +3874,72 @@ La base Supabase connectée confirme RLS activé sur les tables cognitives et ab
 6. Browser E2E et production restent volontairement non validés sur cette branche.
 
 **Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ. Aucun merge `main` ni déploiement Vercel sans validation explicite.**
+
+
+# CHECKPOINT 02/10/2026 — J’IA QCM CONVERSATIONNEL BORNÉ
+
+- Standard UX J’IA : maximum **4 choix visibles** par question.
+- Au-delà : entrée **« Autre… »** avec petit champ de saisie libre.
+- Sélection **simple ou multiple** selon la question.
+- Réponse **vocale** prévue comme canal équivalent à la réponse textuelle.
+- Contrat partagé dans `lib/jia/qcm.ts` ; composant réutilisable dans `components/jia/JiaConversationalQcm.tsx`.
+- J’IA Brain expose désormais le QCM borné pour les intentions de veille.
+- Aucun nouveau stockage Supabase, aucun champ profil et aucune seconde architecture de veille n’ont été créés.
+- Aucun déploiement Vercel et aucun merge vers `main`.
+
+**État : 🟨 CODÉ — VALIDATION CI/RUNTIME À EFFECTUER.**
+
+**Règle :** ≤4 choix + « Autre… » + saisie courte + voix ; l’utilisateur peut cocher une ou plusieurs réponses ; J’IA poursuit uniquement avec les informations manquantes.
+
+# LOT C — COMMUNITY — 02/10/2026 — AUDIT ARCHITECTURAL INITIAL
+
+## État
+
+**🟨 AUDIT ARCHITECTURAL EFFECTUÉ — IMPLÉMENTATION NON COMMENCÉE.**
+
+Le chantier Community a été audité avant toute création de code ou de schéma.
+
+### Constat
+- Aucun module métier Community dédié n'a été identifié dans le socle actuel.
+- Aucun modèle persistant dédié de type communauté, publication, commentaire, groupe, abonnement/follow ou réaction n'a été identifié.
+- Le socle existant réutilisable comprend notamment User/Profile, mémoire J’IA, événements/traces, World Model, `jia_action_runs`, préférences, notifications, Career data et entitlements.
+- Le système Community ne doit pas créer une deuxième IA, une deuxième mémoire, une deuxième notification, une deuxième préférence ou un deuxième modèle User.
+- `jia_world_entities` / `jia_world_relations` peuvent servir au modèle cognitif de J’IA pour représenter des relations telles que participation ou intérêt, mais ne doivent pas remplacer le stockage transactionnel des contenus sociaux.
+
+### Architecture retenue à ce stade
+Community sera une **couche produit dédiée**, raccordée au socle cognitif J’IA existant.
+
+```text
+User / Profile existants
+        ↓
+Community métier dédié
+        ↓
+J’IA / mémoire / événements / notifications existants
+```
+
+Aucun changement au moteur d'offres, au matching, aux candidatures ou aux autres écosystèmes n'est introduit par cet audit.
+
+### Monétisation — principe Free-First
+- **FREE :** accès aux communautés, découverte, lecture, participation et interactions de base.
+- **START / PREMIUM / PRO :** profondeur fonctionnelle à définir avant implémentation, avec quotas et consommation de crédits J’IA explicites uniquement lorsqu'une valeur fonctionnelle réelle le justifie.
+- Aucune restriction artificielle ni monétisation de vulnérabilité.
+
+### Prochaine étape obligatoire
+Avant toute migration ou création de table : définir précisément le périmètre fonctionnel Community, les acteurs, les permissions, le modèle de données minimal, les règles FREE/START/PREMIUM/PRO et les points de raccordement au socle J’IA.
+
+**Aucune migration, aucun déploiement Vercel et aucun merge vers `main` n'ont été effectués.**
+
+
+# LOT B — VEILLE J’IA — CORRECTION / FERMETURE TECHNIQUE — 02/10/2026
+
+Le Lot B a été corrigé en réutilisant l’architecture existante : JiaWatchSubscription, JiaWatchRun, JiaWatchSnapshot et Notification. Aucun second système de veille, mémoire ou notification n’est créé.
+
+- Brain : l’intention WATCH est maintenant détectée et retourne le QCM global J’IA.
+- QCM : maximum 4 choix visibles + Autre réellement activable + réponse libre + voix conservée.
+- Veille personnalisée : la confirmation explicite crée/réactive la subscription persistante.
+- Scheduler : /api/cron/jia-watch récupère les veilles arrivées à échéance et les exécute.
+- Détection de changement : JiaWatchSnapshot + hash de signal évitent les notifications sans nouveauté.
+- Notification : réutilisation de Notification uniquement lorsqu’un changement est détecté.
+- Arrêt : stop_mon_afrique désactive réellement la subscription persistante.
+- Fréquence par défaut : 24 h, conformément au défaut existant de JiaWatchSubscription.
+- Déploiement : aucun déploiement et aucun merge main effectués.
