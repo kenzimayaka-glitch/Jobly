@@ -60,7 +60,7 @@ const SOURCES: SourceConfig[] = [
 ];
 ];
 
-const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
+const USER_AGENTconst USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
 const FETCH_TIMEOUT_MS = 6_000;
 const MAX_LISTING_PAGES_SAFETY = 5000;
 const SOURCE_FETCH_CONCURRENCY = 6;
