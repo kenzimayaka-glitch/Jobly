@@ -1,3 +1,46 @@
+
+
+# CHECKPOINT 02/10/2026 — AUDIT DE RÉCONCILIATION CODE ↔ DOCUMENTATION (PASSE DE CONTRÔLE)
+
+Cette passe a recontrôlé les artefacts réellement présents dans les branches de chantier avant de considérer la documentation comme une preuve d'implémentation.
+
+## Career Journey 360
+- Page `app/career-journey/page.tsx` : CODÉE.
+- API principale `app/api/career-journey/route.ts` : CODÉE.
+- APIs spécialisées assessments / missions / portfolio / radar : CODÉES.
+- Service `lib/careerJourney.ts` : CODÉ.
+- Entitlements `lib/careerJourneyEntitlements.ts` : CODÉS.
+- Migration `20261002050000_career_journey_360` + schéma Prisma : PRÉSENTS.
+- RLS : durcie dans `88fe82f`.
+- Vercel : modèle `89b5055` READY, RLS `88fe82f` READY, UI `62cd1de` ERROR. Aucun de ces états ne vaut validation production.
+
+## Lot A — Mon Afrique
+- Catalogue `lib/countries/africa.ts` : PRÉSENT, 54 pays.
+- Contexte `lib/jia/monAfrique.ts` : PRÉSENT.
+- QCM conversationnel `components/jia/JiaConversationalQcm.tsx` : PRÉSENT, 4 choix visibles maximum + Autre.
+- Intégration jobs / watcher / brain / cron : présente sur la branche.
+- Verdict : CODÉ. La CI/validation E2E reste distincte ; aucun déploiement n'est déclaré.
+
+## Lot B — Veille J’IA
+- Persistance `lib/jia/watchPersistence.ts` : PRÉSENTE.
+- Intelligence `lib/jia/watchIntelligence.ts` : PRÉSENTE.
+- Scoring `lib/jia/watchIntelligenceScoring.ts` : PRÉSENT avec SUPPRESS / DIGEST / NOTIFY / REVIEW.
+- Smoke test `scripts/jia-watch-intelligence-smoke.mjs` : PRÉSENT et couvre les quatre décisions.
+- Migration et schéma de persistance : PRÉSENTS.
+- Verdict : CODÉ B1→B3.1. Le smoke test et la validation runtime complète doivent rester distingués ; aucun déploiement n'est déclaré.
+
+## Lot C — Bons Plans + Community
+- APIs Bons Plans / Community : PRÉSENTES.
+- Accès Community `lib/community/access.ts` : PRÉSENT, entitlements serveur.
+- Automatisation `lib/community/automation.ts` : PRÉSENTE, seuil 1 000 et 8 communautés globales.
+- UI `/communities` et `/communities/[id]` : PRÉSENTES.
+- Migration Lot C + extensions Prisma : PRÉSENTES.
+- Verdict : CODÉ. La présence de la migration dans le dépôt ne constitue pas à elle seule une preuve d'application sur JOBLY-PROD ; la validation E2E reste distincte.
+
+## Règle documentaire renforcée
+La documentation ne doit jamais transformer « fichier présent », « commit existant » ou « build READY » en « VALIDÉ » ou « DÉPLOYÉ ». Toute fonctionnalité reste séparée selon : SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.
+
+Aucun merge `main` et aucun déploiement Vercel ne sont autorisés par cette passe.
 # CHECKPOINT 02/10/2026 — RÉCONCILIATION CAREER JOURNEY + LOTS A/B/C
 
 ## Réconciliation code ↔ documentation
