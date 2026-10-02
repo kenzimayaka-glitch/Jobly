@@ -47,7 +47,7 @@ export async function recordJiaEvent(req:NextRequest,payload:{eventType:string;s
   if(["PAGE_VIEW","SESSION_START","JOB_VIEW","JOB_SAVE","JOB_APPLY_START","JOB_APPLY_COMPLETE","application_submitted","assessment_completed","campus_onboarded","event_checked_in","community_post_shared","mentorship_requested","mobility_plan_simulated","mobility_advance_requested","PROFILE_UPDATE","LEARNING_ACTIVITY","NOTIFICATION_OPEN"].includes(eventType)){
     await remember({
       userId:user.id,
-      type:eventType.startsWith("mobility_")?"MOBILITY":eventType.startsWith("campus_")?"EVENT":eventType.startsWith("community_")||eventType.startsWith("mentorship_")?"EVENT":"EPISODIC",
+      type:eventType.startsWith("mobility_")?"EVENT":eventType.startsWith("campus_")?"EVENT":eventType.startsWith("community_")||eventType.startsWith("mentorship_")?"EVENT":"EPISODIC",
       content:{kind:"JIA_BEHAVIOR_EVENT",eventType,path,metadata},
       source:"JIA_EVENT_BUS",
       confidence:.7,
