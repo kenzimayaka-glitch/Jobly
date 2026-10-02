@@ -3890,3 +3890,41 @@ La base Supabase connectée confirme RLS activé sur les tables cognitives et ab
 **État : 🟨 CODÉ — VALIDATION CI/RUNTIME À EFFECTUER.**
 
 **Règle :** ≤4 choix + « Autre… » + saisie courte + voix ; l’utilisateur peut cocher une ou plusieurs réponses ; J’IA poursuit uniquement avec les informations manquantes.
+
+# LOT C — COMMUNITY — 02/10/2026 — AUDIT ARCHITECTURAL INITIAL
+
+## État
+
+**🟨 AUDIT ARCHITECTURAL EFFECTUÉ — IMPLÉMENTATION NON COMMENCÉE.**
+
+Le chantier Community a été audité avant toute création de code ou de schéma.
+
+### Constat
+- Aucun module métier Community dédié n'a été identifié dans le socle actuel.
+- Aucun modèle persistant dédié de type communauté, publication, commentaire, groupe, abonnement/follow ou réaction n'a été identifié.
+- Le socle existant réutilisable comprend notamment User/Profile, mémoire J’IA, événements/traces, World Model, `jia_action_runs`, préférences, notifications, Career data et entitlements.
+- Le système Community ne doit pas créer une deuxième IA, une deuxième mémoire, une deuxième notification, une deuxième préférence ou un deuxième modèle User.
+- `jia_world_entities` / `jia_world_relations` peuvent servir au modèle cognitif de J’IA pour représenter des relations telles que participation ou intérêt, mais ne doivent pas remplacer le stockage transactionnel des contenus sociaux.
+
+### Architecture retenue à ce stade
+Community sera une **couche produit dédiée**, raccordée au socle cognitif J’IA existant.
+
+```text
+User / Profile existants
+        ↓
+Community métier dédié
+        ↓
+J’IA / mémoire / événements / notifications existants
+```
+
+Aucun changement au moteur d'offres, au matching, aux candidatures ou aux autres écosystèmes n'est introduit par cet audit.
+
+### Monétisation — principe Free-First
+- **FREE :** accès aux communautés, découverte, lecture, participation et interactions de base.
+- **START / PREMIUM / PRO :** profondeur fonctionnelle à définir avant implémentation, avec quotas et consommation de crédits J’IA explicites uniquement lorsqu'une valeur fonctionnelle réelle le justifie.
+- Aucune restriction artificielle ni monétisation de vulnérabilité.
+
+### Prochaine étape obligatoire
+Avant toute migration ou création de table : définir précisément le périmètre fonctionnel Community, les acteurs, les permissions, le modèle de données minimal, les règles FREE/START/PREMIUM/PRO et les points de raccordement au socle J’IA.
+
+**Aucune migration, aucun déploiement Vercel et aucun merge vers `main` n'ont été effectués.**
