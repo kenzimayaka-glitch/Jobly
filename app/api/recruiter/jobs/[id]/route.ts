@@ -54,13 +54,13 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       payload.description = description;
     }
     if (typeof b.location === "string") payload.location = b.location.trim() || null;
-    if (b.distributionScope !== undefined || b.countryCode !== undefined || b.targetCountryCodes !== undefined) {
+    const nextStatus = b.status === "published" || (b.status === undefined && existing.status === "published") ? "published" : b.status === "closed" ? "closed" : "draft";
+    if (b.distributionScope !== undefined || b.countryCode !== undefined || b.targetCountryCodes !== undefined || b.status !== undefined) {
       const market = normalizeRecruiterMarket({
         distributionScope: b.distributionScope ?? existing.distributionScope,
         countryCode: b.countryCode ?? existing.countryCode,
         targetCountryCodes: b.targetCountryCodes ?? existing.targetCountryCodes,
       }, user.country);
-      const nextStatus = b.status === "published" || (b.status === undefined && existing.status === "published") ? "published" : b.status === "closed" ? "closed" : "draft";
       const entitlement = await enforceRecruiterMarketEntitlement(supabase, user.id, market, nextStatus);
       if (!entitlement.ok) return NextResponse.json({ message: entitlement.message }, { status: 403 });
       payload.countryCode = market.countryCode;
