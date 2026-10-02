@@ -25,7 +25,7 @@ export function slugify(value: string) {
 }
 
 function communityCategoriesForContent(title: string, description: string, explicit?: string[]) {
-  const text = \`\${title} \${description}\`.toLowerCase();
+  const text = `${title} ${description}`.toLowerCase();
   const categories = new Set((explicit || []).map(clean).filter(Boolean));
 
   const rules: Array<[string, string[]]> = [
@@ -58,9 +58,9 @@ async function notifyUsers(
     id: crypto.randomUUID(),
     userId,
     type: "COMMUNITY_CREATED",
-    title: \`J’IA a créé \${communityName}\`,
-    body: \`Une nouvelle communauté correspondant à votre discipline (\${discipline}) est disponible. Rejoignez-la quand vous le souhaitez.\`,
-    link: \`/communities/\${communityId}\`,
+    title: `J’IA a créé ${communityName}`,
+    body: `Une nouvelle communauté correspondant à votre discipline (${discipline}) est disponible. Rejoignez-la quand vous le souhaitez.`,
+    link: `/communities/${communityId}`,
     entityId: communityId,
     actionType: "JOIN_COMMUNITY",
     actionPayload: { communityId, discipline },
@@ -99,7 +99,7 @@ export async function maybeCreateDisciplineCommunity(db: SupabaseClient, discipl
   const paidUserIds = [...new Set((paidSubscriptions || []).map((row: any) => row.userId).filter(Boolean))];
   if (paidUserIds.length < COMMUNITY_DISCIPLINE_THRESHOLD) return null;
 
-  const slug = \`discipline-\${slugify(discipline)}\`;
+  const slug = `discipline-${slugify(discipline)}`;
   const { data: existing, error: existingError } = await db
     .from("Community")
     .select("id,name")
@@ -117,7 +117,7 @@ export async function maybeCreateDisciplineCommunity(db: SupabaseClient, discipl
       createdById: JOBLY_COMMUNITY_SYSTEM_USER_ID,
       name: discipline,
       slug,
-      description: \`Communauté professionnelle Jobly dédiée à \${discipline}.\`,
+      description: `Communauté professionnelle Jobly dédiée à ${discipline}.`,
       category: discipline,
       status: "ACTIVE",
       createdAt: now,
@@ -165,7 +165,7 @@ export async function announceEventToCommunities(
       id: crypto.randomUUID(),
       communityId: community.id,
       authorId: JOBLY_COMMUNITY_SYSTEM_USER_ID,
-      content: \`📅 J’IA partage cet événement avec la communauté.\\n\\n\${event.title}\\n\\n\${event.description || "Un événement qui peut intéresser les membres de cette communauté."}\`,
+      content: `📅 J’IA partage cet événement avec la communauté.\\n\\n${event.title}\\n\\n${event.description || "Un événement qui peut intéresser les membres de cette communauté."}`,
       status: "PUBLISHED",
       sourceType: "EVENT",
       sourceId: event.id,
