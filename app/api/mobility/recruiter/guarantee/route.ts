@@ -44,10 +44,6 @@ export async function POST(req: NextRequest) {
     if (guaranteeError) throw new Error(guaranteeError.message);
 
     const { data: talent } = await sb.from("User").select("createdAt").eq("id", request.userId).maybeSingle();
-    const { data: subscription } = await sb.from("Subscription").select("plan,planCode,status,currentPeriodEnd,trialEndsAt").eq("userId", request.userId).order("createdAt", { ascending: false }).limit(1).maybeSingle();
-    const paidPlan = String(subscription?.planCode || subscription?.plan || "").toUpperCase();
-    const activePaidPlan = true;
-
     const { data: costItems } = await sb.from("MobilityCostItem").select("category,amount,currency,source").eq("mobilityRequestId", request.id);
     const eligibility = calculateMobilityEligibility({
       approvedSalary: Number(request.salaryApproved || 0),
