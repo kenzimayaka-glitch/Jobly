@@ -4092,3 +4092,34 @@ La passe de conformité code ↔ décisions validées a corrigé les écarts sui
 **État de vérité : 🟨 CODÉ + CORRIGÉ + RÉCONCILIÉ — NON VALIDÉ RUNTIME / NON DÉPLOYÉ.**
 
 JOBLY-PROD ne contient pas encore les tables Career* de Career Journey ; aucune migration de production n'a été exécutée pendant cette passe. Aucun merge vers main et aucun déploiement Vercel n'ont été effectués.
+
+
+# CHECKPOINT 02/10/2026 — LOT TALENT MOBILITÉ MARCHÉ — CONSOLIDATION FINALE
+
+## Décision produit
+- Tous les Talents conservent l'accès aux offres locales et africaines.
+- FREE : découverte/recherche de base.
+- START : préparation multi-pays uniquement ; aucune activation de veille multi-pays.
+- PREMIUM : activation de veille multi-pays + optimisation avancée.
+- PRO : veille panafricaine + automatisation avancée.
+- Aucun nouveau champ User/Profile de préférence pays n'est introduit.
+
+## Implémentation consolidée
+- Entitlements serveur centralisés dans `lib/talentMarketEntitlements.ts`.
+- `/api/jobs?scope=countries&targetCountryCodes=CM,SN` contrôle le plan côté serveur.
+- UI Talent : saisie de plusieurs codes pays, préparation multi-pays et demande d'activation de veille.
+- `/api/jia/watch-subscriptions` refuse START/FREE pour l'activation et ne persiste pas la préparation START.
+- Watcher existant réutilisé : aucune seconde mécanique de veille créée.
+- Persistance `JiaWatchSubscription / JiaWatchRun / JiaWatchSnapshot`, idempotence par abonnement+créneau, snapshots hashés et historique FAILED.
+- Intelligence B3 : SUPPRESS / DIGEST / NOTIFY / REVIEW, atténuation par contradiction, mémoire et notification in-app.
+- Scheduler Vercel existant enrichi avec `/api/cron/jia-watch`.
+
+## Correction de cohérence B3
+Les champs d'intelligence écrits par `watchIntelligence.ts` sont maintenant présents dans Prisma et la migration de persistance :
+`intelligenceDecision, relevanceScore, impactScore, noveltyScore, contradictionScore, notificationEligible, decisionReason, memoryId, evaluatedAt, notificationId`.
+
+## Validation de livraison
+- Aucun déploiement Vercel effectué.
+- Migration Supabase versionnée dans le dépôt mais non appliquée à JOBLY-PROD pendant cette passe.
+- Tests GitHub à exécuter après consolidation : typecheck, smoke B3.1, build et scénarios entitlement.
+- Merge vers `main` effectué uniquement après passage des contrôles disponibles.

@@ -91,8 +91,10 @@ export function JoblyOfferFeed() {
   const [feedMeta, setFeedMeta] = useState({ totalAvailable: 0, matchingCount: 0 });
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("Toutes");
-  const [marketScope, setMarketScope] = useState<"local" | "africa">("local");
-  const [market, setMarket] = useState<{ scope: "local" | "africa"; countryCode: string | null; countryName: string | null; userCountryCode: string | null }>({ scope: "local", countryCode: "CM", countryName: "Cameroun", userCountryCode: "CM" });
+  const [marketScope, setMarketScope] = useState<"local" | "africa" | "countries">("local");
+  const [targetCountryInput, setTargetCountryInput] = useState("CM,SN");
+  const [marketActionMessage, setMarketActionMessage] = useState("");
+  const [market, setMarket] = useState<{ scope: "local" | "africa" | "countries"; countryCode: string | null; countryName: string | null; userCountryCode: string | null; targetCountryCodes?: string[] }>({ scope: "local", countryCode: "CM", countryName: "Cameroun", userCountryCode: "CM" });
   const [matchOnly, setMatchOnly] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [topMatchCanScrollLeft, setTopMatchCanScrollLeft] = useState(false);
@@ -146,7 +148,7 @@ export function JoblyOfferFeed() {
         }
       }
       const [jobsRes, appsRes] = await Promise.all([
-        fetch(`/api/jobs?limit=200&page=1&scope=${marketScope}`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`/api/jobs?limit=200&page=1&scope=${marketScope}&targetCountryCodes=${encodeURIComponent(targetCountryInput)}`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch("/api/applications", { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       const jobsBody = await jobsRes.json(); if (!jobsRes.ok) throw new Error(jobsBody.message || "Impossible de charger les offres.");
@@ -156,7 +158,7 @@ export function JoblyOfferFeed() {
       if (bulkInfoRes.ok) { const bulkInfo = await bulkInfoRes.json().catch(() => ({})); setBulkLimit(Number(bulkInfo.bulkApplicationLimit || 1)); }
     } catch (e) { setError(e instanceof Error ? e.message : "Erreur réseau."); }
     finally { setLoading(false); setRefreshing(false); }
-  }, [token, marketScope]);
+  }, [token, marketScope, targetCountryInput]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -592,7 +594,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
     const step = (firstCard?.getBoundingClientRect().width || container.clientWidth * 0.86) + gap;
     container.scrollBy({ left: direction * step, behavior: "smooth" });
   }, []);
-  const marketLabel = marketScope === "africa" ? "🌍 Explorer l’Afrique" : `${countryFlag(market.countryCode)} ${market.countryName || "Cameroun"}`;
+  const marketLabel = marketScope === "africa" ? "🌍 Explorer l’Afrique" : marketScope === "countries" ? `🌍 ${targetCountryInput}` : `${countryFlag(market.countryCode)} ${market.countryName || "Cameroun"}`;
   const feedSummary = feedMeta.totalAvailable ? `${feedMeta.totalAvailable} offre${feedMeta.totalAvailable > 1 ? "s" : ""} disponible${feedMeta.totalAvailable > 1 ? "s" : ""} aujourd’hui` : "Marché en cours de synchronisation";
 
   if (sessionLoading || (loading && !jobs.length)) return (
@@ -629,13 +631,38 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         </div>
         <form onSubmit={e => { e.preventDefault(); setQuery(query.trim()); }} className="flex h-11 min-w-[280px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 shadow-sm"><Search size={16} className="text-[#22448B]"/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Métier, entreprise, ville…" aria-label="Rechercher une offre" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"/><button type="submit" aria-label="Rechercher" title="Rechercher" className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#22448B] text-white transition hover:bg-[#17346E]"><Search size={14}/></button></form>
       </div>
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">{marketActionMessage && <p className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-600">{marketActionMessage}</p>}
         <div className="flex min-w-0 flex-1 justify-start gap-2 overflow-x-auto px-1">
           {["Toutes","En cours","CDI","CDD","Stage"].map(item => <button key={item} onClick={() => setFilter(item)} className={filter === item ? "whitespace-nowrap rounded-2xl bg-[#FFE135] px-4 py-3 text-xs font-black text-[#17212B]" : "whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-500"}>{item}</button>)}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button type="button" onClick={() => { setMarketScope("local"); setFilter("Toutes"); }} className={marketScope === "local" ? "shrink-0 rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "shrink-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>{countryFlag(market.countryCode)} {market.countryName || "Cameroun"}</button>
           <button type="button" onClick={() => { setMarketScope("africa"); setFilter("Toutes"); }} className={marketScope === "africa" ? "shrink-0 rounded-2xl bg-[#22448B] px-4 py-3 text-xs font-black text-white shadow-sm" : "shrink-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600"}>🌍 Explorer l’Afrique</button>
+          <div className="flex shrink-0 items-center gap-2">
+            <input value={targetCountryInput} onChange={e => setTargetCountryInput(e.target.value.toUpperCase().replace(/[^A-Z,]/g,"").slice(0,30))} aria-label="Pays cibles" placeholder="CM,SN" className="h-11 w-24 rounded-2xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 outline-none"/>
+            <button type="button" onClick={async () => {
+              setMarketActionMessage("");
+              const codes = targetCountryInput.split(",").map(x=>x.trim()).filter(Boolean);
+              try {
+                const res = await fetch("/api/jia/watch-subscriptions", { method:"POST", headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token}` }, body:JSON.stringify({ marketScope:"COUNTRIES", targetCountryCodes:codes, mode:"PREPARE" }) });
+                const body = await res.json().catch(()=>({}));
+                if(!res.ok) throw new Error(body.message || "Préparation multi-pays indisponible.");
+                setMarketScope("countries");
+                setFilter("Toutes");
+                setMarketActionMessage("Recherche multi-pays préparée. La veille reste désactivée tant que vous ne l’activez pas avec une formule autorisée.");
+              } catch(e) { setMarketActionMessage(e instanceof Error ? e.message : "Préparation impossible."); }
+            }} className="shrink-0 rounded-2xl border border-[#22448B] bg-white px-4 py-3 text-xs font-black text-[#22448B]">Préparer</button>
+            <button type="button" onClick={async () => {
+              setMarketActionMessage("");
+              const codes = targetCountryInput.split(",").map(x=>x.trim()).filter(Boolean);
+              try {
+                const res = await fetch("/api/jia/watch-subscriptions", { method:"POST", headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token}` }, body:JSON.stringify({ marketScope:"COUNTRIES", targetCountryCodes:codes, mode:"ACTIVE" }) });
+                const body = await res.json().catch(()=>({}));
+                if(!res.ok) throw new Error(body.message || "Activation de la veille indisponible.");
+                setMarketActionMessage("Veille multi-pays activée.");
+              } catch(e) { setMarketActionMessage(e instanceof Error ? e.message : "Activation impossible."); }
+            }} className="shrink-0 rounded-2xl bg-[#FFE135] px-4 py-3 text-xs font-black text-[#22448B]">Activer la veille</button>
+          </div>
         </div>
       </div>
       {featured.length > 0 && (
