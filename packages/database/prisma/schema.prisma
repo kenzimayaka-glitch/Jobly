@@ -177,6 +177,14 @@ model User {
   aiWelcomeCredits Int          @default(0)
   aiWelcomeGrantedAt DateTime?
   aiWelcomeSeenAt DateTime?
+  bonPlansAuthored BonPlan[]
+  bonPlanComments BonPlanComment[]
+  bonPlanInteractions BonPlanInteraction[]
+  communitiesCreated Community[]
+  communityMemberships CommunityMembership[]
+  communityPosts CommunityPost[]
+  communityPostComments CommunityPostComment[]
+  communityPostReactions CommunityPostReaction[]
 }
 
 model Profile {
@@ -609,4 +617,121 @@ model JobHarvestCapture {
   @@unique([sourceKey, sourceUrl])
   @@index([status, discoveredAt])
   @@index([sourceKey, publishedAt])
+}
+
+model BonPlan {
+  id          String   @id @default(cuid())
+  authorId    String?
+  title       String
+  description String
+  category    String
+  country     String?
+  city        String?
+  sourceUrl   String?
+  imageUrl    String?
+  status      String   @default("PUBLISHED")
+  startsAt    DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  author      User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  comments    BonPlanComment[]
+  interactions BonPlanInteraction[]
+  @@index([country, city, category, status])
+  @@index([expiresAt, status])
+  @@index([authorId, createdAt])
+}
+
+model BonPlanInteraction {
+  id        String   @id @default(cuid())
+  userId    String
+  bonPlanId String
+  type      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bonPlan   BonPlan  @relation(fields: [bonPlanId], references: [id], onDelete: Cascade)
+  @@unique([userId, bonPlanId, type])
+  @@index([bonPlanId, createdAt])
+}
+
+model BonPlanComment {
+  id        String   @id @default(cuid())
+  userId    String
+  bonPlanId String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bonPlan   BonPlan  @relation(fields: [bonPlanId], references: [id], onDelete: Cascade)
+  @@index([bonPlanId, createdAt])
+}
+
+model Community {
+  id          String   @id @default(cuid())
+  createdById String
+  name        String
+  slug        String   @unique
+  description String?
+  category    String
+  country     String?
+  city        String?
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  memberships CommunityMembership[]
+  posts       CommunityPost[]
+  @@index([country, city, category, status])
+}
+
+model CommunityMembership {
+  id          String   @id @default(cuid())
+  userId      String
+  communityId String
+  role        String   @default("MEMBER")
+  createdAt   DateTime @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  @@unique([userId, communityId])
+  @@index([communityId, createdAt])
+}
+
+model CommunityPost {
+  id          String   @id @default(cuid())
+  communityId String
+  authorId    String
+  content     String
+  status      String   @default("PUBLISHED")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments    CommunityPostComment[]
+  reactions   CommunityPostReaction[]
+  @@index([communityId, createdAt])
+  @@index([authorId, createdAt])
+}
+
+model CommunityPostComment {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  @@index([postId, createdAt])
+}
+
+model CommunityPostReaction {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  type      String
+  createdAt DateTime @default(now())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  @@unique([userId, postId, type])
+  @@index([postId, createdAt])
 }
