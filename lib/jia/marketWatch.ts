@@ -1,4 +1,5 @@
-import {observeInternet,type BrainSignal} from "@/lib/jia/internet";
+import {observeInternet} from "@/lib/jia/internet";
+import type {BrainSignal} from "@/lib/jia/internet/types";
 import {ingestExternalSignal} from "@/lib/jia/cognitive";
 
 export type JiaMarketWatchItem={

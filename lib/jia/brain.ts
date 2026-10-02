@@ -147,8 +147,8 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     return { message, intent: "GREETING", confidence: "HIGH", provider: "DETERMINISTIC", ...(trace.data?.id ? { traceId: String(trace.data.id) } : {}) };
   }
 
-  const webSignal = needsWebResearch(context.message) ? await observeInternet(context.message, { mode: "ON_DEMAND", maxQueries: 3, maxSources: 5 }) : null;
-  const sources = webSignal?.observation.sourcesUsed.map((source) => ({ title: source.title, url: source.url, snippet: source.snippet, trust: source.authority >= 0.8 ? "HIGH" : "MEDIUM" as const })) || [];
+  const webSignal = needsWebResearch(context.message) ? await observeInternet(context.message, { mode: "READ", maxQueries: 3, maxSources: 5 }) : null;
+  const sources = webSignal?.observation.sourcesUsed.map((source) => ({ title: source.title, url: source.url, snippet: source.content.slice(0, 500), trust: source.authority >= 0.8 ? "HIGH" : "MEDIUM" as const })) || [];
   const webResearch = sources.length > 0
     ? `Sources web vérifiées par Internet Brain; elles restent des preuves, pas des faits garantis:\n${sources.map((source) => `- [${source.trust}] ${source.title} — ${source.url}\n  ${source.snippet}`).join("\n")}`
     : (webSignal?.observation.limitations?.join("; ") || "Aucune source web exploitable trouvée.");
@@ -192,7 +192,7 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     title: "J’IA Brain decision",
     content: message,
     confidence,
-    evidence: { path: context.path, action: context.action, intent, memoryCount: memory.data?.length || 0, eventCount: events.length, webSources: sources.map((source) => source.url), webConfidence: webSignal?.observation.confidence ?? 0, webStatus: webSignal?.observation.status ?? "UNKNOWN", contradictions: webSignal?.observation.contradictingSources ?? [] },
+    evidence: { path: context.path, action: context.action, intent, memoryCount: memory.length || 0, eventCount: events.length, webSources: sources.map((source) => source.url), webConfidence: webSignal?.observation.confidence ?? 0, webStatus: webSignal?.observation.status ?? "UNKNOWN", contradictions: webSignal?.observation.contradictingSources ?? [] },
     sourceType: "JIA_BRAIN",
     sourceRef: "lib/jia/brain",
     status: "COMPLETED",

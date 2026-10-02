@@ -26,9 +26,9 @@ export async function GET(request: NextRequest) {
         p_role: "RECRUITER",
       }).maybeSingle();
       if (claimError) throw new Error(claimError.message);
-      if (claim?.granted) {
-        user.aiWelcomeCredits = claim.credits;
-        user.aiWelcomeGrantedAt = claim.granted_at;
+      if ((claim as any)?.granted) {
+        user.aiWelcomeCredits = (claim as any).credits;
+        user.aiWelcomeGrantedAt = (claim as any).granted_at;
       }
     }
 
