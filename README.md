@@ -62,6 +62,53 @@ PERCEIVE → UNDERSTAND → MEMORY → BELIEF → WORLD MODEL → REASON → PRE
 
 ---
 
+# LOT A — MON AFRIQUE — 02/10/2026
+
+## Architecture retenue
+
+**Mon Afrique est une expérience J’IA au-dessus du moteur d’offres existant.** Aucun nouveau modèle User/Profile de pays d’intérêt n’est introduit.
+
+Flux :
+
+```
+Profil / mémoire J’IA existants
+        ↓
+contexte explicite « Mon Afrique »
+        ↓
+/api/jobs?scope=africa&countries=...
+        ↓
+JoblyOfferFeed existant
+```
+
+### Implémentation
+
+- Catalogue canonique partagé : `lib/countries/africa.ts` — **54 États africains**.
+- `JoblyOfferFeed` conserve `local | africa` et ajoute le contexte multi-pays Mon Afrique.
+- Sélecteur multi-pays par drapeaux : **Pays**.
+- Filtres Mon Afrique : **Toutes · Pays · En cours · CDD · CDI · Remote**.
+- **Stage n’est pas un filtre Mon Afrique**.
+- `/api/jobs` accepte les pays explicitement sélectionnés sans modifier User/Profile.
+- J’IA reçoit le contexte pays via son Brain existant.
+- Watcher existant conservé ; une veille Mon Afrique personnalisée est proposée puis exécutée uniquement après **confirmation explicite**.
+- Aucun changement au moteur de matching, aux cartes, aux candidatures ou aux scopes existants.
+
+### Règle de persistance
+
+Les pays Mon Afrique sont un **contexte d’utilisation J’IA**, pas un nouveau champ de profil. Les pays explicitement sélectionnés peuvent être transmis au Brain/API ; aucune colonne `favoriteCountries`, `interestedCountries` ou `africaCountries` n’est créée.
+
+### Validation
+
+Un contrôle architectural statique Lot A a confirmé :
+- 54 pays ;
+- scopes existants conservés ;
+- filtres Mon Afrique conformes ;
+- absence de nouveau modèle de pays dans User/Profile ;
+- contexte J’IA raccordé ;
+- watcher personnalisé protégé par confirmation ;
+- watchers historiques conservés.
+
+Le CI GitHub a démarré sur la PR **#152**. Le typecheck est actuellement bloqué par une erreur de syntaxe préexistante dans `lib/jobSourceCollector.ts:61`, hors périmètre Lot A ; le build n’a donc pas été exécuté. **Aucun merge ni déploiement n’a été effectué.**
+
 # 1. JOBLY EN UNE PHRASE
 
 **JOBLY n'est pas un job board.**
