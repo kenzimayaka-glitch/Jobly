@@ -128,7 +128,18 @@ export async function runPersistentWatch(subscription: PersistentWatchRow) {
       confidence: observation.confidence,
     }).eq("id", runId);
 
-    return { skipped: false, changed, signal, stateHash };
+    const intelligence = await evaluateWatchSignal({
+      runId,
+      subscriptionId: subscription.id,
+      userId: subscription.userId,
+      query: subscription.query,
+      key: subscription.key,
+      domain: subscription.domain,
+      changed,
+      observation,
+    });
+
+    return { skipped: false, changed, signal, stateHash, intelligence };
   } catch (error) {
     const now = new Date().toISOString();
     await db.from("JiaWatchRun").update({
