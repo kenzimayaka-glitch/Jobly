@@ -1,3 +1,82 @@
+# CHECKPOINT 02/10/2026 — POLITIQUE ABONNEMENTS / ENTITLEMENTS / CRÉDITS J’IA
+
+## Résolutions produit
+
+Jobly adopte une logique **capability-first** : toute nouvelle fonctionnalité doit être analysée et catégorisée **avant son implémentation**.
+
+Pour chaque fonctionnalité, déterminer :
+**fonctionnalité → FREE ou payant → START/PREMIUM/PRO → profondeur fonctionnelle → quota → consommation de crédits → enforcement serveur → UI.**
+
+Les crédits ne déterminent pas à eux seuls le caractère payant d'une fonctionnalité : ils contrôlent principalement la consommation IA.
+
+### J’IA FREE
+
+La conversation J’IA reste accessible au FREE pour :
+- questions et accompagnement général ;
+- navigation et compréhension de Jobly ;
+- conseils généraux ;
+- explication des offres et fonctionnalités.
+
+Les opérations IA productives/coûteuses consomment des crédits.
+
+### Crédits Talent
+
+- FREE : **10 crédits de bienvenue, une seule fois**, non renouvelables.
+- START : **40 crédits/mois**.
+- PREMIUM : **150 crédits/mois**.
+- PRO : **350 crédits/mois**.
+
+Le FREE ne reçoit donc pas une allocation mensuelle récurrente de crédits.
+
+### Pricing Talent cible
+
+| Offre | Mensuel | Annuel | Crédits |
+|---|---:|---:|---:|
+| FREE | 0 FCFA | 0 FCFA | 10 de bienvenue |
+| START | 1 800 FCFA | 12 000 FCFA | 40/mois |
+| PREMIUM | 3 500 FCFA | 24 000 FCFA | 150/mois |
+| PRO | 5 000 FCFA | 36 000 FCFA | 350/mois |
+
+Positionnement :
+- START = transformer ses candidatures ;
+- PREMIUM = accélérer sa recherche ;
+- PRO = Career OS.
+
+### Pricing Recruiter cible
+
+La publication d'offre reste **gratuite**. Le **Recruitment360° est payant**.
+
+| Offre | Mensuel | Annuel | Crédits |
+|---|---:|---:|---:|
+| FREE | 0 FCFA | 0 FCFA | 5 de bienvenue |
+| START | 10 000 FCFA | 90 000 FCFA | 40/mois |
+| PREMIUM | 20 000 FCFA | 180 000 FCFA | 150/mois |
+| PRO | 35 000 FCFA | 300 000 FCFA | 350/mois |
+
+Positionnement :
+- FREE = publier ;
+- START = organiser ;
+- PREMIUM = optimiser ;
+- PRO = automatiser.
+
+### Principe économique
+
+Jobly ne se positionne pas comme un cabinet RH facturant un recrutement au succès. Il fournit une infrastructure de recrutement 360° permettant à l'entreprise de gérer en interne une grande partie du processus : offre → sourcing → matching → présélection → tests → entretiens → shortlist → décision → reporting.
+
+### Règles techniques à préserver
+
+- Les entitlements payants doivent être enforcés côté serveur.
+- Les crédits doivent suivre une logique de réservation → consommation → libération en cas d'échec.
+- L'UI ne constitue jamais la seule barrière d'accès.
+- Toute nouvelle fonctionnalité doit être ajoutée à la matrice d'entitlements avant développement.
+- Aucun changement de pricing/entitlement n'est considéré déployé tant qu'il n'est pas validé.
+- Aucun merge vers `main` ni déploiement Vercel sans autorisation explicite.
+
+### Statut
+
+**POLITIQUE CIBLE DÉFINIE — NON DÉPLOYÉE.**
+
+Prochaine étape : construire la matrice d'entitlements exhaustive Talent + Recruiter, puis aligner le catalogue de facturation et les contrôles serveur après validation.
 # CHECKPOINT 01/10/2026 — J’IA MASTER SCOPE / CEO & TRANSVERSAL INTELLIGENCE
 
 ## Périmètre maître réconcilié
