@@ -16,10 +16,12 @@ export async function GET(request: NextRequest) {
       db.from("InstitutionReport").select("id,title,status,periodStart,periodEnd,projectId,createdAt,payload").eq("institutionId", institutionId).order("createdAt", { ascending: false }).limit(20),
     ]);
 
-    const [{ count: beneficiaries }, { count: applications }] = await Promise.all([
-      db.from("Profile").select("id", { count: "exact", head: true }).eq("institutionId", institutionId),
-      db.from("Application").select("id,User!inner(Profile!inner(institutionId))", { count: "exact", head: true }).eq("User.Profile.institutionId", institutionId),
-    ]);
+    const { data: institutionProfiles } = await db.from("Profile").select("userId").eq("institutionId", institutionId);
+    const userIds = (institutionProfiles ?? []).map((row) => row.userId).filter(Boolean);
+    const beneficiaries = userIds.length;
+    const { count: applications } = userIds.length
+      ? await db.from("Application").select("id", { count: "exact", head: true }).in("userId", userIds)
+      : { count: 0 };
 
     return NextResponse.json({
       institution: session.institution,
