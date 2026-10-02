@@ -42,8 +42,9 @@ export function calculateMobilityEligibility(input: MobilityEligibilityInput): M
   const costs = input.costs.filter((item) => Number.isFinite(item.amount) && item.amount >= 0);
   const total = round(costs.reduce((sum, item) => sum + item.amount, 0));
   const missingInformation: string[] = [];
+  const hasSalary = typeof salary === "number" && Number.isFinite(salary) && salary > 0;
 
-  if (!salary || salary <= 0) missingInformation.push("APPROVED_SALARY");
+  if (!hasSalary) missingInformation.push("APPROVED_SALARY");
   if (costs.length === 0) missingInformation.push("MOBILITY_COSTS");
 
   if (missingInformation.length > 0) {
@@ -54,8 +55,8 @@ export function calculateMobilityEligibility(input: MobilityEligibilityInput): M
       salaryCurrency: currency,
       totalMobilityCost: total,
       thresholdPercent: threshold,
-      maximumEligibleCost: salary && salary > 0 ? round(salary * threshold / 100) : null,
-      burdenPercent: salary && salary > 0 ? round((total / salary) * 100) : null,
+      maximumEligibleCost: hasSalary ? round(salary * threshold / 100) : null,
+      burdenPercent: hasSalary ? round((total / salary) * 100) : null,
       reason: "Le calcul ne peut pas être finalisé tant que les informations obligatoires ne sont pas disponibles.",
       missingInformation,
       calculatedAt: now,
