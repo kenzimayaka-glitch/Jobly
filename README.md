@@ -4092,3 +4092,25 @@ La passe de conformité code ↔ décisions validées a corrigé les écarts sui
 **État de vérité : 🟨 CODÉ + CORRIGÉ + RÉCONCILIÉ — NON VALIDÉ RUNTIME / NON DÉPLOYÉ.**
 
 JOBLY-PROD ne contient pas encore les tables Career* de Career Journey ; aucune migration de production n'a été exécutée pendant cette passe. Aucun merge vers main et aucun déploiement Vercel n'ont été effectués.
+
+
+# CHECKPOINT LOT TALENT — MOBILITÉ, RECHERCHE ET VEILLE PAR ABONNEMENT — 02/10/2026
+
+## Décisions produit
+- L'accès à la consultation des offres locales et africaines reste ouvert à tous les talents, sans blocage selon le pays ou l'abonnement.
+- FREE : découverte et recherche de base, sans extension multi-pays active.
+- START : permet de préparer une recherche multi-pays, mais **n'autorise pas l'activation d'une veille multi-pays**.
+- PREMIUM : permet l'activation d'une veille multi-pays et l'optimisation avancée.
+- PRO : permet la veille panafricaine et l'automatisation avancée.
+- Les pays cibles sont des paramètres de recherche/veille; aucun nouveau modèle de préférences de pays sur User/Profile n'est introduit.
+- Les droits sont évalués côté serveur à partir du plan effectif. J’IA ne peut ni activer silencieusement une veille ni contourner un entitlement.
+
+## Socle codé
+- `lib/talentMarketEntitlements.ts` : normalisation des périmètres/codes pays et évaluation des droits DISCOVER, PREPARE_MULTI_COUNTRY, ACTIVE_MULTI_COUNTRY_WATCH, AFRICA_WATCH, ADVANCED_OPTIMIZATION et AUTOMATE_WATCH.
+- Les quotas numériques de veille et les coûts exacts de crédits restent à raccorder au système existant après audit de ses points d'exécution; aucune valeur de quota n'est inventée dans ce socle.
+
+## Limites de cette passe
+- Le module d'entitlements est codé, mais son raccordement aux APIs Talent, à l'interface de recherche et au scheduler de veille reste à faire.
+- Aucun changement de schéma ni migration Supabase n'est introduit dans cette passe.
+- Tests build/typecheck/E2E : à exécuter après intégration aux points d'entrée.
+- Aucune migration de production ni aucun déploiement Vercel.
