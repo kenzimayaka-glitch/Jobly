@@ -1,4 +1,16 @@
 
+## Mise à jour — critères Mobility & validation Administration Jobly
+
+- **Ancienneté utilisateur >= 3 mois : OUI** — critère maintenu.
+- **Pack payant obligatoire : NON** — supprimé comme critère d'éligibilité. Tous les abonnements sont compatibles avec Mobility ; aucune restriction START/PREMIUM/PRO n'est utilisée pour décider l'éligibilité.
+- **Seuil Mobility : 50 %** du salaire approuvé.
+- **Administration Jobly : OUI** — intégrée à la chaîne de validation via `/admin/mobility` et `/api/mobility/admin/dossiers`.
+- L'Administration Jobly peut consulter le portefeuille des dossiers, filtrer par statut et ouvrir le dossier pour contrôle central.
+- La validation des pièces reste opérée par un rôle autorisé et les accès aux documents demeurent privés/scopés.
+
+Chaîne cible : **Talent → Recruiter/Entreprise → Administration Jobly → Programme/Institution (si financement) → Mobilité → Départ → Arrivée → Prise de poste → Remboursement → Clôture**.
+
+
 # CHECKPOINT 02/10/2026 — MOBILITY — VRAI DOSSIER CASE MANAGEMENT
 
 ## Mise à jour
