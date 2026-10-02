@@ -44,6 +44,9 @@ jobs:
       - name: Career OS architecture gate
         run: pnpm test:career-os
 
+      - name: Lint
+        run: pnpm lint
+
       - name: Typecheck
         run: pnpm typecheck
 
