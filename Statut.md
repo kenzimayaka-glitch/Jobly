@@ -4213,3 +4213,22 @@ Ce checkpoint ne certifie aucun lot par simple présence de code. Pour chaque lo
 - Lecture du projet : fondations Next.js/Supabase/Prisma et surfaces Recruiter/Talent existantes inspectées.
 - Spécification Recrutement 360° v2 + Avenant 1 : prise comme référence de construction.
 - **État :** Étape 0 en cours ; arrêt obligatoire avant tout développement de lot.
+
+
+## CHECKPOINT 02/10/2026 — J’IA QCM CONVERSATIONNEL BORNÉ
+
+### Décision UX
+Le QCM conversationnel J’IA devient un composant générique : **4 choix maximum**, puis **« Autre… »**, avec petit champ de saisie. Les questions compatibles autorisent plusieurs sélections. La réponse vocale est un canal de réponse équivalent au texte.
+
+### Architecture
+- `lib/jia/qcm.ts` : contrat, limitation à 4 options, fusion des sélections, parsing des réponses textuelles/vocales et QCM canonique de veille.
+- `components/jia/JiaConversationalQcm.tsx` : surface UI réutilisable.
+- `lib/jia/brain.ts` : expose le QCM lorsque l’intention détectée est une demande de veille.
+- Aucun nouveau modèle Supabase : le QCM reste une couche conversationnelle au-dessus du Watcher existant.
+
+### Monétisation / accès
+**FREE-FIRST.** Le QCM de configuration et la réponse vocale ne sont pas artificiellement verrouillés. Les éventuelles limites de nombre de veilles ou de profondeur de surveillance restent rattachées au système d’entitlements existant et ne sont pas recréées ici.
+
+### État de vérité
+**🟨 CODÉ — CI/typecheck et validation runtime encore requis.**
+Aucun déploiement Vercel et aucun merge vers `main`.
