@@ -4048,3 +4048,23 @@ Aucune métrique n'est inventée. Une preuve déclarée n'est pas présentée co
 **🟨 CODÉ + CONNECTÉ — TESTS BUILD/RUNTIME À EFFECTUER — NON DÉPLOYÉ.**
 
 Aucun merge vers `main` et aucun déploiement Vercel n'ont été effectués.
+
+
+## CHECKPOINT 02/10/2026 — CONTRÔLE BUILD / RUNTIME — DOCUMENTATION ACTUALISÉE
+
+Le contrôle suivant a été lancé après la connexion de la chaîne **Mission → progression → preuve → quantification → portfolio/CV → réévaluation**.
+
+### Contrôles effectués
+- `package.json` vérifié : scripts `typecheck` (`tsc --noEmit`) et `build` (`next build`) présents.
+- État GitHub vérifié sur les commits Career Journey contrôlés : aucun workflow CI associé n'est actuellement disponible pour produire un résultat BUILD/TYPECHECK exploitable.
+- Interface `app/career-journey/page.tsx` vérifiée : capture de preuve depuis une mission présente.
+- Aucun déploiement Vercel lancé.
+- Aucun merge vers `main` effectué.
+
+### Limite de validation
+Le contrôle n'a pas pu exécuter localement `npm run typecheck` et `npm run build` dans cet environnement. Il est donc interdit de transformer ce checkpoint en « TESTÉ » ou « VALIDÉ ».
+
+### État de vérité
+**🟨 CODÉ + CONNECTÉ — BUILD/TYPECHECK NON EXÉCUTÉS — RUNTIME NON VALIDÉ — NON DÉPLOYÉ.**
+
+La prochaine preuve attendue est une exécution réelle du typecheck/build, puis une vérification runtime/E2E du parcours Career Journey. Toute correction éventuelle devra être faite uniquement sur les écarts effectivement constatés.
