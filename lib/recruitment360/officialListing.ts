@@ -302,13 +302,24 @@ export async function renderXlsx(data: OfficialListingData): Promise<Buffer> {
   summary.columns = [{ header: "Poste", key: "post", width: 42 }, { header: "Candidats", key: "count", width: 14 }];
   for (const post of data.posts) summary.addRow({ post: post.title, count: post.candidates.length });
   summary.addRow({ post: "Document officiel", count: 1 });
+  const usedSheetNames = new Set<string>(["Récapitulatif"]);
+
   for (const post of data.posts) {
-    const ws = workbook.addWorksheet(post.title.slice(0, 31) || "Poste");
+    const baseName = (post.title || "Poste").replace(/[\\/:*?\[\]]/g, " ").trim().slice(0, 31) || "Poste";
+    let sheetName = baseName;
+    let suffix = 2;
+    while (usedSheetNames.has(sheetName)) {
+      const suffixText = ` (${suffix++})`;
+      sheetName = `${baseName.slice(0, Math.max(1, 31 - suffixText.length))}${suffixText}`;
+    }
+    usedSheetNames.add(sheetName);
+
+    const ws = workbook.addWorksheet(sheetName);
     ws.columns = [{ header: "N°", key: "n", width: 8 }, { header: "Nom et Prénom", key: "name", width: 46 }, { header: "Dossier", key: "dossier", width: 24 }];
     const orderedCandidates = [...post.candidates].sort((a, b) => safeName(a).localeCompare(safeName(b), "fr", { sensitivity: "base" }));
     orderedCandidates.forEach((candidate, i) => ws.addRow({ n: i + 1, name: safeName(candidate), dossier: candidate.dossierNumber }));
     ws.views = [{ state: "frozen", ySplit: 1 }];
-    ws.autoFilter = { from: "A1", to: "C1" };
+    ws.autoFilter = { from: "A1", to: `C${Math.max(1, orderedCandidates.length + 1)}` };
     ws.protect("JOBLY_OFFICIAL_LISTING", { selectLockedCells: true, selectUnlockedCells: true });
   }
   for (const ws of workbook.worksheets) {
