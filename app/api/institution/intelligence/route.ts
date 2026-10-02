@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient } from "../../../../../lib/server-auth";
-import { getInstitutionSession } from "../../../../../lib/institution-auth";
+import { adminClient } from "../../../../lib/server-auth";
+import { getInstitutionSession } from "../../../../lib/institution-auth";
 
 function pct(current: number, previous: number) {
   if (previous === 0) return current === 0 ? 0 : 100;
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const { data: profiles } = await db.from("Profile").select("userId,createdAt").eq("institutionId", institutionId);
-    const userIds = (profiles ?? []).map((p) => p.userId);
+    const userIds = (profiles ?? []).map((p: { userId: string; createdAt: string }) => p.userId);
     const [currentApps, previousApps, currentJourneys, previousJourneys] = await Promise.all([
       userIds.length ? db.from("Application").select("id", { count: "exact", head: true }).in("userId", userIds).gte("createdAt", currentStart.toISOString()) : { count: 0 },
       userIds.length ? db.from("Application").select("id", { count: "exact", head: true }).in("userId", userIds).gte("createdAt", previousStart.toISOString()).lt("createdAt", currentStart.toISOString()) : { count: 0 },
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     const current = { beneficiaries: userIds.length, applications: currentApps.count ?? 0, journeys: currentJourneys.count ?? 0 };
-    const previous = { beneficiaries: (profiles ?? []).filter((p) => new Date(p.createdAt) < currentStart).length, applications: previousApps.count ?? 0, journeys: previousJourneys.count ?? 0 };
+    const previous = { beneficiaries: (profiles ?? []).filter((p: { userId: string; createdAt: string }) => new Date(p.createdAt) < currentStart).length, applications: previousApps.count ?? 0, journeys: previousJourneys.count ?? 0 };
 
     let targets: unknown[] = [];
     const targetResult = await db.from("InstitutionKpiTarget").select("id,key,label,target,unit,periodStart,periodEnd,projectId").eq("institutionId", institutionId).lte("periodStart", now.toISOString()).gte("periodEnd", now.toISOString());
