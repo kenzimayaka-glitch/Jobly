@@ -4232,3 +4232,49 @@ Le QCM conversationnel J’IA devient un composant générique : **4 choix maxim
 ### État de vérité
 **🟨 CODÉ — CI/typecheck et validation runtime encore requis.**
 Aucun déploiement Vercel et aucun merge vers `main`.
+
+# CHECKPOINT 02/10/2026 — LOT C COMMUNITY — AUDIT ARCHITECTURAL INITIAL
+
+## État de vérité
+**🟨 AUDIT ARCHITECTURAL EFFECTUÉ — IMPLÉMENTATION NON COMMENCÉE.**
+
+### Résultat de l'audit
+| Domaine | État | Constat |
+|---|---|---|
+| Module Community dédié | 🔴 | Absent du socle actuel |
+| Tables métier Community | 🔴 | Aucun modèle dédié communauté/publication/commentaire/groupe/follow/réaction identifié |
+| User/Profile | 🟢 | Réutilisable, aucune extension nécessaire à ce stade |
+| Mémoire J’IA | 🟢 | Réutilisable via le socle existant |
+| JiaEvent / IntelligenceTrace | 🟢 | Réutilisables pour les événements et traces |
+| World Model | 🟢 | Réutilisable pour les relations cognitives, pas comme stockage transactionnel social |
+| Notifications | 🟢 | Infrastructure existante à raccorder ultérieurement |
+| Preferences | 🟢 | Infrastructure existante à conserver |
+| Action Runs / Policy | 🟢 | Réutilisables pour les actions J’IA nécessitant permission/confirmation |
+| Nouvelle IA Community | 🔴 | Inutile : Community doit utiliser J’IA transversale |
+| Matching / offres / candidatures | 🟢 | Hors périmètre de cet audit |
+| Migration Supabase | ⚪ | Non commencée |
+| Déploiement | ⚪ | Aucun |
+| Merge `main` | ⚪ | Aucun |
+
+## Architecture de principe
+Community doit devenir une **couche métier dédiée**, branchée sur les primitives existantes de Jobly et sur J’IA, sans créer de socles parallèles.
+
+À ne pas créer :
+- `CommunityAI` ou une IA parallèle ;
+- `CommunityMemory` ;
+- `CommunityUser` ;
+- deuxième système de notifications/préférences ;
+- nouveau modèle relationnel cognitif en parallèle du World Model ;
+- champs artificiels dans User/Profile pour porter la logique Community.
+
+Le stockage des publications, commentaires et autres contenus sociaux devra rester distinct du modèle cognitif `jia_world_*`; ce dernier peut représenter les relations utiles au raisonnement de J’IA.
+
+## Free-First
+- **FREE :** découverte, lecture, participation et interactions communautaires de base.
+- **START / PREMIUM / PRO :** profondeur fonctionnelle, quotas et consommation de crédits à définir avant implémentation, uniquement lorsqu'une limitation fonctionnelle réelle le justifie.
+- Aucune monétisation fondée sur la vulnérabilité émotionnelle.
+
+## Point d'arrêt obligatoire
+**Aucune table, migration ou route Community ne doit être créée à ce stade.** La prochaine étape est la spécification fonctionnelle précise, puis la définition du modèle de données minimal et des permissions avant implémentation.
+
+**Aucun déploiement Vercel et aucun merge vers `main` n'ont été effectués.**
