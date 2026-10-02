@@ -8,13 +8,6 @@ CREATE TYPE "CareerRecommendationType" AS ENUM ('APPLY','DEFER_APPLICATION','UPD
 CREATE TYPE "CareerReviewFrequency" AS ENUM ('OFF','WEEKLY','MONTHLY');
 CREATE TYPE "CareerAssessmentFormat" AS ENUM ('MCQ','CASE','ROLEPLAY','PRACTICAL','ORAL','PORTFOLIO');
 
-ALTER TABLE "User"
-  ADD COLUMN IF NOT EXISTS "careerJourneyId" TEXT;
-
--- Prisma relation columns are stored on the child tables; the User relation
--- above is virtual in Prisma and does not create a physical column.
-ALTER TABLE "User" DROP COLUMN IF EXISTS "careerJourneyId";
-
 CREATE TABLE "CareerJourney" (
   "id" TEXT NOT NULL,
   "userId" TEXT NOT NULL,
@@ -269,48 +262,58 @@ ALTER TABLE "CareerCompetencyAssessment" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "CareerCompetencyAttempt" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "CareerReview" ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "career_journey_owner_select" ON "CareerJourney" FOR SELECT TO authenticated
-USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerJourney"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
-CREATE POLICY "career_journey_owner_write" ON "CareerJourney" FOR ALL TO authenticated
-USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerJourney"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
-WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerJourney"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerjourney_select" ON "CareerJourney" FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerJourney"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerjourney_insert" ON "CareerJourney" FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerJourney"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerjourney_update" ON "CareerJourney" FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerJourney"."userId" AND u."authUserId" = (SELECT auth.uid())::text)) WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerJourney"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerjourney_delete" ON "CareerJourney" FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerJourney"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
 
-CREATE POLICY "career_goal_owner" ON "CareerGoal" FOR ALL TO authenticated
-USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerGoal"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
-WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerGoal"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careergoal_select" ON "CareerGoal" FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerGoal"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careergoal_insert" ON "CareerGoal" FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerGoal"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careergoal_update" ON "CareerGoal" FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerGoal"."userId" AND u."authUserId" = (SELECT auth.uid())::text)) WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerGoal"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careergoal_delete" ON "CareerGoal" FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerGoal"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
 
-CREATE POLICY "career_mission_owner" ON "CareerMission" FOR ALL TO authenticated
-USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerMission"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
-WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerMission"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careermission_select" ON "CareerMission" FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerMission"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careermission_insert" ON "CareerMission" FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerMission"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careermission_update" ON "CareerMission" FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerMission"."userId" AND u."authUserId" = (SELECT auth.uid())::text)) WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerMission"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careermission_delete" ON "CareerMission" FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerMission"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
 
-CREATE POLICY "career_mission_update_owner" ON "CareerMissionUpdate" FOR ALL TO authenticated
-USING (EXISTS (SELECT 1 FROM "CareerMission" m JOIN "User" u ON u.id = m."userId" WHERE m.id = "CareerMissionUpdate"."missionId" AND u."authUserId" = (SELECT auth.uid())::text))
-WITH CHECK (EXISTS (SELECT 1 FROM "CareerMission" m JOIN "User" u ON u.id = m."userId" WHERE m.id = "CareerMissionUpdate"."missionId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careermissionupdate_select" ON "CareerMissionUpdate" FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM "CareerMission" m JOIN "User" u ON u.id = m."userId" WHERE m.id = "CareerMissionUpdate"."missionId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careermissionupdate_insert" ON "CareerMissionUpdate" FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM "CareerMission" m JOIN "User" u ON u.id = m."userId" WHERE m.id = "CareerMissionUpdate"."missionId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careermissionupdate_update" ON "CareerMissionUpdate" FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM "CareerMission" m JOIN "User" u ON u.id = m."userId" WHERE m.id = "CareerMissionUpdate"."missionId" AND u."authUserId" = (SELECT auth.uid())::text)) WITH CHECK (EXISTS (SELECT 1 FROM "CareerMission" m JOIN "User" u ON u.id = m."userId" WHERE m.id = "CareerMissionUpdate"."missionId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careermissionupdate_delete" ON "CareerMissionUpdate" FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM "CareerMission" m JOIN "User" u ON u.id = m."userId" WHERE m.id = "CareerMissionUpdate"."missionId" AND u."authUserId" = (SELECT auth.uid())::text));
 
-CREATE POLICY "career_evidence_owner" ON "CareerEvidence" FOR ALL TO authenticated
-USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerEvidence"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
-WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerEvidence"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerevidence_select" ON "CareerEvidence" FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerEvidence"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerevidence_insert" ON "CareerEvidence" FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerEvidence"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerevidence_update" ON "CareerEvidence" FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerEvidence"."userId" AND u."authUserId" = (SELECT auth.uid())::text)) WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerEvidence"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerevidence_delete" ON "CareerEvidence" FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerEvidence"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
 
-CREATE POLICY "career_portfolio_owner" ON "CareerPortfolioItem" FOR ALL TO authenticated
-USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerPortfolioItem"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
-WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerPortfolioItem"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerportfolioitem_select" ON "CareerPortfolioItem" FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerPortfolioItem"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerportfolioitem_insert" ON "CareerPortfolioItem" FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerPortfolioItem"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerportfolioitem_update" ON "CareerPortfolioItem" FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerPortfolioItem"."userId" AND u."authUserId" = (SELECT auth.uid())::text)) WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerPortfolioItem"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerportfolioitem_delete" ON "CareerPortfolioItem" FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerPortfolioItem"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
 
-CREATE POLICY "career_recommendation_owner" ON "CareerRecommendation" FOR ALL TO authenticated
-USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerRecommendation"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
-WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerRecommendation"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerrecommendation_select" ON "CareerRecommendation" FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerRecommendation"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerrecommendation_insert" ON "CareerRecommendation" FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerRecommendation"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerrecommendation_update" ON "CareerRecommendation" FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerRecommendation"."userId" AND u."authUserId" = (SELECT auth.uid())::text)) WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerRecommendation"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerrecommendation_delete" ON "CareerRecommendation" FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerRecommendation"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
 
-CREATE POLICY "career_scenario_owner" ON "CareerPathScenario" FOR ALL TO authenticated
-USING (EXISTS (SELECT 1 FROM "CareerJourney" j JOIN "User" u ON u.id = j."userId" WHERE j.id = "CareerPathScenario"."journeyId" AND u."authUserId" = (SELECT auth.uid())::text))
-WITH CHECK (EXISTS (SELECT 1 FROM "CareerJourney" j JOIN "User" u ON u.id = j."userId" WHERE j.id = "CareerPathScenario"."journeyId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerpathscenario_select" ON "CareerPathScenario" FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM "CareerJourney" j JOIN "User" u ON u.id = j."userId" WHERE j.id = "CareerPathScenario"."journeyId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerpathscenario_insert" ON "CareerPathScenario" FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM "CareerJourney" j JOIN "User" u ON u.id = j."userId" WHERE j.id = "CareerPathScenario"."journeyId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerpathscenario_update" ON "CareerPathScenario" FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM "CareerJourney" j JOIN "User" u ON u.id = j."userId" WHERE j.id = "CareerPathScenario"."journeyId" AND u."authUserId" = (SELECT auth.uid())::text)) WITH CHECK (EXISTS (SELECT 1 FROM "CareerJourney" j JOIN "User" u ON u.id = j."userId" WHERE j.id = "CareerPathScenario"."journeyId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerpathscenario_delete" ON "CareerPathScenario" FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM "CareerJourney" j JOIN "User" u ON u.id = j."userId" WHERE j.id = "CareerPathScenario"."journeyId" AND u."authUserId" = (SELECT auth.uid())::text));
 
-CREATE POLICY "career_assessment_owner" ON "CareerCompetencyAssessment" FOR ALL TO authenticated
-USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAssessment"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
-WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAssessment"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careercompetencyassessment_select" ON "CareerCompetencyAssessment" FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAssessment"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careercompetencyassessment_insert" ON "CareerCompetencyAssessment" FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAssessment"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careercompetencyassessment_update" ON "CareerCompetencyAssessment" FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAssessment"."userId" AND u."authUserId" = (SELECT auth.uid())::text)) WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAssessment"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careercompetencyassessment_delete" ON "CareerCompetencyAssessment" FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAssessment"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
 
-CREATE POLICY "career_attempt_owner" ON "CareerCompetencyAttempt" FOR ALL TO authenticated
-USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAttempt"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
-WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAttempt"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careercompetencyattempt_select" ON "CareerCompetencyAttempt" FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAttempt"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careercompetencyattempt_insert" ON "CareerCompetencyAttempt" FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAttempt"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careercompetencyattempt_update" ON "CareerCompetencyAttempt" FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAttempt"."userId" AND u."authUserId" = (SELECT auth.uid())::text)) WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAttempt"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careercompetencyattempt_delete" ON "CareerCompetencyAttempt" FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerCompetencyAttempt"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
 
-CREATE POLICY "career_review_owner" ON "CareerReview" FOR ALL TO authenticated
-USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerReview"."userId" AND u."authUserId" = (SELECT auth.uid())::text))
-WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerReview"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerreview_select" ON "CareerReview" FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerReview"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerreview_insert" ON "CareerReview" FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerReview"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerreview_update" ON "CareerReview" FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerReview"."userId" AND u."authUserId" = (SELECT auth.uid())::text)) WITH CHECK (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerReview"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+CREATE POLICY "careerreview_delete" ON "CareerReview" FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM "User" u WHERE u.id = "CareerReview"."userId" AND u."authUserId" = (SELECT auth.uid())::text));
+
