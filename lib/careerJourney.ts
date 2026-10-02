@@ -1,11 +1,10 @@
+import crypto from "node:crypto";
 import { assessCareer } from "./careerEngine";
 import { adminClient, ensureUser, getAuthUser } from "./server-auth";
 import type { NextRequest } from "next/server";
 
 export type JourneyAction =
   | "ACCEPT" | "REFUSE" | "DEFER" | "COMPLETE" | "ABANDON" | "REASSESS";
-
-const missionStatuses = new Set(["PROPOSED","ACCEPTED","IN_PROGRESS","COMPLETED","ABANDONED","DEFERRED"]);
 
 function cleanString(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v.trim() : null;
