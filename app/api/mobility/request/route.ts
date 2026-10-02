@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
       costTotal: costs.total,
       costMonthly: costs.monthly,
       mobilityFit: costs.mobilityFit,
-      eligibilityThresholdPercent: 35,
+      eligibilityThresholdPercent: eligibility.thresholdPercent,
       eligibilityBurdenPercent: eligibility.burdenPercent,
       eligibilityStatus: eligibility.status,
       eligibilityReason: eligibility.reason,
