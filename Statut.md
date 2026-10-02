@@ -11,7 +11,7 @@ Bons plans et Community cohabitent comme deux surfaces métier distinctes :
 - Lancement avec **8 communautés professionnelles globales** : Tech & Digital, Business & Sales, Marketing & Communication, Finance & Comptabilité, Ressources humaines, Ingénierie & Industrie, Design & Créativité, Éducation & Formation.
 - Une communauté spécialisée est **créée automatiquement à partir de 1 000 talents abonnés partageant la même discipline**. La discipline v1 réutilise `Profile.preferredSectors`.
 - J’IA notifie les abonnés concernés à la création et les invite à rejoindre ; l'adhésion reste volontaire.
-- Accès Community : **abonnement actif payant + coche bleue**. L'accès est suspendu lorsque l'abonnement expire.
+- Accès Community : **START, PREMIUM ou PRO actifs**. La coche bleue n’est pas une condition d’entrée ; elle distingue PREMIUM et PRO. L’accès est suspendu lorsque l’abonnement expire.
 - L'écran principal reste limité à quelques communautés visibles, avec « Voir les autres » plutôt qu'un catalogue interminable.
 - Une communauté affiche **uniquement son nombre de membres** comme métrique sociale.
 - Les participants voient **photo + nom d'affichage** dans les discussions, mais ces éléments ne sont pas cliquables.
@@ -22,6 +22,29 @@ Bons plans et Community cohabitent comme deux surfaces métier distinctes :
 - Les interactions de modération restent communautaires : avertissement/restriction/suspension/exclusion de la communauté, sans bannissement global automatique.
 - Les réactions visuelles J’IA sont **additives** : elles n'altèrent pas le système de messages existant.
 - Une question J’IA peut être fermée avec ✕ sans être considérée comme une réponse.
+
+## Matrice abonnement / Community / badge — VALIDÉE STRUCTURELLEMENT
+
+| Formule | Community | Badge bleu | Entitlement centralisé |
+|---|---:|---:|---:|
+| FREE | ❌ | ❌ | `communityAccess=false`, `blueBadge=false` |
+| START | ✅ | ❌ | `communityAccess=true`, `blueBadge=false` |
+| PREMIUM | ✅ | ✔️ | `communityAccess=true`, `blueBadge=true` |
+| PRO | ✅ | ✔️ | `communityAccess=true`, `blueBadge=true` |
+
+### Contrôles croisés réalisés
+- Catalogue Talent et Recruiter : matrice identique sur Community/badge.
+- Entitlements centralisés dans `lib/billingCatalog.ts`.
+- Accès Community serveur : ne dépend plus de `user.role` ; le compte est évalué sur ses plans Talent et Recruiter actifs et le niveau le plus élevé est retenu pour ces deux droits.
+- Badge dans Community : calculé pour **l’auteur du post**, jamais en fonction du visiteur courant.
+- Cas photo / sans photo : avatar circulaire avec initiales en fallback ; badge bleu positionné en chevauchement bas-droite avec coche blanche.
+- Expiration d’abonnement : les entitlements retombent automatiquement sur FREE côté serveur.
+- Aucun merge `main`, aucun déploiement Vercel effectué.
+
+### État de vérité
+**🟡 CODÉ + CONTRÔLÉ STRUCTURELLEMENT — BUILD/E2E À CONFIRMER.**
+
+Le modèle de droits est cohérent et centralisé. La validation complète reste conditionnée au passage du build/typecheck et au test réel du parcours Community après déploiement explicitement autorisé.
 
 ## Implémentation actuelle — 🟡 CODÉ / 🟡 À VALIDER BUILD/E2E
 - Socle Prisma + migration SQL Community/BonPlan appliqué à **JOBLY-PROD** après contrôle préalable de l'absence des tables.
