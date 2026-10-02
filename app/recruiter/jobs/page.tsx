@@ -118,6 +118,14 @@ export default function RecruiterJobsListPage() {
             <span aria-hidden="true">+</span> Publier une nouvelle offre
           </button>
 
+          <button
+            type="button"
+            onClick={() => router.push("/recruiter/listings")}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-jobly-blue bg-white py-3.5 text-sm font-extrabold text-jobly-blue transition-transform active:scale-[0.98]"
+          >
+            Générer un listing officiel
+          </button>
+
           <div className="mt-4 flex flex-wrap gap-2">
             {FILTERS.map((f) => (
               <button
