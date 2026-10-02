@@ -1,39 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, ensureUser, getAuthUser, newId } from "../../../../lib/server-auth";
+import { getCommunityAccess } from "@/lib/community/access";
+import { newId } from "@/lib/server-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const access = await getCommunityAccess(request);
+  if (!access.allowed || !access.db || !access.user) {
+    return NextResponse.json({ error: "Community est réservée aux abonnés avec accès actif.", code: "COMMUNITY_SUBSCRIPTION_REQUIRED" }, { status: access.authUser ? 403 : 401 });
+  }
+
   const { id } = await context.params;
-  const db = adminClient();
-  const { data, error } = await db
+  const { data: membership } = await access.db
+    .from("CommunityMembership")
+    .select("id")
+    .eq("communityId", id)
+    .eq("userId", access.user.id)
+    .maybeSingle();
+  if (!membership) return NextResponse.json({ error: "Rejoins la communauté pour accéder aux discussions." }, { status: 403 });
+
+  const { data, error } = await access.db
     .from("CommunityPost")
-    .select("*, author:User(id,displayName,username,profilePhotoUrl)")
+    .select("id,communityId,authorId,content,status,sourceType,sourceId,mediaUrl,sourceUrl,createdAt,author:User(id,displayName,username,profilePhotoUrl)")
     .eq("communityId", id)
     .eq("status", "PUBLISHED")
     .order("createdAt", { ascending: false })
     .limit(100);
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ posts: data || [], count: data?.length || 0 });
 }
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const authUser = await getAuthUser(request);
-  if (!authUser) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+  const access = await getCommunityAccess(request);
+  if (!access.authUser || !access.user || !access.db) {
+    return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+  }
+  if (!access.allowed) {
+    return NextResponse.json({ error: "Community est réservé aux abonnés avec accès actif.", code: "COMMUNITY_SUBSCRIPTION_REQUIRED" }, { status: 403 });
+  }
 
   const { id } = await context.params;
   const body = await request.json().catch(() => ({}));
   const content = typeof body.content === "string" ? body.content.trim() : "";
   if (!content) return NextResponse.json({ error: "content est requis." }, { status: 400 });
 
-  const db = adminClient();
-  const user = await ensureUser(db, authUser);
-  const { data: membership } = await db
+  const { data: membership } = await access.db
     .from("CommunityMembership")
     .select("id,role")
     .eq("communityId", id)
-    .eq("userId", user.id)
+    .eq("userId", access.user.id)
     .maybeSingle();
 
   if (!membership) return NextResponse.json({ error: "Rejoins la communauté avant de publier." }, { status: 403 });
@@ -42,13 +59,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const post = {
     id: newId(),
     communityId: id,
-    authorId: user.id,
+    authorId: access.user.id,
     content,
     status: "PUBLISHED",
+    sourceType: null,
+    sourceId: null,
+    mediaUrl: null,
+    sourceUrl: null,
     createdAt: now,
     updatedAt: now,
   };
-  const { data, error } = await db.from("CommunityPost").insert(post).select("*").single();
+  const { data, error } = await access.db.from("CommunityPost").insert(post).select("id,communityId,authorId,content,status,sourceType,sourceId,mediaUrl,sourceUrl,createdAt").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ post: data }, { status: 201 });
 }
