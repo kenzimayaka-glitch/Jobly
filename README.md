@@ -4271,3 +4271,40 @@ Vercel : **aucun déploiement**.
 - Aucun nouveau compte Auth n'a été créé et aucun mot de passe fictif n'a été généré.
 - Le dashboard est disponible côté code sur /institution/mobility.
 - Le dashboard et les nouvelles APIs restent **NON DÉPLOYÉS** tant que l'utilisateur n'a pas autorisé le déploiement.
+
+
+## CHECKPOINT 02/10/2026 — MOBILITY F1.1 — TENURE + PACK PAYANT + DOSSIER PARTAGÉ
+
+### Nouvelles conditions d'éligibilité
+- Le Talent doit utiliser Jobly depuis **au moins 3 mois**.
+- Le Talent doit disposer d'un **pack payant actif** au moment de la demande.
+- Ces contrôles sont effectués côté serveur à partir de User.createdAt et Subscription active.
+- L'ancienneté et le pack sont contrôlés **avant la collecte des pièces sensibles**.
+
+### Dossier documentaire
+Nouvelles tables :
+- MobilityDocument
+- MobilityProcessEvent
+
+Pièces prévues :
+- CNI recto + verso ou passeport valide ;
+- plan de localisation ;
+- lettre d'engagement sur l'honneur.
+
+Chaque pièce dispose d'un cycle PENDING / UNDER_REVIEW / VERIFIED / REJECTED / EXPIRED.
+
+### Logique SharePoint-like
+Mobility devient un dossier partagé :
+Demande → Éligibilité → Pièces → Vérification → Garantie → Financement → Départ → Arrivée → Prise de poste → Clôture.
+
+Le Talent voit l'avancement, les pièces manquantes, l'acteur attendu et la prochaine action. Recruiter et Institution ne voient que les éléments autorisés par leur périmètre.
+
+Les fichiers d'identité sont destinés à un Storage privé avec URLs signées ; les nouvelles tables ne constituent que la couche de métadonnées et de workflow.
+
+### État
+**🟨 CODÉ → CONNECTÉ DB → TESTS UNITAIRES AJOUTÉS → NON DÉPLOYÉ.**
+
+Document d'architecture :
+JOBLY-MOBILITY-DOCUMENT-WORKSPACE-2026-10-02.md
+
+Reste avant validation F1 complète : implémentation du flux Storage privé/upload, vérification documentaire, timeline UI Talent, contrôles d'accès Recruiter/Institution et tests E2E de bout en bout.
