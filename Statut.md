@@ -2,27 +2,47 @@
 
 ## Périmètre architectural validé
 Bons plans et Community cohabitent comme deux surfaces métier distinctes :
-- **Bons plans** : découverte de contenus utiles (opportunités, formations, événements, services, avantages, initiatives locales/professionnelles).
-- **Community** : communautés, adhésion, publications et échanges autour de ces sujets.
-- **J’IA** : couche d'orchestration et de compréhension contextuelle, sans créer de nouvelle mémoire ou un nouveau cerveau social.
+- **Bons plans** : découverte de contenus utiles.
+- **Community** : espaces professionnels structurés par Jobly, sans modèle de réseau social.
+- **J’IA** : orientation, animation utile, publication de contenus pertinents et modération, en réutilisant les briques J’IA/Notification existantes.
 
-## Implémentation initiale — 🟡 CODÉ / ⬜ À TESTER / ⬜ À VALIDER
-- Prisma : modèles BonPlan, BonPlanInteraction, BonPlanComment, Community, CommunityMembership, CommunityPost, CommunityPostComment, CommunityPostReaction.
-- Migration SQL dédiée créée sur la branche, avec index, contraintes, RLS et grants.
-- API Bons plans : lecture filtrée par pays/ville/catégorie + création authentifiée.
-- API interactions Bons plans : LIKE / SAVE / SHARE.
-- API Community : découverte filtrée + création authentifiée.
-- API adhésion Community.
-- API publications Community : lecture publique des publications publiées + publication réservée aux membres.
-- Aucun changement du profil, du moteur d'offres ou du cerveau J’IA.
-- Aucun déploiement Vercel et aucune modification de main.
+## Règles produit figées
+- Community appartient à **Bons plans**.
+- Lancement avec **8 communautés professionnelles globales** : Tech & Digital, Business & Sales, Marketing & Communication, Finance & Comptabilité, Ressources humaines, Ingénierie & Industrie, Design & Créativité, Éducation & Formation.
+- Une communauté spécialisée est **créée automatiquement à partir de 1 000 talents abonnés partageant la même discipline**. La discipline v1 réutilise `Profile.preferredSectors`.
+- J’IA notifie les abonnés concernés à la création et les invite à rejoindre ; l'adhésion reste volontaire.
+- Accès Community : **abonnement actif payant + coche bleue**. L'accès est suspendu lorsque l'abonnement expire.
+- L'écran principal reste limité à quelques communautés visibles, avec « Voir les autres » plutôt qu'un catalogue interminable.
+- Une communauté affiche **uniquement son nombre de membres** comme métrique sociale.
+- Les participants voient **photo + nom d'affichage** dans les discussions, mais ces éléments ne sont pas cliquables.
+- Aucun profil, DM, contact ou raccourci Recruiter n'est accessible depuis Community.
+- Le Recruiter consulte les talents **uniquement depuis son portail Recruiter**, selon les règles de visibilité existantes.
+- « Inviter un contact » permet de copier le lien ou de partager sur WhatsApp ; le lien ramène directement vers la communauté, mais création de compte et contrôle d'abonnement restent obligatoires.
+- J’IA peut publier dans les communautés des événements pertinents, avec texte, flyer/image et lien ; l'annonce est idempotente par communauté + événement.
+- Les interactions de modération restent communautaires : avertissement/restriction/suspension/exclusion de la communauté, sans bannissement global automatique.
+- Les réactions visuelles J’IA sont **additives** : elles n'altèrent pas le système de messages existant.
+- Une question J’IA peut être fermée avec ✕ sans être considérée comme une réponse.
 
-## Prochaine validation
-1. prisma validate / génération client.
-2. Test SQL de migration sur environnement non productif.
-3. Tests API : auth, filtres, création, adhésion, publication, idempotence interactions.
-4. UI Bons plans + Community.
-5. Intégration J’IA via JiaEvent uniquement après validation du socle.
+## Implémentation actuelle — 🟡 CODÉ / 🟡 À VALIDER BUILD/E2E
+- Socle Prisma + migration SQL Community/BonPlan appliqué à **JOBLY-PROD** après contrôle préalable de l'absence des tables.
+- Les 8 communautés globales ont été créées dans la migration via l'utilisateur système J’IA Jobly.
+- Contrôle serveur d'accès Community réutilisant le système Subscription existant.
+- Compteurs de membres sur les communautés.
+- Invitations et partage WhatsApp.
+- Photo + nom d'affichage des auteurs sans lien vers leur profil.
+- Notifications Community via la table **Notification** déjà existante.
+- Création automatique des communautés spécialisées au seuil de 1 000 abonnés par discipline.
+- Publication automatique des événements créés comme Bons plans de catégorie événement vers les communautés pertinentes.
+- Support des posts Community avec média/lien source.
+- Correction d'un bloqueur TypeScript préexistant dans `lib/jobSourceCollector.ts` nécessaire pour rétablir le typecheck de la branche.
+
+## Validation observée
+- Migration Supabase appliquée avec succès.
+- Les 8 communautés globales sont présentes dans JOBLY-PROD.
+- Une passe CI précédente a détecté puis permis de corriger les erreurs de syntaxe introduites pendant l'intégration ; une nouvelle passe Typecheck & Build est en cours sur la branche.
+
+## Déploiement
+**Pas encore déployé sur Vercel à ce stade.** La branche doit rester distincte de `main` jusqu'à validation finale du build.
 
 ---
 
