@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getAuthUser } from "../../../../../lib/server-auth";
 import crypto from "node:crypto";
 
@@ -9,11 +9,11 @@ function safeFilePart(value: unknown) {
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "Utilisateur";
 }
-async function canonicalCvFileName(admin: ReturnType<typeof createClient>, authUserId: string) {
+async function canonicalCvFileName(admin: SupabaseClient, authUserId: string) {
   const { data } = await admin.from("User").select("username,firstName").eq("authUserId", authUserId).maybeSingle();
   const now = new Date();
   const month = new Intl.DateTimeFormat("fr-FR", { month: "long" }).format(now);
-  return `CV_${safeFilePart(data?.username)}_${safeFilePart(data?.firstName)}_${safeFilePart(month)}_${now.getFullYear()}.pdf`;
+  const profile = data as { username?: unknown; firstName?: unknown } | null;\n  return `CV_${safeFilePart(profile?.username)}_${safeFilePart(profile?.firstName)}_${safeFilePart(month)}_${now.getFullYear()}.pdf`;
 }
 
 export async function POST(request: NextRequest) {
