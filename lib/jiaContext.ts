@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { buildCareerBrainContext, type CareerBrainContext } from "@/lib/careerBrain";
 
 export type JiaContextInput={operation:string;input?:Record<string,unknown>};
-export type JiaContext={profile:Record<string,unknown>;skills:Array<Record<string,unknown>>;experiences:Array<Record<string,unknown>>;memory:Array<Record<string,unknown>>;behavior:{consented:boolean;eventCount:number;eventTypes:Record<string,number>;paths:Array<{path:string;count:number}>;recent:Array<{eventType:string;path:string|null;occurredAt:string;durationMs:number|null}>;lastActivityAt:string|null};gaps:string[];readiness:number;nextBestAction:string;input:Record<string,unknown>;requestedModule:string};
+export type JiaContext={profile:Record<string,unknown>;skills:Array<Record<string,unknown>>;experiences:Array<Record<string,unknown>>;memory:Array<Record<string,unknown>>;behavior:{consented:boolean;eventCount:number;eventTypes:Record<string,number>;paths:Array<{path:string;count:number}>;recent:Array<{eventType:string;path:string|null;occurredAt:string;durationMs:number|null}>;lastActivityAt:string|null};gaps:string[];readiness:number;nextBestAction:string;careerBrain:CareerBrainContext;input:Record<string,unknown>;requestedModule:string};
 
 const redact=(value:unknown)=>String(value??"").replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,"[email]").replace(/(?:\+?\d[\d\s().-]{7,}\d)/g,"[phone]").slice(0,4000);
 const safeArray=(value:unknown,max=10)=>Array.isArray(value)?value.map(item=>redact(item)).slice(0,max):[];
@@ -29,14 +30,17 @@ export async function buildJiaContext(sb:SupabaseClient,userId:string,request:Ji
   }));
   const events=(eventsResult.data||[]) as any[],eventTypes:Record<string,number>={},pathCounts:Record<string,number>={};
   for(const event of events){const type=redact(event.eventType).slice(0,80)||"unknown";eventTypes[type]=(eventTypes[type]||0)+1;const path=typeof event.path==="string"&&event.path?event.path.slice(0,160):null;if(path)pathCounts[path]=(pathCounts[path]||0)+1;}
-  const gaps:string[]=[];
-  if(!profile.targetRoles?.length)gaps.push("Définir un métier cible");
-  if(!skills.length)gaps.push("Ajouter des compétences");
-  if(!experiences.length)gaps.push("Ajouter une expérience");
-  if(!profile.summary)gaps.push("Compléter le résumé professionnel");
-  if(!memory.length)gaps.push("Construire la mémoire personnelle de J’IA");
+  const careerBrain=await buildCareerBrainContext(sb,userId);
+  const gaps:string[]=[...careerBrain.careerTwin.gaps];
+  if(!gaps.length && !profile.targetRoles?.length)gaps.push("Définir un métier cible");
+  if(!gaps.length && !skills.length)gaps.push("Ajouter des compétences");
+  if(!gaps.length && !experiences.length)gaps.push("Ajouter une expérience");
+  if(!gaps.length && !profile.summary)gaps.push("Compléter le résumé professionnel");
+  if(!gaps.length && !memory.length)gaps.push("Construire la mémoire personnelle de J’IA");
   const consented=Boolean(userResult.data?.privacyAcceptedAt);
   const behavior={consented,eventCount:consented?events.length:0,eventTypes:consented?eventTypes:{},paths:consented?Object.entries(pathCounts).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([path,count])=>({path,count})):[],recent:consented?events.slice(0,12).map((x:any)=>({eventType:redact(x.eventType).slice(0,80),path:typeof x.path==="string"?x.path.slice(0,160):null,occurredAt:x.occurredAt,durationMs:typeof x.durationMs==="number"?x.durationMs:null})):[],lastActivityAt:consented&&events[0]?.occurredAt?events[0].occurredAt:null};
   const safeProfile={headline:redact(profile.headline),summary:redact(profile.summary),location:redact(profile.location),targetRoles:safeArray(profile.targetRoles),preferredSectors:safeArray(profile.preferredSectors),targetCities:safeArray(profile.targetCities),contractPreferences:safeArray(profile.contractPreferences),remotePreference:redact(profile.remotePreference)};
-  return{context:{profile:safeProfile,skills,experiences,memory,behavior,gaps,readiness:Math.max(0,100-gaps.length*15),nextBestAction:gaps[0]||"Consulter les opportunités pertinentes",input:request.input||{},requestedModule:request.operation},error:null};
+  const effectiveReadiness=careerBrain.careerTwin.readiness ?? Math.max(0,100-gaps.length*15);
+  const effectiveNextAction=careerBrain.careerTwin.nextBestAction || gaps[0] || "Consulter les opportunités pertinentes";
+  return{context:{profile:safeProfile,skills,experiences,memory,behavior,gaps,readiness:effectiveReadiness,nextBestAction:effectiveNextAction,careerBrain,input:request.input||{},requestedModule:request.operation},error:null};
 }
