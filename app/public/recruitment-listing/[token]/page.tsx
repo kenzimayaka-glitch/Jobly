@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { headers } from "next/headers";\nimport { notFound } from "next/navigation";
 import { loadPublicOfficialListing } from "../../../../lib/recruitment360/publicListing";
 import { renderWebHtml } from "../../../../lib/recruitment360/officialListing";
 
