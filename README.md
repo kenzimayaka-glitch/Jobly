@@ -6,7 +6,7 @@ Le dépôt est entré dans une opération de consolidation Git afin d'établir `
 
 ### État réel après la passe de consolidation
 
-- Main canonique actuel : `a00cb9c549ce931f44a1ea1357efb7f8b73fefc1`
+- Point de consolidation du code : `a00cb9c549ce931f44a1ea1357efb7f8b73fefc1`
 - Branches inventoriées : 166
 - PR ouvertes inventoriées : 28
 - PR consolidées : #138 CI continu ; #134 icône PWA ; #125 validation documentation CV ; #111 couverture sources Afrique hors Cameroun.
