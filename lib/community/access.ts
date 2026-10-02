@@ -12,8 +12,13 @@ export async function getCommunityEntitlementsForUser(db: any, userId: string) {
     getActivePlanCode(db, userId, "RECRUITER"),
   ]);
   const planCode = PLAN_RANK[recruiterPlan] > PLAN_RANK[talentPlan] ? recruiterPlan : talentPlan;
-  const entitlements = getEntitlements(planCode);
-  return { planCode, communityAccess: entitlements.communityAccess, blueBadge: entitlements.blueBadge };
+  // Community entitlement is defined by the Community product rule, not the generic billing catalog.
+  // FREE has no access; START/PREMIUM/PRO have access; PREMIUM/PRO receive the blue badge.
+  return {
+    planCode,
+    communityAccess: planCode !== "FREE",
+    blueBadge: PLAN_RANK[planCode] >= PLAN_RANK.PREMIUM,
+  };
 }
 
 export async function getCommunityAccess(request: NextRequest) {
