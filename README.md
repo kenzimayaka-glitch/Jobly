@@ -1,4 +1,56 @@
+# LOT H — JOBLY EVENTS — RACCORDEMENT ÉCOSYSTÈME — 02/10/2026
 
+## Source de vérité
+
+**Event est la source unique de vérité événementielle.** Community, Campus, Mobility, Offers, Career Journey et Hub consomment Event ; aucun état événementiel parallèle n'est créé.
+
+## Publication / pricing
+
+- 1–9 jours : 2 000 FCFA/jour.
+- 10–29 jours : 1 500 FCFA/jour.
+- 30–59 jours : 1 000 FCFA/jour.
+- 60–90 jours : 800 FCFA/jour.
+- Jobly : gratuit.
+- Partenaire : gratuit uniquement via entitlement conventionné côté serveur.
+- Publication automatique après paiement confirmé ou entitlement.
+
+## Médias
+
+- photo / flyer / vidéo ;
+- 10 MB maximum ;
+- vidéo 30 secondes maximum ;
+- autoplay silencieux dans la liste ;
+- bucket serveur : `JOBLY_EVENTS_BUCKET`.
+
+## Grands rendez-vous
+
+- 6 slots simultanés ;
+- 10 000 FCFA / 7 jours ;
+- achat possible après publication ;
+- disponibilité contrôlée côté serveur.
+
+## Raccordements réalisés dans cette passe
+
+- **Career Journey / profil** : pertinence personnalisée des événements.
+- **Mobility** : destination/départ utilisés comme contexte géographique de pertinence.
+- **Offers** : les événements Emploi & Recrutement entrent dans la même couche de découverte, sans duplication.
+- **Campus / Community / Hub** : contrats d'écosystème exposés autour de Event.
+- **J’IA** : estimation de portée + distribution in-app lors de la publication.
+- **Community** : nouveau flux de publication textuelle avec Event Bypass Detector ; suppression, notification et escalade récidiviste.
+- **Partenaires** : détection de partenaires/recruteurs potentiellement pertinents et notification de l'opportunité.
+- **Détail événement** : visibilité du raccordement écosystème.
+
+## Gouvernance
+
+- Migration Event : **dans le dépôt, NON appliquée à JOBLY-PROD**.
+- Aucun déploiement Vercel.
+- Aucun merge vers `main`.
+- Aucun changement de production effectué par cette passe.
+- Les vérifications runtime production restent séparées du statut du code.
+
+> **CODÉ ≠ ACCESSIBLE ≠ CONNECTÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.**
+
+---
 
 # CHECKPOINT LOT G — CAREER OS G2→G10 — 02/10/2026
 
