@@ -3928,3 +3928,18 @@ Aucun changement au moteur d'offres, au matching, aux candidatures ou aux autres
 Avant toute migration ou création de table : définir précisément le périmètre fonctionnel Community, les acteurs, les permissions, le modèle de données minimal, les règles FREE/START/PREMIUM/PRO et les points de raccordement au socle J’IA.
 
 **Aucune migration, aucun déploiement Vercel et aucun merge vers `main` n'ont été effectués.**
+
+
+# LOT B — VEILLE J’IA — CORRECTION / FERMETURE TECHNIQUE — 02/10/2026
+
+Le Lot B a été corrigé en réutilisant l’architecture existante : JiaWatchSubscription, JiaWatchRun, JiaWatchSnapshot et Notification. Aucun second système de veille, mémoire ou notification n’est créé.
+
+- Brain : l’intention WATCH est maintenant détectée et retourne le QCM global J’IA.
+- QCM : maximum 4 choix visibles + Autre réellement activable + réponse libre + voix conservée.
+- Veille personnalisée : la confirmation explicite crée/réactive la subscription persistante.
+- Scheduler : /api/cron/jia-watch récupère les veilles arrivées à échéance et les exécute.
+- Détection de changement : JiaWatchSnapshot + hash de signal évitent les notifications sans nouveauté.
+- Notification : réutilisation de Notification uniquement lorsqu’un changement est détecté.
+- Arrêt : stop_mon_afrique désactive réellement la subscription persistante.
+- Fréquence par défaut : 24 h, conformément au défaut existant de JiaWatchSubscription.
+- Déploiement : aucun déploiement et aucun merge main effectués.
