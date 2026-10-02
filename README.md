@@ -4242,3 +4242,72 @@ Le chantier est intégré dans `main`, mais ne doit pas être déclaré « total
 - Offer pipeline verification : 🟢 SUCCESS sur la validation finale.
 - Vercel : aucun déploiement manuel/production lancé ; le workflow de production est `workflow_dispatch` uniquement.
 - État : **CODÉ → CONNECTÉ → TESTÉ → VALIDÉ techniquement → NON DÉPLOYÉ**.
+
+# CHECKPOINT LOT G — CAREER BRAIN / CAREER OS — 02/10/2026
+
+## Principe d'implémentation
+
+Lot G est maintenant traité comme une **couche d'orchestration calculée au-dessus de Career Journey 360 — Architecture B**, et non comme un nouveau modèle de carrière.
+
+**Aucune nouvelle source d'état Career n'est créée.** `CareerJourney` reste la source de vérité longitudinale. `lib/careerEngine.ts` reste le moteur d'analyse. Career Brain agrège, interprète et expose les données déjà présentes.
+
+## Ce qui vient d'être raccordé
+
+| Bloc | État après cette passe | Référence |
+|---|---|---|
+| G1 Career Brain Core | 🟢 raccordé à Architecture B | `lib/careerBrain.ts` |
+| G2 Career Twin | 🟢 vue calculée, sans table parallèle | `careerTwin` dans `lib/careerBrain.ts` |
+| G3 Career GPS / Gap | 🟢 gaps + nextBestAction issus de Journey | `latestSnapshot` / Journey |
+| G4 Readiness | 🟢 readiness canonique réutilisé | `CareerJourney.latestReadiness` |
+| G5 Opportunity Intelligence | 🟡 Career Radar + matching existent ; raccord transversal à poursuivre | `app/api/career-journey/radar/route.ts` |
+| G6 Learning / Interview / Application | 🟡 briques existantes ; Career Brain expose désormais le contexte et les résultats d'application | `applicationOutcomes` |
+| G7 Mobility Intelligence | 🟡 moteur existant à raccorder au Journey lorsqu'une mobilité est pertinente | pas de second état |
+| G8 J’IA Companion | 🟢 J’IA lit maintenant le contexte Career Brain ; actions protégées conservées | `lib/jiaContext.ts`, `app/api/jia/action/route.ts` |
+| G9 Outcome → Review → Reassessment | 🟡 données de review + résultats d'actions/candidatures agrégées ; boucle complète à fermer | `actionRuns`, `CareerReview`, `Application` |
+| G10 Runtime / E2E / Production | 🟡 code ajouté sur branche de chantier ; validation runtime à exécuter avant promotion | règle CODÉ ≠ VALIDÉ ≠ DÉPLOYÉ |
+
+## Nouvelle surface
+
+`GET /api/career-brain` expose une lecture unifiée de :
+
+- Career Twin calculé ;
+- Journey ;
+- objectifs ;
+- missions ;
+- recommandations ;
+- preuves ;
+- portfolio ;
+- assessments ;
+- scénarios ;
+- reviews ;
+- résultats des actions J’IA ;
+- résultats des candidatures ;
+- contexte profil/compétences/expériences ;
+- modules indisponibles, afin qu'une absence de schéma ne soit jamais présentée comme une donnée vide certaine.
+
+## Continuité J’IA
+
+`lib/jiaContext.ts` consomme désormais Career Brain. J’IA peut donc raisonner à partir de l'état longitudinal déjà construit au lieu de reconstruire un Career State parallèle.
+
+Les actions J’IA restent soumises à la politique existante, aux niveaux de permission et au consentement lorsque requis. Aucune candidature, paiement ou action externe irréversible n'est exécuté silencieusement.
+
+## Commits de cette passe
+
+- `dddef780` — ajout du contexte Career Brain calculé ;
+- `472b6af8` — raccord de J’IA à Architecture B ;
+- `e4ff135e` — API `/api/career-brain` ;
+- `9243b78d` — intégration des outcomes J’IA et candidatures ;
+- `899310df` — exposition des outcomes dans l'API Career Brain.
+
+**Branche :** `feat/lot-g-career-brain-integration-20261002`.
+
+## Prochaine continuité technique
+
+La suite doit **compléter les connexions existantes**, pas reconstruire les briques :
+
+1. relier Opportunity Intelligence au matching adaptatif existant ;
+2. relier Mobility au Career Journey ;
+3. fermer la boucle Outcome → Review → Reassessment ;
+4. raccorder Learning / Interview / CV Studio aux missions et preuves existantes ;
+5. exécuter typecheck/build + runtime/E2E ;
+6. seulement après preuve, préparer la promotion vers `main` et le déploiement autorisé.
