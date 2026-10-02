@@ -254,7 +254,8 @@ export async function renderJpeg(
 }
 
 export async function renderPdf(data: OfficialListingData): Promise<Buffer> {
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
+    void (async () => {
     const doc = new PDFDocument({ size: "A4", margin: 42, autoFirstPage: true });
     const chunks: Buffer[] = [];
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -262,7 +263,7 @@ export async function renderPdf(data: OfficialListingData): Promise<Buffer> {
     doc.on("error", reject);
     const t = THEMES[data.theme];
     const names = flattenNames(data);
-    const pageCapacity = 42;
+    const pageCapacity = 18;
     const pages = splitNames(names, pageCapacity);
     const qrPng = await QRCode.toBuffer(data.qrPayload, { width: 110, margin: 4 });
     pages.forEach((pageNames, index) => {
@@ -289,6 +290,7 @@ export async function renderPdf(data: OfficialListingData): Promise<Buffer> {
       if (pages.length > 1) doc.font("Helvetica").fontSize(8).text(`${index + 1}/${pages.length}`, 510, 795);
     });
     doc.end();
+    })().catch(reject);
   });
 }
 
