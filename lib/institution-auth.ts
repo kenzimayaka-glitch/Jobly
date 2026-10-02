@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminClient } from "./server-auth";
 
 const COOKIE = "jobly_institution_session";
-const SESSION_DAYS = 7;\n\ntype InstitutionSummary = { id: string; name: string; city: string | null; type: string | null; active: boolean };
+const SESSION_DAYS = 7;
+
+type InstitutionSummary = { id: string; name: string; city: string | null; type: string | null; active: boolean };
 
 function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
