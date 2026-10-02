@@ -1,3 +1,45 @@
+# CHECKPOINT 02/10/2026 — POLITIQUE ABONNEMENTS / ENTITLEMENTS / CRÉDITS J’IA
+
+## Résolution
+
+Nouvelle règle de gouvernance : **toute nouvelle fonctionnalité doit être catégorisée avant développement** selon FREE ou payant, puis START/PREMIUM/PRO si payant, avec profondeur fonctionnelle, quota, crédits et enforcement serveur.
+
+### J’IA / crédits
+
+- Conversation J’IA accessible au FREE.
+- Talent FREE : 10 crédits de bienvenue, une seule fois, non renouvelables.
+- Talent START/PREMIUM/PRO : 40/150/350 crédits par mois.
+- Recruiter FREE : 5 crédits de bienvenue.
+- Recruiter START/PREMIUM/PRO : 40/150/350 crédits par mois.
+
+### Pricing cible Talent
+
+- FREE : 0 / 0 annuel.
+- START : 1 800 FCFA/mois / 12 000 FCFA/an.
+- PREMIUM : 3 500 FCFA/mois / 24 000 FCFA/an.
+- PRO : 5 000 FCFA/mois / 36 000 FCFA/an.
+
+### Pricing cible Recruiter
+
+- FREE : publication d'offres gratuite.
+- START : 10 000 FCFA/mois / 90 000 FCFA/an.
+- PREMIUM : 20 000 FCFA/mois / 180 000 FCFA/an.
+- PRO : 35 000 FCFA/mois / 300 000 FCFA/an.
+- Recruitment360° : payant ; publication seule : gratuite.
+
+### Positionnement
+
+Talent : START = transformer, PREMIUM = accélérer, PRO = Career OS.
+
+Recruiter : FREE = publier, START = organiser, PREMIUM = optimiser, PRO = automatiser.
+
+### État de vérité
+
+**🟡 POLITIQUE CIBLE DÉFINIE — NON IMPLÉMENTÉE / NON DÉPLOYÉE.**
+
+Prochaine passe obligatoire : matrice d'entitlements exhaustive, puis alignement du catalogue et des guards serveur.
+
+**Aucun merge main ni déploiement Vercel sans validation explicite.**
 # JOBLY — STATUT DU PROJET
 ## SOURCE DE VÉRITÉ D'EXÉCUTION — JOBLY 20/20
 ### Mise à jour : 26/09/2026 — Offres / Matching adaptatif / UX
