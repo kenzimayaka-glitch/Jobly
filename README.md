@@ -1,3 +1,93 @@
+
+
+# CHECKPOINT 02/10/2026 — AUDIT DE RÉCONCILIATION CODE ↔ DOCUMENTATION (PASSE DE CONTRÔLE)
+
+Cette passe a recontrôlé les artefacts réellement présents dans les branches de chantier avant de considérer la documentation comme une preuve d'implémentation.
+
+## Career Journey 360
+- Page `app/career-journey/page.tsx` : CODÉE.
+- API principale `app/api/career-journey/route.ts` : CODÉE.
+- APIs spécialisées assessments / missions / portfolio / radar : CODÉES.
+- Service `lib/careerJourney.ts` : CODÉ.
+- Entitlements `lib/careerJourneyEntitlements.ts` : CODÉS.
+- Migration `20261002050000_career_journey_360` + schéma Prisma : PRÉSENTS.
+- RLS : durcie dans `88fe82f`.
+- Vercel : modèle `89b5055` READY, RLS `88fe82f` READY, UI `62cd1de` ERROR. Aucun de ces états ne vaut validation production.
+
+## Lot A — Mon Afrique
+- Catalogue `lib/countries/africa.ts` : PRÉSENT, 54 pays.
+- Contexte `lib/jia/monAfrique.ts` : PRÉSENT.
+- QCM conversationnel `components/jia/JiaConversationalQcm.tsx` : PRÉSENT, 4 choix visibles maximum + Autre.
+- Intégration jobs / watcher / brain / cron : présente sur la branche.
+- Verdict : CODÉ. La CI/validation E2E reste distincte ; aucun déploiement n'est déclaré.
+
+## Lot B — Veille J’IA
+- Persistance `lib/jia/watchPersistence.ts` : PRÉSENTE.
+- Intelligence `lib/jia/watchIntelligence.ts` : PRÉSENTE.
+- Scoring `lib/jia/watchIntelligenceScoring.ts` : PRÉSENT avec SUPPRESS / DIGEST / NOTIFY / REVIEW.
+- Smoke test `scripts/jia-watch-intelligence-smoke.mjs` : PRÉSENT et couvre les quatre décisions.
+- Migration et schéma de persistance : PRÉSENTS.
+- Verdict : CODÉ B1→B3.1. Le smoke test et la validation runtime complète doivent rester distingués ; aucun déploiement n'est déclaré.
+
+## Lot C — Bons Plans + Community
+- APIs Bons Plans / Community : PRÉSENTES.
+- Accès Community `lib/community/access.ts` : PRÉSENT, entitlements serveur.
+- Automatisation `lib/community/automation.ts` : PRÉSENTE, seuil 1 000 et 8 communautés globales.
+- UI `/communities` et `/communities/[id]` : PRÉSENTES.
+- Migration Lot C + extensions Prisma : PRÉSENTES.
+- Verdict : CODÉ. La présence de la migration dans le dépôt ne constitue pas à elle seule une preuve d'application sur JOBLY-PROD ; la validation E2E reste distincte.
+
+## Règle documentaire renforcée
+La documentation ne doit jamais transformer « fichier présent », « commit existant » ou « build READY » en « VALIDÉ » ou « DÉPLOYÉ ». Toute fonctionnalité reste séparée selon : SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.
+
+Aucun merge `main` et aucun déploiement Vercel ne sont autorisés par cette passe.
+# CHECKPOINT 02/10/2026 — RÉCONCILIATION CAREER JOURNEY + LOTS A/B/C
+
+## Réconciliation code ↔ documentation
+
+Le contrôle du code réel a été effectué avant mise à jour documentaire.
+
+### Career Journey 360
+
+- Branche : `feat/jia-career-journey-360-main-20261002`.
+- Page : `app/career-journey/page.tsx` — **CODÉE**.
+- API : `app/api/career-journey/route.ts` — **CODÉE**.
+- Service : `lib/careerJourney.ts` — **CODÉ**.
+- Parcours actuellement relié : Career Journey → CareerJourney → objectifs → missions → recommandations → scénarios → revues périodiques.
+- Réévaluation et génération de recommandations : **CODÉES**.
+- Missions : cycle acceptation/refus/report/complétion/abandon + progression : **CODÉ**.
+- Revue périodique avec consentement : **CODÉE**.
+- Career Radar contextualisé : **CODÉ**.
+- Portfolio/preuves et évaluation optionnelle : **CODÉS** sur la branche.
+- Entitlements existants : **réutilisés** ; les fonctions avancées sont protégées côté serveur.
+- RLS Career Journey : **durcie** au commit `88fe82f`.
+
+### État Vercel Career Journey
+
+- Projet canonique : `jobly-c0.6.5.1`.
+- Commit `89b5055` — modèle : **READY**.
+- Commit `88fe82f` — RLS : **READY**.
+- Commit `62cd1de` — interface Career Journey : **ERROR**.
+- Aucun de ces changements n'est considéré comme déployé en production tant qu'il n'a pas été explicitement autorisé et validé.
+
+### Lots A/B/C — contrôle croisé
+
+| Lot | Chantier | Code | Documentation | Tests/validation | Déploiement |
+|---|---|---|---|---|---|
+| A | Mon Afrique | 🟢 codé | 🟢 reporté | 🟡 architecture OK, CI bloquée | ⏸️ aucun |
+| B | Veille J’IA | 🟢 codé B1→B3.1 | 🟢 clôture reportée | 🟢 matrice B3.1 couverte ; validation runtime complète distincte | ⏸️ aucun |
+| C | Bons Plans + Community | 🟢 codé + DB appliquée | 🟢 reporté | 🟡 structure contrôlée, build global encore rouge | ⏸️ aucun |
+
+### Règle de vérité
+
+Aucun lot A/B/C n'est déclaré **DÉPLOYÉ** ou **VALIDÉ E2E** sur la seule base du code ou de la documentation. Le statut reste séparé entre CODÉ, TESTÉ, VALIDÉ et DÉPLOYÉ.
+
+## Décision de continuité
+
+Ne pas recréer les briques existantes. Les prochains travaux doivent corriger uniquement les écarts constatés, puis tester avant toute nouvelle extension. Aucun merge `main` ni déploiement Vercel sans autorisation explicite.
+
+---
+
 # CHECKPOINT 01/10/2026 — J’IA MASTER SCOPE / CEO & TRANSVERSAL INTELLIGENCE
 
 ## Périmètre maître réconcilié
@@ -3827,3 +3917,18 @@ La base Supabase connectée confirme RLS activé sur les tables cognitives et ab
 6. Browser E2E et production restent volontairement non validés sur cette branche.
 
 **Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ. Aucun merge `main` ni déploiement Vercel sans validation explicite.**
+
+
+# CHECKPOINT 02/10/2026 — CAREER JOURNEY 360 — CONTRÔLE DE CONFORMITÉ FINALISÉ
+
+La passe de conformité code ↔ décisions validées a corrigé les écarts suivants :
+- candidature recommandée directement lorsque l'analyse indique une préparation suffisante ;
+- mission toujours proposée d'abord, puis explicitement acceptée avant progression ;
+- transitions de mission serveur contrôlées ;
+- rattachement des preuves limité aux ressources du compte courant ;
+- politiques RLS de la migration séparées par opération, sans FOR ALL ;
+- migration Prisma localisée et réconciliée avec le schéma de la branche.
+
+**État de vérité : 🟨 CODÉ + CORRIGÉ + RÉCONCILIÉ — NON VALIDÉ RUNTIME / NON DÉPLOYÉ.**
+
+JOBLY-PROD ne contient pas encore les tables Career* de Career Journey ; aucune migration de production n'a été exécutée pendant cette passe. Aucun merge vers main et aucun déploiement Vercel n'ont été effectués.

@@ -1,3 +1,114 @@
+
+
+# CHECKPOINT 02/10/2026 — AUDIT DE RÉCONCILIATION CODE ↔ DOCUMENTATION (PASSE DE CONTRÔLE)
+
+Cette passe a recontrôlé les artefacts réellement présents dans les branches de chantier avant de considérer la documentation comme une preuve d'implémentation.
+
+## Career Journey 360
+- Page `app/career-journey/page.tsx` : CODÉE.
+- API principale `app/api/career-journey/route.ts` : CODÉE.
+- APIs spécialisées assessments / missions / portfolio / radar : CODÉES.
+- Service `lib/careerJourney.ts` : CODÉ.
+- Entitlements `lib/careerJourneyEntitlements.ts` : CODÉS.
+- Migration `20261002050000_career_journey_360` + schéma Prisma : PRÉSENTS.
+- RLS : durcie dans `88fe82f`.
+- Vercel : modèle `89b5055` READY, RLS `88fe82f` READY, UI `62cd1de` ERROR. Aucun de ces états ne vaut validation production.
+
+## Lot A — Mon Afrique
+- Catalogue `lib/countries/africa.ts` : PRÉSENT, 54 pays.
+- Contexte `lib/jia/monAfrique.ts` : PRÉSENT.
+- QCM conversationnel `components/jia/JiaConversationalQcm.tsx` : PRÉSENT, 4 choix visibles maximum + Autre.
+- Intégration jobs / watcher / brain / cron : présente sur la branche.
+- Verdict : CODÉ. La CI/validation E2E reste distincte ; aucun déploiement n'est déclaré.
+
+## Lot B — Veille J’IA
+- Persistance `lib/jia/watchPersistence.ts` : PRÉSENTE.
+- Intelligence `lib/jia/watchIntelligence.ts` : PRÉSENTE.
+- Scoring `lib/jia/watchIntelligenceScoring.ts` : PRÉSENT avec SUPPRESS / DIGEST / NOTIFY / REVIEW.
+- Smoke test `scripts/jia-watch-intelligence-smoke.mjs` : PRÉSENT et couvre les quatre décisions.
+- Migration et schéma de persistance : PRÉSENTS.
+- Verdict : CODÉ B1→B3.1. Le smoke test et la validation runtime complète doivent rester distingués ; aucun déploiement n'est déclaré.
+
+## Lot C — Bons Plans + Community
+- APIs Bons Plans / Community : PRÉSENTES.
+- Accès Community `lib/community/access.ts` : PRÉSENT, entitlements serveur.
+- Automatisation `lib/community/automation.ts` : PRÉSENTE, seuil 1 000 et 8 communautés globales.
+- UI `/communities` et `/communities/[id]` : PRÉSENTES.
+- Migration Lot C + extensions Prisma : PRÉSENTES.
+- Verdict : CODÉ. La présence de la migration dans le dépôt ne constitue pas à elle seule une preuve d'application sur JOBLY-PROD ; la validation E2E reste distincte.
+
+## Règle documentaire renforcée
+La documentation ne doit jamais transformer « fichier présent », « commit existant » ou « build READY » en « VALIDÉ » ou « DÉPLOYÉ ». Toute fonctionnalité reste séparée selon : SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.
+
+Aucun merge `main` et aucun déploiement Vercel ne sont autorisés par cette passe.
+# CHECKPOINT 02/10/2026 — RÉCONCILIATION CODE / DOCUMENTATION
+
+## Career Journey 360 — état réel
+
+| Élément | État |
+|---|---|
+| Spécification fonctionnelle | ✅ |
+| Page `/career-journey` | 🔧 CODÉ |
+| `/api/career-journey` | 🔧 CODÉ |
+| Service `lib/careerJourney.ts` | 🔧 CODÉ |
+| Modèle/migration Career Journey | 🔧 CODÉ |
+| Missions + cycle de vie | 🔧 CODÉ |
+| Recommandations / réévaluation | 🔧 CODÉ |
+| Career Radar contextualisé | 🔧 CODÉ |
+| Revue périodique consentie | 🔧 CODÉ |
+| Entitlements serveur | 🔧 CODÉ |
+| RLS | 🔧 DURCIE |
+| Vercel commit modèle `89b5055` | 🟢 READY |
+| Vercel commit RLS `88fe82f` | 🟢 READY |
+| Vercel commit UI `62cd1de` | 🔴 ERROR |
+| Validation E2E complète | ⏸️ non acquise |
+| Déploiement production autorisé | ⏸️ non |
+
+## Lots A/B/C — audit de réconciliation
+
+### Lot A — Mon Afrique
+- Branche : `feature/lot-a-mon-afrique-20261002`.
+- 54 pays via `lib/countries/africa.ts`.
+- Multi-pays au-dessus des scopes existants.
+- Filtres : Toutes / Pays / En cours / CDD / CDI / Remote.
+- Aucun nouveau champ User/Profile de pays d'intérêt.
+- Brain J’IA et Watcher existants réutilisés.
+- Architecture statique : **OK**.
+- CI : **BLOQUÉE** par `lib/jobSourceCollector.ts:61` (TS1128 hors périmètre).
+- Merge/deploiement : **aucun**.
+- Verdict : **CODÉ, NON VALIDÉ E2E**.
+
+### Lot B — Veille J’IA
+- Branche de clôture : `feat/jia-watch-intelligence-b3-20261002`.
+- B1 watcher existant réutilisé.
+- B2 persistance/idempotence : `JiaWatchSubscription`, `JiaWatchRun`, `JiaWatchSnapshot`.
+- Scheduler `/api/cron/jia-watch` protégé.
+- B3 pipeline : signal → nouveauté → pertinence → impact → confiance → contradictions → mémoire → décision.
+- Décisions : SUPPRESS / DIGEST / NOTIFY / REVIEW.
+- B3.1 scoring isolé + smoke test des quatre décisions.
+- Notifications limitées à l'in-app ; pas de push/email automatique.
+- Commit documentaire de clôture : `175cfc7`.
+- Verdict : **TECHNIQUEMENT FERMÉ SUR BRANCHE**, sans merge/deploiement. La validation runtime complète reste distincte.
+
+### Lot C — Bons Plans + Community
+- Branche : `feat/lot-c-bons-plans-community`.
+- Community appartient à Bons Plans et n'est pas un quatrième écosystème ni un réseau social.
+- 8 communautés globales.
+- Spécialisation automatique à 1 000 talents abonnés d'une même discipline.
+- Matrice : FREE ❌ / START ✅ / PREMIUM ✅ + badge / PRO ✅ + badge.
+- Badge dérivé côté serveur pour l'auteur du post.
+- Pas de profils cliquables, pas de DM, pas d'accès Recruiter depuis Community.
+- Invitations par lien/WhatsApp.
+- Modèle Prisma + migration SQL appliqués à JOBLY-PROD ; notifications existantes réutilisées.
+- CI : fichiers Community franchis ; gate globale encore rouge sur des erreurs TypeScript hors Lot C.
+- Verdict : **CODÉ + STRUCTURELLEMENT CONTRÔLÉ, NON VALIDÉ E2E / NON DÉPLOYÉ**.
+
+## Conclusion de réconciliation
+
+La documentation ne doit plus confondre **présence du code** avec **validation** ou **déploiement**. Les lots A, B et C sont bien matérialisés dans le code selon leur périmètre, mais leurs niveaux de validation diffèrent. Career Journey est également codé sur sa branche dédiée ; sa dernière couche UI a un déploiement Vercel en ERROR et reste donc non validée.
+
+---
+
 # JOBLY — STATUT DU PROJET
 ## SOURCE DE VÉRITÉ D'EXÉCUTION — JOBLY 20/20
 ### Mise à jour : 26/09/2026 — Offres / Matching adaptatif / UX
@@ -4180,3 +4291,18 @@ Ce checkpoint ne certifie aucun lot par simple présence de code. Pour chaque lo
 - Lecture du projet : fondations Next.js/Supabase/Prisma et surfaces Recruiter/Talent existantes inspectées.
 - Spécification Recrutement 360° v2 + Avenant 1 : prise comme référence de construction.
 - **État :** Étape 0 en cours ; arrêt obligatoire avant tout développement de lot.
+
+
+# CHECKPOINT 02/10/2026 — CAREER JOURNEY 360 — CONTRÔLE DE CONFORMITÉ FINALISÉ
+
+La passe de conformité code ↔ décisions validées a corrigé les écarts suivants :
+- candidature recommandée directement lorsque l'analyse indique une préparation suffisante ;
+- mission toujours proposée d'abord, puis explicitement acceptée avant progression ;
+- transitions de mission serveur contrôlées ;
+- rattachement des preuves limité aux ressources du compte courant ;
+- politiques RLS de la migration séparées par opération, sans FOR ALL ;
+- migration Prisma localisée et réconciliée avec le schéma de la branche.
+
+**État de vérité : 🟨 CODÉ + CORRIGÉ + RÉCONCILIÉ — NON VALIDÉ RUNTIME / NON DÉPLOYÉ.**
+
+JOBLY-PROD ne contient pas encore les tables Career* de Career Journey ; aucune migration de production n'a été exécutée pendant cette passe. Aucun merge vers main et aucun déploiement Vercel n'ont été effectués.
