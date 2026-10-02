@@ -229,3 +229,107 @@ export function sanitizeAssessmentAnswers(input: unknown) {
     return [key, null];
   }));
 }
+
+
+export type PerformanceMetricUnit = "PERCENT" | "COUNT" | "CURRENCY" | "TIME" | "RATE" | "TEXT";
+export type CareerEvidenceKind = "PHOTO" | "DOCUMENT" | "RESULT" | "CASE" | "CHALLENGE" | "TESTIMONIAL" | "LINK" | "NOTE";
+
+export type PerformanceMissionSpec = {
+  title: string;
+  roleContext?: string | null;
+  periodStart?: string | null;
+  periodEnd?: string | null;
+  metric: string;
+  unit: PerformanceMetricUnit;
+  baseline?: number | null;
+  target?: number | null;
+  actual?: number | null;
+  source?: "USER_DECLARED" | "DOCUMENT" | "INTEGRATION" | "EMPLOYER" | "OTHER" | null;
+  challenge?: string | null;
+};
+
+export type CareerEvidenceSpec = {
+  kind: CareerEvidenceKind;
+  title: string;
+  description?: string | null;
+  occurredAt?: string | null;
+  source?: string | null;
+  metric?: string | null;
+  value?: number | null;
+  unit?: PerformanceMetricUnit | null;
+  verified?: boolean;
+};
+
+/**
+ * Turns a real-world result into a measurable, user-validated career signal.
+ * Never invents a KPI: baseline/target/actual are optional until supplied or verified.
+ */
+export function buildPerformanceMission(spec: PerformanceMissionSpec) {
+  const baseline = typeof spec.baseline === "number" ? spec.baseline : null;
+  const target = typeof spec.target === "number" ? spec.target : null;
+  const actual = typeof spec.actual === "number" ? spec.actual : null;
+  const progress = baseline != null && target != null && target !== baseline && actual != null
+    ? clamp(((actual - baseline) / (target - baseline)) * 100)
+    : null;
+
+  return {
+    type: "PERFORMANCE" as const,
+    title: spec.title.trim(),
+    roleContext: cleanString(spec.roleContext),
+    periodStart: cleanString(spec.periodStart),
+    periodEnd: cleanString(spec.periodEnd),
+    metric: spec.metric.trim(),
+    unit: spec.unit,
+    baseline,
+    target,
+    actual,
+    progress,
+    source: spec.source ?? null,
+    challenge: cleanString(spec.challenge),
+    evidenceRequired: true,
+  };
+}
+
+/**
+ * Builds a compact evidence trail that can later feed a CV bullet, portfolio case
+ * or reassessment. Evidence remains attributable and must be validated by the user.
+ */
+export function buildCareerEvidence(spec: CareerEvidenceSpec) {
+  return {
+    kind: spec.kind,
+    title: spec.title.trim(),
+    description: cleanString(spec.description),
+    occurredAt: cleanString(spec.occurredAt),
+    source: cleanString(spec.source),
+    metric: cleanString(spec.metric),
+    value: typeof spec.value === "number" ? spec.value : null,
+    unit: spec.unit ?? null,
+    verified: spec.verified === true,
+  };
+}
+
+/**
+ * Produces CV-ready raw material only. It does not claim a result that is absent
+ * from the evidence and never edits the user's CV automatically.
+ */
+export function quantifyCareerEvidence(input: {
+  action: string;
+  context?: string | null;
+  evidence: Array<CareerEvidenceSpec>;
+}) {
+  const verified = input.evidence.filter((item) => item.verified === true);
+  const measurable = verified.filter((item) => typeof item.value === "number" && item.metric);
+  return {
+    action: input.action.trim(),
+    context: cleanString(input.context),
+    verifiedEvidenceCount: verified.length,
+    measurableEvidence: measurable.map((item) => ({
+      metric: item.metric!.trim(),
+      value: item.value,
+      unit: item.unit ?? null,
+      source: cleanString(item.source),
+    })),
+    cvDraftEligible: measurable.length > 0,
+    requiresUserApproval: true,
+  };
+}
