@@ -4,7 +4,7 @@ import { calculateMobilityCosts, haversineKm } from "./gps";
 export { CAMEROON_CITIES, calculateMobilityCosts, haversineKm };
 export type { CameroonCityKey };
 
-export const MOBILITY_STEPS = ["Demande créée", "Dossier vérifié", "Garantie recruteur", "Subvention validée", "Pass généré", "Déplacement effectué"] as const;
+export const MOBILITY_STEPS = ["Demande créée", "Pré-éligibilité", "Diagnostic", "Pièces", "Vérification", "Garantie recruteur", "Financement", "Départ", "Arrivée", "Prise de poste", "Remboursement", "Clôture"] as const;
 
 export function randomPassCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
