@@ -38,12 +38,12 @@ export function calculateMobilityEligibility(input: MobilityEligibilityInput): M
   const now = new Date().toISOString();
   const threshold = input.thresholdPercent ?? DEFAULT_MOBILITY_THRESHOLD_PERCENT;
   const salary = input.approvedSalary ?? null;
+  const approvedSalary = typeof salary === "number" && Number.isFinite(salary) && salary > 0 ? salary : null;
   const currency = input.salaryCurrency || "XAF";
   const costs = input.costs.filter((item) => Number.isFinite(item.amount) && item.amount >= 0);
   const total = round(costs.reduce((sum, item) => sum + item.amount, 0));
   const missingInformation: string[] = [];
-
-  if (!salary || salary <= 0) missingInformation.push("APPROVED_SALARY");
+  if (approvedSalary === null) missingInformation.push("APPROVED_SALARY");
   if (costs.length === 0) missingInformation.push("MOBILITY_COSTS");
 
   if (missingInformation.length > 0) {
@@ -54,16 +54,16 @@ export function calculateMobilityEligibility(input: MobilityEligibilityInput): M
       salaryCurrency: currency,
       totalMobilityCost: total,
       thresholdPercent: threshold,
-      maximumEligibleCost: salary && salary > 0 ? round(salary * threshold / 100) : null,
-      burdenPercent: salary && salary > 0 ? round((total / salary) * 100) : null,
+      maximumEligibleCost: approvedSalary === null ? null : round(approvedSalary * threshold / 100),
+      burdenPercent: approvedSalary === null ? null : round((total / approvedSalary) * 100),
       reason: "Le calcul ne peut pas être finalisé tant que les informations obligatoires ne sont pas disponibles.",
       missingInformation,
       calculatedAt: now,
     };
   }
 
-  const maximumEligibleCost = round(salary * threshold / 100);
-  const burdenPercent = round((total / salary) * 100);
+  const maximumEligibleCost = round(approvedSalary! * threshold / 100);
+  const burdenPercent = round((total / approvedSalary!) * 100);
   const eligible = burdenPercent <= threshold;
 
   return {

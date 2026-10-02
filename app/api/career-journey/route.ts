@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         gapTarget: typeof body.gapTarget === "string" ? body.gapTarget.trim() : null,
         steps: performance ? { performance, steps } : steps,
         expectedResult: typeof body.expectedResult === "string" ? body.expectedResult.trim() : null,
-        expectedEvidence: expectedEvidence.length ? expectedEvidence : ["Un résultat réel", "Une preuve de terrain", "Un élément quantifiable"],
+        expectedEvidence: JSON.stringify(expectedEvidence.length ? expectedEvidence : ["Un résultat réel", "Une preuve de terrain", "Un élément quantifiable"]),
         dueAt: body.dueAt ?? null, followUpAt: body.followUpAt ?? null,
       }).select("*").single();
       if (error) throw new Error(error.message);
