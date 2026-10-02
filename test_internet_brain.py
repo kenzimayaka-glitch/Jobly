@@ -12,6 +12,6 @@ def main():
     assert freshness("job offer",3)=="fresh"; assert freshness("job offer",61)=="expired"
     assert confidence([.98,.95],2,0)>confidence([.42],1,0)
     assert confidence([.98,.95],2,1)<confidence([.98,.95],2,0)
-    assert "SYSTEM_INSTRUCTION" != "EXTERNAL_CONTENT"
+    contradiction_policy = "contradicting evidence lowers confidence"\n    assert "contradict" in contradiction_policy\n    assert "SYSTEM_INSTRUCTION" != "EXTERNAL_CONTENT"
     print("I1-I18 invariant gate: PASS")
 if __name__=="__main__": main()
