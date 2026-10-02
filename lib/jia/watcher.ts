@@ -2,8 +2,9 @@ import {observeInternet} from "@/lib/jia/internet";
 import {ingestExternalSignal} from "@/lib/jia/cognitive";
 import {publishTraceEvent} from "@/lib/jia/eventBus";
 import {adminClient} from "@/lib/server-auth";
+import { AFRICA_COUNTRIES, getAfricaCountry } from "@/lib/countries/africa";
 
-export type JiaWatchTarget={key:string;query:string;domain:string;intervalMs?:number};
+export type JiaWatchTarget={key:string;query:string;domain:string;intervalMs?:number;countries?:string[]};
 
 export async function watchExternal(userId:string,target:JiaWatchTarget){
   const signal=await observeInternet(target.query,{mode:"PROACTIVE",maxQueries:2,maxSources:8});
@@ -28,6 +29,13 @@ export async function watchExternal(userId:string,target:JiaWatchTarget){
     metadata: { watchKey: target.key, memoryDecision: signal.observation.memoryDecision, changes: signal.observation.changes },
   });
   return signal;
+}
+
+export function monAfriqueWatchTarget(countries:string[]):JiaWatchTarget{
+  const selected=Array.from(new Set(countries)).map(code=>getAfricaCountry(code)).filter(Boolean);
+  const names=selected.map(country=>country!.name);
+  const query=names.length ? `nouvelles offres emploi ${names.join(" OR ")} recrutement` : "nouvelles offres emploi Afrique recrutement";
+  return {key:"mon-afrique",query,domain:"Jobs",countries:selected.map(country=>country!.code)};
 }
 
 export function defaultWatchTargets():JiaWatchTarget[]{
