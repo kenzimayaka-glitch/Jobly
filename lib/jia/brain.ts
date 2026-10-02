@@ -107,6 +107,7 @@ function normalizeIntent(message: string) {
   if (/\b(entretien|interview)\b/.test(m)) return "INTERVIEW";
   if (/\b(apprendre|formation|skill|compétence)\b/.test(m)) return "LEARNING";
   if (/\b(mobilité|déménag|ville|pays)\b/.test(m)) return "MOBILITY";
+  if (/\b(veille|surveill|alerte|alertes|monitor|watch|suivre|nouvelles?)\b/.test(m)) return "WATCH";
   if (/\b(recrut|candidat|talent)\b/.test(m)) return "RECRUITMENT";
   if (/\b(partenaire|commission|parrain)\b/.test(m)) return "PARTNER";
   return "CAREER";
