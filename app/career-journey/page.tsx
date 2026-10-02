@@ -82,7 +82,14 @@ export default function CareerJourneyPage() {
                 <div key={r.id} className="rounded-2xl border border-slate-200 p-4">
                   <p className="font-semibold">{r.title}</p>
                   <p className="mt-1 text-sm text-slate-600">{r.rationale}</p>
-                  <p className="mt-2 text-xs text-slate-400">{r.type}</p>
+                  <p className="mt-2 text-xs font-medium uppercase tracking-wide text-slate-400">{r.type === "LEARN" ? "Formation / apprentissage" : r.type}</p>
+                  {r.type === "LEARN" && Array.isArray(r.alternatives) && r.alternatives.length > 0 && (
+                    <div className="mt-3 space-y-1 text-xs text-slate-500">
+                      {r.alternatives.slice(0, 3).map((option: any, index: number) => (
+                        <p key={index}>• {typeof option === "string" ? option : option.label}</p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               {!data?.recommendations?.length && <p className="text-sm text-slate-500">Aucune recommandation enregistrée.</p>}
