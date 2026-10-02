@@ -4122,3 +4122,41 @@ JOBLY-PROD ne contient pas encore les tables Career* de Career Journey ; aucune 
 - Le résultat expose le scope et les codes pays cibles. Le filtrage s’appuie sur les `countryCode` des offres déjà disponibles; les offres sans code pays ne sont pas incluses dans ce scope.
 - La veille active multi-pays, la veille panafricaine, les écrans de configuration et les quotas restent à raccorder et tester.
 - Pas de migration Supabase, merge `main`, ni déploiement dans cette étape.
+
+
+# CHECKPOINT TALENT — MOBILITÉ MARCHÉ / VEILLE — 02/10/2026 (PASSE D’IMPLÉMENTATION)
+
+## Décision produit
+
+Le Talent conserve l’accès aux offres locales et africaines. Les abonnements limitent la **profondeur du service de recherche/veille**, pas l’accès géographique aux offres.
+
+- FREE : découverte locale/Afrique.
+- START : préparation d’une recherche multi-pays uniquement ; aucune veille multi-pays active.
+- PREMIUM : veille multi-pays active + optimisation avancée.
+- PRO : veille panafricaine + automatisation avancée.
+
+## Ce qui vient d’être raccordé
+
+- `lib/talentMarketEntitlements.ts` : garde serveur centralisée des actions marché Talent.
+- `GET /api/jobs?scope=countries&targetCountryCodes=CM,SN` : contrôle du plan Talent côté serveur avant une recherche multi-pays.
+- FREE reçoit un `403` explicite pour la préparation multi-pays.
+- START+ peut préparer au moins deux pays.
+- Le filtrage multi-pays réutilise `RecruiterJob/Job.countryCode` existant ; aucun champ User/Profile de préférence pays n’est ajouté.
+
+## Limite volontaire de cette passe
+
+Le scheduler/Watcher J’IA n’est pas présent sur cette branche actuelle sous les chemins attendus ; aucune nouvelle persistance de veille n’est donc créée pour contourner cette absence. Le raccordement de la **veille active** sera fait après rattachement au Watcher existant, sans recréer un deuxième système.
+
+Les quotas précis de veilles et les coûts J’IA spécifiques à cette exécution restent à définir/valider avant facturation ; aucun nouveau coût chiffré n’est inventé dans cette passe.
+
+## Validation
+
+- Socle entitlement : **CODÉ**.
+- API recherche multi-pays : **CODÉ**.
+- UI préparation multi-pays : **À RACCORDER**.
+- Persistance/scheduler veille : **À RACCORDER AU WATCHER EXISTANT**.
+- Tests dédiés : **À FAIRE**.
+- CI actuelle : **ROUGE**, avec échecs `Jobly CI — Typecheck & Build` et `Verify offer pipeline` sur le commit de travail ; les gates J’IA principales sont vertes.
+- Supabase : **aucune migration**.
+- `main` : **inchangé**.
+- Vercel : **aucun déploiement**.
