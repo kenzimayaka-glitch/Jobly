@@ -1,3 +1,72 @@
+# CHECKPOINT 02/10/2026 — COMMUNITY / BONS PLANS — RÈGLES CONSOLIDÉES
+
+## Mise à jour matrice abonnements — 02/10/2026
+- FREE : Community ❌ / badge bleu ❌
+- START : Community ✅ / badge bleu ❌
+- PREMIUM : Community ✅ / badge bleu ✔️
+- PRO : Community ✅ / badge bleu ✔️
+- Le droit Community et le badge sont désormais des entitlements centralisés du catalogue de facturation.
+- L’accès Community combine les abonnements actifs Talent/Recruiter du même compte, afin de respecter le modèle **1 compte Jobly → plusieurs écosystèmes**.
+- Dans les discussions, le badge est calculé pour l’auteur du post, pas pour le visiteur courant.
+
+
+Community est une composante de **Bons plans**, pas un nouvel écosystème et pas un réseau social.
+
+### Modèle produit
+- 8 communautés professionnelles globales au lancement.
+- À **1 000 talents abonnés** partageant une même discipline, Jobly crée automatiquement la communauté spécialisée correspondante.
+- La discipline v1 réutilise `Profile.preferredSectors` ; aucun champ parallèle n'est créé.
+- J’IA notifie les abonnés concernés et les invite à rejoindre.
+- Accès Community : abonnement actif **START, PREMIUM ou PRO**. La coche bleue n’est pas requise pour entrer ; elle distingue PREMIUM et PRO.
+- Expiration de l'abonnement = accès Community suspendu ; réactivation = accès restauré.
+- Écran limité : quelques communautés visibles, puis « Voir les autres ».
+- Seul le **nombre de membres** est affiché comme métrique sociale.
+- Dans les discussions : photo + nom d'affichage visibles, mais non cliquables.
+- Aucun profil, DM, contact ou accès Recruiter depuis Community.
+- Le Recruiter reste dans son portail dédié.
+- Invitation : copie du lien ou WhatsApp ; le parcours impose création de compte et contrôle d'abonnement.
+- J’IA peut publier des événements/Bons plans pertinents avec texte, flyer/image et lien, sans créer de nouveau système social.
+- J’IA modère les comportements problématiques au niveau de la communauté.
+- Les réactions/icônes J’IA restent une amélioration additive de l'existant.
+
+
+### Matrice abonnement — Community / badge bleu
+
+| Formule | Community | Badge bleu | Règle |
+|---|---:|---:|---|
+| FREE | ❌ | ❌ | Aucun accès Community |
+| START | ✅ | ❌ | Accès aux communautés professionnelles |
+| PREMIUM | ✅ | ✔️ | Accès + badge bleu vérifié |
+| PRO | ✅ | ✔️ | Accès + badge bleu vérifié |
+
+La matrice est centralisée dans `lib/billingCatalog.ts` via `communityAccess` et `blueBadge`. Le backend Community lit ces droits côté serveur ; ils ne sont pas pilotés par le frontend. Le badge est dérivé du plan actif et disparaît automatiquement lorsque le droit expire.
+
+### Style du badge
+
+Le badge reprend le **modèle visuel universel des grandes plateformes** : petite pastille bleue circulaire, coche blanche, positionnée en chevauchement du coin inférieur droit de l’avatar. Le comportement couvre les deux cas : **photo réelle + badge** et **avatar initiales + badge**. Aucun logo, asset ou interface propriétaire de Facebook, WhatsApp ou Instagram n’est copié.
+
+### Architecture
+Réutiliser :
+- Subscription/entitlements existants ;
+- Notification existante ;
+- Profile.preferredSectors ;
+- J’IA/Event Bus existants ;
+- CommunityPost comme surface de publication.
+
+**Ne pas créer un deuxième système de mémoire, notification, profil ou réseau social.**
+
+### État au 02/10/2026
+- Migration Community appliquée à JOBLY-PROD.
+- 8 communautés globales présentes.
+- APIs et UI Community enrichies.
+- Seuil automatique 1 000 abonnés codé.
+- Notification de création de communauté branchée sur la table Notification existante.
+- Publication événementielle vers les communautés pertinentes codée.
+- La passe CI Typecheck/Build reste rouge à cause d'erreurs TypeScript hors Lot C ; aucune erreur Community n'est signalée dans le rapport. Le déploiement Vercel est donc volontairement bloqué tant que la gate de build n'est pas verte.
+- Aucun changement de `main` ni déploiement Vercel effectué à ce stade.
+
+---
+
 # CHECKPOINT 01/10/2026 — J’IA MASTER SCOPE / CEO & TRANSVERSAL INTELLIGENCE
 
 ## Périmètre maître réconcilié

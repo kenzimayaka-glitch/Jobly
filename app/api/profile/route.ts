@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import { maybeCreateDisciplineCommunity } from "@/lib/community/automation";
 
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -118,6 +119,19 @@ export async function PUT(request: NextRequest) {
       profilePayload.id = existing?.id ?? crypto.randomUUID();
       const { error } = await supabase.from("Profile").upsert(profilePayload, { onConflict: "userId" });
       if (error) throw new Error(error.message);
+
+      // Community spécialisée : création automatique à 1 000 talents abonnés
+      // partageant la même discipline. La discipline v1 réutilise
+      // Profile.preferredSectors ; aucun champ parallèle n'est créé.
+      const disciplines = cleanStrings(profilePayload.preferredSectors);
+      for (const discipline of disciplines) {
+        try {
+          await maybeCreateDisciplineCommunity(supabase, discipline);
+        } catch {
+          // L'enregistrement du profil reste prioritaire : une panne Community
+          // ne doit jamais empêcher la sauvegarde du parcours Talent.
+        }
+      }
     }
 
     // Pattern "insert-then-delete": on écrit d'abord les nouvelles lignes avec de

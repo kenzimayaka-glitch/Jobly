@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
-import { getEntitlements, getPlan } from "../../../lib/billingCatalog";
+import { getEntitlements, getPlan, getRecruiterEntitlements, getRecruiterPlan } from "../../../lib/billingCatalog";
 import { getActivePlanCode, isTestUnlimited } from "../../../lib/entitlements";
 
 export async function GET(request: NextRequest) {
@@ -11,13 +11,13 @@ export async function GET(request: NextRequest) {
     const u = await ensureUser(sb, a);
     const productType: "TALENT" | "RECRUITER" = String(u.role) === "RECRUITER" ? "RECRUITER" : "TALENT";
     const planCode = await getActivePlanCode(sb, u.id, productType);
-    const plan = getPlan(planCode) || getPlan("FREE")!;
+    const plan = productType === "RECRUITER" ? getRecruiterPlan(planCode) || getRecruiterPlan("FREE")! : getPlan(planCode) || getPlan("FREE")!;
     const testUnlimited = isTestUnlimited();
     const now = new Date().toISOString();
     const { data: promo } = await sb.from("PromoRedemption").select("grantedPlan,productType,startsAt,endsAt").eq("userId", u.id).eq("productType", productType).is("revokedAt", null).gt("endsAt", now).order("endsAt", { ascending: false }).limit(1).maybeSingle();
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { count: usedApplications } = await sb.from("Application").select("id", { count: "exact", head: true }).eq("userId", u.id).neq("status", "DISCOVERED").gte("createdAt", since);
-    const entitlements = getEntitlements(plan.code);
+    const entitlements = productType === "RECRUITER" ? getRecruiterEntitlements(plan.code) : getEntitlements(plan.code);
     return NextResponse.json({
       entitlements: testUnlimited ? { ...entitlements, aiCredits: Infinity, storageMb: Infinity, applicationsPerWeek: Infinity, bulkApplicationLimit: Infinity, cvVersions: Infinity, savedJobs: Infinity, alerts: Infinity, testUnlimited: true } : { ...entitlements, testUnlimited: false },
       usage: { applicationsThisWeek: usedApplications || 0 },

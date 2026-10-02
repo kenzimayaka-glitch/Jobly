@@ -1,3 +1,83 @@
+# LOT C — BONS PLANS + COMMUNITY — 02/10/2026
+
+## Périmètre architectural validé
+Bons plans et Community cohabitent comme deux surfaces métier distinctes :
+- **Bons plans** : découverte de contenus utiles.
+- **Community** : espaces professionnels structurés par Jobly, sans modèle de réseau social.
+- **J’IA** : orientation, animation utile, publication de contenus pertinents et modération, en réutilisant les briques J’IA/Notification existantes.
+
+## Règles produit figées
+- Community appartient à **Bons plans**.
+- Lancement avec **8 communautés professionnelles globales** : Tech & Digital, Business & Sales, Marketing & Communication, Finance & Comptabilité, Ressources humaines, Ingénierie & Industrie, Design & Créativité, Éducation & Formation.
+- Une communauté spécialisée est **créée automatiquement à partir de 1 000 talents abonnés partageant la même discipline**. La discipline v1 réutilise `Profile.preferredSectors`.
+- J’IA notifie les abonnés concernés à la création et les invite à rejoindre ; l'adhésion reste volontaire.
+- Accès Community : **START, PREMIUM ou PRO actifs**. La coche bleue n’est pas une condition d’entrée ; elle distingue PREMIUM et PRO. L’accès est suspendu lorsque l’abonnement expire.
+- L'écran principal reste limité à quelques communautés visibles, avec « Voir les autres » plutôt qu'un catalogue interminable.
+- Une communauté affiche **uniquement son nombre de membres** comme métrique sociale.
+- Les participants voient **photo + nom d'affichage** dans les discussions, mais ces éléments ne sont pas cliquables.
+- Aucun profil, DM, contact ou raccourci Recruiter n'est accessible depuis Community.
+- Le Recruiter consulte les talents **uniquement depuis son portail Recruiter**, selon les règles de visibilité existantes.
+- « Inviter un contact » permet de copier le lien ou de partager sur WhatsApp ; le lien ramène directement vers la communauté, mais création de compte et contrôle d'abonnement restent obligatoires.
+- J’IA peut publier dans les communautés des événements pertinents, avec texte, flyer/image et lien ; l'annonce est idempotente par communauté + événement.
+- Les interactions de modération restent communautaires : avertissement/restriction/suspension/exclusion de la communauté, sans bannissement global automatique.
+- Les réactions visuelles J’IA sont **additives** : elles n'altèrent pas le système de messages existant.
+- Une question J’IA peut être fermée avec ✕ sans être considérée comme une réponse.
+
+## Matrice abonnement / Community / badge — VALIDÉE STRUCTURELLEMENT
+
+| Formule | Community | Badge bleu | Entitlement centralisé |
+|---|---:|---:|---:|
+| FREE | ❌ | ❌ | `communityAccess=false`, `blueBadge=false` |
+| START | ✅ | ❌ | `communityAccess=true`, `blueBadge=false` |
+| PREMIUM | ✅ | ✔️ | `communityAccess=true`, `blueBadge=true` |
+| PRO | ✅ | ✔️ | `communityAccess=true`, `blueBadge=true` |
+
+### Contrôles croisés réalisés
+- Catalogue Talent et Recruiter : matrice identique sur Community/badge.
+- Entitlements centralisés dans `lib/billingCatalog.ts`.
+- Accès Community serveur : ne dépend plus de `user.role` ; le compte est évalué sur ses plans Talent et Recruiter actifs et le niveau le plus élevé est retenu pour ces deux droits.
+- Badge dans Community : calculé pour **l’auteur du post**, jamais en fonction du visiteur courant.
+- Cas photo / sans photo : avatar circulaire avec initiales en fallback ; badge bleu positionné en chevauchement bas-droite avec coche blanche.
+- Expiration d’abonnement : les entitlements retombent automatiquement sur FREE côté serveur.
+- Aucun merge `main`, aucun déploiement Vercel effectué.
+
+### État de vérité
+**🟡 CODÉ + CONTRÔLÉ STRUCTURELLEMENT — BUILD/E2E À CONFIRMER.**
+
+### Validation CI au 02/10/2026 — dernier état observé
+- PR #153 : ouverte, mergeable, **aucun merge `main`**.
+- Dernier head : `137570b62cad590117f2c32fe686278ba1d4b0f7`.
+- **Jobly CI — Typecheck & Build #901 : en cours** au dernier contrôle ; aucun verdict final ne doit être déduit avant sa fin.
+- Les gates J’IA Architecture 10-10, Cognitive Core et Internet Brain du même cycle sont vertes.
+- La gate J’IA Master Continuous reste rouge sur un contrôle préexistant de cohérence textuelle : `test_jia_critical_9.py` attend le terme `contradict` dans `test_internet_brain.py`. Ce point est hors matrice Community/billing.
+- Supabase **JOBLY-PROD** est `ACTIVE_HEALTHY` ; 8 communautés sont présentes et actives.
+- Les advisors Supabase signalent des alertes existantes de gouvernance/RLS et quelques warnings de sécurité/performance hors de cette matrice ; aucune modification de schéma n’a été nécessaire pour le badge.
+
+Le modèle de droits est cohérent et centralisé. La validation complète reste conditionnée au passage du build/typecheck et au test réel du parcours Community après déploiement explicitement autorisé.
+
+## Implémentation actuelle — 🟡 CODÉ / 🟡 À VALIDER BUILD/E2E
+- Socle Prisma + migration SQL Community/BonPlan appliqué à **JOBLY-PROD** après contrôle préalable de l'absence des tables.
+- Les 8 communautés globales ont été créées dans la migration via l'utilisateur système J’IA Jobly.
+- Contrôle serveur d'accès Community réutilisant le système Subscription existant.
+- Compteurs de membres sur les communautés.
+- Invitations et partage WhatsApp.
+- Photo + nom d'affichage des auteurs sans lien vers leur profil.
+- Notifications Community via la table **Notification** déjà existante.
+- Création automatique des communautés spécialisées au seuil de 1 000 abonnés par discipline.
+- Publication automatique des événements créés comme Bons plans de catégorie événement vers les communautés pertinentes.
+- Support des posts Community avec média/lien source.
+- Correction d'un bloqueur TypeScript préexistant dans `lib/jobSourceCollector.ts` nécessaire pour rétablir le typecheck de la branche.
+
+## Validation observée
+- Migration Supabase appliquée avec succès.
+- Les 8 communautés globales sont présentes dans JOBLY-PROD.
+- La passe CI Typecheck & Build a maintenant franchi les fichiers Community sans erreur signalée, mais reste ROUGE à cause de plusieurs erreurs TypeScript préexistantes hors Lot C (notamment bonus J’IA, CV, Market Watch/Runtime). Le déploiement ne doit pas contourner cette gate.
+
+## Déploiement
+**Pas encore déployé sur Vercel à ce stade.** La branche doit rester distincte de `main` jusqu'à validation finale du build.
+
+---
+
 # JOBLY — STATUT DU PROJET
 ## SOURCE DE VÉRITÉ D'EXÉCUTION — JOBLY 20/20
 ### Mise à jour : 26/09/2026 — Offres / Matching adaptatif / UX

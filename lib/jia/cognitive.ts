@@ -8,7 +8,7 @@ import { adminClient } from "@/lib/server-auth";
 
 export type CognitiveMemoryType =
   | "WORKING" | "EPISODIC" | "SEMANTIC" | "PROCEDURAL" | "LONG_TERM"
-  | "EVENT" | "USER" | "WORLD" | "JOBLY" | "REFLECTIVE";
+  | "EVENT" | "USER" | "WORLD" | "JOBLY" | "REFLECTIVE" | "MOBILITY";
 
 export type EvidenceStatus = "CONFIRMED" | "LIKELY" | "CONTESTED" | "UNKNOWN";
 

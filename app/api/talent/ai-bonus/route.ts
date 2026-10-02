@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, getAuthUser } from "../../../../lib/server-auth";
 
+type WelcomeCreditClaim = { credits: number; granted_at: string | null };
+
 export async function GET(request: NextRequest) {
   const auth = await getAuthUser(request);
   if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
@@ -15,11 +17,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: "Cette ressource est réservée au compte Talent." }, { status: 403 });
   }
 
-  const { data: claim, error: claimError } = await sb.rpc("claim_ai_welcome_credit", {
+  const { data: claimRaw, error: claimError } = await sb.rpc("claim_ai_welcome_credit", {
     p_user_id: String(user.id),
     p_role: "TALENT",
   }).maybeSingle();
   if (claimError) return NextResponse.json({ message: claimError.message }, { status: 500 });
+  const claim = claimRaw as unknown as WelcomeCreditClaim | null;
 
   const granted = Number(claim?.credits ?? user.aiWelcomeCredits ?? 0);
   const grantedAt = claim?.granted_at ?? user.aiWelcomeGrantedAt;
