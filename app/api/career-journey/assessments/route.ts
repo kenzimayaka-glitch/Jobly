@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getOrCreateJourney, sanitizeAssessmentAnswers } from "@/lib/careerJourney";
+import { getCareerJourneyEntitlements } from "@/lib/careerJourneyEntitlements";
 
 const formats = new Set(["MCQ","CASE","ROLEPLAY","PRACTICAL","ORAL","PORTFOLIO"]);
 
@@ -58,6 +59,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, attempt: data, note: "Le test reste facultatif et ne bloque ni le profil ni la candidature." });
     }
 
+    const entitlements = await getCareerJourneyEntitlements(ctx.supabase, ctx.user.id);
+    const monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0,0,0,0);
+    if (entitlements.assessmentsPerMonth !== Number.POSITIVE_INFINITY) {
+      const { count } = await ctx.supabase.from("CareerCompetencyAssessment").select("id", { count: "exact", head: true }).eq("userId", ctx.user.id).gte("createdAt", monthStart.toISOString());
+      if ((count ?? 0) >= entitlements.assessmentsPerMonth) return NextResponse.json({ message: "Le quota mensuel d’évaluations est atteint.", limit: entitlements.assessmentsPerMonth, plan: entitlements.plan }, { status: 403 });
+    }
     const competency = typeof body.competency === "string" ? body.competency.trim() : "";
     const title = typeof body.title === "string" ? body.title.trim() : "";
     const objective = typeof body.objective === "string" ? body.objective.trim() : "";
@@ -66,6 +73,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "competency, title, objective et un format valide sont requis." }, { status: 400 });
     }
 
+    if (body.adaptive !== false && !entitlements.canAdaptiveAssessments) return NextResponse.json({ message: "Les évaluations adaptatives sont disponibles à partir de Premium.", requiredPlan: "PREMIUM" }, { status: 403 });
     const questions = Array.isArray(body.questions) ? body.questions.slice(0, 20).map((q: any) => ({
       prompt: typeof q?.prompt === "string" ? q.prompt.slice(0, 2000) : "",
       choices: Array.isArray(q?.choices) ? q.choices.filter((x: any) => typeof x === "string").slice(0, 4) : [],
