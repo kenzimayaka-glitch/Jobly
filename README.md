@@ -1,3 +1,60 @@
+# LOT H — JOBLY EVENTS — PREMIÈRE IMPLÉMENTATION — 02/10/2026
+
+## Décision produit figée
+
+Jobly Events est la source de vérité événementielle de l'écosystème. Un événement n'est pas dupliqué dans Community, Campus, Mobility, Offers ou le Hub institutionnel : ces surfaces consomment des connexions vers Event.
+
+### Publication
+- domaine principal obligatoire + jusqu'à 3 sous-domaines ;
+- durée standard : 1 à 90 jours ;
+- 1–9 jours : 2 000 FCFA/jour ;
+- 10–29 jours : 1 500 FCFA/jour ;
+- 30–59 jours : 1 000 FCFA/jour ;
+- 60–90 jours : 800 FCFA/jour ;
+- Jobly peut publier gratuitement ses propres événements ;
+- un partenaire ne bénéficie de la gratuité que via un entitlement conventionné côté serveur ;
+- publication automatique après paiement confirmé ou entitlement gratuit.
+
+### Médias
+- photo / flyer / vidéo ;
+- 10 MB maximum ;
+- vidéo : 30 secondes maximum ;
+- autoplay silencieux dans la liste, pause hors écran ;
+- stockage binaire prévu via \`JOBLY_EVENTS_BUCKET\`.
+
+### Grands rendez-vous
+- 6 emplacements simultanés maximum ;
+- 10 000 FCFA pour 7 jours ;
+- indépendant de la durée de publication ;
+- un événement déjà publié peut acheter sa mise en avant ;
+- lorsque les 6 slots sont occupés, aucune nouvelle mise en avant n'est vendue.
+
+### J'IA / diffusion
+L'estimation pré-publication expose une portée indicative : communautés, talents, recruteurs et partenaires. La diffusion réelle sera raccordée progressivement à Community, Campus, Mobility, Offers, Career Journey et Hub institutionnel.
+
+### Sécurité
+Les règles de publication et les droits sur les médias sont acceptés avant publication. Le système prévoit surveillance, signalement et retrait d'un événement non conforme.
+
+## État de cette passe
+- Event Core : **CODÉ**
+- Pricing serveur : **CODÉ**
+- Publication gratuite Jobly / entitlement partenaire : **CODÉ**
+- Paiement publication / vérification : **CODÉ**
+- Page \`/events\` : **CODÉE**
+- Création \`/events/create\` : **CODÉE**
+- Détail \`/events/[id]\` : **CODÉ**
+- Grand rendez-vous : **CODÉ / paiement à finaliser E2E**
+- Upload média : **CODÉ**, nécessite \`JOBLY_EVENTS_BUCKET\`
+- Community bypass / modération automatique : **SPÉCIFIÉ, PAS ENCORE IMPLÉMENTÉ**
+- Raccordements runtime Community/Campus/Mobility/Offers/Career Journey/Hub : **À POURSUIVRE**
+- Migration Supabase : **PRÉSENTE DANS LE DÉPÔT, NON APPLIQUÉE À JOBLY-PROD**
+- Vercel : **AUCUN DÉPLOIEMENT**
+- Typecheck/build : **À OBSERVER SUR CI**
+
+> Règle : CODÉ ≠ ACCESSIBLE ≠ CONNECTÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.
+
+---
+
 
 
 # CHECKPOINT LOT G — CAREER OS G2→G10 — 02/10/2026
