@@ -1,61 +1,56 @@
-# LOT H — JOBLY EVENTS — PREMIÈRE IMPLÉMENTATION — 02/10/2026
+# LOT H — JOBLY EVENTS — RACCORDEMENT ÉCOSYSTÈME — 02/10/2026
 
-## Décision produit figée
+## Source de vérité
 
-Jobly Events est la source de vérité événementielle de l'écosystème. Un événement n'est pas dupliqué dans Community, Campus, Mobility, Offers ou le Hub institutionnel : ces surfaces consomment des connexions vers Event.
+**Event est la source unique de vérité événementielle.** Community, Campus, Mobility, Offers, Career Journey et Hub consomment Event ; aucun état événementiel parallèle n'est créé.
 
-### Publication
-- domaine principal obligatoire + jusqu'à 3 sous-domaines ;
-- durée standard : 1 à 90 jours ;
-- 1–9 jours : 2 000 FCFA/jour ;
-- 10–29 jours : 1 500 FCFA/jour ;
-- 30–59 jours : 1 000 FCFA/jour ;
-- 60–90 jours : 800 FCFA/jour ;
-- Jobly peut publier gratuitement ses propres événements ;
-- un partenaire ne bénéficie de la gratuité que via un entitlement conventionné côté serveur ;
-- publication automatique après paiement confirmé ou entitlement gratuit.
+## Publication / pricing
 
-### Médias
+- 1–9 jours : 2 000 FCFA/jour.
+- 10–29 jours : 1 500 FCFA/jour.
+- 30–59 jours : 1 000 FCFA/jour.
+- 60–90 jours : 800 FCFA/jour.
+- Jobly : gratuit.
+- Partenaire : gratuit uniquement via entitlement conventionné côté serveur.
+- Publication automatique après paiement confirmé ou entitlement.
+
+## Médias
+
 - photo / flyer / vidéo ;
 - 10 MB maximum ;
-- vidéo : 30 secondes maximum ;
-- autoplay silencieux dans la liste, pause hors écran ;
-- stockage binaire prévu via \`JOBLY_EVENTS_BUCKET\`.
+- vidéo 30 secondes maximum ;
+- autoplay silencieux dans la liste ;
+- bucket serveur : `JOBLY_EVENTS_BUCKET`.
 
-### Grands rendez-vous
-- 6 emplacements simultanés maximum ;
-- 10 000 FCFA pour 7 jours ;
-- indépendant de la durée de publication ;
-- un événement déjà publié peut acheter sa mise en avant ;
-- lorsque les 6 slots sont occupés, aucune nouvelle mise en avant n'est vendue.
+## Grands rendez-vous
 
-### J'IA / diffusion
-L'estimation pré-publication expose une portée indicative : communautés, talents, recruteurs et partenaires. La diffusion réelle sera raccordée progressivement à Community, Campus, Mobility, Offers, Career Journey et Hub institutionnel.
+- 6 slots simultanés ;
+- 10 000 FCFA / 7 jours ;
+- achat possible après publication ;
+- disponibilité contrôlée côté serveur.
 
-### Sécurité
-Les règles de publication et les droits sur les médias sont acceptés avant publication. Le système prévoit surveillance, signalement et retrait d'un événement non conforme.
+## Raccordements réalisés dans cette passe
 
-## État de cette passe
-- Event Core : **CODÉ**
-- Pricing serveur : **CODÉ**
-- Publication gratuite Jobly / entitlement partenaire : **CODÉ**
-- Paiement publication / vérification : **CODÉ**
-- Page \`/events\` : **CODÉE**
-- Création \`/events/create\` : **CODÉE**
-- Détail \`/events/[id]\` : **CODÉ**
-- Grand rendez-vous : **CODÉ / paiement à finaliser E2E**
-- Upload média : **CODÉ**, nécessite \`JOBLY_EVENTS_BUCKET\`
-- Community bypass / modération automatique : **SPÉCIFIÉ, PAS ENCORE IMPLÉMENTÉ**
-- Raccordements runtime Community/Campus/Mobility/Offers/Career Journey/Hub : **À POURSUIVRE**
-- Migration Supabase : **PRÉSENTE DANS LE DÉPÔT, NON APPLIQUÉE À JOBLY-PROD**
-- Vercel : **AUCUN DÉPLOIEMENT**
-- Typecheck/build : **À OBSERVER SUR CI**
+- **Career Journey / profil** : pertinence personnalisée des événements.
+- **Mobility** : destination/départ utilisés comme contexte géographique de pertinence.
+- **Offers** : les événements Emploi & Recrutement entrent dans la même couche de découverte, sans duplication.
+- **Campus / Community / Hub** : contrats d'écosystème exposés autour de Event.
+- **J’IA** : estimation de portée + distribution in-app lors de la publication.
+- **Community** : nouveau flux de publication textuelle avec Event Bypass Detector ; suppression, notification et escalade récidiviste.
+- **Partenaires** : détection de partenaires/recruteurs potentiellement pertinents et notification de l'opportunité.
+- **Détail événement** : visibilité du raccordement écosystème.
 
-> Règle : CODÉ ≠ ACCESSIBLE ≠ CONNECTÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.
+## Gouvernance
+
+- Migration Event : **dans le dépôt, NON appliquée à JOBLY-PROD**.
+- Aucun déploiement Vercel.
+- Aucun merge vers `main`.
+- Aucun changement de production effectué par cette passe.
+- Les vérifications runtime production restent séparées du statut du code.
+
+> **CODÉ ≠ ACCESSIBLE ≠ CONNECTÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.**
 
 ---
-
-
 
 # CHECKPOINT LOT G — CAREER OS G2→G10 — 02/10/2026
 
