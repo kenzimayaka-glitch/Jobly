@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { adminClient } from "../../../../lib/server-auth";
-import { createInstitutionSession, hashPassword, setInstitutionCookie } from "../../../../lib/institution-auth";
+import { adminClient } from "../../../../../lib/server-auth";
+import { createInstitutionSession, hashPassword, setInstitutionCookie } from "../../../../../lib/institution-auth";
 
 export async function POST(request: NextRequest) {
   try {

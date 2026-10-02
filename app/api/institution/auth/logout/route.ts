@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient } from "../../../../lib/server-auth";
-import { clearInstitutionCookie, getInstitutionSession } from "../../../../lib/institution-auth";
+import { adminClient } from "../../../../../lib/server-auth";
+import { clearInstitutionCookie, getInstitutionSession } from "../../../../../lib/institution-auth";
 
 export async function POST(request: NextRequest) {
   const session = await getInstitutionSession(request);

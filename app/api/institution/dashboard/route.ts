@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     const { data: institutionProfiles } = await db.from("Profile").select("userId").eq("institutionId", institutionId);
-    const userIds = (institutionProfiles ?? []).map((row) => row.userId).filter(Boolean);
+    const userIds = (institutionProfiles ?? []).map((row: { userId: string }) => row.userId).filter(Boolean);
     const beneficiaries = userIds.length;
     const { count: applications } = userIds.length
       ? await db.from("Application").select("id", { count: "exact", head: true }).in("userId", userIds)
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       institution: session.institution,
       kpis: {
-        partnerships: partnerships?.filter((p) => p.status === "ACTIVE").length ?? 0,
+        partnerships: partnerships?.filter((p: { status: string }) => p.status === "ACTIVE").length ?? 0,
         projects: projects?.filter((p) => p.status === "ACTIVE").length ?? 0,
         beneficiaries: beneficiaries ?? 0,
         applications: applications ?? 0,

@@ -5,6 +5,8 @@ import { adminClient } from "./server-auth";
 const COOKIE = "jobly_institution_session";
 const SESSION_DAYS = 7;
 
+type InstitutionSummary = { id: string; name: string; city: string | null; type: string | null; active: boolean };
+
 function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
@@ -48,8 +50,9 @@ export async function getInstitutionSession(request: NextRequest) {
     .maybeSingle();
   if (error || !data || data.revokedAt || new Date(data.expiresAt) <= new Date()) return null;
   const access = Array.isArray(data.InstitutionAccess) ? data.InstitutionAccess[0] : data.InstitutionAccess;
-  if (!access?.active || !access.Institution?.active) return null;
-  return { sessionId: data.id, accessId: data.accessId, institution: access.Institution, login: access.login };
+  const institution = (Array.isArray(access?.Institution) ? access?.Institution[0] : access?.Institution) as InstitutionSummary | null;
+  if (!access?.active || !institution?.active) return null;
+  return { sessionId: data.id, accessId: data.accessId, institution, login: access.login };
 }
 
 export function setInstitutionCookie(response: NextResponse, token: string, expiresAt: Date) {
