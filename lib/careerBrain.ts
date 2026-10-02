@@ -10,6 +10,8 @@ export type CareerBrainContext = {
   assessments: Array<Record<string, unknown>>;
   scenarios: Array<Record<string, unknown>>;
   reviews: Array<Record<string, unknown>>;
+  actionRuns: Array<Record<string, unknown>>;
+  applicationOutcomes: { total: number; interviews: number; offers: number; rejections: number; pending: number };
   unavailableModules: string[];
   careerTwin: {
     currentLevel: number | null;
@@ -45,7 +47,7 @@ export async function buildCareerBrainContext(sb: SupabaseClient, userId: string
   if (journeyResult.error) {
     return {
       journey: null, goals: [], missions: [], recommendations: [], evidence: [], portfolio: [],
-      assessments: [], scenarios: [], reviews: [], unavailableModules: ["CareerJourney"],
+      assessments: [], scenarios: [], reviews: [], actionRuns: [], applicationOutcomes: { total: 0, interviews: 0, offers: 0, rejections: 0, pending: 0 }, unavailableModules: ["CareerJourney"],
       careerTwin: {
         currentLevel: null, targetLevel: null, readiness: null, targetRole: null, gaps: [],
         nextBestAction: null, evidenceStrength: 0, activeMissions: 0, activeGoals: 0,
@@ -58,7 +60,7 @@ export async function buildCareerBrainContext(sb: SupabaseClient, userId: string
   if (!journey) {
     return {
       journey: null, goals: [], missions: [], recommendations: [], evidence: [], portfolio: [],
-      assessments: [], scenarios: [], reviews: [], unavailableModules: [],
+      assessments: [], scenarios: [], reviews: [], actionRuns: [], applicationOutcomes: { total: 0, interviews: 0, offers: 0, rejections: 0, pending: 0 }, unavailableModules: [],
       careerTwin: {
         currentLevel: null, targetLevel: null, readiness: null, targetRole: null, gaps: [],
         nextBestAction: null, evidenceStrength: 0, activeMissions: 0, activeGoals: 0,
@@ -77,7 +79,7 @@ export async function buildCareerBrainContext(sb: SupabaseClient, userId: string
     }
   };
 
-  const [goals, missions, recommendations, evidence, portfolio, assessments, scenarios, reviews] = await Promise.all([
+  const [goals, missions, recommendations, evidence, portfolio, assessments, scenarios, reviews, actionRunsResult, applicationsResult] = await Promise.all([
     load("goals", "CareerGoal", "updatedAt"),
     load("missions", "CareerMission", "createdAt"),
     load("recommendations", "CareerRecommendation", "createdAt", 20),
@@ -86,6 +88,8 @@ export async function buildCareerBrainContext(sb: SupabaseClient, userId: string
     load("assessments", "CareerCompetencyAssessment", "createdAt", 50),
     load("scenarios", "CareerPathScenario", "createdAt", 20),
     load("reviews", "CareerReview", "periodEnd", 10),
+    sb.from("jia_action_runs").select("id,action,status,result,outcome,created_at,updated_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
+    sb.from("Application").select("id,status,updatedAt,createdAt").eq("userId", userId).order("updatedAt", { ascending: false }).limit(100),
   ]);
 
   const snapshot = (journey.latestSnapshot && typeof journey.latestSnapshot === "object")
@@ -98,6 +102,16 @@ export async function buildCareerBrainContext(sb: SupabaseClient, userId: string
   const nextBestAction = typeof snapshot.nextBestAction === "string" ? snapshot.nextBestAction : null;
   const targetRole = typeof journey.targetRole === "string" ? journey.targetRole : null;
 
+  const actionRuns = actionRunsResult.error ? (unavailableModules.push("action-runs"), [] as Array<Record<string, unknown>>) : ((actionRunsResult.data ?? []) as Array<Record<string, unknown>>);
+  const applications = applicationsResult.error ? (unavailableModules.push("applications"), [] as Array<Record<string, unknown>>) : ((applicationsResult.data ?? []) as Array<Record<string, unknown>>);
+  const normalizedStatuses = applications.map((a) => String(a.status || "").toUpperCase());
+  const applicationOutcomes = {
+    total: applications.length,
+    interviews: normalizedStatuses.filter((s) => s.includes("INTERVIEW")).length,
+    offers: normalizedStatuses.filter((s) => s.includes("OFFER") || s.includes("HIRED") || s.includes("ACCEPTED")).length,
+    rejections: normalizedStatuses.filter((s) => s.includes("REJECT") || s.includes("DECLIN")).length,
+    pending: normalizedStatuses.filter((s) => !s.includes("INTERVIEW") && !s.includes("OFFER") && !s.includes("HIRED") && !s.includes("ACCEPTED") && !s.includes("REJECT") && !s.includes("DECLIN")).length,
+  };
   const activeMissions = missions.filter((m) => ["ACCEPTED", "IN_PROGRESS"].includes(String(m.status))).length;
   const completedMissions = missions.filter((m) => String(m.status) === "COMPLETED").length;
   const activeGoals = goals.filter((g) => !["COMPLETED", "ABANDONED"].includes(String(g.status))).length;
@@ -106,12 +120,12 @@ export async function buildCareerBrainContext(sb: SupabaseClient, userId: string
   const latestReview = reviews[0] ?? null;
 
   return {
-    journey, goals, missions, recommendations, evidence, portfolio, assessments, scenarios, reviews, unavailableModules,
+    journey, goals, missions, recommendations, evidence, portfolio, assessments, scenarios, reviews, actionRuns, applicationOutcomes, unavailableModules,
     careerTwin: {
       currentLevel, targetLevel, readiness, targetRole, gaps, nextBestAction, evidenceStrength,
       activeMissions, activeGoals, completedMissions,
       latestReviewAt: typeof latestReview?.periodEnd === "string" ? latestReview.periodEnd : null,
-      latestOutcome: typeof latestReview?.outcome === "string" ? latestReview.outcome : null,
+      latestOutcome: typeof latestReview?.outcome === "string" ? latestReview.outcome : (typeof actionRuns[0]?.outcome === "object" ? "Dernière action J’IA vérifiée" : null),
     },
   };
 }
