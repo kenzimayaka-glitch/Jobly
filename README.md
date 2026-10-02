@@ -19,6 +19,17 @@ Le chantier Talent Mobilité Marché est techniquement clôturé. Le Recrutement
 6. retester après correction ;
 7. mettre à jour `README.md` et `Statut.md` avec les preuves réelles.
 
+### Évolution fonctionnelle contrôlée — recommandations de formation
+
+Le Career Journey 360 intègre désormais explicitement la **formation comme type d'action proposé par J’IA lorsque le diagnostic révèle un gap d'apprentissage structuré**.
+
+- Recommandation persistée : `CareerRecommendation.type = LEARN`.
+- La proposition distingue formation ciblée, apprentissage autonome et mise en pratique.
+- J’IA n'impose jamais la formation : l'utilisateur valide ou refuse la proposition.
+- Aucun organisme, prix, certification ou résultat n'est inventé sans source vérifiée.
+- La formation doit pouvoir alimenter la boucle **apprentissage → preuve → réévaluation**.
+- Le modèle/migration existant supporte déjà `LEARN` ; aucune nouvelle table ni nouveau système de paiement n'a été créé.
+
 ### État de vérité
 
 **🟨 CODÉ + CORRIGÉ + RÉCONCILIÉ — NON VALIDÉ RUNTIME / NON DÉPLOYÉ.**
