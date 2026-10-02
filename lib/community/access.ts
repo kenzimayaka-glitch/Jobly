@@ -1,27 +1,25 @@
 import { NextRequest } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
-
-const PAID_PLANS = new Set(["START", "PREMIUM", "PRO", "PREMIUM_MONTHLY", "PREMIUM_ANNUAL"]);
+import { getActivePlanCode } from "@/lib/entitlements";
+import { getEntitlements } from "@/lib/billingCatalog";
 
 export async function getCommunityAccess(request: NextRequest) {
   const authUser = await getAuthUser(request);
-  if (!authUser) return { allowed: false, reason: "UNAUTHENTICATED" as const, authUser: null, user: null, db: null };
+  if (!authUser) return { allowed: false, reason: "UNAUTHENTICATED" as const, authUser: null, user: null, db: null, subscription: null, planCode: "FREE" as const, blueBadge: false };
 
   const db = adminClient();
   const user = await ensureUser(db, authUser);
-  const { data: subscription, error } = await db
-    .from("Subscription")
-    .select("id,planCode,status,currentPeriodEnd")
-    .eq("userId", user.id)
-    .order("createdAt", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const planCode = await getActivePlanCode(db, user.id, "TALENT");
+  const entitlements = getEntitlements(planCode);
 
-  if (error) throw new Error(error.message);
-
-  const allowed =
-    subscription?.status === "ACTIVE" &&
-    PAID_PLANS.has(String(subscription?.planCode || "").toUpperCase());
-
-  return { allowed, reason: allowed ? "ACTIVE" as const : "SUBSCRIPTION_REQUIRED" as const, authUser, user, db, subscription };
+  return {
+    allowed: entitlements.communityAccess,
+    reason: entitlements.communityAccess ? "ACTIVE" as const : "SUBSCRIPTION_REQUIRED" as const,
+    authUser,
+    user,
+    db,
+    subscription: null,
+    planCode,
+    blueBadge: entitlements.blueBadge,
+  };
 }
