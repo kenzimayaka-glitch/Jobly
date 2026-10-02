@@ -1,3 +1,49 @@
+
+# CHECKPOINT 02/10/2026 — MOBILITY — VRAI DOSSIER CASE MANAGEMENT
+
+## Mise à jour
+
+Mobility évolue du simple formulaire/estimatif vers un **dossier opérationnel partagé** reliant Talent, Recruitment, Recruiter, J’IA, financement et traitement institutionnel.
+
+### Règle d'éligibilité figée
+- ancienneté Jobly : **>= 3 mois** ;
+- pack payant actif : **START / PREMIUM / PRO** ;
+- emploi obtenu + offre Recruiter identifiable ;
+- salaire de référence = salaire approuvé par l'offre Recruiter ;
+- convention employeur Mobility ;
+- garantie Recruiter lorsque requise ;
+- charge Mobility **<= 50 %** du salaire approuvé.
+
+### Dossier documentaire
+- CNI recto/verso ou passeport valide ;
+- plan de localisation ;
+- lettre d'engagement sur l'honneur ;
+- stockage privé `mobility-documents` ;
+- statuts PENDING / UNDER_REVIEW / VERIFIED / REJECTED / EXPIRED ;
+- timeline `MobilityProcessEvent` visible selon les rôles.
+
+### Surfaces codées
+- `/api/mobility/documents` : dépôt/liste sécurisé côté Talent ;
+- `/api/mobility/documents/verify` : vérification opérateur autorisé ;
+- `/api/mobility/dossier` : dossier + timeline ;
+- `/bons-plans/mobility/talent/status` : espace dossier partagé Talent.
+
+### Correction de sécurité métier
+La garantie Recruiter **ne peut plus transformer une décision INELIGIBLE en ELIGIBLE**. Elle satisfait uniquement le critère de garantie puis le moteur d'éligibilité est recalculé.
+
+### Production / déploiement
+- Storage bucket privé créé dans JOBLY-PROD : 🟢
+- Vercel : **AUCUN DÉPLOIEMENT**
+- Main : **NON MODIFIÉ**
+- Branche de travail : `mobility/f1-eligibility-institutional`
+
+### État
+**CODÉ → MIGRÉ POUR LE STORAGE → À TESTER EN RUNTIME → NON DÉPLOYÉ**
+
+> La création du bucket privé est une modification JOBLY-PROD explicitement limitée au socle Storage Mobility ; aucun déploiement applicatif n'a été effectué.
+
+---
+
 # MASTER CONSOLIDATION GIT — 02/10/2026
 
 ## État canonique
