@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, ensureUser, getAuthUser, newId } from "../../../../lib/server-auth";
+import { adminClient, ensureUser, getAuthUser, newId } from "@/lib/server-auth";
 
 export const runtime = "nodejs";
 
