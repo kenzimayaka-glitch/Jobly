@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
   const slugBase = slugify(name) || newId();
   let slug = slugBase;
   const { data: existingSlug } = await access.db.from("Community").select("id").eq("slug", slug).maybeSingle();
-  if (existingSlug) slug = \`\${slugBase}-\${Math.random().toString(36).slice(2, 7)}\`;
+  if (existingSlug) slug = `${slugBase}-${Math.random().toString(36).slice(2, 7)}`;
 
   const now = new Date().toISOString();
   const { data, error } = await access.db.from("Community").insert({
