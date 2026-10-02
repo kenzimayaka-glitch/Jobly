@@ -5,6 +5,7 @@ import { actionForIntent, isFinancialRequest } from "./guard";
 import { observeInternet } from "./internet";
 import { buildJiaContext } from "@/lib/jiaContext";
 import { buildMonAfriqueContext } from "@/lib/jia/monAfrique";
+import { WATCH_INTENT_QCM, type JiaQcmQuestion } from "@/lib/jia/qcm";
 
 export type JiaBrainInput = {
   userId: string;
@@ -27,6 +28,7 @@ export type JiaBrainResult = {
   sources?: Array<{ title: string; url: string; snippet: string }>;
   traceId?: string;
   monAfrique?: { enabled: boolean; countries: string[]; confirmed: boolean };
+  qcm?: JiaQcmQuestion;
 };
 
 const EMPTY: Record<"fr" | "en", string> = {
@@ -177,6 +179,7 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
 
   const intent = normalizeIntent(context.message);
   const financialRequest = isFinancialRequest(context.message);
+  const qcm = intent === "WATCH" ? WATCH_INTENT_QCM : undefined;
   // Barrière financière : évaluée AVANT toute action (cf. lib/jia/guard.ts).
   const fallbackAction = financialRequest ? undefined : actionForIntent(intent, context.message);
   const fallbackPool = CONTEXTUAL_FALLBACKS[intent] || CONTEXTUAL_FALLBACKS.CAREER;
@@ -204,5 +207,5 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     metadata: { provider, ecosystem: context.ecosystem, proactive: context.proactive, monAfrique },
   }).select("id").single();
 
-  return { message, intent, confidence, proposedAction, provider, sources, monAfrique, ...(trace.data?.id ? { traceId:String(trace.data.id) } : {}) };
+  return { message, intent, confidence, proposedAction, provider, sources, monAfrique, ...(qcm ? { qcm } : {}), ...(trace.data?.id ? { traceId:String(trace.data.id) } : {}) };
 }
