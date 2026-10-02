@@ -5,7 +5,7 @@ const n = (v:string|undefined, fallback:number, min:number, max:number) => {
 };
 export function getJiaInternetConfig(): JiaInternetConfig {
   const raw=(process.env.JIA_INTERNET_MODE||"READ").toUpperCase() as InternetMode;
-  const mode:InternetMode=["OFF","READ","ANALYZE","PROACTIVE"].includes(raw)?raw:"READ";
+  const mode:InternetMode=["OFF","READ","ANALYZE","ON_DEMAND","PROACTIVE"].includes(raw)?raw:"READ";
   return {
     enabled:process.env.JIA_INTERNET_ENABLED!=="false" && mode!=="OFF", mode,
     maxQueries:n(process.env.JIA_INTERNET_MAX_QUERIES,3,1,8),
