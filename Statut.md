@@ -4736,3 +4736,8 @@ Le gate Oxlint source détecte actuellement 129 avertissements et 1 erreur. Pour
 ## Correction lint — artefact de saut de ligne
 
 Oxlint a isolé un dernier blocant : `supabase/functions/discover-jobs/index.ts:87` contenait des `\\n` littéraux dans une expression TypeScript. Le bloc a été réécrit avec de vrais retours à la ligne. Cette correction est conforme à la règle anti-artefact de la reconstruction.
+
+
+## Vercel preview gate
+
+Le projet canonique a Git Deployment désactivé dans `vercel.json`; aucune preview Vercel n'est donc créée automatiquement par le push. Un workflow PR dédié a été ajouté pour produire une preview Vercel avec le même install/lint/typecheck/build, puis `vercel deploy --prebuilt`. La disponibilité réelle de cette preview dépend uniquement de la présence de `VERCEL_TOKEN` dans les secrets GitHub.
