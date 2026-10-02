@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authUser, adminClient, ensureUser } from "../../../../../lib/mobilityServer";
+import { calculateMobilityEligibility } from "../../../../../lib/mobilityEligibility";
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,7 +10,7 @@ export async function POST(req: NextRequest) {
     const u = await ensureUser(sb, au);
     const b = await req.json();
 
-    const { data: request } = await sb.from("MobilityRequest").select("id,userId,recruiterUserId,applicationId,costTotal,companyAgreementId").eq("id", b.requestId).maybeSingle();
+    const { data: request } = await sb.from("MobilityRequest").select("id,userId,recruiterUserId,applicationId,costTotal,companyAgreementId,salaryApproved,salaryCurrency,eligibilityStatus,eligibilityThresholdPercent").eq("id", b.requestId).maybeSingle();
     if (!request) return NextResponse.json({ message: "Dossier Mobility introuvable." }, { status: 404 });
 
     let recruiterUserId = request.recruiterUserId;
@@ -42,14 +43,42 @@ export async function POST(req: NextRequest) {
     }).select("*").single();
     if (guaranteeError) throw new Error(guaranteeError.message);
 
+    const { data: talent } = await sb.from("User").select("createdAt").eq("id", request.userId).maybeSingle();
+    const { data: subscription } = await sb.from("Subscription").select("plan,planCode,status,currentPeriodEnd,trialEndsAt").eq("userId", request.userId).order("createdAt", { ascending: false }).limit(1).maybeSingle();
+    const paidPlan = String(subscription?.planCode || subscription?.plan || "").toUpperCase();
+    const activePaidPlan = !!subscription
+      && ["START","PREMIUM","PRO"].includes(paidPlan)
+      && ["ACTIVE","TRIALING"].includes(String(subscription.status).toUpperCase())
+      && (!subscription.currentPeriodEnd || new Date(subscription.currentPeriodEnd) > new Date())
+      && (String(subscription.status).toUpperCase() !== "TRIALING" || !subscription.trialEndsAt || new Date(subscription.trialEndsAt) > new Date());
+
+    const { data: costItems } = await sb.from("MobilityCostItem").select("category,amount,currency,source").eq("mobilityRequestId", request.id);
+    const eligibility = calculateMobilityEligibility({
+      approvedSalary: Number(request.salaryApproved || 0),
+      salaryCurrency: request.salaryCurrency || "XAF",
+      costs: (costItems || []).map((x:any) => ({ category: x.category, amount: Number(x.amount || 0), currency: x.currency || request.salaryCurrency || "XAF", source: x.source })),
+      companyMobilityAgreementAccepted: true,
+      recruiterGuaranteeAccepted: true,
+      repaymentMonths,
+      thresholdPercent: Number(request.eligibilityThresholdPercent || 50),
+      userCreatedAt: talent?.createdAt || null,
+      activePaidPlan,
+    });
+    if (eligibility.status === "INELIGIBLE") {
+      return NextResponse.json({ message: "La garantie recruteur ne peut pas contourner une inéligibilité Mobility.", eligibility }, { status: 422 });
+    }
     const monthly = Math.round(total / repaymentMonths);
     const { data: updated, error } = await sb.from("MobilityRequest").update({
       recruiterGuaranteed: true,
       recruiterGuaranteeId: guarantee.id,
       currentStep: Math.max(3, Number(b.currentStep || 3)),
       status: "GUARANTEED",
-      eligibilityStatus: "ELIGIBLE",
-      eligibilityReason: "Convention employeur acceptée et garantie recruteur active. Le remboursement reste dû sur 3 mois, y compris en cas de fin de contrat.",
+      eligibilityStatus: eligibility.status,
+      eligibilityThresholdPercent: eligibility.thresholdPercent,
+      eligibilityBurdenPercent: eligibility.burdenPercent,
+      eligibilityReason: eligibility.reason,
+      eligibilityCalculatedAt: eligibility.calculatedAt,
+      eligibilityVersion: eligibility.version,
       updatedAt: new Date().toISOString(),
     }).eq("id", request.id).select("*").single();
     if (error) throw new Error(error.message);
