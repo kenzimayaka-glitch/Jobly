@@ -929,7 +929,8 @@ model InstitutionPartnership {
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   projects InstitutionProject[]
   reports InstitutionReport[]
-  @@index([institutionId, status])  kpiTargets InstitutionKpiTarget[]
+  @@index([institutionId, status])
+  kpiTargets InstitutionKpiTarget[]
   kpiSnapshots InstitutionKpiSnapshot[]
 
   @@map("InstitutionPartnership")
@@ -952,7 +953,8 @@ model InstitutionProject {
   partnership InstitutionPartnership @relation(fields: [partnershipId], references: [id], onDelete: Cascade)
   reports InstitutionReport[]
   @@index([institutionId, status])
-  @@index([partnershipId, status])  kpiTargets InstitutionKpiTarget[]
+  @@index([partnershipId, status])
+  kpiTargets InstitutionKpiTarget[]
   kpiSnapshots InstitutionKpiSnapshot[]
 
   @@map("InstitutionProject")
