@@ -1,4 +1,5 @@
-import crypto from "node:crypto";\nimport { NextRequest, NextResponse } from "next/server";
+import crypto from "node:crypto";
+import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
 import {
   checksum,
