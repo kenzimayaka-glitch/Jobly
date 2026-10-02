@@ -23,10 +23,10 @@
 - Endpoint `/api/events/:id/ecosystem` et affichage du raccordement sur le détail.
 
 ### À POURSUIVRE
-- Diffusion J’IA réelle vers les communautés concernées.
+- Diffusion J’IA réelle vers les communautés concernées : **CODÉE côté notifications in-app + estimation de portée** ; canaux externes restent hors périmètre.
 - Alimentation de l'estimation d'audience par des données réelles de l'écosystème.
 - Event Bypass Detector dans Community : texte uniquement, détection des contournements, suppression graduée et sanctions récidivistes.
-- Sponsoring / recherche de partenaires.
+- Sponsoring / recherche de partenaires : **détection + notification de partenaires/recruteurs codée** ; transaction de sponsoring dédiée reste hors schéma actuel.
 - E2E paiement + slots.
 - Vérification réelle du bucket média.
 - Tests UX et navigateur.
@@ -36,7 +36,7 @@
 - Migration SQL présente dans le dépôt mais **non appliquée à JOBLY-PROD**.
 - Aucun déploiement Vercel.
 - Aucun merge vers `main`.
-- CI typecheck/build : à observer sur la branche.
+- CI typecheck/build : **PASSÉ** (run 1153).
 - La couche d'écosystème ne crée pas de source de vérité parallèle : **Event reste la source unique de vérité événementielle**.
 
 > Règle : CODÉ ≠ ACCESSIBLE ≠ CONNECTÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.
