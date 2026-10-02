@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCommunityAccess } from "@/lib/community/access";
+import { getCommunityAccess, getCommunityEntitlementsForUser } from "@/lib/community/access";
 import { newId } from "@/lib/server-auth";
 
 export const runtime = "nodejs";
@@ -29,7 +29,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     .limit(100);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ posts: data || [], count: data?.length || 0 });
+  const authorIds = Array.from(new Set((data || []).map((post: any) => post.authorId).filter(Boolean)));
+  const badgeByUser = new Map<string, boolean>();
+  await Promise.all(authorIds.map(async (authorId) => {
+    const entitlement = await getCommunityEntitlementsForUser(access.db, authorId);
+    badgeByUser.set(authorId, entitlement.blueBadge);
+  }));
+  const posts = (data || []).map((post: any) => ({ ...post, author: post.author ? { ...post.author, blueBadge: badgeByUser.get(post.authorId) === true } : post.author }));
+  return NextResponse.json({ posts, count: posts.length });
 }
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
