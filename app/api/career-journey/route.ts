@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
       recommendations: ctx.recommendations,
       scenarios: ctx.scenarios,
       reviews: ctx.reviews,
+      evidence: (await ctx.supabase.from("CareerEvidence").select("*").eq("userId", ctx.user.id).order("createdAt", { ascending: false }).limit(50)).data ?? [],
+      portfolio: (await ctx.supabase.from("CareerPortfolioItem").select("*").eq("userId", ctx.user.id).order("createdAt", { ascending: false }).limit(20)).data ?? [],
       entitlements: await getCareerJourneyEntitlements(ctx.supabase, ctx.user.id),
       profileContext: {
         targetRoles: ctx.context.profile?.targetRoles ?? [],
