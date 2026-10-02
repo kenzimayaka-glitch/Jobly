@@ -13,7 +13,8 @@ async function canonicalCvFileName(admin: SupabaseClient, authUserId: string) {
   const { data } = await admin.from("User").select("username,firstName").eq("authUserId", authUserId).maybeSingle();
   const now = new Date();
   const month = new Intl.DateTimeFormat("fr-FR", { month: "long" }).format(now);
-  const profile = data as { username?: unknown; firstName?: unknown } | null;\n  return `CV_${safeFilePart(profile?.username)}_${safeFilePart(profile?.firstName)}_${safeFilePart(month)}_${now.getFullYear()}.pdf`;
+  const profile = data as { username?: unknown; firstName?: unknown } | null;
+  return `CV_${safeFilePart(profile?.username)}_${safeFilePart(profile?.firstName)}_${safeFilePart(month)}_${now.getFullYear()}.pdf`;
 }
 
 export async function POST(request: NextRequest) {
