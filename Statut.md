@@ -4726,3 +4726,8 @@ Oxlint a d'abord parcouru `node_modules` et remonté des avertissements de dépe
 ## Validation CI — état intermédiaire
 
 La passe `typecheck + build` est verte sur le commit `d919e3a`. Le run lint `8b8c157` a échoué uniquement parce que le périmètre Oxlint initial incluait `node_modules`; le script a été corrigé sur `5b9e750` pour cibler exclusivement le code Jobly. Un nouveau run CI doit être obtenu sur ce SHA avant merge.
+
+
+## Ajustement lint — sortie erreurs uniquement
+
+Le gate Oxlint source détecte actuellement 129 avertissements et 1 erreur. Pour isoler le blocant sans bruit tiers/non bloquant, la commande `pnpm lint` est temporairement passée en mode `--quiet`, qui conserve les erreurs et masque les avertissements. L'erreur unique sera corrigée avant certification.
