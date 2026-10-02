@@ -929,7 +929,9 @@ model InstitutionPartnership {
   institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   projects InstitutionProject[]
   reports InstitutionReport[]
-  @@index([institutionId, status])
+  @@index([institutionId, status])  kpiTargets InstitutionKpiTarget[]
+  kpiSnapshots InstitutionKpiSnapshot[]
+
   @@map("InstitutionPartnership")
 }
 
@@ -950,7 +952,9 @@ model InstitutionProject {
   partnership InstitutionPartnership @relation(fields: [partnershipId], references: [id], onDelete: Cascade)
   reports InstitutionReport[]
   @@index([institutionId, status])
-  @@index([partnershipId, status])
+  @@index([partnershipId, status])  kpiTargets InstitutionKpiTarget[]
+  kpiSnapshots InstitutionKpiSnapshot[]
+
   @@map("InstitutionProject")
 }
 
@@ -971,4 +975,46 @@ model InstitutionReport {
   @@index([institutionId, createdAt])
   @@index([projectId, createdAt])
   @@map("InstitutionReport")
+}
+
+
+model InstitutionKpiTarget {
+  id String @id @default(cuid())
+  institutionId String @db.Uuid
+  partnershipId String
+  projectId String?
+  key String
+  label String
+  target Decimal @db.Decimal(18,2)
+  unit String @default("COUNT")
+  periodStart DateTime
+  periodEnd DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  partnership InstitutionPartnership @relation(fields: [partnershipId], references: [id], onDelete: Cascade)
+  project InstitutionProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([institutionId, periodStart, periodEnd])
+  @@index([projectId, key, periodEnd])
+  @@map("InstitutionKpiTarget")
+}
+
+model InstitutionKpiSnapshot {
+  id String @id @default(cuid())
+  institutionId String @db.Uuid
+  partnershipId String
+  projectId String?
+  key String
+  label String
+  value Decimal @db.Decimal(18,2)
+  unit String @default("COUNT")
+  periodStart DateTime
+  periodEnd DateTime
+  source String
+  generatedAt DateTime @default(now())
+  metadata Json @default("{}")
+  partnership InstitutionPartnership @relation(fields: [partnershipId], references: [id], onDelete: Cascade)
+  project InstitutionProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([institutionId, periodEnd])
+  @@index([projectId, key, periodEnd])
+  @@map("InstitutionKpiSnapshot")
 }
