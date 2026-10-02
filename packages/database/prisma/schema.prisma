@@ -186,6 +186,7 @@ model User {
   careerAssessments CareerCompetencyAssessment[]
   careerAttempts CareerCompetencyAttempt[]
   careerReviews CareerReview[]
+  watchSubscriptions JiaWatchSubscription[]
 }
 
 model Profile {
@@ -1023,3 +1024,6 @@ model InstitutionKpiSnapshot {
   @@index([projectId, key, periodEnd])
   @@map("InstitutionKpiSnapshot")
 }
+
+
+
