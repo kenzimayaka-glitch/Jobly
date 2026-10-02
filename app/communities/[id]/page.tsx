@@ -46,7 +46,7 @@ export default function CommunityPage() {
         setCommunity((data.communities || []).find((item: Community) => item.id === params.id) || null);
 
         if (data.access?.allowed) {
-          const postsResponse = await fetch(\`/api/community/\${params.id}/posts\`, { cache: "no-store" });
+          const postsResponse = await fetch(`/api/community/${params.id}/posts`, { cache: "no-store" });
           if (postsResponse.ok) {
             const postsData = await postsResponse.json();
             setPosts(Array.isArray(postsData.posts) ? postsData.posts : []);
@@ -63,15 +63,15 @@ export default function CommunityPage() {
 
   async function join() {
     if (!access.allowed) {
-      router.push(access.reason === "UNAUTHENTICATED" ? \`/login?next=/communities/\${params.id}\` : "/abonnement");
+      router.push(access.reason === "UNAUTHENTICATED" ? `/login?next=/communities/${params.id}` : "/abonnement");
       return;
     }
-    const response = await fetch(\`/api/community/\${params.id}/membership\`, { method: "POST" });
-    if (response.status === 401) return router.push(\`/login?next=/communities/\${params.id}\`);
+    const response = await fetch(`/api/community/${params.id}/membership`, { method: "POST" });
+    if (response.status === 401) return router.push(`/login?next=/communities/${params.id}`);
     if (response.status === 403) return router.push("/abonnement");
     if (response.ok) {
       setJoined(true);
-      const postsResponse = await fetch(\`/api/community/\${params.id}/posts\`, { cache: "no-store" });
+      const postsResponse = await fetch(`/api/community/${params.id}/posts`, { cache: "no-store" });
       if (postsResponse.ok) {
         const data = await postsResponse.json();
         setPosts(Array.isArray(data.posts) ? data.posts : []);
@@ -82,12 +82,12 @@ export default function CommunityPage() {
   async function publish() {
     const value = content.trim();
     if (!value) return;
-    const response = await fetch(\`/api/community/\${params.id}/posts\`, {
+    const response = await fetch(`/api/community/${params.id}/posts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: value }),
     });
-    if (response.status === 401) return router.push(\`/login?next=/communities/\${params.id}\`);
+    if (response.status === 401) return router.push(`/login?next=/communities/${params.id}`);
     if (response.status === 403) {
       setMessage("Community est accessible avec un abonnement actif.");
       return;
@@ -102,7 +102,7 @@ export default function CommunityPage() {
     setMessage("");
   }
 
-  const inviteUrl = typeof window !== "undefined" ? \`\${window.location.origin}/communities/\${params.id}?invite=1\` : "";
+  const inviteUrl = typeof window !== "undefined" ? `${window.location.origin}/communities/${params.id}?invite=1` : "";
   async function copyInvite() {
     if (!inviteUrl) return;
     await navigator.clipboard.writeText(inviteUrl);
@@ -110,7 +110,7 @@ export default function CommunityPage() {
   }
   function shareWhatsApp() {
     if (!inviteUrl) return;
-    window.open(\`https://wa.me/?text=\${encodeURIComponent(\`Rejoins cette communauté sur Jobly : \${inviteUrl}\`)}\`, "_blank", "noopener,noreferrer");
+    window.open(`https://wa.me/?text=${encodeURIComponent(`Rejoins cette communauté sur Jobly : ${inviteUrl}`)}`, "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -146,7 +146,7 @@ export default function CommunityPage() {
                 <div className="text-2xl">🔒</div>
                 <h2 className="mt-3 text-lg font-black">Community est réservé aux abonnés</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-500">Réactivez votre abonnement pour rejoindre cette communauté et participer aux échanges.</p>
-                <button type="button" onClick={() => router.push(access.reason === "UNAUTHENTICATED" ? \`/login?next=/communities/\${params.id}\` : "/abonnement")} className="mt-5 rounded-2xl bg-[#0B1F4B] px-5 py-3 text-xs font-black text-white">Continuer</button>
+                <button type="button" onClick={() => router.push(access.reason === "UNAUTHENTICATED" ? `/login?next=/communities/${params.id}` : "/abonnement")} className="mt-5 rounded-2xl bg-[#0B1F4B] px-5 py-3 text-xs font-black text-white">Continuer</button>
               </section>
             ) : (
               <>
