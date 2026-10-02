@@ -118,12 +118,36 @@ export async function generateJourneyRecommendations(ctx: Awaited<ReturnType<typ
     ...(journey.targetRole ? [] : ["objectif professionnel"]),
   ];
   const created = [];
-  if (assessment.gaps[0]) {
+  const primaryGap = assessment.gaps[0] ?? null;
+  const learningGap = assessment.gaps.find((gap) => /formation|certification|compétence/i.test(gap)) ?? null;
+
+  if (learningGap) {
+    created.push(await createRecommendation(supabase, user.id, journey.id, {
+      type: "LEARN",
+      title: /formation/i.test(learningGap)
+        ? "Choisir une formation pertinente pour réduire l'écart"
+        : "Renforcer la compétence clé avec une formation ciblée",
+      rationale: `J’IA identifie un besoin d’apprentissage structuré : ${learningGap}. La formation est proposée comme option lorsque l’acquisition de la compétence nécessite un apprentissage formel ; elle reste soumise à votre validation.`,
+      gap: learningGap,
+      expectedOutcome: "Acquérir ou consolider la compétence ciblée puis produire une preuve exploitable lors de la prochaine réévaluation.",
+      missingData,
+      assumptions: [
+        "La formation est une option, pas une obligation.",
+        "Le choix final de la formation appartient à l'utilisateur.",
+        "Aucun organisme, prix, certification ou résultat n'est affirmé sans source de formation vérifiée."
+      ],
+      alternatives: [
+        { type: "FORMATION", label: "Formation courte ciblée", topic: learningGap },
+        { type: "RESOURCE", label: "Ressource d'apprentissage autonome", topic: learningGap },
+        { type: "PRACTICE", label: "Projet ou mise en pratique guidée", topic: learningGap }
+      ],
+    }));
+  } else if (primaryGap) {
     created.push(await createRecommendation(supabase, user.id, journey.id, {
       type: assessment.readiness >= 70 ? "APPLY" : "PRACTICE",
       title: assessment.readiness >= 70 ? "Postuler sur les offres suffisamment alignées" : "Réduire l'écart prioritaire",
       rationale: assessment.nextBestAction,
-      gap: assessment.gaps[0],
+      gap: primaryGap,
       expectedOutcome: "Obtenir un nouvel élément exploitable pour la prochaine réévaluation.",
       missingData,
       assumptions: ["Analyse fondée uniquement sur les informations actuellement disponibles."],
