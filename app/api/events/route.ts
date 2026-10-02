@@ -89,7 +89,7 @@ export async function POST(request:NextRequest){
     });
     if(error)throw new Error(error.message);
     if(free){
-      const distribution=await estimateAndDistributeEvent(sb,{id,title,description,domain,subdomains,city:body.city,country:String(body.country??"CM"),startAt:startAt.toISOString(),endAt:endAt.toISOString()});
+      const distribution=await estimateAndDistributeEvent(sb,{id,title,description,domain,subdomains,city:body.city,country:String(body.country??"CM"),startAt:startAt.toISOString(),endAt:endAt.toISOString()},user.id);
       return NextResponse.json({eventId:id,status:"PUBLISHED",pricing:{...pricing,total:0},audienceEstimate:distribution.audienceEstimate,distribution,publicationSource:user.role==="ADMIN"?"JOBLY":"PARTNER_CONVENTION"},{status:201});
     }
     const provider=String(body.provider??"ICLAN").toUpperCase(),paymentId=crypto.randomUUID();
