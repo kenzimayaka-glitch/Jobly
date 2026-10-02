@@ -1,6 +1,8 @@
 name: Jobly Vercel Production
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
