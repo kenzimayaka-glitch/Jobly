@@ -11,9 +11,11 @@ export default function CareerJourneyPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
-  const authHeaders = useCallback(async () => {
+  const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
     const { data: session } = await getSupabaseClient().auth.getSession();
-    return session.session?.access_token ? { Authorization: `Bearer ${session.session.access_token}` } : {};
+    const headers: Record<string, string> = {};
+    if (session.session?.access_token) headers.Authorization = `Bearer ${session.session.access_token}`;
+    return headers;
   }, []);
 
   const load = useCallback(async () => {
