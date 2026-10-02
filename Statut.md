@@ -4410,3 +4410,31 @@ Règle : CODÉ ≠ CONNECTÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.
 - Le filtrage multi-pays utilise les codes des offres existantes; offres sans `countryCode` exclues de ce scope.
 - UI, activation veille, veille PRO, quotas/crédits et tests restent à faire.
 - Aucun schéma Supabase modifié, aucun merge main et aucun déploiement.
+
+
+# CHECKPOINT TALENT — MOBILITÉ MARCHÉ / VEILLE — 02/10/2026
+
+| Élément | État |
+|---|---|
+| Accès offres locales | 🟢 EXISTANT |
+| Accès offres Afrique | 🟢 EXISTANT |
+| Socle entitlements Talent | 🟢 CODÉ |
+| FREE découverte | 🟢 CODÉ |
+| START préparation multi-pays | 🟢 CODÉ |
+| START veille multi-pays active | 🔴 BLOQUÉE |
+| PREMIUM veille multi-pays | 🟢 GARDE CODÉE / EXÉCUTION À RACCORDER |
+| PRO veille panafricaine | 🟢 GARDE CODÉE / EXÉCUTION À RACCORDER |
+| API `/api/jobs` multi-pays | 🟢 CODÉ |
+| UI de préparation | ⏳ À RACCORDER |
+| Watcher/scheduler existant | ⏳ À RACCORDER APRÈS AUDIT DE LA BRANCHE CANONIQUE |
+| Quotas de veille | ⏳ À DÉFINIR/VALIDER |
+| Coûts J’IA spécifiques à la veille | ⏳ À DÉFINIR/VALIDER |
+| Migration Supabase | ⏸️ AUCUNE |
+| Tests dédiés | ⏳ À FAIRE |
+| CI globale | 🔴 ÉCHECS EXISTANTS SUR LE COMMIT DE TRAVAIL |
+| Main | ⏸️ NON MODIFIÉ |
+| Vercel | ⏸️ AUCUN DÉPLOIEMENT |
+
+**Règle de vérité : CODÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.**
+
+La prochaine étape doit rattacher cette garde au Watcher existant et à son mécanisme de persistance, sans recréer de système de veille concurrent.
