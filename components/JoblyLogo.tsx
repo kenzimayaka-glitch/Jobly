@@ -13,8 +13,8 @@ const JoblyLogo = forwardRef<HTMLDivElement, JoblyLogoProps>(function JoblyLogo(
   ref,
 ) {
   const hero = size === "hero";
-  const width = hero ? 220 : 120;
-  const height = hero ? 70 : 40;
+  const width = hero ? 339 : 120;
+  const height = hero ? 115 : 40;
 
   return (
     <div
