@@ -1,4 +1,4 @@
-export type InternetMode = "OFF" | "READ" | "ANALYZE" | "PROACTIVE";
+export type InternetMode = "OFF" | "READ" | "ANALYZE" | "ON_DEMAND" | "PROACTIVE";
 export type SourceType = "OFFICIAL" | "GOVERNMENT" | "COMPANY" | "UNIVERSITY" | "INTERNATIONAL_ORGANIZATION" | "NEWS" | "DATABASE" | "COMMUNITY" | "SOCIAL" | "UNKNOWN";
 export type EvidenceStatus = "CONFIRMED" | "LIKELY" | "CONTESTED" | "UNKNOWN";
 export type FreshnessStatus = "fresh" | "recent" | "aging" | "stale" | "expired" | "unknown";
