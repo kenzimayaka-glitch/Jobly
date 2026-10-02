@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
 import { getEventDomain, getEventPricing, estimateEventAudience, validateEventMedia, EVENT_MAX_DAYS } from "../../../lib/events";
 import { buildEventEcosystemConnections, scoreEventForProfile } from "../../../lib/eventEcosystem";
+import { estimateAndDistributeEvent } from "../../../lib/eventDistribution";
 
 export const dynamic = "force-dynamic";
 const fail=(message:string,status=400,code="EVENT_ERROR")=>NextResponse.json({error:code,message},{status});
@@ -87,7 +88,10 @@ export async function POST(request:NextRequest){
       priceAmount:pricing.total,priceCurrency:"XAF",safetyAcceptedAt:now,rightsAcceptedAt:now,createdAt:now,updatedAt:now
     });
     if(error)throw new Error(error.message);
-    if(free)return NextResponse.json({eventId:id,status:"PUBLISHED",pricing:{...pricing,total:0},audienceEstimate,publicationSource:user.role==="ADMIN"?"JOBLY":"PARTNER_CONVENTION"},{status:201});
+    if(free){
+      const distribution=await estimateAndDistributeEvent(sb,{id,title,description,domain,subdomains,city:body.city,country:String(body.country??"CM"),startAt:startAt.toISOString(),endAt:endAt.toISOString()});
+      return NextResponse.json({eventId:id,status:"PUBLISHED",pricing:{...pricing,total:0},audienceEstimate:distribution.audienceEstimate,distribution,publicationSource:user.role==="ADMIN"?"JOBLY":"PARTNER_CONVENTION"},{status:201});
+    }
     const provider=String(body.provider??"ICLAN").toUpperCase(),paymentId=crypto.randomUUID();
     const {data:payment,error:pe}=await sb.from("Payment").insert({id:paymentId,userId:user.id,provider,externalId:paymentId,amount:pricing.total,currency:"XAF",status:"CREATED",feature:"EVENT_PUBLICATION",createdAt:now,updatedAt:now}).select("*").single();
     if(pe)throw new Error(pe.message);
