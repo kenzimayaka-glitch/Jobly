@@ -3976,3 +3976,48 @@ La passe de conformité code ↔ décisions validées a corrigé les écarts sui
 **État de vérité : 🟨 CODÉ + CORRIGÉ + RÉCONCILIÉ — NON VALIDÉ RUNTIME / NON DÉPLOYÉ.**
 
 JOBLY-PROD ne contient pas encore les tables Career* de Career Journey ; aucune migration de production n'a été exécutée pendant cette passe. Aucun merge vers main et aucun déploiement Vercel n'ont été effectués.
+
+
+# CAREER JOURNEY 360 — PERFORMANCE → PREUVE → CAPITAL CARRIÈRE — 02/10/2026
+
+Career Journey 360 est consolidé comme une boucle de progression professionnelle réelle, et non comme un simple moteur de recommandations.
+
+## Boucle canonique
+**OBJECTIF → DIAGNOSTIC → GAPS → PLAN D'ACTION → PERFORMANCE RÉELLE → PREUVES → QUANTIFICATION → CV / PROFIL / PORTFOLIO → RÉÉVALUATION → NOUVEAU PLAN**
+
+J’IA cherche désormais la prochaine action qui fait progresser la personne **et peut laisser une preuve exploitable**.
+
+### 1. Missions de performance
+Une mission peut partir d'un poste et d'un objectif réel : progression d'un taux d'atteinte, volume traité, chiffre d'affaires, conversion, délai, qualité, portefeuille, management, projet ou autre KPI confirmé par l'utilisateur ou une source vérifiable.
+
+Exemple : « le mois précédent : 60 % ; objectif du mois : 100 % ». J’IA peut aider à découper le challenge en actions et jalons, mais **n'invente jamais le KPI, la baseline, la cible ou le résultat**.
+
+Le socle code expose PerformanceMissionSpec et buildPerformanceMission() avec baseline, cible, réalisé, période, unité, source et contexte de challenge.
+
+### 2. Preuves de terrain
+La progression peut laisser des éléments concrets : **photo terrain, document, résultat, cas concret réalisé, challenge géré, témoignage, lien, note ou autre preuve**.
+
+Une preuve doit rester attribuable à une action réelle. Elle peut être déclarée, documentée ou vérifiée ; l'absence de vérification ne doit pas être transformée en fait certain.
+
+Le socle code expose CareerEvidenceSpec et buildCareerEvidence() pour normaliser ces signaux sans imposer un nouveau schéma de données à ce stade.
+
+### 3. Quantification du parcours
+J’IA peut exploiter les preuves pour faire émerger les éléments chiffrables d'une expérience : volume, progression, revenu, taux, délai, portée, équipe, territoire, portefeuille, impact ou autre métrique réellement étayée.
+
+quantifyCareerEvidence() ne rend éligibles à une formulation CV que les éléments mesurables et vérifiés, et marque toujours la sortie comme soumise à validation utilisateur.
+
+### 4. Capital carrière
+Une même réalisation peut produire plusieurs actifs : **performance + compétence + expérience + impact + leadership + preuve + cas concret + matière CV + matière portfolio**. Career Journey doit chercher cette valeur cumulée plutôt que créer des missions isolées.
+
+### 5. Garde-fous
+- aucune métrique inventée ;
+- aucune photo/document présenté comme preuve vérifiée sans vérification ;
+- aucune modification automatique du CV sans validation utilisateur ;
+- les recommandations de formation restent optionnelles ;
+- les choix J’IA restent limités à 4 options maximum, puis « Autre… » lorsque pertinent ;
+- les opérations productives IA restent soumises aux règles d'entitlements et de crédits existantes.
+
+## Périmètre futur déjà cadré
+Le modèle doit pouvoir évoluer vers : suivi périodique des KPI, collecte de preuves, transformation en cas concret, portfolio, quantification CV, réévaluation et chaînage de missions. Les intégrations automatiques de données métier restent une étape distincte et ne sont pas prétendues comme déjà connectées.
+
+**État : 🟨 CODÉ + CONSOLIDÉ — NON VALIDÉ RUNTIME / NON DÉPLOYÉ.**
