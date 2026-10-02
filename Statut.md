@@ -4278,3 +4278,22 @@ Le stockage des publications, commentaires et autres contenus sociaux devra rest
 **Aucune table, migration ou route Community ne doit être créée à ce stade.** La prochaine étape est la spécification fonctionnelle précise, puis la définition du modèle de données minimal et des permissions avant implémentation.
 
 **Aucun déploiement Vercel et aucun merge vers `main` n'ont été effectués.**
+
+
+# LOT B — VEILLE J’IA — CORRECTION — 02/10/2026
+
+| Dimension | État | Détail |
+|---|---|---|
+| Brain / intent WATCH | 🔧 | Intention désormais détectable et QCM retourné |
+| QCM global J’IA | 🔧 | 4 choix max + Autre activable + texte + voix |
+| Subscription persistante | 🔧 | Réutilise JiaWatchSubscription existante |
+| Runs / snapshots | 🔧 | Réutilise JiaWatchRun et JiaWatchSnapshot |
+| Détection de changement | 🔧 | Hash de signal + snapshot précédent |
+| Notifications | 🔧 | Réutilise Notification, uniquement sur nouveauté |
+| Arrêt / pause logique | 🔧 | Désactivation persistante de la veille |
+| Scheduler | 🔧 | /api/cron/jia-watch + cron 15 min |
+| Migration DB | 🟢 | Aucune : les tables nécessaires existent déjà |
+| Déploiement | ⏸️ | Aucun |
+| Merge main | ⏸️ | Aucun |
+
+Le Lot B est maintenant codé sur toute sa chaîne métier : intention → QCM → confirmation → persistance → exécution planifiée → détection de changement → notification → arrêt. La validation CI/E2E reste à exécuter avant de le déclarer VALIDÉ.
