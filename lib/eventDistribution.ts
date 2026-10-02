@@ -36,7 +36,7 @@ function relevantCommunity(event: EventLike, community: { category?: string; nam
   return (keywordMatch || cityMatch) && countryMatch;
 }
 
-export async function estimateAndDistributeEvent(db: Db, event: EventLike) {
+export async function estimateAndDistributeEvent(db: Db, event: EventLike, actorUserId?: string) {
   const { data: communities, error: ce } = await db
     .from("Community")
     .select("id,name,category,description,city,country")
@@ -93,7 +93,7 @@ export async function estimateAndDistributeEvent(db: Db, event: EventLike) {
   };
 
   await db.from("JiaEvent").insert({
-    userId: "00000000-0000-0000-0000-000000000000",
+    userId: actorUserId ?? "system",
     eventType: "JOBLY_EVENT_DISTRIBUTION",
     path: "/events/" + event.id,
     metadata: {
