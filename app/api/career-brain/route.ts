@@ -46,6 +46,8 @@ export async function GET(request: NextRequest) {
         assessments: result.context.careerBrain.assessments,
         scenarios: result.context.careerBrain.scenarios,
         reviews: result.context.careerBrain.reviews,
+        actionRuns: result.context.careerBrain.actionRuns,
+        applicationOutcomes: result.context.careerBrain.applicationOutcomes,
         unavailableModules: result.context.careerBrain.unavailableModules,
         profile: result.context.profile,
         skills: result.context.skills,
