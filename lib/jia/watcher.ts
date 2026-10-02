@@ -36,7 +36,7 @@ export async function watchExternal(userId:string,target:JiaWatchTarget,subscrip
     context:{...signal.observation.context,watchKey:target.key,domain:target.domain},
   });
 
-  await sb.from("JiaWatchRun").upsert({
+  if (subscription) await sb.from("JiaWatchRun").upsert({
     id:runId,subscriptionId:subscription?.id ?? target.key,scheduledFor,status:"COMPLETED",startedAt:scheduledFor,
     finishedAt:new Date().toISOString(),signalHash:hash,changeCount:changed?1:0,confidence:signal.observation.confidence,
     intelligenceDecision:changed?"NOTIFY":"OBSERVE",relevanceScore:Number(signal.observation.context?.relevance??.5),
@@ -45,7 +45,7 @@ export async function watchExternal(userId:string,target:JiaWatchTarget,subscrip
     decisionReason:changed?"Nouveau signal depuis la dernière veille.":"Aucun changement depuis la dernière veille.",
   });
 
-  await sb.from("JiaWatchSnapshot").upsert({
+  if (subscription) await sb.from("JiaWatchSnapshot").upsert({
     id:createHash("sha256").update((subscription?.id??target.key)+":"+hash).digest("hex").slice(0,32),
     subscriptionId:subscription?.id??target.key,stateHash:hash,facts:signal.observation.facts??[],
     sources:signal.observation.sourcesUsed??[],context:{...signal.observation.context,watchKey:target.key,domain:target.domain},
