@@ -1,4 +1,24 @@
 
+# CHECKPOINT LOT D — 02/10/2026
+
+| Élément | État |
+|---|---|
+| KPIs institutionnels | 🟢 CODÉ |
+| Objectifs KPI | 🟢 CODÉ |
+| Comparaison temporelle | 🟢 CODÉ |
+| Interprétation J’IA factuelle | 🟢 CODÉ |
+| Dashboard Performance & évolution | 🟢 CODÉ |
+| Migration D | 🟢 CODÉ + test transactionnel |
+| Migration JOBLY-PROD | ⏸️ NON APPLIQUÉE |
+| E2E navigateur/runtime | ⏳ À TESTER |
+| Main | ⏳ PR À FUSIONNER |
+| Vercel | ⏸️ AUCUN DÉPLOIEMENT |
+
+Règle conservée : CODÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.
+
+---
+
+
 # CHECKPOINT 02/10/2026 — LOTS C + D — INSTITUTIONAL HUB
 
 | Élément | État |

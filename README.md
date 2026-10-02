@@ -1,4 +1,39 @@
 
+# CHECKPOINT LOT D — INSTITUTIONAL INTELLIGENCE
+
+Le cockpit institutionnel reçoit maintenant une première couche d'intelligence opérationnelle.
+
+### Capacités codées
+
+- KPIs institutionnels configurables par partenariat/projet ;
+- objectifs (InstitutionKpiTarget) ;
+- snapshots préparables (InstitutionKpiSnapshot) ;
+- comparaison des 30 derniers jours avec les 30 jours précédents ;
+- indicateurs : bénéficiaires suivis, candidatures, parcours suivis ;
+- évolution en pourcentage ;
+- lecture des objectifs actifs sur la période ;
+- interprétation textuelle J’IA basée exclusivement sur les valeurs calculées ;
+- avertissement explicite : aucune donnée inventée ;
+- dashboard enrichi avec une section Performance & évolution.
+
+### Principe de sécurité
+
+L'intelligence est calculée après contrôle de la session institutionnelle et est limitée aux utilisateurs rattachés à l'institution. Les tables KPI restent privées : RLS activée et aucun accès anon/authenticated.
+
+### Limite volontaire
+
+Les KPI avancés (insertion, placements, mobilité, objectifs métier complexes, agrégations par secteur, etc.) ne sont pas inventés tant que leurs sources et leurs règles de calcul n'ont pas été explicitement rattachées à un projet institutionnel.
+
+### État
+
+- D — socle intelligence : **CODÉ**
+- Migration D : **CODÉE / TESTÉE EN TRANSACTION / NON APPLIQUÉE PROD**
+- Runtime E2E : **À TESTER**
+- Vercel : **AUCUN DÉPLOIEMENT**
+
+---
+
+
 # CHECKPOINT 02/10/2026 — LOTS C + D — INSTITUTIONAL HUB / INSTITUTIONAL INTELLIGENCE
 
 ## Décision produit figée

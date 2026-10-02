@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+type Intelligence = { indicators: Array<{ key: string; label: string; value: number; previous: number; evolutionPercent: number }>; targets: Array<{ id: string; key: string; label: string; target: number; unit: string }>; interpretation: Array<{ key: string; text: string }>; disclaimer: string };
 type Dashboard = {
   institution: { id: string; name: string; city?: string | null; type: string };
   kpis: { partnerships: number; projects: number; beneficiaries: number; applications: number; reports: number };
@@ -15,6 +16,7 @@ export default function InstitutionHubPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"checking" | "private" | "dashboard">("checking");
   const [data, setData] = useState<Dashboard | null>(null);
+  const [intelligence, setIntelligence] = useState<Intelligence | null>(null);
 
   useEffect(() => {
     fetch("/api/institution/dashboard", { cache: "no-store" })
@@ -22,6 +24,8 @@ export default function InstitutionHubPage() {
         if (!r.ok) { setMode("private"); return; }
         const body = await r.json();
         setData(body);
+        const intel = await fetch("/api/institution/intelligence", { cache: "no-store" });
+        if (intel.ok) setIntelligence(await intel.json());
         setMode("dashboard");
       })
       .catch(() => setMode("private"));
@@ -88,6 +92,26 @@ export default function InstitutionHubPage() {
             </div>
           </section>
         </div>
+
+        {intelligence && (
+          <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm border border-slate-200">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div><p className="text-sm font-medium text-[#22448B]">J’IA · Institutional Intelligence</p><h2 className="mt-1 text-2xl font-semibold text-slate-900">Performance & évolution</h2></div>
+              <span className="text-xs text-slate-500">Fenêtre glissante de 30 jours</span>
+            </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              {intelligence.indicators.map((item) => (
+                <article key={item.key} className="rounded-xl bg-slate-50 p-4">
+                  <p className="text-sm text-slate-500">{item.label}</p>
+                  <div className="mt-2 flex items-end justify-between gap-2"><p className="text-2xl font-semibold text-slate-900">{item.value}</p><p className={item.evolutionPercent >= 0 ? "text-sm text-emerald-700" : "text-sm text-red-700"}>{item.evolutionPercent > 0 ? "+" : ""}{item.evolutionPercent}%</p></div>
+                  <p className="mt-1 text-xs text-slate-500">Période précédente : {item.previous}</p>
+                </article>
+              ))}
+            </div>
+            {intelligence.targets.length > 0 && <div className="mt-5"><h3 className="font-medium text-slate-900">Objectifs</h3><div className="mt-3 space-y-2">{intelligence.targets.map((target) => <div key={target.id} className="flex items-center justify-between rounded-xl border border-slate-200 p-3"><span className="text-sm text-slate-700">{target.label}</span><span className="text-sm font-semibold text-slate-900">{target.target} {target.unit}</span></div>)}</div></div>}
+            <p className="mt-5 text-xs text-slate-500">{intelligence.disclaimer}</p>
+          </section>
+        )}
 
         <section className="mt-6 rounded-2xl bg-[#22448B] p-6 text-white">
           <h2 className="text-xl font-semibold">J’IA institutionnelle</h2>
