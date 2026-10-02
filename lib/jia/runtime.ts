@@ -1,7 +1,7 @@
 import type {SupabaseClient} from "@supabase/supabase-js";
 import {buildCEOIntelligence} from "@/lib/ceoIntelligence";
 import {buildJiaContext} from "@/lib/jiaContext";
-import {buildCareerTwin,getCognitiveSnapshot,ingestExternalSignal,remember,updateBelief,createPrediction} from "./cognitive";
+import {buildCareerTwin,getCognitiveSnapshot,ingestExternalSignal,remember,updateBelief,createPrediction,reflect} from "./cognitive";
 import {publishTraceEvent} from "./eventBus";
 import {buildJiaSelfModel} from "./selfModel";
 import {buildNextBestActions,type Signal} from "./intelligence";
