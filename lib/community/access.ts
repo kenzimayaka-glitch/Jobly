@@ -1,7 +1,19 @@
 import { NextRequest } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
 import { getActivePlanCode } from "@/lib/entitlements";
-import { getEntitlements, getRecruiterEntitlements } from "@/lib/billingCatalog";
+import { getEntitlements, PlanCode } from "@/lib/billingCatalog";
+
+const PLAN_RANK: Record<PlanCode, number> = { FREE: 0, START: 1, PREMIUM: 2, PRO: 3 };
+
+export async function getCommunityEntitlementsForUser(db: any, userId: string) {
+  const [talentPlan, recruiterPlan] = await Promise.all([
+    getActivePlanCode(db, userId, "TALENT"),
+    getActivePlanCode(db, userId, "RECRUITER"),
+  ]);
+  const planCode = PLAN_RANK[recruiterPlan] > PLAN_RANK[talentPlan] ? recruiterPlan : talentPlan;
+  const entitlements = getEntitlements(planCode);
+  return { planCode, communityAccess: entitlements.communityAccess, blueBadge: entitlements.blueBadge };
+}
 
 export async function getCommunityAccess(request: NextRequest) {
   const authUser = await getAuthUser(request);
@@ -9,9 +21,7 @@ export async function getCommunityAccess(request: NextRequest) {
 
   const db = adminClient();
   const user = await ensureUser(db, authUser);
-  const productType = String(user.role) === "RECRUITER" ? "RECRUITER" as const : "TALENT" as const;
-  const planCode = await getActivePlanCode(db, user.id, productType);
-  const entitlements = productType === "RECRUITER" ? getRecruiterEntitlements(planCode) : getEntitlements(planCode);
+  const entitlements = await getCommunityEntitlementsForUser(db, user.id);
 
   return {
     allowed: entitlements.communityAccess,
@@ -20,7 +30,7 @@ export async function getCommunityAccess(request: NextRequest) {
     user,
     db,
     subscription: null,
-    planCode,
+    planCode: entitlements.planCode,
     blueBadge: entitlements.blueBadge,
   };
 }
