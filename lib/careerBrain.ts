@@ -31,8 +31,9 @@ export type CareerBrainContext = {
 
 const safeError = (error: unknown) => error && typeof error === "object" && "message" in error ? String((error as { message?: unknown }).message) : "unavailable";
 
-const rows = async (sb: SupabaseClient, table: string, userId: string, journeyId: string, orderBy?: string, limit?: number) => {
-  let query = sb.from(table).select("*").eq("userId", userId).eq("journeyId", journeyId);
+const rows = async (sb: SupabaseClient, table: string, userId: string, journeyId: string, orderBy?: string, limit?: number, includeJourney = true) => {
+  let query = sb.from(table).select("*").eq("userId", userId);
+  if (includeJourney) query = query.eq("journeyId", journeyId);
   if (orderBy) query = query.order(orderBy, { ascending: false });
   if (limit) query = query.limit(limit);
   const result = await query;
@@ -70,9 +71,9 @@ export async function buildCareerBrainContext(sb: SupabaseClient, userId: string
   }
 
   const journeyId = String(journey.id);
-  const load = async (label: string, table: string, orderBy?: string, limit?: number) => {
+  const load = async (label: string, table: string, orderBy?: string, limit?: number, includeJourney = true) => {
     try {
-      return await rows(sb, table, userId, journeyId, orderBy, limit);
+      return await rows(sb, table, userId, journeyId, orderBy, limit, includeJourney);
     } catch {
       unavailableModules.push(label);
       return [] as Array<Record<string, unknown>>;
@@ -84,7 +85,7 @@ export async function buildCareerBrainContext(sb: SupabaseClient, userId: string
     load("missions", "CareerMission", "createdAt"),
     load("recommendations", "CareerRecommendation", "createdAt", 20),
     load("evidence", "CareerEvidence", "createdAt", 100),
-    load("portfolio", "CareerPortfolioItem", "createdAt", 50),
+    load("portfolio", "CareerPortfolioItem", "createdAt", 50, false),
     load("assessments", "CareerCompetencyAssessment", "createdAt", 50),
     load("scenarios", "CareerPathScenario", "createdAt", 20),
     load("reviews", "CareerReview", "periodEnd", 10),
