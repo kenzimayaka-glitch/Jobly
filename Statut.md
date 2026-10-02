@@ -4691,3 +4691,8 @@ Cette reconstruction repart du dernier déploiement production READY 09e07f9 et 
 ## Correction build — Community entitlements
 
 Le premier typecheck de la reconstruction a révélé que `lib/community/access.ts` consommait `communityAccess` et `blueBadge` alors que `getEntitlements()` ne les exposait pas. Correction intégrée dans `lib/billingCatalog.ts` : accès Community pour START/PREMIUM/PRO ; badge pour PREMIUM/PRO. Le prochain typecheck doit confirmer le reste du socle avant tout merge.
+
+
+## Correction build — Prisma schema
+
+Le premier build complet a révélé une erreur de validation Prisma masquée tant que `prisma generate` n'était pas exécuté explicitement : plusieurs enums Career Journey étaient écrits sur une seule ligne, format refusé par le parseur Prisma 6.19.3. Ils ont été normalisés en blocs multi-lignes. Cette correction reste sur la branche jusqu'à validation typecheck + build.
