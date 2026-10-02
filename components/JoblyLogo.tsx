@@ -23,7 +23,7 @@ const JoblyLogo = forwardRef<HTMLDivElement, JoblyLogoProps>(function JoblyLogo(
       className={`inline-flex select-none items-center leading-none ${className}`}
     >
       <img
-        src="/jobly-logo-official.png"
+        src="/IMG-20260928-WA1495.jpg"
         alt={showTagline ? "JobLy — Your Career OS." : "JobLy"}
         width={width}
         height={height}
