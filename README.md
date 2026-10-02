@@ -1,3 +1,33 @@
+## CAREER — SOURCE UNIQUE DE VÉRITÉ — 02/10/2026
+
+### Décision architecturale figée
+**Career Journey 360 — Architecture B est désormais la seule source de vérité pour cette étape.**
+
+- Architecture A : **abandonnée / hors cible** ; elle ne doit plus être réintroduite ni utilisée pour une réconciliation.
+- Aucun nouveau « Career State Model » parallèle.
+- Aucun second moteur de trajectoire Career.
+- `CareerJourney` porte l'état longitudinal ; objectifs → compétences/écarts → recommandations → missions → progression → preuves → portfolio → assessment → radar/scénarios → review → réévaluation.
+- `lib/careerEngine.ts` reste un moteur d'analyse réutilisé par Journey ; il ne devient pas une seconde source d'état.
+- J’IA orchestre et interprète Career Journey ; elle ne crée pas une carrière parallèle.
+- Mobility se branche sur Journey lorsqu'une opportunité implique une mobilité physique.
+
+### Consolidation dans main
+La surface Architecture B a été intégrée directement dans `main` afin que le socle Career ne dépende plus de la branche de chantier : APIs Career Journey, UI `/career-journey`, services Journey, entitlements, migration et schéma Prisma.
+
+### État de validation
+- Code : **INTÉGRÉ DANS MAIN**
+- Documentation : **MISE À JOUR**
+- Architecture B : **SOURCE UNIQUE DE VÉRITÉ**
+- Migration : **PRÉSENTE DANS LE DÉPÔT**
+- JOBLY-PROD : **NON MODIFIÉE PAR CETTE PASSE**
+- Vercel : **AUCUN DÉPLOIEMENT**
+- E2E complet et validation runtime production : **À POURSUIVRE**
+- Fusion/suppression des anciennes branches : **À faire après contrôle final, sans perte de contenu**
+
+> Règle : CODÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ. La présence dans `main` établit la source de code, pas une preuve de déploiement production.
+
+---
+
 # JOBLY — ÉTAT COURANT DE GOUVERNANCE — 02/10/2026
 
 ## MASTER CONSOLIDATION — ÉTAT CANONIQUE
