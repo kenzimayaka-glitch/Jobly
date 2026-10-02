@@ -192,7 +192,7 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     title: "J’IA Brain decision",
     content: message,
     confidence,
-    evidence: { path: context.path, action: context.action, intent, memoryCount: memory.data?.length || 0, eventCount: events.length, webSources: sources.map((source) => source.url), webConfidence: webSignal?.observation.confidence ?? 0, webStatus: webSignal?.observation.status ?? "UNKNOWN", contradictions: webSignal?.observation.contradictingSources ?? [] },
+    evidence: { path: context.path, action: context.action, intent, memoryCount: memory.length || 0, eventCount: events.length, webSources: sources.map((source) => source.url), webConfidence: webSignal?.observation.confidence ?? 0, webStatus: webSignal?.observation.status ?? "UNKNOWN", contradictions: webSignal?.observation.contradictingSources ?? [] },
     sourceType: "JIA_BRAIN",
     sourceRef: "lib/jia/brain",
     status: "COMPLETED",
