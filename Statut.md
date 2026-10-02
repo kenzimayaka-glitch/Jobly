@@ -2,7 +2,7 @@
 
 ## État canonique
 
-Main actuel : `a00cb9c549ce931f44a1ea1357efb7f8b73fefc1`
+Point de consolidation du code : `a00cb9c549ce931f44a1ea1357efb7f8b73fefc1`
 
 Cette passe a appliqué le protocole de consolidation sans suppression destructive.
 
