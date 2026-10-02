@@ -4114,3 +4114,11 @@ JOBLY-PROD ne contient pas encore les tables Career* de Career Journey ; aucune 
 - Aucun changement de schéma ni migration Supabase n'est introduit dans cette passe.
 - Tests build/typecheck/E2E : à exécuter après intégration aux points d'entrée.
 - Aucune migration de production ni aucun déploiement Vercel.
+
+
+## Intégration API Talent — recherche multi-pays
+- `GET /api/jobs?scope=countries&targetCountryCodes=CM,SN` est maintenant raccordé au contrôle d’entitlement Talent.
+- Le serveur résout le plan Talent actif et autorise la préparation multi-pays à partir de START; FREE reçoit un refus explicite. Les offres locales/Afrique restent consultables par le flux existant.
+- Le résultat expose le scope et les codes pays cibles. Le filtrage s’appuie sur les `countryCode` des offres déjà disponibles; les offres sans code pays ne sont pas incluses dans ce scope.
+- La veille active multi-pays, la veille panafricaine, les écrans de configuration et les quotas restent à raccorder et tester.
+- Pas de migration Supabase, merge `main`, ni déploiement dans cette étape.
