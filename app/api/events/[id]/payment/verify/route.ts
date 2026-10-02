@@ -9,6 +9,7 @@ export async function POST(request:NextRequest,context:{params:Promise<{id:strin
     const {id}=await context.params,body=await request.json().catch(()=>({})),sb=adminClient(),user=await ensureUser(sb,auth);
     const {data:event}=await sb.from("Event").select("id,creatorUserId,status,title,description,domain,subdomains,city,country,startAt,endAt").eq("id",id).maybeSingle();
     if(!event||event.creatorUserId!==user.id)return fail("Événement introuvable.",404,"EVENT_NOT_FOUND");
+    if(event.status==="PUBLISHED")return NextResponse.json({status:"PUBLISHED",eventId:id,alreadyPublished:true});
     const {data:ep}=await sb.from("EventPayment").select("*").eq("eventId",id).eq("purpose","PUBLICATION").maybeSingle();
     if(!ep)return fail("Paiement événement introuvable.",404,"PAYMENT_NOT_FOUND");
     const {data:payment}=await sb.from("Payment").select("*").eq("id",ep.paymentId).eq("userId",user.id).maybeSingle();
