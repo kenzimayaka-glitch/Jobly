@@ -156,6 +156,10 @@ model User {
   advertisingVideoDurationMs Int?
   advertisingVideoUpdatedAt DateTime?
   cvPhotoUrl      String?
+  cvOriginalStoragePath String?
+  cvOriginalFileName String?
+  cvOriginalPageCount Int?
+  cvOriginalUploadedAt DateTime?
   englishLevel    String?
   licences        String[]     @default([])
   createdAt       DateTime     @default(now())
@@ -170,6 +174,18 @@ model User {
   partner         Partner?
   auditLogs       AuditLog[]
   aiUsages        AiUsage[]
+  aiWelcomeCredits Int          @default(0)
+  aiWelcomeGrantedAt DateTime?
+  aiWelcomeSeenAt DateTime?
+  careerJourney CareerJourney?
+  careerGoals CareerGoal[]
+  careerMissions CareerMission[]
+  careerEvidence CareerEvidence[]
+  careerPortfolio CareerPortfolioItem[]
+  careerRecommendations CareerRecommendation[]
+  careerAssessments CareerCompetencyAssessment[]
+  careerAttempts CareerCompetencyAttempt[]
+  careerReviews CareerReview[]
 }
 
 model Profile {
@@ -351,6 +367,7 @@ model Subscription {
 
 model Payment {
   id              String   @id @default(cuid())
+  feature         String?
   userId          String
   subscriptionId  String?
   provider        String
@@ -568,4 +585,364 @@ model AiUsage {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId, createdAt])
   @@index([operation, createdAt])
+}
+
+model JobHarvestCapture {
+  id                  String   @id @default(uuid()) @db.Uuid
+  sourceKey           String
+  externalId          String?
+  sourceUrl           String
+  title               String?
+  company             String?
+  location            String?
+  contractType        String?
+  remoteMode          String?
+  description         String?
+  deadline            DateTime?
+  publishedAt         DateTime?
+  applicationProfile  Json     @default("{}")
+  contentHash         String?
+  rawHtml             String?
+  renderedHtml        String?
+  extractedText       String?
+  captureMode         String   @default("unknown")
+  payload             Json     @default("{}")
+  status              String   @default("PENDING")
+  attempts            Int      @default(0)
+  lastError           String?
+  jobId               String?
+  discoveredAt        DateTime @default(now())
+  processedAt         DateTime?
+  updatedAt            DateTime @updatedAt
+
+  @@unique([sourceKey, sourceUrl])
+  @@index([status, discoveredAt])
+  @@index([sourceKey, publishedAt])
+}
+
+
+enum CareerJourneyStatus { ACTIVE PAUSED COMPLETED ARCHIVED }
+enum CareerGoalStatus { ACTIVE PAUSED COMPLETED ABANDONED }
+enum CareerMissionStatus { PROPOSED ACCEPTED IN_PROGRESS COMPLETED ABANDONED DEFERRED }
+enum CareerEvidenceType { DECLARATION DOCUMENT PORTFOLIO PROJECT EXPERIENCE ASSESSMENT FEEDBACK }
+enum CareerEvidenceProvenance { DECLARED DOCUMENTED AI_EVALUATED CONVERGENT }
+enum CareerRecommendationType { APPLY DEFER_APPLICATION UPDATE_CV LEARN PRACTICE PROJECT PORTFOLIO INTERVIEW_PREP EXPLORE_PATH REASSESS READY_TO_APPLY }
+enum CareerReviewFrequency { OFF WEEKLY MONTHLY }
+enum CareerAssessmentFormat { MCQ CASE ROLEPLAY PRACTICAL ORAL PORTFOLIO }
+
+model CareerJourney {
+ id String @id @default(cuid())
+ userId String @unique
+ status CareerJourneyStatus @default(ACTIVE)
+ targetRole String?
+ targetDescription String?
+ targetHorizonMonths Int?
+ consentFollowUp Boolean @default(false)
+ reviewFrequency CareerReviewFrequency @default(OFF)
+ baselineReadiness Int?
+ latestReadiness Int?
+ baselineSnapshot Json?
+ latestSnapshot Json?
+ lastReevaluatedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ goals CareerGoal[]
+ missions CareerMission[]
+ recommendations CareerRecommendation[]
+ assessments CareerCompetencyAssessment[]
+ reviews CareerReview[]
+ scenarios CareerPathScenario[]
+ @@index([status,updatedAt])
+}
+
+model CareerGoal {
+ id String @id @default(cuid())
+ userId String
+ journeyId String
+ title String
+ description String?
+ horizonMonths Int?
+ status CareerGoalStatus @default(ACTIVE)
+ priority Int @default(0)
+ constraints Json?
+ successSignals Json?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ journey CareerJourney @relation(fields:[journeyId], references:[id], onDelete:Cascade)
+ missions CareerMission[]
+ recommendations CareerRecommendation[]
+ @@index([userId,status])
+ @@index([journeyId,priority])
+}
+
+model CareerMission {
+ id String @id @default(cuid())
+ userId String
+ journeyId String
+ goalId String?
+ recommendationId String?
+ title String
+ objective String
+ description String
+ gapTarget String?
+ steps Json?
+ expectedResult String?
+ expectedEvidence String?
+ dueAt DateTime?
+ followUpAt DateTime?
+ status CareerMissionStatus @default(PROPOSED)
+ progressPercent Int @default(0)
+ acceptedAt DateTime?
+ completedAt DateTime?
+ abandonedAt DateTime?
+ deferredAt DateTime?
+ user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ journey CareerJourney @relation(fields:[journeyId], references:[id], onDelete:Cascade)
+ goal CareerGoal? @relation(fields:[goalId], references:[id], onDelete:SetNull)
+ recommendation CareerRecommendation? @relation(fields:[recommendationId], references:[id], onDelete:SetNull)
+ updates CareerMissionUpdate[]
+ evidence CareerEvidence[]
+ @@index([userId,status,dueAt])
+ @@index([journeyId,status])
+}
+
+model CareerMissionUpdate {
+ id String @id @default(cuid())
+ missionId String
+ status CareerMissionStatus?
+ progress Int?
+ note String?
+ response Json?
+ createdAt DateTime @default(now())
+ mission CareerMission @relation(fields:[missionId], references:[id], onDelete:Cascade)
+ @@index([missionId,createdAt])
+}
+
+model CareerEvidence {
+ id String @id @default(cuid())
+ userId String
+ missionId String?
+ assessmentId String?
+ portfolioId String?
+ type CareerEvidenceType
+ provenance CareerEvidenceProvenance
+ title String
+ description String?
+ sourceUrl String?
+ storageUrl String?
+ verified Boolean @default(false)
+ acceptedByUser Boolean @default(false)
+ metadata Json?
+ createdAt DateTime @default(now())
+ user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ mission CareerMission? @relation(fields:[missionId], references:[id], onDelete:SetNull)
+ assessment CareerCompetencyAssessment? @relation(fields:[assessmentId], references:[id], onDelete:SetNull)
+ portfolio CareerPortfolioItem? @relation(fields:[portfolioId], references:[id], onDelete:SetNull)
+ @@index([userId,type,createdAt])
+}
+
+model CareerPortfolioItem {
+ id String @id @default(cuid())
+ userId String
+ title String
+ role String?
+ objective String?
+ actions String?
+ result String?
+ contribution String?
+ technologies String[] @default([])
+ provenance CareerEvidenceProvenance @default(DECLARED)
+ acceptedByUser Boolean @default(false)
+ visibleOnCv Boolean @default(false)
+ visibleOnPortfolio Boolean @default(false)
+ sourceUrl String?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ evidence CareerEvidence[]
+ @@index([userId,createdAt])
+}
+
+model CareerRecommendation {
+ id String @id @default(cuid())
+ userId String
+ journeyId String
+ goalId String?
+ type CareerRecommendationType
+ title String
+ rationale String
+ gap String?
+ expectedOutcome String?
+ alternatives Json?
+ assumptions Json?
+ missingData Json?
+ sourceType String @default("CAREER_ENGINE")
+ accepted Boolean?
+ acceptedAt DateTime?
+ createdAt DateTime @default(now())
+ user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ journey CareerJourney @relation(fields:[journeyId], references:[id], onDelete:Cascade)
+ goal CareerGoal? @relation(fields:[goalId], references:[id], onDelete:SetNull)
+ missions CareerMission[]
+ @@index([userId,createdAt])
+ @@index([journeyId,accepted])
+}
+
+model CareerPathScenario {
+ id String @id @default(cuid())
+ journeyId String
+ title String
+ targetRole String
+ assumptions Json?
+ gaps Json?
+ steps Json?
+ constraints Json?
+ selected Boolean @default(false)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ journey CareerJourney @relation(fields:[journeyId], references:[id], onDelete:Cascade)
+ @@index([journeyId,selected])
+}
+
+model CareerCompetencyAssessment {
+ id String @id @default(cuid())
+ userId String
+ journeyId String
+ competency String
+ format CareerAssessmentFormat
+ title String
+ objective String
+ adaptive Boolean @default(true)
+ optional Boolean @default(true)
+ conditions Json?
+ resultSummary String?
+ score Int?
+ dimensions Json?
+ limitations Json?
+ officialCertification Boolean @default(false)
+ createdAt DateTime @default(now())
+ user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ journey CareerJourney @relation(fields:[journeyId], references:[id], onDelete:Cascade)
+ attempts CareerCompetencyAttempt[]
+ evidence CareerEvidence[]
+ @@index([userId,competency,createdAt])
+}
+
+model CareerCompetencyAttempt {
+ id String @id @default(cuid())
+ userId String
+ assessmentId String
+ attemptNumber Int @default(1)
+ answers Json?
+ score Int?
+ feedback Json?
+ completedAt DateTime?
+ createdAt DateTime @default(now())
+ user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ assessment CareerCompetencyAssessment @relation(fields:[assessmentId], references:[id], onDelete:Cascade)
+ @@unique([assessmentId,attemptNumber])
+ @@index([userId,createdAt])
+}
+
+model CareerReview {
+ id String @id @default(cuid())
+ userId String
+ journeyId String
+ frequency CareerReviewFrequency
+ periodStart DateTime
+ periodEnd DateTime
+ summary String
+ completedMissions Int @default(0)
+ pendingMissions Int @default(0)
+ newSkillsCount Int @default(0)
+ readinessBefore Int?
+ readinessAfter Int?
+ matchingBefore Int?
+ matchingAfter Int?
+ nextPriorities Json?
+ acknowledgedAt DateTime?
+ createdAt DateTime @default(now())
+ user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ journey CareerJourney @relation(fields:[journeyId], references:[id], onDelete:Cascade)
+ @@index([userId,periodEnd])
+}
+
+model Event {
+  id String @id
+  creatorUserId String
+  organizerName String
+  title String
+  description String
+  domain String
+  subdomains String[] @default([])
+  startAt DateTime
+  endAt DateTime
+  campaignStartAt DateTime
+  campaignEndAt DateTime
+  mode String @default("PHYSICAL")
+  venue String?
+  city String?
+  country String @default("CM")
+  registrationMode String @default("EXTERNAL")
+  registrationUrl String?
+  audience String[] @default([])
+  mediaType String?
+  mediaUrl String?
+  mediaSizeBytes Int?
+  mediaDurationSeconds Float?
+  status String @default("DRAFT")
+  publicationSource String @default("STANDARD")
+  priceAmount Int @default(0)
+  priceCurrency String @default("XAF")
+  safetyAcceptedAt DateTime?
+  rightsAcceptedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, campaignStartAt, campaignEndAt])
+  @@index([domain])
+  @@index([creatorUserId])
+}
+
+model EventPayment {
+  id String @id
+  eventId String
+  paymentId String @unique
+  purpose String
+  amount Int
+  status String @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([eventId])
+}
+
+model EventFeaturedCampaign {
+  id String @id
+  eventId String
+  slot Int
+  startAt DateTime
+  endAt DateTime
+  price Int
+  paymentId String @unique
+  status String @default("PENDING_PAYMENT")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, startAt, endAt])
+}
+
+model EventEntitlement {
+  id String @id
+  organizerUserId String
+  source String
+  freePublication Boolean @default(false)
+  freeFeatured Boolean @default(false)
+  maxDurationDays Int @default(90)
+  validFrom DateTime @default(now())
+  validUntil DateTime?
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([organizerUserId, active, validFrom, validUntil])
 }

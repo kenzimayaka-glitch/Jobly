@@ -1,4 +1,30 @@
 {
-  "buildCommand": "npm run build",
-  "framework": "nextjs"
+  "git": {
+    "deploymentEnabled": false
+  },
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm build",
+  "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/jobs/ingest/sources",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/jobs/reindex?limit=40&offset=0",
+      "schedule": "30 5 * * *"
+    },
+    {
+      "path": "/api/jobs/harvest?mode=collect",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/jobs/harvest?mode=process&limit=40",
+      "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/cron/jia-watch",
+      "schedule": "0 4 * * *"
+    }
+  ]
 }

@@ -1,5 +1,344 @@
+
+
+# CHECKPOINT LOT G — CAREER OS G2→G10 — 02/10/2026
+
+## Completion pass
+
+Les couches restantes de Lot G ont été consolidées au-dessus de Career Journey 360 — Architecture B, sans création d'un second état Career.
+
+- **G2 Career Twin** : projection calculée du Journey.
+- **G3 Career GPS / Gap Intelligence** : gaps et prochaine action provenant du snapshot canonique.
+- **G4 Readiness Intelligence** : readiness et force des preuves réutilisées depuis Journey.
+- **G5 Opportunity Intelligence** : projection des opportunités actives ; le matching/Career Radar existant reste la mécanique de décision de référence.
+- **G6 Learning / Interview / Application** : priorités de mission dérivées des gaps + outcomes de candidatures existants.
+- **G7 Mobility Intelligence** : projection des dossiers Mobility existants.
+- **G8 Career Companion** : J’IA expose une proposition de prochaine action ; les actions externes restent soumises à Policy/consentement.
+- **G9 Outcome → Review → Reassessment** : outcomes, revue récente et endpoint de réévaluation reliés dans une même surface.
+- **G10 Runtime / Production** : gate d'architecture ajouté à la CI ; typecheck/build et déploiement restent des preuves distinctes.
+
+### Correction structurante
+
+L'ancien endpoint GET /api/career-os écrivait un CareerAssessment pendant une lecture. Cette écriture a été supprimée : Career OS est désormais strictement calculé à partir de CareerJourney/CareerBrain et ne crée plus d'état parallèle.
+
+### Nouvelle surface
+
+GET /api/career-os expose désormais un snapshot unifié :
+Career Twin → GPS → Readiness → Opportunity → Learning → Mobility → Companion → Outcome loop.
+
+### État de vérité
+
+- Code : **INTÉGRÉ MAIN**
+- Architecture : **COHÉRENTE avec Career Journey comme source unique**
+- Migration DB : **aucune nouvelle migration requise pour cette passe**
+- Gate Career OS : **ajouté à CI**
+- Validation typecheck/build GitHub : **à observer sur le pipeline déclenché après merge**
+- Vercel production : **à observer ; aucune déclaration de production READY sans preuve de déploiement**
+
+## CAREER — SOURCE UNIQUE DE VÉRITÉ — 02/10/2026
+
+### Décision architecturale figée
+**Career Journey 360 — Architecture B est désormais la seule source de vérité pour cette étape.**
+
+- Architecture A : **abandonnée / hors cible** ; elle ne doit plus être réintroduite ni utilisée pour une réconciliation.
+- Aucun nouveau « Career State Model » parallèle.
+- Aucun second moteur de trajectoire Career.
+- `CareerJourney` porte l'état longitudinal ; objectifs → compétences/écarts → recommandations → missions → progression → preuves → portfolio → assessment → radar/scénarios → review → réévaluation.
+- `lib/careerEngine.ts` reste un moteur d'analyse réutilisé par Journey ; il ne devient pas une seconde source d'état.
+- J’IA orchestre et interprète Career Journey ; elle ne crée pas une carrière parallèle.
+- Mobility se branche sur Journey lorsqu'une opportunité implique une mobilité physique.
+
+### Consolidation dans main
+La surface Architecture B a été intégrée directement dans `main` afin que le socle Career ne dépende plus de la branche de chantier : APIs Career Journey, UI `/career-journey`, services Journey, entitlements, migration et schéma Prisma.
+
+### État de validation
+- Code : **INTÉGRÉ DANS MAIN**
+- Documentation : **MISE À JOUR**
+- Architecture B : **SOURCE UNIQUE DE VÉRITÉ**
+- Migration : **PRÉSENTE DANS LE DÉPÔT**
+- JOBLY-PROD : **NON MODIFIÉE PAR CETTE PASSE**
+- Vercel : **AUCUN DÉPLOIEMENT**
+- E2E complet et validation runtime production : **À POURSUIVRE**
+- Fusion/suppression des anciennes branches : **À faire après contrôle final, sans perte de contenu**
+
+> Règle : CODÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ. La présence dans `main` établit la source de code, pas une preuve de déploiement production.
+
+---
+
+# MASTER CONSOLIDATION GIT — 02/10/2026
+
+## État canonique
+
+Point de consolidation du code : `a00cb9c549ce931f44a1ea1357efb7f8b73fefc1`
+
+Cette passe a appliqué le protocole de consolidation sans suppression destructive.
+
+### Inventaire
+
+- 166 branches détectées.
+- 28 PR ouvertes détectées.
+- Les branches et commits divergents ont été comparés à `main`.
+- Les branches fortement divergentes n'ont pas été écrasées.
+
+### Consolidations effectivement intégrées
+
+| PR | Objet | Méthode | Résultat |
+|---|---|---|---|
+| #138 | CI continu | squash | 🟢 intégré |
+| #134 | Icône PWA | squash | 🟢 intégré |
+| #125 | Validation documentation CV | squash | 🟢 intégré |
+| #111 | Couverture sources Afrique hors Cameroun | squash | 🟢 intégré |
+
+### Branches/PR nécessitant encore une réconciliation
+
+Les travaux suivants ne doivent pas être déclarés intégrés tant qu'ils n'ont pas été réconciliés et testés :
+
+- #168 / #169 — Career Journey 360 ;
+- #152 — Lot A / Mon Afrique ;
+- #153 — Lot C / Community ;
+- #151 — registry/cache logos ;
+- #150 — billing Recruiter ;
+- #135 — J’IA transversal ;
+- #114 / #113 / #112 / #110 / #107 / #106 — Africa/harvest ;
+- #104 / #103 / #98 / #97 / #93 — Offer pipeline historique ;
+- #67 / #62 / #48 — anciennes corrections Jobs ;
+- #14 — transfert J’IA V5.20 ;
+- #3 — ancien alignment produit.
+
+Ces éléments restent conservés sur leurs branches tant que leur contenu n'a pas été réconcilié.
+
+### Pourquoi aucune suppression
+
+Plusieurs branches sont divergentes de `main` avec des écarts significatifs. Une fusion directe provoquerait des conflits ou pourrait écraser des décisions plus récentes.
+
+**Règle appliquée :** aucune branche divergente n'est supprimée ou force-pushée avant récupération et vérification de son contenu utile.
+
+### État Git
+
+**🟨 CONSOLIDATION PHASE 1 — AUDIT + INTÉGRATIONS SÛRES TERMINÉS.**
+
+La cible finale « une seule branche active » n'est pas encore atteinte.
+
+### État production
+
+- Vercel : **NON DÉPLOYÉ**
+- JOBLY-PROD : **NON MODIFIÉ**
+- Aucun déploiement ou migration de production déclenché par cette passe.
+
+### Gouvernance produit courante
+
+- Recruitment 360° V2 : **ARCHIVÉ / FERMÉ**
+- Career Journey 360 : **BOUCLÉ comme chantier produit** ; ses branches restantes sont historiques/validation.
+- Talent Mobility Market : **clôturé techniquement**
+- Prochain chantier roadmap : **Lot G — Career Brain / Career OS**
+
+**Règle de vérité : la présence d'un commit ou d'une branche ne vaut pas validation fonctionnelle.**
+
+---
+
+# CHECKPOINT LOT E — 02/10/2026
+
+| Élément | État |
+|---|---|
+| Recruiter unique / pas de « Africa Recruiter » | 🟢 VALIDÉ |
+| Marché local | 🟢 CODÉ |
+| Préparation multi-pays | 🟢 CODÉ START+ |
+| Diffusion multi-pays effective | 🟢 CODÉ / PRO |
+| Diffusion panafricaine | 🟢 CODÉ / PRO |
+| Enforcement serveur entitlement | 🟢 CODÉ |
+| Coût J’IA suggestion marché | 🟢 1 crédit |
+| Coût J’IA optimisation marché | 🟢 3 crédits |
+| Réconciliation RecruiterJob.countryCode | 🟢 CODÉ |
+| Migration | 🟢 CODÉE + test transactionnel |
+| Migration JOBLY-PROD | ⏸️ NON APPLIQUÉE |
+| Catalogue canonique pays | ⏳ À rattacher au Lot A, sans duplication |
+| E2E/runtime | ⏳ À TESTER |
+| Main | ⏳ PR À FUSIONNER |
+| Vercel | ⏸️ AUCUN DÉPLOIEMENT |
+
+Règle : CODÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.
+
+---
+
+
+# CHECKPOINT LOT D — 02/10/2026
+
+| Élément | État |
+|---|---|
+| KPIs institutionnels | 🟢 CODÉ |
+| Objectifs KPI | 🟢 CODÉ |
+| Comparaison temporelle | 🟢 CODÉ |
+| Interprétation J’IA factuelle | 🟢 CODÉ |
+| Dashboard Performance & évolution | 🟢 CODÉ |
+| Migration D | 🟢 CODÉ + test transactionnel |
+| Migration JOBLY-PROD | ⏸️ NON APPLIQUÉE |
+| E2E navigateur/runtime | ⏳ À TESTER |
+| Main | ⏳ PR À FUSIONNER |
+| Vercel | ⏸️ AUCUN DÉPLOIEMENT |
+
+Règle conservée : CODÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.
+
+---
+
+
+# CHECKPOINT 02/10/2026 — LOTS C + D — INSTITUTIONAL HUB
+
+| Élément | État |
+|---|---|
+| Architecture C+D validée | 🟢 SPÉCIFIÉ |
+| Accès privé institutionnel | 🔧 CODÉ |
+| Dashboard direct après credentials | 🔧 CODÉ |
+| Partenariats / projets / rapports | 🔧 CODÉ |
+| KPIs initiaux | 🔧 CODÉ |
+| RLS + absence de grants anon/authenticated | 🔧 CODÉ |
+| Migration | 🔧 CODÉ / ⏸️ NON APPLIQUÉE PROD |
+| J’IA institutionnelle approfondie | ⏳ LOT D À POURSUIVRE |
+| E2E/runtime | ⏳ À TESTER |
+| Merge main | ⏳ EN ATTENTE CI/PR |
+| Vercel | ⏸️ AUCUN DÉPLOIEMENT |
+
+### Entitlement
+
+Le Hub institutionnel est une capacité **B2B contractuelle payante, profondeur PRO**, indépendante des abonnements Talent/Recruiter. Aucun accès public ou inscription institutionnelle libre.
+
+### Règle d'accès
+
+Un visiteur non autorisé ne reçoit pas de formulaire de credentials sur la surface publique. Il reçoit un message de confidentialité et un chemin de contact. Les credentials sont saisis uniquement sur la surface partenaire dédiée.
+
+### Vérité d'exécution
+
+CODÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ. Cette passe ne déploie pas Vercel et n'applique pas la migration à JOBLY-PROD.
+
+---
+
+
+
+# CHECKPOINT 02/10/2026 — AUDIT DE RÉCONCILIATION CODE ↔ DOCUMENTATION (PASSE DE CONTRÔLE)
+
+Cette passe a recontrôlé les artefacts réellement présents dans les branches de chantier avant de considérer la documentation comme une preuve d'implémentation.
+
+## Career Journey 360
+- Page `app/career-journey/page.tsx` : CODÉE.
+- API principale `app/api/career-journey/route.ts` : CODÉE.
+- APIs spécialisées assessments / missions / portfolio / radar : CODÉES.
+- Service `lib/careerJourney.ts` : CODÉ.
+- Entitlements `lib/careerJourneyEntitlements.ts` : CODÉS.
+- Migration `20261002050000_career_journey_360` + schéma Prisma : PRÉSENTS.
+- RLS : durcie dans `88fe82f`.
+- Vercel : modèle `89b5055` READY, RLS `88fe82f` READY, UI `62cd1de` ERROR. Aucun de ces états ne vaut validation production.
+
+## Lot A — Mon Afrique
+- Catalogue `lib/countries/africa.ts` : PRÉSENT, 54 pays.
+- Contexte `lib/jia/monAfrique.ts` : PRÉSENT.
+- QCM conversationnel `components/jia/JiaConversationalQcm.tsx` : PRÉSENT, 4 choix visibles maximum + Autre.
+- Intégration jobs / watcher / brain / cron : présente sur la branche.
+- Verdict : CODÉ. La CI/validation E2E reste distincte ; aucun déploiement n'est déclaré.
+
+## Lot B — Veille J’IA
+- Persistance `lib/jia/watchPersistence.ts` : PRÉSENTE.
+- Intelligence `lib/jia/watchIntelligence.ts` : PRÉSENTE.
+- Scoring `lib/jia/watchIntelligenceScoring.ts` : PRÉSENT avec SUPPRESS / DIGEST / NOTIFY / REVIEW.
+- Smoke test `scripts/jia-watch-intelligence-smoke.mjs` : PRÉSENT et couvre les quatre décisions.
+- Migration et schéma de persistance : PRÉSENTS.
+- Verdict : CODÉ B1→B3.1. Le smoke test et la validation runtime complète doivent rester distingués ; aucun déploiement n'est déclaré.
+
+## Lot C — Bons Plans + Community
+- APIs Bons Plans / Community : PRÉSENTES.
+- Accès Community `lib/community/access.ts` : PRÉSENT, entitlements serveur.
+- Automatisation `lib/community/automation.ts` : PRÉSENTE, seuil 1 000 et 8 communautés globales.
+- UI `/communities` et `/communities/[id]` : PRÉSENTES.
+- Migration Lot C + extensions Prisma : PRÉSENTES.
+- Verdict : CODÉ. La présence de la migration dans le dépôt ne constitue pas à elle seule une preuve d'application sur JOBLY-PROD ; la validation E2E reste distincte.
+
+## Règle documentaire renforcée
+La documentation ne doit jamais transformer « fichier présent », « commit existant » ou « build READY » en « VALIDÉ » ou « DÉPLOYÉ ». Toute fonctionnalité reste séparée selon : SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.
+
+Aucun merge `main` et aucun déploiement Vercel ne sont autorisés par cette passe.
+# CHECKPOINT 02/10/2026 — RÉCONCILIATION CODE / DOCUMENTATION
+
+## Career Journey 360 — état réel
+
+| Élément | État |
+|---|---|
+| Spécification fonctionnelle | ✅ |
+| Page `/career-journey` | 🔧 CODÉ |
+| `/api/career-journey` | 🔧 CODÉ |
+| Service `lib/careerJourney.ts` | 🔧 CODÉ |
+| Modèle/migration Career Journey | 🔧 CODÉ |
+| Missions + cycle de vie | 🔧 CODÉ |
+| Recommandations / réévaluation | 🔧 CODÉ |
+| Career Radar contextualisé | 🔧 CODÉ |
+| Revue périodique consentie | 🔧 CODÉ |
+| Entitlements serveur | 🔧 CODÉ |
+| RLS | 🔧 DURCIE |
+| Vercel commit modèle `89b5055` | 🟢 READY |
+| Vercel commit RLS `88fe82f` | 🟢 READY |
+| Vercel commit UI `62cd1de` | 🔴 ERROR |
+| Validation E2E complète | ⏸️ non acquise |
+| Déploiement production autorisé | ⏸️ non |
+
+## Lots A/B/C — audit de réconciliation
+
+### Lot A — Mon Afrique
+- Branche : `feature/lot-a-mon-afrique-20261002`.
+- 54 pays via `lib/countries/africa.ts`.
+- Multi-pays au-dessus des scopes existants.
+- Filtres : Toutes / Pays / En cours / CDD / CDI / Remote.
+- Aucun nouveau champ User/Profile de pays d'intérêt.
+- Brain J’IA et Watcher existants réutilisés.
+- Architecture statique : **OK**.
+- CI : **BLOQUÉE** par `lib/jobSourceCollector.ts:61` (TS1128 hors périmètre).
+- Merge/deploiement : **aucun**.
+- Verdict : **CODÉ, NON VALIDÉ E2E**.
+
+### Lot B — Veille J’IA
+- Branche de clôture : `feat/jia-watch-intelligence-b3-20261002`.
+- B1 watcher existant réutilisé.
+- B2 persistance/idempotence : `JiaWatchSubscription`, `JiaWatchRun`, `JiaWatchSnapshot`.
+- Scheduler `/api/cron/jia-watch` protégé.
+- B3 pipeline : signal → nouveauté → pertinence → impact → confiance → contradictions → mémoire → décision.
+- Décisions : SUPPRESS / DIGEST / NOTIFY / REVIEW.
+- B3.1 scoring isolé + smoke test des quatre décisions.
+- Notifications limitées à l'in-app ; pas de push/email automatique.
+- Commit documentaire de clôture : `175cfc7`.
+- Verdict : **TECHNIQUEMENT FERMÉ SUR BRANCHE**, sans merge/deploiement. La validation runtime complète reste distincte.
+
+### Lot C — Bons Plans + Community
+- Branche : `feat/lot-c-bons-plans-community`.
+- Community appartient à Bons Plans et n'est pas un quatrième écosystème ni un réseau social.
+- 8 communautés globales.
+- Spécialisation automatique à 1 000 talents abonnés d'une même discipline.
+- Matrice : FREE ❌ / START ✅ / PREMIUM ✅ + badge / PRO ✅ + badge.
+- Badge dérivé côté serveur pour l'auteur du post.
+- Pas de profils cliquables, pas de DM, pas d'accès Recruiter depuis Community.
+- Invitations par lien/WhatsApp.
+- Modèle Prisma + migration SQL appliqués à JOBLY-PROD ; notifications existantes réutilisées.
+- CI : fichiers Community franchis ; gate globale encore rouge sur des erreurs TypeScript hors Lot C.
+- Verdict : **CODÉ + STRUCTURELLEMENT CONTRÔLÉ, NON VALIDÉ E2E / NON DÉPLOYÉ**.
+
+## Conclusion de réconciliation
+
+La documentation ne doit plus confondre **présence du code** avec **validation** ou **déploiement**. Les lots A, B et C sont bien matérialisés dans le code selon leur périmètre, mais leurs niveaux de validation diffèrent. Career Journey est également codé sur sa branche dédiée ; sa dernière couche UI a un déploiement Vercel en ERROR et reste donc non validée.
+
+---
+
 # JOBLY — STATUT DU PROJET
 ## SOURCE DE VÉRITÉ D'EXÉCUTION — JOBLY 20/20
+### Mise à jour : 30/09/2026 — Validation fonctionnelle CV
+
+## Import / upload de CV — ✅ VALIDÉ
+
+Validation utilisateur effectuée : **le CV est désormais correctement uploadé dans le parcours réel**.
+
+- Sélection du fichier PDF : ✅
+- Extraction du CV : ✅
+- Upload/conservation du document : ✅
+- Parcours CV utilisable après correction du problème de quota IA : ✅
+- Le quota de crédits IA ne bloque plus l'extraction déterministe du CV : ✅
+
+**Statut de vérité : TESTÉ → VALIDÉ par vérification réelle utilisateur.**
+
+> Règle de continuité : toute fonctionnalité vérifiée réellement doit être marquée **VALIDÉE** dans cette documentation. Une fonctionnalité simplement codée ou compilée reste **CODÉE / TESTÉE** tant qu'une vérification réelle n'a pas été effectuée.
+
 ### Mise à jour : 26/09/2026 — Offres / Matching adaptatif / UX
 
 > Règle : une fonctionnalité n'est terminée que si elle traverse **SPÉCIFIÉ → CODÉ → ACCESSIBLE → CONNECTÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**.
@@ -2795,3 +3134,1542 @@ Sources supplémentaires auditées :
 Le schéma `Job` possède déjà `sourceKey`, `externalId`, `contentHash`, `sourcePublishedAt` et `lastSeenAt`, permettant une ingestion multi-source sans changement de modèle immédiat.
 
 **Aucun déploiement Vercel n'a été déclenché pendant cet audit.**
+
+---
+
+# CHECKPOINT 26/09/2026 — CANDIDATURE WHATSAPP / ONBOARDING RECRUITER
+
+## Décision produit figée
+
+Le parcours complet **Talent → candidature WhatsApp → CV recruteur → découverte des autres talents → création compte Recruiter → code d'accès à usage unique → récupération automatique de l'offre** est désormais documenté comme référence produit.
+
+### Décisions principales
+
+- WhatsApp est un **canal de candidature**, pas un remplacement du compte Jobly.
+- Une candidature WhatsApp crée/conserve une vraie **Application Jobly** liée au Talent et au Job.
+- Le recruteur non inscrit voit le **CV du candidat ayant postulé**, mais pas son analyse J’IA avant création de compte.
+- L'interstitiel **Voir / Fermer** permet de découvrir uniquement les **autres talents qui matchent l'offre et n'ont pas postulé**.
+- **Fermer** ramène au CV du candidat postulant, consultable/téléchargeable sans création de compte.
+- **Voir les coordonnées** d'un autre profil déclenche le parcours de création de compte.
+- Jobly génère alors un **code d'accès numérique à 6 chiffres**, temporaire et à usage unique, lié au contexte sécurisé de l'offre/candidature.
+- L'affichage du code déclenche le parcours de téléchargement/installation Jobly.
+- Le recruteur installe Jobly, crée son compte, choisit **Recruiter**, puis saisit le code.
+- Le code valide la continuité du parcours et permet à Jobly de rattacher automatiquement l'offre au nouveau compte.
+- Le recruteur ne recrée pas l'offre.
+- Après connexion, il retrouve l'offre, la candidature du Talent ayant postulé, puis les futures candidatures.
+- À partir du compte Recruiter, l'analyse J’IA du candidat ayant postulé devient accessible selon les permissions.
+- Les coordonnées des autres profils restent soumises aux entitlements/abonnement.
+- Le code ne constitue pas une preuve juridique de propriété de l'entreprise : le système distingue contexte d'offre revendiqué, identité, entreprise vérifiée et autorisation.
+- Le modèle cible prévoit un mécanisme d'**AccessClaim** à usage unique/expiration/anti-réutilisation.
+
+## État
+
+**🟦 SPÉCIFIÉ / DÉCISION FIGÉE**
+
+### Non encore certifié
+
+- implémentation complète du claim/code ;
+- persistance sécurisée ;
+- expiration et invalidation ;
+- détection du contexte de provenance après installation ;
+- liaison automatique Job → Recruiter ;
+- retour direct au CV initial ;
+- contrôle des permissions ;
+- intégration abonnement/entitlements ;
+- tests E2E mobile ;
+- validation production.
+
+**Règle CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ : cette décision ne doit pas être déclarée implémentée tant que les étapes techniques et les tests réels ne sont pas effectués.**
+
+
+# CHECKPOINT 26/09/2026 — J’IA RECRUTEMENT : MATCHING → PROJECTION → FEEDBACK
+
+## Modèle d'intelligence figé
+
+J’IA ne doit pas être réduite à un simple indicateur « ce candidat correspond / ne correspond pas ». Le modèle cible sépare explicitement :
+
+1. **Matching Engine — Est-ce que le profil correspond à l'offre ?**
+   - métier/fonction ;
+   - compétences ;
+   - expérience ;
+   - formation ;
+   - langues ;
+   - localisation ;
+   - secteur ;
+   - critères réellement présents dans l'offre.
+   - Une donnée inconnue est **Non renseignée** et ne doit pas être transformée automatiquement en échec.
+
+2. **Explainability — Pourquoi ?**
+   - forces ;
+   - gaps / points à développer ;
+   - éléments de preuve ;
+   - distinction entre données connues, déclarées, documentées, vérifiées et inférées.
+
+3. **Projection Engine — Comment le profil pourrait-il évoluer ?**
+   - projection conditionnelle à **3–6 mois, 6–12 mois et 12–18 mois** lorsque les données le permettent ;
+   - trajectoire possible ;
+   - conditions et actions pouvant favoriser cette trajectoire ;
+   - hypothèses ;
+   - éléments observés ;
+   - niveau de confiance ;
+   - date de la projection.
+   
+   Cette projection n'est **pas** une prédiction d'embauche et J’IA ne doit jamais décider à la place du recruteur.
+
+4. **Recommendation Engine — Que peut-on faire ensuite ?**
+   - Talent : développer une compétence, adapter le CV, préparer un entretien, combler un gap, acquérir une expérience, explorer une autre offre, etc. ;
+   - Recruiter : approfondir un point en entretien, demander une information manquante, examiner une compétence, poursuivre ou non le processus selon sa propre décision.
+
+5. **Reputation / Feedback Engine — Que montrent les interactions professionnelles vérifiées ?**
+   - retours de recruteurs ;
+   - évaluations vérifiées ;
+   - tendances de points forts ;
+   - axes d'amélioration ;
+   - évolution du Career Twin.
+
+## Chaîne cible
+
+```text
+CANDIDATURE
+↓
+MATCHING J’IA
+↓
+FORCES / GAPS
+↓
+ANALYSE J’IA
+↓
+PROJECTION
+3–6 / 6–12 / 12–18 mois
+↓
+RECOMMANDATIONS
+↓
+DÉCISION HUMAINE
+↓
+RECRUTÉ / NON RETENU
+↓
+FEEDBACK PROFESSIONNEL
+↓
+⭐ 1–5
+↓
+CAREER TWIN MIS À JOUR
+↓
+NOUVELLE PROJECTION J’IA
+```
+
+### Règle centrale
+
+**J’IA explique, projette, recommande et apprend du parcours. Le recruteur décide.**
+
+Les projections doivent rester conditionnelles et explicables :
+
+`projection → preuves observées → hypothèses → conditions → confiance`
+
+J’IA ne doit pas utiliser de caractéristiques sensibles ou de proxys sensibles pour prendre ou recommander une décision de recrutement.
+
+## Feedback recruteur après non-recrutement
+
+Lorsqu'un Talent n'est pas retenu, Jobly peut demander au recruteur un **feedback professionnel** et une **évaluation de 1 à 5 étoiles** afin qu'une interaction professionnelle réelle puisse produire une valeur de carrière même sans embauche.
+
+### Conditions d'accès
+
+Le feedback + étoiles sont réservés aux recruteurs **Premium et Pro**, et uniquement lorsqu'une **interaction réelle et vérifiée** avec le candidat est enregistrée.
+
+Exemples d'interactions vérifiables :
+- candidature reçue et examinée ;
+- CV ouvert ;
+- entretien réalisé dans Jobly ;
+- candidature clôturée ;
+- autre interaction de recrutement effectivement journalisée.
+
+Un abonnement Premium/Pro ne suffit donc pas à lui seul.
+
+### Anti-abus
+
+Le système doit limiter :
+- comptes créés uniquement pour noter ;
+- notation sans interaction réelle ;
+- volumes anormaux ;
+- répétitions ou schémas coordonnés ;
+- comportements susceptibles de fausser artificiellement la réputation.
+
+Les évaluations suspectes peuvent être placées en vérification avant publication.
+
+### Présentation au Talent
+
+La réputation ne doit pas devenir une valeur humaine globale ni un classement arbitraire. La présentation cible est contextualisée, par exemple :
+- **Crédibilité professionnelle : 4,6/5** ;
+- nombre d'évaluations vérifiées ;
+- nombre de recruteurs ayant évalué ;
+- forces récurrentes ;
+- axes d'amélioration récurrents.
+
+Le Talent doit pouvoir consulter les retours, en tirer des enseignements et contester un feedback manifestement faux ou abusif.
+
+Les feedbacks vérifiés peuvent enrichir le **Career Twin**. J’IA peut ensuite identifier des tendances sans transformer une évaluation individuelle en vérité absolue.
+
+## État
+
+**🟦 SPÉCIFIÉ / DÉCISION FIGÉE**
+
+Cette architecture n'est pas déclarée CODÉE, TESTÉE, VALIDÉE ou DÉPLOYÉE tant que l'implémentation, les permissions, l'anti-abus, les tests E2E et la production n'ont pas été vérifiés selon la règle **CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ**.
+
+
+# CHECKPOINT 26/09/2026 — WORKFLOW RECRUTEUR : COMMUNICATION → ENTRETIEN → DÉCISION → FEEDBACK
+
+## Décision produit figée
+
+Le workflow Recruiter doit couvrir toute la relation de recrutement après la candidature : communication, entretien, rappels, décision et feedback. Le recruteur garde toujours la décision humaine finale.
+
+### Communication
+
+Tout recruteur Jobly peut donner un feedback professionnel au Talent lorsqu'une interaction réelle et vérifiable existe.
+
+Canaux :
+- **Email individuel** ;
+- **Email bulk** pour plusieurs candidats sélectionnés ;
+- **WhatsApp individuel**, avec message préparé par J’IA puis envoyé explicitement par le recruteur.
+
+J’IA propose des modèles contextualisés pour :
+- invitation à un entretien ;
+- confirmation ;
+- demande d'information ;
+- validation ;
+- refus ;
+- feedback.
+
+Pour l'email, le Talent reçoit le message et une notification Jobly, tandis que l'événement est conservé dans la timeline de candidature. Une copie/trace est également conservée côté Jobly pour le recruteur et le Talent selon les permissions. La marque Jobly peut être présente de façon discrète et clairement identifiable.
+
+Pour WhatsApp, Jobly ne doit pas envoyer automatiquement : le recruteur est redirigé vers le WhatsApp du Talent avec un message prérempli et clique lui-même sur **Envoyer**.
+
+### Entretien présentiel
+
+Le recruteur définit :
+- date ;
+- heure ;
+- lieu ;
+- adresse/point de rendez-vous ;
+- détails pratiques ;
+- consignes éventuelles.
+
+Ces informations sont reprises dans la communication envoyée au Talent.
+
+### Entretien visio
+
+Lorsque l'intégration Google autorisée est réellement disponible, J’IA/Jobly peut :
+- créer un lien Google Meet ;
+- enregistrer date, heure et lien ;
+- inscrire l'événement au calendrier du Talent ;
+- inscrire l'événement au calendrier du recruteur.
+
+**Jobly ne doit jamais fabriquer un lien Google Meet.** Sans autorisation/intégration Google réelle, le système doit demander une solution de visioconférence valide au lieu de prétendre avoir créé le lien.
+
+### Rappels J’IA
+
+Pour les entretiens :
+- **1 heure avant :** rappel de préparation (endroit calme, connexion stable, batterie suffisante, préparation pratique) ;
+- **5 minutes avant :** invitation à se connecter et à rejoindre la salle d'attente.
+
+Canaux selon les préférences :
+- notification Jobly ;
+- email ;
+- vocal si le mode vocal est activé.
+
+### Validation / refus
+
+Le recruteur peut :
+- valider une candidature ;
+- refuser une candidature ;
+- communiquer la décision par email ou WhatsApp ;
+- notifier le Talent ;
+- enregistrer la décision dans la timeline ;
+- demander/produire un feedback lorsque les conditions sont remplies.
+
+### Bulk
+
+Exemple cible : sélectionner 12 candidats → **Invitation entretien** → J’IA prépare 12 messages contextualisés → chaque Talent reçoit son message individuel → chaque envoi est journalisé séparément.
+
+### Timeline
+
+Chaque candidature doit pouvoir suivre une chronologie :
+
+```text
+Candidature reçue
+↓
+CV consulté
+↓
+Entretien proposé
+↓
+Invitation envoyée
+↓
+Entretien confirmé
+↓
+Rappel 1h
+↓
+Entretien
+↓
+Décision
+↓
+Feedback
+↓
+Candidature clôturée
+```
+
+Les événements sont horodatés et liés à l'Application concernée.
+
+### J’IA et décision humaine
+
+J’IA peut préparer, personnaliser, rappeler, synthétiser et recommander des prochaines étapes. Elle ne décide pas du recrutement ou du rejet.
+
+**Règle : J’IA assiste le workflow ; le recruteur décide.**
+
+### Feedback et étoiles
+
+Le **feedback professionnel** est ouvert à tout recruteur Jobly ayant eu une interaction réelle et vérifiable avec le Talent.
+
+Les **étoiles 1–5 et fonctions avancées de réputation** restent Premium/Pro, avec interaction vérifiée et protections anti-abus.
+
+Ainsi :
+- feedback professionnel ≠ Premium/Pro uniquement ;
+- notation ⭐1–5 / réputation avancée = Premium/Pro ;
+- aucune notation sans interaction réelle vérifiée.
+
+Les feedbacks vérifiés peuvent enrichir le Career Twin sans devenir une vérité absolue sur le Talent.
+
+### Traçabilité / confidentialité
+
+Le système doit distinguer et journaliser :
+- proposition J’IA ;
+- décision du recruteur ;
+- message préparé ;
+- message effectivement envoyé ;
+- notification ;
+- événement d'entretien ;
+- feedback ;
+- décision finale.
+
+Les coordonnées et données privées restent protégées par permissions et entitlements.
+
+## État
+
+**🟦 SPÉCIFIÉ / DÉCISION FIGÉE — 26/09/2026**
+
+Non déclaré CODÉ, TESTÉ, VALIDÉ ou DÉPLOYÉ.
+
+### Pré-requis techniques
+
+1. Timeline/événements de candidature.
+2. Email individuel et bulk.
+3. Templates J’IA contextualisés.
+4. Notifications liées aux communications.
+5. WhatsApp prérempli + envoi explicite.
+6. Entretien présentiel.
+7. Google Calendar/Meet avec autorisation réelle.
+8. Persistance sécurisée des événements.
+9. Rappels 1h/5min.
+10. Validation/refus/clôture.
+11. Feedback et entitlements Premium/Pro pour étoiles.
+12. Anti-abus et permissions.
+13. Tests E2E mobile/desktop.
+14. Vérification réelle avant certification production.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+
+## CHECKPOINT 26/09/2026 — CYCLE DE RECRUTEMENT COMPLET / PIPELINE CONFIGURABLE
+
+### Décision produit
+Le cycle de recrutement est désormais défini de bout en bout :
+
+~~~
+OFFRE → CANDIDATURE → MATCHING → PRÉSÉLECTION → PIPELINE
+→ TEST / ENTRETIEN / ÉVALUATION → ANALYSE J’IA
+→ DÉCISION RECRUTEUR → FEEDBACK → ÉTAPE SUIVANTE
+→ DÉCISION FINALE → OFFRE D’EMBAUCHE → ONBOARDING
+~~~
+
+Le **Job possède le pipeline** ; l’**Application possède la progression réelle** du candidat. Plusieurs candidats peuvent donc être simultanément à des étapes différentes du même recrutement.
+
+### Pipeline configurable
+
+Le recruteur peut définir, par offre :
+- étapes, ordre et étapes obligatoires/optionnelles ;
+- étapes répétables ou retour à une étape précédente ;
+- tâches et événements associés ;
+- critères d’évaluation ;
+- communications et rappels ;
+- conditions de passage ;
+- niveau d’automatisation.
+
+Types d’étapes cibles : SCREENING, INTERVIEW, VIDEO_INTERVIEW, ONSITE_INTERVIEW, TECHNICAL_TEST, ASSESSMENT, PRESENTATION, REFERENCE_CHECK, SALARY_DISCUSSION, FINAL_INTERVIEW, OFFER, CUSTOM.
+
+### Tests candidats
+
+Types cibles : QCM métier, cas pratique, test technique, mise en situation, rédaction, commercial, linguistique, présentation, étude de cas et test personnalisé.
+
+Le recruteur définit les critères/pondérations. J’IA peut proposer une structure mais ne doit pas inventer le barème final.
+
+Mode **évaluation** : J’IA explique les règles mais ne répond pas à la place du candidat. Mode **entraînement** : J’IA peut aider.
+
+### Analyse J’IA
+
+Après soumission :
+- correction objective ;
+- score par critère ;
+- forces ;
+- lacunes ;
+- éléments à approfondir ;
+- preuves issues des réponses ;
+- niveau de confiance ;
+- synthèse courte pour le recruteur ;
+- accès aux réponses détaillées/corrigé lorsque disponible.
+
+Un score de test reste une preuve contextualisée et datée, pas une valeur globale du Talent.
+
+### Décision et automatisation
+
+Le recruteur peut **VALIDER**, **REFUSER**, **METTRE EN PAUSE**, **REVENIR À UNE ÉTAPE**, **DEMANDER UNE VÉRIFICATION** ou, selon permissions, **RÉOUVRIR**.
+
+Trois modes sont définis :
+1. **MANUEL** — J’IA prépare, le recruteur déclenche.
+2. **ASSISTÉ** — J’IA prépare, le recruteur confirme.
+3. **AUTOMATIQUE** — une règle préconfigurée exécute la suite après la décision humaine requise.
+
+Après validation, Jobly peut automatiquement : clôturer l’étape, enregistrer le résultat, générer le feedback, notifier le Talent, ouvrir l’étape suivante, préparer/envoyer l’invitation selon les permissions, planifier les rappels et mettre à jour la timeline.
+
+### Cas de cycle à couvrir
+
+Retrait/abandon, expiration, pause/reprise, étape annulée, entretien replanifié, absence, test non rendu/expiré, réouverture, plusieurs recruteurs, modification du pipeline en cours avec historique, correction d’une décision selon permissions.
+
+### Séparation des états
+
+État de l’offre ≠ État de la candidature ≠ État de l’étape ≠ État du candidat.
+
+### Timeline cible
+
+Candidature → Matching → Présélection → Test/Entretien → Résultat → Analyse J’IA → Décision → Feedback → Étape suivante → … → Décision finale → Offre → Acceptation/Refus → Clôture.
+
+Chaque événement doit permettre de distinguer proposition J’IA, décision humaine, action exécutée, communication préparée/envoyée, notification, résultat, feedback et changement d’étape.
+
+### Garde-fous
+
+J’IA assiste, explique et automatise les actions autorisées ; elle ne décide pas seule du recrutement lorsque le workflow exige une décision humaine. Les scores doivent rester contextualisés et explicables. Les caractéristiques sensibles/proxys sensibles ne doivent pas servir à recommander une décision de recrutement. Les données privées, communications et décisions doivent être traçables et protégées.
+
+### État
+
+**🟦 SPÉCIFIÉ / DÉCISION FIGÉE — NON CODÉ / NON TESTÉ / NON VALIDÉ / NON DÉPLOYÉ**
+
+Cette section devient la référence de conception du cycle de recrutement complet. La prochaine phase technique devra auditer puis implémenter **DB → API → UI → J’IA → notifications → timeline → permissions → tests E2E**.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+
+# CHECKPOINT 26/09/2026 — JOBLY DISTRIBUTION / JOBLY REACH — DIFFUSION MULTICANALE
+
+## Décision produit figée
+
+Jobly doit pouvoir transformer une offre en **campagne de distribution multicanale** : l'offre entre une seule fois dans Jobly, puis Jobly prépare et distribue une version adaptée aux canaux autorisés, avec un lien de retour vers Jobly pour consulter l'offre et candidater.
+
+Principe directeur :
+
+```
+OFFRE JOBLY
+   ↓
+NORMALISATION / CONTENU
+   ↓
+J’IA CONTENT & DISTRIBUTION ENGINE
+   ↓
+PUBLICATION / PARTAGE MULTICANAL
+   ↓
+SOCIAL / COMMUNAUTÉS / PARTENAIRES
+   ↓
+JOBLY
+   ↓
+CONSULTATION / INSTALLATION / COMPTE
+   ↓
+CANDIDATURE
+```
+
+## 1. Deux sources d'offres
+
+### A. Offre créée directement dans Jobly
+
+Le recruteur crée et publie son offre dans Jobly, puis peut choisir **« Diffuser votre offre partout »**.
+
+Jobly doit proposer, selon les connexions et autorisations disponibles :
+- aperçu de la publication ;
+- sélection des canaux ;
+- adaptation du texte par canal ;
+- publication immédiate ou planifiée lorsque le canal le permet ;
+- arrêt, mise à jour ou retrait de la campagne ;
+- suivi des publications et performances.
+
+### B. Offre provenant d'une source externe
+
+Jobly peut aussi distribuer une offre récupérée depuis une source externe **uniquement lorsque la republication est autorisée ou qu'un mécanisme de redirection/attribution est permis**.
+
+Flux cible :
+
+```
+SOURCE EXTERNE
+↓
+INGESTION JOBLY
+↓
+NORMALISATION
+↓
+DÉDUPLICATION
+↓
+CONTRÔLE SOURCE / DROITS / FRAÎCHEUR
+↓
+PUBLICATION JOBLY OU REDIRECTION ATTRIBUÉE
+↓
+DISTRIBUTION AUTORISÉE
+↓
+CANDIDAT
+↓
+JOBLY
+```
+
+Jobly ne doit jamais republier aveuglément une offre externe.
+
+Pour une source ne permettant pas la republication complète :
+- conserver l'attribution ;
+- afficher uniquement les informations autorisées ;
+- renvoyer vers la source/application originale ;
+- ne pas présenter un bouton « Postuler sur Jobly » si la candidature n'est pas réellement gérée par Jobly.
+
+## 2. Canaux cibles
+
+Canaux à prévoir dans l'architecture :
+- Jobly ;
+- Telegram / canaux et communautés Telegram ;
+- WhatsApp Channel / communautés lorsque les capacités officielles le permettent ;
+- LinkedIn ;
+- Facebook / pages / groupes lorsque l'accès et les permissions le permettent ;
+- Instagram ;
+- TikTok ;
+- Google Search / résultats emploi via pages Jobly et données structurées adaptées ;
+- sites partenaires ;
+- médias et job boards partenaires ;
+- communautés étudiantes ;
+- associations professionnelles ;
+- communautés locales ;
+- autres canaux autorisés à terme.
+
+### États de capacité par canal
+
+Chaque canal doit avoir un état explicite :
+
+- 🟢 **AUTOMATIQUE** — API officielle disponible + compte connecté + autorisation suffisante ;
+- 🟡 **ASSISTÉ** — Jobly prépare le contenu et ouvre le canal / partage pour validation humaine ;
+- ⚪ **NON DISPONIBLE** — connexion, permission, API ou approbation absente.
+
+**Ne jamais présenter comme « publication automatique » un canal qui nécessite une validation humaine ou une autorisation de plateforme.**
+
+## 3. Lien universel Jobly
+
+Chaque publication doit utiliser un lien de campagne traçable vers Jobly.
+
+Exemple conceptuel :
+
+```
+jobly.app/jobs/[jobId]?source=linkedin
+```
+
+Le lien doit permettre :
+- ouverture directe de l'offre ;
+- ouverture dans l'app si Jobly est installé ;
+- sinon page Jobly d'installation / téléchargement ;
+- reprise du contexte après installation ;
+- authentification/création de compte ;
+- retour sur l'offre ;
+- candidature.
+
+Le lien ne doit pas exposer de données sensibles.
+
+## 4. J’IA Content & Distribution Engine
+
+J’IA adapte le contenu au canal au lieu de republier le même texte partout.
+
+Exemples :
+- **LinkedIn** : formulation professionnelle et contexte métier ;
+- **Facebook** : format lisible pour communautés ;
+- **Instagram** : texte court + visuel ;
+- **TikTok** : format court vidéo/photo si le canal et les permissions le permettent ;
+- **Telegram** : annonce structurée avec lien Jobly ;
+- **WhatsApp Channel** : message court avec appel à l'action.
+
+J’IA peut préparer :
+- titre ;
+- accroche ;
+- résumé ;
+- hashtags lorsque pertinents ;
+- visuel ;
+- script court ;
+- texte de publication ;
+- lien traçable ;
+- variantes FR/EN.
+
+La publication reste soumise aux permissions du compte et aux règles de chaque plateforme.
+
+## 5. Tracking / attribution
+
+Chaque publication doit pouvoir recevoir un identifiant de campagne/publication, par exemple :
+
+```
+JOB-2026-00421-LI
+JOB-2026-00421-FB
+JOB-2026-00421-IG
+JOB-2026-00421-TT
+JOB-2026-00421-TG
+```
+
+Le funnel cible :
+
+```
+VUES
+↓
+CLICS
+↓
+OUVERTURE JOBLY
+↓
+INSTALLATION
+↓
+COMPTE
+↓
+PROFIL COMPLÉTÉ
+↓
+CANDIDATURE
+↓
+PRÉSÉLECTION
+↓
+ENTRETIEN
+↓
+EMBAUCHE
+```
+
+Le recruteur doit pouvoir distinguer les performances par canal sans confondre une vue sociale avec une candidature réelle.
+
+## 6. Architecture cible
+
+Modèle conceptuel :
+
+```
+JOB
+ ↓
+DISTRIBUTION CAMPAIGN
+ ↓
+CHANNEL PUBLICATION
+ ↓
+TRACKING LINK / ATTRIBUTION
+ ↓
+ANALYTICS
+```
+
+Objets cibles :
+
+### DistributionConnection
+- id
+- organizationId / recruiterId
+- channel
+- providerAccountId
+- status
+- permissions
+- connectedAt
+- expiresAt
+- metadata
+
+### DistributionCampaign
+- id
+- jobId
+- source
+- status
+- createdBy
+- scheduledAt
+- publishedAt
+- stoppedAt
+- metadata
+
+### ChannelPublication
+- id
+- campaignId
+- channel
+- externalPublicationId
+- status
+- contentVersion
+- publishedAt
+- updatedAt
+- removedAt
+- errorCode
+- metadata
+
+### TrackingLink
+- id
+- campaignId
+- channelPublicationId
+- token
+- source
+- createdAt
+- metadata
+
+États de publication cibles :
+
+```
+DRAFT
+READY
+AUTH_REQUIRED
+PENDING
+PUBLISHED
+FAILED
+EXPIRED
+REMOVED
+```
+
+## 7. Synchronisation
+
+Pour les canaux réellement intégrés, Jobly doit prévoir :
+- publication ;
+- mise à jour ;
+- renouvellement si le canal le permet ;
+- retrait/fermeture ;
+- expiration ;
+- gestion d'erreur ;
+- reprise ;
+- journalisation.
+
+Une offre supprimée ou fermée dans Jobly ne doit pas continuer à être présentée comme active dans les canaux que Jobly contrôle.
+
+## 8. Acquisition
+
+La distribution multicanale devient une boucle d'acquisition :
+
+**réseaux sociaux / communautés / partenaires → Jobly → installation ou ouverture → compte → candidature.**
+
+Le principe est de faire de chaque publication une porte d'entrée vers Jobly, sans prétendre que chaque plateforme permet techniquement la même automatisation.
+
+## 9. Gouvernance / anti-spam / droits
+
+Le moteur doit respecter :
+- conditions d'utilisation de chaque plateforme ;
+- APIs officielles et scopes autorisés ;
+- autorisations des comptes ;
+- fréquence et limites de publication ;
+- règles anti-spam ;
+- droits de reproduction des offres externes ;
+- attribution des sources ;
+- retrait/expiration des offres ;
+- protection des données ;
+- consentement et permissions du recruteur.
+
+**Aucune republication automatique d'une offre externe sans base d'autorisation suffisante.**
+
+## 10. Priorité d'implémentation
+
+Ordre recommandé :
+1. modèle de données DistributionConnection / Campaign / Publication / TrackingLink ;
+2. lien universel Jobly + reprise après installation ;
+3. génération de contenu J’IA par canal ;
+4. publication Jobly + tracking ;
+5. Telegram / canaux compatibles ;
+6. canaux Meta/LinkedIn/TikTok selon accès et autorisations réelles ;
+7. Google Search / données structurées emploi ;
+8. partenaires / communautés / médias ;
+9. analytics complet du funnel ;
+10. synchronisation update/close/expire ;
+11. tests E2E ;
+12. validation réelle avant production.
+
+## État
+
+**🟦 SPÉCIFIÉ / DÉCISION FIGÉE — NON CODÉ / NON TESTÉ / NON VALIDÉ / NON DÉPLOYÉ**
+
+Cette capacité devient une brique stratégique du Career OS sous le nom **Jobly Distribution / Jobly Reach**.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+Aucun déploiement Vercel n'est déclenché par ce checkpoint.
+
+
+## MISE À JOUR — 26/09/2026 — TALENT / DISCOVERY CORRECTIVE PASS
+
+### Bloc A — Talent / offres
+- Retour rapide : après le franchissement réel de la 20e offre, une flèche flottante transparente/floue et discrète apparaît ; clic → retour au début de la surface des offres.
+- Suppression de la duplication du flux : le bloc « Vos meilleurs offres » et la liste générale ne se chevauchent plus.
+- « Offres » / « J’IA se charge de tout » conservés comme intitulés de référence.
+- « Les offres qui vous correspondent » conserve le seuil ≥ 50 %.
+- Compteur : « X offres disponibles aujourd’hui », calculé sur le volume réellement chargé.
+- Recherche : bouton/icône de recherche intégré dans la grille.
+- « Voir l’offre » reste présent sur chaque offre de la liste générale, pas comme CTA textuel dans les meilleurs offres.
+- « Actualiser les offres » reste le CTA principal de rafraîchissement et son état de chargement est visible.
+- Détail offre : ajout du CTA « Adapter votre CV pour cette candidature » vers /cv?mode=adapt&jobId=...&source=....
+- Description : nettoyage HTML, retours à la ligne, puces, espaces et correction des encodages UTF-8 mal décodés.
+- Matching : les critères sont activés selon les attentes détectées dans l’offre ; une langue ne pèse sur le score que lorsqu’elle constitue une exigence explicite. Les données absentes restent UNKNOWN / Non renseigné et ne sont pas interprétées comme une absence.
+
+### Entreprises / identité
+- Le flux consomme le nom réel de l’entreprise quand il est disponible.
+- La fiche entreprise recherche en priorité Google Places / Google Maps lorsque la clé Google Places est configurée, puis le site officiel et Google Actualités.
+- La fiche peut afficher : adresse, géolocalisation, téléphone, site, domaine d’activité, statut/avis et actualités ; lorsqu’aucune donnée exploitable n’est trouvée : « Aucune donnée disponible ».
+- Résolution logo renforcée : domaine/site officiel → proxy favicon same-origin ; fallback Logo.dev si le token est configuré ; fallback initiales si aucun logo fiable n’est disponible.
+
+### Bloc B — Discovery / JobsPipe
+- discover-jobs Edge Function : version 17 ACTIVE.
+- Correction de déploiement : suppression de la dépendance RSS deno.land/std@0.224.0/xml/mod.ts qui empêchait le bundling de la fonction ; parsing RSS natif conservé.
+- Enrichissement entreprise : conservation du site web lorsque fourni par une source et alimentation de Company.website / Company.logoUrl lorsque possible.
+- Normalisation des descriptions appliquée avant stockage.
+- Sources/API étudiées le 26/09 : MinaJobs RSS, Techmap Job Postings API/RSS, JobsPipe API, Jooble REST API, ainsi que Joblinca Developer API public. Les clés/conditions d'accès restent à configurer avant de déclarer une ingestion réelle.
+
+### Déploiement Vercel
+- Aucun déploiement Vercel manuel n’a été lancé pendant cette passe.
+- Le verrou Git de déploiement automatique reste en place ; les modifications GitHub sont donc CODÉES, mais pas déclarées DEPLOYÉES sur Vercel.
+
+### Discipline de vérité
+CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ : les modifications ci-dessus sont CODÉES ; discover-jobs est aussi DÉPLOYÉ sur Supabase v17. La validation production de /jobs sur téléphone et le prochain build Vercel restent à effectuer avec autorisation de déploiement.
+
+## CHECKPOINT 26/09/2026 — LOGOS LOGO.DEV / BUILD VERCEL
+
+### Correction Logo.dev
+- Nom de variable serveur retenu : **LOGO_DEV_SECRET_KEY**.
+- La clé secrète n'est pas exposée côté navigateur.
+- `app/api/company-logo/route.ts` utilise désormais `LOGO_DEV_SECRET_KEY`.
+- `components/CompanyLogo.tsx` demande d'abord la résolution serveur Logo.dev.
+- Cache logo client versionné en **v6** afin d'éviter qu'un ancien fallback bloque une nouvelle résolution.
+- Les fallbacks favicon/proxy restent disponibles si Logo.dev ne retourne pas de résultat.
+
+### État
+**🟦 CODÉ — en attente de validation Vercel/runtime.**
+
+### Déploiement
+Le prochain déploiement Vercel doit couvrir l'état complet de `main` au moment du build, notamment :
+- correction Logo.dev ;
+- Bloc A Talent / Offres / matching ;
+- Bloc B Discovery / JobsPipe / `discover-jobs v17` ;
+- corrections TypeScript/build déjà intégrées ;
+- documentation mise à jour.
+
+**Aucun élément n'est déclaré VALIDÉ ou DÉPLOYÉ avant vérification réelle du build et du runtime.**
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+
+# CHECKPOINT 27/09/2026 — UX DÉTAIL D'OFFRE — « L'OFFRE DOIT RESPIRER »
+
+## Décision produit figée
+
+Lorsqu'un Talent clique sur **« Voir l'offre »**, Jobly doit afficher une page de détail d'offre **aérée, lisible et structurée**, et non un bloc de texte compact.
+
+La référence d'intention UX fournie le 27/09/2026 montre une annonce classique organisée en sections avec des espacements suffisants. Jobly doit reprendre ce principe de **respiration et de hiérarchie**, sans copier le design du site de référence.
+
+## Structure cible
+
+### 1. En-tête de l'offre
+- intitulé du poste clairement dominant ;
+- nom et logo de l'entreprise lorsque disponibles ;
+- localisation ;
+- type de contrat ;
+- modalités pertinentes (présentiel, hybride, remote) lorsqu'elles sont connues ;
+- date/statut lorsque pertinent ;
+- CTA **Postuler** clairement identifiable.
+
+### 2. Résumé rapide
+
+Les informations essentielles doivent être présentées sous forme de blocs/pills espacés, par exemple :
+
+`📍 Localisation` · `💼 Contrat` · `🏢 Modalité` · `💰 Rémunération`
+
+Ne pas compresser ces informations dans un paragraphe.
+
+### 3. Description du poste
+
+La description doit être nettoyée et structurée :
+- paragraphes courts ;
+- retours à la ligne conservés ;
+- listes à puces réellement affichées comme listes ;
+- espaces verticaux entre les idées ;
+- encodage UTF-8 correctement rendu ;
+- aucun long bloc HTML brut ou texte fusionné.
+
+### 4. Missions principales
+
+Section dédiée avec une mission par ligne/bloc :
+
+- Mission 1
+- Mission 2
+- Mission 3
+- Mission 4
+
+Chaque élément doit rester visuellement identifiable.
+
+### 5. Profil recherché
+
+Section séparée avec, lorsque disponibles :
+- formation ;
+- expérience ;
+- compétences ;
+- langues ;
+- qualités/aptitudes ;
+- autres exigences explicites.
+
+Les informations absentes de l'offre ne doivent pas être inventées.
+
+### 6. Ce que l'entreprise propose
+
+Section distincte pour :
+- avantages ;
+- environnement ;
+- évolution ;
+- rémunération ;
+- conditions particulières,
+uniquement lorsque l'information est réellement disponible.
+
+### 7. Candidature
+
+Bloc final clairement séparé :
+- mode de candidature ;
+- pièces demandées ;
+- date limite si elle existe ;
+- source/canal lorsque pertinent ;
+- CTA **Postuler maintenant**.
+
+## Règle de densité
+
+> **1 idée = 1 bloc visuel.**
+>
+> **1 bloc = suffisamment d'espace autour.**
+
+Éviter les séquences compactes du type :
+« Mission 1 - Mission 2 - Mission 3 - Profil - expérience - formation - compétences... »
+
+Le détail d'offre doit privilégier :
+- respiration ;
+- hiérarchie ;
+- lisibilité mobile ;
+- scannabilité ;
+- séparation nette des sections ;
+- CTA visibles sans rendre la page agressive.
+
+## Direction visuelle Jobly
+
+Le détail doit rester cohérent avec le Design System Jobly :
+- Poppins ;
+- identité Jobly ;
+- cartes et surfaces propres ;
+- espaces généreux ;
+- hiérarchie typographique claire ;
+- responsive mobile/desktop ;
+- J’IA peut accompagner discrètement le parcours sans masquer le contenu de l'offre.
+
+**La capture MinaJobs fournie le 27/09/2026 sert uniquement de référence de densité/respiration et de structure éditoriale, pas de référence graphique à reproduire.**
+
+## État
+
+**🟦 SPÉCIFIÉ / DÉCISION FIGÉE — 27/09/2026**
+
+Cette décision concerne d'abord la **présentation du détail d'offre**. Elle n'est pas déclarée CODÉE, TESTÉE, VALIDÉE ou DÉPLOYÉE tant que l'UI réelle, les contenus provenant des différentes sources, le responsive mobile et le parcours « Voir l'offre → Postuler » n'ont pas été vérifiés.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+
+# CHECKPOINT 28/09/2026 — IDENTITÉ VISUELLE JOBLY — ASSETS OFFICIELS FOURNIS
+
+## Décision figée
+Les trois fichiers fournis dans **Logo 1.zip** constituent la référence officielle :
+- `IMG-20260928-WA6821.jpg` — variante logo/wordmark ;
+- `IMG-20260928-WA1495.jpg` — variante logo/wordmark ;
+- `IMG-20260928-WA9815.jpg` — icône de l'application.
+
+## Règle d'intégration
+- Remplacer les anciens assets/logo Jobly par ces assets officiels.
+- `public/jobly-logo-reference.jpg` est l'ancien asset actuellement référencé par `components/JoblyLogo.tsx` et doit être remplacé lors de l'intégration effective.
+- L'icône officielle doit devenir la référence de l'icône applicative/PWA lorsque les métadonnées concernées sont présentes.
+- Ne pas recréer, redessiner ou substituer le logo avec un autre visuel.
+
+## État de vérité
+**🟨 REÇU / IDENTIFIÉ — INTÉGRATION GITHUB EN ATTENTE DU BINAIRE ACCESSIBLE.**
+
+Le dépôt GitHub est accessible en écriture et l'ancien asset a été identifié. Au moment de cette passe, le ZIP original n'est plus monté dans l'espace d'exécution permettant de transmettre ses octets à GitHub ; aucune fausse substitution n'est donc effectuée.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+
+# CHECKPOINT 28/09/2026 — DEMANDES PERSISTANTES / BLOQUANTS DE CONTINUITÉ
+
+> Objectif : empêcher la perte des demandes récurrentes qui font stagner le développement. Une demande n'est pas considérée comme terminée parce qu'un commit existe. Elle suit la chaîne CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.
+
+## 1. Import de CV — session requise malgré une session active
+
+### Demande persistante
+Le Talent doit pouvoir importer son CV lorsqu'il est réellement connecté. Le message historique « connecte-toi avant d'importer ton CV » ne doit plus apparaître à tort.
+
+### Exigence UX
+Toute erreur utilisateur doit respecter la convention de notification Jobly : toast visible, court, non bloquant et accessible, et non un message incohérent ou différent du reste de l'application.
+
+### Architecture attendue
+- session Jobly/Supabase partagée ;
+- vérification de l'expiration du token avant l'upload ;
+- refresh si nécessaire ;
+- retry unique après 401 ;
+- PDF original conservé séparément des données structurées ;
+- stockage privé du CV original ;
+- extraction J’IA vers le profil structuré sans altérer le document source.
+
+### État de vérité au 28/09/2026
+**🟨 CODÉ — NON VALIDÉ EN PRODUCTION.**
+
+Correctif actuel : commit ac395220f54632c86e28e912fd5a2d8ed4cc8bca.
+
+À ne pas déclarer terminé avant :
+1. déploiement Vercel autorisé par l'utilisateur ;
+2. test réel avec une session active ;
+3. import d'un PDF réel ;
+4. vérification du toast ;
+5. vérification du stockage privé et de l'extraction.
+
+---
+
+## 2. Récupération des offres — architecture à stabiliser
+
+### Demande persistante
+Le flux de récupération des offres ne doit plus produire une liste mélangeant emplois crédibles, concours, formations, annonces de recrutement insuffisamment documentées et snippets incomplets.
+
+### Décision produit figée
+**Jobly Offres = emplois réellement exploitables.**
+
+Les contenus suivants restent conservés pour alimenter ultérieurement **Jobly Campus**, mais ne doivent pas apparaître dans la liste Offres :
+- concours ;
+- admissions/examens ;
+- formations/certifications ;
+- bourses/programmes assimilés ;
+- recrutement générique sans poste identifiable ou description crédible ;
+- annonces trop pauvres pour constituer une offre d'emploi exploitable.
+
+### Architecture attendue
+SOURCE → INGESTION → ENRICHISSEMENT → NETTOYAGE/NORMALISATION → CLASSIFICATION → CONTRÔLE D'ÉLIGIBILITÉ → STOCKAGE.
+EMPLOI → JOBLY OFFRES.
+CAMPUS / INSUFFISANT → conservé mais hors OFFRES.
+
+L'enrichissement ne doit pas être contourné uniquement parce qu'une source fournit un objet structuré.
+
+### Règle actuelle
+Une découverte avec une description de moins de 180 caractères n'est pas éligible à Jobly Offres. Elle reste stockée avec RECRUTEMENT_INSUFFISANT lorsqu'elle ne peut pas être qualifiée de véritable emploi.
+
+### État de vérité au 28/09/2026
+**🟨 CODÉ + SUPABASE DÉPLOYÉ — VALIDATION PRODUCTION VERCEL/UI EN ATTENTE.**
+
+Correctifs récents :
+- 6544cb4abf22871ec83fd32410a939db2e44a5ac — enrichissement des listings structurés avant classification ;
+- a86dea7afca18a22f38a2d0cedeb6174559e611e — exigence de description substantielle ;
+- cdaa1ccfb8534157ab0a352762dbf48bc998c0f2 — renforcement de la gate d'éligibilité ;
+- discover-jobs Supabase v24 ACTIVE.
+
+À ne pas déclarer terminé avant :
+1. vérifier le flux complet source → DB → API → /jobs ;
+2. vérifier qu'aucun concours/formation/recrutement insuffisant ne remonte dans Offres ;
+3. vérifier que les vrais emplois restent présents ;
+4. vérifier le comportement mobile réel ;
+5. conserver les contenus exclus pour Campus.
+
+---
+
+## 3. Détail d'une offre — lisibilité et structuration
+
+### Demande persistante
+Une offre ne doit plus être affichée sous forme de bloc de texte touffu, fusionné ou rempli de symboles.
+
+### Exigence
+Le détail doit respirer et séparer clairement :
+- en-tête ;
+- résumé ;
+- description ;
+- missions ;
+- profil ;
+- formation ;
+- expérience ;
+- compétences ;
+- avantages ;
+- candidature ;
+- délai lorsque disponible.
+
+Les informations absentes ne doivent jamais être inventées.
+
+### État de vérité
+Le correctif TypeScript de JobDetailSections a été intégré dans le code, mais la validation de production dépend du prochain build Vercel autorisé.
+
+**🟨 CODÉ — NON VALIDÉ / NON DÉPLOYÉ EN PRODUCTION.**
+
+---
+
+## 4. Discipline de déploiement — règle persistante
+
+**Ne jamais lancer un déploiement Vercel sans validation explicite de l'utilisateur.**
+
+Un commit GitHub ne signifie pas que Vercel a construit, que le build TypeScript est passé, que le runtime est correct, que l'UI mobile est correcte ou que la fonctionnalité est validée.
+
+La documentation doit toujours distinguer :
+**CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+---
+
+## 5. Règle anti-stagnation
+
+Lorsqu'une demande persistante réapparaît, ne pas repartir de zéro et ne pas refaire une micro-correction isolée sans vérifier l'architecture complète.
+
+Pour toute correction importante :
+1. identifier la cause structurelle ;
+2. vérifier les fichiers et flux concernés ;
+3. corriger le point d'architecture ;
+4. tester ;
+5. faire un commit clair ;
+6. vérifier le build/runtime concerné ;
+7. attendre la validation de déploiement ;
+8. mettre à jour cette documentation.
+
+Une fonctionnalité n'est pas « finie » parce qu'elle compile. Elle est finie lorsqu'elle est vérifiée dans le parcours réel.
+
+---
+
+## 6. Tableau de suivi des demandes qui ne doivent plus être perdues
+
+| Demande persistante | État actuel | Blocage restant |
+|---|---|---|
+| Import CV sans faux « session requise » | 🟨 CODÉ | Déploiement + test réel |
+| Toast CV conforme à la convention Jobly | 🟨 CODÉ | Validation production |
+| Séparation CV original / profil structuré | 🟨 CODÉ | Test end-to-end |
+| Offres = emplois crédibles uniquement | 🟨 CODÉ + Supabase v24 | Validation source → API → UI |
+| Concours/formations hors Offres mais conservés pour Campus | 🟨 CODÉ | Vérification complète Campus/Offres |
+| Recrutements insuffisants hors Offres | 🟨 CODÉ + backfill | Vérification des sources et faux positifs |
+| Enrichissement des sources structurées | 🟨 CODÉ + Supabase v24 | Validation sur nouvelles découvertes |
+| Détail d'offre aéré et structuré | 🟨 CODÉ | Build + validation UI réelle |
+| Déploiement Vercel sans contournement du contrôle utilisateur | 🟢 RÈGLE FIGÉE | Respect permanent |
+
+**Cette liste doit être mise à jour à chaque nouvelle résolution ou nouvelle demande persistante.**
+
+
+# CHECKPOINT 01/10/2026 — BONUS J’IA FREE + ACCÈS CV PONCTUELS
+
+## Décisions produit figées
+- Talent **Free** : 30 crédits J’IA offerts une seule fois à l’inscription, non renouvelables.
+- Le bonus est visible dans **Paramètres → Crédits J’IA**, avec crédit accordé et crédit restant.
+- À la première ouverture du dashboard Talent, une notification Jobly accessible annonce le bonus et le crédit restant.
+- CV ATS et CV Jobly optimisé : **500 FCFA / service / accès 2 h** pour Free. Pendant les 2 h, plusieurs optimisations/conversions et téléchargements du service payé sont permis ; à l’expiration, un nouveau paiement est requis.
+- Start/Premium/Pro : opérations CV téléchargables incluses selon leurs droits.
+- Les paiements CV sont des **paiements ponctuels**, jamais des abonnements.
+- Le backend associe chaque paiement à son service CV et vérifie la fenêtre `paidAt + 2 h` côté serveur ; aucun contrôle d’accès critique n’est laissé au frontend.
+- Aucun watermark n’est utilisé.
+
+## État de vérité
+**🟨 CODÉ + CONTRÔLÉ — NON DÉPLOYÉ / NON VALIDÉ PRODUCTION.**
+
+Contrôles réalisés :
+1. séparation des services `CV_ATS_DOWNLOAD` / `CV_OPTIMIZED_DOWNLOAD` pour empêcher la réutilisation croisée d’un paiement ;
+2. fenêtre de 2 h vérifiée côté serveur à partir de `Payment.paidAt` ;
+3. bonus Free accordé uniquement lors de la création du compte, avec état persistant `aiWelcomeCredits`, `aiWelcomeGrantedAt`, `aiWelcomeSeenAt` ;
+4. quota Free consommé depuis la date d’octroi du bonus, sans renouvellement mensuel ;
+5. notification première visite et affichage du solde dans les paramètres ;
+6. migration Supabase appliquée au projet connecté, mais validation UI/runtime réelle reste dépendante du déploiement Vercel autorisé par l’utilisateur.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+
+# CHECKPOINT 01/10/2026 — CONTRÔLE PAR CONTRADICTION APRÈS INTÉGRATION CV
+
+La passe de contrôle post-intégration a relevé et corrigé deux contradictions avant validation :
+- le parseur des compétences CV utilisait une séquence échappée qui ne séparait pas correctement les retours à la ligne ; corrigé dans `app/api/talent/cv/export/route.ts` ;
+- le PDF exporté ajoutait un pied de page « CV généré par JOBLY », incompatible avec la décision produit « aucun watermark » ; ce pied de page a été supprimé.
+
+Contrôles croisés effectués :
+- catalogue Talent : Free = 500 FCFA pour ATS et CV optimisé, Start/Premium/Pro = inclus ;
+- paiements : `CV_ATS_DOWNLOAD` et `CV_OPTIMIZED_DOWNLOAD` sont isolés par service ;
+- export serveur : montant, devise, utilisateur, absence d'abonnement, statut SUCCESSFUL, `paidAt + 2 h` et service exact sont contrôlés côté serveur ;
+- schéma Supabase : les colonnes `feature` et `paidAt` existent et les colonnes du bonus J’IA sont présentes ;
+- rôle utilisateur : le défaut DB reste TALENT pour les nouveaux comptes ;
+- les alertes Supabase de sécurité observées sont des alertes préexistantes, principalement des tables volontairement service-only sous RLS et une extension `pg_net` en public, sans nouvelle alerte attribuable à cette fonctionnalité.
+
+## État de vérité
+**🟨 CODÉ + CONTRÔLÉ — PRÊT POUR BUILD/VALIDATION, NON DÉPLOYÉ.**
+
+La validation runtime réelle et la validation UI restent à effectuer après un déploiement Vercel explicitement autorisé par l'utilisateur. Aucun déploiement n'a été lancé.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+
+# CHECKPOINT 01/10/2026 — CV IMPORT / NOTIFICATIONS / MODÈLES / BONUS RECRUTEUR
+
+## Correctifs
+- Erreur d'import CV « Operator doesn't exist » : la fonction SQL de réservation des crédits utilisait des types incompatibles entre `User.id` (text) et `AiUsage.userId` (uuid). La fonction garde désormais un paramètre UUID et caste explicitement `User.id`; l'ancienne surcharge ambiguë a été supprimée.
+- Le contrôle Supabase de la fonction renvoie désormais correctement un refus avec le solde au lieu de l'erreur PostgreSQL.
+- Les comptes Talent Free existants sans bonus ont reçu une seule fois 30 crédits de bienvenue.
+- Recruteur Free : bonus de bienvenue de 30 crédits J’IA, solde accessible dans Paramètres et notification au premier dashboard.
+- Notification Jobly : bulle locale, apparition douce, texte progressif caractère par caractère, explosion en particules visibles puis disparition à 5 secondes.
+- CV importé : nom normalisé `CV_NomUtilisateur_Prenom_Mois_Année.pdf`, indépendant du nom du fichier source.
+- Suppression du CV importé : poubelle rouge, suppression serveur du document original et nettoyage de l'état local.
+- « Voir le CV » placé directement sous « Enregistrer », avec modèles gratuits et modèles Premium verrouillés jusqu'à l'abonnement ; la sélection modifie réellement le rendu de prévisualisation.
+- Boutons : « Télécharger version ATS » et « Télécharger CV optimisé » sans afficher prix/durée ; ces informations restent dans l'interface de paiement après clic. « accès 2 h » est volontairement réduit visuellement dans cette interface.
+
+## État de vérité
+**🟨 CODÉ + CONTRÔLÉ — NON DÉPLOYÉ / NON VALIDÉ PRODUCTION.**
+
+Contrôles : fonction SQL vérifiée directement sur Supabase sans écriture de crédit lors du test ; séparation paiement/CV conservée ; routes d'import et de stockage relues après correction ; aucun déploiement Vercel lancé.
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+
+
+# CHECKPOINT 01/10/2026 — BONUS J’IA : 1 COMPTE = 1 BONUS
+
+- Règle renforcée : un compte Jobly reçoit **30 crédits de bienvenue une seule fois**, soit comme **Talent**, soit comme **Recruteur**, jamais les deux.
+- Le bonus est attaché au compte `User` via `aiWelcomeGrantedAt` ; il ne dépend pas d'un simple affichage côté interface.
+- Une fonction PostgreSQL atomique verrouille la ligne du compte avant attribution et vérifie le rôle demandé. Un appel recruteur sur un compte Talent déjà doté de crédits est refusé sans nouvelle attribution, et inversement.
+- Les routes Talent et Recruteur utilisent désormais cette garde serveur commune afin de fermer le contournement par appel direct d'API ou concurrence de requêtes.
+- Vérification Supabase effectuée sur un compte Talent existant : appel avec le rôle `RECRUITER` → `granted=false`, solde inchangé à 30.
+
+**État : 🟨 CODÉ + CONTRÔLÉ — NON DÉPLOYÉ / NON VALIDÉ PRODUCTION.**
+
+**Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ.**
+# CHECKPOINT 01/10/2026 — J’IA MASTER AUDIT / CEO & TRANSVERSAL SCOPE
+
+## Correction du périmètre de référence
+
+L’audit de continuité confirme que le chantier J’IA dépasse le Cognitive Core et l’Internet Brain. Le périmètre maître comprend également **J’IA CEO**, Business Intelligence, Growth Intelligence, Commercial Intelligence, Finance Intelligence, Market Intelligence, Operations Intelligence, Customer Intelligence et l’ensemble Career Intelligence.
+
+| Chantier | État de vérité | Reste |
+|---|---|---|
+| Autonomie offline V10 | 🟢 Référence testée | Intégration runtime complète |
+| Cognitive Core | 🟨 Codé / à valider runtime | Persistance réelle + E2E |
+| Internet Brain V1 | 🟨 Codé / à valider | CI, sources, persistance, E2E |
+| World Model | 🟨 Initial | Modèle riche + évolution |
+| Policy Engine | 🟨 Initial | Intégration à tous les points d’action |
+| Agent Runtime | 🟨 Initial | Tool Registry, exécution, vérification, rollback |
+| Career Twin / Career Intelligence | 🟨 Initial | Gap, GPS, readiness, opportunity loop |
+| Self Model | 🟨 Initial | Connexion aux états réels du runtime |
+| **J’IA CEO** | 🔴 À construire/valider | CEO Core + décisions + mémoire institutionnelle |
+| **Business Intelligence** | 🔴 À construire/valider | KPI + métriques + analyse |
+| **Growth Intelligence** | 🔴 À construire/valider | Acquisition + expérimentation |
+| **Commercial Intelligence** | 🔴 À construire/valider | Pipeline + prospects + conversion |
+| **Finance Intelligence** | 🔴 À construire/valider | Rentabilité + scénarios + garde paiements |
+| **Market Intelligence** | 🔴 À construire/valider | Veille + tendances + concurrence |
+| **Operations Intelligence** | 🔴 À construire/valider | Santé opérationnelle + incidents |
+| **Customer Intelligence** | 🔴 À construire/valider | Signaux utilisateurs + satisfaction |
+| **CEO Cockpit** | 🔴 À construire/valider | KPI, alertes, prévisions, scénarios, actions |
+| Event Bus cognitif | 🔴 À construire | Événements unifiés et traçables |
+| Tool Registry | 🔴 À construire | Capacités/outils déclarés et contrôlés |
+| Transversal Talent/Recruiter/Partner/Mobility/Community/Business/Admin | 🟨 Partiel | Contextualisation complète |
+| UI/Voice/3D J’IA | 🟨 Partiel | E2E navigateur + mobile |
+| E2E ultime | 🔴 | Internet → mémoire → décision → action → résultat → learning |
+
+## Règle de continuité
+
+Le chantier ne peut être déclaré terminé que lorsque le même cycle cognitif alimente les couches Career, CEO, Business, Growth, Commercial, Finance, Market, Operations et Customer, avec permissions, preuves, persistance, vérification et apprentissage.
+
+**Aucun merge vers `main` et aucun déploiement Vercel sans validation explicite de l’utilisateur.**
+
+---
+# CHECKPOINT 01/10/2026 — J’IA CONTINUOUS EXECUTION / TRUTH UPDATE
+
+| Composant | État après consolidation | Verdict |
+|---|---|---|
+| Policy Engine | niveau requis réellement comparé + guard paiement | 🟨 CODÉ / CI à valider |
+| Event Bus | connecté à JiaEvent + IntelligenceTrace | 🟨 CODÉ / runtime à valider |
+| Tool Registry | registre centralisé + Policy | 🟨 CODÉ / exécution à valider |
+| Self Model | persistant dans jia_self_state | 🟨 CODÉ / runtime à valider |
+| Unified Cognitive Runtime | boucle complète exposée | 🟨 CODÉ / E2E à valider |
+| Brain utilisateur | branché sur le cycle unifié | 🟨 CODÉ / E2E à valider |
+| Internet Brain | source Web commune pour le Brain | 🟨 CODÉ / hard mode à valider |
+| Memory + Belief + World Model | signaux externes reliés aux trois | 🟨 CODÉ / persistance à valider |
+| Prediction + Reflection | calibration + mémoire réflexive | 🟨 CODÉ / outcomes à valider |
+| J’IA CEO | KPI + alertes + actions + risques + opportunités | 🟨 CODÉ / validation à poursuivre |
+| CEO Cockpit | 7/30/90 + 9 couches transversales | 🟨 CODÉ / browser E2E à valider |
+| Business / Growth / Commercial / Finance | métriques réelles reliées au socle CEO | 🟨 BASELINE / approfondissement analytique |
+| Market Intelligence | interne + point d’entrée Internet Brain | 🟨 BASELINE / veille croisée à valider |
+| Operations Intelligence | AiUsage + traces + approvals | 🟨 CODÉ / runtime à valider |
+| Customer Intelligence | User + Application + JiaEvent | 🟨 BASELINE / signaux satisfaction à enrichir |
+| Career Intelligence | Career Twin + Gap + Readiness + Next Best Action | 🟨 CODÉ / E2E à valider |
+| Séparation CEO / Talent | route ADMIN dédiée + non-exposition utilisateur | 🟨 CODÉ / tests de fuite à valider |
+| Architecture Gate | test de contradictions/invariants | 🟨 CODÉ / run CI en attente |
+| Production | aucun merge/deploy effectué | ⚪ NON DÉPLOYÉ |
+
+## Contradictions actives avant le vert final
+1. Deux couches mémoire historiques existent encore ; le pont est en place mais le canonical read path doit être unifié.
+2. Le runtime agent sait planifier/proposer/vérifier, mais l’exécution réelle de chaque outil doit encore être démontrée.
+3. Les couches Market/Customer restent des baselines analytiques à enrichir.
+4. Les migrations cognitives doivent être reproductibles sur un environnement neuf.
+5. Les runs CI/Hard Mode/E2E doivent tous conclure sans échec critique.
+
+Règle de vérité : présence de code ≠ validation. Échec = 🔴. Partiel/non vérifié = 🟨.
+
+# CHECKPOINT 01/10/2026 — J’IA MASTER GATE / ÉTAT RÉEL
+
+| Domaine | État | Preuve / reste |
+|---|---|---|
+| Cognitive Runtime USER | 🟨 | cycle unifié codé; runtime CI à valider |
+| Cognitive Runtime ADMIN / CEO | 🟨 | même runtime, contexte isolé; E2E à valider |
+| Memory read model | 🟨 | vue unifiée codée; migration non confirmée appliquée |
+| Belief | 🟨 | persistance codée; données runtime encore à prouver |
+| World Model | 🟨 | signaux externes reliés; couverture des entités/relations à enrichir |
+| Prediction / Calibration | 🟨 | outcome → reflection → mémoire; série runtime non prouvée |
+| Agent Runtime | 🟨 | plan + policy + actions sûres + verification |
+| Tool Registry | 🟨 | registre + consentement + Policy |
+| Event Bus | 🟨 | événements/traces corrélés; consommation événementielle avancée à poursuivre |
+| Watcher | 🟨 | veille + ingestion + traces |
+| Self Model | 🟨 | persistant; dépendance runtime à valider |
+| Career Intelligence | 🟨 | Career Twin + gaps/readiness/next action |
+| Recruiter Intelligence | 🟨 | funnel + ATS/readiness + stagnation |
+| Partner Intelligence | 🟨 | KYC/agreement/location consent |
+| Mobility Intelligence | 🟨 | coûts/distances/fit/status |
+| CEO Intelligence | 🟨 | KPI + alertes + actions + risques/opportunités + 7/30/90 |
+| Business Intelligence | 🟨 | données réelles reliées au snapshot CEO |
+| Growth Intelligence | 🟨 | acquisition/candidatures; activation avancée à enrichir |
+| Commercial Intelligence | 🟨 | subscriptions/recruiter jobs/commissions |
+| Finance Intelligence | 🟨 | revenus/recurring/commissions; rentabilité bloquée sans coûts |
+| Market Intelligence | 🟨 | Market Watch vérifié optionnel |
+| Operations Intelligence | 🟨 | AiUsage + traces + approbations |
+| Customer Intelligence | 🟨 | activité/candidatures/events; feedback satisfaction avancé à enrichir |
+| Community / Campus | 🟨 | contexte événementiel partagé; modèle dédié non confirmé |
+| UI / Voice / 3D | 🟨 | présence J’IA + fallback procédural; E2E visuel restant |
+| Hard Mode | 🟨 | workflows présents; résultat final en attente |
+| Master Gate | 🟨 | architecture/cognitive/internet/offline/lexicon; résultat final en attente |
+| Database persistence | 🟨 | tables cognitives présentes + RLS; 0 ligne runtime sur environnement connecté |
+| Security | 🟨 | server-only cognitive tables; payment guard; E2E sécurité restant |
+| Production | ⚪ | aucun merge main / aucun déploiement |
+
+### Condition de fin
+Passage au vert uniquement après : CI complet, typecheck/build, intégration DB/migrations, E2E navigateur, scénarios d’échec, vérification des permissions, persistance réelle, ultimate loop et absence de contradiction critique.
+
+
+# CHECKPOINT 01/10/2026 — J’IA CANONICAL MEMORY LOOP / CONTINUOUS EXECUTION
+
+## Cause structurelle corrigée
+Le contrôle post-audit a confirmé une contradiction réelle : `JiaContext` lisait déjà `jia_memory_unified`, mais la vue n’existait pas encore dans la base JOBLY-PROD, et le chemin comportemental continuait à écrire principalement dans l’ancien `JiaMemory`.
+
+## Correction livrée sur la branche `feat/jia-internet-brain-20261001`
+- `lib/jiaContext.ts` : suppression d’une référence inexistante `cognitiveMemoryResult` qui pouvait casser le build TypeScript.
+- `lib/jia/cognitive.ts` : le snapshot cognitif lit désormais le modèle canonique `jia_memory_unified`, incluant mémoire historique + mémoire cognitive.
+- `lib/jiaMemory.ts` : les événements comportementaux pertinents alimentent désormais aussi `jia_memory` via `remember()` ; le double système de lecture est donc fermé côté runtime.
+- `test_jia_cognitive.py` : garde ajoutée pour empêcher la régression du chemin d’écriture canonique.
+
+## Base JOBLY-PROD
+La vue `public.jia_memory_unified` a été créée et vérifiée :
+- vue présente ;
+- 5 lignes actuellement visibles dans le modèle unifié ;
+- SELECT refusé à `anon` ;
+- SELECT refusé à `authenticated` ;
+- SELECT autorisé à `service_role`.
+
+## Preuve / état
+- Commit de construction : `f5e926c52f3c4bcbcacec92eb8ad8a566fc3e5ff`.
+- 1 commit d’avance par rapport au checkpoint précédent.
+- Aucun merge vers `main`.
+- Aucun déploiement Vercel lancé.
+- Aucun build Vercel lancé.
+
+## Verdict
+**🟢 CORRIGÉ / INTÉGRÉ — VALIDATION CI/E2E encore requise.**
+
+Ce checkpoint ferme un gap structurel de mémoire, mais ne permet pas encore de déclarer J’IA à 100 % : les preuves runtime/E2E, l’exécution réelle des outils, l’autonomie contrôlée, la présence 3D/voix et les gates de production restent obligatoires.
+
+
+# CHECKPOINT 01/10/2026 — J’IA SECURITY CONTRADICTION / AI CREDIT RPC
+
+## Contradiction détectée
+L’audit Supabase a trouvé une fonction public.reserve_ai_credit(...) en SECURITY DEFINER avec le droit EXECUTE hérité de PUBLIC. La vérification interne auth.uid() ne protégeait donc pas correctement l’appel anonyme lorsque auth.uid() était NULL.
+
+## Correction
+- Révocation de EXECUTE à PUBLIC, anon et authenticated.
+- EXECUTE conservé uniquement pour service_role, cohérent avec l’utilisation serveur du RPC.
+- Migration versionnée ajoutée sur la branche : supabase/migrations/20261001020000_jia_harden_ai_credit_rpc_execute.sql.
+- Vérification directe : anon_execute=false, authenticated_execute=false, service_execute=true.
+
+## État
+**🟢 CORRIGÉ + VÉRIFIÉ EN BASE.**
+
+Les alertes Supabase restantes sont indépendantes de cette correction : tables service-only volontairement sans policies, pg_net dans public, protection des mots de passe compromis désactivée.
+
+# RECRUTEMENT 360° V2 — ARCHIVÉ / FERMÉ — 02/10/2026
+
+Le Recrutement 360° V2 est désormais **fermé comme chantier actif**.
+
+- Les PR de travail Recrutement 360° encore ouvertes ont été clôturées : **#142, #143, #144, #145, #146, #147 et #148**.
+- Aucun nouveau développement Recrutement 360° ne doit être lancé à partir de cet ancien checkpoint.
+- Les spécifications, lots et décisions restent conservés dans `Statut.md` comme **historique de conception**.
+- Cet historique ne constitue plus le registre du chantier courant et ne doit pas être interprété comme « prochaine étape ».
+
+## Nouvelle gouvernance courante
+
+- **Tâche active unique :** Career Journey 360 — validation runtime / intégration production.
+- **Branche de travail de référence :** `feat/jia-career-journey-360-main-20261002`.
+- **Point de départ :** code déjà présent, corrigé et réconcilié ; aucune reconstruction.
+- **Objectif :** vérifier DB/migrations JOBLY-PROD, APIs, services, UI, runtime/E2E, puis corriger uniquement les écarts constatés.
+- **État :** 🟨 CODÉ + CORRIGÉ + RÉCONCILIÉ — NON VALIDÉ RUNTIME / NON DÉPLOYÉ.
+- **Déploiement :** aucun déploiement Vercel sans autorisation explicite.
+
+## Périmètre de validation Career Journey 360
+
+1. code existant ;
+2. Prisma / migrations / schéma réel JOBLY-PROD ;
+3. APIs et services ;
+4. intégration UI ;
+5. parcours runtime / E2E ;
+6. permissions et RLS ;
+7. persistance réelle ;
+8. corrections ciblées ;
+9. retests ;
+10. mise à jour de `README.md` + `Statut.md`.
+
+**Règle : CODÉ ≠ ACCESSIBLE ≠ CONNECTÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.**
+
+# CHECKPOINT 02/10/2026 — CAREER JOURNEY 360 — CONTRÔLE DE CONFORMITÉ FINALISÉ
+
+La passe de conformité code ↔ décisions validées a corrigé les écarts suivants :
+- candidature recommandée directement lorsque l'analyse indique une préparation suffisante ;
+- mission toujours proposée d'abord, puis explicitement acceptée avant progression ;
+- transitions de mission serveur contrôlées ;
+- rattachement des preuves limité aux ressources du compte courant ;
+- politiques RLS de la migration séparées par opération, sans FOR ALL ;
+- migration Prisma localisée et réconciliée avec le schéma de la branche.
+
+**État de vérité : 🟨 CODÉ + CORRIGÉ + RÉCONCILIÉ — NON VALIDÉ RUNTIME / NON DÉPLOYÉ.**
+
+JOBLY-PROD ne contient pas encore les tables Career* de Career Journey ; aucune migration de production n'a été exécutée pendant cette passe. Aucun merge vers main et aucun déploiement Vercel n'ont été effectués.
+
+
+# CHECKPOINT 02/10/2026 — LOT TALENT MOBILITÉ MARCHÉ — CONSOLIDATION FINALE
+
+## Décision produit
+- Tous les Talents conservent l'accès aux offres locales et africaines.
+- FREE : découverte/recherche de base.
+- START : préparation multi-pays uniquement ; aucune activation de veille multi-pays.
+- PREMIUM : activation de veille multi-pays + optimisation avancée.
+- PRO : veille panafricaine + automatisation avancée.
+- Aucun nouveau champ User/Profile de préférence pays n'est introduit.
+
+## Implémentation consolidée
+- Entitlements serveur centralisés dans `lib/talentMarketEntitlements.ts`.
+- `/api/jobs?scope=countries&targetCountryCodes=CM,SN` contrôle le plan côté serveur.
+- UI Talent : saisie de plusieurs codes pays, préparation multi-pays et demande d'activation de veille.
+- `/api/jia/watch-subscriptions` refuse START/FREE pour l'activation et ne persiste pas la préparation START.
+- Watcher existant réutilisé : aucune seconde mécanique de veille créée.
+- Persistance `JiaWatchSubscription / JiaWatchRun / JiaWatchSnapshot`, idempotence par abonnement+créneau, snapshots hashés et historique FAILED.
+- Intelligence B3 : SUPPRESS / DIGEST / NOTIFY / REVIEW, atténuation par contradiction, mémoire et notification in-app.
+- Scheduler Vercel existant enrichi avec `/api/cron/jia-watch`.
+
+## Correction de cohérence B3
+Les champs d'intelligence écrits par `watchIntelligence.ts` sont maintenant présents dans Prisma et la migration de persistance :
+`intelligenceDecision, relevanceScore, impactScore, noveltyScore, contradictionScore, notificationEligible, decisionReason, memoryId, evaluatedAt, notificationId`.
+
+## Validation de livraison
+- Aucun déploiement Vercel effectué.
+- Migration Supabase versionnée dans le dépôt mais non appliquée à JOBLY-PROD pendant cette passe.
+- Tests GitHub à exécuter après consolidation : typecheck, smoke B3.1, build et scénarios entitlement.
+- Merge vers `main` effectué uniquement après passage des contrôles disponibles.
+
+
+# CHECKPOINT 02/10/2026 — LOT TALENT MOBILITÉ — ÉTAT POST-MERGE
+
+- PR #163 est fusionnée dans `main` par le commit `05fe542e1909c49df2060e16ff22749a8e4091af`.
+- Les anciennes branches/PR de travail #156 et #162 ont été fermées comme superseded : leur contenu fonctionnel a été consolidé dans #163.
+- Entitlements Talent, préparation multi-pays, activation Premium, veille panafricaine PRO, persistance Watcher et intelligence B3 sont présents sur `main`.
+- Aucun déploiement Vercel n'a été lancé.
+- La migration de veille est versionnée dans le dépôt mais n'a pas été appliquée à JOBLY-PROD pendant cette exécution.
+
+## Validation CI réelle
+- J'IA Master Continuous Gate : 🟢 SUCCESS
+- J'IA Hard Mode : 🟢 SUCCESS
+- J'IA Architecture 10-10 Gate : 🟢 SUCCESS
+- J'IA Cognitive Core : 🟢 SUCCESS
+- J'IA Internet Brain Hard Mode : 🟢 SUCCESS
+- Jobly CI — Typecheck & Build : 🔴 FAILURE sur des erreurs préexistantes hors fichiers de ce chantier (Career Journey / Institution).
+- Verify offer pipeline : 🔴 FAILURE sur le même socle de typecheck global ; le build a été sauté par le workflow.
+- Le smoke B3 n'a pas été exécuté par ce workflow après l'échec typecheck.
+
+**Vérité : 🟨 MERGÉ MAIN / INTÉGRÉ — VALIDATION GLOBALE NON VERTE.**
+Le chantier est intégré dans `main`, mais ne doit pas être déclaré « totalement validé » tant que les erreurs CI globales et le smoke B3 n'ont pas été résolus/exécutés. Aucun déploiement n'a été effectué.
+
+
+# CHECKPOINT 02/10/2026 — LOT TALENT MOBILITÉ MARCHÉ — CLÔTURE TECHNIQUE
+
+- PR #163 : consolidation Talent Mobility + J’IA Watch déjà intégrée à `main`.
+- PR #164 : correction des gates de validation intégrée à `main` par `11c3fd25fff41fb29ea8098884ffe8b5edb50560`.
+- FREE : accès aux offres locales et africaines ; découverte/recherche de base.
+- START : préparation multi-pays uniquement ; aucune veille multi-pays active.
+- PREMIUM : veille multi-pays active + optimisation avancée.
+- PRO : veille panafricaine + automatisation avancée.
+- Entitlements : contrôlés côté serveur ; aucun contournement par payload/query attendu.
+- Watcher : réutilisation de `JiaWatchSubscription/JiaWatchRun/JiaWatchSnapshot` et scheduler existant ; aucun second scheduler.
+- Intelligence B3 : `SUPPRESS / DIGEST / NOTIFY / REVIEW` désormais exécutée après chaque run Watcher réussi et persistée sur `JiaWatchRun`.
+- Schéma de veille JOBLY-PROD : `JiaWatchSubscription`, `JiaWatchRun`, `JiaWatchSnapshot` sont déjà présents et leurs colonnes B3 sont vérifiées ; aucune opération DDL n’a été exécutée pendant cette passe. La migration Prisma `20261002060000_jia_watch_persistence` reste versionnée dans le dépôt ; elle n’apparaît pas dans l’historique des migrations Supabase, ce qui est documenté comme un point de réconciliation et non comme une nouvelle migration à appliquer aveuglément.
+- Typecheck : 🟢 SUCCESS.
+- Build production : 🟢 SUCCESS.
+- Smoke B3.1 : 🟢 SUCCESS (4/4 décisions + atténuation par contradiction).
+- Gates J’IA Master / Architecture / Cognitive / Internet Brain / Hard Mode : 🟢 SUCCESS sur la validation finale.
+- Offer pipeline verification : 🟢 SUCCESS sur la validation finale.
+- Vercel : aucun déploiement manuel/production lancé ; le workflow de production est `workflow_dispatch` uniquement.
+- État : **CODÉ → CONNECTÉ → TESTÉ → VALIDÉ techniquement → NON DÉPLOYÉ**.
+
+# CHECKPOINT LOT G — CAREER BRAIN / CAREER OS — 02/10/2026
+
+## État après passe d'implémentation
+
+Lot G est désormais matérialisé comme une couche de lecture/orchestration au-dessus de Career Journey 360 — Architecture B. Aucun modèle Career parallèle n'a été introduit.
+
+| Lot G | État | Preuve |
+|---|---|---|
+| G1 Brain Core | 🟢 CODÉ / RACCORDÉ | `lib/careerBrain.ts` + `lib/jiaContext.ts` |
+| G2 Career Twin | 🟢 CODÉ comme vue calculée | `careerTwin` |
+| G3 GPS / Gap | 🟢 RÉUTILISÉ | snapshot Journey |
+| G4 Readiness | 🟢 RÉUTILISÉ | `latestReadiness` |
+| G5 Opportunity | 🟡 PARTIEL | Career Radar + matching existants |
+| G6 Learning / Interview / Application | 🟡 PARTIEL | contexte + outcomes applications |
+| G7 Mobility | 🟡 À RACCORDER | moteur Mobility existant |
+| G8 Companion J’IA | 🟢 RACCORDÉ | `lib/jiaContext.ts` + actions protégées |
+| G9 Outcome / Review / Reassessment | 🟡 PARTIEL | reviews + action runs + applications agrégés |
+| G10 Runtime / Production | ⏳ À VALIDER | aucune certification E2E/production sur cette branche |
+
+## Nouvelle API
+
+`GET /api/career-brain` fournit une vue unifiée et calculée de Career Journey, Career Twin, objectifs, missions, recommandations, preuves, portfolio, assessments, scénarios, reviews, outcomes J’IA et outcomes de candidatures.
+
+Cette API est en lecture : elle ne crée pas de nouvelle source d'état et n'exécute pas d'action externe.
+
+## Intégration J’IA
+
+Le contexte J’IA consomme maintenant Career Brain. Les mécanismes existants de policy, consentement, Agent Action Runs et vérification sont conservés.
+
+## Commits
+
+- `dddef780` Career Brain context ;
+- `472b6af8` J’IA → Architecture B ;
+- `e4ff135e` API Career Brain ;
+- `9243b78d` outcomes J’IA + applications ;
+- `899310df` exposition API des outcomes.
+
+**Branche de travail :** `feat/lot-g-career-brain-integration-20261002`.
+
+## Règle de continuité
+
+Le prochain travail doit connecter les briques existantes entre elles : Opportunity/Matching, Mobility, Learning, Interview, CV/Evidence et boucle Outcome → Review → Reassessment. Aucun nouveau Career State ne doit être créé.
+
+**Vérité d'exécution :** CODÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.
+
+# CHECKPOINT 02/10/2026 — RECRUTEMENT 360° — LOT 11 — LISTINGS OFFICIELS
+
+## Périmètre consolidé
+Le Lot 11 intègre désormais les listings officiels, leurs exports et leur surface publique versionnée.
+
+### Backend / Supabase
+- Consentement candidat pour la publication officielle.
+- Bucket privé `recruitment-listings` et exports protégés.
+- Liens publics versionnés avec étape/thème, expiration et révocation.
+- Génération serveur protégée par rôle.
+- Exports journalisés avec checksum, statut, dimensions et métadonnées.
+- Bloc Jobly réinjecté côté serveur à chaque génération.
+- Migrations Lot 11 et durcissement des grants présents dans le dépôt.
+
+### Formats et surfaces
+- PDF, XLSX, Web non indexé et JPEG vertical 1:2.
+- Cascade JPEG et QR généré côté serveur.
+- `/recruiter/listings` raccordé aux données réelles.
+- Accès « Générer un listing officiel » depuis `/recruiter/jobs`.
+- Consentement candidat et téléchargement PDF public versionné.
+
+### Validation
+- Le code et les migrations sont consolidés dans cette branche de travail.
+- Les validations E2E/CI/runtime et la migration effective de JOBLY-PROD restent à exécuter avant toute certification de production.
+
+**Règle : CODÉ ≠ ACCESSIBLE ≠ CONNECTÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.**

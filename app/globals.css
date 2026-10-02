@@ -312,3 +312,9 @@ body{
   .jobly-page{padding-bottom:76px}
   .jobly-card-unified{border-radius:20px}
 }
+
+/* Éclatement final des bulles de notification */
+@keyframes jobly-burst {
+  from { transform: translate(-50%, -50%) rotate(0deg) scale(1); opacity: 1; }
+  to   { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--r)) scale(.2); opacity: 0; }
+}

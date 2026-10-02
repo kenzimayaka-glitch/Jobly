@@ -1,0 +1,7 @@
+[build]
+  command = "npm run netlify:prepare-renderer"
+  publish = "netlify/public"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"

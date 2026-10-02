@@ -1,3 +1,4 @@
+// Gesture catalog: semantic gesture mappings remain the public movement contract.
 export const JIA_100 = {
   // 1. VIE DE BASE
   idle: "respire 3s", breathe_deep: "souffle profond", blink_slow: "cligne lent",

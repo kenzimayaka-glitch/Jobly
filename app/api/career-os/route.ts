@@ -1,72 +1,96 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
-import { assessCareer, levelLabel } from "../../../lib/careerEngine";
-import { localizeCareerList, localizeCareerText, type CareerLang } from "../../../lib/careerText";
+import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
+import { buildJiaContext } from "@/lib/jiaContext";
+import { buildCareerOsSnapshot } from "@/lib/careerOs";
+import { assessCareer, levelLabel } from "@/lib/careerEngine";
+import { localizeCareerList, localizeCareerText, type CareerLang } from "@/lib/careerText";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
     const lang: CareerLang = new URL(req.url).searchParams.get("lang") === "en" ? "en" : "fr";
     const L = (x: string) => localizeCareerText(x, lang);
-    const auth = await getAuthUser(req); if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
-    const sb = adminClient(); const user = await ensureUser(sb, auth);
-    const [p, e, s, ed, j] = await Promise.all([
-      sb.from("Profile").select("headline,summary,location,targetRoles,targetCities,contractPreferences,remotePreference,preferredSectors,publicDiscoverable").eq("userId", user.id).maybeSingle(),
-      sb.from("Experience").select("title,company,startDate,endDate,description,provenance").eq("userId", user.id),
-      sb.from("Skill").select("name,level,provenance").eq("userId", user.id),
-      sb.from("Education").select("degree,field,institution,startDate,endDate,provenance").eq("userId", user.id),
-      sb.from("Job").select("id,title,location,contractType,remoteMode,minExperienceYears,isActive").eq("isActive", true).limit(1000),
-    ]);
-    for (const r of [p, e, s, ed, j]) if (r.error) throw new Error(r.error.message);
+    const auth = await getAuthUser(req);
+    if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
 
-    const profile: any = p.data || {};
-    const experiences = e.data || [];
-    const skills = s.data || [];
-    const education = ed.data || [];
-    const assessment = assessCareer({ experiences, skills, education, targetRole: profile.targetRoles?.[0] || null });
+    const sb = adminClient();
+    const user = await ensureUser(sb, auth);
+    const result = await buildJiaContext(sb, user.id, {
+      operation: "CAREER_BRAIN",
+      input: { source: "api/career-os" },
+    });
 
-    await sb.from("CareerAssessment").upsert({
-      userId: user.id,
-      currentLevel: assessment.currentLevel,
-      targetLevel: assessment.targetLevel,
-      readiness: assessment.readiness,
-      dimensions: assessment.dimensions,
-      criteria: assessment.criteria,
-      gaps: assessment.gaps,
-      nextBestAction: assessment.nextBestAction,
-      computedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }, { onConflict: "userId" });
+    if (result.error || !result.context?.careerBrain) {
+      return NextResponse.json({ ok: true, available: false, message: result.error || "Career OS indisponible." });
+    }
 
-    const goals = (profile.targetRoles || []).map((x: string) => x.trim()).filter(Boolean);
-    const targetCity = (profile.targetCities || [])[0] || profile.location || "";
-    const gaps = [...assessment.gaps];
-    if (!goals.length) gaps.unshift("Définir au moins un métier cible");
-    if (!targetCity) gaps.push("Définir une ville cible");
-    const nextAction = goals.length ? assessment.nextBestAction : "Définir un métier cible";
-    const jobs = j.data || [];
+    const profile = result.context.profile || {};
+    const goals = Array.isArray(profile.targetRoles) ? profile.targetRoles.map((x: unknown) => String(x).trim()).filter(Boolean) : [];
+    const targetCity = Array.isArray(profile.targetCities) && profile.targetCities[0]
+      ? String(profile.targetCities[0])
+      : String(profile.location || "");
+
+    const { data: jobs, error: jobsError } = await sb
+      .from("Job")
+      .select("id,title,location,contractType,remoteMode,minExperienceYears,isActive")
+      .eq("isActive", true)
+      .order("lastSeenAt", { ascending: false })
+      .limit(100);
+
+    if (jobsError) {
+      return NextResponse.json({ ok: false, available: false, message: jobsError.message }, { status: 503 });
+    }
+
+    const snapshot = buildCareerOsSnapshot(result.context.careerBrain, {
+      jobs: (jobs ?? []) as Array<Record<string, unknown>>,
+    });
+    const assessment = assessCareer({
+      experiences: result.context.experiences,
+      skills: result.context.skills,
+      education: result.context.education,
+      targetRole: snapshot.careerTwin.targetRole,
+    });
     const roadmap = [
-      { step: 1, title: "Établir le niveau actuel", done: true, action: `Niveau ${assessment.currentLevel} — ${levelLabel(assessment.currentLevel)}` },
-      { step: 2, title: "Construire les preuves", done: assessment.dimensions.impact.score >= 60, action: "Documenter CA, croissance, objectifs, portefeuille, volumes et autres résultats" },
-      { step: 3, title: "Combler les critères du niveau suivant", done: assessment.readiness >= 80, action: assessment.nextBestAction },
-      { step: 4, title: "Tester le marché", done: jobs.length > 0, action: "Comparer les opportunités au niveau réellement atteignable" },
+      { step: 1, title: "Établir le niveau actuel", done: snapshot.careerTwin.currentLevel != null, action: snapshot.careerTwin.currentLevel == null ? "Compléter les données d'expérience." : "Niveau " + snapshot.careerTwin.currentLevel + " — " + levelLabel(snapshot.careerTwin.currentLevel) },
+      { step: 2, title: "Construire les preuves", done: snapshot.careerTwin.evidenceStrength >= 60, action: "Documenter des résultats vérifiables liés au rôle cible." },
+      { step: 3, title: "Combler les écarts", done: snapshot.gps.gaps.length === 0, action: snapshot.gps.nextBestAction || "Aucun écart prioritaire détecté." },
+      { step: 4, title: "Tester le marché", done: snapshot.opportunity.opportunities.length > 0, action: "Comparer les opportunités avec le niveau et les preuves réellement disponibles." },
     ];
 
     return NextResponse.json({
+      ok: true,
+      available: true,
+      architecture: "Career Journey 360 — Architecture B",
+      sourceOfTruth: "CareerJourney",
       goals,
       targetCity,
+      currentLevel: snapshot.careerTwin.currentLevel,
+      targetLevel: snapshot.careerTwin.targetLevel,
       yearsExperience: assessment.yearsExperience,
-      currentLevel: assessment.currentLevel,
-      currentLevelLabel: L(levelLabel(assessment.currentLevel)),
-      targetLevel: assessment.targetLevel,
-      targetLevelLabel: L(levelLabel(assessment.targetLevel)),
-      readiness: assessment.readiness,
+      currentLevelLabel: snapshot.careerTwin.currentLevel == null ? null : L(levelLabel(snapshot.careerTwin.currentLevel)),
+      targetLevelLabel: snapshot.careerTwin.targetLevel == null ? null : L(levelLabel(snapshot.careerTwin.targetLevel)),
+      readiness: snapshot.readiness.score,
+      readinessBand: snapshot.readiness.band,
       dimensions: Object.fromEntries(Object.entries(assessment.dimensions).map(([k, v]) => [k, { ...v, evidence: localizeCareerList(v.evidence, lang) }])),
       criteria: localizeCareerList(assessment.criteria, lang),
-      gap: localizeCareerList(gaps.slice(0, 6), lang),
-      nextBestAction: L(nextAction),
-      roadmap: roadmap.map((r) => ({ ...r, title: L(r.title), action: L(r.action) })),
+      gap: localizeCareerList(snapshot.gps.gaps, lang),
+      nextBestAction: snapshot.companion.nextBestAction ? L(snapshot.companion.nextBestAction) : null,
+      roadmap: roadmap.map((item) => ({ ...item, title: L(item.title), action: L(item.action) })),
       publicDiscoverable: Boolean(profile.publicDiscoverable),
-      profileCompleteness: { skills: skills.length, experiences: experiences.length, education: education.length },
+      profileCompleteness: {
+        skills: result.context.skills.length,
+        experiences: result.context.experiences.length,
+        education: result.context.education.length,
+      },
+      careerOs: snapshot,
+      policy: {
+        mode: "computed-read",
+        createsParallelState: false,
+        autonomousExternalAction: false,
+        userDecisionRequiredForActions: true,
+      },
     });
   } catch (e) {
     return NextResponse.json({ message: e instanceof Error ? e.message : "Career OS indisponible." }, { status: 500 });

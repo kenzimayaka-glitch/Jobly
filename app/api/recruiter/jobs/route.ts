@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, cleanStrings, ensureUser, getAuthUser, newId } from "../../../../lib/server-auth";
+import { enforceRecruiterMarketEntitlement, normalizeRecruiterMarket } from "../../../../lib/recruiterMarket";
 
 // NOTE (C0.9.7): cette route interrogeait auparavant une table "recruiter_jobs"
 // qui n'existe dans aucune migration ni script SQL du projet, avec le client
@@ -70,12 +71,18 @@ export async function POST(req: NextRequest) {
     }
 
     const now = new Date().toISOString();
+    const market = normalizeRecruiterMarket(b, user.country);
+    const entitlement = await enforceRecruiterMarketEntitlement(supabase, user.id, market, b.status === "published" ? "published" : "draft");
+    if (!entitlement.ok) return NextResponse.json({ message: entitlement.message }, { status: 403 });
     const payload = {
       id: newId(),
       recruiterUserId: user.id,
       title,
       companyName: company,
       location: String(b.location || "").trim() || null,
+      countryCode: market.countryCode,
+      distributionScope: market.distributionScope,
+      targetCountryCodes: market.targetCountryCodes,
       mode: b.mode || "Hybride",
       contract: b.contract || "CDI",
       salary: String(b.salary || "").trim() || null,

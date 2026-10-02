@@ -30,7 +30,7 @@ function initials(name?: string | null) {
 
 function cacheKey(name?: string | null, domain?: string | null, logoUrl?: string | null) {
   const identity = [name?.trim().toLowerCase() || "entreprise", domain?.trim().toLowerCase() || "nodomain", logoUrl?.trim() || "auto"].join(":");
-  return `jobly:company-logo:v5:${encodeURIComponent(identity)}`;
+  return `jobly:company-logo:v6:${encodeURIComponent(identity)}`;
 }
 
 export default function CompanyLogo({
@@ -42,7 +42,6 @@ export default function CompanyLogo({
   className = "",
 }: CompanyLogoProps) {
   const resolvedDomain = useMemo(() => normalizeDomain(domain || website), [domain, website]);
-  const logoDevToken = process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN?.trim();
   const [resolvedLogo, setResolvedLogo] = useState<string | null>(null);
   const [resolving, setResolving] = useState(false);
 
@@ -51,12 +50,6 @@ export default function CompanyLogo({
     const direct = logoUrl?.trim();
 
     if (direct) urls.push(direct);
-    if (resolvedDomain && logoDevToken) {
-      urls.push(
-        `https://img.logo.dev/${encodeURIComponent(resolvedDomain)}?token=${encodeURIComponent(logoDevToken)}&size=128&format=png&fallback=404`,
-      );
-    }
-
     if (resolvedDomain) {
       // Same-origin proxy first: avoids browser/CDN/referrer failures that can hide
       // otherwise valid company favicons in production.
@@ -64,7 +57,7 @@ export default function CompanyLogo({
         `/api/company-logo/image?domain=${encodeURIComponent(resolvedDomain)}`,
       );
       urls.push(
-        `https://www.google.com/s2/favicons?domain=${encodeURIComponent(resolvedDomain)}&sz=128`,
+        `https://www.google.com/s2/favicons?domain=${encodeURIComponent(resolvedDomain)}&sz=256`,
       );
       urls.push(
         `https://icons.duckduckgo.com/ip3/${encodeURIComponent(resolvedDomain)}.ico`,
@@ -75,7 +68,7 @@ export default function CompanyLogo({
     }
 
     return [...new Set(urls)];
-  }, [logoUrl, resolvedDomain, logoDevToken]);
+  }, [logoUrl, resolvedDomain, companyName]);
 
   const [index, setIndex] = useState(0);
   const [src, setSrc] = useState<string | null>(null);
@@ -88,24 +81,17 @@ export default function CompanyLogo({
     setResolvedLogo(null);
     setResolving(false);
 
-    const identityKey = cacheKey(companyName, resolvedDomain, logoUrl);
-    try {
-      const cached = localStorage.getItem(identityKey);
-      if (!cancelled && cached && cached !== "1") {
-        setSrc(cached);
-        return () => { cancelled = true; };
-      }
-    } catch {}
-
     const direct = logoUrl?.trim();
-    if (direct) {
-      setSrc(direct);
-      return () => { cancelled = true; };
-    }
 
-    if (!resolvedDomain && companyName?.trim()) {
+    // Resolve through the server first so LOGO_DEV_SECRET_KEY is never exposed
+    // to the browser and Logo.dev remains the preferred source.
+    if (resolvedDomain || companyName?.trim()) {
       setResolving(true);
-      fetch(`/api/company-logo?name=${encodeURIComponent(companyName.trim())}`)
+      const query = resolvedDomain
+        ? `domain=${encodeURIComponent(resolvedDomain)}`
+        : `name=${encodeURIComponent(companyName!.trim())}`;
+
+      fetch(`/api/company-logo?${query}`)
         .then(async (response) => {
           if (!response.ok) throw new Error("logo-resolution-failed");
           const body = await response.json();
@@ -114,14 +100,19 @@ export default function CompanyLogo({
         .then((url) => {
           if (cancelled) return;
           setResolvedLogo(url);
-          setSrc(url || null);
+          setSrc(url || direct || candidates[0] || null);
         })
-        .catch(() => { if (!cancelled) setSrc(null); })
-        .finally(() => { if (!cancelled) setResolving(false); });
+        .catch(() => {
+          if (!cancelled) setSrc(direct || candidates[0] || null);
+        })
+        .finally(() => {
+          if (!cancelled) setResolving(false);
+        });
+
       return () => { cancelled = true; };
     }
 
-    setSrc(candidates[0] || null);
+    setSrc(direct || candidates[0] || null);
     return () => { cancelled = true; };
   }, [companyName, resolvedDomain, logoUrl, candidates]);
   function invalidateCache() {
@@ -145,10 +136,11 @@ export default function CompanyLogo({
     setSrc(null);
   }
 
+  const fillFrame = className.includes("company-logo-fill-frame");
   const fallback = (
     <span
       className={`grid shrink-0 place-items-center rounded-full border border-[#E5EAF2] bg-[#0F2040] font-black text-white ${className}`}
-      style={{ width: size, height: size, fontSize: Math.max(10, Math.round(size * 0.3)) }}
+      style={{ width: fillFrame ? "100%" : size, height: fillFrame ? "100%" : size, fontSize: Math.max(10, Math.round(size * 0.3)) }}
       aria-label={companyName || "Entreprise"}
       role="img"
     >
@@ -157,7 +149,27 @@ export default function CompanyLogo({
   );
 
   if (failed || (!src && !resolving)) return fallback;
-  if (!src) return <span aria-hidden="true" className={`block shrink-0 rounded-full bg-slate-100 ${className}`} style={{ width: size, height: size }} />;
+  if (!src) return <span aria-hidden="true" className={`block shrink-0 rounded-full bg-slate-100 ${className}`} style={{ width: fillFrame ? "100%" : size, height: fillFrame ? "100%" : size }} />;
+
+  if (fillFrame) {
+    return (
+      <span className="relative block h-full w-full overflow-hidden">
+        <img src={src} alt="" aria-hidden="true" loading="lazy" decoding="async" referrerPolicy="no-referrer" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-40 blur-2xl" />
+        <img
+          src={src}
+          alt={companyName ? `Logo de ${companyName}` : "Logo entreprise"}
+          width={size}
+          height={size}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onLoad={handleLoad}
+          onError={handleError}
+          className="absolute left-1/2 top-1/2 h-[72%] w-auto max-w-[80%] -translate-x-1/2 -translate-y-1/2 object-contain opacity-100 drop-shadow-sm"
+        />
+      </span>
+    );
+  }
 
   return (
     <img
@@ -170,8 +182,8 @@ export default function CompanyLogo({
       referrerPolicy="no-referrer"
       onLoad={handleLoad}
       onError={handleError}
-      className={`shrink-0 rounded-full border border-[#E5EAF2] bg-white p-1 object-contain ${className}`}
-      style={{ width: size, height: size }}
+      className={`shrink-0 max-h-full max-w-full rounded-full border border-[#E5EAF2] bg-white p-1 object-contain ${className}`}
+      style={{ width: fillFrame ? "100%" : size, height: fillFrame ? "100%" : size }}
     />
   );
 }

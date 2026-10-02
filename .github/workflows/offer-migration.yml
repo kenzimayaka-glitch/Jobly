@@ -1,0 +1,46 @@
+name: Offer migration to latest version
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Écrire les offres validées en base"
+        required: true
+        default: false
+        type: boolean
+      limit:
+        description: "Nombre maximum d'offres"
+        required: true
+        default: "1000"
+        type: string
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      OFFER_MIGRATION_APPLY: ${{ inputs.apply || false }}
+      OFFER_MIGRATION_LIMIT: ${{ inputs.limit || '1000' }}
+      OFFER_MIGRATION_CONCURRENCY: "5"
+      OFFER_TARGET_VERSION: "jobly-offer-v5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/migrate-offers-to-v5.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: offers-migration
+          path: migration-output/

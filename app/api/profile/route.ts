@@ -69,8 +69,9 @@ export async function GET(request: NextRequest) {
       supabase.from("Education").select("*").eq("userId", user.id).order("startDate", { ascending: false }),
     ]);
     for (const result of [profile, experiences, skills, education]) if (result.error) throw new Error(result.error.message);
+    const originalCvSignedUrl = user.cvOriginalStoragePath ? (await supabase.storage.from("talent-cvs").createSignedUrl(user.cvOriginalStoragePath, 3600)).data?.signedUrl ?? null : null;
     return NextResponse.json({
-      user: { id: user.id, email: user.email, phone: user.phone, displayName: user.displayName, profilePhotoUrl: user.profilePhotoUrl, heroPhotoUrl: heroPhotoUrlForSource(supabase, user.profilePhotoUrl), pitchVideoUrl: user.pitchVideoUrl ?? null, pitchVideoDurationMs: user.pitchVideoDurationMs ?? null, pitchVideoUpdatedAt: user.pitchVideoUpdatedAt ?? null, englishLevel: user.englishLevel, licences: user.licences ?? [] },
+      user: { id: user.id, email: user.email, phone: user.phone, displayName: user.displayName, profilePhotoUrl: user.profilePhotoUrl, heroPhotoUrl: heroPhotoUrlForSource(supabase, user.profilePhotoUrl), pitchVideoUrl: user.pitchVideoUrl ?? null, pitchVideoDurationMs: user.pitchVideoDurationMs ?? null, pitchVideoUpdatedAt: user.pitchVideoUpdatedAt ?? null, englishLevel: user.englishLevel, licences: user.licences ?? [], cvOriginalStoragePath: user.cvOriginalStoragePath ?? null, cvOriginalFileName: user.cvOriginalFileName ?? null, cvOriginalPageCount: user.cvOriginalPageCount ?? null, cvOriginalUploadedAt: user.cvOriginalUploadedAt ?? null, cvOriginalUrl: originalCvSignedUrl },
       profile: profile.data ?? { headline: "", summary: "", location: "", targetRoles: [], preferredSectors: [] },
       experiences: experiences.data ?? [], skills: skills.data ?? [], education: education.data ?? [],
     });
@@ -105,6 +106,7 @@ export async function PUT(request: NextRequest) {
       const profilePayload: Record<string, unknown> = { userId: user.id };
       if (typeof body.headline === "string") profilePayload.headline = body.headline.trim() || null;
       if (typeof body.summary === "string") profilePayload.summary = body.summary.trim() || null;
+      if (typeof body.phone === "string") profilePayload.phone = body.phone.trim() || null;
       if (typeof body.location === "string") profilePayload.location = body.location.trim() || null;
       if (Array.isArray(body.targetRoles)) profilePayload.targetRoles = cleanStrings(body.targetRoles);
       if (Array.isArray(body.preferredSectors)) profilePayload.preferredSectors = cleanStrings(body.preferredSectors);

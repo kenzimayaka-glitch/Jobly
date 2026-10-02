@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "../lib/supabase";
 import SubscriptionCard from "./SubscriptionCard";
@@ -12,6 +12,8 @@ export default function AccountSettings({ ecosystem, backHref, accent = "blue" }
   const [notifications, setNotifications] = useState(true);
   const [privateProfile, setPrivateProfile] = useState(false);
   const [language, setLanguage] = useState("fr");
+  const [aiBonus, setAiBonus] = useState<{granted:number; remaining:number} | null>(null);
+  useEffect(() => { if (ecosystem !== "TALENT") return; let cancelled=false; (async()=>{ const session=await getSupabaseClient().auth.getSession(); const token=session.data.session?.access_token; if(!token)return; const res=await fetch("/api/talent/ai-bonus",{headers:{Authorization:`Bearer ${token}`},cache:"no-store"}); const body=await res.json().catch(()=>null); if(!cancelled&&res.ok)setAiBonus(body); })(); return()=>{cancelled=true}; },[ecosystem]);
   const bg = accent === "yellow" ? "bg-[#FFE135] text-navy" : "bg-jobly-blue text-white";
 
   async function logout() {
@@ -29,6 +31,7 @@ export default function AccountSettings({ ecosystem, backHref, accent = "blue" }
       <label className="mt-4 flex items-center justify-between gap-4 text-sm font-bold"><span>Profil privé</span><button type="button" onClick={()=>setPrivateProfile(v=>!v)} className={`h-7 w-12 rounded-full p-1 ${privateProfile ? "bg-jobly-blue" : "bg-slate-200"}`}><span className={`block h-5 w-5 rounded-full bg-white transition-transform ${privateProfile ? "translate-x-5" : ""}`}/></button></label>
       <label className="mt-4 block text-sm font-bold">Langue<select value={language} onChange={e=>setLanguage(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3"><option value="fr">Français</option><option value="en">English</option></select></label>
     </section>
+    {ecosystem === "TALENT" && aiBonus && <section className="rounded-[24px] border border-[#DCE5F1] bg-white p-5 shadow-sm"><div className="flex items-center justify-between gap-4"><div><h2 className="font-heading text-lg font-extrabold">Crédits J’IA</h2><p className="mt-1 text-xs text-jobly-gray">Bonus de bienvenue à usage unique.</p></div><div className="rounded-full bg-[#FFF7C7] px-4 py-2 text-sm font-black text-navy">{aiBonus.remaining} / {aiBonus.granted}</div></div><p className="mt-3 text-xs leading-5 text-jobly-gray">Les crédits consommés correspondent aux actions J’IA. Le bonus de bienvenue n’est pas un abonnement et ne se renouvelle pas.</p></section>}
     <JiaPreferences ecosystem={ecosystem} />
     <SubscriptionCard ecosystem={ecosystem} />
     <section className="rounded-[24px] bg-white p-5 shadow-sm">

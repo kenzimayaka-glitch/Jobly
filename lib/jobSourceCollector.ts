@@ -1,0 +1,639 @@
+import crypto from "node:crypto";
+import { resolveApplicationContact } from "./applicationEngine";
+import { extractApplicationSubject } from "./applicationSubject";
+import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription } from "./jobContent";
+import { normalizeJobContent } from "./jobNormalizer";
+import { renderPublicSource } from "./jobSourceRenderer";
+
+type SourceConfig = {
+  key: string;
+  name: string;
+  listingUrls: string[];
+  hostnames: string[];
+  offerPattern: RegExp;
+};
+
+type CandidateLink = { url: string; title: string };
+
+export type CollectedOffer = {
+  sourceKey: string;
+  externalId: string;
+  sourceUrl: string;
+  title: string;
+  company: string | null;
+  location: string | null;
+  contractType: string | null;
+  remoteMode: string | null;
+  description: string;
+  deadline: string | null;
+  publishedAt: string | null;
+  applicationProfile: Record<string, unknown>;
+  contentHash: string;
+  logoUrl: string | null;
+  companyWebsite: string | null;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  salaryCurrency: string | null;
+  /** Immutable source capture. Never replaced by rendered content. */
+  rawHtml: string;
+  /** Browser/API/HTTP representation used for extraction. */
+  renderedHtml: string;
+  extractedText: string;
+  captureMode: "browser" | "http" | "api" | "rss" | "unknown";
+};
+
+const SOURCES: SourceConfig[] = [
+  // West Africa — validated public job channels. Keep patterns broad enough for
+  // source redesigns, then rely on detail-page canonical validation downstream.
+  { key: "jobivoire", name: "JobIvoire", listingUrls: ["https://www.jobivoire.ci/jobs"], hostnames: ["www.jobivoire.ci","jobivoire.ci"], offerPattern: /\/(?:jobs?|offres?|job)\/(?:[^/?#]+)(?:\/?|\?)/i },
+  { key: "jobs_ghana", name: "Jobs.com.gh", listingUrls: ["https://jobs.com.gh/jobs-listing/"], hostnames: ["jobs.com.gh","www.jobs.com.gh"], offerPattern: /\/jobs?\/[^/?#]+/i },
+  { key: "jobweb_ghana", name: "JobWeb Ghana", listingUrls: ["https://www.jobwebghana.com/jobs/"], hostnames: ["www.jobwebghana.com","jobwebghana.com"], offerPattern: /\/jobs?\/[^/?#]+/i },
+  { key: "jobberman_ghana", name: "Jobberman Ghana", listingUrls: ["https://www.jobberman.com.gh/jobs"], hostnames: ["www.jobberman.com.gh","jobberman.com.gh"], offerPattern: /\/jobs?\/[^/?#]+/i },
+  { key: "myjobmag_ng", name: "MyJobMag Nigeria", listingUrls: ["https://www.myjobmag.com/"], hostnames: ["www.myjobmag.com","myjobmag.com"], offerPattern: /\/job\/[0-9a-z-]+/i },
+  { key: "hotnigerianjobs", name: "HotNigerianJobs", listingUrls: ["https://www.hotnigerianjobs.com/alljobs/"], hostnames: ["www.hotnigerianjobs.com","hotnigerianjobs.com"], offerPattern: /\/hiring-now\/[0-9a-z-]+|\/job-[0-9a-z-]+/i },
+  { key: "jobberman_ng", name: "Jobberman Nigeria", listingUrls: ["https://www.jobberman.com/jobs"], hostnames: ["www.jobberman.com","jobberman.com"], offerPattern: /\/listings?\/[^/?#]+|\/job\/[0-9a-z-]+/i },
+  { key: "senjob", name: "Senjob", listingUrls: ["https://senjob.com/offres-d-emploi.php"], hostnames: ["senjob.com","www.senjob.com"], offerPattern: /\/offres?-[^/?#]+|\/offre-[^/?#]+/i },
+  { key: "emploi_dakar", name: "EmploiDakar", listingUrls: ["https://www.emploidakar.com/"], hostnames: ["www.emploidakar.com","emploidakar.com"], offerPattern: /\/(?:offre|emploi|job)\/[^/?#]+/i },
+  { key: "careers_sl", name: "Careers SL", listingUrls: ["https://careers.sl/"], hostnames: ["careers.sl","www.careers.sl"], offerPattern: /\/jobs?\/[^/?#]+/i },
+  { key: "hrjobs_liberia", name: "HR Jobs Liberia", listingUrls: ["https://hrjobsliberia.com/"], hostnames: ["hrjobsliberia.com","www.hrjobsliberia.com"], offerPattern: /\/jobs?\/[^/?#]+/i },
+  { key: "malijob", name: "MaliJob", listingUrls: ["https://www.malijob.com/"], hostnames: ["www.malijob.com","malijob.com"], offerPattern: /\/(?:job|offre|emploi)\/[0-9a-z-]+/i },
+];
+
+const USER_AGENT = "JoblyOfferCollector/1.0 (+https://jobly-c0651.vercel.app)";
+const FETCH_TIMEOUT_MS = 6_000;
+const MAX_LISTING_PAGES_SAFETY = 5000;
+const SOURCE_FETCH_CONCURRENCY = 6;
+const MAX_DESCRIPTION_CHARS = 30_000;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<R | null>,
+): Promise<R[]> {
+  const results: R[] = [];
+  let cursor = 0;
+
+  async function runWorker() {
+    while (true) {
+      const index = cursor++;
+      if (index >= items.length) return;
+      try {
+        const result = await worker(items[index]);
+        if (result !== null) results.push(result);
+      } catch {}
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => runWorker()),
+  );
+  return results;
+}
+
+function normalizeSpace(value: string): string {
+  return value.replace(/\r/g, " ").replace(/\n/g, " ").replace(/\t/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function decodeEntities(value: string): string {
+  const named: Record<string, string> = {"&nbsp;":" ","&amp;":"&","&quot;":'"',"&#39;":"'","&apos;":"'","&lt;":"<","&gt;":">","&ndash;":"–","&mdash;":"—"};
+  return value.replace(/&(?:nbsp|amp|quot|apos|lt|gt|ndash|mdash);|&#39;/gi, token => named[token.toLowerCase()] || token).replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+}
+
+function htmlToCleanText(html: string): string {
+  const text = decodeEntities(
+    html
+      .replace(/<script[\s\S]*?<\/script>/gi, "\n")
+      .replace(/<style[\s\S]*?<\/style>/gi, "\n")
+      .replace(/<noscript[\s\S]*?<\/noscript>/gi, "\n")
+      .replace(/<svg[\s\S]*?<\/svg>/gi, "\n")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p\s*>/gi, "\n")
+      .replace(/<\/li\s*>/gi, "\n")
+      .replace(/<\/(h[1-6]|div|section|article|blockquote|tr|td|th)>/gi, "\n")
+      .replace(/<[^>]+>/g, " ")
+  );
+  return text
+    .replace(/\u00a0/g, " ")
+    .replace(/\r/g, "")
+    .split(/\n+/)
+    .map(line => line.replace(/[ \t]+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, MAX_DESCRIPTION_CHARS);
+}
+
+function metaContent(html: string, key: string): string | null {
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(
+    `<meta\\b[^>]+(?:property|name)=['"]${escaped}['"][^>]+content=['"]([^'"]+)['"][^>]*>|<meta\\b[^>]+content=['"]([^'"]+)['"][^>]+(?:property|name)=['"]${escaped}['"][^>]*>`,
+    "i"
+  );
+  const match = html.match(re);
+  return match ? decodeEntities(match[1] || match[2] || "").trim() || null : null;
+}
+
+function titleFromHtml(html: string): string | null {
+  const h1 = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1];
+  const h2 = html.match(/<h2\b[^>]*>([\s\S]*?)<\/h2>/i)?.[1];
+  const title = h1 || h2 || metaContent(html,"og:title") || html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1];
+  return title ? normalizeSpace(decodeEntities(title)).replace(/\s*[-|]\s*(MinaJobs|JobInfoCamer).*$/i,"").trim() : null;
+}
+
+function isRelevantInfosConcoursLink(url: URL, title: string): boolean {
+  if (!/infosconcourseducation\.com$/i.test(url.hostname)) return false;
+  // Never ingest archive/category/navigation pages as jobs.
+  if (/\/(?:category|tag|author|page|actualite)(?:\/|$)/i.test(url.pathname)) return false;
+  if (/^(?:offre d'?emplois?|emplois?|stages?|actualites?)$/i.test(title.trim())) return false;
+  return /(?:offre|emploi|recrut|stage|commercial|assistant|manager|technicien|agent|chauffeur|vendeur|promotrice|promoteur)/i.test(url.pathname + " " + title);
+}
+
+function extractLinks(html: string, baseUrl: string, source: SourceConfig): CandidateLink[] {
+  const out: CandidateLink[] = [];
+  const re = /<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(html))) {
+    try {
+      const url = new URL(decodeEntities(match[1]),baseUrl).toString(), parsed = new URL(url);
+      if (!source.hostnames.includes(parsed.hostname.toLowerCase())) continue;
+      const title = normalizeSpace(htmlToCleanText(match[2]));
+      if (source.key === "infosconcourseducation") {
+        if (!isRelevantInfosConcoursLink(parsed, title)) continue;
+      } else if (!source.offerPattern.test(parsed.pathname)) continue;
+      if (title.length >= 4) out.push({url,title});
+    } catch {}
+  }
+  return Array.from(new Map(out.map(x => [x.url,x])).values());
+}
+
+function pageLinks(html: string, baseUrl: string, source: SourceConfig): string[] {
+  const out: string[] = [];
+  const re = /<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(html))) {
+    const label = normalizeSpace(htmlToCleanText(match[2]));
+    const href = decodeEntities(match[1]);
+    const relNext = /\brel=["'][^"']*next[^"']*["']/i.test(match[0]);
+    const nextLabel = /^(?:next|suivant|suivante|page suivante|»|›|→)$/i.test(label);
+    const numeric = /^\d{1,5}$/.test(label);
+    const pagedHref = /(?:[?&](?:page|paged|p)=\d+|\/page\/\d+\/?(?:$|[?#]))/i.test(href);
+    if (!relNext && !nextLabel && !numeric && !pagedHref) continue;
+    try {
+      const url = new URL(href,baseUrl).toString();
+      if (source.hostnames.includes(new URL(url).hostname.toLowerCase())) out.push(url);
+    } catch {}
+  }
+  return Array.from(new Set(out));
+}
+
+function stripInfosConcoursWordPressChrome(html: string, titleHint?: string | null): string {
+  // Info Concours Education is WordPress. Its REST content.rendered can
+  // contain builder/navigation fragments. Select the article-content wrapper
+  // first, then preserve paragraph/list structure before generic cleaning.
+  const normalizedTitle = normalizeSpace(titleHint || "");
+  let source = html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "\n")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "\n")
+    .replace(/<(?:nav|header|footer|aside|form|dialog)\b[^>]*>[\s\S]*?<\/(?:nav|header|footer|aside|form|dialog)>/gi, "\n")
+    .replace(/<([a-z0-9]+)\b[^>]*(?:class|id)=["'][^"']*(?:sharedaddy|jp-relatedposts|related-posts|sidebar|widget|social|share|newsletter|comment|footer|menu|navigation|breadcrumb|ads|advert|cookie)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi, "\n");
+
+  const containers: string[] = [];
+  const containerRe = /<(article|main|div|section)\b[^>]*(?:class|id)=["'][^"']*(?:entry-content|post-content|article-content|single-post|post-body|article-body|content-area|td-post-content)[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi;
+  for (const match of source.matchAll(containerRe)) {
+    const body = match[2] || "";
+    if (body.length >= 120) containers.push(body);
+  }
+  if (containers.length) source = containers.sort((a,b) => b.length - a.length)[0];
+
+  source = source
+    .replace(/<([a-z0-9]+)\b[^>]*(?:class|id)=["'][^"']*(?:share|related|social|newsletter|comment|widget|sidebar|ads|advert)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi, "\n")
+    .replace(/<a\b[^>]*>(?:\s*(?:facebook|instagram|twitter|youtube|whatsapp|rejoindre|abonnez|suivez)[\s\S]*?)<\/a>/gi, "\n");
+
+  const text = htmlToCleanText(source);
+  const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+  const titleIndex = normalizedTitle
+    ? lines.findIndex(line => line.toLowerCase() === normalizedTitle.toLowerCase())
+    : -1;
+  let start = 0;
+  if (titleIndex >= 0) {
+    start = titleIndex + 1;
+    let skipped = 0;
+    while (start < lines.length && skipped < 6) {
+      const line = lines[start];
+      if (/^(?:\d{1,2}[\/-]\d{1,2}[\/-]\d{4}|\d{1,2}\s+(?:janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+\d{4})$/i.test(line)
+        || /^\d+$/.test(line)
+        || /^Publié par\b/i.test(line)
+        || /^Par\b/i.test(line)) {
+        start++;
+        skipped++;
+        continue;
+      }
+      break;
+    }
+  }
+  while (start < lines.length && /^(?:offres? d['’]?emploi|offres? d['’]?emplois|stages?|actualités?|concours|tous les concours|résultats des concours)$/i.test(lines[start])) start++;
+  return lines.slice(start).join("\n").trim() || text;
+}
+
+async function fetchHtmlLegacy(url: string): Promise<string> {
+  const controller = new AbortController(), timer = setTimeout(() => controller.abort(),FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(url,{headers:{"user-agent":USER_AGENT,accept:"text/html,application/xhtml+xml"},redirect:"follow",signal:controller.signal,cache:"no-store"});
+    if (!response.ok) throw new Error("HTTP_" + response.status);
+    const type = response.headers.get("content-type") || "";
+    if (!type.includes("text/html") && !type.includes("application/xhtml")) throw new Error("SOURCE_NOT_HTML");
+
+    // Decode source bytes with the declared charset when available. When a
+    // source omits or misdeclares its charset, compare UTF-8 and Windows-1252
+    // candidates so French accents are preserved instead of being persisted
+    // as mojibake or replacement characters.
+    const buffer = await response.arrayBuffer();
+    const declared = type.match(/charset=([^;\s]+)/i)?.[1]?.trim().toLowerCase();
+    const head = new TextDecoder("windows-1252", { fatal: false }).decode(buffer.slice(0, Math.min(buffer.byteLength, 12000)));
+    const metaCharset = head.match(/<meta\b[^>]+charset=["']?\s*([^"'\s/>]+)/i)?.[1]?.toLowerCase();
+    const charset = declared || metaCharset;
+    const decode = (encoding: string) => new TextDecoder(encoding, { fatal: false }).decode(buffer);
+
+    if (charset) {
+      const normalized = charset.replace(/_/g, "-").toLowerCase();
+      if (normalized === "utf-8" || normalized === "utf8") return decode("utf-8");
+      if (normalized === "windows-1252" || normalized === "cp1252") return decode("windows-1252");
+      if (normalized === "iso-8859-1" || normalized === "latin1") return decode("iso-8859-1");
+    }
+
+    const utf8 = decode("utf-8");
+    const legacy = decode("windows-1252");
+    const score = (value: string) =>
+      (value.match(/�/g)?.length || 0) * 100 +
+      (value.match(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g)?.length || 0) * 20 +
+      (value.match(/(?:Ã.|Â.|â.|ð.)/g)?.length || 0) * 10;
+    return score(legacy) < score(utf8) ? legacy : utf8;
+  } finally { clearTimeout(timer); }
+}
+
+async function fetchHtml(url: string): Promise<string> {
+  // Browser-rendered HTML is the primary path for extraction. This helper is
+  // intentionally not used as the source archive for an offer.
+  const hasCloudflareRenderer =
+    process.env.JOB_RENDERER_PROVIDER?.trim().toLowerCase() === "cloudflare" ||
+    Boolean(process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN);
+  if (hasCloudflareRenderer || process.env.JOB_RENDERER_URL) {
+    const rendered = await renderPublicSource(url);
+    return rendered.html;
+  }
+  return fetchHtmlLegacy(url);
+}
+
+async function fetchOfferCapture(url: string): Promise<{
+  rawHtml: string;
+  renderedHtml: string;
+  captureMode: CollectedOffer["captureMode"];
+}> {
+  const hasBrowserRenderer =
+    process.env.JOB_RENDERER_PROVIDER?.trim().toLowerCase() === "cloudflare" ||
+    Boolean(process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN) ||
+    Boolean(process.env.JOB_RENDERER_URL);
+
+  if (!hasBrowserRenderer) {
+    const rawHtml = await fetchHtmlLegacy(url);
+    return { rawHtml, renderedHtml: rawHtml, captureMode: "http" };
+  }
+
+  const [rawResult, renderedResult] = await Promise.allSettled([
+    fetchHtmlLegacy(url),
+    renderPublicSource(url),
+  ]);
+  if (renderedResult.status !== "fulfilled") throw renderedResult.reason;
+  const rawHtml = rawResult.status === "fulfilled" ? rawResult.value : "";
+  return { rawHtml, renderedHtml: renderedResult.value.html, captureMode: "browser" };
+}
+
+function externalId(url: string, source: SourceConfig): string {
+  return new URL(url).pathname.match(source.offerPattern)?.[1] || crypto.createHash("sha1").update(url).digest("hex").slice(0,20);
+}
+
+function firstMatch(text: string, patterns: RegExp[]): string | null {
+  for (const pattern of patterns) { const match = text.match(pattern); if (match?.[1]) return normalizeSpace(match[1]); }
+  return null;
+}
+
+function parseDate(value: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value.replace(/(\d{2})-(\d{2})-(\d{4})/,"$3-$2-$1"));
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+
+function extractCompanyWebsite(html: string, pageUrl: string): string | null {
+  const links = Array.from(html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi));
+  const scored: { url: string; score: number }[] = [];
+  for (const match of links) {
+    const label = normalizeSpace(htmlToCleanText(match[2]));
+    if (!/(site officiel|website|site web|official website|entreprise|company)/i.test(label)) continue;
+    try {
+      const u = new URL(decodeEntities(match[1]), pageUrl);
+      if (/^https?:$/.test(u.protocol) && u.hostname !== new URL(pageUrl).hostname) scored.push({ url: u.toString(), score: /site officiel|website|official/i.test(label) ? 3 : 1 });
+    } catch {}
+  }
+  scored.sort((a,b) => b.score - a.score);
+  return scored[0]?.url || null;
+}
+
+function extractCompanyLogo(html: string, pageUrl: string): string | null {
+  const jsonLogo = html.match(/["']logo["']\s*:\s*["'](https?:\/\/[^"']+)["']/i)?.[1];
+  if (jsonLogo) return decodeEntities(jsonLogo);
+  const itemLogo = html.match(/<[^>]+itemprop=["']logo["'][^>]+(?:src|content)=["']([^"']+)["']/i)?.[1];
+  if (itemLogo) { try { return new URL(decodeEntities(itemLogo), pageUrl).toString(); } catch {} }
+  const icon = html.match(/<link\b[^>]+rel=["'][^"']*(?:icon|apple-touch-icon)[^"']*["'][^>]+href=["']([^"']+)["']/i)?.[1];
+  if (icon) { try { return new URL(decodeEntities(icon), pageUrl).toString(); } catch {} }
+  const og = html.match(/<meta\b[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1];
+  if (og) { try { return new URL(decodeEntities(og), pageUrl).toString(); } catch {} }
+  return null;
+}
+
+function findApplicationUrl(html: string, pageUrl: string, source: SourceConfig): string | null {
+  const re = /<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
+  const candidates: {url:string;score:number}[] = [];
+  while ((match = re.exec(html))) {
+    if (!/(postuler|candidature|apply|submit|candidate|soumettre)/i.test(normalizeSpace(htmlToCleanText(match[2])))) continue;
+    try {
+      const url = new URL(decodeEntities(match[1]),pageUrl);
+      if (!/^https?:$/.test(url.protocol)) continue;
+      candidates.push({url:url.toString(),score:source.hostnames.includes(url.hostname.toLowerCase())?1:3});
+    } catch {}
+  }
+  candidates.sort((a,b)=>b.score-a.score);
+  return candidates[0]?.url || null;
+}
+
+function findApplicationEmail(html: string, applicationText = ""): string | null {
+  const candidates: { email: string; score: number }[] = [];
+  const add = (email: string, score: number) => {
+    const normalized = email.trim().replace(/[),.;:]+$/, "");
+    if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(normalized)) return;
+    if (/^(aide|info|support|hello|admin|contact)@/i.test(normalized)) score -= 2;
+    candidates.push({ email: normalized, score });
+  };
+
+  // Canonical rule: the application section is the primary owner of a
+  // candidature email. This prevents footer/contact emails from becoming
+  // application recipients.
+  const applicationEmails = applicationText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
+  for (const email of applicationEmails) {
+    const index = applicationText.toLowerCase().indexOf(email.toLowerCase());
+    const context = applicationText.slice(Math.max(0, index - 260), Math.min(applicationText.length, index + email.length + 260));
+    const score = /(?:candidature|candidater|postuler|recrutement|cv|lettre|envoyer|envoyez|adresse|mail|email|dossier|apply)/i.test(context) ? 20 : 12;
+    add(email, score);
+  }
+
+  // Secondary evidence: mailto links are accepted only when their local
+  // context explicitly indicates application intent.
+  const mailto = /href=["']mailto:([^"'?#>\s]+)/gi;
+  let match: RegExpExecArray | null;
+  while ((match = mailto.exec(html))) {
+    const before = html.slice(Math.max(0, match.index - 700), match.index);
+    const after = html.slice(match.index, Math.min(html.length, match.index + 900));
+    const context = htmlToCleanText(before + " " + after);
+    if (!/(candidature|candidater|postuler|recrutement|cv|lettre|envoyer|apply|application|dossier)/i.test(context)) continue;
+    add(decodeEntities(match[1]), 10);
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0]?.score > 0 ? candidates[0].email : null;
+}
+
+function extractRemoteMode(text: string): string | null {
+  if (/(?:100\s*%\s*)?remote|full\s*remote|t[ée]l[ée]travail|travail\s+[àa]\s+distance/i.test(text)) return "REMOTE";
+  if (/(?:hybride|hybrid)/i.test(text)) return "HYBRID";
+  if (/(?:sur\s+site|on[- ]site|pr[ée]sentiel)/i.test(text)) return "ONSITE";
+  return null;
+}
+
+function parseMoney(value: string): number | null {
+  const normalized = value.replace(/\s+/g, "").trim().replace(/\.(?=\d{3}\b)/g, "").replace(/,(?=\d{3}\b)/g, "");
+  const match = normalized.match(/(\d+(?:[.,]\d+)?)/);
+  if (!match?.[1]) return null;
+  const n = Number(match[1].replace(",", "."));
+  return Number.isFinite(n) ? Math.round(n) : null;
+}
+
+function extractSalary(text: string): { min: number | null; max: number | null; currency: string | null } {
+  const currencyPattern = "(?:FCFA|F\\s*CFA|XAF|francs?\\s*CFA|€|EUR|\\$|USD)";
+  const range = new RegExp(
+    "(?:salaire|r[ée]mun[ée]ration|salary|package)\\s*[:：-]?\\s*(\\d[\\d\\s.,]*)\\s*(?:" + currencyPattern + ")?\\s*(?:à|a|[-–—])\\s*(\\d[\\d\\s.,]*)\\s*(" + currencyPattern + ")?",
+    "i"
+  );
+  const match = text.match(range);
+  if (match) {
+    const min = parseMoney(match[1]);
+    const max = parseMoney(match[2]);
+    const rawCurrency = match[3] || match[0];
+    const currency = /€|EUR/i.test(rawCurrency) ? "EUR" : /\$|USD/i.test(rawCurrency) ? "USD" : /FCFA|XAF|CFA/i.test(rawCurrency) ? "XAF" : null;
+    return { min, max, currency };
+  }
+  const single = new RegExp(
+    "(?:salaire|r[ée]mun[ée]ration|salary|package)\\s*[:：-]?\\s*(\\d[\\d\\s.,]*)\\s*(" + currencyPattern + ")?",
+    "i"
+  );
+  const singleMatch = text.match(single);
+  if (singleMatch) {
+    const min = parseMoney(singleMatch[1]);
+    const rawCurrency = singleMatch[2] || singleMatch[0];
+    const currency = /€|EUR/i.test(rawCurrency) ? "EUR" : /\$|USD/i.test(rawCurrency) ? "USD" : /FCFA|XAF|CFA/i.test(rawCurrency) ? "XAF" : null;
+    return { min, max: min, currency };
+  }
+  return { min: null, max: null, currency: null };
+}
+
+function extractOffer(source: SourceConfig,url: string,html: string,listingTitle: string,rawHtml = html,captureMode?: CollectedOffer["captureMode"]): CollectedOffer | null {
+  // Keep the original HTML until the description cleaner has selected the
+  // actual offer container. Flattening the whole page first mixes navigation,
+  // footer, widgets and the job body into one text stream.
+  const title = cleanJobTitle(titleFromHtml(html) || listingTitle);
+  if (!title || title.length < 3) return null;
+  const clean = cleanJobDescription(html, title);
+  const lowerHtml = html.toLowerCase();
+  const chromeSignals = [
+    "aller au contenu principal",
+    "poster une offre",
+    "datalayer",
+    "gtag(",
+    "window.datalayer",
+    "cookie settings",
+    "toggle navigation",
+  ];
+  const noiseHits = chromeSignals.reduce((n, signal) => n + (lowerHtml.includes(signal) ? 1 : 0), 0);
+  const visibleLength = clean.length;
+  // A page can contain legitimate navigation, but the extracted offer itself
+  // must remain substantial. Reject only clearly unusable captures here;
+  // normalization is still the next quality gate.
+  if (visibleLength < 120 || noiseHits >= 5) return null;
+  const company = cleanCompanyName(firstMatch(clean,[/(?:Nom de l[’']employeur|Nom de l'employeur|Employeur|Entreprise|Company)\s*[:：-]\s*([^|\n]{2,120})/i,/(?:chez|at)\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ0-9 .&'’-]{2,100})/i])) || extractCompanyNameFromDescription(clean);
+  const location = firstMatch(clean,[/(?:Lieu|Localisation|Location)\s*[:：-]\s*([^|\n]{2,100})/i]);
+  const contractType = firstMatch(clean,[/(?:Type d[’']emploi|Type d'emploi|Contrat|Contract)\s*[:：-]\s*([^|\n]{2,60})/i]);
+  const remoteMode = extractRemoteMode(clean);
+  const salary = extractSalary(clean);
+  const publishedAt = parseDate(firstMatch(clean,[/(?:Date de publication|Posté|Publié(?:e)?)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
+  const deadline = parseDate(firstMatch(clean,[/(?:Date expiration|Date limite|Délai|deadline)\s*[:：-]\s*(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i]));
+  // Derive candidature data from the dedicated semantic application
+  // section, not from the whole page. Other contact/footer content must not
+  // contaminate the application channel.
+  const applicationContent = normalizeJobContent({
+    title,
+    description: clean,
+  }).application;
+  const applicationText = applicationContent.join("\n");
+  const extractedEmail = findApplicationEmail(html, applicationText);
+  const contacts = resolveApplicationContact(
+    extractedEmail ? { applicationEmail: extractedEmail } : {},
+    applicationText
+  );
+  const applicationUrl = findApplicationUrl(html,url,source);
+  const companyWebsite = extractCompanyWebsite(html,url);
+  const logoUrl = extractCompanyLogo(html,url);
+  const applicationProfile: Record<string,unknown> = {
+    channel: contacts.email ? "EMAIL" : contacts.phone ? "PHONE" : applicationUrl ? "EXTERNAL" : "UNSUPPORTED",
+    comingSoon: !contacts.email && !contacts.phone && !applicationUrl
+  };
+  if (contacts.email) applicationProfile.applicationEmail = contacts.email;
+  if (contacts.phone) applicationProfile.applicationPhone = contacts.phone;
+  if (applicationUrl) applicationProfile.applicationUrl = applicationUrl;
+  applicationProfile.subject = extractApplicationSubject(applicationText);
+  const resolvedCaptureMode: CollectedOffer["captureMode"] = captureMode || (
+    source.key === "infosconcourseducation"
+      ? "api"
+      : process.env.JOB_RENDERER_PROVIDER?.trim().toLowerCase() === "cloudflare" ||
+          Boolean(process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN) ||
+          Boolean(process.env.JOB_RENDERER_URL)
+        ? "browser"
+        : "http"
+  );
+
+  return {
+    sourceKey:source.key,
+    externalId:externalId(url,source),
+    sourceUrl:url,
+    title:title.slice(0,300),
+    company:company?.replace(/^(le|la|l[’']|the)\s+/i,"").trim()||null,
+    location:location||null,
+    contractType:contractType||null,
+    remoteMode,
+    description:clean,
+    deadline,
+    publishedAt,
+    applicationProfile,
+    contentHash:crypto.createHash("sha256").update(normalizeSpace(clean)).digest("hex"),
+    logoUrl,
+    companyWebsite,
+    salaryMin:salary.min,
+    salaryMax:salary.max,
+    salaryCurrency:salary.currency,
+    rawHtml: rawHtml.slice(0, 2_000_000),
+    renderedHtml: html.slice(0, 2_000_000),
+    extractedText: clean,
+    captureMode: resolvedCaptureMode,
+  };
+}
+
+async function collectWordPressOffers(source: SourceConfig): Promise<CollectedOffer[]> {
+  if (source.key !== "infosconcourseducation") return [];
+  try {
+    const response = await fetch("https://infosconcourseducation.com/wp-json/wp/v2/posts?per_page=30&orderby=date&order=desc&_fields=link,title,content,date", {
+      headers: { "user-agent": USER_AGENT, accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    if (!response.ok) return [];
+    const posts = await response.json();
+    if (!Array.isArray(posts)) return [];
+    const out: CollectedOffer[] = [];
+    for (const post of posts) {
+      const link = typeof post?.link === "string" ? post.link : "";
+      const title = typeof post?.title?.rendered === "string" ? htmlToCleanText(post.title.rendered) : "";
+      if (!link || !title || !isRelevantInfosConcoursLink(new URL(link), title)) continue;
+      const rawHtml = typeof post?.content?.rendered === "string" ? post.content.rendered : "";
+      if (!rawHtml) continue;
+      try {
+        const html = stripInfosConcoursWordPressChrome(rawHtml, title);
+        const offer = extractOffer(source, link, html, title, rawHtml, "api");
+        if (offer) out.push(offer);
+      } catch {}
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+async function collectSource(source: SourceConfig): Promise<CollectedOffer[]> {
+  // Infos Concours Education exposes a stable WordPress REST feed. Use it
+  // directly instead of scraping archive links, which are not job offers.
+  if (source.key === "infosconcourseducation") {
+    return collectWordPressOffers(source);
+  }
+
+  const seenPages = new Set<string>(), candidates = new Map<string,CandidateLink>();
+  for (const firstUrl of source.listingUrls) {
+    let current = firstUrl;
+    for (let page=0;page<MAX_LISTING_PAGES_SAFETY && current && !seenPages.has(current);page++) {
+      seenPages.add(current);
+      try {
+        const html = await fetchHtml(current);
+        for (const candidate of extractLinks(html,current,source)) candidates.set(candidate.url,candidate);
+        const nextPages = pageLinks(html,current,source).filter(x => !seenPages.has(x));
+        current = nextPages.find(x => !candidates.has(x)) || nextPages[0] || "";
+      } catch { current=""; }
+    }
+  }
+  // No offer-count ceiling: every unique candidate discovered through source
+  // pagination is eligible for collection. The crawler stops on exhaustion,
+  // repeated pages, or technical failure; the page bound is only a loop guard.
+  const candidatesToFetch = Array.from(candidates.values());
+  const results = await mapWithConcurrency(candidatesToFetch, SOURCE_FETCH_CONCURRENCY, async (candidate) => {
+    const capture = await fetchOfferCapture(candidate.url);
+    return extractOffer(source, candidate.url, capture.renderedHtml, candidate.title, capture.rawHtml, capture.captureMode);
+  });
+  if (results.length < 5) {
+    const fallback = await collectWordPressOffers(source);
+    for (const offer of fallback) {
+      if (!results.some(existing => existing.sourceUrl === offer.sourceUrl)) results.push(offer);
+    }
+  }
+  return results;
+}
+
+export async function recollectOfferByUrl(sourceKey: string, url: string, listingTitle = ""): Promise<CollectedOffer | null> {
+  const source = SOURCES.find(item => item.key === sourceKey);
+  if (!source || !url) return null;
+  try {
+    const parsed = new URL(url);
+    if (!source.hostnames.includes(parsed.hostname.toLowerCase())) return null;
+    if (source.key === "infosconcourseducation" && !isRelevantInfosConcoursLink(parsed, listingTitle || parsed.pathname)) return null;
+    const capture = source.key === "infosconcourseducation"
+      ? { rawHtml: await fetchHtmlLegacy(url), renderedHtml: await fetchHtml(url), captureMode: "api" as const }
+      : await fetchOfferCapture(url);
+    const cleanHtml = source.key === "infosconcourseducation"
+      ? stripInfosConcoursWordPressChrome(capture.renderedHtml, listingTitle)
+      : capture.renderedHtml;
+    return extractOffer(source, url, cleanHtml, listingTitle || titleFromHtml(cleanHtml) || "Offre d'emploi", capture.rawHtml, capture.captureMode);
+  } catch {
+    return null;
+  }
+}
+
+export async function collectPublicJobSources(sourceKey?: string) {
+  const selectedSources = sourceKey
+    ? SOURCES.filter(source => source.key === sourceKey)
+    : SOURCES;
+  const results = await Promise.all(selectedSources.map(async source => {
+    try {
+      const found = await collectSource(source);
+      return { source, found, error: false };
+    } catch {
+      return { source, found: [] as CollectedOffer[], error: true };
+    }
+  }));
+  const offers = results.flatMap(item => item.found);
+  const sources: Record<string,{discovered:number;errors:number}> = {};
+  for (const item of results) sources[item.source.key] = { discovered: item.found.length, errors: item.error ? 1 : 0 };
+  return { offers, sources };
+}

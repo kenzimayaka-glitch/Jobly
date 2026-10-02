@@ -1,19 +1,51 @@
-name: Jobly CI
+name: Jobly CI — Typecheck & Build
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+  push:
+    branches:
+      - main
+      - "fix/**"
+      - "feat/**"
+      - "chore/**"
+  workflow_dispatch:
+
+concurrency:
+  group: jobly-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  validate:
+    name: Typecheck and production build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          node-version: 24
-      - run: npm install --ignore-scripts --no-audit --no-fund
-      - run: npm run build
+          version: 10.28.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Career OS architecture gate
+        run: pnpm test:career-os
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Production build
+        run: pnpm build

@@ -1,32 +1,12 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
-import { Inter, Plus_Jakarta_Sans, Poppins } from "next/font/google";
 import PwaInit from "../components/PwaInit";
 import JiaObserver from "../components/JiaObserver";
+import JiaPresence from "../components/JiaPresence";
 
 import ScreenProtection from "../components/ScreenProtection";
 import { LanguageProvider } from "../lib/i18n";
 
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800", "900"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["700", "800"],
-  variable: "--font-plus-jakarta",
-  display: "swap",
-});
-
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["400", "700", "800"],
-  variable: "--font-poppins",
-  display: "swap",
-});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -41,14 +21,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr" className={`h-full w-full ${inter.variable} ${plusJakarta.variable} ${poppins.variable}`}>
+    <html lang="fr" className="h-full w-full">
       <body className="h-[100dvh] w-screen m-0 p-0 overflow-visible bg-white antialiased font-sans">
         <LanguageProvider>
           <PwaInit />
           <JiaObserver />
+          <JiaPresence />
           <ScreenProtection />
           {children}
-                </LanguageProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

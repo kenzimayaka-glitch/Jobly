@@ -1,0 +1,29 @@
+name: Verify offer pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - "fix/offer-pipeline-final-validation"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm typecheck
+      - run: pnpm build
+      - name: J'IA Watch B3.1 smoke
+        run: node scripts/jia-watch-intelligence-smoke.mjs

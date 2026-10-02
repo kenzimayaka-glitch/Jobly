@@ -1,19 +1,30 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { getSupabaseClient } from "../../../lib/supabase";
 import { useRouter } from "next/navigation";
 import PageHeader from "../../../components/PageHeader";
 import BottomNav, { TALENT_NAV } from "../../../components/BottomNav";
 import TalentBackground from "../../../components/TalentBackground";
+import { PremiumDiamond } from "../../../components/ui/PremiumDiamond";
+import JoblyToast from "../../../components/JoblyToast";
 
 type CV = {
   id: string; name: string; source: string; fullName: string; headline: string; email: string; phone: string;
-  summary: string; skills: string; experience: string; education: string; ats: number; createdAt: string;
+  summary: string; skills: string; experience: string; education: string;
+  activities: string[]; interests: string[]; references: string[]; referencesVisible: boolean;
+  languages: string[]; achievements: string[]; atsKeywords: string[];
+  ats: number; createdAt: string;
 };
-type PaymentState = { paymentId: string; instructions: string; priceXaf: number; pending?: boolean } | null;
-
 const KEY = "jobly:talent-cvs";
-const empty: CV = { id: "", name: "Mon CV Jobly", source: "Créé dans Jobly", fullName: "", headline: "", email: "", phone: "", summary: "", skills: "", experience: "", education: "", ats: 0, createdAt: "" };
+const CV_TEMPLATES = [
+  { id: "classic", name: "Jobly Classic", access: "FREE", description: "Sobre, lisible et ATS-friendly." },
+  { id: "modern", name: "Jobly Modern", access: "FREE", description: "Équilibre visuel et impact professionnel." },
+  { id: "executive", name: "Jobly Executive", access: "PREMIUM", description: "Hiérarchie premium pour profils expérimentés." },
+  { id: "impact", name: "Jobly Impact", access: "PREMIUM", description: "Mise en avant des réalisations et résultats." },
+  { id: "minimal", name: "Jobly Minimal", access: "PREMIUM", description: "Élégant, dense et très lisible." },
+] as const;
+const empty: CV = { id: "", name: "Mon CV Jobly", source: "Créé dans Jobly", fullName: "", headline: "", email: "", phone: "", summary: "", skills: "", experience: "", education: "", activities: [], interests: [], references: [], referencesVisible: false, languages: [], achievements: [], atsKeywords: [], ats: 0, createdAt: "" };
 
 function score(c: CV) {
   let n = 0;
@@ -33,67 +44,268 @@ export default function TalentCVs() {
   const [cvs, setCvs] = useState<CV[]>([]);
   const [cv, setCv] = useState<CV>({ ...empty, id: crypto.randomUUID(), createdAt: new Date().toISOString() });
   const [file, setFile] = useState("");
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const [extracted, setExtracted] = useState<any>(null);
+  const [originalMeta, setOriginalMeta] = useState<{ pages?: number; storagePath?: string } | null>(null);
   const [message, setMessage] = useState("");
+  const [messageKind, setMessageKind] = useState<"info" | "error" | "success">("info");
+  const [templateId, setTemplateId] = useState("classic");
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!message) return;
+    const timer = window.setTimeout(() => setMessage(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [message]);
+  const [originalBusy, setOriginalBusy] = useState(false);
   const [plan, setPlan] = useState("FREE");
-  const [paymentPhone, setPaymentPhone] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("MTN MoMo");
-  const [payment, setPayment] = useState<PaymentState>(null);
+  const [cvAtsPaymentAmount, setCvAtsPaymentAmount] = useState(500);
+  const [cvOptimizedPaymentAmount, setCvOptimizedPaymentAmount] = useState(500);
+  const [cvPaymentFeature, setCvPaymentFeature] = useState<"CV_ATS_DOWNLOAD" | "CV_OPTIMIZED_DOWNLOAD">("CV_ATS_DOWNLOAD");
+  const [cvPaymentOpen, setCvPaymentOpen] = useState(false);
+  const [cvPaymentPhone, setCvPaymentPhone] = useState("");
+  const [cvPaymentMethod, setCvPaymentMethod] = useState("MTN MoMo");
+  const [cvPaymentBusy, setCvPaymentBusy] = useState(false);
+  const [cvPaymentId, setCvPaymentId] = useState("");
+  const [cvPaymentMessage, setCvPaymentMessage] = useState("");
+  const [previewVersion, setPreviewVersion] = useState<"jobly" | "ats" | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const activeTemplate = CV_TEMPLATES.find(item => item.id === templateId) || CV_TEMPLATES[0];
+  const selectTemplate = (id: string) => {
+    const template = CV_TEMPLATES.find(item => item.id === id);
+    if (!template) return;
+    setTemplateId(id);
+  };
 
   useEffect(() => {
     try { setCvs(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch {}
-    fetch("/api/entitlements", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(x => x?.subscription?.plan && setPlan(x.subscription.plan)).catch(() => {});
+    fetch("/api/entitlements", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(x => {
+      if (x?.subscription?.plan) setPlan(x.subscription.plan);
+      if (Number.isFinite(Number(x?.entitlements?.cvAtsDownloadPriceXaf))) setCvAtsPaymentAmount(Number(x.entitlements.cvAtsDownloadPriceXaf));
+      if (Number.isFinite(Number(x?.entitlements?.cvOptimizedDownloadPriceXaf))) setCvOptimizedPaymentAmount(Number(x.entitlements.cvOptimizedDownloadPriceXaf));
+    }).catch(() => {});
   }, []);
 
   const ats = useMemo(() => score(cv), [cv]);
   const update = (k: keyof CV, v: string) => setCv(x => ({ ...x, [k]: v }));
+  const notify = (text: string, kind: "info" | "error" | "success" = "info") => { setMessageKind(kind); setMessage(text); };
+  async function removeImportedCv() {
+    setBusy(true);
+    try {
+      const token = await getAccessToken();
+      if (originalMeta?.storagePath && token) {
+        const res = await fetch("/api/talent/cv/original", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Suppression impossible.");
+      }
+      setFile(""); setOriginalFile(null); setOriginalMeta(null); setExtracted(null);
+      setCv({ ...empty, id: cv.id, createdAt: cv.createdAt });
+      notify("Le CV importé a été supprimé. Tu peux en importer un nouveau.", "success");
+    } catch (err) { notify(err instanceof Error ? err.message : "Suppression impossible.", "error"); }
+    finally { setBusy(false); }
+  }
 
-  function save() {
-    const next = { ...cv, ats, createdAt: cv.createdAt || new Date().toISOString(), name: cv.name || "Mon CV Jobly" };
-    const all = [next, ...cvs.filter(x => x.id !== next.id)];
-    setCvs(all); localStorage.setItem(KEY, JSON.stringify(all)); setCv(next); setMessage("CV enregistré.");
+  async function getAccessToken() {
+    try {
+      const supabase = getSupabaseClient();
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+      if (!session?.access_token) return null;
+      const expiresAt = Number(session.expires_at || 0) * 1000;
+      if (!expiresAt || expiresAt - Date.now() > 60_000) return session.access_token;
+      const refreshed = await supabase.auth.refreshSession();
+      return refreshed.data.session?.access_token || null;
+    } catch { return null; }
+  }
+
+  async function extractIntoFields() {
+    if (!extracted) { notify("Importe d’abord ton CV PDF.", "error"); return; }
+    setBusy(true);
+    try {
+      const next: CV = {
+        ...cv,
+        fullName: extracted.fullName || cv.fullName,
+        headline: extracted.headline || cv.headline,
+        email: extracted.email || cv.email,
+        phone: extracted.phone || cv.phone,
+        summary: extracted.summary || cv.summary,
+        skills: Array.isArray(extracted.skills) ? extracted.skills.join(", ") : cv.skills,
+        experience: extracted.experience || cv.experience,
+        education: extracted.education || cv.education,
+        activities: Array.isArray(extracted.activities) ? extracted.activities : cv.activities,
+        interests: Array.isArray(extracted.interests) ? extracted.interests : cv.interests,
+        references: Array.isArray(extracted.references) ? extracted.references : cv.references,
+        referencesVisible: extracted.referencesVisible === true || cv.referencesVisible,
+        languages: Array.isArray(extracted.languages) ? extracted.languages : cv.languages,
+        achievements: Array.isArray(extracted.achievements) ? extracted.achievements : cv.achievements,
+        atsKeywords: Array.isArray(extracted.atsKeywords) ? extracted.atsKeywords : cv.atsKeywords,
+        source: file ? `CV original importé : ${file}` : cv.source,
+        ats: Number(extracted.atsScore || 0) || score(cv),
+      };
+      setCv(next);
+      notify("Données extraites : les champs sont remplis. Vérifie-les puis clique sur « Enregistrer » pour les conserver.", "success");
+    } catch (err) { notify(err instanceof Error ? err.message : "Extraction impossible.", "error"); }
+    finally { setBusy(false); }
+  }
+
+  async function save() {
+    setBusy(true);
+    try {
+      const next = { ...cv, ats, createdAt: cv.createdAt || new Date().toISOString(), name: cv.name || "Mon CV Jobly" };
+      const token = await getAccessToken();
+      if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi avant d’enregistrer ton CV.");
+      {
+        const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+        const profileRes = await fetch("/api/profile", { method: "PUT", headers, body: JSON.stringify({ section: "profil", displayName: next.fullName, phone: next.phone, headline: next.headline, summary: next.summary })});
+        if (!profileRes.ok) throw new Error((await profileRes.json().catch(() => ({}))).message || "Le profil Jobly n’a pas pu être synchronisé.");
+        const skillsRes = await fetch("/api/profile", { method: "PUT", headers, body: JSON.stringify({ section: "skills", skills: next.skills.split(",").map(name => ({ name: name.trim() })).filter(x => x.name) })});
+        if (!skillsRes.ok) throw new Error("Les compétences n’ont pas pu être synchronisées.");
+        if (originalFile) {
+          const form = new FormData(); form.append("file", originalFile); if (originalMeta?.pages) form.append("pages", String(originalMeta.pages));
+          const originalRes = await fetch("/api/talent/cv/original", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+          const originalBody = await originalRes.json().catch(() => ({}));
+          if (!originalRes.ok) throw new Error(originalBody.message || "Le CV original n’a pas pu être enregistré.");
+          setOriginalMeta({ storagePath: originalBody.storagePath });
+        }
+      }
+      const all = [next, ...cvs.filter(x => x.id !== next.id)];
+      setCvs(all); localStorage.setItem(KEY, JSON.stringify(all)); setCv(next);
+      notify("CV enregistré : version Jobly, données de profil et document original sont conservés.", "success");
+    } catch (err) { notify(err instanceof Error ? err.message : "Enregistrement impossible.", "error"); }
+    finally { setBusy(false); }
   }
 
   async function importPdf(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    setFile(f.name); setBusy(true); setMessage("J’IA lit ton CV et prépare les champs…");
+    setFile(f.name); setBusy(true); notify("J’IA lit ton CV et prépare les champs…");
     try {
       const form = new FormData(); form.append("file", f);
-      const res = await fetch("/api/talent/cv/import", { method: "POST", body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Import impossible.");
-      const p = data.cv;
-      setCv(x => ({ ...x, fullName: p.fullName || x.fullName, headline: p.headline || x.headline, email: p.email || x.email, phone: p.phone || x.phone, summary: p.summary || x.summary, skills: (p.skills || []).join(", "), experience: p.experience || x.experience, education: p.education || x.education, source: `Importé par J’IA : ${f.name}`, ats: Number(p.atsScore || 0) || score(x) }));
-      setMessage(`CV analysé par J’IA. ${data.credits} crédit(s) IA utilisé(s). Vérifie les champs avant d’enregistrer.`);
-    } catch (err) { setMessage(err instanceof Error ? err.message : "Import impossible."); }
+      let token = await getAccessToken();
+      if (!token) throw new Error("Impossible de récupérer ta session Jobly active. Recharge la page puis réessaie.");
+      let res = await fetch("/api/talent/cv/import", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+      if (res.status === 401) {
+        token = await (async () => { try { const refreshed = await getSupabaseClient().auth.refreshSession(); return refreshed.data.session?.access_token || null; } catch { return null; } })();
+        if (token) res = await fetch("/api/talent/cv/import", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+      }
+      const responseText = await res.text();
+      let data: any = {};
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        const htmlTitle = responseText.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim();
+        throw new Error(htmlTitle ? `Le serveur a renvoyé une page HTML au lieu de la réponse JSON attendue (${htmlTitle}). Réessaie dans un instant.` : `Le serveur a renvoyé une réponse invalide au lieu du JSON attendu (HTTP ${res.status}).`);
+      }
+      if (!res.ok) {
+        if (res.status === 401) throw new Error("Ta session Jobly n’est plus valide. Reconnecte-toi puis réessaie.");
+        throw new Error(data.message || "Import impossible.");
+      }
+      setExtracted(data.cv);
+      setOriginalMeta({ pages: data.pages });
+      setOriginalFile(f);
+      setFile(data.fileName || f.name); notify(`CV importé en prévisualisation. Clique sur « Extraire les données », vérifie les champs, puis « Enregistrer » pour conserver le CV. ${data.credits ?? 0} crédit(s) IA utilisé(s).`, "success");
+    } catch (err) { notify(err instanceof Error ? err.message : "Import impossible.", "error"); }
     finally { setBusy(false); }
   }
 
-  async function exportPdf(paymentId?: string) {
-    setBusy(true); setMessage(paymentId ? "Vérification du paiement…" : "Préparation du CV ATS…");
+  function openOriginalCv() {
+    setOriginalBusy(true);
+    router.push("/talent/cvs/original");
+  }
+
+  function openCvPayment(feature: "CV_ATS_DOWNLOAD" | "CV_OPTIMIZED_DOWNLOAD" = "CV_ATS_DOWNLOAD") {
+    setCvPaymentFeature(feature);
+    setCvPaymentMessage("");
+    setCvPaymentId("");
+    setCvPaymentOpen(true);
+  }
+
+  async function exportPdf(service: "ATS" | "OPTIMIZED" = "ATS", paymentId?: string) {
+    const included = plan !== "FREE";
+    if (!included) {
+      openCvPayment(service === "OPTIMIZED" ? "CV_OPTIMIZED_DOWNLOAD" : "CV_ATS_DOWNLOAD");
+      return;
+    }
+    setBusy(true); setMessage(service === "OPTIMIZED" ? "Préparation du CV optimisé…" : "Préparation du CV ATS…");
     try {
-      const res = await fetch("/api/talent/cv/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cv: { ...cv, skills: cv.skills.split(",").map(x => x.trim()).filter(Boolean) }, paymentId, paymentPhone, paymentMethod }) });
-      if (res.status === 402) {
-        const data = await res.json();
-        if (data.paymentRequired && data.paymentId) {
-          setPayment({ paymentId: data.paymentId, instructions: data.instructions || "Valide le paiement sur ton téléphone.", priceXaf: data.priceXaf || 1000 });
-          setMessage("Le téléchargement ATS est à 1 000 FCFA pour Free et Start.");
-        } else setMessage(data.message || "Paiement requis.");
+      const token = await getAccessToken();
+      if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
+      const res = await fetch("/api/talent/cv/export", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ service, cv: { ...cv, skills: cv.skills.split(",").map(x => x.trim()).filter(Boolean) }, ...(paymentId ? { paymentId } : {}) }) });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Téléchargement impossible.");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `${cv.fullName || "CV-Jobly"}-${service === "OPTIMIZED" ? "Jobly-optimise" : "ATS"}.pdf`; a.click(); URL.revokeObjectURL(url);
+      notify(service === "OPTIMIZED" ? "CV Jobly optimisé téléchargé." : "CV ATS téléchargé.", "success");
+    } catch (err) { notify(err instanceof Error ? err.message : "Téléchargement impossible.", "error"); }
+    finally { setBusy(false); }
+  }
+
+  async function startCvPayment() {
+    setCvPaymentBusy(true);
+    setCvPaymentMessage("");
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
+      const res = await fetch("/api/talent/cv/payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "Idempotency-Key": crypto.randomUUID(),
+        },
+        body: JSON.stringify({
+          feature: cvPaymentFeature,
+          provider: "ICLAN",
+          phone: cvPaymentPhone.trim(),
+          paymentMethod: cvPaymentMethod,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Impossible de lancer le paiement.");
+      if (data.included) {
+        setCvPaymentOpen(false);
+        await exportPdf(cvPaymentFeature === "CV_OPTIMIZED_DOWNLOAD" ? "OPTIMIZED" : "ATS");
         return;
       }
-      if (res.status === 202) {
-        const data = await res.json(); setPayment(p => p ? { ...p, pending: true } : p); setMessage(data.message || "Paiement en attente."); return;
-      }
-      if (!res.ok) { const data = await res.json().catch(() => ({})); throw new Error(data.message || "Téléchargement impossible."); }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `${cv.fullName || "CV-Jobly"}-ATS.pdf`; a.click(); URL.revokeObjectURL(url);
-      setPayment(null); setMessage("CV ATS téléchargé.");
-    } catch (err) { setMessage(err instanceof Error ? err.message : "Téléchargement impossible."); }
-    finally { setBusy(false); }
+      setCvPaymentId(String(data.payment?.id || ""));
+      setCvPaymentMessage(data.instructions || "Validez le paiement sur votre téléphone, puis cliquez sur « Vérifier le paiement ».");
+    } catch (err) {
+      setCvPaymentMessage(err instanceof Error ? err.message : "Impossible de lancer le paiement.");
+    } finally {
+      setCvPaymentBusy(false);
+    }
   }
 
-  function load(x: CV) { setCv(x); setMessage("Version chargée."); }
+  async function verifyCvPayment() {
+    if (!cvPaymentId) return;
+    setCvPaymentBusy(true);
+    setCvPaymentMessage("");
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
+      const res = await fetch(`/api/payments/${cvPaymentId}/verify`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Vérification impossible.");
+      if (data.payment?.status !== "SUCCESSFUL") {
+        setCvPaymentMessage(`Statut du paiement : ${data.verification?.status || data.payment?.status || "inconnu"}. Validez le paiement puis réessayez.`);
+        return;
+      }
+      setCvPaymentOpen(false);
+      setCvPaymentId("");
+      notify("Paiement confirmé. Préparation du CV…", "success");
+      await exportPdf(cvPaymentFeature === "CV_OPTIMIZED_DOWNLOAD" ? "OPTIMIZED" : "ATS", cvPaymentId);
+    } catch (err) {
+      setCvPaymentMessage(err instanceof Error ? err.message : "Vérification impossible.");
+    } finally {
+      setCvPaymentBusy(false);
+    }
+  }
+
+  function openVersion(version: "jobly" | "ats") {
+    setPreviewVersion(version);
+    setPreviewOpen(true);
+  }
+
 
   return <main className="talent-shell relative min-h-[100dvh] bg-[#F7FAFF] pb-28 text-navy">
     <TalentBackground />
@@ -103,9 +315,14 @@ export default function TalentCVs() {
         <section className="rounded-[24px] bg-white p-5 shadow-sm print:hidden">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div><h1 className="text-xl font-black">CV Builder + ATS</h1><p className="mt-1 text-xs text-jobly-gray">Importe ton PDF : J’IA extrait les données et remplit automatiquement ton CV.</p></div>
-            <label className={`cursor-pointer rounded-full bg-[#FFE135] px-4 py-3 text-xs font-black ${busy ? "pointer-events-none opacity-50" : ""}`}>Importer mon CV PDF<input type="file" accept="application/pdf,.pdf" onChange={importPdf} className="hidden" disabled={busy} /></label>
+            <div className="flex flex-wrap gap-2">
+              <label className={`cursor-pointer rounded-full bg-[#FFE135] px-4 py-3 text-xs font-black ${busy ? "pointer-events-none opacity-50" : ""}`}>Importer mon CV PDF<input type="file" accept="application/pdf,.pdf" onChange={importPdf} className="hidden" disabled={busy} /></label>
+              <button type="button" onClick={extractIntoFields} disabled={!extracted || busy} className="rounded-full bg-[#BFFF00] px-4 py-3 text-xs font-black text-navy disabled:cursor-not-allowed disabled:opacity-40">Extraire les données</button>
+            </div>
           </div>
-          {file && <p className="mt-3 text-xs font-bold text-jobly-blue">Fichier : {file}</p>}
+          {file && <div className="mt-3 flex items-center gap-2 text-xs font-bold text-jobly-blue"><span className="min-w-0 truncate">Fichier : {file}{originalMeta?.pages ? ` · ${originalMeta.pages} page(s)` : ""}</span><button type="button" onClick={removeImportedCv} disabled={busy} aria-label="Supprimer le CV importé" title="Supprimer le CV importé" className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-red-50 text-red-600 transition hover:bg-red-100 disabled:opacity-50">🗑</button></div>}
+          {extracted && <p className="mt-2 text-[11px] font-semibold text-jobly-gray">Données prêtes à être injectées dans les champs correspondants. Le PDF original reste séparé du CV interne Jobly.</p>}
+          {originalMeta?.storagePath && <button type="button" onClick={openOriginalCv} disabled={busy || originalBusy} className="mt-3 rounded-xl border border-jobly-blue px-4 py-2 text-xs font-black text-jobly-blue disabled:opacity-50">{originalBusy ? "Ouverture…" : "Ouvrir mon CV original"}</button>}
         </section>
 
         <div className="grid gap-4 lg:grid-cols-[1.4fr_.6fr]">
@@ -120,35 +337,87 @@ export default function TalentCVs() {
             <textarea value={cv.skills} onChange={e => update("skills", e.target.value)} placeholder="Compétences (séparées par des virgules)" rows={3} className="mt-3 w-full rounded-xl border px-4 py-3" />
             <textarea value={cv.experience} onChange={e => update("experience", e.target.value)} placeholder="Expériences professionnelles" rows={7} className="mt-3 w-full rounded-xl border px-4 py-3" />
             <textarea value={cv.education} onChange={e => update("education", e.target.value)} placeholder="Formation / certifications" rows={4} className="mt-3 w-full rounded-xl border px-4 py-3" />
-            <div className="mt-4 grid gap-2 sm:grid-cols-3 print:hidden">
-              <button onClick={save} className="rounded-xl bg-jobly-blue py-3 font-black text-white">Enregistrer</button>
-              <button onClick={() => exportPdf()} disabled={busy} className="rounded-xl bg-[#FFE135] py-3 font-black disabled:opacity-50">Télécharger ATS</button>
-              <button onClick={() => router.push("/career-os")} className="rounded-xl border py-3 font-black">Career OS →</button>
-            </div>
-            {message && <p className="mt-3 text-xs font-bold text-jobly-blue print:hidden">{message}</p>}
-
-            {payment && <div className="mt-4 rounded-2xl border border-[#FFE135] bg-[#FFF9E6] p-4 print:hidden">
-              <p className="font-black">Téléchargement ATS — {payment.priceXaf.toLocaleString("fr-FR")} FCFA</p>
-              <p className="mt-1 text-xs">{payment.instructions}</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <input value={paymentPhone} onChange={e => setPaymentPhone(e.target.value)} placeholder="Numéro Mobile Money" className="rounded-xl border px-3 py-2" />
-                <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="rounded-xl border px-3 py-2"><option>MTN MoMo</option><option>Orange Money</option></select>
+            <div className="relative mt-4 space-y-2 print:hidden">
+              <button onClick={save} className="w-full rounded-xl bg-jobly-blue py-3 font-black text-white">Enregistrer</button>
+              <button onClick={() => setPreviewOpen(true)} type="button" className="w-full rounded-xl border-2 border-[#0057B8] bg-white py-3 font-black text-[#0057B8]">Voir le CV</button>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <button onClick={() => exportPdf("ATS")} disabled={busy} className="rounded-xl bg-[#FFE135] py-3 font-black disabled:opacity-50"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />Télécharger version ATS</span></button>
+                <button onClick={() => exportPdf("OPTIMIZED")} disabled={busy} className="rounded-xl border border-jobly-blue py-3 font-black text-jobly-blue disabled:opacity-50"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />Télécharger CV optimisé</span></button>
+                <button onClick={() => router.push("/career-os")} className="rounded-xl border py-3 font-black">Career OS →</button>
               </div>
-              <button onClick={() => exportPdf(payment.paymentId)} disabled={busy} className="mt-3 w-full rounded-xl bg-jobly-blue py-3 font-black text-white disabled:opacity-50">{payment.pending ? "Vérifier le paiement" : "J’ai payé — télécharger"}</button>
-            </div>}
-          </section>
+              <p className="text-center text-[9px] font-semibold text-jobly-gray">L’accès aux conditions et au tarif s’affiche lorsque tu sélectionnes le téléchargement.</p>
+              {message && <div className="absolute left-full top-0 ml-3 hidden w-[min(92vw,390px)] lg:block"><JoblyToast title={messageKind === "error" ? "Attention" : "Jobly"} message={message} variant={messageKind} placement="inline" onClose={() => setMessage("")} /></div>}
+              {message && <div className="mt-2 lg:hidden"><JoblyToast title={messageKind === "error" ? "Attention" : "Jobly"} message={message} variant={messageKind} placement="inline" onClose={() => setMessage("")} /></div>}
+            </div>
 
+          </section>
           <aside className="space-y-4 print:hidden">
             <section className="rounded-[24px] bg-white p-5 shadow-sm"><span className="text-xs font-black uppercase text-jobly-gray">Score ATS</span><div className="mt-2 text-5xl font-black text-jobly-blue">{ats}%</div><p className="mt-2 text-xs text-jobly-gray">Score déterministe de lisibilité et de complétude. J’IA peut aussi analyser le contenu importé.</p></section>
-            <section className="rounded-[24px] bg-white p-5 shadow-sm"><h2 className="font-black">Téléchargement</h2><p className="mt-2 text-xs text-jobly-gray">Premium et Pro : inclus. Free et Start : 1 000 FCFA par CV ATS.</p><p className="mt-2 text-[10px] font-bold uppercase text-jobly-gray">Plan actuel : {plan}</p></section>
-            <section className="rounded-[24px] bg-white p-5 shadow-sm"><h2 className="font-black">Mes versions</h2>{cvs.length === 0 ? <p className="mt-2 text-xs text-jobly-gray">Aucune version enregistrée.</p> : <div className="mt-3 space-y-2">{cvs.slice(0, 8).map(x => <button key={x.id} onClick={() => load(x)} className="w-full rounded-xl border p-3 text-left"><b className="block text-xs">{x.name}</b><span className="text-[10px] text-jobly-gray">ATS {x.ats}% · {x.source}</span></button>)}</div>}</section>
+            <section className="rounded-[24px] bg-white p-5 shadow-sm"><h2 className="font-black">Mes versions</h2>
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between gap-3 rounded-xl border p-3"><div><b className="block text-xs">Mon CV Jobly</b><span className="text-[10px] text-jobly-gray">Version professionnelle Jobly</span></div><button type="button" onClick={() => openVersion("jobly")} className="shrink-0 rounded-lg bg-jobly-blue px-3 py-2 text-[11px] font-black text-white">Ouvrir</button></div>
+                <div className="flex items-center justify-between gap-3 rounded-xl border p-3"><div><b className="block text-xs">Mon CV ATS</b><span className="text-[10px] text-jobly-gray">Version structurée pour les ATS</span></div><button type="button" onClick={() => openVersion("ats")} className="shrink-0 rounded-lg bg-jobly-blue px-3 py-2 text-[11px] font-black text-white">Ouvrir</button></div>
+              </div></section>
           </aside>
         </div>
 
         <section id="cv-print" className="mx-auto max-w-3xl rounded-[8px] bg-white p-8 shadow-sm print:mt-0 print:p-0 print:shadow-none">
-          <h2 className="text-3xl font-black">{cv.fullName || "Nom complet"}</h2><p className="mt-1 text-lg font-bold text-jobly-blue">{cv.headline || "Titre professionnel"}</p><p className="mt-2 text-xs">{[cv.email, cv.phone].filter(Boolean).join(" · ")}</p>
+          <h2 className="text-3xl font-black">{cv.fullName || "Nom complet"}</h2><p className="mt-1 text-lg font-bold text-jobly-blue">{cv.headline || "Titre professionnel"}</p><p className="mt-2 text-xs">{[cv.email, cv.phone].filter(Boolean).join(" · ")}</p><p className="mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{activeTemplate.name}</p>
           {[['Profil', cv.summary], ['Compétences', cv.skills], ['Expérience', cv.experience], ['Formation', cv.education]].map(([h, v]) => v ? <div key={h} className="mt-5"><h3 className="border-b pb-1 text-sm font-black uppercase">{h}</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{v}</p></div> : null)}
         </section>
+        {cvPaymentOpen && (
+          <div className="fixed inset-0 z-[140] grid place-items-center bg-slate-950/45 px-4 py-6 print:hidden" role="dialog" aria-modal="true" aria-label="Paiement d’un service CV Jobly">
+            <div className="w-full max-w-md overflow-hidden rounded-[28px] bg-white shadow-2xl">
+              <div className="border-b border-slate-100 px-5 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-jobly-gray">Accès CV</p>
+                    <h2 className="mt-1 text-xl font-black">{cvPaymentFeature === "CV_OPTIMIZED_DOWNLOAD" ? "Télécharger mon CV optimisé" : "Télécharger mon CV ATS"}</h2>
+                  </div>
+                  <button type="button" onClick={() => setCvPaymentOpen(false)} className="rounded-full border px-3 py-2 text-sm font-black" aria-label="Fermer">×</button>
+                </div>
+              </div>
+              <div className="space-y-4 p-5">
+                <div className="rounded-2xl bg-[#F7FAFF] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div><p className="text-xs font-black text-slate-500">Votre formule</p><p className="mt-1 text-lg font-black">{plan}</p></div>
+                    <div className="text-right"><p className="text-xs font-black text-slate-500">Paiement ponctuel</p><p className="mt-1 text-2xl font-black text-jobly-blue">{(cvPaymentFeature === "CV_OPTIMIZED_DOWNLOAD" ? cvOptimizedPaymentAmount : cvAtsPaymentAmount).toLocaleString("fr-FR")} FCFA <span className="text-xs font-bold text-slate-500">· accès 2 h</span></p></div>
+                  </div>
+                  <p className="mt-3 text-xs leading-5 text-slate-600">Ce paiement est ponctuel : il ouvre pendant 2 heures le service CV choisi. Vous pouvez optimiser/convertir et télécharger autant de fois que nécessaire pendant cette fenêtre. Après expiration, un nouveau paiement est requis.</p>
+                </div>
+                <label className="block text-xs font-black text-slate-700">Numéro Mobile Money
+                  <input value={cvPaymentPhone} onChange={e => setCvPaymentPhone(e.target.value)} placeholder="2376XXXXXXXX" className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-jobly-blue" />
+                </label>
+                <label className="block text-xs font-black text-slate-700">Mode de paiement
+                  <select value={cvPaymentMethod} onChange={e => setCvPaymentMethod(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none">
+                    <option>MTN MoMo</option><option>Orange Money</option>
+                  </select>
+                </label>
+                {cvPaymentMessage && <div role="status" aria-live="polite" className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">{cvPaymentMessage}</div>}
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setCvPaymentOpen(false)} className="flex-1 rounded-xl border px-4 py-3 text-xs font-black">Annuler</button>
+                  {!cvPaymentId ? (
+                    <button type="button" onClick={startCvPayment} disabled={cvPaymentBusy || !cvPaymentPhone.trim()} className="flex-1 rounded-xl bg-jobly-blue px-4 py-3 text-xs font-black text-white disabled:opacity-50">{cvPaymentBusy ? "Préparation…" : `Payer ${(cvPaymentFeature === "CV_OPTIMIZED_DOWNLOAD" ? cvOptimizedPaymentAmount : cvAtsPaymentAmount).toLocaleString("fr-FR")} FCFA`}</button>
+                  ) : (
+                    <button type="button" onClick={verifyCvPayment} disabled={cvPaymentBusy} className="flex-1 rounded-xl bg-jobly-blue px-4 py-3 text-xs font-black text-white disabled:opacity-50">{cvPaymentBusy ? "Vérification…" : "Vérifier le paiement"}</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {message && <div className="relative min-h-0 print:hidden"><JoblyToast title={messageKind === "error" ? "Attention" : "Jobly"} message={message} variant={messageKind} placement="inline" onClose={() => setMessage("")} /></div>}
+        {previewOpen && (
+          <div className="fixed inset-0 z-[135] overflow-y-auto bg-slate-950/45 px-4 py-8 print:hidden" role="dialog" aria-modal="true" aria-label="Visualisation du CV">
+            <div className={`mx-auto max-w-3xl rounded-[8px] bg-white p-8 shadow-2xl ${templateId === "modern" ? "border-t-8 border-[#0057B8]" : templateId === "executive" ? "border-l-8 border-[#FFD60A]" : templateId === "impact" ? "border-t-8 border-[#7C3AED]" : templateId === "minimal" ? "border border-slate-300" : ""}`}>
+              <div className="mb-6 flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-jobly-gray">Visualisation & modèles</p><h2 className="mt-1 text-2xl font-black">Voir le CV</h2></div><button type="button" onClick={() => { setPreviewOpen(false); setPreviewVersion(null); }} className="rounded-full border px-3 py-2 text-sm font-black">Fermer</button></div>
+              <div className="mb-6 grid gap-2 sm:grid-cols-2">{CV_TEMPLATES.map(template => <button key={template.id} type="button" onClick={() => selectTemplate(template.id)} className={`rounded-2xl border p-3 text-left transition ${templateId === template.id ? "border-[#0057B8] bg-[#EEF5FF]" : "border-slate-200 bg-white"}`}><div className="flex items-center justify-between gap-2"><span className="text-sm font-black">{template.name}</span>{template.access === "PREMIUM" && <span className="inline-flex items-center gap-1 text-[10px] font-black text-[#0057B8]"><PremiumDiamond />Premium</span>}</div><p className="mt-1 text-[10px] text-jobly-gray">{template.description}</p></button>)}</div>
+              <div className={`${templateId === "modern" ? "text-center" : templateId === "executive" ? "border-b-2 border-[#FFD60A] pb-4" : ""}`}><h3 className="text-3xl font-black">{cv.fullName || "Nom complet"}</h3><p className="mt-1 text-lg font-bold text-jobly-blue">{cv.headline || "Titre professionnel"}</p></div><p className="mt-2 text-xs">{[cv.email, cv.phone].filter(Boolean).join(" · ")}</p>
+              {[["Profil", cv.summary], ["Compétences", cv.skills], ["Expérience", cv.experience], ["Formation", cv.education]].map(([h,v]) => v ? <div key={h} className="mt-5"><h3 className="border-b pb-1 text-sm font-black uppercase">{h}</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{v}</p></div> : null)}
+            </div>
+          </div>
+        )}
       </div>
       <BottomNav active="/dashboard" items={TALENT_NAV} />
     </div>
