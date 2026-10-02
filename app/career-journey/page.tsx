@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 
 type Journey = any;
 
 export default function CareerJourneyPage() {
+  const router = useRouter();
   const [data, setData] = useState<Journey | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -56,6 +58,12 @@ export default function CareerJourneyPage() {
   const journey = data?.journey;
   const snapshot = journey?.latestSnapshot || {};
   return (
+    <main className="min-h-[100dvh] bg-[#F8FAFF] text-[#0B1F4B]">
+      <div className="mx-auto max-w-5xl px-5 pb-12 pt-5">
+        <button type="button" onClick={() => router.push("/career-os")} className="mb-5 inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-2 text-xs font-extrabold shadow-sm">
+          ← Career OS
+        </button>
+
     <main className="min-h-screen bg-white px-4 py-8 text-slate-900 md:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
         <header className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
