@@ -1,11 +1,12 @@
 import { NextRequest,NextResponse } from "next/server";
 import { adminClient,ensureUser,getAuthUser } from "../../../../../../lib/server-auth";
+import { estimateAndDistributeEvent } from "../../../../../../lib/eventDistribution";
 const fail=(message:string,status=400,code="EVENT_PAYMENT_ERROR")=>NextResponse.json({error:code,message},{status});
 export async function POST(request:NextRequest,context:{params:Promise<{id:string}>}){
   try{
     const auth=await getAuthUser(request);if(!auth)return fail("Session requise.",401,"UNAUTHENTICATED");
     const {id}=await context.params,body=await request.json().catch(()=>({})),sb=adminClient(),user=await ensureUser(sb,auth);
-    const {data:event}=await sb.from("Event").select("id,creatorUserId,status").eq("id",id).maybeSingle();
+    const {data:event}=await sb.from("Event").select("id,creatorUserId,status,title,description,domain,subdomains,city,country,startAt,endAt").eq("id",id).maybeSingle();
     if(!event||event.creatorUserId!==user.id)return fail("Événement introuvable.",404,"EVENT_NOT_FOUND");
     const {data:ep}=await sb.from("EventPayment").select("*").eq("eventId",id).eq("purpose","PUBLICATION").maybeSingle();
     if(!ep)return fail("Paiement événement introuvable.",404,"PAYMENT_NOT_FOUND");
@@ -18,6 +19,7 @@ export async function POST(request:NextRequest,context:{params:Promise<{id:strin
     await sb.from("Payment").update({status:"PAID",paidAt:now,updatedAt:now}).eq("id",payment.id);
     await sb.from("EventPayment").update({status:"PAID",updatedAt:now}).eq("id",ep.id);
     await sb.from("Event").update({status:"PUBLISHED",updatedAt:now}).eq("id",id);
-    return NextResponse.json({status:"PUBLISHED",eventId:id});
+    const distribution=await estimateAndDistributeEvent(sb,event);
+    return NextResponse.json({status:"PUBLISHED",eventId:id,distribution,audienceEstimate:distribution.audienceEstimate});
   }catch(e){return fail(e instanceof Error?e.message:"Vérification impossible.",500);}
 }
