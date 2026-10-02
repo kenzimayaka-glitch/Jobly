@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
 import { getActivePlanCode } from "@/lib/entitlements";
-import { getEntitlements } from "@/lib/billingCatalog";
+import { getEntitlements, getRecruiterEntitlements } from "@/lib/billingCatalog";
 
 export async function getCommunityAccess(request: NextRequest) {
   const authUser = await getAuthUser(request);
@@ -9,8 +9,9 @@ export async function getCommunityAccess(request: NextRequest) {
 
   const db = adminClient();
   const user = await ensureUser(db, authUser);
-  const planCode = await getActivePlanCode(db, user.id, "TALENT");
-  const entitlements = getEntitlements(planCode);
+  const productType = String(user.role) === "RECRUITER" ? "RECRUITER" as const : "TALENT" as const;
+  const planCode = await getActivePlanCode(db, user.id, productType);
+  const entitlements = productType === "RECRUITER" ? getRecruiterEntitlements(planCode) : getEntitlements(planCode);
 
   return {
     allowed: entitlements.communityAccess,
