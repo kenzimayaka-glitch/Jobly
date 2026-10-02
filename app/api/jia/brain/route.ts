@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       action: typeof body?.action === "string" ? body.action : "",
       proactive: Boolean(body?.proactive),
       lang: body?.lang === "en" ? "en" : "fr",
+      monAfriqueCountries: Array.isArray(body?.monAfriqueCountries) ? body.monAfriqueCountries : [],
     });
     return NextResponse.json({ ok:true, cognitive, ...result });
   } catch (error) {
