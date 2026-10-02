@@ -4565,3 +4565,48 @@ Le chantier est intégré dans `main`, mais ne doit pas être déclaré « total
 - Offer pipeline verification : 🟢 SUCCESS sur la validation finale.
 - Vercel : aucun déploiement manuel/production lancé ; le workflow de production est `workflow_dispatch` uniquement.
 - État : **CODÉ → CONNECTÉ → TESTÉ → VALIDÉ techniquement → NON DÉPLOYÉ**.
+
+# CHECKPOINT LOT G — CAREER BRAIN / CAREER OS — 02/10/2026
+
+## État après passe d'implémentation
+
+Lot G est désormais matérialisé comme une couche de lecture/orchestration au-dessus de Career Journey 360 — Architecture B. Aucun modèle Career parallèle n'a été introduit.
+
+| Lot G | État | Preuve |
+|---|---|---|
+| G1 Brain Core | 🟢 CODÉ / RACCORDÉ | `lib/careerBrain.ts` + `lib/jiaContext.ts` |
+| G2 Career Twin | 🟢 CODÉ comme vue calculée | `careerTwin` |
+| G3 GPS / Gap | 🟢 RÉUTILISÉ | snapshot Journey |
+| G4 Readiness | 🟢 RÉUTILISÉ | `latestReadiness` |
+| G5 Opportunity | 🟡 PARTIEL | Career Radar + matching existants |
+| G6 Learning / Interview / Application | 🟡 PARTIEL | contexte + outcomes applications |
+| G7 Mobility | 🟡 À RACCORDER | moteur Mobility existant |
+| G8 Companion J’IA | 🟢 RACCORDÉ | `lib/jiaContext.ts` + actions protégées |
+| G9 Outcome / Review / Reassessment | 🟡 PARTIEL | reviews + action runs + applications agrégés |
+| G10 Runtime / Production | ⏳ À VALIDER | aucune certification E2E/production sur cette branche |
+
+## Nouvelle API
+
+`GET /api/career-brain` fournit une vue unifiée et calculée de Career Journey, Career Twin, objectifs, missions, recommandations, preuves, portfolio, assessments, scénarios, reviews, outcomes J’IA et outcomes de candidatures.
+
+Cette API est en lecture : elle ne crée pas de nouvelle source d'état et n'exécute pas d'action externe.
+
+## Intégration J’IA
+
+Le contexte J’IA consomme maintenant Career Brain. Les mécanismes existants de policy, consentement, Agent Action Runs et vérification sont conservés.
+
+## Commits
+
+- `dddef780` Career Brain context ;
+- `472b6af8` J’IA → Architecture B ;
+- `e4ff135e` API Career Brain ;
+- `9243b78d` outcomes J’IA + applications ;
+- `899310df` exposition API des outcomes.
+
+**Branche de travail :** `feat/lot-g-career-brain-integration-20261002`.
+
+## Règle de continuité
+
+Le prochain travail doit connecter les briques existantes entre elles : Opportunity/Matching, Mobility, Learning, Interview, CV/Evidence et boucle Outcome → Review → Reassessment. Aucun nouveau Career State ne doit être créé.
+
+**Vérité d'exécution :** CODÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.
