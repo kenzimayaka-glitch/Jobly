@@ -1,76 +1,58 @@
-# J’IA Career Journey 360 — Implementation Status
+# J’IA Career Journey 360 — État canonique
 
-Date: 2 octobre 2026
+Date : 02 octobre 2026
 
-## Branch / PR
+## Source de vérité
 
-- Branch: `feat/jia-career-journey-360-main-20261002`
-- PR: #155
-- Base: current `main`
-- Production DB: unchanged
-- Vercel: no deployment
-- Supabase migration: not applied to `JOBLY-PROD`
+**Career Journey 360 — Architecture B est la seule architecture Career retenue pour cette étape.**
 
-## Implemented
+Architecture A est abandonnée. Toute évolution Career doit prolonger Architecture B et ne doit pas créer un état, une trajectoire ou un parcours parallèle.
 
-- Career Journey longitudinal state
-- Career goals and target horizon
-- Reuse of `lib/careerEngine.ts` for readiness, gaps and next action
-- Explainable recommendations with assumptions and missing data
-- Mission lifecycle + progress history
-- Optional competency assessments
-- QCM contract: max 4 standard choices, Other, multiple selection and voice capability metadata
-- Evidence provenance: declared / documented / AI-evaluated / convergent
-- Portfolio of achievements
-- Alternative career scenarios
-- Consent-based periodic reviews
-- Contextual Career Radar based on currently accessible JOBLY offers; explicitly non-predictive
-- Initial Career Journey UI at `/career-journey`
-- RLS policies in the migration
-- Existing plan catalogue reused; no parallel billing/credit system
+## Socle intégré dans main
 
-## Product classification
+- `CareerJourney` comme état longitudinal.
+- Objectifs et horizon cible.
+- Évaluation de compétences, écarts et readiness.
+- Recommandations explicables, avec hypothèses et données manquantes.
+- Missions et historique de progression.
+- Preuves professionnelles et portfolio.
+- Scénarios de trajectoire.
+- Revues périodiques et réévaluation.
+- Radar contextualisé.
+- Entitlements réutilisant le catalogue existant.
+- UI `/career-journey`.
+- APIs : parcours, assessments, missions, portfolio, radar.
+- Migration : `20261002050000_career_journey_360`.
+- RLS définies dans la migration.
 
-The feature uses the existing FREE / START / PREMIUM / PRO catalogue:
+## Boucle canonique
 
-| Capability | FREE | START | PREMIUM | PRO |
-|---|---|---|---|---|
-| Career Journey + basic reassessment | ✓ | ✓ | ✓ | ✓ |
-| Active missions | 1 | 3 | 10 | Unlimited |
-| Optional competency assessments / month | 1 | 3 | 10 | Unlimited |
-| Adaptive assessments | — | — | ✓ | ✓ |
-| Periodic review | — | ✓ | ✓ | ✓ |
-| Career path simulation | — | — | ✓ | ✓ |
-| Career Radar | — | — | ✓ | ✓ |
-| Advanced portfolio | — | — | ✓ | ✓ |
+Career Journey → Objectif → Compétences / Gap → Recommandations → Missions → Progression → Evidence → Portfolio → Assessment → Radar / Scénarios → Review → Réévaluation → boucle suivante.
 
-These limits are implemented through `lib/careerJourneyEntitlements.ts` and reuse the existing subscription/promo resolution.
+## Intégrations
 
-## Still pending validation
+- **Career Engine** : moteur d'analyse réutilisé par Journey, sans devenir une seconde source d'état.
+- **J’IA** : couche d'intelligence/orchestration autour de Journey.
+- **Offers / Matching** : alimentation du Radar et des opportunités contextualisées.
+- **CV / Evidence** : les preuves et éléments de portfolio alimentent la progression.
+- **Mobility** : branche d'exécution lorsqu'une opportunité nécessite une mobilité géographique.
+- **Outcome** : doit alimenter les Reviews et la réévaluation lorsque les événements métier seront raccordés.
 
-1. Generate/refresh Prisma client from the updated schema.
-2. Run `prisma validate`, TypeScript/build and E2E checks.
-3. Apply the migration to a non-production validation database/branch.
-4. Run Supabase security/performance advisors.
-5. Validate the complete Career Journey flow against real authenticated data.
-6. Only after validation: decide whether the migration and PR are ready for human approval.
+## État
 
-No production migration or deployment is performed by this implementation step.
+| Élément | État |
+|---|---|
+| Architecture B | 🟢 SOURCE UNIQUE DE VÉRITÉ |
+| Code Career Journey | 🟢 INTÉGRÉ DANS MAIN |
+| Schéma Prisma | 🟢 INTÉGRÉ |
+| Migration | 🟢 PRÉSENTE DANS MAIN |
+| Documentation | 🟢 MISE À JOUR |
+| JOBLY-PROD | ⏸️ NON MODIFIÉE PAR CETTE PASSE |
+| Vercel | ⏸️ AUCUN DÉPLOIEMENT |
+| E2E complet | ⏳ À POURSUIVRE |
+| Outcome → Review → Reassessment | ⏳ À RACCORD​ER / VALIDER |
+| Suppression des anciennes branches | ⏳ APRÈS CONTRÔLE FINAL |
 
+## Règle de gouvernance
 
-## Checkpoint conformité — 2 octobre 2026
-
-Contrôle croisé code ↔ décisions validées :
-- Corrigé : une recommandation de préparation suffisante ne demande plus une « vérification » intermédiaire ; elle produit une recommandation explicite de candidature (APPLY).
-- Corrigé : une mission ne peut plus être créée directement en ACCEPTED ; elle commence en PROPOSED et nécessite l'action explicite d'acceptation.
-- Corrigé : les transitions de mission invalides sont refusées côté serveur.
-- Corrigé : les preuves liées à une mission, une évaluation ou un portfolio sont désormais vérifiées côté serveur pour empêcher le rattachement à une ressource d'un autre compte.
-- Corrigé : la migration Career Journey n'utilise plus FOR ALL pour ses politiques RLS ; les opérations SELECT/INSERT/UPDATE/DELETE sont séparées avec contrôle propriétaire.
-- Réconcilié : la migration Career Journey existe dans la branche sous packages/database/prisma/migrations/20261002050000_career_journey_360/migration.sql.
-
-### État de vérité
-**🟨 CODÉ + CORRIGÉ + RÉCONCILIÉ — NON VALIDÉ RUNTIME / NON DÉPLOYÉ.**
-
-La base JOBLY-PROD ne contient pas encore les tables Career* de cette migration. Aucun changement de schéma de production n'a été exécuté pendant cette passe. Le build/TypeScript et l'E2E restent à exécuter sur un environnement de validation avant toute approbation humaine.
-
-**Aucun merge vers main et aucun déploiement Vercel n'ont été effectués.**
+Aucun chantier Career ultérieur ne doit proposer Architecture A ou un modèle concurrent. Les travaux suivants portent uniquement sur la réconciliation fonctionnelle, les intégrations cross-écosystèmes et la validation E2E d'Architecture B.
