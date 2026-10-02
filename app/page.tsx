@@ -761,14 +761,14 @@ export default function Home() {
   }
   async function forgot() { if (!email.includes("@")) return setMessage("Entre l'adresse e-mail associée à ton compte."); setBusy(true); setMessage(""); try { await requestPasswordReset(email); goTo("reset-sent"); } catch (e) { setMessage(e instanceof Error ? e.message : "Impossible d'envoyer l'e-mail de récupération."); } finally { setBusy(false); } }
 
-  return <main className={`relative min-h-screen flex flex-col justify-between w-full bg-off-white dark:bg-[#0A1931] dark:text-white ${screen === "welcome" ? "overflow-hidden" : "overflow-y-auto"}`}>
-    {screen === "welcome" && <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 z-0 h-[340px] w-[340px] rounded-full bg-sky-blue/25 blur-[90px]" />}
+  return <main className={`relative min-h-screen flex flex-col justify-between w-full ${screen === "welcome" ? "overflow-hidden bg-[#081b52] text-white" : "bg-off-white dark:bg-[#0A1931] dark:text-white overflow-y-auto"}`}>
+    {screen === "welcome" && <><div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_15%_0%,rgba(90,126,255,.7),transparent_30%),radial-gradient(circle_at_100%_35%,rgba(116,79,255,.58),transparent_34%),linear-gradient(145deg,#071a50_0%,#132b82_54%,#07163f_100%)]" /><div aria-hidden="true" className="pointer-events-none absolute -left-16 top-20 z-0 h-52 w-52 rounded-full bg-blue-300/20 blur-3xl" /><div aria-hidden="true" className="pointer-events-none absolute -right-20 bottom-20 z-0 h-72 w-72 rounded-full bg-violet-400/25 blur-3xl" /></>}
     <BubbleField />
     {screen === "welcome" && (
       <div className="fixed right-4 top-4 z-30 flex gap-1 rounded-full border border-white/40 bg-white/40 p-1 shadow-premium backdrop-blur-xl"><button type="button" onClick={()=>{setLang("fr");try{localStorage.setItem("jobly-lang","fr")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="fr"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇫🇷 FR</button><button type="button" onClick={()=>{setLang("en");try{localStorage.setItem("jobly-lang","en")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="en"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇬🇧 EN</button></div>
     )}
     <div className="relative flex min-h-0 flex-1 w-full flex-col gap-0">
-      {screen !== "login" && screen !== "signup" && <header className="z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"><JoblyLogo ref={logoRef} size="hero" showTagline /></header>}
+      {screen !== "login" && screen !== "signup" && <header className="z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"><div ref={logoRef} className="rounded-2xl bg-white/95 p-2 shadow-2xl"><Image src="/jobly-logo-reference.jpg" alt="Jobly — Your Career OS" width={170} height={60} className="h-auto w-[150px] object-contain" priority /></div></header>}
       {screen === "welcome" && (
         <AnimatePresence mode="wait" initial={false}>
           <motion.section
@@ -777,16 +777,16 @@ export default function Home() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.32, ease: "easeOut" }}
-            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+            className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="relative h-[44%] shrink-0 overflow-hidden px-4 pt-0">
+            <div className="relative h-[48%] shrink-0 overflow-hidden px-4 pt-0">
               <div aria-hidden="true" className="pointer-events-none absolute left-[10%] top-[-5%] z-[2] h-[64%] w-[44%] opacity-60">
                 <div className="h-full w-full -rotate-[26deg] border-l border-dashed border-sky-blue/50" />
               </div>
 
               <div className="relative z-20 mt-2 w-[45%]">
                 
-                <h1 className="font-[var(--font-inter)] text-[28px] leading-[31px] font-extrabold tracking-[-0.8px] text-deep-blue">
+                <h1 className="font-[var(--font-inter)] text-[32px] leading-[34px] font-extrabold tracking-[-0.8px] text-white">
                   {translations[lang].title.split("\n").map((line, i) => (
                     <span key={line}>{line}{i === 0 && <br />}</span>
                   ))}
@@ -794,22 +794,22 @@ export default function Home() {
                 <svg aria-hidden="true" width="54" height="5" viewBox="0 0 54 5" className="mt-3 overflow-visible">
                   <path d="M1 1.5 C17 4.8 37 4.8 53 1.5" fill="none" stroke="#FFD60A" strokeWidth="5" strokeLinecap="round" />
                 </svg>
-                <p className="mt-2.5 max-w-[165px] font-[var(--font-inter)] text-[12px] font-bold tracking-[0.01em] text-deep-blue/75">
+                <p className="mt-2.5 max-w-[165px] font-[var(--font-inter)] text-[12px] font-bold tracking-[0.01em] text-white/80">
                   Powered by <span className="font-black tracking-[-0.055em]"><span className="text-deep-blue">J'</span><span className="text-[#39D7FF]">I</span><span className="bg-gradient-to-br from-[#39D7FF] via-[#5BCBFF] to-[#FFE135] bg-clip-text text-transparent">A</span></span>
                 </p>
-                <p className="relative z-10 mt-3 w-[95%] text-[13px] leading-[18px] font-[var(--font-inter)] font-bold italic text-[#4a4a4a]">
+                <p className="relative z-10 mt-3 w-[95%] text-[13px] leading-[18px] font-[var(--font-inter)] font-bold italic text-white/90">
                   {translations[lang].subtitle}
                 </p>
               </div>
 
-              <div className="absolute top-[1cm] right-0 z-[5] h-[60%] w-[60%]">
+              <div className="absolute -bottom-10 right-[-8%] z-[5] h-[72%] w-[70%]">
                 <Image
                   fill
                   priority
                   src="/hero-jobly-community.webp"
                   alt="Communauté Jobly diverse"
                   sizes="62vw"
-                  className="object-cover object-top"
+                  className="object-cover object-top drop-shadow-[0_20px_40px_rgba(0,0,0,.35)]"
                   style={{
                     WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 14%, black 100%), linear-gradient(to bottom, transparent 0%, black 14%, black 78%, transparent 100%)",
                     maskImage: "linear-gradient(to right, transparent 0%, black 14%, black 100%), linear-gradient(to bottom, transparent 0%, black 14%, black 78%, transparent 100%)",
