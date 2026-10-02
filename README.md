@@ -1,4 +1,58 @@
 
+# CHECKPOINT LOT E — RECRUITER / MARCHÉ AFRICAIN — 02/10/2026
+
+## Décision produit
+
+Le Recruiter reste **un seul espace Jobly**. Il n'existe pas de « Jobly Africa Recruiter ».
+
+Lors de la publication, le recruteur choisit son marché :
+- son pays actuel / marché local ;
+- plusieurs pays ;
+- l'Afrique.
+
+J’IA peut **proposer** un autre marché, mais le recruteur conserve la décision. J’IA ne change pas silencieusement la portée et ne contourne jamais un entitlement.
+
+## Entitlements validés
+
+- **FREE** : publication de base sur un marché.
+- **START** : préparation/organisation de plusieurs marchés, mais pas de diffusion multi-pays effective.
+- **PREMIUM** : optimisation d'une offre pour un marché ; la diffusion multi-pays effective reste PRO.
+- **PRO** : automatisation avancée + diffusion multi-pays et panafricaine.
+
+Coûts IA ajoutés au catalogue :
+- MARKET_SUGGESTION : 1 crédit ;
+- MARKET_OPTIMIZATION : 3 crédits.
+
+La diffusion multi-pays effective et la diffusion panafricaine sont **bloquées côté serveur** pour les formules non PRO.
+
+## Socle technique codé
+
+RecruiterJob reçoit :
+- countryCode comme marché principal ;
+- distributionScope : LOCAL | COUNTRIES | AFRICA ;
+- targetCountryCodes pour les configurations multi-pays.
+
+Le formulaire Recruiter expose la portée de diffusion. Les APIs de création et modification appliquent l'entitlement côté serveur.
+
+## Point de réconciliation important
+
+La base de production possédait déjà RecruiterJob.countryCode, mais le Prisma main ne le déclarait pas. Le modèle Prisma a été réconcilié sans supprimer l'existant.
+
+Le catalogue canonique des 54 pays africains n'est **pas recréé** dans Lot E : aucun catalogue pays correspondant n'est actuellement présent dans main. La sélection UX complète des pays doit être branchée au catalogue canonique de Lot A lorsqu'il sera intégré, afin d'éviter deux sources de vérité.
+
+## Vérification
+
+- Migration E : **CODÉE**.
+- Migration E : **TESTÉE EN TRANSACTION puis rollback** sur JOBLY-PROD.
+- Production : **inchangée** après rollback.
+- Enforcement API : **CODÉ**.
+- UI de portée : **CODÉE**.
+- E2E/runtime : **À TESTER**.
+- Vercel : **AUCUN DÉPLOIEMENT**.
+
+---
+
+
 # CHECKPOINT LOT D — INSTITUTIONAL INTELLIGENCE
 
 Le cockpit institutionnel reçoit maintenant une première couche d'intelligence opérationnelle.

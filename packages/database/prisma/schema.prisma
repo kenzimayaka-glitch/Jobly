@@ -291,6 +291,9 @@ model RecruiterJob {
   companyName    String             @default("Mon entreprise")
   description    String
   location       String?
+  countryCode    String?
+  distributionScope String @default("LOCAL")
+  targetCountryCodes String[] @default([])
   mode           String             @default("Hybride") // libellé affiché tel quel (ex: "Présentiel", "Hybride")
   contract       String             @default("CDI")
   salary         String?

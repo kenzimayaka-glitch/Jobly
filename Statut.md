@@ -1,4 +1,29 @@
 
+# CHECKPOINT LOT E — 02/10/2026
+
+| Élément | État |
+|---|---|
+| Recruiter unique / pas de « Africa Recruiter » | 🟢 VALIDÉ |
+| Marché local | 🟢 CODÉ |
+| Préparation multi-pays | 🟢 CODÉ START+ |
+| Diffusion multi-pays effective | 🟢 CODÉ / PRO |
+| Diffusion panafricaine | 🟢 CODÉ / PRO |
+| Enforcement serveur entitlement | 🟢 CODÉ |
+| Coût J’IA suggestion marché | 🟢 1 crédit |
+| Coût J’IA optimisation marché | 🟢 3 crédits |
+| Réconciliation RecruiterJob.countryCode | 🟢 CODÉ |
+| Migration | 🟢 CODÉE + test transactionnel |
+| Migration JOBLY-PROD | ⏸️ NON APPLIQUÉE |
+| Catalogue canonique pays | ⏳ À rattacher au Lot A, sans duplication |
+| E2E/runtime | ⏳ À TESTER |
+| Main | ⏳ PR À FUSIONNER |
+| Vercel | ⏸️ AUCUN DÉPLOIEMENT |
+
+Règle : CODÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.
+
+---
+
+
 # CHECKPOINT LOT D — 02/10/2026
 
 | Élément | État |
