@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, cleanStrings, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
+import { enforceRecruiterMarketEntitlement, normalizeRecruiterMarket } from "../../../../../lib/recruiterMarket";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -53,6 +54,19 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       payload.description = description;
     }
     if (typeof b.location === "string") payload.location = b.location.trim() || null;
+    if (b.distributionScope !== undefined || b.countryCode !== undefined || b.targetCountryCodes !== undefined) {
+      const market = normalizeRecruiterMarket({
+        distributionScope: b.distributionScope ?? existing.distributionScope,
+        countryCode: b.countryCode ?? existing.countryCode,
+        targetCountryCodes: b.targetCountryCodes ?? existing.targetCountryCodes,
+      }, user.country);
+      const nextStatus = b.status === "published" || (b.status === undefined && existing.status === "published") ? "published" : b.status === "closed" ? "closed" : "draft";
+      const entitlement = await enforceRecruiterMarketEntitlement(supabase, user.id, market, nextStatus);
+      if (!entitlement.ok) return NextResponse.json({ message: entitlement.message }, { status: 403 });
+      payload.countryCode = market.countryCode;
+      payload.distributionScope = market.distributionScope;
+      payload.targetCountryCodes = market.targetCountryCodes;
+    }
     if (typeof b.mode === "string") payload.mode = b.mode;
     if (typeof b.contract === "string") payload.contract = b.contract;
     if (typeof b.salary === "string") payload.salary = b.salary.trim() || null;
