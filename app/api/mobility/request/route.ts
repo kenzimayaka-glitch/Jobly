@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       }, { status: 422 });
     }
 
-    const salary = Number(offer.salaryProposed || 0);
+    const { data: subscription } = await gate.sb.from("Subscription").select("planCode,status,currentPeriodEnd").eq("userId", gate.user.id).eq("status", "ACTIVE").order("createdAt", { ascending: false }).limit(1).maybeSingle();\n    const paidPlans = new Set(["START","PREMIUM","PRO"]);\n    const activePaidPlan = !!subscription && paidPlans.has(String(subscription.planCode).toUpperCase()) && (!subscription.currentPeriodEnd || new Date(subscription.currentPeriodEnd) > new Date());\n    const salary = Number(offer.salaryProposed || 0);
     const currency = String(offer.salaryCurrency || "XAF");
     const costs = calculateMobilityCosts(depart, arrivee, type, salary);
     const eligibility = calculateMobilityEligibility({
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
       eligibilityThresholdPercent: 35,
       eligibilityBurdenPercent: eligibility.burdenPercent,
       eligibilityStatus: eligibility.status,
-      eligibilityReason: "Convention employeur validée. Garantie recruteur encore requise avant financement.",
+      eligibilityReason: eligibility.reason,
       eligibilityCalculatedAt: eligibility.calculatedAt,
       eligibilityVersion: eligibility.version,
       status: "DRAFT",
