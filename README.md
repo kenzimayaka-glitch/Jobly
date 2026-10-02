@@ -4145,3 +4145,24 @@ Les champs d'intelligence écrits par `watchIntelligence.ts` sont maintenant pr�
 
 **Vérité : 🟨 MERGÉ MAIN / INTÉGRÉ — VALIDATION GLOBALE NON VERTE.**
 Le chantier est intégré dans `main`, mais ne doit pas être déclaré « totalement validé » tant que les erreurs CI globales et le smoke B3 n'ont pas été résolus/exécutés. Aucun déploiement n'a été effectué.
+
+
+# CHECKPOINT 02/10/2026 — LOT TALENT MOBILITÉ MARCHÉ — CLÔTURE TECHNIQUE
+
+- PR #163 : consolidation Talent Mobility + J’IA Watch déjà intégrée à `main`.
+- PR #164 : correction des gates de validation intégrée à `main` par `11c3fd25fff41fb29ea8098884ffe8b5edb50560`.
+- FREE : accès aux offres locales et africaines ; découverte/recherche de base.
+- START : préparation multi-pays uniquement ; aucune veille multi-pays active.
+- PREMIUM : veille multi-pays active + optimisation avancée.
+- PRO : veille panafricaine + automatisation avancée.
+- Entitlements : contrôlés côté serveur ; aucun contournement par payload/query attendu.
+- Watcher : réutilisation de `JiaWatchSubscription/JiaWatchRun/JiaWatchSnapshot` et scheduler existant ; aucun second scheduler.
+- Intelligence B3 : `SUPPRESS / DIGEST / NOTIFY / REVIEW` désormais exécutée après chaque run Watcher réussi et persistée sur `JiaWatchRun`.
+- Migration de veille : versionnée dans le dépôt ; aucune migration de production exécutée dans cette passe.
+- Typecheck : 🟢 SUCCESS.
+- Build production : 🟢 SUCCESS.
+- Smoke B3.1 : 🟢 SUCCESS (4/4 décisions + atténuation par contradiction).
+- Gates J’IA Master / Architecture / Cognitive / Internet Brain / Hard Mode : 🟢 SUCCESS sur la validation finale.
+- Offer pipeline verification : 🟢 SUCCESS sur la validation finale.
+- Vercel : aucun déploiement manuel/production lancé ; le workflow de production est `workflow_dispatch` uniquement.
+- État : **CODÉ → CONNECTÉ → TESTÉ → VALIDÉ techniquement → NON DÉPLOYÉ**.
