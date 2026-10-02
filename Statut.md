@@ -4711,3 +4711,8 @@ Prisma a ensuite signalé que `PartnerExtended.user` était déclaré 1–1 alor
 ## Garde build complète
 
 La reconstruction atteint désormais `typecheck + production build` verts sur GitHub Actions. La garde CI a été complétée avec `pnpm lint` afin que la chaîne obligatoire soit réellement : install → lint → typecheck → build. La preuve finale reste à acquérir sur le nouveau run.
+
+
+## Correction build — lint non interactif
+
+`next lint` déclenchait une configuration ESLint interactive et ne pouvait donc pas servir de gate CI non interactif. Le script `pnpm lint` utilise désormais Oxlint 1.86.0, linter TypeScript/JavaScript sans configuration interactive. Cette version est épinglée pour rendre la preuve reproductible.

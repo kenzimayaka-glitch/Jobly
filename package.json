@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "pnpm db:generate && next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "pnpm dlx oxlint@1.86.0",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate --schema packages/database/prisma/schema.prisma",
     "db:validate": "prisma validate --schema packages/database/prisma/schema.prisma",
