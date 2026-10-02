@@ -41,6 +41,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Career OS architecture gate
+        run: pnpm test:career-os
+
       - name: Typecheck
         run: pnpm typecheck
 
