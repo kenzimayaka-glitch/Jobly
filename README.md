@@ -1,3 +1,36 @@
+# JOBLY — ÉTAT COURANT DE GOUVERNANCE — 02/10/2026
+
+## Chantier actif unique
+
+**Career Journey 360 — validation runtime / intégration production**
+
+Branche de travail de référence :
+`feat/jia-career-journey-360-main-20261002`
+
+Le chantier Talent Mobilité Marché est techniquement clôturé. Le Recrutement 360° V2 est **fermé comme chantier actif** : ses PR de travail ouvertes ont été clôturées et son ancienne séquence lots 1→8→10→11→9 est conservée uniquement comme historique. Elle ne doit plus être interprétée comme la prochaine étape.
+
+### Périmètre immédiat Career Journey 360
+
+1. valider le code Career Journey déjà présent ;
+2. vérifier DB / Prisma / migration et l'état réel de `JOBLY-PROD` ;
+3. vérifier l'intégration API ↔ services ↔ UI ;
+4. exécuter les tests runtime / E2E disponibles ;
+5. corriger uniquement les écarts réellement constatés ;
+6. retester après correction ;
+7. mettre à jour `README.md` et `Statut.md` avec les preuves réelles.
+
+### État de vérité
+
+**🟨 CODÉ + CORRIGÉ + RÉCONCILIÉ — NON VALIDÉ RUNTIME / NON DÉPLOYÉ.**
+
+Le checkpoint Career Journey du 02/10/2026 indique que les tables `Career*` ne sont pas encore présentes dans JOBLY-PROD et qu'aucune migration de production n'a été exécutée pendant cette passe.
+
+**Règle : CODÉ ≠ ACCESSIBLE ≠ CONNECTÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.**
+
+Aucun merge vers `main` ni déploiement Vercel ne doit être déclenché sans l'autorisation explicite de l'utilisateur.
+
+---
+
 
 
 # CHECKPOINT 02/10/2026 — AUDIT DE RÉCONCILIATION CODE ↔ DOCUMENTATION (PASSE DE CONTRÔLE)
