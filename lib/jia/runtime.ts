@@ -1,7 +1,7 @@
 import type {SupabaseClient} from "@supabase/supabase-js";
 import {buildCEOIntelligence} from "@/lib/ceoIntelligence";
 import {buildJiaContext} from "@/lib/jiaContext";
-import {buildCareerTwin,getCognitiveSnapshot,ingestExternalSignal,remember,updateBelief,createPrediction} from "./cognitive";
+import {buildCareerTwin,getCognitiveSnapshot,ingestExternalSignal,remember,updateBelief,createPrediction,reflect} from "./cognitive";
 import {publishTraceEvent} from "./eventBus";
 import {buildJiaSelfModel} from "./selfModel";
 import {buildNextBestActions,type Signal} from "./intelligence";
@@ -24,7 +24,7 @@ export async function runUnifiedCognitiveCycle(sb:SupabaseClient,input:JiaCycleI
  const failures:string[]=[];
  if(input.includeInternet&&input.internetQuery?.trim()){
   try{
-   const signal=await observeInternet(input.internetQuery.trim(),{mode:"ON_DEMAND",maxQueries:3,maxSources:10});
+   const signal=await observeInternet(input.internetQuery.trim(),{mode:"READ",maxQueries:3,maxSources:10});
    internetAvailable=signal.observation.internetAvailable;
    await ingestExternalSignal(input.userId,{query:signal.observation.query,facts:signal.observation.facts,confidence:signal.observation.confidence,status:signal.observation.status,supportingSources:signal.observation.supportingSources,contradictingSources:signal.observation.contradictingSources,context:signal.observation.context});
   }catch(error){internetAvailable=false; failures.push("INTERNET_UNAVAILABLE"); await reflect({userId:input.userId,triggerType:"INTERNET_FAILURE",expectation:{query:input.internetQuery},result:{available:false},error:{message:error instanceof Error?error.message:"unknown"},learning:{policy:"OFFLINE_FALLBACK"},nextStrategy:{useCachedVerifiedSignals:true}}); }
