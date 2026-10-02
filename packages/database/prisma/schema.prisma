@@ -186,13 +186,11 @@ model User {
   careerAssessments CareerCompetencyAssessment[]
   careerAttempts CareerCompetencyAttempt[]
   careerReviews CareerReview[]
-  watchSubscriptions JiaWatchSubscription[]
 }
 
 model Profile {
   id             String   @id @default(cuid())
   userId         String   @unique
-  institutionId  String?  @db.Uuid
   // Ajouts 15/09/2026 : requis par /api/auth/complete-signup, absents du
   // schéma jusqu'ici (même cause que sur User : erreur au moment d'écrire le
   // profil à la fin de l'inscription).
@@ -210,7 +208,6 @@ model Profile {
   contractPreferences String[] @default([]) // ex: ["CDI","CDD"], plusieurs choix possibles
   remotePreference    String   @default("INDIFFERENT") // "YES" | "NO" | "INDIFFERENT"
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  institution    Institution? @relation(fields: [institutionId], references: [id], onDelete: SetNull)
 }
 
 model Experience {
@@ -292,9 +289,6 @@ model RecruiterJob {
   companyName    String             @default("Mon entreprise")
   description    String
   location       String?
-  countryCode    String?
-  distributionScope String @default("LOCAL")
-  targetCountryCodes String[] @default([])
   mode           String             @default("Hybride") // libellé affiché tel quel (ex: "Présentiel", "Hybride")
   contract       String             @default("CDI")
   salary         String?
@@ -874,156 +868,3 @@ model CareerReview {
  journey CareerJourney @relation(fields:[journeyId], references:[id], onDelete:Cascade)
  @@index([userId,periodEnd])
 }
-
-
-// Lots C+D — private institutional partnership cockpit.
-// Institution already exists in production; this model reconciles the legacy table with Prisma.
-model Institution {
-  id String @id @db.Uuid
-  name String @unique
-  city String?
-  type String
-  active Boolean @default(true)
-  createdAt DateTime @default(now()) @map("createdAt")
-  profiles Profile[]
-  accesses InstitutionAccess[]
-  partnerships InstitutionPartnership[]
-  projects InstitutionProject[]
-  @@map("Institution")
-}
-
-model InstitutionAccess {
-  id String @id @default(cuid())
-  institutionId String @db.Uuid
-  login String @unique
-  passwordHash String
-  passwordSalt String
-  active Boolean @default(true)
-  lastLoginAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  sessions InstitutionSession[]
-  @@index([institutionId, active])
-  @@map("InstitutionAccess")
-}
-
-model InstitutionSession {
-  id String @id @default(cuid())
-  accessId String
-  tokenHash String @unique
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime @default(now())
-  access InstitutionAccess @relation(fields: [accessId], references: [id], onDelete: Cascade)
-  @@index([accessId, expiresAt])
-  @@map("InstitutionSession")
-}
-
-model InstitutionPartnership {
-  id String @id @default(cuid())
-  institutionId String @db.Uuid
-  name String
-  status String @default("ACTIVE")
-  startedAt DateTime @default(now())
-  endedAt DateTime?
-  configuration Json @default("{}")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  projects InstitutionProject[]
-  reports InstitutionReport[]
-  @@index([institutionId, status])
-  kpiTargets InstitutionKpiTarget[]
-  kpiSnapshots InstitutionKpiSnapshot[]
-
-  @@map("InstitutionPartnership")
-}
-
-model InstitutionProject {
-  id String @id @default(cuid())
-  institutionId String @db.Uuid
-  partnershipId String
-  name String
-  description String?
-  status String @default("ACTIVE")
-  startsAt DateTime?
-  endsAt DateTime?
-  dataScope Json @default("{}")
-  dashboardConfig Json @default("{}")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  partnership InstitutionPartnership @relation(fields: [partnershipId], references: [id], onDelete: Cascade)
-  reports InstitutionReport[]
-  @@index([institutionId, status])
-  @@index([partnershipId, status])
-  kpiTargets InstitutionKpiTarget[]
-  kpiSnapshots InstitutionKpiSnapshot[]
-
-  @@map("InstitutionProject")
-}
-
-model InstitutionReport {
-  id String @id @default(cuid())
-  institutionId String @db.Uuid
-  partnershipId String
-  projectId String?
-  title String
-  periodStart DateTime?
-  periodEnd DateTime?
-  status String @default("READY")
-  payload Json @default("{}")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  partnership InstitutionPartnership @relation(fields: [partnershipId], references: [id], onDelete: Cascade)
-  project InstitutionProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  @@index([institutionId, createdAt])
-  @@index([projectId, createdAt])
-  @@map("InstitutionReport")
-}
-
-
-model InstitutionKpiTarget {
-  id String @id @default(cuid())
-  institutionId String @db.Uuid
-  partnershipId String
-  projectId String?
-  key String
-  label String
-  target Decimal @db.Decimal(18,2)
-  unit String @default("COUNT")
-  periodStart DateTime
-  periodEnd DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  partnership InstitutionPartnership @relation(fields: [partnershipId], references: [id], onDelete: Cascade)
-  project InstitutionProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  @@index([institutionId, periodStart, periodEnd])
-  @@index([projectId, key, periodEnd])
-  @@map("InstitutionKpiTarget")
-}
-
-model InstitutionKpiSnapshot {
-  id String @id @default(cuid())
-  institutionId String @db.Uuid
-  partnershipId String
-  projectId String?
-  key String
-  label String
-  value Decimal @db.Decimal(18,2)
-  unit String @default("COUNT")
-  periodStart DateTime
-  periodEnd DateTime
-  source String
-  generatedAt DateTime @default(now())
-  metadata Json @default("{}")
-  partnership InstitutionPartnership @relation(fields: [partnershipId], references: [id], onDelete: Cascade)
-  project InstitutionProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  @@index([institutionId, periodEnd])
-  @@index([projectId, key, periodEnd])
-  @@map("InstitutionKpiSnapshot")
-}
-
-
-
