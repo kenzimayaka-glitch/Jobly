@@ -1,35 +1,48 @@
 # JOBLY — ÉTAT COURANT DE GOUVERNANCE — 02/10/2026
 
-## Chantier actif unique
+## MASTER CONSOLIDATION — ÉTAT CANONIQUE
 
-**Career Journey 360 — validation runtime / intégration production**
+Le dépôt est entré dans une opération de consolidation Git afin d'établir `main` comme unique source de vérité fonctionnelle, sans perte de code, de corrections, de migrations ou de décisions.
 
-Branche de travail de référence :
-`feat/jia-career-journey-360-main-20261002`
+### État réel après la passe de consolidation
 
-Le chantier Talent Mobilité Marché est techniquement clôturé. Le Recrutement 360° V2 est **fermé comme chantier actif** : ses PR de travail ouvertes ont été clôturées et son ancienne séquence lots 1→8→10→11→9 est conservée uniquement comme historique. Elle ne doit plus être interprétée comme la prochaine étape.
+- Main canonique actuel : `a00cb9c549ce931f44a1ea1357efb7f8b73fefc1`
+- Branches inventoriées : 166
+- PR ouvertes inventoriées : 28
+- PR consolidées : #138 CI continu ; #134 icône PWA ; #125 validation documentation CV ; #111 couverture sources Afrique hors Cameroun.
+- Les fusions ont été effectuées en squash afin de réduire le bruit de commits sur `main`.
+- Aucun déploiement Vercel.
+- Aucune modification de schéma JOBLY-PROD.
 
-### Périmètre immédiat Career Journey 360
+### Ce qui n'a volontairement PAS été fait
 
-1. valider le code Career Journey déjà présent ;
-2. vérifier DB / Prisma / migration et l'état réel de `JOBLY-PROD` ;
-3. vérifier l'intégration API ↔ services ↔ UI ;
-4. exécuter les tests runtime / E2E disponibles ;
-5. corriger uniquement les écarts réellement constatés ;
-6. retester après correction ;
-7. mettre à jour `README.md` et `Statut.md` avec les preuves réelles.
+Plusieurs branches importantes sont fortement divergentes de `main` et présentent des conflits de fusion. Elles n'ont donc pas été écrasées, supprimées ou fusionnées aveuglément.
 
-### État de vérité
+Exemples : Career Journey (#168/#169), Lot A (#152), Lot C (#153), logo registry (#151), Recruiter billing (#150), J’IA runtime (#135), plusieurs branches Africa et anciennes branches Offer.
 
-**🟨 CODÉ + CORRIGÉ + RÉCONCILIÉ — NON VALIDÉ RUNTIME / NON DÉPLOYÉ.**
+Aucune suppression de branche n'a été exécutée dans cette passe.
 
-Le checkpoint Career Journey du 02/10/2026 indique que les tables `Career*` ne sont pas encore présentes dans JOBLY-PROD et qu'aucune migration de production n'a été exécutée pendant cette passe.
+### Prochaine étape de consolidation
 
-**Règle : CODÉ ≠ ACCESSIBLE ≠ CONNECTÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.**
+1. réconcilier les branches divergentes une par une ;
+2. résoudre les conflits au niveau fonctionnel ;
+3. tester le résultat consolidé ;
+4. créer le commit maître final ;
+5. seulement ensuite supprimer les branches devenues inutiles.
 
-Aucun merge vers `main` ni déploiement Vercel ne doit être déclenché sans l'autorisation explicite de l'utilisateur.
+### Gouvernance produit actuelle
+
+- Recruitment 360° V2 : ARCHIVÉ / FERMÉ.
+- Career Journey 360 : BOUCLÉ comme chantier produit, conformément à la décision courante ; ses anciennes branches sont des artefacts de consolidation/validation et non le prochain chantier.
+- Talent Mobility Market : clôturé techniquement.
+- Prochain chantier produit : Lot G — Career Brain / Career OS.
+
+> Les anciens checkpoints conservés plus bas sont historiques. En cas de contradiction, ce bloc MASTER CONSOLIDATION représente l'état courant.
+
+**Règle absolue : CODÉ ≠ ACCESSIBLE ≠ CONNECTÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.**
 
 ---
+
 
 
 # CHECKPOINT LOT E — RECRUITER / MARCHÉ AFRICAIN — 02/10/2026
