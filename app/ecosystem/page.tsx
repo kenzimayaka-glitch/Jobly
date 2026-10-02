@@ -31,15 +31,15 @@ function EcosystemContent() {
               {switcher ? "Choisissez votre nouvel espace" : "Choisissez votre espace"}
             </h1>
             <p className="mx-auto mt-1 max-w-xl text-[13px] leading-relaxed text-[#65728A]">
-              {switcher ? "Passez d'un écosystème à l'autre ou découvrez les Bon Plans JOBLY." : "Un écosystème, des opportunités, une seule plateforme."}
+              {switcher ? "Passez d'un écosystème à l'autre." : "Un écosystème, des opportunités, une seule plateforme."}
             </p>
           </div>
 
-          <EcosystemSelector showBonPlan />
+          <EcosystemSelector showBonPlan={switcher} />
 
           {!switcher && (
             <div className="mt-2 rounded-[18px] border border-white bg-white/75 px-3 py-2 text-center text-[10px] leading-relaxed text-[#66738A] shadow-sm backdrop-blur">
-              Votre choix sera mémorisé pour vous faire entrer directement dans votre espace lors de vos prochaines connexions. Les Bon Plans restent accessibles à tout moment.
+              Votre choix sera mémorisé pour vous faire entrer directement dans votre espace lors de vos prochaines connexions.
             </div>
           )}
         </div>
