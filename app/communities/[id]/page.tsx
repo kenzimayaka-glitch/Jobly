@@ -17,7 +17,7 @@ type Post = {
   id: string;
   content: string;
   createdAt: string;
-  author?: { id: string; name?: string | null; email?: string | null };
+  author?: { id: string; displayName?: string | null; username?: string | null };
 };
 
 export default function CommunityPage() {
@@ -146,7 +146,7 @@ export default function CommunityPage() {
                   <article key={post.id} className="rounded-[24px] bg-white p-5 shadow-sm">
                     <p className="text-sm leading-6 text-slate-700">{post.content}</p>
                     <p className="mt-3 text-[11px] font-bold text-slate-400">
-                      {post.author?.name || post.author?.email || "Membre Jobly"} · {new Date(post.createdAt).toLocaleDateString("fr-FR")}
+                      {post.author?.displayName || post.author?.username || "Membre Jobly"} · {new Date(post.createdAt).toLocaleDateString("fr-FR")}
                     </p>
                   </article>
                 ))
