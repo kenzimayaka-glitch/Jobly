@@ -4,6 +4,6 @@ import {crossCheck} from "./crossCheck";
 export function verifyEvidence(query:string,sources:SourceEvidence[]){
   const result=crossCheck(query,sources);
   const contradictingSources=result.contradictingSources;
-  const status=result.status;
+  const status=result.status==="CONTESTED" ? "CONTESTED" : result.status;
   return {...result,contradictingSources,status};
 }
