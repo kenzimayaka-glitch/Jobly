@@ -1,3 +1,73 @@
+# MASTER CONSOLIDATION GIT — 02/10/2026
+
+## État canonique
+
+Main actuel : `a00cb9c549ce931f44a1ea1357efb7f8b73fefc1`
+
+Cette passe a appliqué le protocole de consolidation sans suppression destructive.
+
+### Inventaire
+
+- 166 branches détectées.
+- 28 PR ouvertes détectées.
+- Les branches et commits divergents ont été comparés à `main`.
+- Les branches fortement divergentes n'ont pas été écrasées.
+
+### Consolidations effectivement intégrées
+
+| PR | Objet | Méthode | Résultat |
+|---|---|---|---|
+| #138 | CI continu | squash | 🟢 intégré |
+| #134 | Icône PWA | squash | 🟢 intégré |
+| #125 | Validation documentation CV | squash | 🟢 intégré |
+| #111 | Couverture sources Afrique hors Cameroun | squash | 🟢 intégré |
+
+### Branches/PR nécessitant encore une réconciliation
+
+Les travaux suivants ne doivent pas être déclarés intégrés tant qu'ils n'ont pas été réconciliés et testés :
+
+- #168 / #169 — Career Journey 360 ;
+- #152 — Lot A / Mon Afrique ;
+- #153 — Lot C / Community ;
+- #151 — registry/cache logos ;
+- #150 — billing Recruiter ;
+- #135 — J’IA transversal ;
+- #114 / #113 / #112 / #110 / #107 / #106 — Africa/harvest ;
+- #104 / #103 / #98 / #97 / #93 — Offer pipeline historique ;
+- #67 / #62 / #48 — anciennes corrections Jobs ;
+- #14 — transfert J’IA V5.20 ;
+- #3 — ancien alignment produit.
+
+Ces éléments restent conservés sur leurs branches tant que leur contenu n'a pas été réconcilié.
+
+### Pourquoi aucune suppression
+
+Plusieurs branches sont divergentes de `main` avec des écarts significatifs. Une fusion directe provoquerait des conflits ou pourrait écraser des décisions plus récentes.
+
+**Règle appliquée :** aucune branche divergente n'est supprimée ou force-pushée avant récupération et vérification de son contenu utile.
+
+### État Git
+
+**🟨 CONSOLIDATION PHASE 1 — AUDIT + INTÉGRATIONS SÛRES TERMINÉS.**
+
+La cible finale « une seule branche active » n'est pas encore atteinte.
+
+### État production
+
+- Vercel : **NON DÉPLOYÉ**
+- JOBLY-PROD : **NON MODIFIÉ**
+- Aucun déploiement ou migration de production déclenché par cette passe.
+
+### Gouvernance produit courante
+
+- Recruitment 360° V2 : **ARCHIVÉ / FERMÉ**
+- Career Journey 360 : **BOUCLÉ comme chantier produit** ; ses branches restantes sont historiques/validation.
+- Talent Mobility Market : **clôturé techniquement**
+- Prochain chantier roadmap : **Lot G — Career Brain / Career OS**
+
+**Règle de vérité : la présence d'un commit ou d'une branche ne vaut pas validation fonctionnelle.**
+
+---
 
 # CHECKPOINT LOT E — 02/10/2026
 
