@@ -10,7 +10,7 @@ Mobility devient un dossier partagé de traitement, inspiré de la logique Share
 - salaire recruteur disponible ;
 - convention employeur Mobility ;
 - garantie recruteur ;
-- coût Mobility <= 35 % du salaire approuvé.
+- coût Mobility <= 50 % du salaire approuvé.
 
 ## Pièces obligatoires
 1. CNI ou passeport en cours de validité.
@@ -27,7 +27,7 @@ Chaque pièce suit PENDING → UNDER_REVIEW → VERIFIED / REJECTED / EXPIRED.
 Les pièces sensibles ne sont pas demandées au premier écran.
 
 Parcours :
-P01 Emploi obtenu → P02 Pré-éligibilité → P03 Diagnostic → P04 Coûts → P05 Salaire / règle 35 % → P06 Dossier documentaire → P07 Vérification → P08 Décision finale → P09 Programme/Solutions → P10 Financement → P11 Mobilisation → P12 Arrivée → P13 Prise de poste → P14 Clôture.
+P01 Emploi obtenu → P02 Pré-éligibilité → P03 Diagnostic → P04 Coûts → P05 Salaire / règle 50 % → P06 Dossier documentaire → P07 Vérification → P08 Décision finale → P09 Programme/Solutions → P10 Financement → P11 Mobilisation → P12 Arrivée → P13 Prise de poste → P14 Clôture.
 
 Les conditions structurelles sont d'abord vérifiées. Si le Talent échoue sur l'ancienneté ou le pack payant, Jobly ne demande pas inutilement ses documents.
 
