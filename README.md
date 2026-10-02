@@ -1,4 +1,75 @@
 
+# CHECKPOINT 02/10/2026 — LOTS C + D — INSTITUTIONAL HUB / INSTITUTIONAL INTELLIGENCE
+
+## Décision produit figée
+
+Les Lots C et D forment un **cockpit B2B privé pour les partenaires institutionnels** de Jobly (universités, ONG, ambassades, collectivités et autres institutions accompagnées).
+
+Le Hub n'est **pas** un cinquième écosystème public et ne devient pas un second job board. Les opportunités restent dans les écosystèmes Jobly existants ; le Hub pilote les projets, leurs résultats et les données autorisées.
+
+### UX validée
+
+**Visibilité :** le point d'entrée peut être visible dans Jobly, mais l'espace reste privé.
+
+- Un utilisateur non autorisé voit uniquement : « 🔒 Espace réservé aux partenaires institutionnels. Cet espace est accessible uniquement aux institutions accompagnées et partenaires de Jobly. Vous représentez une institution partenaire ? Contactez votre référent Jobly pour obtenir ou réinitialiser votre accès. »
+- Aucun formulaire institutionnel public n'est affiché sur cette surface.
+- L'institution partenaire dispose d'un accès dédié (/institution/login) fourni lors de l'onboarding.
+- Après authentification, elle arrive **directement sur son dashboard**.
+- L'accès institutionnel est séparé du compte personnel Jobly d'un collaborateur.
+
+### Dashboard institutionnel
+
+Le cockpit est configuré par Jobly en fonction de la convention/projet partenaire. L'institution ne doit pas connaître l'architecture interne.
+
+Surface cible :
+- Vue d'ensemble ;
+- Chiffres clés ;
+- Mes projets ;
+- Performance ;
+- Rapports ;
+- J'IA institutionnelle.
+
+Exemples de métriques configurables selon les droits : étudiants/diplômés suivis, bénéficiaires, accompagnements, candidatures, entretiens, placements/insertion, secteurs, progression, objectifs/réalisé, mobilité, appels et résultats.
+
+### Architecture backend
+
+Institution → InstitutionAccess → InstitutionPartnership → InstitutionProject → dataScope/dashboardConfig → KPIs → Dashboard → Reports → J’IA
+
+Cette chaîne est une architecture interne ; elle n'est pas exposée comme parcours utilisateur.
+
+- Institution réconcilie la table institutionnelle déjà présente en production.
+- InstitutionAccess gère les credentials institutionnels séparément des comptes Talent.
+- InstitutionSession gère une session privée à cookie HttpOnly.
+- InstitutionPartnership matérialise la relation Jobly ↔ institution.
+- InstitutionProject matérialise les projets pilotés.
+- InstitutionReport matérialise les rapports produits/stockés.
+- dataScope et dashboardConfig préparent la configuration par projet sans dupliquer un dashboard par institution.
+
+### Sécurité
+
+Les nouvelles tables Hub sont RLS activées et sans accès anon/authenticated : les routes serveur utilisent uniquement le service role. Les données institutionnelles privées ne réutilisent pas la policy publique de lecture de la table catalogue Institution.
+
+### Monétisation / entitlement
+
+Le Hub est une **fonction B2B contractuelle payante, de profondeur PRO**, distincte des abonnements Talent/Recruiter. Aucun utilisateur FREE/START/PREMIUM ne reçoit automatiquement un accès institutionnel ; l'accès dépend d'une relation institutionnelle autorisée et d'un onboarding Jobly.
+
+### État d'implémentation
+
+- Modèle Prisma : **CODÉ**.
+- Migration SQL : **CODÉE, NON APPLIQUÉE à JOBLY-PROD** dans cette passe.
+- Auth institutionnelle : **CODÉE**.
+- Dashboard privé : **CODÉ**.
+- KPIs initiaux : **CODÉS** (partenariats, projets, bénéficiaires, candidatures, rapports).
+- J’IA institutionnelle : **surface préparée**, intelligence métier approfondie à poursuivre au Lot D.
+- E2E/runtime : **À TESTER**.
+- Vercel : **AUCUN DÉPLOIEMENT**.
+- Main : sera intégré après contrôle CI/PR.
+
+> Règle : la présence des fichiers et le merge ne valent pas validation E2E ni déploiement.
+
+---
+
+
 
 # CHECKPOINT 02/10/2026 — AUDIT DE RÉCONCILIATION CODE ↔ DOCUMENTATION (PASSE DE CONTRÔLE)
 
