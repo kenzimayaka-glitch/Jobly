@@ -16,7 +16,11 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
 export default async function PublicRecruitmentListingPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   try {
-    const data = await loadPublicOfficialListing(token, "");
+    const requestHeaders = await headers();
+    const host = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host") || "";
+    const proto = requestHeaders.get("x-forwarded-proto") || "https";
+    const origin = host ? `${proto}://${host}` : "";
+    const data = await loadPublicOfficialListing(token, origin);
     const html = renderWebHtml(data);
     return (
       <main className="min-h-screen bg-white">
