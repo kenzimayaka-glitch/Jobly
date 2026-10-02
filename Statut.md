@@ -39,7 +39,7 @@ Bons plans et Community cohabitent comme deux surfaces métier distinctes :
 ## Validation observée
 - Migration Supabase appliquée avec succès.
 - Les 8 communautés globales sont présentes dans JOBLY-PROD.
-- Une passe CI précédente a détecté puis permis de corriger les erreurs de syntaxe introduites pendant l'intégration ; une nouvelle passe Typecheck & Build est en cours sur la branche.
+- La passe CI Typecheck & Build a maintenant franchi les fichiers Community sans erreur signalée, mais reste ROUGE à cause de plusieurs erreurs TypeScript préexistantes hors Lot C (notamment bonus J’IA, CV, Market Watch/Runtime). Le déploiement ne doit pas contourner cette gate.
 
 ## Déploiement
 **Pas encore déployé sur Vercel à ce stade.** La branche doit rester distincte de `main` jusqu'à validation finale du build.
