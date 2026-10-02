@@ -18,8 +18,9 @@ export function JiaConversationalQcm({
 }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
   const [otherText, setOtherText] = useState("");
+  const [otherSelected, setOtherSelected] = useState(false);
 
-  const canSubmit = selected.length > 0 || otherText.trim().length > 0;
+  const canSubmit = selected.length > 0 || (otherSelected && otherText.trim().length > 0);
 
   const visibleOptions = useMemo(
     () => question.options.slice(0, 4),
@@ -69,11 +70,11 @@ export function JiaConversationalQcm({
         <button
           type="button"
           disabled={disabled}
-          aria-pressed={otherText.trim().length > 0}
-          onClick={() => setOtherText((value) => value)}
+          aria-pressed={otherSelected}
+          onClick={() => setOtherSelected((value) => !value)}
           className="rounded-xl border px-3 py-2 text-left text-sm"
         >
-          <span className="mr-2" aria-hidden>☐</span>
+          <span className="mr-2" aria-hidden>{otherSelected ? "☑" : "☐"}</span>
           {question.other.label}
         </button>
       </div>
@@ -81,7 +82,11 @@ export function JiaConversationalQcm({
       <div className="flex items-end gap-2">
         <textarea
           value={otherText}
-          onChange={(event) => setOtherText(event.target.value)}
+          onFocus={() => setOtherSelected(true)}
+          onChange={(event) => {
+            setOtherSelected(true);
+            setOtherText(event.target.value);
+          }}
           rows={2}
           maxLength={300}
           placeholder={question.other.placeholder}
