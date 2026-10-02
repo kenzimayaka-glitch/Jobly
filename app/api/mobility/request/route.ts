@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
       companyMobilityAgreementAccepted: true,
       recruiterGuaranteeAccepted: false,
       repaymentMonths: 3,
+      userCreatedAt: gate.user.createdAt,
     });
 
     let cniWatermarked = false;
