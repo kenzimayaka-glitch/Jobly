@@ -3874,3 +3874,19 @@ La base Supabase connectée confirme RLS activé sur les tables cognitives et ab
 6. Browser E2E et production restent volontairement non validés sur cette branche.
 
 **Règle : CODÉ → TESTÉ → VALIDÉ → DÉPLOYÉ. Aucun merge `main` ni déploiement Vercel sans validation explicite.**
+
+
+# CHECKPOINT 02/10/2026 — J’IA QCM CONVERSATIONNEL BORNÉ
+
+- Standard UX J’IA : maximum **4 choix visibles** par question.
+- Au-delà : entrée **« Autre… »** avec petit champ de saisie libre.
+- Sélection **simple ou multiple** selon la question.
+- Réponse **vocale** prévue comme canal équivalent à la réponse textuelle.
+- Contrat partagé dans `lib/jia/qcm.ts` ; composant réutilisable dans `components/jia/JiaConversationalQcm.tsx`.
+- J’IA Brain expose désormais le QCM borné pour les intentions de veille.
+- Aucun nouveau stockage Supabase, aucun champ profil et aucune seconde architecture de veille n’ont été créés.
+- Aucun déploiement Vercel et aucun merge vers `main`.
+
+**État : 🟨 CODÉ — VALIDATION CI/RUNTIME À EFFECTUER.**
+
+**Règle :** ≤4 choix + « Autre… » + saisie courte + voix ; l’utilisateur peut cocher une ou plusieurs réponses ; J’IA poursuit uniquement avec les informations manquantes.
