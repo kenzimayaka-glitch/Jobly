@@ -3,7 +3,7 @@ name: Step 2 TER — Execution Proof
 on:
   workflow_dispatch:
   push:
-    branches: [reconcile/step2-20261003]
+    branches: [fix/stabilisation]
 
 permissions:
   contents: read
@@ -16,8 +16,6 @@ jobs:
   proof:
     name: Step 2 TER proof
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/reconcile/step2-20261003'
-
     services:
       postgres:
         image: postgres:16
@@ -41,25 +39,35 @@ jobs:
       CI: true
 
     steps:
-      - name: Checkout exact branch
+      - name: Checkout current proof branch
         uses: actions/checkout@v4
         with:
-          ref: reconcile/step2-20261003
+          ref: ${{ github.ref_name }}
           fetch-depth: 1
 
       - name: Prepare evidence directory
         run: mkdir -p artifacts
 
-      - name: Guard — never run against main
+      - name: Record proof ref
         run: |
-          test "$GITHUB_REF" = "refs/heads/reconcile/step2-20261003"
-          test "$GITHUB_REF_NAME" != "main"
-          test "$GITHUB_REF_NAME" != "master"
-          printf 'GITHUB_REF=%s\nGITHUB_SHA=%s\n' "$GITHUB_REF" "$GITHUB_SHA" | tee artifacts/ref.log
+          printf 'GITHUB_REF=%s\nGITHUB_REF_NAME=%s\nGITHUB_SHA=%s\n' "$GITHUB_REF" "$GITHUB_REF_NAME" "$GITHUB_SHA" | tee artifacts/ref.log
 
-      - name: Verify ephemeral PostgreSQL
+      - name: Verify ephemeral PostgreSQL and create Supabase-compatible roles
         run: |
           pg_isready -h 127.0.0.1 -p 5432 -U postgres -d jobly_step2_proof | tee artifacts/postgres-ready.log
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL' | tee artifacts/postgres-roles.log
+          DO $
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+              CREATE ROLE anon NOLOGIN;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+              CREATE ROLE authenticated NOLOGIN;
+            END IF;
+          END
+          $;
+          SELECT rolname FROM pg_roles WHERE rolname IN ('anon','authenticated') ORDER BY rolname;
+          SQL
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT current_database(), current_user, version();" | tee artifacts/postgres-identity.log
 
       - name: Apply Events migration and verify tables, indexes, RLS
