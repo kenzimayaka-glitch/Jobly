@@ -90,7 +90,7 @@ jobs:
       - name: Playwright — 30 real offers + mobile/desktop captures
         run: |
           cat > offer-blocks-proof.spec.mjs <<'EOF'
-          import { chromium } from "@playwright/test";
+          import { chromium } from "playwright";
           import fs from "node:fs/promises";
 
           const BASE = "http://127.0.0.1:3000";
@@ -193,7 +193,7 @@ jobs:
           await browser.close();
           if (report.apiFailures.length || report.uiFailures.length || report.captures.length !== 8) process.exit(1);
           EOF
-          pnpm dlx @playwright/test@1.55.0 test offer-blocks-proof.spec.mjs --workers=1 --reporter=line
+          pnpm dlx --package=playwright@1.55.0 --package=@playwright/test@1.55.0 node offer-blocks-proof.spec.mjs
 
       - name: Upload offer blocks evidence
         if: always()
