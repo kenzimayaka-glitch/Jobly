@@ -149,4 +149,4 @@ for (const [id,label] of NEW_IDS) {
 
 await fs.writeFile("artifacts/offer-blocks-playwright.json",JSON.stringify(report,null,2));
 await browser.close();
-if (report.apiFailures.length || report.uiFailures.length || report.captures.length !== 8) process.exit(1);
+if (report.apiFailures.length || report.uiFailures.length || report.captures.length !== 48) process.exit(1);
