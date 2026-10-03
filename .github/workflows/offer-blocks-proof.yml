@@ -1,0 +1,213 @@
+name: Offer blocks — canonical proof
+# CI proof retrigger: verify current canonical offer gate end-to-end
+
+on:
+  push:
+    branches: [fix/offer-blocks]
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/jobs/[id]/page.tsx"
+      - "app/api/jobs/[id]/route.ts"
+      - "lib/offerBlocks.ts"
+      - "scripts/offer-blocks-test.ts"
+      - ".github/workflows/offer-blocks-proof.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: offer-blocks-proof-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      CI: true
+    steps:
+      - name: Guard — never run on main
+        run: |
+          test "${GITHUB_REF_NAME}" != "main"
+          test "${GITHUB_REF_NAME}" != "master"
+
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint — canonical offer files
+        run: >-
+          pnpm dlx @biomejs/biome@2.2.6 lint
+          app/jobs/[id]/page.tsx
+          lib/offerBlocks.ts
+          scripts/offer-blocks-test.ts
+          components/EcosystemSelector.tsx
+          app/api/recruitment360/offers/[id]/respond/route.ts
+          --diagnostic-level=error
+
+      - name: Build
+        run: pnpm build
+
+      - name: Compile and run 30-offer canonical test
+        run: |
+          rm -rf .offer-blocks-test
+          pnpm exec tsc scripts/offer-blocks-test.ts lib/offerBlocks.ts lib/jobContent.ts             --target ES2022 --module commonjs --moduleResolution node             --esModuleInterop --skipLibCheck --outDir .offer-blocks-test
+          node .offer-blocks-test/scripts/offer-blocks-test.js
+
+      - name: Install Playwright test runner
+        run: pnpm add -D @playwright/test@1.55.0
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install chromium
+
+      - name: Start local Next.js app
+        run: |
+          pnpm dev --hostname 127.0.0.1 --port 3000 > offer-blocks-next.log 2>&1 &
+          echo $! > offer-blocks-next.pid
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3000/jobs >/dev/null 2>&1; then
+              echo "Next.js ready after $i attempts"
+              exit 0
+            fi
+            sleep 2
+          done
+          cat offer-blocks-next.log
+          exit 1
+
+      - name: Playwright — 30 real offers + mobile/desktop captures
+        run: |
+          cat > offer-blocks-proof.spec.mjs <<'EOF'
+          import { chromium } from "@playwright/test";
+          import fs from "node:fs/promises";
+
+          const BASE = "http://127.0.0.1:3000";
+          const IDS = [
+            ["323d5e2b-2275-4b57-8b8e-2e18afd0e786","ORIS"],
+            ["c65b68b4-a790-445a-a508-058b912d41a1","EducAid"],
+            ["0a357696-0c82-4e5c-84d3-d13a5b0227a8","ARCHIPEL CM"],
+            ["f72b560c-5658-40b2-8121-b304cf9ff8e6","SGS"],
+            ["63d7970e-63f6-4ef5-8734-1df851dcb3bc","Africa carrieres"],
+            ["4cfdd0cd-760d-4b70-8bfc-8aec13aed88b","Africa carrieres"],
+            ["9ae3e305-34e7-4ea1-b4b7-655d778865a4","Africa carrieres"],
+            ["c10cb688-53ff-498f-b096-13b85d7d3e06","Ajirika"],
+            ["8fd9ce73-7c78-4bd8-ac6c-b9b82877e7a5","Ajirika"],
+            ["b881700e-40aa-4a11-ab14-ea68751e3917","Ajirika"],
+            ["668efcaa-e5d4-4b4c-83cc-0b0c1c5ae51b","BrighterMonday"],
+            ["9b5a7b69-026b-4ad2-acd2-c9e43feb2d34","BrighterMonday"],
+            ["8cef3a58-1214-4ac5-8029-2546a2ad90cd","BrighterMonday"],
+            ["3605320b-e106-4b54-bd31-e3712f9e7780","Emplois Cameroun"],
+            ["3958163f-3ca8-4035-935f-616f8b90e8ee","Emplois Cameroun"],
+            ["90c404be-a54b-45ea-ba9b-82de739ac8e8","GoAfricaJobs"],
+            ["06d6a786-fac0-40d3-b540-16ab068a9bbe","GoAfricaJobs"],
+            ["4e1affbb-009b-43be-a59c-a8f1db14b403","GoAfricaJobs"],
+            ["da2282c0-00c9-4a55-acd0-d3706ad4861f","Infos Concours Education"],
+            ["f25607c6-5c2b-4e73-be8b-814dd4619a38","Infos Concours Education"],
+            ["76022843-b0f4-4cf4-a782-bc55d908bf1b","Job in Cameroun"],
+            ["fd749be1-7723-407c-babc-1ab6258b3b0f","JobInfoCamer"],
+            ["d53c7edb-5e0c-4e4b-8a18-0fdabf5f8e40","JobInfoCamer"],
+            ["8cbf86bd-31d6-4092-8b62-a2961c1352d7","JobInfoCamer"],
+            ["3b79b086-e9ad-499d-8c6f-9d3e5acda187","JobIvoire"],
+            ["188417a2-0dde-41f0-aa2e-db4875be1ab9","JobIvoire"],
+            ["6013ac62-b766-4e42-8269-3aeb83334f1b","JobIvoire"],
+            ["28f5f705-6a59-4c3d-b108-2647057c59f0","UNJobNet"],
+            ["408a9816-395f-458d-a2ca-41d2e7c43e17","UNJobNet"],
+            ["598ba5d7-4719-4ae8-859c-ed670f198538","UNJobNet"]
+          ];
+
+          await fs.mkdir("artifacts", {recursive:true});
+
+          const browser = await chromium.launch({headless:true,args:["--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
+          const report = {total:IDS.length, apiFailures:[], uiFailures:[], captures:[]};
+
+          for (const [id,label] of IDS) {
+            const context = await browser.newContext({viewport:{width:1440,height:1000}});
+            const page = await context.newPage();
+            try {
+              const response = await page.goto(BASE+"/jobs/"+id+"?source=discovery",{waitUntil:"domcontentloaded",timeout:30000});
+    await page.waitForLoadState("networkidle",{timeout:10000}).catch(()=>{});
+              if (!response || !response.ok()) throw new Error("HTTP "+(response?.status()??"unknown"));
+              const state = await page.locator("main").innerText();
+              if (state.includes("Offre indisponible")) throw new Error("fiche indisponible");
+              const title = await page.locator("h1").first().innerText();
+              if (!title.trim()) throw new Error("titre vide");
+              const sections = await page.locator("section h2").allInnerTexts();
+              if (new Set(sections).size !== sections.length) throw new Error("doublon de section: "+sections.join(" | "));
+              const expectedOrder=["Description","Missions","Profil recherché","Expérience","Formation","Compétences","Qualités / Soft skills","Avantages","Candidature"];
+              const indexes=expectedOrder.map(name=>sections.indexOf(name)).filter(index=>index>=0);
+              if(indexes.some((v,i)=>i>0 && v<=indexes[i-1])) throw new Error("ordre canonique invalide: "+sections.join(" | "));
+              const empty = await page.locator("section").evaluateAll(nodes => nodes.filter(n => {
+                const h=n.querySelector("h2"); if(!h) return false;
+                const body=(n.textContent||"").replace(h.textContent||"","").trim();
+                return !body;
+              }).length);
+              if (empty) throw new Error("bloc vide");
+              const html = await page.locator("main").innerHTML();
+              if (/<(?:script|style|nav)[^>]*>/i.test(html)) throw new Error("HTML/menu parasite dans le main");
+              if (/[ÃÂâ][\w]/.test(state)) throw new Error("mojibake visible");
+              await fs.writeFile("artifacts/"+id+"-desktop.json",JSON.stringify({id,label,title,sections},null,2));
+            } catch (e) {
+              report.uiFailures.push({id,label,error:String(e)});
+            } finally {
+              await context.close();
+            }
+          }
+
+          const captures = [
+            ["323d5e2b-2275-4b57-8b8e-2e18afd0e786","ORIS"],
+            ["c65b68b4-a790-445a-a508-058b912d41a1","EducAid"],
+            ["0a357696-0c82-4e5c-84d3-d13a5b0227a8","ARCHIPEL"],
+            ["f72b560c-5658-40b2-8121-b304cf9ff8e6","SGS"]
+          ];
+          for (const [id,label] of captures) {
+            for (const [kind,options] of [
+              ["desktop",{viewport:{width:1440,height:1000}}],
+              ["mobile",{...{viewport:{width:390,height:844},isMobile:true,hasTouch:true}}]
+            ]) {
+              const context=await browser.newContext(options);
+              const page=await context.newPage();
+              try {
+                await page.goto(BASE+"/jobs/"+id+"?source=discovery",{waitUntil:"networkidle",timeout:30000});
+                await page.screenshot({path:"artifacts/"+label.toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-"+kind+".png",fullPage:true});
+                report.captures.push({id,label,kind});
+              } catch(e) {
+                report.uiFailures.push({id,label,kind,error:String(e)});
+              } finally {
+                await context.close();
+              }
+            }
+          }
+
+          await fs.writeFile("artifacts/offer-blocks-playwright.json",JSON.stringify(report,null,2));
+          await browser.close();
+          if (report.apiFailures.length || report.uiFailures.length || report.captures.length !== 8) process.exit(1);
+          EOF
+          pnpm exec node offer-blocks-proof.spec.mjs
+
+      - name: Upload offer blocks evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: offer-blocks-proof-${{ github.run_id }}
+          path: |
+            artifacts/
+            offer-blocks-audit-report.json
+            offer-blocks-next.log
+          if-no-files-found: warn
+          retention-days: 14

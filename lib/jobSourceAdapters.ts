@@ -1,3 +1,5 @@
+import { decodeHtmlEntities } from "@/lib/jobContent";
+
 export type SourceOfferInput = {
   sourceUrl?: unknown;
   title?: unknown;
@@ -35,16 +37,7 @@ function key(value: string): string {
 }
 
 function decodeEntities(value: string): string {
-  return value
-    .replace(/&nbsp;|&#160;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;|&#34;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&ndash;|&#8211;/gi, "–")
-    .replace(/&mdash;|&#8212;/gi, "—")
-    .replace(/&bull;|&#8226;/gi, "•");
+  return decodeHtmlEntities(value);
 }
 
 function htmlToText(value: string): string {
