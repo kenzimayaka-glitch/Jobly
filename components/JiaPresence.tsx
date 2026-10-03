@@ -118,7 +118,7 @@ function FaceLauncher({ onClick, label, listening, outfit }: { onClick: () => vo
     <button type="button" onClick={onClick} aria-label={label} title={label}
       className="relative grid h-[52px] w-[52px] place-items-center overflow-hidden rounded-full border-2 border-canari-blue bg-canari-soft shadow-[0_10px_26px_rgba(0,87,184,.28)] transition active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-canari-blue/30">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`/jia/outfits/${outfit}/head.webp`} alt="" aria-hidden="true" className="h-[54px] w-[54px] scale-[1.7] translate-y-[6px] object-contain" />
+      <img src={`/jia/outfits/${outfit}/head.webp`} onError={(e) => { e.currentTarget.src = "/jia/jia-avatar-fallback.svg"; }} alt="" aria-hidden="true" className="h-[54px] w-[54px] scale-[1.7] translate-y-[6px] object-contain" />
       {listening && <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500" />}
     </button>
   );
