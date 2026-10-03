@@ -23,6 +23,7 @@ jobs:
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,3 +50,44 @@ jobs:
 
       - name: Production build
         run: pnpm build
+
+      - name: Compile and run canonical offer tests — 30 + independent 10 + active simulation
+        run: |
+          rm -rf .offer-blocks-test
+          pnpm exec tsc scripts/offer-blocks-test.ts lib/offerBlocks.ts lib/jobContent.ts --target ES2022 --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck --outDir .offer-blocks-test
+          node .offer-blocks-test/scripts/offer-blocks-test.js
+
+      - name: Install Playwright test runner
+        run: pnpm add -D @playwright/test@1.55.0
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install chromium
+
+      - name: Start local Next.js app
+        run: |
+          pnpm dev --hostname 127.0.0.1 --port 3000 > offer-blocks-next.log 2>&1 &
+          echo $! > offer-blocks-next.pid
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3000/jobs >/dev/null 2>&1; then
+              echo "Next.js ready after $i attempts"
+              exit 0
+            fi
+            sleep 2
+          done
+          cat offer-blocks-next.log
+          exit 1
+
+      - name: Playwright — 30 real offers + desktop/mobile captures
+        run: pnpm exec node scripts/offer-blocks-playwright.mjs
+
+      - name: Upload offer blocks evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: offer-blocks-proof-${{ github.run_id }}
+          path: |
+            artifacts/
+            offer-blocks-audit-report.json
+            offer-blocks-next.log
+          if-no-files-found: warn
+          retention-days: 14
