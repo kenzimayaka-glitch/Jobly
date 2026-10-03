@@ -35,6 +35,29 @@ const IDS = [
   ["598ba5d7-4719-4ae8-859c-ed670f198538","UNJobNet"]
 ];
 
+const NEW_IDS = [
+  ["8c17a9b3-ee1a-4fe3-960c-b5bddd0ce4bd","Recruteo MG"],
+  ["8fd9ce73-7c78-4bd0-ac6c-b9b82877e7a5","Ajirika"],
+  ["3bbf940a-6c6e-4d47-8870-0641127098e9","Ajirika"],
+  ["b73aace3-3f26-4149-8a14-0f41f2da7cd9","Ajirika"],
+  ["8a36e052-9bfd-4207-8b31-5f132493319c","Ajirika"],
+  ["46fb5f62-df47-4e75-996e-d8ca54f5c5d2","Ajirika"],
+  ["601ddfa2-6370-47a7-bc0d-75a9e6fd0a0a","Ajirika"],
+  ["526d9a7e-a06e-4c4b-9f41-be7983723102","Ajirika"],
+  ["4dcc2325-77b8-45bd-b969-80479dd5215c","Ajirika"],
+  ["27561078-f808-4acf-900c-ef669bc6fc78","Ajirika"],
+  ["785d66a8-87ec-4d64-959a-62c1118ef2f9","Ajirika"],
+  ["292fb72b-bf9d-4b22-b2e6-e0a35cd534d9","Ajirika"],
+  ["598c122a-ec83-45d2-b632-982dae61ea8d","Ajirika"],
+  ["e64bdc95-8c64-437b-a845-612f6fec43cf","ONAPE"],
+  ["de40f9f7-c81b-4053-a3a9-914e08555830","ONAPE"],
+  ["6281be00-6e57-4f99-9c80-840e40c9f809","ONAPE"],
+  ["306ac0e9-67b8-4adb-aa39-8b43012efaae","JobIvoire"],
+  ["57362ecb-8164-493c-8964-314c60af96c2","JobIvoire"],
+  ["1c90a3dd-72f6-44ee-913c-ecca7e0cf1f6","JobIvoire"],
+  ["4f6b6b65-0269-48e8-861d-25cb876e846d","JobIvoire"]
+];
+
 await fs.mkdir("artifacts", {recursive:true});
 
 const browser = await chromium.launch({headless:true,args:["--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
@@ -64,7 +87,8 @@ for (const [id,label] of IDS) {
     if (empty) throw new Error("bloc vide");
     const html = await page.locator("main").innerHTML();
     if (/<(?:script|style)[^>]*>/i.test(html)) throw new Error("HTML parasite dans le main");
-    if (/(?:Ã(?:©|¨|ª|®|´|¶|¼|§|‰|€)|Â(?:°|·| )|â(?:€™|€œ|€�|€“|€”|€¦|‚¬)|ðŸ)/.test(state)) throw new Error("mojibake visible");
+    if (/(?:&#x?[0-9a-f]+;?|&(amp|apos|quot|lt|gt|nbsp|ndash|mdash|hellip|bull|middot|lsquo|rsquo|ldquo|rdquo|laquo|raquo|copy|reg|trade|oelig|szlig|agrave|acirc|auml|ccedil|egrave|eacute|ecirc|euml|icirc|iuml|ocirc|ouml|ugrave|ucirc|uuml|ntilde|yacute|euro|pound|yen|cent|times|divide|minus|plusmn|deg|micro|para);?)/i.test(state)) throw new Error("entité HTML visible");
+    if (/(?:Ã(?:©|¨|ª|®|´|¶|¼|§|‰|€)|Â(?:°|·| )|â(?:€™|€œ|€�|€“|€“|€”|€¦|‚¬)|ðŸ)/.test(state)) throw new Error("mojibake visible");
     await fs.writeFile("artifacts/"+id+"-desktop.json",JSON.stringify({id,label,title,sections},null,2));
   } catch (e) {
     report.uiFailures.push({id,label,error:String(e)});
@@ -92,6 +116,31 @@ for (const [id,label] of captures) {
       report.captures.push({id,label,kind});
     } catch(e) {
       report.uiFailures.push({id,label,kind,error:String(e)});
+    } finally {
+      await context.close();
+    }
+  }
+}
+
+for (const [id,label] of NEW_IDS) {
+  for (const [kind,options] of [
+    ["desktop",{viewport:{width:1440,height:1000}}],
+    ["mobile",{viewport:{width:390,height:844,isMobile:true,hasTouch:true}}]
+  ]) {
+    const context=await browser.newContext(options);
+    const page=await context.newPage();
+    try {
+      const response=await page.goto(BASE+"/jobs/"+id+"?source=discovery",{waitUntil:"networkidle",timeout:30000});
+      if(!response || !response.ok()) throw new Error("HTTP "+(response?.status()??"unknown"));
+      const state=await page.locator("main").innerText();
+      if(state.includes("Offre indisponible")) throw new Error("fiche indisponible");
+      if(/(?:&#x?[0-9a-f]+;?|&(amp|apos|quot|lt|gt|nbsp|ndash|mdash|hellip|bull|middot|lsquo|rsquo|ldquo|rdquo|laquo|raquo|copy|reg|trade|oelig|szlig|agrave|acirc|auml|ccedil|egrave|eacute|ecirc|euml|icirc|iuml|ocirc|ouml|ugrave|ucirc|uuml|ntilde|yacute|euro|pound|yen|cent|times|divide|minus|plusmn|deg|micro|para);?)/i.test(state)) throw new Error("entité HTML visible");
+      const title=await page.locator("h1").first().innerText();
+      if(!title.trim()) throw new Error("titre vide");
+      await page.screenshot({path:"artifacts/new20-"+id+"-"+kind+".png",fullPage:true});
+      report.captures.push({id,label,kind,lot:"new20"});
+    } catch(e) {
+      report.uiFailures.push({id,label,kind,lot:"new20",error:String(e)});
     } finally {
       await context.close();
     }
