@@ -214,7 +214,7 @@ function semanticBlock(line: string): string|null {
 function splitTextBlocks(text: string, sourceKey: string): Record<string,string[]> {
   const cleaned=cleanJobDescription(text);
   const out:Record<string,string[]>={description:[],missions:[],profile:[],experience:[],education:[],skills:[],qualities:[],benefits:[],application:[]};
-  let current="description";
+  let current:keyof typeof out="description";
   for(const raw of cleaned.split(/\n+/)) {
     const line=clean(raw);
     if(!line)continue;
@@ -250,7 +250,7 @@ export function buildCanonicalOffer(input:any): CanonicalOffer {
   const sourceKey=String(input.sourceKey||input.source||"").toLowerCase();
   const sourceText=canonicalSourceText(input);
   const fallback=splitTextBlocks(input.description||n.description||"",sourceKey);
-  const arrays=(k:string)=>Array.isArray(n[k])?n[k]:[];
+  const arrays=(k:string):string[]=>Array.isArray(n[k])?n[k].filter((v:unknown):v is string=>typeof v==="string"):[];
   const sourceBlocks={
     description: arrays("description").length?arrays("description"):fallback.description,
     missions: arrays("missions").length?arrays("missions"):fallback.missions,
@@ -306,7 +306,7 @@ export function buildCanonicalOffer(input:any): CanonicalOffer {
 
   const deadline=normalizeDeadline(n.deadline??input.deadline)||extractDateFromText(sourceText);
 
-  const typed=[title,company,...location,contract,salary.min!=null?String(salary.min):"",salary.max!=null?String(salary.max):"",salary.currency||"",remote||"",deadline||""];
+  const typed=[title,company,...location,contract,salary.min!=null?String(salary.min):null,salary.max!=null?String(salary.max):null,salary.currency,remote,deadline].filter((v):v is string=>Boolean(v));
   const blocks:any={};
   for(const k of Object.keys(sourceBlocks)) blocks[k]=unique(sourceBlocks[k],sourceText,true);
   for(const k of Object.keys(blocks)) blocks[k]=removeTypedEchoes(blocks[k],typed);
