@@ -171,6 +171,12 @@ async function main(){
       stats.alternatives[mode]=a;
     }
   }
+  const topPenaltySources=Object.entries(bySource)
+    .filter(([source])=>!abandoned.has(source))
+    .sort((a,b)=>b[1].minimal-a[1].minimal)
+    .slice(0,5)
+    .map(([source,stats])=>({source,total:stats.total,minimal:stats.minimal,minimalRatePct:stats.total?Number((stats.minimal/stats.total*100).toFixed(2)):0,reasons:stats.reasons,alternatives:stats.alternatives}));
+
   const audit={
     generatedAt:new Date().toISOString(),
     readOnly:true,
@@ -184,7 +190,13 @@ async function main(){
       full:globalFull,
       errors:globalErrors,
       minimalRatePct:(active.length?Number((globalMinimal/active.length*100).toFixed(2)):0),
-      bySource:Object.fromEntries(Object.entries(bySource).sort(([a],[b])=>a.localeCompare(b)))
+      bySource:Object.fromEntries(Object.entries(bySource).sort(([a],[b])=>a.localeCompare(b))),
+      topPenaltySources
+    },
+    alternativeRules:{
+      SCORE_70:"qualityScore >= 70",
+      SCORE_60:"qualityScore >= 60",
+      ESSENTIALS:"title + company + at least one valid text block"
     }
   };
   writeFileSync("offer-blocks-audit-report.json",JSON.stringify(audit,null,2));
