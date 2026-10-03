@@ -18,6 +18,9 @@ export async function POST(req: NextRequest) {
     const action = typeof body?.action === "string" ? body.action : "";
     const message = typeof body?.message === "string" ? body.message : "";
     const ecosystem = body?.ecosystem === "RECRUITER" || body?.ecosystem === "PARTNER" ? body.ecosystem : "TALENT";
+    const recentDialogue = Array.isArray(body?.recentDialogue)
+      ? body.recentDialogue.filter((value: unknown): value is string => typeof value === "string").slice(-6)
+      : [];
     const cognitive = await runUnifiedCognitiveCycle(sb, {
       userId: String(user.id), ecosystem, path: typeof body?.path === "string" ? body.path : "", action, message, includeInternet: false,
     });
@@ -29,6 +32,7 @@ export async function POST(req: NextRequest) {
       action: typeof body?.action === "string" ? body.action : "",
       proactive: Boolean(body?.proactive),
       lang: body?.lang === "en" ? "en" : "fr",
+      recentDialogue,
     });
     return NextResponse.json({ ok:true, cognitive, ...result });
   } catch (error) {
