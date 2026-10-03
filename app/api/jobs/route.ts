@@ -247,10 +247,12 @@ export async function GET(request:NextRequest){
   // Strict freshness rule: imported offers require a verifiable publication date
   // and must never remain active beyond two months, regardless of source deadline.
   const staleIds = ranked.filter(job => {
-    if (job.source === "discovery" && !job.publishedAt) return true;
     const freshnessAnchor = job.publishedAt || job.createdAt;
-    const expiresAt = platformExpiration(freshnessAnchor);
-    return Boolean(expiresAt && expiresAt.getTime() <= Date.now());
+    const cutoffMs = job.publicationDateEstimated ? 30*24*60*60*1000 : 2*31*24*60*60*1000;
+    const anchorMs = new Date(freshnessAnchor).getTime();
+    const tooOld = !Number.isFinite(anchorMs) || anchorMs < Date.now()-cutoffMs;
+    const deadlineExpiredNow = deadlineExpired(job.deadline);
+    return tooOld || deadlineExpiredNow;
   }).map(job => job.id).filter(Boolean);
   if (staleIds.length) {
     await supabase.from("Job").update({ isActive:false, updatedAt:new Date().toISOString() }).in("id", staleIds);
