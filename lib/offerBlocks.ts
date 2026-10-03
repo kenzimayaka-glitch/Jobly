@@ -329,7 +329,7 @@ export function buildCanonicalOffer(input:any): CanonicalOffer {
   if((input.deadline||n.deadline) && !deadline)flags.push("invalid_deadline");
   if(remote===null && (isJoblyNative?input.remoteMode||n.remoteMode:false))flags.push("remote_unverified");
   if(!input.sourceUrl && !n.source?.url)flags.push("missing_source_url");
-  if(Object.values(blocks).flat().some((v:string)=>hasForbiddenMarkup(v)))flags.push("forbidden_markup");
+  if(Object.values(blocks).flat().some((v:unknown)=>typeof v==="string" && hasForbiddenMarkup(v)))flags.push("forbidden_markup");
   const totalText=Object.values(blocks).flat().length;
   if(!totalText)flags.push("no_source_text");
   let score=100;
