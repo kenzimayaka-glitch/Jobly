@@ -2,9 +2,6 @@ name: Step 2 TER — Execution Proof
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - fix/stabilisation
 
 permissions:
   contents: read
