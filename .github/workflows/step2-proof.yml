@@ -2,6 +2,8 @@ name: Step 2 TER — Execution Proof
 
 on:
   workflow_dispatch:
+  push:
+    branches: [fix/stabilisation]
 
 permissions:
   contents: read
@@ -141,11 +143,26 @@ jobs:
           set -o pipefail
           pnpm typecheck 2>&1 | tee artifacts/typecheck.log
 
+      - name: Install CI lint tooling
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm add --ignore-workspace-root-check --no-save eslint@9.37.0 eslint-config-next@15.5.25 2>&1 | tee artifacts/lint-tooling-install.log
+          cat > eslint.config.mjs <<'EOF'
+          import { defineConfig, globalIgnores } from "eslint/config";
+          import nextVitals from "eslint-config-next/core-web-vitals";
+
+          export default defineConfig([
+            ...nextVitals,
+            globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
+          ]);
+          EOF
+
       - name: Lint
         shell: bash
         run: |
           set -o pipefail
-          pnpm lint 2>&1 | tee artifacts/lint.log
+          pnpm exec eslint . 2>&1 | tee artifacts/lint.log
 
       - name: Build
         shell: bash
