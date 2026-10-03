@@ -38,7 +38,6 @@ const IDS = [
 await fs.mkdir("artifacts", {recursive:true});
 
 const browser = await chromium.launch({headless:true,args:["--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
-  browser.contexts;
 const report = {total:IDS.length, apiFailures:[], uiFailures:[], captures:[]};
 
 for (const [id,label] of IDS) {
