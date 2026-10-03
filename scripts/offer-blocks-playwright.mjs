@@ -64,7 +64,7 @@ for (const [id,label] of IDS) {
     if (empty) throw new Error("bloc vide");
     const html = await page.locator("main").innerHTML();
     if (/<(?:script|style)[^>]*>/i.test(html)) throw new Error("HTML parasite dans le main");
-    if (/[ÃÂâ][\w]/.test(state)) throw new Error("mojibake visible");
+    if (/(?:Ã(?:©|¨|ª|®|´|¶|¼|§|‰|€)|Â(?:°|·| )|â(?:€™|€œ|€�|€“|€”|€¦|‚¬)|ðŸ)/.test(state)) throw new Error("mojibake visible");
     await fs.writeFile("artifacts/"+id+"-desktop.json",JSON.stringify({id,label,title,sections},null,2));
   } catch (e) {
     report.uiFailures.push({id,label,error:String(e)});
