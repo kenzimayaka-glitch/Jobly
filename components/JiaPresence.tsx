@@ -24,6 +24,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import JIA3D from "./JIA/JIA3D";
+import { JIAFallback } from "./JIA/JIAFallback";
 import type { JIAMove } from "./JIA/JIA";
 import type { JiaGesture } from "./WaterScene";
 import { GESTURE_TO_MOVE } from "./JIA/gestureMap";
@@ -112,13 +113,18 @@ function isTypingTarget(el: Element | null) {
 
 /** Visage de J’IA (recadrage du master validé) — sert de bouton lorsqu’elle est réduite. */
 function FaceLauncher({ onClick, label, listening, outfit }: { onClick: () => void; label: string; listening: boolean; outfit: Outfit }) {
-  // Chaque tenue a désormais son propre head.webp (public/jia/outfits/<outfit>/) : le visage
-  // n'est plus partagé, donc le lanceur réduit doit connaître la tenue courante.
+  const [assetFailed, setAssetFailed] = useState(false);
   return (
     <button type="button" onClick={onClick} aria-label={label} title={label}
       className="relative grid h-[52px] w-[52px] place-items-center overflow-hidden rounded-full border-2 border-canari-blue bg-canari-soft shadow-[0_10px_26px_rgba(0,87,184,.28)] transition active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-canari-blue/30">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`/jia/outfits/${outfit}/head.webp`} onError={(e) => { e.currentTarget.src = "/jia/jia-avatar-fallback.svg"; }} alt="" aria-hidden="true" className="h-[54px] w-[54px] scale-[1.7] translate-y-[6px] object-contain" />
+      {assetFailed ? (
+        <div className="h-[52px] w-[52px]"><JIAFallback speaking={false} /></div>
+      ) : (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/jia/outfits/${outfit}/head.webp`} onError={() => setAssetFailed(true)} alt="J’IA" className="h-[54px] w-[54px] scale-[1.7] translate-y-[6px] object-contain" />
+        </>
+      )}
       {listening && <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500" />}
     </button>
   );
