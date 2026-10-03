@@ -25,7 +25,7 @@ const fixtures:Fixture[]=[
 ["323d5e2b-2275-4b57-8b8e-2e18afd0e786","jobincamer","https://www.jobincamer.com/job/oris-finance-recrute-des-caissieres-et-des-brands-ambassadeurs",["description","missions","profile","education"]],
 ["c65b68b4-a790-445a-a508-058b912d41a1","jobinfocamer","https://www.jobinfocamer.com/job/44901/help-desks-a-educaid",["description","missions","profile","experience","education","application"]],
 ["fd749be1-7723-407c-babc-1ab6258b3b0f","jobinfocamer","https://www.jobinfocamer.com/job/44914/consultant-en-raffinerie-d-huile-vegetale-a-entreprise-de-la-place",["description","experience","education","skills","qualities","application"]],
-["d53c7edb-5e0c-4e4b-8a18-0fdabf5f8e40","jobinfocamer","https://www.jobinfocamer.com/job/44840/responsable-commercial-a-entreprise-de-la-place",["description","experience","education"]],
+["d53c7edb-5e0c-4e4b-8a18-0fdabf5f8e40","jobinfocamer","https://www.jobinfocamer.com/job/44840/responsable-commercial-a-entreprise-de-la-place",["description","experience","education"]],\n["8cbf86bd-31d6-4092-8b62-a2961c1352d7","jobinfocamer","https://www.jobinfocamer.com/job/44849/agent-marketing-et-communication-a-ste-concept-sarl",["description","missions","profile","education"]],
 ["3b79b086-e9ad-499d-8c6f-9d3e5acda187","jobivoire_ci","https://www.jobivoire.ci/job/q6NEJPNQQ",["description"]],
 ["188417a2-0dde-41f0-aa2e-db4875be1ab9","jobivoire_ci","https://www.jobivoire.ci/job/m0myPFf2f",["description"]],
 ["6013ac62-b766-4e42-8269-3aeb83334f1b","jobivoire_ci","https://www.jobivoire.ci/job/QgX3zFfJw",["description"]],
