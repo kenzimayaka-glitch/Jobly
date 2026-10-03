@@ -6,9 +6,8 @@ import { useRouter } from "next/navigation";
 import talentImage from "../assets/ecosystem/talent-20.jpg";
 import recruiterImage from "../assets/ecosystem/recruiter-40.jpg";
 import partnerImage from "../assets/ecosystem/partner-22.jpg";
-import bonsPlansImage from "../assets/ecosystem/bonsplans.jpg";
 
-type EcosystemId = "talent" | "recruiter" | "partner" | "bonsplans";
+type EcosystemId = "talent" | "recruiter" | "partner";
 
 type Eco = {
   id: EcosystemId;
@@ -26,16 +25,6 @@ const ECOSYSTEMS: Eco[] = [
   { id: "recruiter", name: "Recruiter", badge: "RECRUITER", tagline: "Trouvez les talents qui feront la différence.", href: "/recruiter", image: recruiterImage, tone: "blue" },
   { id: "partner", name: "Partner", badge: "PARTNER", tagline: "Développez votre activité avec Jobly.", href: "/partner", image: partnerImage, tone: "green" },
 ];
-
-const BON_PLAN: Eco = {
-  id: "bonsplans",
-  name: "Bon Plan",
-  badge: "BON PLAN",
-  tagline: "Des offres et avantages exclusifs JOBLY",
-  href: "/bons-plans",
-  image: bonsPlansImage,
-  tone: "yellow",
-};
 
 function toneStyles(tone: Eco["tone"]) {
   return {
@@ -72,14 +61,12 @@ function toneStyles(tone: Eco["tone"]) {
   }[tone];
 }
 
-export default function EcosystemSelector({ showBonPlan = false, onGuide }: { showBonPlan?: boolean; onGuide?: (eco: Eco) => void }) {
+export default function EcosystemSelector({ onGuide }: { onGuide?: (eco: Eco) => void }) {
   const router = useRouter();
-  const items = showBonPlan ? [...ECOSYSTEMS, BON_PLAN] : ECOSYSTEMS;
+  const items = ECOSYSTEMS;
 
   function select(eco: Eco) {
-    if (eco.id !== "bonsplans") {
-      try { window.localStorage.setItem("jobly:last-ecosystem", eco.id); } catch {}
-    }
+    try { window.localStorage.setItem("jobly:last-ecosystem", eco.id); } catch {}
     router.push(eco.href);
   }
 
