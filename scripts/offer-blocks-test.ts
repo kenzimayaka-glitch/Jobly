@@ -50,6 +50,29 @@ const SECONDARY:Fixture[]=[
 ["af651218-bcdc-4f40-bf49-5ab872ce4632","jobivoire_ci"],
 ].map(([id,sourceKey])=>({id,sourceKey}));
 
+const NEW20:Fixture[]=[
+  ["8c17a9b3-ee1a-4fe3-960c-b5bddd0ce4bd","recruteo_mg"],
+  ["8fd9ce73-7c78-4bd0-ac6c-b9b82877e7a5","ajirika_east"],
+  ["3bbf940a-6c6e-4d47-8870-0641127098e9","ajirika_east"],
+  ["b73aace3-3f26-4149-8a14-0f41f2da7cd9","ajirika_east"],
+  ["8a36e052-9bfd-4207-8b31-5f132493319c","ajirika_east"],
+  ["46fb5f62-df47-4e75-996e-d8ca54f5c5d2","ajirika_east"],
+  ["601ddfa2-6370-47a7-bc0d-75a9e6fd0a0a","ajirika_east"],
+  ["526d9a7e-a06e-4c4b-9f41-be7983723102","ajirika_east"],
+  ["4dcc2325-77b8-45bd-b969-80479dd5215c","ajirika_east"],
+  ["27561078-f808-4acf-900c-ef669bc6fc78","ajirika_east"],
+  ["785d66a8-87ec-4d64-959a-62c1118ef2f9","ajirika_east"],
+  ["292fb72b-bf9d-4b22-b2e6-e0a35cd534d9","ajirika_east"],
+  ["598c122a-ec83-45d2-b632-982dae61ea8d","ajirika_east"],
+  ["e64bdc95-8c64-437b-a845-612f6fec43cf","onape_td"],
+  ["de40f9f7-c81b-4053-a3a9-914e08555830","onape_td"],
+  ["6281be00-6e57-4f99-9c80-840e40c9f809","onape_td"],
+  ["306ac0e9-67b8-4adb-aa39-8b43012efaae","jobivoire_ci"],
+  ["57362ecb-8164-493c-8964-314c60af96c2","jobivoire_ci"],
+  ["1c90a3dd-72f6-44ee-913c-ecca7e0cf1f6","jobivoire_ci"],
+  ["4f6b6b65-0269-48e8-861d-25cb876e846d","jobivoire_ci"],
+].map(([id,sourceKey])=>({id,sourceKey}));
+
 type Row=Record<string,any>;
 
 function inputFor(row:Row){
@@ -115,7 +138,7 @@ async function main(){
   const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
   assert.ok(url&&key,"Supabase CI read-only credentials missing");
   const supabase=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
-  const allFixtures=[...PRIMARY,...SECONDARY];
+  const allFixtures=[...PRIMARY,...SECONDARY,...NEW20];
   const {data,error}=await supabase.from("Job").select("*").in("id",allFixtures.map(f=>f.id));
   if(error) throw new Error(error.message);
   const rows=new Map((data||[]).map((r:any)=>[r.id,r]));
@@ -131,6 +154,7 @@ async function main(){
 
   const primary=runLot(PRIMARY);
   const secondary=runLot(SECONDARY);
+  const new20Run=runLot(NEW20);
 
   const active: Row[]=[];
   for(let from=0;;from+=1000){
@@ -184,6 +208,7 @@ async function main(){
     reindex:false,
     primary,
     secondary,
+    new20:new20Run,
     activeSimulation:{
       total:active.length,
       minimal:globalMinimal,
@@ -204,6 +229,7 @@ async function main(){
   console.log("SECONDARY_RESULT",JSON.stringify(secondary));
   assert.equal(primary.failed,0,"lot primaire doit être vert");
   assert.equal(secondary.failed,0,"second lot doit être vert");
+  assert.equal(new20Run.failed,0,"nouveau lot 20 doit être vert");
   assert.equal(globalErrors,0,"simulation active sans erreur");
   console.log(JSON.stringify(audit,null,2));
 }
