@@ -32,7 +32,7 @@ const fixtures:Fixture[]=[
 ["28f5f705-6a59-4c3d-b108-2647057c59f0","unjobnet","https://www.unjobnet.org/jobs/detail/irc-caseworker-89389728",["description"]],
 ["408a9816-395f-458d-a2ca-41d2e7c43e17","unjobnet","https://www.unjobnet.org/jobs/detail/ctg-etc-construction-coordinator-89389726",["description"]],
 ["598ba5d7-4719-4ae8-859c-ed670f198538","unjobnet","https://www.unjobnet.org/jobs/detail/ctg-national-hlp-and-protection-associate-89389725",["description"]],
-].map(([id,sourceKey,url,expected])=>({id,sourceKey,url,expected}));
+].map(([id,sourceKey,url,expected])=>({id,sourceKey,url,expected})) as Fixture[];
 
 assert.equal(fixtures.length,30,"étalon = 30 offres réelles");
 
