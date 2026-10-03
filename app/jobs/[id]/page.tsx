@@ -20,6 +20,13 @@ import { type JobDetailSections } from "@/lib/jobContent";
 import { buildOfferSubtitle, type CanonicalOffer } from "@/lib/offerBlocks";
 import { extractApplicationEmail, extractApplicationSubject } from "@/lib/applicationSubject";
 
+type Job = {
+  id:string; title:string; companyName?:string|null; company?:{logoUrl?:string|null;domain?:string|null;website?:string|null}|null;
+  location?:string|null; sourceUrl?:string|null; deadline?:string|null; deadlineExpired?:boolean;
+  applicationProfile?:Record<string,any>|null; matchPercent?:number|null; matchBreakdown?:MatchItem[];
+  canonicalOffer?:CanonicalOffer;
+};
+
 type MatchItem = {
   id: string;
   label: string;
