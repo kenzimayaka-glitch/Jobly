@@ -107,7 +107,7 @@ async function main(){
     for(const fixture of fixtures){
       const row=rows.get(fixture.id);
       if(!row){failures.push({id:fixture.id,sourceKey:fixture.sourceKey,error:"not found"});continue;}
-      try{assertOffer(row,fixture);passed++;}catch(e){failures.push({id:fixture.id,sourceKey:fixture.sourceKey,error:String(e));}}
+      try{assertOffer(row,fixture);passed++;}catch(e){failures.push({id:fixture.id,sourceKey:fixture.sourceKey,error:String(e)}}
     }
     return {total:fixtures.length,passed,failed:fixtures.length-passed,ratePct:Number((passed/fixtures.length*100).toFixed(2)),failures};
   };
