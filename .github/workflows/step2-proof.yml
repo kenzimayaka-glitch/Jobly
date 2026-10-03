@@ -1,0 +1,322 @@
+name: Step 2 TER — Execution Proof
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: step2-proof-\${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  proof:
+    name: Step 2 TER proof
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/reconcile/step2-20261003'
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: step2_test_only
+          POSTGRES_USER: postgres
+          POSTGRES_DB: jobly_step2_proof
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d jobly_step2_proof"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://postgres:step2_test_only@127.0.0.1:5432/jobly_step2_proof
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: step2-e2e-publishable-key
+      SUPABASE_SERVICE_ROLE_KEY: step2-e2e-service-role-key
+      CI: true
+
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: reconcile/step2-20261003
+          fetch-depth: 1
+
+      - name: Prepare evidence directory
+        run: mkdir -p artifacts
+
+      - name: Guard — never run against main
+        run: |
+          test "$GITHUB_REF" = "refs/heads/reconcile/step2-20261003"
+          test "$GITHUB_REF_NAME" != "main"
+          test "$GITHUB_REF_NAME" != "master"
+          printf 'GITHUB_REF=%s\nGITHUB_SHA=%s\n' "$GITHUB_REF" "$GITHUB_SHA" | tee artifacts/ref.log
+
+      - name: Verify ephemeral PostgreSQL
+        run: |
+          pg_isready -h 127.0.0.1 -p 5432 -U postgres -d jobly_step2_proof | tee artifacts/postgres-ready.log
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT current_database(), current_user, version();" | tee artifacts/postgres-identity.log
+
+      - name: Apply Events migration and verify tables, indexes, RLS
+        shell: bash
+        run: |
+          set -euo pipefail
+          MIGRATION="packages/database/prisma/migrations/20261002180000_jobly_events/migration.sql"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$MIGRATION" | tee artifacts/events-migration-apply.log
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL' | tee artifacts/events-migration-verify.log
+          DO $$
+          DECLARE t text;
+          BEGIN
+            FOREACH t IN ARRAY ARRAY['Event','EventPayment','EventFeaturedCampaign','EventEntitlement']
+            LOOP
+              IF to_regclass(format('public."%s"', t)) IS NULL THEN RAISE EXCEPTION 'Missing table: %', t; END IF;
+            END LOOP;
+          END $$;
+          SELECT indexname FROM pg_indexes
+            WHERE schemaname='public'
+              AND indexname IN (
+                'Event_status_campaign_idx','Event_domain_idx','Event_creator_idx',
+                'EventPayment_payment_unique','EventPayment_event_idx',
+                'EventFeaturedCampaign_active_idx','EventFeaturedCampaign_payment_unique',
+                'EventEntitlement_lookup_idx'
+              )
+            ORDER BY indexname;
+          DO $$
+          DECLARE t text; rls boolean;
+          BEGIN
+            FOREACH t IN ARRAY ARRAY['Event','EventPayment','EventFeaturedCampaign','EventEntitlement']
+            LOOP
+              SELECT c.relrowsecurity INTO rls
+              FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relname=t;
+              IF rls IS DISTINCT FROM true THEN RAISE EXCEPTION 'RLS not enabled on %', t; END IF;
+            END LOOP;
+          END $$;
+          SELECT c.relname AS table_name, c.relrowsecurity AS rls_enabled
+          FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+          WHERE n.nspname='public'
+            AND c.relname IN ('Event','EventPayment','EventFeaturedCampaign','EventEntitlement')
+          ORDER BY c.relname;
+          SQL
+
+      - name: Roll back Events migration and verify clean state
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL' | tee artifacts/events-migration-rollback.log
+          DROP TABLE IF EXISTS "EventEntitlement" CASCADE;
+          DROP TABLE IF EXISTS "EventFeaturedCampaign" CASCADE;
+          DROP TABLE IF EXISTS "EventPayment" CASCADE;
+          DROP TABLE IF EXISTS "Event" CASCADE;
+          SQL
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL' | tee artifacts/events-migration-rollback-verify.log
+          DO $$
+          DECLARE t text;
+          BEGIN
+            FOREACH t IN ARRAY ARRAY['Event','EventPayment','EventFeaturedCampaign','EventEntitlement']
+            LOOP
+              IF to_regclass(format('public."%s"', t)) IS NOT NULL THEN RAISE EXCEPTION 'Rollback left table: %', t; END IF;
+            END LOOP;
+          END $$;
+          SELECT indexname FROM pg_indexes
+            WHERE schemaname='public'
+              AND indexname IN (
+                'Event_status_campaign_idx','Event_domain_idx','Event_creator_idx',
+                'EventPayment_payment_unique','EventPayment_event_idx',
+                'EventFeaturedCampaign_active_idx','EventFeaturedCampaign_payment_unique',
+                'EventEntitlement_lookup_idx'
+              );
+          SQL
+
+      - name: Setup Node and pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: pnpm
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm install --frozen-lockfile 2>&1 | tee artifacts/pnpm-install.log
+
+      - name: Typecheck
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm typecheck 2>&1 | tee artifacts/typecheck.log
+
+      - name: Lint
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm lint 2>&1 | tee artifacts/lint.log
+
+      - name: Build
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm build 2>&1 | tee artifacts/build.log
+
+      - name: Install Playwright Chromium
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm dlx @playwright/test@1.55.0 install --with-deps chromium 2>&1 | tee artifacts/playwright-install.log
+
+      - name: Start local Next.js app
+        shell: bash
+        run: |
+          pnpm dev --hostname 127.0.0.1 --port 3000 > artifacts/next-dev.log 2>&1 &
+          echo $! > artifacts/next-dev.pid
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3000/jobs >/dev/null 2>&1; then
+              echo "Next.js ready after $i attempts" | tee artifacts/next-ready.log
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Next.js did not become ready" | tee -a artifacts/next-ready.log
+          exit 1
+
+      - name: Playwright mobile + desktop J'IA proof
+        shell: bash
+        run: |
+          set -o pipefail
+          cat > step2-jia-proof.spec.ts <<'EOF'
+          import { test, expect, devices, chromium } from "@playwright/test";
+          import fs from "node:fs/promises";
+
+          const BASE = "http://127.0.0.1:3000";
+          const TEST_SESSION = {
+            access_token: "step2-proof-access-token",
+            refresh_token: "step2-proof-refresh-token",
+            token_type: "bearer",
+            expires_in: 3600,
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+            user: {
+              id: "00000000-0000-4000-8000-000000000002",
+              email: "step2-proof@example.invalid",
+              aud: "authenticated",
+              role: "authenticated",
+              user_metadata: { full_name: "Step 2 Proof User" }
+            }
+          };
+
+          async function simulateSession(page: import("@playwright/test").Page) {
+            await page.addInitScript(({ session }) => {
+              const originalGetItem = Storage.prototype.getItem;
+              Storage.prototype.getItem = function(key: string) {
+                if (key.includes("auth-token")) return JSON.stringify(session);
+                return originalGetItem.call(this, key);
+              };
+            }, { session: TEST_SESSION });
+          }
+
+          async function proof(project: "desktop" | "mobile") {
+            const context = project === "mobile"
+              ? await (await chromium.launch({ headless: true })).newContext({ ...devices["Pixel 5"] })
+              : await (await chromium.launch({ headless: true })).newContext({ ...devices["Desktop Chrome"], viewport: { width: 1440, height: 1000 } });
+            const browser = context.browser();
+            const page = await context.newPage();
+            await simulateSession(page);
+
+            const evidence = {
+              project,
+              unauthorizedJiaResponses: [] as Array<{url:string; status:number}>,
+              consoleErrors: [] as string[],
+              brainMessages: [] as string[]
+            };
+
+            page.on("console", msg => { if (msg.type() === "error") evidence.consoleErrors.push(msg.text()); });
+            page.on("response", response => {
+              if (response.url().includes("/api/jia/") && response.status() === 401) {
+                evidence.unauthorizedJiaResponses.push({ url: response.url(), status: response.status() });
+              }
+            });
+
+            await page.route("**/api/jia/preferences**", route => route.fulfill({
+              status: 200, contentType: "application/json",
+              body: JSON.stringify({ access_enabled:true, interaction_mode:"text", proactive_recommendations:false })
+            }));
+            await page.route("**/api/jia/health**", route => route.fulfill({
+              status: 200, contentType: "application/json",
+              body: JSON.stringify({ ok:true, authenticated:true })
+            }));
+            await page.route("**/api/jia/predict**", route => route.fulfill({
+              status: 200, contentType: "application/json",
+              body: JSON.stringify({ message:"", gesture:"curious", shouldSpeak:false })
+            }));
+            await page.route("**/api/jia/brain**", async route => {
+              const body = route.request().postDataJSON();
+              const message = String(body?.message ?? "");
+              const response = message.includes("emploi")
+                ? "Je peux t’aider à cibler des offres adaptées à ton profil."
+                : "Je peux t’aider à préparer ton parcours professionnel.";
+              evidence.brainMessages.push(response);
+              await route.fulfill({
+                status: 200, contentType: "application/json",
+                body: JSON.stringify({ ok:true, message, response })
+              });
+            });
+
+            await page.goto(BASE + "/jobs", { waitUntil: "domcontentloaded" });
+
+            const avatar = page.locator('[aria-label^="J’IA —"]').first();
+            await expect(avatar).toBeVisible({ timeout: 15000 });
+            await page.screenshot({ path: "artifacts/jia-" + project + "-avatar.png", fullPage: true });
+
+            const launcher = page.locator('button').filter({ has: page.locator('img[src*="/jia/outfits/"]') }).first();
+            await expect(launcher).toBeVisible({ timeout: 10000 });
+            await launcher.click();
+
+            const input = page.getByRole("textbox", { name: "Message à J’IA" });
+            await expect(input).toBeVisible({ timeout: 10000 });
+            await expect(input).toBeEnabled();
+            await input.click();
+
+            await input.fill("Trouve-moi un emploi en Afrique");
+            await page.getByRole("button", { name: "Envoyer à J’IA" }).click();
+            await expect(page.getByText("Je peux t’aider à cibler des offres adaptées à ton profil.")).toBeVisible({ timeout: 10000 });
+
+            await input.fill("Aide-moi à préparer un entretien");
+            await page.getByRole("button", { name: "Envoyer à J’IA" }).click();
+            await expect(page.getByText("Je peux t’aider à préparer ton parcours professionnel.")).toBeVisible({ timeout: 10000 });
+
+            expect(evidence.brainMessages).toHaveLength(2);
+            expect(evidence.brainMessages[0]).not.toBe(evidence.brainMessages[1]);
+            expect(evidence.unauthorizedJiaResponses).toEqual([]);
+
+            await page.screenshot({ path: "artifacts/jia-" + project + "-conversation.png", fullPage: true });
+            await fs.writeFile("artifacts/jia-" + project + "-evidence.json", JSON.stringify(evidence, null, 2));
+
+            await context.close();
+            await browser.close();
+          }
+
+          test("J'IA desktop — session simulée", async () => { await proof("desktop"); });
+          test("J'IA mobile — session simulée", async () => { await proof("mobile"); });
+          EOF
+
+          pnpm dlx @playwright/test@1.55.0 test step2-jia-proof.spec.ts --workers=1 --reporter=line 2>&1 | tee artifacts/playwright.log
+
+      - name: Capture Next.js process state
+        if: always()
+        run: |
+          if test -f artifacts/next-dev.pid; then ps -p "$(cat artifacts/next-dev.pid)" -f || true; fi
+          curl -sS -o /dev/null -w 'jobs_http=%{http_code}\n' http://127.0.0.1:3000/jobs || true
+
+      - name: Upload Step 2 TER evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: step2-ter-proof-\${{ github.run_id }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14
