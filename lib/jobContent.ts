@@ -27,7 +27,7 @@ export function decodeHtmlEntities(value: string): string {
         return Number.isFinite(code) && code<=0x10ffff ? String.fromCodePoint(code) : _;
       })
       .replace(/&([a-z][a-z0-9]+);?/gi, (token, name) => {
-        const decoded=named[name.toLowerCase()];
+        const decoded=named[name] ?? named[name.toLowerCase()];
         return decoded ?? token;
       });
     if(next===current) break;
