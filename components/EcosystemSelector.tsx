@@ -149,7 +149,7 @@ export default function EcosystemSelector({ onGuide, showBonPlan: _showBonPlan }
             </li>
           );
         })}
-      </div>
+      </ul>
 
       <div className="mt-3 flex justify-center">
         <button
