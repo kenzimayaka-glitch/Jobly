@@ -90,6 +90,15 @@ function clean(value: unknown): string {
 function hasForbiddenMarkup(value: string): boolean {
   return /<\/?[a-z][^>]*>|&(?:#x?[0-9a-f]+|[a-z][a-z0-9]+);/i.test(value) || /\b(?:Ã.|Â.|â.)/.test(value);
 }
+function sourceBacked(signatureValue:string, sourceSignature:string): boolean {
+  if(!sourceSignature) return true;
+  if(sourceSignature.includes(signatureValue)) return true;
+  const tokens=signatureValue.split(" ").filter(token=>token.length>=3);
+  if(tokens.length<5) return false;
+  const matched=tokens.filter(token=>sourceSignature.includes(token)).length;
+  return matched/tokens.length>=0.85;
+}
+
 function unique(values: unknown[], sourceText: string, strictSource = true): string[] {
   const seen = new Set<string>(), out: string[] = [];
   const sourceSig = signature(clean(sourceText));
