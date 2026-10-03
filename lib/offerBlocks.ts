@@ -251,7 +251,8 @@ export function buildCanonicalOffer(input:any): CanonicalOffer {
   const sourceText=canonicalSourceText(input);
   const fallback=splitTextBlocks(input.description||n.description||"",sourceKey);
   const arrays=(k:string):string[]=>Array.isArray(n[k])?n[k].filter((v:unknown):v is string=>typeof v==="string"):[];
-  const sourceBlocks={
+  type TextBlockKey="description"|"missions"|"profile"|"experience"|"education"|"skills"|"qualities"|"benefits"|"application";
+  const sourceBlocks:Record<TextBlockKey,string[]>={
     description: arrays("description").length?arrays("description"):fallback.description,
     missions: arrays("missions").length?arrays("missions"):fallback.missions,
     profile: arrays("profile").length?arrays("profile"):fallback.profile,
@@ -308,15 +309,15 @@ export function buildCanonicalOffer(input:any): CanonicalOffer {
 
   const typed=[title,company,...location,contract,salary.min!=null?String(salary.min):null,salary.max!=null?String(salary.max):null,salary.currency,remote,deadline].filter((v):v is string=>Boolean(v));
   const blocks:any={};
-  for(const k of Object.keys(sourceBlocks)) blocks[k]=unique(sourceBlocks[k],sourceText,true);
-  for(const k of Object.keys(blocks)) blocks[k]=removeTypedEchoes(blocks[k],typed);
+  for(const k of Object.keys(sourceBlocks) as TextBlockKey[]) blocks[k]=unique(sourceBlocks[k],sourceText,true);
+  for(const k of Object.keys(blocks) as TextBlockKey[]) blocks[k]=removeTypedEchoes(blocks[k],typed);
 
-  const ownerOrder=["application","experience","education","skills","qualities","missions","benefits","profile","description"];
+  const ownerOrder:TextBlockKey[]=["application","experience","education","skills","qualities","missions","benefits","profile","description"];
   const seen=new Set<string>();
   for(const k of ownerOrder){
-    blocks[k]=blocks[k].filter((v:string)=>{
+    blocks[k]=blocks[k].filter((v:unknown):v is string=>typeof v==="string" && (()=>{
       const s=signature(v); if(!s||seen.has(s)) return false; seen.add(s); return true;
-    });
+    })());
   }
 
   const flags:string[]=[];
@@ -344,3 +345,29 @@ export function buildCanonicalOffer(input:any): CanonicalOffer {
   };
 }
 
+
+
+export function buildOfferSubtitle(offer:CanonicalOffer): string {
+  const parts:string[]=[];
+  if(offer.location.length) parts.push(offer.location.join(" · "));
+  if(offer.contract) parts.push(offer.contract);
+  if(offer.salary.min!=null || offer.salary.max!=null) {
+    const money=(n:number)=>new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0}).format(n);
+    const range=offer.salary.min!=null && offer.salary.max!=null && offer.salary.min!==offer.salary.max
+      ? money(offer.salary.min)+" – "+money(offer.salary.max)
+      : money(offer.salary.min??offer.salary.max!);
+    parts.push(offer.salary.currency ? range+" "+offer.salary.currency : range);
+  }
+  const exp=offer.experience.find(v=>/\b\d+(?:[.,]\d+)?\s*(?:ans?|années?|years?)\b/i.test(v));
+  if(exp) {
+    const m=exp.match(/\b\d+(?:[.,]\d+)?\s*(?:ans?|années?|years?)\b/i);
+    if(m) parts.push(m[0]);
+  }
+  if(offer.remote==="PARTIAL") parts.push("Hybride");
+  else if(offer.remote==="YES") parts.push("Télétravail");
+  if(offer.deadline) {
+    const d=new Date(offer.deadline);
+    if(Number.isFinite(d.getTime())) parts.push(d.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}));
+  }
+  return parts.join(" · ");
+}
