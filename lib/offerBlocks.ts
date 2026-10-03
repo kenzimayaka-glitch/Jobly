@@ -129,6 +129,53 @@ function normalizeDeadline(value: unknown): string|null {
   const d=new Date(raw.includes("T")||raw.includes(" ")?raw.replace(" ","T"):raw);
   return Number.isFinite(d.getTime()) ? d.toISOString() : null;
 }
+function monthNumber(value:string): number|null {
+  const months:Record<string,number>={janvier:1,jan:1,fevrier:2,février:2,mars:3,avril:4,mai:5,juin:6,juillet:7,aout:8,août:8,septembre:9,octobre:10,novembre:11,decembre:12,décembre:12};
+  return months[key(value)]??null;
+}
+function extractDateFromText(text:string): string|null {
+  const patterns=[
+    /(?:date limite|deadline|date d'expiration|date expiration|jusqu'au|jusqu’au|avant le|période de candidature[^\n]{0,80}(?:au|à|to))[^\n]{0,100}?((?:\d{1,2}[./-]\d{1,2}[./-]\d{4})|(?:\d{1,2}\s+(?:janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)\s+\d{4}))/i,
+    /(?:période de candidature|application period)[^\n]{0,120}?((?:\d{1,2}[./-]\d{1,2}[./-]\d{4}))/i,
+  ];
+  for(const re of patterns){
+    const m=text.match(re); if(!m?.[1]) continue;
+    const raw=m[1].trim();
+    const numeric=raw.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+    if(numeric){
+      const iso=`${numeric[3]}-${numeric[2].padStart(2,"0")}-${numeric[1].padStart(2,"0")}`;
+      return normalizeDeadline(iso);
+    }
+    const words=raw.match(/^(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})$/);
+    if(words){
+      const month=monthNumber(words[2]); if(month){
+        return normalizeDeadline(`${words[3]}-${String(month).padStart(2,"0")}-${words[1].padStart(2,"0")}`);
+      }
+    }
+  }
+  return null;
+}
+function extractContractFromText(text:string): string|null {
+  const m=text.match(/(?:type de contrat|type d'emploi|contrat|nature of job|employment type|employment contract)\s*[:：-]?\s*([^\n|.]{2,80})/i);
+  return m ? normalizeContract(m[1]) : null;
+}
+function extractLocationFromText(text:string): string[] {
+  const m=text.match(/(?:localisation|lieu d'affectation|lieu de travail|lieu|location|job location)\s*[:：-]\s*([^\n|]{2,120})/i);
+  return m ? normalizeLocation(m[1]) : [];
+}
+function extractRemoteFromText(text:string): "YES"|"NO"|"PARTIAL"|null {
+  const n=key(text);
+  if(/\b(?:hybride|hybrid)\b/.test(n)) return "PARTIAL";
+  if(/\b(?:teletravail|télétravail|remote|work from home|full remote)\b/.test(n)) return "YES";
+  if(/\b(?:presentiel|présentiel|on site|onsite|on-site|office based)\b/.test(n)) return "NO";
+  return null;
+}
+function extractSalaryFromText(text:string): {min:number|null;max:number|null;currency:string|null} {
+  const re=/(\d[\d .]*(?:,\d+)?)\s*(?:-|à|to)\s*(\d[\d .]*(?:,\d+)?)?\s*(XAF|XOF|EUR|USD|GBP|CAD|CHF|ZAR|KES|GHS|NGN|RWF|TZS|UGX|BIF|CDF|DZD|MAD|EGP|ETB|ZMW|MWK|MZN|NAD|BWP|SZL|SCR|MUR|SOS|SLL|LRD|GMD|GNF|CVE|AOA|MGA|SSP)\b/i;
+  const single=/(?:salaire|salary|remuneration|rémunération)\s*[:：-]?\s*(\d[\d .]*(?:,\d+)?)\s*(XAF|XOF|EUR|USD|GBP|CAD|CHF|ZAR|KES|GHS|NGN|RWF|TZS|UGX|BIF|CDF|DZD|MAD|EGP|ETB|ZMW|MWK|MZN|NAD|BWP|SZL|SCR|MUR|SOS|SLL|LRD|GMD|GNF|CVE|AOA|MGA|SSP)\b/i;
+  const m=text.match(re)||text.match(single); if(!m)return {min:null,max:null,currency:null};
+  return {min:normalizeAmount(m[1]),max:m[2]?normalizeAmount(m[2]):null,currency:normalizeCurrency(m[3]||m[2])};
+}
 function parseSalaryText(value: unknown): {min:number|null;max:number|null;currency:string|null} {
   const raw=String(value??"").trim();
   if(!raw)return {min:null,max:null,currency:null};
@@ -207,30 +254,54 @@ export function buildCanonicalOffer(input:any): CanonicalOffer {
     application: arrays("application").length?arrays("application"):fallback.application,
   };
 
-  const title=clean(n.title||input.title)||null;
-  const company=clean(n.company||input.companyName)||null;
-  const location=normalizeLocation(n.location??input.location);
-  const contract=normalizeContract(n.contractType??input.contractType);
+  const rawTitle=cleanJobTitle(n.title||input.title);
+  const identity=normalizeJobIdentity({
+    title:rawTitle,
+    companyName:n.company||input.companyName,
+    description:sourceText,
+  });
+  const genericTitle=/^(?:offre(?: d'emploi)?|offre de stage professionnel|appel à candidature|appel a candidature|avis de recrutement|recrutement)$/i.test(rawTitle);
+  const title=genericTitle?null:(identity.title||clean(rawTitle)||null);
+  const companyCandidates=[n.company,input.companyName,extractCompanyNameFromDescription(sourceText),identity.companyName].filter(Boolean);
+  let company:string|null=null;
+  for(const candidate of companyCandidates){
+    const value=clean(candidate);
+    if(value && !/^(?:entreprise|employeur non précisé|employeur non precise|non précisé|non precise|temporaire|cdd\s*\d+\s*mois?)$/i.test(value)){
+      company=value; break;
+    }
+  }
+
+  const textLocation=extractLocationFromText(sourceText);
+  const location=normalizeLocation(n.location??input.location).length ? normalizeLocation(n.location??input.location) : textLocation;
+  const explicitContract=normalizeContract(n.contractType??input.contractType);
+  const textContract=extractContractFromText(sourceText);
+  const contract=explicitContract||textContract;
+
   const salaryRaw=n.salary||{};
   const parsedSalary=typeof input.salary==="string"?parseSalaryText(input.salary):{min:null,max:null,currency:null};
+  const textSalary=extractSalaryFromText(sourceText);
   const salary={
-    min:normalizeAmount(salaryRaw.min??input.salaryMin??parsedSalary.min),
-    max:normalizeAmount(salaryRaw.max??input.salaryMax??parsedSalary.max),
-    currency:normalizeCurrency(salaryRaw.currency??input.salaryCurrency??parsedSalary.currency),
+    min:normalizeAmount(salaryRaw.min??input.salaryMin??parsedSalary.min??textSalary.min),
+    max:normalizeAmount(salaryRaw.max??input.salaryMax??parsedSalary.max??textSalary.max),
+    currency:normalizeCurrency(salaryRaw.currency??input.salaryCurrency??parsedSalary.currency??textSalary.currency),
   };
+  if(salary.min==null&&salary.max==null) {
+    salary.min=textSalary.min; salary.max=textSalary.max; salary.currency=textSalary.currency;
+  }
   if(salary.min==null&&salary.max==null) salary.currency=null;
-  const remote=normalizeRemote(n.remoteMode??input.remoteMode);
-  const deadline=normalizeDeadline(n.deadline??input.deadline);
+
+  const remoteEvidence=extractRemoteFromText(sourceText);
+  const isJoblyNative=input.sourceType==="JOBLY";
+  const remoteStored=normalizeRemote(n.remoteMode??input.remoteMode);
+  const remote=(isJoblyNative?remoteStored:(remoteEvidence||null));
+
+  const deadline=normalizeDeadline(n.deadline??input.deadline)||extractDateFromText(sourceText);
 
   const typed=[title,company,...location,contract,salary.min!=null?String(salary.min):"",salary.max!=null?String(salary.max):"",salary.currency||"",remote||"",deadline||""];
   const blocks:any={};
-  for(const k of Object.keys(sourceBlocks)) {
-    blocks[k]=unique(sourceBlocks[k],sourceText,true);
-  }
-  // If a cleaned stored value cannot be matched byte-for-byte after source
-  // normalization, do not display it: the contract is source-truth only.
+  for(const k of Object.keys(sourceBlocks)) blocks[k]=unique(sourceBlocks[k],sourceText,true);
   for(const k of Object.keys(blocks)) blocks[k]=removeTypedEchoes(blocks[k],typed);
-  // A fact has exactly one text owner. Prefer the most specific owner.
+
   const ownerOrder=["application","experience","education","skills","qualities","missions","benefits","profile","description"];
   const seen=new Set<string>();
   for(const k of ownerOrder){
@@ -246,7 +317,7 @@ export function buildCanonicalOffer(input:any): CanonicalOffer {
   if(input.contractType && !contract)flags.push("invalid_contract");
   if((input.salaryMin!=null||input.salaryMax!=null||n.salary?.min!=null||n.salary?.max!=null) && (salary.min==null&&salary.max==null || !salary.currency)) flags.push("invalid_salary");
   if((input.deadline||n.deadline) && !deadline)flags.push("invalid_deadline");
-  if(remote===null && (input.remoteMode||n.remoteMode))flags.push("invalid_remote");
+  if(remote===null && (isJoblyNative?input.remoteMode||n.remoteMode:false))flags.push("remote_unverified");
   if(!input.sourceUrl && !n.source?.url)flags.push("missing_source_url");
   if(Object.values(blocks).flat().some((v:string)=>hasForbiddenMarkup(v)))flags.push("forbidden_markup");
   const totalText=Object.values(blocks).flat().length;
@@ -264,20 +335,3 @@ export function buildCanonicalOffer(input:any): CanonicalOffer {
   };
 }
 
-export function buildOfferSubtitle(offer: CanonicalOffer): string {
-  const parts:string[]=[];
-  if(offer.location.length) parts.push(offer.location.join(" · "));
-  if(offer.contract) parts.push(offer.contract);
-  if(offer.salary.min!=null||offer.salary.max!=null){
-    const min=offer.salary.min!=null?new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0}).format(offer.salary.min):"";
-    const max=offer.salary.max!=null?new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0}).format(offer.salary.max):"";
-    parts.push((min&&max?min+" – "+max:min||max)+" "+offer.salary.currency);
-  }
-  const exp=offer.experience.find(v=>/\b(?:\d+(?:[.,]\d+)?|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)\s*(?:ans?|annees?|years?)\b/i.test(v));
-  if(exp) parts.push(exp);
-  if(offer.remote==="YES")parts.push("Télétravail");
-  else if(offer.remote==="PARTIAL")parts.push("Hybride");
-  else if(offer.remote==="NO")parts.push("Présentiel");
-  if(offer.deadline)parts.push(new Date(offer.deadline).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}));
-  return parts.join(" · ");
-}
