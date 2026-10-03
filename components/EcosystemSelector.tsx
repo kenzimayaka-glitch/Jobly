@@ -72,14 +72,13 @@ export default function EcosystemSelector({ onGuide, showBonPlan: _showBonPlan }
 
   return (
     <div>
-      <div className="grid grid-cols-2 gap-3" role="list" aria-label="Choisissez votre espace">
+      <ul className="grid grid-cols-2 gap-3" aria-label="Choisissez votre espace">
         {items.map((eco, index) => {
           const s = toneStyles(eco.tone);
           return (
+            <li key={eco.id}>
             <button
-              key={eco.id}
               type="button"
-              role="listitem"
               onMouseEnter={() => onGuide?.(eco)}
               onFocus={() => onGuide?.(eco)}
               onClick={() => select(eco)}
@@ -147,6 +146,7 @@ export default function EcosystemSelector({ onGuide, showBonPlan: _showBonPlan }
                 →
               </span>
             </button>
+            </li>
           );
         })}
       </div>
