@@ -153,7 +153,7 @@ jobs:
           import nextVitals from "eslint-config-next/core-web-vitals.js";
 
           export default defineConfig([
-            ...nextVitals,
+            ...(nextVitals.default ?? nextVitals),
             globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
           ]);
           EOF
