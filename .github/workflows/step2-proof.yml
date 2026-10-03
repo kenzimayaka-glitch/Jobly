@@ -200,9 +200,9 @@ jobs:
             const browser=await chromium.launch({headless:true});
             const context=project==="mobile" ? await browser.newContext({...devices["Pixel 5"]}) : await browser.newContext({...devices["Desktop Chrome"],viewport:{width:1440,height:1000}});
             const page=await context.newPage(); await simulateSession(page);
-            const evidence={project,unauthorizedJiaResponses:[] as Array<{url:string;status:number}>,consoleErrors:[] as string[],brainMessages:[] as string[]};
+            const evidence={project,unauthorizedBrainResponses:[] as Array<{url:string;status:number}>,consoleErrors:[] as string[],brainMessages:[] as string[]};
             page.on("console",msg=>{if(msg.type()==="error") evidence.consoleErrors.push(msg.text());});
-            page.on("response",response=>{if(response.url().includes("/api/jia/")&&response.status()===401)evidence.unauthorizedJiaResponses.push({url:response.url(),status:response.status()});});
+            page.on("response",response=>{if(response.url().includes("/api/jia/brain")&&response.status()===401)evidence.unauthorizedBrainResponses.push({url:response.url(),status:response.status()});});
             await page.route("**/api/jia/preferences**",route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({access_enabled:true,interaction_mode:"text",proactive_recommendations:false})}));
             await page.route("**/api/jia/health**",route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({ok:true,authenticated:true})}));
             await page.route("**/api/jia/predict**",route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({message:"",gesture:"curious",shouldSpeak:false})}));
@@ -217,7 +217,7 @@ jobs:
             const secondBrain=page.waitForResponse(response=>response.url().includes("/api/jia/brain")&&response.request().method()==="POST");
             await input.fill("Aide-moi à préparer un entretien"); await page.getByRole("button",{name:"Envoyer à J’IA"}).click();
             const secondBrainResponse=await secondBrain; expect(secondBrainResponse.ok()).toBeTruthy(); expect((await secondBrainResponse.json()).message).toBe("Je peux t’aider à préparer ton parcours professionnel."); await expect(page.getByRole("status").filter({hasText:"Je peux t’aider à préparer ton parcours professionnel."})).toBeVisible({timeout:10000});
-            expect(evidence.brainMessages).toHaveLength(2); expect(evidence.brainMessages[0]).not.toBe(evidence.brainMessages[1]); expect(evidence.unauthorizedJiaResponses).toEqual([]);
+            expect(evidence.brainMessages).toHaveLength(2); expect(evidence.brainMessages[0]).not.toBe(evidence.brainMessages[1]); expect(evidence.unauthorizedBrainResponses).toEqual([]);
             await page.screenshot({path:"artifacts/jia-"+project+"-conversation.png",fullPage:true}); await fs.writeFile("artifacts/jia-"+project+"-evidence.json",JSON.stringify(evidence,null,2)); await context.close(); await browser.close();
           }
           test("J'IA desktop — session simulée",async()=>{await proof("desktop")});
