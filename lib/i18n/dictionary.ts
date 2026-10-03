@@ -58,6 +58,7 @@ const fr = {
   "nav.dashboard": "Dashboard",
   "nav.payment": "Paiement",
   "nav.referral": "Parrainage",
+  "nav.bonPlan": "Bon Plan",
 
   // ── En-tête ───────────────────────────────────────────────────────────────
   "header.backHome": "Retour à l’accueil JOBLY",
@@ -385,6 +386,7 @@ const en: Record<DictKey, string> = {
   "nav.dashboard": "Dashboard",
   "nav.payment": "Payments",
   "nav.referral": "Referrals",
+  "nav.bonPlan": "Jobly Perks",
 
   // ── Header ────────────────────────────────────────────────────────────────
   "header.backHome": "Back to JOBLY home",
