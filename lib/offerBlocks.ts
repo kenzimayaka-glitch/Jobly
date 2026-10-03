@@ -92,7 +92,7 @@ function hasForbiddenMarkup(value: string): boolean {
 }
 function unique(values: unknown[], sourceText: string, strictSource = true): string[] {
   const seen = new Set<string>(), out: string[] = [];
-  const sourceSig = signature(sourceText);
+  const sourceSig = signature(clean(sourceText));
   for (const raw of values) {
     const value = clean(raw);
     const sig = signature(value);
