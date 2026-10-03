@@ -71,7 +71,7 @@ jobs:
           node .offer-blocks-test/scripts/offer-blocks-test.js
 
       - name: Install Playwright test runner
-        run: pnpm add --dev --no-save @playwright/test@1.55.0
+        run: pnpm add -D --no-save @playwright/test@1.55.0
 
       - name: Install Playwright Chromium
         run: pnpm exec playwright install chromium
