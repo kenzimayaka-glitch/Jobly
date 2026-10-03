@@ -146,6 +146,8 @@ async function main(){
     }
   };
   writeFileSync("offer-blocks-audit-report.json",JSON.stringify(audit,null,2));
+  console.log("PRIMARY_RESULT",JSON.stringify(primary));
+  console.log("SECONDARY_RESULT",JSON.stringify(secondary));
   assert.equal(primary.failed,0,"lot primaire doit être vert");
   assert.equal(secondary.failed,0,"second lot doit être vert");
   assert.equal(globalErrors,0,"simulation active sans erreur");
