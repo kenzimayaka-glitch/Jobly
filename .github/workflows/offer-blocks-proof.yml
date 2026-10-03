@@ -137,6 +137,9 @@ jobs:
               if (!title.trim()) throw new Error("titre vide");
               const sections = await page.locator("section h2").allInnerTexts();
               if (new Set(sections).size !== sections.length) throw new Error("doublon de section: "+sections.join(" | "));
+              const expectedOrder=["Description","Missions","Profil recherché","Expérience","Formation","Compétences","Qualités / Soft skills","Avantages","Candidature"];
+              const indexes=expectedOrder.map(name=>sections.indexOf(name)).filter(index=>index>=0);
+              if(indexes.some((v,i)=>i>0 && v<=indexes[i-1])) throw new Error("ordre canonique invalide: "+sections.join(" | "));
               const empty = await page.locator("section").evaluateAll(nodes => nodes.filter(n => {
                 const h=n.querySelector("h2"); if(!h) return false;
                 const body=(n.textContent||"").replace(h.textContent||"","").trim();
