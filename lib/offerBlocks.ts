@@ -169,7 +169,7 @@ function extractContractFromText(text:string): string|null {
   return m ? normalizeContract(m[1]) : null;
 }
 function extractLocationFromText(text:string): string[] {
-  const m=text.match(/(?:localisation|lieu d'affectation|lieu de travail|lieu|location|job location)\s*[:：-]\s*([^\n|]{2,120})/i);
+  const m=text.match(/(?:localisation|lieu d'affectation|lieu de travail|lieu|location|job location)\s*[:：-]\s*([^\n|]{2,120}?)(?=\s+(?:secteur|niveau d'éducation|niveau d'education|experience requise|type de contrat|postuler avant|nombre de postes)\s*:|\s*$)/i);
   return m ? normalizeLocation(m[1]) : [];
 }
 function extractRemoteFromText(text:string): "YES"|"NO"|"PARTIAL"|null {
