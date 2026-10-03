@@ -1,5 +1,5 @@
 import {NextRequest,NextResponse} from "next/server";
-import {adminClient,ensureUser,getAuthUser} from "../../../../lib/server-auth";
+import {adminClient,ensureUser,getAuthUser} from "@/lib/server-auth";
 export async function GET(req:NextRequest){
  const auth=await getAuthUser(req); if(!auth)return NextResponse.json({message:"Session requise."},{status:401});
  try{const s=adminClient(),u=await ensureUser(s,auth),rid=new URL(req.url).searchParams.get("recruitmentId");
