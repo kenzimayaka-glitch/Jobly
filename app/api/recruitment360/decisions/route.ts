@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
+import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
 import { runJiaBrain } from "@/lib/jia/brain";
 
 function errStatus(message:string){return message==="FORBIDDEN"?403:message.includes("REQUIRED")||message.includes("INVALID")||message.includes("BOUNDS")||message.includes("WEIGHTS")?400:409;}
