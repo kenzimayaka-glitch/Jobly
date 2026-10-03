@@ -59,6 +59,7 @@ jobs:
           scripts/offer-blocks-test.ts
           components/EcosystemSelector.tsx
           app/api/recruitment360/offers/[id]/respond/route.ts
+          --diagnostic-level=error
 
       - name: Build
         run: pnpm build
