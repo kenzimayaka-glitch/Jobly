@@ -79,7 +79,7 @@ function MatchModal({ job, onClose }: { job: Job; onClose: () => void }) {
       <div className="max-h-[88dvh] w-full overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:max-w-xl sm:rounded-[28px]">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
           <div><p className="text-[10px] font-black uppercase tracking-[1.5px] text-[#9B8500]">Votre correspondance</p><h2 className="mt-1 text-xl font-black text-[#17212B]">Pourquoi ce score ?</h2></div>
-          <button onClick={onClose} aria-label="Fermer" className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-600"><X size={18}/></button>
+          <button type="button" onClick={onClose} aria-label="Fermer" className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-600"><X size={18}/></button>
         </div>
         <div className="max-h-[calc(88dvh-86px)] overflow-y-auto p-6">
           <div className="flex items-center gap-5 rounded-2xl bg-[#F7FAFF] p-5">
@@ -178,7 +178,7 @@ function JobDetailInner() {
   }
 
   if (loading) return <main className="grid min-h-[100dvh] place-items-center bg-[#F7FAFF] font-bold text-[#17212B]">Chargement…</main>;
-  if (error || !job) return <main className="talent-shell min-h-[100dvh] bg-[#F7FAFF] text-navy"><PageHeader label="Offre" onBack={() => router.replace("/jobs")} theme="talent"/><div className="mx-auto mt-8 max-w-2xl px-5"><div className="rounded-[24px] bg-white p-6 shadow-sm"><h1 className="text-xl font-black">Offre indisponible</h1><p className="mt-2 text-sm text-slate-500">{error || "Cette offre n’est plus disponible."}</p><button onClick={() => router.replace("/jobs")} className="mt-5 rounded-2xl bg-[#22448B] px-5 py-3 text-sm font-black text-white">Retour aux offres</button></div></div></main>;
+  if (error || !job) return <main className="talent-shell min-h-[100dvh] bg-[#F7FAFF] text-navy"><PageHeader label="Offre" onBack={() => router.replace("/jobs")} theme="talent"/><div className="mx-auto mt-8 max-w-2xl px-5"><div className="rounded-[24px] bg-white p-6 shadow-sm"><h1 className="text-xl font-black">Offre indisponible</h1><p className="mt-2 text-sm text-slate-500">{error || "Cette offre n’est plus disponible."}</p><button type="button" onClick={() => router.replace("/jobs")} className="mt-5 rounded-2xl bg-[#22448B] px-5 py-3 text-sm font-black text-white">Retour aux offres</button></div></div></main>;
 
   const canonical: CanonicalOffer = (job as any).canonicalOffer || {
     version: "jobly-offer-canonical-v1",
@@ -210,8 +210,8 @@ function JobDetailInner() {
     application: canonical.application,
   };
   const compactItems = (items: string[], limit = 12) => Array.from(new Set(items.map(cleanLine).filter(Boolean))).slice(0, limit);
-  const renderParagraphs = (items: string[]) => <div className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 12).map((line, i) => <p key={i}>{line}</p>)}</div>;
-  const renderBullets = (items: string[]) => <ul className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 16).map((line, i) => <li key={i} className="flex items-start gap-2.5"><span aria-hidden="true" className="shrink-0 text-[11px] leading-7">🟡</span><span>{line}</span></li>)}</ul>;
+  const renderParagraphs = (items: string[]) => <div className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 12).map((line) => <p key={line}>{line}</p>)}</div>;
+  const renderBullets = (items: string[]) => <ul className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 16).map((line) => <li key={line} className="flex items-start gap-2.5"><span aria-hidden="true" className="shrink-0 text-[11px] leading-7">🟡</span><span>{line}</span></li>)}</ul>;
   return (
     <main className="talent-shell relative min-h-[100dvh] bg-[#F7FAFF] pb-28 text-[#17212B]">
       <TalentBackground/>
@@ -230,7 +230,7 @@ function JobDetailInner() {
                   {subtitle && <p data-testid="offer-subtitle" className="mt-2 text-sm font-semibold leading-6 text-slate-500">{subtitle}</p>}
                   {canonical.displayMode === "MINIMAL" && <p data-testid="offer-quality-gate" className="mt-3 inline-flex rounded-full bg-amber-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[1px] text-amber-800">Fiche minimale — source originale</p>}
                 </div>
-                <button onClick={() => setSaved(v => !v)} aria-label={saved ? "Retirer des favoris" : "Ajouter aux favoris"} className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border ${saved ? "border-[#FFD60A] bg-[#FFFBE0] text-[#8C7600]" : "border-slate-200 bg-white text-slate-500"}`}><Heart size={18} fill={saved ? "currentColor" : "none"}/></button>
+                <button type="button" onClick={() => setSaved(v => !v)} aria-label={saved ? "Retirer des favoris" : "Ajouter aux favoris"} className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border ${saved ? "border-[#FFD60A] bg-[#FFFBE0] text-[#8C7600]" : "border-slate-200 bg-white text-slate-500"}`}><Heart size={18} fill={saved ? "currentColor" : "none"}/></button>
               </div>
 
               <div className="mt-6">
@@ -277,7 +277,7 @@ function JobDetailInner() {
             )}
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <button disabled={busy || deadlineExpired || canonical.displayMode === "MINIMAL"} onClick={apply} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#FFD60A] px-5 py-4 text-sm font-black text-[#17212B] shadow-[0_10px_25px_rgba(255,214,10,.22)] transition hover:brightness-[.98] disabled:opacity-50">
+              <button type="button" disabled={busy || deadlineExpired || canonical.displayMode === "MINIMAL"} onClick={apply} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#FFD60A] px-5 py-4 text-sm font-black text-[#17212B] shadow-[0_10px_25px_rgba(255,214,10,.22)] transition hover:brightness-[.98] disabled:opacity-50">
                 {deadlineExpired ? <span>Offre expirée</span> : emailChannel ? <><GmailIcon/><span>Postuler</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler</span></> : <span>Postuler</span>}
               </button>
               <button type="button" onClick={shareOffer} className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-extrabold text-slate-600">{shared ? <CheckCircle2 size={17} className="text-emerald-600"/> : <Share2 size={17}/>}<span>{shared ? "Lien copié" : "Partager"}</span></button>
