@@ -380,7 +380,7 @@ export function buildCanonicalOffer(input:any): CanonicalOffer {
   for(const f of flags) score-=f==="missing_title"?25:f==="missing_company"?20:f==="missing_location"?10:f==="no_source_text"?25:f.startsWith("invalid_")?10:f==="missing_source_url"?10:8;
   if(totalText<2)score-=10;
   score=Math.max(0,score);
-  const hasValidTextBlock=Object.values(blocks).some((values:unknown[])=>values.some((value):boolean=>typeof value==="string" && clean(value).length>=20));
+  const hasValidTextBlock=Object.values(blocks).some((values:unknown)=>Array.isArray(values) && values.some((value):boolean=>typeof value==="string" && clean(value).length>=20));
   const displayMode=title && company && hasValidTextBlock ? "FULL" : "MINIMAL";
   return {
     version:"jobly-offer-canonical-v1",title,company,location,contract,salary,remote,deadline,
