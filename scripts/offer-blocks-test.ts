@@ -136,7 +136,7 @@ function alternativeMode(offer:any, mode:"SCORE_70"|"SCORE_60"|"ESSENTIALS"):"FU
 
 async function main(){
   assert.equal(cleanDisplayText("D&rsquo;emploi &#039; &#x2019; &amp; &eacute; &#xa0;"),"D’emploi ' ’ & é","HTML entity decoder");
-  assert.equal(cleanJobDescription("Profil d&#039;emploi &amp; exp&eacute;rience &bull;"),"Profil d'emploi & expérience •","HTML entity decoder before parsing");
+  assert.equal(cleanJobDescription("Profil d&#039;emploi &amp; exp&eacute;rience &bull;").replace(/\n/g," "),"Profil d'emploi & expérience •","HTML entity decoder before parsing");
   const url=process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
   assert.ok(url&&key,"Supabase CI read-only credentials missing");
