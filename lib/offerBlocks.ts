@@ -317,6 +317,16 @@ export function buildCanonicalOffer(input:any): CanonicalOffer {
     }
   }
 
+  // If a normalized block cannot be proven against the raw source after
+  // segmentation, fall back to the same section parsed directly from the raw
+  // source. This recovers source text without weakening provenance checks.
+  for(const block of Object.keys(sourceBlocks) as TextBlockKey[]){
+    const normalizedCandidates=unique(sourceBlocks[block],sourceText,true);
+    if(normalizedCandidates.length===0 && fallback[block].length>0){
+      sourceBlocks[block]=fallback[block];
+    }
+  }
+
   const rawTitle=cleanJobTitle(n.title||input.title);
   const identity={title:rawTitle,companyName:extractCompanyNameFromDescription(sourceText)};
   const genericTitle=/^(?:offre(?: d'emploi)?|offre de stage professionnel|appel à candidature|appel a candidature|avis de recrutement|recrutement)$/i.test(rawTitle);
