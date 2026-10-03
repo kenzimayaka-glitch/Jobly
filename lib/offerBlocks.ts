@@ -281,7 +281,11 @@ export function buildCanonicalOffer(input:any): CanonicalOffer {
   }
 
   const textLocation=extractLocationFromText(sourceText);
-  const location=normalizeLocation(n.location??input.location).length ? normalizeLocation(n.location??input.location) : textLocation;
+  const SOURCE_EXPLICIT_LOCATION=new Set(["jobincamer","emplois_cameroun","jobinfocamer","infosconcourseducation","jobivoire_ci","goafricajobs","africarrieres","ajirika_east","brightermonday_ke","unjobnet"]);
+  // Source-specific labeled location is stronger than a legacy normalized field when the two disagree.
+  // This fixes Job in Cameroun records where the footer address (Yaoundé) was mistaken for the job location (e.g. Douala).
+  const storedLocation=normalizeLocation(n.location??input.location);
+  const location=SOURCE_EXPLICIT_LOCATION.has(sourceKey) && textLocation.length ? textLocation : (storedLocation.length ? storedLocation : textLocation);
   const explicitContract=normalizeContract(n.contractType??input.contractType);
   const textContract=extractContractFromText(sourceText);
   const contract=explicitContract||textContract;
