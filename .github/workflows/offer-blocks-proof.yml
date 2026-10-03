@@ -70,8 +70,11 @@ jobs:
           pnpm exec tsc scripts/offer-blocks-test.ts lib/offerBlocks.ts lib/jobContent.ts             --target ES2022 --module commonjs --moduleResolution node             --esModuleInterop --skipLibCheck --outDir .offer-blocks-test
           node .offer-blocks-test/scripts/offer-blocks-test.js
 
+      - name: Install Playwright test runner
+        run: pnpm add --dev --no-save @playwright/test@1.55.0
+
       - name: Install Playwright Chromium
-        run: pnpm dlx @playwright/test@1.55.0 install --with-deps chromium
+        run: pnpm exec playwright install chromium
 
       - name: Start local Next.js app
         run: |
