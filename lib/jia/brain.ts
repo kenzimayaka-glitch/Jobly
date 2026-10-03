@@ -14,6 +14,7 @@ export type JiaBrainInput = {
   proactive?: boolean;
   /** Langue de l’interface (FR par défaut) : pilote la langue de la réponse. */
   lang?: "fr" | "en";
+  recentDialogue?: string[];
 };
 
 export type JiaBrainResult = {
@@ -131,6 +132,7 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
     memory,
     recentEvents: events,
     assessment: assessment.data || null,
+    recentDialogue: (input.recentDialogue || []).filter(Boolean).slice(-6),
   };
 
   const greeting = /^(bonjour|bonsoir|salut|hello|coucou|hey|bjr)\b[!?., ]*$/i.test(context.message);
@@ -176,11 +178,17 @@ export async function runJiaBrain(input: JiaBrainInput): Promise<JiaBrainResult>
   const fallbackAction = financialRequest ? undefined : actionForIntent(intent, context.message);
   const fallbackPool = CONTEXTUAL_FALLBACKS[intent] || CONTEXTUAL_FALLBACKS.CAREER;
   const fallbackMessage = fallbackPool[(context.message.length + events.length) % fallbackPool.length];
-  const message = financialRequest
+  let message = financialRequest
     ? FINANCIAL_REPLY[lang]
     : (clean(generated?.message, 1200) || (sources.length > 0
       ? (lang === "en" ? `I found ${sources.length} relevant web sources. I can compare them with your career context.` : `J’ai trouvé ${sources.length} sources web pertinentes. Je peux maintenant les comparer à ton contexte de carrière.`)
       : clean(assessment.data?.nextBestAction, 1200) || (lang === "en" ? fallbackMessage : fallbackMessage)));
+  const previousAnswer = context.recentDialogue[context.recentDialogue.length - 1]?.trim().toLocaleLowerCase();
+  if (message.trim().toLocaleLowerCase() === previousAnswer) {
+    const alternative = fallbackPool.find((candidate) => candidate.trim().toLocaleLowerCase() !== previousAnswer) || EMPTY[lang];
+    message = alternative;
+  }
+
   const confidence = generated?.confidence === "HIGH" || generated?.confidence === "MEDIUM" ? generated.confidence : "MEDIUM";
   const proposedAction = financialRequest ? undefined : (generated?.proposedAction && typeof generated.proposedAction === "object"
     ? generated.proposedAction as JiaBrainResult["proposedAction"]
