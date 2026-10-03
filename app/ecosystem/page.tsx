@@ -35,7 +35,7 @@ function EcosystemContent() {
             </p>
           </div>
 
-          <EcosystemSelector showBonPlan />
+          <EcosystemSelector />
 
           {!switcher && (
             <div className="mt-2 rounded-[18px] border border-white bg-white/75 px-3 py-2 text-center text-[10px] leading-relaxed text-[#66738A] shadow-sm backdrop-blur">
