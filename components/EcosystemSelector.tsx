@@ -61,7 +61,7 @@ function toneStyles(tone: Eco["tone"]) {
   }[tone];
 }
 
-export default function EcosystemSelector({ onGuide }: { onGuide?: (eco: Eco) => void }) {
+export default function EcosystemSelector({ onGuide, showBonPlan: _showBonPlan }: { onGuide?: (eco: Eco) => void; showBonPlan?: boolean }) {
   const router = useRouter();
   const items = ECOSYSTEMS;
 
