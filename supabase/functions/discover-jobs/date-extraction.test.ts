@@ -1,0 +1,11 @@
+import { assertEquals } from "jsr:@std/assert@1";
+import { extractSourcePublishedAt, resolveEffectivePublicationDate } from "./date-extraction.ts";
+const NOW="2026-10-03T07:00:00.000Z";
+Deno.test("Infos Concours real text date",()=>assertEquals(extractSourcePublishedAt("<p>Publication : 1 octobre 2026</p>","https://infosconcourseducation.com/x","infosconcourseducation"),"2026-10-01T00:00:00.000Z"));
+Deno.test("JobInfoCamer real listing date",()=>assertEquals(extractSourcePublishedAt("<main>24 Septembre 2026 | Consultant Nouveau | CDD</main>","https://jobinfocamer.com/x","jobinfocamer"),"2026-09-24T00:00:00.000Z"));
+Deno.test("JSON-LD wins",()=>assertEquals(extractSourcePublishedAt('<script type="application/ld+json">{"@type":"JobPosting","datePosted":"2026-10-02T09:00:00Z"}</script>',"https://x.test/job","jobincamer"),"2026-10-02T09:00:00.000Z"));
+Deno.test("fallback is estimated",()=>{const r=resolveEffectivePublicationDate({sourcePublishedAt:null,firstHarvestAt:"2026-09-20T10:00:00Z",createdAt:"2026-09-21T10:00:00Z",deadline:null,now:NOW});assertEquals(r.visible,true);assertEquals(r.publicationDateEstimated,true);});
+Deno.test("real date suppresses fallback",()=>{const r=resolveEffectivePublicationDate({sourcePublishedAt:"2026-09-10T10:00:00Z",firstHarvestAt:"2026-10-01T10:00:00Z",createdAt:"2026-10-01T10:00:00Z",deadline:null,now:NOW});assertEquals(r.effectivePublishedAt,"2026-09-10T10:00:00.000Z");assertEquals(r.publicationDateEstimated,false);});
+Deno.test("deadline expired excluded",()=>assertEquals(resolveEffectivePublicationDate({sourcePublishedAt:null,firstHarvestAt:"2026-09-28T10:00:00Z",createdAt:"2026-09-28T10:00:00Z",deadline:"2026-10-02T00:00:00Z",now:NOW}).visible,false));
+Deno.test("older than 30 days excluded",()=>assertEquals(resolveEffectivePublicationDate({sourcePublishedAt:null,firstHarvestAt:"2026-08-20T10:00:00Z",createdAt:"2026-08-20T10:00:00Z",deadline:null,now:NOW}).visible,false));
+Deno.test("real source date older than 30 days excluded",()=>assertEquals(resolveEffectivePublicationDate({sourcePublishedAt:"2026-08-20T10:00:00Z",firstHarvestAt:"2026-10-01T10:00:00Z",createdAt:"2026-10-01T10:00:00Z",deadline:null,now:NOW}).visible,false));
