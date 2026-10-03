@@ -142,7 +142,7 @@ async function main(){
   assert.ok(url&&key,"Supabase CI read-only credentials missing");
   const supabase=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
   const allFixtures=[...PRIMARY,...SECONDARY,...NEW20];
-  const {data,error}=await supabase.from("Job").select("*").in("id",allFixtures.map(f=>f.id));
+  const {data,error}=await supabase.from("Job").select("*,company:Company(name,logoUrl,website)").in("id",allFixtures.map(f=>f.id));
   if(error) throw new Error(error.message);
   const rows=new Map((data||[]).map((r:any)=>[r.id,r]));
   const runLot=(fixtures:Fixture[])=>{
@@ -161,7 +161,7 @@ async function main(){
 
   const active: Row[]=[];
   for(let from=0;;from+=1000){
-    const {data:page,error:pageError}=await supabase.from("Job").select("*").eq("isActive",true).range(from,from+999);
+    const {data:page,error:pageError}=await supabase.from("Job").select("*,company:Company(name,logoUrl,website)").eq("isActive",true).range(from,from+999);
     if(pageError) throw new Error(pageError.message);
     active.push(...(page||[]));
     if((page||[]).length<1000) break;
