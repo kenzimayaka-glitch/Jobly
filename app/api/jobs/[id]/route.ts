@@ -86,7 +86,7 @@ export async function GET(request:NextRequest, context:Context) {
     const canonical=buildCanonicalOffer({
       title:data.title,companyName:data.companyName,description:data.description,
       location:data.location,contractType:data.contract,remoteMode:data.remoteMode,
-      salary:data.salary,source:data.sourcePlatform,sourceUrl:data.sourceUrl,
+      salary:data.salary,source:data.sourcePlatform,sourceType:"JOBLY",sourceUrl:data.sourceUrl,
     });
     const contacts=resolveApplicationContact((data.applicationProfile||{}) as Record<string,unknown>,canonical.application.join("\n"));
     const applicationProfile={
