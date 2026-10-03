@@ -1,5 +1,49 @@
 
 
+# ÉTAPE 2 — RÉCONCILIATION SUR BRANCHE PROPRE — 03/10/2026
+
+**Base imposée :** `20bd144bd93e786225d608a2438ada27c7544acf`  
+**Branche :** `reconcile/step2-20261003`  
+**Main :** inchangé ; comparaison base ↔ main = identique.  
+**Règles :** aucun merge main, aucune migration JOBLY-PROD, aucun index FK/policy RLS/suppression en masse.
+
+## Matrice de réconciliation
+
+| Lot | Travail | État | Preuve |
+|---|---|---|---|
+| 1 — J’IA | Health authentifié côté UI ; historique court envoyé au Brain ; garde anti-répétition consécutive | 🟢 CODE + TYPECHECK + BUILD | CI #1245 : typecheck PASS, build PASS sur le commit de validation PR ; gates J’IA associés PASS |
+| 1 — J’IA | Navigateur mobile + desktop, champ cliquable, avatar visible, 401 en boucle | 🟨 NON CERTIFIÉ | Aucun navigateur d’exécution connecté dans cette passe |
+| 2 — Navigation | Bon Plan ajouté dans Talent + Recruiter ; Institution partenaire exposée depuis le sélecteur sans créer un 5e écosystème public | 🟢 CODÉ | `components/BottomNav.tsx`, `components/EcosystemSelector.tsx`, dictionnaire FR/EN |
+| 2 — Navigation | Runtime mobile/desktop | 🟨 À TESTER | Pas de navigateur d’exécution disponible |
+| 3 — Events | Migration Event restaurée dans le dépôt comme artefact en attente | 🟨 PRÉPARÉE | `packages/database/prisma/migrations/20261002180000_jobly_events/migration.sql` |
+| 3 — Events | Test sur copie/branche Supabase + rollback | ⏸️ BLOQUÉ CEO | JOBLY-PROD ne contient pas les tables Event ; création d’une branche Supabase peut être facturée et requiert validation préalable |
+| 3 — Events | `/api/events` | 🔴 NON VALIDABLE EN PROD | L’API est présente mais les tables Event/EventPayment/EventFeaturedCampaign/EventEntitlement ne sont pas présentes dans JOBLY-PROD |
+| 4 — Recruitment 360 | Routes/pages manquantes récupérées sans migration DB | 🟢 CODÉ | state, applications, applications360, decisions, offers/respond, career/recruitment360, reports |
+| 4 — Recruitment 360 | DB production | 🟢 INCHANGÉE | Tables Recruitment360 et sous-tables déjà présentes dans JOBLY-PROD ; aucune DDL exécutée |
+| 4 — Recruitment 360 | Typecheck/build après récupération | 🟨 À CERTIFIER | Aucun nouveau runner autorisé sans déclencher de preview/déploiement |
+| 5 — Africa | Compteur / couche API | 🟢 CORRECTION CIBLÉE | JOBLY-PROD : JobHarvestCapture=1096, Job=1400, Job actif=1256, JobOfferPipeline=84 ; l’API limitait explicitement Job actif à 600 pour `scope=africa`, correction par pagination 500 |
+| 5 — Africa | Harvest→Pipeline→Job→API→UI complet | 🟨 À TESTER | La trace DB + code prouve le cap API, pas encore la preuve navigateur de restitution UI |
+| 6 — RLS | Classification des tables sans policies | 🟢 AUDIT | Supabase security advisor signale 59 tables RLS sans policy ; aucune policy ajoutée en masse |
+| 6 — RLS | Policies manquantes réellement cassées côté client | 🟨 À ISOLER | Beaucoup de tables signalées sont server-only ; aucune modification sans preuve d’accès client cassé |
+
+## Journal des lots
+
+- **Lot 1** : commits `2149c7b`, `d4673ac`, `321c298` — J’IA health/conversation/anti-répétition. Validation CI : typecheck + build PASS.
+- **Lot 2** : commits `f5c23d0`, `4c962ac`, `0f4b27a`, `fc4cf3d` — navigation Bon Plan + Institution + i18n.
+- **Lot 3** : migration Event présente, non appliquée et non testée sur JOBLY-PROD.
+- **Lot 4** : récupération ciblée de 7 routes/pages Recruitment 360, sans migration.
+- **Lot 5** : commit `9c7732b` — suppression du cap API artificiel pour le scope Afrique via pagination.
+- **Lot 6** : audit read-only des advisors Supabase ; aucune DDL/policy/index modifié.
+
+## Migrations en attente d’accord CEO
+
+1. **Event Core** — `20261002180000_jobly_events` : test sur copie/branche Supabase + rollback à effectuer avant toute application ; **jamais appliquée à JOBLY-PROD**.
+2. **Aucune migration Recruitment 360 supplémentaire** dans cette étape : les routes récupérées réutilisent les tables/RPC déjà présents en production.
+3. **Aucune migration RLS** proposée à ce stade : le signal advisor seul ne constitue pas une preuve d’accès client cassé.
+
+> **Règle de vérité : CODÉ ≠ ACCESSIBLE ≠ CONNECTÉ ≠ TESTÉ ≠ VALIDÉ ≠ DÉPLOYÉ.**
+
+
 # CHECKPOINT LOT G — CAREER OS G2→G10 — 02/10/2026
 
 ## Completion pass
