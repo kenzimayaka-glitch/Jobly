@@ -4,16 +4,11 @@ import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
-  CalendarDays,
   CheckCircle2,
   ChevronRight,
-  Clock3,
   ExternalLink,
-  Globe2,
   Heart,
-  MapPin,
   Share2,
-  Sparkles,
   X,
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -297,7 +292,7 @@ function JobDetailInner() {
                 {sections.skills.length > 0 && <DetailSection title="Compétences">{renderBullets(sections.skills)}</DetailSection>}
                 {sections.qualities.length > 0 && <DetailSection title="Qualités / Soft skills">{renderBullets(sections.qualities)}</DetailSection>}
                 {sections.benefits.length > 0 && <DetailSection title="Avantages">{renderBullets(sections.benefits)}</DetailSection>}
-                {deadline && <DetailSection title="Date limite"><div className="flex items-start gap-3 rounded-2xl bg-[#FFFBEA] p-4"><CalendarDays size={18} className="mt-0.5 shrink-0 text-amber-700"/><div><p className="text-sm font-black text-[#17212B]">{deadlineExpired ? "Date limite dépassée" : "Candidatures jusqu’au"}</p><p className="mt-1 text-sm leading-6 text-slate-600">{deadline}</p></div></div></DetailSection>}
+
                 <section className="rounded-[22px] border border-amber-100 bg-[#FFFBEA] px-5 py-5 sm:px-6">
                   <p className="text-sm leading-6 text-[#4A3F00]"><span className="font-black">Important — Sécurité et impartialité.</span>{" "}Jobly agit de manière <strong>impartiale et exclusivement consultative</strong>. Jobly n’intervient pas en faveur d’un candidat et ne peut garantir, influencer ou faciliter son recrutement.</p>
                   <p className="mt-2 text-sm leading-6 text-[#4A3F00]"><strong>Postuler est entièrement gratuit.</strong> Ne versez jamais d’argent, de frais ou de commission à une personne qui vous promettrait un emploi, un recrutement ou un traitement privilégié en échange d’un paiement.</p>
