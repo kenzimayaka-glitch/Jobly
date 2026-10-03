@@ -77,7 +77,7 @@ function assertOffer(row:Row,fixture:Fixture){
     assert.ok(!seen.has(sig),fixture.id+": duplicate text across blocks: "+line);
     seen.add(sig);
     assert.ok(!/<[^>]+>/.test(line),fixture.id+": raw HTML");
-    assert.ok(!/(?:Ã.|Â.|â.)/.test(line),fixture.id+": mojibake");
+    assert.ok(!/(?:Ã.|Â.|â.)/.test(line),`${fixture.id}: mojibake: ${JSON.stringify(line)}`);
   }
   const indexes=CANONICAL_BLOCK_ORDER.map(k=>k).filter(k=>{
     if(k==="title") return !!offer.title;
