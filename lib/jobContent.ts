@@ -13,7 +13,7 @@ export function decodeHtmlEntities(value: string): string {
     Icirc:"Î", Iuml:"Ï", Ocirc:"Ô", Ouml:"Ö", Ugrave:"Ù", Ucirc:"Û", Uuml:"Ü",
     ntilde:"ñ", Ntilde:"Ñ", yacute:"ý", Yacute:"Ý", thorn:"þ", Thorn:"Þ",
     euro:"€", pound:"£", yen:"¥", cent:"¢", times:"×", divide:"÷", minus:"−", plusmn:"±",
-    deg:"°", micro:"µ", para:"¶", middot:"·", bull:"•",
+    deg:"°", micro:"µ", para:"¶",
   };
   let current=value;
   for(let pass=0; pass<3; pass++){
