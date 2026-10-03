@@ -7,7 +7,7 @@ Production read-only. No production write, migration, deactivation, or deploymen
 - 54-country scope.
 - 30 countries have JobHarvestCapture rows; 24 have zero captures.
 - JobSource: 3 rows, all CM and active.
-- Job: 1,419 active; 5 active without countryCode.
+- Job: 1,275 active; 5 active without countryCode.
 - JobHarvestCapture: 668 PENDING, 398 PROCESSED, 30 QUARANTINED.
 - 191 captures are at MAX_PROCESS_ATTEMPTS.
 - JobOfferPipeline: 24 READY, 60 QUARANTINED.
@@ -20,33 +20,60 @@ Production read-only. No production write, migration, deactivation, or deploymen
 
 |Code|Country|Captures|Active Jobs|Visible reconstructed|
 |---|---|---:|---:|---:|
-|DZ|Algeria|1|1|1|\n|AO|Angola|0|0|0|
-|BJ|Benin|1|1|1|\n|BW|Botswana|0|0|0|
-|BF|Burkina Faso|0|0|0|\n|BI|Burundi|4|5|4|
-|CV|Cabo Verde|1|1|1|\n|CM|Cameroon|17|272|78|
-|CF|Central African Republic|0|0|0|\n|TD|Chad|13|13|13|
-|KM|Comoros|2|2|2|\n|CG|Congo|0|0|0|
-|CD|DRC|27|28|27|\n|CI|Côte d’Ivoire|320|320|320|
-|DJ|Djibouti|1|0|0|\n|EG|Egypt|0|0|0|
-|GQ|Equatorial Guinea|0|0|0|\n|ER|Eritrea|2|2|2|
-|SZ|Eswatini|0|0|0|\n|ET|Ethiopia|0|0|0|
-|GA|Gabon|3|3|3|\n|GM|Gambia|0|0|0|
-|GH|Ghana|2|2|2|\n|GN|Guinea|1|1|1|
-|GW|Guinea-Bissau|0|0|0|\n|KE|Kenya|229|222|220|
-|LS|Lesotho|37|33|33|\n|LR|Liberia|0|0|0|
-|LY|Libya|0|0|0|\n|MG|Madagascar|31|27|27|
-|MW|Malawi|4|4|4|\n|ML|Mali|2|2|2|
-|MR|Mauritania|0|0|0|\n|MU|Mauritius|0|0|0|
-|MA|Morocco|0|0|0|\n|MZ|Mozambique|0|0|0|
-|NA|Namibia|44|33|33|\n|NE|Niger|0|0|0|
-|NG|Nigeria|5|10|5|\n|RW|Rwanda|332|271|271|
-|ST|São Tomé and Príncipe|0|0|0|\n|SN|Senegal|2|2|2|
-|SC|Seychelles|1|1|1|\n|SL|Sierra Leone|6|6|6|
-|SO|Somalia|0|0|0|\n|ZA|South Africa|4|4|4|
-|SS|South Sudan|1|1|1|\n|SD|Sudan|1|1|1|
-|TZ|Tanzania|0|0|0|\n|TG|Togo|1|1|1|
-|TN|Tunisia|0|0|0|\n|UG|Uganda|1|1|1|
-|ZM|Zambia|0|0|0|\n|ZW|Zimbabwe|0|0|0|
+|DZ|Algeria|1|1|1|
+|AO|Angola|0|0|0|
+|BJ|Benin|1|1|1|
+|BW|Botswana|0|0|0|
+|BF|Burkina Faso|0|0|0|
+|BI|Burundi|4|5|4|
+|CV|Cabo Verde|1|1|1|
+|CM|Cameroon|17|272|78|
+|CF|Central African Republic|0|0|0|
+|TD|Chad|13|13|13|
+|KM|Comoros|2|2|2|
+|CG|Congo|0|0|0|
+|CD|DRC|27|28|27|
+|CI|Côte d’Ivoire|320|320|320|
+|DJ|Djibouti|1|0|0|
+|EG|Egypt|0|0|0|
+|GQ|Equatorial Guinea|0|0|0|
+|ER|Eritrea|2|2|2|
+|SZ|Eswatini|0|0|0|
+|ET|Ethiopia|0|0|0|
+|GA|Gabon|3|3|3|
+|GM|Gambia|0|0|0|
+|GH|Ghana|2|2|2|
+|GN|Guinea|1|1|1|
+|GW|Guinea-Bissau|0|0|0|
+|KE|Kenya|229|222|220|
+|LS|Lesotho|37|33|33|
+|LR|Liberia|0|0|0|
+|LY|Libya|0|0|0|
+|MG|Madagascar|31|27|27|
+|MW|Malawi|4|4|4|
+|ML|Mali|2|2|2|
+|MR|Mauritania|0|0|0|
+|MU|Mauritius|0|0|0|
+|MA|Morocco|0|0|0|
+|MZ|Mozambique|0|0|0|
+|NA|Namibia|44|33|33|
+|NE|Niger|0|0|0|
+|NG|Nigeria|5|10|5|
+|RW|Rwanda|332|271|271|
+|ST|São Tomé and Príncipe|0|0|0|
+|SN|Senegal|2|2|2|
+|SC|Seychelles|1|1|1|
+|SL|Sierra Leone|6|6|6|
+|SO|Somalia|0|0|0|
+|ZA|South Africa|4|4|4|
+|SS|South Sudan|1|1|1|
+|SD|Sudan|1|1|1|
+|TZ|Tanzania|0|0|0|
+|TG|Togo|1|1|1|
+|TN|Tunisia|0|0|0|
+|UG|Uganda|1|1|1|
+|ZM|Zambia|0|0|0|
+|ZW|Zimbabwe|0|0|0|
 
 Visible reconstructed = active minus active offers with no sourcePublishedAt minus active offers >62 days. Kenya has 2 stale active rows. /api/jobs was not called to avoid its production mutation.
 
