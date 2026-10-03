@@ -1,4 +1,4 @@
-import { cleanDisplayText, cleanJobDescription } from "@/lib/jobContent";
+import { cleanDisplayText, cleanJobDescription } from "./jobContent";
 
 export const CANONICAL_BLOCK_ORDER = [
   "title","company","location","contract","salary","remote","deadline",
