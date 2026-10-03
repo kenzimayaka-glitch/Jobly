@@ -103,8 +103,17 @@ function unique(values: unknown[], sourceText: string, strictSource = true): str
   return out.slice(0,80);
 }
 function normalizeContract(value: unknown): string | null {
-  const raw = key(value).replace(/[ -]+/g,"_");
-  return CONTRACT_MAP[raw.toUpperCase()] ?? null;
+  const normalized=key(value);
+  const raw=normalized.replace(/[ -]+/g,"_").toUpperCase();
+  if(CONTRACT_MAP[raw]) return CONTRACT_MAP[raw];
+  const aliases:[RegExp,string][]=[
+    [/^CDD\\b/,"CDD"],[/^CDI\\b/,"CDI"],[/^STAGE\\b|^INTERNSHIP\\b/,"Stage"],
+    [/^TEMPS? PLEIN\\b|^FULL[_ ]?TIME\\b/,"Temps plein"],[/^TEMPS? PARTIEL\\b|^PART[_ ]?TIME\\b/,"Temps partiel"],
+    [/^TEMPORAIRE\\b|^TEMPORARY\\b/,"Temporaire"],[/^INTERIM\\b/,"Intérim"],
+    [/^FREELANCE\\b/,"Freelance"],[/^ALTERNANCE\\b/,"Alternance"],[/^APPRENTISSAGE\\b|^APPRENTICESHIP\\b/,"Apprentissage"],
+  ];
+  for(const [re,label] of aliases) if(re.test(normalized)) return label;
+  return null;
 }
 function normalizeRemote(value: unknown): "YES"|"NO"|"PARTIAL"|null {
   const raw=key(value).replace(/[ -]+/g,"_").toUpperCase();
