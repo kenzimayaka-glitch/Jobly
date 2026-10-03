@@ -48,7 +48,7 @@ function WhatsAppIcon({ size = 18 }: { size?: number }) {
 
 function cleanLine(value: string) {
   return value.normalize("NFC")
-    .replace(/^[|>»›•▪◦*✓✔☑🟡\-–—]+\s*/, "")
+    .replace(/^[|>»›•▪◦*✓✔☑🟡\-–—]+\s*/u, "")
     .replace(/^\d+[.)]\s*/, "")
     .replace(/\s*\|\s*$/g, "")
     .replace(/\s{2,}/g, " ")
