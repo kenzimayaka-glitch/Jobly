@@ -1,5 +1,44 @@
 
 
+# ÉTAPE 2 BIS — PREUVES — 03/10/2026
+
+## 1. Events — test local Postgres
+- Migration vérifiée comme artefact exact : `packages/database/prisma/migrations/20261002180000_jobly_events/migration.sql`.
+- Elle crée 4 tables, leurs index, active RLS et révoque les accès `anon/authenticated`.
+- **Test d'exécution local : NON EXÉCUTÉ** : l'environnement de travail ne fournit ni Docker, ni `postgres`, ni `psql`, ni un cluster PostgreSQL local. Aucune exécution distante ou production n'a été substituée.
+- **Rollback : NON EXÉCUTÉ**, pour la même raison. Aucun objet Event n'a été créé sur JOBLY-PROD.
+
+## 2. J’IA — navigateur réel
+- **NON CERTIFIÉ** : le dépôt n'est pas monté dans le runner local et l'environnement ne permet pas de lancer `next dev` sur cette branche.
+- Aucun test Playwright local mobile/desktop n'a été simulé.
+- Donc aucune capture d'écran ni aucun log navigateur n'est présenté comme preuve.
+- Les corrections Lot 1 restent présentes : health authentifié, historique court, anti-répétition.
+- **Aucune réécriture de J’IA.**
+
+## 3. Navigation
+- Bon Plan est retiré du composant `EcosystemSelector` : le sélecteur ne contient plus l'élément `bonsplans`, ni le prop `showBonPlan`, ni son asset.
+- Bon Plan reste accessible par la navigation Talent/Recruiter via `/bons-plans`.
+- Route confirmée présente : `app/bons-plans/page.tsx`.
+- Aucun autre sous-chemin `/bons-plans/[id]` ni API `/api/bons-plans` n'a été trouvé dans les chemins testés.
+- Runtime navigateur : **NON CERTIFIÉ**.
+
+## 4. Recruitment 360 — validation outillée
+- `package.json` confirme les scripts `typecheck`, `lint`, `build`.
+- **Typecheck/lint/build après les dernières récupérations : NON CERTIFIÉS** dans cet environnement, car aucun runner local avec les dépendances du dépôt n'est disponible.
+- La dernière CI connue certifiait typecheck/build avant les modifications ultérieures ; elle ne constitue donc pas une preuve finale de cet état.
+
+## 5. Déploiement / merge
+- Aucun merge sur `main`.
+- Aucune PR rouverte.
+- Aucun déploiement déclenché par cette étape.
+- La branche de travail reste `reconcile/step2-20261003`.
+
+## Preuves manquantes à fermer dans un environnement d'exécution
+1. PostgreSQL local + rollback Event.
+2. `next dev` + Playwright mobile/desktop + captures/logs J’IA.
+3. Typecheck + lint + build sur l'état exact final de la branche.
+
+
 # ÉTAPE 2 — RÉCONCILIATION SUR BRANCHE PROPRE — 03/10/2026
 
 **Base imposée :** `20bd144bd93e786225d608a2438ada27c7544acf`  
