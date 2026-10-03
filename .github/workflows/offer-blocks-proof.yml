@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: offer-blocks-proof-${{ github.ref }}
+  group: offer-blocks-proof-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
