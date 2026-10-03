@@ -164,7 +164,16 @@ export default function EcosystemSelector({ showBonPlan = false, onGuide }: { sh
         })}
       </div>
 
-
+      <div className="mt-3 flex justify-center">
+        <button
+          type="button"
+          onClick={() => router.push("/institution")}
+          className="inline-flex min-h-[42px] items-center gap-2 rounded-full border border-[#0057B8]/15 bg-white/90 px-4 text-[11px] font-extrabold text-[#0057B8] shadow-sm transition hover:bg-white active:scale-[0.98]"
+        >
+          <span aria-hidden="true">🔒</span>
+          Institution partenaire
+        </button>
+      </div>
 
       <style jsx>{`
         .eco-card { animation: eco-card-in 620ms cubic-bezier(.16,1,.3,1) both; }
