@@ -1,4 +1,4 @@
-import { cleanDisplayText, cleanJobDescription } from "./jobContent";
+import { cleanDisplayText, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription } from "./jobContent";
 
 export const CANONICAL_BLOCK_ORDER = [
   "title","company","location","contract","salary","remote","deadline",
@@ -264,11 +264,7 @@ export function buildCanonicalOffer(input:any): CanonicalOffer {
   };
 
   const rawTitle=cleanJobTitle(n.title||input.title);
-  const identity=normalizeJobIdentity({
-    title:rawTitle,
-    companyName:n.company||input.companyName,
-    description:sourceText,
-  });
+  const identity={title:rawTitle,companyName:extractCompanyNameFromDescription(sourceText)};
   const genericTitle=/^(?:offre(?: d'emploi)?|offre de stage professionnel|appel à candidature|appel a candidature|avis de recrutement|recrutement)$/i.test(rawTitle);
   const title=genericTitle?null:(identity.title||clean(rawTitle)||null);
   const companyCandidates=[n.company,input.companyName,extractCompanyNameFromDescription(sourceText),identity.companyName].filter(Boolean);
