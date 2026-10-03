@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
-  ArrowLeft,
   CheckCircle2,
   ChevronRight,
   ExternalLink,
@@ -32,19 +31,6 @@ type MatchItem = {
   expectedValue?: string | null;
 };
 
-type NormalizedContent = {
-  version?: string; title?: string | null; company?: string | null; location?: string[];
-  contractType?: string | null; remoteMode?: string | null;
-  salary?: { min?: number | null; max?: number | null; currency?: string | null };
-  deadline?: string | null; description?: string[]; missions?: string[]; profile?: string[];
-  education?: string[]; experience?: string[]; skills?: string[]; qualities?: string[];
-  benefits?: string[]; application?: string[]; source?: { name?: string; url?: string };
-};
-type Job = Record<string, any> & {
-  normalizedContent?: NormalizedContent | null;
-  matchPercent?: number; matchConfidence?: number; matchBreakdown?: MatchItem[];
-};
-
 function GmailIcon({ size = 18 }: { size?: number }) {
   return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="5" fill="white"/><path d="M5 7.2 12 12.5l7-5.3V18a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7.2Z" fill="#EA4335"/><path d="M5 7.2 12 12.5l7-5.3" stroke="#4285F4" strokeWidth="1.7"/><path d="M5 7.2V18c0 .55.45 1 1 1h2V9.5L5 7.2Z" fill="#34A853"/><path d="M19 7.2V18c0 .55-.45 1-1 1h-2V9.5l3-2.3Z" fill="#FBBC04"/></svg>;
 }
@@ -60,32 +46,6 @@ function cleanLine(value: string) {
     .replace(/\s*\|\s*$/g, "")
     .replace(/\s{2,}/g, " ")
     .trim();
-}
-
-function formatContract(value: unknown) {
-  const key = String(value || "").trim().toUpperCase().replace(/[\s-]+/g, "_");
-  const labels: Record<string, string> = {
-    FULL_TIME: "Temps plein",
-    FULLTIME: "Temps plein",
-    PART_TIME: "Temps partiel",
-    PARTTIME: "Temps partiel",
-    INTERNSHIP: "Stage",
-    INTERNSHIP_CONTRACT: "Stage",
-    FREELANCE: "Freelance",
-    TEMPORARY: "Temporaire",
-    FIXED_TERM: "CDD",
-    PERMANENT: "CDI",
-    CDD: "CDD",
-    CDI: "CDI",
-  };
-  return labels[key] || String(value || "");
-}
-
-function formatSalary(value: unknown) {
-  const raw = String(value ?? "").trim();
-  if (!raw) return "";
-  const numeric = Number(raw.replace(/[^0-9.,-]/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "").replace(",", "."));
-  return Number.isFinite(numeric) ? new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(numeric) : raw;
 }
 
 function DetailSection({
