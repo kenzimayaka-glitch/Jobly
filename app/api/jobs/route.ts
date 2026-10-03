@@ -20,6 +20,24 @@ type Experience = { startDate: string; title?: string | null; description?: stri
 type NormalizedContent = { version?:string; title?:string|null; company?:string|null; location?:string[]; contractType?:string|null; remoteMode?:string|null; salary?:{min:number|null;max:number|null;currency:string|null}; deadline?:string|null; description?:string[]; missions?:string[]; profile?:string[]; education?:string[]; experience?:string[]; skills?:string[]; qualities?:string[]; benefits?:string[]; application?:string[]; sector?:string|null; source?:{name?:string;url?:string}; qualityScore?:number|null };
 type Job = { id:string; opportunityType?:string|null; title:string; description:string; location:string|null; contractType:string|null; remoteMode:string|null; minExperienceYears:number|null; isActive:boolean; createdAt:string; companyId:string|null; source:string|null; sourceUrl:string|null; deadline:string|null; lastSeenAt:string|null; sourcePublishedAt:string|null; applicationReady:boolean; applicationProfile:Record<string,unknown>; visualUrl:string|null; visualSource:string|null; applicationCheckedAt:string|null; language?:string|null; languageOriginal?:string|null; languageRequirements?:string[]|null; aiSector?:string|null; normalizedContent?:NormalizedContent|null; aiSkills?:unknown; tags?:string[] };
 type Company = { id:string; name:string; logoUrl:string|null; description:string|null; website:string|null; verified:boolean };
+async function fetchAllActiveJobs(supabase: ReturnType<typeof adminClient>) {
+  const pageSize = 500;
+  const rows: Job[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("Job")
+      .select("*")
+      .eq("isActive", true)
+      .order("createdAt", { ascending: false })
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(error.message);
+    const batch = (data || []) as Job[];
+    rows.push(...batch);
+    if (batch.length < pageSize) break;
+  }
+  return { data: rows, error: null };
+}
+
 function isGenericCompanyName(name:string|null|undefined){const n=normalize(name);return !n||n==="entreprise"||n==="employeur non precise"||n==="entreprise de la place";}
 function companyDomain(website:string|null|undefined):string|null { if(!website) return null; try { const raw=website.startsWith("http")?website:`https://${website}`; return new URL(raw).hostname.toLowerCase().replace(/^www\\./,"") || null; } catch { return null; } }
 type RecruiterJobRow = { id:string; title:string; companyName:string; description:string; location:string|null; contract:string|null; remoteMode:string|null; minExperienceYears:number|null; status:string; createdAt:string; sourceType:string; sourceUrl:string|null; sourcePlatform:string|null; applicationReady:boolean; applicationProfile:Record<string,unknown>; visualUrl:string|null; visualSource:string|null; applicationCheckedAt:string|null; sector?:string|null; tags?:string[]; language?:string|null; languageRequirements?:string[]|null };
@@ -178,7 +196,9 @@ export async function GET(request:NextRequest){
    supabase.from("Experience").select("startDate,title,description").eq("userId",user.id),
    supabase.from("Skill").select("name,level").eq("userId",user.id),
    supabase.from("Education").select("degree,field").eq("userId",user.id),
-   supabase.from("Job").select("*").eq("isActive",true).order("createdAt",{ascending:false}).limit(600),
+   scope==="africa"
+      ? fetchAllActiveJobs(supabase)
+      : supabase.from("Job").select("*").eq("isActive",true).order("createdAt",{ascending:false}).limit(600),
    supabase.from("RecruiterJob").select("*").eq("status","published").eq("applicationReady",true).gte("createdAt", new Date(new Date().setMonth(new Date().getMonth() - 2)).toISOString()).order("createdAt",{ascending:false}),
    supabase.from("User").select("country,preferredLanguages,englishLevel").eq("id",user.id).maybeSingle()
   ]);
