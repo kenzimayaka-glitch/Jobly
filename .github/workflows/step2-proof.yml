@@ -150,7 +150,7 @@ jobs:
           pnpm add --ignore-workspace-root-check --save-dev eslint@9.37.0 eslint-config-next@15.5.25 2>&1 | tee artifacts/lint-tooling-install.log
           cat > eslint.config.mjs <<'EOF'
           import { defineConfig, globalIgnores } from "eslint/config";
-          import nextVitals from "eslint-config-next/core-web-vitals";
+          import nextVitals from "eslint-config-next/core-web-vitals.js";
 
           export default defineConfig([
             ...nextVitals,
