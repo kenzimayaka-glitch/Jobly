@@ -2,9 +2,6 @@ name: Step 2 TER — Execution Proof
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - fix/stabilisation
 
 permissions:
   contents: read
@@ -131,9 +128,6 @@ jobs:
         with:
           node-version: 20.19.0
           cache: pnpm
-
-      - name: Enable Corepack
-        run: corepack enable
 
       - name: Install dependencies
         shell: bash
