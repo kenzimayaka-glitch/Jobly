@@ -239,8 +239,12 @@ function splitInlineSectionHeadings(value: string): string {
     "Savoir-être", "Qualités", "Avantages", "Ce que nous offrons",
     "Ce que l'entreprise offre", "Conditions de travail", "Candidature",
     "Pour postuler", "Modalités de candidature", "Comment postuler", "Documents à fournir",
-    "Application", "How to apply", "Responsibilities", "Requirements", "Education",
-    "Experience", "Skills", "Benefits",
+    "Application", "How to apply", "Application process", "Further information",
+    "Responsibilities", "Main Responsibilities", "Key Responsibilities", "Duties and Responsibilities",
+    "What you will do", "Job description", "Job summary", "Description du poste", "Description",
+    "About the role", "About the opportunity", "Requirements", "Job requirements",
+    "Candidate profile", "What we are looking for", "Key competencies", "Technical competencies",
+    "Education", "Experience", "Skills", "Benefits",
   ];
   const escaped = headingPatterns.map((heading) => heading.replaceAll(" ", "\\s+")).join("|");
   return value
