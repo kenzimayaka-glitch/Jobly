@@ -106,7 +106,7 @@ function unique(values: unknown[], sourceText: string, strictSource = true): str
     const value = cleanJobDescription(raw);
     const sig = signature(value);
     if (!value || sig.length < 2 || seen.has(sig) || hasForbiddenMarkup(value)) continue;
-    if (strictSource && sourceSig && !sourceSig.includes(sig)) continue;
+    if (strictSource && !sourceBacked(sig,sourceSig)) continue;
     seen.add(sig); out.push(value);
   }
   return out.slice(0,80);
