@@ -56,7 +56,7 @@ jobs:
         run: |
           pg_isready -h 127.0.0.1 -p 5432 -U postgres -d jobly_step2_proof | tee artifacts/postgres-ready.log
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL' | tee artifacts/postgres-roles.log
-          DO $
+          DO $step2_roles$
           BEGIN
             IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
               CREATE ROLE anon NOLOGIN;
@@ -65,7 +65,7 @@ jobs:
               CREATE ROLE authenticated NOLOGIN;
             END IF;
           END
-          $;
+          $step2_roles$;
           SELECT rolname FROM pg_roles WHERE rolname IN ('anon','authenticated') ORDER BY rolname;
           SQL
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT current_database(), current_user, version();" | tee artifacts/postgres-identity.log
