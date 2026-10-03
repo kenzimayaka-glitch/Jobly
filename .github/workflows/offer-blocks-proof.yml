@@ -139,7 +139,8 @@ jobs:
             const context = await browser.newContext({viewport:{width:1440,height:1000}});
             const page = await context.newPage();
             try {
-              const response = await page.goto(BASE+"/jobs/"+id+"?source=discovery",{waitUntil:"networkidle",timeout:30000});
+              const response = await page.goto(BASE+"/jobs/"+id+"?source=discovery",{waitUntil:"domcontentloaded",timeout:30000});
+    await page.waitForLoadState("networkidle",{timeout:10000}).catch(()=>{});
               if (!response || !response.ok()) throw new Error("HTTP "+(response?.status()??"unknown"));
               const state = await page.locator("main").innerText();
               if (state.includes("Offre indisponible")) throw new Error("fiche indisponible");
