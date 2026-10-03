@@ -48,6 +48,17 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Lint — canonical offer files
+        run: >-
+          pnpm dlx @biomejs/biome@2.2.6 lint
+          app/jobs/[id]/page.tsx
+          lib/offerBlocks.ts
+          scripts/offer-blocks-test.ts
+          scripts/offer-blocks-playwright.mjs
+          components/EcosystemSelector.tsx
+          app/api/recruitment360/offers/[id]/respond/route.ts
+          --diagnostic-level=error
+
       - name: Production build
         run: pnpm build
 
