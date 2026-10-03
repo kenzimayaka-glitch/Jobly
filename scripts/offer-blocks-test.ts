@@ -116,11 +116,16 @@ async function main(){
   const primary=runLot(PRIMARY);
   const secondary=runLot(SECONDARY);
 
-  const {data:active,error:activeError}=await supabase.from("Job").select("*").eq("isActive",true);
-  if(activeError) throw new Error(activeError.message);
+  const active: Row[]=[];
+  for(let from=0;;from+=1000){
+    const {data:page,error:pageError}=await supabase.from("Job").select("*").eq("isActive",true).range(from,from+999);
+    if(pageError) throw new Error(pageError.message);
+    active.push(...(page||[]));
+    if((page||[]).length<1000) break;
+  }
   const bySource:Record<string,{total:number,minimal:number,full:number,errors:number}>={};
   let globalMinimal=0,globalFull=0,globalErrors=0;
-  for(const row of active||[]){
+  for(const row of active){
     const source=String(row.sourceKey||row.source||"unknown").toLowerCase()||"unknown";
     bySource[source]??={total:0,minimal:0,full:0,errors:0};
     bySource[source].total++;
@@ -138,11 +143,11 @@ async function main(){
     primary,
     secondary,
     activeSimulation:{
-      total:(active||[]).length,
+      total:active.length,
       minimal:globalMinimal,
       full:globalFull,
       errors:globalErrors,
-      minimalRatePct:(active?.length?Number((globalMinimal/active.length*100).toFixed(2)):0),
+      minimalRatePct:(active.length?Number((globalMinimal/active.length*100).toFixed(2)):0),
       bySource:Object.fromEntries(Object.entries(bySource).sort(([a],[b])=>a.localeCompare(b)))
     }
   };
