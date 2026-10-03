@@ -78,7 +78,8 @@ function assertOffer(row:Row,fixture:Fixture){
     assert.ok(!seen.has(sig),fixture.id+": duplicate text across blocks: "+line);
     seen.add(sig);
     assert.ok(!/<[^>]+>/.test(line),fixture.id+": raw HTML");
-    assert.ok(!/(?:Ã(?:©|¨|ª|®|´|¶|¼|§|‰|€)|Â(?:°|·| )|â(?:€™|€œ|€�|€“|€”|€¦|‚¬)|ðŸ)/.test(line),`${fixture.id}: mojibake: ${JSON.stringify(line)}`);
+    assert.ok(!/(?:&#x?[0-9a-f]+;?|&(amp|apos|quot|lt|gt|nbsp|ndash|mdash|hellip|bull|middot|lsquo|rsquo|ldquo|rdquo|laquo|raquo|copy|reg|trade|oelig|szlig|agrave|acirc|auml|ccedil|egrave|eacute|ecirc|euml|icirc|iuml|ocirc|ouml|ugrave|ucirc|uuml|ntilde|yacute|euro|pound|yen|cent|times|divide|minus|plusmn|deg|micro|para);?)/i.test(line),fixture.id+": residual HTML entity: "+JSON.stringify(line));
+    assert.ok(!/(?:Ã(?:©|¨|ª|®|´|¶|¼|§|‰|€)|Â(?:°|·| )|â(?:€™|€œ|€�|€“|€”|€¦|‚¬)|ðŸ)/.test(line),fixture.id+": mojibake: "+JSON.stringify(line));
   }
   const indexes=CANONICAL_BLOCK_ORDER.map(k=>k).filter(k=>{
     if(k==="title") return !!offer.title;
@@ -92,6 +93,21 @@ function assertOffer(row:Row,fixture:Fixture){
   });
   assert.deepEqual(indexes,[...indexes].sort((a,b)=>CANONICAL_BLOCK_ORDER.indexOf(a)-CANONICAL_BLOCK_ORDER.indexOf(b)),fixture.id+": canonical order");
   return offer;
+}
+
+function hasResidualEntity(value:string): boolean {
+  return /&#x?[0-9a-f]+;?/i.test(value) || /&(amp|apos|quot|lt|gt|nbsp|ndash|mdash|hellip|bull|middot|lsquo|rsquo|ldquo|rdquo|laquo|raquo|copy|reg|trade|oelig|szlig|agrave|acirc|auml|ccedil|egrave|eacute|ecirc|euml|icirc|iuml|ocirc|ouml|ugrave|ucirc|uuml|ntilde|yacute|euro|pound|yen|cent|times|divide|minus|plusmn|deg|micro|para);?/i.test(value);
+}
+
+function essentialState(offer:any){
+  const textKeys=["description","missions","profile","experience","education","skills","qualities","benefits","application"];
+  const hasValidTextBlock=textKeys.some(key=>Array.isArray(offer[key]) && offer[key].some((v:any)=>typeof v==="string" && v.trim().length>=20));
+  return {title:Boolean(offer.title),company:Boolean(offer.company),hasValidTextBlock};
+}
+
+function alternativeMode(offer:any, mode:"SCORE_70"|"SCORE_60"|"ESSENTIALS"):"FULL"|"MINIMAL" {
+  if(mode==="ESSENTIALS"){const e=essentialState(offer);return e.title&&e.company&&e.hasValidTextBlock?"FULL":"MINIMAL";}
+  return offer.qualityScore>=(mode==="SCORE_70"?70:60)?"FULL":"MINIMAL";
 }
 
 async function main(){
