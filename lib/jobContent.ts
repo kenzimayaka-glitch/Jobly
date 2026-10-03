@@ -1,18 +1,39 @@
 export function decodeHtmlEntities(value: string): string {
+  // Decode HTML5-style named and numeric character references before any
+  // source parsing or UI rendering. Some legacy sources omit the trailing
+  // semicolon (for example "&#039"), so those forms are accepted too.
   const named: Record<string, string> = {
-    "&nbsp;":" ","&amp;":"&","&quot;":"\"","&#39;":"'","&apos;":"'","&lt;":"<","&gt;":">",
-    "&ndash;":"–","&mdash;":"—","&hellip;":"…","&bull;":"•","&middot;":"·",
-    "&agrave;":"à","&acirc;":"â","&auml;":"ä","&ccedil;":"ç","&egrave;":"è","&eacute;":"é","&ecirc;":"ê","&euml;":"ë",
-    "&icirc;":"î","&iuml;":"ï","&ocirc;":"ô","&ouml;":"ö","&ugrave;":"ù","&ucirc;":"û","&uuml;":"ü",
-    "&Agrave;":"À","&Acirc;":"Â","&Auml;":"Ä","&Ccedil;":"Ç","&Egrave;":"È","&Eacute;":"É","&Ecirc;":"Ê","&Euml;":"Ë",
-    "&Icirc;":"Î","&Iuml;":"Ï","&Ocirc;":"Ô","&Ouml;":"Ö","&Ugrave;":"Ù","&Ucirc;":"Û","&Uuml;":"Ü",
-    "&oelig;":"œ","&OElig;":"Œ","&szlig;":"ß","&copy;":"©","&reg;":"®","&trade;":"™","&lsquo;":"‘","&rsquo;":"’","&ldquo;":"“","&rdquo;":"”","&laquo;":"«","&raquo;":"»","&colon;":":"
+    amp:"&", apos:"'", quot:"\"", lt:"<", gt:">", nbsp:" ",
+    ndash:"–", mdash:"—", hellip:"…", bull:"•", middot:"·",
+    lsquo:"‘", rsquo:"’", ldquo:"“", rdquo:"”", laquo:"«", raquo:"»",
+    copy:"©", reg:"®", trade:"™", oelig:"œ", OElig:"Œ", szlig:"ß",
+    agrave:"à", acirc:"â", auml:"ä", ccedil:"ç", egrave:"è", eacute:"é", ecirc:"ê", euml:"ë",
+    icirc:"î", iuml:"ï", ocirc:"ô", ouml:"ö", ugrave:"ù", ucirc:"û", uuml:"ü",
+    Agrave:"À", Acirc:"Â", Auml:"Ä", Ccedil:"Ç", Egrave:"È", Eacute:"É", Ecirc:"Ê", Euml:"Ë",
+    Icirc:"Î", Iuml:"Ï", Ocirc:"Ô", Ouml:"Ö", Ugrave:"Ù", Ucirc:"Û", Uuml:"Ü",
+    ntilde:"ñ", Ntilde:"Ñ", yacute:"ý", Yacute:"Ý", thorn:"þ", Thorn:"Þ",
+    euro:"€", pound:"£", yen:"¥", cent:"¢", times:"×", divide:"÷", minus:"−", plusmn:"±",
+    deg:"°", micro:"µ", para:"¶", middot:"·", bull:"•",
   };
-  return value
-    .replace(/&(?:nbsp|amp|quot|apos|lt|gt|ndash|mdash|hellip|bull|middot);|&#39;/gi, token => named[token.toLowerCase()] || token)
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
-    .replace(/&([a-z][a-z0-9]+);/gi, token => named[token.toLowerCase()] || token);
+  let current=value;
+  for(let pass=0; pass<3; pass++){
+    const next=current
+      .replace(/&#x([0-9a-f]{1,8});?/gi, (_, hex) => {
+        const code=Number.parseInt(hex,16);
+        return Number.isFinite(code) && code<=0x10ffff ? String.fromCodePoint(code) : _;
+      })
+      .replace(/&#([0-9]{1,7});?/g, (_, digits) => {
+        const code=Number.parseInt(digits,10);
+        return Number.isFinite(code) && code<=0x10ffff ? String.fromCodePoint(code) : _;
+      })
+      .replace(/&([a-z][a-z0-9]+);?/gi, (token, name) => {
+        const decoded=named[name.toLowerCase()];
+        return decoded ?? token;
+      });
+    if(next===current) break;
+    current=next;
+  }
+  return current;
 }
 function repairUtf8(value: string): string {
   // Repair common UTF-8 decoded as Windows-1252/Latin-1 mojibake,
