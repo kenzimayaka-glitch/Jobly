@@ -151,6 +151,7 @@ export default function JiaPresence() {
   const [pendingAction, setPendingAction] = useState<{ type: string; message: string; target?: string } | null>(null);
   const [sourceLinks, setSourceLinks] = useState<Array<{ title: string; url: string; snippet?: string }>>([]);
   const [healthStatus, setHealthStatus] = useState<"idle" | "checking" | "ready" | "error">("idle");
+  const [recentDialogue, setRecentDialogue] = useState<string[]>([]);
 
   const modeRef = useRef<"text" | "voice">("text");
   const langRef = useRef(lang);
@@ -368,7 +369,11 @@ export default function JiaPresence() {
   const checkJiaHealth = useCallback(async () => {
     setHealthStatus("checking");
     try {
-      const response = await fetch("/api/jia/health", { cache: "no-store" });
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      const response = await fetch("/api/jia/health", {
+        cache: "no-store",
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      });
       setHealthStatus(response.ok ? "ready" : "error");
     } catch {
       setHealthStatus("error");
@@ -386,12 +391,24 @@ export default function JiaPresence() {
       const response = await fetch("/api/jia/brain", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ message: command, path: pathRef.current, ecosystem: ecosystemOf(pathRef.current), lang: langRef.current }),
+        body: JSON.stringify({
+          message: command,
+          path: pathRef.current,
+          ecosystem: ecosystemOf(pathRef.current),
+          lang: langRef.current,
+          recentDialogue: recentDialogue.slice(-6),
+        }),
       });
       const out = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(out.message || "J’IA est momentanément indisponible.");
       const nextSources = Array.isArray(out.sources) ? out.sources.filter((source: unknown): source is { title: string; url: string; snippet?: string } => Boolean(source && typeof source === "object" && "url" in source && typeof source.url === "string" && /^https?:\/\//i.test(source.url))).slice(0, 5) : [];
       setSourceLinks(nextSources);
+      const answer = typeof out.message === "string" ? out.message.trim() : "";
+      const previousAnswer = recentDialogue[recentDialogue.length - 1]?.trim().toLocaleLowerCase();
+      if (answer && answer.toLocaleLowerCase() === previousAnswer) {
+        throw new Error("J’IA a produit une réponse répétée ; nouvelle réponse demandée.");
+      }
+      setRecentDialogue((history) => [...history, command, answer].filter(Boolean).slice(-12));
       const sourceSuffix = nextSources.length
         ? `\n\nSources vérifiables : ${nextSources.slice(0, 3).map((source: { title: string; url: string }) => source.title || source.url).join(" · ")}`
         : "";
@@ -408,7 +425,7 @@ export default function JiaPresence() {
     } finally {
       setCommandBusy(false);
     }
-  }, [commandBusy, commandInput, router, say]);
+  }, [commandBusy, commandInput, recentDialogue, router, say]);
 
   const confirmPendingAction = useCallback(async () => {
     if (!pendingAction) return;
