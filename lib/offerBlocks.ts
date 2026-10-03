@@ -94,7 +94,7 @@ function unique(values: unknown[], sourceText: string, strictSource = true): str
   const seen = new Set<string>(), out: string[] = [];
   const sourceSig = signature(clean(sourceText));
   for (const raw of values) {
-    const value = clean(raw);
+    const value = cleanJobDescription(raw);
     const sig = signature(value);
     if (!value || sig.length < 2 || seen.has(sig) || hasForbiddenMarkup(value)) continue;
     if (strictSource && sourceSig && !sourceSig.includes(sig)) continue;
