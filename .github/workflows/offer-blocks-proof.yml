@@ -1,4 +1,5 @@
 name: Offer blocks — canonical proof
+# CI proof retrigger: verify current canonical offer gate end-to-end
 
 on:
   push:
