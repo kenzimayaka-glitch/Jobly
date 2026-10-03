@@ -139,17 +139,37 @@ async function main(){
     active.push(...(page||[]));
     if((page||[]).length<1000) break;
   }
-  const bySource:Record<string,{total:number,minimal:number,full:number,errors:number}>={};
+  const bySource:Record<string,{total:number,minimal:number,full:number,errors:number,scoreLt70:number,reasons:Record<string,number>,alternatives:Record<string,{minimal:number,full:number,minimalRatePct:number}>}>={};
   let globalMinimal=0,globalFull=0,globalErrors=0;
+  const abandoned=new Set(["brightermonday_ke","unjobnet"]);
   for(const row of active){
     const source=String(row.sourceKey||row.source||"unknown").toLowerCase()||"unknown";
-    bySource[source]??={total:0,minimal:0,full:0,errors:0};
+    bySource[source]??={total:0,minimal:0,full:0,errors:0,scoreLt70:0,reasons:{},alternatives:{}};
     bySource[source].total++;
     try{
       const offer=buildCanonicalOffer(inputFor(row));
       if(offer.displayMode==="MINIMAL"){bySource[source].minimal++;globalMinimal++;}
       else {bySource[source].full++;globalFull++;}
+      if(offer.qualityScore<70){
+        bySource[source].scoreLt70++;
+        const reasons=[...offer.qualityFlags];
+        if(!essentialState(offer).hasValidTextBlock) reasons.push("missing_valid_text_block");
+        if(reasons.length===0) reasons.push("score_below_70_without_flag");
+        for(const reason of reasons) bySource[source].reasons[reason]=(bySource[source].reasons[reason]||0)+1;
+      }
+      for(const mode of ["SCORE_70","SCORE_60","ESSENTIALS"] as const){
+        const result=alternativeMode(offer,mode);
+        bySource[source].alternatives[mode]??={minimal:0,full:0,minimalRatePct:0};
+        bySource[source].alternatives[mode][result==="MINIMAL"?"minimal":"full"]++;
+      }
     }catch(e){bySource[source].errors++;globalErrors++;}
+  }
+  for(const stats of Object.values(bySource)){
+    for(const mode of ["SCORE_70","SCORE_60","ESSENTIALS"]){
+      const a=stats.alternatives[mode]||{minimal:0,full:0,minimalRatePct:0};
+      a.minimalRatePct=stats.total?Number((a.minimal/stats.total*100).toFixed(2)):0;
+      stats.alternatives[mode]=a;
+    }
   }
   const audit={
     generatedAt:new Date().toISOString(),
