@@ -5,6 +5,8 @@ import { Environment, useAnimations, useGLTF } from "@react-three/drei";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import { JIA3DErrorBoundary } from "./JIAFallback";
 import JIAProcedural3D from "./JIAProcedural3D";
+
+function JIAStaticFaceFallback() { return <div className="grid h-full w-full place-items-center rounded-[28px] bg-canari-soft p-3"><img src="/jia/jia-avatar-fallback.svg" alt="J’IA" className="h-full w-full object-contain" /></div>; }
 import * as THREE from "three";
 // GLTF runtime: the official J’IA gltf model is loaded through drei/useGLTF.
 
@@ -146,6 +148,9 @@ export default function JIA3D({ speaking }: { speaking: boolean }) {
   return (
     <div className="h-full w-full overflow-hidden rounded-[28px]" aria-hidden="true">
       <JIA3DErrorBoundary
+        fallback={<JIAStaticFaceFallback />}
+      >
+        <JIA3DErrorBoundary
         fallback={
           <Canvas camera={{ position: [0, 0.05, 2.35], fov: 32 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: true }}>
             <ambientLight intensity={1.7} />
@@ -167,6 +172,7 @@ export default function JIA3D({ speaking }: { speaking: boolean }) {
             <Environment preset="studio" />
           </Suspense>
         </Canvas>
+        </JIA3DErrorBoundary>
       </JIA3DErrorBoundary>
     </div>
   );
