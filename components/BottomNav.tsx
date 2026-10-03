@@ -19,6 +19,8 @@ export const TALENT_NAV: NavItem[] = [
   { icon: "briefcase", label: "Offres", labelKey: "nav.offers", href: "/jobs" },
   { icon: "check", label: "Candidatures", labelKey: "nav.applications", href: "/candidatures" },
   { icon: "sparkle", label: "Career AI", labelKey: "nav.careerAi", href: "/career-brain" },
+  { icon: "gift", label: "Bon Plan", href: "/bons-plans" },
+  { icon: "gift", label: "Bon Plan", href: "/bons-plans" },
   { icon: "orbit", label: "Écosystèmes", labelKey: "nav.ecosystems", href: "/ecosystem?mode=switcher" },
 ];
 
@@ -113,6 +115,10 @@ function NavIcon({ id, className }: { id: string; className?: string }) {
           <path d="M2 10h20" />
           <path d="M6 15h3" />
         </svg>
+      );
+    case "gift":
+      return (
+        <svg {...base}><path d="M20 12v8H4v-8M2 8h20v4H2z" /><path d="M12 8v12M12 8H7.5a2.5 2.5 0 1 1 0-5C10.2 3 12 8 12 8Zm0 0h4.5a2.5 2.5 0 1 0 0-5C13.8 3 12 8 12 8Z" /></svg>
       );
     case "link":
       return (
