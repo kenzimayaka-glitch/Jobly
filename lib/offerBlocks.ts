@@ -297,7 +297,7 @@ export function buildCanonicalOffer(input:any): CanonicalOffer {
       const hasHeading=/\b(?:missions?|responsabilit|profil|requirements|candidate profile|experience|expérience|formation|education|compétences|competences|skills|qualités|qualities|benefits|avantages|comment postulez|how to apply)\b/i.test(cleanedItem);
       if(hasHeading){
         const parsed=splitTextBlocksWithFallback(cleanedItem,sourceKey,block as FallbackTextBlock);
-        for(const key of Object.keys(parsed) as TextBlockKey[]) redistributed[key].push(...parsed[key]);
+        for(const key of Object.keys(parsed) as FallbackTextBlock[]) redistributed[key].push(...parsed[key]);
         moved=true;
       } else {
         redistributed[block].push(cleanedItem);
