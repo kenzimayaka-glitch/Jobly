@@ -69,6 +69,7 @@ function assertOffer(row:Row,fixture:Fixture){
   assert.equal(String(row.sourceKey||"").toLowerCase(),fixture.sourceKey,fixture.id+": sourceKey");
   const offer=buildCanonicalOffer(inputFor(row));
   assert.ok(offer.sourceUrl,fixture.id+": source URL");
+  if(fixture.id==="323d5e2b-2275-4b57-8b8e-2e18afd0e786") assert.ok(offer.location.some((v:string)=>/douala/i.test(v)),fixture.id+": ORIS location must be Douala");
   assert.ok(offer.title||offer.displayMode==="MINIMAL",fixture.id+": title/minimal");
   const textBlocks=["description","missions","profile","experience","education","skills","qualities","benefits","application"] as const;
   const seen=new Set<string>();
