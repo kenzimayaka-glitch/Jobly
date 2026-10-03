@@ -147,22 +147,19 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          pnpm add --ignore-workspace-root-check --save-dev eslint@9.37.0 eslint-config-next@15.5.25 2>&1 | tee artifacts/lint-tooling-install.log
-          cat > eslint.config.mjs <<'EOF'
-          import { defineConfig, globalIgnores } from "eslint/config";
-          import nextVitals from "eslint-config-next/core-web-vitals.js";
-
-          export default defineConfig([
-            ...(nextVitals.default ?? nextVitals),
-            globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
-          ]);
+          pnpm add --ignore-workspace-root-check --save-dev eslint@8.57.1 eslint-config-next@15.5.25 2>&1 | tee artifacts/lint-tooling-install.log
+          cat > .eslintrc.cjs <<'EOF'
+          module.exports = {
+            extends: ["next/core-web-vitals"],
+            ignorePatterns: [".next/**", "out/**", "build/**", "next-env.d.ts"],
+          };
           EOF
 
       - name: Lint
         shell: bash
         run: |
           set -o pipefail
-          pnpm exec eslint . 2>&1 | tee artifacts/lint.log
+          ESLINT_USE_FLAT_CONFIG=false pnpm exec eslint . 2>&1 | tee artifacts/lint.log
 
       - name: Build
         shell: bash
