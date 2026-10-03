@@ -1,3 +1,4 @@
+import { extractSourcePublishedAt } from "./date-extraction.ts";
 import type { SourceDefinition } from "./source-registry.ts";
 
 export type ExhaustiveItem = {
@@ -65,12 +66,12 @@ function extractJob(j:any,sourceUrl:string):ExhaustiveItem {
   return {title,description,company,location:clean(Array.isArray(loc)?loc.join(", "):loc),url:clean(j?.url)||sourceUrl,
     deadline:firstDate([j?.validThrough,j?.expirationDate]),published:firstDate([j?.datePosted,j?.datePublished,j?.dateModified]),opportunityType:inferType(title,description)};
 }
-function extractHtmlItem(html:string,url:string):ExhaustiveItem {
+function extractHtmlItem(html:string,url:string,sourceKey:string):ExhaustiveItem {
   const ld=jsonLdJobs(html)[0]; if(ld)return extractJob(ld,url);
   const title=clean(meta(html,["og:title","twitter:title"])||html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1]||html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]||"");
   const body=clean(html).slice(0,30000);
   return {title,description:body,company:"",location:"",url,deadline:firstDate([meta(html,["validThrough","deadline","dateDeadline","article:expiration_time"])]),
-    published:firstDate([meta(html,["article:published_time","datePublished","date"]) ]),opportunityType:inferType(title,body)};
+    published:extractSourcePublishedAt(html,url,sourceKey) || firstDate([meta(html,["article:published_time","datePublished","date"]) ]),opportunityType:inferType(title,body)};
 }
 async function fetchPage(url:string,deadlineAt=Number.POSITIVE_INFINITY):Promise<{status:number;html:string}> {
   const controller=new AbortController();
@@ -139,7 +140,7 @@ export async function crawlExhaustiveSource(source:SourceDefinition&{url:string}
   }
   stats.discoveredUrls=detailUrls.size;
   const details=await mapConcurrent([...detailUrls.values()],async(url)=>{
-    try{const r=await fetchPage(url,deadlineAt);if(r.status>=400)return null;return extractHtmlItem(r.html,url)}catch{return null}
+    try{const r=await fetchPage(url,deadlineAt);if(r.status>=400)return null;return extractHtmlItem(r.html,url,source.key)}catch{return null}
   },CONCURRENCY,deadlineAt);
   if(Date.now()>=deadlineAt) stats.errors.push("SOURCE_TIME_BUDGET_EXCEEDED");
   const byUrl=new Map<string,ExhaustiveItem>();
