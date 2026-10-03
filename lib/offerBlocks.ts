@@ -226,7 +226,7 @@ function splitTextBlocksWithFallback(text: string, sourceKey: string, fallbackBl
     if(!line) continue;
     const h=headingMatch(line,sourceKey);
     if(h){ current=h as FallbackTextBlock; continue; }
-    const semantic=semanticBlock(line);
+    const semantic=semanticBlock(line) as FallbackTextBlock|null;
     if(current==="profile" && semantic) out[semantic].push(line);
     else out[current].push(line);
   }
