@@ -50,14 +50,14 @@ const CURRENCY = new Set([
 
 const COMMON_HEADINGS: Record<string, string[]> = {
   description:["description","description de l'offre","présentation du poste","présentation","contexte","about the role","about the job","job description","overview","le poste"],
-  missions:["mission","missions","missions principales","missions principales du poste","responsabilités","responsabilités principales","responsabilites du poste","duties","duties and responsibilities","key responsibilities","main responsibilities","what you will do","activités","tâches"],
-  profile:["profil","profil recherché","profil et critères requis","profil du candidat","exigences","requirements","qualifications","candidate profile","what we are looking for","who you are","que recherchons-nous","candidate profile"],
+  missions:["mission","missions","missions principales","missions principales du poste","responsabilités","responsabilités principales","responsabilites du poste","responsibilities","duties","duties and responsibilities","key responsibilities","main responsibilities","what you will do","activités","tâches"],
+  profile:["profil","profil recherché","profil et critères requis","profil du candidat","exigences","requirements","qualifications","candidate profile","what we are looking for","who you are","que recherchons-nous","candidate profile","candidate profile / requirements","que recherchons-nous / candidate profile"],
   experience:["expérience","expérience professionnelle","work experience","professional experience","experience required","years of experience"],
-  education:["formation","formations","éducation","education","diplôme","diplômes","academic background","niveau d'études","niveau etudes"],
-  skills:["compétences","compétences clés","compétences techniques","skills","technical skills","key competencies","hard skills","aptitudes techniques"],
-  qualities:["qualités","qualités personnelles","savoir-être","soft skills","personal qualities","behavioral competencies"],
+  education:["formation","formations","éducation","education","diplôme","diplômes","academic background","niveau d'études","niveau etudes","formation / education"],
+  skills:["compétences","compétences clés","compétences techniques","skills","technical skills","key competencies","key competencies / compétences clés","compétences clés / key competencies","hard skills","aptitudes techniques"],
+  qualities:["qualités","qualités personnelles","savoir-être","soft skills","personal qualities","behavioral competencies","langues","languages","langues / languages"],
   benefits:["avantages","conditions de travail","ce que nous offrons","benefits","what we offer","compensation and benefits"],
-  application:["candidature","dossier de candidature","comment postuler","pour postuler","modalités de candidature","modalités de soumission","application","how to apply","application process","comment postulez"],
+  application:["candidature","dossier de candidature","comment postuler","pour postuler","modalités de candidature","modalités de soumission","application","how to apply","application process","comment postulez","comment postulez / how to apply"],
 };
 
 const SOURCE_HEADINGS: Record<string, Partial<Record<string,string[]>>> = {
@@ -68,8 +68,8 @@ const SOURCE_HEADINGS: Record<string, Partial<Record<string,string[]>>> = {
   brightermonday_ke:{missions:["key responsibilities","duties and responsibilities"],profile:["qualifications","requirements"],benefits:["benefits"],application:["how to apply"]},
   ajirika_east:{missions:["duties and responsibilities","key responsibilities"],profile:["requirements"],skills:["key competencies","technical competencies"],application:["further information"]},
   jobivoire_ci:{missions:["responsabilités","missions"],profile:["profil recherché","profil et critères requis"],application:["modalités de candidature"]},
-  africarrieres:{missions:["responsibilities","key responsibilities"],profile:["requirements","qualifications"],skills:["technical competencies"],benefits:["benefits"],application:["how to apply"]},
-  goafricajobs:{missions:["responsibilities","key responsibilities","duties"],profile:["requirements","qualifications"],application:["how to apply"]},
+  africarrieres:{missions:["responsibilities","key responsibilities","main responsibilities","duties and responsibilities"],profile:["requirements","qualifications","candidate profile","what we are looking for"],skills:["technical competencies","key competencies"],benefits:["benefits","what we offer"],application:["how to apply","application process"]},
+  goafricajobs:{missions:["responsibilities","key responsibilities","duties","main responsibilities"],profile:["requirements","qualifications","candidate profile","what we are looking for"],skills:["skills","key competencies"],benefits:["benefits","what we offer"],application:["how to apply","application process"]},
   unjobnet:{missions:["major responsibilities","responsibilities"],profile:["job requirements","requirements"],skills:["demonstrated skills and competencies"],benefits:["benefits"],application:["how to apply"]},
 };
 
@@ -88,7 +88,7 @@ function clean(value: unknown): string {
     .replace(/\s+/g," ").trim();
 }
 function hasForbiddenMarkup(value: string): boolean {
-  return /<\/?[a-z][^>]*>|\b(?:Ã.|Â.|â.)/.test(value);
+  return /<\/?[a-z][^>]*>|&(?:#x?[0-9a-f]+|[a-z][a-z0-9]+);/i.test(value) || /\b(?:Ã.|Â.|â.)/.test(value);
 }
 function unique(values: unknown[], sourceText: string, strictSource = true): string[] {
   const seen = new Set<string>(), out: string[] = [];
@@ -211,6 +211,28 @@ function semanticBlock(line: string): string|null {
   if(/\b(?:avantage|assurance|mutuelle|prime|transport|conges|benefits?)\b/i.test(n)) return "benefits";
   return null;
 }
+type FallbackTextBlock = "description"|"missions"|"profile"|"experience"|"education"|"skills"|"qualities"|"benefits"|"application";
+
+function emptyTextBlocks(): Record<FallbackTextBlock,string[]> {
+  return {description:[],missions:[],profile:[],experience:[],education:[],skills:[],qualities:[],benefits:[],application:[]};
+}
+
+function splitTextBlocksWithFallback(text: string, sourceKey: string, fallbackBlock: FallbackTextBlock): Record<FallbackTextBlock,string[]> {
+  const cleaned=cleanJobDescription(text);
+  const out=emptyTextBlocks();
+  let current:FallbackTextBlock=fallbackBlock;
+  for(const raw of cleaned.split(/\n+/)) {
+    const line=clean(raw);
+    if(!line) continue;
+    const h=headingMatch(line,sourceKey);
+    if(h){ current=h as FallbackTextBlock; continue; }
+    const semantic=semanticBlock(line);
+    if(current==="profile" && semantic) out[semantic].push(line);
+    else out[current].push(line);
+  }
+  return out;
+}
+
 function splitTextBlocks(text: string, sourceKey: string): Record<string,string[]> {
   const cleaned=cleanJobDescription(text);
   const out:Record<string,string[]>={description:[],missions:[],profile:[],experience:[],education:[],skills:[],qualities:[],benefits:[],application:[]};
@@ -263,6 +285,28 @@ export function buildCanonicalOffer(input:any): CanonicalOffer {
     benefits: arrays("benefits").length?arrays("benefits"):fallback.benefits,
     application: arrays("application").length?arrays("application"):fallback.application,
   };
+
+  // Reclassify normalized arrays that contain embedded headings. This moves
+  // only source text; it never invents or synthesizes content.
+  for(const block of Object.keys(sourceBlocks) as TextBlockKey[]){
+    const original=sourceBlocks[block];
+    const redistributed=emptyTextBlocks();
+    let moved=false;
+    for(const item of original){
+      const cleanedItem=cleanJobDescription(item);
+      const hasHeading=/\b(?:missions?|responsabilit|profil|requirements|candidate profile|experience|expérience|formation|education|compétences|competences|skills|qualités|qualities|benefits|avantages|comment postulez|how to apply)\b/i.test(cleanedItem);
+      if(hasHeading){
+        const parsed=splitTextBlocksWithFallback(cleanedItem,sourceKey,block as FallbackTextBlock);
+        for(const key of Object.keys(parsed) as TextBlockKey[]) redistributed[key].push(...parsed[key]);
+        moved=true;
+      } else {
+        redistributed[block].push(cleanedItem);
+      }
+    }
+    if(moved){
+      for(const key of Object.keys(sourceBlocks) as TextBlockKey[]) sourceBlocks[key]=redistributed[key];
+    }
+  }
 
   const rawTitle=cleanJobTitle(n.title||input.title);
   const identity={title:rawTitle,companyName:extractCompanyNameFromDescription(sourceText)};
@@ -336,7 +380,8 @@ export function buildCanonicalOffer(input:any): CanonicalOffer {
   for(const f of flags) score-=f==="missing_title"?25:f==="missing_company"?20:f==="missing_location"?10:f==="no_source_text"?25:f.startsWith("invalid_")?10:f==="missing_source_url"?10:8;
   if(totalText<2)score-=10;
   score=Math.max(0,score);
-  const displayMode=score>=70?"FULL":"MINIMAL";
+  const hasValidTextBlock=Object.values(blocks).some((values:unknown[])=>values.some((value):boolean=>typeof value==="string" && clean(value).length>=20));
+  const displayMode=title && company && hasValidTextBlock ? "FULL" : "MINIMAL";
   return {
     version:"jobly-offer-canonical-v1",title,company,location,contract,salary,remote,deadline,
     description:blocks.description,missions:blocks.missions,profile:blocks.profile,experience:blocks.experience,
