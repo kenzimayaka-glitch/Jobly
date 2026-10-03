@@ -38,6 +38,7 @@ const IDS = [
 await fs.mkdir("artifacts", {recursive:true});
 
 const browser = await chromium.launch({headless:true,args:["--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
+  browser.contexts;
 const report = {total:IDS.length, apiFailures:[], uiFailures:[], captures:[]};
 
 for (const [id,label] of IDS) {
@@ -45,7 +46,7 @@ for (const [id,label] of IDS) {
   const page = await context.newPage();
   try {
     const response = await page.goto(BASE+"/jobs/"+id+"?source=discovery",{waitUntil:"domcontentloaded",timeout:30000});
-    await page.waitForLoadState("networkidle",{timeout:10000}).catch(()=>{});
+    await page.waitForLoadState("networkidle",{timeout:5000}).catch(()=>{});
     if (!response || !response.ok()) throw new Error("HTTP "+(response?.status()??"unknown"));
     const state = await page.locator("main").innerText();
     if (state.includes("Offre indisponible")) throw new Error("fiche indisponible");
