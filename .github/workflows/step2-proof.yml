@@ -3,7 +3,7 @@ name: Step 2 TER — Execution Proof
 on:
   workflow_dispatch:
   push:
-    branches: [fix/stabilisation]
+    branches: [fix/stabilisation, fix/jia-avatar]
 
 permissions:
   contents: read
