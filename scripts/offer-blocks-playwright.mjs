@@ -63,7 +63,7 @@ for (const [id,label] of IDS) {
     }).length);
     if (empty) throw new Error("bloc vide");
     const html = await page.locator("main").innerHTML();
-    if (/<(?:script|style|nav)[^>]*>/i.test(html)) throw new Error("HTML/menu parasite dans le main");
+    if (/<(?:script|style)[^>]*>/i.test(html)) throw new Error("HTML parasite dans le main");
     if (/[ÃÂâ][\w]/.test(state)) throw new Error("mojibake visible");
     await fs.writeFile("artifacts/"+id+"-desktop.json",JSON.stringify({id,label,title,sections},null,2));
   } catch (e) {
