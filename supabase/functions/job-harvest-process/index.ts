@@ -1,6 +1,150 @@
-import {jwtVerify,createRemoteJWKSet} from "npm:jose@6"; import {createClient} from "npm:@supabase/supabase-js@2";
-const JWKS=createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks")),REPO="kenzimayaka-glitch/Jobly",ISSUER="https://token.actions.githubusercontent.com",AUD="jobly-harvest",FRESH=62*86400000;
-const json=(x,s=200)=>new Response(JSON.stringify(x),{status:s,headers:{"content-type":"application/json"}});
-const country=(v)=>{const r=String(v||"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");const a={CAMEROUN:"CM",CAMEROON:"CM","COTE D IVOIRE":"CI","COTE D'IVOIRE":"CI",EGYPTE:"EG",EGYPT:"EG",CAIRO:"EG",DOUALA:"CM",YAOUNDE:"CM",BUEA:"CM",MAN:"CI"};return /^[A-Z]{2}$/.test(r)?r:(a[r]||null)};
-async function auth(req){const h=req.headers.get("authorization")||"";if(!h.startsWith("Bearer "))throw Error("Missing OIDC token");const {payload}=await jwtVerify(h.slice(7),JWKS,{issuer:ISSUER,audience:AUD});if(payload.repository!==REPO||payload.ref!=="refs/heads/main")throw Error("Unauthorized repository/ref");}
-Deno.serve(async req=>{if(req.method!=="POST")return json({message:"POST required"},405);try{await auth(req);const keys=JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS")||"{}"),db=createClient(Deno.env.get("SUPABASE_URL"),keys.default||Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));const body=await req.json().catch(()=>null),limit=Math.min(Math.max(Number(body?.limit??40),1),40);const q=await db.from("JobHarvestCapture").select("*").in("status",["PENDING","FAILED"]).order("discoveredAt",{ascending:true}).limit(limit);if(q.error)throw q.error;const out={created:0,updated:0,expired:0,quarantined:0,failed:0};for(const row of q.data||[]){const now=new Date(),cc=country(row.payload?.countryCode||row.payload?.country||row.applicationProfile?.countryCode);if(Number(row.attempts||0)>=3){await db.from("JobHarvestCapture").update({status:"QUARANTINED",rejectionCode:"MAX_PROCESS_ATTEMPTS",rejectionReason:"Processing retry ceiling reached.",lastError:"MAX_PROCESS_ATTEMPTS"}).eq("id",row.id);out.quarantined++;continue;}const claim=await db.from("JobHarvestCapture").update({status:"PROCESSING",attempts:Number(row.attempts||0)+1}).eq("id",row.id).in("status",["PENDING","FAILED"]).select("*").maybeSingle();if(claim.error)throw claim.error;if(!claim.data)continue;const c=claim.data;try{const pub=c.publishedAt?new Date(c.publishedAt):null;await db.from("JobHarvestCapture").update({countryCode:cc}).eq("id",c.id);if(!pub||!Number.isFinite(pub.getTime())){await db.from("JobHarvestCapture").update({status:"QUARANTINED",rejectionCode:"MISSING_PUBLICATION_DATE",rejectionReason:"No verifiable publication date.",lastError:"MISSING_PUBLICATION_DATE",processedAt:now.toISOString()}).eq("id",c.id);out.quarantined++;continue;}if(Date.now()-pub.getTime()>FRESH){await db.from("JobHarvestCapture").update({status:"EXPIRED",rejectionCode:"STALE_OVER_62_DAYS",rejectionReason:"Publication older than unchanged two-month rule.",processedAt:now.toISOString()}).eq("id",c.id);out.expired++;continue;}const title=String(c.title||"").trim(),description=String(c.description||c.extractedText||title).trim();if(!title||!description)throw Error("TECHNICAL_FIELDS_MISSING");const contact=c.applicationProfile||{},ready=Boolean(contact.applicationEmail||contact.applicationPhone||contact.applicationUrl||contact.applyUrl||contact.url||c.payload?.applyUrl);let existing=(await db.from("Job").select("id").eq("sourceKey",c.sourceKey).eq("externalId",c.externalId).maybeSingle()).data;if(!existing)existing=(await db.from("Job").select("id").eq("source",c.sourceKey).eq("sourceUrl",c.sourceUrl).maybeSingle()).data;const payload={title,description,source:c.sourceKey,sourceKey:c.sourceKey,sourceUrl:c.sourceUrl,externalId:c.externalId,sourcePublishedAt:c.publishedAt,lastSeenAt:now.toISOString(),deadline:c.deadline||null,isActive:true,countryCode:cc,applicationReady,applicationProfile:contact,opportunityType:"EMPLOI",updatedAt:now.toISOString()};let jobId;if(existing?.id){const u=await db.from("Job").update(payload).eq("id",existing.id);if(u.error)throw u.error;jobId=existing.id;out.updated++;}else{const u=await db.from("Job").insert({createdAt:now.toISOString(),...payload}).select("id").single();if(u.error)throw u.error;jobId=u.data.id;out.created++;}const p=await db.from("JobOfferPipeline").upsert({jobId,sourceKey:c.sourceKey,sourceUrl:c.sourceUrl,captureMode:c.captureMode||"unknown",countryCode:cc,rawPayload:c.payload||{},extractedText:c.extractedText||null,status:"READY",rejectionCode:null,rejectionReason:null,processedAt:now.toISOString(),updatedAt:now.toISOString()},{onConflict:"jobId"});if(p.error)throw p.error;await db.from("JobHarvestCapture").update({status:"PROCESSED",jobId,countryCode:cc,rejectionCode:null,rejectionReason:null,lastError:null,processedAt:now.toISOString(),updatedAt:now.toISOString()}).eq("id",c.id);}catch(e){const reason=e instanceof Error?e.message:"UNKNOWN_PROCESSING_ERROR";await db.from("JobHarvestCapture").update({status:"FAILED",attempts:Number(c.attempts||0),rejectionCode:"PROCESSING_ERROR",rejectionReason:reason,lastError:reason,updatedAt:now.toISOString()}).eq("id",c.id);out.failed++;}}return json({ok:true,selected:(q.data||[]).length,...out});}catch(e){return json({message:e instanceof Error?e.message:String(e)},401);}});
+import { jwtVerify, createRemoteJWKSet } from "npm:jose@6";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
+const JWKS=createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks"));
+const ISSUER="https://token.actions.githubusercontent.com",AUDIENCE="jobly-harvest",REPOSITORY="kenzimayaka-glitch/Jobly";
+const MAX_BATCH=40,MAX_ATTEMPTS=3;
+const COUNTRY_CODES=new Set(["AO","BF","BI","BJ","BW","CD","CF","CG","CI","CM","CV","DJ","DZ","EG","ER","ET","GA","GH","GM","GN","GQ","GW","KE","KM","LR","LS","LY","MA","MG","ML","MR","MU","MW","MZ","NA","NE","NG","RW","SC","SD","SL","SN","SO","SS","ST","SZ","TD","TG","TN","TZ","UG","ZA","ZM","ZW"]);
+const COUNTRY_ALIASES:Record<string,string>={
+  ANGOLA:"AO","BURKINA FASO":"BF",BURUNDI:"BI",BENIN:"BJ",BOTSWANA:"BW",
+  "REPUBLIQUE DEMOCRATIQUE DU CONGO":"CD","DEMOCRATIC REPUBLIC OF THE CONGO":"CD",
+  "REPUBLIQUE CENTRAFRICAINE":"CF",CENTRAFRIQUE:"CF","CENTRAL AFRICAN REPUBLIC":"CF",
+  "REPUBLIQUE DU CONGO":"CG",CONGO:"CG","COTE D IVOIRE":"CI",CAMEROUN:"CM",CAMEROON:"CM",
+  "CAP VERT":"CV","CAPE VERDE":"CV",DJIBOUTI:"DJ",ALGERIE:"DZ",ALGERIA:"DZ",EGYPTE:"EG",EGYPT:"EG",
+  ERYTHREE:"ER",ERITREA:"ER",ETHIOPIE:"ET",ETHIOPIA:"ET",GABON:"GA",GHANA:"GH",GAMBIE:"GM",GAMBIA:"GM",
+  GUINEE:"GN",GUINEA:"GN","GUINEE EQUATORIALE":"GQ","EQUATORIAL GUINEA":"GQ","GUINEE BISSAU":"GW",
+  "GUINEA BISSAU":"GW",KENYA:"KE",COMORES:"KM",COMOROS:"KM",LIBERIA:"LR",LESOTHO:"LS",LIBYE:"LY",LIBYA:"LY",
+  MAROC:"MA",MOROCCO:"MA",MADAGASCAR:"MG",MALI:"ML",MAURITANIE:"MR",MAURITANIA:"MR",MAURICE:"MU",
+  MAURITIUS:"MU",MALAWI:"MW",MOZAMBIQUE:"MZ",NAMIBIE:"NA",NAMIBIA:"NA",NIGER:"NE",NIGERIA:"NG",
+  RWANDA:"RW",SEYCHELLES:"SC",SOUDAN:"SD",SUDAN:"SD","SIERRA LEONE":"SL",SENEGAL:"SN",SOMALIE:"SO",
+  SOMALIA:"SO","SOUDAN DU SUD":"SS","SOUTH SUDAN":"SS","SAO TOME ET PRINCIPE":"ST",ESWATINI:"SZ",
+  SWAZILAND:"SZ",TCHAD:"TD",CHAD:"TD",TOGO:"TG",TUNISIE:"TN",TUNISIA:"TN",TANZANIE:"TZ",TANZANIA:"TZ",
+  OUGANDA:"UG",UGANDA:"UG","AFRIQUE DU SUD":"ZA","SOUTH AFRICA":"ZA",ZAMBIE:"ZM",ZAMBIA:"ZM",ZIMBABWE:"ZW",
+};
+const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json"}});
+const asDate=(value:unknown):string|null=>{if(!value)return null;const d=new Date(String(value));return Number.isFinite(d.getTime())?d.toISOString():null;};
+const clean=(value:unknown,max=30000)=>String(value??"").replace(/\s+/g," ").trim().slice(0,max);
+function normalizeCountryCode(value:unknown):string|null{
+  const raw=String(value??"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[’']/g," ").replace(/[^A-Z0-9 ]/g," ").replace(/\s+/g," ").trim();
+  const code=/^[A-Z]{2}$/.test(raw)?raw:COUNTRY_ALIASES[raw];
+  return code&&COUNTRY_CODES.has(code)?code:null;
+}
+async function authorize(req:Request){
+  const h=req.headers.get("authorization")??"";
+  if(!h.startsWith("Bearer "))throw new Error("Missing GitHub Actions OIDC token");
+  const {payload}=await jwtVerify(h.slice(7),JWKS,{issuer:ISSUER,audience:AUDIENCE});
+  if(payload.repository!==REPOSITORY||payload.ref!=="refs/heads/main")throw new Error("Unauthorized repository/ref");
+}
+async function updateCapture(db:any,id:string,values:Record<string,unknown>){
+  const {error}=await db.from("JobHarvestCapture").update({...values,updatedAt:new Date().toISOString()}).eq("id",id);
+  if(error)throw new Error(error.message);
+}
+Deno.serve(async(req:Request)=>{
+  if(req.method!=="POST")return json({message:"POST required"},405);
+  try{
+    await authorize(req);
+    const secretKeys=JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS")??"{}");
+    const key=secretKeys.default||Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if(!key)throw new Error("No privileged Supabase key configured");
+    const db=createClient(Deno.env.get("SUPABASE_URL")!,key);
+    const body=await req.json().catch(()=>null);
+    const requested=Number(body?.limit??MAX_BATCH);
+    const limit=Math.min(Math.max(Number.isFinite(requested)?requested:MAX_BATCH,1),MAX_BATCH);
+    const {data:rows,error:selectError}=await db.from("JobHarvestCapture").select("*")
+      .in("status",["PENDING","FAILED"]).order("discoveredAt",{ascending:true}).limit(limit);
+    if(selectError)throw new Error(selectError.message);
+    const counts={created:0,updated:0,expired:0,quarantined:0,failed:0,claimed_elsewhere:0};
+    for(const row of rows??[]){
+      const now=new Date();
+      if(Number(row.attempts??0)>=MAX_ATTEMPTS){
+        await updateCapture(db,row.id,{status:"QUARANTINED",rejectionCode:"MAX_PROCESS_ATTEMPTS",
+          rejectionReason:"Processing retry ceiling reached.",lastError:"MAX_PROCESS_ATTEMPTS"});
+        counts.quarantined++;continue;
+      }
+      const {data:capture,error:claimError}=await db.from("JobHarvestCapture")
+        .update({status:"PROCESSING",attempts:Number(row.attempts??0)+1,updatedAt:now.toISOString()})
+        .eq("id",row.id).in("status",["PENDING","FAILED"]).select("*").maybeSingle();
+      if(claimError)throw new Error(claimError.message);
+      if(!capture){counts.claimed_elsewhere++;continue;}
+      try{
+        const title=clean(capture.title,300),description=clean(capture.description||capture.extractedText||title,30000);
+        const payload=capture.payload??{},applicationProfile=capture.applicationProfile??{};
+        const countryCode=normalizeCountryCode(payload.countryCode??applicationProfile.countryCode??payload.country??applicationProfile.country);
+        if(!countryCode){
+          await updateCapture(db,capture.id,{status:"QUARANTINED",rejectionCode:"COUNTRY_CODE_UNRESOLVED",
+            rejectionReason:"No supported African country code could be verified.",lastError:"COUNTRY_CODE_UNRESOLVED",
+            processedAt:now.toISOString()});
+          counts.quarantined++;continue;
+        }
+        if(!title||!description||!capture.sourceKey||!capture.sourceUrl||!capture.externalId)throw new Error("TECHNICAL_FIELDS_MISSING");
+        let existing:{id:string;createdAt:string}|null=null;
+        const byExternalId=await db.from("Job").select("id,createdAt").eq("sourceKey",capture.sourceKey)
+          .eq("externalId",capture.externalId).maybeSingle();
+        if(byExternalId.error)throw new Error(byExternalId.error.message);
+        existing=byExternalId.data;
+        if(!existing){
+          const bySourceUrl=await db.from("Job").select("id,createdAt").eq("source",capture.sourceKey)
+            .eq("sourceUrl",capture.sourceUrl).maybeSingle();
+          if(bySourceUrl.error)throw new Error(bySourceUrl.error.message);
+          existing=bySourceUrl.data;
+        }
+        const freshness=resolveEffectivePublicationDate({sourcePublishedAt:asDate(capture.publishedAt),
+          firstHarvestAt:asDate(capture.discoveredAt),createdAt:existing?.createdAt??null,
+          deadline:asDate(capture.deadline),now:now.toISOString()});
+        if(!freshness.effectivePublishedAt){
+          await updateCapture(db,capture.id,{status:"QUARANTINED",countryCode,rejectionCode:freshness.rejectionCode,
+            rejectionReason:"No reliable source, first-harvest, or Job creation date is available.",
+            lastError:freshness.rejectionCode,processedAt:now.toISOString()});
+          counts.quarantined++;continue;
+        }
+        if(!freshness.visible){
+          await updateCapture(db,capture.id,{status:"EXPIRED",countryCode,rejectionCode:freshness.rejectionCode,
+            rejectionReason:freshness.expiredByDeadline?"The source application deadline has passed.":"The publication date is outside the allowed freshness window.",
+            lastError:freshness.rejectionCode,processedAt:now.toISOString()});
+          counts.expired++;continue;
+        }
+        const applicationReady=Boolean(applicationProfile.applicationEmail||applicationProfile.applicationPhone||
+          applicationProfile.applicationUrl||applicationProfile.applyUrl||applicationProfile.url||payload.applyUrl);
+        const language=/\b(the|and|with|for|your|you|experience|skills|apply)\b/i.test(title+" "+description)?"en":"fr";
+        const normalizedContent={version:"africa-harvest-v1",title,company:clean(capture.company,180)||null,
+          description:[description],location:capture.location??null,skills:[],experienceYears:0,quality:{score:100,warnings:[]}};
+        const jobValues={title,description,language,languageOriginal:language,languageRequirements:[],location:capture.location??null,
+          contractType:capture.contractType??null,salaryMin:payload.salaryMin??null,salaryMax:payload.salaryMax??null,
+          salaryCurrency:payload.salaryCurrency??null,source:capture.sourceKey,sourceUrl:capture.sourceUrl,sourceKey:capture.sourceKey,
+          externalId:capture.externalId,contentHash:capture.contentHash??null,sourcePublishedAt:asDate(capture.publishedAt),
+          publicationDateEstimated:freshness.publicationDateEstimated,publicationDateSource:freshness.publicationDateSource,
+          lastSeenAt:now.toISOString(),deadline:asDate(capture.deadline),isActive:true,remoteMode:capture.remoteMode??"NO",
+          minExperienceYears:0,applicationReady,applicationProfile,applicationCheckedAt:now.toISOString(),
+          visualUrl:payload.logoUrl??null,visualSource:payload.logoUrl?"COMPANY_LOGO":null,aiProcessed:false,aiFlags:[],aiSkills:[],
+          tags:[],opportunityType:"EMPLOI",normalizedContent,normalizedVersion:"africa-harvest-v1",
+          normalizedAt:now.toISOString(),qualityStatus:"ok",countryCode,updatedAt:now.toISOString()};
+        let jobId:string;
+        if(existing?.id){
+          const {error}=await db.from("Job").update(jobValues).eq("id",existing.id);
+          if(error)throw new Error(error.message);
+          jobId=existing.id;counts.updated++;
+        }else{
+          const {data,error}=await db.from("Job").insert({createdAt:now.toISOString(),...jobValues}).select("id").single();
+          if(error)throw new Error(error.message);
+          jobId=data.id;counts.created++;
+        }
+        const {error:pipelineError}=await db.from("JobOfferPipeline").upsert({
+          jobId,sourceKey:capture.sourceKey,sourceUrl:capture.sourceUrl,captureMode:capture.captureMode??"unknown",
+          countryCode,rawPayload:payload,extractedText:capture.extractedText??null,status:"READY",
+          rejectionCode:null,rejectionReason:null,processedAt:now.toISOString(),updatedAt:now.toISOString(),
+        },{onConflict:"jobId"});
+        if(pipelineError)throw new Error(pipelineError.message);
+        await updateCapture(db,capture.id,{status:"PROCESSED",jobId,countryCode,rejectionCode:null,
+          rejectionReason:null,lastError:null,processedAt:now.toISOString()});
+      }catch(error){
+        const reason=error instanceof Error?error.message:"UNKNOWN_PROCESSING_ERROR";
+        await updateCapture(db,capture.id,{status:"FAILED",rejectionCode:"PROCESSING_ERROR",rejectionReason:reason,lastError:reason});
+        counts.failed++;
+      }
+    }
+    return json({ok:true,selected:rows?.length??0,...counts,processedAt:new Date().toISOString()});
+  }catch(error){
+    return json({message:error instanceof Error?error.message:String(error)},401);
+  }
+});
