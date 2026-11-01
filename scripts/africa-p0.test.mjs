@@ -37,3 +37,10 @@ test("Talent GET remains read-only and excludes expired offers",()=>{
  assert.doesNotMatch(body,/\.from\(["'][^"']+["']\)\s*\.(?:insert|update|upsert|delete)\s*\(/);
  assert.match(body,/ranked\.filter\(job=>job\.isVisible\)/);
 });
+
+
+test("pull-request shadow crawls cannot ingest into production", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/africa-shadow-crawl.yml", import.meta.url), "utf8");
+  assert.ok(workflow.includes("if: github.event_name == 'schedule' || github.ref == 'refs/heads/main'"));
+  assert.ok(!workflow.includes("if: github.event_name == 'schedule' || github.ref == 'refs/heads/main' || github.event_name == 'pull_request'"));
+});

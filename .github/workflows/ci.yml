@@ -47,6 +47,14 @@ jobs:
       - name: Mission Afrique P0 regression tests
         run: pnpm test:africa-p0
 
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Mission Afrique date extraction tests
+        run: deno test supabase/functions/discover-jobs/date-extraction.test.ts
+
       - name: Typecheck
         run: pnpm typecheck
 
