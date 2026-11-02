@@ -99,10 +99,12 @@ Deno.serve(async(req:Request)=>{
           counts.quarantined++;continue;
         }
         if(!freshness.visible){
-          await updateCapture(db,capture.id,{status:"EXPIRED",countryCode,rejectionCode:freshness.rejectionCode,
-            rejectionReason:freshness.expiredByDeadline?"The source application deadline has passed.":"The publication date is outside the allowed freshness window.",
+          const futurePublication=freshness.rejectionCode==="PUBLICATION_DATE_IN_FUTURE";
+          await updateCapture(db,capture.id,{status:futurePublication?"QUARANTINED":"EXPIRED",countryCode,rejectionCode:freshness.rejectionCode,
+            rejectionReason:futurePublication?"The source publication date is in the future.":freshness.expiredByDeadline?"The source application deadline has passed.":"The publication date is outside the allowed freshness window.",
             lastError:freshness.rejectionCode,processedAt:now.toISOString()});
-          counts.expired++;continue;
+          if(futurePublication) counts.quarantined++; else counts.expired++;
+          continue;
         }
         const applicationReady=Boolean(applicationProfile.applicationEmail||applicationProfile.applicationPhone||
           applicationProfile.applicationUrl||applicationProfile.applyUrl||applicationProfile.url||payload.applyUrl);

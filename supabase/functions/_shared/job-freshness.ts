@@ -2,7 +2,7 @@ export type PublicationDateSource = "SOURCE" | "FIRST_HARVEST" | "JOB_CREATED_AT
 export type PublicationFreshnessInput = { sourcePublishedAt:string|null; firstHarvestAt:string|null; createdAt:string|null; deadline:string|null; now?:string };
 export type PublicationFreshnessResult = {
   effectivePublishedAt:string|null; publicationDateEstimated:boolean; publicationDateSource:PublicationDateSource;
-  expiresAt:string|null; expiredByFreshness:boolean; expiredByDeadline:boolean; rejectionCode:string|null; visible:boolean;
+  expiresAt:string|null; expiredByFreshness:boolean; expiredByDeadline:boolean; publishedInFuture:boolean; rejectionCode:string|null; visible:boolean;
 };
 const DAY_MS=24*60*60*1000;
 const REAL_PUBLICATION_MAX_AGE_MS=62*DAY_MS;
@@ -24,14 +24,16 @@ export function resolveEffectivePublicationDate(input:PublicationFreshnessInput)
   const publicationDateSource:PublicationDateSource=sourceDate?"SOURCE":firstHarvestDate?"FIRST_HARVEST":createdDate?"JOB_CREATED_AT":null;
   const effectiveMs=effectivePublishedAt?new Date(effectivePublishedAt).getTime():NaN;
   const maxAgeMs=sourceDate?REAL_PUBLICATION_MAX_AGE_MS:ESTIMATED_PUBLICATION_MAX_AGE_MS;
-  const expiredByFreshness=!Number.isFinite(effectiveMs)||effectiveMs<nowMs-maxAgeMs;
+  const publishedInFuture=Number.isFinite(effectiveMs)&&effectiveMs>nowMs;
+  const expiredByFreshness=!Number.isFinite(effectiveMs)||(!publishedInFuture&&effectiveMs<nowMs-maxAgeMs);
   const deadlineMs=input.deadline?new Date(input.deadline).getTime():NaN;
   const expiredByDeadline=Number.isFinite(deadlineMs)&&deadlineMs<nowMs;
   const expiresAt=Number.isFinite(effectiveMs)?new Date(effectiveMs+maxAgeMs).toISOString():null;
   let rejectionCode:string|null=null;
   if(!effectivePublishedAt)rejectionCode="MISSING_PUBLICATION_AND_FALLBACK_DATE";
   else if(expiredByDeadline)rejectionCode="DEADLINE_PASSED";
+  else if(publishedInFuture)rejectionCode="PUBLICATION_DATE_IN_FUTURE";
   else if(expiredByFreshness)rejectionCode=sourceDate?"SOURCE_PUBLICATION_OVER_62_DAYS":"ESTIMATED_PUBLICATION_OVER_30_DAYS";
-  return {effectivePublishedAt,publicationDateEstimated,publicationDateSource,expiresAt,expiredByFreshness,expiredByDeadline,rejectionCode,
-    visible:Boolean(effectivePublishedAt)&&!expiredByFreshness&&!expiredByDeadline};
+  return {effectivePublishedAt,publicationDateEstimated,publicationDateSource,expiresAt,expiredByFreshness,expiredByDeadline,publishedInFuture,rejectionCode,
+    visible:Boolean(effectivePublishedAt)&&!publishedInFuture&&!expiredByFreshness&&!expiredByDeadline};
 }

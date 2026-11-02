@@ -78,7 +78,7 @@ function findJsonLdPublicationDate(html: string): string | null {
         const type = node["@type"];
         const isJobPosting = type === "JobPosting" || (Array.isArray(type) && type.includes("JobPosting"));
         if (isJobPosting) {
-          const date = toDate(String(node.datePosted || node.datePublished || node.dateModified || ""));
+          const date = toDate(String(node.datePosted || node.datePublished || ""));
           if (date) return date;
         }
         if (Array.isArray(node["@graph"])) {

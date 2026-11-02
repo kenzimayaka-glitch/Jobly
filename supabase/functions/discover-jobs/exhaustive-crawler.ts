@@ -64,7 +64,7 @@ function extractJob(j:any,sourceUrl:string):ExhaustiveItem {
   const title=clean(j?.title), description=clean(j?.description), company=clean(j?.hiringOrganization?.name);
   const loc=j?.jobLocation?.address?.addressLocality||j?.jobLocation?.address?.addressRegion||j?.jobLocation?.name||"";
   return {title,description,company,location:clean(Array.isArray(loc)?loc.join(", "):loc),url:clean(j?.url)||sourceUrl,
-    deadline:firstDate([j?.validThrough,j?.expirationDate]),published:firstDate([j?.datePosted,j?.datePublished,j?.dateModified]),opportunityType:inferType(title,description)};
+    deadline:firstDate([j?.validThrough,j?.expirationDate]),published:firstDate([j?.datePosted,j?.datePublished]),opportunityType:inferType(title,description)};
 }
 function extractHtmlItem(html:string,url:string,sourceKey:string):ExhaustiveItem {
   const ld=jsonLdJobs(html)[0]; if(ld)return extractJob(ld,url);
