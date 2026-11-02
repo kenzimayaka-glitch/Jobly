@@ -30,6 +30,9 @@ concurrency:
 
 jobs:
   shadow-crawl:
+    # PR runs acquire this concurrency group to supersede an in-flight main run,
+    # but do not start another full crawl or any production ingestion.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
