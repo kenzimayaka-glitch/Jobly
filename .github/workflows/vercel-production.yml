@@ -5,9 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# One production pipeline at a time. Never cancel a deployment already running.
+# One production pipeline at a time; queue releases instead of canceling them.
 concurrency:
   group: jobly-vercel-production
+  queue: max
   cancel-in-progress: false
 
 permissions:
