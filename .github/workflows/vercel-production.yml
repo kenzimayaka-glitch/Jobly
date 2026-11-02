@@ -24,6 +24,13 @@ jobs:
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
+      - name: Validate Vercel credentials
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN is missing from the production GitHub Environment."
+            exit 1
+          fi
+
       - name: Checkout the exact triggering main commit
         uses: actions/checkout@v4
         with:
