@@ -1,9 +1,13 @@
 name: Jobly Vercel Production
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Confirmer explicitement un déploiement Vercel de production"
+        required: true
+        type: boolean
+        default: false
 
 # One production pipeline at a time; queue releases instead of canceling them.
 concurrency:
@@ -16,7 +20,7 @@ permissions:
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && inputs.deploy == true
     name: Validate then deploy to Vercel
     runs-on: ubuntu-latest
     timeout-minutes: 25
