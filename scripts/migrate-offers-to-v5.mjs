@@ -142,11 +142,13 @@ async function main(){
   const q=await db.from("Job").select("id,title,location,contractType,remoteMode,salaryMin,salaryMax,salaryCurrency,deadline,sourceUrl,source,sourceKey,normalizedVersion,companyId").eq("isActive",true).order("createdAt",{ascending:true}).limit(limit);
   if(q.error)throw q.error;
   const jobs=q.data||[], companyIds=[...new Set(jobs.map(j=>j.companyId).filter(Boolean))];
-  let companyMap=new Map();
-  if(companyIds.length){
-    const{data:companies,error:companyError}=await db.from("Company").select("id,name,website").in("id",companyIds);
+  // Keep PostgREST filter URLs below proxy/header limits by batching IDs.
+  const companyMap=new Map();
+  for(let offset=0;offset<companyIds.length;offset+=100){
+    const ids=companyIds.slice(offset,offset+100);
+    const{data:companies,error:companyError}=await db.from("Company").select("id,name,website").in("id",ids);
     if(companyError)throw companyError;
-    companyMap=new Map((companies||[]).map(c=>[c.id,c]));
+    for(const company of companies||[]) companyMap.set(company.id,company);
   }
   for(const j of jobs)j.company=companyMap.get(j.companyId)||null;
   const res=[];let i=0;
