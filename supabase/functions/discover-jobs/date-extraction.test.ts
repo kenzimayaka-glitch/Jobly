@@ -91,3 +91,14 @@ Deno.test("Fuzu resolves to a distinct country landing page",()=>{
   assertEquals(resolveSourceUrl(fuzu,"NG").url,"https://www.fuzu.com/nigeria");
   assertEquals(resolveSourceUrl(fuzu,"UG").url,"https://www.fuzu.com/uganda");
 });
+
+Deno.test("seventh-pass verified and discovery-only sources have correct activation state",()=>{
+  const ci=new Set(getActiveSources("CI").map(source=>source.key));
+  assertEquals(ci.has("educarriere_ci"),true);
+  for(const [code,key] of [["MA","dreamjob_ma"],["SO","jobs_gov_so"],["TN","tanitjobs"],["ET","ethiopian_reporter_jobs"],["MZ","mmo_emprego"],["ZA","african_union_jobs"]] as const) {
+    assertEquals(getActiveSources(code).some(source=>source.key===key),false);
+  }
+});
+Deno.test("Educarriere extracts explicit French publication dates",()=>{
+  assertEquals(extractSourcePublishedAt("<article>Publié le 02/11/2026</article>","https://emploi.educarriere.ci/emploi/","educarriere_ci"),"2026-11-02T00:00:00.000Z");
+});

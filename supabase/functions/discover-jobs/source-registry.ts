@@ -249,6 +249,24 @@ for (const source of RATISSAGE_WAVE_6_SOURCES) {
   else SOURCE_REGISTRY.push(source);
 }
 
+ 
+// Seventh-pass research: one further source is ready for immediate crawling;
+// additional candidates remain discovery-only until extraction is verified.
+const RATISSAGE_WAVE_7_SOURCES: SourceDefinition[] = [
+  {key:"educarriere_ci",name:"Educarriere CI",type:"national",status:"active",enabled:true,url:"https://emploi.educarriere.ci/emploi/",countries:["CI"],languages:["fr"],captureMode:"http",renderRequired:false,priority:130,notes:"Ivorian job and internship listings; current offers show explicit publication dates and application deadlines."},
+  {key:"dreamjob_ma",name:"Dreamjob.ma",type:"national",status:"discovered",enabled:false,url:"https://www.dreamjob.ma/emploi/",countries:["MA"],languages:["fr"],captureMode:"http",renderRequired:false,priority:90,notes:"Recent search index showed 1 Nov 2026 postings, but direct page extraction still displayed older August 2026 listings; validate before activation."},
+  {key:"jobs_gov_so",name:"Somali National Job Portal",type:"institutional",status:"discovered",enabled:false,url:"https://jobs.gov.so/",countries:["SO"],languages:["en","so"],captureMode:"http",renderRequired:true,priority:105,notes:"Official Somali portal with recent vacancies and employer/category counts; direct HTML readability and country/location normalization need an extraction test."},
+  {key:"tanitjobs",name:"Tanitjobs",type:"national",status:"discovered",enabled:false,url:"https://www.tanitjobs.com/jobs/",countries:["TN"],languages:["fr","ar"],captureMode:"http",renderRequired:false,priority:100,notes:"Active Tunisian job board with listings dated 1 Nov 2026; current public-page crawler received HTTP 403 during research."},
+  {key:"ethiopian_reporter_jobs",name:"Ethiopian Reporter Jobs",type:"national",status:"discovered",enabled:false,url:"https://www.ethiopianreporterjobs.com/",countries:["ET"],languages:["en","am"],captureMode:"http",renderRequired:false,priority:85,notes:"Current Ethiopian listings and deadlines, but page extraction contains substantial unrelated SEO content; qualify before activation."},
+  {key:"mmo_emprego",name:"MMO Emprego",type:"national",status:"discovered",enabled:false,url:"https://emprego.mmo.co.mz/vagas/",countries:["MZ"],languages:["pt"],captureMode:"http",renderRequired:false,priority:95,notes:"Search index shows 33–39 current Mozambique listings; direct page request redirected to a historical closed vacancy, so validate routes before activation."},
+  {key:"african_union_jobs",name:"African Union Careers",type:"institutional",status:"discovered",enabled:false,url:"https://jobs.au.int/?locale=fr_FR",countries:AFRICA_COUNTRIES.map((country)=>country.code),languages:["en","fr"],captureMode:"http",renderRequired:true,priority:110,notes:"Official continental jobs portal, but positions are embedded behind a search/iframe system; country attribution and direct extraction need a dedicated adapter."},
+];
+for (const source of RATISSAGE_WAVE_7_SOURCES) {
+  const index = SOURCE_REGISTRY.findIndex((candidate) => candidate.key === source.key);
+  if (index >= 0) SOURCE_REGISTRY[index] = source;
+  else SOURCE_REGISTRY.push(source);
+}
+
 export function getSourceByKey(key:string): SourceDefinition | null {
   return SOURCE_REGISTRY.find((source)=>source.key===key) ?? null;
 }

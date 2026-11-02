@@ -147,6 +147,9 @@ const SOURCE_ADAPTERS: Record<string, DateAdapter[]> = {
   ajar_cd: [
     { pattern: /(?:date\s+publication|publi[ée]|posted)\s*[:\-]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]20\d{2})/i, format: "dmy" },
   ],
+  educarriere_ci: [
+    { pattern: /(?:publi[ée]\\s+le|publication)\\s*[:\\-]?\\s*(\\d{1,2}[\\/-]\\d{1,2}[\\/-]20\\d{2})/i, format: "dmy" },
+  ],
 };
 
 export function extractSourcePublishedAt(html: string, _url: string, sourceKey: string): string | null {
