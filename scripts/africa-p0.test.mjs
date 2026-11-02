@@ -39,10 +39,14 @@ test("Talent GET remains read-only and excludes expired offers",()=>{
 });
 
 
-test("pull-request shadow crawls cannot ingest into production", () => {
+test("production harvest requires a scheduled run or explicit manual apply approval", () => {
   const workflow = readFileSync(new URL("../.github/workflows/africa-shadow-crawl.yml", import.meta.url), "utf8");
-  assert.ok(workflow.includes("if: github.event_name == 'schedule' || github.ref == 'refs/heads/main'"));
-  assert.ok(!workflow.includes("if: github.event_name == 'schedule' || github.ref == 'refs/heads/main' || github.event_name == 'pull_request'"));
+  assert.ok(workflow.includes("pull_request:"));
+  assert.ok(workflow.includes("if: github.event_name != 'pull_request'"));
+  assert.ok(workflow.includes("workflow_dispatch:"));
+  assert.ok(workflow.includes("apply:"));
+  assert.ok(workflow.includes("github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.apply == true)"));
+  assert.ok(!/^\s*push:/m.test(workflow));
 });
 test("future publication dates are rejected instead of becoming fresh offers",()=>{
  const r=resolveEffectivePublicationDate({sourcePublishedAt:"2026-11-03T12:00:00.000Z",firstHarvestAt:null,createdAt:"2026-11-01T12:00:00.000Z",deadline:null,now:NOW});
