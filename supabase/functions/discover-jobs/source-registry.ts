@@ -233,6 +233,22 @@ for (const override of WEST_AFRICA_SOURCES) {
   else SOURCE_REGISTRY.push(override);
 }
 
+ 
+// Sixth-pass source integration — qualified national portals, 2 Nov 2026.
+const RATISSAGE_WAVE_6_SOURCES: SourceDefinition[] = [
+  {key:"pnet",name:"PNet",type:"national",status:"active",enabled:true,url:"https://www.pnet.co.za/jobs/vacancies",countries:["ZA"],languages:["en"],captureMode:"http",renderRequired:false,priority:125,notes:"South African national job board; listing page exposes live vacancies, locations and recency filters."},
+  {key:"careerjunction",name:"CareerJunction",type:"national",status:"active",enabled:true,url:"https://www.careerjunction.co.za/jobs",countries:["ZA"],languages:["en"],captureMode:"http",renderRequired:false,priority:115,notes:"South African national job board; current job categories and individual vacancy pages."},
+  {key:"ethiojobs",name:"Ethiojobs",type:"national",status:"active",enabled:true,url:"https://www.ethiojobs.net/",countries:["ET"],languages:["en"],captureMode:"http",renderRequired:false,priority:120,notes:"Ethiopian national jobs platform with private, public and NGO vacancies."},
+  {key:"fuzu",name:"Fuzu",type:"pan_africa",status:"active",enabled:true,url:"https://www.fuzu.com/job",countries:["KE","NG","UG"],languages:["en"],captureMode:"http",renderRequired:false,priority:115,notes:"Country-scoped listings verified for Kenya, Nigeria and Uganda; each country resolves to its own landing page."},
+  {key:"emploi_ma",name:"Emploi.ma",type:"national",status:"active",enabled:true,url:"https://www.emploi.ma/emploi",countries:["MA"],languages:["fr","ar"],captureMode:"http",renderRequired:false,priority:115,notes:"Moroccan job board with current job and recruitment listings."},
+  {key:"ajira_portal",name:"Public Service Recruitment Secretariat (Ajira Portal)",type:"institutional",status:"active",enabled:true,url:"https://ajira.go.tz/",countries:["TZ"],languages:["en","sw"],captureMode:"http",renderRequired:false,priority:125,notes:"Official Tanzania public-service vacancies. Import only recruitment advertisements; exclude interview-call notices and placement results."},
+];
+for (const source of RATISSAGE_WAVE_6_SOURCES) {
+  const index = SOURCE_REGISTRY.findIndex((candidate) => candidate.key === source.key);
+  if (index >= 0) SOURCE_REGISTRY[index] = source;
+  else SOURCE_REGISTRY.push(source);
+}
+
 export function getSourceByKey(key:string): SourceDefinition | null {
   return SOURCE_REGISTRY.find((source)=>source.key===key) ?? null;
 }

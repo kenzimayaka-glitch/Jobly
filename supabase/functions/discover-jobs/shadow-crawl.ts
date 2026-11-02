@@ -35,15 +35,26 @@ async function worker(){
       );
       metrics.push({...result.stats,samples:result.items.slice(0,10).map(x=>({title:x.title,url:x.url,type:x.opportunityType,deadline:x.deadline}))});
       for(const item of result.items) {
+        // Ajira separates vacancy advertisements from interview invitations and placement notices.
+        // Only vacancy/volunteer-opportunity advertisements enter Jobly's offer pipeline.
+        if(source.sourceKey==="ajira_portal" && /kuitwa kwenye usaili|call for interview|interview shortlist|placement results|appointed candidates|majina ya walioitwa|walioitwa kazini/i.test(item.title+" "+item.description)) continue;
+        const observedAt = new Date().toISOString();
         const freshness = resolveEffectivePublicationDate({
-          sourcePublishedAt:item.published,
-          firstHarvestAt:null,
+          sourcePublishedAt:item.published ?? null,
+          firstHarvestAt:observedAt,
           createdAt:null,
           deadline:item.deadline,
-          now:new Date().toISOString(),
+          now:observedAt,
         });
-        if(!item.published || !freshness.visible) continue;
-        harvestCandidates.push({sourceKey:source.sourceKey,countryCode:country,title:item.title,description:item.description,company:item.company,location:item.location,url:item.url,deadline:item.deadline,published:item.published,opportunityType:item.opportunityType});
+        if(!freshness.visible) continue;
+        harvestCandidates.push({
+          sourceKey:source.sourceKey,countryCode:country,title:item.title,description:item.description,
+          company:item.company,location:item.location,url:item.url,deadline:item.deadline,
+          published:item.published ?? null,discoveredAt:observedAt,
+          publicationDateEstimated:freshness.publicationDateEstimated,
+          publicationDateSource:freshness.publicationDateSource,
+          opportunityType:item.opportunityType
+        });
       }
     }catch(e){
       metrics.push({sourceKey:source.sourceKey,sourceName:source.sourceKey,countryCode:country,listingPages:0,detailPages:0,discoveredUrls:0,extracted:0,eligible:0,fresh:0,expired:0,internships:0,consultancies:0,applications:0,tenders:0,rejected:0,rejectedReasons:{runtime:1},advertisedCount:null,errors:[e instanceof Error?e.message:String(e)]});

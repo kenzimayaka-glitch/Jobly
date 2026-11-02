@@ -70,3 +70,24 @@ Deno.test("international sources are not crawled twice across Africa",()=>{
     assertEquals(cm.has(key+"_africa"),false);
   }
 });
+
+Deno.test("sixth-pass national sources are enabled in the country registry",()=>{
+  const za=new Set(getActiveSources("ZA").map(source=>source.key));
+  const et=new Set(getActiveSources("ET").map(source=>source.key));
+  const ma=new Set(getActiveSources("MA").map(source=>source.key));
+  const tz=new Set(getActiveSources("TZ").map(source=>source.key));
+  const ke=new Set(getActiveSources("KE").map(source=>source.key));
+  const ng=new Set(getActiveSources("NG").map(source=>source.key));
+  const ug=new Set(getActiveSources("UG").map(source=>source.key));
+  for(const key of ["pnet","careerjunction"]) assertEquals(za.has(key),true);
+  assertEquals(et.has("ethiojobs"),true);
+  assertEquals(ma.has("emploi_ma"),true);
+  assertEquals(tz.has("ajira_portal"),true);
+  for(const keys of [ke,ng,ug]) assertEquals(keys.has("fuzu"),true);
+});
+Deno.test("Fuzu resolves to a distinct country landing page",()=>{
+  const fuzu:SourceDefinition={key:"fuzu",name:"Fuzu",type:"pan_africa",status:"active",enabled:true,url:"https://www.fuzu.com/job",countries:["KE","NG","UG"],languages:["en"],captureMode:"http",renderRequired:false,priority:1};
+  assertEquals(resolveSourceUrl(fuzu,"KE").url,"https://www.fuzu.com/kenya");
+  assertEquals(resolveSourceUrl(fuzu,"NG").url,"https://www.fuzu.com/nigeria");
+  assertEquals(resolveSourceUrl(fuzu,"UG").url,"https://www.fuzu.com/uganda");
+});

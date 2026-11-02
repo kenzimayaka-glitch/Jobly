@@ -49,8 +49,12 @@ function meta(html:string,names:string[]):string|null {
   return null;
 }
 function firstDate(values:any[]):string|null {for(const v of values){if(!v)continue;const d=new Date(String(v));if(Number.isFinite(d.getTime()))return d.toISOString()}return null}
-function inferType(title:string,description:string):ExhaustiveItem["opportunityType"] {
+function inferType(title:string,description:string,sourceKey?:string):ExhaustiveItem["opportunityType"] {
   const t=String(title+" "+description);
+  if(sourceKey==="ajira_portal") {
+    if(/kuitwa kwenye usaili|call for interview|interview shortlist|placement results|appointed candidates|majina ya walioitwa|walioitwa kazini/i.test(t)) return "AUTRE";
+    if(/nafasi za kazi|nafasi za kujitolea|tangazo la nafasi za kazi/i.test(title) && description.length>=120) return "EMPLOI";
+  }
   if(TENDER_WORDS.test(t))return "APPEL_OFFRES";
   if(TRAINING_WORDS.test(t)&&!INTERNSHIP_WORDS.test(t))return "FORMATION";
   if(EVENT_WORDS.test(t)&&!JOB_WORDS.test(t))return "EVENEMENT";
@@ -60,18 +64,18 @@ function inferType(title:string,description:string):ExhaustiveItem["opportunityT
   if(JOB_WORDS.test(t)&&description.length>=120)return "EMPLOI";
   return "AUTRE";
 }
-function extractJob(j:any,sourceUrl:string):ExhaustiveItem {
+function extractJob(j:any,sourceUrl:string,sourceKey?:string):ExhaustiveItem {
   const title=clean(j?.title), description=clean(j?.description), company=clean(j?.hiringOrganization?.name);
   const loc=j?.jobLocation?.address?.addressLocality||j?.jobLocation?.address?.addressRegion||j?.jobLocation?.name||"";
   return {title,description,company,location:clean(Array.isArray(loc)?loc.join(", "):loc),url:clean(j?.url)||sourceUrl,
-    deadline:firstDate([j?.validThrough,j?.expirationDate]),published:firstDate([j?.datePosted,j?.datePublished]),opportunityType:inferType(title,description)};
+    deadline:firstDate([j?.validThrough,j?.expirationDate]),published:firstDate([j?.datePosted,j?.datePublished]),opportunityType:inferType(title,description,sourceKey)};
 }
 function extractHtmlItem(html:string,url:string,sourceKey:string):ExhaustiveItem {
-  const ld=jsonLdJobs(html)[0]; if(ld)return extractJob(ld,url);
+  const ld=jsonLdJobs(html)[0]; if(ld)return extractJob(ld,url,sourceKey);
   const title=clean(meta(html,["og:title","twitter:title"])||html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1]||html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]||"");
   const body=clean(html).slice(0,30000);
   return {title,description:body,company:"",location:"",url,deadline:firstDate([meta(html,["validThrough","deadline","dateDeadline","article:expiration_time"])]),
-    published:extractSourcePublishedAt(html,url,sourceKey) || firstDate([meta(html,["article:published_time","datePublished","date"]) ]),opportunityType:inferType(title,body)};
+    published:extractSourcePublishedAt(html,url,sourceKey) || firstDate([meta(html,["article:published_time","datePublished","date"]) ]),opportunityType:inferType(title,body,sourceKey)};
 }
 async function fetchPage(url:string,deadlineAt=Number.POSITIVE_INFINITY):Promise<{status:number;html:string}> {
   const controller=new AbortController();
@@ -84,7 +88,7 @@ function isPagination(link:{url:string;label:string;rel:string}):boolean {
   return /rel=["']?next|aria-label=["']?next|\b(next|suivant|older|previous|précédent|page suivante|load more|charger plus)\b/.test(l)
     || /(?:[?&](?:page|p|paged)=\d+|\/page\/\d+|\/page-\d+|\/\d+\/?$)/i.test(link.url);
 }
-function isDetail(link:{url:string;label:string},sourceUrl:string):boolean {
+function isDetail(link:{url:string;label:string},sourceUrl:string,sourceKey?:string):boolean {
   if(!sameHost(link.url,sourceUrl)||isPagination(link))return false;
   try {
     const parsed=new URL(link.url);
@@ -99,7 +103,8 @@ function isDetail(link:{url:string;label:string},sourceUrl:string):boolean {
     if(/(?:^|\/)job-seeker(?:\/|$)|(?:^|\/)login(?:\/|$)|(?:^|\/)register(?:\/|$)/i.test(path))return false;
     const depth=path.split("/").filter(Boolean).length;
     const looksLikeDetail=/(?:^|\/)(?:job|jobs|emploi|emplois|offre|offres|career|careers|vacancy|vacancies|position|recruitment|recrutement|postes?)(?:\/|$)/i.test(path);
-    return depth>=2 && (looksLikeDetail || JOB_WORDS.test(link.label));
+    const ajiraVacancyLabel=sourceKey==="ajira_portal" && /nafasi za kazi|nafasi za kujitolea|tangazo la nafasi/i.test(link.label);
+    return depth>=2 && (looksLikeDetail || JOB_WORDS.test(link.label) || ajiraVacancyLabel);
   } catch {
     return false;
   }
@@ -134,7 +139,7 @@ export async function crawlExhaustiveSource(source:SourceDefinition&{url:string}
       for(const j of jsonLdJobs(r.html)){const item=extractJob(j,pageUrl);if(item.title){detailUrls.set(canonical(item.url),item.url)}}
       for(const link of pageLinks){
         if(isPagination(link)&&sameHost(link.url,source.url)&&!seenPages.has(canonical(link.url)))pagesToVisit.push(link.url);
-        if(isDetail(link,source.url))detailUrls.set(canonical(link.url),link.url);
+        if(isDetail(link,source.url,source.key))detailUrls.set(canonical(link.url),link.url);
       }
     }catch(e){stats.errors.push(pageUrl+": "+(e instanceof Error?e.message:String(e)))}
   }

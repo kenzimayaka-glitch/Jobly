@@ -82,6 +82,12 @@ export function resolveSourceUrl(source:SourceDefinition, countryCode:string):Re
       return {sourceKey:source.key,countryCode,url:`https://www.idealist.org/en/jobs?location=${encodeURIComponent(COUNTRY_NAMES[countryCode] || countryCode)}`,strategy:"query-country",confidence:"medium"};
     case "devex":
       return {sourceKey:source.key,countryCode,url:`https://www.devex.com/jobs/search?query=&location=${encodeURIComponent(COUNTRY_NAMES[countryCode] || countryCode)}`,strategy:"query-country",confidence:"medium"};
+    case "fuzu": {
+      const countryPath:Record<string,string>={KE:"kenya",NG:"nigeria",UG:"uganda"};
+      const slug=countryPath[countryCode];
+      if(!slug) return {sourceKey:source.key,countryCode,url:"",strategy:"unresolved",confidence:"low"};
+      return {sourceKey:source.key,countryCode,url:`https://www.fuzu.com/${slug}`,strategy:"country-path",confidence:"high"};
+    }
     default:
       if (base.includes("{countryCode}") || base.includes("{country}") || base.includes("{countrySlug}")) {
         return {sourceKey:source.key,countryCode,url:replaceCountryToken(base,countryCode),strategy:"country-template",confidence:"high"};
