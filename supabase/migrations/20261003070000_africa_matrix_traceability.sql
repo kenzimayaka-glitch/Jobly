@@ -1,0 +1,7 @@
+-- Branch-only. Adds structured traceability; does not relax freshness/contact rules.
+alter table public."JobHarvestCapture" add column if not exists "countryCode" text, add column if not exists "rejectionCode" text, add column if not exists "rejectionReason" text;
+alter table public."JobOfferPipeline" add column if not exists "countryCode" text, add column if not exists "rejectionCode" text, add column if not exists "rejectionReason" text;
+create index if not exists "JobHarvestCapture_countryCode_status_idx" on public."JobHarvestCapture" ("countryCode","status");
+create index if not exists "JobOfferPipeline_countryCode_status_idx" on public."JobOfferPipeline" ("countryCode","status");
+update public."JobHarvestCapture" set "countryCode"=upper(trim(coalesce(payload->>'countryCode',payload->>'country'))) where ("countryCode" is null or trim("countryCode")='') and upper(trim(coalesce(payload->>'countryCode',payload->>'country'))) ~ '^[A-Z]{2}$';
+update public."JobOfferPipeline" p set "countryCode"=upper(trim(j."countryCode")) from public."Job" j where p."jobId"=j.id and (p."countryCode" is null or trim(p."countryCode")='') and j."countryCode" is not null and upper(trim(j."countryCode")) ~ '^[A-Z]{2}$';

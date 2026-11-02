@@ -1,10 +1,11 @@
 import { resolveApplicationContact } from "../../../lib/applicationEngine";
 import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription } from "../../../lib/jobContent";
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
+import { adminClient, getAuthUser } from "../../../lib/server-auth";
 import { detectLanguageRequirements, normalizeJobLanguage } from "../../../lib/jobLanguage";
 import { getActivePlanCode } from "../../../lib/entitlements";
 import { evaluateTalentMarketAction, normalizeTargetCountryCodes } from "../../../lib/talentMarketEntitlements";
+import { resolveEffectivePublicationDate } from "../../../supabase/functions/_shared/job-freshness";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,8 +46,6 @@ type MatchableJob = { title:string; description?:string|null; location:string|nu
 
 function computeYearsExperience(experiences:Experience[]):number|null { if(!experiences.length)return null; const earliest=experiences.map(e=>new Date(e.startDate).getTime()).filter(t=>!Number.isNaN(t)).sort((a,b)=>a-b)[0]; if(earliest===undefined)return null; return Math.max(0,Math.floor((Date.now()-earliest)/(1000*60*60*24*365))); }
 function normalize(value:string|null|undefined):string { return (value||"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
-function addMonths(date: Date, months: number): Date { const next = new Date(date); next.setMonth(next.getMonth() + months); return next; }
-function platformExpiration(createdAt:string):Date|null { const d=new Date(createdAt); return Number.isFinite(d.getTime()) ? addMonths(d,2) : null; }
 function deadlineExpired(deadline:string|null|undefined):boolean { if(!deadline)return false; const d=new Date(deadline); return Number.isFinite(d.getTime()) && d.getTime() < Date.now(); }
 type MatchCriterion = { id:string; label:string; score:number|null; weight:number; required:boolean; status:"MATCH"|"PARTIAL"|"MISMATCH"|"UNKNOWN"; candidateValue?:string|null; expectedValue?:string|null };
 const WEIGHTS:Record<string,number>={role:20,skills:30,experience:20,education:12,language:10,location:5,sector:2,contract:1};
@@ -179,7 +178,11 @@ function adaptiveMatch(profile:Profile,years:number|null,experiences:Experience[
 export async function GET(request:NextRequest){
  try{
   const authUser=await getAuthUser(request);if(!authUser)return NextResponse.json({message:"Session requise."},{status:401});
-  const supabase=adminClient();const user=await ensureUser(supabase,authUser);const {searchParams}=new URL(request.url);
+  const supabase=adminClient();
+  const {data:user,error:userError}=await supabase.from("User").select("id").eq("authUserId",authUser.id).maybeSingle();
+  if(userError)throw new Error(userError.message);
+  if(!user)return NextResponse.json({message:"Compte Jobly introuvable."},{status:404});
+  const {searchParams}=new URL(request.url);
   const filterContract=searchParams.get("contractType"),filterCity=searchParams.get("city"),filterRemote=searchParams.get("remote"),search=searchParams.get("q");
   const requestedScope=searchParams.get("scope") || "local";
   const scope=requestedScope==="africa" ? "africa" : requestedScope==="countries" ? "countries" : "local";
@@ -203,6 +206,16 @@ export async function GET(request:NextRequest){
    supabase.from("User").select("country,preferredLanguages,englishLevel").eq("id",user.id).maybeSingle()
   ]);
   if(profileRes.error)throw new Error(profileRes.error.message);if(userRes.error)throw new Error(userRes.error.message);if(experiencesRes.error)throw new Error(experiencesRes.error.message);if(skillsRes.error)throw new Error(skillsRes.error.message);if(educationRes.error)throw new Error(educationRes.error.message);if(jobsRes.error)throw new Error(jobsRes.error.message);if(recruiterJobsRes.error)throw new Error(recruiterJobsRes.error.message);
+  const jobsNeedingFallback=((jobsRes.data as Job[])||[]).filter(j=>!j.sourcePublishedAt);
+  const fallbackJobIds=jobsNeedingFallback.map(j=>j.id);
+  const harvestRes=fallbackJobIds.length
+    ?await supabase.from("JobHarvestCapture").select("jobId,discoveredAt").in("jobId",fallbackJobIds).order("discoveredAt",{ascending:true})
+    :{data:[],error:null};
+  if(harvestRes.error)throw new Error(harvestRes.error.message);
+  const firstHarvestByJob=new Map<string,string>();
+  for(const row of (harvestRes.data||[]) as Array<{jobId:string;discoveredAt:string}>){
+    if(row.jobId&&!firstHarvestByJob.has(row.jobId))firstHarvestByJob.set(row.jobId,row.discoveredAt);
+  }
   const profile:Profile=profileRes.data||{targetRoles:[],targetCities:[],contractPreferences:[],remotePreference:"INDIFFERENT",preferredSectors:[]};
   const preferredLanguages=Array.from(new Set([...(Array.isArray((userRes.data as any)?.preferredLanguages)?(userRes.data as any).preferredLanguages:[]), ...((userRes.data as any)?.englishLevel ? ["en"] : [])].map((x)=>normalizeJobLanguage(x)).filter((x):x is NonNullable<ReturnType<typeof normalizeJobLanguage>>=>Boolean(x))));
   const countryAliases:Record<string,string>={CAMEROUN:"CM",CAMEROON:"CM",SENEGAL:"SN",GABON:"GA",CONGO:"CG", "REPUBLIQUE DU CONGO":"CG","CENTRAFRIQUE":"CF","REPUBLIQUE CENTRAFRICAINE":"CF","TCHAD":"TD","GUINEE EQUATORIALE":"GQ","COTE D IVOIRE":"CI","COTE D'IVOIRE":"CI","BENIN":"BJ","BURKINA FASO":"BF","GUINEE":"GN","MALI":"ML","NIGER":"NE","TOGO":"TG","NIGERIA":"NG","GHANA":"GH","RWANDA":"RW","AFRIQUE DU SUD":"ZA","SOUTH AFRICA":"ZA","ZAMBIE":"ZM","ZAMBIA":"ZM","OUGANDA":"UG","UGANDA":"UG","LIBERIA":"LR","SOUDAN DU SUD":"SS","SOUTH SUDAN":"SS","ESWATINI":"SZ"};
@@ -210,10 +223,10 @@ export async function GET(request:NextRequest){
   const userCountryCode=normalizeCountryCode((userRes.data as any)?.country);
   const countryNames:Record<string,string>={CM:"Cameroun",SN:"Sénégal",GA:"Gabon",CG:"Congo",CF:"République centrafricaine",TD:"Tchad",GQ:"Guinée équatoriale",BJ:"Bénin",BF:"Burkina Faso",CI:"Côte d’Ivoire",GN:"Guinée",GW:"Guinée-Bissau",ML:"Mali",NE:"Niger",TG:"Togo",NG:"Nigeria",GH:"Ghana",RW:"Rwanda",ZA:"Afrique du Sud",ZM:"Zambie",UG:"Ouganda",LR:"Liberia",SS:"Soudan du Sud",SZ:"Eswatini"};
   const activeCountryCode=scope==="africa"||scope==="countries"?null:userCountryCode;const experiences=(experiencesRes.data as Experience[])||[];const skills=(skillsRes.data as Skill[])||[];const education=(educationRes.data as Education[])||[];const yearsExperience=computeYearsExperience(experiences);
-  type Unified={normalizedContent?:NormalizedContent|null;source:"discovery"|"recruiter";sourceId:string;countryCode:string|null;title:string;description:string;location:string|null;contractType:string|null;remoteMode:string|null;minExperienceYears:number|null;companyName:string|null;companyId:string|null;createdAt:string;publishedAt:string|null;deadline:string|null;sourceUrl:string|null;sourcePlatform:string|null;applicationReady:boolean;applicationProfile:Record<string,unknown>;visualUrl:string|null;visualSource:string|null;applicationCheckedAt:string|null;sector:string|null;tags:string[];language?:string|null;languageRequirements?:string[]|null};
+  type Unified={normalizedContent?:NormalizedContent|null;source:"discovery"|"recruiter";sourceId:string;countryCode:string|null;title:string;description:string;location:string|null;contractType:string|null;remoteMode:string|null;minExperienceYears:number|null;companyName:string|null;companyId:string|null;createdAt:string;publishedAt:string|null;firstHarvestAt:string|null;deadline:string|null;sourceUrl:string|null;sourcePlatform:string|null;applicationReady:boolean;applicationProfile:Record<string,unknown>;visualUrl:string|null;visualSource:string|null;applicationCheckedAt:string|null;sector:string|null;tags:string[];language?:string|null;languageRequirements?:string[]|null};
   const discovery=((jobsRes.data as Job[])||[]);
   const recruiter=((recruiterJobsRes.data as RecruiterJobRow[])||[]);
-  let unified:Unified[]=[...discovery.filter(j=>j.opportunityType==="EMPLOI" || !j.opportunityType).map(j=>({source:"discovery" as const,sourceId:j.id,countryCode:(j as any).countryCode||null,normalizedContent:j.normalizedContent||null,title:j.title,description:j.description,location:j.location,contractType:j.contractType,remoteMode:j.remoteMode,minExperienceYears:j.minExperienceYears,companyName:null,companyId:j.companyId,createdAt:j.createdAt,publishedAt:j.sourcePublishedAt,deadline:j.deadline,sourceUrl:j.sourceUrl,sourcePlatform:j.source||null,applicationReady:j.applicationReady,applicationProfile:j.applicationProfile,visualUrl:j.visualUrl,visualSource:j.visualSource,applicationCheckedAt:j.applicationCheckedAt,sector:j.aiSector||null,languageRequirements:Array.isArray((j as any).languageRequirements)?((j as any).languageRequirements as unknown[]).filter((x):x is string=>typeof x==="string"):[],tags:[...(Array.isArray(j.aiSkills)?(j.aiSkills as unknown[]).filter((x):x is string=>typeof x==="string"):[]),...(Array.isArray((j as any).tags)?((j as any).tags as unknown[]).filter((x):x is string=>typeof x==="string"):[])],language:j.language||null})),...recruiter.map(j=>({source:"recruiter" as const,sourceId:j.id,countryCode:(j as any).countryCode||null,normalizedContent:null,title:j.title,description:j.description,location:j.location,contractType:j.contract,remoteMode:j.remoteMode,minExperienceYears:j.minExperienceYears,companyName:j.companyName,companyId:null,createdAt:j.createdAt,publishedAt:j.createdAt,deadline:null,sourceUrl:j.sourceUrl,sourcePlatform:j.sourcePlatform||"JOBLY",applicationReady:j.applicationReady,applicationProfile:j.applicationProfile,visualUrl:j.visualUrl,visualSource:j.visualSource,applicationCheckedAt:j.applicationCheckedAt,sector:j.sector||null,tags:j.tags||[],language:j.language||null,languageRequirements:Array.isArray(j.languageRequirements)?j.languageRequirements:[]}))];
+  let unified:Unified[]=[...discovery.filter(j=>j.opportunityType==="EMPLOI" || !j.opportunityType).map(j=>({source:"discovery" as const,sourceId:j.id,countryCode:(j as any).countryCode||null,normalizedContent:j.normalizedContent||null,title:j.title,description:j.description,location:j.location,contractType:j.contractType,remoteMode:j.remoteMode,minExperienceYears:j.minExperienceYears,companyName:null,companyId:j.companyId,createdAt:j.createdAt,publishedAt:j.sourcePublishedAt,firstHarvestAt:firstHarvestByJob.get(j.id)||null,deadline:j.deadline,sourceUrl:j.sourceUrl,sourcePlatform:j.source||null,applicationReady:j.applicationReady,applicationProfile:j.applicationProfile,visualUrl:j.visualUrl,visualSource:j.visualSource,applicationCheckedAt:j.applicationCheckedAt,sector:j.aiSector||null,languageRequirements:Array.isArray((j as any).languageRequirements)?((j as any).languageRequirements as unknown[]).filter((x):x is string=>typeof x==="string"):[],tags:[...(Array.isArray(j.aiSkills)?(j.aiSkills as unknown[]).filter((x):x is string=>typeof x==="string"):[]),...(Array.isArray((j as any).tags)?((j as any).tags as unknown[]).filter((x):x is string=>typeof x==="string"):[])],language:j.language||null})),...recruiter.map(j=>({source:"recruiter" as const,sourceId:j.id,countryCode:(j as any).countryCode||null,normalizedContent:null,title:j.title,description:j.description,location:j.location,contractType:j.contract,remoteMode:j.remoteMode,minExperienceYears:j.minExperienceYears,companyName:j.companyName,companyId:null,createdAt:j.createdAt,publishedAt:j.createdAt,firstHarvestAt:null,deadline:null,sourceUrl:j.sourceUrl,sourcePlatform:j.sourcePlatform||"JOBLY",applicationReady:j.applicationReady,applicationProfile:j.applicationProfile,visualUrl:j.visualUrl,visualSource:j.visualSource,applicationCheckedAt:j.applicationCheckedAt,sector:j.sector||null,tags:j.tags||[],language:j.language||null,languageRequirements:Array.isArray(j.languageRequirements)?j.languageRequirements:[]}))];
    // Market rule: "Afrique" is an international view, not a local view.
   // Never surface the user's home-country offers in the Africa feed, including Top matches.
   // Some legacy/recruiter rows may not carry countryCode, so also use the normalized location.
@@ -243,19 +256,31 @@ export async function GET(request:NextRequest){
     };
   });
   const companyIds=Array.from(new Set(unified.map(j=>j.companyId).filter(Boolean))) as string[];const companiesRes=companyIds.length?await supabase.from("Company").select("id,name,logoUrl,description,website,verified").in("id",companyIds):{data:[] as Company[],error:null};if(companiesRes.error)throw new Error(companiesRes.error.message);const companiesById=new Map((companiesRes.data as Company[]).map(c=>[c.id,c]));
-  const ranked=unified.map(job=>{const {matchPercent,confidence,breakdown}=adaptiveMatch(profile,yearsExperience,experiences,skills,education,job,preferredLanguages);const company=job.companyId?companiesById.get(job.companyId):undefined;const publishedAt=job.publishedAt||job.createdAt;const expirationAt=platformExpiration(publishedAt);return{source:job.source,id:job.sourceId,countryCode:job.countryCode,normalizedContent:job.normalizedContent||null,title:job.title,description:job.description,location:job.location,contractType:job.contractType,remoteMode:job.remoteMode,minExperienceYears:job.minExperienceYears,createdAt:job.createdAt,publishedAt,expirationAt:expirationAt?expirationAt.toISOString():null,deadline:job.deadline,sourceUrl:job.sourceUrl,sourcePlatform:job.sourcePlatform,applicationReady:Boolean(job.applicationReady),applicationProfile:job.applicationProfile,applicationCheckedAt:job.applicationCheckedAt,visualUrl:company?.logoUrl||null,visualSource:company?.logoUrl?"COMPANY_LOGO":null,company:(company&&!isGenericCompanyName(company.name))?{id:company.id,name:company.name,logoUrl:company.logoUrl,description:company.description,website:company.website,domain:companyDomain(company.website),verified:company.verified}:(!company&&job.companyName&&!isGenericCompanyName(job.companyName))?{id:null,name:job.companyName,logoUrl:null,description:null,website:null,domain:null,verified:false}:null,matchPercent,matchConfidence:confidence,matchBreakdown:breakdown,feedScore:matchPercent};}).sort((a,b)=>b.feedScore-a.feedScore||new Date(b.publishedAt).getTime()-new Date(a.publishedAt).getTime());
-  // Strict freshness rule: imported offers require a verifiable publication date
-  // and must never remain active beyond two months, regardless of source deadline.
-  const staleIds = ranked.filter(job => {
-    if (job.source === "discovery" && !job.publishedAt) return true;
-    const freshnessAnchor = job.publishedAt || job.createdAt;
-    const expiresAt = platformExpiration(freshnessAnchor);
-    return Boolean(expiresAt && expiresAt.getTime() <= Date.now());
-  }).map(job => job.id).filter(Boolean);
-  if (staleIds.length) {
-    await supabase.from("Job").update({ isActive:false, updatedAt:new Date().toISOString() }).in("id", staleIds);
-  }
-  const visibleRanked = ranked.filter(job => !staleIds.includes(job.id));
+  const ranked=unified.map(job=>{
+    const {matchPercent,confidence,breakdown}=adaptiveMatch(profile,yearsExperience,experiences,skills,education,job,preferredLanguages);
+    const company=job.companyId?companiesById.get(job.companyId):undefined;
+    const freshness=resolveEffectivePublicationDate({
+      sourcePublishedAt:job.publishedAt,firstHarvestAt:job.firstHarvestAt,createdAt:job.createdAt,deadline:job.deadline,
+    });
+    return {
+      source:job.source,id:job.sourceId,countryCode:job.countryCode,normalizedContent:job.normalizedContent||null,
+      title:job.title,description:job.description,location:job.location,contractType:job.contractType,remoteMode:job.remoteMode,
+      minExperienceYears:job.minExperienceYears,createdAt:job.createdAt,
+      publishedAt:freshness.effectivePublishedAt||job.createdAt,expirationAt:freshness.expiresAt,
+      publicationDateEstimated:freshness.publicationDateEstimated,publicationDateSource:freshness.publicationDateSource,
+      isVisible:freshness.visible,deadline:job.deadline,sourceUrl:job.sourceUrl,sourcePlatform:job.sourcePlatform,
+      applicationReady:Boolean(job.applicationReady),applicationProfile:job.applicationProfile,
+      applicationCheckedAt:job.applicationCheckedAt,visualUrl:company?.logoUrl||null,
+      visualSource:company?.logoUrl?"COMPANY_LOGO":null,
+      company:(company&&!isGenericCompanyName(company.name))
+        ?{id:company.id,name:company.name,logoUrl:company.logoUrl,description:company.description,website:company.website,domain:companyDomain(company.website),verified:company.verified}
+        :(!company&&job.companyName&&!isGenericCompanyName(job.companyName))
+          ?{id:null,name:job.companyName,logoUrl:null,description:null,website:null,domain:null,verified:false}:null,
+      matchPercent,matchConfidence:confidence,matchBreakdown:breakdown,feedScore:matchPercent,
+    };
+  }).sort((a,b)=>b.feedScore-a.feedScore||new Date(b.publishedAt).getTime()-new Date(a.publishedAt).getTime());
+  // GET is read-only: expired offers are omitted from this response, never updated here.
+  const visibleRanked=ranked.filter(job=>job.isVisible);
   const totalAvailable=visibleRanked.length;const start=(page-1)*limit;const results=visibleRanked.slice(start,start+limit).map(job=>{
     const platformExpired=Boolean(job.expirationAt && new Date(job.expirationAt).getTime()<=Date.now());
     const sourceDeadlineExpired=deadlineExpired(job.deadline);

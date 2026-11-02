@@ -1,5 +1,5 @@
 import { NextRequest,NextResponse } from "next/server";
-import { adminClient,ensureUser,getAuthUser } from "../../../../../lib/server-auth";
+import { adminClient,ensureUser,getAuthUser } from "../../../../../../lib/server-auth";
 export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>}){
  const auth=await getAuthUser(req);if(!auth)return NextResponse.json({message:"Session requise."},{status:401});
  try{

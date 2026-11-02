@@ -5,12 +5,18 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# One production pipeline at a time; queue releases instead of canceling them.
 concurrency:
   group: jobly-vercel-production
+  queue: max
   cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/main'
     name: Validate then deploy to Vercel
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -18,10 +24,11 @@ jobs:
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
-      - name: Checkout main
+      - name: Checkout the exact triggering main commit
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.sha }}
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4

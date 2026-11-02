@@ -1,4 +1,5 @@
 import { resolveCountrySources } from "./country-url-resolver.ts";
+import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
 import { crawlExhaustiveSource } from "./exhaustive-crawler.ts";
 
 const countries=(Deno.args.length?Deno.args:["CM","DZ","EG","LY","MA","MR","TN","BJ","BF","CV","CI","GM","GH","GN","GW","LR","ML","NE","NG","SN","SL","TG","CF","TD","CG","CD","GQ","GA","ST","BI","AO","KE","UG","TZ","RW","ET","DJ","ER","SO","SS","SD","KM","MG","MU","SC","ZA","ZM","ZW","MW","MZ","NA","BW","SZ","LS"]).map(x=>x.trim().toUpperCase()).filter(Boolean);
@@ -34,9 +35,14 @@ async function worker(){
       );
       metrics.push({...result.stats,samples:result.items.slice(0,10).map(x=>({title:x.title,url:x.url,type:x.opportunityType,deadline:x.deadline}))});
       for(const item of result.items) {
-        const published = item.published ? new Date(item.published) : null;
-        const fresh = published && Number.isFinite(published.getTime()) && (Date.now() - published.getTime()) < 62 * 86400000;
-        if(!fresh) continue;
+        const freshness = resolveEffectivePublicationDate({
+          sourcePublishedAt:item.published,
+          firstHarvestAt:null,
+          createdAt:null,
+          deadline:item.deadline,
+          now:new Date().toISOString(),
+        });
+        if(!item.published || !freshness.visible) continue;
         harvestCandidates.push({sourceKey:source.sourceKey,countryCode:country,title:item.title,description:item.description,company:item.company,location:item.location,url:item.url,deadline:item.deadline,published:item.published,opportunityType:item.opportunityType});
       }
     }catch(e){

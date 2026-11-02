@@ -23,11 +23,28 @@ const COUNTRY_SLUGS: Record<string,string> = Object.fromEntries(
   Object.entries(COUNTRY_NAMES).map(([code,name]) => [code, name.toLowerCase().replace(/['’]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")])
 );
 
+function normalizeUrlToken(value:string):string {
+  return decodeURIComponent(value).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+}
+
 function hasCountry(url:string, countryCode:string):boolean {
-  const name = COUNTRY_NAMES[countryCode]?.toLowerCase();
-  const slug = COUNTRY_SLUGS[countryCode];
-  const u = url.toLowerCase();
-  return Boolean(name && (u.includes(slug) || u.includes(countryCode.toLowerCase())));
+  const name = COUNTRY_NAMES[countryCode];
+  if(!name) return false;
+  const expected = new Set([countryCode.toLowerCase(),normalizeUrlToken(name),COUNTRY_SLUGS[countryCode]]);
+  try {
+    const parsed = new URL(url);
+    const parts = [
+      ...parsed.hostname.split("."),
+      ...parsed.pathname.split("/"),
+      ...Array.from(parsed.searchParams.values()),
+    ].map(normalizeUrlToken).filter(Boolean);
+    return parts.some(part => [...expected].some(token =>
+      token && (part===token || part.startsWith(token+"-") || part.endsWith("-"+token) || part.includes("-"+token+"-"))
+    ));
+  } catch {
+    return false;
+  }
 }
 
 function replaceCountryToken(value:string, countryCode:string):string {
@@ -53,10 +70,13 @@ export function resolveSourceUrl(source:SourceDefinition, countryCode:string):Re
 
   switch(source.key) {
     case "reliefweb":
+    case "reliefweb_africa":
       return {sourceKey:source.key,countryCode,url:`https://reliefweb.int/jobs?advanced-search=%28${encodeURIComponent(COUNTRY_NAMES[countryCode] || countryCode)}%29`,strategy:"query-country",confidence:"high"};
     case "unjobs":
+    case "unjobs_africa":
       return {sourceKey:source.key,countryCode,url:`https://unjobs.org/duty_stations/${COUNTRY_SLUGS[countryCode] || countryCode.toLowerCase()}`,strategy:"country-path",confidence:"high"};
     case "impactpool":
+    case "impactpool_africa":
       return {sourceKey:source.key,countryCode,url:`https://www.impactpool.org/jobs?location=${encodeURIComponent(COUNTRY_NAMES[countryCode] || countryCode)}`,strategy:"query-country",confidence:"high"};
     case "idealists":
       return {sourceKey:source.key,countryCode,url:`https://www.idealist.org/en/jobs?location=${encodeURIComponent(COUNTRY_NAMES[countryCode] || countryCode)}`,strategy:"query-country",confidence:"medium"};
@@ -66,7 +86,10 @@ export function resolveSourceUrl(source:SourceDefinition, countryCode:string):Re
       if (base.includes("{countryCode}") || base.includes("{country}") || base.includes("{countrySlug}")) {
         return {sourceKey:source.key,countryCode,url:replaceCountryToken(base,countryCode),strategy:"country-template",confidence:"high"};
       }
-      return {sourceKey:source.key,countryCode,url:base,strategy:"static",confidence:"low"};
+      if(source.countries.length===1) {
+        return {sourceKey:source.key,countryCode,url:base,strategy:"static",confidence:"medium"};
+      }
+      return {sourceKey:source.key,countryCode,url:"",strategy:"unresolved",confidence:"low"};
   }
 }
 

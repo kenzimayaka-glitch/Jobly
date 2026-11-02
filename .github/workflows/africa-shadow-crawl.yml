@@ -99,8 +99,10 @@ jobs:
               raise SystemExit(f"Candidates older than two months: {len(stale)}")
           print(f"Validated harvest candidates: {len(candidates)}")
           PY
+      # Production ingestion is limited to scheduled and main-branch runs.
+      # Pull-request runs are report-only and must never write to JOBLY-PROD.
       - name: Push candidates to JobHarvestCapture
-        if: github.event_name == 'schedule' || github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        if: github.event_name == 'schedule' || github.ref == 'refs/heads/main'
         env:
           INGEST_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-ingest
         run: |
