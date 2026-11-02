@@ -1,6 +1,7 @@
 import { assertEquals } from "jsr:@std/assert@1";
 import { extractSourcePublishedAt, resolveEffectivePublicationDate } from "./date-extraction.ts";
 import { resolveSourceUrl } from "./country-url-resolver.ts";
+import { getActiveSources } from "./source-registry.ts";
 import type { SourceDefinition } from "./source-registry.ts";
 const NOW="2026-10-03T07:00:00.000Z";
 const cases:Array<[string,string,string,string]>=[
@@ -57,4 +58,15 @@ Deno.test("country-specific ccTLD is recognized as an exact country token",()=>{
   const r=resolveSourceUrl(sourceForTest("emploi_cm","https://www.emploi.cm/",["CM"]),"CM");
   assertEquals(r.strategy,"static");
   assertEquals(r.confidence,"high");
+});
+
+Deno.test("international sources are not crawled twice across Africa",()=>{
+  const cm = new Set(getActiveSources("CM").map(source=>source.key));
+  const ci = new Set(getActiveSources("CI").map(source=>source.key));
+  for (const key of ["reliefweb","unjobs","impactpool"]) {
+    assertEquals(cm.has(key),true);
+    assertEquals(ci.has(key),false);
+    assertEquals(ci.has(key+"_africa"),true);
+    assertEquals(cm.has(key+"_africa"),false);
+  }
 });
