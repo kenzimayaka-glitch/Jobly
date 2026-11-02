@@ -41,6 +41,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Validate offer migration and audit script syntax
+        run: |
+          node --check scripts/migrate-offers-to-v5.mjs
+          node --check scripts/offer-pipeline-audit.mjs
+
       - name: Career OS architecture gate
         run: pnpm test:career-os
 
