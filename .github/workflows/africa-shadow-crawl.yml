@@ -9,11 +9,13 @@ on:
         description: "Comma-separated ISO country codes"
         required: false
         default: "CM,DZ,EG,LY,MA,MR,TN,BJ,BF,CV,CI,GM,GH,GN,GW,LR,ML,NE,NG,SN,SL,TG,CF,TD,CG,CD,GQ,GA,ST,BI,AO,KE,UG,TZ,RW,ET,DJ,ER,SO,SS,SD,KM,MG,MU,SC,ZA,ZM,ZW,MW,MZ,NA,BW,SZ,LS"
+      apply:
+        description: "Autoriser explicitement l'ingestion des candidats en production"
+        required: true
+        type: boolean
+        default: false
   schedule:
     - cron: "17 */6 * * *"
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
@@ -28,6 +30,9 @@ concurrency:
 
 jobs:
   shadow-crawl:
+    # PR runs acquire this concurrency group to supersede an in-flight main run,
+    # but do not start another full crawl or any production ingestion.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -99,10 +104,10 @@ jobs:
               raise SystemExit(f"Candidates older than two months: {len(stale)}")
           print(f"Validated harvest candidates: {len(candidates)}")
           PY
-      # Production ingestion is limited to scheduled and main-branch runs.
-      # Pull-request runs are report-only and must never write to JOBLY-PROD.
+      # Scheduled ingestion preserves the existing automated pipeline.
+      # Manual ingestion requires an explicit apply=true; PR runs are always read-only.
       - name: Push candidates to JobHarvestCapture
-        if: github.event_name == 'schedule' || github.ref == 'refs/heads/main'
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.apply == true)
         env:
           INGEST_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-ingest
         run: |
