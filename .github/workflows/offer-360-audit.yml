@@ -1,9 +1,6 @@
 name: Jobly Offer 360 Audit
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
