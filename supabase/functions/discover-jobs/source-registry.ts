@@ -1,6 +1,6 @@
 export type SourceType = "national" | "pan_africa" | "institutional" | "specialized" | "aggregator" | "company_careers" | "remote";
 export type CaptureMode = "browser" | "http" | "api" | "rss" | "unknown";
-export type SourceStatus = "active" | "discovered" | "blocked" | "degraded" | "retired";
+export type SourceStatus = "active" | "discovered" | "blocked" | "degraded" | "retired" | "inactive";
 
 export type AfricaCountry = {
   code: string;
