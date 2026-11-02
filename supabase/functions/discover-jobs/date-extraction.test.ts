@@ -102,3 +102,9 @@ Deno.test("seventh-pass verified and discovery-only sources have correct activat
 Deno.test("Educarriere extracts explicit French publication dates",()=>{
   assertEquals(extractSourcePublishedAt("<article>Publié le 02/11/2026</article>","https://emploi.educarriere.ci/emploi/","educarriere_ci"),"2026-11-02T00:00:00.000Z");
 });
+
+Deno.test("eighth-pass West African candidates are recorded but not yet active",()=>{
+  for(const [code,key] of [["BJ","emploi_benin"],["BJ","synergieplus_bj"],["BF","emploi_burkina"],["ML","emploi_mali"],["NE","opportafrik_ne"]] as const) {
+    assertEquals(getActiveSources(code).some(source=>source.key===key),false);
+  }
+});

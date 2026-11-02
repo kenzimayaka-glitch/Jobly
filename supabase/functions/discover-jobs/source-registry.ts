@@ -267,6 +267,22 @@ for (const source of RATISSAGE_WAVE_7_SOURCES) {
   else SOURCE_REGISTRY.push(source);
 }
 
+ 
+// Eighth-pass West African discovery. These are kept disabled until a live
+// source-key/url/content-dedup smoke test qualifies them for production ingestion.
+const RATISSAGE_WAVE_8_CANDIDATES: SourceDefinition[] = [
+  {key:"emploi_benin",name:"Emploibenin.com",type:"national",status:"discovered",enabled:false,url:"https://www.emploibenin.com/recherche-jobs-benin",countries:["BJ"],languages:["fr"],captureMode:"http",renderRequired:false,priority:105,notes:"Current local offers dated 30 Oct 2026; some cards are tagged International, so country classification and cross-country dedup must be tested."},
+  {key:"synergieplus_bj",name:"Synergie Plus Bénin",type:"national",status:"discovered",enabled:false,url:"https://synergieplus.net/public/index.php/recrutement",countries:["BJ"],languages:["fr"],captureMode:"http",renderRequired:false,priority:110,notes:"Current recruitment notices dated 28–30 Oct 2026, including a 75-position Benin Tourism campaign; test announcement-type filtering and detail URLs."},
+  {key:"emploi_burkina",name:"Emploiburkina.com",type:"national",status:"discovered",enabled:false,url:"https://www.emploiburkina.com/",countries:["BF"],languages:["fr"],captureMode:"http",renderRequired:false,priority:95,notes:"Current local listings dated 30 Oct 2026; country/location filtering and dedup with AfricaTalents-family portals need validation."},
+  {key:"emploi_mali",name:"Emploimali.com",type:"national",status:"discovered",enabled:false,url:"https://www.emploimali.com/",countries:["ML"],languages:["fr"],captureMode:"http",renderRequired:false,priority:95,notes:"Current local listings dated 26 Oct 2026; country/location filtering and dedup with AfricaTalents-family portals need validation."},
+  {key:"opportafrik_ne",name:"Opportafrik Niger",type:"national",status:"discovered",enabled:false,url:"https://www.opportafrik.com/niger",countries:["NE"],languages:["fr"],captureMode:"http",renderRequired:false,priority:90,notes:"Current Niger opportunities with job posts and separate competitions, tenders and scholarships; requires opportunity-type filtering before activation."},
+];
+for (const source of RATISSAGE_WAVE_8_CANDIDATES) {
+  const index = SOURCE_REGISTRY.findIndex((candidate) => candidate.key === source.key);
+  if (index >= 0) SOURCE_REGISTRY[index] = source;
+  else SOURCE_REGISTRY.push(source);
+}
+
 export function getSourceByKey(key:string): SourceDefinition | null {
   return SOURCE_REGISTRY.find((source)=>source.key===key) ?? null;
 }
