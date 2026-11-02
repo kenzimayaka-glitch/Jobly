@@ -9,11 +9,13 @@ on:
         description: "Comma-separated ISO country codes"
         required: false
         default: "CM,DZ,EG,LY,MA,MR,TN,BJ,BF,CV,CI,GM,GH,GN,GW,LR,ML,NE,NG,SN,SL,TG,CF,TD,CG,CD,GQ,GA,ST,BI,AO,KE,UG,TZ,RW,ET,DJ,ER,SO,SS,SD,KM,MG,MU,SC,ZA,ZM,ZW,MW,MZ,NA,BW,SZ,LS"
+      apply:
+        description: "Autoriser explicitement l'ingestion des candidats en production"
+        required: true
+        type: boolean
+        default: false
   schedule:
     - cron: "17 */6 * * *"
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
