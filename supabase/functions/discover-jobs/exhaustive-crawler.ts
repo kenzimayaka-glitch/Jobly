@@ -91,7 +91,9 @@ function extractHtmlItem(html:string,url:string,sourceKey:string):ExhaustiveItem
     const title=genericNelexTitle && h1 && !/national electronic labour exchange|nelex/i.test(h1) ? h1 : item.title;
     return {...item,title,opportunityType:inferType(title,item.description,sourceKey),applicationEmail:contact.email,applicationPhone:contact.phone};
   }
-  const title=clean(meta(html,["og:title","twitter:title"])||html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1]||html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]||"");
+  const heading=clean(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]??"");
+  const metaTitle=clean(meta(html,["og:title","twitter:title"])||html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]||"");
+  const title=sourceKey==="senjob_sn" && heading ? heading : metaTitle || heading;
   const body=clean(html).slice(0,30000);
   const contact=extractApplicationContact(html);
   return {title,description:body,company:"",location:"",url,deadline:extractSourceDeadline(html,url,sourceKey) || firstDate([meta(html,["validThrough","deadline","dateDeadline","article:expiration_time"])]),
