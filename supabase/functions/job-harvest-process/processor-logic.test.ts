@@ -1,6 +1,7 @@
 import { assertEquals } from "jsr:@std/assert@1";
 import {
   inferCountryFromLocation,
+  isGenericRecruitmentTitle,
   mapOpportunityType,
   normalizeCountryCode,
   normalizeLanguage,
@@ -31,6 +32,13 @@ Deno.test("does not guess when a location contains conflicting country evidence"
   assertEquals(inferCountryFromLocation("Nairobi, Kenya; Kampala, Uganda"), null);
   assertEquals(resolveCountryCode("RW", "unknown location").countryCode, "RW");
   assertEquals(resolveCountryCode(null, "unknown location").countryCode, null);
+});
+
+Deno.test("rejects account pages and generic CV-bank notices, not named vacancies", () => {
+  assertEquals(isGenericRecruitmentTitle("Compte recruteur"), true);
+  assertEquals(isGenericRecruitmentTitle("Submit CVs – Latest Recruitment"), true);
+  assertEquals(isGenericRecruitmentTitle("Submit CVs – New Recruitment"), true);
+  assertEquals(isGenericRecruitmentTitle("Finance and Office Admin Assistant"), false);
 });
 
 Deno.test("maps source opportunity classes onto the supported Job enum", () => {
