@@ -283,6 +283,19 @@ for (const source of RATISSAGE_WAVE_8_CANDIDATES) {
   else SOURCE_REGISTRY.push(source);
 }
 
+const RATISSAGE_WAVE_9_SOURCES: SourceDefinition[] = [
+{key:"nelex_ng",name:"National Electronic Labour Exchange (NELEX)",type:"institutional",status:"active",enabled:true,url:"https://nelex.gov.ng/jobs",countries:["NG"],languages:["en"],captureMode:"http",renderRequired:false,priority:125,notes:"Official Nigerian Federal Ministry of Labour and Employment exchange. True publication and closing dates must be extracted; shared 62-day freshness and deadline filters apply."},
+{key:"leep_jobs_ng",name:"LEEP Jobs Nigeria",type:"institutional",status:"discovered",enabled:false,url:"https://jobs.leep.gov.ng/jobs",countries:["NG"],languages:["en"],captureMode:"http",renderRequired:false,priority:110,notes:"Official labour-platform claim; jobs route timed out and may overlap NELEX. Disabled pending crawl and dedup."},
+{key:"uemoa_careers",name:"UEMOA Carrières",type:"institutional",status:"discovered",enabled:false,url:"https://e-recrutement.uemoa.int/offers",countries:["BJ","BF","CI","GW","ML","NE","SN","TG"],languages:["fr"],captureMode:"http",renderRequired:false,priority:110,notes:"Official regional recruitment portal; country-specific extraction unverified. Disabled to prevent cross-country misattribution."},
+{key:"eafrica_connect",name:"East Africa ConnectHub Jobs",type:"aggregator",status:"discovered",enabled:false,url:"https://www.eafricaconnect.com/opportunities",countries:["BI","CD","KE","RW","SS","TZ","UG"],languages:["en"],captureMode:"http",renderRequired:false,priority:75,notes:"Jobs category distinct from tenders and scholarships; job subroute and country extraction unverified."},
+{key:"pnpe_ga_offers",name:"PNPE Gabon — Offres d'emploi",type:"institutional",status:"discovered",enabled:false,url:"https://www.pnpe.ga/offres.php",countries:["GA"],languages:["fr"],captureMode:"http",renderRequired:false,priority:115,notes:"Official PNPE listings; reconcile against existing travail.ga and emploi.ga before activation."},
+{key:"cawa_group_west",name:"CAWA Group — Offres Afrique de l'Ouest",type:"specialized",status:"discovered",enabled:false,url:"https://cawagroup.com/fr/offres-demploi/",countries:["BF","BJ","CI","GN","GW","ML","MR","SN","TG"],languages:["fr","en","pt"],captureMode:"http",renderRequired:false,priority:80,notes:"Multi-country agency; country must be inferred per job and old vacancies filtered. Disabled pending adapter and dedup."}
+];
+for (const source of RATISSAGE_WAVE_9_SOURCES) {
+ const index=SOURCE_REGISTRY.findIndex(candidate=>candidate.key===source.key);
+ if(index>=0) SOURCE_REGISTRY[index]=source; else SOURCE_REGISTRY.push(source);
+}
+
 export function getSourceByKey(key:string): SourceDefinition | null {
   return SOURCE_REGISTRY.find((source)=>source.key===key) ?? null;
 }
