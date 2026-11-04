@@ -1,7 +1,7 @@
 export type ApplicationContact = { email: string | null; phone: string | null };
 
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
-const APPLICATION_MARKER = /(?:method of application|how to apply|application instructions|interested and qualified|to apply|apply for this job|send (?:your )?(?:cv|resume)|pour postuler|modalit[eé]s de candidature|comment postuler|candidature)/i;
+const APPLICATION_MARKER = /(?:method of application|how to apply|application instructions|interested and qualified|to apply|apply for this job|send (?:your )?(?:cv|resume)|envoyer (?:leur|votre|son) (?:cv|candidature)|pour postuler|modalit[eé]s de candidature|comment postuler|coordonn[ée]es du recruteur|contact du recruteur|candidature)/gi;
 const STOP_MARKER = /(?:related jobs|similar jobs|share this|about us|privacy policy|terms (?:and|&) conditions|copyright|frequently asked questions|about the company|company details|contact details|employer information)/i;
 const LABELLED_PHONE_RE = /(?:tel(?:ephone)?|t[eé]l(?:éphone)?|phone(?:\s+number)?|mobile|whats?app|call|contact(?:\s+number)?)[^\r\n\d+]{0,32}?((?:\+|00)?\s*\d[\d\s()./-]{5,20}\d)/gi;
 
@@ -29,11 +29,16 @@ function plainText(value: string): string {
 }
 
 function applicationSection(value: string): string {
-  const match = APPLICATION_MARKER.exec(value);
-  if (!match || match.index === undefined) return "";
-  const tail = value.slice(match.index, match.index + 1800);
-  const stop = STOP_MARKER.exec(tail.slice(match[0].length));
-  return stop?.index !== undefined ? tail.slice(0, match[0].length + stop.index) : tail;
+  const matches = [...value.matchAll(APPLICATION_MARKER)];
+  if (!matches.length) return "";
+  const segments: string[] = [];
+  for (const match of matches) {
+    if (match.index === undefined) continue;
+    const tail = value.slice(match.index, match.index + 1800);
+    const stop = STOP_MARKER.exec(tail.slice(match[0].length));
+    segments.push(stop?.index !== undefined ? tail.slice(0, match[0].length + stop.index) : tail);
+  }
+  return segments.join(" ");
 }
 
 function normalizePhone(value: string): string | null {
