@@ -212,11 +212,13 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
   }
 
   const publicationDate = asDate(capture.publishedAt ?? payload.published ?? payload.sourcePublishedAt);
+  const publicationDateEstimated =
+    profile.publicationDateEstimated === true || payload.publicationDateEstimated === true;
   const deadline = asDate(capture.deadline ?? payload.deadline);
   const discoveredAt = asDate(capture.discoveredAt);
   const freshness = resolveEffectivePublicationDate({
-    sourcePublishedAt: publicationDate,
-    firstHarvestAt: discoveredAt,
+    sourcePublishedAt: publicationDateEstimated ? null : publicationDate,
+    firstHarvestAt: publicationDateEstimated ? discoveredAt : null,
     createdAt: null,
     deadline,
     now: nowIso,
