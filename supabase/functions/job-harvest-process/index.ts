@@ -474,25 +474,27 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const requested = Number((body as AnyRecord)?.limit ?? MAX_BATCH);
     const limit = Math.min(Math.max(Number.isFinite(requested) ? Math.trunc(requested) : MAX_BATCH, 1), MAX_BATCH);
+    const staleBefore = new Date(Date.now() - STALE_PROCESSING_MS).toISOString();
+    const staleLimit = Math.min(5, limit);
+    const { data: staleRows, error: staleError } = await db.from("JobHarvestCapture")
+      .select("*")
+      .eq("status", "PROCESSING")
+      .lt("updatedAt", staleBefore)
+      .order("updatedAt", { ascending: true })
+      .limit(staleLimit);
+    if (staleError) throw new Error("STALE_CAPTURE_SELECT_FAILED: " + staleError.message);
+
+    const stale = staleRows ?? [];
     const { data: normalRows, error: normalError } = await db.from("JobHarvestCapture")
       .select("*")
       .in("status", ["PENDING", "FAILED"])
       .order("discoveredAt", { ascending: true })
-      .limit(limit);
+      .limit(Math.max(0, limit - stale.length));
     if (normalError) throw new Error("CAPTURE_SELECT_FAILED: " + normalError.message);
 
-    const rows: AnyRecord[] = [...(normalRows ?? [])];
-    if (rows.length < limit) {
-      const staleBefore = new Date(Date.now() - STALE_PROCESSING_MS).toISOString();
-      const { data: staleRows, error: staleError } = await db.from("JobHarvestCapture")
-        .select("*")
-        .eq("status", "PROCESSING")
-        .lt("updatedAt", staleBefore)
-        .order("updatedAt", { ascending: true })
-        .limit(limit - rows.length);
-      if (staleError) throw new Error("STALE_CAPTURE_SELECT_FAILED: " + staleError.message);
-      rows.push(...(staleRows ?? []));
-    }
+    // Reclaim abandoned PROCESSING rows first so they are not starved by a
+    // continuously replenished PENDING queue.
+    const rows: AnyRecord[] = [...stale, ...(normalRows ?? [])];
 
     const counts: AnyRecord = {
       selected: rows.length,
