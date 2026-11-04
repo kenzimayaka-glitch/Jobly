@@ -1,6 +1,7 @@
 import { jwtVerify, createRemoteJWKSet } from "npm:jose@6";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
+import { extractApplicationContact } from "../_shared/application-contact.ts";
 import {
   decodeHtmlEntities,
   isGenericRecruitmentTitle,
@@ -261,23 +262,34 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
     profile.applicationUrl ?? profile.applyUrl ?? payload.applicationUrl ?? payload.applyUrl,
   );
   const profileUrl = safeHttpUrl(profile.url);
-  const applicationEmail = clean(
+  const applicationContacts = extractApplicationContact(
+    description,
     profile.applicationEmail ?? payload.applicationEmail ?? payload.email,
-    180,
-  );
-  const applicationPhone = clean(
     profile.applicationPhone ?? payload.applicationPhone ?? payload.phone,
-    80,
   );
-  const hasApplicationRoute = Boolean(
-    applicationUrl || applicationEmail || applicationPhone || (profileUrl && profileUrl !== sourceUrl),
-  );
+  const applicationEmail = applicationContacts.email;
+  const applicationPhone = applicationContacts.phone;
+  if (!applicationEmail && !applicationPhone) {
+    await quarantine(
+      db,
+      capture,
+      "APPLICATION_CONTACT_MISSING",
+      "Offer rejected: no application email address or phone number was found in the offer content.",
+      countryDetails,
+    );
+    counts.quarantined++;
+    return;
+  }
+  const hasApplicationRoute = Boolean(applicationEmail || applicationPhone);
+  const displayModel = clean(profile.displayModel ?? payload.displayModel, 120) ||
+    `jobly-standard-${sourceKey}-v1`;
   const applicationProfile = {
     ...profile,
     ...countryDetails,
     sourceUrl,
     sourceName: clean(payload.sourceName ?? payload.source ?? sourceKey, 180),
     opportunityType: kind.sourceType,
+    displayModel,
     applicationUrl,
     applyUrl: applicationUrl,
     applicationEmail: applicationEmail || null,
@@ -305,6 +317,7 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
   const companyId = await findOrCreateCompany(db, companyName, payload);
   const normalizedContent = {
     version: "jobly-offer-v3",
+    displayModel,
     title,
     company: companyName || null,
     description: [description],
