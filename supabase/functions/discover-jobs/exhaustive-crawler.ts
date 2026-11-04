@@ -86,7 +86,7 @@ function extractHtmlItem(html:string,url:string,sourceKey:string):ExhaustiveItem
   if(ld){
     const item=extractJob(ld,url,sourceKey);
     const contact=extractApplicationContact(html,item.applicationEmail,item.applicationPhone);
-    const h1=clean(html.match(/<h1\\b[^>]*>([\\s\\S]*?)<\\/h1>/i)?.[1]??"");
+    const h1=clean(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]??"");
     const genericNelexTitle=sourceKey==="nelex_ng" && /national electronic labour exchange|nelex/i.test(item.title);
     const title=genericNelexTitle && h1 && !/national electronic labour exchange|nelex/i.test(h1) ? h1 : item.title;
     return {...item,title,opportunityType:inferType(title,item.description,sourceKey),applicationEmail:contact.email,applicationPhone:contact.phone};
