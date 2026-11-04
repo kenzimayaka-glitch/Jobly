@@ -53,6 +53,42 @@ const CITY_ALIASES: Record<string,string> = {
 
 const LANGUAGE_CODES = new Set(["af","am","ar","en","es","fr","ha","ig","om","pt","so","sw","xh","yo","zu"]);
 
+
+const HTML_ENTITIES: Record<string,string> = {
+  amp:"&",quot:'"',apos:"'",lt:"<",gt:">",nbsp:" ",ensp:" ",emsp:" ",thinsp:" ",
+  ndash:"–",mdash:"—",hellip:"…",lsquo:"‘",rsquo:"’",ldquo:"“",rdquo:"”",
+  copy:"©",reg:"®",trade:"™",euro:"€",pound:"£",cent:"¢",yen:"¥",
+  agrave:"à",aacute:"á",acirc:"â",atilde:"ã",auml:"ä",aring:"å",aelig:"æ",
+  ccedil:"ç",egrave:"è",eacute:"é",ecirc:"ê",euml:"ë",igrave:"ì",iacute:"í",
+  icirc:"î",iuml:"ï",ntilde:"ñ",ograve:"ò",oacute:"ó",ocirc:"ô",otilde:"õ",
+  ouml:"ö",ugrave:"ù",uacute:"ú",ucirc:"û",uuml:"ü",yacute:"ý",yuml:"ÿ",
+};
+
+function decodeHtmlPass(value: string): string {
+  return value.replace(/&(#x[0-9a-f]+|#\\d+|[a-z][a-z0-9]+);/gi, (entity, token: string) => {
+    if (token[0] !== "#") return HTML_ENTITIES[token.toLowerCase()] ?? entity;
+    const hex = token[1]?.toLowerCase() === "x";
+    const parsed = Number.parseInt(token.slice(hex ? 2 : 1), hex ? 16 : 10);
+    if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 0x10ffff ||
+        (parsed >= 0xd800 && parsed <= 0xdfff)) return "\\uFFFD";
+    try {
+      return String.fromCodePoint(parsed);
+    } catch {
+      return "\\uFFFD";
+    }
+  });
+}
+
+export function decodeHtmlEntities(value: unknown): string {
+  let decoded = String(value ?? "");
+  for (let pass = 0; pass < 3; pass++) {
+    const next = decodeHtmlPass(decoded);
+    if (next === decoded) break;
+    decoded = next;
+  }
+  return decoded;
+}
+
 function normalizedText(value: unknown): string {
   return String(value ?? "")
     .normalize("NFD")
