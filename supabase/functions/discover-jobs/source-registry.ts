@@ -1539,7 +1539,7 @@ const DISCOVERY_SOURCE_DETAILS: Record<string, Partial<SourceDefinition>> = {
     ],
     "notes": "Nom de rubrique générique non confirmé comme source indépendante."
   },
-  "Ntchito": {
+  "ntchito": {
     "url": "https://nchito.work/",
     "name": "Nchito",
     "countries": [
