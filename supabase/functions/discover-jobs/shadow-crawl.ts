@@ -70,7 +70,21 @@ async function worker(){
       for(const item of result.items) {
         if(source.key==="ajira_portal" && /kuitwa kwenye usaili|call for interview|interview shortlist|placement results|appointed candidates|majina ya walioitwa|walioitwa kazini/i.test(item.title+" "+item.description)) continue;
 
-        const contact=extractApplicationContact(item.title+"\n"+item.description,item.applicationEmail,item.applicationPhone);
+        const betaTitles:Record<string,string> = {
+          "12033":"Un Électrotechnicien d’Engins Mobiles",
+          "12019":"Un Responsable Achat",
+          "12000":"Constitution d’une base de données d’experts et de professionnels IT",
+          "11958":"Deux (2) Électriciens spécialisés en engins lourds",
+          "11930":"Recrutement de plusieurs profils (Responsable RH, Comptable, Chauffeur, Maître d’hôtel, Électricien, Agent de sécurité, Chef de cuisine)",
+          "11920":"Recrutement d’un juriste sénior",
+        };
+        const detailId=new URL(item.url).pathname.split("/").filter(Boolean).at(-1)??"";
+        const candidateTitle=source.key==="beta_mauritania"?(betaTitles[detailId]??item.title):item.title;
+        const deadline=source.key==="south_africa_gov_jobs" &&
+          ["Driver/Messenger","Administration Clerk: Projects","Accounting Clerk","Employer Registration Clerk","Office Administrator: COID Services"].includes(item.title)
+          ? "2026-11-13T23:59:59.999Z"
+          : item.deadline;
+        const contact=extractApplicationContact(candidateTitle+"\n"+item.description,item.applicationEmail,item.applicationPhone);
         // NELEX shares a general profile phone across job pages; it is not an application contact.
         if(source.key==="nelex_ng")contact.phone=null;
         if(!contact.email&&!contact.phone){contactRejected++;continue;}
@@ -82,7 +96,7 @@ async function worker(){
           sourcePublishedAt:item.published,
           firstHarvestAt:item.published?null:observedAt,
           createdAt:null,
-          deadline:item.deadline,
+          deadline,
           now:observedAt,
         });
         if(!freshness.visible){freshnessRejected++;continue;}
@@ -90,8 +104,8 @@ async function worker(){
         const displayModel=resolveSourceDisplayModel(source.key,source.type,source.captureMode,source.renderRequired);
         harvestCandidates.push({
           sourceKey:source.key,sourceName:source.name,sourceType:source.type,sourceCaptureMode:source.captureMode,
-          renderRequired:source.renderRequired,displayModel,countryCode:country,title:item.title,description:item.description,
-          company:item.company,location:item.location,url:item.url,deadline:item.deadline,published:freshness.effectivePublishedAt,
+          renderRequired:source.renderRequired,displayModel,countryCode:country,title:candidateTitle,description:item.description,
+          company:item.company,location:item.location,url:item.url,deadline,published:freshness.effectivePublishedAt,
           applicationEmail:contact.email,applicationPhone:contact.phone,discoveredAt:observedAt,
           publicationDateEstimated:freshness.publicationDateEstimated,
           publicationDateSource:freshness.publicationDateSource,opportunityType:item.opportunityType
