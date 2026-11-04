@@ -13,8 +13,8 @@ export type ExhaustiveStats = {
   internships:number; consultancies:number; applications:number; tenders:number; rejected:number;
   rejectedReasons:Record<string,number>; advertisedCount:number|null; errors:string[];
 };
-const REQUEST_TIMEOUT_MS=12000, CONCURRENCY=24;
-const JOB_WORDS=/\b(job|jobs|emploi|emplois|offre|offres|poste|postes|vacan|career|careers|recruit|recrut|recrutement|opportunit|stage|intern|consultan|consultancy|contract|position|vacancy|hiring|work|talent|manager|assistant|agent|technicien|commercial|engineer|specialist|director|responsable|coordinateur|chauffeur|comptable)\b/i;
+const REQUEST_TIMEOUT_MS=25000, CONCURRENCY=12;
+const JOB_WORDS=/\b(job|jobs|emploi|emplois|offre|offres|poste|postes|vacan|career|careers|recruit|recrut|recrutement|opportunit|stage|intern|consultan|consultancy|contract|position|vacancy|hiring|work|talent|manager|assistant|agent|technicien|commercial|engineer|specialist|director|responsable|coordinateur|chauffeur|comptable|officer|clerk|driver|inspector|accountant|administrator|operator|scientist|auditor|legal|recorder|gestionnaire|contrats|inventoriste|inventoristes|chargeur|chargeurs|livreur|livreurs|echafaudage|echafaudages|mechanic|technician)\b/i;
 const TENDER_WORDS=/\b(appel d['’]?offres?|march[ée] public|demande de cotation|fourniture|acquisition|soumission|tender|procurement|dao|rfq|rfi|manifestation d['’]?int[ée]r[êe]t)\b/i;
 const TRAINING_WORDS=/\b(formation|certification|masterclass|bootcamp|webinaire|atelier de formation|cours|bourse d['’]?[ée]tude|scholarship)\b/i;
 const EVENT_WORDS=/\b(conf[ée]rence|forum|salon|[ée]v[ée]nement|event|summit|webinar)\b/i;
@@ -102,11 +102,15 @@ function applicationOnlyHtml(html:string,sourceKey:string):string {
     return stop>=0?tail.slice(0,stop):tail;
   }
   if(sourceKey==="anpetogo") {
-    const marker=html.search(/(?:Dossiers? de candidature|Comment postuler)/i);
-    if(marker<0)return "";
+    const marker=html.search(/(?:Dossiers? de candidature|Dépôt de dossiers|Comment postuler)/i);
+    if(marker<0)return html;
     const tail=html.slice(marker,marker+7000);
     const stop=tail.search(/(?:Offres similaires|Avez-vous une expérience à partager|©\s*2026\s*ANPE)/i);
     return stop>=0?tail.slice(0,stop):tail;
+  }
+  if(sourceKey==="anpe_ne") {
+    const marker=html.search(/Pour postuler|Candidatures?\s*:/i);
+    if(marker>=0)return html.slice(marker,marker+3500);
   }
   return html;
 }
@@ -116,7 +120,7 @@ function extractHtmlItem(html:string,url:string,sourceKey:string):ExhaustiveItem
   const applicationHtml=applicationOnlyHtml(html,sourceKey);
   const contactHtml=(sourceKey==="nelex_ng"||sourceKey==="senjob_sn"||sourceKey==="anpetogo")?applicationHtml:html;
   const explicitEmail=sourceKey==="anpetogo"
-    ? contactHtml.match(/[A-Z0-9._%+-]+@anpetogo\.org/i)?.[0]
+    ? (html.match(/(?:dépôt de dossiers par voie numérique à l['’]adresse|e-?mail à l['’]adresse|pour postuler)[^<]{0,240}([A-Z0-9._%+-]+@anpetogo\.org)/i)?.[1] ?? contactHtml.match(/[A-Z0-9._%+-]+@anpetogo\.org/i)?.[0])
     : sourceKey==="senjob_sn"
     ? contactHtml.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]
     : undefined;
@@ -127,21 +131,26 @@ function extractHtmlItem(html:string,url:string,sourceKey:string):ExhaustiveItem
       sourceKey==="nelex_ng"||sourceKey==="senjob_sn"||sourceKey==="anpetogo"?explicitEmail:item.applicationEmail,
       sourceKey==="nelex_ng"?undefined:item.applicationPhone,
     );
-    if(sourceKey==="nelex_ng" && contact.email==="support@nelex.gov.ng")contact={...contact,email:null};
+    if(sourceKey==="nelex_ng") {
+      if(contact.email==="support@nelex.gov.ng")contact={...contact,email:null};
+      contact={...contact,phone:null};
+    }
     const h1=clean(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]??"");
     const slug=new URL(url).pathname.split("/").filter(Boolean).at(-1)?.replace(/[-_]+/g," ") ?? "";
     const genericTitle=/^(?:national electronic labour exchange|nelex|beta conseils)/i.test(item.title);
-    const title=(sourceKey==="nelex_ng"||sourceKey==="beta_mauritania")&&genericTitle
-      ? (h1&&!/^(?:national electronic labour exchange|nelex|beta conseils)/i.test(h1)?h1:slug.replace(/\b[a-z]/g,x=>x.toUpperCase()))
+    const numericTitle=/^\d{4,}$/.test(item.title.trim());
+    const title=(sourceKey==="nelex_ng"||sourceKey==="beta_mauritania")&&(genericTitle||numericTitle)
+      ? (h1&&!/^(?:national electronic labour exchange|nelex|beta conseils|\d{4,}$)/i.test(h1)?h1:slug.replace(/\b[a-z]/g,x=>x.toUpperCase()))
       : item.title;
     return {...item,title,opportunityType:inferType(title,item.description,sourceKey),applicationEmail:contact.email,applicationPhone:contact.phone};
   }
   const heading=clean(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]??"");
   const metaTitle=clean(meta(html,["og:title","twitter:title"])||html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]||"");
   const genericTitle=/^(?:national electronic labour exchange|nelex|beta conseils)/i.test(metaTitle);
+  const numericTitle=/^\d{4,}$/.test(metaTitle.trim());
   const slug=new URL(url).pathname.split("/").filter(Boolean).at(-1)?.replace(/[-_]+/g," ") ?? "";
-  const title=(sourceKey==="nelex_ng"||sourceKey==="beta_mauritania")&&genericTitle
-    ? (heading&&!/^(?:national electronic labour exchange|nelex|beta conseils)/i.test(heading)?heading:slug.replace(/\b[a-z]/g,x=>x.toUpperCase()))
+  const title=(sourceKey==="nelex_ng"||sourceKey==="beta_mauritania")&&(genericTitle||numericTitle)
+    ? (heading&&!/^(?:national electronic labour exchange|nelex|beta conseils|\d{4,}$)/i.test(heading)?heading:slug.replace(/\b[a-z]/g,x=>x.toUpperCase()))
     : sourceKey==="senjob_sn"&&heading?heading:metaTitle||heading;
   const body=clean(html).slice(0,30000);
   let contact=extractApplicationContact(contactHtml,explicitEmail);
@@ -154,7 +163,7 @@ async function fetchPage(url:string,deadlineAt=Number.POSITIVE_INFINITY):Promise
   const controller=new AbortController();
   const remaining=Math.max(1,Math.min(REQUEST_TIMEOUT_MS,deadlineAt-Date.now()));
   const timer=setTimeout(()=>controller.abort(),remaining);
-  try{const r=await fetch(url,{redirect:"follow",signal:controller.signal,headers:{"user-agent":"JOBLY-Africa-Exhaustive/3.0 (+https://jobly-c0651.vercel.app)","accept":"text/html,application/xhtml+xml,application/json"}});return {status:r.status,html:await r.text()}}finally{clearTimeout(timer)}
+  try{const r=await fetch(url,{redirect:"follow",signal:controller.signal,headers:{"user-agent":"Mozilla/5.0 (compatible; JOBLY-Africa-Exhaustive/4.0; +https://jobly-c0651.vercel.app)","accept":"text/html,application/xhtml+xml,application/json"}});return {status:r.status,html:await r.text()}}finally{clearTimeout(timer)}
 }
 function isPagination(link:{url:string;label:string;rel?:string}):boolean {
   const l=(link.label+" "+link.url+" "+link.rel).toLowerCase();
@@ -172,6 +181,9 @@ function isDetail(link:{url:string;label:string},sourceUrl:string,sourceKey?:str
       if(path.includes("/employeur/")) return false;
       return path.includes("/beta/offre/");
     }
+    if(sourceKey==="anpe_ne" && path.includes("/poste/")) return true;
+    if(sourceKey==="ajira_portal" && parsed.searchParams.get("view")==="article" && /nafasi za kazi|tangazo la nafasi/i.test(link.label)) return true;
+    if(sourceKey==="kenya_psc_jobs" && /advert|job/i.test(path+" "+query) && /advert details|details/i.test(link.label)) return true;
     // Reject source navigation/search/category pages that frequently contain
     // job-related words but are not individual opportunities.
     if(/^\/(?:en\/)?(?:jobs?|careers?|career|emploi|emplois|offres?|vacancies?|positions?|recruitment|recrutement)$/.test(path))return false;
@@ -182,7 +194,7 @@ function isDetail(link:{url:string;label:string},sourceUrl:string,sourceKey?:str
     const depth=path.split("/").filter(Boolean).length;
     const looksLikeDetail=/(?:^|\/)(?:job|jobs|emploi|emplois|offre|offres|career|careers|vacancy|vacancies|position|recruitment|recrutement|postes?)(?:\/|$)/i.test(path);
     const ajiraVacancyLabel=sourceKey==="ajira_portal" && /nafasi za kazi|nafasi za kujitolea|tangazo la nafasi/i.test(link.label);
-    return depth>=2 && (looksLikeDetail || JOB_WORDS.test(link.label) || ajiraVacancyLabel);
+    return depth>=1 && (looksLikeDetail || JOB_WORDS.test(link.label) || ajiraVacancyLabel);
   } catch {
     return false;
   }
