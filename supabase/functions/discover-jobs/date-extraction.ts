@@ -158,6 +158,9 @@ const SOURCE_ADAPTERS: Record<string, DateAdapter[]> = {
   nelex_ng: [
     { pattern: /(?:date\s+posted|posted\s+on)\s*[:\-]?\s*([A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?,?\s+20\d{2})/i, format: "english" },
   ],
+  beta_mauritania: [
+    { pattern: /offre\s+en\s+ligne\s+depuis\s*[:\-]?\s*(\d{1,2}\s+[A-Za-zÀ-ÿ]+\s+20\d{2})/i, format: "french" },
+  ],
 };
 
 export function extractSourcePublishedAt(html: string, _url: string, sourceKey: string): string | null {
