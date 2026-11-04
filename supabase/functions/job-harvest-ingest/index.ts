@@ -126,6 +126,8 @@ Deno.serve(async (req: Request) => {
           applicationEmail: applicationContact.email,
           applicationPhone: applicationContact.phone,
           applicationReady: true,
+          publicationDateEstimated: freshness.publicationDateEstimated,
+          publicationDateSource: freshness.publicationDateSource,
           displayModel,
           sourceType: item.sourceType ?? "national",
         },
