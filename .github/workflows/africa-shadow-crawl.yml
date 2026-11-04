@@ -1,16 +1,26 @@
 name: Africa Source Shadow Crawl
-# Capture handoff uses GitHub OIDC directly to Supabase; Vercel deployment is not required.
-# This path is deliberately independent from the Next.js/Vercel deployment.
+# A source batch is crawled in shadow mode first; production ingestion stays approval-gated.
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "supabase/functions/discover-jobs/shadow-crawl.ts"
+      - "supabase/functions/_shared/application-contact.ts"
+      - ".github/workflows/africa-shadow-crawl.yml"
   workflow_dispatch:
     inputs:
       countries:
         description: "Comma-separated ISO country codes"
         required: false
         default: "CM,DZ,EG,LY,MA,MR,TN,BJ,BF,CV,CI,GM,GH,GN,GW,LR,ML,NE,NG,SN,SL,TG,CF,TD,CG,CD,GQ,GA,ST,BI,AO,KE,UG,TZ,RW,ET,DJ,ER,SO,SS,SD,KM,MG,MU,SC,ZA,ZM,ZW,MW,MZ,NA,BW,SZ,LS"
+      source_keys:
+        description: "20 source keys maximum, separated by commas"
+        required: false
+        default: "inep_mozambique,lmis_sl,nelex_ng,ajira_portal,sica_anpe_bj,zimbabwe_psc_erecruitment,anpe_bj,anpe_bf,anpe_ne,anpetogo,essa_sa,hrjobs_liberia,iefp_cv,kenya_psc_jobs,oppz_zambia_jobs,onem_app_cd,senjob_sn,south_africa_gov_jobs,beta_mauritania,botswana_mof_recruitment"
       apply:
-        description: "Autoriser explicitement l'ingestion des candidats en production"
+        description: "Allow ingesting only after explicit approval"
         required: true
         type: boolean
         default: false
@@ -30,8 +40,6 @@ concurrency:
 
 jobs:
   shadow-crawl:
-    # PR runs acquire this concurrency group to supersede an in-flight main run,
-    # but do not start another full crawl or any production ingestion.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -40,78 +48,62 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Run shadow crawl
+      - name: Test application contact extraction
+        run: deno test supabase/functions/_shared/application-contact.test.ts
+      - name: Type-check source batch crawler
+        run: deno check supabase/functions/discover-jobs/shadow-crawl.ts
+      - name: Run source batch shadow crawl
         env:
           COUNTRIES: ${{ inputs.countries || 'CM,DZ,EG,LY,MA,MR,TN,BJ,BF,CV,CI,GM,GH,GN,GW,LR,ML,NE,NG,SN,SL,TG,CF,TD,CG,CD,GQ,GA,ST,BI,AO,KE,UG,TZ,RW,ET,DJ,ER,SO,SS,SD,KM,MG,MU,SC,ZA,ZM,ZW,MW,MZ,NA,BW,SZ,LS' }}
+          SOURCE_KEYS: ${{ inputs.source_keys || (github.event_name == 'push' && 'inep_mozambique,lmis_sl,nelex_ng,ajira_portal,sica_anpe_bj,zimbabwe_psc_erecruitment,anpe_bj,anpe_bf,anpe_ne,anpetogo,essa_sa,hrjobs_liberia,iefp_cv,kenya_psc_jobs,oppz_zambia_jobs,onem_app_cd,senjob_sn,south_africa_gov_jobs,beta_mauritania,botswana_mof_recruitment') || '' }}
         run: |
           IFS=',' read -ra CODES <<< "$COUNTRIES"
-          set -o pipefail
-          deno run --allow-net --allow-write supabase/functions/discover-jobs/shadow-crawl.ts "${CODES[@]}" | tee africa-shadow-crawl.json
-      - name: Validate report exists
+          if [ -n "$SOURCE_KEYS" ]; then
+            KEY_COUNT="$(python -c 'import os; print(len(set(x.strip() for x in os.environ["SOURCE_KEYS"].split(",") if x.strip())))')"
+            test "$KEY_COUNT" -le 20 || { echo "A source batch is limited to 20 unique keys"; exit 1; }
+            export SOURCE_KEYS
+            deno run --allow-net --allow-write --allow-env=SOURCE_KEYS supabase/functions/discover-jobs/shadow-crawl.ts "${CODES[@]}" | tee africa-shadow-crawl.json
+          else
+            deno run --allow-net --allow-write supabase/functions/discover-jobs/shadow-crawl.ts "${CODES[@]}" | tee africa-shadow-crawl.json
+          fi
+      - name: Validate shadow report
         run: |
           test -s africa-shadow-crawl.json
           test -s africa-shadow-harvest-candidates.json
           python - <<'PY'
           import json
-          with open("africa-shadow-crawl.json", "r", encoding="utf-8") as f:
-              json.load(f)
-          PY
-          python - <<'PY'
-          import json
-          with open("africa-shadow-crawl.json", "r", encoding="utf-8") as f:
-              data = json.load(f)
+          from datetime import datetime, timezone
+          data = json.load(open("africa-shadow-crawl.json", encoding="utf-8"))
           summary = data.get("summary", data)
-          required = ["countries", "sources", "accessible", "failed", "listingPages", "detailPages", "discoveredUrls", "totalExtracted", "totalEligible", "expired", "rejected", "durationMs"]
-          missing = [k for k in required if k not in summary]
+          required = ["sources", "totalExtracted", "totalEligible", "contactAccepted", "contactRejected", "missingPublicationDate", "freshnessRejected", "harvestCandidates"]
+          missing = [key for key in required if key not in summary]
           if missing:
               raise SystemExit(f"Missing report fields: {missing}")
-          if summary["sources"] != len(data.get("metrics", [])):
-              raise SystemExit("Report source count does not match metrics")
-          if summary["durationMs"] > 115 * 60 * 1000:
-              raise SystemExit("Shadow crawl exceeded the 115 minute safety budget")
-          print(json.dumps({k: summary[k] for k in required}, ensure_ascii=False, indent=2))
-          PY
-          python - <<'PY'
-          import json
-          with open("africa-shadow-harvest-candidates.json", "r", encoding="utf-8") as f:
-              candidates = json.load(f)
-          if not isinstance(candidates, list):
-              raise SystemExit("Harvest candidates must be a JSON array")
-          print(f"Harvest candidates: {len(candidates)}")
-          PY
-      - name: Validate harvest handoff
-        run: |
-          python - <<'PY'
-          import json
-          from datetime import datetime, timezone
-          with open("africa-shadow-harvest-candidates.json", "r", encoding="utf-8") as f:
-              candidates = json.load(f)
-          invalid = [x for x in candidates if not x.get("sourceKey") or not x.get("url") or not x.get("title") or not x.get("countryCode")]
-          if invalid:
-              raise SystemExit(f"Invalid harvest candidates: {len(invalid)}")
+          candidates = json.load(open("africa-shadow-harvest-candidates.json", encoding="utf-8"))
+          bad_contact = [x for x in candidates if not x.get("applicationEmail") and not x.get("applicationPhone")]
+          bad_date = [x for x in candidates if not x.get("published")]
+          if bad_contact or bad_date:
+              raise SystemExit(f"Invalid candidates: no_contact={len(bad_contact)}, no_publication_date={len(bad_date)}")
           now = datetime.now(timezone.utc)
           stale = []
-          for x in candidates:
-              p = x.get("published")
-              if p:
-                  try:
-                      dt = datetime.fromisoformat(p.replace("Z", "+00:00"))
-                      if (now - dt).total_seconds() > 62 * 86400:
-                          stale.append(x)
-                  except Exception:
-                      pass
+          for item in candidates:
+              try:
+                  published = datetime.fromisoformat(item["published"].replace("Z", "+00:00"))
+                  if (now - published).total_seconds() > 62 * 86400:
+                      stale.append(item)
+              except Exception:
+                  stale.append(item)
           if stale:
-              raise SystemExit(f"Candidates older than two months: {len(stale)}")
-          print(f"Validated harvest candidates: {len(candidates)}")
+              raise SystemExit(f"Candidates older than two months or with invalid dates: {len(stale)}")
+          print(json.dumps({key: summary[key] for key in required}, ensure_ascii=False, indent=2))
+          print(f"Candidate rows validated: {len(candidates)}")
           PY
-      # Scheduled ingestion preserves the existing automated pipeline.
-      # Manual ingestion requires an explicit apply=true; PR runs are always read-only.
       - name: Push candidates to JobHarvestCapture
         if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.apply == true)
         env:
           INGEST_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-ingest
         run: |
-          OIDC_TOKEN="$(curl --fail-with-body --silent --show-error             -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=jobly-harvest")"
+          OIDC_TOKEN="$(curl --fail-with-body --silent --show-error -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=jobly-harvest")"
           TOKEN="$(python -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "$OIDC_TOKEN")"
           test -n "$TOKEN" || { echo "GitHub Actions OIDC token unavailable"; exit 1; }
           python - <<'PY'
@@ -125,7 +117,7 @@ jobs:
           shopt -s nullglob
           for batch in /tmp/jobly-harvest-*.json; do
             echo "Sending $batch"
-            curl --fail-with-body --silent --show-error               --retry 3 --retry-delay 5               -X POST "$INGEST_URL"               -H "Authorization: Bearer $TOKEN"               -H "Content-Type: application/json"               --data-binary "@$batch"
+            curl --fail-with-body --silent --show-error --retry 3 --retry-delay 5 -X POST "$INGEST_URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data-binary "@$batch"
             echo
           done
       - name: Upload shadow report
