@@ -39,13 +39,14 @@ test("Talent GET remains read-only and excludes expired offers",()=>{
 });
 
 
-test("production harvest requires a scheduled run or explicit manual apply approval", () => {
+test("production harvest requires explicit manual approval and never auto-ingests on schedule", () => {
   const workflow = readFileSync(new URL("../.github/workflows/africa-shadow-crawl.yml", import.meta.url), "utf8");
   assert.ok(workflow.includes("pull_request:"));
   assert.ok(workflow.includes("if: github.event_name != 'pull_request'"));
   assert.ok(workflow.includes("workflow_dispatch:"));
   assert.ok(workflow.includes("apply:"));
-  assert.ok(workflow.includes("github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.apply == true)"));
+  assert.ok(workflow.includes("github.event_name == 'workflow_dispatch' && inputs.apply == true"));
+  assert.ok(!workflow.includes("github.event_name == 'schedule' ||"));
   assert.ok(!/^\s*push:/m.test(workflow));
 });
 test("future publication dates are rejected instead of becoming fresh offers",()=>{
