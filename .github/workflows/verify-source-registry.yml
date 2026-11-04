@@ -25,5 +25,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      - name: Test source-specific date and deadline extraction
+        run: deno test supabase/functions/discover-jobs/date-extraction.test.ts
       - name: Audit registry
         run: deno run supabase/functions/discover-jobs/source-registry-smoke.ts
