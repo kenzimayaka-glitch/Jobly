@@ -1,4 +1,4 @@
-import { extractSourcePublishedAt } from "./date-extraction.ts";
+import { extractSourceDeadline, extractSourcePublishedAt } from "./date-extraction.ts";
 import type { SourceDefinition } from "./source-registry.ts";
 
 export type ExhaustiveItem = {
@@ -74,7 +74,7 @@ function extractHtmlItem(html:string,url:string,sourceKey:string):ExhaustiveItem
   const ld=jsonLdJobs(html)[0]; if(ld)return extractJob(ld,url,sourceKey);
   const title=clean(meta(html,["og:title","twitter:title"])||html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1]||html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]||"");
   const body=clean(html).slice(0,30000);
-  return {title,description:body,company:"",location:"",url,deadline:firstDate([meta(html,["validThrough","deadline","dateDeadline","article:expiration_time"])]),
+  return {title,description:body,company:"",location:"",url,deadline:extractSourceDeadline(html,url,sourceKey) || firstDate([meta(html,["validThrough","deadline","dateDeadline","article:expiration_time"])]),
     published:extractSourcePublishedAt(html,url,sourceKey) || firstDate([meta(html,["article:published_time","datePublished","date"]) ]),opportunityType:inferType(title,body,sourceKey)};
 }
 async function fetchPage(url:string,deadlineAt=Number.POSITIVE_INFINITY):Promise<{status:number;html:string}> {
