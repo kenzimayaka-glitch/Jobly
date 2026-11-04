@@ -1,7 +1,7 @@
 export type ApplicationContact = { email: string | null; phone: string | null };
 
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
-const APPLICATION_MARKER = /(?:method of application|how to apply|application instructions|interested and qualified|to apply|apply for this job|send (?:your )?(?:cv|resume)|envoyer (?:leur|votre|son) (?:cv|candidature)|pour postuler|modalit[eé]s de candidature|comment postuler|coordonn[ée]es du recruteur|contact du recruteur|candidature)/gi;
+const APPLICATION_MARKER = /(?:method of application|how to apply|application instructions|interested and qualified|interested applicants|to apply|apply for this job|application for|applications must be addressed|direct your applications to|direct your application to|applications to|send (?:your )?(?:cv|resume|application)|envoyer (?:leur|votre|son) (?:cv|candidature)|pour postuler|modalit[eé]s de candidature|comment postuler|coordonn[ée]es du recruteur|contact du recruteur|d[ée]p[oô]t de dossiers (?:par voie num[ée]rique )?(?:[àa] l['’]adresse)?|candidature)/gi;
 const STOP_MARKER = /(?:related jobs|similar jobs|share this|about us|privacy policy|terms (?:and|&) conditions|copyright|frequently asked questions|about the company|company details|contact details|employer information)/i;
 const LABELLED_PHONE_RE = /(?:tel(?:ephone)?|t[eé]l(?:éphone)?|phone(?:\s+number)?|mobile|whats?app|call|contact(?:\s+number)?)[^\r\n\d+]{0,32}?((?:\+|00)?\s*\d[\d\s()./-]{5,20}\d)/gi;
 
@@ -19,7 +19,10 @@ function expandCloudflareEmails(value: string): string {
 }
 
 function plainText(value: string): string {
-  return value.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+  return value
+    .replace(/<a\b[^>]*href=["']mailto:([^"'?]+)[^>]*>([\s\S]*?)<\/a>/gi,
+      (_all, address: string, label: string) => label + " " + address)
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(?:p|div|section|article|li|h[1-6])>/gi, "\n")
