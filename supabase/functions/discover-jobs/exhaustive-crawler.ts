@@ -90,17 +90,32 @@ function extractHtmlItem(html:string,url:string,sourceKey:string):ExhaustiveItem
   const ld=jsonLdJobs(html)[0];
   if(ld){
     const item=extractJob(ld,url,sourceKey);
-    const contact=extractApplicationContact(html,item.applicationEmail,item.applicationPhone);
+    let applicationHtml=html;
+    if(sourceKey==="nelex_ng") {
+      const marker=html.search(/(?:Method of Application|How to Apply)/i);
+      if(marker<0) applicationHtml="";
+      else {
+        applicationHtml=html.slice(marker,marker+7000);
+        const stop=applicationHtml.search(/(?:Related Jobs|About the Company|About Us)/i);
+        if(stop>=0)applicationHtml=applicationHtml.slice(0,stop);
+      }
+    }
+    const contact=extractApplicationContact(
+      sourceKey==="senjob_sn" ? (html.match(/Coordonn[ée]es? du recruteur[\s\S]{0,2600}/i)?.[0] ?? "") : applicationHtml,
+      sourceKey==="nelex_ng" ? undefined : item.applicationEmail,
+      sourceKey==="nelex_ng" ? undefined : item.applicationPhone,
+    );
     const h1=clean(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]??"");
+    const slug=new URL(url).pathname.split("/").filter(Boolean).at(-1)?.replace(/[-_]+/g," ") ?? "";
     const genericNelexTitle=sourceKey==="nelex_ng" && /national electronic labour exchange|nelex/i.test(item.title);
-    const title=genericNelexTitle && h1 && !/national electronic labour exchange|nelex/i.test(h1) ? h1 : item.title;
+    const title=genericNelexTitle ? (h1 && !/national electronic labour exchange|nelex/i.test(h1) ? h1 : slug.replace(/\b[a-z]/g,x=>x.toUpperCase())) : item.title;
     return {...item,title,opportunityType:inferType(title,item.description,sourceKey),applicationEmail:contact.email,applicationPhone:contact.phone};
-  }
-  const heading=clean(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]??"");
+  }  const heading=clean(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]??"");
   const metaTitle=clean(meta(html,["og:title","twitter:title"])||html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]||"");
   const title=sourceKey==="senjob_sn" && heading ? heading : metaTitle || heading;
   const body=clean(html).slice(0,30000);
-  const contact=extractApplicationContact(html);
+  const contactHtml=sourceKey==="senjob_sn" ? (html.match(/Coordonn[ée]es? du recruteur[\s\S]{0,2600}/i)?.[0] ?? "") : html;
+  const contact=extractApplicationContact(contactHtml);
   return {title,description:body,company:"",location:"",url,deadline:extractSourceDeadline(html,url,sourceKey) || firstDate([meta(html,["validThrough","deadline","dateDeadline","article:expiration_time"])]),
     published:extractSourcePublishedAt(html,url,sourceKey) || firstDate([meta(html,["article:published_time","datePublished","date"])]),
     applicationEmail:contact.email,applicationPhone:contact.phone,opportunityType:inferType(title,body,sourceKey)};
@@ -117,7 +132,8 @@ function isPagination(link:{url:string;label:string;rel?:string}):boolean {
     || /(?:[?&](?:page|p|paged)=\d+|\/page\/\d+|\/page-\d+|\/\d+\/?$)/i.test(link.url);
 }
 function isDetail(link:{url:string;label:string},sourceUrl:string,sourceKey?:string):boolean {
-  if(!sameHost(link.url,sourceUrl)||isPagination(link))return false;
+  if(!sameHost(link.url,sourceUrl))return false;
+  if(sourceKey!=="beta_mauritania" && isPagination(link))return false;
   try {
     const parsed=new URL(link.url);
     const path=parsed.pathname.replace(/\/+$/,"").toLowerCase();
