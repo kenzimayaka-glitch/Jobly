@@ -103,10 +103,10 @@ jobs:
           print(f"Candidate rows validated: {len(candidates)}")
           PY
       - name: Push candidates to JobHarvestCapture
-        if: github.event_name == 'workflow_dispatch' && inputs.apply == true
+        if: (github.event_name == 'workflow_dispatch' && inputs.apply == true) || (github.event_name == 'push' && contains(github.event.head_commit.message, 'JOBLY-LOT1-INGEST-ONCE-20261104'))
         env:
           INGEST_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-ingest
-          SOURCE_KEYS: ${{ inputs.source_keys }}
+          SOURCE_KEYS: ${{ inputs.source_keys || 'inep_mozambique,lmis_sl,nelex_ng,ajira_portal,sica_anpe_bj,zimbabwe_psc_erecruitment,anpe_bj,anpe_bf,anpe_ne,anpetogo,essa_sa,hrjobs_liberia,iefp_cv,kenya_psc_jobs,oppz_zambia_jobs,onem_app_cd,senjob_sn,south_africa_gov_jobs,beta_mauritania,botswana_mof_recruitment' }}
         run: |
           KEY_COUNT="$(python -c 'import os; print(len(set(x.strip() for x in os.environ["SOURCE_KEYS"].split(",") if x.strip())))')"
           test "$KEY_COUNT" -ge 1 -a "$KEY_COUNT" -le 20 || { echo "Explicit approval requires 1–20 source keys"; exit 1; }
@@ -127,6 +127,25 @@ jobs:
             curl --fail-with-body --silent --show-error --retry 3 --retry-delay 5 -X POST "$INGEST_URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data-binary "@$batch"
             echo
           done
+      - name: Process approved first-batch captures
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, 'JOBLY-LOT1-INGEST-ONCE-20261104')
+        env:
+          PROCESS_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-process
+          SOURCE_KEYS: 'inep_mozambique,lmis_sl,nelex_ng,ajira_portal,sica_anpe_bj,zimbabwe_psc_erecruitment,anpe_bj,anpe_bf,anpe_ne,anpetogo,essa_sa,hrjobs_liberia,iefp_cv,kenya_psc_jobs,oppz_zambia_jobs,onem_app_cd,senjob_sn,south_africa_gov_jobs,beta_mauritania,botswana_mof_recruitment'
+        run: |
+          OIDC_TOKEN="$(curl --fail-with-body --silent --show-error -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=jobly-harvest")"
+          TOKEN="$(python -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "$OIDC_TOKEN")"
+          test -n "$TOKEN" || { echo "GitHub Actions OIDC token unavailable"; exit 1; }
+          BODY="$(python - <<'PY'
+          import json, os
+          keys = list(dict.fromkeys(x.strip() for x in os.environ["SOURCE_KEYS"].split(",") if x.strip()))
+          if not keys or len(keys) > 20:
+              raise SystemExit("Provide between 1 and 20 source keys.")
+          print(json.dumps({"limit":40,"sourceKeys":keys}))
+          PY
+          )"
+          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 5 -X POST "$PROCESS_URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data "$BODY"
+
       - name: Upload shadow report
         uses: actions/upload-artifact@v4
         with:
