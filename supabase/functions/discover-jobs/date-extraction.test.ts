@@ -1,6 +1,7 @@
 import { assertEquals } from "jsr:@std/assert@1";
 import { extractSourceDeadline, extractSourcePublishedAt, resolveEffectivePublicationDate } from "./date-extraction.ts";
 import { resolveSourceUrl } from "./country-url-resolver.ts";
+import { buildSourceRunPlan } from "./source-engine.ts";
 import { getActiveSources } from "./source-registry.ts";
 import type { SourceDefinition } from "./source-registry.ts";
 const NOW="2026-10-03T07:00:00.000Z";
@@ -135,4 +136,11 @@ Deno.test("Ninth-pass source activation states are intentional",()=>{
   for(const [country,key] of [["NG","leep_jobs_ng"],["BJ","uemoa_careers"],["KE","eafrica_connect"],["GA","pnpe_ga_offers"],["GN","cawa_group_west"]] as const) {
     assertEquals(getActiveSources(country).some(source=>source.key===key),false);
   }
+});
+
+Deno.test("NELEX is selected by the Nigeria-specific source run plan",()=>{
+  const source=buildSourceRunPlan("NG").find(item=>item.key==="nelex_ng");
+  assertEquals(Boolean(source),true);
+  assertEquals(source?.enabled,true);
+  assertEquals(resolveSourceUrl(source!,"NG").url,"https://nelex.gov.ng/jobs");
 });
