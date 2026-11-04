@@ -3,7 +3,6 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
 import {
   mapOpportunityType,
-  normalizeCountryCode,
   normalizeLanguage,
   normalizeRemoteMode,
   resolveCountryCode,
