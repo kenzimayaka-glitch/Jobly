@@ -1,5 +1,6 @@
 import { resolveCountrySources, resolveSourceUrl } from "./country-url-resolver.ts";
 import { SOURCE_REGISTRY, type SourceDefinition } from "./source-registry.ts";
+import { sourceCanBeCrawled, validateSourceDefinition } from "./source-engine.ts";
 import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
 import { extractApplicationContact, resolveSourceDisplayModel } from "../_shared/application-contact.ts";
 import { crawlExhaustiveSource } from "./exhaustive-crawler.ts";
@@ -28,7 +29,21 @@ if(requestedSourceKeys.length){
     metrics.push({sourceKey:missing,sourceName:missing,countryCode:"",listingPages:0,detailPages:0,discoveredUrls:0,extracted:0,eligible:0,fresh:0,expired:0,internships:0,consultancies:0,applications:0,tenders:0,rejected:0,contactRejected:0,missingPublicationDate:0,freshnessRejected:0,harvestCandidates:0,rejectedReasons:{unknown_source:1},advertisedCount:null,errors:["UNKNOWN_SOURCE_KEY"]});
   }
   for(const definition of definitions){
-    const source={...definition,enabled:true,status:"active" as const};
+    if(!sourceCanBeCrawled(definition)){
+      const inactive = !definition.enabled || definition.status !== "active";
+      const validationErrors = validateSourceDefinition(definition);
+      metrics.push({
+        sourceKey:definition.key,sourceName:definition.name,countryCode:"",
+        listingPages:0,detailPages:0,discoveredUrls:0,extracted:0,eligible:0,fresh:0,
+        expired:0,internships:0,consultancies:0,applications:0,tenders:0,rejected:0,
+        contactRejected:0,missingPublicationDate:0,freshnessRejected:0,harvestCandidates:0,
+        rejectedReasons:inactive?{source_not_qualified:1}:{invalid_source_configuration:1},
+        advertisedCount:null,
+        errors:inactive?["SOURCE_NOT_QUALIFIED"]:[ "INVALID_SOURCE_CONFIGURATION", ...validationErrors ],
+      });
+      continue;
+    }
+    const source=definition;
     const targetCountries=source.countries.filter(code=>countries.includes(code));
     if(!targetCountries.length){
       metrics.push({sourceKey:source.key,sourceName:source.name,countryCode:"",listingPages:0,detailPages:0,discoveredUrls:0,extracted:0,eligible:0,fresh:0,expired:0,internships:0,consultancies:0,applications:0,tenders:0,rejected:0,contactRejected:0,missingPublicationDate:0,freshnessRejected:0,harvestCandidates:0,rejectedReasons:{country_not_selected:1},advertisedCount:null,errors:["NO_COUNTRY_IN_RUN_SCOPE"]});
