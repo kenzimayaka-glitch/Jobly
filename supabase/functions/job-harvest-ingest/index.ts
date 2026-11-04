@@ -2,6 +2,7 @@
 import { jwtVerify, createRemoteJWKSet } from "npm:jose@6";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
+import { extractApplicationContact, resolveSourceDisplayModel } from "../_shared/application-contact.ts";
 
 const JWKS = createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks"));
 const ISSUER = "https://token.actions.githubusercontent.com";
@@ -56,6 +57,18 @@ Deno.serve(async (req: Request) => {
       const countryCode = String(item?.countryCode ?? "").trim().toUpperCase();
       const publishedAt = asDate(item?.published);
       const deadline = asDate(item?.deadline);
+      const applicationContact = extractApplicationContact(
+        String(item?.title ?? "") + "\\n" + String(item?.description ?? ""),
+        item?.applicationEmail,
+        item?.applicationPhone,
+      );
+      const displayModel = String(item?.displayModel ?? "").trim() ||
+        resolveSourceDisplayModel(
+          sourceKey,
+          String(item?.sourceType ?? "national"),
+          String(item?.sourceCaptureMode ?? "http"),
+          Boolean(item?.renderRequired),
+        );
 
       let validUrl = false;
       try {
@@ -65,7 +78,8 @@ Deno.serve(async (req: Request) => {
         validUrl = false;
       }
 
-      if (!sourceKey || !validUrl || !title || !COUNTRY_CODES.has(countryCode)) {
+      if (!sourceKey || !validUrl || !title || !COUNTRY_CODES.has(countryCode) ||
+          (!applicationContact.email && !applicationContact.phone)) {
         skipped++;
         continue;
       }
@@ -102,9 +116,22 @@ Deno.serve(async (req: Request) => {
         description: item.description ? String(item.description).slice(0, 30000) : null,
         deadline,
         publishedAt,
-        applicationProfile: { countryCode, opportunityType: item.opportunityType ?? null },
-        payload,
-        captureMode: "shadow-crawl",
+        applicationProfile: {
+          countryCode,
+          opportunityType: item.opportunityType ?? null,
+          applicationEmail: applicationContact.email,
+          applicationPhone: applicationContact.phone,
+          applicationReady: true,
+          displayModel,
+          sourceType: item.sourceType ?? "national",
+        },
+        payload: {
+          ...payload,
+          applicationEmail: applicationContact.email,
+          applicationPhone: applicationContact.phone,
+          displayModel,
+        },
+        captureMode: item.sourceCaptureMode ?? "shadow-crawl",
         status: "PENDING",
         discoveredAt: nowIso,
         updatedAt: nowIso,
