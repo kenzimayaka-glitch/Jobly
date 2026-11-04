@@ -65,16 +65,16 @@ const HTML_ENTITIES: Record<string,string> = {
 };
 
 function decodeHtmlPass(value: string): string {
-  return value.replace(/&(#x[0-9a-f]+|#\\d+|[a-z][a-z0-9]+);/gi, (entity, token: string) => {
+  return value.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]+);/gi, (entity, token: string) => {
     if (token[0] !== "#") return HTML_ENTITIES[token.toLowerCase()] ?? entity;
     const hex = token[1]?.toLowerCase() === "x";
     const parsed = Number.parseInt(token.slice(hex ? 2 : 1), hex ? 16 : 10);
     if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 0x10ffff ||
-        (parsed >= 0xd800 && parsed <= 0xdfff)) return "\\uFFFD";
+        (parsed >= 0xd800 && parsed <= 0xdfff)) return "\uFFFD";
     try {
       return String.fromCodePoint(parsed);
     } catch {
-      return "\\uFFFD";
+      return "\uFFFD";
     }
   });
 }
