@@ -52,3 +52,8 @@ Deno.test("uses separate source-specific display model identifiers", () => {
   assertEquals(resolveSourceDisplayModel("nelex_ng", "institutional", "http"), "jobly-institutional-nelex_ng-v1");
   assertEquals(resolveSourceDisplayModel("anpe_bj", "institutional", "http"), "jobly-institutional-anpe_bj-v1");
 });
+
+Deno.test("extracts ANPE Togo email in the digital application section", () => {
+  const html = "Dépôt de dossiers par voie numérique à l'adresse : recrutement@anpetogo.org. Date limite de dépôt des dossiers de candidature : 06 novembre 2026. Comment postuler : envoyez votre dossier par e-mail à recrutement@anpetogo.org.";
+  assertEquals(extractApplicationContact(html).email, "recrutement@anpetogo.org");
+});
