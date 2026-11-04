@@ -32,9 +32,14 @@ function clean(value:any):string {
 function absolute(base:string,href:string):string { try{return new URL(href,base).toString().split("#")[0]}catch{return ""} }
 function sameHost(a:string,b:string):boolean { try{return new URL(a).hostname.replace(/^www\./,"")===new URL(b).hostname.replace(/^www\./,"")}catch{return false} }
 function canonical(url:string):string { try{const u=new URL(url);u.hash="";["utm_source","utm_medium","utm_campaign","utm_term","utm_content","fbclid","gclid"].forEach(k=>u.searchParams.delete(k));return u.toString().replace(/\/$/,"")}catch{return url} }
-function links(html:string,base:string):Array<{url:string;label:string;rel:string}> {
+function links(html:string,base:string):Array<{url:string;label:string;rel:string;context:string}> {
   const out=[]; const re=/<a\b([^>]*?)href=["']([^"'#]+)["']([^>]*)>([\s\S]*?)<\/a>/gi; let m;
-  while((m=re.exec(html))){const u=absolute(base,m[2]);if(u)out.push({url:u,label:clean(m[4]),rel:(m[1]+" "+m[3]).toLowerCase()});} return out;
+  while((m=re.exec(html))){
+    const u=absolute(base,m[2]);
+    if(u)out.push({url:u,label:clean(m[4]),rel:(m[1]+" "+m[3]).toLowerCase(),
+      context:html.slice(Math.max(0,m.index-2600),Math.min(html.length,re.lastIndex+1000))});
+  }
+  return out;
 }
 function jsonLdJobs(html:string):any[] {
   const jobs:any[]=[]; const re=/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi; let m;
@@ -155,7 +160,7 @@ async function mapConcurrent<T,R>(items:T[],fn:(item:T)=>Promise<R>,limit=CONCUR
 export async function crawlExhaustiveSource(source:SourceDefinition&{url:string},countryCode:string,options:{deadlineAt?:number}={}):Promise<{items:ExhaustiveItem[];stats:ExhaustiveStats}> {
   const deadlineAt=options.deadlineAt??(Date.now()+180000);
   const stats:ExhaustiveStats={sourceKey:source.key,sourceName:source.name,countryCode,listingPages:0,detailPages:0,discoveredUrls:0,extracted:0,eligible:0,fresh:0,expired:0,internships:0,consultancies:0,applications:0,tenders:0,rejected:0,rejectedReasons:{},advertisedCount:null,errors:[]};
-  const pagesToVisit=[source.url],seenPages=new Set<string>(),detailUrls=new Map<string,string>(),listingHtmls:string[]=[];
+  const pagesToVisit=[source.url],seenPages=new Set<string>(),detailUrls=new Map<string,string>(),detailContexts=new Map<string,string>(),listingHtmls:string[]=[];
   while(pagesToVisit.length && Date.now()<deadlineAt){
     const pageUrl=pagesToVisit.shift()!,key=canonical(pageUrl);if(seenPages.has(key))continue;seenPages.add(key);
     try{
@@ -165,8 +170,16 @@ export async function crawlExhaustiveSource(source:SourceDefinition&{url:string}
       const pageLinks=links(r.html,pageUrl);
       for(const j of jsonLdJobs(r.html)){const item=extractJob(j,pageUrl);if(item.title){detailUrls.set(canonical(item.url),item.url)}}
       for(const link of pageLinks){
-        if(isPagination(link)&&sameHost(link.url,source.url)&&!seenPages.has(canonical(link.url)))pagesToVisit.push(link.url);
-        if(isDetail(link,source.url,source.key))detailUrls.set(canonical(link.url),link.url);
+        let pagination=isPagination(link);
+        if(source.key==="beta_mauritania") {
+          const path=new URL(link.url).pathname.toLowerCase();
+          if(path.includes("/employeur/")||path.includes("/beta/offre/")) pagination=false;
+        }
+        if(pagination&&sameHost(link.url,source.url)&&!seenPages.has(canonical(link.url)))pagesToVisit.push(link.url);
+        if(isDetail(link,source.url,source.key)){
+          detailUrls.set(canonical(link.url),link.url);
+          detailContexts.set(canonical(link.url),link.context);
+        }
       }
     }catch(e){stats.errors.push(pageUrl+": "+(e instanceof Error?e.message:String(e)))}
   }
@@ -176,7 +189,17 @@ export async function crawlExhaustiveSource(source:SourceDefinition&{url:string}
   },CONCURRENCY,deadlineAt);
   if(Date.now()>=deadlineAt) stats.errors.push("SOURCE_TIME_BUDGET_EXCEEDED");
   const byUrl=new Map<string,ExhaustiveItem>();
-  for(const item of details){if(!item?.title)continue;stats.detailPages++;const key=canonical(item.url),previous=byUrl.get(key);if(!previous||item.description.length>previous.description.length)byUrl.set(key,item)}
+  for(const item of details){
+    if(!item?.title)continue;
+    stats.detailPages++;
+    const key=canonical(item.url);
+    if(!item.published && detailContexts.has(key)) {
+      const listingPublication=extractSourcePublishedAt(detailContexts.get(key)!,item.url,source.key);
+      if(listingPublication)item.published=listingPublication;
+    }
+    const previous=byUrl.get(key);
+    if(!previous||item.description.length>previous.description.length)byUrl.set(key,item);
+  }
   for(const html of listingHtmls)for(const j of jsonLdJobs(html)){const item=extractJob(j,source.url);if(item.title&&!byUrl.has(canonical(item.url)))byUrl.set(canonical(item.url),item)}
   stats.extracted=byUrl.size;
   for(const item of byUrl.values()){
