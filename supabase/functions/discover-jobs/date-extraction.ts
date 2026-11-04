@@ -186,6 +186,10 @@ const SOURCE_DEADLINE_ADAPTERS: Record<string, DateAdapter[]> = {
     { pattern: /(?:application\s+(?:closing\s+)?deadline|application\s+closing\s+date|closing\s+date|deadline)\s*[:\-]?\s*(\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+,?\s+20\d{2})/i, format: "english" },
     { pattern: /(?:application\s+(?:closing\s+)?deadline|application\s+closing\s+date|closing\s+date|deadline)\s*[:\-]?\s*([A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?,?\s+20\d{2})/i, format: "english" },
   ],
+  beta_mauritania: [
+    { pattern: /date limite(?: de (?:r[ée]ception|d[ée]p[oô]t(?: des candidatures)?))?\s*[:\-]?\s*(\d{1,2}\s+[A-Za-zÀ-ÿ.]+\s+20\d{2})/i, format: "french" },
+    { pattern: /date limite(?: de (?:r[ée]ception|d[ée]p[oô]t(?: des candidatures)?))?\s*[:\-]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]20\d{2})/i, format: "dmy" },
+  ],
   anpetogo: [
     { pattern: /date limite (?:de dépôt(?: des| de)? dossiers?(?: de candidature)?|de candidature)\s*[:\-]?\s*(\d{1,2}\s+[A-Za-zÀ-ÿ.]+\s+20\d{2})/i, format: "french" },
     { pattern: /date limite\s*[:\-]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]20\d{2})/i, format: "dmy" },
