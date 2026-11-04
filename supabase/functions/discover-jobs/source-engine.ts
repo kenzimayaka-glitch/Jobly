@@ -104,6 +104,12 @@ export function auditRegistry() {
   const active = SOURCE_REGISTRY.filter((source) => source.status === "active" && source.enabled);
   const discovered = SOURCE_REGISTRY.filter((source) => source.status === "discovered");
   const missingUrl = SOURCE_REGISTRY.filter((source) => !source.url);
+  const unresolvedUrl = missingUrl.filter((source) =>
+    source.status === "active" || source.status === "discovered" || source.enabled
+  );
+  const retiredNoUrl = missingUrl.filter((source) =>
+    source.status === "retired" || source.status === "blocked" || source.status === "inactive"
+  );
   const unknownCaptureMode = SOURCE_REGISTRY.filter((source) => source.captureMode === "unknown");
   const readyForCrawl = SOURCE_REGISTRY.filter(sourceCanBeCrawled);
   const uniqueSourceKeys = keyCounts.size;
@@ -127,10 +133,15 @@ export function auditRegistry() {
     discoveryOnlySources: discovered.length,
     missingUrlSources: missingUrl.length,
     missingUrlSourceKeys: missingUrl.map((source) => source.key).sort(),
+    unresolvedUrlSources: unresolvedUrl.length,
+    unresolvedUrlSourceKeys: unresolvedUrl.map((source) => source.key).sort(),
+    retiredNoUrlSources: retiredNoUrl.length,
+    retiredNoUrlSourceKeys: retiredNoUrl.map((source) => source.key).sort(),
     unknownCaptureModeSources: unknownCaptureMode.length,
     registryIntegrity,
-    qualificationStatus: discovered.length > 0 || missingUrl.length > 0 ? "INCOMPLETE" : "COMPLETE",
-    note: "GREEN measures registry integrity and active configuration only; it does not claim that every external website is reachable or that every discovery entry is crawl-ready.",
+    candidateReviewStatus: unresolvedUrl.length === 0 ? "COMPLETE" : "INCOMPLETE",
+    qualificationStatus: discovered.length > 0 ? "INCOMPLETE" : "COMPLETE",
+    note: "GREEN measures registry integrity and active configuration only. COMPLETE candidate review means every source candidate has either a usable URL or an explicit terminal status; it does not claim that discovered websites have passed a live crawl or are production-ready.",
   };
 }
 
