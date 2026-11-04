@@ -194,7 +194,15 @@ export async function crawlExhaustiveSource(source:SourceDefinition&{url:string}
     stats.detailPages++;
     const key=canonical(item.url);
     if(!item.published && detailContexts.has(key)) {
-      const listingPublication=extractSourcePublishedAt(detailContexts.get(key)!,item.url,source.key);
+      const listingContext=detailContexts.get(key)!;
+      let listingPublication=extractSourcePublishedAt(listingContext,item.url,source.key);
+      if(!listingPublication && source.key==="senjob_sn") {
+        const path=new URL(item.url).pathname;
+        const anchorAt=listingContext.indexOf(path);
+        const before=anchorAt>=0?listingContext.slice(Math.max(0,anchorAt-900),anchorAt):listingContext;
+        const matches=[...before.matchAll(/20\\d{2}-\\d{2}-\\d{2}/g)];
+        if(matches.length) listingPublication=firstDate([matches[matches.length-1][0]]);
+      }
       if(listingPublication)item.published=listingPublication;
     }
     const previous=byUrl.get(key);
