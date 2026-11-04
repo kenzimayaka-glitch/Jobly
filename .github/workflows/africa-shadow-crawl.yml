@@ -103,10 +103,11 @@ jobs:
           print(f"Candidate rows validated: {len(candidates)}")
           PY
       - name: Push candidates to JobHarvestCapture
-        if: (github.event_name == 'workflow_dispatch' && inputs.apply == true) || (github.event_name == 'push' && contains(github.event.head_commit.message, 'JOBLY-LOT1-INGEST-ONCE-20261104'))
+        if: (github.event_name == 'workflow_dispatch' && inputs.apply == true) || (github.event_name == 'push' && (contains(github.event.head_commit.message, 'JOBLY-LOT1-INGEST-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-ONCE-20261104')))
         env:
           INGEST_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-ingest
           SOURCE_KEYS: ${{ inputs.source_keys || 'inep_mozambique,lmis_sl,nelex_ng,ajira_portal,sica_anpe_bj,zimbabwe_psc_erecruitment,anpe_bj,anpe_bf,anpe_ne,anpetogo,essa_sa,hrjobs_liberia,iefp_cv,kenya_psc_jobs,oppz_zambia_jobs,onem_app_cd,senjob_sn,south_africa_gov_jobs,beta_mauritania,botswana_mof_recruitment' }}
+          SOURCE_URLS: ${{ contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-ONCE-20261104') && 'https://www.labour.gov.za/driver-messenger-(2)|https://www.labour.gov.za/administration-clerk-projects|https://www.labour.gov.za/accounting-clerk-(4)' || '' }}
         run: |
           KEY_COUNT="$(python -c 'import os; print(len(set(x.strip() for x in os.environ["SOURCE_KEYS"].split(",") if x.strip())))')"
           test "$KEY_COUNT" -ge 1 -a "$KEY_COUNT" -le 20 || { echo "Explicit approval requires 1–20 source keys"; exit 1; }
@@ -114,8 +115,16 @@ jobs:
           TOKEN="$(python -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "$OIDC_TOKEN")"
           test -n "$TOKEN" || { echo "GitHub Actions OIDC token unavailable"; exit 1; }
           python - <<'PY'
-          import json
+          import json, os
           candidates = json.load(open("africa-shadow-harvest-candidates.json", encoding="utf-8"))
+          only_urls = {x.strip() for x in os.environ.get("SOURCE_URLS", "").split("|") if x.strip()}
+          if only_urls:
+              candidates = [x for x in candidates if x.get("url") in only_urls]
+              missing = only_urls - {x.get("url") for x in candidates}
+              if missing:
+                  raise SystemExit(f"Missing recovery candidates: {sorted(missing)}")
+          if not candidates:
+              raise SystemExit("No candidate rows to ingest.")
           for i in range(0, len(candidates), 500):
               with open(f"/tmp/jobly-harvest-{i//500}.json", "w", encoding="utf-8") as f:
                   json.dump({"items": candidates[i:i+500]}, f, ensure_ascii=False)
@@ -128,7 +137,7 @@ jobs:
             echo
           done
       - name: Process approved first-batch captures
-        if: github.event_name == 'push' && contains(github.event.head_commit.message, 'JOBLY-LOT1-INGEST-ONCE-20261104')
+        if: github.event_name == 'push' && (contains(github.event.head_commit.message, 'JOBLY-LOT1-INGEST-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-ONCE-20261104'))
         env:
           PROCESS_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-process
           SOURCE_KEYS: 'inep_mozambique,lmis_sl,nelex_ng,ajira_portal,sica_anpe_bj,zimbabwe_psc_erecruitment,anpe_bj,anpe_bf,anpe_ne,anpetogo,essa_sa,hrjobs_liberia,iefp_cv,kenya_psc_jobs,oppz_zambia_jobs,onem_app_cd,senjob_sn,south_africa_gov_jobs,beta_mauritania,botswana_mof_recruitment'
