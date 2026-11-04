@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert@1";
-import { extractSourcePublishedAt, resolveEffectivePublicationDate } from "./date-extraction.ts";
+import { extractSourceDeadline, extractSourcePublishedAt, resolveEffectivePublicationDate } from "./date-extraction.ts";
 import { resolveSourceUrl } from "./country-url-resolver.ts";
 import { getActiveSources } from "./source-registry.ts";
 import type { SourceDefinition } from "./source-registry.ts";
@@ -106,5 +106,33 @@ Deno.test("Educarriere extracts explicit French publication dates",()=>{
 Deno.test("eighth-pass West African candidates are recorded but not yet active",()=>{
   for(const [code,key] of [["BJ","emploi_benin"],["BJ","synergieplus_bj"],["BF","emploi_burkina"],["ML","emploi_mali"],["NE","opportafrik_ne"]] as const) {
     assertEquals(getActiveSources(code).some(source=>source.key===key),false);
+  }
+});
+
+
+Deno.test("NELEX publication date adapter",()=>assertEquals(
+  extractSourcePublishedAt("<p>Date Posted: Oct 15, 2026</p>","https://nelex.gov.ng/job/example","nelex_ng"),
+  "2026-10-15T00:00:00.000Z"
+));
+Deno.test("NELEX ordinal closing date adapter",()=>assertEquals(
+  extractSourceDeadline("<p>Application Closing Date: 25th October, 2026.</p>","https://nelex.gov.ng/job/example","nelex_ng"),
+  "2026-10-25T00:00:00.000Z"
+));
+Deno.test("NELEX historical posts fail 62-day source-date freshness gate",()=>{
+  const published=extractSourcePublishedAt("<p>Date Posted: Jun 19, 2023</p>","https://nelex.gov.ng/job/example","nelex_ng");
+  const result=resolveEffectivePublicationDate({sourcePublishedAt:published,firstHarvestAt:"2026-11-04T10:00:00Z",createdAt:"2026-11-04T10:00:00Z",deadline:null,now:"2026-11-04T10:00:00Z"});
+  assertEquals(result.visible,false);
+  assertEquals(result.rejectionCode,"SOURCE_PUBLICATION_OVER_62_DAYS");
+});
+Deno.test("NELEX expired deadline is rejected even for recent publication",()=>{
+  const result=resolveEffectivePublicationDate({sourcePublishedAt:"2026-10-15T00:00:00Z",firstHarvestAt:"2026-11-04T10:00:00Z",createdAt:"2026-11-04T10:00:00Z",deadline:"2026-10-25T00:00:00Z",now:"2026-11-04T10:00:00Z"});
+  assertEquals(result.visible,false);
+  assertEquals(result.rejectionCode,"DEADLINE_PASSED");
+});
+Deno.test("Ninth-pass source activation states are intentional",()=>{
+  const ng=new Set(getActiveSources("NG").map(source=>source.key));
+  assertEquals(ng.has("nelex_ng"),true);
+  for(const [country,key] of [["NG","leep_jobs_ng"],["BJ","uemoa_careers"],["KE","eafrica_connect"],["GA","pnpe_ga_offers"],["GN","cawa_group_west"]] as const) {
+    assertEquals(getActiveSources(country).some(source=>source.key===key),false);
   }
 });
