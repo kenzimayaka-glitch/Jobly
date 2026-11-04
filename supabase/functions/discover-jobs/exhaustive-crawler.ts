@@ -162,7 +162,11 @@ function extractHtmlItem(html:string,url:string,sourceKey:string):ExhaustiveItem
     : sourceKey==="senjob_sn"&&heading?heading:metaTitle||heading;
   const body=clean(html).slice(0,30000);
   let contact=extractApplicationContact(contactHtml,explicitEmail);
-  if(sourceKey==="nelex_ng" && contact.email==="support@nelex.gov.ng")contact={...contact,email:null};
+  if(sourceKey==="nelex_ng") {
+    if(contact.email==="support@nelex.gov.ng")contact={...contact,email:null};
+    // The NELEX profile phone is a general service number, not a vacancy application contact.
+    contact={...contact,phone:null};
+  }
   return {title,description:body,company:"",location:"",url,deadline:extractSourceDeadline(html,url,sourceKey) || firstDate([meta(html,["validThrough","deadline","dateDeadline","article:expiration_time"])]),
     published:extractSourcePublishedAt(html,url,sourceKey) || firstDate([meta(html,["article:published_time","datePublished","date"])]),
     applicationEmail:contact.email,applicationPhone:contact.phone,opportunityType:inferType(title,body,sourceKey)};
@@ -185,6 +189,7 @@ function isDetail(link:{url:string;label:string},sourceUrl:string,sourceKey?:str
     const parsed=new URL(link.url);
     const path=parsed.pathname.replace(/\/+$/,"").toLowerCase();
     const query=parsed.search.toLowerCase();
+    if(sourceKey==="nelex_ng" && path==="/career-development")return false;
     if(sourceKey==="beta_mauritania") {
       if(path.includes("/employeur/")) return false;
       return path.includes("/beta/offre/");
@@ -249,7 +254,22 @@ export async function crawlExhaustiveSource(source:SourceDefinition&{url:string}
       }
     }catch(e){stats.errors.push(pageUrl+": "+(e instanceof Error?e.message:String(e)))}
   }
-  stats.discoveredUrls=detailUrls.size;
+  // Recently verified public vacancies not exposed through a crawlable listing link.
+  const sourceSeedUrls:Record<string,string[]> = {
+    anpetogo:[
+      "https://www.anpetogo.net/offres/vingt-20-chargeurs",
+      "https://www.anpetogo.net/offres/trois-03-livreurs-h-f",
+      "https://www.anpetogo.net/offres/quatre-04-inventoristes-h-f",
+    ],
+    anpe_ne:[
+      "https://anpe-niger.ne/poste/un-e-gestionnaire-de-contrats-projet-project-contracts-manager/",
+    ],
+  };
+  for(const url of sourceSeedUrls[source.key]??[]) {
+    detailUrls.set(canonical(url),url);
+    detailContexts.set(canonical(url),"");
+  }
+    stats.discoveredUrls=detailUrls.size;
   const details=await mapConcurrent([...detailUrls.values()],async(url)=>{
     try{const r=await fetchPage(url,deadlineAt);if(r.status>=400)return null;return extractHtmlItem(r.html,url,source.key)}catch{return null}
   },CONCURRENCY,deadlineAt);
