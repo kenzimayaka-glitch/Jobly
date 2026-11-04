@@ -118,8 +118,8 @@ function isDetail(link:{url:string;label:string},sourceUrl:string,sourceKey?:str
     const path=parsed.pathname.replace(/\/+$/,"").toLowerCase();
     const query=parsed.search.toLowerCase();
     if(sourceKey==="beta_mauritania") {
-      if(/\\/employeur\\//i.test(path)) return false;
-      return /\\/beta\\/offre\\//i.test(path);
+      if(path.includes("/employeur/")) return false;
+      return path.includes("/beta/offre/");
     }
     // Reject source navigation/search/category pages that frequently contain
     // job-related words but are not individual opportunities.
