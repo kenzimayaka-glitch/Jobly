@@ -184,7 +184,7 @@ export function extractSourcePublishedAt(html: string, _url: string, sourceKey: 
   const text = cleanHtml(html);
   for (const adapter of SOURCE_ADAPTERS[sourceKey] || []) {
     const date = parseDate(text.match(adapter.pattern)?.[1] || "", adapter.format);
-    if (date) return endOfDayDeadline(date);
+    if (date) return date;
   }
   return null;
 }
