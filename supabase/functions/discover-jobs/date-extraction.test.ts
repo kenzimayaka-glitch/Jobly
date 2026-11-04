@@ -175,3 +175,8 @@ Deno.test("HireLiberia apply-by date adapter", () => {
     "2026-11-06T00:00:00.000Z",
   );
 });
+
+Deno.test("BETA Mauritania closing date is extracted in French", () => {
+  assertEquals(extractSourceDeadline("<p>Date limite de réception : 12 novembre 2026</p>", "https://beta.mr/beta/offre/un-responsable-achat/12019", "beta_mauritania"), "2026-11-12T00:00:00.000Z");
+  assertEquals(extractSourceDeadline("<p>Date limite : 15 novembre 2026</p>", "https://beta.mr/beta/offre/recrutement-profils/11930", "beta_mauritania"), "2026-11-15T00:00:00.000Z");
+});
