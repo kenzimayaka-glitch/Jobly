@@ -93,7 +93,7 @@ jobs:
               try:
                   published = datetime.fromisoformat(item["published"].replace("Z", "+00:00"))
                   max_age_days = 30 if item.get("publicationDateEstimated") else 62
-              if (now - published).total_seconds() > max_age_days * 86400:
+                  if (now - published).total_seconds() > max_age_days * 86400:
                       stale.append(item)
               except Exception:
                   stale.append(item)
