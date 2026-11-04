@@ -59,10 +59,15 @@ function parseDate(value: string, format: DateFormat): string | null {
     const month = FRENCH_MONTHS[match[2].toLocaleLowerCase("fr").normalize("NFC")];
     return month ? toIso(Number(match[3]), month, Number(match[1])) : null;
   }
-  const match = raw.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(20\d{2})$/);
-  if (!match) return null;
-  const month = new Date(match[1] + " 1, " + match[3]).getMonth() + 1;
-  return Number.isInteger(month) ? toIso(Number(match[3]), month, Number(match[2])) : null;
+  const monthFirst = raw.match(/^([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(20\d{2})$/i);
+  const dayFirst = raw.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+),?\s+(20\d{2})$/i);
+  const monthName = monthFirst?.[1] || dayFirst?.[2];
+  const day = Number(monthFirst?.[2] || dayFirst?.[1]);
+  const year = Number(monthFirst?.[3] || dayFirst?.[3]);
+  if (!monthName || !Number.isInteger(day) || !Number.isInteger(year)) return null;
+  const monthDate = new Date(monthName + " 1, " + year);
+  if (!Number.isFinite(monthDate.getTime())) return null;
+  return toIso(year, monthDate.getMonth() + 1, day);
 }
 
 function findJsonLdPublicationDate(html: string): string | null {
@@ -150,6 +155,9 @@ const SOURCE_ADAPTERS: Record<string, DateAdapter[]> = {
   educarriere_ci: [
     { pattern: /(?:publi[ée]\s+le|publication)\s*[:\-]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]20\d{2})/i, format: "dmy" }
   ],
+  nelex_ng: [
+    { pattern: /(?:date\s+posted|posted\s+on)\s*[:\-]?\s*([A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?,?\s+20\d{2})/i, format: "english" },
+  ],
 };
 
 export function extractSourcePublishedAt(html: string, _url: string, sourceKey: string): string | null {
@@ -159,6 +167,72 @@ export function extractSourcePublishedAt(html: string, _url: string, sourceKey: 
   if (metaDate) return metaDate;
   const text = cleanHtml(html);
   for (const adapter of SOURCE_ADAPTERS[sourceKey] || []) {
+    const date = parseDate(text.match(adapter.pattern)?.[1] || "", adapter.format);
+    if (date) return date;
+  }
+  return null;
+}
+
+
+const SOURCE_DEADLINE_ADAPTERS: Record<string, DateAdapter[]> = {
+  nelex_ng: [
+    { pattern: /(?:application\s+(?:closing\s+)?deadline|application\s+closing\s+date|closing\s+date|deadline)\s*[:\-]?\s*(\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+,?\s+20\d{2})/i, format: "english" },
+    { pattern: /(?:application\s+(?:closing\s+)?deadline|application\s+closing\s+date|closing\s+date|deadline)\s*[:\-]?\s*([A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?,?\s+20\d{2})/i, format: "english" },
+  ],
+};
+
+function findJsonLdDeadline(html: string): string | null {
+  const pattern = /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(html)) !== null) {
+    try {
+      const parsed: unknown = JSON.parse(match[1]);
+      const roots = Array.isArray(parsed) ? parsed : [parsed];
+      const visit = (value: unknown): string | null => {
+        if (!value || typeof value !== "object") return null;
+        const node = value as Record<string, unknown>;
+        const date = toDate(String(node.validThrough || node.expirationDate || ""));
+        if (date) return date;
+        if (Array.isArray(node["@graph"])) {
+          for (const child of node["@graph"]) {
+            const nested = visit(child);
+            if (nested) return nested;
+          }
+        }
+        return null;
+      };
+      for (const root of roots) {
+        const date = visit(root);
+        if (date) return date;
+      }
+    } catch {
+      // Continue with metadata and source-specific text.
+    }
+  }
+  return null;
+}
+
+function findMetaDeadline(html: string): string | null {
+  const tags = html.match(/<meta\b[^>]*>/gi) || [];
+  const accepted = new Set(["validthrough", "expirationdate", "deadline", "datedeadline", "article:expiration_time"]);
+  for (const tag of tags) {
+    const name = tag.match(/(?:name|property)=["']([^"']+)["']/i)?.[1]?.toLowerCase();
+    const value = tag.match(/content=["']([^"']+)["']/i)?.[1];
+    if (name && value && accepted.has(name)) {
+      const date = toDate(value);
+      if (date) return date;
+    }
+  }
+  return null;
+}
+
+export function extractSourceDeadline(html: string, _url: string, sourceKey: string): string | null {
+  const jsonLdDate = findJsonLdDeadline(html);
+  if (jsonLdDate) return jsonLdDate;
+  const metaDate = findMetaDeadline(html);
+  if (metaDate) return metaDate;
+  const text = cleanHtml(html);
+  for (const adapter of SOURCE_DEADLINE_ADAPTERS[sourceKey] || []) {
     const date = parseDate(text.match(adapter.pattern)?.[1] || "", adapter.format);
     if (date) return date;
   }
