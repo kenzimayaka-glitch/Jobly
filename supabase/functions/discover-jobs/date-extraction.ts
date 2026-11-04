@@ -30,11 +30,11 @@ function toDate(value: string | null | undefined): string | null {
 function toDeadlineDate(value: string | null | undefined): string | null {
   if (!value) return null;
   const raw = String(value).trim();
-  if (/^20\\d{2}-\\d{2}-\\d{2}$/.test(raw)) return raw + "T23:59:59.999Z";
+  if (/^20\d{2}-\d{2}-\d{2}$/.test(raw)) return raw + "T23:59:59.999Z";
   return toDate(raw);
 }
 function endOfDayDeadline(value: string): string {
-  return value.replace(/T00:00:00\\.000Z$/, "T23:59:59.999Z");
+  return value.replace(/T00:00:00\.000Z$/, "T23:59:59.999Z");
 }
 
 function cleanHtml(html: string): string {
@@ -122,7 +122,7 @@ function findMetaPublicationDate(html: string): string | null {
     const name = tag.match(/(?:name|property)=["']([^"']+)["']/i)?.[1]?.toLowerCase();
     const content = tag.match(/content=["']([^"']+)["']/i)?.[1];
     if (name && content && accepted.has(name)) {
-      const date = toDeadlineDate(content);
+      const date = toDate(content);
       if (date) return date;
     }
   }
@@ -253,7 +253,7 @@ function findMetaDeadline(html: string): string | null {
     const name = tag.match(/(?:name|property)=["']([^"']+)["']/i)?.[1]?.toLowerCase();
     const value = tag.match(/content=["']([^"']+)["']/i)?.[1];
     if (name && value && accepted.has(name)) {
-      const date = toDate(value);
+      const date = toDeadlineDate(value);
       if (date) return date;
     }
   }
@@ -268,7 +268,7 @@ export function extractSourceDeadline(html: string, _url: string, sourceKey: str
   const text = cleanHtml(html);
   for (const adapter of SOURCE_DEADLINE_ADAPTERS[sourceKey] || []) {
     const date = parseDate(text.match(adapter.pattern)?.[1] || "", adapter.format);
-    if (date) return date;
+    if (date) return endOfDayDeadline(date);
   }
   return null;
 }
