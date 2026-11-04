@@ -1,9 +1,10 @@
 import { extractSourceDeadline, extractSourcePublishedAt } from "./date-extraction.ts";
+import { extractApplicationContact } from "../_shared/application-contact.ts";
 import type { SourceDefinition } from "./source-registry.ts";
 
 export type ExhaustiveItem = {
   title:string; description:string; company:string; location:string; url:string;
-  deadline:string|null; published:string|null;
+  deadline:string|null; published:string|null; applicationEmail:string|null; applicationPhone:string|null;
   opportunityType:"EMPLOI"|"STAGE"|"CONSULTANCE"|"APPEL_A_CANDIDATURE"|"APPEL_OFFRES"|"FORMATION"|"EVENEMENT"|"AUTRE";
 };
 export type ExhaustiveStats = {
@@ -67,15 +68,28 @@ function inferType(title:string,description:string,sourceKey?:string):Exhaustive
 function extractJob(j:any,sourceUrl:string,sourceKey?:string):ExhaustiveItem {
   const title=clean(j?.title), description=clean(j?.description), company=clean(j?.hiringOrganization?.name);
   const loc=j?.jobLocation?.address?.addressLocality||j?.jobLocation?.address?.addressRegion||j?.jobLocation?.name||"";
+  const contact=extractApplicationContact(
+    [j?.description,j?.applicationContact?.email,j?.applicationContact?.telephone,j?.hiringOrganization?.email,j?.hiringOrganization?.telephone].filter(Boolean).join("\\n"),
+    j?.applicationContact?.email ?? j?.hiringOrganization?.email ?? j?.email,
+    j?.applicationContact?.telephone ?? j?.hiringOrganization?.telephone ?? j?.telephone,
+  );
   return {title,description,company,location:clean(Array.isArray(loc)?loc.join(", "):loc),url:clean(j?.url)||sourceUrl,
-    deadline:firstDate([j?.validThrough,j?.expirationDate]),published:firstDate([j?.datePosted,j?.datePublished]),opportunityType:inferType(title,description,sourceKey)};
+    deadline:firstDate([j?.validThrough,j?.expirationDate]),published:firstDate([j?.datePosted,j?.datePublished]),
+    applicationEmail:contact.email,applicationPhone:contact.phone,opportunityType:inferType(title,description,sourceKey)};
 }
 function extractHtmlItem(html:string,url:string,sourceKey:string):ExhaustiveItem {
-  const ld=jsonLdJobs(html)[0]; if(ld)return extractJob(ld,url,sourceKey);
+  const ld=jsonLdJobs(html)[0];
+  if(ld){
+    const item=extractJob(ld,url,sourceKey);
+    const contact=extractApplicationContact(html,item.applicationEmail,item.applicationPhone);
+    return {...item,applicationEmail:contact.email,applicationPhone:contact.phone};
+  }
   const title=clean(meta(html,["og:title","twitter:title"])||html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1]||html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]||"");
   const body=clean(html).slice(0,30000);
+  const contact=extractApplicationContact(html);
   return {title,description:body,company:"",location:"",url,deadline:extractSourceDeadline(html,url,sourceKey) || firstDate([meta(html,["validThrough","deadline","dateDeadline","article:expiration_time"])]),
-    published:extractSourcePublishedAt(html,url,sourceKey) || firstDate([meta(html,["article:published_time","datePublished","date"]) ]),opportunityType:inferType(title,body,sourceKey)};
+    published:extractSourcePublishedAt(html,url,sourceKey) || firstDate([meta(html,["article:published_time","datePublished","date"])]),
+    applicationEmail:contact.email,applicationPhone:contact.phone,opportunityType:inferType(title,body,sourceKey)};
 }
 async function fetchPage(url:string,deadlineAt=Number.POSITIVE_INFINITY):Promise<{status:number;html:string}> {
   const controller=new AbortController();
@@ -83,7 +97,7 @@ async function fetchPage(url:string,deadlineAt=Number.POSITIVE_INFINITY):Promise
   const timer=setTimeout(()=>controller.abort(),remaining);
   try{const r=await fetch(url,{redirect:"follow",signal:controller.signal,headers:{"user-agent":"JOBLY-Africa-Exhaustive/3.0 (+https://jobly-c0651.vercel.app)","accept":"text/html,application/xhtml+xml,application/json"}});return {status:r.status,html:await r.text()}}finally{clearTimeout(timer)}
 }
-function isPagination(link:{url:string;label:string;rel:string}):boolean {
+function isPagination(link:{url:string;label:string;rel?:string}):boolean {
   const l=(link.label+" "+link.url+" "+link.rel).toLowerCase();
   return /rel=["']?next|aria-label=["']?next|\b(next|suivant|older|previous|précédent|page suivante|load more|charger plus)\b/.test(l)
     || /(?:[?&](?:page|p|paged)=\d+|\/page\/\d+|\/page-\d+|\/\d+\/?$)/i.test(link.url);
