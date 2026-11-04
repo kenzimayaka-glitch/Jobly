@@ -70,7 +70,7 @@ async function worker(){
       for(const item of result.items) {
         if(source.key==="ajira_portal" && /kuitwa kwenye usaili|call for interview|interview shortlist|placement results|appointed candidates|majina ya walioitwa|walioitwa kazini/i.test(item.title+" "+item.description)) continue;
 
-        const contact=extractApplicationContact(item.title+"\n"+item.description);
+        const contact=extractApplicationContact(item.title+"\n"+item.description,item.applicationEmail,item.applicationPhone);
         if(!contact.email&&!contact.phone){contactRejected++;continue;}
 
         // No publication date means no automatic admission: do not replace it with today's harvest date.
