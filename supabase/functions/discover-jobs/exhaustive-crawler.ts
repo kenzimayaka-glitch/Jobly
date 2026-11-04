@@ -30,6 +30,14 @@ function clean(value:any):string {
     .replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/\s+/g," ").trim();
 }
 function absolute(base:string,href:string):string { try{return new URL(href,base).toString().split("#")[0]}catch{return ""} }
+function sourceSlug(url:string):string {
+  const parts=new URL(url).pathname.split("/").filter(Boolean);
+  let value=parts.at(-1)??"";
+  if(/^\d+$/.test(value)&&parts.length>1)value=parts.at(-2)??value;
+  try{value=decodeURIComponent(value)}catch{}
+  return clean(value.replace(/[-_]+/g," "));
+}
+
 function sameHost(a:string,b:string):boolean { try{return new URL(a).hostname.replace(/^www\./,"")===new URL(b).hostname.replace(/^www\./,"")}catch{return false} }
 function canonical(url:string):string { try{const u=new URL(url);u.hash="";["utm_source","utm_medium","utm_campaign","utm_term","utm_content","fbclid","gclid"].forEach(k=>u.searchParams.delete(k));return u.toString().replace(/\/$/,"")}catch{return url} }
 function links(html:string,base:string):Array<{url:string;label:string;rel:string;context:string}> {
@@ -136,7 +144,7 @@ function extractHtmlItem(html:string,url:string,sourceKey:string):ExhaustiveItem
       contact={...contact,phone:null};
     }
     const h1=clean(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]??"");
-    const slug=new URL(url).pathname.split("/").filter(Boolean).at(-1)?.replace(/[-_]+/g," ") ?? "";
+    const slug=sourceSlug(url);
     const genericTitle=/^(?:national electronic labour exchange|nelex|beta conseils)/i.test(item.title);
     const numericTitle=/^\d{4,}$/.test(item.title.trim());
     const title=(sourceKey==="nelex_ng"||sourceKey==="beta_mauritania")&&(genericTitle||numericTitle)
@@ -148,7 +156,7 @@ function extractHtmlItem(html:string,url:string,sourceKey:string):ExhaustiveItem
   const metaTitle=clean(meta(html,["og:title","twitter:title"])||html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]||"");
   const genericTitle=/^(?:national electronic labour exchange|nelex|beta conseils)/i.test(metaTitle);
   const numericTitle=/^\d{4,}$/.test(metaTitle.trim());
-  const slug=new URL(url).pathname.split("/").filter(Boolean).at(-1)?.replace(/[-_]+/g," ") ?? "";
+  const slug=sourceSlug(url);
   const title=(sourceKey==="nelex_ng"||sourceKey==="beta_mauritania")&&(genericTitle||numericTitle)
     ? (heading&&!/^(?:national electronic labour exchange|nelex|beta conseils|\d{4,}$)/i.test(heading)?heading:slug.replace(/\b[a-z]/g,x=>x.toUpperCase()))
     : sourceKey==="senjob_sn"&&heading?heading:metaTitle||heading;
