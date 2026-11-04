@@ -8,6 +8,16 @@ Deno.test("decodes Cloudflare protected application email", () => {
   const html = '<h3>Method of Application</h3><a href="/cdn-cgi/l/email-protection" data-cfemail="127362627e6b527c777e776a3c757d643c7c75">[email protected]</a>';
   assertEquals(extractApplicationContact(html).email, "apply@nelex.gov.ng");
 });
+Deno.test("extracts application email from recruiter contact block", () => {
+  assertEquals(
+    extractApplicationContact("Coordonnées du recruteur CANDIDATURES: envoyer votre CV à recrut.sn@secours-islamique.org").email,
+    "recrut.sn@secours-islamique.org",
+  );
+});
+Deno.test("extracts Cloudflare email from any tagged element", () => {
+  const html = '<span class="__cf_email__" data-cfemail="127362627e6b527c777e776a3c757d643c7c75">[email protected]</span>';
+  assertEquals(extractApplicationContact("Method of Application " + html).email, "apply@nelex.gov.ng");
+});
 Deno.test("extracts labelled international and local phone numbers", () => {
   assertEquals(extractApplicationContact("How to Apply: WhatsApp: +237 699 887 766").phone, "+237699887766");
   assertEquals(extractApplicationContact("Pour postuler: Téléphone: 070 123 4567").phone, "0701234567");
