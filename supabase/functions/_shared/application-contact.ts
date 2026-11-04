@@ -14,8 +14,8 @@ function decodeCloudflareHex(encoded: string): string | null {
 }
 
 function expandCloudflareEmails(value: string): string {
-  return value.replace(/<a\b([^>]*?)data-cfemail=["']([0-9a-f]+)["']([^>]*)>([\s\S]*?)<\/a>/gi,
-    (_all, _before: string, encoded: string, _after: string, label: string) => `${label} ${decodeCloudflareHex(encoded) ?? ""}`);
+  return value.replace(/<[^>]*data-cfemail=["']([0-9a-f]+)["'][^>]*>([\s\S]*?)<\/[^>]+>/gi,
+    (_all, encoded: string, label: string) => \`\${label} \${decodeCloudflareHex(encoded) ?? ""}\`);
 }
 
 function plainText(value: string): string {
