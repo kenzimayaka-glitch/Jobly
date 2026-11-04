@@ -487,22 +487,23 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const requested = Number((body as AnyRecord)?.limit ?? MAX_BATCH);
     const limit = Math.min(Math.max(Number.isFinite(requested) ? Math.trunc(requested) : MAX_BATCH, 1), MAX_BATCH);
+    const rawSourceKeys = Array.isArray((body as AnyRecord)?.sourceKeys) ? (body as AnyRecord).sourceKeys : [];
+    const sourceKeys = [...new Set(rawSourceKeys.map((key: unknown) => clean(key, 120)).filter(Boolean))];
+    if (sourceKeys.length > 20) return json({ message: "A processing batch is limited to 20 source keys." }, 400);
+
     const staleBefore = new Date(Date.now() - STALE_PROCESSING_MS).toISOString();
     const staleLimit = Math.min(5, limit);
-    const { data: staleRows, error: staleError } = await db.from("JobHarvestCapture")
-      .select("*")
-      .eq("status", "PROCESSING")
-      .lt("updatedAt", staleBefore)
-      .order("updatedAt", { ascending: true })
-      .limit(staleLimit);
+    let staleQuery = db.from("JobHarvestCapture").select("*").eq("status", "PROCESSING")
+      .lt("updatedAt", staleBefore).order("updatedAt", { ascending: true });
+    if (sourceKeys.length) staleQuery = staleQuery.in("sourceKey", sourceKeys);
+    const { data: staleRows, error: staleError } = await staleQuery.limit(staleLimit);
     if (staleError) throw new Error("STALE_CAPTURE_SELECT_FAILED: " + staleError.message);
 
     const stale = staleRows ?? [];
-    const { data: normalRows, error: normalError } = await db.from("JobHarvestCapture")
-      .select("*")
-      .in("status", ["PENDING", "FAILED"])
-      .order("discoveredAt", { ascending: true })
-      .limit(Math.max(0, limit - stale.length));
+    let normalQuery = db.from("JobHarvestCapture").select("*").in("status", ["PENDING", "FAILED"])
+      .order("discoveredAt", { ascending: true });
+    if (sourceKeys.length) normalQuery = normalQuery.in("sourceKey", sourceKeys);
+    const { data: normalRows, error: normalError } = await normalQuery.limit(Math.max(0, limit - stale.length));
     if (normalError) throw new Error("CAPTURE_SELECT_FAILED: " + normalError.message);
 
     // Reclaim abandoned PROCESSING rows first so they are not starved by a
@@ -569,7 +570,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return json({ ok: true, ...counts, processedAt: new Date().toISOString() });
+    return json({ ok: true, ...counts, sourceKeys: sourceKeys.length ? sourceKeys : null, processedAt: new Date().toISOString() });
   } catch (error) {
     console.error("Harvest processor fatal error", error);
     return json({ ok: false, message: error instanceof Error ? error.message : String(error) }, 500);
