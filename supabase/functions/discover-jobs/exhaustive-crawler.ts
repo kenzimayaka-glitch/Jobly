@@ -36,10 +36,10 @@ function sourceSlug(url:string):string {
   if(/^\d+$/.test(value)&&parts.length>1)value=parts.at(-2)??value;
   try{value=decodeURIComponent(value)}catch{}
   return clean(value.replace(/[-_]+/g," ")
-    .replace(/\\beacute\\b/gi,"é").replace(/\\begrave\\b/gi,"è")
-    .replace(/\\baacute\\b/gi,"á").replace(/\\boacute\\b/gi,"ó")
-    .replace(/\\bdrsquo\\b/gi,"’").replace(/\\brsquo\\b/gi,"’")
-    .replace(/\\bhellip\\b/gi,"…").replace(/\\bnbsp\\b/gi," "));
+    .replace(/\beacute\b/gi,"é").replace(/\begrave\b/gi,"è")
+    .replace(/\baacute\b/gi,"á").replace(/\boacute\b/gi,"ó")
+    .replace(/\bdrsquo\b/gi,"’").replace(/\brsquo\b/gi,"’")
+    .replace(/\bhellip\b/gi,"…").replace(/\bnbsp\b/gi," "));
 }
 
 function sameHost(a:string,b:string):boolean { try{return new URL(a).hostname.replace(/^www\./,"")===new URL(b).hostname.replace(/^www\./,"")}catch{return false} }
@@ -60,7 +60,7 @@ function jsonLdJobs(html:string):any[] {
 function meta(html:string,names:string[]):string|null {
   for(const name of names){
     const escaped=name.replace(/[.*+?^\${}()|[\]\\]/g,"\\$&");
-    const re=new RegExp("<meta\\\\b[^>]+(?:name|property)=['\\\"]"+escaped+"['\\\"][^>]+content=['\\\"]([^'\\\"]+)['\\\"]","i");
+    const re=new RegExp("<meta\\\b[^>]+(?:name|property)=['\\\"]"+escaped+"['\\\"][^>]+content=['\\\"]([^'\\\"]+)['\\\"]","i");
     const m=html.match(re);
     if(m?.[1])return clean(m[1]);
   }
