@@ -1,5 +1,6 @@
 import { assertEquals } from "jsr:@std/assert@1";
 import {
+  decodeHtmlEntities,
   inferCountryFromLocation,
   isGenericRecruitmentTitle,
   mapOpportunityType,
@@ -9,6 +10,12 @@ import {
   resolveCountryCode,
   safeHttpUrl,
 } from "./processor-logic.ts";
+
+Deno.test("decodes numeric and named HTML entities before storage", () => {
+  assertEquals(decodeHtmlEntities("Environmental and Social Specialist REoI &#8211; Published"), "Environmental and Social Specialist REoI – Published");
+  assertEquals(decodeHtmlEntities("R&amp;D &eacute;quipe &ldquo;Jobly&rdquo;"), "R&D équipe “Jobly”");
+  assertEquals(decodeHtmlEntities("&amp;#8211;"), "–");
+});
 
 Deno.test("normalizes French country names with accents", () => {
   assertEquals(normalizeCountryCode("Côte d’Ivoire"), "CI");
