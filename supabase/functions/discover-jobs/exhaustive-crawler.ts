@@ -86,36 +86,66 @@ function extractJob(j:any,sourceUrl:string,sourceKey?:string):ExhaustiveItem {
     deadline:firstDate([j?.validThrough,j?.expirationDate]),published:firstDate([j?.datePosted,j?.datePublished]),
     applicationEmail:contact.email,applicationPhone:contact.phone,opportunityType:inferType(title,description,sourceKey)};
 }
+function applicationOnlyHtml(html:string,sourceKey:string):string {
+  if(sourceKey==="nelex_ng") {
+    const marker=html.search(/(?:Method of Application|How to Apply)/i);
+    if(marker<0)return "";
+    const tail=html.slice(marker,marker+7000);
+    const stop=tail.search(/(?:Related Jobs|About the Company|About Us)/i);
+    return stop>=0?tail.slice(0,stop):tail;
+  }
+  if(sourceKey==="senjob_sn") {
+    const marker=html.search(/Coordonn.{0,40}du\s+recruteur/i);
+    if(marker<0)return "";
+    const tail=html.slice(marker,marker+5000);
+    const stop=tail.search(/(?:Partagez cette offre|ces offres aussi pourraient vous intéresser|©\s*2020\s*Senjob)/i);
+    return stop>=0?tail.slice(0,stop):tail;
+  }
+  if(sourceKey==="anpetogo") {
+    const marker=html.search(/(?:Dossiers? de candidature|Comment postuler)/i);
+    if(marker<0)return "";
+    const tail=html.slice(marker,marker+7000);
+    const stop=tail.search(/(?:Offres similaires|Avez-vous une expérience à partager|©\s*2026\s*ANPE)/i);
+    return stop>=0?tail.slice(0,stop):tail;
+  }
+  return html;
+}
+
 function extractHtmlItem(html:string,url:string,sourceKey:string):ExhaustiveItem {
   const ld=jsonLdJobs(html)[0];
+  const applicationHtml=applicationOnlyHtml(html,sourceKey);
+  const contactHtml=(sourceKey==="nelex_ng"||sourceKey==="senjob_sn"||sourceKey==="anpetogo")?applicationHtml:html;
+  const explicitEmail=sourceKey==="anpetogo"
+    ? contactHtml.match(/[A-Z0-9._%+-]+@anpetogo\.org/i)?.[0]
+    : sourceKey==="senjob_sn"
+    ? contactHtml.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]
+    : undefined;
   if(ld){
     const item=extractJob(ld,url,sourceKey);
-    let applicationHtml=html;
-    if(sourceKey==="nelex_ng") {
-      const marker=html.search(/(?:Method of Application|How to Apply)/i);
-      if(marker<0) applicationHtml="";
-      else {
-        applicationHtml=html.slice(marker,marker+7000);
-        const stop=applicationHtml.search(/(?:Related Jobs|About the Company|About Us)/i);
-        if(stop>=0)applicationHtml=applicationHtml.slice(0,stop);
-      }
-    }
-    const contact=extractApplicationContact(
-      sourceKey==="senjob_sn" ? (html.match(/Coordonn[ée]es? du recruteur[\s\S]{0,2600}/i)?.[0] ?? "") : applicationHtml,
-      sourceKey==="nelex_ng" ? undefined : item.applicationEmail,
-      sourceKey==="nelex_ng" ? undefined : item.applicationPhone,
+    let contact=extractApplicationContact(
+      contactHtml,
+      sourceKey==="nelex_ng"||sourceKey==="senjob_sn"||sourceKey==="anpetogo"?explicitEmail:item.applicationEmail,
+      sourceKey==="nelex_ng"?undefined:item.applicationPhone,
     );
+    if(sourceKey==="nelex_ng" && contact.email==="support@nelex.gov.ng")contact={...contact,email:null};
     const h1=clean(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]??"");
     const slug=new URL(url).pathname.split("/").filter(Boolean).at(-1)?.replace(/[-_]+/g," ") ?? "";
-    const genericNelexTitle=sourceKey==="nelex_ng" && /national electronic labour exchange|nelex/i.test(item.title);
-    const title=genericNelexTitle ? (h1 && !/national electronic labour exchange|nelex/i.test(h1) ? h1 : slug.replace(/\b[a-z]/g,x=>x.toUpperCase())) : item.title;
+    const genericTitle=/^(?:national electronic labour exchange|nelex|beta conseils)/i.test(item.title);
+    const title=(sourceKey==="nelex_ng"||sourceKey==="beta_mauritania")&&genericTitle
+      ? (h1&&!/^(?:national electronic labour exchange|nelex|beta conseils)/i.test(h1)?h1:slug.replace(/\b[a-z]/g,x=>x.toUpperCase()))
+      : item.title;
     return {...item,title,opportunityType:inferType(title,item.description,sourceKey),applicationEmail:contact.email,applicationPhone:contact.phone};
-  }  const heading=clean(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]??"");
+  }
+  const heading=clean(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]??"");
   const metaTitle=clean(meta(html,["og:title","twitter:title"])||html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]||"");
-  const title=sourceKey==="senjob_sn" && heading ? heading : metaTitle || heading;
+  const genericTitle=/^(?:national electronic labour exchange|nelex|beta conseils)/i.test(metaTitle);
+  const slug=new URL(url).pathname.split("/").filter(Boolean).at(-1)?.replace(/[-_]+/g," ") ?? "";
+  const title=(sourceKey==="nelex_ng"||sourceKey==="beta_mauritania")&&genericTitle
+    ? (heading&&!/^(?:national electronic labour exchange|nelex|beta conseils)/i.test(heading)?heading:slug.replace(/\b[a-z]/g,x=>x.toUpperCase()))
+    : sourceKey==="senjob_sn"&&heading?heading:metaTitle||heading;
   const body=clean(html).slice(0,30000);
-  const contactHtml=sourceKey==="senjob_sn" ? (html.match(/Coordonn[ée]es? du recruteur[\s\S]{0,2600}/i)?.[0] ?? "") : html;
-  const contact=extractApplicationContact(contactHtml);
+  let contact=extractApplicationContact(contactHtml,explicitEmail);
+  if(sourceKey==="nelex_ng" && contact.email==="support@nelex.gov.ng")contact={...contact,email:null};
   return {title,description:body,company:"",location:"",url,deadline:extractSourceDeadline(html,url,sourceKey) || firstDate([meta(html,["validThrough","deadline","dateDeadline","article:expiration_time"])]),
     published:extractSourcePublishedAt(html,url,sourceKey) || firstDate([meta(html,["article:published_time","datePublished","date"])]),
     applicationEmail:contact.email,applicationPhone:contact.phone,opportunityType:inferType(title,body,sourceKey)};
