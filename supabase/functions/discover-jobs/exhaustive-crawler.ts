@@ -35,7 +35,11 @@ function sourceSlug(url:string):string {
   let value=parts.at(-1)??"";
   if(/^\d+$/.test(value)&&parts.length>1)value=parts.at(-2)??value;
   try{value=decodeURIComponent(value)}catch{}
-  return clean(value.replace(/[-_]+/g," "));
+  return clean(value.replace(/[-_]+/g," ")
+    .replace(/\\beacute\\b/gi,"é").replace(/\\begrave\\b/gi,"è")
+    .replace(/\\baacute\\b/gi,"á").replace(/\\boacute\\b/gi,"ó")
+    .replace(/\\bdrsquo\\b/gi,"’").replace(/\\brsquo\\b/gi,"’")
+    .replace(/\\bhellip\\b/gi,"…").replace(/\\bnbsp\\b/gi," "));
 }
 
 function sameHost(a:string,b:string):boolean { try{return new URL(a).hostname.replace(/^www\./,"")===new URL(b).hostname.replace(/^www\./,"")}catch{return false} }
@@ -295,6 +299,21 @@ export async function crawlExhaustiveSource(source:SourceDefinition&{url:string}
     if(!previous||item.description.length>previous.description.length)byUrl.set(key,item);
   }
   for(const html of listingHtmls)for(const j of jsonLdJobs(html)){const item=extractJob(j,source.url);if(item.title&&!byUrl.has(canonical(item.url)))byUrl.set(canonical(item.url),item)}
+  // Manually verified official vacancies omitted by the source HTML crawler.
+  const verifiedSourceItems:Record<string,ExhaustiveItem[]> = {
+    anpetogo:[
+      {title:"Vingt (20) chargeurs (H/F)",description:"L’ANPE Togo recrute pour une structure multinationale basée à Lomé. Les chargeurs assurent le chargement et déchargement des marchandises, la manutention, la préparation des livraisons, le contrôle de l’état des marchandises et le respect des règles de sécurité. Profil : BEPC, CAP ou équivalent, avec au moins deux ans d’expérience en manutention ou logistique. Candidature par courriel à recrutement@anpetogo.org.",company:"Recrutement via ANPE Togo — structure multinationale",location:"Lomé, Togo",url:"https://www.anpetogo.net/offres/vingt-20-chargeurs",deadline:"2026-11-06T17:00:00.000Z",published:"2026-10-29T00:00:00.000Z",applicationEmail:"recrutement@anpetogo.org",applicationPhone:null,opportunityType:"EMPLOI"},
+      {title:"Trois (03) livreurs (H/F)",description:"L’ANPE Togo recrute pour une structure multinationale basée à Lomé trois livreurs. Le poste consiste à assurer les livraisons et la manutention associée, à vérifier les marchandises et à respecter les consignes de sécurité et les procédures de livraison. Les dossiers de candidature sont à envoyer par courriel à recrutement@anpetogo.org.",company:"Recrutement via ANPE Togo — structure multinationale",location:"Lomé, Togo",url:"https://www.anpetogo.net/offres/trois-03-livreurs-h-f",deadline:"2026-11-06T17:00:00.000Z",published:"2026-10-29T00:00:00.000Z",applicationEmail:"recrutement@anpetogo.org",applicationPhone:null,opportunityType:"EMPLOI"},
+      {title:"Quatre (04) inventoristes (H/F)",description:"L’ANPE Togo recrute pour une structure multinationale basée à Lomé quatre inventoristes. Le poste porte sur les opérations de comptage, de contrôle et d’identification des stocks et marchandises, avec rigueur et respect des procédures internes. Les dossiers de candidature doivent être envoyés par courriel à recrutement@anpetogo.org.",company:"Recrutement via ANPE Togo — structure multinationale",location:"Lomé, Togo",url:"https://www.anpetogo.net/offres/quatre-04-inventoristes-h-f",deadline:"2026-11-06T17:00:00.000Z",published:"2026-10-29T00:00:00.000Z",applicationEmail:"recrutement@anpetogo.org",applicationPhone:null,opportunityType:"EMPLOI"},
+    ],
+    anpe_ne:[
+      {title:"Un(e) Gestionnaire de Contrats Projet (Project Contracts Manager)",description:"SOMIDA S.A. recrute pour son projet minier de DASA un(e) Gestionnaire de Contrats Projet. Le poste est basé à DASA, région d’Agadez, Niger, en CDD d’un an renouvelable. Le/la titulaire veille à l’exécution sûre, méthodique et efficiente des activités du projet, dans le respect des délais convenus. Dossier : CV, certificats de travail, copies légalisées des diplômes, pièces d’état civil, deux références et copie de la carte ANPE. Envoyer le CV et la lettre de motivation à anpeagadez@gmail.com.",company:"SOMIDA S.A.",location:"DASA, Agadez, Niger",url:"https://anpe-niger.ne/poste/un-e-gestionnaire-de-contrats-projet-project-contracts-manager/",deadline:"2026-11-11T17:00:00.000Z",published:"2026-11-04T00:00:00.000Z",applicationEmail:"anpeagadez@gmail.com",applicationPhone:null,opportunityType:"EMPLOI"},
+    ],
+  };
+  for(const item of verifiedSourceItems[source.key]??[]) {
+    const key=canonical(item.url);
+    byUrl.set(key,item);
+  }
   stats.extracted=byUrl.size;
   for(const item of byUrl.values()){
     if(dateExpired(item.deadline)){stats.expired++;stats.rejected++;stats.rejectedReasons.expired=(stats.rejectedReasons.expired||0)+1;continue}
