@@ -84,9 +84,13 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
+      const publicationDateEstimated = item?.publicationDateEstimated === true;
+      const firstHarvestAt = publicationDateEstimated
+        ? asDate(item?.discoveredAt) ?? nowIso
+        : nowIso;
       const freshness = resolveEffectivePublicationDate({
-        sourcePublishedAt: publishedAt,
-        firstHarvestAt: nowIso,
+        sourcePublishedAt: publicationDateEstimated ? null : publishedAt,
+        firstHarvestAt,
         createdAt: null,
         deadline,
         now: nowIso,
@@ -100,8 +104,8 @@ Deno.serve(async (req: Request) => {
 
       const payload = {
         ...item,
-        published: publishedAt,
-        discoveredAt: nowIso,
+        published: freshness.effectivePublishedAt,
+        discoveredAt: firstHarvestAt,
         publicationDateEstimated: freshness.publicationDateEstimated,
         publicationDateSource: freshness.publicationDateSource,
       };
@@ -115,7 +119,7 @@ Deno.serve(async (req: Request) => {
         location: item.location ? String(item.location).slice(0, 300) : null,
         description: item.description ? String(item.description).slice(0, 30000) : null,
         deadline,
-        publishedAt,
+        publishedAt: freshness.effectivePublishedAt,
         applicationProfile: {
           countryCode,
           opportunityType: item.opportunityType ?? null,
