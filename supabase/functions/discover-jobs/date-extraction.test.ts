@@ -180,3 +180,16 @@ Deno.test("BETA Mauritania closing date is extracted in French", () => {
   assertEquals(extractSourceDeadline("<p>Date limite de réception : 12 novembre 2026</p>", "https://beta.mr/beta/offre/un-responsable-achat/12019", "beta_mauritania"), "2026-11-12T00:00:00.000Z");
   assertEquals(extractSourceDeadline("<p>Date limite : 15 novembre 2026</p>", "https://beta.mr/beta/offre/recrutement-profils/11930", "beta_mauritania"), "2026-11-15T00:00:00.000Z");
 });
+
+Deno.test("date-only application deadline remains valid through the end of the deadline day", () => {
+  const deadline = extractSourceDeadline("<p>Date limite : 4 novembre 2026</p>", "https://beta.mr/offre/1", "beta_mauritania");
+  assertEquals(deadline, "2026-11-04T23:59:59.999Z");
+  const result = resolveEffectivePublicationDate({
+    sourcePublishedAt: "2026-10-22T00:00:00.000Z",
+    firstHarvestAt: null,
+    createdAt: "2026-10-22T00:00:00.000Z",
+    deadline,
+    now: "2026-11-04T16:30:00.000Z",
+  });
+  assertEquals(result.visible, true);
+});
