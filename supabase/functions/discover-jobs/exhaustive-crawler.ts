@@ -56,7 +56,11 @@ function inferType(title:string,description:string,sourceKey?:string):Exhaustive
     if(/kuitwa kwenye usaili|call for interview|interview shortlist|placement results|appointed candidates|majina ya walioitwa|walioitwa kazini/i.test(t)) return "AUTRE";
     if(/nafasi za kazi|nafasi za kujitolea|tangazo la nafasi za kazi/i.test(title) && description.length>=120) return "EMPLOI";
   }
-  if(TENDER_WORDS.test(t))return "APPEL_OFFRES";
+  if(sourceKey==="senjob_sn" && JOB_WORDS.test(title) && description.length>=120) {
+    return INTERNSHIP_WORDS.test(title) ? "STAGE" : "EMPLOI";
+  }
+  if(TENDER_WORDS.test(title))return "APPEL_OFFRES";
+  if(TENDER_WORDS.test(t) && !JOB_WORDS.test(title))return "APPEL_OFFRES";
   if(TRAINING_WORDS.test(t)&&!INTERNSHIP_WORDS.test(t))return "FORMATION";
   if(EVENT_WORDS.test(t)&&!JOB_WORDS.test(t))return "EVENEMENT";
   if(INTERNSHIP_WORDS.test(t))return "STAGE";
@@ -69,9 +73,9 @@ function extractJob(j:any,sourceUrl:string,sourceKey?:string):ExhaustiveItem {
   const title=clean(j?.title), description=clean(j?.description), company=clean(j?.hiringOrganization?.name);
   const loc=j?.jobLocation?.address?.addressLocality||j?.jobLocation?.address?.addressRegion||j?.jobLocation?.name||"";
   const contact=extractApplicationContact(
-    [j?.description,j?.applicationContact?.email,j?.applicationContact?.telephone,j?.hiringOrganization?.email,j?.hiringOrganization?.telephone].filter(Boolean).join("\\n"),
-    j?.applicationContact?.email ?? j?.hiringOrganization?.email ?? j?.email,
-    j?.applicationContact?.telephone ?? j?.hiringOrganization?.telephone ?? j?.telephone,
+    [j?.description,j?.applicationContact?.email,j?.applicationContact?.telephone].filter(Boolean).join("\\n"),
+    j?.applicationContact?.email ?? j?.email,
+    j?.applicationContact?.telephone ?? j?.telephone,
   );
   return {title,description,company,location:clean(Array.isArray(loc)?loc.join(", "):loc),url:clean(j?.url)||sourceUrl,
     deadline:firstDate([j?.validThrough,j?.expirationDate]),published:firstDate([j?.datePosted,j?.datePublished]),
@@ -82,7 +86,10 @@ function extractHtmlItem(html:string,url:string,sourceKey:string):ExhaustiveItem
   if(ld){
     const item=extractJob(ld,url,sourceKey);
     const contact=extractApplicationContact(html,item.applicationEmail,item.applicationPhone);
-    return {...item,applicationEmail:contact.email,applicationPhone:contact.phone};
+    const h1=clean(html.match(/<h1\\b[^>]*>([\\s\\S]*?)<\\/h1>/i)?.[1]??"");
+    const genericNelexTitle=sourceKey==="nelex_ng" && /national electronic labour exchange|nelex/i.test(item.title);
+    const title=genericNelexTitle && h1 && !/national electronic labour exchange|nelex/i.test(h1) ? h1 : item.title;
+    return {...item,title,opportunityType:inferType(title,item.description,sourceKey),applicationEmail:contact.email,applicationPhone:contact.phone};
   }
   const title=clean(meta(html,["og:title","twitter:title"])||html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1]||html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]||"");
   const body=clean(html).slice(0,30000);
@@ -108,6 +115,10 @@ function isDetail(link:{url:string;label:string},sourceUrl:string,sourceKey?:str
     const parsed=new URL(link.url);
     const path=parsed.pathname.replace(/\/+$/,"").toLowerCase();
     const query=parsed.search.toLowerCase();
+    if(sourceKey==="beta_mauritania") {
+      if(/\\/employeur\\//i.test(path)) return false;
+      return /\\/beta\\/offre\\//i.test(path);
+    }
     // Reject source navigation/search/category pages that frequently contain
     // job-related words but are not individual opportunities.
     if(/^\/(?:en\/)?(?:jobs?|careers?|career|emploi|emplois|offres?|vacancies?|positions?|recruitment|recrutement)$/.test(path))return false;
