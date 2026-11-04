@@ -255,6 +255,1317 @@ const DISCOVERY_SOURCE_DETAILS: Record<string, Partial<SourceDefinition>> = {
     ],
     "status": "retired",
     "notes": "Alias du connecteur MyJobMag Nigeria déjà présent sous myjobmag_ng; pas de double crawl."
+  },
+  "novojob": {
+    "url": "https://www.novojob.com/",
+    "countries": [
+      "DZ",
+      "BJ",
+      "CI",
+      "MA",
+      "SN",
+      "TG"
+    ],
+    "captureMode": "http",
+    "notes": "Portail d'emploi/recrutement avec pages pays explicites en Afrique du Nord et de l'Ouest."
+  },
+  "alerte_emploi": {
+    "url": "https://alerteemploi.net/",
+    "countries": [
+      "BF",
+      "CM",
+      "CI",
+      "ML",
+      "SN",
+      "TG"
+    ],
+    "captureMode": "http",
+    "notes": "Site d'offres consultable; les pays affichés comprennent Côte d'Ivoire, Sénégal, Cameroun, Burkina Faso, Togo et Mali."
+  },
+  "mapage_africa": {
+    "url": "https://mapage.africa/opportunities/jobs",
+    "countries": [
+      "DZ",
+      "EG",
+      "LY",
+      "MA",
+      "MR",
+      "TN",
+      "AO",
+      "BJ",
+      "BF",
+      "BW",
+      "BI",
+      "CV",
+      "CM",
+      "CF",
+      "TD",
+      "KM",
+      "CG",
+      "CD",
+      "CI",
+      "DJ",
+      "GQ",
+      "ER",
+      "ET",
+      "GA",
+      "GM",
+      "GH",
+      "GN",
+      "GW",
+      "KE",
+      "LS",
+      "LR",
+      "MG",
+      "MW",
+      "ML",
+      "MZ",
+      "NA",
+      "NE",
+      "NG",
+      "RW",
+      "SN",
+      "SC",
+      "SL",
+      "SO",
+      "SS",
+      "ZA",
+      "SD",
+      "SZ",
+      "TZ",
+      "TG",
+      "UG",
+      "ZM",
+      "ZW",
+      "MU"
+    ],
+    "status": "retired",
+    "notes": "Alias du connecteur mapage_africa_jobs déjà présent; URL renseignée pour traçabilité, sans double collecte."
+  },
+  "jobfolio_africa": {
+    "status": "retired",
+    "countries": [
+      "DZ",
+      "EG",
+      "LY",
+      "MA",
+      "MR",
+      "TN",
+      "AO",
+      "BJ",
+      "BF",
+      "BW",
+      "BI",
+      "CV",
+      "CM",
+      "CF",
+      "TD",
+      "KM",
+      "CG",
+      "CD",
+      "CI",
+      "DJ",
+      "GQ",
+      "ER",
+      "ET",
+      "GA",
+      "GM",
+      "GH",
+      "GN",
+      "GW",
+      "KE",
+      "LS",
+      "LR",
+      "MG",
+      "MW",
+      "ML",
+      "MZ",
+      "NA",
+      "NE",
+      "NG",
+      "RW",
+      "SN",
+      "SC",
+      "SL",
+      "SO",
+      "SS",
+      "ZA",
+      "SD",
+      "SZ",
+      "TZ",
+      "TG",
+      "UG",
+      "ZM",
+      "ZW",
+      "MU"
+    ],
+    "notes": "Nom de plateforme non rapproché d'un site officiel de recrutement vérifiable au 05-11-2026; candidat retiré."
+  },
+  "hr_paddy": {
+    "url": "https://www.hrpaddy.com/",
+    "countries": [
+      "NG",
+      "GH",
+      "KE",
+      "ZA"
+    ],
+    "status": "blocked",
+    "notes": "Logiciel RH/ATS pour recruteurs, pas un portail public d'offres autonome; référence conservée, ingestion bloquée."
+  },
+  "jobra": {
+    "url": "https://jobra.africa/for-talent",
+    "countries": [
+      "DZ",
+      "EG",
+      "LY",
+      "MA",
+      "MR",
+      "TN",
+      "AO",
+      "BJ",
+      "BF",
+      "BW",
+      "BI",
+      "CV",
+      "CM",
+      "CF",
+      "TD",
+      "KM",
+      "CG",
+      "CD",
+      "CI",
+      "DJ",
+      "GQ",
+      "ER",
+      "ET",
+      "GA",
+      "GM",
+      "GH",
+      "GN",
+      "GW",
+      "KE",
+      "LS",
+      "LR",
+      "MG",
+      "MW",
+      "ML",
+      "MZ",
+      "NA",
+      "NE",
+      "NG",
+      "RW",
+      "SN",
+      "SC",
+      "SL",
+      "SO",
+      "SS",
+      "ZA",
+      "SD",
+      "SZ",
+      "TZ",
+      "TG",
+      "UG",
+      "ZM",
+      "ZW",
+      "MU"
+    ],
+    "captureMode": "http",
+    "notes": "Plateforme de carrière africaine identifiée; parcours public d'offres et couverture réelle à qualifier."
+  },
+  "jobiro": {
+    "url": "https://www.jobiro.io/",
+    "countries": [
+      "DZ",
+      "EG",
+      "LY",
+      "MA",
+      "MR",
+      "TN",
+      "AO",
+      "BJ",
+      "BF",
+      "BW",
+      "BI",
+      "CV",
+      "CM",
+      "CF",
+      "TD",
+      "KM",
+      "CG",
+      "CD",
+      "CI",
+      "DJ",
+      "GQ",
+      "ER",
+      "ET",
+      "GA",
+      "GM",
+      "GH",
+      "GN",
+      "GW",
+      "KE",
+      "LS",
+      "LR",
+      "MG",
+      "MW",
+      "ML",
+      "MZ",
+      "NA",
+      "NE",
+      "NG",
+      "RW",
+      "SN",
+      "SC",
+      "SL",
+      "SO",
+      "SS",
+      "ZA",
+      "SD",
+      "SZ",
+      "TZ",
+      "TG",
+      "UG",
+      "ZM",
+      "ZW",
+      "MU"
+    ],
+    "captureMode": "http",
+    "notes": "Plateforme de travail à distance ouverte aux talents africains; éligibilité géographique à vérifier par offre."
+  },
+  "clbk": {
+    "url": "https://clbk.africa/jobs",
+    "countries": [
+      "UG"
+    ],
+    "captureMode": "http",
+    "notes": "Une offre vérifiée était visible au contrôle; plateforme aussi orientée spécialistes/prestations."
+  },
+  "edmatch": {
+    "url": "https://www.edomatch.com/fr",
+    "countries": [
+      "TG"
+    ],
+    "captureMode": "http",
+    "notes": "Suite RH affichant 1 500+ offres; identifier et isoler la route publique de liste avant toute activation."
+  },
+  "careers_in_africa": {
+    "url": "https://careersinafrica.zohorecruit.eu/careers",
+    "countries": [
+      "GH",
+      "NG",
+      "LR"
+    ],
+    "captureMode": "http",
+    "notes": "Portail de carrières public avec postes récents en Afrique, notamment Ghana, Nigeria et Liberia."
+  },
+  "work_in_africa": {
+    "url": "https://www.workinafrica.com/",
+    "countries": [
+      "CI",
+      "SN",
+      "GH",
+      "NG"
+    ],
+    "status": "retired",
+    "notes": "Alias du connecteur workinafrica_ci déjà présent; ne pas lancer un deuxième collecteur."
+  },
+  "chantierpro": {
+    "url": "https://chantierpro.co/",
+    "countries": [
+      "BJ",
+      "BF",
+      "CM",
+      "CI",
+      "GA",
+      "MG",
+      "MA",
+      "NG",
+      "SN",
+      "TG"
+    ],
+    "captureMode": "http",
+    "notes": "Plateforme spécialisée BTP, mines et métiers techniques avec opportunités dans plusieurs pays africains."
+  },
+  "affutjob": {
+    "url": "https://www.affutjob.pro/jobs",
+    "countries": [
+      "DZ",
+      "EG",
+      "LY",
+      "MA",
+      "MR",
+      "TN",
+      "AO",
+      "BJ",
+      "BF",
+      "BW",
+      "BI",
+      "CV",
+      "CM",
+      "CF",
+      "TD",
+      "KM",
+      "CG",
+      "CD",
+      "CI",
+      "DJ",
+      "GQ",
+      "ER",
+      "ET",
+      "GA",
+      "GM",
+      "GH",
+      "GN",
+      "GW",
+      "KE",
+      "LS",
+      "LR",
+      "MG",
+      "MW",
+      "ML",
+      "MZ",
+      "NA",
+      "NE",
+      "NG",
+      "RW",
+      "SN",
+      "SC",
+      "SL",
+      "SO",
+      "SS",
+      "ZA",
+      "SD",
+      "SZ",
+      "TZ",
+      "TG",
+      "UG",
+      "ZM",
+      "ZW",
+      "MU"
+    ],
+    "captureMode": "http",
+    "notes": "Agrégateur d'offres Afrique francophone; 359 offres visibles au contrôle, pays et dates à extraire par fiche."
+  },
+  "marcheemploi": {
+    "url": "https://marcheemploi.com/",
+    "countries": [
+      "BJ",
+      "CM",
+      "CI",
+      "SN",
+      "TG"
+    ],
+    "captureMode": "http",
+    "notes": "Plateforme emploi/recrutement avec pays affichés Bénin, Cameroun, Côte d'Ivoire, Sénégal et Togo."
+  },
+  "vueradar": {
+    "url": "https://vueradar.org/offre-demploi/",
+    "countries": [
+      "DZ",
+      "EG",
+      "LY",
+      "MA",
+      "MR",
+      "TN",
+      "AO",
+      "BJ",
+      "BF",
+      "BW",
+      "BI",
+      "CV",
+      "CM",
+      "CF",
+      "TD",
+      "KM",
+      "CG",
+      "CD",
+      "CI",
+      "DJ",
+      "GQ",
+      "ER",
+      "ET",
+      "GA",
+      "GM",
+      "GH",
+      "GN",
+      "GW",
+      "KE",
+      "LS",
+      "LR",
+      "MG",
+      "MW",
+      "ML",
+      "MZ",
+      "NA",
+      "NE",
+      "NG",
+      "RW",
+      "SN",
+      "SC",
+      "SL",
+      "SO",
+      "SS",
+      "ZA",
+      "SD",
+      "SZ",
+      "TZ",
+      "TG",
+      "UG",
+      "ZM",
+      "ZW",
+      "MU"
+    ],
+    "captureMode": "http",
+    "notes": "Agrégateur panafricain; 54 pays affichés et 187 offres récentes au contrôle. Mélange aussi bourses, appels d'offres et formations."
+  },
+  "jobsonline_africa": {
+    "url": "https://jobsonline.africa/",
+    "countries": [
+      "DZ",
+      "EG",
+      "LY",
+      "MA",
+      "MR",
+      "TN",
+      "AO",
+      "BJ",
+      "BF",
+      "BW",
+      "BI",
+      "CV",
+      "CM",
+      "CF",
+      "TD",
+      "KM",
+      "CG",
+      "CD",
+      "CI",
+      "DJ",
+      "GQ",
+      "ER",
+      "ET",
+      "GA",
+      "GM",
+      "GH",
+      "GN",
+      "GW",
+      "KE",
+      "LS",
+      "LR",
+      "MG",
+      "MW",
+      "ML",
+      "MZ",
+      "NA",
+      "NE",
+      "NG",
+      "RW",
+      "SN",
+      "SC",
+      "SL",
+      "SO",
+      "SS",
+      "ZA",
+      "SD",
+      "SZ",
+      "TZ",
+      "TG",
+      "UG",
+      "ZM",
+      "ZW",
+      "MU"
+    ],
+    "captureMode": "http",
+    "notes": "Job board avec filtres régionaux et pays affichés en Afrique de l'Ouest, de l'Est, du Nord, centrale et australe."
+  },
+  "diaspojob": {
+    "status": "retired",
+    "countries": [
+      "DZ",
+      "EG",
+      "LY",
+      "MA",
+      "MR",
+      "TN",
+      "AO",
+      "BJ",
+      "BF",
+      "BW",
+      "BI",
+      "CV",
+      "CM",
+      "CF",
+      "TD",
+      "KM",
+      "CG",
+      "CD",
+      "CI",
+      "DJ",
+      "GQ",
+      "ER",
+      "ET",
+      "GA",
+      "GM",
+      "GH",
+      "GN",
+      "GW",
+      "KE",
+      "LS",
+      "LR",
+      "MG",
+      "MW",
+      "ML",
+      "MZ",
+      "NA",
+      "NE",
+      "NG",
+      "RW",
+      "SN",
+      "SC",
+      "SL",
+      "SO",
+      "SS",
+      "ZA",
+      "SD",
+      "SZ",
+      "TZ",
+      "TG",
+      "UG",
+      "ZM",
+      "ZW",
+      "MU"
+    ],
+    "notes": "Identité du domaine officiel et activité de publication d'emplois non confirmées; candidat retiré."
+  },
+  "akilibrain": {
+    "url": "https://akilibrain.com/",
+    "countries": [
+      "TZ",
+      "KE",
+      "UG",
+      "RW",
+      "ET",
+      "SO",
+      "BI",
+      "SS",
+      "CD"
+    ],
+    "captureMode": "http",
+    "notes": "Plateforme d'intelligence emploi d'Afrique de l'Est; annonce plus de 5 400 offres dans neuf pays."
+  },
+  "rekrute": {
+    "url": "https://www.rekrute.com/en/emploi-Rekrute",
+    "countries": [
+      "MA"
+    ],
+    "captureMode": "http",
+    "notes": "Portail de recrutement marocain avec offres actives."
+  },
+  "marocannonces": {
+    "url": "https://jobs.marocannonces.com/",
+    "countries": [
+      "MA"
+    ],
+    "captureMode": "http",
+    "notes": "Sous-domaine Jobs officiel indiqué par la FAQ MarocAnnonces; offres d'emploi actualisées."
+  },
+  "jobs_ma": {
+    "status": "retired",
+    "countries": [
+      "MA"
+    ],
+    "notes": "Libellé générique sans domaine officiel distinct retrouvé; les portails marocains confirmés sont recensés sous leurs clés propres."
+  },
+  "coincarriere": {
+    "url": "https://coincarriere.com/ma/fr/jobs",
+    "countries": [
+      "MA"
+    ],
+    "captureMode": "http",
+    "notes": "Portail d'offres marocain, plusieurs milliers d'offres actives visibles."
+  },
+  "allojob": {
+    "url": "https://allojob.ma/jobs",
+    "countries": [
+      "MA"
+    ],
+    "captureMode": "http",
+    "notes": "Portail marocain avec filtres emploi et près de 2 000 offres affichées."
+  },
+  "alwadifa_maroc": {
+    "url": "https://alwadifa.ma/",
+    "countries": [
+      "MA"
+    ],
+    "captureMode": "http",
+    "notes": "Site marocain d'offres d'emploi et de concours de recrutement."
+  },
+  "bghit_nekhdem": {
+    "url": "https://bghit-nekhdem.com/",
+    "countries": [
+      "MA"
+    ],
+    "captureMode": "http",
+    "notes": "Plateforme d'opportunités emploi; contrôler la date et les contacts sur chaque fiche."
+  },
+  "wetech": {
+    "url": "https://www.wetech.ma/",
+    "countries": [
+      "MA"
+    ],
+    "captureMode": "http",
+    "notes": "Job board marocain spécialisé IT; offres récentes visibles."
+  },
+  "ejobs": {
+    "url": "https://www.ejobs.ma/",
+    "countries": [
+      "MA"
+    ],
+    "captureMode": "http",
+    "notes": "Site marocain d'emploi identifié; contenu d'offres à qualifier avant activation."
+  },
+  "hotalents": {
+    "url": "https://hotalents.ma/",
+    "countries": [
+      "MA"
+    ],
+    "captureMode": "http",
+    "notes": "Plateforme de recrutement hôtellerie/tourisme au Maroc; qualification des annonces à effectuer."
+  },
+  "moncallcenter": {
+    "url": "https://www.moncallcenter.ma/",
+    "countries": [
+      "MA"
+    ],
+    "captureMode": "http",
+    "notes": "Portail marocain d'offres d'emploi en centres d'appels."
+  },
+  "wuzzuf": {
+    "url": "https://wuzzuf.net/jobs/egypt",
+    "countries": [
+      "EG"
+    ],
+    "captureMode": "http",
+    "notes": "Job board national égyptien avec milliers d'offres actives."
+  },
+  "forasna": {
+    "url": "https://forasna.com/",
+    "countries": [
+      "EG"
+    ],
+    "captureMode": "http",
+    "notes": "Job board égyptien avec listes d'offres en cours."
+  },
+  "tanqeeb": {
+    "url": "https://egypt.tanqeeb.com/",
+    "countries": [
+      "DZ",
+      "EG",
+      "LY",
+      "MA",
+      "TN"
+    ],
+    "captureMode": "http",
+    "notes": "Agrégateur MENA; cette URL est la version Égypte. Les autres pays demandent des routes distinctes."
+  },
+  "jobberman": {
+    "url": "https://www.jobberman.com/",
+    "countries": [
+      "NG"
+    ],
+    "status": "retired",
+    "notes": "Alias du connecteur Jobberman Nigeria déjà présent sous jobberman_ng; pas de double crawl."
+  },
+  "get_hired_ghana": {
+    "status": "retired",
+    "countries": [
+      "GH"
+    ],
+    "notes": "Aucune URL officielle distincte ni page d'offres récentes confirmée au 05-11-2026."
+  },
+  "hire_rung": {
+    "url": "https://www.hirerung.com/",
+    "countries": [
+      "GH"
+    ],
+    "captureMode": "http",
+    "notes": "Plateforme ghanéenne d'offres, stages et placements NSS; annonces vérifiées visibles."
+  },
+  "plegma": {
+    "url": "https://jobs.plegma.name/",
+    "countries": [
+      "GH"
+    ],
+    "captureMode": "http",
+    "notes": "Job board affichant des offres situées à Accra, Tema et autres villes du Ghana."
+  },
+  "ngcareers": {
+    "status": "retired",
+    "countries": [
+      "NG"
+    ],
+    "notes": "Nom générique rapproché de plusieurs pages sans domaine officiel suffisamment confirmé; aucune URL inventée."
+  },
+  "jobgurus": {
+    "url": "https://www.jobgurus.com.ng/",
+    "countries": [
+      "NG"
+    ],
+    "captureMode": "http",
+    "notes": "Portail nigérian avec offres d'emploi actives et catégories sectorielles."
+  },
+  "jobsinnigeria": {
+    "url": "https://jobsinnigeria.careers/",
+    "countries": [
+      "NG"
+    ],
+    "captureMode": "http",
+    "notes": "Portail d'offres Nigeria avec annonces récentes."
+  },
+  "quicktojobs": {
+    "url": "https://www.quicktojobs.com/",
+    "countries": [
+      "NG",
+      "ZA",
+      "KE",
+      "GH",
+      "CM",
+      "UG",
+      "TZ",
+      "EG",
+      "MA"
+    ],
+    "captureMode": "http",
+    "notes": "Réseau généraliste d'offres; pays et provenance de chaque annonce à vérifier."
+  },
+  "jobstark": {
+    "url": "https://jobstark.com/jobs",
+    "countries": [
+      "NG"
+    ],
+    "captureMode": "http",
+    "notes": "Portail d'offres au Nigeria avec annonces récentes."
+  },
+  "gradjobber": {
+    "url": "https://gradjobber.com/Jobs",
+    "countries": [
+      "NG"
+    ],
+    "captureMode": "http",
+    "notes": "Plateforme nigériane de jobs, stages, graduate trainee et NYSC."
+  },
+  "xoooth": {
+    "url": "https://xooth.net/jobs",
+    "countries": [
+      "NG"
+    ],
+    "captureMode": "http",
+    "notes": "Page d'offres nigérianes identifiée; vérifier les liens de candidature sur chaque fiche."
+  },
+  "work_in_edo": {
+    "status": "retired",
+    "countries": [
+      "NG"
+    ],
+    "notes": "Nom local Work in Edo non rapproché d'un portail officiel actif; source non confirmée."
+  },
+  "employdakar": {
+    "url": "https://www.emploidakar.com/",
+    "countries": [
+      "SN"
+    ],
+    "status": "retired",
+    "notes": "Alias de emploidakar_sn déjà présent dans le registre; ne pas crawler deux fois."
+  },
+  "senjob": {
+    "url": "https://senjob.com/offres-d-emploi.php",
+    "countries": [
+      "SN",
+      "CI",
+      "BF",
+      "ML",
+      "NE",
+      "GN",
+      "TG",
+      "BJ"
+    ],
+    "status": "retired",
+    "notes": "Alias des connecteurs senjob_sn/senjob_west déjà présents; une seule collecte canonique à conserver."
+  },
+  "digijob_guinee": {
+    "url": "https://digijobguinee.com/emplois",
+    "countries": [
+      "GN"
+    ],
+    "captureMode": "http",
+    "notes": "Portail d'emplois guinéen; séparer les annonces d'emploi des concours, appels d'offres et bourses."
+  },
+  "jobbissau": {
+    "url": "https://www.jobbissau.com/jobs",
+    "countries": [
+      "GW"
+    ],
+    "captureMode": "http",
+    "notes": "Page d'offres JobBissau identifiée; vérifier fraîcheur et contacts sur chaque fiche."
+  },
+  "jobinfocamer_extra": {
+    "url": "https://irelis.net/",
+    "name": "Irelis",
+    "countries": [
+      "CM"
+    ],
+    "captureMode": "http",
+    "notes": "Le libellé initial regroupait Irelis/PeoJob/Flinkn; seul Irelis est confirmé comme plateforme distincte."
+  },
+  "africatalents": {
+    "url": "https://www.africatalents.com/",
+    "countries": [
+      "DZ",
+      "BJ",
+      "BW",
+      "BF",
+      "BI",
+      "CM",
+      "CF",
+      "CG",
+      "CD",
+      "CI",
+      "EG",
+      "ET",
+      "GA",
+      "GH",
+      "GN",
+      "KE",
+      "LR",
+      "MW",
+      "ML",
+      "MA",
+      "MR",
+      "NA",
+      "NE",
+      "NG",
+      "UG",
+      "RW",
+      "SN",
+      "SL",
+      "SD",
+      "SS",
+      "TZ",
+      "TD",
+      "TG",
+      "TN",
+      "ZM",
+      "ZW",
+      "ZA"
+    ],
+    "captureMode": "http",
+    "notes": "Réseau de job boards panafricains et sites locaux; 37 marchés annoncés."
+  },
+  "jobartis": {
+    "url": "https://www.jobartis.com/",
+    "countries": [
+      "AO"
+    ],
+    "captureMode": "http",
+    "notes": "Plateforme de recrutement angolaise avec offres visibles par ville, secteur et type de contrat."
+  },
+  "corporate_staffing": {
+    "url": "https://www.corporatestaffing.co.ke/jobs/",
+    "countries": [
+      "KE"
+    ],
+    "captureMode": "http",
+    "notes": "Agence de recrutement kényane publiant des offres quotidiennes; annonces du 4 novembre 2026 visibles."
+  },
+  "jobweb_kenya": {
+    "url": "https://jobwebkenya.com/jobs/",
+    "countries": [
+      "KE"
+    ],
+    "captureMode": "http",
+    "notes": "Portail d'offres kényan; page emplois active."
+  },
+  "myjobsinkenya": {
+    "url": "https://myjobsinkenya.com/",
+    "countries": [
+      "KE"
+    ],
+    "captureMode": "http",
+    "notes": "Portail d'annonces d'emploi kényan avec dates limites."
+  },
+  "recruitfinds": {
+    "url": "https://www.recruitfinds.co.ke/",
+    "countries": [
+      "KE"
+    ],
+    "captureMode": "http",
+    "notes": "Plateforme de recrutement et d'offres au Kenya."
+  },
+  "linkbase": {
+    "url": "https://linkbasejobs.co.ke/careers/",
+    "countries": [
+      "KE"
+    ],
+    "captureMode": "http",
+    "notes": "Page carrières et offres d'emploi au Kenya."
+  },
+  "ajirazone": {
+    "status": "retired",
+    "countries": [
+      "TZ"
+    ],
+    "notes": "Nom de site non rattaché à un domaine officiel distinct vérifiable; ne pas confondre avec Ajira Portal."
+  },
+  "center_board": {
+    "status": "retired",
+    "countries": [
+      "UG"
+    ],
+    "notes": "Nom de portail non identifié de façon fiable; aucune URL officielle d'offres confirmée."
+  },
+  "great_uganda_jobs": {
+    "url": "https://www.greatugandajobs.com/",
+    "countries": [
+      "UG"
+    ],
+    "captureMode": "http",
+    "notes": "Job board ougandais avec offres récentes."
+  },
+  "jobweb_uganda": {
+    "url": "https://jobwebuganda.com/jobs/",
+    "countries": [
+      "UG"
+    ],
+    "captureMode": "http",
+    "notes": "Portail ougandais d'offres; liste de postes active."
+  },
+  "job_adverts_uganda": {
+    "url": "https://jobadvertsuganda.com/",
+    "countries": [
+      "UG"
+    ],
+    "captureMode": "http",
+    "notes": "Site d'annonces d'emploi en Ouganda."
+  },
+  "ajirika": {
+    "url": "https://ajirika.com/",
+    "countries": [
+      "KE",
+      "TZ",
+      "UG",
+      "RW"
+    ],
+    "status": "retired",
+    "notes": "Alias de ajirika_east déjà présent au registre; conserver un seul connecteur."
+  },
+  "work_tz": {
+    "url": "https://work.tz/en/",
+    "countries": [
+      "TZ"
+    ],
+    "captureMode": "http",
+    "notes": "Plateforme d'emploi tanzanienne; offres actives et liens de candidature officiels."
+  },
+  "ajira_mwananchi": {
+    "status": "retired",
+    "countries": [
+      "TZ"
+    ],
+    "notes": "Nom évoqué comme canal de recrutement mais aucune page de jobs autonome distincte confirmée."
+  },
+  "mshahara": {
+    "url": "https://www.mshahara.co/jobs/tanzania",
+    "countries": [
+      "TZ"
+    ],
+    "captureMode": "http",
+    "notes": "Page d'offres tanzaniennes avec annonces récentes."
+  },
+  "fadicy": {
+    "url": "https://fadicy.com/jobs/",
+    "countries": [
+      "TZ"
+    ],
+    "captureMode": "http",
+    "notes": "Job board tanzanien avec plus de 200 offres visibles au contrôle."
+  },
+  "jobweb_rwanda": {
+    "url": "https://jobwebrwanda.com/jobs/",
+    "countries": [
+      "RW"
+    ],
+    "captureMode": "http",
+    "notes": "Portail d'offres rwandais avec annonces d'emploi."
+  },
+  "kigali_today_jobs": {
+    "status": "retired",
+    "countries": [
+      "RW"
+    ],
+    "notes": "Nom de rubrique/média non identifié comme source autonome avec URL d'offres indépendante."
+  },
+  "umurimo": {
+    "url": "https://www.umurimo.com/",
+    "countries": [
+      "RW"
+    ],
+    "captureMode": "http",
+    "notes": "Portail RH et publication d'emplois au Rwanda; offres visibles."
+  },
+  "jobs_in_rwanda_ai": {
+    "url": "https://jobsinrwanda.ai/",
+    "countries": [
+      "RW"
+    ],
+    "captureMode": "http",
+    "notes": "Job board rwandais identifié; la page affichait des compteurs mais aucune offre disponible au contrôle, surveillance seulement."
+  },
+  "ezega": {
+    "status": "retired",
+    "countries": [
+      "ET"
+    ],
+    "notes": "Domaine et page d'emplois non validés par un contrôle direct suffisamment probant; ne pas déduire une URL."
+  },
+  "jobweb_ethiopia": {
+    "url": "https://jobwebethiopia.com/jobs/",
+    "countries": [
+      "ET"
+    ],
+    "captureMode": "http",
+    "notes": "Portail d'offres éthiopien; pages jobs identifiées."
+  },
+  "jobsethiopia": {
+    "url": "https://jobsethiopia.et/",
+    "countries": [
+      "ET"
+    ],
+    "captureMode": "http",
+    "notes": "Job board éthiopien identifié; annonces à qualifier."
+  },
+  "worklink_ethiopia": {
+    "url": "https://worklinkethio.com/",
+    "countries": [
+      "ET"
+    ],
+    "captureMode": "http",
+    "notes": "Marketplace de talents éthiopienne; vérifier les offres publiques versus les profils prestataires."
+  },
+  "binasmart": {
+    "url": "https://bina.et/jobs",
+    "countries": [
+      "ET"
+    ],
+    "captureMode": "http",
+    "notes": "Page jobs BinaSmart avec plusieurs milliers d'ouvertures annoncées."
+  },
+  "hornjobs": {
+    "url": "https://www.hornjobs.org/jobs",
+    "countries": [
+      "ET",
+      "SO",
+      "SS",
+      "SD",
+      "KE",
+      "UG",
+      "DJ",
+      "ER"
+    ],
+    "captureMode": "http",
+    "notes": "Portail Horn of Africa Jobs; offres visibles en Somalie, Somaliland, Éthiopie, Kenya, Soudan et Soudan du Sud."
+  },
+  "comores_emploi": {
+    "url": "https://comoremploi.com/",
+    "countries": [
+      "KM"
+    ],
+    "captureMode": "http",
+    "notes": "Plateforme emploi dédiée aux Comores avec plus de 200 offres affichées."
+  },
+  "jobmada": {
+    "url": "https://www.jobmada.mg/",
+    "countries": [
+      "MG"
+    ],
+    "captureMode": "http",
+    "notes": "Job board malgache avec offres récentes et candidature depuis la plateforme."
+  },
+  "myjob_mu": {
+    "url": "https://myjob.mu/Jobs/",
+    "countries": [
+      "MU"
+    ],
+    "captureMode": "http",
+    "notes": "Job board mauricien avec plus de 1 400 offres actives."
+  },
+  "hellojob_mu": {
+    "url": "https://www.hellojob.mu/",
+    "countries": [
+      "MU"
+    ],
+    "captureMode": "http",
+    "notes": "Portail de recrutement mauricien et publication d'offres."
+  },
+  "jobo_sc": {
+    "url": "https://jobo.sc/",
+    "countries": [
+      "SC"
+    ],
+    "captureMode": "http",
+    "notes": "Job board seychellois avec 184 offres disponibles au contrôle."
+  },
+  "careers24": {
+    "url": "https://www.careers24.com/",
+    "countries": [
+      "ZA"
+    ],
+    "captureMode": "http",
+    "notes": "Job board sud-africain cité par les ressources publiques d'orientation professionnelle."
+  },
+  "jobmail": {
+    "url": "https://www.jobmail.co.za/jobs",
+    "countries": [
+      "ZA"
+    ],
+    "captureMode": "http",
+    "notes": "Job board sud-africain avec offres accessibles."
+  },
+  "bizcommunity": {
+    "url": "https://www.bizcommunity.com/",
+    "countries": [
+      "ZA"
+    ],
+    "captureMode": "http",
+    "notes": "Média professionnel sud-africain avec module Latest jobs et annonces récentes."
+  },
+  "freerecruit": {
+    "url": "https://www.freerecruit.co.za/",
+    "countries": [
+      "ZA"
+    ],
+    "captureMode": "http",
+    "notes": "Plateforme sud-africaine de recrutement et d'offres."
+  },
+  "mzansi_jobs": {
+    "url": "https://www.mzansicareerhub.co.za/search",
+    "name": "Mzansi Career Hub",
+    "countries": [
+      "ZA"
+    ],
+    "captureMode": "http",
+    "notes": "Plateforme sud-africaine avec annonces récentes; nom normalisé."
+  },
+  "sa_career_hub": {
+    "url": "https://www.mzansicareerhub.co.za/search",
+    "countries": [
+      "ZA"
+    ],
+    "status": "retired",
+    "notes": "Alias du site Mzansi Career Hub renseigné sous mzansi_jobs; pas de double crawler."
+  },
+  "careers_portal": {
+    "url": "https://www.careersportal.co.za/",
+    "countries": [
+      "ZA"
+    ],
+    "captureMode": "http",
+    "notes": "Portail sud-africain d'orientation et d'offres d'emploi cité par les ressources d'aide à l'emploi."
+  },
+  "offerzen": {
+    "url": "https://www.offerzen.com/software-engineer-jobs",
+    "countries": [
+      "ZA"
+    ],
+    "captureMode": "http",
+    "notes": "Portail spécialisé en offres technologiques pour le marché sud-africain."
+  },
+  "graduates24": {
+    "status": "retired",
+    "countries": [
+      "ZA"
+    ],
+    "notes": "Nom commercial non rapproché d'un site officiel et de listes d'offres actuelles suffisamment vérifiables."
+  },
+  "vacancymail": {
+    "url": "https://www.vacancymail.co.zw/jobs/",
+    "countries": [
+      "ZW"
+    ],
+    "captureMode": "http",
+    "notes": "Job board zimbabwéen avec offres récentes, dates de clôture et employeurs identifiés."
+  },
+  "cv_people_africa": {
+    "status": "retired",
+    "countries": [
+      "ZA"
+    ],
+    "notes": "Nom d'agence/réseau trop générique; aucun domaine officiel distinct et page d'offres confirmée."
+  },
+  "go_zambia_jobs": {
+    "url": "https://gozambiajobs.com/jobs",
+    "countries": [
+      "ZM"
+    ],
+    "captureMode": "http",
+    "notes": "Portail zambien avec plus de 200 résultats d'emploi au contrôle."
+  },
+  "jobs_zambia": {
+    "status": "retired",
+    "countries": [
+      "ZM"
+    ],
+    "notes": "Nom générique non rattaché à un domaine officiel distinct; éviter les doublons avec Go Zambia Jobs et JobWeb Zambia."
+  },
+  "jobweb_zambia": {
+    "url": "https://jobwebzambia.com/jobs/",
+    "countries": [
+      "ZM"
+    ],
+    "captureMode": "http",
+    "notes": "Portail d'offres zambien; pages emploi identifiées."
+  },
+  "great_zambia_jobs": {
+    "url": "https://www.greatzambiajobs.com/",
+    "countries": [
+      "ZM"
+    ],
+    "captureMode": "http",
+    "notes": "Job board zambien avec annonces en cours."
+  },
+  "zambia_jobs_today": {
+    "status": "retired",
+    "countries": [
+      "ZM"
+    ],
+    "notes": "Nom de rubrique générique non confirmé comme source indépendante."
+  },
+  "Ntchito": {
+    "url": "https://nchito.work/",
+    "name": "Nchito",
+    "countries": [
+      "ZM"
+    ],
+    "captureMode": "http",
+    "notes": "Nom corrigé en Nchito; job board zambien avec plusieurs centaines d'offres."
+  },
+  "todasvagas": {
+    "status": "retired",
+    "countries": [
+      "AO",
+      "CV",
+      "GW",
+      "MZ",
+      "ST"
+    ],
+    "notes": "Nom générique en portugais non rattaché à un site africain d'emploi vérifiable."
+  },
+  "government_lesotho_jobs": {
+    "url": "https://www.gov.ls/jobs/",
+    "countries": [
+      "LS"
+    ],
+    "status": "retired",
+    "notes": "Alias du connecteur lesotho_gov_jobs déjà présent; ne pas crawler deux fois."
   }
 };
 
@@ -393,7 +1704,7 @@ const WEST_AFRICA_SOURCES: SourceDefinition[] = [
   {key:"jobsearch_gm",name:"Gambia JobSearch",type:"national",status:"discovered",enabled:false,url:"https://jobsearch.gm/",countries:["GM"],languages:["en"],captureMode:"http",renderRequired:false,priority:100,notes:"À qualifier par smoke crawl."},
   {key:"jobartis_ao",name:"Jobartis Angola",type:"national",status:"discovered",enabled:false,url:"https://www.jobartis.com/",countries:["AO"],languages:["pt"],captureMode:"http",renderRequired:false,priority:110,notes:"Angola traité dans le lot lusophone; activation après audit d'accès."},
   {key:"emprego_ao",name:"Emprego.co.ao",type:"national",status:"discovered",enabled:false,url:"https://www.emprego.co.ao/",countries:["AO"],languages:["pt"],captureMode:"http",renderRequired:false,priority:105,notes:"À qualifier par smoke crawl."},
-  {key:"fne_west",name:"FNE/ANPE/Services publics — West Africa discovery",type:"institutional",status:"discovered",enabled:false,url:"",countries:["BJ","BF","CV","CI","GM","GH","GN","GW","LR","ML","NE","NG","SN","SL","TG"],languages:["fr","en","pt"],captureMode:"unknown",renderRequired:false,priority:60,notes:"Placeholder de contrôle; ne doit jamais être récolté comme URL."}
+  {key:"fne_west",name:"Ancien placeholder FNE/ANPE Afrique de l'Ouest — retiré",type:"institutional",status:"retired",enabled:false,countries:["BJ","BF","CV","CI","GM","GH","GN","GW","LR","ML","NE","NG","SN","SL","TG"],languages:["fr","en","pt"],captureMode:"unknown",renderRequired:false,priority:0,notes:"Ce libellé regroupait plusieurs agences publiques et ne représentait pas une source unique. Chaque agence réelle conserve sa propre entrée; placeholder neutralisé le 05-11-2026."}
 ];
 
 
