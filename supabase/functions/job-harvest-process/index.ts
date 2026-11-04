@@ -2,6 +2,7 @@ import { jwtVerify, createRemoteJWKSet } from "npm:jose@6";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
 import {
+  decodeHtmlEntities,
   isGenericRecruitmentTitle,
   mapOpportunityType,
   normalizeLanguage,
