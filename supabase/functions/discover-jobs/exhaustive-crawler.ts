@@ -74,8 +74,8 @@ function extractJob(j:any,sourceUrl:string,sourceKey?:string):ExhaustiveItem {
   const loc=j?.jobLocation?.address?.addressLocality||j?.jobLocation?.address?.addressRegion||j?.jobLocation?.name||"";
   const contact=extractApplicationContact(
     [j?.description,j?.applicationContact?.email,j?.applicationContact?.telephone].filter(Boolean).join("\\n"),
-    j?.applicationContact?.email ?? j?.email,
-    j?.applicationContact?.telephone ?? j?.telephone,
+    j?.applicationContact?.email,
+    j?.applicationContact?.telephone,
   );
   return {title,description,company,location:clean(Array.isArray(loc)?loc.join(", "):loc),url:clean(j?.url)||sourceUrl,
     deadline:firstDate([j?.validThrough,j?.expirationDate]),published:firstDate([j?.datePosted,j?.datePublished]),
