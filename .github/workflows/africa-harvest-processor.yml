@@ -1,6 +1,13 @@
 name: Africa Harvest Processor
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "supabase/functions/job-harvest-process/**"
+      - "supabase/functions/_shared/job-freshness.ts"
+      - ".github/workflows/africa-harvest-processor.yml"
   schedule:
     - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
