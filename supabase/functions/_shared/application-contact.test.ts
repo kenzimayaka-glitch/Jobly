@@ -18,6 +18,22 @@ Deno.test("extracts Cloudflare email from any tagged element", () => {
   const html = '<span class="__cf_email__" data-cfemail="127362627e6b527c777e776a3c757d643c7c75">[email protected]</span>';
   assertEquals(extractApplicationContact("Method of Application " + html).email, "apply@nelex.gov.ng");
 });
+Deno.test("extracts South African Direct Your Applications To block", () => {
+  const html = "<h2>ENQUIRIES</h2>Ms Mnguni Cell: 082 379 9348<h3>Direct Your Applications to:</h3>Jobs-CF11@labour.gov.za";
+  assertEquals(extractApplicationContact(html), { email: "jobs-cf11@labour.gov.za", phone: null });
+});
+
+Deno.test("accepts ANPE Niger and HireLiberia application emails from real application blocks", () => {
+  assertEquals(
+    extractApplicationContact("Pour postuler, envoyez votre CV et votre lettre de motivation par e-mail à anpeagadez@gmail.com").email,
+    "anpeagadez@gmail.com",
+  );
+  assertEquals(
+    extractApplicationContact("Interested applicants must submit the following. Application for Consumer Support Agent Email: <a href='mailto:recruitment@lta.gov.lr'>[email protected]</a>").email,
+    "recruitment@lta.gov.lr",
+  );
+});
+
 Deno.test("extracts labelled international and local phone numbers", () => {
   assertEquals(extractApplicationContact("How to Apply: WhatsApp: +237 699 887 766").phone, "+237699887766");
   assertEquals(extractApplicationContact("Pour postuler: Téléphone: 070 123 4567").phone, "0701234567");
