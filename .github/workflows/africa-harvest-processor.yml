@@ -18,11 +18,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Test harvest normalization rules
+        run: deno test supabase/functions/job-harvest-process/processor-logic.test.ts
+      - name: Type-check harvest processor
+        run: deno check supabase/functions/job-harvest-process/index.ts
       - name: Process pending captures
         env:
           PROCESS_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-process
         run: |
-          OIDC_TOKEN="$(curl --fail-with-body --silent --show-error             -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=jobly-harvest")"
+          OIDC_TOKEN="$(curl --fail-with-body --silent --show-error \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=jobly-harvest")"
           TOKEN="$(python -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "$OIDC_TOKEN")"
           test -n "$TOKEN" || { echo "GitHub Actions OIDC token unavailable"; exit 1; }
-          curl --fail-with-body --silent --show-error             --retry 3 --retry-delay 5             -X POST "$PROCESS_URL"             -H "Authorization: Bearer $TOKEN"             -H "Content-Type: application/json"             --data '{"limit":40}'
+          curl --fail-with-body --silent --show-error \
+            --retry 3 --retry-delay 5 \
+            -X POST "$PROCESS_URL" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{"limit":40}'
