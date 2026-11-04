@@ -1,0 +1,30 @@
+name: Source Registry Integrity
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/functions/discover-jobs/source-registry.ts"
+      - "supabase/functions/discover-jobs/source-engine.ts"
+      - "supabase/functions/discover-jobs/shadow-crawl.ts"
+      - "supabase/functions/discover-jobs/source-registry.test.ts"
+      - ".github/workflows/source-registry-integrity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  registry-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Test the 248-source registry and qualification gates
+        run: deno test supabase/functions/discover-jobs/source-registry.test.ts
+      - name: Type-check source configuration and shadow selector
+        run: deno check supabase/functions/discover-jobs/source-engine.ts supabase/functions/discover-jobs/shadow-crawl.ts
