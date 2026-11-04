@@ -65,10 +65,13 @@ Deno.test("registry integrity and source qualification are reported separately",
   assertEquals(report.duplicateKeys, []);
   assertEquals(report.registryIntegrity, "GREEN");
   assertEquals(report.qualificationStatus, "INCOMPLETE");
+  assertEquals(report.candidateReviewStatus, "COMPLETE");
   assertEquals(report.readyForCrawlSources, 113);
   assertEquals(report.invalidActiveSources, 0);
-  assertEquals(report.missingUrlSources, 106);
-  assertEquals(report.withUrl, 142);
+  assertEquals(report.missingUrlSources, 17);
+  assertEquals(report.unresolvedUrlSources, 0);
+  assertEquals(report.retiredNoUrlSources, 17);
+  assertEquals(report.withUrl, 231);
   assertEquals(report.activeSources, 113);
-  assertEquals(report.discoveredSources, 134);
+  assertEquals(report.discoveredSources, 108);
 });
