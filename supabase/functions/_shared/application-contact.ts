@@ -2,7 +2,7 @@ export type ApplicationContact = { email: string | null; phone: string | null };
 
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
 const APPLICATION_MARKER = /(?:method of application|how to apply|application instructions|interested and qualified|to apply|apply for this job|send (?:your )?(?:cv|resume)|pour postuler|modalit[eé]s de candidature|comment postuler|candidature)/i;
-const STOP_MARKER = /(?:related jobs|similar jobs|share this|about us|privacy policy|terms (?:and|&) conditions|copyright|frequently asked questions)/i;
+const STOP_MARKER = /(?:related jobs|similar jobs|share this|about us|privacy policy|terms (?:and|&) conditions|copyright|frequently asked questions|about the company|company details|contact details|employer information)/i;
 const LABELLED_PHONE_RE = /(?:tel(?:ephone)?|t[eé]l(?:éphone)?|phone(?:\s+number)?|mobile|whats?app|call|contact(?:\s+number)?)[^\r\n\d+]{0,32}?((?:\+|00)?\s*\d[\d\s()./-]{5,20}\d)/gi;
 
 function decodeCloudflareHex(encoded: string): string | null {
@@ -42,7 +42,7 @@ function normalizePhone(value: string): string | null {
   const international = /^\s*(?:\+|00)/.test(trimmed);
   let digits = trimmed.replace(/\D/g, "");
   if (international && digits.startsWith("00")) digits = digits.slice(2);
-  if (digits.length < (international ? 8 : 7) || digits.length > 15 || /^0/.test(digits) || new Set(digits).size === 1) return null;
+  if (digits.length < (international ? 8 : 7) || digits.length > 15 || (international && /^0/.test(digits)) || new Set(digits).size === 1) return null;
   return international ? `+${digits}` : digits;
 }
 
