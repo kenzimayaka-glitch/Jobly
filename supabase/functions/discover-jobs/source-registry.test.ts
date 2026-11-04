@@ -73,5 +73,15 @@ Deno.test("registry integrity and source qualification are reported separately",
   assertEquals(report.retiredNoUrlSources, 17);
   assertEquals(report.withUrl, 231);
   assertEquals(report.activeSources, 113);
-  assertEquals(report.discoveredSources, 108);
+  assertEquals(report.discoveredSources, 107);
+});
+
+Deno.test("all source entries without a URL are explicitly terminal and cannot be crawled", () => {
+  const withoutUrl = SOURCE_REGISTRY.filter((source) => !source.url);
+  assertEquals(withoutUrl.length, 17);
+  assertEquals(withoutUrl.every((source) =>
+    ["retired", "blocked", "inactive"].includes(source.status)
+  ), true);
+  assertEquals(withoutUrl.filter(sourceCanBeCrawled), []);
+  assertEquals(withoutUrl.map((source) => source.key).includes("fne_west"), true);
 });
