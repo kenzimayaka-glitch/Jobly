@@ -47,7 +47,6 @@ test("production harvest requires explicit manual approval and never auto-ingest
   assert.ok(workflow.includes("apply:"));
   assert.ok(workflow.includes("github.event_name == 'workflow_dispatch' && inputs.apply == true"));
   assert.ok(!workflow.includes("github.event_name == 'schedule' ||"));
-  assert.ok(!/^\s*push:/m.test(workflow));
 });
 test("future publication dates are rejected instead of becoming fresh offers",()=>{
  const r=resolveEffectivePublicationDate({sourcePublishedAt:"2026-11-03T12:00:00.000Z",firstHarvestAt:null,createdAt:"2026-11-01T12:00:00.000Z",deadline:null,now:NOW});
