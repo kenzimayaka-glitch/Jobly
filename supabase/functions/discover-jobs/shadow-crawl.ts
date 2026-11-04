@@ -73,12 +73,12 @@ async function worker(){
         const contact=extractApplicationContact(item.title+"\n"+item.description,item.applicationEmail,item.applicationPhone);
         if(!contact.email&&!contact.phone){contactRejected++;continue;}
 
-        // No publication date means no automatic admission: do not replace it with today's harvest date.
-        if(!item.published){missingPublicationDate++;continue;}
         const observedAt=new Date().toISOString();
+        if(!item.published)missingPublicationDate++;
+        // Source publication dates use the 62-day limit; a missing date uses first-harvest fallback with a strict 30-day limit.
         const freshness=resolveEffectivePublicationDate({
           sourcePublishedAt:item.published,
-          firstHarvestAt:null,
+          firstHarvestAt:item.published?null:observedAt,
           createdAt:null,
           deadline:item.deadline,
           now:observedAt,
@@ -89,7 +89,7 @@ async function worker(){
         harvestCandidates.push({
           sourceKey:source.key,sourceName:source.name,sourceType:source.type,sourceCaptureMode:source.captureMode,
           renderRequired:source.renderRequired,displayModel,countryCode:country,title:item.title,description:item.description,
-          company:item.company,location:item.location,url:item.url,deadline:item.deadline,published:item.published,
+          company:item.company,location:item.location,url:item.url,deadline:item.deadline,published:freshness.effectivePublishedAt,
           applicationEmail:contact.email,applicationPhone:contact.phone,discoveredAt:observedAt,
           publicationDateEstimated:freshness.publicationDateEstimated,
           publicationDateSource:freshness.publicationDateSource,opportunityType:item.opportunityType
@@ -127,7 +127,7 @@ const summary={
   contactRejected:metrics.reduce((n,x)=>n+(x.contactRejected??0),0),
   missingPublicationDate:metrics.reduce((n,x)=>n+(x.missingPublicationDate??0),0),
   freshnessRejected:metrics.reduce((n,x)=>n+(x.freshnessRejected??0),0),
-  harvestCandidates:uniqueCandidates.length,expired:metrics.reduce((n,x)=>n+x.expired,0),
+  harvestCandidates:uniqueCandidates.length,estimatedCandidates:uniqueCandidates.filter(x=>x.publicationDateEstimated).length,expired:metrics.reduce((n,x)=>n+x.expired,0),
   rejected:metrics.reduce((n,x)=>n+x.rejected,0),internships:metrics.reduce((n,x)=>n+x.internships,0),
   consultancies:metrics.reduce((n,x)=>n+x.consultancies,0),tenders:metrics.reduce((n,x)=>n+x.tenders,0),
   durationMs:Date.now()-started,globalBudgetMs:GLOBAL_BUDGET_MS,sourceBudgetMs:SOURCE_BUDGET_MS
