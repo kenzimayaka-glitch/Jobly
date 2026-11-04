@@ -2,6 +2,7 @@ import { jwtVerify, createRemoteJWKSet } from "npm:jose@6";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
 import {
+  isGenericRecruitmentTitle,
   mapOpportunityType,
   normalizeLanguage,
   normalizeRemoteMode,
@@ -173,6 +174,12 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
   if (!sourceKey || !sourceUrl || !externalId || !title || description.length < 60) {
     await quarantine(db, capture, "REQUIRED_CONTENT_MISSING",
       "Source, URL, external id, title and a meaningful description are required.");
+    counts.quarantined++;
+    return;
+  }
+  if (isGenericRecruitmentTitle(title)) {
+    await quarantine(db, capture, "GENERIC_RECRUITMENT_LANDING",
+      "This page is a recruiter account, CV bank or generic recruitment landing page, not an individual vacancy.");
     counts.quarantined++;
     return;
   }
