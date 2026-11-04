@@ -117,6 +117,13 @@ export function resolveCountryCode(declaredValue: unknown, location: unknown): C
   };
 }
 
+export function isGenericRecruitmentTitle(value: unknown): boolean {
+  const title = normalizedText(value);
+  return /^(COMPTE RECRUTEUR|RECRUITER ACCOUNT|CANDIDATE PROFILE|JOB ALERTS?|CREATE ACCOUNT|SIGN IN|LOGIN|REGISTER)$/.test(title)
+    || /^SUBMIT CVS? (?:LATEST|NEW) (?:RECRUITMENT|EMPLOYMENT OPPORTUNITIES)$/.test(title)
+    || /^SUBMIT CVS?$/.test(title);
+}
+
 export type OpportunityMapping = { sourceType: string; jobType: "EMPLOI"|"CONCOURS"|"FORMATION"|"RECRUTEMENT_INSUFFISANT" } | null;
 
 export function mapOpportunityType(value: unknown, title = "", description = ""): OpportunityMapping {
