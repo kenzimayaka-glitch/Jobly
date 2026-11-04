@@ -159,7 +159,7 @@ Deno.serve(async (req: Request) => {
       insertedOrRefreshed: rows.length,
       skipped,
       expired,
-      estimatedDateCandidates: rows.filter(x => !x.publishedAt).length,
+      estimatedDateCandidates: rows.filter(x => x.applicationProfile.publicationDateEstimated === true).length,
       countryCodes: [...new Set(rows.map(x => x.applicationProfile.countryCode))],
     });
   } catch (e) {
