@@ -71,6 +71,8 @@ async function worker(){
         if(source.key==="ajira_portal" && /kuitwa kwenye usaili|call for interview|interview shortlist|placement results|appointed candidates|majina ya walioitwa|walioitwa kazini/i.test(item.title+" "+item.description)) continue;
 
         const contact=extractApplicationContact(item.title+"\n"+item.description,item.applicationEmail,item.applicationPhone);
+        // NELEX shares a general profile phone across job pages; it is not an application contact.
+        if(source.key==="nelex_ng")contact.phone=null;
         if(!contact.email&&!contact.phone){contactRejected++;continue;}
 
         const observedAt=new Date().toISOString();
