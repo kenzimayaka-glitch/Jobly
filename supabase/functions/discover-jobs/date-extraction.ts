@@ -9,9 +9,10 @@ type DateFormat = "dmy" | "mdy" | "french" | "english";
 type DateAdapter = { pattern: RegExp; format: DateFormat };
 
 const FRENCH_MONTHS: Record<string, number> = {
-  janvier: 1, février: 2, fevrier: 2, mars: 3, avril: 4, mai: 5, juin: 6,
-  juillet: 7, août: 8, aout: 8, septembre: 9, octobre: 10, novembre: 11,
-  décembre: 12, decembre: 12,
+  janvier: 1, janv: 1, février: 2, fevrier: 2, févr: 2, fevr: 2, mars: 3,
+  avril: 4, avr: 4, mai: 5, juin: 6, juillet: 7, juil: 7, août: 8, aout: 8,
+  septembre: 9, sept: 9, octobre: 10, oct: 10, novembre: 11, nov: 11,
+  décembre: 12, decembre: 12, déc: 12, dec: 12,
 };
 
 function toIso(year: number, month: number, day: number): string | null {
@@ -54,9 +55,9 @@ function parseDate(value: string, format: DateFormat): string | null {
     return format === "dmy" ? toIso(year, second, first) : toIso(year, first, second);
   }
   if (format === "french") {
-    const match = raw.match(/^(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(20\d{2})$/i);
+    const match = raw.match(/^(\d{1,2})\s+([A-Za-zÀ-ÿ.]+)\s+(20\d{2})$/i);
     if (!match) return null;
-    const month = FRENCH_MONTHS[match[2].toLocaleLowerCase("fr").normalize("NFC")];
+    const month = FRENCH_MONTHS[match[2].replace(/\.$/, "").toLocaleLowerCase("fr").normalize("NFC")];
     return month ? toIso(Number(match[3]), month, Number(match[1])) : null;
   }
   const monthFirst = raw.match(/^([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(20\d{2})$/i);
@@ -159,7 +160,10 @@ const SOURCE_ADAPTERS: Record<string, DateAdapter[]> = {
     { pattern: /(?:date\s+posted|posted\s+on)\s*[:\-]?\s*([A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?,?\s+20\d{2})/i, format: "english" },
   ],
   beta_mauritania: [
-    { pattern: /offre\s+en\s+ligne\s+depuis\s*[:\-]?\s*(\d{1,2}\s+[A-Za-zÀ-ÿ]+\s+20\d{2})/i, format: "french" },
+    { pattern: /offre\s+en\s+ligne\s+depuis\s*[:\-]?\s*(\d{1,2}\s+[A-Za-zÀ-ÿ.]+\s+20\d{2})/i, format: "french" },
+  ],
+  anpetogo: [
+    { pattern: /publi[ée]e?\s+le\s*[:\-]?\s*(\d{1,2}\s+[A-Za-zÀ-ÿ.]+\s+20\d{2})/i, format: "french" },
   ],
 };
 
@@ -181,6 +185,20 @@ const SOURCE_DEADLINE_ADAPTERS: Record<string, DateAdapter[]> = {
   nelex_ng: [
     { pattern: /(?:application\s+(?:closing\s+)?deadline|application\s+closing\s+date|closing\s+date|deadline)\s*[:\-]?\s*(\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+,?\s+20\d{2})/i, format: "english" },
     { pattern: /(?:application\s+(?:closing\s+)?deadline|application\s+closing\s+date|closing\s+date|deadline)\s*[:\-]?\s*([A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?,?\s+20\d{2})/i, format: "english" },
+  ],
+  anpetogo: [
+    { pattern: /date limite (?:de dépôt|de candidature|de dépôt des dossiers)\s*[:\-]?\s*(\d{1,2}\s+[A-Za-zÀ-ÿ.]+\s+20\d{2})/i, format: "french" },
+    { pattern: /date limite\s*[:\-]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]20\d{2})/i, format: "dmy" },
+  ],
+  anpe_ne: [
+    { pattern: /date de clôture\s*[:\-]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]20\d{2})/i, format: "dmy" },
+    { pattern: /date limite de candidature\s*[:\-]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]20\d{2})/i, format: "dmy" },
+  ],
+  south_africa_gov_jobs: [
+    { pattern: /closing date\s*[:\-]?\s*(\d{1,2}\s+[A-Za-z]+\s+20\d{2})/i, format: "english" },
+  ],
+  hrjobs_liberia: [
+    { pattern: /(?:apply by|deadline)\s*[:\-]?\s*([A-Za-z]+\s+\d{1,2},?\s+20\d{2})/i, format: "english" },
   ],
 };
 
