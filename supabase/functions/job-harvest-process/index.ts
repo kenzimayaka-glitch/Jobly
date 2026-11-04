@@ -35,7 +35,7 @@ const asDate = (value: unknown): string | null => {
 };
 
 const clean = (value: unknown, max = 30000): string =>
-  String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  decodeHtmlEntities(value).replace(/\s+/g, " ").trim().slice(0, max);
 
 const safeTextArray = (value: unknown, maxItems = 40): string[] =>
   Array.isArray(value)
