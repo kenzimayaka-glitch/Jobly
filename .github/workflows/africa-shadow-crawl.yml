@@ -92,7 +92,8 @@ jobs:
           for item in candidates:
               try:
                   published = datetime.fromisoformat(item["published"].replace("Z", "+00:00"))
-                  if (now - published).total_seconds() > 62 * 86400:
+                  max_age_days = 30 if item.get("publicationDateEstimated") else 62
+              if (now - published).total_seconds() > max_age_days * 86400:
                       stale.append(item)
               except Exception:
                   stale.append(item)
