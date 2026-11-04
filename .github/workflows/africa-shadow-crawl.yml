@@ -8,6 +8,8 @@ on:
     paths:
       - "supabase/functions/discover-jobs/shadow-crawl.ts"
       - "supabase/functions/discover-jobs/exhaustive-crawler.ts"
+      - "supabase/functions/discover-jobs/date-extraction.ts"
+      - "supabase/functions/discover-jobs/source-registry.ts"
       - "supabase/functions/_shared/application-contact.ts"
       - ".github/workflows/africa-shadow-crawl.yml"
   workflow_dispatch:
