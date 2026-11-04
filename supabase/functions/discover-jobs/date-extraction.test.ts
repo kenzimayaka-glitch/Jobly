@@ -144,3 +144,34 @@ Deno.test("NELEX is selected by the Nigeria-specific source run plan",()=>{
   assertEquals(source?.enabled,true);
   assertEquals(resolveSourceUrl(source!,"NG").url,"https://nelex.gov.ng/jobs");
 });
+
+Deno.test("ANPE Togo abbreviated French publication date", () => {
+  assertEquals(
+    extractSourcePublishedAt("<p>Publiée le 29 oct. 2026</p>", "https://anpetogo.net/poste/1", "anpetogo"),
+    "2026-10-29T00:00:00.000Z",
+  );
+});
+Deno.test("ANPE Togo abbreviated French closing date", () => {
+  assertEquals(
+    extractSourceDeadline("<p>Date limite de dépôt de dossiers de candidature : 6 nov. 2026</p>", "https://anpetogo.net/poste/1", "anpetogo"),
+    "2026-11-06T00:00:00.000Z",
+  );
+});
+Deno.test("ANPE Niger closing date adapter", () => {
+  assertEquals(
+    extractSourceDeadline("<p>Date de clôture : 11/11/2026</p>", "https://anpe-niger.ne/poste/1", "anpe_ne"),
+    "2026-11-11T00:00:00.000Z",
+  );
+});
+Deno.test("South Africa closing date adapter", () => {
+  assertEquals(
+    extractSourceDeadline("<p>CLOSING DATE: 13 November 2026</p>", "https://www.labour.gov.za/vacancy/1", "south_africa_gov_jobs"),
+    "2026-11-13T00:00:00.000Z",
+  );
+});
+Deno.test("HireLiberia apply-by date adapter", () => {
+  assertEquals(
+    extractSourceDeadline("<p>Apply by: November 6, 2026</p>", "https://hireliberia.com/job/1", "hrjobs_liberia"),
+    "2026-11-06T00:00:00.000Z",
+  );
+});
