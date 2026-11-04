@@ -1,16 +1,19 @@
 name: Africa Harvest Processor
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "supabase/functions/job-harvest-process/**"
-      - "supabase/functions/_shared/job-freshness.ts"
-      - ".github/workflows/africa-harvest-processor.yml"
   schedule:
     - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
+    inputs:
+      apply:
+        description: "Autoriser explicitement le traitement des offres du lot"
+        required: true
+        type: boolean
+        default: false
+      source_keys:
+        description: "Clés des sources à traiter (20 maximum, séparées par des virgules)"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -30,21 +33,24 @@ jobs:
         with:
           deno-version: v2.x
       - name: Test harvest normalization rules
-        run: deno test supabase/functions/job-harvest-process/processor-logic.test.ts
+        run: deno test supabase/functions/job-harvest-process/processor-logic.test.ts supabase/functions/_shared/application-contact.test.ts
       - name: Type-check harvest processor
         run: deno check supabase/functions/job-harvest-process/index.ts
-      - name: Process pending captures
+      - name: Process pending captures (manual approval only)
+        if: github.event_name == 'workflow_dispatch' && inputs.apply == true
         env:
           PROCESS_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-process
+          SOURCE_KEYS: ${{ inputs.source_keys }}
         run: |
-          OIDC_TOKEN="$(curl --fail-with-body --silent --show-error \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=jobly-harvest")"
+          OIDC_TOKEN="$(curl --fail-with-body --silent --show-error -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=jobly-harvest")"
           TOKEN="$(python -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "$OIDC_TOKEN")"
           test -n "$TOKEN" || { echo "GitHub Actions OIDC token unavailable"; exit 1; }
-          curl --fail-with-body --silent --show-error \
-            --retry 3 --retry-delay 5 \
-            -X POST "$PROCESS_URL" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            --data '{"limit":40}'
+          BODY="$(python - <<'PY'
+          import json, os
+          keys = list(dict.fromkeys(x.strip() for x in os.environ["SOURCE_KEYS"].split(",") if x.strip()))
+          if not keys or len(keys) > 20:
+              raise SystemExit("Provide between 1 and 20 source keys.")
+          print(json.dumps({"limit":40,"sourceKeys":keys}))
+          PY
+          )"
+          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 5 -X POST "$PROCESS_URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data "$BODY"
