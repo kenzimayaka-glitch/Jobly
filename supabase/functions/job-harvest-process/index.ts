@@ -1,152 +1,555 @@
 import { jwtVerify, createRemoteJWKSet } from "npm:jose@6";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
-const JWKS=createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks"));
-const ISSUER="https://token.actions.githubusercontent.com",AUDIENCE="jobly-harvest",REPOSITORY="kenzimayaka-glitch/Jobly";
-const MAX_BATCH=40,MAX_ATTEMPTS=3;
-const COUNTRY_CODES=new Set(["AO","BF","BI","BJ","BW","CD","CF","CG","CI","CM","CV","DJ","DZ","EG","ER","ET","GA","GH","GM","GN","GQ","GW","KE","KM","LR","LS","LY","MA","MG","ML","MR","MU","MW","MZ","NA","NE","NG","RW","SC","SD","SL","SN","SO","SS","ST","SZ","TD","TG","TN","TZ","UG","ZA","ZM","ZW"]);
-const COUNTRY_ALIASES:Record<string,string>={
-  ANGOLA:"AO","BURKINA FASO":"BF",BURUNDI:"BI",BENIN:"BJ",BOTSWANA:"BW",
-  "REPUBLIQUE DEMOCRATIQUE DU CONGO":"CD","DEMOCRATIC REPUBLIC OF THE CONGO":"CD",
-  "REPUBLIQUE CENTRAFRICAINE":"CF",CENTRAFRIQUE:"CF","CENTRAL AFRICAN REPUBLIC":"CF",
-  "REPUBLIQUE DU CONGO":"CG",CONGO:"CG","COTE D IVOIRE":"CI",CAMEROUN:"CM",CAMEROON:"CM",
-  "CAP VERT":"CV","CAPE VERDE":"CV",DJIBOUTI:"DJ",ALGERIE:"DZ",ALGERIA:"DZ",EGYPTE:"EG",EGYPT:"EG",
-  ERYTHREE:"ER",ERITREA:"ER",ETHIOPIE:"ET",ETHIOPIA:"ET",GABON:"GA",GHANA:"GH",GAMBIE:"GM",GAMBIA:"GM",
-  GUINEE:"GN",GUINEA:"GN","GUINEE EQUATORIALE":"GQ","EQUATORIAL GUINEA":"GQ","GUINEE BISSAU":"GW",
-  "GUINEA BISSAU":"GW",KENYA:"KE",COMORES:"KM",COMOROS:"KM",LIBERIA:"LR",LESOTHO:"LS",LIBYE:"LY",LIBYA:"LY",
-  MAROC:"MA",MOROCCO:"MA",MADAGASCAR:"MG",MALI:"ML",MAURITANIE:"MR",MAURITANIA:"MR",MAURICE:"MU",
-  MAURITIUS:"MU",MALAWI:"MW",MOZAMBIQUE:"MZ",NAMIBIE:"NA",NAMIBIA:"NA",NIGER:"NE",NIGERIA:"NG",
-  RWANDA:"RW",SEYCHELLES:"SC",SOUDAN:"SD",SUDAN:"SD","SIERRA LEONE":"SL",SENEGAL:"SN",SOMALIE:"SO",
-  SOMALIA:"SO","SOUDAN DU SUD":"SS","SOUTH SUDAN":"SS","SAO TOME ET PRINCIPE":"ST",ESWATINI:"SZ",
-  SWAZILAND:"SZ",TCHAD:"TD",CHAD:"TD",TOGO:"TG",TUNISIE:"TN",TUNISIA:"TN",TANZANIE:"TZ",TANZANIA:"TZ",
-  OUGANDA:"UG",UGANDA:"UG","AFRIQUE DU SUD":"ZA","SOUTH AFRICA":"ZA",ZAMBIE:"ZM",ZAMBIA:"ZM",ZIMBABWE:"ZW",
+import {
+  mapOpportunityType,
+  normalizeCountryCode,
+  normalizeLanguage,
+  normalizeRemoteMode,
+  resolveCountryCode,
+  safeHttpUrl,
+  safeInteger,
+} from "./processor-logic.ts";
+
+const JWKS = createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks"));
+const ISSUER = "https://token.actions.githubusercontent.com";
+const AUDIENCE = "jobly-harvest";
+const REPOSITORY = "kenzimayaka-glitch/Jobly";
+const MAX_BATCH = 40;
+const MAX_ATTEMPTS = 3;
+const STALE_PROCESSING_MS = 20 * 60 * 1000;
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+
+type AnyRecord = Record<string, any>;
+
+const asRecord = (value: unknown): AnyRecord =>
+  value && typeof value === "object" && !Array.isArray(value) ? value as AnyRecord : {};
+
+const asDate = (value: unknown): string | null => {
+  if (!value) return null;
+  const date = new Date(String(value));
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 };
-const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json"}});
-const asDate=(value:unknown):string|null=>{if(!value)return null;const d=new Date(String(value));return Number.isFinite(d.getTime())?d.toISOString():null;};
-const clean=(value:unknown,max=30000)=>String(value??"").replace(/\s+/g," ").trim().slice(0,max);
-function normalizeCountryCode(value:unknown):string|null{
-  const raw=String(value??"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-    .replace(/[’']/g," ").replace(/[^A-Z0-9 ]/g," ").replace(/\s+/g," ").trim();
-  const code=/^[A-Z]{2}$/.test(raw)?raw:COUNTRY_ALIASES[raw];
-  return code&&COUNTRY_CODES.has(code)?code:null;
+
+const clean = (value: unknown, max = 30000): string =>
+  String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+
+const safeTextArray = (value: unknown, maxItems = 40): string[] =>
+  Array.isArray(value)
+    ? value.map((item) => clean(item, 100)).filter(Boolean).slice(0, maxItems)
+    : [];
+
+const optionalNumber = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(0, Math.min(2_000_000_000, Math.trunc(n))) : null;
+};
+
+async function authorize(req: Request): Promise<void> {
+  const header = req.headers.get("authorization") ?? "";
+  if (!header.startsWith("Bearer ")) throw new Error("Missing GitHub Actions OIDC token");
+  const { payload } = await jwtVerify(header.slice(7), JWKS, {
+    issuer: ISSUER,
+    audience: AUDIENCE,
+  });
+  if (payload.repository !== REPOSITORY || payload.ref !== "refs/heads/main") {
+    throw new Error("Unauthorized repository/ref");
+  }
 }
-async function authorize(req:Request){
-  const h=req.headers.get("authorization")??"";
-  if(!h.startsWith("Bearer "))throw new Error("Missing GitHub Actions OIDC token");
-  const {payload}=await jwtVerify(h.slice(7),JWKS,{issuer:ISSUER,audience:AUDIENCE});
-  if(payload.repository!==REPOSITORY||payload.ref!=="refs/heads/main")throw new Error("Unauthorized repository/ref");
+
+function processingProfile(
+  applicationProfile: unknown,
+  status: string,
+  code: string,
+  reason: string,
+  details: AnyRecord = {},
+): AnyRecord {
+  const previous = asRecord(applicationProfile);
+  return {
+    ...previous,
+    processing: {
+      state: status,
+      code,
+      reason: clean(reason, 800),
+      at: new Date().toISOString(),
+      ...details,
+    },
+  };
 }
-async function updateCapture(db:any,id:string,values:Record<string,unknown>){
-  const {error}=await db.from("JobHarvestCapture").update({...values,updatedAt:new Date().toISOString()}).eq("id",id);
-  if(error)throw new Error(error.message);
+
+async function persistCaptureState(
+  db: any,
+  capture: AnyRecord,
+  status: "PROCESSED" | "QUARANTINED" | "EXPIRED" | "FAILED",
+  code: string | null,
+  reason: string | null,
+  details: AnyRecord = {},
+  jobId: string | null = null,
+): Promise<void> {
+  const now = new Date().toISOString();
+  const payload = {
+    ...asRecord(capture.payload),
+    processing: {
+      state: status,
+      code,
+      reason: reason ? clean(reason, 800) : null,
+      at: now,
+      ...details,
+    },
+  };
+  const applicationProfile = processingProfile(
+    capture.applicationProfile,
+    status,
+    code ?? "OK",
+    reason ?? "Processed successfully",
+    details,
+  );
+  const update: AnyRecord = {
+    status,
+    lastError: code ? clean(code + (reason ? ": " + reason : ""), 1000) : null,
+    applicationProfile,
+    payload,
+    processedAt: status === "FAILED" ? null : now,
+    updatedAt: now,
+  };
+  if (jobId) update.jobId = jobId;
+  const { error } = await db.from("JobHarvestCapture").update(update).eq("id", capture.id);
+  if (error) throw new Error("CAPTURE_STATE_UPDATE_FAILED: " + error.message);
 }
-Deno.serve(async(req:Request)=>{
-  if(req.method!=="POST")return json({message:"POST required"},405);
-  try{
+
+async function quarantine(
+  db: any,
+  capture: AnyRecord,
+  code: string,
+  reason: string,
+  details: AnyRecord = {},
+): Promise<void> {
+  await persistCaptureState(db, capture, "QUARANTINED", code, reason, details);
+}
+
+async function findOrCreateCompany(db: any, companyName: string, payload: AnyRecord): Promise<string | null> {
+  const name = clean(companyName, 180);
+  if (!name) return null;
+  const existing = await db.from("Company").select("id").ilike("name", name).limit(1).maybeSingle();
+  if (existing.error) throw new Error("COMPANY_LOOKUP_FAILED: " + existing.error.message);
+  if (existing.data?.id) return existing.data.id;
+
+  const website = safeHttpUrl(payload.companyWebsite ?? payload.website);
+  const inserted = await db.from("Company").insert({
+    name,
+    website,
+    logoUrl: safeHttpUrl(payload.logoUrl),
+  }).select("id").single();
+  if (inserted.error) throw new Error("COMPANY_CREATE_FAILED: " + inserted.error.message);
+  return inserted.data.id;
+}
+
+async function claimCapture(db: any, row: AnyRecord): Promise<AnyRecord | null> {
+  const now = new Date().toISOString();
+  const update = db.from("JobHarvestCapture")
+    .update({ status: "PROCESSING", attempts: Number(row.attempts ?? 0) + 1, updatedAt: now })
+    .eq("id", row.id)
+    .eq("status", row.status);
+  if (row.updatedAt) update.eq("updatedAt", row.updatedAt);
+  const { data, error } = await update.select("*").maybeSingle();
+  if (error) throw new Error("CAPTURE_CLAIM_FAILED: " + error.message);
+  return data ?? null;
+}
+
+async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): Promise<void> {
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const payload = asRecord(capture.payload);
+  const profile = asRecord(capture.applicationProfile);
+  const title = clean(capture.title ?? payload.title, 300);
+  const description = clean(capture.description ?? capture.extractedText ?? payload.description, 30000);
+  const sourceKey = clean(capture.sourceKey, 120);
+  const sourceUrl = safeHttpUrl(capture.sourceUrl ?? payload.url);
+  const externalId = clean(capture.externalId ?? sourceUrl, 500);
+  const location = clean(capture.location ?? payload.location, 300);
+  const companyName = clean(capture.company ?? payload.company, 180);
+
+  if (!sourceKey || !sourceUrl || !externalId || !title || description.length < 60) {
+    await quarantine(db, capture, "REQUIRED_CONTENT_MISSING",
+      "Source, URL, external id, title and a meaningful description are required.");
+    counts.quarantined++;
+    return;
+  }
+
+  const declaredCountry = payload.countryCode ?? profile.countryCode ?? payload.country ?? profile.country;
+  const countryResolution = resolveCountryCode(declaredCountry, location);
+  const countryCode = countryResolution.countryCode;
+  if (!countryCode) {
+    await quarantine(db, capture, "COUNTRY_CODE_UNRESOLVED",
+      "No supported African country could be verified from capture metadata or the offer location.");
+    counts.quarantined++;
+    return;
+  }
+
+  // A strong country signal in the actual offer location wins over a crawler's
+  // loop-country label. Keep the conflict in JSON metadata for later audit.
+  const kind = mapOpportunityType(
+    payload.opportunityType ?? profile.opportunityType,
+    title,
+    description,
+  );
+  if (!kind) {
+    await quarantine(db, capture, "UNSUPPORTED_OPPORTUNITY_TYPE",
+      "The capture is not a job, internship, consultancy, competition, training or recruitment notice.",
+      { sourceOpportunityType: payload.opportunityType ?? profile.opportunityType ?? null });
+    counts.quarantined++;
+    return;
+  }
+
+  const publicationDate = asDate(capture.publishedAt ?? payload.published ?? payload.sourcePublishedAt);
+  const deadline = asDate(capture.deadline ?? payload.deadline);
+  const discoveredAt = asDate(capture.discoveredAt);
+  const freshness = resolveEffectivePublicationDate({
+    sourcePublishedAt: publicationDate,
+    firstHarvestAt: discoveredAt,
+    createdAt: null,
+    deadline,
+    now: nowIso,
+  });
+
+  const countryDetails = {
+    countryCode,
+    countryEvidence: countryResolution.evidence,
+    declaredCountryCode: countryResolution.declaredCountryCode,
+    countryConflictCorrected: countryResolution.conflict,
+    sourceOpportunityType: kind.sourceType,
+    publicationDateEstimated: freshness.publicationDateEstimated,
+    publicationDateSource: freshness.publicationDateSource,
+    effectivePublishedAt: freshness.effectivePublishedAt,
+    freshnessExpiresAt: freshness.expiresAt,
+  };
+
+  if (!freshness.effectivePublishedAt) {
+    await quarantine(db, capture, "MISSING_PUBLICATION_AND_FALLBACK_DATE",
+      "No reliable source publication date or first-harvest fallback is available.", countryDetails);
+    counts.quarantined++;
+    return;
+  }
+  if (!freshness.visible) {
+    const expiredReason = freshness.expiredByDeadline
+      ? "Application deadline has passed."
+      : freshness.publishedInFuture
+      ? "Publication date is in the future."
+      : "Publication date is outside the freshness window.";
+    const status = freshness.publishedInFuture ? "QUARANTINED" : "EXPIRED";
+    await persistCaptureState(
+      db, capture, status,
+      freshness.rejectionCode ?? "FRESHNESS_REJECTED",
+      expiredReason,
+      countryDetails,
+    );
+    if (status === "EXPIRED") counts.expired++;
+    else counts.quarantined++;
+    return;
+  }
+
+  const applicationUrl = safeHttpUrl(
+    profile.applicationUrl ?? profile.applyUrl ?? payload.applicationUrl ?? payload.applyUrl,
+  );
+  const profileUrl = safeHttpUrl(profile.url);
+  const applicationEmail = clean(
+    profile.applicationEmail ?? payload.applicationEmail ?? payload.email,
+    180,
+  );
+  const applicationPhone = clean(
+    profile.applicationPhone ?? payload.applicationPhone ?? payload.phone,
+    80,
+  );
+  const hasApplicationRoute = Boolean(
+    applicationUrl || applicationEmail || applicationPhone || (profileUrl && profileUrl !== sourceUrl),
+  );
+  const applicationProfile = {
+    ...profile,
+    ...countryDetails,
+    sourceUrl,
+    sourceName: clean(payload.sourceName ?? payload.source ?? sourceKey, 180),
+    opportunityType: kind.sourceType,
+    applicationUrl,
+    applyUrl: applicationUrl,
+    applicationEmail: applicationEmail || null,
+    applicationPhone: applicationPhone || null,
+    applicationReady: hasApplicationRoute,
+  };
+
+  const language = normalizeLanguage(
+    profile.language ?? payload.language ?? payload.languageOriginal,
+    title + " " + description,
+  );
+  const remoteMode = normalizeRemoteMode(capture.remoteMode ?? payload.remoteMode);
+  const minExperienceYears = safeInteger(
+    payload.minExperienceYears ?? payload.minimumExperienceYears ?? payload.experienceYears,
+    0,
+  );
+
+  let salaryMin = optionalNumber(payload.salaryMin);
+  let salaryMax = optionalNumber(payload.salaryMax);
+  if (salaryMin !== null && salaryMax !== null && salaryMin > salaryMax) {
+    salaryMin = null;
+    salaryMax = null;
+  }
+
+  const companyId = await findOrCreateCompany(db, companyName, payload);
+  const normalizedContent = {
+    version: "jobly-offer-v3",
+    title,
+    company: companyName || null,
+    description: [description],
+    location: location || null,
+    countryCode,
+    opportunityType: kind.sourceType,
+    jobOpportunityType: kind.jobType,
+    contractType: clean(capture.contractType ?? payload.contractType, 100) || null,
+    salary: { min: salaryMin, max: salaryMax, currency: clean(payload.salaryCurrency, 8) || null },
+    minExperienceYears,
+    remoteMode,
+    skills: safeTextArray(payload.skills),
+    tags: safeTextArray(payload.tags),
+    publishedAt: freshness.effectivePublishedAt,
+    sourcePublishedAt: publicationDate,
+    publicationDateEstimated: freshness.publicationDateEstimated,
+    publicationDateSource: freshness.publicationDateSource,
+    deadline,
+    applicationUrl,
+    applicationEmail: applicationEmail || null,
+    applicationPhone: applicationPhone || null,
+    sourceUrl,
+    sourceVerified: true,
+  };
+
+  const jobValues: AnyRecord = {
+    companyId,
+    title,
+    description,
+    language,
+    languageOriginal: language,
+    languageRequirements: safeTextArray(payload.languageRequirements, 12),
+    location: location || null,
+    contractType: clean(capture.contractType ?? payload.contractType, 100) || null,
+    salaryMin,
+    salaryMax,
+    salaryCurrency: clean(payload.salaryCurrency, 8) || null,
+    source: clean(payload.sourceName ?? payload.source ?? sourceKey, 180),
+    sourceUrl,
+    deadline,
+    lastSeenAt: nowIso,
+    isActive: true,
+    remoteMode,
+    minExperienceYears,
+    sourceKey,
+    externalId,
+    contentHash: clean(capture.contentHash ?? payload.contentHash, 128) || null,
+    sourcePublishedAt: publicationDate,
+    aiProcessed: false,
+    aiFlags: [],
+    aiSkills: safeTextArray(payload.skills),
+    applicationReady: hasApplicationRoute,
+    applicationProfile,
+    applicationCheckedAt: hasApplicationRoute ? nowIso : null,
+    tags: safeTextArray(payload.tags),
+    opportunityType: kind.jobType,
+    normalizedContent,
+    normalizedVersion: "jobly-offer-v3",
+    normalizedAt: nowIso,
+    qualityStatus: hasApplicationRoute ? "ok" : "needs_review",
+    countryCode,
+    updatedAt: nowIso,
+    aiSummary: description.slice(0, 700),
+  };
+
+  let existing: AnyRecord | null = null;
+  const byExternalId = await db.from("Job")
+    .select("id,createdAt")
+    .eq("sourceKey", sourceKey)
+    .eq("externalId", externalId)
+    .maybeSingle();
+  if (byExternalId.error) throw new Error("JOB_LOOKUP_FAILED: " + byExternalId.error.message);
+  existing = byExternalId.data;
+
+  if (!existing) {
+    const bySourceUrl = await db.from("Job")
+      .select("id,createdAt")
+      .eq("source", jobValues.source)
+      .eq("sourceUrl", sourceUrl)
+      .maybeSingle();
+    if (bySourceUrl.error) throw new Error("JOB_SOURCE_URL_LOOKUP_FAILED: " + bySourceUrl.error.message);
+    existing = bySourceUrl.data;
+  }
+
+  let jobId: string;
+  if (existing?.id) {
+    const { error } = await db.from("Job").update(jobValues).eq("id", existing.id);
+    if (error) throw new Error("JOB_UPDATE_FAILED: " + error.message);
+    jobId = existing.id;
+    counts.updated++;
+  } else {
+    const { data, error } = await db.from("Job")
+      .insert({ createdAt: nowIso, ...jobValues })
+      .select("id")
+      .single();
+    if (error) throw new Error("JOB_INSERT_FAILED: " + error.message);
+    jobId = data.id;
+    counts.created++;
+  }
+
+  const rawPayload = {
+    ...payload,
+    countryCode,
+    opportunityType: kind.sourceType,
+    publicationDateEstimated: freshness.publicationDateEstimated,
+    publicationDateSource: freshness.publicationDateSource,
+    effectivePublishedAt: freshness.effectivePublishedAt,
+    applicationProfile,
+  };
+  const confidence = {
+    sourceUrlVerified: true,
+    countryCodeVerified: true,
+    countryEvidence: countryResolution.evidence,
+    countryConflictCorrected: countryResolution.conflict,
+    publicationDateVerified: Boolean(publicationDate),
+    publicationDateEstimated: freshness.publicationDateEstimated,
+    deadlineVerified: Boolean(deadline),
+    applicationRouteVerified: hasApplicationRoute,
+    descriptionVerified: description.length >= 60,
+  };
+  const pipelineRow = {
+    jobId,
+    sourceKey,
+    sourceUrl,
+    captureMode: capture.captureMode ?? "unknown",
+    rawPayload,
+    extractedText: capture.extractedText ?? description,
+    canonicalContent: normalizedContent,
+    qualityScore: null,
+    confidence,
+    status: "READY",
+    lastError: null,
+    processedAt: nowIso,
+    updatedAt: nowIso,
+  };
+  const { error: pipelineError } = await db.from("JobOfferPipeline")
+    .upsert(pipelineRow, { onConflict: "jobId" });
+  if (pipelineError) throw new Error("PIPELINE_UPSERT_FAILED: " + pipelineError.message);
+
+  await persistCaptureState(
+    db,
+    capture,
+    "PROCESSED",
+    null,
+    null,
+    { ...countryDetails, applicationRouteVerified: hasApplicationRoute },
+    jobId,
+  );
+  counts.processed++;
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method !== "POST") return json({ message: "POST required" }, 405);
+
+  try {
     await authorize(req);
-    const secretKeys=JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS")??"{}");
-    const key=secretKeys.default||Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if(!key)throw new Error("No privileged Supabase key configured");
-    const db=createClient(Deno.env.get("SUPABASE_URL")!,key);
-    const body=await req.json().catch(()=>null);
-    const requested=Number(body?.limit??MAX_BATCH);
-    const limit=Math.min(Math.max(Number.isFinite(requested)?requested:MAX_BATCH,1),MAX_BATCH);
-    const {data:rows,error:selectError}=await db.from("JobHarvestCapture").select("*")
-      .in("status",["PENDING","FAILED"]).order("discoveredAt",{ascending:true}).limit(limit);
-    if(selectError)throw new Error(selectError.message);
-    const counts={created:0,updated:0,expired:0,quarantined:0,failed:0,claimed_elsewhere:0};
-    for(const row of rows??[]){
-      const now=new Date();
-      if(Number(row.attempts??0)>=MAX_ATTEMPTS){
-        await updateCapture(db,row.id,{status:"QUARANTINED",rejectionCode:"MAX_PROCESS_ATTEMPTS",
-          rejectionReason:"Processing retry ceiling reached.",lastError:"MAX_PROCESS_ATTEMPTS"});
-        counts.quarantined++;continue;
+  } catch (error) {
+    return json({ message: error instanceof Error ? error.message : "Unauthorized" }, 401);
+  }
+
+  try {
+    const secretKeys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}");
+    const key = secretKeys.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!key) throw new Error("No privileged Supabase key configured");
+    const db = createClient(Deno.env.get("SUPABASE_URL")!, key);
+
+    const body = await req.json().catch(() => ({}));
+    const requested = Number((body as AnyRecord)?.limit ?? MAX_BATCH);
+    const limit = Math.min(Math.max(Number.isFinite(requested) ? Math.trunc(requested) : MAX_BATCH, 1), MAX_BATCH);
+    const { data: normalRows, error: normalError } = await db.from("JobHarvestCapture")
+      .select("*")
+      .in("status", ["PENDING", "FAILED"])
+      .order("discoveredAt", { ascending: true })
+      .limit(limit);
+    if (normalError) throw new Error("CAPTURE_SELECT_FAILED: " + normalError.message);
+
+    const rows: AnyRecord[] = [...(normalRows ?? [])];
+    if (rows.length < limit) {
+      const staleBefore = new Date(Date.now() - STALE_PROCESSING_MS).toISOString();
+      const { data: staleRows, error: staleError } = await db.from("JobHarvestCapture")
+        .select("*")
+        .eq("status", "PROCESSING")
+        .lt("updatedAt", staleBefore)
+        .order("updatedAt", { ascending: true })
+        .limit(limit - rows.length);
+      if (staleError) throw new Error("STALE_CAPTURE_SELECT_FAILED: " + staleError.message);
+      rows.push(...(staleRows ?? []));
+    }
+
+    const counts: AnyRecord = {
+      selected: rows.length,
+      created: 0,
+      updated: 0,
+      processed: 0,
+      expired: 0,
+      quarantined: 0,
+      failed: 0,
+      claimedElsewhere: 0,
+      persistenceErrors: 0,
+    };
+
+    for (const row of rows) {
+      const attempts = Number(row.attempts ?? 0);
+      if (attempts >= MAX_ATTEMPTS) {
+        try {
+          await quarantine(db, row, "MAX_PROCESS_ATTEMPTS",
+            "Processing retry ceiling reached; manual review is required.");
+          counts.quarantined++;
+        } catch (error) {
+          counts.persistenceErrors++;
+          console.error("Failed to quarantine retry-exhausted capture", row.id, error);
+        }
+        continue;
       }
-      const {data:capture,error:claimError}=await db.from("JobHarvestCapture")
-        .update({status:"PROCESSING",attempts:Number(row.attempts??0)+1,updatedAt:now.toISOString()})
-        .eq("id",row.id).in("status",["PENDING","FAILED"]).select("*").maybeSingle();
-      if(claimError)throw new Error(claimError.message);
-      if(!capture){counts.claimed_elsewhere++;continue;}
-      try{
-        const title=clean(capture.title,300),description=clean(capture.description||capture.extractedText||title,30000);
-        const payload=capture.payload??{},applicationProfile=capture.applicationProfile??{};
-        const countryCode=normalizeCountryCode(payload.countryCode??applicationProfile.countryCode??payload.country??applicationProfile.country);
-        if(!countryCode){
-          await updateCapture(db,capture.id,{status:"QUARANTINED",rejectionCode:"COUNTRY_CODE_UNRESOLVED",
-            rejectionReason:"No supported African country code could be verified.",lastError:"COUNTRY_CODE_UNRESOLVED",
-            processedAt:now.toISOString()});
-          counts.quarantined++;continue;
+
+      let capture: AnyRecord | null;
+      try {
+        capture = await claimCapture(db, row);
+      } catch (error) {
+        counts.persistenceErrors++;
+        console.error("Capture claim failed", row.id, error);
+        continue;
+      }
+      if (!capture) {
+        counts.claimedElsewhere++;
+        continue;
+      }
+
+      try {
+        await processCapture(db, capture, counts);
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        const attemptCount = Number(capture.attempts ?? 0);
+        const retryExhausted = attemptCount >= MAX_ATTEMPTS;
+        try {
+          if (retryExhausted) {
+            await quarantine(db, capture, "MAX_PROCESS_ATTEMPTS", reason);
+            counts.quarantined++;
+          } else {
+            await persistCaptureState(db, capture, "FAILED", "PROCESSING_ERROR", reason);
+            counts.failed++;
+          }
+        } catch (persistError) {
+          counts.persistenceErrors++;
+          console.error("Failed to persist processing error", capture.id, persistError);
         }
-        if(!title||!description||!capture.sourceKey||!capture.sourceUrl||!capture.externalId)throw new Error("TECHNICAL_FIELDS_MISSING");
-        let existing:{id:string;createdAt:string}|null=null;
-        const byExternalId=await db.from("Job").select("id,createdAt").eq("sourceKey",capture.sourceKey)
-          .eq("externalId",capture.externalId).maybeSingle();
-        if(byExternalId.error)throw new Error(byExternalId.error.message);
-        existing=byExternalId.data;
-        if(!existing){
-          const bySourceUrl=await db.from("Job").select("id,createdAt").eq("source",capture.sourceKey)
-            .eq("sourceUrl",capture.sourceUrl).maybeSingle();
-          if(bySourceUrl.error)throw new Error(bySourceUrl.error.message);
-          existing=bySourceUrl.data;
-        }
-        const freshness=resolveEffectivePublicationDate({sourcePublishedAt:asDate(capture.publishedAt),
-          firstHarvestAt:asDate(capture.discoveredAt),createdAt:existing?.createdAt??null,
-          deadline:asDate(capture.deadline),now:now.toISOString()});
-        if(!freshness.effectivePublishedAt){
-          await updateCapture(db,capture.id,{status:"QUARANTINED",countryCode,rejectionCode:freshness.rejectionCode,
-            rejectionReason:"No reliable source, first-harvest, or Job creation date is available.",
-            lastError:freshness.rejectionCode,processedAt:now.toISOString()});
-          counts.quarantined++;continue;
-        }
-        if(!freshness.visible){
-          const futurePublication=freshness.rejectionCode==="PUBLICATION_DATE_IN_FUTURE";
-          await updateCapture(db,capture.id,{status:futurePublication?"QUARANTINED":"EXPIRED",countryCode,rejectionCode:freshness.rejectionCode,
-            rejectionReason:futurePublication?"The source publication date is in the future.":freshness.expiredByDeadline?"The source application deadline has passed.":"The publication date is outside the allowed freshness window.",
-            lastError:freshness.rejectionCode,processedAt:now.toISOString()});
-          if(futurePublication) counts.quarantined++; else counts.expired++;
-          continue;
-        }
-        const applicationReady=Boolean(applicationProfile.applicationEmail||applicationProfile.applicationPhone||
-          applicationProfile.applicationUrl||applicationProfile.applyUrl||applicationProfile.url||payload.applyUrl);
-        const language=/\b(the|and|with|for|your|you|experience|skills|apply)\b/i.test(title+" "+description)?"en":"fr";
-        const normalizedContent={version:"africa-harvest-v1",title,company:clean(capture.company,180)||null,
-          description:[description],location:capture.location??null,skills:[],experienceYears:0,quality:{score:100,warnings:[]}};
-        const jobValues={title,description,language,languageOriginal:language,languageRequirements:[],location:capture.location??null,
-          contractType:capture.contractType??null,salaryMin:payload.salaryMin??null,salaryMax:payload.salaryMax??null,
-          salaryCurrency:payload.salaryCurrency??null,source:capture.sourceKey,sourceUrl:capture.sourceUrl,sourceKey:capture.sourceKey,
-          externalId:capture.externalId,contentHash:capture.contentHash??null,sourcePublishedAt:asDate(capture.publishedAt),
-          publicationDateEstimated:freshness.publicationDateEstimated,publicationDateSource:freshness.publicationDateSource,
-          lastSeenAt:now.toISOString(),deadline:asDate(capture.deadline),isActive:true,remoteMode:capture.remoteMode??"NO",
-          minExperienceYears:0,applicationReady,applicationProfile,applicationCheckedAt:now.toISOString(),
-          visualUrl:payload.logoUrl??null,visualSource:payload.logoUrl?"COMPANY_LOGO":null,aiProcessed:false,aiFlags:[],aiSkills:[],
-          tags:[],opportunityType:"EMPLOI",normalizedContent,normalizedVersion:"africa-harvest-v1",
-          normalizedAt:now.toISOString(),qualityStatus:"ok",countryCode,updatedAt:now.toISOString()};
-        let jobId:string;
-        if(existing?.id){
-          const {error}=await db.from("Job").update(jobValues).eq("id",existing.id);
-          if(error)throw new Error(error.message);
-          jobId=existing.id;counts.updated++;
-        }else{
-          const {data,error}=await db.from("Job").insert({createdAt:now.toISOString(),...jobValues}).select("id").single();
-          if(error)throw new Error(error.message);
-          jobId=data.id;counts.created++;
-        }
-        const {error:pipelineError}=await db.from("JobOfferPipeline").upsert({
-          jobId,sourceKey:capture.sourceKey,sourceUrl:capture.sourceUrl,captureMode:capture.captureMode??"unknown",
-          countryCode,rawPayload:payload,extractedText:capture.extractedText??null,status:"READY",
-          rejectionCode:null,rejectionReason:null,processedAt:now.toISOString(),updatedAt:now.toISOString(),
-        },{onConflict:"jobId"});
-        if(pipelineError)throw new Error(pipelineError.message);
-        await updateCapture(db,capture.id,{status:"PROCESSED",jobId,countryCode,rejectionCode:null,
-          rejectionReason:null,lastError:null,processedAt:now.toISOString()});
-      }catch(error){
-        const reason=error instanceof Error?error.message:"UNKNOWN_PROCESSING_ERROR";
-        await updateCapture(db,capture.id,{status:"FAILED",rejectionCode:"PROCESSING_ERROR",rejectionReason:reason,lastError:reason});
-        counts.failed++;
       }
     }
-    return json({ok:true,selected:rows?.length??0,...counts,processedAt:new Date().toISOString()});
-  }catch(error){
-    return json({message:error instanceof Error?error.message:String(error)},401);
+
+    return json({ ok: true, ...counts, processedAt: new Date().toISOString() });
+  } catch (error) {
+    console.error("Harvest processor fatal error", error);
+    return json({ ok: false, message: error instanceof Error ? error.message : String(error) }, 500);
   }
 });
