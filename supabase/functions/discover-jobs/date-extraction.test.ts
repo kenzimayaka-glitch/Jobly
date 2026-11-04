@@ -117,7 +117,7 @@ Deno.test("NELEX publication date adapter",()=>assertEquals(
 ));
 Deno.test("NELEX ordinal closing date adapter",()=>assertEquals(
   extractSourceDeadline("<p>Application Closing Date: 25th October, 2026.</p>","https://nelex.gov.ng/job/example","nelex_ng"),
-  "2026-10-25T00:00:00.000Z"
+  "2026-10-25T23:59:59.999Z"
 ));
 Deno.test("NELEX historical posts fail 62-day source-date freshness gate",()=>{
   const published=extractSourcePublishedAt("<p>Date Posted: Jun 19, 2023</p>","https://nelex.gov.ng/job/example","nelex_ng");
@@ -154,31 +154,31 @@ Deno.test("ANPE Togo abbreviated French publication date", () => {
 Deno.test("ANPE Togo abbreviated French closing date", () => {
   assertEquals(
     extractSourceDeadline("<p>Date limite de dépôt de dossiers de candidature : 6 nov. 2026</p>", "https://anpetogo.net/poste/1", "anpetogo"),
-    "2026-11-06T00:00:00.000Z",
+    "2026-11-06T23:59:59.999Z",
   );
 });
 Deno.test("ANPE Niger closing date adapter", () => {
   assertEquals(
     extractSourceDeadline("<p>Date de clôture : 11/11/2026</p>", "https://anpe-niger.ne/poste/1", "anpe_ne"),
-    "2026-11-11T00:00:00.000Z",
+    "2026-11-11T23:59:59.999Z",
   );
 });
 Deno.test("South Africa closing date adapter", () => {
   assertEquals(
     extractSourceDeadline("<p>CLOSING DATE: 13 November 2026</p>", "https://www.labour.gov.za/vacancy/1", "south_africa_gov_jobs"),
-    "2026-11-13T00:00:00.000Z",
+    "2026-11-13T23:59:59.999Z",
   );
 });
 Deno.test("HireLiberia apply-by date adapter", () => {
   assertEquals(
     extractSourceDeadline("<p>Apply by: November 6, 2026</p>", "https://hireliberia.com/job/1", "hrjobs_liberia"),
-    "2026-11-06T00:00:00.000Z",
+    "2026-11-06T23:59:59.999Z",
   );
 });
 
 Deno.test("BETA Mauritania closing date is extracted in French", () => {
-  assertEquals(extractSourceDeadline("<p>Date limite de réception : 12 novembre 2026</p>", "https://beta.mr/beta/offre/un-responsable-achat/12019", "beta_mauritania"), "2026-11-12T00:00:00.000Z");
-  assertEquals(extractSourceDeadline("<p>Date limite : 15 novembre 2026</p>", "https://beta.mr/beta/offre/recrutement-profils/11930", "beta_mauritania"), "2026-11-15T00:00:00.000Z");
+  assertEquals(extractSourceDeadline("<p>Date limite de réception : 12 novembre 2026</p>", "https://beta.mr/beta/offre/un-responsable-achat/12019", "beta_mauritania"), "2026-11-12T23:59:59.999Z");
+  assertEquals(extractSourceDeadline("<p>Date limite : 15 novembre 2026</p>", "https://beta.mr/beta/offre/recrutement-profils/11930", "beta_mauritania"), "2026-11-15T23:59:59.999Z");
 });
 
 Deno.test("date-only application deadline remains valid through the end of the deadline day", () => {
