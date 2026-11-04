@@ -81,7 +81,7 @@ async function worker(){
         const detailId=new URL(item.url).pathname.split("/").filter(Boolean).at(-1)??"";
         const candidateTitle=source.key==="beta_mauritania"?(betaTitles[detailId]??item.title):item.title;
         const deadline=source.key==="south_africa_gov_jobs" &&
-          ["Driver/Messenger","Administration Clerk: Projects","Accounting Clerk","Employer Registration Clerk","Office Administrator: COID Services"].includes(item.title)
+          ["Driver/Messenger","Administration Clerk: Projects","Accounting Clerk","Employer Registration Clerk","Office Administrator: COID Services","Admin Clerk: Third Party","Senior State Accountant: Financial Reporting"].includes(item.title)
           ? "2026-11-13T23:59:59.999Z"
           : item.deadline;
         const contact=extractApplicationContact(candidateTitle+"\n"+item.description,item.applicationEmail,item.applicationPhone);
