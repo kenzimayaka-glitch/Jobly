@@ -27,6 +27,7 @@ import { parseJobDetailSections, type JobDetailSections } from "@/lib/jobContent
 import { normalizeJobIdentity } from "@/lib/jobNormalizer";
 import { extractApplicationEmail, extractApplicationSubject } from "@/lib/applicationSubject";
 import { announceExternalApplicationToJia } from "@/lib/jia/external-application";
+import { openExternalApplicationInAndroid } from "@/lib/jia/android-bridge";
 
 type MatchItem = {
   id: string;
@@ -333,7 +334,19 @@ function JobDetailInner() {
   const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Candidature sur la plateforme externe du recruteur" : sourceLink ? "Candidature à poursuivre sur le site du promoteur" : null;
 
   function openExternalApplication(url: string) {
-    announceExternalApplicationToJia({ jobId: String(currentJob.id), source: String(source || "discovery"), title: displayTitle, company, targetUrl: url, sourceUrl: sourceLink, description: normalizedIdentity.description || currentJob.description });
+    const context = {
+      jobId: String(currentJob.id),
+      source: String(source || "discovery"),
+      title: displayTitle,
+      company,
+      targetUrl: url,
+      sourceUrl: sourceLink,
+      description: normalizedIdentity.description || currentJob.description,
+    };
+    // The Android shell consumes the same user gesture and reuses its WebView.
+    // Web/PWA keeps the existing external-tab + J'IA fallback.
+    if (openExternalApplicationInAndroid(context)) return;
+    announceExternalApplicationToJia(context);
     const opened = window.open(url, "_blank");
     if (opened) opened.opener = null;
   }
