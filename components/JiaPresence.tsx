@@ -449,6 +449,27 @@ export default function JiaPresence() {
     }
   }, [pendingAction, router, say]);
 
+  // ── Candidature externe : ouvrir J'IA avec le contexte de l'offre ─────────
+  useEffect(() => {
+    const onApplicationAssist = (event: Event) => {
+      const detail = (event as CustomEvent<{ prompt?: string }>).detail || {};
+      const prompt = typeof detail.prompt === "string" ? detail.prompt.trim().slice(0, 9000) : "";
+      if (!prompt) return;
+      setHiddenPaths((current) => current.filter((path) => path !== pathname));
+      setCollapsed(false);
+      setExpandedHere(true);
+      setPanelOpen(true);
+      setCommandInput(prompt);
+      say("J’ai préparé le contexte de cette candidature. Vérifie la demande dans mon panneau, puis envoie-la pour préparer tes réponses.", { gesture: "analyze", speak: false, sticky: true });
+    };
+    window.addEventListener("jobly:jia-application-assist", onApplicationAssist);
+    return () => window.removeEventListener("jobly:jia-application-assist", onApplicationAssist);
+  }, [pathname, say]);
+
+  useEffect(() => {
+    window.dispatchEvent(new Event("jobly:jia-ready"));
+  }, []);
+
   // ── Réponses externes, gestes sémantiques (window.jia.play) ──────────────
   useEffect(() => {
     const onResponse = (event: Event) => {
@@ -758,6 +779,7 @@ export default function JiaPresence() {
                       </button>
                     ))}
                   </div>
+                  <button type="button" onClick={() => go("/jia/extension")} className="mt-2 min-h-[36px] w-full rounded-xl border border-canari-blue/20 bg-canari-blue-soft px-3 text-left text-[11px] font-extrabold text-canari-blue hover:bg-canari-blue/10">Installer J’IA sur ordinateur ↗</button>
                   <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-line pt-2">
                     <button type="button" onClick={() => go(SETTINGS_HREF[eco])} className="min-h-[36px] text-[12px] font-extrabold text-canari-blue underline-offset-2 hover:underline">{t("jia.panel.settings")}</button>
                     <button type="button" onClick={() => { setPanelOpen(false); setHiddenPaths((p) => [...p, pathname]); }} className="min-h-[36px] text-[12px] font-bold text-muted hover:text-ink">{t("jia.hideOnPage")}</button>
