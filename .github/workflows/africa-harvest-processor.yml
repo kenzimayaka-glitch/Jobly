@@ -63,9 +63,6 @@ jobs:
           SOURCE_KEYS: ${{ github.event_name == 'workflow_dispatch' && inputs.source_keys || matrix.source_keys }}
           DRAIN_ALL: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, 'JOBLY-PENDING-DRAIN-20261105') }}
         run: |
-          OIDC_TOKEN="$(curl --fail-with-body --silent --show-error -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=jobly-harvest")"
-          TOKEN="$(python -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "$OIDC_TOKEN")"
-          test -n "$TOKEN" || { echo "GitHub Actions OIDC token unavailable"; exit 1; }
           BODY="$(python - <<'PY'
           import json, os
           keys = list(dict.fromkeys(x.strip() for x in os.environ["SOURCE_KEYS"].split(",") if x.strip()))
@@ -82,6 +79,9 @@ jobs:
           PASSES=1
           if [ "$DRAIN_ALL" = "true" ] || [ "$GITHUB_EVENT_NAME" = "schedule" ]; then PASSES=20; fi
           for pass in $(seq 1 "$PASSES"); do
+            OIDC_TOKEN="$(curl --fail-with-body --silent --show-error -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=jobly-harvest")"
+            TOKEN="$(python -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "$OIDC_TOKEN")"
+            test -n "$TOKEN" || { echo "GitHub Actions OIDC token unavailable"; exit 1; }
             echo "Pending capture processing pass $pass/$PASSES"
             RESPONSE_FILE="$(mktemp)"
             HTTP_STATUS=""
