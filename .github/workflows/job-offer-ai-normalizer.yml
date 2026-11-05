@@ -50,6 +50,15 @@ jobs:
           rm -f "$RESPONSE_FILE"
           if ! [[ "$HTTP_STATUS" =~ ^2[0-9][0-9]$ ]]; then
             echo "$RESPONSE"
+          python - "$RESPONSE" <<'PY'
+          import json, sys
+          result = json.loads(sys.argv[1])
+          if not result.get("configured", False):
+              raise SystemExit(result.get("reason", "Gemini Edge Function is not configured."))
+          if not result.get("ok", False):
+              raise SystemExit(result.get("message", "Gemini normalization failed."))
+          print("Gemini normalizer configured; processed:", result.get("processed", 0))
+          PY
             echo "Offer AI normalizer returned HTTP $HTTP_STATUS"
             exit 1
           fi
