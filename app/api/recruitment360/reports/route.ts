@@ -96,6 +96,23 @@ export async function POST(req:NextRequest){
    return NextResponse.json({report:data},{status:201});
   }
 
+  if(b.action==="moderate"){
+   const reviewId=String(b.reviewId??"").trim();
+   const status=String(b.status??"").trim().toUpperCase();
+   if(!reviewId||!["PUBLISHED","REJECTED"].includes(status))
+    return NextResponse.json({message:"MODERATION_FIELDS_INVALID"},{status:400});
+   const {data:review,error:reviewError}=await s.from("RecruitmentReview").select("id,recruitmentId").eq("id",reviewId).maybeSingle();
+   if(reviewError)throw reviewError;
+   if(!review)return NextResponse.json({message:"REVIEW_NOT_FOUND"},{status:404});
+   if(!(await recruiterHasAccess(s,String(u.id),String(review.recruitmentId),RECRUITMENT_WRITE_ROLES)))
+    return NextResponse.json({message:"FORBIDDEN"},{status:403});
+   const {data,error}=await s.rpc("recruitment360_lot7_moderate_review",{
+    p_review_id:reviewId,p_actor_user_id:String(u.id),p_status:status
+   });
+   if(error)throw error;
+   return NextResponse.json({review:data});
+  }
+
   if(b.action==="review"){
    const applicationId=String(b.applicationId??"").trim();
    if(!applicationId)return NextResponse.json({message:"APPLICATION_REQUIRED"},{status:400});
