@@ -105,7 +105,7 @@ assert "isPayment" in policy
 # P2 runtime, persistence and outcome-loop regression checks.
 cycle_route = read("app/api/jia/cycle/route.ts")
 consent_guard = cycle_route.index("privacyAcceptedAt")
-cognitive_execution = cycle_route.index("runUnifiedCognitiveCycle")
+cognitive_execution = cycle_route.index("const result=await runUnifiedCognitiveCycle(")
 assert consent_guard < cognitive_execution, "J'IA cognitive writes must remain behind the privacy-consent gate"
 
 career_journey = read("lib/careerJourney.ts")
