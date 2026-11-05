@@ -14,7 +14,7 @@ create policy "360 assessment members or candidate"
     exists (
       select 1
       from public."Application" a
-      join public."User" u on u.id = a."userId"
+      join public."User" u on u.id = a."userId"::text
       where a.id = "RecruitmentApplicationAssessment"."applicationId"
         and u."authUserId" = (select auth.uid())::text
     )
