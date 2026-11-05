@@ -79,7 +79,7 @@ jobs:
       - name: Run source batch shadow crawl
         env:
           COUNTRIES: ${{ inputs.countries || 'CM,DZ,EG,LY,MA,MR,TN,BJ,BF,CV,CI,GM,GH,GN,GW,LR,ML,NE,NG,SN,SL,TG,CF,TD,CG,CD,GQ,GA,ST,BI,AO,KE,UG,TZ,RW,ET,DJ,ER,SO,SS,SD,KM,MG,MU,SC,ZA,ZM,ZW,MW,MZ,NA,BW,SZ,LS' }}
-          SOURCE_KEYS: ${{ inputs.source_keys || (github.event_name == 'push' && 'inep_mozambique,lmis_sl,nelex_ng,ajira_portal,sica_anpe_bj,zimbabwe_psc_erecruitment,anpe_bj,anpe_bf,anpe_ne,anpetogo,essa_sa,hrjobs_liberia,iefp_cv,kenya_psc_jobs,oppz_zambia_jobs,onem_app_cd,senjob_sn,south_africa_gov_jobs,beta_mauritania,botswana_mof_recruitment') || '' }}
+          SOURCE_KEYS: ${{ inputs.source_keys || ((github.event_name == 'push' || github.event_name == 'schedule') && 'inep_mozambique,lmis_sl,nelex_ng,ajira_portal,sica_anpe_bj,zimbabwe_psc_erecruitment,anpe_bj,anpe_bf,anpe_ne,anpetogo,essa_sa,hrjobs_liberia,iefp_cv,kenya_psc_jobs,oppz_zambia_jobs,onem_app_cd,senjob_sn,south_africa_gov_jobs,beta_mauritania,botswana_mof_recruitment') || '' }}
         run: |
           IFS=',' read -ra CODES <<< "$COUNTRIES"
           if [ -n "$SOURCE_KEYS" ]; then
@@ -129,7 +129,7 @@ jobs:
           print(f"Candidate rows validated: {len(candidates)} (direct_apply={direct}, source_only={len(candidates)-direct})")
           PY
       - name: Push candidates to JobHarvestCapture
-        if: (github.event_name == 'workflow_dispatch' && inputs.apply == true) || (github.event_name == 'push' && (contains(github.event.head_commit.message, 'JOBLY-LOT1-INGEST-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-V2-ONCE-20261104')))
+        if: (github.event_name == 'workflow_dispatch' && inputs.apply == true) || github.event_name == 'schedule' || (github.event_name == 'push' && (contains(github.event.head_commit.message, 'JOBLY-LOT1-INGEST-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-V2-ONCE-20261104')))
         env:
           INGEST_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-ingest
           SOURCE_KEYS: ${{ inputs.source_keys || 'inep_mozambique,lmis_sl,nelex_ng,ajira_portal,sica_anpe_bj,zimbabwe_psc_erecruitment,anpe_bj,anpe_bf,anpe_ne,anpetogo,essa_sa,hrjobs_liberia,iefp_cv,kenya_psc_jobs,oppz_zambia_jobs,onem_app_cd,senjob_sn,south_africa_gov_jobs,beta_mauritania,botswana_mof_recruitment' }}
@@ -163,7 +163,7 @@ jobs:
             echo
           done
       - name: Process approved first-batch captures
-        if: (github.event_name == 'workflow_dispatch' && inputs.apply == true) || (github.event_name == 'push' && (contains(github.event.head_commit.message, 'JOBLY-LOT1-INGEST-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-V2-ONCE-20261104')))
+        if: (github.event_name == 'workflow_dispatch' && inputs.apply == true) || github.event_name == 'schedule' || (github.event_name == 'push' && (contains(github.event.head_commit.message, 'JOBLY-LOT1-INGEST-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-V2-ONCE-20261104')))
         env:
           PROCESS_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-process
           SOURCE_KEYS: ${{ inputs.source_keys || 'inep_mozambique,lmis_sl,nelex_ng,ajira_portal,sica_anpe_bj,zimbabwe_psc_erecruitment,anpe_bj,anpe_bf,anpe_ne,anpetogo,essa_sa,hrjobs_liberia,iefp_cv,kenya_psc_jobs,oppz_zambia_jobs,onem_app_cd,senjob_sn,south_africa_gov_jobs,beta_mauritania,botswana_mof_recruitment' }}
