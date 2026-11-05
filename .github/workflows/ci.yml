@@ -47,6 +47,9 @@ jobs:
       - name: Company logo fallback regression tests
         run: pnpm test:company-logo-fallback
 
+      - name: P2 Jobly offer watermark regression tests
+        run: pnpm test:p2-offer-watermark
+
       - name: Career OS architecture gate
         run: pnpm test:career-os
 
