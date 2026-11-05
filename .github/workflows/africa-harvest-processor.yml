@@ -21,12 +21,12 @@ permissions:
 
 concurrency:
   group: africa-harvest-processor
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   process:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
@@ -36,11 +36,11 @@ jobs:
         run: deno test supabase/functions/job-harvest-process/processor-logic.test.ts supabase/functions/_shared/application-contact.test.ts
       - name: Type-check harvest processor
         run: deno check supabase/functions/job-harvest-process/index.ts
-      - name: Process pending captures (manual approval only)
-        if: github.event_name == 'workflow_dispatch' && inputs.apply == true
+      - name: Process pending captures (scheduled batch 1; manual approval)
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.apply == true)
         env:
           PROCESS_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-process
-          SOURCE_KEYS: ${{ inputs.source_keys }}
+          SOURCE_KEYS: ${{ inputs.source_keys || 'inep_mozambique,lmis_sl,nelex_ng,ajira_portal,sica_anpe_bj,zimbabwe_psc_erecruitment,anpe_bj,anpe_bf,anpe_ne,anpetogo,essa_sa,hrjobs_liberia,iefp_cv,kenya_psc_jobs,oppz_zambia_jobs,onem_app_cd,senjob_sn,south_africa_gov_jobs,beta_mauritania,botswana_mof_recruitment' }}
         run: |
           OIDC_TOKEN="$(curl --fail-with-body --silent --show-error -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=jobly-harvest")"
           TOKEN="$(python -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "$OIDC_TOKEN")"
@@ -48,9 +48,14 @@ jobs:
           BODY="$(python - <<'PY'
           import json, os
           keys = list(dict.fromkeys(x.strip() for x in os.environ["SOURCE_KEYS"].split(",") if x.strip()))
-          if not keys or len(keys) > 20:
-              raise SystemExit("Provide between 1 and 20 source keys.")
-          print(json.dumps({"limit":40,"sourceKeys":keys}))
+          if len(keys) > 20:
+              raise SystemExit("A processing batch is limited to 20 source keys.")
+          if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch" and not keys:
+              raise SystemExit("Manual processing requires at least one source key.")
+          body = {"limit":40}
+          if keys:
+              body["sourceKeys"] = keys
+          print(json.dumps(body))
           PY
           )"
           curl --fail-with-body --silent --show-error --retry 3 --retry-delay 5 -X POST "$PROCESS_URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data "$BODY"
