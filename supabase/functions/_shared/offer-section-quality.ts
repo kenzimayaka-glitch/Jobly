@@ -85,13 +85,13 @@ function extractLabeledSections(sections: OfferSections): void {
   sections.missions = [missions];
   sections.profile = [profile];
 
-  for (const name of ["education", "skills", "qualities", "benefits"] as const) {
-    sections[name] = sections[name].filter((value) => {
-      const normalizedValue = keyOf(value);
-      const normalizedProfile = keyOf(profile);
-      return normalizedValue.length >= 20 && !normalizedProfile.includes(normalizedValue);
-    });
-  }
+  // Keep the complete qualification narrative in the canonical profile block.
+  // The AI frequently splits words at HTML entities; do not publish those
+  // partial fragments as independent education/skills/qualities/benefits.
+  sections.education = [];
+  sections.skills = [];
+  sections.qualities = [];
+  sections.benefits = [];
 
   if (applicationHeading?.index !== undefined &&
       applicationHeading.index > profileHeading.index) {
