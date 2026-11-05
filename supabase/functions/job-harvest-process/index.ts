@@ -327,7 +327,7 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
   const companyId = await findOrCreateCompany(db, companyName, payload);
   const contentHash = clean(capture.contentHash ?? payload.contentHash, 128) ||
     fingerprint([sourceKey, externalId, title, companyName, location, description].join("|"));
-  let normalizedContent = {
+  let normalizedContent: AnyRecord = {
     version: "jobly-offer-v3",
     displayModel,
     title,
