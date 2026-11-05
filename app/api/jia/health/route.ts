@@ -18,8 +18,12 @@ export async function GET(request: NextRequest) {
       cognitiveMemory,
       beliefs,
       predictions,
+      predictionOutcomes,
       reflections,
       actionRuns,
+      proposedActionRuns,
+      verifiedActionRuns,
+      failedActionRuns,
       selfState,
     ] = await Promise.all([
       supabase.from("JiaMemory").select("id", { count: "exact", head: true }).eq("userId", user.id),
@@ -27,19 +31,39 @@ export async function GET(request: NextRequest) {
       supabase.from("JiaEvent").select("id", { count: "exact", head: true }).eq("userId", user.id),
       supabase.from("jia_memory").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       supabase.from("jia_beliefs").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-      supabase.from("jia_predictions").select("id,outcome", { count: "exact" }).eq("user_id", user.id).limit(1000),
+      supabase.from("jia_predictions").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      supabase.from("jia_predictions").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("outcome", "is", null),
       supabase.from("jia_reflections").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-      supabase.from("jia_action_runs").select("id,status", { count: "exact" }).eq("user_id", user.id).limit(1000),
+      supabase.from("jia_action_runs").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      supabase.from("jia_action_runs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "PROPOSED"),
+      supabase.from("jia_action_runs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "VERIFIED"),
+      supabase.from("jia_action_runs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "FAILED"),
       supabase.from("jia_self_state").select("state").eq("user_id", user.id).maybeSingle(),
     ]);
 
-    const failed = [memory, traces, events, cognitiveMemory, beliefs, predictions, reflections, actionRuns, selfState]
-      .find((check) => check.error);
+    const checks = [
+      memory, traces, events, cognitiveMemory, beliefs, predictions,
+      predictionOutcomes, reflections, actionRuns, proposedActionRuns,
+      verifiedActionRuns, failedActionRuns, selfState,
+    ];
+    const failed = checks.find((check) => check.error);
     if (failed?.error) throw new Error(failed.error.message);
 
-    const verifiedActionRuns = (actionRuns.data ?? []).filter((run) => run.status === "VERIFIED").length;
-    const predictionOutcomes = (predictions.data ?? []).filter((prediction) => prediction.outcome !== null).length;
-    const outcomeLoopObserved = verifiedActionRuns > 0 || predictionOutcomes > 0;
+    const counts = {
+      memory: memory.count ?? 0,
+      cognitiveMemory: cognitiveMemory.count ?? 0,
+      beliefs: beliefs.count ?? 0,
+      traces: traces.count ?? 0,
+      events: events.count ?? 0,
+      predictions: predictions.count ?? 0,
+      predictionOutcomes: predictionOutcomes.count ?? 0,
+      reflections: reflections.count ?? 0,
+      actionRuns: actionRuns.count ?? 0,
+      proposedActionRuns: proposedActionRuns.count ?? 0,
+      verifiedActionRuns: verifiedActionRuns.count ?? 0,
+      failedActionRuns: failedActionRuns.count ?? 0,
+    };
+    const outcomeLoopObserved = counts.verifiedActionRuns > 0 || counts.predictionOutcomes > 0;
     const internetAvailable = Boolean(
       (selfState.data?.state as Record<string, unknown> | null)?.internetAvailable,
     );
@@ -55,23 +79,20 @@ export async function GET(request: NextRequest) {
         guardedActions: true,
         outcomes: outcomeLoopObserved,
       },
-      counts: {
-        memory: memory.count ?? 0,
-        cognitiveMemory: cognitiveMemory.count ?? 0,
-        beliefs: beliefs.count ?? 0,
-        traces: traces.count ?? 0,
-        events: events.count ?? 0,
-        predictions: predictions.count ?? predictions.data?.length ?? 0,
-        predictionOutcomes,
-        reflections: reflections.count ?? 0,
-        actionRuns: actionRuns.count ?? actionRuns.data?.length ?? 0,
-        verifiedActionRuns,
-      },
+      counts,
       runtimeEvidence: {
         internetAvailable,
         outcomeLoopObserved,
+        observed: {
+          memory: counts.memory + counts.cognitiveMemory > 0,
+          reasoning: counts.beliefs > 0 || counts.traces > 0,
+          events: counts.events > 0,
+          webResearch: internetAvailable,
+          guardedActions: counts.actionRuns > 0,
+          outcomes: outcomeLoopObserved,
+        },
         explanation: outcomeLoopObserved
-          ? "Au moins une action vérifiée ou une prédiction évaluée est persistée."
+          ? "Au moins une action vérifiée ou une issue de prédiction est persistée."
           : "Aucune action vérifiée ni issue de prédiction n'est encore persistée pour ce compte.",
       },
       checkedAt: new Date().toISOString(),
