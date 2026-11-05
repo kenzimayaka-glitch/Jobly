@@ -27,7 +27,7 @@ async function paymentContext(paymentId: string, userId: string) {
   if (!event) return { error: "EVENT_NOT_FOUND" as const };
   const { data: submission, error: submissionError } = await sb.from("EventManualPaymentSubmission")
     .select("id,paymentMethod,transactionReference,proofPath,notes,status,submittedAt,reviewNote")
-    .eq("paymentId", paymentId).maybeSingle();
+    .eq("paymentId", paymentId).order("createdAt",{ascending:false}).limit(1).maybeSingle();
   if (submissionError) throw new Error(submissionError.message);
   return { payment, publication, featured, event, submission };
 }
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pay
       purpose: result.publication ? "PUBLICATION" : "FEATURED",
       instructions: getEventManualPaymentInstructions(),
       submission: result.submission,
-      canSubmit: result.payment.status === "PENDING" && !result.submission,
+      canSubmit: result.payment.status === "PENDING" && (!result.submission || result.submission.status === "REJECTED"),
     });
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Paiement introuvable.", 500);
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ pa
     const target = await paymentContext(paymentId, user.id);
     if ("error" in target) return fail("Paiement introuvable ou cible invalide.", 404, target.error);
     if (target.payment.status !== "PENDING") return fail("Ce paiement n'est plus en attente.", 409, "PAYMENT_NOT_PENDING");
-    if (target.submission) return fail("Un justificatif a déjà été transmis pour ce paiement.", 409, "PAYMENT_ALREADY_SUBMITTED");
+    if (target.submission && target.submission.status !== "REJECTED") return fail("Un justificatif a déjà été transmis pour ce paiement.", 409, "PAYMENT_ALREADY_SUBMITTED");
 
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
