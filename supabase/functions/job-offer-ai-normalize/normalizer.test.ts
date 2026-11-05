@@ -80,3 +80,24 @@ Deno.test("unknown AI section keys are excluded from the display contract", () =
   assertEquals(displaySections.length, 1);
   assertEquals(displaySections[0].key, "description");
 });
+
+Deno.test("absent salary, experience and score values stay unknown instead of becoming zero", () => {
+  const normalized = normalizeGeminiOffer({
+    salary: { min: null, max: null, currency: null },
+    minExperienceYears: null,
+    qualityScore: null,
+    sections: { description: ["Annonce originale."] },
+  }, {
+    id: "job-3",
+    title: "Assistant administratif",
+    sourceKey: "source_c",
+    description: "Annonce originale.",
+  }, "gemini-2.5-flash", "2026-11-05T17:00:00.000Z");
+
+  const salary = normalized.salary as Record<string, unknown>;
+  const classification = normalized.aiClassification as Record<string, unknown>;
+  assertEquals(salary.min, null);
+  assertEquals(salary.max, null);
+  assertEquals(normalized.minExperienceYears, null);
+  assertEquals(classification.qualityScore, null);
+});
