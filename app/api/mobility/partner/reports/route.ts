@@ -1,2 +1,66 @@
-import {NextRequest,NextResponse} from "next/server";import ExcelJS from "exceljs";import {authUser,adminClient,ensureUser} from "../../../../../lib/mobilityServer";
-export async function GET(req:NextRequest){try{const au=await authUser(req);if(!au)return NextResponse.json({message:"Session requise."},{status:401});const sb=adminClient(),u=await ensureUser(sb,au);const {data:partner}=await sb.from("Partner").select("id,partnerType,referralCode").eq("userId",u.id).maybeSingle();const isRecruiter=["RECRUITER","ADMIN"].includes(String(u.role));if(!partner&&!isRecruiter)return NextResponse.json({message:"Accès Mobility partenaire/recruteur requis."},{status:403});const {data,error}=await sb.from("MobilityRequest").select("id,departCity,arriveeCity,distanceKm,costTotal,subventionPercent,status,createdAt").order("createdAt",{ascending:false});if(error)throw new Error(error.message);const rows=data||[];if(req.nextUrl.searchParams.get("format")==="xlsx"){const wb=new ExcelJS.Workbook();const ws=wb.addWorksheet("Mobility");ws.columns=[{header:"ID",key:"id"},{header:"Départ",key:"departCity"},{header:"Arrivée",key:"arriveeCity"},{header:"Distance km",key:"distanceKm"},{header:"Coût total",key:"costTotal"},{header:"Subvention %",key:"subventionPercent"},{header:"Statut",key:"status"},{header:"Créé le",key:"createdAt"}];ws.addRows(rows);const buffer=await wb.xlsx.writeBuffer();return new NextResponse(buffer,{headers:{"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","Content-Disposition":"attachment; filename=jobly-mobility-report.xlsx"}})}const header="id;depart;arrivee;distanceKm;costTotal;subventionPercent;status;createdAt\n";const csv=header+rows.map(r=>[r.id,r.departCity,r.arriveeCity,r.distanceKm,r.costTotal,r.subventionPercent,r.status,r.createdAt].map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(";")).join("\n");return new NextResponse(csv,{headers:{"Content-Type":"text/csv; charset=utf-8","Content-Disposition":"attachment; filename=jobly-mobility-report.csv"}})}catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Rapport indisponible."},{status:500})}}
+import {NextRequest,NextResponse} from "next/server";
+import ExcelJS from "exceljs";
+import {authUser,adminClient,ensureUser} from "../../../../../lib/mobilityServer";
+import {getInstitutionSession} from "../../../../../lib/institution-auth";
+import {getInstitutionMobilityRequestIds,getRecruiterMobilityRequestIds} from "../../../../../lib/mobilityAccess";
+
+export async function GET(req:NextRequest){
+ try{
+  const [au,institutionSession]=await Promise.all([authUser(req),getInstitutionSession(req)]);
+  if(!au&&!institutionSession)return NextResponse.json({message:"Session requise."},{status:401});
+  const sb=adminClient(),user=au?await ensureUser(sb,au):null;
+  const isAdmin=String(user?.role??"").toUpperCase()==="ADMIN";
+  const requestIds=new Set<string>();
+  let canAccessReport=isAdmin||Boolean(institutionSession);
+  if(!isAdmin){
+   if(user){
+    const recruiterIds=await getRecruiterMobilityRequestIds(sb,String(user.id));
+    recruiterIds.forEach(id=>requestIds.add(id));
+    if(recruiterIds.length||String(user.role??"").toUpperCase()==="RECRUITER")canAccessReport=true;
+   }
+   if(institutionSession){
+    const institutionIds=await getInstitutionMobilityRequestIds(sb,String(institutionSession.institution.id));
+    institutionIds.forEach(id=>requestIds.add(id));
+   }
+  }
+  if(!canAccessReport)return NextResponse.json({message:"Accès refusé : aucun rattachement recruteur ou institutionnel."},{status:403});
+
+  let query=sb.from("MobilityRequest")
+   .select("id,departCity,arriveeCity,distanceKm,costTotal,subventionPercent,status,createdAt")
+   .order("createdAt",{ascending:false});
+  if(!isAdmin){
+   const ids=[...requestIds];
+   if(!ids.length)return exportRows([],req);
+   query=query.in("id",ids);
+  }
+  const {data,error}=await query;
+  if(error)throw new Error(error.message);
+  return exportRows(data??[],req);
+ }catch(e){
+  return NextResponse.json({message:e instanceof Error?e.message:"Rapport indisponible."},{status:500});
+ }
+}
+
+async function exportRows(rows:any[],req:NextRequest){
+ if(req.nextUrl.searchParams.get("format")==="xlsx"){
+  const wb=new ExcelJS.Workbook(),ws=wb.addWorksheet("Mobility");
+  ws.columns=[
+   {header:"ID",key:"id"},{header:"Départ",key:"departCity"},{header:"Arrivée",key:"arriveeCity"},
+   {header:"Distance km",key:"distanceKm"},{header:"Coût total",key:"costTotal"},
+   {header:"Subvention %",key:"subventionPercent"},{header:"Statut",key:"status"},{header:"Créé le",key:"createdAt"}
+  ];
+  ws.addRows(rows);
+  const buffer=await wb.xlsx.writeBuffer();
+  return new NextResponse(buffer,{headers:{
+   "Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+   "Content-Disposition":"attachment; filename=jobly-mobility-report.xlsx"
+  }});
+ }
+ const header="id;depart;arrivee;distanceKm;costTotal;subventionPercent;status;createdAt\n";
+ const csv=header+rows.map(r=>[r.id,r.departCity,r.arriveeCity,r.distanceKm,r.costTotal,r.subventionPercent,r.status,r.createdAt]
+  .map(v=>'"'+String(v??"").replaceAll('"','""')+'"').join(";")).join("\n");
+ return new NextResponse(csv,{headers:{
+  "Content-Type":"text/csv; charset=utf-8",
+  "Content-Disposition":"attachment; filename=jobly-mobility-report.csv"
+ }});
+}
