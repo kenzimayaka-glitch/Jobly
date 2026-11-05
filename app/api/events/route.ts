@@ -110,7 +110,6 @@ export async function POST(request:NextRequest){
     const media=validateEventMedia({mediaType,mediaSizeBytes,mediaDurationSeconds});
     if(!media.ok)return fail(media.error??"Média invalide.");
     if(mediaType&&!mediaUrl)return fail("Le média doit être associé à une URL.");
-    if(mediaUrl&&!mediaType)return fail("Précisez le type du média associé à cette URL.");
 
     const audience=Array.isArray(body.audience)
       ? body.audience.filter((value:unknown):value is string=>typeof value==="string"&&value.trim().length>0&&value.trim().length<=80).slice(0,8).map((value:string)=>value.trim())
@@ -126,6 +125,8 @@ export async function POST(request:NextRequest){
 
     const free=user.role==="ADMIN"||Boolean(entitlement?.freePublication);
     if(entitlement?.maxDurationDays&&durationDays>Number(entitlement.maxDurationDays))return fail("La durée dépasse votre droit de publication.",422,"ENTITLEMENT_DURATION");
+    const provider=String(body.provider??"ICLAN").toUpperCase();
+    if(!free&&provider==="MOCK"&&process.env.NODE_ENV==="production")return fail("Le fournisseur de paiement simulé est interdit en production.",422,"MOCK_PAYMENT_DISABLED");
     const pricing=getEventPricing(durationDays);
     const id=crypto.randomUUID();
     const organizerName=String(body.organizerName??user.displayName??"Organisateur").trim().slice(0,180)||"Organisateur";
@@ -150,8 +151,6 @@ export async function POST(request:NextRequest){
       return NextResponse.json({eventId:id,status:"PUBLISHED",pricing:{...pricing,total:0},audienceEstimate:("audienceEstimate" in distribution)?distribution.audienceEstimate:null,distribution,partnerDiscovery,publicationSource:user.role==="ADMIN"?"JOBLY":"PARTNER_CONVENTION"},{status:201});
     }
 
-    const provider=String(body.provider??"ICLAN").toUpperCase();
-    if(provider==="MOCK"&&process.env.NODE_ENV==="production")return fail("Le fournisseur de paiement simulé est interdit en production.",422,"MOCK_PAYMENT_DISABLED");
     const paymentId=crypto.randomUUID();
     const {error:paymentError}=await sb.from("Payment").insert({
       id:paymentId,userId:user.id,provider,externalId:paymentId,amount:pricing.total,currency:"XAF",
