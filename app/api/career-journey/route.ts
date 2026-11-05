@@ -6,6 +6,12 @@ import { getCareerJourneyEntitlements } from "@/lib/careerJourneyEntitlements";
 export async function GET(request: NextRequest) {
   try {
     const ctx = await getOrCreateJourney(request);
+    const [evidenceResult, portfolioResult] = await Promise.all([
+      ctx.supabase.from("CareerEvidence").select("*").eq("userId", ctx.user.id).order("createdAt", { ascending: false }).limit(50),
+      ctx.supabase.from("CareerPortfolioItem").select("*").eq("userId", ctx.user.id).order("createdAt", { ascending: false }).limit(20),
+    ]);
+    if (evidenceResult.error) throw new Error(`Impossible de charger les preuves Career Journey : ${evidenceResult.error.message}`);
+    if (portfolioResult.error) throw new Error(`Impossible de charger le portfolio Career Journey : ${portfolioResult.error.message}`);
     return NextResponse.json({
       ok: true,
       journey: ctx.journey,
@@ -14,8 +20,8 @@ export async function GET(request: NextRequest) {
       recommendations: ctx.recommendations,
       scenarios: ctx.scenarios,
       reviews: ctx.reviews,
-      evidence: (await ctx.supabase.from("CareerEvidence").select("*").eq("userId", ctx.user.id).order("createdAt", { ascending: false }).limit(50)).data ?? [],
-      portfolio: (await ctx.supabase.from("CareerPortfolioItem").select("*").eq("userId", ctx.user.id).order("createdAt", { ascending: false }).limit(20)).data ?? [],
+      evidence: evidenceResult.data ?? [],
+      portfolio: portfolioResult.data ?? [],
       entitlements: await getCareerJourneyEntitlements(ctx.supabase, ctx.user.id),
       profileContext: {
         targetRoles: ctx.context.profile?.targetRoles ?? [],
