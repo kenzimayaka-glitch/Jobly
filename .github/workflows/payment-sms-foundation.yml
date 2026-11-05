@@ -1,0 +1,28 @@
+name: Payment SMS foundation
+on:
+  pull_request:
+    paths:
+      - "lib/paymentSms/**"
+      - "scripts/payment-sms-matcher.test.mjs"
+      - "supabase/migrations/*payment_sms*"
+      - "packages/database/prisma/schema.prisma"
+      - ".github/workflows/payment-sms-foundation.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "lib/paymentSms/**"
+      - "scripts/payment-sms-matcher.test.mjs"
+      - "supabase/migrations/*payment_sms*"
+      - "packages/database/prisma/schema.prisma"
+
+jobs:
+  deterministic-matcher:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run deterministic payment matching tests
+        run: node --experimental-strip-types --test scripts/payment-sms-matcher.test.mjs
