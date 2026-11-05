@@ -3,7 +3,7 @@
 **Dernière vérification :** 6 novembre 2026  
 **Projet :** JOBLY-PROD (`mpoyaegtwtmhookdzqdy`) — PostgreSQL 17.6.1.166  
 **Organisation :** Jobly — plan Free  
-**HEAD `main` avant cette mise à jour :** `7447514b5a37a443543c4cfe24742405780923fd`
+**HEAD `main` avant cette mise à jour :** `be8e5fdb903abe1f22fa18556626c0ed478a9dce`
 
 ## Corrections réellement appliquées
 
@@ -44,47 +44,53 @@ La migration vérifie avant chaque suppression que l'index unique restant est ex
 
 Security Advisor : l'alerte `unused_index` est passée de **172 à 168**.
 
-## Performance Advisor — INFO restantes revues
+## Performance Advisor — points restants revus
 
-### 1. Clés étrangères sans index couvrant : 38 alertes sur 31 tables vides
+### 1. Clés étrangères : les 38 alertes sont corrigées
 
-L'état exact a été contrôlé par comptage SQL, pas seulement par statistiques estimées :
+La migration Supabase `20261105231315 / p2_cover_all_public_foreign_keys_20261106` a créé **38 index couvrants** pour les 38 clés étrangères remontées par l'Advisor, sur 31 tables publiques.
 
-- 38 contraintes de clés étrangères sont concernées.
-- Elles appartiennent à 31 tables distinctes.
-- Les 31 tables contiennent actuellement **0 ligne**.
-- Taille totale des tables observées : environ 16 à 80 Ko par relation.
+Avant application, un `COUNT(*)` exact a confirmé que les 31 tables étaient vides. La migration refait ce contrôle pour chaque table et s'arrête si une ligne est apparue ; elle exige aussi exactement 38 contraintes et roule entièrement en arrière si le compte d'index créés diffère.
 
-**Décision :** ne pas ajouter 38 index sur des tables entièrement vides. Cela accroîtrait le stockage et produirait immédiatement des index non utilisés sans bénéfice mesurable aujourd'hui. Les relations seront réévaluées dès que ces tables recevront des lignes ou que leurs parcours applicatifs seront activés. À ce moment-là, ajouter les index FK couvrant les accès réellement exercés.
+**Vérification après migration :** Performance Advisor remonte désormais **0 `unindexed_foreign_keys`**. Les index ont été conservés pour préparer correctement les parcours FK des modules Mobility, Recruitment 360, Community/Event et J'IA lorsque ces tables recevront leurs premières lignes.
 
-Cette décision ne masque pas les 38 INFO ; elle évite une optimisation prématurée sur des relations sans données.
+### 2. Index inutilisés : 206 INFO, dont 38 nouveaux index FK
 
-### 2. Index inutilisés : 168 alertes conservées après nettoyage des doublons
+État exact après la migration FK :
 
-Contrôles SQL après nettoyage :
+- **206 index** sans scan enregistré et non uniques/non attachés à une contrainte, totalisant **2 654 208 octets** (environ 2,53 Mio).
+- Les 206 se composent de **168 index préexistants** déjà examinés et **38 nouveaux index FK** sur les 31 tables actuellement vides.
+- Parmi les 168 index préexistants, le comptage exact a identifié **125 index sur des tables vides** et **43 sur des tables non vides**.
+- Statistiques PostgreSQL observées depuis le reset du **25 août 2026 à 20:33 UTC**, soit environ 72 jours de recul statistique.
+- Les quatre doublons strictement équivalents aux index uniques ont déjà été supprimés ; les index uniques de remplacement sont conservés.
 
-- 168 index non uniques, non attachés à des contraintes, sans scan enregistré.
-- Taille cumulée : **2 288 Ko** (environ 2,23 Mio).
-- Dernier reset des statistiques PostgreSQL : **25 août 2026 à 20:33 UTC** ; la période observée est donc d'environ 72 jours.
-- Quatre doublons stricts supprimés ; les index uniques de remplacement sont encore présents.
+Les 168 index préexistants concernent des chemins métiers variés (offres, pipeline, profils, paiements, J'IA, Mobility, Community/Campus et Recrutement 360). Les index les plus volumineux incluent notamment `Job.tags`, `Job.language` et `JobOfferPipeline.processedAt`.
 
-Les index restants couvrent de nombreux domaines fonctionnels Jobly (Recrutement 360, Mobility, Paiements, Community/Campus, J'IA, profils et offres). Un compteur de scan à zéro sur la période ne prouve pas qu'un index est inutile : une fonction rare ou une fonctionnalité récemment livrée peut en avoir besoin lors de son prochain usage.
+**Décision :** aucun retrait massif supplémentaire. Pour les tables vides, un index non encore scanné ne démontre pas qu'il est inutile au moment où le module sera activé. Pour les tables avec données, un compteur à zéro sur cette fenêtre n'est pas suffisant pour conclure qu'un parcours rare ne l'utilise pas. Une suppression future exige les requêtes applicatives représentatives, des plans `EXPLAIN (ANALYZE, BUFFERS)` et une validation en staging. Les 206 INFO restent visibles dans Advisor, mais sont qualifiées et suivies plutôt que supprimées au hasard.
 
-**Décision :** ne pas supprimer les 168 index en masse. Leur suppression pourrait ralentir les parcours peu fréquents ou les futures activations. Les index simples qui sont des préfixes d'index composés ne sont pas supprimés automatiquement non plus : un index plus étroit peut rester moins coûteux pour certains parcours. Une suppression ultérieure exige une comparaison des requêtes réelles, des plans `EXPLAIN (ANALYZE, BUFFERS)` et de la période de trafic représentative.
+### 3. Health Advisor
 
-Ces 168 INFO restent visibles dans Advisor, mais ont été examinées et ne constituent pas une anomalie non traitée sans décision.
+**0 alerte** au dernier contrôle.
 
 ## Avertissements Security Advisor encore ouverts
 
-### 1. `pg_net` enregistré dans `public` — WARN
+### Avertissement `function_search_path_mutable` : corrigé
 
-État réel observé :
-- `pg_net 0.20.4`, `extrelocatable=false`, propriétaire `supabase_admin`, schéma d'enregistrement `public`.
-- `postgres` n'est ni superuser ni membre de `supabase_admin`. Supabase réserve ce rôle interne.
-- Le schéma `net` n'est pas exposé par défaut via la Data API.
-- Le lint de placement de l'extension reste valide.
+Le dernier contrôle avait fait remonter `public.jobly_p1_resegment_offer(jsonb)`. La fonction est `SECURITY INVOKER`, `IMMUTABLE` et n'utilise que des fonctions intégrées PostgreSQL. La migration `20261105231351 / p2_fix_search_path_jobly_p1_resegment_offer_20261106` fixe `search_path = pg_catalog`.
 
-Le runbook [p2_pg_net_recreate_2026-11-05.sql](../../supabase/operations/p2_pg_net_recreate_2026-11-05.sql) prépare un cutover protégé : sauvegarde des réponses, file vide exigée, protection du cron, `DROP ... RESTRICT` (jamais `CASCADE`) et vérification après coup. Le cutover doit être exécuté par la voie privilégiée Supabase/support, puis validé par une réponse HTTP 2xx de l'ingestion. Aucun contournement de l'ownership n'a été tenté.
+Vérifications : `proconfig = {search_path=pg_catalog}`, test d'exécution avec une entrée JSON représentative, résultat cohérent ; le WARN a disparu de Security Advisor.
+
+### 1. `pg_net` enregistré dans `public` — WARN non résolu
+
+État réel observé le 6 novembre 2026 :
+- `pg_net 0.20.4`, propriétaire `supabase_admin`, schéma d'enregistrement `public`, extension non relocalisable ;
+- rôle courant `postgres`, non membre de `supabase_admin` ;
+- file `net.http_request_queue` vide ;
+- cron Jobly `jobid=1`, actif, nommé `jobly-discover-jobs-every-6h`, horaire `15 */6 * * *`, appelant `net.http_post` vers `/functions/v1/discover-jobs`.
+
+La procédure officielle Supabase prévoit de supprimer puis recréer `pg_net` dans `extensions`, sans `CASCADE`, après contrôle de la file et sauvegarde des réponses. La migration contrôlée a été tentée via Supabase le 6 novembre ; son garde-fou a refusé l'opération car `postgres` n'a pas l'appartenance/propriété requise. **L'échec est intervenu avant toute DDL ou modification du cron** : l'extension reste dans `public`, le cron demeure actif et la file est toujours vide.
+
+**Action nécessaire :** Supabase Support / opérateur privilégié doit exécuter le cutover documenté dans [p2_pg_net_recreate_2026-11-05.sql](../../supabase/operations/p2_pg_net_recreate_2026-11-05.sql), puis vérifier une réponse HTTP 2xx réelle de l'ingestion. Aucun privilège managé n'a été contourné.
 
 Source : [Supabase — pg_net](https://supabase.com/docs/guides/database/extensions/pg_net).
 
@@ -153,14 +159,18 @@ Ce suivi documentaire ne déclenche pas de déploiement applicatif : aucune modi
 
 ## Verdict
 
-**P2 : la CI associée au correctif est verte (5/5), mais le chantier n'est pas entièrement vert dans les Advisors Supabase.** Les 38 INFO FK et 168 INFO d'index restent visibles, examinées et différées pour éviter une optimisation sans données/risque de régression. Les deux WARN de sécurité restent ouverts : pg_net exige une intervention privilégiée sans interrompre le cron de découverte ; HIBP nécessite le plan Pro ou supérieur.
+**Le chantier n'est pas encore entièrement vert dans Supabase Advisor.** Les corrections de code et d'index sûres sont appliquées, mais deux WARN de sécurité restent bloqués par des prérequis externes et 206 INFO de performance demeurent visibles.
 
 - 72 alertes RLS/no-policy : corrigées.
-- Defaults d'EXECUTE pour les futures fonctions créées par `postgres` : durcis.
-- Quatre index doublons stricts : supprimés, quatre index uniques équivalents conservés.
-- 38 alertes FK : revues ; 31 tables concernées sont vides, donc indexation différée.
-- 168 index non utilisés : revus, doublons éliminés ; index métier restants conservés faute de preuve suffisante de suppression sûre.
-- `pg_net` dans `public` : WARN en attente de l'opérateur privilégié Supabase.
-- Protection HIBP : WARN lié au plan Free.
+- Defaults d'EXECUTE pour les nouvelles fonctions créées par `postgres` : durcis.
+- Quatre doublons exacts d'index : supprimés, index uniques conservés.
+- 38 clés étrangères non indexées : **corrigées** ; l'Advisor en signale maintenant 0.
+- `function_search_path_mutable` : corrigé ; WARN disparu.
+- Index inutilisés : 206 INFO (168 préexistants + 38 index FK nouvellement créés), conservés après examen pour ne pas supprimer à l'aveugle des chemins métiers ou des optimisations FK prévues.
+- `pg_net` dans `public` : WARN en attente d'une intervention privilégiée Supabase ; l'opération contrôlée a échoué au garde-fou sans changer la base.
+- Protection HIBP : WARN lié au plan Free ; le réglage natif exige Pro ou supérieur. Aucun upgrade ni coût n'a été engagé.
+- Health Advisor : 0 alerte.
 
-Aucun paiement, `DROP ... CASCADE`, suppression d'index de contrainte, changement d'accès non autorisé ou déploiement Netlify n'a été effectué.
+**Pour déclarer le vert complet dans Advisor, il reste deux actions hors du périmètre de privilèges actuel :** l'intervention Supabase Support sur `pg_net`, et l'activation native de HIBP après autorisation d'un changement vers Pro. Les 206 INFO de performance ne sont pas des défauts d'accès ; elles nécessitent des validations d'usage avant tout retrait d'index.
+
+Aucun paiement, `DROP ... CASCADE`, suppression d'index de contrainte, contournement de propriété Supabase ou déploiement Netlify n'a été effectué.
