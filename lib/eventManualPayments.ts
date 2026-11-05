@@ -11,3 +11,8 @@ export function getEventManualPaymentInstructions(): string {
   const configured = String(process.env.JOBLY_MANUAL_PAYMENT_INSTRUCTIONS ?? "").trim();
   return configured || "Contactez Jobly depuis ses canaux officiels pour recevoir les coordonnées de paiement. N'envoyez aucun transfert vers un numéro reçu par message privé. Après transfert, joignez le reçu et la référence de transaction ; la publication ne sera activée qu'après validation par l'équipe Finance.";
 }
+
+export function isEventManualPaymentMethod(value: unknown): value is EventManualPaymentMethod {
+  return typeof value === "string"
+    && (EVENT_MANUAL_PAYMENT_METHODS as readonly string[]).includes(value);
+}
