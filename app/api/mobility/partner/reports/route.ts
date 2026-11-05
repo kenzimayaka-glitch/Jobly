@@ -1,27 +1,26 @@
 import {NextRequest,NextResponse} from "next/server";
 import ExcelJS from "exceljs";
 import {authUser,adminClient,ensureUser} from "../../../../../lib/mobilityServer";
-import {getInstitutionSession} from "../../../../../lib/institution-auth";
-import {getInstitutionMobilityRequestIds,getRecruiterMobilityRequestIds} from "../../../../../lib/mobilityAccess";
+import {getInstitutionMobilityRequestIds,getRecruiterMobilityRequestIds,getUserMobilityInstitutionIds} from "../../../../../lib/mobilityAccess";
 
 export async function GET(req:NextRequest){
  try{
-  const [au,institutionSession]=await Promise.all([authUser(req),getInstitutionSession(req)]);
-  if(!au&&!institutionSession)return NextResponse.json({message:"Session requise."},{status:401});
-  const sb=adminClient(),user=au?await ensureUser(sb,au):null;
-  const isAdmin=String(user?.role??"").toUpperCase()==="ADMIN";
+  const au=await authUser(req);
+  if(!au)return NextResponse.json({message:"Session requise."},{status:401});
+  const sb=adminClient(),user=await ensureUser(sb,au);
+  const isAdmin=String(user.role??"").toUpperCase()==="ADMIN";
   const requestIds=new Set<string>();
-  let canAccessReport=isAdmin||Boolean(institutionSession);
+  let canAccessReport=isAdmin||String(user.role??"").toUpperCase()==="RECRUITER";
+
   if(!isAdmin){
-   if(user){
-    const recruiterIds=await getRecruiterMobilityRequestIds(sb,String(user.id));
-    recruiterIds.forEach(id=>requestIds.add(id));
-    if(recruiterIds.length||String(user.role??"").toUpperCase()==="RECRUITER")canAccessReport=true;
+   const recruiterIds=await getRecruiterMobilityRequestIds(sb,String(user.id));
+   recruiterIds.forEach(id=>requestIds.add(id));
+   const institutionIds=await getUserMobilityInstitutionIds(sb,String(user.id));
+   for(const institutionId of institutionIds){
+    const ids=await getInstitutionMobilityRequestIds(sb,institutionId);
+    ids.forEach(id=>requestIds.add(id));
    }
-   if(institutionSession){
-    const institutionIds=await getInstitutionMobilityRequestIds(sb,String(institutionSession.institution.id));
-    institutionIds.forEach(id=>requestIds.add(id));
-   }
+   if(institutionIds.length)canAccessReport=true;
   }
   if(!canAccessReport)return NextResponse.json({message:"Accès refusé : aucun rattachement recruteur ou institutionnel."},{status:403});
 

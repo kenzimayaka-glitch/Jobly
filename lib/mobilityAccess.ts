@@ -4,6 +4,24 @@ function failOnQueryError(error: { message: string } | null | undefined, label: 
   if (error) throw new Error(label + ": " + error.message);
 }
 
+export function isInstitutionMobilityAdminRole(role: unknown): boolean {
+  return String(role ?? "").trim().toUpperCase() === "INSTITUTION_ADMIN";
+}
+
+export async function getUserMobilityInstitutionIds(db: MobilityDb, userId: string): Promise<string[]> {
+  const { data, error } = await db.from("InstitutionMember")
+    .select("institutionId,role,active")
+    .eq("userId", userId)
+    .eq("active", true)
+    .limit(1000);
+  failOnQueryError(error, "MOBILITY_INSTITUTION_MEMBERSHIP_LOOKUP_FAILED");
+  const ids: string[] = (data ?? [])
+    .filter((row: { role: string; active: boolean }) => row.active && isInstitutionMobilityAdminRole(row.role))
+    .map((row: { institutionId: string }) => String(row.institutionId))
+    .filter((id: string) => id.length > 0);
+  return Array.from(new Set<string>(ids));
+}
+
 export async function getRecruiterMobilityRequestIds(db: MobilityDb, recruiterUserId: string): Promise<string[]> {
   const ids = new Set<string>();
   const direct = await db.from("MobilityRequest").select("id").eq("recruiterUserId", recruiterUserId).limit(1000);
@@ -42,7 +60,9 @@ export async function getInstitutionMobilityRequestIds(db: MobilityDb, instituti
   if (!programIds.length) return [];
   const allocations = await db.from("MobilityFundingAllocation").select("mobilityRequestId").in("programId", programIds).limit(1000);
   failOnQueryError(allocations.error, "MOBILITY_INSTITUTION_ALLOCATION_LOOKUP_FAILED");
-  const requestIds: string[] = (allocations.data ?? []).map((row: { mobilityRequestId: string }) => String(row.mobilityRequestId)).filter((id: string) => id.length > 0);
+  const requestIds: string[] = (allocations.data ?? [])
+    .map((row: { mobilityRequestId: string }) => String(row.mobilityRequestId))
+    .filter((id: string) => id.length > 0);
   return Array.from(new Set<string>(requestIds));
 }
 

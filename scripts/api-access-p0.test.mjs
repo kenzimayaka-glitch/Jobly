@@ -8,7 +8,14 @@ import {
   RECRUITMENT_STATE_ROLES,
   validateApplicationTransition,
 } from "../lib/recruitment360/access.ts";
-import { recruiterOwnsMobilityRequest } from "../lib/mobilityAccess.ts";
+import { isInstitutionMobilityAdminRole, recruiterOwnsMobilityRequest } from "../lib/mobilityAccess.ts";
+
+test("Institution Mobility mutation requires an active InstitutionMember admin role", () => {
+  assert.equal(isInstitutionMobilityAdminRole("INSTITUTION_ADMIN"), true);
+  assert.equal(isInstitutionMobilityAdminRole(" institution_admin "), true);
+  assert.equal(isInstitutionMobilityAdminRole("INSTITUTION_VIEWER"), false);
+  assert.equal(isInstitutionMobilityAdminRole("PARTNER"), false);
+});
 
 test("Recruitment360 read-only roles cannot write or transition states", () => {
   assert.equal(hasRecruitmentRole("OWNER", RECRUITMENT_READ_ROLES), true);
@@ -28,7 +35,7 @@ test("Mobility recruiter access requires an explicit dossier relationship", () =
   assert.equal(recruiterOwnsMobilityRequest("", { requestRecruiterUserId: "recruiter-1" }), false);
 });
 
-test("Candidates may only withdraw or decline an open offer", () => {
+test("Candidates may only withdraw and cannot bypass the offer response API", () => {
   assert.equal(validateApplicationTransition("CANDIDATE", "REVIEW", "WITHDRAWN", ""), null);
   assert.equal(validateApplicationTransition("CANDIDATE", "OFFER", "OFFER_DECLINED", ""), "CANDIDATE_TRANSITION_FORBIDDEN");
   assert.equal(validateApplicationTransition("CANDIDATE", "INTERVIEW", "OFFER_DECLINED", ""), "CANDIDATE_TRANSITION_FORBIDDEN");
