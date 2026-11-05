@@ -9,7 +9,7 @@ import { isAutoGradableTestQuestionType } from "@/lib/recruitment360/test-runtim
 
 type Test = { id:string; title:string; instructions?:string|null; durationseconds:number; maxattempts:number };
 type Question = { id:string; position:number; prompt:string; type:string; options:any; points:number };
-type TestSession = { id:string; status:string; attempt:number; expiresAt:string; score:number|null; submittedAt?:string|null };
+type TestSession = { id:string; testId:string; status:string; attempt:number; expiresAt:string; score:number|null; submittedAt?:string|null };
 
 export default function CandidateRecruitmentTestPage() {
   const { applicationId } = useParams<{ applicationId:string }>();
