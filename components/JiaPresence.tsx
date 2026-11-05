@@ -449,6 +449,27 @@ export default function JiaPresence() {
     }
   }, [pendingAction, router, say]);
 
+  // ── Candidature externe : ouvrir J'IA avec le contexte de l'offre ─────────
+  useEffect(() => {
+    const onApplicationAssist = (event: Event) => {
+      const detail = (event as CustomEvent<{ prompt?: string }>).detail || {};
+      const prompt = typeof detail.prompt === "string" ? detail.prompt.trim().slice(0, 9000) : "";
+      if (!prompt) return;
+      setHiddenPaths((current) => current.filter((path) => path !== pathname));
+      setCollapsed(false);
+      setExpandedHere(true);
+      setPanelOpen(true);
+      setCommandInput(prompt);
+      say("J’ai préparé le contexte de cette candidature. Vérifie la demande dans mon panneau, puis envoie-la pour préparer tes réponses.", { gesture: "analyze", speak: false, sticky: true });
+    };
+    window.addEventListener("jobly:jia-application-assist", onApplicationAssist);
+    return () => window.removeEventListener("jobly:jia-application-assist", onApplicationAssist);
+  }, [pathname, say]);
+
+  useEffect(() => {
+    window.dispatchEvent(new Event("jobly:jia-ready"));
+  }, []);
+
   // ── Réponses externes, gestes sémantiques (window.jia.play) ──────────────
   useEffect(() => {
     const onResponse = (event: Event) => {
