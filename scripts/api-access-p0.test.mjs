@@ -8,13 +8,21 @@ import {
   RECRUITMENT_STATE_ROLES,
   validateApplicationTransition,
 } from "../lib/recruitment360/access.ts";
-import { isInstitutionMobilityAdminRole, recruiterOwnsMobilityRequest } from "../lib/mobilityAccess.ts";
+import { isInstitutionMobilityAdminRole, mayGuaranteeMobilityRequest, recruiterOwnsMobilityRequest } from "../lib/mobilityAccess.ts";
 
 test("Institution Mobility mutation requires an active InstitutionMember admin role", () => {
   assert.equal(isInstitutionMobilityAdminRole("INSTITUTION_ADMIN"), true);
   assert.equal(isInstitutionMobilityAdminRole(" institution_admin "), true);
   assert.equal(isInstitutionMobilityAdminRole("INSTITUTION_VIEWER"), false);
   assert.equal(isInstitutionMobilityAdminRole("PARTNER"), false);
+});
+
+test("Only a linked recruiter or admin may guarantee a Mobility dossier", () => {
+  const links = { requestRecruiterUserId: "recruiter-1" };
+  assert.equal(mayGuaranteeMobilityRequest("RECRUITER", "recruiter-1", links), true);
+  assert.equal(mayGuaranteeMobilityRequest("RECRUITER", "other", links), false);
+  assert.equal(mayGuaranteeMobilityRequest("TALENT", "recruiter-1", links), false);
+  assert.equal(mayGuaranteeMobilityRequest("ADMIN", "admin-1", {}), true);
 });
 
 test("Recruitment360 read-only roles cannot write or transition states", () => {

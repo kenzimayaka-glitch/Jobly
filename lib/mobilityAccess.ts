@@ -79,3 +79,13 @@ export function recruiterOwnsMobilityRequest(
   return [links.requestRecruiterUserId, links.agreementRecruiterUserId, links.applicationRecruiterUserId]
     .some((linkedUserId) => Boolean(linkedUserId) && String(linkedUserId) === actorUserId);
 }
+
+export function mayGuaranteeMobilityRequest(
+  actorRole: unknown,
+  actorUserId: string,
+  links: { requestRecruiterUserId?: string | null; agreementRecruiterUserId?: string | null; applicationRecruiterUserId?: string | null },
+): boolean {
+  const role = String(actorRole ?? "").trim().toUpperCase();
+  if (role === "ADMIN") return true;
+  return role === "RECRUITER" && recruiterOwnsMobilityRequest(actorUserId, links);
+}

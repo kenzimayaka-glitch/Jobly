@@ -1,6 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {authUser,adminClient,ensureUser} from "../../../../../lib/mobilityServer";
-import {recruiterOwnsMobilityRequest} from "../../../../../lib/mobilityAccess";
+import {mayGuaranteeMobilityRequest} from "../../../../../lib/mobilityAccess";
 
 export async function POST(req:NextRequest){
  try{
@@ -16,7 +16,6 @@ export async function POST(req:NextRequest){
   if(requestError)throw new Error(requestError.message);
   if(!mobilityRequest)return NextResponse.json({message:"Dossier Mobility introuvable."},{status:404});
 
-  const isAdmin=String(u.role??"").toUpperCase()==="ADMIN";
   let agreementRecruiterUserId:string|null=null;
   let applicationRecruiterUserId:string|null=null;
   if(mobilityRequest.companyAgreementId){
@@ -36,12 +35,12 @@ export async function POST(req:NextRequest){
     applicationRecruiterUserId=job?.recruiterUserId??null;
    }
   }
-  const ownsRequest=recruiterOwnsMobilityRequest(String(u.id),{
+  const authorized=mayGuaranteeMobilityRequest(u.role,String(u.id),{
    requestRecruiterUserId:mobilityRequest.recruiterUserId,
    agreementRecruiterUserId,
    applicationRecruiterUserId,
   });
-  if(!isAdmin&&!ownsRequest)return NextResponse.json({message:"Accès recruteur refusé pour ce dossier."},{status:403});
+  if(!authorized)return NextResponse.json({message:"Accès recruteur refusé pour ce dossier."},{status:403});
 
   const {data,error}=await sb.from("MobilityRequest").update({
    recruiterGuaranteed:true,currentStep:3,status:"GUARANTEED",updatedAt:new Date().toISOString(),

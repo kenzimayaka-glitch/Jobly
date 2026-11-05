@@ -66,10 +66,11 @@ export async function POST(req:NextRequest,context:{params:Promise<{id:string}>}
     recruitment360Status:nextState,updatedAt:now
   }).eq("id",id);
   if(applicationUpdateError){
-    await supabase.from("RecruitmentApplicationState").update({
+    const {error:rollbackError}=await supabase.from("RecruitmentApplicationState").update({
       currentState:state.currentState,stepNumber:state.stepNumber,lockedAt:state.lockedAt,
       lastTransitionAt:state.lastTransitionAt,updatedAt:state.updatedAt
     }).eq("applicationId",id).eq("currentState",nextState);
+    if(rollbackError)throw new Error("APPLICATION_UPDATE_AND_STATE_ROLLBACK_FAILED: "+applicationUpdateError.message+"; "+rollbackError.message);
     throw new Error(applicationUpdateError.message);
   }
 
@@ -79,13 +80,20 @@ export async function POST(req:NextRequest,context:{params:Promise<{id:string}>}
     fromState:currentState,toState:nextState,exceptionReason:exceptionReason||null,
   });
   if(auditError){
-    await supabase.from("Application").update({
-      recruitment360Status:application.recruitment360Status,updatedAt:application.updatedAt
-    }).eq("id",id);
-    await supabase.from("RecruitmentApplicationState").update({
-      currentState:state.currentState,stepNumber:state.stepNumber,lockedAt:state.lockedAt,
-      lastTransitionAt:state.lastTransitionAt,updatedAt:state.updatedAt
-    }).eq("applicationId",id).eq("currentState",nextState);
+    const [applicationRollback,stateRollback]=await Promise.all([
+      supabase.from("Application").update({
+        recruitment360Status:application.recruitment360Status,updatedAt:application.updatedAt
+      }).eq("id",id).eq("updatedAt",now),
+      supabase.from("RecruitmentApplicationState").update({
+        currentState:state.currentState,stepNumber:state.stepNumber,lockedAt:state.lockedAt,
+        lastTransitionAt:state.lastTransitionAt,updatedAt:state.updatedAt
+      }).eq("applicationId",id).eq("currentState",nextState)
+    ]);
+    if(applicationRollback.error||stateRollback.error){
+      throw new Error("RECRUITMENT_AUDIT_WRITE_AND_ROLLBACK_FAILED: audit="+auditError.message+
+       "; application_rollback="+(applicationRollback.error?.message??"ok")+
+       "; state_rollback="+(stateRollback.error?.message??"ok"));
+    }
     throw new Error("RECRUITMENT_AUDIT_WRITE_FAILED: "+auditError.message);
   }
   return NextResponse.json({state:updatedState});
