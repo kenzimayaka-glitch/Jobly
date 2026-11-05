@@ -22,7 +22,7 @@ export async function GET(req:NextRequest){
   const s=adminClient(),u=await ensureUser(s,auth),rid=req.nextUrl.searchParams.get("recruitmentId");
   const {data:roles,error:re}=await s.from("RecruitmentRole").select("recruitmentId,role").eq("userId",u.id).in("role",[...RECRUITMENT_READ_ROLES]);
   if(re)throw new Error(re.message);
-  const authorizedIds=[...new Set((roles??[]).filter((row:any)=>hasRecruitmentRole(row.role)).map((row:any)=>String(row.recruitmentId)))];
+  const authorizedIds=[...new Set((roles??[]).filter((row:any)=>hasRecruitmentRole(row.role,RECRUITMENT_READ_ROLES)).map((row:any)=>String(row.recruitmentId)))];
   if(rid&&!authorizedIds.includes(rid))return NextResponse.json({message:"Accès refusé à ce recrutement."},{status:403});
   const ids=rid?[rid]:authorizedIds;
   if(!ids.length)return NextResponse.json({applications:[]});
@@ -33,15 +33,20 @@ export async function GET(req:NextRequest){
   const {data:apps,error:aerr}=await s.from("Application").select("id,userId,recruiterJobId,status,cvUrl,cvPhotoUrl,letterText,createdAt,updatedAt").in("recruiterJobId",jobs).order("updatedAt",{ascending:false});
   if(aerr)throw new Error(aerr.message);
   const aid=(apps??[]).map((a:any)=>a.id);
-  const [assessRes,shortRes]=await Promise.all([
+  const userIds=[...new Set((apps??[]).map((a:any)=>String(a.userId)).filter(Boolean))];
+  const [assessRes,shortRes,usersRes]=await Promise.all([
    aid.length?s.from("RecruitmentApplicationAssessment").select("*").in("applicationId",aid):Promise.resolve({data:[],error:null}),
-   aid.length?s.from("RecruitmentShortlist").select("*").in("applicationId",aid):Promise.resolve({data:[],error:null})
+   aid.length?s.from("RecruitmentShortlist").select("*").in("applicationId",aid):Promise.resolve({data:[],error:null}),
+   userIds.length?s.from("User").select("id,firstName,lastName,displayName").in("id",userIds):Promise.resolve({data:[],error:null})
   ]);
-  if(assessRes.error)throw new Error(assessRes.error.message);
-  if(shortRes.error)throw new Error(shortRes.error.message);
+  for(const result of [assessRes,shortRes,usersRes])if(result.error)throw new Error(result.error.message);
   const am=new Map((assessRes.data??[]).map((x:any)=>[x.applicationId,x]));
   const sm=new Map((shortRes.data??[]).map((x:any)=>[x.applicationId,x]));
-  return NextResponse.json({applications:(apps??[]).map((a:any)=>({...a,assessment:am.get(a.id)??null,shortlist:sm.get(a.id)??null}))});
+  const um=new Map((usersRes.data??[]).map((x:any)=>[String(x.id),x]));
+  return NextResponse.json({applications:(apps??[]).map((a:any)=>{
+    const candidate=um.get(String(a.userId));
+    return {...a,candidateName:candidate?.displayName||[candidate?.firstName,candidate?.lastName].filter(Boolean).join(" ")||"Candidat",assessment:am.get(a.id)??null,shortlist:sm.get(a.id)??null};
+  })});
  }catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Erreur."},{status:500})}
 }
 
