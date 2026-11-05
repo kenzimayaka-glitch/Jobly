@@ -171,6 +171,9 @@ const SOURCE_ADAPTERS: Record<string, DateAdapter[]> = {
   beta_mauritania: [
     { pattern: /offre\s+en\s+ligne\s+depuis\s*[:\-]?\s*(\d{1,2}\s+[A-Za-zÀ-ÿ.]+\s+20\d{2})/i, format: "french" },
   ],
+  fne: [
+    { pattern: /date de d[ée]p[ôo]t\s*[:\-]?\s*(\d{1,2}\s+[A-Za-zÀ-ÿ.]+\s+20\d{2})/i, format: "french" },
+  ],
   anpetogo: [
     { pattern: /publi[ée]e?\s+le\s*[:\-]?\s*(\d{1,2}\s+[A-Za-zÀ-ÿ.]+\s+20\d{2})/i, format: "french" },
   ],
@@ -191,6 +194,9 @@ export function extractSourcePublishedAt(html: string, _url: string, sourceKey: 
 
 
 const SOURCE_DEADLINE_ADAPTERS: Record<string, DateAdapter[]> = {
+  fne: [
+    { pattern: /date de validit[eé]\s*[:\-]?\s*(\d{1,2}\s+[A-Za-zÀ-ÿ.]+\s+20\d{2})/i, format: "french" },
+  ],
   nelex_ng: [
     { pattern: /(?:application\s+(?:closing\s+)?deadline|application\s+closing\s+date|closing\s+date|deadline)\s*[:\-]?\s*(\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+,?\s+20\d{2})/i, format: "english" },
     { pattern: /(?:application\s+(?:closing\s+)?deadline|application\s+closing\s+date|closing\s+date|deadline)\s*[:\-]?\s*([A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?,?\s+20\d{2})/i, format: "english" },
