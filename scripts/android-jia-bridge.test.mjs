@@ -33,6 +33,13 @@ test("form inspection is click-to-run and never reads entered values", () => {
   assert.match(source, /FORM_METADATA_SCRIPT/);
 });
 
+test("offer feed and offer detail use the native Android application bridge", () => {
+  const feed = read("../components/JoblyOfferFeed.tsx");
+  const detail = read("../app/jobs/[id]/page.tsx");
+  assert.match(feed, /openExternalApplicationInAndroid\\(context\\)/);
+  assert.match(detail, /openExternalApplicationInAndroid\\(context\\)/);
+});
+
 test("Android assistant hands metadata to the existing J'IA flow", () => {
   const page = read("../app/jia/android-assist/page.tsx");
   const bridge = read("../lib/jia/android-bridge.ts");
@@ -47,6 +54,9 @@ test("Android CI builds a debug APK and runs static privacy tests", () => {
   assert.match(workflow, /packages: "platform-tools"/);
   assert.doesNotMatch(workflow, /sdkmanager tools/);
   assert.match(workflow, /:app:assembleDebug/);
+  assert.match(workflow, /name: Upload debug APK/);
+  assert.match(workflow, /jobly-android-debug-apk/);
+  assert.match(workflow, /components\\/JoblyOfferFeed\\.tsx/);
   assert.match(workflow, /android-jia-bridge\.test\.mjs/);
   assert.ok(existsSync(new URL("../apps/android/README.md", import.meta.url)));
 });
