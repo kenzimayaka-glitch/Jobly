@@ -56,7 +56,9 @@ function replaceCountryToken(value:string, countryCode:string):string {
 }
 
 export function resolveSourceUrl(source:SourceDefinition, countryCode:string):ResolvedSourceUrl {
-  if (!source.enabled || source.status !== "active" || !source.url) {
+  const productionActive = source.enabled && source.status === "active";
+  const approvedShadowCandidate = source.shadowCrawlEligible === true && source.status === "discovered" && !source.enabled;
+  if ((!productionActive && !approvedShadowCandidate) || !source.url) {
     return {sourceKey:source.key,countryCode,url:"",strategy:"unresolved",confidence:"low"};
   }
   if (!source.countries.includes(countryCode)) {

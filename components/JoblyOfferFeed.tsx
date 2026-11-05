@@ -56,6 +56,13 @@ type Job = {
 };
 
 
+function safeExternalUrl(value: unknown): string | null {
+  try {
+    const parsed = new URL(String(value ?? "").trim());
+    if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || parsed.username || parsed.password) return null;
+    return parsed.toString();
+  } catch { return null; }
+}
 function formatDate(value: string | null) { if (!value) return "Aucune donnée"; return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value)); }
 function countryFlag(code: string | null | undefined) { const flags: Record<string,string> = { CM:"🇨🇲", SN:"🇸🇳", GA:"🇬🇦", CG:"🇨🇬", CF:"🇨🇫", TD:"🇹🇩", GQ:"🇬🇶", BJ:"🇧🇯", BF:"🇧🇫", CI:"🇨🇮", GN:"🇬🇳", GW:"🇬🇼", ML:"🇲🇱", NE:"🇳🇪", TG:"🇹🇬", NG:"🇳🇬", GH:"🇬🇭", RW:"🇷🇼", ZA:"🇿🇦", ZM:"🇿🇲", UG:"🇺🇬", LR:"🇱🇷", SS:"🇸🇸", SZ:"🇸🇿" }; return flags[String(code || "").toUpperCase()] || "🌍"; }
 function countryName(code: string | null | undefined) { const names: Record<string,string> = { CM:"Cameroun", SN:"Sénégal", GA:"Gabon", CG:"Congo", CF:"République centrafricaine", TD:"Tchad", GQ:"Guinée équatoriale", BJ:"Bénin", BF:"Burkina Faso", CI:"Côte d’Ivoire", GN:"Guinée", GW:"Guinée-Bissau", ML:"Mali", NE:"Niger", TG:"Togo", NG:"Nigeria", GH:"Ghana", RW:"Rwanda", ZA:"Afrique du Sud", ZM:"Zambie", UG:"Ouganda", LR:"Liberia", SS:"Soudan du Sud", SZ:"Eswatini" }; return names[String(code || "").toUpperCase()] || "Pays non renseigné"; }
@@ -89,6 +96,11 @@ export function JoblyOfferFeed() {
   const [error, setError] = useState("");
   const [expiredNoticeOpen, setExpiredNoticeOpen] = useState(false);
   const [feedMeta, setFeedMeta] = useState({ totalAvailable: 0, matchingCount: 0 });
+  const [nextPage, setNextPage] = useState(2);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingMoreRef = useRef(false);
+  const feedRequestVersionRef = useRef(0);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("Toutes");
   const [marketScope, setMarketScope] = useState<"local" | "africa" | "countries">("local");
@@ -132,6 +144,11 @@ export function JoblyOfferFeed() {
 
   const load = useCallback(async (manual = false) => {
     if (!token) return;
+    const requestVersion = ++feedRequestVersionRef.current;
+    loadingMoreRef.current = false;
+    setLoadingMore(false);
+    setNextPage(2);
+    setHasMore(false);
     manual ? setRefreshing(true) : setLoading(true); setError("");
     try {
       if (manual) {
@@ -152,13 +169,79 @@ export function JoblyOfferFeed() {
         fetch("/api/applications", { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       const jobsBody = await jobsRes.json(); if (!jobsRes.ok) throw new Error(jobsBody.message || "Impossible de charger les offres.");
-      setJobs(jobsBody.jobs || []); setFeedMeta({ totalAvailable: jobsBody.totalAvailable || 0, matchingCount: jobsBody.matchingCount || 0 }); if (jobsBody.market) setMarket(jobsBody.market);
+      if (requestVersion !== feedRequestVersionRef.current) return;
+      const firstPageJobs = Array.isArray(jobsBody.jobs) ? jobsBody.jobs as Job[] : [];
+      setJobs(firstPageJobs);
+      setNextPage(2);
+      setHasMore(Boolean(jobsBody.hasMore && firstPageJobs.length > 0));
+      setFeedMeta({ totalAvailable: Number(jobsBody.totalAvailable) || 0, matchingCount: Number(jobsBody.matchingCount) || 0 });
+      if (jobsBody.market) setMarket(jobsBody.market);
       if (appsRes.ok) { const body = await appsRes.json(); setApplied(new Set((body.applications || []).filter((a: any) => ["SUBMITTED","SUBMITTING"].includes(a.status)).map((a: any) => `${a.source}:${a.jobId || a.recruiterJobId}`))); setApplicationReadyKeys(new Set((body.applications || []).filter((a: any) => ["USER_REVIEW","PREPARED"].includes(a.status)).map((a: any) => `${a.source}:${a.jobId || a.recruiterJobId}`))); }
       const bulkInfoRes = await fetch("/api/applications/bulk-check", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ selectedCount: 0 }) });
       if (bulkInfoRes.ok) { const bulkInfo = await bulkInfoRes.json().catch(() => ({})); setBulkLimit(Number(bulkInfo.bulkApplicationLimit || 1)); }
     } catch (e) { setError(e instanceof Error ? e.message : "Erreur réseau."); }
-    finally { setLoading(false); setRefreshing(false); }
+    finally {
+      if (requestVersion === feedRequestVersionRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
   }, [token, marketScope, targetCountryInput]);
+
+  const loadMore = useCallback(async () => {
+    if (!token || !hasMore || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    setError("");
+    const requestVersion = feedRequestVersionRef.current;
+    const pageToLoad = nextPage;
+    try {
+      const params = new URLSearchParams({
+        limit: "200",
+        page: String(pageToLoad),
+        scope: marketScope,
+        targetCountryCodes: targetCountryInput,
+      });
+      const response = await fetch(`/api/jobs?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "Impossible de charger les offres suivantes.");
+      if (requestVersion !== feedRequestVersionRef.current) return;
+
+      const incomingJobs = Array.isArray(body.jobs) ? body.jobs as Job[] : [];
+      setJobs(previous => {
+        const seen = new Set(previous.map(job => `${job.source}:${job.id}`));
+        const additions: Job[] = [];
+        for (const job of incomingJobs) {
+          const key = `${job.source}:${job.id}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            additions.push(job);
+          }
+        }
+        return additions.length ? [...previous, ...additions] : previous;
+      });
+      setNextPage(pageToLoad + 1);
+      setHasMore(Boolean(body.hasMore && incomingJobs.length > 0));
+      if (typeof body.totalAvailable === "number") {
+        setFeedMeta(previous => ({
+          totalAvailable: body.totalAvailable,
+          matchingCount: typeof body.matchingCount === "number" ? body.matchingCount : previous.matchingCount,
+        }));
+      }
+      if (body.market) setMarket(body.market);
+    } catch (error) {
+      if (requestVersion === feedRequestVersionRef.current) {
+        setError(error instanceof Error ? error.message : "Impossible de charger les offres suivantes.");
+      }
+    } finally {
+      if (requestVersion === feedRequestVersionRef.current) {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      }
+    }
+  }, [token, hasMore, nextPage, marketScope, targetCountryInput]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -243,6 +326,7 @@ export function JoblyOfferFeed() {
     const key = `${job.source}:${job.id}`;
     if (applied.has(key)) { setError("Vous avez déjà postulé à cette offre : elle ne peut plus être ajoutée au panier."); return; }
     if (applicationReadyKeys.has(key)) { setError("Cette candidature est déjà préparée et attend votre validation : retrouvez-la dans l’onglet Candidatures."); return; }
+    if (!job.applicationReady) { setError("Cette offre est consultable, mais aucune modalité de candidature n’est vérifiée. Consultez la source originale avant de postuler."); return; }
     setBasket(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
@@ -317,6 +401,8 @@ export function JoblyOfferFeed() {
     const phone = applicationPhone(job);
     if (phone && !email) { await applyViaWhatsApp(job); return; }
     if (email) { await prepareSingleApplication(job); return; }
+    const applicationUrl = safeExternalUrl(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl);
+    if (applicationUrl) { window.open(applicationUrl, "_blank", "noopener,noreferrer"); return; }
     router.push(`/jobs/${job.id}?source=${job.source}`);
   }
 
@@ -687,6 +773,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
               const busy = submitting.has(key);
               const emailChannel = Boolean(job.applicationProfile?.applicationEmail || job.applicationProfile?.email);
               const phoneChannel = Boolean(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.length);
+              const directApplicationAvailable = Boolean(job.applicationReady || emailChannel || phoneChannel || safeExternalUrl(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl));
               return (
                 <article
                   key={key}
@@ -713,10 +800,10 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
                     </div>
                     <h2 className="mt-1 text-xl font-black leading-tight">{job.title}</h2>
                     <p className="mt-3 text-xs text-slate-500">{[marketScope === "africa" && job.countryCode ? `${countryFlag(job.countryCode)} ${countryName(job.countryCode)}` : null, job.location, job.contractType, job.remoteMode].map(cleanDisplayText).filter(Boolean).join(" · ") || "Toutes localisations"}</p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">Publié · <b className="text-slate-700">{formatDate(job.publishedAt)}</b>{job.deadlineExpired && <span className="rounded-full bg-red-50 px-2 py-1 font-black uppercase tracking-[.8px] text-red-600">Offre expirée</span>}</div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">Publié · <b className="text-slate-700">{formatDate(job.publishedAt)}</b>{!directApplicationAvailable && <span className="rounded-full bg-amber-50 px-2 py-1 font-black uppercase tracking-[.8px] text-amber-800">Contact à vérifier</span>}{job.deadlineExpired && <span className="rounded-full bg-red-50 px-2 py-1 font-black uppercase tracking-[.8px] text-red-600">Offre expirée</span>}</div>
                     <div className="mt-4 flex gap-2">
                       <button onClick={() => handleApplyClick(job, { done, ready, busy })} aria-disabled={done || ready || busy} className={`flex h-12 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full px-3 text-sm font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B] ${ready ? "bg-[#7CFC00]" : "bg-[#FFE135]"}`}>
-                        {done ? <><Check size={17} className="mr-2"/>Candidature envoyée</> : ready ? "Candidature prête" : busy ? <><RefreshCw size={17} className="mr-2 animate-spin"/>Envoi en cours…</> : <>{emailChannel ? <GmailIcon size={18}/> : phoneChannel ? <WhatsAppIcon size={18}/> : <Send size={17}/>}<span>Postuler</span></>}
+                        {done ? <><Check size={17} className="mr-2"/>Candidature envoyée</> : ready ? "Candidature prête" : busy ? <><RefreshCw size={17} className="mr-2 animate-spin"/>Envoi en cours…</> : directApplicationAvailable ? <>{emailChannel ? <GmailIcon size={18}/> : phoneChannel ? <WhatsAppIcon size={18}/> : <ExternalLink size={17}/>}<span>Postuler</span></> : <><ExternalLink size={17}/><span>Consulter la source</span></>}
                       </button>
                       <button type="button" onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label="En savoir plus sur l’entreprise" title="En savoir +" className="inline-flex h-12 items-center justify-center whitespace-nowrap rounded-full bg-[#00A6E8] px-4 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,166,232,.22)] transition hover:bg-[#008FC8] active:scale-[.98]">En savoir +</button>
                       <button type="button" onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} aria-label="Voir l'offre" title="Voir l’offre" className="inline-flex h-12 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-[#7C3AED]/25 bg-[#F3E8FF] px-3 text-xs font-black text-[#6D28D9] transition hover:bg-[#EDE9FE]"><span>Voir l’offre</span><ArrowUpRight size={17}/></button>
@@ -735,7 +822,27 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
         </div>
       )}
 
-      <div className="mx-auto mt-10 grid w-full min-w-0 max-w-full grid-cols-1 gap-3 md:grid-cols-2">{rest.map((job, index) => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const ready = applicationReadyKeys.has(key); const busy = submitting.has(key); const selected = basket.has(key); const emailChannel = Boolean(job.applicationProfile?.applicationEmail || job.applicationProfile?.email); const phoneChannel = Boolean(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.length); const focused = focusedOfferKey === key; return <article key={key} data-offer-index={index + featured.length + 1} data-offer-number={index + featured.length + 1} data-offer-key={key} style={{ touchAction: "pan-y" }} className={`group min-w-0 max-w-full transform-gpu transition-[transform,box-shadow] duration-300 ease-out will-change-transform ${focused ? "relative z-10 -translate-y-3 shadow-[0_18px_44px_rgba(255,225,53,.48)] md:-translate-y-2" : "relative z-0 translate-y-0 shadow-[0_10px_32px_rgba(23,33,43,.07)]"} ${selected ? "rounded-[24px] border-2 border-[#FFE135] bg-white p-3 opacity-90" : "rounded-[24px] border border-white/10 bg-white p-3 opacity-90"}`}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} size={50}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{cleanCompanyName(job.company?.name) || "Aucune donnée"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[marketScope === "africa" && job.countryCode ? `${countryFlag(job.countryCode)} ${countryName(job.countryCode)}` : null, job.location, job.contractType].map(cleanDisplayText).filter(Boolean).join(" · ") || "Aucune donnée"}</p><p className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)} {job.deadlineExpired && <span className="rounded-full bg-red-50 px-2 py-0.5 font-black uppercase tracking-[.7px] text-red-600">Offre expirée</span>}</p></div><button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="rounded-xl px-1 text-right transition [@media(hover:hover)]:hover:bg-[#FFFBE0] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFE135] [-webkit-tap-highlight-color:transparent]"><strong className="block text-xl font-black text-[#FFE135]">{job.matchPercent}%</strong><span className="text-[8px] font-black text-[#FFE135]">Mon score</span></button></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} aria-disabled={done || ready} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBasket size={16}/>}</button><button type="button" onClick={() => handleApplyClick(job, { done, ready, busy })} aria-disabled={done || ready || busy} className={`flex min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full px-2.5 py-2.5 text-xs font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B] ${ready ? "bg-[#7CFC00]" : "bg-[#FFE135]"}`}>{done ? "Candidature envoyée" : ready ? "Candidature prête" : busy ? "Préparation…" : <>{emailChannel ? <GmailIcon size={16}/> : phoneChannel ? <WhatsAppIcon size={16}/> : <Send size={15}/>}<span>Postuler</span></>}</button><button onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label={`En savoir plus sur ${cleanCompanyName(job.company?.name) || "l’entreprise"}`} title="En savoir +" className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#00A6E8] px-3.5 py-2.5 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,166,232,.18)] transition hover:bg-[#008FC8] active:scale-[.98]">En savoir +</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#7C3AED]/25 bg-[#F3E8FF] px-3 py-2.5 text-xs font-black text-[#6D28D9]"><span>Voir l’offre</span><ArrowUpRight size={14}/></button></div></article>; })}</div>
+      <div className="mx-auto mt-10 grid w-full min-w-0 max-w-full grid-cols-1 gap-3 md:grid-cols-2">{rest.map((job, index) => { const key = `${job.source}:${job.id}`; const done = applied.has(key); const ready = applicationReadyKeys.has(key); const busy = submitting.has(key); const selected = basket.has(key); const emailChannel = Boolean(job.applicationProfile?.applicationEmail || job.applicationProfile?.email); const phoneChannel = Boolean(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.length); const directApplicationAvailable = Boolean(job.applicationReady || emailChannel || phoneChannel || safeExternalUrl(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl)); const focused = focusedOfferKey === key; return <article key={key} data-offer-index={index + featured.length + 1} data-offer-number={index + featured.length + 1} data-offer-key={key} style={{ touchAction: "pan-y" }} className={`group min-w-0 max-w-full transform-gpu transition-[transform,box-shadow] duration-300 ease-out will-change-transform ${focused ? "relative z-10 -translate-y-3 shadow-[0_18px_44px_rgba(255,225,53,.48)] md:-translate-y-2" : "relative z-0 translate-y-0 shadow-[0_10px_32px_rgba(23,33,43,.07)]"} ${selected ? "rounded-[24px] border-2 border-[#FFE135] bg-white p-3 opacity-90" : "rounded-[24px] border border-white/10 bg-white p-3 opacity-90"}`}><div className="flex gap-3"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white"><CompanyLogo companyName={cleanCompanyName(job.company?.name)} domain={job.company?.domain} website={job.company?.website} size={50}/></div><div className="min-w-0 flex-1"><p className="line-clamp-2 break-words text-[10px] font-bold uppercase tracking-[1.1px] text-[#7A9BB5]">{cleanCompanyName(job.company?.name) || "Aucune donnée"}</p><h2 className="mt-0.5 text-base font-black">{job.title}</h2><p className="mt-1 text-[11px] text-slate-500">{[marketScope === "africa" && job.countryCode ? `${countryFlag(job.countryCode)} ${countryName(job.countryCode)}` : null, job.location, job.contractType].map(cleanDisplayText).filter(Boolean).join(" · ") || "Aucune donnée"}</p><p className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-semibold text-slate-400">Publié {formatDate(job.publishedAt)} {!directApplicationAvailable && <span className="rounded-full bg-amber-50 px-2 py-0.5 font-black uppercase tracking-[.7px] text-amber-800">Contact à vérifier</span>} {job.deadlineExpired && <span className="rounded-full bg-red-50 px-2 py-0.5 font-black uppercase tracking-[.7px] text-red-600">Offre expirée</span>}</p></div><button type="button" onClick={() => setSelectedMatch(job)} aria-label={`Voir le score de compatibilité de ${job.matchPercent}%`} title="Voir le détail du score" className="rounded-xl px-1 text-right transition [@media(hover:hover)]:hover:bg-[#FFFBE0] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFE135] [-webkit-tap-highlight-color:transparent]"><strong className="block text-xl font-black text-[#FFE135]">{job.matchPercent}%</strong><span className="text-[8px] font-black text-[#FFE135]">Mon score</span></button></div><div className="mt-3 flex gap-2"><button onClick={() => toggleBasket(job)} aria-disabled={done || ready} className={selected ? "grid w-11 place-items-center rounded-full bg-[#FFE135] text-[#2E3F4F]" : "grid w-11 place-items-center rounded-full border border-slate-200 text-[#B59A00]"} aria-label={selected ? "Retirer du panier" : "Ajouter au panier"}>{selected ? <CheckSquare size={16}/> : <ShoppingBasket size={16}/>}</button><button type="button" onClick={() => handleApplyClick(job, { done, ready, busy })} aria-disabled={done || ready || busy} className={`flex min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full px-2.5 py-2.5 text-xs font-black leading-none text-[#17212B] disabled:bg-slate-200 disabled:text-[#17212B] ${ready ? "bg-[#7CFC00]" : "bg-[#FFE135]"}`}>{done ? "Candidature envoyée" : ready ? "Candidature prête" : busy ? "Préparation…" : directApplicationAvailable ? <>{emailChannel ? <GmailIcon size={16}/> : phoneChannel ? <WhatsAppIcon size={16}/> : <ExternalLink size={15}/>}<span>Postuler</span></> : <><ExternalLink size={15}/><span>Consulter la source</span></>}</button><button onClick={() => { setSelectedCompany(job.company || { id: null, name: "Aucune donnée", logoUrl: null, description: null, website: null, domain: null, verified: false }); setSelectedCompanyLocation(job.location); }} aria-label={`En savoir plus sur ${cleanCompanyName(job.company?.name) || "l’entreprise"}`} title="En savoir +" className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#00A6E8] px-3.5 py-2.5 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,166,232,.18)] transition hover:bg-[#008FC8] active:scale-[.98]">En savoir +</button><button onClick={() => router.push(`/jobs/${job.id}?source=${job.source}`)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#7C3AED]/25 bg-[#F3E8FF] px-3 py-2.5 text-xs font-black text-[#6D28D9]"><span>Voir l’offre</span><ArrowUpRight size={14}/></button></div></article>; })}</div>
+      {feedMeta.totalAvailable > 0 && (
+        <div className="mx-auto mt-7 flex max-w-xl flex-col items-center gap-3 text-center" aria-live="polite">
+          <p className="text-xs font-semibold text-slate-500">
+            {jobs.length.toLocaleString("fr-FR")} offres chargées sur {feedMeta.totalAvailable.toLocaleString("fr-FR")}
+          </p>
+          {hasMore ? (
+            <button
+              type="button"
+              onClick={() => void loadMore()}
+              disabled={loadingMore}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#FFE135] px-6 py-3 text-xs font-black text-[#2E3F4F] shadow-[0_8px_24px_rgba(255,225,53,.24)] transition hover:scale-[1.02] active:scale-[.98] disabled:cursor-wait disabled:opacity-60"
+            >
+              <RefreshCw size={15} className={loadingMore ? "animate-spin" : ""}/>
+              {loadingMore ? "Chargement des offres…" : "Charger les 200 offres suivantes"}
+            </button>
+          ) : (
+            <p className="text-[11px] font-semibold text-slate-400">Toutes les offres disponibles ont été chargées.</p>
+          )}
+        </div>
+      )}
     </section>
 
     {basketJobs.length > 0 && (

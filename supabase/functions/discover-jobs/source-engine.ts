@@ -3,6 +3,7 @@ import {
   SOURCE_REGISTRY,
   getActiveSources,
   getRegistryStats,
+  getSourcesToWork,
   type SourceDefinition,
 } from "./source-registry.ts";
 
@@ -76,6 +77,27 @@ export function sourceCanBeCrawled(source: SourceDefinition): boolean {
     validateSourceDefinition(source).length === 0;
 }
 
+
+/**
+ * Complete work queue: production-active sources plus explicitly approved
+ * read-only shadow candidates. Shadow candidates never enter production run plans.
+ */
+export type SourceWorkPlan = SourceDefinition & {
+  selectedBecause: "active" | "shadow-qualification";
+};
+
+export function sourceCanBeShadowCrawled(source: SourceDefinition): boolean {
+  if (source.status === "active") return sourceCanBeCrawled(source);
+  if (source.status !== "discovered" || source.enabled || source.shadowCrawlEligible !== true) return false;
+  return validateSourceDefinition({ ...source, status: "active", enabled: true, shadowCrawlEligible: false }).length === 0;
+}
+
+export function buildSourceWorkPlan(countryCode?: string): SourceWorkPlan[] {
+  return getSourcesToWork(countryCode)
+    .filter((source) => sourceCanBeCrawled(source) || sourceCanBeShadowCrawled(source))
+    .map((source) => ({ ...source, selectedBecause: source.status === "active" ? "active" : "shadow-qualification" }));
+}
+
 export function buildSourceRunPlan(countryCode = "CM"): SourceRunPlan[] {
   return getActiveSources(countryCode)
     .filter(sourceCanBeCrawled)
@@ -102,6 +124,9 @@ export function auditRegistry() {
   });
   const invalidActiveSources = invalid.filter((entry) => entry.status === "active");
   const active = SOURCE_REGISTRY.filter((source) => source.status === "active" && source.enabled);
+  const shadowEligible = SOURCE_REGISTRY.filter((source) => source.shadowCrawlEligible === true);
+  const shadowReady = shadowEligible.filter(sourceCanBeShadowCrawled);
+  const invalidShadowCrawlSources = shadowEligible.filter((source) => !sourceCanBeShadowCrawled(source)).map((source) => ({ source: source.key, errors: validateSourceDefinition({ ...source, status: "active", enabled: true }) }));
   const discovered = SOURCE_REGISTRY.filter((source) => source.status === "discovered");
   const missingUrl = SOURCE_REGISTRY.filter((source) => !source.url);
   const unresolvedUrl = missingUrl.filter((source) =>
@@ -119,6 +144,7 @@ export function auditRegistry() {
     duplicateKeys.length === 0 &&
     uniqueSourceKeys === stats.sources &&
     invalidActiveSources.length === 0 &&
+    invalidShadowCrawlSources.length === 0 &&
     readyForCrawl.length === active.length
       ? "GREEN"
       : "BLOCKED";
@@ -128,6 +154,10 @@ export function auditRegistry() {
     uniqueSourceKeys,
     duplicateKeys,
     readyForCrawlSources: readyForCrawl.length,
+    shadowCrawlEligibleSources: shadowEligible.length,
+    shadowCrawlReadySources: shadowReady.length,
+    invalidShadowCrawlSources,
+    sourcesToWork: readyForCrawl.length + shadowReady.length,
     invalidActiveSources: invalidActiveSources.length,
     invalid,
     discoveryOnlySources: discovered.length,

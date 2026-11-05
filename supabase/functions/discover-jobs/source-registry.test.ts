@@ -4,11 +4,16 @@ import {
   SOURCE_REGISTRY,
   getActiveSources,
   getRegistryStats,
+  getDiscoveredSources,
+  getShadowCrawlEligibleSources,
+  getSourcesToWork,
 } from "./source-registry.ts";
 import {
   auditRegistry,
   buildSourceRunPlan,
+  buildSourceWorkPlan,
   sourceCanBeCrawled,
+  sourceCanBeShadowCrawled,
   validateSourceDefinition,
 } from "./source-engine.ts";
 
@@ -27,6 +32,31 @@ Deno.test("active source definitions are complete enough for a crawl", () => {
     active.flatMap((source) => validateSourceDefinition(source).map((error) => `${source.key}:${error}`)),
     [],
   );
+});
+
+
+Deno.test("101 HTTP candidates join the shadow qualification queue without production activation", () => {
+  const shadow = getShadowCrawlEligibleSources();
+  assertEquals(shadow.length, 101);
+  assertEquals(shadow.every((source) => source.status === "discovered" && source.enabled === false), true);
+  assertEquals(shadow.filter(sourceCanBeShadowCrawled).length, 101);
+  assertEquals(shadow.filter(sourceCanBeCrawled), []);
+  assertEquals(getActiveSources().length, 113);
+  assertEquals(getSourcesToWork().length, 214);
+  assertEquals(buildSourceWorkPlan().length, 214);
+
+  const remainingDiscovered = getDiscoveredSources()
+    .filter((source) => source.shadowCrawlEligible !== true)
+    .map((source) => source.key)
+    .sort();
+  assertEquals(remainingDiscovered, [
+    "african_union_jobs",
+    "glassdoor",
+    "indeed",
+    "jobs_gov_so",
+    "linkedin",
+    "mozambique_incm_recruitment",
+  ]);
 });
 
 Deno.test("all source country declarations use the 54-country registry", () => {
@@ -67,6 +97,10 @@ Deno.test("registry integrity and source qualification are reported separately",
   assertEquals(report.qualificationStatus, "INCOMPLETE");
   assertEquals(report.candidateReviewStatus, "COMPLETE");
   assertEquals(report.readyForCrawlSources, 113);
+  assertEquals(report.shadowCrawlEligibleSources, 101);
+  assertEquals(report.shadowCrawlReadySources, 101);
+  assertEquals(report.sourcesToWork, 214);
+  assertEquals(report.invalidShadowCrawlSources, []);
   assertEquals(report.invalidActiveSources, 0);
   assertEquals(report.missingUrlSources, 17);
   assertEquals(report.unresolvedUrlSources, 0);

@@ -58,6 +58,14 @@ function WhatsAppIcon({ size = 18 }: { size?: number }) {
   return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" fill="#25D366"/><path d="M8.7 7.8c.3-.3.7-.3 1 0l1.15 1.35c.25.28.25.68.02.98l-.55.7c.52 1.02 1.34 1.84 2.36 2.36l.7-.55c.3-.23.7-.23.98.02l1.35 1.15c.3.25.3.7 0 1-.66.76-1.57 1.12-2.55.98-1.52-.22-3.15-1.18-4.5-2.53s-2.31-2.98-2.53-4.5c-.14-.98.22-1.89.98-2.55Z" fill="white"/></svg>;
 }
 
+function safeExternalUrl(value: unknown): string | null {
+  try {
+    const parsed = new URL(String(value ?? "").trim());
+    if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || parsed.username || parsed.password) return null;
+    return parsed.toString();
+  } catch { return null; }
+}
+
 function cleanLine(value: string) {
   return value.normalize("NFC")
     .replace(/^[|>»›•▪◦*✓✔☑🟡\-–—]+\s*/, "")
@@ -206,6 +214,7 @@ function JobDetailInner() {
     if (phoneChannel) return openWhatsApp();
     if (applicationLink) { window.open(applicationLink, "_blank", "noopener,noreferrer"); return; }
     if (emailChannel) return openEmail();
+    if (sourceLink) { window.open(sourceLink, "_blank", "noopener,noreferrer"); return; }
   }
 
   async function shareOffer() {
@@ -229,7 +238,8 @@ function JobDetailInner() {
   const displayCompany = normalizedIdentity.companyName;
   const company = displayCompany;
   const phoneChannel = Boolean(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.length);
-  const applicationLink = String(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl || job.applicationProfile?.url || "").trim();
+  const applicationLink = safeExternalUrl(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl);
+  const sourceLink = safeExternalUrl(job.sourceUrl || job.applicationProfile?.sourceUrl);
   const contract = normalized?.contractType || null;
   const remoteMode = normalized?.remoteMode || null;
   const remote = remoteMode === "YES" ? "Télétravail" : remoteMode === "PARTIAL" ? "Hybride" : remoteMode === "NO" ? "Présentiel" : null;
@@ -280,7 +290,7 @@ function JobDetailInner() {
     salaryMin != null || salaryMax != null ? { icon: null, value: `${formatSalary(salaryMin)}${salaryMax != null ? " – " + formatSalary(salaryMax) : ""} ${salaryCurrency}` } : null,
   ].filter(Boolean) as Array<{ icon: any; value: string }>;
 
-  const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Plateforme externe" : null;
+  const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Plateforme externe" : sourceLink ? "Modalités à vérifier sur la source originale" : null;
 
 
   const compactItems = (items: string[], limit = 12) => Array.from(new Set(items.map(cleanLine).filter(Boolean))).slice(0, limit);
@@ -339,7 +349,7 @@ function JobDetailInner() {
             {sections.skills.length > 0 && <DetailSection title="Compétences">{renderBullets(sections.skills)}</DetailSection>}
             {sections.qualities.length > 0 && <DetailSection title="Qualités recherchées">{renderBullets(sections.qualities)}</DetailSection>}
             {sections.benefits.length > 0 && <DetailSection title="Avantages">{renderBullets(sections.benefits)}</DetailSection>}
-            {(emailChannel || phoneChannel || applicationLink || sections.application.length > 0) && (
+            {(emailChannel || phoneChannel || applicationLink || sourceLink || sections.application.length > 0) && (
               <DetailSection title="Comment postuler">
                 <div className="space-y-4">
                   {emailChannel && (
@@ -349,6 +359,8 @@ function JobDetailInner() {
                     </div>
                   )}
                   {sections.application.length > 0 && renderBullets(sections.application)}
+                  {!emailChannel && !phoneChannel && !applicationLink && sourceLink && <p className="text-sm leading-6 text-amber-800">Aucun contact ni formulaire de candidature n’a été confirmé dans les données collectées. Consultez l’annonce originale pour vérifier la procédure et la disponibilité du poste.</p>}
+                  {sourceLink && <a href={sourceLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-black text-blue-700 underline underline-offset-4">Consulter l’annonce originale <ExternalLink size={15}/></a>}
                   {applicationMode && <p className="text-sm leading-6 text-slate-500">{applicationMode}</p>}
                 </div>
               </DetailSection>
@@ -357,8 +369,8 @@ function JobDetailInner() {
             {deadline && <DetailSection title="Délai"><div className="flex items-start gap-3 rounded-2xl bg-[#FFFBEA] p-4"><CalendarDays size={18} className="mt-0.5 shrink-0 text-amber-700"/><div><p className="text-sm font-black text-[#17212B]">{deadlineExpired ? "Date limite dépassée" : "Candidatures jusqu’au"}</p><p className="mt-1 text-sm leading-6 text-slate-600">{deadline}</p></div></div></DetailSection>}
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <button disabled={busy || deadlineExpired} onClick={apply} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#FFD60A] px-5 py-4 text-sm font-black text-[#17212B] shadow-[0_10px_25px_rgba(255,214,10,.22)] transition hover:brightness-[.98] disabled:opacity-50">
-                {deadlineExpired ? <span>Offre expirée</span> : emailChannel ? <><GmailIcon/><span>Postuler</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler</span></> : <span>Postuler</span>}
+              <button disabled={busy || deadlineExpired || (!emailChannel && !phoneChannel && !applicationLink && !sourceLink)} onClick={apply} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#FFD60A] px-5 py-4 text-sm font-black text-[#17212B] shadow-[0_10px_25px_rgba(255,214,10,.22)] transition hover:brightness-[.98] disabled:opacity-50">
+                {deadlineExpired ? <span>Offre expirée</span> : emailChannel ? <><GmailIcon/><span>Postuler</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler</span></> : sourceLink ? <><ExternalLink size={17}/><span>Consulter la source</span></> : <span>Modalités indisponibles</span>}
               </button>
               <button type="button" onClick={shareOffer} className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-extrabold text-slate-600">{shared ? <CheckCircle2 size={17} className="text-emerald-600"/> : <Share2 size={17}/>}<span>{shared ? "Lien copié" : "Partager"}</span></button>
             </div>

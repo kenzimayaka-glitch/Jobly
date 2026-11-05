@@ -11,6 +11,9 @@ on:
       - "supabase/functions/discover-jobs/date-extraction.ts"
       - "supabase/functions/discover-jobs/source-registry.ts"
       - "supabase/functions/_shared/application-contact.ts"
+      - "supabase/functions/_shared/application-readiness.ts"
+      - "supabase/functions/job-harvest-ingest/index.ts"
+      - "supabase/functions/job-harvest-process/index.ts"
       - ".github/workflows/africa-shadow-crawl.yml"
   workflow_dispatch:
     inputs:
@@ -42,6 +45,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validate-harvest-readiness:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Test application contact and readiness rules
+        run: deno test supabase/functions/_shared/application-contact.test.ts supabase/functions/_shared/application-readiness.test.ts
+      - name: Type-check modified harvest functions
+        run: |
+          deno check --node-modules-dir=auto supabase/functions/discover-jobs/shadow-crawl.ts
+          deno check --node-modules-dir=auto supabase/functions/job-harvest-ingest/index.ts
+          deno check --node-modules-dir=auto supabase/functions/job-harvest-process/index.ts
+
   shadow-crawl:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -51,8 +70,10 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Test application contact extraction
-        run: deno test supabase/functions/_shared/application-contact.test.ts
+      - name: Test application contact and availability rules
+        run: |
+          deno test supabase/functions/_shared/application-contact.test.ts
+          deno test supabase/functions/_shared/application-readiness.test.ts
       - name: Type-check source batch crawler
         run: deno check supabase/functions/discover-jobs/shadow-crawl.ts
       - name: Run source batch shadow crawl
@@ -78,29 +99,34 @@ jobs:
           from datetime import datetime, timezone
           data = json.load(open("africa-shadow-crawl.json", encoding="utf-8"))
           summary = data.get("summary", data)
-          required = ["sources", "totalExtracted", "totalEligible", "contactAccepted", "contactRejected", "missingPublicationDate", "freshnessRejected", "harvestCandidates"]
+          required = ["sources", "totalExtracted", "totalEligible", "contactAccepted", "contactRejected", "contactMissingDisplayable", "missingPublicationDate", "freshnessRejected", "harvestCandidates"]
           missing = [key for key in required if key not in summary]
           if missing:
               raise SystemExit(f"Missing report fields: {missing}")
           candidates = json.load(open("africa-shadow-harvest-candidates.json", encoding="utf-8"))
-          bad_contact = [x for x in candidates if not x.get("applicationEmail") and not x.get("applicationPhone")]
           bad_date = [x for x in candidates if not x.get("published")]
-          if bad_contact or bad_date:
-              raise SystemExit(f"Invalid candidates: no_contact={len(bad_contact)}, no_publication_date={len(bad_date)}")
+          bad_identity = [x for x in candidates if not x.get("sourceKey") or not x.get("title") or not x.get("countryCode")]
+          from urllib.parse import urlparse
+          bad_source = [x for x in candidates if urlparse(x.get("url", "")).scheme not in ("http", "https") or not urlparse(x.get("url", "")).netloc]
+          bad_readiness = [x for x in candidates if not isinstance(x.get("applicationReady"), bool) or x.get("applicationReady") != bool(x.get("applicationEmail") or x.get("applicationPhone") or x.get("applicationUrl") or x.get("applyUrl"))]
+          if bad_date or bad_identity or bad_source or bad_readiness:
+              raise SystemExit(f"Invalid candidates: date={len(bad_date)}, identity={len(bad_identity)}, source_url={len(bad_source)}, readiness={len(bad_readiness)}")
           now = datetime.now(timezone.utc)
           stale = []
+          future = []
           for item in candidates:
               try:
                   published = datetime.fromisoformat(item["published"].replace("Z", "+00:00"))
                   max_age_days = 30 if item.get("publicationDateEstimated") else 62
-                  if (now - published).total_seconds() > max_age_days * 86400:
-                      stale.append(item)
-              except Exception:
-                  stale.append(item)
-          if stale:
-              raise SystemExit(f"Candidates older than two months or with invalid dates: {len(stale)}")
+                  age_seconds = (now - published).total_seconds()
+                  if age_seconds > max_age_days * 86400: stale.append(item)
+                  if age_seconds < -300: future.append(item)
+              except Exception: stale.append(item)
+          if stale or future:
+              raise SystemExit(f"Invalid freshness: stale={len(stale)}, future={len(future)}")
           print(json.dumps({key: summary[key] for key in required}, ensure_ascii=False, indent=2))
-          print(f"Candidate rows validated: {len(candidates)}")
+          direct = sum(1 for item in candidates if item.get("applicationReady"))
+          print(f"Candidate rows validated: {len(candidates)} (direct_apply={direct}, source_only={len(candidates)-direct})")
           PY
       - name: Push candidates to JobHarvestCapture
         if: (github.event_name == 'workflow_dispatch' && inputs.apply == true) || (github.event_name == 'push' && (contains(github.event.head_commit.message, 'JOBLY-LOT1-INGEST-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-V2-ONCE-20261104')))
@@ -137,10 +163,10 @@ jobs:
             echo
           done
       - name: Process approved first-batch captures
-        if: github.event_name == 'push' && (contains(github.event.head_commit.message, 'JOBLY-LOT1-INGEST-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-V2-ONCE-20261104'))
+        if: (github.event_name == 'workflow_dispatch' && inputs.apply == true) || (github.event_name == 'push' && (contains(github.event.head_commit.message, 'JOBLY-LOT1-INGEST-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-V2-ONCE-20261104')))
         env:
           PROCESS_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-process
-          SOURCE_KEYS: 'inep_mozambique,lmis_sl,nelex_ng,ajira_portal,sica_anpe_bj,zimbabwe_psc_erecruitment,anpe_bj,anpe_bf,anpe_ne,anpetogo,essa_sa,hrjobs_liberia,iefp_cv,kenya_psc_jobs,oppz_zambia_jobs,onem_app_cd,senjob_sn,south_africa_gov_jobs,beta_mauritania,botswana_mof_recruitment'
+          SOURCE_KEYS: ${{ inputs.source_keys || 'inep_mozambique,lmis_sl,nelex_ng,ajira_portal,sica_anpe_bj,zimbabwe_psc_erecruitment,anpe_bj,anpe_bf,anpe_ne,anpetogo,essa_sa,hrjobs_liberia,iefp_cv,kenya_psc_jobs,oppz_zambia_jobs,onem_app_cd,senjob_sn,south_africa_gov_jobs,beta_mauritania,botswana_mof_recruitment' }}
         run: |
           OIDC_TOKEN="$(curl --fail-with-body --silent --show-error -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=jobly-harvest")"
           TOKEN="$(python -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "$OIDC_TOKEN")"
@@ -153,7 +179,12 @@ jobs:
           print(json.dumps({"limit":40,"sourceKeys":keys}))
           PY
           )"
-          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 5 -X POST "$PROCESS_URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data "$BODY"
+          for pass in $(seq 1 25); do
+            RESPONSE="$(curl --fail-with-body --silent --show-error --retry 3 --retry-delay 5 -X POST "$PROCESS_URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data "$BODY")"
+            echo "$RESPONSE"
+            SELECTED="$(python -c 'import json,sys; print(int(json.load(sys.stdin).get("selected",0)))' <<< "$RESPONSE")"
+            test "$SELECTED" -ge 40 || break
+          done
 
       - name: Upload shadow report
         uses: actions/upload-artifact@v4
