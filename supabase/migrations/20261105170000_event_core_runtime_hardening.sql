@@ -42,7 +42,7 @@ CREATE OR REPLACE FUNCTION public.create_event_featured_campaign(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
   v_slot integer;
@@ -120,7 +120,7 @@ CREATE OR REPLACE FUNCTION public.finalize_event_publication(
 RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
   v_payment public."Payment"%ROWTYPE;
@@ -181,7 +181,7 @@ CREATE OR REPLACE FUNCTION public.finalize_event_featured_payment(
 RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
   v_payment public."Payment"%ROWTYPE;
