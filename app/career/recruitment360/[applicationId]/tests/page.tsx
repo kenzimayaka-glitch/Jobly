@@ -57,6 +57,9 @@ export default function CandidateRecruitmentTestPage() {
   }
 
   async function start(test:Test){
+    const latest=sessions.find(item=>item.testId===test.id);
+    if(latest?.status==="RUNNING"){setError("");try{await loadTest(test,latest.id);}catch(cause){setError(cause instanceof Error?cause.message:"Reprise impossible.");}return;}
+    if(latest&&latest.attempt>=test.maxattempts)return;
     setBusy(test.id);setError("");
     try{
       const accessToken=await token();
@@ -110,7 +113,7 @@ export default function CandidateRecruitmentTestPage() {
       {loading?<Card>Chargement…</Card>:null}
       {!loading&&!activeTest&&<div className="space-y-3">{tests.length===0?<Card className="text-sm text-slate-600">Aucun test publié pour cette candidature.</Card>:tests.map(test=>{
         const latest=sessions.find(item=>item.testId===test.id);
-        return <Card key={test.id}><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-bold">{test.title}</h2><p className="text-sm text-slate-600">{test.durationseconds} s · {test.maxattempts} tentative(s) maximum</p>{test.instructions&&<p className="mt-1 text-sm">{test.instructions}</p>}{latest&&<p className="mt-1 text-xs text-slate-600">Dernière tentative : {latest.status}{latest.score!=null?" · "+latest.score+"%":""}</p>}</div><Button disabled={busy!==null} loading={busy===test.id} onClick={()=>void start(test)}>{latest?.status==="RUNNING"?"Reprendre":"Commencer"}</Button></div></Card>;
+        return <Card key={test.id}><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-bold">{test.title}</h2><p className="text-sm text-slate-600">{test.durationseconds} s · {test.maxattempts} tentative(s) maximum</p>{test.instructions&&<p className="mt-1 text-sm">{test.instructions}</p>}{latest&&<p className="mt-1 text-xs text-slate-600">Dernière tentative : {latest.status}{latest.score!=null?" · "+latest.score+"%":""}</p>}</div><Button disabled={busy!==null||(!!latest&&latest.status!=="RUNNING"&&latest.attempt>=test.maxattempts)} loading={busy===test.id} onClick={()=>void start(test)}>{latest?.status==="RUNNING"?"Reprendre":latest&&latest.attempt>=test.maxattempts?"Tentatives épuisées":"Commencer"}</Button></div></Card>;
       })}</div>}
       {activeTest&&session&&<section className="space-y-3">
         <Card><h2 className="font-bold">{activeTest.title}</h2><p className="text-sm text-slate-600">Tentative {session.attempt} · Échéance : {new Date(session.expiresAt).toLocaleString("fr-FR")}</p><p className="mt-1 text-xs text-slate-600">Chaque réponse est sauvegardée automatiquement. Ne fermez pas la page avant l'envoi.</p></Card>
@@ -122,7 +125,7 @@ export default function CandidateRecruitmentTestPage() {
               const value=String(choice?.value??choice?.id??choice?.label??choice);
               const label=String(choice?.label??choice?.text??choice?.value??choice);
               return <label key={i} className="flex items-center gap-2 rounded-xl border p-3 text-sm"><input type="radio" name={question.id} value={value} checked={saved===value} disabled={busy!==null||session.status!=="RUNNING"} onChange={()=>void saveAnswer(question.id,value)}/>{label}</label>;
-            })}</div>:type==="NUMBER"?<input type="number" value={saved} disabled={busy!==null||session.status!=="RUNNING"} onChange={event=>setAnswers(current=>({...current,[question.id]:event.target.value}))} onBlur={event=>{if(event.target.value!==saved)void saveAnswer(question.id,event.target.value);else if(event.target.value)void saveAnswer(question.id,event.target.value);}} className="w-full rounded-xl border p-3" placeholder="Votre réponse numérique"/>:<p className="text-sm text-amber-700">Ce type de question ({type}) n'est pas pris en charge par le moteur de correction automatique. Le test ne peut pas être envoyé en sécurité.</p>}
+            })}</div>:type==="NUMBER"?<input type="number" value={saved} disabled={busy!==null||session.status!=="RUNNING"} onChange={event=>setAnswers(current=>({...current,[question.id]:event.target.value}))} onBlur={()=>{if(saved.trim())void saveAnswer(question.id,saved);}} className="w-full rounded-xl border p-3" placeholder="Votre réponse numérique"/>:<p className="text-sm text-amber-700">Ce type de question ({type}) n'est pas pris en charge par le moteur de correction automatique. Le test ne peut pas être envoyé en sécurité.</p>}
             {busy===question.id&&<p className="mt-2 text-xs text-slate-500">Enregistrement…</p>}
           </Card>;
         })}
