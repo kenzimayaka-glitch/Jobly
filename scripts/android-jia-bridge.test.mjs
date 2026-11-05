@@ -11,6 +11,8 @@ test("Android module is an isolated native application with HTTPS only", () => {
   assert.match(manifest, /android.permission.INTERNET/);
   assert.match(gradle, /androidx\.webkit:webkit:1\.18\.0/);
   assert.match(gradle, /minSdk = 24/);
+  assert.match(gradle, /compilerOptions/);
+  assert.doesNotMatch(gradle, /kotlinOptions/);
 });
 
 test("native bridge is origin-restricted and rejects iframe messages", () => {
