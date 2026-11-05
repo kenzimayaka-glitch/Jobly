@@ -64,6 +64,19 @@ jobs:
       - name: Mission Afrique date extraction tests
         run: deno test supabase/functions/discover-jobs/date-extraction.test.ts
 
+      - name: Offer quality and application-contact tests
+        run: >
+          deno test
+          supabase/functions/_shared/application-contact.test.ts
+          supabase/functions/_shared/application-readiness.test.ts
+          supabase/functions/_shared/job-sector-classification.test.ts
+
+      - name: Validate offer ingestion functions
+        run: >
+          deno check
+          supabase/functions/discover-jobs/index.ts
+          supabase/functions/job-harvest-process/index.ts
+
       - name: Validate Prisma schema
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly?schema=public
