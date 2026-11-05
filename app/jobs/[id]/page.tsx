@@ -22,6 +22,7 @@ import PageHeader from "@/components/PageHeader";
 import BottomNav from "@/components/BottomNav";
 import TalentBackground from "@/components/TalentBackground";
 import CompanyLogo from "@/components/CompanyLogo";
+import JoblyOfferWatermark from "@/components/JoblyOfferWatermark";
 import { parseJobDetailSections, type JobDetailSections } from "@/lib/jobContent";
 import { normalizeJobIdentity } from "@/lib/jobNormalizer";
 import { extractApplicationEmail, extractApplicationSubject } from "@/lib/applicationSubject";
@@ -341,9 +342,10 @@ function JobDetailInner() {
       <div className="relative z-10">
         <PageHeader label="Détail de l’offre" onBack={() => router.replace("/jobs")} theme="talent"/>
         <div className="mx-auto max-w-4xl px-4 py-5 sm:px-6 sm:py-8">
-          <section className="overflow-hidden rounded-[30px] border border-slate-100 bg-white shadow-[0_18px_55px_rgba(23,33,43,0.07)]">
-            <div className="h-1.5 bg-[#FFD60A]"/>
-            <div className="p-5 sm:p-8">
+          <section className="relative isolate overflow-hidden rounded-[30px] border border-slate-100 bg-white shadow-[0_18px_55px_rgba(23,33,43,0.07)]">
+            <JoblyOfferWatermark/>
+            <div className="relative z-10 h-1.5 bg-[#FFD60A]"/>
+            <div className="relative z-10 p-5 sm:p-8">
               <div className="flex items-start gap-4 sm:gap-5">
                 <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-[#F3F6FA] sm:h-20 sm:w-20"><CompanyLogo companyName={company} logoUrl={job.company?.logoUrl} domain={job.company?.domain} website={job.company?.website} size={64}/></div>
                 <div className="min-w-0 flex-1">

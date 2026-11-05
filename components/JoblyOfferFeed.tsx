@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 import { companyAvatar } from "@/lib/avatar";
 import CompanyLogo from "@/components/CompanyLogo";
+import JoblyOfferWatermark from "@/components/JoblyOfferWatermark";
 import BottomNav, { TALENT_NAV } from "@/components/BottomNav";
 import { cleanCompanyName, cleanJobTitle, cleanJobDescription, cleanDisplayText } from "@/lib/jobContent";
 import ScoreRing from "@/components/ScoreRing";
@@ -709,7 +710,9 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
       <div className="relative z-10 mt-5 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-[1px] text-slate-500"><button type="button" onClick={() => setMatchOnly(v => !v)} className={matchOnly ? "rounded-full border border-[#F97316] bg-[#F97316] px-3 py-2 text-white shadow-[0_8px_22px_rgba(249,115,22,.24)]" : "rounded-full border border-[#F97316]/30 bg-[#FFF7ED] px-3 py-2 text-[#C2410C]"}>Les offres qui vous correspondent : <span className="text-xs font-black text-[#FFE135]">{feedMeta.matchingCount}</span></button></div>
     </section>
 
-    <section ref={offersStartRef} id="jobly-offers-start" className="mx-auto w-full max-w-full min-w-0 overflow-x-clip px-5 scroll-mt-6 sm:px-8 lg:max-w-6xl">
+    <section ref={offersStartRef} id="jobly-offers-start" className="relative isolate mx-auto w-full max-w-full min-w-0 overflow-x-clip px-5 scroll-mt-6 sm:px-8 lg:max-w-6xl">
+      <JoblyOfferWatermark/>
+      <div className="relative z-10">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[1.8px] text-[#7A9BB5]">{marketLabel}</p>
@@ -843,6 +846,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
           )}
         </div>
       )}
+    </div>
     </section>
 
     {basketJobs.length > 0 && (
