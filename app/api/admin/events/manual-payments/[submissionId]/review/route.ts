@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, ensureUser, getAuthUser } from "../../../../../../lib/server-auth";
+import { adminClient, ensureUser, getAuthUser } from "../../../../../../../lib/server-auth";
 
 const fail=(message:string,status=400,code="MANUAL_PAYMENT_REVIEW_ERROR")=>NextResponse.json({message,error:code},{status});
 
