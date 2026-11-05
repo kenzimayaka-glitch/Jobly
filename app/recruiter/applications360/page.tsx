@@ -81,7 +81,7 @@ export default function Applications360() {
         eyebrow="LOT 3"
         title="Candidatures & sélection"
         subtitle="ATS, critères, justificatifs, vivier et décisions de présélection."
-        actions={<div className="flex flex-wrap gap-2"><Button href="/recruiter">Tableau de bord</Button><Button href="/recruiter/listings" variant="ghost">Listings officiels</Button></div>}
+        actions={<div className="flex flex-wrap gap-2"><Button href="/recruiter">Tableau de bord</Button><Button href="/recruiter/interviews360" variant="ghost">Entretiens</Button><Button href="/recruiter/listings" variant="ghost">Listings officiels</Button></div>}
       />
       {error && <p role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {state === "loading" && <LoadingState />}
