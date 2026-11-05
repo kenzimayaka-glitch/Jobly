@@ -40,6 +40,15 @@ const asDate = (value: unknown): string | null => {
 const clean = (value: unknown, max = 30000): string =>
   decodeHtmlEntities(value).replace(/\s+/g, " ").trim().slice(0, max);
 
+function fingerprint(value: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index++) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16);
+}
+
 const safeTextArray = (value: unknown, maxItems = 40): string[] =>
   Array.isArray(value)
     ? value.map((item) => clean(item, 100)).filter(Boolean).slice(0, maxItems)
@@ -314,7 +323,9 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
   }
 
   const companyId = await findOrCreateCompany(db, companyName, payload);
-  const normalizedContent = {
+  const contentHash = clean(capture.contentHash ?? payload.contentHash, 128) ||
+    fingerprint([sourceKey, externalId, title, companyName, location, description].join("|"));
+  let normalizedContent = {
     version: "jobly-offer-v3",
     displayModel,
     title,
@@ -341,6 +352,15 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
     applicationAvailability: applicationReadiness.applicationAvailability,
     sourceUrl,
     sourceVerified: true,
+    sections: {},
+    presentation: {
+      layout: "STRUCTURED",
+      sourceKey,
+      sourceLabel: clean(payload.sourceName ?? payload.source ?? sourceKey, 180),
+      sourceDisplayModel: displayModel,
+      sections: [],
+    },
+    aiProcessing: { status: "PENDING", provider: "GEMINI" },
   };
 
   const jobValues: AnyRecord = {
@@ -364,9 +384,11 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
     minExperienceYears,
     sourceKey,
     externalId,
-    contentHash: clean(capture.contentHash ?? payload.contentHash, 128) || null,
+    contentHash,
     sourcePublishedAt: publicationDate,
     aiProcessed: false,
+    aiProcessedAt: null,
+    aiQualityScore: null,
     aiFlags: [],
     aiSkills: safeTextArray(payload.skills),
     applicationReady: hasApplicationRoute,
@@ -385,7 +407,7 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
 
   let existing: AnyRecord | null = null;
   const byExternalId = await db.from("Job")
-    .select("id,createdAt")
+    .select("id,createdAt,contentHash,aiProcessed,aiProcessedAt,aiQualityScore,aiSummary,aiFlags,aiSkills,normalizedContent,normalizedVersion,normalizedAt")
     .eq("sourceKey", sourceKey)
     .eq("externalId", externalId)
     .maybeSingle();
@@ -394,7 +416,7 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
 
   if (!existing) {
     const bySourceUrl = await db.from("Job")
-      .select("id,createdAt")
+      .select("id,createdAt,contentHash,aiProcessed,aiProcessedAt,aiQualityScore,aiSummary,aiFlags,aiSkills,normalizedContent,normalizedVersion,normalizedAt")
       .eq("source", jobValues.source)
       .eq("sourceUrl", sourceUrl)
       .maybeSingle();
@@ -404,6 +426,26 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
 
   let jobId: string;
   if (existing?.id) {
+    const previousNormalized = asRecord(existing.normalizedContent);
+    const sameContent = Boolean(existing.contentHash && jobValues.contentHash && existing.contentHash === jobValues.contentHash);
+    if (sameContent && existing.aiProcessed === true) {
+      jobValues.aiProcessed = true;
+      jobValues.aiProcessedAt = existing.aiProcessedAt ?? null;
+      jobValues.aiQualityScore = existing.aiQualityScore ?? null;
+      jobValues.aiSummary = existing.aiSummary ?? jobValues.aiSummary;
+      jobValues.aiFlags = Array.isArray(existing.aiFlags) ? existing.aiFlags : [];
+      jobValues.aiSkills = Array.isArray(existing.aiSkills) ? existing.aiSkills : jobValues.aiSkills;
+      normalizedContent = {
+        ...normalizedContent,
+        sections: previousNormalized.sections ?? normalizedContent.sections,
+        presentation: previousNormalized.presentation ?? normalizedContent.presentation,
+        aiClassification: previousNormalized.aiClassification ?? null,
+        aiProcessing: { status: "COMPLETE", provider: "GEMINI", processedAt: existing.aiProcessedAt ?? null },
+      };
+      jobValues.normalizedContent = normalizedContent;
+      jobValues.normalizedVersion = existing.normalizedVersion || "jobly-offer-ai-v1";
+      jobValues.normalizedAt = existing.normalizedAt || nowIso;
+    }
     const { error } = await db.from("Job").update(jobValues).eq("id", existing.id);
     if (error) throw new Error("JOB_UPDATE_FAILED: " + error.message);
     jobId = existing.id;
@@ -446,7 +488,7 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
     captureMode,
     rawPayload,
     extractedText: capture.extractedText ?? description,
-    canonicalContent: normalizedContent,
+    canonicalContent: jobValues.normalizedContent,
     qualityScore: null,
     confidence,
     status: "READY",
