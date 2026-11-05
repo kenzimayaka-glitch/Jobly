@@ -172,11 +172,15 @@ export async function POST(request:NextRequest){
       return NextResponse.json({eventId:id,status:"PENDING_PAYMENT",pricing,audienceEstimate:estimateEventAudience({domain,secondaryDomains:subdomains,city:body.city,audience}),payment:{id:paymentId,checkoutReference:intent.checkoutReference,instructions:intent.instructions}},{status:201});
     }catch(providerError){
       const message=providerError instanceof Error?providerError.message:"Fournisseur indisponible.";
-      await Promise.all([
-        sb.from("Payment").update({status:"FAILED",failureReason:message.slice(0,240),updatedAt:new Date().toISOString()}).eq("id",paymentId),
-        sb.from("EventPayment").update({status:"FAILED",updatedAt:new Date().toISOString()}).eq("paymentId",paymentId)
+      const failedAt=new Date().toISOString();
+      const failedWrites=await Promise.all([
+        sb.from("Payment").update({status:"FAILED",failureReason:message.slice(0,240),updatedAt:failedAt}).eq("id",paymentId),
+        sb.from("EventPayment").update({status:"FAILED",updatedAt:failedAt}).eq("paymentId",paymentId),
+        sb.from("Event").update({status:"DRAFT",updatedAt:failedAt}).eq("id",id)
       ]);
-      return fail("Le fournisseur de paiement n'a pas pu démarrer la transaction. L'événement reste en attente de paiement.",503,"PAYMENT_PROVIDER_UNAVAILABLE");
+      const writeFailure=failedWrites.find(result=>result.error);
+      if(writeFailure?.error)throw new Error(writeFailure.error.message);
+      return fail("Le fournisseur de paiement n'a pas pu démarrer la transaction. L'événement est revenu en brouillon.",503,"PAYMENT_PROVIDER_UNAVAILABLE");
     }
   }catch(e){
     return fail(e instanceof Error?e.message:"Création impossible.",500);
