@@ -121,7 +121,7 @@ test("la validation institutionnelle exige accès, éligibilité et garantie", (
 
 
 test("les tables prestataires et les pièces KYC utilisent un coffre privé", () => {
-  const sql = readFileSync(new URL("../supabase/migrations/20261105170000_mobility_provider_funding_runtime.sql", import.meta.url), "utf8");
+  const sql = readFileSync(new URL("../supabase/migrations/20261105171849_mobility_provider_funding_runtime.sql", import.meta.url), "utf8");
   assert.ok(sql.includes('create table if not exists public."MobilityServiceProvider"'));
   assert.ok(sql.includes('create table if not exists public."MobilityProviderService"'));
   assert.ok(sql.includes('create table if not exists public."MobilityProviderAssignment"'));
@@ -134,7 +134,7 @@ test("les tables prestataires et les pièces KYC utilisent un coffre privé", ()
 });
 
 test("les allocations imposent une candidature approuvée, une preuve budgétaire et le rejet des DEMO", () => {
-  const sql = readFileSync(new URL("../supabase/migrations/20261105170000_mobility_provider_funding_runtime.sql", import.meta.url), "utf8");
+  const sql = readFileSync(new URL("../supabase/migrations/20261105171849_mobility_provider_funding_runtime.sql", import.meta.url), "utf8");
   assert.ok(sql.includes("MOBILITY_PROGRAM_APPLICATION_NOT_APPROVED"));
   assert.ok(sql.includes("MOBILITY_PROGRAM_BUDGET_EXCEEDED"));
   assert.ok(sql.includes("MOBILITY_PROGRAM_NOT_FUNDING_READY"));
@@ -145,7 +145,7 @@ test("les allocations imposent une candidature approuvée, une preuve budgétair
 });
 
 test("le décaissement exige une preuve externe et reste en attente avant vérification", () => {
-  const sql = readFileSync(new URL("../supabase/migrations/20261105170000_mobility_provider_funding_runtime.sql", import.meta.url), "utf8");
+  const sql = readFileSync(new URL("../supabase/migrations/20261105171849_mobility_provider_funding_runtime.sql", import.meta.url), "utf8");
   const route = readFileSync(new URL("../app/api/institution/mobility/funding/disburse/route.ts", import.meta.url), "utf8");
   assert.ok(sql.includes("PENDING_VERIFICATION"));
   assert.ok(sql.includes("mobility_verify_funding_disbursement"));
@@ -213,7 +213,7 @@ test("la règle de seuil ne valide jamais un coût supérieur à 50 % masqué pa
 });
 
 test("la migration aligne MobilityRequest.recruiterGuaranteed avec le modèle Prisma", () => {
-  const sql = readFileSync(new URL("../supabase/migrations/20261105170000_mobility_provider_funding_runtime.sql", import.meta.url), "utf8");
+  const sql = readFileSync(new URL("../supabase/migrations/20261105171849_mobility_provider_funding_runtime.sql", import.meta.url), "utf8");
   const schema = readFileSync(new URL("../packages/database/prisma/schema.prisma", import.meta.url), "utf8");
   assert.match(sql, /alter table public\."MobilityRequest"[\s\S]*add column if not exists "recruiterGuaranteed" boolean not null default false/);
   assert.match(schema, /recruiterGuaranteed Boolean\s+@default\(false\)/);
