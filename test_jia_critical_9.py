@@ -114,6 +114,7 @@ assert "journeyUpdateError" in career_journey and "if (!persistedJourney)" in ca
 assessment_route = read("app/api/career-journey/assessments/route.ts")
 assert "updateAssessmentError" in assessment_route, "Assessment result update errors must be surfaced"
 assert "evidenceError" in assessment_route and "evidenceId" in assessment_route, "Assessment evidence persistence must be confirmed"
+assert "rollbackAssessmentAttempt" in assessment_route and "lastAttemptError" in assessment_route, "Assessment partial writes and attempt-number reads must be handled"
 
 health_route = read("app/api/jia/health/route.ts")
 assert "runtimeEvidence" in health_route and "outcomeLoopObserved" in health_route, "J'IA health must report observed persistence evidence"
@@ -126,6 +127,7 @@ assert "outcomes: true" not in health_route, "J'IA health must not claim outcome
 
 mission_update = career_journey[career_journey.index("export async function updateMission"):career_journey.index("export async function validateMissionOwnership")]
 assert "missionUpdateError" in mission_update and "if (!missionUpdate)" in mission_update, "Mission transitions must persist their audit journal"
+assert '.eq("status", mission.status)' in mission_update and "rollback" in mission_update, "Mission transitions must guard concurrency and compensate an audit failure"
 
 journey_route = read("app/api/career-journey/route.ts")
 assert "evidenceResult.error" in journey_route and "portfolioResult.error" in journey_route, "Journey GET must surface proof/portfolio read failures"
