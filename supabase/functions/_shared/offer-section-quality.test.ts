@@ -67,13 +67,13 @@ Deno.test("splits a full French offer body into introduction, missions and profi
     description: [
       "Présentation du poste Nous recrutons un commercial pour développer le réseau. Missions principales Prospecter les clients, suivre les ventes et établir les rapports. Profil recherché Détenir un diplôme commercial et justifier de trois ans d'expérience. Comment postuler Envoyer le CV par e-mail.",
     ],
-    education: ["Bac+3 Missions principales fragmentées à tort"],
-    skills: ["maîtrise des"],
+    education: ["Détenir un diplôme commercial"],
+    skills: ["maîtrise des", "SAP"],
   });
   assertEquals(result.sections.description, ["Nous recrutons un commercial pour développer le réseau."]);
   assertEquals(result.sections.missions, ["Prospecter les clients, suivre les ventes et établir les rapports."]);
   assertEquals(result.sections.profile, ["Détenir un diplôme commercial et justifier de trois ans d'expérience."]);
   assertEquals(result.sections.application, ["Comment postuler Envoyer le CV par e-mail."]);
   assertEquals(result.sections.education, []);
-  assertEquals(result.sections.skills, []);
+  assertEquals(result.sections.skills, ["SAP"]);
 });
