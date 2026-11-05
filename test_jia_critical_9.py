@@ -102,6 +102,24 @@ policy = read("lib/jia/policy.ts")
 assert "JIA_NEVER_EXECUTES_PAYMENTS" in policy
 assert "isPayment" in policy
 
+# P2 runtime, persistence and outcome-loop regression checks.
+cycle_route = read("app/api/jia/cycle/route.ts")
+consent_guard = cycle_route.index("privacyAcceptedAt")
+cognitive_execution = cycle_route.index("runUnifiedCognitiveCycle")
+assert consent_guard < cognitive_execution, "J'IA cognitive writes must remain behind the privacy-consent gate"
+
+career_journey = read("lib/careerJourney.ts")
+assert "journeyUpdateError" in career_journey and "if (!persistedJourney)" in career_journey, "Career Journey reassessment must confirm its persisted state"
+
+assessment_route = read("app/api/career-journey/assessments/route.ts")
+assert "updateAssessmentError" in assessment_route, "Assessment result update errors must be surfaced"
+assert "evidenceError" in assessment_route and "evidenceId" in assessment_route, "Assessment evidence persistence must be confirmed"
+
+health_route = read("app/api/jia/health/route.ts")
+assert "runtimeEvidence" in health_route and "outcomeLoopObserved" in health_route, "J'IA health must report observed persistence evidence"
+assert "verifiedActionRuns" in health_route and "predictionOutcomes" in health_route, "J'IA health must distinguish proposals from verified outcomes"
+assert "outcomes: true" not in health_route, "J'IA health must not claim outcomes without persisted evidence"
+
 print("J'IA CRITICAL 9-WORKSTREAM CONTRACT: PASS")
 print("Architecture coverage is present across all nine workstreams.")
 print("This test does NOT claim P3/P4/E2E/production validation; those require execution evidence.")

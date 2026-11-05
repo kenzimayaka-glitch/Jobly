@@ -41,22 +41,34 @@ export async function POST(request: NextRequest) {
       }).select("*").single();
       if (error) throw new Error(error.message);
 
+      let evidenceId: string | null = null;
       if (score !== null) {
-        await ctx.supabase.from("CareerCompetencyAssessment").update({
-          score, resultSummary: typeof body.resultSummary === "string" ? body.resultSummary.trim() : "Évaluation réalisée sur cet exercice.",
-          dimensions: body.dimensions ?? null,
-          limitations: ["Résultat limité aux conditions de l'exercice.", "Ne constitue pas une certification officielle."],
-        }).eq("id", assessment.id).eq("userId", ctx.user.id);
-        await ctx.supabase.from("CareerEvidence").insert({
+        const { data: updatedAssessment, error: updateAssessmentError } = await ctx.supabase
+          .from("CareerCompetencyAssessment")
+          .update({
+            score, resultSummary: typeof body.resultSummary === "string" ? body.resultSummary.trim() : "Évaluation réalisée sur cet exercice.",
+            dimensions: body.dimensions ?? null,
+            limitations: ["Résultat limité aux conditions de l'exercice.", "Ne constitue pas une certification officielle."],
+          })
+          .eq("id", assessment.id)
+          .eq("userId", ctx.user.id)
+          .select("id")
+          .maybeSingle();
+        if (updateAssessmentError) throw new Error(`Impossible de sauvegarder le résultat de l'évaluation : ${updateAssessmentError.message}`);
+        if (!updatedAssessment) throw new Error("Le résultat de l'évaluation n'a modifié aucun enregistrement.");
+
+        const { data: evidence, error: evidenceError } = await ctx.supabase.from("CareerEvidence").insert({
           id: crypto.randomUUID(), userId: ctx.user.id, assessmentId: assessment.id,
           type: "ASSESSMENT", provenance: "AI_EVALUATED",
           title: `Évaluation — ${assessment.competency}`,
           description: typeof body.resultSummary === "string" ? body.resultSummary.trim() : "Résultat d'une évaluation facultative.",
           acceptedByUser: Boolean(body.acceptedByUser),
           metadata: { score, attemptNumber, format: assessment.format },
-        });
+        }).select("id").single();
+        if (evidenceError) throw new Error(`Impossible de sauvegarder la preuve d'évaluation : ${evidenceError.message}`);
+        evidenceId = evidence.id;
       }
-      return NextResponse.json({ ok: true, attempt: data, note: "Le test reste facultatif et ne bloque ni le profil ni la candidature." });
+      return NextResponse.json({ ok: true, attempt: data, evidenceId, note: "Le test reste facultatif et ne bloque ni le profil ni la candidature." });
     }
 
     const entitlements = await getCareerJourneyEntitlements(ctx.supabase, ctx.user.id);

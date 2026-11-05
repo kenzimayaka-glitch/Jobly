@@ -163,12 +163,20 @@ export async function generateJourneyRecommendations(ctx: Awaited<ReturnType<typ
       alternatives: ["Adapter le CV", "Préparer un entretien", "Explorer un autre objectif"],
     }));
   }
-  await supabase.from("CareerJourney").update({
-    latestReadiness: assessment.readiness,
-    latestSnapshot: { readiness: assessment.readiness, currentLevel: assessment.currentLevel, targetLevel: assessment.targetLevel, dimensions: assessment.dimensions, gaps: assessment.gaps, nextBestAction: assessment.nextBestAction, missingData },
-    lastReevaluatedAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }).eq("id", journey.id).eq("userId", user.id);
+  const { data: persistedJourney, error: journeyUpdateError } = await supabase
+    .from("CareerJourney")
+    .update({
+      latestReadiness: assessment.readiness,
+      latestSnapshot: { readiness: assessment.readiness, currentLevel: assessment.currentLevel, targetLevel: assessment.targetLevel, dimensions: assessment.dimensions, gaps: assessment.gaps, nextBestAction: assessment.nextBestAction, missingData },
+      lastReevaluatedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+    .eq("id", journey.id)
+    .eq("userId", user.id)
+    .select("id")
+    .maybeSingle();
+  if (journeyUpdateError) throw new Error(`Impossible de persister la réévaluation Career Journey : ${journeyUpdateError.message}`);
+  if (!persistedJourney) throw new Error("La réévaluation Career Journey n'a modifié aucun parcours.");
   return { assessment, created };
 }
 
