@@ -238,7 +238,7 @@ function JobDetailInner() {
   const displayCompany = normalizedIdentity.companyName;
   const company = displayCompany;
   const phoneChannel = Boolean(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.length);
-  const applicationLink = safeExternalUrl(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl || job.applicationProfile?.url);
+  const applicationLink = safeExternalUrl(job.applicationProfile?.applicationUrl || job.applicationProfile?.applyUrl);
   const sourceLink = safeExternalUrl(job.sourceUrl || job.applicationProfile?.sourceUrl);
   const contract = normalized?.contractType || null;
   const remoteMode = normalized?.remoteMode || null;
