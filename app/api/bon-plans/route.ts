@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser, newId } from "../../../lib/server-auth";
-import { announceEventToCommunities } from "@/lib/community/automation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -105,6 +104,27 @@ export async function GET(request: NextRequest) {
   });
 }
 
+function parseOptionalDate(value: unknown) {
+  const raw = normalize(value);
+  if (!raw) return { value: null as string | null, invalid: false };
+  const date = new Date(raw);
+  return Number.isFinite(date.getTime())
+    ? { value: date.toISOString(), invalid: false }
+    : { value: null, invalid: true };
+}
+
+function parseOptionalHttpUrl(value: unknown) {
+  const raw = normalize(value);
+  if (!raw) return { value: null as string | null, invalid: false };
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return { value: null, invalid: true };
+    return { value: url.toString(), invalid: false };
+  } catch {
+    return { value: null, invalid: true };
+  }
+}
+
 export async function POST(request: NextRequest) {
   const authUser = await getAuthUser(request);
   if (!authUser) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
@@ -120,6 +140,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Titre limité à 140 caractères et description à 4 000 caractères." }, { status: 400 });
   }
 
+  const sourceUrl = parseOptionalHttpUrl(body.sourceUrl);
+  const startsAt = parseOptionalDate(body.startsAt);
+  const expiresAt = parseOptionalDate(body.expiresAt);
+  if (sourceUrl.invalid) return NextResponse.json({ error: "Le lien source doit être une URL HTTP ou HTTPS valide." }, { status: 400 });
+  if (startsAt.invalid || expiresAt.invalid) return NextResponse.json({ error: "Les dates fournies sont invalides." }, { status: 400 });
+  if (startsAt.value && expiresAt.value && expiresAt.value <= startsAt.value) {
+    return NextResponse.json({ error: "La date d’expiration doit être postérieure à la date de début." }, { status: 400 });
+  }
+
   const db = adminClient();
   const user = await ensureUser(db, authUser);
   const now = new Date().toISOString();
@@ -131,11 +160,11 @@ export async function POST(request: NextRequest) {
     category,
     country: normalize(body.country) || user.country || null,
     city: normalize(body.city) || null,
-    sourceUrl: normalize(body.sourceUrl) || null,
-    imageUrl: normalize(body.imageUrl) || null,
-    status: "PUBLISHED",
-    startsAt: normalize(body.startsAt) || null,
-    expiresAt: normalize(body.expiresAt) || null,
+    sourceUrl: sourceUrl.value,
+    imageUrl: null,
+    status: "PENDING_REVIEW",
+    startsAt: startsAt.value,
+    expiresAt: expiresAt.value,
     createdAt: now,
     updatedAt: now,
   };
@@ -143,21 +172,5 @@ export async function POST(request: NextRequest) {
   const { data, error } = await db.from("BonPlan").insert(payload).select("*").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const normalizedCategory = category.toLowerCase();
-  let communityAnnouncement = null;
-  if (["event", "events", "événement", "événements"].includes(normalizedCategory)) {
-    communityAnnouncement = await announceEventToCommunities(db, {
-      id: data.id,
-      title: data.title,
-      description: data.description,
-      imageUrl: data.imageUrl,
-      sourceUrl: data.sourceUrl,
-      discipline: normalize(body.discipline) || null,
-      categories: Array.isArray(body.communityCategories)
-        ? body.communityCategories.filter((value: unknown): value is string => typeof value === "string")
-        : [],
-    });
-  }
-
-  return NextResponse.json({ item: data, communityAnnouncement }, { status: 201 });
+  return NextResponse.json({ item: data, reviewStatus: "PENDING_REVIEW" }, { status: 201 });
 }
