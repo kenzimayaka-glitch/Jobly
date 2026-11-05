@@ -21,14 +21,17 @@ type Experience = { startDate: string; title?: string | null; description?: stri
 type NormalizedContent = { version?:string; title?:string|null; company?:string|null; location?:string[]; contractType?:string|null; remoteMode?:string|null; salary?:{min:number|null;max:number|null;currency:string|null}; deadline?:string|null; description?:string[]; missions?:string[]; profile?:string[]; education?:string[]; experience?:string[]; skills?:string[]; qualities?:string[]; benefits?:string[]; application?:string[]; sector?:string|null; source?:{name?:string;url?:string}; qualityScore?:number|null };
 type Job = { id:string; opportunityType?:string|null; title:string; description:string; location:string|null; contractType:string|null; remoteMode:string|null; minExperienceYears:number|null; isActive:boolean; createdAt:string; companyId:string|null; source:string|null; sourceUrl:string|null; deadline:string|null; lastSeenAt:string|null; sourcePublishedAt:string|null; applicationReady:boolean; applicationProfile:Record<string,unknown>; visualUrl:string|null; visualSource:string|null; applicationCheckedAt:string|null; language?:string|null; languageOriginal?:string|null; languageRequirements?:string[]|null; aiSector?:string|null; normalizedContent?:NormalizedContent|null; aiSkills?:unknown; tags?:string[] };
 type Company = { id:string; name:string; logoUrl:string|null; description:string|null; website:string|null; verified:boolean };
-async function fetchAllActiveJobs(supabase: ReturnType<typeof adminClient>) {
+async function fetchAllActiveJobs(
+  supabase: ReturnType<typeof adminClient>,
+  countryCodes?: string[],
+) {
+  if (countryCodes && countryCodes.length === 0) return { data: [] as Job[], error: null };
   const pageSize = 500;
   const rows: Job[] = [];
   for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
-      .from("Job")
-      .select("*")
-      .eq("isActive", true)
+    const baseQuery = supabase.from("Job").select("*").eq("isActive", true);
+    const scopedQuery = countryCodes?.length ? baseQuery.in("countryCode", countryCodes) : baseQuery;
+    const { data, error } = await scopedQuery
       .order("createdAt", { ascending: false })
       .range(from, from + pageSize - 1);
     if (error) throw new Error(error.message);
@@ -194,18 +197,15 @@ export async function GET(request:NextRequest){
   }
   const requestedSize=Number(searchParams.get("limit")||DEFAULT_FEED_SIZE);const limit=Math.min(Math.max(Number.isFinite(requestedSize)?requestedSize:DEFAULT_FEED_SIZE,1),MAX_FEED_SIZE);
   const page=Math.max(Number(searchParams.get("page")||1)||1,1);
-  const [profileRes,experiencesRes,skillsRes,educationRes,jobsRes,recruiterJobsRes,userRes]=await Promise.all([
+  const [profileRes,experiencesRes,skillsRes,educationRes,recruiterJobsRes,userRes]=await Promise.all([
    supabase.from("Profile").select("targetRoles,targetCities,contractPreferences,remotePreference,preferredSectors,location,headline,summary").eq("userId",user.id).maybeSingle(),
    supabase.from("Experience").select("startDate,title,description").eq("userId",user.id),
    supabase.from("Skill").select("name,level").eq("userId",user.id),
    supabase.from("Education").select("degree,field").eq("userId",user.id),
-   scope==="africa"
-      ? fetchAllActiveJobs(supabase)
-      : supabase.from("Job").select("*").eq("isActive",true).order("createdAt",{ascending:false}).limit(600),
    supabase.from("RecruiterJob").select("*").eq("status","published").eq("applicationReady",true).gte("createdAt", new Date(new Date().setMonth(new Date().getMonth() - 2)).toISOString()).order("createdAt",{ascending:false}),
    supabase.from("User").select("country,preferredLanguages,englishLevel").eq("id",user.id).maybeSingle()
   ]);
-  if(profileRes.error)throw new Error(profileRes.error.message);if(userRes.error)throw new Error(userRes.error.message);if(experiencesRes.error)throw new Error(experiencesRes.error.message);if(skillsRes.error)throw new Error(skillsRes.error.message);if(educationRes.error)throw new Error(educationRes.error.message);if(jobsRes.error)throw new Error(jobsRes.error.message);if(recruiterJobsRes.error)throw new Error(recruiterJobsRes.error.message);
+  if(profileRes.error)throw new Error(profileRes.error.message);if(userRes.error)throw new Error(userRes.error.message);if(experiencesRes.error)throw new Error(experiencesRes.error.message);if(skillsRes.error)throw new Error(skillsRes.error.message);if(educationRes.error)throw new Error(educationRes.error.message);if(recruiterJobsRes.error)throw new Error(recruiterJobsRes.error.message);
   const jobsNeedingFallback=((jobsRes.data as Job[])||[]).filter(j=>!j.sourcePublishedAt);
   const fallbackJobIds=jobsNeedingFallback.map(j=>j.id);
   const harvestRes=fallbackJobIds.length
@@ -222,7 +222,18 @@ export async function GET(request:NextRequest){
   const normalizeCountryCode=(value:unknown)=>{const raw=String(value||"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");if(/^[A-Z]{2}$/.test(raw))return raw;return countryAliases[raw]||null;};
   const userCountryCode=normalizeCountryCode((userRes.data as any)?.country);
   const countryNames:Record<string,string>={CM:"Cameroun",SN:"Sénégal",GA:"Gabon",CG:"Congo",CF:"République centrafricaine",TD:"Tchad",GQ:"Guinée équatoriale",BJ:"Bénin",BF:"Burkina Faso",CI:"Côte d’Ivoire",GN:"Guinée",GW:"Guinée-Bissau",ML:"Mali",NE:"Niger",TG:"Togo",NG:"Nigeria",GH:"Ghana",RW:"Rwanda",ZA:"Afrique du Sud",ZM:"Zambie",UG:"Ouganda",LR:"Liberia",SS:"Soudan du Sud",SZ:"Eswatini"};
-  const activeCountryCode=scope==="africa"||scope==="countries"?null:userCountryCode;const experiences=(experiencesRes.data as Experience[])||[];const skills=(skillsRes.data as Skill[])||[];const education=(educationRes.data as Education[])||[];const yearsExperience=computeYearsExperience(experiences);
+  const activeCountryCode=scope==="africa"||scope==="countries"?null:userCountryCode;
+  // Query the selected market before pagination. A global 600-row cap hid valid
+  // local offers whenever other countries occupied the newest rows.
+  const jobsRes = scope === "africa"
+    ? await fetchAllActiveJobs(supabase)
+    : scope === "countries"
+      ? await fetchAllActiveJobs(supabase, targetCountryCodes)
+      : activeCountryCode
+        ? await fetchAllActiveJobs(supabase, [activeCountryCode])
+        : await supabase.from("Job").select("*").eq("isActive", true).order("createdAt", { ascending: false }).limit(600);
+  if (jobsRes.error) throw new Error(jobsRes.error.message);
+  const experiences=(experiencesRes.data as Experience[])||[];const skills=(skillsRes.data as Skill[])||[];const education=(educationRes.data as Education[])||[];const yearsExperience=computeYearsExperience(experiences);
   type Unified={normalizedContent?:NormalizedContent|null;source:"discovery"|"recruiter";sourceId:string;countryCode:string|null;title:string;description:string;location:string|null;contractType:string|null;remoteMode:string|null;minExperienceYears:number|null;companyName:string|null;companyId:string|null;createdAt:string;publishedAt:string|null;firstHarvestAt:string|null;deadline:string|null;sourceUrl:string|null;sourcePlatform:string|null;applicationReady:boolean;applicationProfile:Record<string,unknown>;visualUrl:string|null;visualSource:string|null;applicationCheckedAt:string|null;sector:string|null;tags:string[];language?:string|null;languageRequirements?:string[]|null};
   const discovery=((jobsRes.data as Job[])||[]);
   const recruiter=((recruiterJobsRes.data as RecruiterJobRow[])||[]);
