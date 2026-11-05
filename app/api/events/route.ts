@@ -153,7 +153,7 @@ export async function POST(request:NextRequest){
 
     const paymentId=crypto.randomUUID();
     const {error:paymentError}=await sb.from("Payment").insert({
-      id:paymentId,userId:user.id,provider,externalId:paymentId,amount:pricing.total,currency:"XAF",
+      id:paymentId,userId:user.id,provider,externalId:paymentId,idempotencyKey:paymentId,amount:pricing.total,currency:"XAF",
       status:"CREATED",feature:"EVENT_PUBLICATION",createdAt:now,updatedAt:now
     });
     if(paymentError)throw new Error(paymentError.message);
