@@ -17,18 +17,18 @@ async function hasWriterAccess(db:ReturnType<typeof adminClient>,recruitmentId:s
  if(error)throw new Error(error.message);
  return (data??[]).some((row:any)=>hasRecruitmentRole(row.role,RECRUITMENT_WRITE_ROLES));
 }
-async function authorizedApplication(db:ReturnType<typeof adminClient>,applicationId:string,userId:string){
+async function authorizedApplication(db:ReturnType<typeof adminClient>,applicationId:string,authUserId:string,internalUserId:string){
  const {data:application,error}=await db.from("Application").select("id,userId,recruiterJobId").eq("id",applicationId).maybeSingle();
  if(error)throw new Error(error.message);
  if(!application?.recruiterJobId)return {application:null,recruitment:null,candidate:false,recruiter:false};
  const {data:recruitment,error:recruitmentError}=await db.from("Recruitment360").select("id").eq("recruiterJobId",application.recruiterJobId).maybeSingle();
  if(recruitmentError)throw new Error(recruitmentError.message);
- if(!recruitment)return {application,recruitment:null,candidate:String(application.userId)===userId,recruiter:false};
- const {data:roles,error:roleError}=await db.from("RecruitmentRole").select("role").eq("recruitmentId",recruitment.id).eq("userId",userId);
+ if(!recruitment)return {application,recruitment:null,candidate:String(application.userId)===authUserId,recruiter:false};
+ const {data:roles,error:roleError}=await db.from("RecruitmentRole").select("role").eq("recruitmentId",recruitment.id).eq("userId",internalUserId);
  if(roleError)throw new Error(roleError.message);
  return {
   application,recruitment,
-  candidate:String(application.userId)===userId,
+  candidate:String(application.userId)===authUserId,
   recruiter:(roles??[]).some((row:any)=>hasRecruitmentRole(row.role,RECRUITMENT_READ_ROLES))
  };
 }
@@ -54,7 +54,7 @@ export async function GET(req:NextRequest){
    return NextResponse.json({tests:(tests??[]).map((item:any)=>({...item,questionCount:countMap.get(String(item.id))??0}))});
   }
   if(!applicationId)return fail("APPLICATION_REQUIRED");
-  const scope=await authorizedApplication(db,applicationId,String(user.id));
+  const scope=await authorizedApplication(db,applicationId,String(auth.id),String(user.id));
   if(!scope.application||!scope.recruitment)return fail("APPLICATION_NOT_FOUND");
   if(!scope.candidate&&!scope.recruiter)return fail("FORBIDDEN");
   if(!scope.candidate)return fail("FORBIDDEN");
@@ -166,7 +166,7 @@ export async function POST(req:NextRequest){
    const scope=await authorizedApplication(db,applicationId,String(user.id));
    if(!scope.application||!scope.recruitment)return fail("APPLICATION_NOT_FOUND");
    if(!scope.candidate)return fail("FORBIDDEN");
-   const {data,error}=await db.rpc("recruitment360_lot4_start_session",{p_test_id:testId,p_application_id:applicationId,p_actor_user_id:String(user.id)});
+   const {data,error}=await db.rpc("recruitment360_lot4_start_session",{p_test_id:testId,p_application_id:applicationId,p_actor_user_id:String(auth.id)});
    if(error)throw error;
    return NextResponse.json({session:data},{status:201});
   }
@@ -174,7 +174,7 @@ export async function POST(req:NextRequest){
    const sessionId=String(body.sessionId??"").trim(),questionId=String(body.questionId??"").trim();
    if(!sessionId||!questionId)return fail("ANSWER_FIELDS_REQUIRED");
    const {data,error}=await db.rpc("recruitment360_lot4_save_answer",{
-    p_session_id:sessionId,p_question_id:questionId,p_answer:body.answer??null,p_actor_user_id:String(user.id)
+    p_session_id:sessionId,p_question_id:questionId,p_answer:body.answer??null,p_actor_user_id:String(auth.id)
    });
    if(error)throw error;
    return NextResponse.json({answer:data});
@@ -183,7 +183,7 @@ export async function POST(req:NextRequest){
    const sessionId=String(body.sessionId??"").trim();
    if(!sessionId)return fail("SESSION_REQUIRED");
    const {data,error}=await db.rpc(action==="heartbeat"?"recruitment360_lot4_heartbeat":"recruitment360_lot4_submit_session",{
-    p_session_id:sessionId,p_actor_user_id:String(user.id)
+    p_session_id:sessionId,p_actor_user_id:String(auth.id)
    });
    if(error)throw error;
    return NextResponse.json({session:data});
