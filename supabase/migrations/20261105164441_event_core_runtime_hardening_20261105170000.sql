@@ -149,15 +149,15 @@ BEGIN
   IF upper(v_payment.currency) <> upper(p_expected_currency) THEN
     RAISE EXCEPTION 'PAYMENT_CURRENCY_MISMATCH';
   END IF;
-  IF v_payment.status NOT IN ('CREATED', 'PENDING', 'PAID') THEN
+  IF v_payment.status NOT IN ('CREATED', 'PENDING', 'SUCCESSFUL') THEN
     RAISE EXCEPTION 'PAYMENT_STATE_INVALID';
   END IF;
 
   UPDATE public."Payment"
-     SET status = 'PAID', "paidAt" = COALESCE("paidAt", now()), "updatedAt" = now()
+     SET status = 'SUCCESSFUL', "paidAt" = COALESCE("paidAt", now()), "updatedAt" = now()
    WHERE id = p_payment_id;
   UPDATE public."EventPayment"
-     SET status = 'PAID', "updatedAt" = now()
+     SET status = 'SUCCESSFUL', "updatedAt" = now()
    WHERE id = v_event_payment.id;
   UPDATE public."Event"
      SET status = 'PUBLISHED', "updatedAt" = now()
@@ -213,7 +213,7 @@ BEGIN
   END IF;
 
   UPDATE public."Payment"
-     SET status = 'PAID', "paidAt" = COALESCE("paidAt", now()), "updatedAt" = now()
+     SET status = 'SUCCESSFUL', "paidAt" = COALESCE("paidAt", now()), "updatedAt" = now()
    WHERE id = p_payment_id;
   UPDATE public."EventFeaturedCampaign"
      SET status = 'ACTIVE', "updatedAt" = now()
