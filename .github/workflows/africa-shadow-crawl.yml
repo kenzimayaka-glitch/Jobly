@@ -137,10 +137,10 @@ jobs:
             echo
           done
       - name: Process approved first-batch captures
-        if: github.event_name == 'push' && (contains(github.event.head_commit.message, 'JOBLY-LOT1-INGEST-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-V2-ONCE-20261104'))
+        if: (github.event_name == 'workflow_dispatch' && inputs.apply == true) || (github.event_name == 'push' && (contains(github.event.head_commit.message, 'JOBLY-LOT1-INGEST-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-ONCE-20261104') || contains(github.event.head_commit.message, 'JOBLY-LOT1-SA-RECOVERY-V2-ONCE-20261104')))
         env:
           PROCESS_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-process
-          SOURCE_KEYS: 'inep_mozambique,lmis_sl,nelex_ng,ajira_portal,sica_anpe_bj,zimbabwe_psc_erecruitment,anpe_bj,anpe_bf,anpe_ne,anpetogo,essa_sa,hrjobs_liberia,iefp_cv,kenya_psc_jobs,oppz_zambia_jobs,onem_app_cd,senjob_sn,south_africa_gov_jobs,beta_mauritania,botswana_mof_recruitment'
+          SOURCE_KEYS: ${{ inputs.source_keys || 'inep_mozambique,lmis_sl,nelex_ng,ajira_portal,sica_anpe_bj,zimbabwe_psc_erecruitment,anpe_bj,anpe_bf,anpe_ne,anpetogo,essa_sa,hrjobs_liberia,iefp_cv,kenya_psc_jobs,oppz_zambia_jobs,onem_app_cd,senjob_sn,south_africa_gov_jobs,beta_mauritania,botswana_mof_recruitment' }}
         run: |
           OIDC_TOKEN="$(curl --fail-with-body --silent --show-error -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=jobly-harvest")"
           TOKEN="$(python -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "$OIDC_TOKEN")"
@@ -153,7 +153,14 @@ jobs:
           print(json.dumps({"limit":40,"sourceKeys":keys}))
           PY
           )"
-          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 5 -X POST "$PROCESS_URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data "$BODY"
+          for attempt in $(seq 1 25); do
+            RESPONSE="$(curl --fail-with-body --silent --show-error --retry 3 --retry-delay 5 -X POST "$PROCESS_URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data "$BODY")"
+            echo "$RESPONSE"
+            SELECTED="$(python -c 'import json,sys; print(int(json.load(sys.stdin).get("selected",0)))' <<< "$RESPONSE")"
+            if [ "$SELECTED" -lt 40 ]; then
+              break
+            fi
+          done
 
       - name: Upload shadow report
         uses: actions/upload-artifact@v4
