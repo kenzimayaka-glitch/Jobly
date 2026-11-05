@@ -125,6 +125,10 @@ assert "proposedActionRuns" in health_route and "failedActionRuns" in health_rou
 assert "verifiedOutcomeRuns" in health_route and '.eq("outcome->>isOutcome", "true")' in health_route, "Verified navigation alone must not count as a business outcome"
 assert "outcomes: true" not in health_route, "J'IA health must not claim outcomes without persisted evidence"
 
+agent_route = read("lib/jia/agent.ts")
+assert "hasObservedOutcome" in agent_route and "externalSideEffect" in agent_route, "J'IA must distinguish a safe navigation from a measurable outcome"
+assert 'outcome:{navigation:next,externalSideEffect:false}' in agent_route.replace(" ", ""), "Safe navigation must not be stored as a business outcome"
+
 mission_update = career_journey[career_journey.index("export async function updateMission"):career_journey.index("export async function validateMissionOwnership")]
 assert "missionUpdateError" in mission_update and "if (missionUpdateError || !missionUpdate)" in mission_update, "Mission transitions must persist their audit journal"
 assert '.eq("status", mission.status)' in mission_update and "rollback" in mission_update, "Mission transitions must guard concurrency and compensate an audit failure"
