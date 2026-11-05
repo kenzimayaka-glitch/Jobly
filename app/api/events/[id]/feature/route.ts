@@ -48,7 +48,7 @@ export async function POST(request:NextRequest,context:{params:Promise<{id:strin
     if(provider==="MOCK"&&process.env.NODE_ENV==="production")return fail("Le fournisseur de paiement simulé est interdit en production.",422,"MOCK_PAYMENT_DISABLED");
     const paymentId=crypto.randomUUID();
     const {error:paymentError}=await sb.from("Payment").insert({
-      id:paymentId,userId:user.id,provider,externalId:paymentId,amount:EVENT_FEATURED_PRICE,
+      id:paymentId,userId:user.id,provider,externalId:paymentId,idempotencyKey:paymentId,amount:EVENT_FEATURED_PRICE,
       currency:"XAF",status:"CREATED",feature:"EVENT_FEATURED",createdAt:now,updatedAt:now
     });
     if(paymentError)throw new Error(paymentError.message);
