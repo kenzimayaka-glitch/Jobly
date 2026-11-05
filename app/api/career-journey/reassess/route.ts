@@ -9,15 +9,15 @@ export async function POST(request: NextRequest) {
     const start = new Date(end);
     start.setDate(end.getDate() - 30);
 
-    const [applicationsResult, actionRunsResult] = await Promise.all([
+    const [applicationsResult, verifiedActionResult] = await Promise.all([
       ctx.supabase.from("Application").select("id,status,updatedAt,createdAt,interviewAt,submittedAt").eq("userId", ctx.user.id).order("updatedAt", { ascending: false }).limit(50),
-      ctx.supabase.from("jia_action_runs").select("id,action,status,outcome,created_at,updated_at").eq("user_id", ctx.user.id).order("created_at", { ascending: false }).limit(20),
+      ctx.supabase.from("jia_action_runs").select("id,action,status,outcome,created_at,updated_at").eq("user_id", ctx.user.id).eq("status", "VERIFIED").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
     if (applicationsResult.error) throw new Error(applicationsResult.error.message);
-    if (actionRunsResult.error) throw new Error(actionRunsResult.error.message);
+    if (verifiedActionResult.error) throw new Error(verifiedActionResult.error.message);
 
     const applications = applicationsResult.data ?? [];
-    const actionRuns = actionRunsResult.data ?? [];
+    const verifiedAction = verifiedActionResult.data;
     const before = typeof ctx.journey.latestReadiness === "number" ? ctx.journey.latestReadiness : null;
 
     const recentApplications = applications.filter((a: any) => {
@@ -25,7 +25,11 @@ export async function POST(request: NextRequest) {
       return Number.isFinite(at) && at >= start.getTime();
     });
     const latestApplication = applications[0] as any;
-    const verifiedAction = actionRuns.find((r: any) => r.status === "VERIFIED") as any;
+    const verifiedActionType = typeof verifiedAction?.action === "string"
+      ? verifiedAction.action
+      : typeof verifiedAction?.action?.type === "string"
+        ? verifiedAction.action.type
+        : null;
     const completed = ctx.missions.filter((m: any) => m.status === "COMPLETED" && new Date(m.updatedAt).getTime() >= start.getTime()).length;
     const pending = ctx.missions.filter((m: any) => ["PROPOSED", "ACCEPTED", "IN_PROGRESS", "DEFERRED"].includes(m.status)).length;
 
@@ -34,7 +38,7 @@ export async function POST(request: NextRequest) {
     const outcomeSignals = [
       recentApplications.length ? `${recentApplications.length} candidature(s) actualisée(s)` : null,
       latestApplication?.status ? `dernière candidature : ${latestApplication.status}` : null,
-      verifiedAction?.action ? `dernière action J’IA vérifiée : ${verifiedAction.action}` : null,
+      verifiedActionType ? `dernière action J’IA vérifiée : ${verifiedActionType}` : null,
       completed ? `${completed} mission(s) terminée(s)` : null,
     ].filter(Boolean);
 
@@ -58,6 +62,7 @@ export async function POST(request: NextRequest) {
     }).select("*").single();
 
     if (review.error) throw new Error(review.error.message);
+    if (!review.data) throw new Error("La revue de réévaluation n'a pas été persistée.");
 
     return NextResponse.json({
       ok: true,
@@ -65,12 +70,14 @@ export async function POST(request: NextRequest) {
       outcome: {
         applications: recentApplications.length,
         latestApplicationStatus: latestApplication?.status ?? null,
-        verifiedJiaAction: verifiedAction?.action ?? null,
+        verifiedJiaAction: verifiedActionType,
+        completedMissions: completed,
       },
       review: review.data,
       reassessment: {
         readinessBefore: before,
         readinessAfter: after,
+        readinessPersisted: after === ctx.journey.latestReadiness,
         gaps: result.assessment.gaps,
         nextBestAction: result.assessment.nextBestAction,
         recommendations: result.created,
