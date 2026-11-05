@@ -14,6 +14,7 @@ android {
 
     defaultConfig {
         applicationId = "com.jobly.android"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -49,4 +50,8 @@ kotlin {
 
 dependencies {
     implementation("androidx.webkit:webkit:1.18.0")
+
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }
