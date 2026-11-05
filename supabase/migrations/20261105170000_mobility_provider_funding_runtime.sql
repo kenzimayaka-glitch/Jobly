@@ -15,6 +15,9 @@ set public = false,
 -- Additive only. This migration is committed for controlled rollout; do not apply to production before
 -- validating provider agreements, funding evidence and the deployment window.
 
+alter table public."MobilityRequest"
+  add column if not exists "recruiterGuaranteed" boolean not null default false;
+
 alter table public."MobilityProgram"
   add column if not exists "commitmentReference" text,
   add column if not exists "commitmentEvidenceUrl" text,
