@@ -141,7 +141,9 @@ export function sanitizeOfferSections(input: Partial<Record<OfferSectionName, un
     }
   }
 
-  extractLabeledSections(sections);\n\n  const seen = new Set<string>();
+  extractLabeledSections(sections);
+
+  const seen = new Set<string>();
   let removedExactDuplicates = 0;
   for (const name of SECTION_ORDER) {
     const unique: string[] = [];
