@@ -16,14 +16,27 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
   const db = adminClient();
   const user = await ensureUser(db, authUser);
+  const now = new Date().toISOString();
+  const { data: plan, error: planError } = await db
+    .from("BonPlan")
+    .select("id,status,startsAt,expiresAt")
+    .eq("id", id)
+    .maybeSingle();
 
-  const { data: existing } = await db
+  if (planError) return NextResponse.json({ error: planError.message }, { status: 500 });
+  if (!plan || plan.status !== "PUBLISHED" || (plan.startsAt && plan.startsAt > now) || (plan.expiresAt && plan.expiresAt <= now)) {
+    return NextResponse.json({ error: "Ce bon plan n’est pas disponible." }, { status: 404 });
+  }
+
+  const { data: existing, error: existingError } = await db
     .from("BonPlanInteraction")
     .select("id")
     .eq("userId", user.id)
     .eq("bonPlanId", id)
     .eq("type", type)
     .maybeSingle();
+
+  if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500 });
 
   if (existing && type !== "SHARE") {
     const { error } = await db.from("BonPlanInteraction").delete().eq("id", existing.id);
@@ -37,7 +50,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       userId: user.id,
       bonPlanId: id,
       type,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }

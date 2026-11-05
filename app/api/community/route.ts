@@ -16,6 +16,7 @@ function slugify(value: string) {
 export async function GET(request: NextRequest) {
   try {
     const db = adminClient();
+    const access = await getCommunityAccess(request);
     const p = request.nextUrl.searchParams;
     const country = clean(p.get("country"));
     const city = clean(p.get("city"));
@@ -32,23 +33,38 @@ export async function GET(request: NextRequest) {
     if (city) query = query.eq("city", city);
     if (category) query = query.eq("category", category);
 
-    const [{ data, error }, { data: memberships, error: membershipError }] = await Promise.all([
-      query,
-      db.from("CommunityMembership").select("communityId"),
-    ]);
+    const { data, error } = await query;
     if (error) throw new Error(error.message);
-    if (membershipError) throw new Error(membershipError.message);
 
-    const counts = new Map<string, number>();
-    for (const row of memberships || []) counts.set(row.communityId, (counts.get(row.communityId) || 0) + 1);
+    const communities = await Promise.all((data || []).map(async (community) => {
+      const [members, posts, myMembership] = await Promise.all([
+        db.from("CommunityMembership").select("id", { count: "exact", head: true }).eq("communityId", community.id).neq("role", "BANNED"),
+        db.from("CommunityPost").select("id", { count: "exact", head: true }).eq("communityId", community.id).eq("status", "PUBLISHED"),
+        access.user
+          ? db.from("CommunityMembership").select("id,role").eq("communityId", community.id).eq("userId", access.user.id).maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+      ]);
+      if (members.error) throw new Error(members.error.message);
+      if (posts.error) throw new Error(posts.error.message);
+      if (myMembership.error) throw new Error(myMembership.error.message);
+      return {
+        ...community,
+        memberCount: members.count || 0,
+        postCount: posts.count || 0,
+        isMember: Boolean(myMembership.data && myMembership.data.role !== "BANNED"),
+        membershipRole: myMembership.data?.role || null,
+      };
+    }));
 
-    const access = await getCommunityAccess(request);
     return NextResponse.json({
-      communities: (data || []).map((community) => ({ ...community, memberCount: counts.get(community.id) || 0 })),
+      communities,
       access: { allowed: access.allowed, reason: access.reason, blueBadge: access.blueBadge },
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Communautés indisponibles." }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Communautés indisponibles." },
+      { status: 500 },
+    );
   }
 }
 
