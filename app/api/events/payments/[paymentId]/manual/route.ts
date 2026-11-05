@@ -84,7 +84,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ pa
     const sb = adminClient();
     const user = await ensureUser(sb, auth);
     if (!proofPath.startsWith(user.id + "/")) return fail("Le justificatif ne vous appartient pas.", 403, "PAYMENT_PROOF_FORBIDDEN");
-    const bucket = process.env.JOBLY_EVENTS_BUCKET || "jobly-events";
+    const bucket = "jobly-payment-proofs";
     const { data: proof, error: proofError } = await sb.storage.from(bucket).download(proofPath);
     if (proofError || !proof) return fail("Justificatif introuvable dans le stockage Jobly.", 422, "PAYMENT_PROOF_NOT_FOUND");
     if (proof.size <= 0 || proof.size > 10 * 1024 * 1024) {
