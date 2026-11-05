@@ -11,6 +11,7 @@ on:
       - "supabase/functions/discover-jobs/date-extraction.ts"
       - "supabase/functions/discover-jobs/source-registry.ts"
       - "supabase/functions/_shared/application-contact.ts"
+      - "supabase/functions/_shared/application-readiness.ts"
       - ".github/workflows/africa-shadow-crawl.yml"
   workflow_dispatch:
     inputs:
