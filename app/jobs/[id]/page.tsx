@@ -333,6 +333,7 @@ function JobDetailInner() {
   const compactItems = (items: string[], limit = 12) => Array.from(new Set(items.map(cleanLine).filter(Boolean))).slice(0, limit);
   const renderParagraphs = (items: string[]) => <div className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 8).map((line, i) => <p key={i}>{line}</p>)}</div>;
   const renderBullets = (items: string[]) => <ul className="space-y-2.5 text-[15px] leading-7 text-slate-600">{compactItems(items, 12).map((line, i) => <li key={i} className="flex items-start gap-2.5"><span aria-hidden="true" className="shrink-0 text-[11px] leading-7">🟡</span><span>{line}</span></li>)}</ul>;
+  const renderSteps = (items: string[]) => <ol className="space-y-3 text-[15px] leading-7 text-slate-600">{compactItems(items, 12).map((line, i) => <li key={i} className="flex items-start gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#FFF4A8] text-xs font-black text-[#735F00]">{i + 1}</span><span className="pt-0.5">{line}</span></li>)}</ol>;
 
   return (
     <main className="talent-shell relative min-h-[100dvh] bg-[#F7FAFF] pb-28 text-[#17212B]">
@@ -378,7 +379,7 @@ function JobDetailInner() {
               </DetailSection>}
             </div>
 
-            <div className={presentationLayout === "COMPACT" ? "grid gap-4 sm:grid-cols-2" : "space-y-4"}>
+            <div className={presentationLayout === "COMPACT" ? "grid gap-4 sm:grid-cols-2" : presentationLayout === "EDITORIAL" ? "space-y-6" : presentationLayout === "PROCESS" ? "space-y-3 border-l-2 border-[#E8EDF5] pl-4 sm:pl-6" : presentationLayout === "APPLICATION_FIRST" ? "space-y-4" : "space-y-4"}>
               {displaySections.map((section) => section.key === "application" ? (
                 <DetailSection key={section.key} title={section.title}>
                   <div className="space-y-4">
@@ -396,7 +397,7 @@ function JobDetailInner() {
                 </DetailSection>
               ) : (
                 <DetailSection key={section.key} title={section.title}>
-                  {section.kind === "paragraph" ? renderParagraphs(section.items) : renderBullets(section.items)}
+                  {section.kind === "paragraph" ? renderParagraphs(section.items) : section.kind === "steps" ? renderSteps(section.items) : renderBullets(section.items)}
                 </DetailSection>
               ))}
             </div>
