@@ -1,14 +1,42 @@
 {
   "manifest_version": 3,
   "name": "Jobly — J'IA Assistant de candidature",
-  "version": "0.1.0",
-  "description": "Garde le contexte d'une offre Jobly et aide à comprendre les formulaires externes.",
+  "version": "0.2.0",
+  "description": "Assistant de candidature Jobly pour le bureau, avec activation et détection de connexion.",
   "minimum_chrome_version": "116",
-  "permissions": ["storage", "tabs", "sidePanel", "scripting"],
-  "host_permissions": ["https://jobly-c0651.vercel.app/*", "https://jobly-c0651-portfolio-5555.vercel.app/*"],
-  "optional_host_permissions": ["http://*/*", "https://*/*"],
-  "background": { "service_worker": "background.js" },
-  "action": { "default_title": "Ouvrir J'IA — candidature" },
-  "side_panel": { "default_path": "sidepanel.html" },
-  "content_scripts": [{ "matches": ["https://jobly-c0651.vercel.app/*", "https://jobly-c0651-portfolio-5555.vercel.app/*"], "js": ["jobly-bridge.js"], "run_at": "document_start" }]
+  "permissions": [
+    "storage",
+    "tabs",
+    "sidePanel",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://jobly-c0651.vercel.app/*",
+    "https://jobly-c0651-portfolio-5555.vercel.app/*"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Ouvrir J'IA — candidature"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://jobly-c0651.vercel.app/*",
+        "https://jobly-c0651-portfolio-5555.vercel.app/*"
+      ],
+      "js": [
+        "jobly-bridge.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
 }
