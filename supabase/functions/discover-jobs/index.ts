@@ -168,12 +168,6 @@ async function enrich(item:any,source:any){
   }catch{return item}
 }
 
-// Offer discovery only captures and queues source content. Gemini classification is
-// performed asynchronously by job-offer-ai-normalize in bounded batches.
-async function analyzeWithGemini(_item:any){
-  return null;
-}
-
 async function backfillExistingOffers(supabase:any){
   // Backfill is deliberately bounded. It prepares rows for the separate Gemini
   // queue instead of making a long sequence of model calls inside discovery.
@@ -230,7 +224,7 @@ Deno.serve(async(req)=>{
    discovered+=items.length;
    if(dryRun){
      for(const item of items){
-       let ai:any=null; try{ai=await analyzeWithGemini(item);if(ai)aiProcessed++}catch{aiFailed++}
+       const ai:any=null;
        const normalizedContent=normalizeAiResult(ai,item);
        const opportunityType=inferOpportunityType(item);
        if(opportunityType==="APPEL_OFFRES" || opportunityType==="CONCOURS" || opportunityType==="FORMATION" || opportunityType==="RECRUTEMENT_INSUFFISANT") continue;
@@ -239,7 +233,7 @@ Deno.serve(async(req)=>{
      sourceStats.push({source:source.name,found,inserted:0,updated:0,dryRun:true,...crawl.stats});
      continue;
    }
-   for(const item of items){const externalId=hash(item.url||`${item.title}|${item.company}|${item.location}`);const contentHash=hash(`${item.title}|${item.company}|${item.description}|${item.location}|${item.deadline||""}`);let ai:any=null;try{ai=await analyzeWithGemini(item);if(ai)aiProcessed++}catch{aiFailed++}
+   for(const item of items){const externalId=hash(item.url||`${item.title}|${item.company}|${item.location}`);const contentHash=hash(`${item.title}|${item.company}|${item.description}|${item.location}|${item.deadline||""}`);const ai:any=null;
     const normalizedContent=normalizeAiResult(ai,item);
     const text=`${item.title} ${item.description}`;const opportunityType=inferOpportunityType(item);if(opportunityType==="APPEL_OFFRES" || opportunityType==="CONCOURS" || opportunityType==="FORMATION" || opportunityType==="RECRUTEMENT_INSUFFISANT") continue;const phoneNumbers=extractPhone(text);let companyId:string|null=null;const companyName=String(ai?.company||item.company||"").trim();const companyWebsite=String(item.website||"").trim()||null;let companyLogo:string|null=null;
     if(companyWebsite){try{const host=new URL(companyWebsite.startsWith("http")?companyWebsite:`https://${companyWebsite}`).hostname.replace(/^www\./,"");companyLogo=`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`;}catch{}}
