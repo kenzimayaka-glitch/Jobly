@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
 import { extractApplicationContact } from "../_shared/application-contact.ts";
 import { resolveApplicationReadiness } from "../_shared/application-readiness.ts";
+import { classifyJobSector } from "../_shared/job-sector-classification.ts";
 import {
   decodeHtmlEntities,
   isGenericRecruitmentTitle,
@@ -281,6 +282,8 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
   const hasApplicationRoute = applicationReadiness.applicationReady;
   const displayModel = clean(profile.displayModel ?? payload.displayModel, 120) ||
     `jobly-standard-${sourceKey}-v1`;
+  const jobTags = safeTextArray(payload.tags);
+  const sector = classifyJobSector(title, description, jobTags);
   const applicationProfile = {
     ...profile,
     ...countryDetails,
@@ -319,6 +322,8 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
     displayModel,
     title,
     company: companyName || null,
+    sector,
+    sectorClassification: { method: "deterministic-title-tags-rules", version: "p1-sector-v1" },
     description: [description],
     location: location || null,
     countryCode,
@@ -369,10 +374,11 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
     aiProcessed: false,
     aiFlags: [],
     aiSkills: safeTextArray(payload.skills),
+    aiSector: sector,
     applicationReady: hasApplicationRoute,
     applicationProfile,
     applicationCheckedAt: hasApplicationRoute ? nowIso : null,
-    tags: safeTextArray(payload.tags),
+    tags: jobTags,
     opportunityType: kind.jobType,
     normalizedContent,
     normalizedVersion: "jobly-offer-v3",
@@ -436,6 +442,7 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
     publicationDateEstimated: freshness.publicationDateEstimated,
     deadlineVerified: Boolean(deadline),
     applicationRouteVerified: hasApplicationRoute,
+    sectorClassificationVerified: true,
     descriptionVerified: description.length >= 60,
   };
   const captureMode = normalizePipelineCaptureMode(capture.captureMode);
