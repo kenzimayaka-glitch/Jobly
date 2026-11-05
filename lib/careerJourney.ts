@@ -211,14 +211,38 @@ export async function updateMission(supabase: any, userId: string, missionId: st
   if (action === "ABANDON" || action === "REFUSE") data.abandonedAt = now;
   if (patch.dueAt !== undefined) data.dueAt = patch.dueAt || null;
   if (patch.followUpAt !== undefined) data.followUpAt = patch.followUpAt || null;
-  const updated = await supabase.from("CareerMission").update(data).eq("id", missionId).eq("userId", userId).select("*").single();
+  const updated = await supabase.from("CareerMission")
+    .update(data)
+    .eq("id", missionId)
+    .eq("userId", userId)
+    .eq("status", mission.status)
+    .select("*")
+    .maybeSingle();
   if (updated.error) throw new Error(updated.error.message);
+  if (!updated.data) throw Object.assign(new Error("La mission a changé depuis son chargement. Rechargez le parcours avant de réessayer."), { status: 409 });
+
   const { data: missionUpdate, error: missionUpdateError } = await supabase.from("CareerMissionUpdate").insert({
     id: crypto.randomUUID(), missionId, status: status ?? null, progress: data.progressPercent,
     note: cleanString(patch.note), response: patch.response ?? null,
   }).select("id").single();
-  if (missionUpdateError) throw new Error(`Mission mise à jour, mais journal de progression non persisté : ${missionUpdateError.message}`);
-  if (!missionUpdate) throw new Error("Le journal de progression de la mission n'a pas été créé.");
+  if (missionUpdateError || !missionUpdate) {
+    const rollback = await supabase.from("CareerMission").update({
+      status: mission.status,
+      progressPercent: mission.progressPercent,
+      acceptedAt: mission.acceptedAt,
+      deferredAt: mission.deferredAt,
+      completedAt: mission.completedAt,
+      abandonedAt: mission.abandonedAt,
+      dueAt: mission.dueAt,
+      followUpAt: mission.followUpAt,
+      updatedAt: mission.updatedAt,
+    }).eq("id", missionId).eq("userId", userId).eq("updatedAt", now).select("id").maybeSingle();
+    const journalReason = missionUpdateError?.message ?? "aucune ligne retournée";
+    if (rollback.error || !rollback.data) {
+      throw new Error(`Journal de progression non persisté (${journalReason}) et retour arrière non confirmé (${rollback.error?.message ?? "ligne déjà modifiée ou introuvable"}).`);
+    }
+    throw new Error(`Journal de progression non persisté ; transition annulée (${journalReason}).`);
+  }
   return updated.data;
 }
 
