@@ -77,7 +77,8 @@ export async function POST(request: NextRequest) {
       reassessment: {
         readinessBefore: before,
         readinessAfter: after,
-        readinessPersisted: after === ctx.journey.latestReadiness,
+        readinessPersisted: result.persistedJourney?.latestReadiness === after,
+        persistedAt: result.persistedJourney?.lastReevaluatedAt ?? null,
         gaps: result.assessment.gaps,
         nextBestAction: result.assessment.nextBestAction,
         recommendations: result.created,
