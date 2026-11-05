@@ -37,12 +37,12 @@ export async function GET(req:NextRequest){
   const [assessRes,shortRes,usersRes]=await Promise.all([
    aid.length?s.from("RecruitmentApplicationAssessment").select("*").in("applicationId",aid):Promise.resolve({data:[],error:null}),
    aid.length?s.from("RecruitmentShortlist").select("*").in("applicationId",aid):Promise.resolve({data:[],error:null}),
-   userIds.length?s.from("User").select("id,firstName,lastName,displayName").in("id",userIds):Promise.resolve({data:[],error:null})
+   userIds.length?s.from("User").select("id,authUserId,firstName,lastName,displayName").in("authUserId",userIds):Promise.resolve({data:[],error:null})
   ]);
   for(const result of [assessRes,shortRes,usersRes])if(result.error)throw new Error(result.error.message);
   const am=new Map((assessRes.data??[]).map((x:any)=>[x.applicationId,x]));
   const sm=new Map((shortRes.data??[]).map((x:any)=>[x.applicationId,x]));
-  const um=new Map((usersRes.data??[]).map((x:any)=>[String(x.id),x]));
+  const um=new Map((usersRes.data??[]).map((x:any)=>[String(x.authUserId),x]));
   return NextResponse.json({applications:(apps??[]).map((a:any)=>{
     const candidate=um.get(String(a.userId));
     return {...a,candidateName:candidate?.displayName||[candidate?.firstName,candidate?.lastName].filter(Boolean).join(" ")||"Candidat",assessment:am.get(a.id)??null,shortlist:sm.get(a.id)??null};
