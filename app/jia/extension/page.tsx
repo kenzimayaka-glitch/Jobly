@@ -148,12 +148,14 @@ export default function JiaExtensionSetupPage() {
     setBusy(false);
   }
 
-  const stateTitle = detection === "active" ? "Extension installée et activée"
+  const stateTitle = !browser.supported ? "Navigateur incompatible"
+    : detection === "active" ? "Extension installée et activée"
     : detection === "inactive" ? "Extension installée, mais en pause"
     : detection === "checking" ? "Recherche de l’extension…"
     : detection === "error" ? "État impossible à confirmer"
     : "Extension non détectée";
-  const stateDescription = detection === "active" ? "Jobly reçoit bien la réponse de J’IA. Le panneau peut être ouvert depuis l’icône de l’extension dans la barre d’outils."
+  const stateDescription = !browser.supported ? browser.reason
+    : detection === "active" ? "Jobly reçoit bien la réponse de J’IA. Le panneau peut être ouvert depuis l’icône de l’extension dans la barre d’outils."
     : detection === "inactive" ? "L’extension répond à Jobly, mais l’assistant est désactivé. Active-le pour utiliser l’aide pendant tes candidatures."
     : detection === "checking" ? "Jobly interroge localement l’extension dans ce navigateur."
     : detection === "error" ? "La connexion locale n’a pas répondu. Tu peux relancer le contrôle."
