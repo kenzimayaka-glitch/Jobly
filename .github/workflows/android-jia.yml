@@ -7,6 +7,7 @@ on:
       - "app/jia/android-assist/**"
       - "lib/jia/android-bridge.ts"
       - "app/jobs/[id]/page.tsx"
+      - "components/JoblyOfferFeed.tsx"
       - "scripts/android-jia-bridge.test.mjs"
       - ".github/workflows/android-jia.yml"
   push:
@@ -51,3 +52,10 @@ jobs:
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - name: Assemble debug APK
         run: gradle -p apps/android :app:assembleDebug --stacktrace
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: jobly-android-debug-apk
+          path: apps/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
