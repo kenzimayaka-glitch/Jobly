@@ -32,8 +32,12 @@ export function getEventDomain(value: string) {
 }
 
 export function getEventPricing(days: number) {
-  const durationDays = Math.max(1, Math.min(EVENT_MAX_DAYS, Math.floor(days)));
-  const pricePerDay = durationDays >= 30 ? 1000 : durationDays >= 10 ? 1500 : 2000;
+  const normalizedDays = Number.isFinite(days) ? Math.floor(days) : 1;
+  const durationDays = Math.max(1, Math.min(EVENT_MAX_DAYS, normalizedDays));
+  const pricePerDay =
+    durationDays >= 60 ? 800 :
+    durationDays >= 30 ? 1000 :
+    durationDays >= 10 ? 1500 : 2000;
   return { durationDays, pricePerDay, total: durationDays * pricePerDay };
 }
 
@@ -52,8 +56,16 @@ export function validateEventMedia(input: { mediaType?: string | null; mediaSize
   const type = input.mediaType ?? null;
   if (!type) return { ok: true };
   if (!["IMAGE", "FLYER", "VIDEO"].includes(type)) return { ok: false, error: "Type de média invalide." };
-  if (!Number.isFinite(Number(input.mediaSizeBytes)) || Number(input.mediaSizeBytes) <= 0 || Number(input.mediaSizeBytes) > EVENT_MEDIA_MAX_BYTES) return { ok: false, error: "Le média doit peser au maximum 10 MB." };
-  if (type === "VIDEO" && (Number(input.mediaDurationSeconds) <= 0 || Number(input.mediaDurationSeconds) > EVENT_VIDEO_MAX_SECONDS)) return { ok: false, error: "La vidéo doit durer au maximum 30 secondes." };
+  const size = Number(input.mediaSizeBytes);
+  if (!Number.isFinite(size) || !Number.isInteger(size) || size <= 0 || size > EVENT_MEDIA_MAX_BYTES) {
+    return { ok: false, error: "Le média doit peser au maximum 10 MB." };
+  }
+  if (type === "VIDEO") {
+    const duration = Number(input.mediaDurationSeconds);
+    if (!Number.isFinite(duration) || duration <= 0 || duration > EVENT_VIDEO_MAX_SECONDS) {
+      return { ok: false, error: "La vidéo doit durer au maximum 30 secondes." };
+    }
+  }
   return { ok: true };
 }
 
