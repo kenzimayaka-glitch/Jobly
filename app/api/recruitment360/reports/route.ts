@@ -38,12 +38,15 @@ export async function GET(req:NextRequest){
    const candidateAllowed=String(resolved.application.userId)===String(u.id);
    if(!recruiterAllowed&&!candidateAllowed)return NextResponse.json({message:"FORBIDDEN"},{status:403});
 
-   const {data:reviews,error:reviewError}=await s.from("RecruitmentReview").select("*")
+   let reviewQuery=s.from("RecruitmentReview").select("*")
     .eq("applicationId",aid).order("createdAt",{ascending:false});
+   // A person who is also a recruiter remains a candidate on their own application.
+   if(candidateAllowed)reviewQuery=reviewQuery.eq("reviewerUserId",u.id).eq("reviewerRole","TALENT");
+   const {data:reviews,error:reviewError}=await reviewQuery;
    if(reviewError)throw new Error(reviewError.message);
 
    let reports:any[]=[];
-   if(recruiterAllowed){
+   if(recruiterAllowed&&!candidateAllowed){
     const {data,error}=await s.from("RecruitmentReportShare")
      .select("id,applicationId,scope,expiresAt,revokedAt,lastAccessedAt,accessCount,createdAt")
      .eq("recruitmentId",rid).eq("applicationId",aid).order("createdAt",{ascending:false});
@@ -83,6 +86,8 @@ export async function POST(req:NextRequest){
     const resolved=await recruitmentForApplication(s,String(b.applicationId));
     if(!resolved||!resolved.recruitment||String(resolved.recruitment.id)!==recruitmentId)
      return NextResponse.json({message:"Candidature hors recrutement."},{status:404});
+    if(String(resolved.application.userId)===String(u.id))
+     return NextResponse.json({message:"Un candidat ne peut pas générer un rapport recruteur pour sa propre candidature."},{status:403});
    }
    const {data,error}=await s.rpc("recruitment360_lot7_generate_report",{
     p_recruitment_id:recruitmentId,p_actor_user_id:u.id,
