@@ -4,6 +4,7 @@ import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
 import { extractApplicationContact } from "../_shared/application-contact.ts";
 import { resolveApplicationReadiness } from "../_shared/application-readiness.ts";
 import { classifyJobSector } from "../_shared/job-sector-classification.ts";
+import { deriveOfferQualityStatus } from "../_shared/offer-quality.ts";
 import {
   decodeHtmlEntities,
   isGenericRecruitmentTitle,
@@ -383,7 +384,7 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
     normalizedContent,
     normalizedVersion: "jobly-offer-v3",
     normalizedAt: nowIso,
-    qualityStatus: hasApplicationRoute ? "ok" : "needs_review",
+    qualityStatus: deriveOfferQualityStatus({ title, description, sourceUrl }),
     countryCode,
     updatedAt: nowIso,
     aiSummary: description.slice(0, 700),
