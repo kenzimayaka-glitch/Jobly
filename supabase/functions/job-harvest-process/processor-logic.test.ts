@@ -7,6 +7,7 @@ import {
   normalizeCountryCode,
   normalizeLanguage,
   normalizeRemoteMode,
+  normalizePipelineCaptureMode,
   resolveCountryCode,
   safeHttpUrl,
 } from "./processor-logic.ts";
@@ -71,4 +72,13 @@ Deno.test("accepts only HTTP(S) source and application URLs", () => {
   assertEquals(safeHttpUrl("https://example.org/jobs") !== null, true);
   assertEquals(safeHttpUrl("javascript:alert(1)"), null);
   assertEquals(safeHttpUrl("mailto:jobs@example.org"), null);
+});
+
+Deno.test("normalizes crawler-only capture modes to database-supported values", () => {
+  assertEquals(normalizePipelineCaptureMode("browser"), "browser");
+  assertEquals(normalizePipelineCaptureMode("http"), "http");
+  assertEquals(normalizePipelineCaptureMode("api"), "api");
+  assertEquals(normalizePipelineCaptureMode("rss"), "rss");
+  assertEquals(normalizePipelineCaptureMode("shadow-crawl"), "unknown");
+  assertEquals(normalizePipelineCaptureMode(undefined), "unknown");
 });

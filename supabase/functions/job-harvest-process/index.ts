@@ -9,6 +9,7 @@ import {
   mapOpportunityType,
   normalizeLanguage,
   normalizeRemoteMode,
+  normalizePipelineCaptureMode,
   resolveCountryCode,
   safeHttpUrl,
   safeInteger,
@@ -437,11 +438,12 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
     applicationRouteVerified: hasApplicationRoute,
     descriptionVerified: description.length >= 60,
   };
+  const captureMode = normalizePipelineCaptureMode(capture.captureMode);
   const pipelineRow = {
     jobId,
     sourceKey,
     sourceUrl,
-    captureMode: capture.captureMode ?? "unknown",
+    captureMode,
     rawPayload,
     extractedText: capture.extractedText ?? description,
     canonicalContent: normalizedContent,
@@ -490,16 +492,20 @@ Deno.serve(async (req: Request) => {
     const sourceKeys = [...new Set(rawSourceKeys.map((key: unknown) => clean(key, 120)).filter(Boolean))];
     if (sourceKeys.length > 20) return json({ message: "A processing batch is limited to 20 source keys." }, 400);
 
+    const pendingOnly = (body as AnyRecord)?.pendingOnly === true;
     const staleBefore = new Date(Date.now() - STALE_PROCESSING_MS).toISOString();
     const staleLimit = Math.min(5, limit);
-    let staleQuery = db.from("JobHarvestCapture").select("*").eq("status", "PROCESSING")
-      .lt("updatedAt", staleBefore).order("updatedAt", { ascending: true });
-    if (sourceKeys.length) staleQuery = staleQuery.in("sourceKey", sourceKeys);
-    const { data: staleRows, error: staleError } = await staleQuery.limit(staleLimit);
-    if (staleError) throw new Error("STALE_CAPTURE_SELECT_FAILED: " + staleError.message);
-
-    const stale = staleRows ?? [];
-    let normalQuery = db.from("JobHarvestCapture").select("*").in("status", ["PENDING", "FAILED"])
+    let stale: AnyRecord[] = [];
+    if (!pendingOnly) {
+      let staleQuery = db.from("JobHarvestCapture").select("*").eq("status", "PROCESSING")
+        .lt("updatedAt", staleBefore).order("updatedAt", { ascending: true });
+      if (sourceKeys.length) staleQuery = staleQuery.in("sourceKey", sourceKeys);
+      const { data: staleRows, error: staleError } = await staleQuery.limit(staleLimit);
+      if (staleError) throw new Error("STALE_CAPTURE_SELECT_FAILED: " + staleError.message);
+      stale = staleRows ?? [];
+    }
+    const statuses = pendingOnly ? ["PENDING"] : ["PENDING", "FAILED"];
+    let normalQuery = db.from("JobHarvestCapture").select("*").in("status", statuses)
       .order("discoveredAt", { ascending: true });
     if (sourceKeys.length) normalQuery = normalQuery.in("sourceKey", sourceKeys);
     const { data: normalRows, error: normalError } = await normalQuery.limit(Math.max(0, limit - stale.length));
