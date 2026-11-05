@@ -288,6 +288,7 @@ const fr = {
   "bonplans.page.quitTitle": "Quitter les Bons Plans ?",
   "bonplans.page.quitDescription": "Tu vas revenir au sélecteur des écosystèmes.",
   "bonplans.page.quit": "Quitter",
+
   "bonplans.page.propose": "Proposer un bon plan",
   "bonplans.page.proposalDescription": "Partage une opportunité réelle et sourcée avec la communauté Jobly.",
   "bonplans.page.proposalTitleLabel": "Titre",
@@ -312,7 +313,6 @@ const fr = {
   "bonplans.page.reject": "Rejeter",
   "bonplans.page.approveSuccess": "Bon plan publié.",
   "bonplans.page.rejectSuccess": "Proposition rejetée.",
-
   "bonplans.pillar.campusTitle": "Jobly Campus",
   "bonplans.pillar.campusEyebrow": "ÉTUDIANTS",
   "bonplans.pillar.campusDescription": "Stages, jobs étudiants, alternance, missions, formations et premières expériences.",
@@ -345,7 +345,21 @@ const fr = {
   "campus.page.allJobs": "Voir toutes les offres",
   "campus.page.estimatedDate": "Date de publication estimée à partir de la première observation.",
   "campus.page.openOffer": "Voir l’offre",
-  "campus.page.sourceNote": "Le Campus affiche les offres d’emploi réelles correspondantes. Les inscriptions d’étudiants et les annuaires d’établissements ne sont pas encore raccordés.",
+  "campus.page.institutionsEyebrow": "Établissements",
+  "campus.page.institutionsTitle": "Les établissements actifs",
+  "campus.page.institutionsDescription": "Répertoire connecté aux établissements actifs enregistrés dans Jobly. Les chiffres reflètent les adhésions réellement présentes en base.",
+  "campus.page.institutionCount": "{n} établissement(s)",
+  "campus.page.institutionMembers": "{n} membre(s)",
+  "campus.page.institutionEmpty": "Aucun établissement actif n’est disponible.",
+  "campus.page.institutionCityUnknown": "Ville non renseignée",
+  "campus.page.institutionTypeUniversity": "Université",
+  "campus.page.institutionTypeGrandeEcole": "Grande école",
+  "campus.page.institutionTypeInstitute": "Institut",
+  "campus.page.institutionTypeOther": "Autre établissement",
+  "campus.page.institutionConnectionNote": "Les adhésions sont comptées uniquement lorsqu’elles existent réellement. L’inscription étudiante autonome n’est pas encore activée.",
+  "campus.page.communitiesLink": "Découvrir les communautés",
+  "campus.page.sourceNote": "Le Campus relie les offres fraîches du flux Jobly et le répertoire des établissements actifs. Les contenus, adhésions et interactions restent ceux réellement enregistrés.",
+
 
 
   // ── Profil Talent / pitch vidéo ───────────────────────────────────────────
@@ -747,6 +761,7 @@ const en: Record<DictKey, string> = {
   "bonplans.page.quitTitle": "Leave Jobly Perks?",
   "bonplans.page.quitDescription": "You’ll return to the ecosystem selector.",
   "bonplans.page.quit": "Leave",
+
   "bonplans.page.propose": "Suggest a perk",
   "bonplans.page.proposalDescription": "Share a real, sourced opportunity with the Jobly community.",
   "bonplans.page.proposalTitleLabel": "Title",
@@ -771,7 +786,6 @@ const en: Record<DictKey, string> = {
   "bonplans.page.reject": "Reject",
   "bonplans.page.approveSuccess": "Perk published.",
   "bonplans.page.rejectSuccess": "Suggestion rejected.",
-
   "bonplans.pillar.campusTitle": "Jobly Campus",
   "bonplans.pillar.campusEyebrow": "STUDENTS",
   "bonplans.pillar.campusDescription": "Internships, student jobs, apprenticeships, missions, training and first experiences.",
@@ -804,7 +818,21 @@ const en: Record<DictKey, string> = {
   "campus.page.allJobs": "Browse all jobs",
   "campus.page.estimatedDate": "Publication date estimated from the first observed date.",
   "campus.page.openOffer": "View job",
-  "campus.page.sourceNote": "Campus currently displays matching real job offers. Student enrolment and institution directories are not connected yet.",
+  "campus.page.institutionsEyebrow": "Institutions",
+  "campus.page.institutionsTitle": "Active institutions",
+  "campus.page.institutionsDescription": "Directory connected to active institutions registered in Jobly. Counts reflect memberships actually stored in the database.",
+  "campus.page.institutionCount": "{n} institution(s)",
+  "campus.page.institutionMembers": "{n} member(s)",
+  "campus.page.institutionEmpty": "No active institutions are available.",
+  "campus.page.institutionCityUnknown": "City not provided",
+  "campus.page.institutionTypeUniversity": "University",
+  "campus.page.institutionTypeGrandeEcole": "Graduate school",
+  "campus.page.institutionTypeInstitute": "Institute",
+  "campus.page.institutionTypeOther": "Other institution",
+  "campus.page.institutionConnectionNote": "Memberships are counted only when real records exist. Self-service student enrolment is not enabled yet.",
+  "campus.page.communitiesLink": "Explore communities",
+  "campus.page.sourceNote": "Campus connects fresh offers from Jobly’s feed with the active institution directory. Content, memberships and interactions reflect real persisted records only.",
+
 
 
   // ── Talent profile / video pitch ──────────────────────────────────────────
