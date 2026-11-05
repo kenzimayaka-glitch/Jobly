@@ -5,6 +5,10 @@ on:
     branches:
       - main
       - feat/p1-offer-quality-*
+    paths:
+      - "scripts/offer-pipeline-audit.mjs"
+      - "supabase/functions/**"
+      - "app/api/jobs/route.ts"
   workflow_dispatch:
 
 permissions:
