@@ -43,8 +43,8 @@ No genuine employer agreement, finance provider KYC, signed funding commitment o
 ## Database rollout required
 
 The branch includes:
-- `supabase/migrations/20261105160000_mobility_provider_funding_runtime.sql`
-- `supabase/migrations/20261105160100_mobility_provider_single_account_guard.sql`
+- `supabase/migrations/20261105170000_mobility_provider_funding_runtime.sql`
+- `supabase/migrations/20261105170100_mobility_provider_single_account_guard.sql`
 
 These are additive migrations and have not been applied to JOBLY-PROD in this task. They create the provider/service/assignment and programme-application tables, private KYC bucket, funding evidence fields, RLS/service-role grants and controlled funding RPCs. Production API activation requires this database rollout and verification afterward.
 
