@@ -154,6 +154,7 @@ export async function POST(req:NextRequest){
    if(!test)return fail("TEST_NOT_FOUND");
    if(!(await hasWriterAccess(db,String(test.recruitmentId),String(user.id))))return fail("FORBIDDEN");
    if(action==="publish"){
+    if(test.status!=="DRAFT")return fail("TEST_NOT_EDITABLE");
     const {data:questions,error:questionsError}=await db.from("RecruitmentTestQuestion").select("id,type,options").eq("testId",testId);
     if(questionsError)throw questionsError;
     if(!questions?.length)return fail("TEST_QUESTIONS_REQUIRED");
@@ -173,6 +174,9 @@ export async function POST(req:NextRequest){
    const scope=await authorizedApplication(db,applicationId,String(auth.id),String(user.id));
    if(!scope.application||!scope.recruitment)return fail("APPLICATION_NOT_FOUND");
    if(!scope.candidate)return fail("FORBIDDEN");
+   const {data:test,error:testError}=await db.from("RecruitmentTestDefinition").select("id,recruitmentId,status").eq("id",testId).maybeSingle();
+   if(testError)throw testError;
+   if(!test||String(test.recruitmentId)!==String(scope.recruitment.id)||test.status!=="PUBLISHED")return fail("TEST_NOT_FOUND");
    const {data,error}=await db.rpc("recruitment360_lot4_start_session",{p_test_id:testId,p_application_id:applicationId,p_actor_user_id:String(auth.id)});
    if(error)throw error;
    return NextResponse.json({session:data},{status:201});
