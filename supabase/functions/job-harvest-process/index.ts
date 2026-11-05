@@ -1,7 +1,7 @@
 import { jwtVerify, createRemoteJWKSet } from "npm:jose@6";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
-import { extractApplicationContact } from "../_shared/application-contact.ts";
+import { extractApplicationContact, resolveSourceDisplayModel } from "../_shared/application-contact.ts";
 import { resolveApplicationReadiness } from "../_shared/application-readiness.ts";
 import {
   decodeHtmlEntities,
@@ -288,8 +288,10 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
     applicationUrl,
   });
   const hasApplicationRoute = applicationReadiness.applicationReady;
+  const sourceType = clean(profile.sourceType ?? payload.sourceType, 40) || "national";
+  const captureMode = normalizePipelineCaptureMode(capture.captureMode);
   const displayModel = clean(profile.displayModel ?? payload.displayModel, 120) ||
-    `jobly-standard-${sourceKey}-v1`;
+    resolveSourceDisplayModel(sourceKey, sourceType, captureMode, profile.renderRequired === true || payload.renderRequired === true);
   const applicationProfile = {
     ...profile,
     ...countryDetails,
@@ -480,7 +482,6 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
     applicationRouteVerified: hasApplicationRoute,
     descriptionVerified: description.length >= 60,
   };
-  const captureMode = normalizePipelineCaptureMode(capture.captureMode);
   const pipelineRow = {
     jobId,
     sourceKey,
