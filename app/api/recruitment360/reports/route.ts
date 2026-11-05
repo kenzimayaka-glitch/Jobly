@@ -86,7 +86,7 @@ export async function POST(req:NextRequest){
     const resolved=await recruitmentForApplication(s,String(b.applicationId));
     if(!resolved||!resolved.recruitment||String(resolved.recruitment.id)!==recruitmentId)
      return NextResponse.json({message:"Candidature hors recrutement."},{status:404});
-    if(String(resolved.application.userId)===String(u.id))
+    if(String(resolved.application.userId)===String(auth.id))
      return NextResponse.json({message:"Un candidat ne peut pas générer un rapport recruteur pour sa propre candidature."},{status:403});
    }
    const {data,error}=await s.rpc("recruitment360_lot7_get_report",{
@@ -101,7 +101,7 @@ export async function POST(req:NextRequest){
    if(!applicationId)return NextResponse.json({message:"APPLICATION_REQUIRED"},{status:400});
    const resolved=await recruitmentForApplication(s,applicationId);
    if(!resolved||!resolved.recruitment)return NextResponse.json({message:"APPLICATION_360_NOT_FOUND"},{status:404});
-   const candidateAllowed=String(resolved.application.userId)===String(u.id);
+   const candidateAllowed=String(resolved.application.userId)===String(auth.id);
    const recruiterAllowed=await recruiterHasAccess(s,String(u.id),String(resolved.recruitment.id),RECRUITMENT_WRITE_ROLES);
    if(!candidateAllowed&&!recruiterAllowed)return NextResponse.json({message:"FORBIDDEN"},{status:403});
    const processRating=parseRating(b.processRating),experienceRating=parseRating(b.experienceRating),joblyRating=parseRating(b.joblyRating);
