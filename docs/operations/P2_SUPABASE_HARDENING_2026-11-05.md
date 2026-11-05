@@ -1,9 +1,9 @@
-# Jobly — Audit sécurité Supabase (P2)
+# Jobly — Audit sécurité et performance Supabase (P2)
 
-**Dernière vérification :** 5 novembre 2026, 19:23 Africa/Douala  
+**Dernière vérification :** 5 novembre 2026, 23:52 Africa/Douala  
 **Projet :** JOBLY-PROD (`mpoyaegtwtmhookdzqdy`) — PostgreSQL 17.6.1.166  
 **Organisation :** Jobly — plan Free  
-**Base `main` de cette mise à jour :** `5f8d0fc5f68a044eddf1fe2ed3ba8cd889fa8c56`
+**Branche principale de cette mise à jour :** `af170ce5710b324061f6827623192489ad0c8e40`
 
 ## Corrections réellement appliquées
 
@@ -23,7 +23,7 @@ Il s'agit d'une formalisation du refus existant, pas d'un nouvel accès utilisat
 
 Migration Supabase `20261105183309 / p2_revoke_postgres_global_function_execute_20261105` :
 
-- Suppression du droit implicite `EXECUTE` de `PUBLIC` pour les nouvelles fonctions créées par `postgres`, globalement et pas seulement dans `public`.
+- Suppression du droit implicite `EXECUTE` de `PUBLIC` pour les nouvelles fonctions créées par `postgres`, globalement.
 - Vérification du catalogue : le défaut global des fonctions donne désormais `EXECUTE` uniquement à `postgres`, sans `PUBLIC`.
 - Les privilèges par défaut de `anon` et `authenticated` sur les nouvelles tables/séquences publiques avaient déjà été révoqués.
 - Les droits explicites des rôles Supabase Storage dans le schéma `storage` ont été conservés.
@@ -31,21 +31,62 @@ Migration Supabase `20261105183309 / p2_revoke_postgres_global_function_execute_
 
 Aucun droit des fonctions existantes n'a été retiré par cette migration.
 
+### 3. Index doublons exacts : quatre supprimés
+
+Migration Supabase `20261105225138 / p2_remove_four_exact_duplicate_indexes_20261105` :
+
+- `public.cvshare_token_idx` remplacé par l'index unique `cvshare_token_key`.
+- `RecruitmentDecisionPolicy_recruitmentId_idx` remplacé par `RecruitmentDecisionPolicy_recruitmentId_key`.
+- `RecruitmentInterviewVideoSession_interviewId_idx` remplacé par `RecruitmentInterviewVideoSession_interviewId_key`.
+- `RecruitmentListingPublicLink_tokenHash_idx` remplacé par `RecruitmentListingPublicLink_tokenHash_key`.
+
+La migration vérifie avant chaque suppression que l'index unique restant est exactement équivalent (colonnes, ordre, opérateurs, collation, prédicat, expressions), et que l'index candidat n'est pas attaché à une contrainte. Les quatre contrôles post-migration confirment que les doublons sont supprimés et les quatre index uniques conservés.
+
+Security Advisor : l'alerte `unused_index` est passée de **172 à 168**.
+
+## Performance Advisor — INFO restantes revues
+
+### 1. Clés étrangères sans index couvrant : 38 alertes sur 31 tables vides
+
+L'état exact a été contrôlé par comptage SQL, pas seulement par statistiques estimées :
+
+- 38 contraintes de clés étrangères sont concernées.
+- Elles appartiennent à 31 tables distinctes.
+- Les 31 tables contiennent actuellement **0 ligne**.
+- Taille totale des tables observées : environ 16 à 80 Ko par relation.
+
+**Décision :** ne pas ajouter 38 index sur des tables entièrement vides. Cela accroîtrait le stockage et produirait immédiatement des index non utilisés sans bénéfice mesurable aujourd'hui. Les relations seront réévaluées dès que ces tables recevront des lignes ou que leurs parcours applicatifs seront activés. À ce moment-là, ajouter les index FK couvrant les accès réellement exercés.
+
+Cette décision ne masque pas les 38 INFO ; elle évite une optimisation prématurée sur des relations sans données.
+
+### 2. Index inutilisés : 168 alertes conservées après nettoyage des doublons
+
+Contrôles SQL après nettoyage :
+
+- 168 index non uniques, non attachés à des contraintes, sans scan enregistré.
+- Taille cumulée : **2 288 Ko** (environ 2,23 Mio).
+- Dernier reset des statistiques PostgreSQL : **25 août 2026 à 20:33 UTC** ; la période observée est donc d'environ 72 jours.
+- Quatre doublons stricts supprimés ; les index uniques de remplacement sont encore présents.
+
+Les index restants couvrent de nombreux domaines fonctionnels Jobly (Recrutement 360, Mobility, Paiements, Community/Campus, J'IA, profils et offres). Un compteur de scan à zéro sur la période ne prouve pas qu'un index est inutile : une fonction rare ou une fonctionnalité récemment livrée peut en avoir besoin lors de son prochain usage.
+
+**Décision :** ne pas supprimer les 168 index en masse. Leur suppression pourrait ralentir les parcours peu fréquents ou les futures activations. Les index simples qui sont des préfixes d'index composés ne sont pas supprimés automatiquement non plus : un index plus étroit peut rester moins coûteux pour certains parcours. Une suppression ultérieure exige une comparaison des requêtes réelles, des plans `EXPLAIN (ANALYZE, BUFFERS)` et de la période de trafic représentative.
+
+Ces 168 INFO restent visibles dans Advisor, mais ont été examinées et ne constituent pas une anomalie non traitée sans décision.
+
 ## Avertissements Security Advisor encore ouverts
 
 ### 1. `pg_net` enregistré dans `public` — WARN
 
 État réel observé :
 - `pg_net 0.20.4`, `extrelocatable=false`, propriétaire `supabase_admin`, schéma d'enregistrement `public`.
-- `postgres` n'est ni superuser ni membre de `supabase_admin`. Supabase réserve ce rôle interne : il n'est pas possible de s'y ajouter avec un simple `GRANT`.
-- L'API de `pg_net` utilise le schéma `net`. Supabase indique que `net` n'est pas exposé par défaut via la Data API et que `anon`/`authenticated` sont des rôles NOLOGIN : les droits de schéma hérités ne rendent donc pas les tables HTTP accessibles depuis les clés clients.
-- Le lint reste toutefois valide : l'extension est enregistrée dans `public`.
+- `postgres` n'est ni superuser ni membre de `supabase_admin`. Supabase réserve ce rôle interne.
+- Le schéma `net` n'est pas exposé par défaut via la Data API.
+- Le lint de placement de l'extension reste valide.
 
-**Correction recommandée par Supabase :** supprimer puis recréer `pg_net` dans `extensions`. Cette opération retire les objets d'extension, y compris la file et l'historique HTTP ; elle doit donc être précédée d'un contrôle de file, d'une sauvegarde des réponses nécessaires et d'une protection du cron. Le runbook garde `RESTRICT`, jamais `CASCADE`, et s'arrête si le rôle ne possède pas l'extension : [p2_pg_net_recreate_2026-11-05.sql](../../supabase/operations/p2_pg_net_recreate_2026-11-05.sql).
+Le runbook [p2_pg_net_recreate_2026-11-05.sql](../../supabase/operations/p2_pg_net_recreate_2026-11-05.sql) prépare un cutover protégé : sauvegarde des réponses, file vide exigée, protection du cron, `DROP ... RESTRICT` (jamais `CASCADE`) et vérification après coup. Le cutover doit être exécuté par la voie privilégiée Supabase/support, puis validé par une réponse HTTP 2xx de l'ingestion. Aucun contournement de l'ownership n'a été tenté.
 
-**État :** runbook préparé, aucune tentative de contournement de l'ownership, aucun changement de cron ou d'extension effectué avec un rôle non autorisé. Le cutover reste à exécuter par la voie privilégiée Supabase/support, puis à valider par une réponse HTTP 2xx de l'ingestion.
-
-Sources : [Supabase — pg_net](https://supabase.com/docs/guides/database/extensions/pg_net), [Supabase KB — extension ownership et privilèges internes](https://supabase.com/kb/troubleshooting/revoking-access-to-pg_net-objects-has-no-effect-0bbc16).
+Source : [Supabase — pg_net](https://supabase.com/docs/guides/database/extensions/pg_net).
 
 ### 2. Protection des mots de passe compromis (HIBP) — WARN
 
@@ -54,43 +95,30 @@ Sources : [Supabase — pg_net](https://supabase.com/docs/guides/database/extens
 - Supabase réserve la protection intégrée HaveIBeenPwned au plan Pro ou supérieur.
 - Aucun upgrade ni dépense n'a été effectué.
 
-**État :** impossible à passer au vert sans changement d'offre. Aucun coût n'est engagé sans décision explicite. Les exigences de longueur et de complexité des mots de passe restent configurables séparément, mais ne remplacent pas la vérification HIBP.
+**Décision :** cette fonction ne peut être activée sans changement d'offre. Aucun coût ne sera engagé sans approbation.
 
 Source : [Supabase — Password security](https://supabase.com/docs/guides/auth/password-security).
 
-## Privilèges par défaut de `supabase_admin` : reclassification après vérification
+## Privilèges par défaut de `supabase_admin` : reclassification
 
-Le diagnostic initial pouvait laisser penser qu'il fallait révoquer les defaults du rôle `supabase_admin`. La documentation officielle Supabase, mise à jour le 4 novembre 2026, précise que ces defaults sont réservés et non modifiables par `postgres`. Ils ne s'appliquent qu'aux objets effectivement créés par `supabase_admin`, principalement des objets d'extensions.
+La documentation Supabase précise que les defaults de ce rôle interne ne sont pas modifiables par `postgres`. Les objets publics métier observés appartiennent à `postgres` ; aucune table ou vue publique n'appartient à `supabase_admin`. Une fonction `graphql_public.graphql(text,text,jsonb,jsonb)` appartient à `supabase_admin` et constitue le point d'entrée GraphQL géré par Supabase.
 
-Inventaire live des objets dans `public`, `graphql`, `graphql_public` :
-- 0 table/vue publique appartenant à `supabase_admin`.
-- Les 154 relations publiques recensées (153 tables et 1 vue) appartiennent à `postgres`.
-- 1 fonction `graphql_public.graphql(text,text,jsonb,jsonb)` appartient à `supabase_admin` et est exécutable par `anon`/`authenticated` ; il s'agit du point d'entrée GraphQL exposé, pas d'une table métier oubliée.
-- Les defaults de `postgres` sur ses nouveaux objets sont durcis séparément par les deux migrations ci-dessus.
+Le script [p2_supabase_admin_default_acl.sql](../../supabase/operations/p2_supabase_admin_default_acl.sql) est un diagnostic SELECT-only, et non une migration de privilèges à exécuter.
 
-**Conclusion :** ce n'est pas un correctif SQL à exécuter ni un défaut applicatif supplémentaire à laisser orange. Le script [p2_supabase_admin_default_acl.sql](../../supabase/operations/p2_supabase_admin_default_acl.sql) a été remplacé par un diagnostic SELECT-only. Ne pas tenter `GRANT supabase_admin TO postgres` ni des révocations d'ACL sur des objets dont `postgres` n'est pas le grantor.
-
-Source : [Supabase KB — Can't change the default privileges of supabase_admin](https://supabase.com/kb/troubleshooting/cant-change-the-default-privileges-of-supabase_admin-in-the-public-schema-448af9).
-
-## Indicateurs Performance Advisor — INFO
-
-- 38 clés étrangères sans index couvrant.
-- 172 index signalés inutilisés.
-
-Ce ne sont pas des WARN de sécurité. Les index inutilisés ne doivent pas être supprimés en masse ; ils peuvent soutenir des parcours peu fréquents. Les 38 index FK restants doivent être évalués selon les volumes et plans de requête réels, pas ajoutés aveuglément.
-
-## Écart de traçabilité
+## Écart de traçabilité historique
 
 L'historique de production contient `20261105175610 / p2_supabase_hardening_20261105`, mais aucun fichier de migration correspondant n'a été retrouvé sous `supabase/migrations` sur `main`. Le SQL exact n'a pas été reconstitué artificiellement. Cet écart de traçabilité reste à réconcilier depuis sa source d'origine.
 
 ## Verdict
 
-**Sécurité production : nettement renforcée, mais pas entièrement verte.**
+**P2 : les corrections sûres ont été appliquées ; les INFO restantes sont documentées et conditionnées à des données/à un trafic réel. Le chantier n'est pas entièrement vert dans l'Advisor.**
 
-- 72 alertes RLS/no-policy : corrigées et vérifiées.
-- Defaults des futures fonctions créées par `postgres` : durcis et vérifiés.
-- `supabase_admin` defaults : réservés par Supabase, non modifiables ; aucun objet métier appartenant à ce rôle dans `public`.
-- `pg_net` dans `public` : un WARN de placement reste, sans exposition directe par Data API selon Supabase ; migration de schéma en attente de la voie privilégiée.
-- Protection HIBP : reste désactivée sur le plan Free.
+- 72 alertes RLS/no-policy : corrigées.
+- Defaults d'EXECUTE pour les futures fonctions créées par `postgres` : durcis.
+- Quatre index doublons stricts : supprimés, quatre index uniques équivalents conservés.
+- 38 alertes FK : revues ; 31 tables concernées sont vides, donc indexation différée.
+- 168 index non utilisés : revus, doublons éliminés ; index métier restants conservés faute de preuve suffisante de suppression sûre.
+- `pg_net` dans `public` : WARN en attente de l'opérateur privilégié Supabase.
+- Protection HIBP : WARN lié au plan Free.
 
-Aucun paiement, `DROP ... CASCADE`, changement d'accès non autorisé ou déploiement Netlify n'a été effectué.
+Aucun paiement, `DROP ... CASCADE`, suppression d'index de contrainte, changement d'accès non autorisé ou déploiement Netlify n'a été effectué.
