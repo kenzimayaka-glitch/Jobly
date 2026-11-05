@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { adminClient, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
-import { EVENT_MANUAL_PAYMENT_METHODS, getEventManualPaymentInstructions } from "../../../../../lib/eventManualPayments";
+import { adminClient, ensureUser, getAuthUser } from "../../../../../../lib/server-auth";
+import { EVENT_MANUAL_PAYMENT_METHODS, getEventManualPaymentInstructions } from "../../../../../../lib/eventManualPayments";
 
 const fail = (message: string, status = 400, code = "MANUAL_PAYMENT_ERROR") =>
   NextResponse.json({ message, error: code }, { status });
