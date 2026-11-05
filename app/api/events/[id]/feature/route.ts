@@ -1,28 +1,89 @@
 import { NextRequest,NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient,ensureUser,getAuthUser } from "../../../../../lib/server-auth";
-import { EVENT_FEATURED_DAYS,EVENT_FEATURED_PRICE,EVENT_FEATURED_SLOTS } from "../../../../../lib/events";
+import { EVENT_FEATURED_DAYS,EVENT_FEATURED_PRICE } from "../../../../../lib/events";
+
 const fail=(message:string,status=400,code="EVENT_FEATURE_ERROR")=>NextResponse.json({error:code,message},{status});
+
 export async function POST(request:NextRequest,context:{params:Promise<{id:string}>}){
   try{
-    const auth=await getAuthUser(request);if(!auth)return fail("Session requise.",401,"UNAUTHENTICATED");
-    const {id}=await context.params,sb=adminClient(),user=await ensureUser(sb,auth);
-    const {data:event}=await sb.from("Event").select("id,creatorUserId,status").eq("id",id).maybeSingle();
+    const auth=await getAuthUser(request);
+    if(!auth)return fail("Session requise.",401,"UNAUTHENTICATED");
+    const {id}=await context.params;
+    const body=await request.json().catch(()=>({}));
+    const sb=adminClient();
+    const user=await ensureUser(sb,auth);
+    const {data:event,error:eventError}=await sb.from("Event")
+      .select("id,creatorUserId,status").eq("id",id).maybeSingle();
+    if(eventError)throw new Error(eventError.message);
     if(!event)return fail("Événement introuvable.",404,"EVENT_NOT_FOUND");
     if(event.creatorUserId!==user.id&&user.role!=="ADMIN")return fail("Non autorisé.",403,"FORBIDDEN");
     if(event.status!=="PUBLISHED")return fail("L'événement doit être publié avant sa mise en avant.",409,"EVENT_NOT_PUBLISHED");
-    const now=new Date(),end=new Date(now.getTime()+EVENT_FEATURED_DAYS*86400000);
-    const {data:active}=await sb.from("EventFeaturedCampaign").select("slot").eq("status","ACTIVE").lte("startAt",now.toISOString()).gte("endAt",now.toISOString()).limit(EVENT_FEATURED_SLOTS);
-    const used=new Set((active??[]).map(x=>Number(x.slot)));
-    const slot=Array.from({length:EVENT_FEATURED_SLOTS},(_,i)=>i+1).find(x=>!used.has(x));
-    if(!slot)return fail("Les 6 emplacements Grand rendez-vous sont occupés. Revenez vérifier la disponibilité.",409,"FEATURED_FULL");
-    const body=await request.json().catch(()=>({})),provider=String(body.provider??"ICLAN").toUpperCase(),paymentId=crypto.randomUUID();
-    const {data:payment,error:pe}=await sb.from("Payment").insert({id:paymentId,userId:user.id,provider,externalId:paymentId,amount:EVENT_FEATURED_PRICE,currency:"XAF",status:"CREATED",feature:"EVENT_FEATURED",createdAt:now.toISOString(),updatedAt:now.toISOString()}).select("*").single();
-    if(pe)throw new Error(pe.message);
-    const {getProvider}=await import("../../../../../lib/paymentProviders");
-    const intent=await getProvider(provider).createPayment({paymentId,amount:EVENT_FEATURED_PRICE,currency:"XAF",phone:auth.phone});
-    const {data:campaign,error:ce}=await sb.from("EventFeaturedCampaign").insert({id:crypto.randomUUID(),eventId:id,slot,startAt:now.toISOString(),endAt:end.toISOString(),price:EVENT_FEATURED_PRICE,paymentId,status:"PENDING_PAYMENT",createdAt:now.toISOString(),updatedAt:now.toISOString()}).select("*").single();
-    if(ce)throw new Error(ce.message);
-    return NextResponse.json({campaign,payment:{id:paymentId,checkoutReference:intent.checkoutReference,instructions:intent.instructions}},{status:201});
-  }catch(e){return fail(e instanceof Error?e.message:"Mise en avant impossible.",500);}
+
+    const now=new Date().toISOString();
+    const {data:entitlement,error:entitlementError}=await sb.from("EventEntitlement")
+      .select("id,freeFeatured").eq("organizerUserId",user.id).eq("active",true).lte("validFrom",now)
+      .or("validUntil.is.null,validUntil.gte."+now).order("validFrom",{ascending:false}).limit(1).maybeSingle();
+    if(entitlementError)throw new Error(entitlementError.message);
+    const free=user.role==="ADMIN"||Boolean(entitlement?.freeFeatured);
+    const campaignId=crypto.randomUUID();
+
+    if(free){
+      const {data:campaign,error:campaignError}=await sb.rpc("create_event_featured_campaign",{
+        p_campaign_id:campaignId,
+        p_event_id:id,
+        p_payment_id:null,
+        p_price:0,
+        p_duration_days:EVENT_FEATURED_DAYS,
+        p_free:true
+      });
+      if(campaignError){
+        if(campaignError.message.includes("FEATURED_FULL"))return fail("Les 6 emplacements Grand rendez-vous sont occupés.",409,"FEATURED_FULL");
+        throw new Error(campaignError.message);
+      }
+      return NextResponse.json({campaign,payment:null,free:true},{status:201});
+    }
+
+    const provider=String(body.provider??"ICLAN").toUpperCase();
+    if(provider==="MOCK"&&process.env.NODE_ENV==="production")return fail("Le fournisseur de paiement simulé est interdit en production.",422,"MOCK_PAYMENT_DISABLED");
+    const paymentId=crypto.randomUUID();
+    const {error:paymentError}=await sb.from("Payment").insert({
+      id:paymentId,userId:user.id,provider,externalId:paymentId,idempotencyKey:paymentId,amount:EVENT_FEATURED_PRICE,
+      currency:"XAF",status:"CREATED",feature:"EVENT_FEATURED",createdAt:now,updatedAt:now
+    });
+    if(paymentError)throw new Error(paymentError.message);
+
+    const {data:campaign,error:campaignError}=await sb.rpc("create_event_featured_campaign",{
+      p_campaign_id:campaignId,
+      p_event_id:id,
+      p_payment_id:paymentId,
+      p_price:EVENT_FEATURED_PRICE,
+      p_duration_days:EVENT_FEATURED_DAYS,
+      p_free:false
+    });
+    if(campaignError){
+      await sb.from("Payment").update({status:"FAILED",failureReason:campaignError.message.slice(0,240),updatedAt:new Date().toISOString()}).eq("id",paymentId);
+      if(campaignError.message.includes("FEATURED_FULL"))return fail("Les 6 emplacements Grand rendez-vous sont occupés.",409,"FEATURED_FULL");
+      throw new Error(campaignError.message);
+    }
+
+    try{
+      const {getProvider}=await import("../../../../../lib/paymentProviders");
+      const intent=await getProvider(provider).createPayment({
+        paymentId,amount:EVENT_FEATURED_PRICE,currency:"XAF",phone:auth.phone
+      });
+      return NextResponse.json({campaign,payment:{
+        id:paymentId,checkoutReference:intent.checkoutReference,instructions:intent.instructions
+      }},{status:201});
+    }catch(providerError){
+      const message=providerError instanceof Error?providerError.message:"Fournisseur indisponible.";
+      await Promise.all([
+        sb.from("Payment").update({status:"FAILED",failureReason:message.slice(0,240),updatedAt:new Date().toISOString()}).eq("id",paymentId),
+        sb.from("EventFeaturedCampaign").update({status:"PAYMENT_FAILED",updatedAt:new Date().toISOString()}).eq("id",campaignId)
+      ]);
+      return fail("Le fournisseur n'a pas pu démarrer la transaction de mise en avant.",503,"PAYMENT_PROVIDER_UNAVAILABLE");
+    }
+  }catch(e){
+    return fail(e instanceof Error?e.message:"Mise en avant impossible.",500);
+  }
 }
