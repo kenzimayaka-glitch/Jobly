@@ -14,6 +14,7 @@ import {
   checkUsernameAvailable,
 } from "../lib/auth";
 import { setRememberMe, getSupabaseClient } from "../lib/supabase";
+import { assertPasswordNotPwned } from "../lib/pwnedPasswords";
 import BubbleField from "../components/BubbleField";
 import JoblyLogo from "../components/JoblyLogo";
 import WaterScene from "../components/WaterScene";
@@ -740,6 +741,9 @@ export default function Home() {
         setMessage(translations[lang].usernameTaken);
         return;
       }
+      // Vérification HIBP uniquement à la validation finale (pas à chaque frappe),
+      // avant toute écriture du profil. Le mot de passe reste dans le navigateur.
+      await assertPasswordNotPwned(password);
       // 15/09/2026 : même ordre que dans app/onboarding/page.tsx — le profil
       // est créé AVANT updateUser({ password }), pour ne plus dépendre d'un
       // jeton potentiellement tourné/invalidé par le changement de mot de
