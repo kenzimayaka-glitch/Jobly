@@ -1,6 +1,6 @@
 import { resolveCountrySources, resolveSourceUrl } from "./country-url-resolver.ts";
 import { SOURCE_REGISTRY, getRegistryStats, type SourceDefinition } from "./source-registry.ts";
-import { sourceCanBeCrawled, sourceCanBeShadowCrawled, validateSourceDefinition } from "./source-engine.ts";
+import { sourceCanBeShadowCrawled, validateSourceDefinition } from "./source-engine.ts";
 import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
 import { extractApplicationContact, resolveSourceDisplayModel } from "../_shared/application-contact.ts";
 import { crawlExhaustiveSource } from "./exhaustive-crawler.ts";
