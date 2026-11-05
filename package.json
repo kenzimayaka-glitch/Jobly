@@ -18,6 +18,7 @@
     "test:africa-p0": "node --experimental-strip-types --test scripts/africa-p0.test.mjs",
     "test:event-core": "node --experimental-strip-types --test scripts/event-core-p1.test.mjs",
     "test:billing": "node --experimental-strip-types --test scripts/billing-lifecycle.test.mjs",
+    "test:payment-sms": "node --experimental-strip-types --test scripts/payment-sms-matcher.test.mjs",
     "test:mobility-p1": "node --experimental-strip-types --test scripts/mobility-p1.test.mjs",
     "test:p2-ecosystem": "node --test scripts/p2-community-bons-plans-campus.test.mjs",
     "test:company-logo-fallback": "node --experimental-strip-types --test scripts/company-logo-fallback.test.mjs",
