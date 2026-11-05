@@ -346,6 +346,8 @@ class MainActivity : Activity() {
         currentApplicationUrl = ""
         applicationPayload = JSONObject()
         fallbackBanner.visibility = View.GONE
+        toolbar.findViewWithTag<Button>(CHROME_BUTTON_TAG)?.visibility = View.GONE
+        webView.clearHistory()
         updateToolbar()
         webView.loadUrl(baseUrl)
     }
