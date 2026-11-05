@@ -37,13 +37,17 @@ type MatchItem = {
   expectedValue?: string | null;
 };
 
+type OfferPresentationSection = { key: string; label?: string; kind?: "paragraph" | "bullets" | "steps" };
 type NormalizedContent = {
-  version?: string; title?: string | null; company?: string | null; location?: string[];
+  version?: string; title?: string | null; company?: string | null; location?: string[] | string | null;
   contractType?: string | null; remoteMode?: string | null;
   salary?: { min?: number | null; max?: number | null; currency?: string | null };
-  deadline?: string | null; description?: string[]; missions?: string[]; profile?: string[];
-  education?: string[]; experience?: string[]; skills?: string[]; qualities?: string[];
-  benefits?: string[]; application?: string[]; source?: { name?: string; url?: string };
+  deadline?: string | null; summary?: string | null; description?: string[];
+  missions?: string[]; profile?: string[]; education?: string[]; experience?: string[];
+  skills?: string[]; qualities?: string[]; benefits?: string[]; application?: string[];
+  sections?: Record<string, string[]>;
+  presentation?: { layout?: string; sourceKey?: string; sourceLabel?: string; sourceDisplayModel?: string; sections?: OfferPresentationSection[] };
+  source?: { name?: string; url?: string };
 };
 type Job = Record<string, any> & {
   normalizedContent?: NormalizedContent | null;
@@ -269,19 +273,49 @@ function JobDetailInner() {
   const applicationSubject = extractApplicationSubject(applicationText);
   const emailChannel = Boolean(applicationEmail);
 
-  const sections = {
-    // The detail page is source-agnostic: canonical data is the only
-    // representation allowed to reach the UI.
-    description: canonicalSection(normalized?.description),
-    missions: canonicalSection(normalized?.missions),
-    profile: canonicalSection(normalized?.profile),
-    formation: canonicalSection(normalized?.education),
-    experience: canonicalSection(normalized?.experience),
-    skills: canonicalSection(normalized?.skills),
-    qualities: canonicalSection(normalized?.qualities),
-    benefits: canonicalSection(normalized?.benefits),
-    application: canonicalApplication,
+  const normalizedSections = normalized?.sections && typeof normalized.sections === "object" ? normalized.sections : {};
+  const sectionValues: Record<string, string[]> = {
+    summary: canonicalSection(normalizedSections.summary?.length ? normalizedSections.summary : normalized?.summary ? [normalized.summary] : []),
+    description: canonicalSection(normalizedSections.description?.length ? normalizedSections.description : normalized?.description),
+    missions: canonicalSection(normalizedSections.missions?.length ? normalizedSections.missions : normalized?.missions),
+    profile: canonicalSection(normalizedSections.profile?.length ? normalizedSections.profile : normalized?.profile),
+    requirements: canonicalSection(normalizedSections.requirements),
+    education: canonicalSection(normalizedSections.education?.length ? normalizedSections.education : normalized?.education),
+    experience: canonicalSection(normalizedSections.experience?.length ? normalizedSections.experience : normalized?.experience),
+    skills: canonicalSection(normalizedSections.skills?.length ? normalizedSections.skills : normalized?.skills),
+    qualities: canonicalSection(normalizedSections.qualities?.length ? normalizedSections.qualities : normalized?.qualities),
+    workConditions: canonicalSection(normalizedSections.workConditions),
+    schedule: canonicalSection(normalizedSections.schedule),
+    travel: canonicalSection(normalizedSections.travel),
+    benefits: canonicalSection(normalizedSections.benefits?.length ? normalizedSections.benefits : normalized?.benefits),
+    documents: canonicalSection(normalizedSections.documents),
+    languages: canonicalSection(normalizedSections.languages),
+    selectionProcess: canonicalSection(normalizedSections.selectionProcess),
+    application: canonicalSection(normalizedSections.application?.length ? normalizedSections.application : canonicalApplication),
+    other: canonicalSection(normalizedSections.other),
   };
+  const sectionLabels: Record<string, string> = {
+    summary: "En bref", description: "Présentation de l'offre", missions: "Missions et responsabilités",
+    profile: "Profil recherché", requirements: "Conditions et exigences", education: "Formation",
+    experience: "Expérience", skills: "Compétences", qualities: "Qualités recherchées",
+    workConditions: "Conditions de travail", schedule: "Horaires", travel: "Déplacements et mobilité",
+    benefits: "Avantages", documents: "Documents à fournir", languages: "Langues",
+    selectionProcess: "Processus de sélection", application: "Comment postuler", other: "Informations complémentaires",
+  };
+  const aiPresentation = normalized?.presentation && typeof normalized.presentation === "object" ? normalized.presentation : {};
+  const aiDescriptors = Array.isArray(aiPresentation.sections) ? aiPresentation.sections : [];
+  const defaultSectionOrder = ["summary", "description", "missions", "profile", "requirements", "education", "experience", "skills", "qualities", "workConditions", "schedule", "travel", "benefits", "documents", "languages", "selectionProcess", "application", "other"];
+  const requestedSectionOrder = aiDescriptors.map((item) => String(item.key || "")).filter((key) => Object.prototype.hasOwnProperty.call(sectionValues, key));
+  const sectionOrder = Array.from(new Set([...requestedSectionOrder, ...defaultSectionOrder]));
+  const hasApplicationContent = Boolean(emailChannel || phoneChannel || applicationLink || sourceLink || sectionValues.application.length);
+  const displaySections = sectionOrder
+    .filter((key) => sectionValues[key]?.length || (key === "application" && hasApplicationContent))
+    .map((key) => {
+      const descriptor = aiDescriptors.find((item) => String(item.key || "") === key);
+      const kind = descriptor?.kind === "paragraph" || descriptor?.kind === "steps" ? descriptor.kind : key === "summary" || key === "description" ? "paragraph" : "bullets";
+      return { key, title: String(descriptor?.label || sectionLabels[key] || key), kind, items: sectionValues[key] || [] };
+    });
+  const presentationLayout = String(aiPresentation.layout || "STRUCTURED").toUpperCase();
   const matchScore = Math.max(0, Math.min(100, Number(job.matchPercent ?? 0)));
   const headerFacts = [
     Array.isArray(normalized?.location) && normalized.location.length ? { icon: MapPin, value: normalized.location.join(" · ") } : null,
@@ -341,30 +375,28 @@ function JobDetailInner() {
               </DetailSection>}
             </div>
 
-            {sections.description.length > 0 && <DetailSection title="À propos de l'offre">{renderParagraphs(sections.description)}</DetailSection>}
-            {sections.missions.length > 0 && <DetailSection title="Missions">{renderBullets(sections.missions)}</DetailSection>}
-            {sections.profile.length > 0 && <DetailSection title="Profil recherché">{renderBullets(sections.profile)}</DetailSection>}
-            {sections.formation.length > 0 && <DetailSection title="Formation">{renderBullets(sections.formation)}</DetailSection>}
-            {sections.experience.length > 0 && <DetailSection title="Expérience">{renderBullets(sections.experience)}</DetailSection>}
-            {sections.skills.length > 0 && <DetailSection title="Compétences">{renderBullets(sections.skills)}</DetailSection>}
-            {sections.qualities.length > 0 && <DetailSection title="Qualités recherchées">{renderBullets(sections.qualities)}</DetailSection>}
-            {sections.benefits.length > 0 && <DetailSection title="Avantages">{renderBullets(sections.benefits)}</DetailSection>}
-            {(emailChannel || phoneChannel || applicationLink || sourceLink || sections.application.length > 0) && (
-              <DetailSection title="Comment postuler">
-                <div className="space-y-4">
-                  {emailChannel && (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl bg-[#F7FAFF] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Mail de candidature</p><p className="mt-1 break-all text-sm font-bold text-[#17212B]">{applicationEmail}</p></div>
-                      {applicationSubject && <div className="rounded-2xl bg-[#F7FAFF] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Objet du mail</p><p className="mt-1 text-sm font-bold text-[#17212B]">{applicationSubject}</p></div>}
-                    </div>
-                  )}
-                  {sections.application.length > 0 && renderBullets(sections.application)}
-                  {!emailChannel && !phoneChannel && !applicationLink && sourceLink && <p className="text-sm leading-6 text-amber-800">Aucun contact ni formulaire de candidature n’a été confirmé dans les données collectées. Consultez l’annonce originale pour vérifier la procédure et la disponibilité du poste.</p>}
-                  {sourceLink && <a href={sourceLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-black text-blue-700 underline underline-offset-4">Consulter l’annonce originale <ExternalLink size={15}/></a>}
-                  {applicationMode && <p className="text-sm leading-6 text-slate-500">{applicationMode}</p>}
-                </div>
-              </DetailSection>
-            )}
+            <div className={presentationLayout === "COMPACT" ? "grid gap-4 sm:grid-cols-2" : "space-y-4"}>
+              {displaySections.map((section) => section.key === "application" ? (
+                <DetailSection key={section.key} title={section.title}>
+                  <div className="space-y-4">
+                    {emailChannel && (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-2xl bg-[#F7FAFF] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Mail de candidature</p><p className="mt-1 break-all text-sm font-bold text-[#17212B]">{applicationEmail}</p></div>
+                        {applicationSubject && <div className="rounded-2xl bg-[#F7FAFF] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-[1px] text-slate-400">Objet du mail</p><p className="mt-1 text-sm font-bold text-[#17212B]">{applicationSubject}</p></div>}
+                      </div>
+                    )}
+                    {section.items.length > 0 && renderBullets(section.items)}
+                    {!emailChannel && !phoneChannel && !applicationLink && sourceLink && <p className="text-sm leading-6 text-amber-800">Aucun contact ni formulaire de candidature n’a été confirmé dans les données collectées. Consultez l’annonce originale pour vérifier la procédure et la disponibilité du poste.</p>}
+                    {sourceLink && <a href={sourceLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-black text-blue-700 underline underline-offset-4">Consulter l’annonce originale <ExternalLink size={15}/></a>}
+                    {applicationMode && <p className="text-sm leading-6 text-slate-500">{applicationMode}</p>}
+                  </div>
+                </DetailSection>
+              ) : (
+                <DetailSection key={section.key} title={section.title}>
+                  {section.kind === "paragraph" ? renderParagraphs(section.items) : renderBullets(section.items)}
+                </DetailSection>
+              ))}
+            </div>
 
             {deadline && <DetailSection title="Délai"><div className="flex items-start gap-3 rounded-2xl bg-[#FFFBEA] p-4"><CalendarDays size={18} className="mt-0.5 shrink-0 text-amber-700"/><div><p className="text-sm font-black text-[#17212B]">{deadlineExpired ? "Date limite dépassée" : "Candidatures jusqu’au"}</p><p className="mt-1 text-sm leading-6 text-slate-600">{deadline}</p></div></div></DetailSection>}
 
