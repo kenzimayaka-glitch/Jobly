@@ -1,0 +1,27 @@
+name: Mobile Money SMS payment core
+
+on:
+  pull_request:
+    paths:
+      - "lib/paymentSms/**"
+      - "app/api/payments/sms/**"
+      - "app/api/payments/[id]/verify/route.ts"
+      - "app/api/subscription/route.ts"
+      - "app/abonnement/page.tsx"
+      - "scripts/payment-sms-*.test.mjs"
+      - "supabase/operations/payment_sms_foundation.sql"
+      - ".github/workflows/payment-sms.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  sms-payment-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test parser and transaction matching
+        run: node --experimental-strip-types --test scripts/payment-sms-parser.test.mjs scripts/payment-sms-matching.test.mjs
