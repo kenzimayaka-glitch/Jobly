@@ -21,7 +21,8 @@
     "test:mobility-p1": "node --experimental-strip-types --test scripts/mobility-p1.test.mjs",
     "test:p2-ecosystem": "node --test scripts/p2-community-bons-plans-campus.test.mjs",
     "test:company-logo-fallback": "node --experimental-strip-types --test scripts/company-logo-fallback.test.mjs",
-    "test:p2-offer-watermark": "node --test scripts/p2-jobly-offer-watermark.test.mjs"
+    "test:p2-offer-watermark": "node --test scripts/p2-jobly-offer-watermark.test.mjs",
+    "test:recruitment360": "node --experimental-strip-types --test scripts/api-access-p0.test.mjs scripts/recruitment360-flow.test.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
