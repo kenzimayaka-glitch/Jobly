@@ -50,6 +50,9 @@ jobs:
       - name: Mission Afrique P0 regression tests
         run: pnpm test:africa-p0
 
+      - name: Event Core P1 regression tests
+        run: pnpm test:event-core
+
       - name: Billing lifecycle regression tests
         run: pnpm test:billing
 
