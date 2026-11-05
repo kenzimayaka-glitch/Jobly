@@ -61,3 +61,15 @@ Deno.test("moves email subject and application deadline instructions", () => {
   assertEquals(result.sections.application.length, 1);
   assertEquals(result.sections.application[0].includes("Objet du mail recommandé"), true);
 });
+
+Deno.test("splits a full French offer body into introduction, missions and profile", () => {
+  const result = sanitizeOfferSections({
+    description: [
+      "Présentation du poste Nous recrutons un commercial pour développer le réseau. Missions principales Prospecter les clients, suivre les ventes et établir les rapports. Profil recherché Détenir un diplôme commercial et justifier de trois ans d'expérience. Comment postuler Envoyer le CV par e-mail.",
+    ],
+  });
+  assertEquals(result.sections.description, ["Nous recrutons un commercial pour développer le réseau."]);
+  assertEquals(result.sections.missions, ["Prospecter les clients, suivre les ventes et établir les rapports."]);
+  assertEquals(result.sections.profile, ["Détenir un diplôme commercial et justifier de trois ans d'expérience."]);
+  assertEquals(result.sections.application, ["Comment postuler Envoyer le CV par e-mail."]);
+});
