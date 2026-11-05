@@ -16,7 +16,7 @@ type NormalizedOffer = {
   version: string; title: string | null; company: string | null; location: string[];
   region: string | null; sector: string | null; contractType: string | null; remoteMode: string | null;
   salary: { min: number | null; max: number | null; currency: string | null };
-  experience: string[]; education: string[]; skills: string[]; qualities: string[];
+  experience: string[]; education: string[]; profile: string[]; skills: string[]; qualities: string[];
   missions: string[]; benefits: string[]; description: string[]; application: string[];
   deadline: string | null; source: { name: string; url: string }; qualityScore: number | null; flags: string[];
 };
@@ -65,7 +65,7 @@ function fallbackNormalized(item:any):NormalizedOffer {
   return {version:NORMALIZED_VERSION,title:cleanHumanText(String(item.title||""))||null,company:cleanHumanText(String(item.company||""))||null,
     location:item.location?String(item.location).split(/[,;|]/).map((x:string)=>cleanHumanText(x)).filter(Boolean):[],region:null,sector:null,
     contractType:inferContract(raw),remoteMode:inferRemote(raw),salary:{min:null,max:null,currency:"XAF"},
-    experience:Array.from(new Set([...cleanArray(sections.experience),...extractExperience(raw)])).slice(0,10),education:cleanArray(sections.formation),skills:cleanArray(sections.skills),qualities:cleanArray(sections.qualities),
+    experience:Array.from(new Set([...cleanArray(sections.experience),...extractExperience(raw)])).slice(0,10),education:cleanArray(sections.formation),profile:cleanArray(sections.profile),skills:cleanArray(sections.skills),qualities:cleanArray(sections.qualities),
     missions:cleanArray(sections.missions),benefits:cleanArray(sections.benefits),description:cleanArray(sections.description),application:Array.from(new Set([...cleanArray(sections.application),...extractApplication(raw)])).slice(0,12),
     deadline:item.deadline||null,source:{name:String(item.source||""),url:String(item.url||"")},qualityScore:null,flags:[]};
 }
@@ -90,7 +90,7 @@ function normalizeAiResult(ai:any,item:any):NormalizedOffer {
     location:arr(ai?.location).length?arr(ai.location):base.location,region:cleanHumanText(String(ai?.region||""))||null,sector:cleanHumanText(String(ai?.sector||""))||null,
     contractType:cleanHumanText(String(ai?.contractType||base.contractType||""))||null,remoteMode:cleanHumanText(String(ai?.remoteMode||base.remoteMode||""))||null,
     salary:{min:n(ai?.salaryMin),max:n(ai?.salaryMax),currency:cleanHumanText(String(ai?.salaryCurrency||"XAF"))||"XAF"},
-    experience:cleanSections.experience,education:cleanSections.education,
+    experience:cleanSections.experience,education:cleanSections.education,profile:cleanSections.profile,
     skills:cleanSections.skills,qualities:cleanSections.qualities,
     missions:cleanSections.missions,benefits:cleanSections.benefits,
     description:cleanSections.description,application:cleanSections.application,
