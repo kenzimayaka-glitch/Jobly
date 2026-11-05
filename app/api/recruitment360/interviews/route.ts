@@ -77,7 +77,7 @@ export async function POST(req:NextRequest){
    if(error)throw new Error(error.message);
    if(!application?.recruiterJobId)return failure("APPLICATION_NOT_FOUND");
    const provider=String(body.meetingProvider??"EXTERNAL").toUpperCase();
-   if(!["GOOGLE_MEET","EXTERNAL","JOBLY_NATIVE"].includes(provider))return failure("INVALID_MEETING_PROVIDER");
+   if(!["GOOGLE_MEET","EXTERNAL"].includes(provider))return failure("NATIVE_VIDEO_NOT_CONFIGURED");
    const meetingUrl=String(body.meetingUrl??"").trim();
    if(provider!=="JOBLY_NATIVE"){
     let url:URL;
