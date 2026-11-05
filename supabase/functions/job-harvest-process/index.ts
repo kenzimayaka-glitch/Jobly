@@ -9,6 +9,7 @@ import {
   mapOpportunityType,
   normalizeLanguage,
   normalizeRemoteMode,
+  normalizePipelineCaptureMode,
   resolveCountryCode,
   safeHttpUrl,
   safeInteger,
