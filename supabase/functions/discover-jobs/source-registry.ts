@@ -15,6 +15,8 @@ export type SourceDefinition = {
   type: SourceType;
   status: SourceStatus;
   enabled: boolean;
+  /** Explicitly approved for read-only shadow qualification; never makes a source production-active. */
+  shadowCrawlEligible?: boolean;
   url?: string;
   countries: string[];
   languages: string[];
@@ -1856,6 +1858,136 @@ for (const source of RATISSAGE_WAVE_9_SOURCES) {
  if(index>=0) SOURCE_REGISTRY[index]=source; else SOURCE_REGISTRY.push(source);
 }
 
+/**
+ * 101 HTTP-only candidates approved for the read-only source qualification queue.
+ * They remain status="discovered" and enabled=false; this does not authorize
+ * publication or production ingestion. Six browser/render-dependent candidates
+ * remain outside this queue until a dedicated adapter is available.
+ */
+export const SHADOW_CRAWL_ELIGIBLE_SOURCE_KEYS = [
+  "freshtalent",
+  "jobaa",
+  "africajobconnect",
+  "taf4all",
+  "novojob",
+  "alerte_emploi",
+  "jobra",
+  "jobiro",
+  "clbk",
+  "edmatch",
+  "careers_in_africa",
+  "chantierpro",
+  "affutjob",
+  "marcheemploi",
+  "vueradar",
+  "jobsonline_africa",
+  "akilibrain",
+  "rekrute",
+  "marocannonces",
+  "coincarriere",
+  "allojob",
+  "alwadifa_maroc",
+  "bghit_nekhdem",
+  "wetech",
+  "ejobs",
+  "hotalents",
+  "moncallcenter",
+  "wuzzuf",
+  "forasna",
+  "tanqeeb",
+  "hire_rung",
+  "plegma",
+  "jobgurus",
+  "jobsinnigeria",
+  "quicktojobs",
+  "jobstark",
+  "gradjobber",
+  "xoooth",
+  "digijob_guinee",
+  "jobbissau",
+  "jobinfocamer_extra",
+  "africatalents",
+  "jobartis",
+  "corporate_staffing",
+  "jobweb_kenya",
+  "myjobsinkenya",
+  "recruitfinds",
+  "linkbase",
+  "great_uganda_jobs",
+  "jobweb_uganda",
+  "job_adverts_uganda",
+  "work_tz",
+  "mshahara",
+  "fadicy",
+  "jobweb_rwanda",
+  "umurimo",
+  "jobs_in_rwanda_ai",
+  "jobweb_ethiopia",
+  "jobsethiopia",
+  "worklink_ethiopia",
+  "binasmart",
+  "hornjobs",
+  "comores_emploi",
+  "jobmada",
+  "myjob_mu",
+  "hellojob_mu",
+  "jobo_sc",
+  "careers24",
+  "jobmail",
+  "bizcommunity",
+  "freerecruit",
+  "mzansi_jobs",
+  "careers_portal",
+  "offerzen",
+  "vacancymail",
+  "go_zambia_jobs",
+  "jobweb_zambia",
+  "great_zambia_jobs",
+  "ntchito",
+  "emploi_ml",
+  "jobguinee",
+  "emploi_gw",
+  "jobsearch_gm",
+  "jobartis_ao",
+  "emprego_ao",
+  "uemoa_careers",
+  "malawi_education_recruitment",
+  "malawi_health_opportunities",
+  "dreamjob_ma",
+  "tanitjobs",
+  "ethiopian_reporter_jobs",
+  "mmo_emprego",
+  "emploi_benin",
+  "synergieplus_bj",
+  "emploi_burkina",
+  "emploi_mali",
+  "opportafrik_ne",
+  "leep_jobs_ng",
+  "eafrica_connect",
+  "pnpe_ga_offers",
+  "cawa_group_west",
+] as const;
+
+const shadowCrawlEligibleKeys = new Set<string>(SHADOW_CRAWL_ELIGIBLE_SOURCE_KEYS);
+for (const source of SOURCE_REGISTRY) {
+  if (!shadowCrawlEligibleKeys.has(source.key)) continue;
+  if (source.status !== "discovered" || source.enabled || !source.url || source.captureMode !== "http" || source.renderRequired) {
+    throw new Error(`Invalid shadow qualification candidate configuration: ${source.key}`);
+  }
+  source.shadowCrawlEligible = true;
+}
+
+export function getShadowCrawlEligibleSources(countryCode?: string): SourceDefinition[] {
+  return SOURCE_REGISTRY.filter((source) => source.shadowCrawlEligible === true && (!countryCode || source.countries.includes(countryCode)));
+}
+
+export function getSourcesToWork(countryCode?: string): SourceDefinition[] {
+  return SOURCE_REGISTRY.filter((source) =>
+    ((source.status === "active" && source.enabled) || source.shadowCrawlEligible === true) &&
+    (!countryCode || source.countries.includes(countryCode))
+  );
+}
+
 export function getSourceByKey(key:string): SourceDefinition | null {
   return SOURCE_REGISTRY.find((source)=>source.key===key) ?? null;
 }
@@ -1873,6 +2005,8 @@ export function getDiscoveredSources(countryCode?:string): SourceDefinition[] {
 export function getRegistryStats() {
   const active=SOURCE_REGISTRY.filter((s)=>s.status==="active");
   const discovered=SOURCE_REGISTRY.filter((s)=>s.status==="discovered");
+  const shadowCrawlEligibleSources=SOURCE_REGISTRY.filter((s)=>s.shadowCrawlEligible===true).length;
+  const sourcesToWork=active.filter((s)=>s.enabled).length+shadowCrawlEligibleSources;
   const nonCameroon = AFRICA_COUNTRIES.filter(c=>c.code!=="CM").map(c=>c.code);
   const activeNonCameroon = active.filter(s=>s.countries.some(c=>c!=="CM"));
   const coverage = Object.fromEntries(nonCameroon.map(code => [code, activeNonCameroon.filter(s=>s.countries.includes(code)).length]));
@@ -1882,6 +2016,8 @@ export function getRegistryStats() {
     sources: SOURCE_REGISTRY.length,
     activeSources: active.length,
     discoveredSources: discovered.length,
+    shadowCrawlEligibleSources,
+    sourcesToWork,
     withUrl: SOURCE_REGISTRY.filter((s)=>Boolean(s.url)).length,
     renderSources: SOURCE_REGISTRY.filter((s)=>s.renderRequired).length,
     nonCameroonActiveSources: activeNonCameroon.length,

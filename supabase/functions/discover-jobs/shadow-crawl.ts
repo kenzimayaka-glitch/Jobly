@@ -1,6 +1,6 @@
 import { resolveCountrySources, resolveSourceUrl } from "./country-url-resolver.ts";
-import { SOURCE_REGISTRY, type SourceDefinition } from "./source-registry.ts";
-import { sourceCanBeCrawled, validateSourceDefinition } from "./source-engine.ts";
+import { SOURCE_REGISTRY, getRegistryStats, type SourceDefinition } from "./source-registry.ts";
+import { sourceCanBeCrawled, sourceCanBeShadowCrawled, validateSourceDefinition } from "./source-engine.ts";
 import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
 import { extractApplicationContact, resolveSourceDisplayModel } from "../_shared/application-contact.ts";
 import { crawlExhaustiveSource } from "./exhaustive-crawler.ts";
@@ -29,9 +29,10 @@ if(requestedSourceKeys.length){
     metrics.push({sourceKey:missing,sourceName:missing,countryCode:"",listingPages:0,detailPages:0,discoveredUrls:0,extracted:0,eligible:0,fresh:0,expired:0,internships:0,consultancies:0,applications:0,tenders:0,rejected:0,contactRejected:0,missingPublicationDate:0,freshnessRejected:0,harvestCandidates:0,rejectedReasons:{unknown_source:1},advertisedCount:null,errors:["UNKNOWN_SOURCE_KEY"]});
   }
   for(const definition of definitions){
-    if(!sourceCanBeCrawled(definition)){
+    if(!sourceCanBeShadowCrawled(definition)){
       const inactive = !definition.enabled || definition.status !== "active";
-      const validationErrors = validateSourceDefinition(definition);
+      const validationTarget = definition.shadowCrawlEligible ? {...definition,status:"active" as const,enabled:true,shadowCrawlEligible:false} : definition;
+      const validationErrors = validateSourceDefinition(validationTarget);
       metrics.push({
         sourceKey:definition.key,sourceName:definition.name,countryCode:"",
         listingPages:0,detailPages:0,discoveredUrls:0,extracted:0,eligible:0,fresh:0,
@@ -147,7 +148,9 @@ const control=metrics.map(x=>({
   gap:x.advertisedCount===null?null:x.advertisedCount-x.eligible
 }));
 const uniqueCandidates=[...new Map(harvestCandidates.map(item=>[item.sourceKey+"\n"+item.url,item])).values()];
+const registryStats=getRegistryStats();
 const summary={
+  pipeline:{totalRegisteredSources:registryStats.sources,activeProductionSources:registryStats.activeSources,shadowCrawlEligibleSources:registryStats.shadowCrawlEligibleSources,sourcesToWork:registryStats.sourcesToWork},
   generatedAt:new Date().toISOString(),mode:"SOURCE_BATCH_SHADOW_HARVEST",publication:false,deployment:false,
   selectedSourceKeys:requestedSourceKeys,countries,completedCountries,partial:metrics.length<(tasks.length+metrics.filter(x=>x.errors?.includes("UNKNOWN_SOURCE_KEY")||x.errors?.includes("NO_COUNTRY_IN_RUN_SCOPE")||x.errors?.includes("UNRESOLVED_SOURCE_URL")).length),
   requestedSources:requestedSourceKeys.length||null,sources:metrics.length,totalPlannedSources:tasks.length,
