@@ -2,6 +2,7 @@ import { NextRequest,NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient,ensureUser,getAuthUser } from "../../../../../lib/server-auth";
 import { EVENT_FEATURED_DAYS,EVENT_FEATURED_PRICE } from "../../../../../lib/events";
+import { getEventManualPaymentInstructions } from "../../../../../lib/eventManualPayments";
 
 const fail=(message:string,status=400,code="EVENT_FEATURE_ERROR")=>NextResponse.json({error:code,message},{status});
 
@@ -10,7 +11,6 @@ export async function POST(request:NextRequest,context:{params:Promise<{id:strin
     const auth=await getAuthUser(request);
     if(!auth)return fail("Session requise.",401,"UNAUTHENTICATED");
     const {id}=await context.params;
-    const body=await request.json().catch(()=>({}));
     const sb=adminClient();
     const user=await ensureUser(sb,auth);
     const {data:event,error:eventError}=await sb.from("Event")
@@ -44,12 +44,10 @@ export async function POST(request:NextRequest,context:{params:Promise<{id:strin
       return NextResponse.json({campaign,payment:null,free:true},{status:201});
     }
 
-    const provider=String(body.provider??"ICLAN").toUpperCase();
-    if(provider==="MOCK"&&process.env.NODE_ENV==="production")return fail("Le fournisseur de paiement simulé est interdit en production.",422,"MOCK_PAYMENT_DISABLED");
     const paymentId=crypto.randomUUID();
     const {error:paymentError}=await sb.from("Payment").insert({
-      id:paymentId,userId:user.id,provider,externalId:paymentId,idempotencyKey:paymentId,amount:EVENT_FEATURED_PRICE,
-      currency:"XAF",status:"CREATED",feature:"EVENT_FEATURED",createdAt:now,updatedAt:now
+      id:paymentId,userId:user.id,provider:"MANUAL",externalId:paymentId,idempotencyKey:paymentId,amount:EVENT_FEATURED_PRICE,
+      currency:"XAF",status:"PENDING",feature:"EVENT_FEATURED",createdAt:now,updatedAt:now
     });
     if(paymentError)throw new Error(paymentError.message);
 
@@ -67,22 +65,17 @@ export async function POST(request:NextRequest,context:{params:Promise<{id:strin
       throw new Error(campaignError.message);
     }
 
-    try{
-      const {getProvider}=await import("../../../../../lib/paymentProviders");
-      const intent=await getProvider(provider).createPayment({
-        paymentId,amount:EVENT_FEATURED_PRICE,currency:"XAF",phone:auth.phone
-      });
-      return NextResponse.json({campaign,payment:{
-        id:paymentId,checkoutReference:intent.checkoutReference,instructions:intent.instructions
-      }},{status:201});
-    }catch(providerError){
-      const message=providerError instanceof Error?providerError.message:"Fournisseur indisponible.";
-      await Promise.all([
-        sb.from("Payment").update({status:"FAILED",failureReason:message.slice(0,240),updatedAt:new Date().toISOString()}).eq("id",paymentId),
-        sb.from("EventFeaturedCampaign").update({status:"PAYMENT_FAILED",updatedAt:new Date().toISOString()}).eq("id",campaignId)
-      ]);
-      return fail("Le fournisseur n'a pas pu démarrer la transaction de mise en avant.",503,"PAYMENT_PROVIDER_UNAVAILABLE");
-    }
+    return NextResponse.json({
+      campaign,
+      payment:{
+        id:paymentId,
+        amount:EVENT_FEATURED_PRICE,
+        currency:"XAF",
+        provider:"MANUAL",
+        instructions:getEventManualPaymentInstructions(),
+        submissionUrl:"/events/payment/"+paymentId
+      }
+    },{status:201});
   }catch(e){
     return fail(e instanceof Error?e.message:"Mise en avant impossible.",500);
   }
