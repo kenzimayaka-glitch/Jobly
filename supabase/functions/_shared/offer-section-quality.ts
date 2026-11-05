@@ -49,23 +49,23 @@ function keyOf(value: string): string {
 }
 
 function extractLabeledSections(sections: OfferSections): void {
-  const fullDescription = sections.description.join("\\n").trim();
+  const fullDescription = sections.description.join("\n").trim();
   if (!fullDescription) return;
 
-  const missionHeading = /\\bmissions? principales\\b/i.exec(fullDescription);
-  const profileHeading = /\\bprofil recherché\\b/i.exec(fullDescription);
+  const missionHeading = /\bmissions? principales\b/i.exec(fullDescription);
+  const profileHeading = /\bprofil recherché\b/i.exec(fullDescription);
   if (!missionHeading || !profileHeading || missionHeading.index === undefined ||
       profileHeading.index === undefined || profileHeading.index <= missionHeading.index) {
     return;
   }
 
-  const applicationHeading = /\\b(?:comment postuler|pour postuler|modalités? de candidature|lien de candidature)\\b/i.exec(fullDescription);
+  const applicationHeading = /\b(?:comment postuler|pour postuler|modalités? de candidature|lien de candidature)\b/i.exec(fullDescription);
   const endOfProfile = applicationHeading?.index !== undefined &&
       applicationHeading.index > profileHeading.index
     ? applicationHeading.index
     : fullDescription.length;
 
-  const introStartMatch = /\\b(?:présentation du poste|description du poste)\\b/i.exec(fullDescription);
+  const introStartMatch = /\b(?:présentation du poste|description du poste)\b/i.exec(fullDescription);
   const introStart = introStartMatch?.index !== undefined
     ? introStartMatch.index + introStartMatch[0].length
     : 0;
@@ -85,13 +85,20 @@ function extractLabeledSections(sections: OfferSections): void {
   sections.missions = [missions];
   sections.profile = [profile];
 
-  // Keep the complete qualification narrative in the canonical profile block.
-  // The AI frequently splits words at HTML entities; do not publish those
-  // partial fragments as independent education/skills/qualities/benefits.
-  sections.education = [];
-  sections.skills = [];
-  sections.qualities = [];
-  sections.benefits = [];
+  // Remove section fragments already contained in the complete profile,
+  // while preserving valid independent tags such as SAP or Excel.
+  const normalizedProfile = keyOf(profile);
+  for (const name of ["education", "skills", "qualities", "benefits"] as const) {
+    sections[name] = sections[name].filter((value) => {
+      const normalizedValue = keyOf(value);
+      const repeatsProfile = normalizedValue.length >= 18 &&
+        normalizedProfile.includes(normalizedValue);
+      const danglingFragment =
+        /\b(?:de|des|du|d|à|au|aux|et|ou|pour|avec|dans|sur|of|and|or|to|for|with|in)|['’]$/i
+          .test(value.trim());
+      return !repeatsProfile && !danglingFragment;
+    });
+  }
 
   if (applicationHeading?.index !== undefined &&
       applicationHeading.index > profileHeading.index) {
