@@ -40,7 +40,7 @@ export async function POST(req:NextRequest,context:{params:Promise<{id:string}>}
    .eq("recruitmentId",recruitment.id).eq("userId",user.id).limit(10);
   if(rolesError)throw new Error(rolesError.message);
   const recruiterAllowed=(roles??[]).some((row:any)=>hasRecruitmentRole(row.role,RECRUITMENT_STATE_ROLES));
-  const candidateAllowed=String(application.userId)===String(user.id);
+  const candidateAllowed=String(application.userId)===String(auth.id);
   if(!recruiterAllowed&&!candidateAllowed)return NextResponse.json({message:"FORBIDDEN"},{status:403});
 
   // A user who is both the applicant and a recruitment member keeps candidate-only powers on their own application.
