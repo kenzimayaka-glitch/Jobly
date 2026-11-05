@@ -5,6 +5,7 @@ import { getEventDomain, getEventPricing, estimateEventAudience, validateEventMe
 import { buildEventEcosystemConnections, scoreEventForProfile } from "../../../lib/eventEcosystem";
 import { estimateAndDistributeEvent } from "../../../lib/eventDistribution";
 import { discoverEventPartners } from "../../../lib/eventPartnerDiscovery";
+import { getEventManualPaymentInstructions } from "../../../lib/eventManualPayments";
 
 export const dynamic = "force-dynamic";
 const fail=(message:string,status=400,code="EVENT_ERROR")=>NextResponse.json({error:code,message},{status});
@@ -125,8 +126,6 @@ export async function POST(request:NextRequest){
 
     const free=user.role==="ADMIN"||Boolean(entitlement?.freePublication);
     if(entitlement?.maxDurationDays&&durationDays>Number(entitlement.maxDurationDays))return fail("La durée dépasse votre droit de publication.",422,"ENTITLEMENT_DURATION");
-    const provider=String(body.provider??"ICLAN").toUpperCase();
-    if(!free&&provider==="MOCK"&&process.env.NODE_ENV==="production")return fail("Le fournisseur de paiement simulé est interdit en production.",422,"MOCK_PAYMENT_DISABLED");
     const pricing=getEventPricing(durationDays);
     const id=crypto.randomUUID();
     const organizerName=String(body.organizerName??user.displayName??"Organisateur").trim().slice(0,180)||"Organisateur";
@@ -153,8 +152,8 @@ export async function POST(request:NextRequest){
 
     const paymentId=crypto.randomUUID();
     const {error:paymentError}=await sb.from("Payment").insert({
-      id:paymentId,userId:user.id,provider,externalId:paymentId,idempotencyKey:paymentId,amount:pricing.total,currency:"XAF",
-      status:"CREATED",feature:"EVENT_PUBLICATION",createdAt:now,updatedAt:now
+      id:paymentId,userId:user.id,provider:"MANUAL",externalId:paymentId,idempotencyKey:paymentId,amount:pricing.total,currency:"XAF",
+      status:"PENDING",feature:"EVENT_PUBLICATION",createdAt:now,updatedAt:now
     });
     if(paymentError){
       await sb.from("Event").update({status:"DRAFT",updatedAt:new Date().toISOString()}).eq("id",id);
@@ -173,22 +172,20 @@ export async function POST(request:NextRequest){
       return fail("Le paiement n'a pas pu être associé à l'événement. L'événement est revenu en brouillon.",503,"EVENT_PAYMENT_LINK_FAILED");
     }
 
-    try{
-      const {getProvider}=await import("../../../lib/paymentProviders");
-      const intent=await getProvider(provider).createPayment({paymentId,amount:pricing.total,currency:"XAF",phone:auth.phone});
-      return NextResponse.json({eventId:id,status:"PENDING_PAYMENT",pricing,audienceEstimate:estimateEventAudience({domain,secondaryDomains:subdomains,city:body.city,audience}),payment:{id:paymentId,checkoutReference:intent.checkoutReference,instructions:intent.instructions}},{status:201});
-    }catch(providerError){
-      const message=providerError instanceof Error?providerError.message:"Fournisseur indisponible.";
-      const failedAt=new Date().toISOString();
-      const failedWrites=await Promise.all([
-        sb.from("Payment").update({status:"FAILED",failureReason:message.slice(0,240),updatedAt:failedAt}).eq("id",paymentId),
-        sb.from("EventPayment").update({status:"FAILED",updatedAt:failedAt}).eq("paymentId",paymentId),
-        sb.from("Event").update({status:"DRAFT",updatedAt:failedAt}).eq("id",id)
-      ]);
-      const writeFailure=failedWrites.find(result=>result.error);
-      if(writeFailure?.error)throw new Error(writeFailure.error.message);
-      return fail("Le fournisseur de paiement n'a pas pu démarrer la transaction. L'événement est revenu en brouillon.",503,"PAYMENT_PROVIDER_UNAVAILABLE");
-    }
+    return NextResponse.json({
+      eventId:id,
+      status:"PENDING_PAYMENT",
+      pricing,
+      audienceEstimate:estimateEventAudience({domain,secondaryDomains:subdomains,city:body.city,audience}),
+      payment:{
+        id:paymentId,
+        amount:pricing.total,
+        currency:"XAF",
+        provider:"MANUAL",
+        instructions:getEventManualPaymentInstructions(),
+        submissionUrl:"/events/payment/"+paymentId
+      }
+    },{status:201});
   }catch(e){
     return fail(e instanceof Error?e.message:"Création impossible.",500);
   }
