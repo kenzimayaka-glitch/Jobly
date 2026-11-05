@@ -73,7 +73,7 @@ jobs:
 
       - name: Validate offer ingestion functions
         run: >
-          deno check
+          deno check --node-modules-dir=auto
           supabase/functions/discover-jobs/index.ts
           supabase/functions/job-harvest-process/index.ts
 
