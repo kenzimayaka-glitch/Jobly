@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
       actionRuns,
       proposedActionRuns,
       verifiedActionRuns,
+      verifiedOutcomeRuns,
       failedActionRuns,
       selfState,
     ] = await Promise.all([
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest) {
       supabase.from("jia_action_runs").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       supabase.from("jia_action_runs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "PROPOSED"),
       supabase.from("jia_action_runs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "VERIFIED"),
+      supabase.from("jia_action_runs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "VERIFIED").eq("outcome->>isOutcome", "true"),
       supabase.from("jia_action_runs").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "FAILED"),
       supabase.from("jia_self_state").select("state").eq("user_id", user.id).maybeSingle(),
     ]);
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
     const checks = [
       memory, traces, events, cognitiveMemory, beliefs, predictions,
       predictionOutcomes, reflections, actionRuns, proposedActionRuns,
-      verifiedActionRuns, failedActionRuns, selfState,
+      verifiedActionRuns, verifiedOutcomeRuns, failedActionRuns, selfState,
     ];
     const failed = checks.find((check) => check.error);
     if (failed?.error) throw new Error(failed.error.message);
@@ -61,9 +63,10 @@ export async function GET(request: NextRequest) {
       actionRuns: actionRuns.count ?? 0,
       proposedActionRuns: proposedActionRuns.count ?? 0,
       verifiedActionRuns: verifiedActionRuns.count ?? 0,
+      verifiedOutcomeRuns: verifiedOutcomeRuns.count ?? 0,
       failedActionRuns: failedActionRuns.count ?? 0,
     };
-    const outcomeLoopObserved = counts.verifiedActionRuns > 0 || counts.predictionOutcomes > 0;
+    const outcomeLoopObserved = counts.verifiedOutcomeRuns > 0 || counts.predictionOutcomes > 0;
     const internetAvailable = Boolean(
       (selfState.data?.state as Record<string, unknown> | null)?.internetAvailable,
     );
