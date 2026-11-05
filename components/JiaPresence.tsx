@@ -779,6 +779,7 @@ export default function JiaPresence() {
                       </button>
                     ))}
                   </div>
+                  <button type="button" onClick={() => go("/jia/extension")} className="mt-2 min-h-[36px] w-full rounded-xl border border-canari-blue/20 bg-canari-blue-soft px-3 text-left text-[11px] font-extrabold text-canari-blue hover:bg-canari-blue/10">Installer J’IA sur ordinateur ↗</button>
                   <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-line pt-2">
                     <button type="button" onClick={() => go(SETTINGS_HREF[eco])} className="min-h-[36px] text-[12px] font-extrabold text-canari-blue underline-offset-2 hover:underline">{t("jia.panel.settings")}</button>
                     <button type="button" onClick={() => { setPanelOpen(false); setHiddenPaths((p) => [...p, pathname]); }} className="min-h-[36px] text-[12px] font-bold text-muted hover:text-ink">{t("jia.hideOnPage")}</button>
