@@ -66,6 +66,10 @@ test("Community, Bons Plans and Campus translations exist in French and English"
     "bonplans.page.emptyTitle",
     "bonplans.pillar.campusTitle",
     "campus.page.openOffer",
+    "campus.page.institutionsTitle",
+    "campus.page.institutionMembers",
+    "bonplans.page.proposalPending",
+    "bonplans.page.moderationTitle",
   ]) {
     assert.ok(dict.includes(`"${key}":`), `missing FR/EN dictionary key: ${key}`);
     assert.equal((dict.match(new RegExp(`"${key}":`, "g")) || []).length, 2, `key must exist once in each language: ${key}`);
@@ -91,4 +95,44 @@ test("Community reactions and comments use persisted tables and real endpoints",
   assert.match(comments, /CommunityPostComment/);
   assert.match(page, /reactToPost/);
   assert.match(page, /commentOnPost/);
+});
+
+test("Campus institutional directory uses real active institutions and membership records", () => {
+  const route = read("app/api/campus/institutions/route.ts");
+  const page = read("app/campus/page.tsx");
+  assert.match(route, /getAuthUser\(request\)/);
+  assert.match(route, /from\("Institution"\)/);
+  assert.match(route, /from\("InstitutionMember"\)/);
+  assert.match(route, /\.eq\("active", true\)/);
+  assert.match(route, /\\bdemo\\b/i);
+  assert.match(route, /memberCount/);
+  assert.match(page, /\/api\/campus\/institutions/);
+  assert.match(page, /campus-institutions-title/);
+  assert.match(page, /institutionCount/);
+});
+
+test("Bon Plans suggestions enter review and never publish directly", () => {
+  const route = read("app/api/bon-plans/route.ts");
+  const post = route.slice(route.indexOf("export async function POST"));
+  const page = read("app/bons-plans/page.tsx");
+  assert.match(post, /status: "PENDING_REVIEW"/);
+  assert.match(post, /parseOptionalHttpUrl/);
+  assert.match(post, /parseOptionalDate/);
+  assert.doesNotMatch(post, /status: "PUBLISHED"/);
+  assert.match(page, /submitProposal/);
+  assert.match(page, /proposalPending/);
+});
+
+test("Only ADMIN and MODERATOR can approve or reject Bon Plans", () => {
+  const queue = read("app/api/bon-plans/moderation/route.ts");
+  const decision = read("app/api/bon-plans/[id]/moderation/route.ts");
+  const page = read("app/bons-plans/page.tsx");
+  assert.match(queue, /user\.role !== "ADMIN"/);
+  assert.match(queue, /user\.role !== "MODERATOR"/);
+  assert.match(decision, /moderator\.role !== "ADMIN"/);
+  assert.match(decision, /moderator\.role !== "MODERATOR"/);
+  assert.match(decision, /status !== "PENDING_REVIEW"/);
+  assert.match(decision, /announceEventToCommunities/);
+  assert.match(page, /moderatePlan/);
+  assert.match(page, /bonplans-moderation-title/);
 });

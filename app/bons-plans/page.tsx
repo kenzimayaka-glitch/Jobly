@@ -29,6 +29,17 @@ type BonPlan = {
 };
 
 type BonPlanComment = { id: string; content: string; createdAt: string; author?: { displayName?: string | null; username?: string | null } | null };
+type PendingBonPlan = {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  city?: string | null;
+  country?: string | null;
+  sourceUrl?: string | null;
+  createdAt: string;
+  author?: { displayName?: string | null; username?: string | null } | null;
+};
 
 const pillars = [
   { id: "campus", title: "bonplans.pillar.campusTitle", eyebrow: "bonplans.pillar.campusEyebrow", description: "bonplans.pillar.campusDescription", detail: "bonplans.pillar.campusDetail", href: "/campus", tone: "blue", icon: "🎓" },
@@ -53,6 +64,16 @@ export default function BonsPlansPage() {
   const [plansError, setPlansError] = useState("");
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [proposalOpen, setProposalOpen] = useState(false);
+  const [proposalTitle, setProposalTitle] = useState("");
+  const [proposalDescription, setProposalDescription] = useState("");
+  const [proposalCategory, setProposalCategory] = useState("OFFRE");
+  const [proposalCity, setProposalCity] = useState("");
+  const [proposalSourceUrl, setProposalSourceUrl] = useState("");
+  const [submittingProposal, setSubmittingProposal] = useState(false);
+  const [canModerate, setCanModerate] = useState(false);
+  const [pendingPlans, setPendingPlans] = useState<PendingBonPlan[]>([]);
+  const [moderationBusyId, setModerationBusyId] = useState<string | null>(null);
   const [commentsOpen, setCommentsOpen] = useState<Record<string, boolean>>({});
   const [commentsByPlan, setCommentsByPlan] = useState<Record<string, BonPlanComment[]>>({});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
@@ -68,6 +89,26 @@ export default function BonsPlansPage() {
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || t("common.error.generic"));
       setPlans(Array.isArray(body.items) ? body.items : []);
+
+      if (session?.access_token) {
+        try {
+          const moderationResponse = await fetch("/api/bon-plans/moderation", { headers, cache: "no-store" });
+          if (moderationResponse.ok) {
+            const moderationBody = await moderationResponse.json().catch(() => ({}));
+            setCanModerate(true);
+            setPendingPlans(Array.isArray(moderationBody.items) ? moderationBody.items : []);
+          } else {
+            setCanModerate(false);
+            setPendingPlans([]);
+          }
+        } catch {
+          setCanModerate(false);
+          setPendingPlans([]);
+        }
+      } else {
+        setCanModerate(false);
+        setPendingPlans([]);
+      }
     } catch (cause) {
       setPlansError(cause instanceof Error ? cause.message : t("common.error.generic"));
     } finally {
@@ -146,6 +187,68 @@ export default function BonsPlansPage() {
     setMessage("");
   }
 
+  async function submitProposal() {
+    if (!accessToken) {
+      router.push("/login?next=/bons-plans");
+      return;
+    }
+    const title = proposalTitle.trim();
+    const description = proposalDescription.trim();
+    if (!title || !description) {
+      setMessage(t("bonplans.page.proposalRequired"));
+      return;
+    }
+    setSubmittingProposal(true);
+    try {
+      const response = await fetch("/api/bon-plans", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description,
+          category: proposalCategory,
+          city: proposalCity.trim() || null,
+          sourceUrl: proposalSourceUrl.trim() || null,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || t("common.error.generic"));
+      setProposalTitle("");
+      setProposalDescription("");
+      setProposalCategory("OFFRE");
+      setProposalCity("");
+      setProposalSourceUrl("");
+      setProposalOpen(false);
+      setMessage(t("bonplans.page.proposalPending"));
+      if (canModerate) await loadPlans();
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : t("common.error.generic"));
+    } finally {
+      setSubmittingProposal(false);
+    }
+  }
+
+  async function moderatePlan(plan: PendingBonPlan, decision: "APPROVE" | "REJECT") {
+    if (!accessToken || !canModerate) return;
+    setModerationBusyId(plan.id);
+    try {
+      const response = await fetch(`/api/bon-plans/${encodeURIComponent(plan.id)}/moderation`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ decision }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || t("common.error.generic"));
+      setPendingPlans((current) => current.filter((item) => item.id !== plan.id));
+      setMessage(decision === "APPROVE" ? t("bonplans.page.approveSuccess") : t("bonplans.page.rejectSuccess"));
+      if (decision === "APPROVE") await loadPlans();
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : t("common.error.generic"));
+    } finally {
+      setModerationBusyId(null);
+    }
+  }
+
   async function share(plan: BonPlan) {
     const url = `${window.location.origin}/bons-plans?plan=${encodeURIComponent(plan.id)}`;
     try {
@@ -184,6 +287,53 @@ export default function BonsPlansPage() {
             <span className="rounded-full bg-white/55 px-3 py-1.5">{t("bonplans.page.network")}</span>
             <span className="rounded-full bg-white/55 px-3 py-1.5">{t("bonplans.page.services")}</span>
           </div>
+        </section>
+
+        <section className="mt-5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-black text-[#0B1F4B]">{t("bonplans.page.propose")}</h2>
+              <p className="mt-1 text-xs text-slate-500">{t("bonplans.page.proposalDescription")}</p>
+            </div>
+            <button type="button" onClick={() => setProposalOpen((value) => !value)} className="rounded-xl bg-[#0B1F4B] px-4 py-2.5 text-xs font-black text-white">
+              {proposalOpen ? t("bonplans.page.proposalCancel") : t("bonplans.page.propose")}
+            </button>
+          </div>
+          {proposalOpen && (
+            <form onSubmit={(event) => { event.preventDefault(); void submitProposal(); }} className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1.5 text-xs font-bold text-slate-600">
+                {t("bonplans.page.proposalTitleLabel")}
+                <input value={proposalTitle} onChange={(event) => setProposalTitle(event.target.value)} maxLength={140} required className="min-h-11 rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-800 outline-none focus:border-[#22448B]" />
+              </label>
+              <label className="grid gap-1.5 text-xs font-bold text-slate-600">
+                {t("bonplans.page.proposalCategory")}
+                <select value={proposalCategory} onChange={(event) => setProposalCategory(event.target.value)} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-normal text-slate-800">
+                  <option value="OFFRE">{t("bonplans.page.categoryOffer")}</option>
+                  <option value="FORMATION">{t("bonplans.page.categoryTraining")}</option>
+                  <option value="SERVICE">{t("bonplans.page.categoryService")}</option>
+                  <option value="événement">{t("bonplans.page.categoryEvent")}</option>
+                </select>
+              </label>
+              <label className="grid gap-1.5 text-xs font-bold text-slate-600 sm:col-span-2">
+                {t("bonplans.page.proposalDescriptionLabel")}
+                <textarea value={proposalDescription} onChange={(event) => setProposalDescription(event.target.value)} maxLength={4000} required rows={4} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal text-slate-800 outline-none focus:border-[#22448B]" />
+              </label>
+              <label className="grid gap-1.5 text-xs font-bold text-slate-600">
+                {t("bonplans.page.proposalCityLabel")}
+                <input value={proposalCity} onChange={(event) => setProposalCity(event.target.value)} maxLength={100} className="min-h-11 rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-800 outline-none focus:border-[#22448B]" />
+              </label>
+              <label className="grid gap-1.5 text-xs font-bold text-slate-600">
+                {t("bonplans.page.proposalSourceLabel")}
+                <input type="url" value={proposalSourceUrl} onChange={(event) => setProposalSourceUrl(event.target.value)} placeholder="https://" className="min-h-11 rounded-xl border border-slate-200 px-3 text-sm font-normal text-slate-800 outline-none focus:border-[#22448B]" />
+              </label>
+              <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+                <button type="submit" disabled={submittingProposal} className="rounded-xl bg-[#0B1F4B] px-4 py-2.5 text-xs font-black text-white disabled:opacity-50">
+                  {submittingProposal ? t("common.loading") : t("bonplans.page.proposalSubmit")}
+                </button>
+                <p className="text-[11px] leading-5 text-slate-500">{t("bonplans.page.proposalModerationNote")}</p>
+              </div>
+            </form>
+          )}
         </section>
 
         <section className="mt-7" aria-labelledby="bonplans-feed-title">
@@ -256,6 +406,42 @@ export default function BonsPlansPage() {
             </div>
           )}
         </section>
+
+        {canModerate && (
+          <section className="mt-7 rounded-[24px] border border-amber-200 bg-amber-50/60 p-5" aria-labelledby="bonplans-moderation-title">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 id="bonplans-moderation-title" className="text-lg font-black text-[#0B1F4B]">{t("bonplans.page.moderationTitle")}</h2>
+                <p className="mt-1 text-xs text-slate-600">{t("bonplans.page.moderationDescription")}</p>
+              </div>
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-600">{pendingPlans.length}</span>
+            </div>
+            {pendingPlans.length === 0 ? (
+              <p className="mt-4 rounded-xl bg-white p-4 text-sm text-slate-500">{t("bonplans.page.noPending")}</p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {pendingPlans.map((plan) => (
+                  <article key={plan.id} className="rounded-2xl border border-amber-100 bg-white p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase text-amber-800">{plan.category}</span>
+                        <h3 className="mt-2 font-black text-[#0B1F4B]">{plan.title}</h3>
+                        <p className="mt-1 text-xs text-slate-500">{t("bonplans.page.pendingBy", { name: plan.author?.displayName || plan.author?.username || t("community.detail.memberFallback") })}</p>
+                      </div>
+                      <span className="text-[10px] text-slate-400">{formatDate(plan.createdAt)}</span>
+                    </div>
+                    <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-600">{plan.description}</p>
+                    {plan.sourceUrl && <a href={plan.sourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-bold text-[#1877B9] underline">{t("bonplans.page.learnMore")}</a>}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button type="button" disabled={moderationBusyId === plan.id} onClick={() => void moderatePlan(plan, "APPROVE")} className="rounded-xl bg-[#0B1F4B] px-3 py-2 text-xs font-black text-white disabled:opacity-50">{t("bonplans.page.approve")}</button>
+                      <button type="button" disabled={moderationBusyId === plan.id} onClick={() => void moderatePlan(plan, "REJECT")} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 disabled:opacity-50">{t("bonplans.page.reject")}</button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         <section className="mt-8 grid gap-3 sm:grid-cols-2" aria-label={t("bonplans.page.spaces")}>
           {pillars.map((pillar) => (
