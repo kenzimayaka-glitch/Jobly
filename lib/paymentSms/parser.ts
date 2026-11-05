@@ -89,22 +89,14 @@ function parseStatus(body: string): ParsedPaymentSmsStatus {
 }
 
 function parseOccurredAt(body: string): string | null {
+  // Operator SMS timestamps without an explicit timezone are intentionally not
+  // converted: the server timezone must never be guessed from message text.
   const iso = captureFirst(body, [
-    /\b((?:20\d{2})-(?:0?[1-9]|1[0-2])-(?:0?[1-9]|[12]\d|3[01])[ T](?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?)\b/,
+    /\\b((?:20\\d{2})-(?:0?[1-9]|1[0-2])-(?:0?[1-9]|[12]\\d|3[01])[ T](?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?(?:Z|[+-](?:0\\d|1[0-4]):[0-5]\\d))\\b/i,
   ]);
-  if (iso) {
-    const normalized = iso.replace(" ", "T");
-    const date = new Date(normalized);
-    return Number.isNaN(date.getTime()) ? null : date.toISOString();
-  }
-  const local = captureFirst(body, [
-    /\b((?:0?[1-9]|[12]\d|3[01])[/-](?:0?[1-9]|1[0-2])[/-]20\d{2}[ ,]+(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?)\b/,
-  ]);
-  if (!local) return null;
-  const match = /^(\d{1,2})[/-](\d{1,2})[/-](20\d{2})[ ,]+(\d{2}:\d{2}(?::\d{2})?)$/.exec(local);
-  if (!match) return null;
-  const [, day, month, year, time] = match;
-  const date = new Date(`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${time}`);
+  if (!iso) return null;
+  const normalized = iso.replace(" ", "T");
+  const date = new Date(normalized);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
