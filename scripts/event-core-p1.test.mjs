@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { getEventPricing, validateEventMedia } from "../lib/events.ts";
-import { eventPaymentVerificationError } from "../lib/eventPaymentVerification.ts";
+import { EVENT_MANUAL_PAYMENT_METHODS, isEventManualPaymentMethod } from "../lib/eventManualPayments.ts";
 import { inspectEventMedia, readMp4DurationSeconds } from "../lib/eventMedia.ts";
 
 test("Event Core pricing matches all published duration tiers", () => {
@@ -26,25 +26,19 @@ test("Event media metadata rejects invalid sizes and video durations", () => {
   assert.equal(validateEventMedia({ mediaType: "UNKNOWN", mediaSizeBytes: 100 }).ok, false);
 });
 
-test("Event payments cannot be finalized from an unrelated reference or amount", () => {
-  const base = {
-    expectedExternalId: "pay-123",
-    expectedAmount: 20000,
-    expectedCurrency: "XAF",
-    verification: { externalId: "pay-123", status: "SUCCESSFUL", amount: 20000, currency: "XAF" },
-  };
-  assert.equal(eventPaymentVerificationError(base), null);
-  assert.equal(eventPaymentVerificationError({ ...base, verification: { ...base.verification, externalId: "other" } }), "PAYMENT_REFERENCE_MISMATCH");
-  assert.equal(eventPaymentVerificationError({ ...base, verification: { ...base.verification, amount: 1 } }), "PAYMENT_AMOUNT_MISMATCH");
-  assert.equal(eventPaymentVerificationError({ ...base, verification: { ...base.verification, currency: "USD" } }), "PAYMENT_CURRENCY_MISMATCH");
-  assert.equal(eventPaymentVerificationError({ ...base, verification: { ...base.verification, currency: undefined } }), "PAYMENT_CURRENCY_MISMATCH");
-  assert.equal(eventPaymentVerificationError({ ...base, verification: { ...base.verification, status: "PENDING" } }), "PAYMENT_NOT_CONFIRMED");
-  assert.equal(eventPaymentVerificationError({ ...base, verification: { ...base.verification, amount: undefined } }), "PAYMENT_AMOUNT_MISMATCH");
-});
-
 test("Event upload rejects spoofed MIME signatures and mismatched types", () => {
   const png = new Uint8Array([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]);
   assert.equal(inspectEventMedia(png, "image/png").ok, true);
   assert.equal(inspectEventMedia(png, "image/jpeg").ok, false);
   assert.equal(inspectEventMedia(new Uint8Array([1,2,3]), "image/png").ok, false);
+});
+
+test("Event payment accepts only manual bank and mobile-money channels", () => {
+  assert.deepEqual(EVENT_MANUAL_PAYMENT_METHODS, ["MTN_MOMO","ORANGE_MONEY","BANK_TRANSFER","OTHER"]);
+  assert.equal(isEventManualPaymentMethod("MTN_MOMO"), true);
+  assert.equal(isEventManualPaymentMethod("ORANGE_MONEY"), true);
+  assert.equal(isEventManualPaymentMethod("BANK_TRANSFER"), true);
+  assert.equal(isEventManualPaymentMethod("ICLAN"), false);
+  assert.equal(isEventManualPaymentMethod("MOCK"), false);
+  assert.equal(isEventManualPaymentMethod(null), false);
 });
