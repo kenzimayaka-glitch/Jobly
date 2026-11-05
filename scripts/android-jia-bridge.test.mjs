@@ -42,6 +42,8 @@ test("Android assistant hands metadata to the existing J'IA flow", () => {
 
 test("Android CI builds a debug APK and runs static privacy tests", () => {
   const workflow = read("../.github/workflows/android-jia.yml");
+  assert.match(workflow, /packages: "platform-tools"/);
+  assert.doesNotMatch(workflow, /sdkmanager tools/);
   assert.match(workflow, /:app:assembleDebug/);
   assert.match(workflow, /android-jia-bridge\.test\.mjs/);
   assert.ok(existsSync(new URL("../apps/android/README.md", import.meta.url)));
