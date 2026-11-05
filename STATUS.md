@@ -2,19 +2,23 @@
 
 ## Corrections réalisées
 - Schéma Event Core appliqué à JOBLY-PROD : Event, EventPayment, EventFeaturedCampaign, EventEntitlement ; index et RLS actifs ; aucun accès direct anon/authenticated.
-- Bucket Storage `jobly-events` créé, lecture publique des médias et limite de 10 MB ; variable Vercel `JOBLY_EVENTS_BUCKET` ajoutée à l'environnement Production.
-- Prix alignés sur le barème : 2 000 FCFA/jour (1–9 j), 1 500 (10–29 j), 1 000 (30–59 j), 800 (60–90 j).
-- Upload médias : signature réelle vérifiée côté serveur ; MP4 limité à 30 secondes à partir des métadonnées du fichier.
-- Publication et mise en avant : contrôle référence/montant/devise, finalisation SQL atomique, réservation transactionnelle des 6 slots, droits freePublication/freeFeatured, idempotence Payment.
-- États de refus/échec : Payment/EventPayment/Campaign clôturés correctement ; événement revenu en brouillon si le paiement de publication échoue.
-- Migrations de production tracées dans `supabase/migrations` avec versions alignées sur Supabase.
+- Bucket public `jobly-events` créé pour les médias événementiels (10 MB) ; variable Vercel Production `JOBLY_EVENTS_BUCKET` configurée.
+- Bucket privé `jobly-payment-proofs` créé pour les reçus (10 MB, image/PDF) ; aucun accès public ; l'équipe Finance utilise des URL signées de 5 minutes.
+- Barème de publication corrigé : 2 000 FCFA/jour (1–9 j), 1 500 (10–29 j), 1 000 (30–59 j), 800 (60–90 j).
+- Upload médias : signature réelle vérifiée côté serveur ; MP4 limité à 30 secondes.
+- Publication et mise en avant : réservation atomique des 6 slots ; droits `freePublication`/`freeFeatured` ; idempotence et états cohérents.
+- **ICLAN retiré du parcours Event Core** : aucune création ni vérification de paiement d'événement ne passe par API fournisseur. Le fournisseur ICLAN de Billing/abonnements hors Event Core n'est pas modifié.
+- Paiement manuel : transfert MTN MoMo / Orange Money / banque / autre, référence de transaction et justificatif privé ; validation ou rejet ADMIN/FINANCE depuis `/admin/events/payments`.
+- Validation admin atomique : à l'approbation, paiement + publication ou campagne sont activés ensemble ; rejet de publication permet une nouvelle soumission auditée ; rejet de mise en avant clôture le paiement et libère le slot.
+- Endpoints fournisseurs Event Core supprimés ; endpoints de soumission, upload de reçu et revue Finance ajoutés.
 
 ## Preuves et limites
-- Test SQL transactionnel publication payée + campagne gratuite + campagne payante : PASS ; transaction ROLLBACK ; aucun enregistrement de test conservé.
-- Tests Event Core, typecheck et build : PASS sur la branche synchronisée à `main` (résultat à actualiser selon le dernier run GitHub).
-- Fournisseur ICLAN : accès et endpoints live non configurés dans Vercel Production. Le code du provider contient encore des chemins de test par défaut. Aucun paiement réel ne peut donc être déclaré E2E validé.
-- La variable `JOBLY_EVENTS_BUCKET` est présente dans Vercel Production, mais doit être incluse dans le prochain déploiement pour être disponible au runtime.
-- Pas de merge vers `main` ni de déploiement Vercel dans cette passe ; PR à soumettre après validation finale CI.
+- Migrations Event Core, paiement manuel et bucket privé appliquées à JOBLY-PROD.
+- Test SQL transactionnel manuel : rejet d'une preuve, nouvelle soumission, approbation et publication ; rejet d'une mise en avant et libération du slot : PASS ; rollback complet, aucune donnée de test conservée.
+- Table de justificatifs protégée par RLS sans grants anon/authenticated ; bucket justificatifs privé ; RPC ADMIN/FINANCE uniquement.
+- CI principale : tests Event Core, P2, Career OS, Afrique P0, Billing, Mobility, Prisma et typecheck : PASS sur le dernier commit. Build de production : en cours de validation au dernier contrôle.
+- Les coordonnées bénéficiaires de collecte doivent être renseignées dans `JOBLY_MANUAL_PAYMENT_INSTRUCTIONS` avant exploitation réelle du paiement manuel.
+- Aucun merge dans `main` ni déploiement Vercel effectué.
 
 ---
 
