@@ -5,6 +5,7 @@ import { extractApplicationContact } from "../_shared/application-contact.ts";
 import { resolveApplicationReadiness } from "../_shared/application-readiness.ts";
 import { classifyJobSector } from "../_shared/job-sector-classification.ts";
 import { deriveOfferQualityStatus } from "../_shared/offer-quality.ts";
+import { sanitizeOfferSections } from "../_shared/offer-section-quality.ts";
 import {
   decodeHtmlEntities,
   isGenericRecruitmentTitle,
@@ -318,6 +319,18 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
   }
 
   const companyId = await findOrCreateCompany(db, companyName, payload);
+  const sourceSections = asRecord(payload.sections ?? profile.sections);
+  const normalizedSections = sanitizeOfferSections({
+    description: [description],
+    missions: safeTextArray(sourceSections.missions ?? payload.missions),
+    profile: safeTextArray(sourceSections.profile ?? payload.profile),
+    education: safeTextArray(sourceSections.education ?? payload.education),
+    experience: safeTextArray(sourceSections.experience ?? payload.experience),
+    skills: safeTextArray(sourceSections.skills ?? payload.skills),
+    qualities: safeTextArray(sourceSections.qualities ?? payload.qualities),
+    benefits: safeTextArray(sourceSections.benefits ?? payload.benefits),
+    application: safeTextArray(sourceSections.application ?? profile.application ?? payload.application),
+  }).sections;
   const normalizedContent = {
     version: "jobly-offer-v3",
     displayModel,
@@ -325,7 +338,7 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
     company: companyName || null,
     sector,
     sectorClassification: { method: "deterministic-title-tags-rules", version: "p1-sector-v1" },
-    description: [description],
+    description: normalizedSections.description.length ? normalizedSections.description : [description],
     location: location || null,
     countryCode,
     opportunityType: kind.sourceType,
@@ -334,7 +347,14 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
     salary: { min: salaryMin, max: salaryMax, currency: clean(payload.salaryCurrency, 8) || null },
     minExperienceYears,
     remoteMode,
-    skills: safeTextArray(payload.skills),
+    missions: normalizedSections.missions,
+    profile: normalizedSections.profile,
+    education: normalizedSections.education,
+    experience: normalizedSections.experience,
+    skills: normalizedSections.skills,
+    qualities: normalizedSections.qualities,
+    benefits: normalizedSections.benefits,
+    application: normalizedSections.application,
     tags: safeTextArray(payload.tags),
     publishedAt: freshness.effectivePublishedAt,
     sourcePublishedAt: publicationDate,
