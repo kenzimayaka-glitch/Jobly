@@ -70,6 +70,7 @@ jobs:
           supabase/functions/_shared/application-contact.test.ts
           supabase/functions/_shared/application-readiness.test.ts
           supabase/functions/_shared/job-sector-classification.test.ts
+          supabase/functions/_shared/offer-quality.test.ts
 
       - name: Validate offer ingestion functions
         run: >
