@@ -97,6 +97,20 @@ export async function POST(req:NextRequest){
    if(rpcError)throw rpcError;
    return NextResponse.json({interview:data},{status:201});
   }
+  if(action==="candidate-confirm"){
+   const interviewId=String(body.interviewId??"").trim();
+   if(!interviewId)return failure("INTERVIEW_REQUIRED");
+   const {data:interview,error:interviewError}=await db.from("RecruitmentInterview").select("id,applicationId,candidateConfirmedAt,startsAt,status").eq("id",interviewId).maybeSingle();
+   if(interviewError)throw interviewError;
+   if(!interview)return failure("INTERVIEW_NOT_FOUND");
+   const {data:application,error:applicationError}=await db.from("Application").select("userId").eq("id",interview.applicationId).maybeSingle();
+   if(applicationError)throw applicationError;
+   if(!application||String(application.userId)!==String(user.id))return failure("FORBIDDEN");
+   if(["CANCELLED","COMPLETED","NO_SHOW"].includes(String(interview.status).toUpperCase()))return failure("INTERVIEW_NOT_ACTIVE");
+   const {data,error}=await db.from("RecruitmentInterview").update({candidateConfirmedAt:new Date().toISOString(),updatedAt:new Date().toISOString()}).eq("id",interviewId).eq("applicationId",interview.applicationId).select("*").single();
+   if(error)throw error;
+   return NextResponse.json({interview:data});
+  }
   if(action==="status"){
    const interviewId=String(body.interviewId??"").trim(),status=String(body.status??"").toUpperCase();
    if(!interviewId||!status)return failure("INTERVIEW_FIELDS_REQUIRED");
