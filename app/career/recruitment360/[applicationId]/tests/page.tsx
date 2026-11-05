@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import AppShell from "@/components/ui/AppShell";
 import { Button, Card } from "@/components/ui";
 import { getSupabaseClient } from "@/lib/supabase";
+import { isAutoGradableTestQuestionType } from "@/lib/recruitment360/test-runtime";
 
 type Test = { id:string; title:string; instructions?:string|null; durationseconds:number; maxattempts:number };
 type Question = { id:string; position:number; prompt:string; type:string; options:any; points:number };
@@ -94,7 +95,7 @@ export default function CandidateRecruitmentTestPage() {
     finally{setBusy(null);}
   }
 
-  const hasUnsupported=questions.some(q=>!["SINGLE_CHOICE","NUMBER"].includes(String(q.type).toUpperCase()));
+  const hasUnsupported=questions.some(q=>!isAutoGradableTestQuestionType(q.type));
   const choices=(question:Question)=>{
     if(Array.isArray(question.options))return question.options;
     if(Array.isArray(question.options?.choices))return question.options.choices;
