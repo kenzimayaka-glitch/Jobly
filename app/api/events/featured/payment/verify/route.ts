@@ -41,8 +41,11 @@ export async function POST(request:NextRequest){
 
     const {getProvider}=await import("../../../../../../lib/paymentProviders");
     const verification=await getProvider(String(payment.provider)).verifyPayment(expectedExternalId);
-    if(verification.status!=="SUCCESSFUL"){
-      return NextResponse.json({status:verification.status,message:verification.message??"Paiement non confirmé."},{status:202});
+    if(verification.status==="PENDING"){
+      return NextResponse.json({status:"PENDING",message:verification.message??"Paiement en attente."},{status:202});
+    }
+    if(verification.status==="FAILED"){
+      return fail(verification.message??"Le paiement a été refusé.",409,"PAYMENT_FAILED");
     }
 
     const verificationError=eventPaymentVerificationError({
