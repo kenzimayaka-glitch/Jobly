@@ -108,7 +108,7 @@ jobs:
           bad_identity = [x for x in candidates if not x.get("sourceKey") or not x.get("title") or not x.get("countryCode")]
           from urllib.parse import urlparse
           bad_source = [x for x in candidates if urlparse(x.get("url", "")).scheme not in ("http", "https") or not urlparse(x.get("url", "")).netloc]
-          bad_readiness = [x for x in candidates if not isinstance(x.get("applicationReady"), bool) or x.get("applicationReady") != bool(x.get("applicationEmail") or x.get("applicationPhone"))]
+          bad_readiness = [x for x in candidates if not isinstance(x.get("applicationReady"), bool) or x.get("applicationReady") != bool(x.get("applicationEmail") or x.get("applicationPhone") or x.get("applicationUrl") or x.get("applyUrl"))]
           if bad_date or bad_identity or bad_source or bad_readiness:
               raise SystemExit(f"Invalid candidates: date={len(bad_date)}, identity={len(bad_identity)}, source_url={len(bad_source)}, readiness={len(bad_readiness)}")
           now = datetime.now(timezone.utc)
