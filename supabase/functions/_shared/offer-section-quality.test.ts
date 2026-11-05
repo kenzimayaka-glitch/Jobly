@@ -50,3 +50,14 @@ Deno.test("does not move a plain email mention without application instructions"
   assertEquals(result.sections.application, []);
   assertEquals(result.movedApplicationInstructions, 0);
 });
+
+Deno.test("moves email subject and application deadline instructions", () => {
+  const result = sanitizeOfferSections({
+    missions: [
+      "Accueillir les clients et tenir le point de vente. Objet du mail recommandé : CANDIDATURE VENDEUR. Date limite de candidature : 10 novembre 2026.",
+    ],
+  });
+  assertEquals(result.sections.missions, ["Accueillir les clients et tenir le point de vente."]);
+  assertEquals(result.sections.application.length, 1);
+  assertEquals(result.sections.application[0].includes("Objet du mail recommandé"), true);
+});
