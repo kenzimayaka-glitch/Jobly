@@ -4,13 +4,18 @@ import { resolveSourceUrl } from "./country-url-resolver.ts";
 import { crawlExhaustiveSource } from "./exhaustive-crawler.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { extractApplicationContact } from "../_shared/application-contact.ts";
+import { resolveApplicationReadiness } from "../_shared/application-readiness.ts";
+import { classifyJobSector } from "../_shared/job-sector-classification.ts";
+import { deriveOfferQualityStatus } from "../_shared/offer-quality.ts";
+import { sanitizeOfferSections } from "../_shared/offer-section-quality.ts";
 const NORMALIZED_VERSION = "jobly-offer-v1";
 
 type NormalizedOffer = {
   version: string; title: string | null; company: string | null; location: string[];
   region: string | null; sector: string | null; contractType: string | null; remoteMode: string | null;
   salary: { min: number | null; max: number | null; currency: string | null };
-  experience: string[]; education: string[]; skills: string[]; qualities: string[];
+  experience: string[]; education: string[]; profile: string[]; skills: string[]; qualities: string[];
   missions: string[]; benefits: string[]; description: string[]; application: string[];
   deadline: string | null; source: { name: string; url: string }; qualityScore: number | null; flags: string[];
 };
@@ -59,7 +64,7 @@ function fallbackNormalized(item:any):NormalizedOffer {
   return {version:NORMALIZED_VERSION,title:cleanHumanText(String(item.title||""))||null,company:cleanHumanText(String(item.company||""))||null,
     location:item.location?String(item.location).split(/[,;|]/).map((x:string)=>cleanHumanText(x)).filter(Boolean):[],region:null,sector:null,
     contractType:inferContract(raw),remoteMode:inferRemote(raw),salary:{min:null,max:null,currency:"XAF"},
-    experience:Array.from(new Set([...cleanArray(sections.experience),...extractExperience(raw)])).slice(0,10),education:cleanArray(sections.formation),skills:cleanArray(sections.skills),qualities:cleanArray(sections.qualities),
+    experience:Array.from(new Set([...cleanArray(sections.experience),...extractExperience(raw)])).slice(0,10),education:cleanArray(sections.formation),profile:cleanArray(sections.profile),skills:cleanArray(sections.skills),qualities:cleanArray(sections.qualities),
     missions:cleanArray(sections.missions),benefits:cleanArray(sections.benefits),description:cleanArray(sections.description),application:Array.from(new Set([...cleanArray(sections.application),...extractApplication(raw)])).slice(0,12),
     deadline:item.deadline||null,source:{name:String(item.source||""),url:String(item.url||"")},qualityScore:null,flags:[],
     displayModel:`jobly-source-${String(item.sourceKey||"unknown")}-adaptive-v1`,
@@ -71,14 +76,24 @@ function normalizeAiResult(ai:any,item:any):NormalizedOffer {
   const base=fallbackNormalized(item);
   const arr=(v:any)=>Array.isArray(v)?v.map((x:any)=>cleanHumanText(String(x))).filter((x:string)=>x.length>=2).slice(0,40):[];
   const n=(v:any)=>Number.isFinite(Number(v))?Number(v):null; const s=ai?.sections||{};
+  const cleaned=sanitizeOfferSections({
+    description:arr(s.description).length?arr(s.description):base.description,
+    missions:arr(s.missions).length?arr(s.missions):base.missions,
+    profile:arr(s.profile).length?arr(s.profile):base.profile,
+    education:arr(s.education).length?arr(s.education):base.education,
+    experience:arr(s.experience).length?arr(s.experience):base.experience,
+    skills:arr(s.skills).length?arr(s.skills):base.skills,
+    qualities:arr(s.qualities).length?arr(s.qualities):base.qualities,
+    benefits:arr(s.benefits).length?arr(s.benefits):base.benefits,
+    application:arr(s.application).length?arr(s.application):base.application,
+  }).sections;
   return {...base,title:cleanHumanText(String(ai?.title||base.title||""))||null,company:cleanHumanText(String(ai?.company||base.company||""))||null,
-    location:arr(ai?.location).length?arr(ai.location):base.location,region:cleanHumanText(String(ai?.region||""))||null,sector:cleanHumanText(String(ai?.sector||""))||null,
+    location:arr(ai?.location).length?arr(ai.location):base.location,region:cleanHumanText(String(ai?.region||""))||null,sector:cleanHumanText(String(ai?.sector||base.sector||""))||null,
     contractType:cleanHumanText(String(ai?.contractType||base.contractType||""))||null,remoteMode:cleanHumanText(String(ai?.remoteMode||base.remoteMode||""))||null,
     salary:{min:n(ai?.salaryMin),max:n(ai?.salaryMax),currency:cleanHumanText(String(ai?.salaryCurrency||"XAF"))||"XAF"},
-    experience:arr(s.experience).length?arr(s.experience):base.experience,education:arr(s.education).length?arr(s.education):base.education,
-    skills:arr(s.skills).length?arr(s.skills):base.skills,qualities:arr(s.qualities).length?arr(s.qualities):base.qualities,
-    missions:arr(s.missions).length?arr(s.missions):base.missions,benefits:arr(s.benefits).length?arr(s.benefits):base.benefits,
-    description:arr(s.description).length?arr(s.description):base.description,application:arr(s.application).length?arr(s.application):base.application,
+    experience:cleaned.experience,education:cleaned.education,profile:cleaned.profile,
+    skills:cleaned.skills,qualities:cleaned.qualities,missions:cleaned.missions,benefits:cleaned.benefits,
+    description:cleaned.description,application:cleaned.application,
     deadline:ai?.deadline||base.deadline,qualityScore:n(ai?.qualityScore),flags:arr(ai?.flags)};
 }
 
