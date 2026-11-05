@@ -6,7 +6,7 @@ const read = (path) => readFileSync(new URL("../" + path, import.meta.url), "utf
 test("source-only offers remain visible independently from direct application readiness", () => {
   const api=read("app/api/jobs/route.ts"), processor=read("supabase/functions/job-harvest-process/index.ts");
   assert.match(api,/Listing visibility is independent from application readiness/);
-  assert.match(api,/sourceUrl:job\.sourceUrl/);
+  assert.match(api,/sourceUrl:\s*job\.sourceUrl/);
   assert.match(processor,/sourceUrl,/);
   assert.doesNotMatch(processor,/if\s*\(!hasApplicationRoute\)\s*\{[\s\S]{0,180}(?:return|quarantine)/i);
 });
