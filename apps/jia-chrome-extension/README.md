@@ -1,10 +1,21 @@
-# Extension Chrome Jobly — J'IA candidature (prototype)
-1. Sur Chrome ordinateur, ouvre chrome://extensions et active le mode développeur.
-2. Choisis « Charger l'extension non empaquetée » et sélectionne ce dossier.
-3. Sur Jobly, ouvre une offre puis clique sur le site du promoteur.
-4. Dans l'onglet du recruteur, ouvre le panneau Jobly J'IA depuis l'icône de l'extension.
-5. Autorise l'accès au domaine pour analyser les libellés des champs, puis demande à J'IA de préparer la candidature.
+# Jobly — J'IA Assistant de candidature (Chrome desktop beta)
 
-L'extension ne lit pas les valeurs saisies, mots de passe, fichiers ou codes de vérification. Elle n'envoie aucune candidature. Elle n'est pas publiée sur le Chrome Web Store.
+## Installation
+1. Download the ZIP from Jobly at /api/jia/extension/download.
+2. Extract the archive to a permanent folder.
+3. Open chrome://extensions in Google Chrome 116 or later on desktop.
+4. Enable Developer mode.
+5. Select Load unpacked and choose the extracted folder containing manifest.json.
+6. Return to Jobly at https://jobly-c0651.vercel.app/jia/extension. The page detects the extension automatically.
+7. Activate J'IA from the Jobly setup page or from this side panel. Pin the extension icon from Chrome's Extensions menu to open the side panel quickly.
 
-Chrome Android ne prend pas en charge les extensions Chrome classiques. Pour Android, Jobly utilise le partage PWA vers /jia/share ; ce parcours permet à J'IA de recevoir la page et les questions partagées, mais n'inspecte pas automatiquement les formulaires externes.
+## State and permissions
+- The extension defaults to installed-but-paused. The talent explicitly activates it.
+- Jobly checks its presence through a short local message handshake; it does not rely on a cookie or a click.
+- If no response is received, Jobly reports "not detected (missing or disabled)"; the website cannot distinguish those cases when Chrome does not inject the content script.
+- Form inspection is off by default. The side panel asks Chrome for optional permission on the current recruiter domain only after the talent clicks "Analyze visible fields".
+- It reads only visible form labels, types, required flags and select options. It never reads field values, password inputs, file inputs or verification codes.
+- It does not fill or submit any application. The talent reviews every suggestion and performs the final submission.
+
+## Distribution
+This is a developer-mode beta, not yet published in the Chrome Web Store. Chrome Android does not support this desktop extension; the Android flow uses the Jobly PWA share target.
