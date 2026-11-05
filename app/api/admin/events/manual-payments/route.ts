@@ -34,17 +34,18 @@ export async function GET(request:NextRequest){
     if(paymentsError)throw new Error(paymentsError.message);
     if(eventsError)throw new Error(eventsError.message);
     if(usersError)throw new Error(usersError.message);
-    const bucket=process.env.JOBLY_EVENTS_BUCKET||"jobly-events";
-    const submissionsWithContext=rows.map(row=>{
-      const proofUrl=gate.sb.storage.from(bucket).getPublicUrl(row.proofPath).data.publicUrl;
+    const bucket="jobly-payment-proofs";
+    const submissionsWithContext=await Promise.all(rows.map(async row=>{
+      const {data:signed,error:signedError}=await gate.sb.storage.from(bucket).createSignedUrl(row.proofPath,300);
+      if(signedError)throw new Error(signedError.message);
       return {
         ...row,
-        proofUrl,
+        proofUrl:signed.signedUrl,
         payment:(payments??[]).find(x=>x.id===row.paymentId)??null,
         event:(events??[]).find(x=>x.id===row.eventId)??null,
         user:(users??[]).find(x=>x.id===row.userId)??null,
       };
-    });
+    }));
     return NextResponse.json({submissions:submissionsWithContext});
   }catch(error){
     return fail(error instanceof Error?error.message:"Chargements des justificatifs impossible.",500);
