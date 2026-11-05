@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+      - feat/p1-offer-quality-*
+    paths:
+      - "scripts/offer-pipeline-audit.mjs"
+      - "supabase/functions/**"
+      - "app/api/jobs/route.ts"
   workflow_dispatch:
 
 permissions:
@@ -13,15 +18,16 @@ jobs:
   audit:
     name: Audit active offers one by one
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       JOB_RENDERER_URL: ${{ secrets.JOB_RENDERER_URL }}
       JOB_RENDERER_TOKEN: ${{ secrets.JOB_RENDERER_TOKEN }}
       JOB_RENDERER_WAIT_MS: ${{ secrets.JOB_RENDERER_WAIT_MS }}
-      AUDIT_LIMIT: "1000"
-      AUDIT_CONCURRENCY: "5"
+      AUDIT_LIMIT: "0"
+      AUDIT_PAGE_SIZE: "300"
+      AUDIT_CONCURRENCY: "8"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -38,29 +44,10 @@ jobs:
         if: always()
         run: |
           if [ -f audit-output/offers-audit.json ]; then
-            node -e '
-              const fs = require("fs");
-              const r = JSON.parse(fs.readFileSync("audit-output/offers-audit.json","utf8"));
-              const s = r.statistics || {};
-              const out = process.env.GITHUB_STEP_SUMMARY;
-              const lines = [
-                "# Jobly Offer 360 Audit — reference summary",
-                "",
-                "Offers analysées: **" + r.total + "**",
-                "Score moyen: **" + Number(s.mean ?? 0).toFixed(2) + "**",
-                "",
-                "| Contrôle | Résultat |",
-                "|---|---:|",
-                ...Object.entries(s.issueRates || {}).map(([k,v]) => "| " + k + " | **" + v.count + "/" + r.total + "** |"),
-                "",
-                "PASS: **" + (s.pass ?? 0) + "** · WARNING: **" + (s.warning ?? 0) + "** · BLOCKED: **" + (s.blocked ?? 0) + "**"
-              ];
-              fs.appendFileSync(out, lines.join("\n") + "\n");
-            '
+            node -e 'const fs=require("fs"); const r=require("./audit-output/offers-audit.json"); const s=r.statistics||{}; const rows=Object.entries(s.issueRates||{}).map(([k,v]) => "| "+k+" | **"+v.count+"/"+r.total+"** |"); const lines=["# Jobly Offer 360 Audit — reference summary","","Offers analysées: **"+r.total+"**","Score moyen: **"+Number(s.mean??0).toFixed(2)+"**","","| Contrôle | Résultat |","|---|---:|",...rows,"","PASS: **"+(s.pass??0)+"** · WARNING: **"+(s.warning??0)+"** · BLOCKED: **"+(s.blocked??0)+"**"]; fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,lines.join(String.fromCharCode(10))+String.fromCharCode(10))'
           else
             echo 'audit-output/offers-audit.json absent' >> "$GITHUB_STEP_SUMMARY"
           fi
-
       - name: Publish audit report
         if: always()
         uses: actions/upload-artifact@v4
