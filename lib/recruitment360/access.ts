@@ -23,13 +23,14 @@ export function validateApplicationTransition(
   const nextState = String(nextStateValue ?? "").trim().toUpperCase();
   const reason = String(exceptionReasonValue ?? "").trim();
   if (!(nextState in STEP_NUMBER)) return "INVALID_APPLICATION_STATE";
+  if (!(currentState in STEP_NUMBER)) return "CURRENT_APPLICATION_STATE_INVALID";
   if (actor === "CANDIDATE") {
     if (nextState === "OFFER_DECLINED") return currentState === "OFFER" ? null : "CANDIDATE_TRANSITION_FORBIDDEN";
     if (nextState === "WITHDRAWN") return TERMINAL_STATES.has(currentState) ? "CANDIDATE_TRANSITION_FORBIDDEN" : null;
     return "CANDIDATE_TRANSITION_FORBIDDEN";
   }
   if (TERMINAL_STATES.has(currentState) && reason.length < 5) return "LOCKED_STATE_EXCEPTION_REASON_REQUIRED";
-  if (currentState in STEP_NUMBER && STEP_NUMBER[nextState] < STEP_NUMBER[currentState] && reason.length < 5) {
+  if (STEP_NUMBER[nextState] < STEP_NUMBER[currentState] && reason.length < 5) {
     return "BACKWARD_TRANSITION_REQUIRES_REASON";
   }
   return null;
