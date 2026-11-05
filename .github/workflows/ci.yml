@@ -44,6 +44,9 @@ jobs:
       - name: P2 Community, Bons Plans and Campus gate
         run: pnpm test:p2-ecosystem
 
+      - name: Company logo fallback regression tests
+        run: pnpm test:company-logo-fallback
+
       - name: Career OS architecture gate
         run: pnpm test:career-os
 
