@@ -1,0 +1,105 @@
+name: P2 safe cleanup of merged branch refs
+
+on:
+  push:
+    branches:
+      - chore/p2-final-merged-branch-prune-20261105
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify merged PR ownership and delete exact branch refs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${REPO}"
+          headers=(-H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
+          open_prs="$(curl -fsS "${headers[@]}" "${api}/pulls?state=open&per_page=100")"
+          deleted=0
+          skipped=0
+          failed=0
+          while IFS='|' read -r branch expected_sha pr_number; do
+            [[ -z "${branch}" ]] && continue
+            enc="$(jq -rn --arg value "${branch}" '$value|@uri')"
+            pr="$(curl -fsS "${headers[@]}" "${api}/pulls/${pr_number}")"
+            if ! jq -e --arg branch "${branch}" --arg sha "${expected_sha}" '
+              .state == "closed" and .merged_at != null and
+              .head.ref == $branch and .head.sha == $sha
+            ' >/dev/null <<<"${pr}"; then
+              echo "SKIP ${branch}: merged PR evidence no longer matches"
+              skipped=$((skipped+1)); continue
+            fi
+            if jq -e --arg branch "${branch}" '
+              any(.[]; .head.ref == $branch or .base.ref == $branch)
+            ' >/dev/null <<<"${open_prs}"; then
+              echo "SKIP ${branch}: referenced by an open PR"
+              skipped=$((skipped+1)); continue
+            fi
+            branch_info="$(curl -fsS "${headers[@]}" "${api}/branches/${enc}")"
+            actual_sha="$(jq -r '.commit.sha' <<<"${branch_info}")"
+            protected="$(jq -r '.protected' <<<"${branch_info}")"
+            if [[ "${actual_sha}" != "${expected_sha}" || "${protected}" != "false" || "${branch}" == "main" ]]; then
+              echo "SKIP ${branch}: SHA/protection/default-branch guard failed"
+              skipped=$((skipped+1)); continue
+            fi
+            code="$(curl -sS -o /tmp/delete-response -w '%{http_code}' -X DELETE "${headers[@]}" "${api}/git/refs/heads/${enc}")"
+            if [[ "${code}" == "204" ]]; then
+              echo "DELETED ${branch} @ ${expected_sha} (PR #${pr_number})"
+              deleted=$((deleted+1))
+            else
+              echo "FAILED ${branch}: HTTP ${code}"
+              cat /tmp/delete-response || true
+              failed=$((failed+1))
+            fi
+          done <<'TARGETS'
+          docs/validate-cv-import-20260930|2394afb779b7987f088dc90f28f0d99e1d2bdd06|125
+          feat/africa-display-only-offers-20261105|98a9710ad8b656aaac7648067c663d067292dba9|192
+          feat/africa-source-ingestion-readiness-20261105|799438ff2dae4b9014222cbd13aa1831a766e10d|189
+          feat/lot-cd-institutional-hub-20261002|a57fc1faf4e23261c0678978895be571f30b79de|159
+          feat/lot-d-institutional-intelligence-20261002|66aa2d2f5b492e586e75ce2c8932f1c9ceb66857|160
+          feat/lot-e-recruiter-africa-20261002|8f5e3c469fbd2405c976fd47a00af10327086231|161
+          feat/p2-community-bons-plans-campus-20261105|c972bb80bafea32fa137e83ace8c8a4dd4c138be|203
+          fix/africa-direct-supabase-processing-20261001|b2ed90fc85824f674a569d483021d54bc9091b65|141
+          fix/africa-matrix|79449f4bae8d4e45103441f1ad9ad24e8ced711d|185
+          fix/ai-welcome-single-account|6d5f86cc7fe76c147f5ac7c51c4b3701611b1857|132
+          fix/application-section-canonical-v1|a827192c9ef844989b2a3c86f71f80d6f283a827|96
+          fix/cv-access-and-signup-bonus-20261001|726a46a66623a2a45c8528986627be6087089063|129
+          fix/cv-extraction-quality-and-dynamic-sections-20260930|378c7c11fed1ceafea84e85f9c1554e96c7de1dd|126
+          fix/cv-final-contradiction-hardening-20261001|cef8d88346f1c0958dfeb03da4d957cb8d313687|130
+          fix/cv-import-auth-20260930|ccbb06930c03a0a869ffc4b5a07d28e8a52a50f6|117
+          fix/cv-import-dommatrix-20260930|8f98f4820ddf8d6657604546a69268c09f4dd6f1|121
+          fix/cv-import-notification-templates-recruiter-ai-20261001-v3|3c12f4dfd2d9dad44c35e582c43e6740b75c82b9|131
+          fix/cv-quota-and-market-order-20260930|c19736c9e1f1d0fb9e245d6b1b9836e44b6b753f|124
+          fix/event-core-p1-20261105-final|3d4176aba7932d45bc85e4d00083f16c6830e764|211
+          fix/jobs-market-switcher-final-position-20260930|4989451408ce09abca5d3cf6478e2eaac09c13da|127
+          fix/logo-reindex-20261002|604453bec67ed99267e82ee667b53a684e0f7d49|181
+          fix/mobility-migration-history-alignment-20261105|b4b6903b693e0486eee926f7406ac2f0bbf7b61f|212
+          fix/p1-billing-entitlements-20261105|7cf65aaf579cd98351053d74373f634170b02aa8|204
+          fix/premium-access-diamond-indicator-20260930|4bde9c6dc7370fe4e18d9fb55d654a78a70c8619|128
+          fix/semantic-field-validation-v1|a8c9e0fb09574b32a3a9f531f1b321cdbd7555bf|95
+          integrate/africa-harvest-main-20261001|ad75e1ece63cbeaeab3b3b3e847150ad7970db66|139
+          refactor/jobly-session-architecture-20260930|85df42dbbb5485d5ac9db4d662e2fa250ff47975|123
+          TARGETS
+          echo "SUMMARY deleted=${deleted} skipped=${skipped} failed=${failed}"
+          if (( failed > 0 )); then exit 1; fi
+      - name: Remove the temporary workflow branch
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TEMP_BRANCH: chore/p2-final-merged-branch-prune-20261105
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${REPO}"
+          encoded="$(jq -rn --arg value "${TEMP_BRANCH}" '$value|@uri')"
+          curl -fsS -X DELETE -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "${api}/git/refs/heads/${encoded}" || true
