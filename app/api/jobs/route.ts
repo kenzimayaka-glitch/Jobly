@@ -240,8 +240,8 @@ export async function GET(request:NextRequest){
   unified=unified.filter(j=>scope==="africa" ? !isLocalCountryOffer(j) : scope==="countries" ? targetCountryCodes.includes(normalizeCountryCode(j.countryCode)||"") : Boolean(activeCountryCode) ? normalizeCountryCode(j.countryCode)===activeCountryCode : true);
   unified=unified.map(job=>{const description=cleanJobDescription(job.description,job.title);const title=cleanJobTitle(job.title);const companyName=cleanCompanyName(job.companyName)||extractCompanyNameFromDescription(description);return {...job,title,description,companyName};});
   if(filterContract)unified=unified.filter(j=>normalize(j.contractType)===normalize(filterContract));if(filterCity)unified=unified.filter(j=>normalize(j.location).includes(normalize(filterCity)));if(filterRemote)unified=unified.filter(j=>normalize(j.remoteMode)===normalize(filterRemote));if(search){const n=normalize(search);unified=unified.filter(j=>normalize(j.title).includes(n)||normalize(j.companyName).includes(n));}
-  // Discovery visibility is limited to offers with a verifiable direct application contact.
-  // A generic website/contact email is not enough: the extractor requires application context.
+  // Listing visibility is independent from application readiness: fresh source-only offers remain visible.
+  // Direct application actions still require a verified email, phone, or application form.
   unified=unified.map(job=>{
     const contact=resolveApplicationContact(job.applicationProfile,job.description);
     return {
@@ -293,6 +293,6 @@ export async function GET(request:NextRequest){
       applicationReady:expired?false:Boolean(job.applicationReady),
     };
   });const matchingCount=visibleRanked.reduce((count,job)=>count+(job.matchPercent>=50?1:0),0);
-  return NextResponse.json({totalAvailable,matchingCount,count:results.length,page,limit,hasMore:start+limit<totalAvailable,yearsExperience,preferredLanguages,jobs:results,market:{scope,countryCode:activeCountryCode,countryName:activeCountryCode?(countryNames[activeCountryCode]||"Pays sélectionné"):null,userCountryCode,targetCountryCodes:scope==="countries"?targetCountryCodes:[]},matchingPolicy:{matchingThreshold:50,ordering:"match_then_publication",externalRequiresApplicationReady:true}});
+  return NextResponse.json({totalAvailable,matchingCount,count:results.length,page,limit,hasMore:start+limit<totalAvailable,yearsExperience,preferredLanguages,jobs:results,market:{scope,countryCode:activeCountryCode,countryName:activeCountryCode?(countryNames[activeCountryCode]||"Pays sélectionné"):null,userCountryCode,targetCountryCodes:scope==="countries"?targetCountryCodes:[]},matchingPolicy:{matchingThreshold:50,ordering:"match_then_publication",externalRequiresApplicationReady:false,directApplicationRequiredForApplyAction:true,sourceOnlyOffersAllowed:true}});
  }catch(error){return NextResponse.json({message:error instanceof Error?error.message:"Impossible de charger les offres."},{status:500});}
 }
