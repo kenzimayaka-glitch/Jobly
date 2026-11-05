@@ -66,6 +66,8 @@ test("Community, Bons Plans and Campus translations exist in French and English"
     "bonplans.page.emptyTitle",
     "bonplans.pillar.campusTitle",
     "campus.page.openOffer",
+    "campus.page.institutionsTitle",
+    "campus.page.institutionMembers",
   ]) {
     assert.ok(dict.includes(`"${key}":`), `missing FR/EN dictionary key: ${key}`);
     assert.equal((dict.match(new RegExp(`"${key}":`, "g")) || []).length, 2, `key must exist once in each language: ${key}`);
@@ -91,4 +93,18 @@ test("Community reactions and comments use persisted tables and real endpoints",
   assert.match(comments, /CommunityPostComment/);
   assert.match(page, /reactToPost/);
   assert.match(page, /commentOnPost/);
+});
+
+test("Campus institutional directory uses real active institutions and membership records", () => {
+  const route = read("app/api/campus/institutions/route.ts");
+  const page = read("app/campus/page.tsx");
+  assert.match(route, /getAuthUser\(request\)/);
+  assert.match(route, /from\("Institution"\)/);
+  assert.match(route, /from\("InstitutionMember"\)/);
+  assert.match(route, /\.eq\("active", true\)/);
+  assert.match(route, /\\bdemo\\b/i);
+  assert.match(route, /memberCount/);
+  assert.match(page, /\/api\/campus\/institutions/);
+  assert.match(page, /campus-institutions-title/);
+  assert.match(page, /institutionCount/);
 });

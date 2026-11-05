@@ -6,6 +6,15 @@ import AppShell from "@/components/ui/AppShell";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useI18n } from "@/lib/i18n";
 
+type CampusInstitution = {
+  id: string;
+  name: string;
+  city: string | null;
+  type: string;
+  memberCount: number;
+  isMember: boolean;
+};
+
 type CampusOpportunity = {
   id: string;
   source: "discovery" | "recruiter";
@@ -26,6 +35,10 @@ export default function CampusPage() {
   const router = useRouter();
   const { t, formatDate } = useI18n();
   const [items, setItems] = useState<CampusOpportunity[]>([]);
+  const [institutions, setInstitutions] = useState<CampusInstitution[]>([]);
+  const [institutionCount, setInstitutionCount] = useState(0);
+  const [institutionMemberCount, setInstitutionMemberCount] = useState(0);
+  const [institutionError, setInstitutionError] = useState("");
   const [filter, setFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -46,6 +59,22 @@ export default function CampusPage() {
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || t("common.error.generic"));
       setItems(Array.isArray(body.items) ? body.items : []);
+
+      try {
+        const institutionsResponse = await fetch("/api/campus/institutions", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          cache: "no-store",
+        });
+        const institutionsBody = await institutionsResponse.json().catch(() => ({}));
+        if (!institutionsResponse.ok) throw new Error(institutionsBody.error || t("common.error.generic"));
+        const nextInstitutions = Array.isArray(institutionsBody.institutions) ? institutionsBody.institutions : [];
+        setInstitutions(nextInstitutions);
+        setInstitutionCount(Number(institutionsBody.count) || nextInstitutions.length);
+        setInstitutionMemberCount(Number(institutionsBody.activeMemberCount) || 0);
+        setInstitutionError("");
+      } catch (cause) {
+        setInstitutionError(cause instanceof Error ? cause.message : t("common.error.generic"));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t("common.error.generic"));
     } finally {
@@ -56,6 +85,13 @@ export default function CampusPage() {
   useEffect(() => { void load(); }, [load]);
 
   const visible = useMemo(() => filter === "ALL" ? items : items.filter((item) => item.category === filter), [items, filter]);
+  const institutionTypeLabel = (value: string) => {
+    if (value === "UNIVERSITY") return t("campus.page.institutionTypeUniversity");
+    if (value === "GRANDE_ECOLE") return t("campus.page.institutionTypeGrandeEcole");
+    if (value === "INSTITUT") return t("campus.page.institutionTypeInstitute");
+    return t("campus.page.institutionTypeOther");
+  };
+
   const labelFor = (value: string) => value === "INTERNSHIP"
     ? t("campus.page.internship")
     : value === "ALTERNANCE"
@@ -71,6 +107,47 @@ export default function CampusPage() {
         <div className="mt-5 flex flex-wrap gap-2">
           <span className="rounded-full bg-white/65 px-3 py-1.5 text-xs font-black text-[#514400]">{t("campus.page.count", { n: items.length })}</span>
           <button type="button" onClick={() => router.push("/talent/cvs")} className="rounded-full bg-[#0B1F4B] px-3.5 py-1.5 text-xs font-black text-white">{t("campus.page.cv")}</button>
+        </div>
+      </section>
+
+      <section className="mb-7 rounded-[26px] border border-slate-100 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="campus-institutions-title">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[.16em] text-[#1877B9]">{t("campus.page.institutionsEyebrow")}</p>
+            <h2 id="campus-institutions-title" className="mt-1 text-xl font-black text-[#0B1F4B]">{t("campus.page.institutionsTitle")}</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{t("campus.page.institutionsDescription")}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full bg-[#EEF2FF] px-3 py-1.5 text-xs font-black text-[#22448B]">{t("campus.page.institutionCount", { n: institutionCount })}</span>
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">{t("campus.page.institutionMembers", { n: institutionMemberCount })}</span>
+          </div>
+        </div>
+
+        {institutionError ? (
+          <p role="alert" className="mt-4 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">{institutionError}</p>
+        ) : institutions.length === 0 ? (
+          <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">{t("campus.page.institutionEmpty")}</p>
+        ) : (
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {institutions.map((institution) => (
+              <article key={institution.id} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-lg text-[#22448B]">🎓</span>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-slate-500">{institutionTypeLabel(institution.type)}</span>
+                </div>
+                <h3 className="mt-3 text-sm font-black leading-5 text-[#0B1F4B]">{institution.name}</h3>
+                <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+                  <span>{institution.city || t("campus.page.institutionCityUnknown")}</span>
+                  <span>{t("campus.page.institutionMembers", { n: institution.memberCount })}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+          <p className="max-w-xl text-xs leading-5 text-slate-500">{t("campus.page.institutionConnectionNote")}</p>
+          <button type="button" onClick={() => router.push("/communities")} className="rounded-xl bg-[#0B1F4B] px-4 py-2.5 text-xs font-black text-white">{t("campus.page.communitiesLink")} →</button>
         </div>
       </section>
 
