@@ -1,2 +1,105 @@
-import {NextRequest,NextResponse} from "next/server";import ExcelJS from "exceljs";import {authUser,adminClient,ensureUser} from "../../../../../lib/mobilityServer";
-export async function GET(req:NextRequest){try{const au=await authUser(req);if(!au)return NextResponse.json({message:"Session requise."},{status:401});const sb=adminClient(),u=await ensureUser(sb,au);const {data:partner}=await sb.from("Partner").select("id,partnerType,referralCode").eq("userId",u.id).maybeSingle();const isRecruiter=["RECRUITER","ADMIN"].includes(String(u.role));if(!partner&&!isRecruiter)return NextResponse.json({message:"Accès Mobility partenaire/recruteur requis."},{status:403});const {data,error}=await sb.from("MobilityRequest").select("id,departCity,arriveeCity,distanceKm,costTotal,subventionPercent,status,createdAt").order("createdAt",{ascending:false});if(error)throw new Error(error.message);const rows=data||[];if(req.nextUrl.searchParams.get("format")==="xlsx"){const wb=new ExcelJS.Workbook();const ws=wb.addWorksheet("Mobility");ws.columns=[{header:"ID",key:"id"},{header:"Départ",key:"departCity"},{header:"Arrivée",key:"arriveeCity"},{header:"Distance km",key:"distanceKm"},{header:"Coût total",key:"costTotal"},{header:"Subvention %",key:"subventionPercent"},{header:"Statut",key:"status"},{header:"Créé le",key:"createdAt"}];ws.addRows(rows);const buffer=await wb.xlsx.writeBuffer();return new NextResponse(buffer,{headers:{"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","Content-Disposition":"attachment; filename=jobly-mobility-report.xlsx"}})}const header="id;depart;arrivee;distanceKm;costTotal;subventionPercent;status;createdAt\n";const csv=header+rows.map(r=>[r.id,r.departCity,r.arriveeCity,r.distanceKm,r.costTotal,r.subventionPercent,r.status,r.createdAt].map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(";")).join("\n");return new NextResponse(csv,{headers:{"Content-Type":"text/csv; charset=utf-8","Content-Disposition":"attachment; filename=jobly-mobility-report.csv"}})}catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Rapport indisponible."},{status:500})}}
+import { NextRequest, NextResponse } from "next/server";
+import ExcelJS from "exceljs";
+import { authUser, adminClient, ensureUser } from "../../../../../lib/mobilityServer";
+import {
+  getInstitutionMobilityRequestIds,
+  getRecruiterMobilityRequestIds,
+  getUserMobilityInstitutionIds,
+  getMobilityProviderRequestIds,
+} from "../../../../../lib/mobilityAccess";
+
+export async function GET(req: NextRequest) {
+  try {
+    const auth = await authUser(req);
+    if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+    const sb = adminClient();
+    const user = await ensureUser(sb, auth);
+    const role = String(user.role || "").toUpperCase();
+    const isAdmin = role === "ADMIN";
+    const isRecruiter = role === "RECRUITER";
+    const requestIds = new Set<string>();
+
+    if (!isAdmin) {
+      const institutionIds = await getUserMobilityInstitutionIds(sb, String(user.id));
+      for (const institutionId of institutionIds) {
+        const ids = await getInstitutionMobilityRequestIds(sb, institutionId);
+        ids.forEach((id) => requestIds.add(id));
+      }
+
+      if (isRecruiter) {
+        const ids = await getRecruiterMobilityRequestIds(sb, String(user.id));
+        ids.forEach((id) => requestIds.add(id));
+      }
+
+      const providerIds = await getMobilityProviderRequestIds(sb, String(user.id));
+      providerIds.forEach((id) => requestIds.add(id));
+
+      if (!institutionIds.length && !isRecruiter && !providerIds.length) {
+        return NextResponse.json({
+          message: "Aucun lien actif vers un dossier Mobility : institution, recrutement ou affectation prestataire vérifiée requis.",
+        }, { status: 403 });
+      }
+    }
+
+    let query = sb.from("MobilityRequest")
+      .select("id,departCity,arriveeCity,distanceKm,costTotal,subventionPercent,status,eligibilityStatus,eligibilityBurdenPercent,createdAt")
+      .order("createdAt", { ascending: false });
+    if (!isAdmin) {
+      const ids = [...requestIds];
+      if (ids.length === 0) {
+        return exportRows([], req);
+      }
+      query = query.in("id", ids);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error("MOBILITY_REPORT_LOOKUP_FAILED: " + error.message);
+    return exportRows(data || [], req);
+  } catch (error) {
+    return NextResponse.json({
+      message: error instanceof Error ? error.message : "Rapport Mobility indisponible.",
+    }, { status: 500 });
+  }
+}
+
+async function exportRows(rows: any[], req: NextRequest) {
+  const format = req.nextUrl.searchParams.get("format");
+  if (format === "json") return NextResponse.json({ rows, count: rows.length });
+
+  if (format === "xlsx") {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Mobility");
+    worksheet.columns = [
+      { header: "ID", key: "id" },
+      { header: "Départ", key: "departCity" },
+      { header: "Arrivée", key: "arriveeCity" },
+      { header: "Distance km", key: "distanceKm" },
+      { header: "Coût total", key: "costTotal" },
+      { header: "Subvention %", key: "subventionPercent" },
+      { header: "Éligibilité", key: "eligibilityStatus" },
+      { header: "Charge %", key: "eligibilityBurdenPercent" },
+      { header: "Statut", key: "status" },
+      { header: "Créé le", key: "createdAt" },
+    ];
+    worksheet.addRows(rows);
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new NextResponse(buffer, {
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": "attachment; filename=jobly-mobility-report.xlsx",
+      },
+    });
+  }
+
+  const header = "id;depart;arrivee;distanceKm;costTotal;subventionPercent;eligibilityStatus;eligibilityBurdenPercent;status;createdAt\n";
+  const csv = header + rows.map((row) => [
+    row.id, row.departCity, row.arriveeCity, row.distanceKm, row.costTotal,
+    row.subventionPercent, row.eligibilityStatus, row.eligibilityBurdenPercent, row.status, row.createdAt,
+  ].map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(";")).join("\n");
+  return new NextResponse(csv, {
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": "attachment; filename=jobly-mobility-report.csv",
+    },
+  });
+}
