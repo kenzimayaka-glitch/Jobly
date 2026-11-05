@@ -53,19 +53,19 @@ function extractLabeledSections(sections: OfferSections): void {
   if (!fullDescription) return;
 
   const missionHeading = /\bmissions? principales\b/i.exec(fullDescription);
-  const profileHeading = /\bprofil recherché\b/i.exec(fullDescription);
+  const profileHeading = /\bprofil\s+recherché(?=\s|$)/i.exec(fullDescription);
   if (!missionHeading || !profileHeading || missionHeading.index === undefined ||
       profileHeading.index === undefined || profileHeading.index <= missionHeading.index) {
     return;
   }
 
-  const applicationHeading = /\b(?:comment postuler|pour postuler|modalités? de candidature|lien de candidature)\b/i.exec(fullDescription);
+  const applicationHeading = /\b(?:comment postuler|pour postuler|modalités?\s+de candidature|lien\s+de candidature)(?=\s|$)/i.exec(fullDescription);
   const endOfProfile = applicationHeading?.index !== undefined &&
       applicationHeading.index > profileHeading.index
     ? applicationHeading.index
     : fullDescription.length;
 
-  const introStartMatch = /\b(?:présentation du poste|description du poste)\b/i.exec(fullDescription);
+  const introStartMatch = /\b(?:présentation du poste|description du poste)(?=\s|$)/i.exec(fullDescription);
   const introStart = introStartMatch?.index !== undefined
     ? introStartMatch.index + introStartMatch[0].length
     : 0;
