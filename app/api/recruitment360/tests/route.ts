@@ -126,7 +126,7 @@ export async function POST(req:NextRequest){
     const choices=Array.isArray(body.choices)?body.choices.map((value:any)=>String(value??"").trim()).filter(Boolean):[];
     const correct=String(body.correct??"").trim();
     if(choices.length<2||choices.length>10||!correct||!choices.includes(correct)||new Set(choices).size!==choices.length)return fail("QUESTION_CHOICES_INVALID");
-    options={choices:choices.map(value=>({value,label:value})),correct};
+    options={choices:choices.map((value:string)=>({value,label:value})),correct};
    }else{
     const correct=Number(body.correct);
     if(!Number.isFinite(correct))return fail("QUESTION_CORRECT_VALUE_INVALID");
@@ -163,7 +163,7 @@ export async function POST(req:NextRequest){
   if(action==="start"){
    const applicationId=String(body.applicationId??"").trim(),testId=String(body.testId??"").trim();
    if(!applicationId||!testId)return fail("TEST_FIELDS_REQUIRED");
-   const scope=await authorizedApplication(db,applicationId,String(user.id));
+   const scope=await authorizedApplication(db,applicationId,String(auth.id),String(user.id));
    if(!scope.application||!scope.recruitment)return fail("APPLICATION_NOT_FOUND");
    if(!scope.candidate)return fail("FORBIDDEN");
    const {data,error}=await db.rpc("recruitment360_lot4_start_session",{p_test_id:testId,p_application_id:applicationId,p_actor_user_id:String(auth.id)});
