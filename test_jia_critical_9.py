@@ -118,7 +118,20 @@ assert "evidenceError" in assessment_route and "evidenceId" in assessment_route,
 health_route = read("app/api/jia/health/route.ts")
 assert "runtimeEvidence" in health_route and "outcomeLoopObserved" in health_route, "J'IA health must report observed persistence evidence"
 assert "verifiedActionRuns" in health_route and "predictionOutcomes" in health_route, "J'IA health must distinguish proposals from verified outcomes"
+assert '.not("outcome", "is", null)' in health_route, "Outcome count must be based on non-null persisted outcomes"
+assert 'head: true' in health_route and '.limit(1000)' not in health_route, "Health counts must be exact and untruncated"
+assert "proposedActionRuns" in health_route and "failedActionRuns" in health_route, "Health must report proposal and failure states separately"
 assert "outcomes: true" not in health_route, "J'IA health must not claim outcomes without persisted evidence"
+
+mission_update = career_journey[career_journey.index("export async function updateMission"):career_journey.index("export async function validateMissionOwnership")]
+assert "missionUpdateError" in mission_update and "if (!missionUpdate)" in mission_update, "Mission transitions must persist their audit journal"
+
+journey_route = read("app/api/career-journey/route.ts")
+assert "evidenceResult.error" in journey_route and "portfolioResult.error" in journey_route, "Journey GET must surface proof/portfolio read failures"
+
+reassess_route = read("app/api/career-journey/reassess/route.ts")
+assert '.eq("status", "VERIFIED")' in reassess_route, "Reassessment must query verified actions directly, not sample recent proposals"
+assert "verifiedActionType" in reassess_route and "review.data" in reassess_route, "Reassessment must return the verified action and persisted review"
 
 print("J'IA CRITICAL 9-WORKSTREAM CONTRACT: PASS")
 print("Architecture coverage is present across all nine workstreams.")
