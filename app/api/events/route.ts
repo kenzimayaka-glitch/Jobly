@@ -156,14 +156,21 @@ export async function POST(request:NextRequest){
       id:paymentId,userId:user.id,provider,externalId:paymentId,idempotencyKey:paymentId,amount:pricing.total,currency:"XAF",
       status:"CREATED",feature:"EVENT_PUBLICATION",createdAt:now,updatedAt:now
     });
-    if(paymentError)throw new Error(paymentError.message);
+    if(paymentError){
+      await sb.from("Event").update({status:"DRAFT",updatedAt:new Date().toISOString()}).eq("id",id);
+      return fail("Le paiement n'a pas pu être préparé. L'événement est revenu en brouillon.",503,"PAYMENT_RECORD_FAILED");
+    }
 
     const {error:eventPaymentError}=await sb.from("EventPayment").insert({
       id:crypto.randomUUID(),eventId:id,paymentId,purpose:"PUBLICATION",amount:pricing.total,status:"PENDING",createdAt:now,updatedAt:now
     });
     if(eventPaymentError){
-      await sb.from("Payment").update({status:"FAILED",failureReason:"EVENT_PAYMENT_LINK_FAILED",updatedAt:new Date().toISOString()}).eq("id",paymentId);
-      throw new Error(eventPaymentError.message);
+      const failedAt=new Date().toISOString();
+      await Promise.all([
+        sb.from("Payment").update({status:"FAILED",failureReason:"EVENT_PAYMENT_LINK_FAILED",updatedAt:failedAt}).eq("id",paymentId),
+        sb.from("Event").update({status:"DRAFT",updatedAt:failedAt}).eq("id",id)
+      ]);
+      return fail("Le paiement n'a pas pu être associé à l'événement. L'événement est revenu en brouillon.",503,"EVENT_PAYMENT_LINK_FAILED");
     }
 
     try{
