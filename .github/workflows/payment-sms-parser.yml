@@ -1,0 +1,29 @@
+name: Payment SMS parser
+
+on:
+  pull_request:
+    paths:
+      - "lib/paymentSms/**"
+      - "scripts/payment-sms-parser.test.mjs"
+      - ".github/workflows/payment-sms-parser.yml"
+  push:
+    branches:
+      - "feat/jobly-sms-payment-all-clients-20261106"
+    paths:
+      - "lib/paymentSms/**"
+      - "scripts/payment-sms-parser.test.mjs"
+      - ".github/workflows/payment-sms-parser.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  parser-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run deterministic parser tests
+        run: node --experimental-strip-types --test scripts/payment-sms-parser.test.mjs
