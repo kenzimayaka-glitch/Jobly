@@ -408,8 +408,8 @@ export function JoblyOfferFeed() {
     const applicationUrl = externalApplicationTarget(job);
     if (applicationUrl) {
       announceExternalApplicationToJia({ jobId: job.id, source: job.source, title: job.title, company: job.company?.name, targetUrl: applicationUrl, sourceUrl: job.sourceUrl, description: job.description });
-      const opened = window.open(applicationUrl, "_blank", "noopener,noreferrer");
-      if (!opened) setError("Le navigateur a bloqué l’ouverture du site du recruteur. Ouvre le lien depuis le détail de l’offre.");
+      const opened = window.open(applicationUrl, "_blank");
+      if (opened) opened.opener = null;
       return;
     }
     if (phone && !email) { await applyViaWhatsApp(job); return; }
