@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "node:crypto";
 import { adminClient, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
-import { generateDistributorAcquisitionCommission } from "../../../../../lib/distributor-commission";
 
 const err = (message: string, status: number, code = message) =>
   NextResponse.json({ error: code, message }, { status });
 
-const allowed = new Set(["PENDING", "SUCCESSFUL", "FAILED", "REFUNDED"]);
+const allowed = new Set(["PENDING", "SUCCESSFUL", "FAILED"]);
 const transitions: Record<string, Set<string>> = {
   CREATED: new Set(["PENDING", "SUCCESSFUL", "FAILED"]),
   PENDING: new Set(["SUCCESSFUL", "FAILED"]),
-  SUCCESSFUL: new Set(["REFUNDED"]),
-  FAILED: new Set([]),
-  REFUNDED: new Set([]),
+  SUCCESSFUL: new Set(),
+  FAILED: new Set(),
+  REFUNDED: new Set(),
 };
 
 export async function POST(
@@ -23,9 +21,9 @@ export async function POST(
     const auth = await getAuthUser(request);
     if (!auth) return err("Session requise.", 401, "UNAUTHENTICATED");
 
-    const sb = adminClient();
-    const user = await ensureUser(sb, auth);
-    if (!["ADMIN", "FINANCE"].includes(user.role)) {
+    const supabase = adminClient();
+    const actor = await ensureUser(supabase, auth);
+    if (!["ADMIN", "FINANCE"].includes(actor.role)) {
       return err("Accès administrateur requis.", 403, "FORBIDDEN");
     }
 
@@ -33,113 +31,97 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const status = String(body.status || "").toUpperCase();
     const reason = String(body.reason || "").trim().slice(0, 500);
-    const externalId = body.externalId ? String(body.externalId).trim() : undefined;
+    const externalId = body.externalId ? String(body.externalId).trim() : "";
 
-    if (!allowed.has(status)) {
-      return err("Statut de rapprochement invalide.", 400, "RECONCILIATION_FAILED");
+    if (status === "REFUNDED") {
+      return err(
+        "Remboursement fournisseur non disponible : le statut ne peut pas être modifié sans confirmation d'un remboursement réellement exécuté.",
+        501,
+        "PROVIDER_REFUND_UNSUPPORTED",
+      );
     }
-    if (status === "FAILED" && !reason) {
-      return err("Une raison est requise pour un échec.", 400, "RECONCILIATION_FAILED");
+    if (!allowed.has(status)) return err("Statut de rapprochement invalide.", 400, "RECONCILIATION_FAILED");
+    if ((status === "FAILED" || status === "SUCCESSFUL") && !reason) {
+      return err("Une justification Finance est obligatoire pour confirmer un succès ou un échec.", 400, "RECONCILIATION_REASON_REQUIRED");
     }
 
-    const { data: payment, error: paymentError } = await sb
+    const { data: payment, error: paymentError } = await supabase
       .from("Payment")
       .select("*")
       .eq("id", id)
       .maybeSingle();
+
     if (paymentError) throw new Error(paymentError.message);
     if (!payment) return err("Paiement introuvable.", 404, "PAYMENT_NOT_FOUND");
-
     if (payment.status === status) {
-      return NextResponse.json({ payment, reconciledBy: user.id, idempotent: true });
+      return NextResponse.json({ payment, reconciledBy: actor.id, idempotent: true });
     }
-
     if (!transitions[payment.status]?.has(status)) {
       return err(
-        `Transition impossible: ${payment.status} → ${status}.`,
+        "Transition impossible: " + payment.status + " → " + status + ".",
         422,
         "INVALID_PAYMENT_TRANSITION",
       );
     }
-
     if (externalId && payment.externalId && payment.externalId !== externalId) {
       return err("externalId déjà associé à un autre paiement.", 409, "EXTERNAL_ID_CONFLICT");
     }
-
-    const now = new Date().toISOString();
-    const update: Record<string, unknown> = {
-      status,
-      updatedAt: now,
-    };
-    if (externalId) update.externalId = externalId;
-    if (status === "SUCCESSFUL") update.paidAt = now;
-    if (status === "REFUNDED") update.refundedAt = now;
-    if (status === "FAILED") update.failureReason = reason;
-
-    const { data: updatedPayment, error: updateError } = await sb
-      .from("Payment")
-      .update(update)
-      .eq("id", id)
-      .eq("status", payment.status)
-      .select("*")
-      .single();
-    if (updateError) throw new Error(updateError.message);
-
-    let commission = null;
-
-    if (payment.subscriptionId) {
-      if (status === "SUCCESSFUL") {
-        const { data: sub } = await sb
-          .from("Subscription")
-          .select("*")
-          .eq("id", payment.subscriptionId)
-          .maybeSingle();
-        if (sub) {
-          const start = new Date();
-          const end = new Date(start);
-          if (sub.billingInterval === "ANNUAL") end.setUTCFullYear(end.getUTCFullYear() + 1);
-          else end.setUTCMonth(end.getUTCMonth() + 1);
-          await sb.from("Subscription").update({
-            status: "ACTIVE",
-            currentPeriodStart: start.toISOString(),
-            currentPeriodEnd: end.toISOString(),
-            canceledAt: null,
-            updatedAt: now,
-          }).eq("id", sub.id);
-
-          commission = await generateDistributorAcquisitionCommission(sb, sub);
-        }
-      } else if (status === "FAILED") {
-        await sb.from("Subscription").update({
-          status: "EXPIRED",
-          updatedAt: now,
-        }).eq("id", payment.subscriptionId).eq("status", "PENDING");
-      } else if (status === "REFUNDED") {
-        await sb.from("Subscription").update({
-          status: "CANCELED",
-          canceledAt: now,
-          updatedAt: now,
-        }).eq("id", payment.subscriptionId);
-      }
+    if (status === "SUCCESSFUL" && !externalId && !payment.externalId) {
+      return err("Une référence de transaction fournisseur est obligatoire pour confirmer un paiement.", 422, "PROVIDER_REFERENCE_REQUIRED");
     }
 
-    await sb.from("AuditLog").insert({
-      id: crypto.randomUUID(),
-      userId: user.id,
+    const now = new Date().toISOString();
+    if (externalId && !payment.externalId) {
+      const { error: referenceError } = await supabase.from("Payment")
+        .update({ externalId, updatedAt: now })
+        .eq("id", id)
+        .is("externalId", null);
+      if (referenceError) throw new Error(referenceError.message);
+    }
+
+    // One SECURITY DEFINER transaction owns the Payment + Subscription transition.
+    const { data: finalized, error: finalizeError } = await supabase.rpc("finalize_payment", {
+      p_payment_id: String(payment.id),
+      p_user_id: String(payment.userId),
+      p_status: status,
+      p_amount: Number(payment.amount),
+      p_now: now,
+      p_failure_reason: status === "FAILED" ? reason : null,
+    });
+
+    if (finalizeError) {
+      const message = String(finalizeError.message || "");
+      if (message.includes("PAYMENT_NOT_FOUND")) return err("Paiement introuvable.", 404, "PAYMENT_NOT_FOUND");
+      if (message.includes("AMOUNT_MISMATCH")) return err("Montant provider différent.", 409, "AMOUNT_MISMATCH");
+      if (message.includes("INVALID_PAYMENT_TRANSITION")) return err("Transition de paiement invalide.", 409, "INVALID_PAYMENT_TRANSITION");
+      if (message.includes("SUBSCRIPTION_NOT_FOUND")) return err("Abonnement introuvable.", 409, "SUBSCRIPTION_NOT_FOUND");
+      if (message.includes("SUBSCRIPTION_NOT_PENDING")) return err("Cet abonnement n'est plus en attente.", 409, "SUBSCRIPTION_NOT_PENDING");
+      if (message.includes("INVALID_PAYMENT_STATUS")) return err("Statut provider invalide.", 409, "INVALID_PAYMENT_STATUS");
+      throw new Error(finalizeError.message);
+    }
+
+    const result = finalized as { payment?: unknown; commission?: unknown; idempotent?: boolean };
+    const { error: auditError } = await supabase.from("CEOAuditLog").insert({
+      adminUserId: actor.id,
       action: "PAYMENT_RECONCILED",
-      entityType: "Payment",
-      entityId: payment.id,
+      endpoint: "/api/payments/[id]/reconcile",
       metadata: {
+        paymentId: payment.id,
         previousStatus: payment.status,
         status,
         reason: reason || null,
         externalId: externalId || payment.externalId || null,
-        commissionId: commission?.id || null,
       },
     });
 
-    return NextResponse.json({ payment: updatedPayment, reconciledBy: user.id, commission });
-  } catch (e) {
-    return err(e instanceof Error ? e.message : "Rapprochement impossible.", 500);
+    return NextResponse.json({
+      payment: result.payment,
+      reconciledBy: actor.id,
+      commission: result.commission ?? null,
+      idempotent: Boolean(result.idempotent),
+      auditLogWarning: auditError ? "PAYMENT_UPDATED_BUT_AUDIT_LOG_FAILED" : null,
+    });
+  } catch (error) {
+    return err(error instanceof Error ? error.message : "Rapprochement impossible.", 500);
   }
 }

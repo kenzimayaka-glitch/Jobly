@@ -74,3 +74,40 @@ export function cleanStrings(value: unknown): string[] {
 export function newId() {
   return crypto.randomUUID();
 }
+
+
+export type BillingProductType = "TALENT" | "RECRUITER";
+
+/**
+ * An account may carry both a Talent profile and a Recruiter profile.
+ * Recruiter ownership is tied to the Supabase Auth UID (RecruiterProfile.userId),
+ * whereas billing rows are tied to the internal User.id.
+ */
+export async function resolveBillingProductType(
+  supabase: ReturnType<typeof adminClient>,
+  internalUser: { role?: string },
+  authUserId: string,
+  requested?: unknown,
+): Promise<BillingProductType> {
+  const requestedValue = String(requested || "").trim().toUpperCase();
+  const productType: BillingProductType = requestedValue
+    ? requestedValue as BillingProductType
+    : internalUser.role === "RECRUITER" ? "RECRUITER" : "TALENT";
+
+  if (productType !== "TALENT" && productType !== "RECRUITER") {
+    throw new Error("INVALID_PRODUCT_TYPE");
+  }
+
+  if (productType === "RECRUITER") {
+    const { data, error } = await supabase
+      .from("RecruiterProfile")
+      .select("id")
+      .eq("userId", authUserId)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error("RECRUITER_PROFILE_LOOKUP_FAILED: " + error.message);
+    if (!data) throw new Error("RECRUITER_PROFILE_REQUIRED");
+  }
+
+  return productType;
+}

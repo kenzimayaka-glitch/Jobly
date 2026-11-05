@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
 import { getProvider } from "../../../../../lib/paymentProviders";
 
-const err = (m: string, s: number, c = m) => NextResponse.json({ error: c, message: m }, { status: s });
+const err = (message: string, status: number, code = message) =>
+  NextResponse.json({ error: code, message }, { status });
 
 export async function POST(
   request: NextRequest,
@@ -13,38 +14,49 @@ export async function POST(
     const auth = await getAuthUser(request);
     if (!auth) return err("Session requise.", 401, "UNAUTHENTICATED");
 
-    const sb = adminClient();
-    const u = await ensureUser(sb, auth);
-    const { data: p, error } = await sb
+    const supabase = adminClient();
+    const user = await ensureUser(supabase, auth);
+    const { data: payment, error } = await supabase
       .from("Payment")
       .select("*")
       .eq("id", id)
-      .eq("userId", u.id)
+      .eq("userId", user.id)
       .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!p) return err("Paiement introuvable.", 404, "PAYMENT_NOT_FOUND");
-    if (!p.externalId) return err("Référence provider absente.", 409, "EXTERNAL_ID_MISSING");
 
-    const verification = await getProvider(String(p.provider)).verifyPayment(p.externalId);
-    if (verification.amount != null && Number(verification.amount) !== Number(p.amount)) {
+    if (error) throw new Error(error.message);
+    if (!payment) return err("Paiement introuvable.", 404, "PAYMENT_NOT_FOUND");
+    if (!payment.externalId) return err("Référence provider absente.", 409, "EXTERNAL_ID_MISSING");
+
+    const verification = await getProvider(String(payment.provider)).verifyPayment(payment.externalId);
+    if (verification.externalId !== payment.externalId) {
+      return err("Référence provider différente.", 409, "EXTERNAL_ID_MISMATCH");
+    }
+    if (verification.amount != null && Number(verification.amount) !== Number(payment.amount)) {
       return err("Montant provider différent.", 409, "AMOUNT_MISMATCH");
+    }
+    if (verification.currency && String(verification.currency).toUpperCase() !== String(payment.currency).toUpperCase()) {
+      return err("Devise provider différente.", 409, "CURRENCY_MISMATCH");
     }
 
     const now = new Date().toISOString();
-    const { data: finalized, error: finalizeError } = await sb.rpc("finalize_payment", {
-      p_payment_id: String(p.id),
-      p_user_id: String(u.id),
+    const { data: finalized, error: finalizeError } = await supabase.rpc("finalize_payment", {
+      p_payment_id: String(payment.id),
+      p_user_id: String(user.id),
       p_status: String(verification.status),
-      p_amount: Number(p.amount),
+      p_amount: Number(payment.amount),
       p_now: now,
-      p_failure_reason: verification.status === "FAILED" ? (verification.message || "Provider returned FAILED") : null,
+      p_failure_reason: verification.status === "FAILED"
+        ? (verification.message || "Provider returned FAILED")
+        : null,
     });
+
     if (finalizeError) {
       const code = String(finalizeError.message || "");
       if (code.includes("PAYMENT_NOT_FOUND")) return err("Paiement introuvable.", 404, "PAYMENT_NOT_FOUND");
       if (code.includes("AMOUNT_MISMATCH")) return err("Montant provider différent.", 409, "AMOUNT_MISMATCH");
       if (code.includes("INVALID_PAYMENT_TRANSITION")) return err("Transition de paiement invalide.", 409, "INVALID_PAYMENT_TRANSITION");
       if (code.includes("SUBSCRIPTION_NOT_FOUND")) return err("Abonnement introuvable.", 409, "SUBSCRIPTION_NOT_FOUND");
+      if (code.includes("SUBSCRIPTION_NOT_PENDING")) return err("Cet abonnement n'est plus en attente.", 409, "SUBSCRIPTION_NOT_PENDING");
       if (code.includes("INVALID_PAYMENT_STATUS")) return err("Statut provider invalide.", 409, "INVALID_PAYMENT_STATUS");
       throw new Error(finalizeError.message);
     }
@@ -56,7 +68,7 @@ export async function POST(
       commission: result.commission ?? null,
       idempotent: Boolean(result.idempotent),
     });
-  } catch (e) {
-    return err(e instanceof Error ? e.message : "Vérification impossible.", 500);
+  } catch (error) {
+    return err(error instanceof Error ? error.message : "Vérification impossible.", 500);
   }
 }
