@@ -1,5 +1,5 @@
 name: Africa Source Shadow Crawl
-# A source batch is crawled in shadow mode first; production ingestion stays approval-gated.
+# Batch 1 is crawled, freshness-validated, then ingested; later source batches stay outside this allowlist.
 
 on:
   push:
@@ -143,6 +143,8 @@ jobs:
           python - <<'PY'
           import json, os
           candidates = json.load(open("africa-shadow-harvest-candidates.json", encoding="utf-8"))
+          allowed_sources = {x.strip() for x in os.environ["SOURCE_KEYS"].split(",") if x.strip()}
+          candidates = [x for x in candidates if x.get("sourceKey") in allowed_sources]
           only_urls = {x.strip() for x in os.environ.get("SOURCE_URLS", "").split("|") if x.strip()}
           if only_urls:
               candidates = [x for x in candidates if x.get("url") in only_urls]
