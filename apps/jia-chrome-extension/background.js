@@ -62,9 +62,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.type === "JOBLY_SET_EXTERNAL_CONTEXT" && isJoblySender(sender)) {
-    chrome.storage.session.set({ externalApplicationContext: message.payload || null })
-      .then(() => sendResponse({ ok: true }))
-      .catch((error) => sendResponse({ ok: false, message: String(error) }));
+    chrome.storage.local.get(["assistantEnabled"], (stored) => {
+      if (stored.assistantEnabled !== true) {
+        sendResponse({ ok: false, message: "J'IA est en pause." });
+        return;
+      }
+      chrome.storage.session.set({ externalApplicationContext: message.payload || null })
+        .then(() => sendResponse({ ok: true }))
+        .catch((error) => sendResponse({ ok: false, message: String(error) }));
+    });
     return true;
   }
 
