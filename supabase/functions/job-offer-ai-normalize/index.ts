@@ -181,13 +181,16 @@ Deno.serve(async (req: Request) => {
 
     const classification = asRecord(normalized.aiClassification);
     const sections = asRecord(normalized.sections);
+    const qualityValue = classification.qualityScore;
     const patch = {
       normalizedContent: normalized,
       normalizedVersion: "jobly-offer-ai-v1",
       normalizedAt: processedAt,
       aiProcessed: true,
       aiProcessedAt: processedAt,
-      aiQualityScore: Number.isFinite(Number(classification.qualityScore)) ? Number(classification.qualityScore) : null,
+      aiQualityScore: qualityValue === null || qualityValue === undefined || qualityValue === ""
+        ? null
+        : Number.isFinite(Number(qualityValue)) ? Number(qualityValue) : null,
       aiSummary: String(normalized.summary || "").slice(0, 1200) || String(job.description || "").slice(0, 700),
       aiFlags: Array.isArray(classification.flags) ? classification.flags : [],
       aiSkills: Array.isArray(sections.skills) ? sections.skills : [],
@@ -199,6 +202,12 @@ Deno.serve(async (req: Request) => {
       await markRetry(db, job, updateError.message, 1);
       retryScheduled++;
       continue;
+    }
+    const { error: pipelineError } = await db.from("JobOfferPipeline")
+      .update({ canonicalContent: normalized, updatedAt: processedAt })
+      .eq("jobId", job.id);
+    if (pipelineError) {
+      errors.push({ id: String(job.id), message: "PIPELINE_CANONICAL_UPDATE_FAILED: " + pipelineError.message });
     }
     processed++;
   }
