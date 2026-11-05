@@ -37,6 +37,7 @@ test("Event payments cannot be finalized from an unrelated reference or amount",
   assert.equal(eventPaymentVerificationError({ ...base, verification: { ...base.verification, externalId: "other" } }), "PAYMENT_REFERENCE_MISMATCH");
   assert.equal(eventPaymentVerificationError({ ...base, verification: { ...base.verification, amount: 1 } }), "PAYMENT_AMOUNT_MISMATCH");
   assert.equal(eventPaymentVerificationError({ ...base, verification: { ...base.verification, currency: "USD" } }), "PAYMENT_CURRENCY_MISMATCH");
+  assert.equal(eventPaymentVerificationError({ ...base, verification: { ...base.verification, currency: undefined } }), "PAYMENT_CURRENCY_MISMATCH");
   assert.equal(eventPaymentVerificationError({ ...base, verification: { ...base.verification, status: "PENDING" } }), "PAYMENT_NOT_CONFIRMED");
   assert.equal(eventPaymentVerificationError({ ...base, verification: { ...base.verification, amount: undefined } }), "PAYMENT_AMOUNT_MISMATCH");
 });
