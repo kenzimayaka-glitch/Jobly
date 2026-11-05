@@ -170,7 +170,7 @@ export function normalizeGeminiOffer(
   const displayModel = cleanText(existing.displayModel) || `jobly-source-${sourceKey || "unknown"}-adaptive-v1`;
   const confidence = cleanText(raw.confidence).toUpperCase();
   const flags = cleanList(raw.flags, 20);
-  const quality = Number(raw.qualityScore);
+  const quality = optionalNumber(raw.qualityScore);
   const salary = asRecord(raw.salary);
   const location = cleanList(raw.location, 10);
   const title = cleanText(raw.title, 300) || offer.title;
@@ -223,7 +223,7 @@ export function normalizeGeminiOffer(
       provider: "GEMINI",
       model,
       confidence: confidence === "HIGH" || confidence === "LOW" ? confidence : "MEDIUM",
-      qualityScore: optionalNumber(quality) !== null ? Math.max(0, Math.min(100, Number(quality))) : null,
+      qualityScore: quality !== null ? Math.max(0, Math.min(100, quality)) : null,
       flags,
       processedAt,
     },
