@@ -13,7 +13,7 @@ const config = {
 test("parses a fully labelled synthetic successful receipt", () => {
   const result = parsePaymentSms({
     senderId: "jobly-mtn-test",
-    body: "Paiement réussi. Transaction ID: MTNABC123456. Montant: 10 000 FCFA. De: 237677123456 vers: 237699123456. Date: 2026-11-06 10:15:00",
+    body: "Paiement réussi. Transaction ID: MTNABC123456. Montant: 10 000 FCFA. De: 237677123456 vers: 237699123456. Date: 2026-11-06 10:15:00+01:00",
   }, config);
 
   assert.equal(result.provider, "SMS_MTN");
@@ -24,7 +24,7 @@ test("parses a fully labelled synthetic successful receipt", () => {
   assert.equal(result.currency, "XAF");
   assert.equal(result.payerPhone, "237677123456");
   assert.equal(result.merchantAccount, "237699123456");
-  assert.equal(result.occurredAt, "2026-11-06T10:15:00.000Z");
+  assert.equal(result.occurredAt, "2026-11-06T09:15:00.000Z");
   assert.deepEqual(result.fraudFlags, []);
 });
 
@@ -79,4 +79,12 @@ test("keeps unknown and incomplete messages non-authoritative", () => {
   assert.equal(result.amountXaf, null);
   assert.equal(result.currency, null);
   assert.ok(result.fraudFlags.length >= 4);
+});
+
+test("does not invent a timezone for a local SMS timestamp", () => {
+  const result = parsePaymentSms({
+    senderId: "JOBLY-MTN-TEST",
+    body: "Paiement réussi. Transaction ID: MTNABC123456. Montant: 10 000 FCFA. De: 237677123456 vers: 237699123456. Date: 06/11/2026 10:15",
+  }, config);
+  assert.equal(result.occurredAt, null);
 });
