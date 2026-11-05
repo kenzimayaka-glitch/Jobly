@@ -3,6 +3,7 @@ import { SOURCE_REGISTRY, getRegistryStats, type SourceDefinition } from "./sour
 import { sourceCanBeShadowCrawled, validateSourceDefinition } from "./source-engine.ts";
 import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
 import { extractApplicationContact, resolveSourceDisplayModel } from "../_shared/application-contact.ts";
+import { resolveApplicationReadiness } from "../_shared/application-readiness.ts";
 import { crawlExhaustiveSource } from "./exhaustive-crawler.ts";
 
 const countries=(Deno.args.length?Deno.args:["CM","DZ","EG","LY","MA","MR","TN","BJ","BF","CV","CI","GM","GH","GN","GW","LR","ML","NE","NG","SN","SL","TG","CF","TD","CG","CD","GQ","GA","ST","BI","AO","KE","UG","TZ","RW","ET","DJ","ER","SO","SS","SD","KM","MG","MU","SC","ZA","ZM","ZW","MW","MZ","NA","BW","SZ","LS"]).map(x=>x.trim().toUpperCase()).filter(Boolean);
@@ -76,7 +77,7 @@ async function worker(){
     const i=cursor++;
     if(i>=tasks.length) return;
     const {country,source}=tasks[i];
-    let contactAccepted=0,contactRejected=0,missingPublicationDate=0,freshnessRejected=0;
+    let contactAccepted=0,contactMissingDisplayable=0,missingPublicationDate=0,freshnessRejected=0;
     try{
       const result=await crawlExhaustiveSource(
         {...source,enabled:true,status:"active",key:source.key,name:source.name,countries:[country]},
@@ -103,7 +104,7 @@ async function worker(){
         const contact=extractApplicationContact(candidateTitle+"\n"+item.description,item.applicationEmail,item.applicationPhone);
         // NELEX shares a general profile phone across job pages; it is not an application contact.
         if(source.key==="nelex_ng")contact.phone=null;
-        if(!contact.email&&!contact.phone){contactRejected++;continue;}
+        const applicationReadiness=resolveApplicationReadiness({email:contact.email,phone:contact.phone});
 
         const observedAt=new Date().toISOString();
         if(!item.published)missingPublicationDate++;
@@ -122,17 +123,20 @@ async function worker(){
           sourceKey:source.key,sourceName:source.name,sourceType:source.type,sourceCaptureMode:source.captureMode,
           renderRequired:source.renderRequired,displayModel,countryCode:country,title:candidateTitle,description:item.description,
           company:item.company,location:item.location,url:item.url,deadline,published:freshness.effectivePublishedAt,
-          applicationEmail:contact.email,applicationPhone:contact.phone,discoveredAt:observedAt,
+          applicationEmail:contact.email,applicationPhone:contact.phone,
+          applicationReady:applicationReadiness.applicationReady,
+          applicationAvailability:applicationReadiness.applicationAvailability,
+          discoveredAt:observedAt,
           publicationDateEstimated:freshness.publicationDateEstimated,
           publicationDateSource:freshness.publicationDateSource,opportunityType:item.opportunityType
         });
-        contactAccepted++;
+        if(applicationReadiness.applicationReady)contactAccepted++;else contactMissingDisplayable++;
       }
-      metrics.push({...result.stats,sourceName:source.name,contactAccepted,contactRejected,missingPublicationDate,
-        freshnessRejected,harvestCandidates:contactAccepted,displayModel:resolveSourceDisplayModel(source.key,source.type,source.captureMode,source.renderRequired),
+      metrics.push({...result.stats,sourceName:source.name,contactAccepted,contactMissingDisplayable,contactRejected:0,missingPublicationDate,
+        freshnessRejected,harvestCandidates:contactAccepted+contactMissingDisplayable,displayModel:resolveSourceDisplayModel(source.key,source.type,source.captureMode,source.renderRequired),
         samples:result.items.slice(0,5).map(x=>({title:x.title,url:x.url,published:x.published,deadline:x.deadline}))});
     }catch(e){
-      metrics.push({sourceKey:source.key,sourceName:source.name,countryCode:country,listingPages:0,detailPages:0,discoveredUrls:0,extracted:0,eligible:0,fresh:0,expired:0,internships:0,consultancies:0,applications:0,tenders:0,rejected:0,contactAccepted,contactRejected,missingPublicationDate,freshnessRejected,harvestCandidates:contactAccepted,rejectedReasons:{runtime:1},advertisedCount:null,errors:[e instanceof Error?e.message:String(e)]});
+      metrics.push({sourceKey:source.key,sourceName:source.name,countryCode:country,listingPages:0,detailPages:0,discoveredUrls:0,extracted:0,eligible:0,fresh:0,expired:0,internships:0,consultancies:0,applications:0,tenders:0,rejected:0,contactAccepted,contactRejected:0,contactMissingDisplayable,missingPublicationDate,freshnessRejected,harvestCandidates:contactAccepted+contactMissingDisplayable,rejectedReasons:{runtime:1},advertisedCount:null,errors:[e instanceof Error?e.message:String(e)]});
     }
   }
 }
@@ -142,7 +146,7 @@ const completedCountries=[...new Set(metrics.map(x=>x.countryCode).filter(Boolea
 const control=metrics.map(x=>({
   country:x.countryCode,source:x.sourceName,sourceCount:x.advertisedCount,discovered:x.discoveredUrls,extracted:x.extracted,
   eligible:x.eligible,expired:x.expired,rejected:x.rejected,contactAccepted:x.contactAccepted??0,
-  contactRejected:x.contactRejected??0,missingPublicationDate:x.missingPublicationDate??0,
+  contactRejected:x.contactRejected??0,contactMissingDisplayable:x.contactMissingDisplayable??0,missingPublicationDate:x.missingPublicationDate??0,
   freshnessRejected:x.freshnessRejected??0,harvestCandidates:x.harvestCandidates??0,
   internships:x.internships,consultancies:x.consultancies,tenders:x.tenders,errors:(x.errors??[]).length,
   gap:x.advertisedCount===null?null:x.advertisedCount-x.eligible
@@ -159,6 +163,7 @@ const summary={
   discoveredUrls:metrics.reduce((n,x)=>n+x.discoveredUrls,0),totalExtracted:metrics.reduce((n,x)=>n+x.extracted,0),
   totalEligible:metrics.reduce((n,x)=>n+x.eligible,0),contactAccepted:metrics.reduce((n,x)=>n+(x.contactAccepted??0),0),
   contactRejected:metrics.reduce((n,x)=>n+(x.contactRejected??0),0),
+  contactMissingDisplayable:metrics.reduce((n,x)=>n+(x.contactMissingDisplayable??0),0),
   missingPublicationDate:metrics.reduce((n,x)=>n+(x.missingPublicationDate??0),0),
   freshnessRejected:metrics.reduce((n,x)=>n+(x.freshnessRejected??0),0),
   harvestCandidates:uniqueCandidates.length,estimatedCandidates:uniqueCandidates.filter(x=>x.publicationDateEstimated).length,expired:metrics.reduce((n,x)=>n+x.expired,0),
