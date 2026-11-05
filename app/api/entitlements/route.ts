@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
+import { adminClient, ensureUser, getAuthUser, resolveBillingProductType } from "../../../lib/server-auth";
 import {
   getEntitlements,
   getPlan,
@@ -15,7 +15,24 @@ export async function GET(request: NextRequest) {
 
     const supabase = adminClient();
     const user = await ensureUser(supabase, auth);
-    const productType: "TALENT" | "RECRUITER" = String(user.role) === "RECRUITER" ? "RECRUITER" : "TALENT";
+    let productType: "TALENT" | "RECRUITER";
+    try {
+      productType = await resolveBillingProductType(
+        supabase,
+        user,
+        auth.id,
+        request.nextUrl.searchParams.get("productType"),
+      );
+    } catch (productError) {
+      const message = productError instanceof Error ? productError.message : "INVALID_PRODUCT_TYPE";
+      if (message === "RECRUITER_PROFILE_REQUIRED") {
+        return NextResponse.json({ error: message, message: "Un profil recruteur doit être créé avant de consulter ses droits." }, { status: 403 });
+      }
+      if (message === "INVALID_PRODUCT_TYPE") {
+        return NextResponse.json({ error: message, message: "Profil de facturation invalide." }, { status: 400 });
+      }
+      throw productError;
+    }
     const resolved = await resolveActiveEntitlements(supabase, user.id, productType);
     const plan = productType === "RECRUITER"
       ? getRecruiterPlan(resolved.planCode) || getRecruiterPlan("FREE")!
@@ -37,7 +54,7 @@ export async function GET(request: NextRequest) {
       : getEntitlements(plan.code);
     const currentPeriodEnd = resolved.subscription
       ? (resolved.subscription.status === "TRIAL" ? resolved.subscription.trialEndsAt : resolved.subscription.currentPeriodEnd)
-      : resolved.promo?.endsAt || null;
+      : resolved.promo?.endsat || null;
     const status = resolved.source === "PROMO"
       ? "PROMO"
       : resolved.subscription?.status || "FREE";
@@ -64,10 +81,10 @@ export async function GET(request: NextRequest) {
       },
       promo: resolved.promo
         ? {
-            plan: resolved.promo.grantedPlan,
-            productType: resolved.promo.productType,
-            startsAt: resolved.promo.startsAt,
-            endsAt: resolved.promo.endsAt,
+            plan: resolved.promo.grantedplan,
+            productType: resolved.promo.producttype,
+            startsAt: resolved.promo.startsat,
+            endsAt: resolved.promo.endsat,
           }
         : null,
       serverTime: now,

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "node:crypto";
 import { adminClient, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
 
 const err = (message: string, status: number, code = message) =>
@@ -7,7 +6,7 @@ const err = (message: string, status: number, code = message) =>
 
 const allowed = new Set(["PENDING", "SUCCESSFUL", "FAILED"]);
 const transitions: Record<string, Set<string>> = {
-  CREATED: new Set(["PENDING", "FAILED"]),
+  CREATED: new Set(["PENDING", "SUCCESSFUL", "FAILED"]),
   PENDING: new Set(["SUCCESSFUL", "FAILED"]),
   SUCCESSFUL: new Set(),
   FAILED: new Set(),
@@ -96,18 +95,18 @@ export async function POST(
       if (message.includes("AMOUNT_MISMATCH")) return err("Montant provider différent.", 409, "AMOUNT_MISMATCH");
       if (message.includes("INVALID_PAYMENT_TRANSITION")) return err("Transition de paiement invalide.", 409, "INVALID_PAYMENT_TRANSITION");
       if (message.includes("SUBSCRIPTION_NOT_FOUND")) return err("Abonnement introuvable.", 409, "SUBSCRIPTION_NOT_FOUND");
+      if (message.includes("SUBSCRIPTION_NOT_PENDING")) return err("Cet abonnement n'est plus en attente.", 409, "SUBSCRIPTION_NOT_PENDING");
       if (message.includes("INVALID_PAYMENT_STATUS")) return err("Statut provider invalide.", 409, "INVALID_PAYMENT_STATUS");
       throw new Error(finalizeError.message);
     }
 
     const result = finalized as { payment?: unknown; commission?: unknown; idempotent?: boolean };
-    const { error: auditError } = await supabase.from("AuditLog").insert({
-      id: crypto.randomUUID(),
-      userId: actor.id,
+    const { error: auditError } = await supabase.from("CEOAuditLog").insert({
+      adminUserId: actor.id,
       action: "PAYMENT_RECONCILED",
-      entityType: "Payment",
-      entityId: payment.id,
+      endpoint: "/api/payments/[id]/reconcile",
       metadata: {
+        paymentId: payment.id,
         previousStatus: payment.status,
         status,
         reason: reason || null,

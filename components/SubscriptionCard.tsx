@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "../lib/supabase";
 
 const PLAN_LABEL: Record<string, string> = { FREE: "Vous utilisez l'offre gratuite.", START: "Votre abonnement Start est actif.", PREMIUM: "Votre abonnement Premium est actif.", PRO: "Votre abonnement Pro est actif." };
+const BILLING_PRODUCT_TYPE = { TALENT: "TALENT", RECRUITER: "RECRUITER", PARTNER: "TALENT" } as const;
 
 export default function SubscriptionCard({ ecosystem }: { ecosystem: "TALENT" | "RECRUITER" | "PARTNER" }) {
   const router = useRouter();
@@ -16,7 +17,7 @@ export default function SubscriptionCard({ ecosystem }: { ecosystem: "TALENT" | 
       const { data: { session } } = await getSupabaseClient().auth.getSession();
       const token = session?.access_token;
       if (!token) return;
-      const response = await fetch("/api/entitlements", {
+      const response = await fetch(`/api/entitlements?productType=${BILLING_PRODUCT_TYPE[ecosystem]}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("ENTITLEMENTS_UNAVAILABLE");
@@ -26,7 +27,7 @@ export default function SubscriptionCard({ ecosystem }: { ecosystem: "TALENT" | 
       if (alive) setData(null);
     });
     return () => { alive = false; };
-  }, []);
+  }, [ecosystem]);
 
   const plan = data?.subscription?.plan || "FREE";
   const ent = data?.entitlements;
@@ -46,7 +47,7 @@ export default function SubscriptionCard({ ecosystem }: { ecosystem: "TALENT" | 
       {ent && (
         <div className="mt-4 grid grid-cols-2 gap-3 text-xs font-bold text-slate-600">
           <div className="rounded-xl bg-slate-50 p-3">Crédits IA<div className="mt-1 text-base font-black text-slate-900">{fmt(ent.aiCredits)}</div></div>
-          <div className="rounded-xl bg-slate-50 p-3">Stockage<div className="mt-1 text-base font-black text-slate-900">{ent.storageMb === Infinity ? "Illimité" : `${fmt(ent.storageMb)} Mo`}</div></div>
+          {ecosystem === "TALENT" && <div className="rounded-xl bg-slate-50 p-3">Stockage<div className="mt-1 text-base font-black text-slate-900">{ent.storageMb === Infinity ? "Illimité" : `${fmt(ent.storageMb)} Mo`}</div></div>}
           {ecosystem === "TALENT" && (
             <>
               <div className="rounded-xl bg-slate-50 p-3">Candidatures/semaine<div className="mt-1 text-base font-black text-slate-900">{usage ? `${usage.applicationsThisWeek} / ${fmt(ent.applicationsPerWeek)}` : fmt(ent.applicationsPerWeek)}</div></div>
@@ -55,13 +56,14 @@ export default function SubscriptionCard({ ecosystem }: { ecosystem: "TALENT" | 
           )}
           {ecosystem === "RECRUITER" && (
             <>
-              <div className="rounded-xl bg-slate-50 p-3">Filtres ATS<div className="mt-1 text-base font-black text-slate-900 capitalize">{ent.recruiterAtsFilters === "none" ? "Non disponible" : ent.recruiterAtsFilters}</div></div>
-              <div className="rounded-xl bg-slate-50 p-3">Boîtes mail<div className="mt-1 text-base font-black text-slate-900">{fmt(ent.recruiterEmailConnect)}</div></div>
+              <div className="rounded-xl bg-slate-50 p-3">Multi-pays<div className="mt-1 text-base font-black text-slate-900">{ent.multiCountryDraft ? "Inclus" : "Non inclus"}</div></div>
+              <div className="rounded-xl bg-slate-50 p-3">Optimisation marché<div className="mt-1 text-base font-black text-slate-900">{ent.marketOptimization ? "Incluse" : "Non incluse"}</div></div>
+              <div className="rounded-xl bg-slate-50 p-3">Diffusion panafricaine<div className="mt-1 text-base font-black text-slate-900">{ent.panAfricanDistribution ? "Incluse" : "Non incluse"}</div></div>
             </>
           )}
         </div>
       )}
-      <button onClick={() => router.push("/abonnement")} className="mt-4 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-extrabold text-slate-800">
+      <button onClick={() => router.push(`/abonnement?productType=${BILLING_PRODUCT_TYPE[ecosystem]}`)} className="mt-4 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-extrabold text-slate-800">
         {plan === "FREE" ? "Voir START, PREMIUM et PRO →" : "Gérer mon abonnement →"}
       </button>
     </section>

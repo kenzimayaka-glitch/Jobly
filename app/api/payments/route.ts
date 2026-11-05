@@ -10,7 +10,8 @@ import {
   type BillingInterval,
   type PlanCode,
 } from "../../../lib/billingCatalog";
-import { getProvider } from "../../../lib/paymentProviders";
+import { assertPaymentProviderReady, getProvider } from "../../../lib/paymentProviders";
+import { isDefinitiveProviderFailure } from "../../../lib/billingLifecycleCore";
 
 const err = (message: string, status: number, code = message) => NextResponse.json({ error: code, message }, { status });
 
@@ -77,6 +78,12 @@ export async function POST(request: NextRequest) {
 
     const providerName = String(body.provider || subscription.provider || "MOCK").toUpperCase();
     if (providerName !== "MOCK" && providerName !== "ICLAN") return err("Provider indisponible.", 400, "PROVIDER_UNAVAILABLE");
+    try {
+      assertPaymentProviderReady(providerName);
+    } catch (providerError) {
+      const message = providerError instanceof Error ? providerError.message : "PAYMENT_PROVIDER_NOT_READY";
+      return err(message, 503, message.split(":")[0]);
+    }
 
     const amount = productType === "RECRUITER"
       ? getRecruiterPrice(planCode, interval)
@@ -108,21 +115,45 @@ export async function POST(request: NextRequest) {
         paymentId,
         amount,
         currency: "XAF",
-        phone: auth.phone,
+        phone: body.phone || auth.phone,
+        paymentMethod: body.paymentMethod,
       });
     } catch (providerError) {
       const message = providerError instanceof Error ? providerError.message : "Provider payment failed";
-      const paymentUpdate = await supabase.from("Payment")
-        .update({ status: "FAILED", failureReason: message, updatedAt: new Date().toISOString() })
+      const definitiveFailure = isDefinitiveProviderFailure(message);
+      const failedAt = new Date().toISOString();
+
+      if (definitiveFailure) {
+        const paymentUpdate = await supabase.from("Payment")
+          .update({ status: "FAILED", failureReason: message, updatedAt: failedAt })
+          .eq("id", paymentId)
+          .eq("status", "CREATED");
+        const subscriptionUpdate = await supabase.from("Subscription")
+          .update({ status: "EXPIRED", updatedAt: failedAt })
+          .eq("id", subscriptionId)
+          .eq("status", "PENDING");
+        if (paymentUpdate.error) throw new Error("Provider error; failed to record payment failure: " + paymentUpdate.error.message);
+        if (subscriptionUpdate.error) throw new Error("Provider error; failed to close pending subscription: " + subscriptionUpdate.error.message);
+        throw providerError;
+      }
+
+      const { data: uncertainPayment, error: uncertainError } = await supabase.from("Payment")
+        .update({ status: "PENDING", failureReason: "PROVIDER_RESULT_UNKNOWN: " + message, updatedAt: failedAt })
         .eq("id", paymentId)
-        .eq("status", "CREATED");
-      const subscriptionUpdate = await supabase.from("Subscription")
-        .update({ status: "EXPIRED", updatedAt: new Date().toISOString() })
-        .eq("id", subscriptionId)
-        .eq("status", "PENDING");
-      if (paymentUpdate.error) throw new Error("Provider error; failed to record payment failure: " + paymentUpdate.error.message);
-      if (subscriptionUpdate.error) throw new Error("Provider error; failed to close pending subscription: " + subscriptionUpdate.error.message);
-      throw providerError;
+        .eq("status", "CREATED")
+        .select("*")
+        .single();
+      if (uncertainError) throw new Error("Provider result unknown; payment could not be retained: " + uncertainError.message);
+
+      const response = {
+        payment: uncertainPayment,
+        provider: providerName,
+        instructions: "Le prestataire n'a pas retourné de confirmation fiable. Ne relancez pas le paiement. Vérifiez le statut de cette transaction.",
+        entitlementGranted: false,
+        providerResultUnknown: true,
+      };
+      await saveIdempotentResult(user.id, "/api/payments", idempotency.key, idempotency.hash, 202, response);
+      return NextResponse.json(response, { status: 202 });
     }
 
     const { data: pendingPayment, error: pendingError } = await supabase.from("Payment").update({

@@ -1,48 +1,89 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
-import { normalizePromoCode, promoCodeHash, promoEndDate, promoScopeAllows } from "../../../../lib/promo";
+import { adminClient, ensureUser, getAuthUser, resolveBillingProductType } from "../../../../lib/server-auth";
+import { normalizePromoCode, promoCodeHash, promoScopeAllows } from "../../../../lib/promo";
+
+function errorResponse(message: string, status: number, code = message) {
+  return NextResponse.json({ error: code, message }, { status });
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const au = await getAuthUser(request);
-    if (!au) return NextResponse.json({ message: "Session requise." }, { status: 401 });
-    const sb = adminClient();
-    const user = await ensureUser(sb, au);
+    const authUser = await getAuthUser(request);
+    if (!authUser) return errorResponse("Session requise.", 401, "UNAUTHENTICATED");
+
+    const supabase = adminClient();
+    const user = await ensureUser(supabase, authUser);
     const body = await request.json();
     const code = normalizePromoCode(body.code);
-    if (!code) return NextResponse.json({ message: "Code promo requis." }, { status: 400 });
+    if (!code) return errorResponse("Code promo requis.", 400, "PROMO_CODE_REQUIRED");
 
-    const { data: promo, error: promoError } = await sb.from("PromoCode").select("*").eq("codeHash", promoCodeHash(code)).maybeSingle();
+    let productType: "TALENT" | "RECRUITER";
+    try {
+      productType = await resolveBillingProductType(supabase, user, authUser.id, body.productType);
+    } catch (productError) {
+      const message = productError instanceof Error ? productError.message : "INVALID_PRODUCT_TYPE";
+      if (message === "RECRUITER_PROFILE_REQUIRED") {
+        return errorResponse("Un profil recruteur doit être créé avant d'utiliser ce code.", 403, message);
+      }
+      if (message === "INVALID_PRODUCT_TYPE") return errorResponse("Profil de facturation invalide.", 400, message);
+      throw productError;
+    }
+
+    // PromoCode and PromoRedemption are legacy lowercase SQL columns.
+    const { data: promo, error: promoError } = await supabase
+      .from("PromoCode")
+      .select("id,active,validfrom,expiresat,maxredemptions,redemptionscount,scope,codehash")
+      .eq("codehash", promoCodeHash(code))
+      .maybeSingle();
+
     if (promoError) throw new Error(promoError.message);
-    if (!promo) return NextResponse.json({ message: "Code promo invalide." }, { status: 404 });
+    if (!promo) return errorResponse("Code promo invalide.", 404, "PROMO_NOT_FOUND");
 
     const now = new Date();
-    if (!promo.active || new Date(promo.validFrom) > now || (promo.expiresAt && new Date(promo.expiresAt) <= now)) {
-      return NextResponse.json({ message: "Ce code promo n'est plus valide." }, { status: 410 });
+    if (!promoScopeAllows(promo.scope, productType)) {
+      return errorResponse("Ce code n'est pas destiné à ce profil JOBLY.", 403, "PROMO_SCOPE_MISMATCH");
     }
-    if (promo.redemptionsCount >= promo.maxRedemptions) return NextResponse.json({ message: "Ce code promo a atteint sa limite d'utilisation." }, { status: 409 });
+    if (
+      !promo.active
+      || new Date(promo.validfrom) > now
+      || (promo.expiresat && new Date(promo.expiresat) <= now)
+    ) {
+      return errorResponse("Ce code promo n'est pas encore valide ou a expiré.", 410, "PROMO_NOT_ACTIVE");
+    }
+    if (promo.redemptionscount >= promo.maxredemptions) {
+      return errorResponse("Ce code promo a atteint sa limite d'utilisation.", 409, "PROMO_LIMIT_REACHED");
+    }
 
-    const productType: "TALENT" | "RECRUITER" = String(user.role) === "RECRUITER" ? "RECRUITER" : "TALENT";
-    if (!promoScopeAllows(promo.scope, productType)) return NextResponse.json({ message: "Ce code n'est pas destiné à ce profil JOBLY." }, { status: 403 });
+    // The database function locks the promo row and atomically increments its quota
+    // while inserting the unique redemption. No client can oversubscribe a code.
+    const { data: redemption, error: redemptionError } = await supabase.rpc("redeem_promo_code", {
+      p_promo_code_id: promo.id,
+      p_user_id: user.id,
+      p_product_type: productType,
+      p_now: now.toISOString(),
+    });
 
-    const { data: existing } = await sb.from("PromoRedemption").select("id,endsAt").eq("promoCodeId", promo.id).eq("userId", user.id).eq("productType", productType).maybeSingle();
-    if (existing && (!existing.endsAt || new Date(existing.endsAt) > now)) return NextResponse.json({ message: "Ce code a déjà été utilisé sur ce profil.", endsAt: existing.endsAt }, { status: 409 });
-
-    const { data: claimed } = await sb.from("PromoCode").update({ redemptionsCount: promo.redemptionsCount + 1 }).eq("id", promo.id).lt("redemptionsCount", promo.maxRedemptions).select("id").maybeSingle();
-    if (!claimed) return NextResponse.json({ message: "Ce code vient d'être épuisé." }, { status: 409 });
-
-    const endsAt = promoEndDate(now, promo.durationDays, promo.expiresAt);
-    const { data: redemption, error: redemptionError } = await sb.from("PromoRedemption").insert({
-      promoCodeId: promo.id, userId: user.id, productType, grantedPlan: "PRO", startsAt: now.toISOString(), endsAt: endsAt.toISOString(),
-    }).select("id,productType,grantedPlan,startsAt,endsAt").single();
     if (redemptionError) {
-      await sb.from("PromoCode").update({ redemptionsCount: Math.max(0, promo.redemptionsCount) }).eq("id", promo.id);
-      if (redemptionError.code === "23505") return NextResponse.json({ message: "Ce code a déjà été utilisé sur ce profil." }, { status: 409 });
+      const message = String(redemptionError.message || "");
+      if (message.includes("PROMO_NOT_FOUND")) return errorResponse("Code promo invalide.", 404, "PROMO_NOT_FOUND");
+      if (message.includes("PROMO_NOT_ACTIVE") || message.includes("PROMO_EXPIRED_AT_CREATION")) {
+        return errorResponse("Ce code promo n'est pas encore valide ou a expiré.", 410, "PROMO_NOT_ACTIVE");
+      }
+      if (message.includes("PROMO_LIMIT_REACHED")) return errorResponse("Ce code promo a atteint sa limite d'utilisation.", 409, "PROMO_LIMIT_REACHED");
+      if (message.includes("PROMO_SCOPE_MISMATCH")) return errorResponse("Ce code n'est pas destiné à ce profil JOBLY.", 403, "PROMO_SCOPE_MISMATCH");
+      if (message.includes("PROMO_ALREADY_REDEEMED") || message.includes("23505")) {
+        return errorResponse("Ce code a déjà été utilisé sur ce profil.", 409, "PROMO_ALREADY_REDEEMED");
+      }
       throw new Error(redemptionError.message);
     }
 
-    return NextResponse.json({ activated: true, plan: "PRO", productType, redemption });
-  } catch (e) {
-    return NextResponse.json({ message: e instanceof Error ? e.message : "Activation du code impossible." }, { status: 500 });
+    return NextResponse.json({
+      activated: true,
+      plan: "PRO",
+      productType,
+      redemption,
+    });
+  } catch (error) {
+    return errorResponse(error instanceof Error ? error.message : "Activation du code impossible.", 500);
   }
 }

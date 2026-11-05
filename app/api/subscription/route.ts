@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
+import { adminClient, ensureUser, getAuthUser, resolveBillingProductType } from "../../../lib/server-auth";
 import {
   getEntitlements,
   getPlan,
@@ -12,18 +12,15 @@ import {
   type PlanCode,
 } from "../../../lib/billingCatalog";
 import { getIdempotentResult, saveIdempotentResult } from "../../../lib/idempotency";
-import { getProvider } from "../../../lib/paymentProviders";
+import { assertPaymentProviderReady, getProvider } from "../../../lib/paymentProviders";
 import { resolveActiveEntitlements } from "../../../lib/entitlements";
+import { isDefinitiveProviderFailure } from "../../../lib/billingLifecycleCore";
 
 const PAID_PLANS = new Set<PlanCode>(["START", "PREMIUM", "PRO"]);
 type ProductType = "TALENT" | "RECRUITER";
 
 function jsonError(message: string, status: number, code = message) {
   return NextResponse.json({ error: code, message }, { status });
-}
-
-function productTypeForUser(user: any): ProductType {
-  return String(user.role) === "RECRUITER" ? "RECRUITER" : "TALENT";
 }
 
 function productPlan(productType: ProductType, code: string) {
@@ -45,7 +42,20 @@ export async function GET(request: NextRequest) {
 
     const supabase = adminClient();
     const user = await ensureUser(supabase, auth);
-    const productType = productTypeForUser(user);
+    let productType: ProductType;
+    try {
+      productType = await resolveBillingProductType(
+        supabase,
+        user,
+        auth.id,
+        request.nextUrl.searchParams.get("productType"),
+      );
+    } catch (productError) {
+      const message = productError instanceof Error ? productError.message : "INVALID_PRODUCT_TYPE";
+      if (message === "RECRUITER_PROFILE_REQUIRED") return jsonError("Un profil recruteur doit être créé avant de consulter cet abonnement.", 403, message);
+      if (message === "INVALID_PRODUCT_TYPE") return jsonError("Profil de facturation invalide.", 400, message);
+      throw productError;
+    }
 
     const [resolved, latestResult] = await Promise.all([
       resolveActiveEntitlements(supabase, user.id, productType),
@@ -90,7 +100,7 @@ export async function GET(request: NextRequest) {
         productType,
         currentPeriodEnd: resolved.subscription
           ? (resolved.subscription.status === "TRIAL" ? resolved.subscription.trialEndsAt : resolved.subscription.currentPeriodEnd)
-          : resolved.promo?.endsAt || null,
+          : resolved.promo?.endsat || null,
       },
       payment: paymentResult.data || null,
       entitlements: productEntitlements(productType, resolved.planCode),
@@ -118,10 +128,24 @@ export async function POST(request: NextRequest) {
     if (!PAID_PLANS.has(planCode)) return jsonError("Plan payant invalide.", 400, "INVALID_PLAN");
     if (interval !== "MONTHLY" && interval !== "ANNUAL") return jsonError("Intervalle invalide.", 400, "INVALID_INTERVAL");
     if (providerName !== "MOCK" && providerName !== "ICLAN") return jsonError("Provider indisponible.", 400, "PROVIDER_UNAVAILABLE");
+    try {
+      assertPaymentProviderReady(providerName);
+    } catch (providerError) {
+      const message = providerError instanceof Error ? providerError.message : "PAYMENT_PROVIDER_NOT_READY";
+      return jsonError(message, 503, message.split(":")[0]);
+    }
 
     const supabase = adminClient();
     const user = await ensureUser(supabase, auth);
-    const productType = productTypeForUser(user);
+    let productType: ProductType;
+    try {
+      productType = await resolveBillingProductType(supabase, user, auth.id, body.productType);
+    } catch (productError) {
+      const message = productError instanceof Error ? productError.message : "INVALID_PRODUCT_TYPE";
+      if (message === "RECRUITER_PROFILE_REQUIRED") return jsonError("Un profil recruteur doit être créé avant de souscrire à ses offres.", 403, message);
+      if (message === "INVALID_PRODUCT_TYPE") return jsonError("Profil de facturation invalide.", 400, message);
+      throw productError;
+    }
     const plan = productPlan(productType, planCode);
     if (!plan) return jsonError("Plan indisponible pour ce profil.", 400, "INVALID_PRODUCT_PLAN");
 
@@ -137,8 +161,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(idempotency.existing.response, { status: idempotency.existing.statusCode });
     }
 
-    const amount = productPrice(productType, planCode, interval);
     const now = new Date().toISOString();
+    const expiryUpdates = await Promise.all([
+      supabase.from("Subscription").update({ status: "EXPIRED", updatedAt: now })
+        .eq("userId", user.id).eq("productType", productType).eq("status", "ACTIVE").lte("currentPeriodEnd", now),
+      supabase.from("Subscription").update({ status: "EXPIRED", updatedAt: now })
+        .eq("userId", user.id).eq("productType", productType).eq("status", "ACTIVE").is("currentPeriodEnd", null),
+      supabase.from("Subscription").update({ status: "EXPIRED", updatedAt: now })
+        .eq("userId", user.id).eq("productType", productType).eq("status", "TRIAL").lte("trialEndsAt", now),
+      supabase.from("Subscription").update({ status: "EXPIRED", updatedAt: now })
+        .eq("userId", user.id).eq("productType", productType).eq("status", "TRIAL").is("trialEndsAt", null),
+    ]);
+    const expiryError = expiryUpdates.find((result: any) => result.error)?.error;
+    if (expiryError) throw new Error("Could not expire the previous subscription: " + expiryError.message);
+
+    const currentEntitlements = await resolveActiveEntitlements(supabase, user.id, productType);
+    const amount = productPrice(productType, planCode, interval);
     const subscriptionId = crypto.randomUUID();
     const paymentId = crypto.randomUUID();
 
@@ -195,17 +233,55 @@ export async function POST(request: NextRequest) {
       });
     } catch (providerError) {
       const message = providerError instanceof Error ? providerError.message : "Provider payment failed";
-      const paymentUpdate = await supabase.from("Payment")
-        .update({ status: "FAILED", failureReason: message, updatedAt: new Date().toISOString() })
+      const definitiveFailure = isDefinitiveProviderFailure(message);
+      const failedAt = new Date().toISOString();
+
+      if (definitiveFailure) {
+        const paymentUpdate = await supabase.from("Payment")
+          .update({ status: "FAILED", failureReason: message, updatedAt: failedAt })
+          .eq("id", paymentId)
+          .eq("status", "CREATED");
+        const subscriptionUpdate = await supabase.from("Subscription")
+          .update({ status: "EXPIRED", updatedAt: failedAt })
+          .eq("id", subscriptionId)
+          .eq("status", "PENDING");
+        if (paymentUpdate.error) throw new Error("Provider error; failed to persist payment failure: " + paymentUpdate.error.message);
+        if (subscriptionUpdate.error) throw new Error("Provider error; failed to close pending subscription: " + subscriptionUpdate.error.message);
+        throw providerError;
+      }
+
+      // Network and provider 5xx errors may happen after the provider has accepted
+      // the charge. Keep a verifiable pending record instead of falsely expiring it.
+      const { data: uncertainPayment, error: uncertainError } = await supabase.from("Payment")
+        .update({
+          status: "PENDING",
+          failureReason: "PROVIDER_RESULT_UNKNOWN: " + message,
+          updatedAt: failedAt,
+        })
         .eq("id", paymentId)
-        .eq("status", "CREATED");
-      const subscriptionUpdate = await supabase.from("Subscription")
-        .update({ status: "EXPIRED", updatedAt: new Date().toISOString() })
-        .eq("id", subscriptionId)
-        .eq("status", "PENDING");
-      if (paymentUpdate.error) throw new Error("Provider error; failed to persist payment failure: " + paymentUpdate.error.message);
-      if (subscriptionUpdate.error) throw new Error("Provider error; failed to close pending subscription: " + subscriptionUpdate.error.message);
-      throw providerError;
+        .eq("status", "CREATED")
+        .select("*")
+        .single();
+      if (uncertainError) throw new Error("Provider result unknown; could not retain pending payment: " + uncertainError.message);
+
+      const response = {
+        subscription: {
+          id: subscription.id,
+          plan: currentEntitlements.planCode,
+          planCode: subscription.planCode,
+          requestedPlan: subscription.planCode,
+          status: "PENDING",
+          productType,
+          currentPeriodEnd: currentEntitlements.subscription?.currentPeriodEnd || currentEntitlements.promo?.endsat || null,
+        },
+        payment: uncertainPayment,
+        provider: providerName,
+        instructions: "Le prestataire n'a pas retourné de confirmation fiable. Ne relancez pas le paiement. Vérifiez le statut de cette transaction ; le plan actuel reste actif jusqu'à confirmation.",
+        entitlementGranted: false,
+        providerResultUnknown: true,
+      };
+      await saveIdempotentResult(user.id, "/api/subscription", idempotency.key, idempotency.hash, 202, response);
+      return NextResponse.json(response, { status: 202 });
     }
 
     const { data: pendingPayment, error: pendingError } = await supabase
@@ -227,7 +303,7 @@ export async function POST(request: NextRequest) {
     const response = {
       subscription: {
         id: subscription.id,
-        plan: "FREE",
+        plan: currentEntitlements.planCode,
         planCode: subscription.planCode,
         requestedPlan: subscription.planCode,
         status: "PENDING",
@@ -254,22 +330,46 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = adminClient();
     const user = await ensureUser(supabase, auth);
-    const productType = productTypeForUser(user);
+    let productType: ProductType;
+    try {
+      productType = await resolveBillingProductType(supabase, user, auth.id, request.nextUrl.searchParams.get("productType"));
+    } catch (productError) {
+      const message = productError instanceof Error ? productError.message : "INVALID_PRODUCT_TYPE";
+      if (message === "RECRUITER_PROFILE_REQUIRED") return jsonError("Un profil recruteur doit être créé avant de gérer cet abonnement.", 403, message);
+      if (message === "INVALID_PRODUCT_TYPE") return jsonError("Profil de facturation invalide.", 400, message);
+      throw productError;
+    }
+
+    const { data: pendingSubscription, error: pendingError } = await supabase
+      .from("Subscription")
+      .select("id,status")
+      .eq("userId", user.id)
+      .eq("productType", productType)
+      .eq("status", "PENDING")
+      .limit(1)
+      .maybeSingle();
+
+    if (pendingError) throw new Error(pendingError.message);
+    if (pendingSubscription) {
+      return jsonError(
+        "Un paiement est en attente. Vérifiez son statut avant de modifier l'abonnement.",
+        409,
+        "PENDING_PAYMENT_BLOCKS_CANCELLATION",
+      );
+    }
+
     const { data: subscription, error } = await supabase
       .from("Subscription")
       .select("id,status")
       .eq("userId", user.id)
       .eq("productType", productType)
-      .in("status", ["ACTIVE", "TRIAL", "PENDING"])
+      .in("status", ["ACTIVE", "TRIAL"])
       .order("createdAt", { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (error) throw new Error(error.message);
-    if (!subscription) return jsonError("Abonnement actif ou en attente introuvable.", 404, "SUBSCRIPTION_NOT_FOUND");
-    if (subscription.status === "CANCELED") {
-      return NextResponse.json({ subscription, idempotent: true });
-    }
+    if (!subscription) return jsonError("Abonnement actif introuvable.", 404, "SUBSCRIPTION_NOT_FOUND");
 
     const now = new Date().toISOString();
     const { data: updated, error: updateError } = await supabase

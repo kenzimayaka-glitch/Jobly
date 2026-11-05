@@ -56,6 +56,7 @@ export async function POST(
       if (code.includes("AMOUNT_MISMATCH")) return err("Montant provider différent.", 409, "AMOUNT_MISMATCH");
       if (code.includes("INVALID_PAYMENT_TRANSITION")) return err("Transition de paiement invalide.", 409, "INVALID_PAYMENT_TRANSITION");
       if (code.includes("SUBSCRIPTION_NOT_FOUND")) return err("Abonnement introuvable.", 409, "SUBSCRIPTION_NOT_FOUND");
+      if (code.includes("SUBSCRIPTION_NOT_PENDING")) return err("Cet abonnement n'est plus en attente.", 409, "SUBSCRIPTION_NOT_PENDING");
       if (code.includes("INVALID_PAYMENT_STATUS")) return err("Statut provider invalide.", 409, "INVALID_PAYMENT_STATUS");
       throw new Error(finalizeError.message);
     }

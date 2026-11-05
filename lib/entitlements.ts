@@ -1,4 +1,5 @@
 import { getPlan, PlanCode } from "./billingCatalog";
+import { isEligibleSubscription, isProductionRuntime } from "./billingLifecycleCore";
 
 export type BillingProductType = "TALENT" | "RECRUITER";
 export type EntitlementSource = "SUBSCRIPTION" | "PROMO" | "FREE";
@@ -12,30 +13,10 @@ export type EntitlementResolution = {
 
 export function isTestUnlimited(): boolean {
   // Test overrides must never grant production entitlements.
-  if (process.env.NODE_ENV === "production") return false;
+  if (isProductionRuntime()) return false;
   return String(process.env.JOBLY_TEST_UNLIMITED || "").toLowerCase() === "true";
 }
 
-function isFuture(value: unknown, nowMs: number): boolean {
-  if (typeof value !== "string" || !value.trim()) return false;
-  const time = Date.parse(value);
-  return Number.isFinite(time) && time > nowMs;
-}
-
-function isEligibleSubscription(subscription: any, nowMs: number): boolean {
-  if (!subscription || !getPlan(String(subscription.planCode || ""))) return false;
-
-  if (subscription.status === "ACTIVE") {
-    // Paid access must have a real, future billing-period end.
-    return isFuture(subscription.currentPeriodEnd, nowMs);
-  }
-
-  if (subscription.status === "TRIAL") {
-    return isFuture(subscription.trialEndsAt, nowMs);
-  }
-
-  return false;
-}
 
 export async function resolveActiveEntitlements(
   supabase: any,
@@ -49,13 +30,13 @@ export async function resolveActiveEntitlements(
   const [promoResult, subscriptionResult] = await Promise.all([
     supabase
       .from("PromoRedemption")
-      .select("grantedPlan,productType,startsAt,endsAt,revokedAt")
-      .eq("userId", userId)
-      .eq("productType", productType)
-      .is("revokedAt", null)
-      .lte("startsAt", nowIso)
-      .gt("endsAt", nowIso)
-      .order("endsAt", { ascending: false })
+      .select("grantedplan,producttype,startsat,endsat,revokedat")
+      .eq("userid", userId)
+      .eq("producttype", productType)
+      .is("revokedat", null)
+      .lte("startsat", nowIso)
+      .gt("endsat", nowIso)
+      .order("endsat", { ascending: false })
       .limit(1)
       .maybeSingle(),
     supabase
@@ -72,7 +53,7 @@ export async function resolveActiveEntitlements(
   if (subscriptionResult.error) throw new Error(subscriptionResult.error.message);
 
   const promo = promoResult.data;
-  if (promo?.grantedPlan === "PRO") {
+  if (promo?.grantedplan === "PRO") {
     return { planCode: "PRO", source: "PROMO", subscription: null, promo };
   }
 
