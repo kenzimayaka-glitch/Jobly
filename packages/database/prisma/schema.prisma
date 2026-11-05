@@ -377,12 +377,13 @@ model Payment {
   amount          Int
   currency        String   @default("XAF")
   status          String
-  idempotencyKey  String?
+  idempotencyKey  String
   paidAt          DateTime?
   refundedAt      DateTime?
   failureReason   String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  @@unique([userId, idempotencyKey])
   @@index([userId, createdAt])
   @@index([subscriptionId])
 }
@@ -993,7 +994,7 @@ model EventFeaturedCampaign {
   startAt DateTime
   endAt DateTime
   price Int
-  paymentId String @unique
+  paymentId String? @unique
   status String @default("PENDING_PAYMENT")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
