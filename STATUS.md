@@ -1,3 +1,27 @@
+# P1 EVENT CORE — CHECKPOINT 05/11/2026
+
+## Corrections réalisées
+- Schéma Event Core appliqué à JOBLY-PROD : Event, EventPayment, EventFeaturedCampaign, EventEntitlement ; index et RLS actifs ; aucun accès direct anon/authenticated.
+- Bucket public `jobly-events` créé pour les médias événementiels (10 MB) ; variable Vercel Production `JOBLY_EVENTS_BUCKET` configurée.
+- Bucket privé `jobly-payment-proofs` créé pour les reçus (10 MB, image/PDF) ; aucun accès public ; l'équipe Finance utilise des URL signées de 5 minutes.
+- Barème de publication corrigé : 2 000 FCFA/jour (1–9 j), 1 500 (10–29 j), 1 000 (30–59 j), 800 (60–90 j).
+- Upload médias : signature réelle vérifiée côté serveur ; MP4 limité à 30 secondes.
+- Publication et mise en avant : réservation atomique des 6 slots ; droits `freePublication`/`freeFeatured` ; idempotence et états cohérents.
+- **ICLAN retiré du parcours Event Core** : aucune création ni vérification de paiement d'événement ne passe par API fournisseur. Le fournisseur ICLAN de Billing/abonnements hors Event Core n'est pas modifié.
+- Paiement manuel : transfert MTN MoMo / Orange Money / banque / autre, référence de transaction et justificatif privé ; validation ou rejet ADMIN/FINANCE depuis `/admin/events/payments`.
+- Validation admin atomique : à l'approbation, paiement + publication ou campagne sont activés ensemble ; rejet de publication permet une nouvelle soumission auditée ; rejet de mise en avant clôture le paiement et libère le slot.
+- Endpoints fournisseurs Event Core supprimés ; endpoints de soumission, upload de reçu et revue Finance ajoutés.
+
+## Preuves et limites
+- Migrations Event Core, paiement manuel et bucket privé appliquées à JOBLY-PROD.
+- Test SQL transactionnel manuel : rejet d'une preuve, nouvelle soumission, approbation et publication ; rejet d'une mise en avant et libération du slot : PASS ; rollback complet, aucune donnée de test conservée.
+- Table de justificatifs protégée par RLS sans grants anon/authenticated ; bucket justificatifs privé ; RPC ADMIN/FINANCE uniquement.
+- CI principale : tests Event Core, P2, Career OS, Afrique P0, Billing, Mobility, Prisma et typecheck : PASS sur le dernier commit. Build de production : en cours de validation au dernier contrôle.
+- Les coordonnées bénéficiaires de collecte doivent être renseignées dans `JOBLY_MANUAL_PAYMENT_INSTRUCTIONS` avant exploitation réelle du paiement manuel.
+- Aucun merge dans `main` ni déploiement Vercel effectué.
+
+---
+
 # JOBLY — STATUS — LOT H — 02/10/2026
 
 ## Lot H — Jobly Events

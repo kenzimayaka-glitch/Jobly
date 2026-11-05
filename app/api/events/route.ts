@@ -5,6 +5,7 @@ import { getEventDomain, getEventPricing, estimateEventAudience, validateEventMe
 import { buildEventEcosystemConnections, scoreEventForProfile } from "../../../lib/eventEcosystem";
 import { estimateAndDistributeEvent } from "../../../lib/eventDistribution";
 import { discoverEventPartners } from "../../../lib/eventPartnerDiscovery";
+import { getEventManualPaymentInstructions } from "../../../lib/eventManualPayments";
 
 export const dynamic = "force-dynamic";
 const fail=(message:string,status=400,code="EVENT_ERROR")=>NextResponse.json({error:code,message},{status});
@@ -58,49 +59,134 @@ export async function GET(request:NextRequest){
 
 export async function POST(request:NextRequest){
   try{
-    const auth=await getAuthUser(request); if(!auth)return fail("Session requise.",401,"UNAUTHENTICATED");
-    const body=await request.json(),title=String(body.title??"").trim(),description=String(body.description??"").trim(),domain=String(body.domain??"").trim();
-    const subdomains=Array.isArray(body.subdomains)?body.subdomains.filter((v:unknown):v is string=>typeof v==="string").slice(0,3):[];
-    const startAt=new Date(String(body.startAt??"")),endAt=new Date(String(body.endAt??""));
-    if(!title||title.length<4||title.length>180)return fail("Le titre est obligatoire.");
+    const auth=await getAuthUser(request);
+    if(!auth)return fail("Session requise.",401,"UNAUTHENTICATED");
+    const body=await request.json().catch(()=>null);
+    if(!body || typeof body!=="object" || Array.isArray(body))return fail("Données événement invalides.");
+
+    const title=String(body.title??"").trim();
+    const description=String(body.description??"").trim();
+    const domain=String(body.domain??"").trim();
+    const domainConfig=getEventDomain(domain);
+    if(!title||title.length<4||title.length>180)return fail("Le titre doit contenir entre 4 et 180 caractères.");
     if(!description||description.length<20||description.length>12000)return fail("La description doit contenir entre 20 et 12 000 caractères.");
-    if(!getEventDomain(domain))return fail("Domaine invalide.");
+    if(!domainConfig)return fail("Domaine invalide.");
+
+    const rawSubdomains=Array.isArray(body.subdomains)?body.subdomains:[];
+    if(rawSubdomains.some((value:unknown)=>typeof value!=="string"||!domainConfig.subs.includes(value as never)))return fail("Sous-domaine invalide.");
+    const subdomains=[...new Set(rawSubdomains as string[])].slice(0,3);
+
+    const startAt=new Date(String(body.startAt??""));
+    const endAt=new Date(String(body.endAt??""));
+    const nowDate=new Date();
     if(!Number.isFinite(startAt.getTime())||!Number.isFinite(endAt.getTime())||endAt<=startAt)return fail("Dates invalides.");
+    if(endAt<=nowDate)return fail("La date de fin doit être dans le futur.");
     const durationDays=Math.ceil((endAt.getTime()-startAt.getTime())/86400000);
     if(durationDays<1||durationDays>EVENT_MAX_DAYS)return fail("La durée doit être comprise entre 1 et 90 jours.");
-    const media=validateEventMedia({mediaType:body.mediaType,mediaSizeBytes:body.mediaSizeBytes,mediaDurationSeconds:body.mediaDurationSeconds});
+
+    const mode=String(body.mode??"PHYSICAL").toUpperCase();
+    if(!["PHYSICAL","ONLINE","HYBRID"].includes(mode))return fail("Mode événementiel invalide.");
+    const registrationMode=String(body.registrationMode??"EXTERNAL").toUpperCase();
+    if(!["EXTERNAL","INTERNAL","NONE"].includes(registrationMode))return fail("Mode d'inscription invalide.");
+    const country=String(body.country??"CM").trim().toUpperCase();
+    if(!/^[A-Z]{2}$/.test(country))return fail("Code pays invalide.");
+
+    const safeUrl=(value:unknown):string|null=>{
+      if(value==null||value==="")return null;
+      if(typeof value!=="string"||value.length>2000)return null;
+      try{
+        const parsed=new URL(value);
+        if(!["https:","http:"].includes(parsed.protocol)||parsed.username||parsed.password)return null;
+        return parsed.toString();
+      }catch{return null;}
+    };
+    const registrationUrl=safeUrl(body.registrationUrl);
+    const mediaUrl=safeUrl(body.mediaUrl);
+    if(body.registrationUrl&&!registrationUrl)return fail("Lien d'inscription invalide.");
+    if(body.mediaUrl&&!mediaUrl)return fail("URL média invalide.");
+
+    const mediaType=body.mediaType==null?null:String(body.mediaType);
+    const mediaSizeBytes=body.mediaSizeBytes==null?null:Number(body.mediaSizeBytes);
+    const mediaDurationSeconds=body.mediaDurationSeconds==null?null:Number(body.mediaDurationSeconds);
+    const media=validateEventMedia({mediaType,mediaSizeBytes,mediaDurationSeconds});
     if(!media.ok)return fail(media.error??"Média invalide.");
-    if(body.safetyAccepted!==true||body.rightsAccepted!==true)return fail("Les règles de sécurité et des droits de contenu doivent être acceptés.");
-    const sb=adminClient(),user=await ensureUser(sb,auth),now=new Date().toISOString();
-    const {data:entitlement}=await sb.from("EventEntitlement").select("*").eq("organizerUserId",user.id).eq("active",true).lte("validFrom",now).or("validUntil.is.null,validUntil.gte."+now).maybeSingle();
+    if(mediaType&&!mediaUrl)return fail("Le média doit être associé à une URL.");
+
+    const audience=Array.isArray(body.audience)
+      ? body.audience.filter((value:unknown):value is string=>typeof value==="string"&&value.trim().length>0&&value.trim().length<=80).slice(0,8).map((value:string)=>value.trim())
+      : [];
+
+    const sb=adminClient();
+    const user=await ensureUser(sb,auth);
+    const now=new Date().toISOString();
+    const {data:entitlement,error:entitlementError}=await sb.from("EventEntitlement")
+      .select("*").eq("organizerUserId",user.id).eq("active",true).lte("validFrom",now)
+      .or("validUntil.is.null,validUntil.gte."+now).order("validFrom",{ascending:false}).limit(1).maybeSingle();
+    if(entitlementError)throw new Error(entitlementError.message);
+
     const free=user.role==="ADMIN"||Boolean(entitlement?.freePublication);
     if(entitlement?.maxDurationDays&&durationDays>Number(entitlement.maxDurationDays))return fail("La durée dépasse votre droit de publication.",422,"ENTITLEMENT_DURATION");
-    const pricing=getEventPricing(durationDays),audienceEstimate=estimateEventAudience({domain,secondaryDomains:subdomains,city:body.city,audience:body.audience});
+    const pricing=getEventPricing(durationDays);
     const id=crypto.randomUUID();
+    const organizerName=String(body.organizerName??user.displayName??"Organisateur").trim().slice(0,180)||"Organisateur";
+
     const {error}=await sb.from("Event").insert({
-      id,creatorUserId:user.id,organizerName:String(body.organizerName??user.displayName??"Organisateur").slice(0,180),title,description,domain,subdomains,
-      startAt:startAt.toISOString(),endAt:endAt.toISOString(),campaignStartAt:now,campaignEndAt:endAt.toISOString(),mode:String(body.mode??"PHYSICAL"),
-      venue:body.venue?String(body.venue).slice(0,300):null,city:body.city?String(body.city).slice(0,120):null,country:String(body.country??"CM").slice(0,3),
-      registrationMode:String(body.registrationMode??"EXTERNAL"),registrationUrl:body.registrationUrl?String(body.registrationUrl).slice(0,1000):null,
-      audience:Array.isArray(body.audience)?body.audience.filter((v:unknown):v is string=>typeof v==="string").slice(0,8):[],
-      mediaType:body.mediaType??null,mediaUrl:body.mediaUrl?String(body.mediaUrl).slice(0,2000):null,
-      mediaSizeBytes:body.mediaSizeBytes?Number(body.mediaSizeBytes):null,mediaDurationSeconds:body.mediaDurationSeconds?Number(body.mediaDurationSeconds):null,
-      status:free?"PUBLISHED":"PENDING_PAYMENT",publicationSource:free?(user.role==="ADMIN"?"JOBLY":"PARTNER_CONVENTION"):"STANDARD",
-      priceAmount:pricing.total,priceCurrency:"XAF",safetyAcceptedAt:now,rightsAcceptedAt:now,createdAt:now,updatedAt:now
+      id,creatorUserId:user.id,organizerName,title,description,domain,subdomains,
+      startAt:startAt.toISOString(),endAt:endAt.toISOString(),campaignStartAt:now,campaignEndAt:endAt.toISOString(),
+      mode,venue:body.venue?String(body.venue).trim().slice(0,300):null,
+      city:body.city?String(body.city).trim().slice(0,120):null,country,
+      registrationMode,registrationUrl,audience,
+      mediaType,mediaUrl,mediaSizeBytes,mediaDurationSeconds,
+      status:free?"PUBLISHED":"PENDING_PAYMENT",
+      publicationSource:free?(user.role==="ADMIN"?"JOBLY":"PARTNER_CONVENTION"):"STANDARD",
+      priceAmount:free?0:pricing.total,priceCurrency:"XAF",
+      safetyAcceptedAt:now,rightsAcceptedAt:now,createdAt:now,updatedAt:now
     });
     if(error)throw new Error(error.message);
+
     if(free){
-      const distribution=await estimateAndDistributeEvent(sb,{id,title,description,domain,subdomains,city:body.city,country:String(body.country??"CM"),startAt:startAt.toISOString(),endAt:endAt.toISOString()},user.id);
-      const partnerDiscovery=await discoverEventPartners(sb,{id,title,description,domain,city:body.city,country:String(body.country??"CM")},user.id);
-      return NextResponse.json({eventId:id,status:"PUBLISHED",pricing:{...pricing,total:0},audienceEstimate:distribution.audienceEstimate,distribution,partnerDiscovery,publicationSource:user.role==="ADMIN"?"JOBLY":"PARTNER_CONVENTION"},{status:201});
+      const distribution=await estimateAndDistributeEvent(sb,{id,title,description,domain,subdomains,city:body.city,country,startAt:startAt.toISOString(),endAt:endAt.toISOString()},user.id).catch(error=>({error:error instanceof Error?error.message:"Distribution indisponible."}));
+      const partnerDiscovery=await discoverEventPartners(sb,{id,title,description,domain,city:body.city,country},user.id).catch(error=>({error:error instanceof Error?error.message:"Découverte partenaire indisponible."}));
+      return NextResponse.json({eventId:id,status:"PUBLISHED",pricing:{...pricing,total:0},audienceEstimate:("audienceEstimate" in distribution)?distribution.audienceEstimate:null,distribution,partnerDiscovery,publicationSource:user.role==="ADMIN"?"JOBLY":"PARTNER_CONVENTION"},{status:201});
     }
-    const provider=String(body.provider??"ICLAN").toUpperCase(),paymentId=crypto.randomUUID();
-    const {data:payment,error:pe}=await sb.from("Payment").insert({id:paymentId,userId:user.id,provider,externalId:paymentId,amount:pricing.total,currency:"XAF",status:"CREATED",feature:"EVENT_PUBLICATION",createdAt:now,updatedAt:now}).select("*").single();
-    if(pe)throw new Error(pe.message);
-    const {getProvider}=await import("../../../lib/paymentProviders");
-    const intent=await getProvider(provider).createPayment({paymentId,amount:pricing.total,currency:"XAF",phone:auth.phone});
-    const {error:epe}=await sb.from("EventPayment").insert({id:crypto.randomUUID(),eventId:id,paymentId,purpose:"PUBLICATION",amount:pricing.total,status:"PENDING",createdAt:now,updatedAt:now});
-    if(epe)throw new Error(epe.message);
-    return NextResponse.json({eventId:id,status:"PENDING_PAYMENT",pricing,audienceEstimate,payment:{id:paymentId,checkoutReference:intent.checkoutReference,instructions:intent.instructions}},{status:201});
-  }catch(e){return fail(e instanceof Error?e.message:"Création impossible.",500);}
+
+    const paymentId=crypto.randomUUID();
+    const {error:paymentError}=await sb.from("Payment").insert({
+      id:paymentId,userId:user.id,provider:"MANUAL",externalId:paymentId,idempotencyKey:paymentId,amount:pricing.total,currency:"XAF",
+      status:"PENDING",feature:"EVENT_PUBLICATION",createdAt:now,updatedAt:now
+    });
+    if(paymentError){
+      await sb.from("Event").update({status:"DRAFT",updatedAt:new Date().toISOString()}).eq("id",id);
+      return fail("Le paiement n'a pas pu être préparé. L'événement est revenu en brouillon.",503,"PAYMENT_RECORD_FAILED");
+    }
+
+    const {error:eventPaymentError}=await sb.from("EventPayment").insert({
+      id:crypto.randomUUID(),eventId:id,paymentId,purpose:"PUBLICATION",amount:pricing.total,status:"PENDING",createdAt:now,updatedAt:now
+    });
+    if(eventPaymentError){
+      const failedAt=new Date().toISOString();
+      await Promise.all([
+        sb.from("Payment").update({status:"FAILED",failureReason:"EVENT_PAYMENT_LINK_FAILED",updatedAt:failedAt}).eq("id",paymentId),
+        sb.from("Event").update({status:"DRAFT",updatedAt:failedAt}).eq("id",id)
+      ]);
+      return fail("Le paiement n'a pas pu être associé à l'événement. L'événement est revenu en brouillon.",503,"EVENT_PAYMENT_LINK_FAILED");
+    }
+
+    return NextResponse.json({
+      eventId:id,
+      status:"PENDING_PAYMENT",
+      pricing,
+      audienceEstimate:estimateEventAudience({domain,secondaryDomains:subdomains,city:body.city,audience}),
+      payment:{
+        id:paymentId,
+        amount:pricing.total,
+        currency:"XAF",
+        provider:"MANUAL",
+        instructions:getEventManualPaymentInstructions(),
+        submissionUrl:"/events/payment/"+paymentId
+      }
+    },{status:201});
+  }catch(e){
+    return fail(e instanceof Error?e.message:"Création impossible.",500);
+  }
 }

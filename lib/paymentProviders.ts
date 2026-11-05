@@ -165,11 +165,14 @@ export class IClanProvider implements PaymentProvider {
       throw new Error("ICLAN_STATUS_INVALID");
     }
 
+    const returnedExternalId = String(data.external_id ?? data.externalId ?? "").trim();
+    if (!returnedExternalId) throw new Error("ICLAN_EXTERNAL_ID_MISSING");
+
     return {
-      externalId,
+      externalId: returnedExternalId,
       status: status as "SUCCESSFUL" | "FAILED" | "PENDING",
       amount: data.payment_amount == null ? undefined : Number(data.payment_amount),
-      currency: "XAF",
+      currency: data.payment_currency ?? data.currency,
       transactionId: data.transaction_id,
       paymentMethod: data.payment_method,
       paymentTelephone: data.payment_telephone,
