@@ -3,6 +3,7 @@ import { jwtVerify, createRemoteJWKSet } from "npm:jose@6";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
 import { extractApplicationContact, resolveSourceDisplayModel } from "../_shared/application-contact.ts";
+import { resolveApplicationReadiness } from "../_shared/application-readiness.ts";
 
 const JWKS = createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks"));
 const ISSUER = "https://token.actions.githubusercontent.com";
@@ -62,6 +63,11 @@ Deno.serve(async (req: Request) => {
         item?.applicationEmail,
         item?.applicationPhone,
       );
+      const applicationReadiness = resolveApplicationReadiness({
+        email: applicationContact.email,
+        phone: applicationContact.phone,
+        applicationUrl: item?.applicationUrl ?? item?.applyUrl,
+      });
       const displayModel = String(item?.displayModel ?? "").trim() ||
         resolveSourceDisplayModel(
           sourceKey,
@@ -78,8 +84,7 @@ Deno.serve(async (req: Request) => {
         validUrl = false;
       }
 
-      if (!sourceKey || !validUrl || !title || !COUNTRY_CODES.has(countryCode) ||
-          (!applicationContact.email && !applicationContact.phone)) {
+      if (!sourceKey || !validUrl || !title || !COUNTRY_CODES.has(countryCode)) {
         skipped++;
         continue;
       }
@@ -125,7 +130,9 @@ Deno.serve(async (req: Request) => {
           opportunityType: item.opportunityType ?? null,
           applicationEmail: applicationContact.email,
           applicationPhone: applicationContact.phone,
-          applicationReady: true,
+          applicationReady: applicationReadiness.applicationReady,
+          applicationAvailability: applicationReadiness.applicationAvailability,
+          applicationUrl: applicationReadiness.applicationUrl,
           publicationDateEstimated: freshness.publicationDateEstimated,
           publicationDateSource: freshness.publicationDateSource,
           displayModel,
