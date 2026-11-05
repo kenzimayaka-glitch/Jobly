@@ -9,6 +9,7 @@ import { resolveApplicationReadiness } from "../_shared/application-readiness.ts
 import { classifyJobSector } from "../_shared/job-sector-classification.ts";
 import { extractSourceDeadline } from "./date-extraction.ts";
 import { deriveOfferQualityStatus } from "../_shared/offer-quality.ts";
+import { sanitizeOfferSections } from "../_shared/offer-section-quality.ts";
 const NORMALIZED_VERSION = "jobly-offer-v1";
 
 type NormalizedOffer = {
@@ -73,14 +74,26 @@ function normalizeAiResult(ai:any,item:any):NormalizedOffer {
   const base=fallbackNormalized(item);
   const arr=(v:any)=>Array.isArray(v)?v.map((x:any)=>cleanHumanText(String(x))).filter((x:string)=>x.length>=2).slice(0,40):[];
   const n=(v:any)=>Number.isFinite(Number(v))?Number(v):null; const s=ai?.sections||{};
+  const sectionResult=sanitizeOfferSections({
+    description:arr(s.description).length?arr(s.description):base.description,
+    missions:arr(s.missions).length?arr(s.missions):base.missions,
+    profile:arr(s.profile).length?arr(s.profile):base.profile,
+    education:arr(s.education).length?arr(s.education):base.education,
+    experience:arr(s.experience).length?arr(s.experience):base.experience,
+    skills:arr(s.skills).length?arr(s.skills):base.skills,
+    qualities:arr(s.qualities).length?arr(s.qualities):base.qualities,
+    benefits:arr(s.benefits).length?arr(s.benefits):base.benefits,
+    application:arr(s.application).length?arr(s.application):base.application,
+  });
+  const cleanSections=sectionResult.sections;
   return {...base,title:cleanHumanText(String(ai?.title||base.title||""))||null,company:cleanHumanText(String(ai?.company||base.company||""))||null,
     location:arr(ai?.location).length?arr(ai.location):base.location,region:cleanHumanText(String(ai?.region||""))||null,sector:cleanHumanText(String(ai?.sector||""))||null,
     contractType:cleanHumanText(String(ai?.contractType||base.contractType||""))||null,remoteMode:cleanHumanText(String(ai?.remoteMode||base.remoteMode||""))||null,
     salary:{min:n(ai?.salaryMin),max:n(ai?.salaryMax),currency:cleanHumanText(String(ai?.salaryCurrency||"XAF"))||"XAF"},
-    experience:arr(s.experience).length?arr(s.experience):base.experience,education:arr(s.education).length?arr(s.education):base.education,
-    skills:arr(s.skills).length?arr(s.skills):base.skills,qualities:arr(s.qualities).length?arr(s.qualities):base.qualities,
-    missions:arr(s.missions).length?arr(s.missions):base.missions,benefits:arr(s.benefits).length?arr(s.benefits):base.benefits,
-    description:arr(s.description).length?arr(s.description):base.description,application:arr(s.application).length?arr(s.application):base.application,
+    experience:cleanSections.experience,education:cleanSections.education,
+    skills:cleanSections.skills,qualities:cleanSections.qualities,
+    missions:cleanSections.missions,benefits:cleanSections.benefits,
+    description:cleanSections.description,application:cleanSections.application,
     deadline:ai?.deadline||base.deadline,qualityScore:n(ai?.qualityScore),flags:arr(ai?.flags)};
 }
 
@@ -90,7 +103,12 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
 const DEFAULT_SOURCE_COUNTRY = Deno.env.get("JOBLY_SOURCE_COUNTRY") || "CM";
 const CITY_NAMES=["Yaoundé","Douala","Bafoussam","Bamenda","Bertoua","Buea","Ebolowa","Garoua","Maroua","Ngaoundéré","Kribi","Limbe","Kousseri","Mbalmayo","Edéa","Dschang","Foumban","Limbé","Kumba","Kumbo","Nkongsamba","Tiko","Cameroon","Tout le Cameroun"];
-function decodeEntities(s:string){return s.replace(/&nbsp;|&#160;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;|&#34;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/&bull;|&#8226;/gi,"•").replace(/&ndash;|&#8211;/gi,"–").replace(/&mdash;|&#8212;/gi,"—");}
+function decodeEntities(s:string){return s
+  .replace(/&#(\\d+);/g,(_m,n)=>{const v=Number(n);return Number.isInteger(v)&&v>=0&&v<=0x10ffff?String.fromCodePoint(v):" ";})
+  .replace(/&#x([0-9a-f]+);/gi,(_m,n)=>{const v=parseInt(n,16);return Number.isInteger(v)&&v>=0&&v<=0x10ffff?String.fromCodePoint(v):" ";})
+  .replace(/&nbsp;|&#160;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;|&#34;/gi,'"')
+  .replace(/&#39;|&apos;/gi,"'").replace(/&lt;/gi,"<").replace(/&gt;/gi,">")
+  .replace(/&bull;|&#8226;/gi,"•").replace(/&ndash;|&#8211;/gi,"–").replace(/&mdash;|&#8212;/gi,"—");}
 function repairMojibake(s:string){if(!/(?:Ã.|Â.|â.)/.test(s))return s;try{const bytes=new Uint8Array([...s].map(ch=>ch.charCodeAt(0)<=255?ch.charCodeAt(0):63));const repaired=new TextDecoder("utf-8",{fatal:false}).decode(bytes);return repaired&&!repaired.includes("�")?repaired:s}catch{return s}}
 function clean(s:string|null|undefined){return repairMojibake(decodeEntities((s||"").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim()))}
 function cleanDescription(s:string|null|undefined){if(!s)return "";const text=repairMojibake(decodeEntities(String(s).replace(/<br\s*\/?>(?=.)/gi,"\n").replace(/<\/(p|div|section|article|li|h[1-6])>/gi,"\n").replace(/<li[^>]*>/gi,"• ").replace(/<[^>]+>/g," ").replace(/\r/g,"")));return text.replace(/[ \t]+\n/g,"\n").replace(/\n[ \t]+/g,"\n").replace(/[ \t]{2,}/g," ").replace(/\n{3,}/g,"\n\n").trim()}
