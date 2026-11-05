@@ -48,6 +48,58 @@ function keyOf(value: string): string {
     .toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+function extractLabeledSections(sections: OfferSections): void {
+  const fullDescription = sections.description.join("\\n").trim();
+  if (!fullDescription) return;
+
+  const missionHeading = /\\bmissions? principales\\b/i.exec(fullDescription);
+  const profileHeading = /\\bprofil recherché\\b/i.exec(fullDescription);
+  if (!missionHeading || !profileHeading || missionHeading.index === undefined ||
+      profileHeading.index === undefined || profileHeading.index <= missionHeading.index) {
+    return;
+  }
+
+  const applicationHeading = /\\b(?:comment postuler|pour postuler|modalités? de candidature|lien de candidature)\\b/i.exec(fullDescription);
+  const endOfProfile = applicationHeading?.index !== undefined &&
+      applicationHeading.index > profileHeading.index
+    ? applicationHeading.index
+    : fullDescription.length;
+
+  const introStartMatch = /\\b(?:présentation du poste|description du poste)\\b/i.exec(fullDescription);
+  const introStart = introStartMatch?.index !== undefined
+    ? introStartMatch.index + introStartMatch[0].length
+    : 0;
+  const intro = fullDescription.slice(introStart, missionHeading.index).trim();
+  const missions = fullDescription.slice(
+    missionHeading.index + missionHeading[0].length,
+    profileHeading.index,
+  ).trim();
+  const profile = fullDescription.slice(
+    profileHeading.index + profileHeading[0].length,
+    endOfProfile,
+  ).trim();
+
+  if (missions.length < 40 || profile.length < 40) return;
+
+  sections.description = intro.length >= 20 ? [intro] : [];
+  sections.missions = [missions];
+  sections.profile = [profile];
+
+  for (const name of ["education", "skills", "qualities", "benefits"] as const) {
+    sections[name] = sections[name].filter((value) => {
+      const normalizedValue = keyOf(value);
+      const normalizedProfile = keyOf(profile);
+      return normalizedValue.length >= 20 && !normalizedProfile.includes(normalizedValue);
+    });
+  }
+
+  if (applicationHeading?.index !== undefined &&
+      applicationHeading.index > profileHeading.index) {
+    const applicationText = fullDescription.slice(applicationHeading.index).trim();
+    if (applicationText.length >= 20) sections.application.push(applicationText);
+  }
+}
+
 function splitApplicationTail(value: string): { main: string | null; application: string | null } {
   const match = APPLICATION_MARKER.exec(value);
   if (!match || match.index === undefined) return { main: value, application: null };
@@ -89,7 +141,7 @@ export function sanitizeOfferSections(input: Partial<Record<OfferSectionName, un
     }
   }
 
-  const seen = new Set<string>();
+  extractLabeledSections(sections);\n\n  const seen = new Set<string>();
   let removedExactDuplicates = 0;
   for (const name of SECTION_ORDER) {
     const unique: string[] = [];
