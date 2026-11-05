@@ -35,6 +35,9 @@ test("the Jobly portal provides a versioned beta archive, not a fake web-store U
   const page = read("app/jia/extension/page.tsx");
   assert.match(route, /Content-Type.*application\/zip/);
   assert.match(route, /jobly-jia-chrome-extension-0\.2\.0-beta\.zip/);
+  const nextConfig = read("next.config.mjs");
+  assert.match(nextConfig, /outputFileTracingIncludes/);
+  assert.match(nextConfig, /apps\/jia-chrome-extension\/\*\*\/\*/);
   assert.match(page, /api\/jia\/extension\/download/);
   assert.match(page, /chrome:\/\/extensions/);
   assert.match(page, /Mode développeur/);
