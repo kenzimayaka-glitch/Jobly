@@ -198,6 +198,11 @@ export function normalizeLanguage(value: unknown, text = ""): string {
   return "fr";
 }
 
+export function normalizePipelineCaptureMode(value: unknown): "browser" | "http" | "api" | "rss" | "unknown" {
+  const mode = String(value ?? "").trim().toLowerCase();
+  return mode === "browser" || mode === "http" || mode === "api" || mode === "rss" ? mode : "unknown";
+}
+
 export function safeHttpUrl(value: unknown): string | null {
   try {
     const url = new URL(String(value ?? ""));

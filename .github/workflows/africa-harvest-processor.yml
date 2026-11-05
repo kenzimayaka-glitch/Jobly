@@ -71,6 +71,8 @@ jobs:
           if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch" and not keys:
               raise SystemExit("Manual processing requires at least one source key.")
           body = {"limit":40}
+          if os.environ.get("DRAIN_ALL") == "true":
+              body["pendingOnly"] = True
           if keys:
               body["sourceKeys"] = keys
           print(json.dumps(body))
