@@ -35,7 +35,7 @@ jobs:
       - name: Test harvest normalization rules
         run: deno test supabase/functions/job-harvest-process/processor-logic.test.ts supabase/functions/_shared/application-contact.test.ts
       - name: Type-check harvest processor
-        run: deno check supabase/functions/job-harvest-process/index.ts
+        run: deno check --node-modules-dir=auto --config=supabase/functions/job-harvest-process/deno.json supabase/functions/job-harvest-process/index.ts
       - name: Process pending captures (scheduled batch 1; manual approval)
         if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.apply == true)
         env:
