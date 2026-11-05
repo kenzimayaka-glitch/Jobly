@@ -12,6 +12,8 @@ on:
       - "supabase/functions/discover-jobs/source-registry.ts"
       - "supabase/functions/_shared/application-contact.ts"
       - "supabase/functions/_shared/application-readiness.ts"
+      - "supabase/functions/job-harvest-ingest/index.ts"
+      - "supabase/functions/job-harvest-process/index.ts"
       - ".github/workflows/africa-shadow-crawl.yml"
   workflow_dispatch:
     inputs:
@@ -43,6 +45,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validate-harvest-readiness:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Test application contact and readiness rules
+        run: deno test supabase/functions/_shared/application-contact.test.ts supabase/functions/_shared/application-readiness.test.ts
+      - name: Type-check modified harvest functions
+        run: |
+          deno check supabase/functions/discover-jobs/shadow-crawl.ts
+          deno check supabase/functions/job-harvest-ingest/index.ts
+          deno check supabase/functions/job-harvest-process/index.ts
+
   shadow-crawl:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
