@@ -17,7 +17,7 @@ export default function TalentRecruitment360Page(){
  if(state==="loading")return <AppShell role="talent" active="/career" title={t.title}><LoadingState/></AppShell>;
  if(state==="error")return <AppShell role="talent" active="/career" title={t.title}><ErrorState title={error} onRetry={load}/></AppShell>;
  return <AppShell role="talent" active="/career" title={t.title} initial="J" width="lg">
-  <PageIntro eyebrow="RECRUTEMENT 360°" title={t.title} subtitle={w?.recruitment?.currentState||""}/>
+  <PageIntro eyebrow="RECRUTEMENT 360°" title={t.title} subtitle={w?.recruitment?.currentState||""} actions={<Button variant="ghost" href={"/career/recruitment360/"+p.applicationId+"/tests"}>Mes tests</Button>}/>
   {error&&<p className="mb-3 rounded-xl border p-3 text-sm">{error}</p>}
   <Section title="Statut"><Card><p className="font-black">{w?.application?.recruitment360Status||"—"}</p><p className="text-sm opacity-70 mt-1">La décision recruteur, l’offre et les négociations sont conservées côté serveur.</p>{!["REJECTED","WITHDRAWN","HIRED","OFFER_DECLINED"].includes(String(w?.application?.recruitment360Status||"").toUpperCase())&&<div className="mt-3"><Button variant="ghost" onClick={()=>void withdraw()}>{t.withdraw}</Button></div>}</Card></Section>
   {!w?.offer?<Section title={t.offer}><Card><p className="text-sm">{t.noOffer}</p></Card></Section>:<Section title={t.offer}><Card><div className="space-y-2"><p><strong>{w.offer.salaryProposed} {w.offer.salaryCurrency}</strong></p><p className="text-sm">Statut : {w.offer.status}</p>{w.offer.responseDeadline&&<p className="text-sm">Réponse avant : {new Date(w.offer.responseDeadline).toLocaleString(lang==="en"?"en-US":"fr-FR")}</p>}</div>
