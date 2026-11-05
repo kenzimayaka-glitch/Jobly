@@ -78,13 +78,13 @@ export default function EventManualPaymentPage(){
           <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#52627A]">{data.instructions}</p>
           <p className="mt-3 text-xs font-bold text-amber-800">La publication reste en attente jusqu’à la vérification du transfert par Jobly Finance.</p>
         </section>
-        {data.submission?<section className="rounded-3xl border bg-white p-5 shadow-sm">
+        {data.submission&&data.submission.status!=="REJECTED"?<section className="rounded-3xl border bg-white p-5 shadow-sm">
           <p className="text-xs font-bold uppercase text-[#667085]">Justificatif transmis</p>
           <p className="mt-2 font-black">{data.submission.status==="SUBMITTED"?"En attente de validation":data.submission.status==="APPROVED"?"Paiement validé":"Paiement rejeté"}</p>
           <p className="mt-1 text-sm text-[#667085]">Référence transfert : {data.submission.transactionReference}</p>
           {data.submission.reviewNote&&<p className="mt-2 text-sm text-red-700">Motif : {data.submission.reviewNote}</p>}
           {data.submission.status==="APPROVED"&&<button onClick={()=>router.push("/events/"+data.event.id)} className="mt-4 rounded-full bg-[#22448B] px-5 py-3 text-xs font-black text-white">Voir l’événement</button>}
-        </section>:data.canSubmit?<form onSubmit={submit} className="space-y-4 rounded-3xl border bg-white p-5 shadow-sm">
+        </section>:data.canSubmit?<><section className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900"><b>Un justificatif précédent a été rejeté.</b> {data.submission?.reviewNote||"Vérifiez la référence ou le reçu puis transmettez une nouvelle preuve."}</section><form onSubmit={submit} className="space-y-4 rounded-3xl border bg-white p-5 shadow-sm">
           <h2 className="font-black">Déposer le justificatif</h2>
           <label className="block text-xs font-bold">Moyen de paiement
             <select value={method} onChange={e=>setMethod(e.target.value)} className="mt-2 w-full rounded-xl border p-3 text-sm">
@@ -104,7 +104,7 @@ export default function EventManualPaymentPage(){
             <textarea value={notes} onChange={e=>setNotes(e.target.value)} maxLength={1000} rows={3} className="mt-2 w-full rounded-xl border p-3 text-sm" placeholder="Information complémentaire"/>
           </label>
           <button disabled={busy} className="w-full rounded-full bg-[#22448B] px-5 py-3.5 text-xs font-black text-white disabled:opacity-50">{busy?"Transmission…":"Envoyer le justificatif"}</button>
-        </form>:<p className="rounded-2xl bg-white p-4 text-sm text-[#52627A]">Ce paiement ne peut plus recevoir de justificatif.</p>}
+        </form></>:<p className="rounded-2xl bg-white p-4 text-sm text-[#52627A]">Ce paiement ne peut plus recevoir de justificatif.</p>}
       </div>}
     </div>
   </main>;
