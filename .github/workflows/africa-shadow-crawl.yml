@@ -60,6 +60,8 @@ jobs:
           deno check --node-modules-dir=auto supabase/functions/discover-jobs/shadow-crawl.ts
           deno check --node-modules-dir=auto supabase/functions/job-harvest-ingest/index.ts
           deno check --node-modules-dir=auto supabase/functions/job-harvest-process/index.ts
+      - name: Test two-calendar-month freshness boundaries
+        run: python scripts/test_job_freshness_calendar.py
 
   shadow-crawl:
     if: github.event_name != 'pull_request'
@@ -97,6 +99,7 @@ jobs:
           python - <<'PY'
           import json
           from datetime import datetime, timezone
+          from scripts.job_freshness_calendar import publication_expiry
           data = json.load(open("africa-shadow-crawl.json", encoding="utf-8"))
           summary = data.get("summary", data)
           required = ["sources", "totalExtracted", "totalEligible", "contactAccepted", "contactRejected", "contactMissingDisplayable", "missingPublicationDate", "freshnessRejected", "harvestCandidates"]
@@ -117,10 +120,9 @@ jobs:
           for item in candidates:
               try:
                   published = datetime.fromisoformat(item["published"].replace("Z", "+00:00"))
-                  max_age_days = 30 if item.get("publicationDateEstimated") else 62
-                  age_seconds = (now - published).total_seconds()
-                  if age_seconds > max_age_days * 86400: stale.append(item)
-                  if age_seconds < -300: future.append(item)
+                  expiry = publication_expiry(published, bool(item.get("publicationDateEstimated")))
+                  if now > expiry: stale.append(item)
+                  if (published - now).total_seconds() > 300: future.append(item)
               except Exception: stale.append(item)
           if stale or future:
               raise SystemExit(f"Invalid freshness: stale={len(stale)}, future={len(future)}")

@@ -41,11 +41,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: P2 Community, Bons Plans and Campus gate
+        run: pnpm test:p2-ecosystem
+
       - name: Career OS architecture gate
         run: pnpm test:career-os
 
       - name: Mission Afrique P0 regression tests
         run: pnpm test:africa-p0
+
+      - name: Billing lifecycle regression tests
+        run: pnpm test:billing
+
+      - name: Mobility P1 business and access regression tests
+        run: pnpm test:mobility-p1
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -54,6 +63,12 @@ jobs:
 
       - name: Mission Afrique date extraction tests
         run: deno test supabase/functions/discover-jobs/date-extraction.test.ts
+
+      - name: Validate Prisma schema
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly?schema=public
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/jobly?schema=public
+        run: pnpm db:validate
 
       - name: Typecheck
         run: pnpm typecheck

@@ -172,6 +172,8 @@ model User {
   subscriptions   Subscription[]
   qrShares        QRShare[]
   partner         Partner?
+  mobilityRequests MobilityRequest[]
+  partnerExtendeds PartnerExtended[] @relation("UserPartnerExtendeds")
   auditLogs       AuditLog[]
   aiUsages        AiUsage[]
   aiWelcomeCredits Int          @default(0)
@@ -536,6 +538,19 @@ model MobilityRequest {
   passCode            String?  @unique
   passUsages          Int      @default(0)
   cniWatermarked      Boolean  @default(false)
+  applicationId       String?  @db.Uuid
+  recruiterUserId     String?  @db.Uuid
+  salaryApproved      Decimal?
+  salaryCurrency      String?
+  salarySource        String?
+  eligibilityThresholdPercent Decimal?
+  eligibilityBurdenPercent Decimal?
+  eligibilityStatus   String?
+  eligibilityReason   String?
+  eligibilityCalculatedAt DateTime?
+  eligibilityVersion  String?
+  companyAgreementId  String?  @db.Uuid
+  recruiterGuaranteeId String? @db.Uuid
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -551,7 +566,7 @@ model PartnerExtended {
   lat            Float?
   lng            Float?
   createdAt      DateTime @default(now())
-  user           User?    @relation(fields: [partnerUserId], references: [id], onDelete: Cascade)
+  user           User?    @relation("UserPartnerExtendeds", fields: [partnerUserId], references: [id], onDelete: Cascade)
   housing        PartnerHousing[]
 }
 
@@ -621,14 +636,67 @@ model JobHarvestCapture {
 }
 
 
-enum CareerJourneyStatus { ACTIVE PAUSED COMPLETED ARCHIVED }
-enum CareerGoalStatus { ACTIVE PAUSED COMPLETED ABANDONED }
-enum CareerMissionStatus { PROPOSED ACCEPTED IN_PROGRESS COMPLETED ABANDONED DEFERRED }
-enum CareerEvidenceType { DECLARATION DOCUMENT PORTFOLIO PROJECT EXPERIENCE ASSESSMENT FEEDBACK }
-enum CareerEvidenceProvenance { DECLARED DOCUMENTED AI_EVALUATED CONVERGENT }
-enum CareerRecommendationType { APPLY DEFER_APPLICATION UPDATE_CV LEARN PRACTICE PROJECT PORTFOLIO INTERVIEW_PREP EXPLORE_PATH REASSESS READY_TO_APPLY }
-enum CareerReviewFrequency { OFF WEEKLY MONTHLY }
-enum CareerAssessmentFormat { MCQ CASE ROLEPLAY PRACTICAL ORAL PORTFOLIO }
+enum CareerJourneyStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+enum CareerGoalStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ABANDONED
+}
+enum CareerMissionStatus {
+  PROPOSED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+  DEFERRED
+}
+enum CareerEvidenceType {
+  DECLARATION
+  DOCUMENT
+  PORTFOLIO
+  PROJECT
+  EXPERIENCE
+  ASSESSMENT
+  FEEDBACK
+}
+enum CareerEvidenceProvenance {
+  DECLARED
+  DOCUMENTED
+  AI_EVALUATED
+  CONVERGENT
+}
+enum CareerRecommendationType {
+  APPLY
+  DEFER_APPLICATION
+  UPDATE_CV
+  LEARN
+  PRACTICE
+  PROJECT
+  PORTFOLIO
+  INTERVIEW_PREP
+  EXPLORE_PATH
+  REASSESS
+  READY_TO_APPLY
+}
+enum CareerReviewFrequency {
+  OFF
+  WEEKLY
+  MONTHLY
+}
+enum CareerAssessmentFormat {
+  MCQ
+  CASE
+  ROLEPLAY
+  PRACTICAL
+  ORAL
+  PORTFOLIO
+}
 
 model CareerJourney {
  id String @id @default(cuid())
@@ -945,4 +1013,306 @@ model EventEntitlement {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([organizerUserId, active, validFrom, validUntil])
+}
+
+
+// Mobility P1: eligibility, service providers and controlled funding.
+model MobilityCompanyAgreement {
+  id                       String   @id @default(uuid()) @db.Uuid
+  recruiterUserId           String   @db.Uuid
+  companyName               String
+  accepted                  Boolean  @default(false)
+  acceptedAt                DateTime?
+  termsVersion              String
+  repaymentGuaranteed       Boolean  @default(false)
+  terminationDoesNotRelease Boolean  @default(true)
+  payrollDeductionMonths    Int      @default(3)
+  paymentProvider           String?
+  paymentAccountRef         String?
+  evidenceUrl               String?
+  acceptedByUserId          String?
+  acceptanceIp              String?
+  acceptanceUserAgent       String?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  @@index([recruiterUserId, accepted])
+}
+
+model MobilityRecruiterGuarantee {
+  id                       String   @id @default(uuid()) @db.Uuid
+  mobilityRequestId        String?  @db.Uuid
+  recruiterUserId          String   @db.Uuid
+  guaranteedAmount         Decimal  @default(0)
+  currency                 String   @default("XAF")
+  repaymentMonths          Int      @default(3)
+  payrollDeductionPercent  Decimal?
+  terminationStillDue      Boolean  @default(true)
+  accepted                 Boolean  @default(false)
+  acceptedAt               DateTime?
+  paymentProvider          String?
+  paymentDestinationRef    String?
+  consentEvidenceUrl       String?
+  status                   String   @default("PENDING")
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  @@index([recruiterUserId, status])
+  @@index([mobilityRequestId])
+}
+
+model MobilityCostItem {
+  id                String   @id @default(uuid()) @db.Uuid
+  mobilityRequestId String   @db.Uuid
+  category          String
+  amount            Decimal
+  currency          String   @default("XAF")
+  source            String   @default("SYSTEM_ESTIMATE")
+  confidence        Decimal?
+  estimatedAt       DateTime @default(now())
+  verifiedAt        DateTime?
+  eligibilityStatus String   @default("PENDING")
+  createdAt         DateTime @default(now())
+  @@index([mobilityRequestId])
+}
+
+model MobilityEligibilityDecision {
+  id                              String   @id @default(uuid()) @db.Uuid
+  mobilityRequestId               String   @db.Uuid
+  version                         String
+  status                          String
+  approvedSalary                  Decimal?
+  salaryCurrency                  String   @default("XAF")
+  totalMobilityCost               Decimal  @default(0)
+  thresholdPercent                Decimal  @default(50)
+  maximumEligibleCost             Decimal?
+  burdenPercent                   Decimal?
+  companyMobilityAgreementAccepted Boolean @default(false)
+  recruiterGuaranteeAccepted      Boolean  @default(false)
+  repaymentMonths                 Int      @default(3)
+  repaymentMonthlyAmount          Decimal?
+  reason                          String
+  missingInformation              Json     @default("[]")
+  calculatedAt                    DateTime @default(now())
+  createdAt                       DateTime @default(now())
+  @@index([mobilityRequestId, calculatedAt])
+}
+
+model InstitutionMember {
+  id            String   @id @default(uuid()) @db.Uuid
+  institutionId String   @db.Uuid
+  userId        String
+  role          String   @default("VIEWER")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@unique([institutionId, userId])
+  @@index([userId, active])
+}
+
+model MobilityDocument {
+  id                String   @id @default(uuid()) @db.Uuid
+  mobilityRequestId String   @db.Uuid
+  documentType      String
+  side              String?
+  fileName          String
+  storagePath       String
+  mimeType          String?
+  fileSize          BigInt?
+  validUntil        DateTime? @db.Date
+  status            String   @default("PENDING")
+  uploadedByUserId  String
+  verifiedByUserId  String?
+  verifiedAt        DateTime?
+  rejectionReason   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@index([mobilityRequestId, documentType, status])
+}
+
+model MobilityProcessEvent {
+  id                   String   @id @default(uuid()) @db.Uuid
+  mobilityRequestId    String   @db.Uuid
+  actorUserId          String?
+  actorRole            String?
+  eventType            String
+  fromStatus           String?
+  toStatus             String?
+  title                String
+  description          String?
+  metadata             Json     @default("{}")
+  visibleToTalent      Boolean  @default(true)
+  visibleToRecruiter   Boolean  @default(false)
+  visibleToInstitution Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  @@index([mobilityRequestId, createdAt])
+}
+
+model MobilityProgram {
+  id                         String   @id @default(uuid()) @db.Uuid
+  institutionId              String   @db.Uuid
+  code                       String
+  name                       String
+  description                String?
+  status                     String   @default("DRAFT")
+  populationRule             Json     @default("{}")
+  geographyRule              Json     @default("{}")
+  capacity                   Int?
+  budgetTotal                Decimal?
+  currency                   String   @default("XAF")
+  eligibleExpenses           Json     @default("[]")
+  eligibilityRule            Json     @default("{\"mobilityThresholdPercent\":50,\"requiresEmployerAgreement\":true,\"requiresRecruiterGuarantee\":true,\"repaymentMonths\":3}")
+  fundingModel               String   @default("REPAYABLE_ADVANCE")
+  commitmentReference        String?
+  commitmentEvidenceUrl      String?
+  commitmentVerifiedByUserId String?
+  commitmentVerifiedAt       DateTime?
+  startsAt                   DateTime?
+  endsAt                     DateTime?
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+  @@unique([institutionId, code])
+  @@index([institutionId, status])
+}
+
+model MobilityFundingRule {
+  id            String   @id @default(uuid()) @db.Uuid
+  programId     String   @db.Uuid
+  name          String
+  ruleType      String
+  configuration Json     @default("{}")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  @@index([programId, active])
+}
+
+model MobilityFundingAllocation {
+  id                String   @id @default(uuid()) @db.Uuid
+  programId         String   @db.Uuid
+  mobilityRequestId String   @db.Uuid
+  approvedAmount    Decimal  @default(0)
+  currency          String   @default("XAF")
+  status            String   @default("PENDING")
+  approvedAt        DateTime?
+  approvedByUserId  String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@unique([programId, mobilityRequestId])
+  @@index([programId, status])
+  @@index([mobilityRequestId])
+}
+
+model MobilityProgramApplication {
+  id                String   @id @default(uuid()) @db.Uuid
+  programId         String   @db.Uuid
+  mobilityRequestId String   @db.Uuid
+  applicantUserId   String
+  status            String   @default("PENDING")
+  submittedAt       DateTime @default(now())
+  decidedAt         DateTime?
+  decidedByUserId   String?
+  decisionReason    String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@unique([programId, mobilityRequestId])
+  @@index([programId, status, submittedAt])
+  @@index([mobilityRequestId])
+}
+
+model MobilityServiceProvider {
+  id                       String   @id @default(uuid()) @db.Uuid
+  userId                   String   @unique
+  providerType             String
+  legalName                String
+  displayName              String
+  registrationNumber       String?
+  countryCode              String   @default("CM")
+  city                     String
+  contactEmail             String?
+  contactPhone             String?
+  kycStatus                String   @default("PENDING")
+  kycEvidenceStoragePath   String?
+  kycReviewedByUserId      String?
+  kycReviewedAt            DateTime?
+  contractVersion          String
+  contractAcceptedAt       DateTime
+  contractAcceptedByUserId String
+  status                   String   @default("PENDING_REVIEW")
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  @@index([providerType, status, kycStatus])
+}
+
+model MobilityProviderService {
+  id              String   @id @default(uuid()) @db.Uuid
+  providerId      String   @db.Uuid
+  serviceType     String
+  title           String
+  description     String?
+  city            String
+  priceAmount     Decimal?
+  currency        String   @default("XAF")
+  serviceCapacity Int?
+  status          String   @default("DRAFT")
+  termsVersion    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([providerId, status])
+}
+
+model MobilityProviderAssignment {
+  id                String   @id @default(uuid()) @db.Uuid
+  mobilityRequestId String   @db.Uuid
+  providerId        String   @db.Uuid
+  serviceId         String   @db.Uuid
+  assignedByUserId  String
+  status            String   @default("PROPOSED")
+  agreedAmount      Decimal?
+  currency          String   @default("XAF")
+  notes             String?
+  acceptedAt        DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@unique([mobilityRequestId, serviceId])
+  @@index([providerId, status, createdAt])
+  @@index([mobilityRequestId])
+}
+
+model MobilityRepaymentPlan {
+  id                       String   @id @default(uuid()) @db.Uuid
+  allocationId             String   @db.Uuid
+  guarantorRecruiterUserId String   @db.Uuid
+  totalAmount              Decimal
+  currency                 String   @default("XAF")
+  installmentCount         Int      @default(3)
+  installmentAmount        Decimal
+  deductionMethod          String   @default("PAYROLL_API")
+  startAt                  DateTime?
+  endAt                    DateTime?
+  status                   String   @default("PENDING")
+  terminationStillDue      Boolean  @default(true)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  @@index([allocationId])
+}
+
+model MobilityFundingTransaction {
+  id                String   @id @default(uuid()) @db.Uuid
+  allocationId      String   @db.Uuid
+  transactionType   String
+  amount            Decimal
+  currency          String   @default("XAF")
+  provider          String?
+  providerId        String?  @db.Uuid
+  externalReference String?
+  status            String   @default("PENDING")
+  executedAt        DateTime?
+  evidenceUrl       String?
+  verifiedByUserId  String?
+  verifiedAt        DateTime?
+  idempotencyKey    String?
+  metadata          Json     @default("{}")
+  createdAt         DateTime @default(now())
+  @@index([allocationId, createdAt])
+  @@index([providerId, externalReference])
+  @@index([idempotencyKey])
 }

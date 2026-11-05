@@ -1,16 +1,209 @@
-import { NextRequest,NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-import sharp from "sharp";
-import { requirePremium } from "../../../../lib/mobilityServer";
+import { requirePremium, authUser, adminClient, ensureUser } from "../../../../lib/mobilityServer";
 import { CAMEROON_CITIES, calculateMobilityCosts, type CameroonCityKey } from "../../../../lib/gps";
-export async function POST(req:NextRequest){try{const gate=await requirePremium(req);if("error"in gate)return NextResponse.json({message:gate.error},{status:gate.status});const b=await req.json();const depart=(b.departKey||"YAOUNDE") as CameroonCityKey,arrivee=(b.arriveeKey||"DOUALA") as CameroonCityKey,type=b.typeLocal||"CHAMBRE",salary=Number(b.salary||0);if(!CAMEROON_CITIES[depart]||!CAMEROON_CITIES[arrivee])return NextResponse.json({message:"Ville invalide."},{status:400});const costs=calculateMobilityCosts(depart,arrivee,type,salary);if(costs.total>Math.max(0,salary))return NextResponse.json({message:"Le budget Mobility dépasse le plafond autorisé (100% du salaire).",costs},{status:422});const company=CAMEROON_CITIES[arrivee];
-    let cniWatermarked=false;
-    let cniWatermarkedDataUrl: string | null = null;
-    if(typeof b.cniDataUrl === "string" && b.cniDataUrl.startsWith("data:image/")){
-      const base64=b.cniDataUrl.split(",")[1];
-      if(base64){
-        const svg=Buffer.from(`<svg width="600" height="380"><style>text{font-family:Arial;font-size:28px;font-weight:700;fill:#0A3D9C;opacity:.22}</style><text x="30" y="350">JOBLY MOBILITY • DOCUMENT PROTÉGÉ</text></svg>`);
-        const out=await sharp(Buffer.from(base64,"base64")).composite([{input:svg,gravity:"southeast"}]).jpeg({quality:82}).toBuffer();
-        cniWatermarked=true;cniWatermarkedDataUrl=`data:image/jpeg;base64,${out.toString("base64")}`;
-      }
-    }const {data,error}=await gate.sb.from("MobilityRequest").insert({id:crypto.randomUUID(),userId:gate.user.id,departCity:CAMEROON_CITIES[depart].name,arriveeCity:company.name,departLat:CAMEROON_CITIES[depart].lat,departLng:CAMEROON_CITIES[depart].lng,arriveeLat:company.lat,arriveeLng:company.lng,distanceKm:costs.distanceKm,housingType:type,salary,costTotal:costs.total,costMonthly:costs.monthly,mobilityFit:costs.mobilityFit,status:"DRAFT",currentStep:1,subventionPercent:0,cniWatermarked});if(error)throw new Error(error.message);return NextResponse.json({request:data,costs,cniWatermarkedDataUrl},{status:201});}catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Création impossible."},{status:500});}}
+import { calculateMobilityEligibility } from "../../../../lib/mobilityEligibility";
+
+const ACCEPTED_OFFER_STATUSES = new Set(["ACCEPTED", "ACCEPTED_BY_TALENT", "APPROVED", "VALIDATED"]);
+
+export async function GET(req: NextRequest) {
+  try {
+    const auth = await authUser(req);
+    if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+    const db = adminClient();
+    const user = await ensureUser(db, auth);
+    const requestId = req.nextUrl.searchParams.get("requestId");
+    if (!requestId) return NextResponse.json({ message: "requestId requis." }, { status: 400 });
+    const { data: request, error: requestError } = await db.from("MobilityRequest")
+      .select("*")
+      .eq("id", requestId)
+      .eq("userId", user.id)
+      .maybeSingle();
+    if (requestError) throw new Error(requestError.message);
+    if (!request) return NextResponse.json({ message: "Dossier Mobility introuvable." }, { status: 404 });
+    const [{ data: costs, error: costsError }, { data: decisions, error: decisionError }, { data: applications, error: applicationError }] = await Promise.all([
+      db.from("MobilityCostItem").select("id,category,amount,currency,source,confidence,eligibilityStatus").eq("mobilityRequestId", requestId),
+      db.from("MobilityEligibilityDecision").select("id,version,status,approvedSalary,salaryCurrency,totalMobilityCost,thresholdPercent,maximumEligibleCost,burdenPercent,reason,missingInformation,calculatedAt").eq("mobilityRequestId", requestId).order("calculatedAt", { ascending: false }).limit(1),
+      db.from("MobilityProgramApplication").select("id,programId,status,submittedAt,decidedAt,decisionReason,MobilityProgram(code,name)").eq("mobilityRequestId", requestId).eq("applicantUserId", user.id).order("submittedAt", { ascending: false }),
+    ]);
+    if (costsError) throw new Error(costsError.message);
+    if (decisionError) throw new Error(decisionError.message);
+    if (applicationError) throw new Error(applicationError.message);
+    return NextResponse.json({ request, costs: costs || [], decision: decisions?.[0] || null, programApplications: applications || [] });
+  } catch (error) {
+    return NextResponse.json({ message: error instanceof Error ? error.message : "Dossier Mobility indisponible." }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const gate = await requirePremium(req);
+    if ("error" in gate) return NextResponse.json({ message: gate.error }, { status: gate.status });
+
+    const body = await req.json();
+    const applicationId = String(body.applicationId || "").trim();
+    const depart = String(body.departKey || "YAOUNDE") as CameroonCityKey;
+    const arrivee = String(body.arriveeKey || "DOUALA") as CameroonCityKey;
+    const housingType = String(body.typeLocal || "CHAMBRE");
+
+    if (!applicationId) {
+      return NextResponse.json({ message: "Une candidature avec offre acceptée est nécessaire pour ouvrir Mobility." }, { status: 400 });
+    }
+    if (!CAMEROON_CITIES[depart] || !CAMEROON_CITIES[arrivee]) {
+      return NextResponse.json({ message: "Ville de départ ou d'arrivée invalide." }, { status: 400 });
+    }
+    if (!["CHAMBRE", "STUDIO", "APPART"].includes(housingType)) {
+      return NextResponse.json({ message: "Type de logement invalide." }, { status: 400 });
+    }
+
+    const { data: application, error: applicationError } = await gate.sb.from("Application")
+      .select("id,userId,recruiterJobId,status")
+      .eq("id", applicationId)
+      .eq("userId", gate.user.id)
+      .maybeSingle();
+    if (applicationError) throw new Error("APPLICATION_LOOKUP_FAILED: " + applicationError.message);
+    if (!application) return NextResponse.json({ message: "Candidature introuvable pour ce Talent." }, { status: 404 });
+
+    const { data: offers, error: offerError } = await gate.sb.from("RecruitmentOffer")
+      .select("id,applicationId,status,salaryProposed,salaryCurrency,serviceDate,recruitmentId")
+      .eq("applicationId", application.id)
+      .order("createdAt", { ascending: false })
+      .limit(10);
+    if (offerError) throw new Error("RECRUITER_OFFER_LOOKUP_FAILED: " + offerError.message);
+    const offer = (offers || []).find((item: any) => ACCEPTED_OFFER_STATUSES.has(String(item.status || "").toUpperCase()));
+    if (!offer || !Number.isFinite(Number(offer.salaryProposed)) || Number(offer.salaryProposed) <= 0) {
+      return NextResponse.json({
+        message: "Aucune offre recruteur acceptée avec salaire approuvé n'est rattachée à cette candidature. Mobility ne peut pas utiliser un salaire saisi par le Talent.",
+      }, { status: 422 });
+    }
+
+    const { data: recruiterJob, error: jobError } = application.recruiterJobId
+      ? await gate.sb.from("RecruiterJob").select("recruiterUserId,companyName,location").eq("id", application.recruiterJobId).maybeSingle()
+      : { data: null, error: null };
+    if (jobError) throw new Error("RECRUITER_JOB_LOOKUP_FAILED: " + jobError.message);
+    if (!recruiterJob?.recruiterUserId) {
+      return NextResponse.json({ message: "Le recruteur responsable de cette candidature ne peut pas être identifié." }, { status: 422 });
+    }
+
+    const { data: agreement, error: agreementError } = await gate.sb.from("MobilityCompanyAgreement")
+      .select("id,recruiterUserId,accepted,repaymentGuaranteed,payrollDeductionMonths")
+      .eq("recruiterUserId", recruiterJob.recruiterUserId)
+      .eq("accepted", true)
+      .eq("repaymentGuaranteed", true)
+      .order("acceptedAt", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (agreementError) throw new Error("COMPANY_AGREEMENT_LOOKUP_FAILED: " + agreementError.message);
+    if (!agreement) {
+      return NextResponse.json({
+        message: "La convention Mobility de l'employeur n'est pas encore acceptée. Le Talent ne peut pas être présenté comme éligible.",
+        reason: "COMPANY_MOBILITY_AGREEMENT_REQUIRED",
+      }, { status: 422 });
+    }
+
+    const salary = Number(offer.salaryProposed);
+    const salaryCurrency = String(offer.salaryCurrency || "XAF").trim().toUpperCase();
+    const costs = calculateMobilityCosts(depart, arrivee, housingType as "CHAMBRE" | "STUDIO" | "APPART", salary);
+    const mobilityCosts = [
+      { category: "TRANSPORT" as const, amount: costs.transportCost, currency: "XAF", source: "SYSTEM_ESTIMATE" as const },
+      { category: "HOUSING" as const, amount: costs.housingCost * 2, currency: "XAF", source: "SYSTEM_ESTIMATE" as const },
+      { category: "INSTALLATION" as const, amount: costs.movingCost, currency: "XAF", source: "SYSTEM_ESTIMATE" as const },
+    ];
+    const eligibility = calculateMobilityEligibility({
+      approvedSalary: salary,
+      salaryCurrency,
+      costs: mobilityCosts,
+      companyMobilityAgreementAccepted: true,
+      recruiterGuaranteeAccepted: false,
+      userCreatedAt: gate.user.createdAt,
+      repaymentMonths: Number(agreement.payrollDeductionMonths || 3),
+      thresholdPercent: 50,
+    });
+
+    const requestId = crypto.randomUUID();
+    const status = eligibility.status === "INELIGIBLE" ? "INELIGIBLE" : "DRAFT";
+    const { data: request, error: requestError } = await gate.sb.from("MobilityRequest").insert({
+      id: requestId,
+      userId: gate.user.id,
+      applicationId: application.id,
+      recruiterUserId: recruiterJob.recruiterUserId,
+      companyAgreementId: agreement.id,
+      departCity: CAMEROON_CITIES[depart].name,
+      arriveeCity: CAMEROON_CITIES[arrivee].name,
+      departLat: CAMEROON_CITIES[depart].lat,
+      departLng: CAMEROON_CITIES[depart].lng,
+      arriveeLat: CAMEROON_CITIES[arrivee].lat,
+      arriveeLng: CAMEROON_CITIES[arrivee].lng,
+      distanceKm: costs.distanceKm,
+      housingType,
+      salary,
+      salaryApproved: salary,
+      salaryCurrency,
+      salarySource: "RECRUITER_OFFER",
+      costTotal: costs.total,
+      costMonthly: costs.monthly,
+      mobilityFit: costs.mobilityFit,
+      eligibilityThresholdPercent: eligibility.thresholdPercent,
+      eligibilityBurdenPercent: eligibility.burdenPercent,
+      eligibilityStatus: eligibility.status,
+      eligibilityReason: eligibility.reason,
+      eligibilityCalculatedAt: eligibility.calculatedAt,
+      eligibilityVersion: eligibility.version,
+      status,
+      currentStep: 1,
+      subventionPercent: 0,
+      recruiterGuaranteed: false,
+      cniWatermarked: false,
+    }).select("*").single();
+    if (requestError) throw new Error("MOBILITY_REQUEST_CREATE_FAILED: " + requestError.message);
+
+    const { error: costsError } = await gate.sb.from("MobilityCostItem").insert(
+      mobilityCosts.map((item) => ({
+        mobilityRequestId: requestId,
+        category: item.category,
+        amount: item.amount,
+        currency: item.currency,
+        source: item.source,
+        eligibilityStatus: "PENDING",
+      })),
+    );
+    if (costsError) {
+      await gate.sb.from("MobilityRequest").delete().eq("id", requestId).eq("userId", gate.user.id);
+      throw new Error("MOBILITY_COSTS_SAVE_FAILED: " + costsError.message);
+    }
+
+    const { error: decisionError } = await gate.sb.from("MobilityEligibilityDecision").insert({
+      mobilityRequestId: requestId,
+      version: eligibility.version,
+      status: eligibility.status,
+      approvedSalary: salary,
+      salaryCurrency,
+      totalMobilityCost: eligibility.totalMobilityCost,
+      thresholdPercent: eligibility.thresholdPercent,
+      maximumEligibleCost: eligibility.maximumEligibleCost,
+      burdenPercent: eligibility.burdenPercent,
+      companyMobilityAgreementAccepted: eligibility.companyMobilityAgreementAccepted,
+      recruiterGuaranteeAccepted: eligibility.recruiterGuaranteeAccepted,
+      repaymentMonths: eligibility.repaymentMonths,
+      repaymentMonthlyAmount: eligibility.repaymentMonthlyAmount,
+      reason: eligibility.reason,
+      missingInformation: eligibility.missingInformation,
+      calculatedAt: eligibility.calculatedAt,
+    });
+    if (decisionError) {
+      await gate.sb.from("MobilityRequest").delete().eq("id", requestId).eq("userId", gate.user.id);
+      throw new Error("MOBILITY_ELIGIBILITY_SAVE_FAILED: " + decisionError.message);
+    }
+
+    return NextResponse.json({
+      request,
+      costs,
+      eligibility,
+      recruiterGuaranteeRequired: eligibility.status === "NEEDS_INFO",
+    }, { status: 201 });
+  } catch (error) {
+    return NextResponse.json({
+      message: error instanceof Error ? error.message : "Création du dossier Mobility impossible.",
+    }, { status: 500 });
+  }
+}

@@ -335,11 +335,13 @@ Chaque montant doit avoir :
 
 ---
 
-# 10. RÈGLE DU SEUIL DE 35 %
+# 10. RÈGLE DU SEUIL DE 50 %
 
-Règle métier actuelle :
+Règle métier canonique en vigueur au 05/11/2026 :
 
-> **La charge Mobility ne doit pas dépasser 35 % du salaire officiellement approuvé par le Recruiter.**
+> **La charge Mobility ne doit pas dépasser 50 % du salaire officiellement approuvé par le Recruiter.**
+
+Cette règle remplace l'ancienne hypothèse de conception à 35 %. Elle est matérialisée dans la migration de production `20261002141000_mobility_threshold_50_percent.sql` et dans le défaut de `MobilityProgram.eligibilityRule`.
 
 Formule :
 
@@ -347,29 +349,33 @@ Formule :
 
 Éligibilité :
 
-`Mobility burden <= 35%`
+`Mobility burden <= 50%`
 
 Inéligibilité :
 
-`Mobility burden > 35%`
+`Mobility burden > 50%`
 
 Exemple :
 
 Salaire approuvé : 300 000 FCFA.
 
-Plafond à 35 % :
+Plafond à 50 % :
 
-**105 000 FCFA.**
+**150 000 FCFA.**
 
 Si le coût éligible est 90 000 FCFA :
 
-**éligible selon la règle de seuil.**
+**éligible selon la règle de seuil, sous réserve des autres conditions.**
 
 Si le coût éligible est 150 000 FCFA :
 
+**éligible à la limite exacte du seuil, sous réserve des autres conditions.**
+
+Si le coût éligible est supérieur à 150 000 FCFA :
+
 **inéligible selon la règle actuelle.**
 
-Cette règle doit être une règle configurable du moteur à terme, mais **35 % est la règle de niveau 1 actuellement décidée**.
+Le moteur conserve la version de règle appliquée et la décision explicable. Toute modification future du seuil doit passer par une décision métier versionnée, les tests de frontière et une migration contrôlée.
 
 ---
 

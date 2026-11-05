@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "node:crypto";
-import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
-import { inspectCommunityMessage, repeatedViolationAction } from "../../../../lib/communityEventGuard";
+import { getCommunityEntitlementsForUser } from "@/lib/community/access";
+import { moderateCommunityMessage } from "@/lib/community/moderation";
+import { adminClient, ensureUser, getAuthUser, newId } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,70 +9,82 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await getAuthUser(request);
     if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
-    const body = await request.json();
-    const communityId = String(body.communityId ?? "").trim();
-    const content = String(body.content ?? "").trim();
-    if (!communityId || !content) return NextResponse.json({ message: "Communauté et message obligatoires." }, { status: 400 });
-    if (body.mediaUrl || body.media || body.attachments) return NextResponse.json({ message: "Les messages Community sont textuels uniquement." }, { status: 400 });
 
-    const sb = adminClient();
-    const user = await ensureUser(sb, auth);
-    const { data: membership } = await sb.from("CommunityMembership").select("id,role").eq("communityId", communityId).eq("userId", user.id).maybeSingle();
-    if (!membership || membership.role === "BANNED") return NextResponse.json({ message: "Accès à cette communauté refusé." }, { status: 403 });
-
-    const { data: community } = await sb.from("Community").select("id,createdById,name").eq("id", communityId).maybeSingle();
-    if (!community) return NextResponse.json({ message: "Communauté introuvable." }, { status: 404 });
-
-    const decision = inspectCommunityMessage(content);
-    if (decision.blocked) {
-      const { data: prior } = await sb.from("JiaEvent").select("id").eq("userId", user.id).eq("eventType", "COMMUNITY_EVENT_BYPASS").limit(10);
-      const action = repeatedViolationAction(prior?.length ?? 0);
-      await sb.from("JiaEvent").insert({
-        id: crypto.randomUUID(),
-        userId: user.id,
-        eventType: "COMMUNITY_EVENT_BYPASS",
-        path: "/community/" + communityId,
-        metadata: { communityId, confidence: decision.confidence, reasons: decision.reasons, severity: decision.severity, action },
-      });
-      await sb.from("Notification").insert([
-        {
-          id: crypto.randomUUID(), userId: user.id, type: "COMMUNITY_MODERATION",
-          title: "Message retiré", body: "Ce message semble organiser ou contourner un rendez-vous événementiel dans Community. Utilisez Jobly Events.",
-          link: "/events", entityId: communityId, actionType: "COMMUNITY_MESSAGE_REMOVED",
-          actionPayload: { communityId, reasons: decision.reasons }, locale: "fr",
-          channels: { push: false, email: false, inApp: true }, createdAt: new Date().toISOString(),
-        },
-        {
-          id: crypto.randomUUID(), userId: community.createdById, type: "COMMUNITY_MODERATION",
-          title: "Message Community retiré", body: "J’IA a retiré un message qui semblait organiser un rendez-vous événementiel.",
-          link: "/community/" + communityId, entityId: communityId, actionType: "COMMUNITY_MESSAGE_REMOVED",
-          actionPayload: { communityId, authorId: user.id, reasons: decision.reasons, severity: decision.severity }, locale: "fr",
-          channels: { push: false, email: false, inApp: true }, createdAt: new Date().toISOString(),
-        },
-      ]);
-      if (action === "BAN") {
-        await sb.from("CommunityMembership").update({ role: "BANNED" }).eq("communityId", communityId).eq("userId", user.id);
-      }
-      return NextResponse.json({ ok: false, removed: true, action, decision }, { status: 422 });
+    const body = await request.json().catch(() => ({}));
+    const communityId = typeof body.communityId === "string" ? body.communityId.trim() : "";
+    const content = typeof body.content === "string" ? body.content.trim() : "";
+    if (!communityId || !content) {
+      return NextResponse.json({ message: "Communauté et message obligatoires." }, { status: 400 });
+    }
+    if (content.length > 4000) {
+      return NextResponse.json({ message: "Le message est limité à 4 000 caractères." }, { status: 400 });
+    }
+    if (body.mediaUrl || body.media || body.attachments) {
+      return NextResponse.json({ message: "Les messages Community sont textuels uniquement." }, { status: 400 });
     }
 
-    const now = new Date().toISOString();
-    const { data: post, error } = await sb.from("CommunityPost").insert({
-      id: crypto.randomUUID(),
+    const db = adminClient();
+    const user = await ensureUser(db, auth);
+    const entitlement = await getCommunityEntitlementsForUser(db, user.id);
+    if (!entitlement.communityAccess) {
+      return NextResponse.json({ message: "Un abonnement actif est requis.", code: "COMMUNITY_SUBSCRIPTION_REQUIRED" }, { status: 403 });
+    }
+
+    const { data: community, error: communityError } = await db
+      .from("Community")
+      .select("id,createdById,status")
+      .eq("id", communityId)
+      .maybeSingle();
+    if (communityError) throw new Error(communityError.message);
+    if (!community || community.status !== "ACTIVE") {
+      return NextResponse.json({ message: "Communauté introuvable." }, { status: 404 });
+    }
+
+    const { data: membership, error: membershipError } = await db
+      .from("CommunityMembership")
+      .select("id,role")
+      .eq("communityId", communityId)
+      .eq("userId", user.id)
+      .maybeSingle();
+    if (membershipError) throw new Error(membershipError.message);
+    if (!membership || membership.role === "BANNED") {
+      return NextResponse.json({ message: "Accès à cette communauté refusé." }, { status: 403 });
+    }
+
+    const moderation = await moderateCommunityMessage({
+      db,
+      userId: user.id,
       communityId,
-      authorId: user.id,
+      communityOwnerId: community.createdById,
       content,
-      status: "PUBLISHED",
-      sourceType: null,
-      sourceId: null,
-      mediaUrl: null,
-      sourceUrl: null,
-      createdAt: now,
-      updatedAt: now,
-    }).select("*").single();
-    if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+    });
+    if (moderation) return NextResponse.json(moderation, { status: 422 });
+
+    const now = new Date().toISOString();
+    const { data: post, error } = await db
+      .from("CommunityPost")
+      .insert({
+        id: newId(),
+        communityId,
+        authorId: user.id,
+        content,
+        status: "PUBLISHED",
+        sourceType: null,
+        sourceId: null,
+        mediaUrl: null,
+        sourceUrl: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .select("*")
+      .single();
+
+    if (error) throw new Error(error.message);
     return NextResponse.json({ post }, { status: 201 });
-  } catch (e) {
-    return NextResponse.json({ message: e instanceof Error ? e.message : "Publication impossible." }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : "Publication impossible." },
+      { status: 500 },
+    );
   }
 }
