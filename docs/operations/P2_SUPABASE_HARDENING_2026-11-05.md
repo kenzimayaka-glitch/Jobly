@@ -3,7 +3,7 @@
 **Snapshot:** 2026-11-05  
 **Production project:** JOBLY-PROD (`mpoyaegtwtmhookdzqdy`)  
 **Code target:** `main`  
-**Working branch:** `fix/p2-supabase-hardening-20261105`
+**Working branch:** `fix/p2-supabase-hardening-20261105-r2`
 
 ## Current production evidence
 
@@ -37,7 +37,7 @@
 
 ## Validation / deployment status
 
-- GitHub branch created from `main`: `fix/p2-supabase-hardening-20261105`.
+- GitHub branch created from `main`: `fix/p2-supabase-hardening-20261105-r2`.
 - Migration and assertion script are staged in this branch.
 - Supabase production has not been modified.
 - `main` has not been modified or merged.
