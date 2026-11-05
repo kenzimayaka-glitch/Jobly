@@ -89,9 +89,8 @@ export async function POST(req:NextRequest){
     if(String(resolved.application.userId)===String(u.id))
      return NextResponse.json({message:"Un candidat ne peut pas générer un rapport recruteur pour sa propre candidature."},{status:403});
    }
-   const {data,error}=await s.rpc("recruitment360_lot7_generate_report",{
-    p_recruitment_id:recruitmentId,p_actor_user_id:u.id,
-    p_report_type:b.reportType??"RECRUITMENT",p_application_id:b.applicationId??null
+   const {data,error}=await s.rpc("recruitment360_lot7_get_report",{
+    p_recruitment_id:recruitmentId,p_actor_user_id:u.id
    });
    if(error)throw error;
    return NextResponse.json({report:data},{status:201});
