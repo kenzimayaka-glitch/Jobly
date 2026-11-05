@@ -233,7 +233,8 @@ function JobDetailInner() {
   if (loading) return <main className="grid min-h-[100dvh] place-items-center bg-[#F7FAFF] font-bold text-[#17212B]">Chargement…</main>;
   if (error || !job) return <main className="talent-shell min-h-[100dvh] bg-[#F7FAFF] text-navy"><PageHeader label="Offre" onBack={() => router.replace("/jobs")} theme="talent"/><div className="mx-auto mt-8 max-w-2xl px-5"><div className="rounded-[24px] bg-white p-6 shadow-sm"><h1 className="text-xl font-black">Offre indisponible</h1><p className="mt-2 text-sm text-slate-500">{error || "Cette offre n’est plus disponible."}</p><button onClick={() => router.replace("/jobs")} className="mt-5 rounded-2xl bg-[#22448B] px-5 py-3 text-sm font-black text-white">Retour aux offres</button></div></div></main>;
 
-  const normalized = job.normalizedContent;
+  const currentJob = job;
+  const normalized = currentJob.normalizedContent;
   const normalizedDescription = Array.isArray(normalized?.description) ? normalized.description.join("\n\n") : "";
   const normalizedIdentity = normalizeJobIdentity({
     title: normalized?.title || job.displayTitle || job.title,
@@ -332,13 +333,13 @@ function JobDetailInner() {
   const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Candidature sur la plateforme externe du recruteur" : sourceLink ? "Candidature à poursuivre sur le site du promoteur" : null;
 
   function openExternalApplication(url: string) {
-    announceExternalApplicationToJia({ jobId: String(job.id), source: String(source || "discovery"), title: displayTitle, company, targetUrl: url, sourceUrl: sourceLink, description: normalizedIdentity.description || job.description });
+    announceExternalApplicationToJia({ jobId: String(currentJob.id), source: String(source || "discovery"), title: displayTitle, company, targetUrl: url, sourceUrl: sourceLink, description: normalizedIdentity.description || currentJob.description });
     const opened = window.open(url, "_blank", "noopener,noreferrer");
     if (!opened) setError("Le navigateur a bloqué l’ouverture du site du recruteur. Utilise le lien officiel affiché dans la fiche.");
   }
 
   function assistWithExternalApplication() {
-    announceExternalApplicationToJia({ jobId: String(job.id), source: String(source || "discovery"), title: displayTitle, company, targetUrl: applicationLink || sourceLink, sourceUrl: sourceLink, description: normalizedIdentity.description || job.description });
+    announceExternalApplicationToJia({ jobId: String(currentJob.id), source: String(source || "discovery"), title: displayTitle, company, targetUrl: applicationLink || sourceLink, sourceUrl: sourceLink, description: normalizedIdentity.description || currentJob.description });
   }
 
 
