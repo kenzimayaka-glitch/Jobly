@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getSupabaseClient } from "../lib/supabase";
 
 const PLAN_LABEL: Record<string, string> = { FREE: "Vous utilisez l'offre gratuite.", START: "Votre abonnement Start est actif.", PREMIUM: "Votre abonnement Premium est actif.", PRO: "Votre abonnement Pro est actif." };
 
@@ -10,7 +11,21 @@ export default function SubscriptionCard({ ecosystem }: { ecosystem: "TALENT" | 
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    fetch("/api/entitlements").then((r) => r.json()).then(setData).catch(() => {});
+    let alive = true;
+    (async () => {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+      const response = await fetch("/api/entitlements", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("ENTITLEMENTS_UNAVAILABLE");
+      const payload = await response.json();
+      if (alive) setData(payload);
+    })().catch(() => {
+      if (alive) setData(null);
+    });
+    return () => { alive = false; };
   }, []);
 
   const plan = data?.subscription?.plan || "FREE";
