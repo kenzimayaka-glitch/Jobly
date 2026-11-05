@@ -383,9 +383,87 @@ model Payment {
   failureReason   String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  smsIntent       PaymentSmsIntent?
+  smsReceipts     PaymentSmsReceipt[]
   @@unique([userId, idempotencyKey])
   @@index([userId, createdAt])
   @@index([subscriptionId])
+}
+
+model PaymentSmsDevice {
+  id          String   @id @default(uuid()) @db.Uuid
+  deviceId    String   @unique
+  tokenHash   String
+  isActive    Boolean  @default(false)
+  lastSeenAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  accounts    PaymentSmsMerchantAccount[]
+  receipts    PaymentSmsReceipt[]
+}
+
+model PaymentSmsMerchantAccount {
+  id              String   @id @default(uuid()) @db.Uuid
+  deviceId        String   @db.Uuid
+  provider        String
+  merchantAccount String
+  shortCode       String
+  ussdCode        String
+  senderAllowlist String[] @default([])
+  isActive        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  device          PaymentSmsDevice @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  intents         PaymentSmsIntent[]
+  receipts        PaymentSmsReceipt[]
+  @@unique([provider, merchantAccount])
+  @@index([deviceId, isActive])
+}
+
+model PaymentSmsIntent {
+  id                    String   @id @default(uuid()) @db.Uuid
+  paymentId             String   @unique
+  provider              String
+  merchantAccountId     String   @db.Uuid
+  payerPhone            String
+  internalReference     String   @unique
+  declaredTransactionId String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  payment               Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  merchantAccount       PaymentSmsMerchantAccount @relation(fields: [merchantAccountId], references: [id], onDelete: Restrict)
+  @@index([provider, payerPhone, createdAt])
+  @@index([merchantAccountId, createdAt])
+}
+
+model PaymentSmsReceipt {
+  id                    String   @id @default(uuid()) @db.Uuid
+  deviceId              String   @db.Uuid
+  merchantAccountId     String?  @db.Uuid
+  paymentId             String?  @unique
+  provider              String?
+  senderId              String
+  senderTrusted         Boolean  @default(false)
+  transactionId         String?
+  payerPhone            String?
+  parsedMerchantAccount String?
+  amount                Int?
+  currency              String?
+  messageStatus         String   @default("UNKNOWN")
+  processingStatus     String   @default("RECEIVED")
+  parserVersion         String?
+  payloadHash           String   @unique
+  occurredAt            DateTime?
+  receivedAt            DateTime @default(now())
+  matchedAt             DateTime?
+  anomalyCodes          String[] @default([])
+  device                PaymentSmsDevice @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  merchantAccount       PaymentSmsMerchantAccount? @relation(fields: [merchantAccountId], references: [id], onDelete: Restrict)
+  payment               Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  @@unique([provider, transactionId])
+  @@index([deviceId, receivedAt])
+  @@index([processingStatus, receivedAt])
 }
 
 model Partner {
