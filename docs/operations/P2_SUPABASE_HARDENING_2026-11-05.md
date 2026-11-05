@@ -1,9 +1,9 @@
 # Jobly — Audit sécurité et performance Supabase (P2)
 
-**Dernière vérification :** 5 novembre 2026, 23:52 Africa/Douala  
+**Dernière vérification :** 6 novembre 2026  
 **Projet :** JOBLY-PROD (`mpoyaegtwtmhookdzqdy`) — PostgreSQL 17.6.1.166  
 **Organisation :** Jobly — plan Free  
-**Branche principale de cette mise à jour :** `af170ce5710b324061f6827623192489ad0c8e40`
+**HEAD `main` avant cette mise à jour :** `7447514b5a37a443543c4cfe24742405780923fd`
 
 ## Corrections réellement appliquées
 
@@ -109,9 +109,51 @@ Le script [p2_supabase_admin_default_acl.sql](../../supabase/operations/p2_supab
 
 L'historique de production contient `20261105175610 / p2_supabase_hardening_20261105`, mais aucun fichier de migration correspondant n'a été retrouvé sous `supabase/migrations` sur `main`. Le SQL exact n'a pas été reconstitué artificiellement. Cet écart de traçabilité reste à réconcilier depuis sa source d'origine.
 
+
+## Contrôle de suivi — 6 novembre 2026
+
+### État réel des deux WARN de sécurité
+
+**pg_net — toujours WARN, mais dépendance active vérifiée**
+
+Le contrôle SQL complémentaire confirme :
+
+- extension pg_net 0.20.4, enregistrée dans public, propriétaire supabase_admin ;
+- postgres n'est pas membre de supabase_admin et ne peut donc pas prendre ce rôle ;
+- file net.http_request_queue vide au moment du contrôle ;
+- le cron Jobly jobid=1, planifié à 15 */6 * * *, appelle bien net.http_post vers la fonction Edge /functions/v1/discover-jobs.
+
+**Décision :** ne pas supprimer/recréer l'extension ni désactiver le cron depuis ce rôle. Cela interromprait le mécanisme d'ingestion périodique. La correction exige une intervention privilégiée Supabase/support, coordonnée avec la préservation du cron et un test HTTP 2xx de la fonction après bascule. Le WARN reste ouvert en attendant cette intervention.
+
+**Protection HIBP — toujours WARN, contrainte de forfait**
+
+Le projet est toujours sur le plan Free. La documentation Supabase confirme que la protection intégrée HaveIBeenPwned est disponible sur Pro et au-dessus. Aucun changement d'offre ni paiement n'a été autorisé ou effectué. Ce WARN reste ouvert jusqu'à une décision de forfait ou à une solution de contrôle distincte qui ne prétendrait pas activer le réglage Supabase natif.
+
+### État réel des INFO de performance
+
+- Les 38 FK non indexées sont toujours réparties sur les mêmes 31 tables ; les 31 comptages SQL exacts sont à **0 ligne**. L'ajout immédiat de 38 index créerait des structures sans bénéfice de requête actuel et risquerait de rajouter des alertes d'index inutilisés. L'indexation est donc différée jusqu'à l'arrivée de données ou l'activation mesurée des parcours.
+- Les 168 index inutilisés totalisent **2 342 912 octets (2 288 Kio, environ 2,23 Mio)**. Les quatre index doublons exacts déjà identifiés ont été supprimés ; les index uniques équivalents sont conservés. Les 168 restants couvrent notamment des parcours de Recrutement 360, Mobility, Paiements, Community/Campus et J'IA. Leur suppression en bloc n'est pas sûre sans analyse des requêtes et plans d'exécution représentatifs ; aucune suppression supplémentaire n'a été faite.
+- Health Advisor : **0 alerte**.
+
+### CI — vérification terminée
+
+Les cinq workflows déclenchés par le commit c39531353821b3aa68bd03852789c5c198f657ea sont tous terminés avec succès :
+
+| Workflow | Run GitHub | Résultat |
+|---|---:|---|
+| Verify offer pipeline | [42125190894](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42125190894) | SUCCESS |
+| Jobly CI — Typecheck & Build | [42125190919](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42125190919) | SUCCESS |
+| Verify Africa source registry | [42125190940](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42125190940) | SUCCESS |
+| Offer migration to latest version | [42125191115](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42125191115) | SUCCESS |
+| Jobly Offer 360 Audit | [42125190713](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42125190713) | SUCCESS |
+
+Les étapes TypeScript, build de production, tests de régression Mission Afrique, Event Core, Mobility, Billing, vérification du registre Afrique, migration des offres et audit des offres actives sont vertes. La CI liée à ce commit est donc **5/5 verte**.
+
+Ce suivi documentaire ne déclenche pas de déploiement applicatif : aucune modification de code applicatif n'est incluse dans cette mise à jour. Aucun déploiement Netlify n'est utilisé.
+
 ## Verdict
 
-**P2 : les corrections sûres ont été appliquées ; les INFO restantes sont documentées et conditionnées à des données/à un trafic réel. Le chantier n'est pas entièrement vert dans l'Advisor.**
+**P2 : la CI associée au correctif est verte (5/5), mais le chantier n'est pas entièrement vert dans les Advisors Supabase.** Les 38 INFO FK et 168 INFO d'index restent visibles, examinées et différées pour éviter une optimisation sans données/risque de régression. Les deux WARN de sécurité restent ouverts : pg_net exige une intervention privilégiée sans interrompre le cron de découverte ; HIBP nécessite le plan Pro ou supérieur.
 
 - 72 alertes RLS/no-policy : corrigées.
 - Defaults d'EXECUTE pour les futures fonctions créées par `postgres` : durcis.
