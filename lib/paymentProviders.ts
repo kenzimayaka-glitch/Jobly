@@ -172,7 +172,7 @@ export class IClanProvider implements PaymentProvider {
       externalId: returnedExternalId,
       status: status as "SUCCESSFUL" | "FAILED" | "PENDING",
       amount: data.payment_amount == null ? undefined : Number(data.payment_amount),
-      currency: String(data.payment_currency ?? data.currency ?? "XAF"),
+      currency: data.payment_currency ?? data.currency,
       transactionId: data.transaction_id,
       paymentMethod: data.payment_method,
       paymentTelephone: data.payment_telephone,
