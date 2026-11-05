@@ -5,6 +5,29 @@ import { getCareerJourneyEntitlements } from "@/lib/careerJourneyEntitlements";
 
 const formats = new Set(["MCQ","CASE","ROLEPLAY","PRACTICAL","ORAL","PORTFOLIO"]);
 
+async function rollbackAssessmentAttempt(args: {
+  supabase: any;
+  userId: string;
+  assessment: any;
+  attemptId: string;
+  restoreAssessment: boolean;
+}) {
+  const failures: string[] = [];
+  if (args.restoreAssessment) {
+    const { error } = await args.supabase.from("CareerCompetencyAssessment").update({
+      score: args.assessment.score,
+      resultSummary: args.assessment.resultSummary,
+      dimensions: args.assessment.dimensions,
+      limitations: args.assessment.limitations,
+    }).eq("id", args.assessment.id).eq("userId", args.userId);
+    if (error) failures.push(`restauration de l'évaluation : ${error.message}`);
+  }
+  const { error: deleteError } = await args.supabase.from("CareerCompetencyAttempt")
+    .delete().eq("id", args.attemptId).eq("userId", args.userId);
+  if (deleteError) failures.push(`suppression de la tentative partielle : ${deleteError.message}`);
+  return failures;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const ctx = await getOrCreateJourney(request);
@@ -27,7 +50,8 @@ export async function POST(request: NextRequest) {
       if (lookupError) throw new Error(lookupError.message);
       if (!assessment) return NextResponse.json({ message: "Évaluation introuvable." }, { status: 404 });
 
-      const { data: last } = await ctx.supabase.from("CareerCompetencyAttempt").select("attemptNumber").eq("assessmentId", assessment.id).order("attemptNumber", { ascending: false }).limit(1).maybeSingle();
+      const { data: last, error: lastAttemptError } = await ctx.supabase.from("CareerCompetencyAttempt").select("attemptNumber").eq("assessmentId", assessment.id).order("attemptNumber", { ascending: false }).limit(1).maybeSingle();
+      if (lastAttemptError) throw new Error(`Impossible de déterminer le numéro de tentative : ${lastAttemptError.message}`);
       const attemptNumber = (last?.attemptNumber ?? 0) + 1;
       const score = body.score == null ? null : Math.max(0, Math.min(100, Math.round(Number(body.score))));
       const answers = sanitizeAssessmentAnswers(body.answers);
@@ -54,8 +78,13 @@ export async function POST(request: NextRequest) {
           .eq("userId", ctx.user.id)
           .select("id")
           .maybeSingle();
-        if (updateAssessmentError) throw new Error(`Impossible de sauvegarder le résultat de l'évaluation : ${updateAssessmentError.message}`);
-        if (!updatedAssessment) throw new Error("Le résultat de l'évaluation n'a modifié aucun enregistrement.");
+        if (updateAssessmentError || !updatedAssessment) {
+          const reason = updateAssessmentError?.message ?? "aucun enregistrement modifié";
+          const rollbackFailures = await rollbackAssessmentAttempt({
+            supabase: ctx.supabase, userId: ctx.user.id, assessment, attemptId: data.id, restoreAssessment: false,
+          });
+          throw new Error(`Impossible de sauvegarder le résultat de l'évaluation : ${reason}.${rollbackFailures.length ? ` Retour arrière incomplet : ${rollbackFailures.join("; ")}` : " Tentative partielle supprimée."}`);
+        }
 
         const { data: evidence, error: evidenceError } = await ctx.supabase.from("CareerEvidence").insert({
           id: crypto.randomUUID(), userId: ctx.user.id, assessmentId: assessment.id,
@@ -65,7 +94,13 @@ export async function POST(request: NextRequest) {
           acceptedByUser: Boolean(body.acceptedByUser),
           metadata: { score, attemptNumber, format: assessment.format },
         }).select("id").single();
-        if (evidenceError) throw new Error(`Impossible de sauvegarder la preuve d'évaluation : ${evidenceError.message}`);
+        if (evidenceError || !evidence) {
+          const reason = evidenceError?.message ?? "aucune preuve retournée";
+          const rollbackFailures = await rollbackAssessmentAttempt({
+            supabase: ctx.supabase, userId: ctx.user.id, assessment, attemptId: data.id, restoreAssessment: true,
+          });
+          throw new Error(`Impossible de sauvegarder la preuve d'évaluation : ${reason}.${rollbackFailures.length ? ` Retour arrière incomplet : ${rollbackFailures.join("; ")}` : " Résultat et tentative annulés."}`);
+        }
         evidenceId = evidence.id;
       }
       return NextResponse.json({ ok: true, attempt: data, evidenceId, note: "Le test reste facultatif et ne bloque ni le profil ni la candidature." });
