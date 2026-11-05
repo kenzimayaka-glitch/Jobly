@@ -126,7 +126,7 @@ assert "verifiedOutcomeRuns" in health_route and '.eq("outcome->>isOutcome", "tr
 assert "outcomes: true" not in health_route, "J'IA health must not claim outcomes without persisted evidence"
 
 mission_update = career_journey[career_journey.index("export async function updateMission"):career_journey.index("export async function validateMissionOwnership")]
-assert "missionUpdateError" in mission_update and "if (!missionUpdate)" in mission_update, "Mission transitions must persist their audit journal"
+assert "missionUpdateError" in mission_update and "if (missionUpdateError || !missionUpdate)" in mission_update, "Mission transitions must persist their audit journal"
 assert '.eq("status", mission.status)' in mission_update and "rollback" in mission_update, "Mission transitions must guard concurrency and compensate an audit failure"
 
 journey_route = read("app/api/career-journey/route.ts")
