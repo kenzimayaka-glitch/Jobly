@@ -17,6 +17,7 @@
     "test:jia-watch": "node scripts/jia-watch-intelligence-smoke.mjs",
     "test:career-os": "node scripts/career-os-gate.mjs",
     "test:africa-p0": "node --experimental-strip-types --test scripts/africa-p0.test.mjs",
+    "test:event-core": "node --experimental-strip-types --test scripts/event-core-p1.test.mjs",
     "test:billing": "node --experimental-strip-types --test scripts/billing-lifecycle.test.mjs",
     "test:mobility-p1": "node --experimental-strip-types --test scripts/mobility-p1.test.mjs",
     "test:p2-ecosystem": "node --test scripts/p2-community-bons-plans-campus.test.mjs"
