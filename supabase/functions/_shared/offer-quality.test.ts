@@ -23,6 +23,17 @@ Deno.test("offer with short description requires content review", () => {
   );
 });
 
+Deno.test("HTML-only content does not pass the description threshold", () => {
+  assertEquals(
+    deriveOfferQualityStatus({
+      title: "Data Analyst",
+      description: "<div><p> </p><span></span></div>",
+      sourceUrl: "https://jobs.example.org/data-analyst",
+    }),
+    "needs_review",
+  );
+});
+
 Deno.test("offer without a source URL requires review", () => {
   assertEquals(
     deriveOfferQualityStatus({
