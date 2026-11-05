@@ -66,6 +66,12 @@ const cleanList = (value: unknown, maxItems = 30): string[] =>
     ? Array.from(new Set(value.map((item) => cleanText(item)).filter((item) => item.length >= 2))).slice(0, maxItems)
     : [];
 
+const optionalNumber = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
 export function buildGeminiBatchPrompt(offers: OfferForAi[]): string {
   const payload = offers.map((offer) => {
     const normalized = asRecord(offer.normalizedContent);
@@ -182,14 +188,12 @@ export function normalizeGeminiOffer(
     contractType: cleanText(raw.contractType, 80) || existing.contractType || null,
     remoteMode: cleanText(raw.remoteMode, 40) || existing.remoteMode || null,
     salary: {
-      min: Number.isFinite(Number(salary.min)) ? Number(salary.min) : asRecord(existing.salary).min ?? null,
-      max: Number.isFinite(Number(salary.max)) ? Number(salary.max) : asRecord(existing.salary).max ?? null,
+      min: optionalNumber(salary.min) ?? optionalNumber(asRecord(existing.salary).min),
+      max: optionalNumber(salary.max) ?? optionalNumber(asRecord(existing.salary).max),
       currency: cleanText(salary.currency, 12) || cleanText(asRecord(existing.salary).currency, 12) || null,
       raw: cleanText(salary.raw, 200) || null,
     },
-    minExperienceYears: Number.isFinite(Number(raw.minExperienceYears))
-      ? Number(raw.minExperienceYears)
-      : existing.minExperienceYears ?? null,
+    minExperienceYears: optionalNumber(raw.minExperienceYears) ?? optionalNumber(existing.minExperienceYears),
     deadline: cleanText(raw.deadline, 80) || existing.deadline || null,
     summary: summary || null,
     description: sections.description,
@@ -219,8 +223,13 @@ export function normalizeGeminiOffer(
       provider: "GEMINI",
       model,
       confidence: confidence === "HIGH" || confidence === "LOW" ? confidence : "MEDIUM",
-      qualityScore: Number.isFinite(quality) ? Math.max(0, Math.min(100, quality)) : null,
+      qualityScore: optionalNumber(quality) !== null ? Math.max(0, Math.min(100, Number(quality))) : null,
       flags,
+      processedAt,
+    },
+    aiProcessing: {
+      status: "COMPLETE",
+      provider: "GEMINI",
       processedAt,
     },
   };
