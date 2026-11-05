@@ -25,6 +25,13 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Test bounded Supabase ID batches
         run: node --test scripts/lib/supabase-batch-query.test.mjs
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Test Gemini offer normalization and adaptive display contract
+        run: deno test supabase/functions/job-offer-ai-normalize/normalizer.test.ts
+      - name: Type-check Gemini offer normalization function
+        run: deno check --node-modules-dir=auto supabase/functions/job-offer-ai-normalize/index.ts
       - run: pnpm typecheck
       - run: pnpm build
       - name: J'IA Watch B3.1 smoke
