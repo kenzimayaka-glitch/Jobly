@@ -1,0 +1,64 @@
+name: Delete merged same-repository PR branches
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  delete-merged-branch:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Delete only the exact merged PR head ref
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          if [[ "${HEAD_REPO}" != "${REPO}" ]]; then
+            echo "SKIP: PR head is from another repository"; exit 0
+          fi
+          if [[ -z "${HEAD_BRANCH}" || "${HEAD_BRANCH}" == "main" || "${HEAD_BRANCH}" == "${BASE_BRANCH}" ]]; then
+            echo "SKIP: protected/default/base ref"; exit 0
+          fi
+          api="https://api.github.com/repos/${REPO}"
+          headers=(-H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
+          pr="$(curl -fsS "${headers[@]}" "${api}/pulls/${PR_NUMBER}")"
+          if ! jq -e --arg branch "${HEAD_BRANCH}" --arg sha "${HEAD_SHA}" '
+            .state == "closed" and .merged_at != null and
+            .head.ref == $branch and .head.sha == $sha
+          ' >/dev/null <<<"${pr}"; then
+            echo "SKIP: merged PR evidence does not match event"; exit 0
+          fi
+          open_prs="$(curl -fsS "${headers[@]}" "${api}/pulls?state=open&per_page=100")"
+          if jq -e --arg branch "${HEAD_BRANCH}" '
+            any(.[]; .head.ref == $branch or .base.ref == $branch)
+          ' >/dev/null <<<"${open_prs}"; then
+            echo "SKIP: branch is still referenced by an open PR"; exit 0
+          fi
+          encoded="$(jq -rn --arg value "${HEAD_BRANCH}" '$value|@uri')"
+          branch_info="$(curl -fsS "${headers[@]}" "${api}/branches/${encoded}")"
+          actual_sha="$(jq -r '.commit.sha' <<<"${branch_info}")"
+          protected="$(jq -r '.protected' <<<"${branch_info}")"
+          if [[ "${actual_sha}" != "${HEAD_SHA}" || "${protected}" != "false" ]]; then
+            echo "SKIP: branch head advanced or branch is protected"; exit 0
+          fi
+          code="$(curl -sS -o /tmp/delete-response -w '%{http_code}' -X DELETE "${headers[@]}" "${api}/git/refs/heads/${encoded}")"
+          if [[ "${code}" == "204" ]]; then
+            echo "DELETED: ${HEAD_BRANCH} @ ${HEAD_SHA} (merged PR #${PR_NUMBER})"
+          else
+            echo "SKIP: GitHub returned HTTP ${code}"
+            cat /tmp/delete-response || true
+            exit 1
+          fi
