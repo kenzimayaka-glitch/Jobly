@@ -103,7 +103,7 @@ export default function Recruitment360InterviewsPage() {
           <label className="grid gap-1 text-sm">Lien HTTPS de réunion<input required type="url" value={meetingUrl} onChange={(event) => setMeetingUrl(event.target.value)} placeholder="https://…" className="rounded-xl border p-3" /></label>
           <label className="grid gap-1 text-sm">Lieu (facultatif)<input value={location} onChange={(event) => setLocation(event.target.value)} className="rounded-xl border p-3" /></label>
           <label className="grid gap-1 text-sm">Notes (facultatif)<textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-20 rounded-xl border p-3" /></label>
-          <Button submit disabled={!applicationId || !startsAt || !endsAt || !meetingUrl || busy !== null} loading={busy === "schedule"}>Planifier l'entretien</Button>
+          <Button type="submit" disabled={!applicationId || !startsAt || !endsAt || !meetingUrl || busy !== null} loading={busy === "schedule"}>Planifier l'entretien</Button>
         </form>
       </Card>
       <section className="mt-6 space-y-3">
