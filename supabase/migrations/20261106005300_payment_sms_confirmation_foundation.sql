@@ -126,7 +126,7 @@ DECLARE
   v_account public."PaymentSmsMerchantAccount"%ROWTYPE;
   v_candidate_count integer := 0;
   v_payment_id text;
-  v_payment_user_id text;
+  v_payment public."Payment"%ROWTYPE;
   v_finalize jsonb;
   v_reference_time timestamptz;
   v_now timestamptz := clock_timestamp();
@@ -240,15 +240,28 @@ BEGIN
     );
   END IF;
 
-  SELECT p."userId"
-    INTO v_payment_user_id
-    FROM public."Payment" p
-   WHERE p.id = v_payment_id
+  -- Serialize competing receipts for the same order. A second, different SMS
+  -- cannot activate a payment already finalized by the first receipt.
+  SELECT *
+    INTO v_payment
+    FROM public."Payment"
+   WHERE id = v_payment_id
    FOR UPDATE;
+
+  IF NOT FOUND OR v_payment.status NOT IN ('CREATED', 'PENDING') THEN
+    UPDATE public."PaymentSmsReceipt"
+       SET "processingStatus" = 'UNMATCHED',
+           "anomalyCodes" = array_append(
+             coalesce("anomalyCodes", '{}'::text[]),
+             'PAYMENT_ALREADY_SETTLED'
+           )
+     WHERE id = p_receipt_id;
+    RETURN jsonb_build_object('matched', false, 'decision', 'PAYMENT_ALREADY_SETTLED');
+  END IF;
 
   v_finalize := public.finalize_payment(
     v_payment_id,
-    v_payment_user_id,
+    v_payment."userId",
     'SUCCESSFUL',
     v_receipt.amount,
     v_now,
