@@ -45,7 +45,14 @@ export async function POST(request:NextRequest){
       return NextResponse.json({status:"PENDING",message:verification.message??"Paiement en attente."},{status:202});
     }
     if(verification.status==="FAILED"){
-      return fail(verification.message??"Le paiement a été refusé.",409,"PAYMENT_FAILED");
+      const failedAt=new Date().toISOString();
+      const writes=await Promise.all([
+        sb.from("Payment").update({status:"FAILED",failureReason:"PROVIDER_PAYMENT_FAILED",updatedAt:failedAt}).eq("id",payment.id),
+        sb.from("EventFeaturedCampaign").update({status:"PAYMENT_FAILED",updatedAt:failedAt}).eq("id",campaign.id)
+      ]);
+      const writeFailure=writes.find(result=>result.error);
+      if(writeFailure?.error)throw new Error(writeFailure.error.message);
+      return fail(verification.message??"Le paiement a été refusé. Le créneau est libéré.",409,"PAYMENT_FAILED");
     }
 
     const verificationError=eventPaymentVerificationError({
