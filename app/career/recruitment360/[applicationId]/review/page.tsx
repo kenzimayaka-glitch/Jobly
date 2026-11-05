@@ -92,7 +92,7 @@ export default function CandidateRecruitmentReviewPage(){
      <select value={recommendation} onChange={e=>setRecommendation(e.target.value)} className="rounded-xl border p-3 font-normal"><option value="">Sans réponse</option><option value="true">Oui</option><option value="false">Non</option></select>
     </label>
     <label className="grid gap-1 text-sm font-semibold">Votre commentaire (facultatif)<textarea maxLength={2000} value={comment} onChange={e=>setComment(e.target.value)} className="min-h-28 rounded-xl border p-3 font-normal" placeholder="Partagez votre expérience…"/></label>
-    <Button type="submit" disabled={busy} loading={busy}>Enregistrer mon avis</Button>
+    <Button type="submit" disabled={busy||review?.status==="PUBLISHED"} loading={busy}>Enregistrer mon avis</Button>
    </form>
   </Card>:null}
  </AppShell>;
