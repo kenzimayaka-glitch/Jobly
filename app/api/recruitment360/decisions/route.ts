@@ -10,7 +10,7 @@ export async function GET(req:NextRequest){
   const sb=adminClient(), user=await ensureUser(sb,auth);
   const applicationId=req.nextUrl.searchParams.get("applicationId");
   if(applicationId){
-   const {data,error}=await sb.rpc("recruitment360_lot6_get_workspace",{p_application_id:applicationId,p_actor_user_id:user.id});
+   const {data:application,error:applicationError}=await sb.from("Application").select("userId").eq("id",applicationId).maybeSingle();if(applicationError)throw applicationError;if(!application)return NextResponse.json({message:"Candidature introuvable."},{status:404});const actorUserId=String(application.userId)===String(auth.id)?String(auth.id):String(user.id);const {data,error}=await sb.rpc("recruitment360_lot6_get_workspace",{p_application_id:applicationId,p_actor_user_id:actorUserId});
    if(error)throw new Error(error.message);
    return NextResponse.json({workspace:data});
   }
@@ -32,9 +32,9 @@ export async function GET(req:NextRequest){
   const decisionMap=new Map((decisionsRes.data??[]).map((x:any)=>[x.applicationId,x]));
   const jobMap=new Map((jobsRes.data??[]).map((x:any)=>[x.id,x]));
   const userIds=[...new Set((appsRes.data??[]).map((a:any)=>a.userId).filter(Boolean))];
-  const usersRes=userIds.length?await sb.from("User").select("id,firstName,lastName,displayName").in("id",userIds):{data:[],error:null};
+  const usersRes=userIds.length?await sb.from("User").select("id,authUserId,firstName,lastName,displayName").in("authUserId",userIds):{data:[],error:null};
   if(usersRes.error)throw new Error(usersRes.error.message);
-  const nameMap=new Map((usersRes.data??[]).map((u:any)=>[u.id,u.displayName||[u.firstName,u.lastName].filter(Boolean).join(" ")||"Candidat"]));
+  const nameMap=new Map((usersRes.data??[]).map((u:any)=>[u.authUserId,u.displayName||[u.firstName,u.lastName].filter(Boolean).join(" ")||"Candidat"]));
   const candidates=(appsRes.data??[]).map((a:any)=>({applicationId:a.id,candidateName:nameMap.get(a.userId)||"Candidat",jobTitle:jobMap.get(a.recruiterJobId)?.title||"Poste",companyName:jobMap.get(a.recruiterJobId)?.companyName||"",candidateState:stateMap.get(a.id)?.currentState||a.recruitment360Status||"SENT",decision:decisionMap.get(a.id)||null,salaryExpectation:a.salaryExpectation,salaryCurrency:a.salaryCurrency||"XAF"})).filter((x:any)=>["SELECTED","TEST","INTERVIEW","FINALIST","OFFER","POOL"].includes(x.candidateState));
   return NextResponse.json({candidates});
  }catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Erreur."},{status:500});}
