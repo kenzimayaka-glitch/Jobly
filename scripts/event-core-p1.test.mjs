@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { getEventPricing, validateEventMedia } from "../lib/events.ts";
 import { eventPaymentVerificationError } from "../lib/eventPaymentVerification.ts";
+import { inspectEventMedia, readMp4DurationSeconds } from "../lib/eventMedia.ts";
 
 test("Event Core pricing matches all published duration tiers", () => {
   assert.deepEqual(getEventPricing(1), { durationDays: 1, pricePerDay: 2000, total: 2000 });
@@ -38,4 +39,11 @@ test("Event payments cannot be finalized from an unrelated reference or amount",
   assert.equal(eventPaymentVerificationError({ ...base, verification: { ...base.verification, currency: "USD" } }), "PAYMENT_CURRENCY_MISMATCH");
   assert.equal(eventPaymentVerificationError({ ...base, verification: { ...base.verification, status: "PENDING" } }), "PAYMENT_NOT_CONFIRMED");
   assert.equal(eventPaymentVerificationError({ ...base, verification: { ...base.verification, amount: undefined } }), "PAYMENT_AMOUNT_MISMATCH");
+});
+
+test("Event upload rejects spoofed MIME signatures and mismatched types", () => {
+  const png = new Uint8Array([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]);
+  assert.equal(inspectEventMedia(png, "image/png").ok, true);
+  assert.equal(inspectEventMedia(png, "image/jpeg").ok, false);
+  assert.equal(inspectEventMedia(new Uint8Array([1,2,3]), "image/png").ok, false);
 });
