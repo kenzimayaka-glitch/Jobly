@@ -121,6 +121,7 @@ assert "verifiedActionRuns" in health_route and "predictionOutcomes" in health_r
 assert '.not("outcome", "is", null)' in health_route, "Outcome count must be based on non-null persisted outcomes"
 assert 'head: true' in health_route and '.limit(1000)' not in health_route, "Health counts must be exact and untruncated"
 assert "proposedActionRuns" in health_route and "failedActionRuns" in health_route, "Health must report proposal and failure states separately"
+assert "verifiedOutcomeRuns" in health_route and '.eq("outcome->>isOutcome", "true")' in health_route, "Verified navigation alone must not count as a business outcome"
 assert "outcomes: true" not in health_route, "J'IA health must not claim outcomes without persisted evidence"
 
 mission_update = career_journey[career_journey.index("export async function updateMission"):career_journey.index("export async function validateMissionOwnership")]
@@ -132,6 +133,8 @@ assert "evidenceResult.error" in journey_route and "portfolioResult.error" in jo
 reassess_route = read("app/api/career-journey/reassess/route.ts")
 assert '.eq("status", "VERIFIED")' in reassess_route, "Reassessment must query verified actions directly, not sample recent proposals"
 assert "verifiedActionType" in reassess_route and "review.data" in reassess_route, "Reassessment must return the verified action and persisted review"
+assert '.eq("outcome->>isOutcome", "true")' in reassess_route, "Career reassessment must exclude navigation-only verification"
+assert "persistedJourney?.latestReadiness === after" in reassess_route, "Readiness confirmation must compare against the selected persisted row"
 
 print("J'IA CRITICAL 9-WORKSTREAM CONTRACT: PASS")
 print("Architecture coverage is present across all nine workstreams.")
