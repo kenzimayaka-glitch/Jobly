@@ -3,14 +3,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolveEffectivePublicationDate } from "../supabase/functions/_shared/job-freshness.ts";
 const NOW="2026-11-02T12:00:00.000Z";
-test("real source date uses the 62-day freshness window",()=>{
+test("real source date remains fresh within two calendar months",()=>{
  const r=resolveEffectivePublicationDate({sourcePublishedAt:"2026-09-20T12:00:00.000Z",firstHarvestAt:"2026-11-01T12:00:00.000Z",createdAt:"2026-11-01T12:00:00.000Z",deadline:null,now:NOW});
  assert.equal(r.visible,true);assert.equal(r.publicationDateEstimated,false);assert.equal(r.publicationDateSource,"SOURCE");
  assert.equal(r.effectivePublishedAt,"2026-09-20T12:00:00.000Z");
 });
-test("real source date older than 62 days is excluded",()=>{
+test("real source date older than two calendar months is excluded",()=>{
  const r=resolveEffectivePublicationDate({sourcePublishedAt:"2026-08-31T12:00:00.000Z",firstHarvestAt:"2026-11-01T12:00:00.000Z",createdAt:"2026-11-01T12:00:00.000Z",deadline:null,now:NOW});
- assert.equal(r.visible,false);assert.equal(r.rejectionCode,"SOURCE_PUBLICATION_OVER_62_DAYS");
+ assert.equal(r.visible,false);assert.equal(r.rejectionCode,"SOURCE_PUBLICATION_OVER_2_MONTHS");
 });
 test("first harvest is the first fallback and is limited to 30 days",()=>{
  const r=resolveEffectivePublicationDate({sourcePublishedAt:null,firstHarvestAt:"2026-10-20T12:00:00.000Z",createdAt:"2026-10-01T12:00:00.000Z",deadline:null,now:NOW});

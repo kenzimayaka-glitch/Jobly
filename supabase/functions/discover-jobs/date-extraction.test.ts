@@ -23,8 +23,8 @@ Deno.test("fallback is estimated",()=>{const r=resolveEffectivePublicationDate({
 Deno.test("real date suppresses fallback",()=>{const r=resolveEffectivePublicationDate({sourcePublishedAt:"2026-09-10T10:00:00Z",firstHarvestAt:"2026-10-01T10:00:00Z",createdAt:"2026-10-01T10:00:00Z",deadline:null,now:NOW});assertEquals(r.effectivePublishedAt,"2026-09-10T10:00:00.000Z");assertEquals(r.publicationDateEstimated,false);});
 Deno.test("deadline expired excluded",()=>assertEquals(resolveEffectivePublicationDate({sourcePublishedAt:null,firstHarvestAt:"2026-09-28T10:00:00Z",createdAt:"2026-09-28T10:00:00Z",deadline:"2026-10-02T00:00:00Z",now:NOW}).visible,false));
 Deno.test("fallback older than 30 days excluded",()=>assertEquals(resolveEffectivePublicationDate({sourcePublishedAt:null,firstHarvestAt:"2026-08-20T10:00:00Z",createdAt:"2026-08-20T10:00:00Z",deadline:null,now:NOW}).visible,false));
-Deno.test("real source date between 30 and 62 days remains visible",()=>assertEquals(resolveEffectivePublicationDate({sourcePublishedAt:"2026-08-20T10:00:00Z",firstHarvestAt:"2026-10-01T10:00:00Z",createdAt:"2026-10-01T10:00:00Z",deadline:null,now:NOW}).visible,true));
-Deno.test("real source date older than 62 days is excluded",()=>assertEquals(resolveEffectivePublicationDate({sourcePublishedAt:"2026-08-01T10:00:00Z",firstHarvestAt:"2026-10-01T10:00:00Z",createdAt:"2026-10-01T10:00:00Z",deadline:null,now:NOW}).visible,false));
+Deno.test("real source date between 30 days and two calendar months remains visible",()=>assertEquals(resolveEffectivePublicationDate({sourcePublishedAt:"2026-08-20T10:00:00Z",firstHarvestAt:"2026-10-01T10:00:00Z",createdAt:"2026-10-01T10:00:00Z",deadline:null,now:NOW}).visible,true));
+Deno.test("real source date older than two calendar months is excluded",()=>assertEquals(resolveEffectivePublicationDate({sourcePublishedAt:"2026-08-01T10:00:00Z",firstHarvestAt:"2026-10-01T10:00:00Z",createdAt:"2026-10-01T10:00:00Z",deadline:null,now:NOW}).visible,false));
 Deno.test("FNE date de dépôt is publication date and date de validité is deadline",()=>{
   const html="<p>Date de dépôt 23 septembre 2026</p><p>Date de validité 30 décembre 2026</p>";
   assertEquals(extractSourcePublishedAt(html,"https://fnecm.org/offre/NET-OE-2026-009294","fne"),"2026-09-23T00:00:00.000Z");
@@ -125,11 +125,11 @@ Deno.test("NELEX ordinal closing date adapter",()=>assertEquals(
   extractSourceDeadline("<p>Application Closing Date: 25th October, 2026.</p>","https://nelex.gov.ng/job/example","nelex_ng"),
   "2026-10-25T23:59:59.999Z"
 ));
-Deno.test("NELEX historical posts fail 62-day source-date freshness gate",()=>{
+Deno.test("NELEX historical posts fail the two-calendar-month source-date freshness gate",()=>{
   const published=extractSourcePublishedAt("<p>Date Posted: Jun 19, 2023</p>","https://nelex.gov.ng/job/example","nelex_ng");
   const result=resolveEffectivePublicationDate({sourcePublishedAt:published,firstHarvestAt:"2026-11-04T10:00:00Z",createdAt:"2026-11-04T10:00:00Z",deadline:null,now:"2026-11-04T10:00:00Z"});
   assertEquals(result.visible,false);
-  assertEquals(result.rejectionCode,"SOURCE_PUBLICATION_OVER_62_DAYS");
+  assertEquals(result.rejectionCode,"SOURCE_PUBLICATION_OVER_2_MONTHS");
 });
 Deno.test("NELEX expired deadline is rejected even for recent publication",()=>{
   const result=resolveEffectivePublicationDate({sourcePublishedAt:"2026-10-15T00:00:00Z",firstHarvestAt:"2026-11-04T10:00:00Z",createdAt:"2026-11-04T10:00:00Z",deadline:"2026-10-25T00:00:00Z",now:"2026-11-04T10:00:00Z"});
