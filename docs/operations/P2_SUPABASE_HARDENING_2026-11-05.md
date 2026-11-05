@@ -1,96 +1,68 @@
-# Jobly — Audit sécurité Supabase (P2)
+# Jobly — P2 Supabase hardening (validation package)
 
-**Dernière vérification :** 5 novembre 2026, 19:23 Africa/Douala  
-**Projet :** JOBLY-PROD (`mpoyaegtwtmhookdzqdy`) — PostgreSQL 17.6.1.166  
-**Organisation :** Jobly — plan Free  
-**Base `main` de cette mise à jour :** `5f8d0fc5f68a044eddf1fe2ed3ba8cd889fa8c56`
+**Snapshot:** 2026-11-05  
+**Production project:** JOBLY-PROD (`mpoyaegtwtmhookdzqdy`)  
+**Base `main`:** `b7c35fa5b35c538072d2a62194048208f3395ab8`  
+**Working branch:** `fix/p2-supabase-hardening-20261105-r3`  
+**Production writes:** main P2 SQL migration applied and validated; pg_net and supabase_admin owner-level steps remain unexecuted.
 
-## Corrections réellement appliquées
+## Latest verified production baseline
 
-### 1. Tables service-only : les 72 alertes RLS/no-policy sont éliminées
+- Project status `ACTIVE_HEALTHY`; PostgreSQL 17.6.1.166.
+- Public tables: 153; RLS enabled: 153; RLS/no-policy INFO: 72.
+- Security Advisor WARN findings: 2: `extension_in_public` (`pg_net`) and `auth_leaked_password_protection` (disabled).
+- A prior scan briefly reported `function_search_path_mutable` for `public.jobly_p1_sanitize_offer_sections(jsonb)`. The latest advisor no longer reports it, and a fresh catalog query returns no matching function. The migration deliberately contains no stale ALTER FUNCTION against an absent object.
+- 23 service-only tables still have effective client table grants. Main migration revokes all table privileges for `anon` and `authenticated`, retaining `service_role`.
+- `postgres` default ACLs grant future table/sequence rights to client roles; main migration revokes these defaults.
+- `supabase_admin` defaults still grant future table/sequence rights to client roles and EXECUTE to PUBLIC/clients on future public functions. The connected DB role is `postgres`, not superuser and not a member of `supabase_admin`; its `rolcreaterole` attribute does not grant membership. The guarded operator script remains staged for the Supabase owner/support path. This part was not applied.
+- Performance Advisor: 42 unindexed FKs (INFO), 170 unused indexes (INFO), one archive table without PK (INFO), one overlapping authenticated SELECT-policy warning for `RecruiterJob` (WARN).
+- Four FK candidates have live usage: `Application` (~5 rows), `RecruitmentRole` (~1), `Community` (~8), `jia_action_runs` (~25). The remaining 38 findings are on tables with estimated 0 live rows and 0–8 KB relation sizes; the package does not add speculative indexes.
+- `jobs_backup_20260929`: 54 rows; all 54 existing `id` values are non-null and distinct (0 nulls). Migration rechecks this and creates the PK on the existing `id`.
+- Usage statistics reset timestamp: 2026-08-25. The 170 "unused" index notices are not a safe deletion list; infrequent Recruitment/Mobility/Event/Payment flows may rely on them.
 
-Migration Supabase `20261105182613 / p2_explicit_service_only_rls_denials_20261105` :
+## Prepared correction set
 
-- 72 politiques explicites `deny_client_access` ajoutées aux tables publiques RLS-enabled qui n'avaient aucune politique.
-- Vérification SQL : 0 table publique RLS sans politique ; 72 tables avec politique explicite de refus à `anon` et `authenticated`.
-- Aucune table de ce lot n'accorde de privilège SELECT/INSERT/UPDATE/DELETE à `anon` ou `authenticated`.
-- `service_role` conserve ses droits ; son attribut `BYPASSRLS=true` est confirmé.
-- Security Advisor : les 72 INFO `rls_enabled_no_policy` ne sont plus remontées.
+1. **Service-only ACLs:** revoke client table privileges on the 23 service-only/no-policy tables; keep `service_role`.
+2. **Future defaults (postgres):** revoke client defaults on public tables and sequences.
+3. **RecruiterJob RLS:** consolidate authenticated SELECT to owner OR published; retain owner-only INSERT/UPDATE/DELETE and both UPDATE USING/WITH CHECK predicates.
+4. **Archive key:** add a guarded primary key on existing `jobs_backup_20260929.id`; stop if any null/duplicate appears before apply.
+5. **Indexes:** add only the four FK indexes justified by current active rows; defer the other 38.
+6. **supabase_admin:** separately revoke future table/sequence client defaults and future public function EXECUTE defaults. A role guard prevents execution by `postgres` unless membership/ownership is granted.
+7. **pg_net:** guarded drop/recreate in `extensions`, no CASCADE; archive the current response, pause/restore the one discovery cron, abort on queued requests or hidden function dependencies.
+8. **Assertions:** confirm all above, including the archive PK, cron restoration, and service_role ingestion access.
 
-Il s'agit d'une formalisation du refus existant, pas d'un nouvel accès utilisateur.
+## pg_net cutover evidence / safety
 
-### 2. Privilèges par défaut créés par `postgres` : durcis
+- Current: `pg_net 0.20.4`, registered in `public`, `extrelocatable=false`; HTTP API objects live in `net`. Its actual extension owner is `supabase_admin`, not `postgres`.
+- Supabase documents that non-relocatable extensions such as pg_net need a drop/recreate to install under `extensions`: [Supabase pg_net docs](https://supabase.com/docs/guides/database/extensions/pg_net).
+- Only one `pg_cron` command references `net.http_*`: `jobly-discover-jobs-every-6h`, schedule `15 */6 * * *`; active. The event trigger `issue_pg_net_access` is enabled and restores schema usage grants after extension creation.
+- Last preflight: pending request queue = 0; response table = 1 record. Script archives response before recreation. The response status was 546; after cutover the next HTTP response must be 2xx before ingestion is declared operational.
+- Script uses `DROP EXTENSION pg_net RESTRICT`, never CASCADE. It now checks extension ownership before creating the archive or pausing the cron. `postgres` is not a member of the extension owner `supabase_admin`, so the guard stops before any writes. The cutover must be run by Supabase's owner/support; it was not executed.
 
-Migration Supabase `20261105183309 / p2_revoke_postgres_global_function_execute_20261105` :
+## Auth leaked-password protection
 
-- Suppression du droit implicite `EXECUTE` de `PUBLIC` pour les nouvelles fonctions créées par `postgres`, globalement et pas seulement dans `public`.
-- Vérification du catalogue : le défaut global des fonctions donne désormais `EXECUTE` uniquement à `postgres`, sans `PUBLIC`.
-- Les privilèges par défaut de `anon` et `authenticated` sur les nouvelles tables/séquences publiques avaient déjà été révoqués.
-- Les droits explicites des rôles Supabase Storage dans le schéma `storage` ont été conservés.
-- Les fonctions RPC nouvellement exposées aux clients doivent maintenant recevoir un `GRANT EXECUTE` explicite dans leur migration.
+- Still disabled according to Security Advisor.
+- The organization plan was queried and confirmed as `free`. Supabase leaked-password protection requires Pro or above: [Password Security](https://supabase.com/docs/guides/auth/password-security). This setting cannot be enabled without a paid upgrade, which is not authorized and will not be made.
+- Current project metadata does not expose subscription plan; no Auth settings write tool is connected. The setting remains a manual gate: **Authentication → Settings → Password Security → Leaked Password Protection** if the current plan includes it. No upgrade/payment is included or requested.
 
-Aucun droit des fonctions existantes n'a été retiré par cette migration.
+## Findings deliberately not masked
 
-## Avertissements Security Advisor encore ouverts
+- The 72 RLS/no-policy notices are INFO. All 153 public tables have RLS enabled; no broad policies are created just to silence lints. The 23 actual client ACL exposures are revoked separately.
+- The 38 low-activity FK findings are deferred pending real rows/workload.
+- 170 unused-index warnings are not deleted blindly; use feature-level EXPLAIN and representative traffic.
+- No existing business rows are deleted or rewritten. The one archive PK is added only after an in-migration uniqueness/null check.
 
-### 1. `pg_net` enregistré dans `public` — WARN
+## Approval and execution gates
 
-État réel observé :
-- `pg_net 0.20.4`, `extrelocatable=false`, propriétaire `supabase_admin`, schéma d'enregistrement `public`.
-- `postgres` n'est ni superuser ni membre de `supabase_admin`. Supabase réserve ce rôle interne : il n'est pas possible de s'y ajouter avec un simple `GRANT`.
-- L'API de `pg_net` utilise le schéma `net`. Supabase indique que `net` n'est pas exposé par défaut via la Data API et que `anon`/`authenticated` sont des rôles NOLOGIN : les droits de schéma hérités ne rendent donc pas les tables HTTP accessibles depuis les clés clients.
-- Le lint reste toutefois valide : l'extension est enregistrée dans `public`.
+1. Have an authorized Supabase owner/operator apply the `supabase_admin` default ACL step.
+2. Have Supabase owner/support run the guarded `pg_net` recreation and cron cutover after a fresh queue/dependency preflight; verify the next discovery response is 2xx.
+3. Do not enable leaked-password protection unless the owner independently approves a paid Pro upgrade; current instruction is no payment.
+4. Run the final SQL assertions after the two owner-level database steps; rerun Advisors.
+5. Re-run GitHub CI on the final branch, merge into `main`, and deploy via Vercel.
 
-**Correction recommandée par Supabase :** supprimer puis recréer `pg_net` dans `extensions`. Cette opération retire les objets d'extension, y compris la file et l'historique HTTP ; elle doit donc être précédée d'un contrôle de file, d'une sauvegarde des réponses nécessaires et d'une protection du cron. Le runbook garde `RESTRICT`, jamais `CASCADE`, et s'arrête si le rôle ne possède pas l'extension : [p2_pg_net_recreate_2026-11-05.sql](../../supabase/operations/p2_pg_net_recreate_2026-11-05.sql).
+## Current state
 
-**État :** runbook préparé, aucune tentative de contournement de l'ownership, aucun changement de cron ou d'extension effectué avec un rôle non autorisé. Le cutover reste à exécuter par la voie privilégiée Supabase/support, puis à valider par une réponse HTTP 2xx de l'ingestion.
-
-Sources : [Supabase — pg_net](https://supabase.com/docs/guides/database/extensions/pg_net), [Supabase KB — extension ownership et privilèges internes](https://supabase.com/kb/troubleshooting/revoking-access-to-pg_net-objects-has-no-effect-0bbc16).
-
-### 2. Protection des mots de passe compromis (HIBP) — WARN
-
-- Security Advisor confirme que la protection contre les mots de passe compromis est désactivée.
-- L'organisation Jobly est confirmée sur le plan `free`.
-- Supabase réserve la protection intégrée HaveIBeenPwned au plan Pro ou supérieur.
-- Aucun upgrade ni dépense n'a été effectué.
-
-**État :** impossible à passer au vert sans changement d'offre. Aucun coût n'est engagé sans décision explicite. Les exigences de longueur et de complexité des mots de passe restent configurables séparément, mais ne remplacent pas la vérification HIBP.
-
-Source : [Supabase — Password security](https://supabase.com/docs/guides/auth/password-security).
-
-## Privilèges par défaut de `supabase_admin` : reclassification après vérification
-
-Le diagnostic initial pouvait laisser penser qu'il fallait révoquer les defaults du rôle `supabase_admin`. La documentation officielle Supabase, mise à jour le 4 novembre 2026, précise que ces defaults sont réservés et non modifiables par `postgres`. Ils ne s'appliquent qu'aux objets effectivement créés par `supabase_admin`, principalement des objets d'extensions.
-
-Inventaire live des objets dans `public`, `graphql`, `graphql_public` :
-- 0 table/vue publique appartenant à `supabase_admin`.
-- Les 154 relations publiques recensées (153 tables et 1 vue) appartiennent à `postgres`.
-- 1 fonction `graphql_public.graphql(text,text,jsonb,jsonb)` appartient à `supabase_admin` et est exécutable par `anon`/`authenticated` ; il s'agit du point d'entrée GraphQL exposé, pas d'une table métier oubliée.
-- Les defaults de `postgres` sur ses nouveaux objets sont durcis séparément par les deux migrations ci-dessus.
-
-**Conclusion :** ce n'est pas un correctif SQL à exécuter ni un défaut applicatif supplémentaire à laisser orange. Le script [p2_supabase_admin_default_acl.sql](../../supabase/operations/p2_supabase_admin_default_acl.sql) a été remplacé par un diagnostic SELECT-only. Ne pas tenter `GRANT supabase_admin TO postgres` ni des révocations d'ACL sur des objets dont `postgres` n'est pas le grantor.
-
-Source : [Supabase KB — Can't change the default privileges of supabase_admin](https://supabase.com/kb/troubleshooting/cant-change-the-default-privileges-of-supabase_admin-in-the-public-schema-448af9).
-
-## Indicateurs Performance Advisor — INFO
-
-- 38 clés étrangères sans index couvrant.
-- 172 index signalés inutilisés.
-
-Ce ne sont pas des WARN de sécurité. Les index inutilisés ne doivent pas être supprimés en masse ; ils peuvent soutenir des parcours peu fréquents. Les 38 index FK restants doivent être évalués selon les volumes et plans de requête réels, pas ajoutés aveuglément.
-
-## Écart de traçabilité
-
-L'historique de production contient `20261105175610 / p2_supabase_hardening_20261105`, mais aucun fichier de migration correspondant n'a été retrouvé sous `supabase/migrations` sur `main`. Le SQL exact n'a pas été reconstitué artificiellement. Cet écart de traçabilité reste à réconcilier depuis sa source d'origine.
-
-## Verdict
-
-**Sécurité production : nettement renforcée, mais pas entièrement verte.**
-
-- 72 alertes RLS/no-policy : corrigées et vérifiées.
-- Defaults des futures fonctions créées par `postgres` : durcis et vérifiés.
-- `supabase_admin` defaults : réservés par Supabase, non modifiables ; aucun objet métier appartenant à ce rôle dans `public`.
-- `pg_net` dans `public` : un WARN de placement reste, sans exposition directe par Data API selon Supabase ; migration de schéma en attente de la voie privilégiée.
-- Protection HIBP : reste désactivée sur le plan Free.
-
-Aucun paiement, `DROP ... CASCADE`, changement d'accès non autorisé ou déploiement Netlify n'a été effectué.
+- Prepared files are committed to the working branch; they are not merged.
+- The main migration has passed a controlled SQL transaction test with explicit ROLLBACK; a post-test catalog check confirms the 23 client grants, two original RecruiterJob policies, zero new FK indexes and missing archive PK remain unchanged. JOBLY-PROD has not been persistently modified by this preparation.
+- No Supabase branch, paid resource, Netlify deploy, Vercel production deploy, or Auth plan change has been made.
+- This document is a validation package, not a claim that production is already green.

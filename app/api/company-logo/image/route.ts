@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server";
-import { buildCompanyLogoFallbackSvg } from "@/lib/companyLogoFallback";
 
 function normalizeDomain(value: string) {
   try {
@@ -43,12 +42,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const svg = buildCompanyLogoFallbackSvg(domain);
-  return new Response(svg, {
-    status: 200,
-    headers: {
-      "Content-Type": "image/svg+xml; charset=utf-8",
-      "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800",
-    },
-  });
+  return new Response("Logo unavailable", { status: 404 });
 }
