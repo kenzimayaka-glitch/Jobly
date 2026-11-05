@@ -213,10 +213,12 @@ export async function updateMission(supabase: any, userId: string, missionId: st
   if (patch.followUpAt !== undefined) data.followUpAt = patch.followUpAt || null;
   const updated = await supabase.from("CareerMission").update(data).eq("id", missionId).eq("userId", userId).select("*").single();
   if (updated.error) throw new Error(updated.error.message);
-  await supabase.from("CareerMissionUpdate").insert({
+  const { data: missionUpdate, error: missionUpdateError } = await supabase.from("CareerMissionUpdate").insert({
     id: crypto.randomUUID(), missionId, status: status ?? null, progress: data.progressPercent,
     note: cleanString(patch.note), response: patch.response ?? null,
-  });
+  }).select("id").single();
+  if (missionUpdateError) throw new Error(`Mission mise à jour, mais journal de progression non persisté : ${missionUpdateError.message}`);
+  if (!missionUpdate) throw new Error("Le journal de progression de la mission n'a pas été créé.");
   return updated.data;
 }
 
