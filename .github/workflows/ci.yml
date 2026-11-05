@@ -47,6 +47,9 @@ jobs:
       - name: Mission Afrique P0 regression tests
         run: pnpm test:africa-p0
 
+      - name: Mobility / Recruitment360 API access regression tests
+        run: node --experimental-strip-types --test scripts/api-access-p0.test.mjs
+
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
