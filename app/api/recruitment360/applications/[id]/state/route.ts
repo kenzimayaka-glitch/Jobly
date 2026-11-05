@@ -26,8 +26,7 @@ export async function POST(req:NextRequest,context:{params:Promise<{id:string}>}
 
   const supabase=adminClient(),user=await ensureUser(supabase,auth);
   const {data:application,error:applicationError}=await supabase.from("Application")
-   .select("id,userId,recruiterJobId,recruitment360Status,updatedAt")
-   .eq("id",id).maybeSingle();
+   .select("id,userId,recruiterJobId,recruitment360Status,updatedAt").eq("id",id).maybeSingle();
   if(applicationError)throw new Error(applicationError.message);
   if(!application)return NextResponse.json({message:"Candidature introuvable."},{status:404});
   if(!application.recruiterJobId)return NextResponse.json({message:"Cette candidature n'appartient pas à un recrutement 360."},{status:404});
@@ -44,7 +43,8 @@ export async function POST(req:NextRequest,context:{params:Promise<{id:string}>}
   const candidateAllowed=String(application.userId)===String(user.id);
   if(!recruiterAllowed&&!candidateAllowed)return NextResponse.json({message:"FORBIDDEN"},{status:403});
 
-  const actor=recruiterAllowed?"RECRUITER":"CANDIDATE";
+  // A user who is both the applicant and a recruitment member keeps candidate-only powers on their own application.
+  const actor=candidateAllowed?"CANDIDATE":"RECRUITER";
   const {data:state,error:stateError}=await supabase.from("RecruitmentApplicationState")
    .select("applicationId,currentState,stepNumber,lockedAt,lastTransitionAt,updatedAt")
    .eq("applicationId",id).maybeSingle();
@@ -56,11 +56,8 @@ export async function POST(req:NextRequest,context:{params:Promise<{id:string}>}
 
   const now=new Date().toISOString();
   const {data:updatedState,error:updateStateError}=await supabase.from("RecruitmentApplicationState").update({
-    currentState:nextState,
-    stepNumber:applicationStepNumber(nextState),
-    lockedAt:TERMINAL_STATES.has(nextState)?now:state.lockedAt,
-    lastTransitionAt:now,
-    updatedAt:now
+    currentState:nextState,stepNumber:applicationStepNumber(nextState),
+    lockedAt:TERMINAL_STATES.has(nextState)?now:state.lockedAt,lastTransitionAt:now,updatedAt:now
   }).eq("applicationId",id).eq("currentState",currentState).select("*").maybeSingle();
   if(updateStateError)throw new Error(updateStateError.message);
   if(!updatedState)return NextResponse.json({message:"Conflit : l'état de candidature a changé. Rechargez le dossier."},{status:409});
@@ -91,7 +88,6 @@ export async function POST(req:NextRequest,context:{params:Promise<{id:string}>}
     }).eq("applicationId",id).eq("currentState",nextState);
     throw new Error("RECRUITMENT_AUDIT_WRITE_FAILED: "+auditError.message);
   }
-
   return NextResponse.json({state:updatedState});
  }catch(error){
   const value=error as {message?:string;code?:string};

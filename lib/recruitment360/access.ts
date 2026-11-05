@@ -1,6 +1,6 @@
 export const RECRUITMENT_READ_ROLES = ["OWNER", "HR", "MANAGER", "DELEGATE", "JURY", "DG_READONLY"] as const;
 export const RECRUITMENT_WRITE_ROLES = ["OWNER", "HR", "MANAGER", "DELEGATE"] as const;
-export const RECRUITMENT_STATE_ROLES = ["OWNER", "HR", "MANAGER", "DELEGATE", "JURY", "DG_READONLY"] as const;
+export const RECRUITMENT_STATE_ROLES = ["OWNER", "HR", "MANAGER", "DELEGATE", "JURY"] as const;
 
 const STEP_NUMBER: Record<string, number> = {
   SENT: 0, RECEIVED: 1, REVIEW: 2, SELECTED: 3, TEST: 4, INTERVIEW: 5,
@@ -22,19 +22,18 @@ export function validateApplicationTransition(
   const currentState = String(currentStateValue ?? "").trim().toUpperCase();
   const nextState = String(nextStateValue ?? "").trim().toUpperCase();
   const reason = String(exceptionReasonValue ?? "").trim();
-  if (!(nextState in STEP_NUMBER)) return "INVALID_APPLICATION_STATE";
-  if (!(currentState in STEP_NUMBER)) return "CURRENT_APPLICATION_STATE_INVALID";
+  if (!Object.prototype.hasOwnProperty.call(STEP_NUMBER, nextState)) return "INVALID_APPLICATION_STATE";
+  if (!Object.prototype.hasOwnProperty.call(STEP_NUMBER, currentState)) return "CURRENT_APPLICATION_STATE_INVALID";
   if (actor === "CANDIDATE") {
     if (nextState === "OFFER_DECLINED") return currentState === "OFFER" ? null : "CANDIDATE_TRANSITION_FORBIDDEN";
     if (nextState === "WITHDRAWN") return TERMINAL_STATES.has(currentState) ? "CANDIDATE_TRANSITION_FORBIDDEN" : null;
     return "CANDIDATE_TRANSITION_FORBIDDEN";
   }
   if (TERMINAL_STATES.has(currentState) && reason.length < 5) return "LOCKED_STATE_EXCEPTION_REASON_REQUIRED";
-  if (STEP_NUMBER[nextState] < STEP_NUMBER[currentState] && reason.length < 5) {
-    return "BACKWARD_TRANSITION_REQUIRES_REASON";
-  }
+  if (STEP_NUMBER[nextState] < STEP_NUMBER[currentState] && reason.length < 5) return "BACKWARD_TRANSITION_REQUIRES_REASON";
   return null;
 }
 export function applicationStepNumber(stateValue: unknown): number {
-  return STEP_NUMBER[String(stateValue ?? "").trim().toUpperCase()] ?? -1;
+  const state=String(stateValue ?? "").trim().toUpperCase();
+  return Object.prototype.hasOwnProperty.call(STEP_NUMBER,state)?STEP_NUMBER[state]:-1;
 }
