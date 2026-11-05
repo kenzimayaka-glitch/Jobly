@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs/promises";
+import { fetchRowsByIdInBatches } from "./lib/supabase-batch-query.mjs";
 
 const url=process.env.NEXT_PUBLIC_SUPABASE_URL, key=process.env.SUPABASE_SERVICE_ROLE_KEY;
 const target=process.env.OFFER_TARGET_VERSION||"jobly-offer-v5", apply=process.env.OFFER_MIGRATION_APPLY==="true";
@@ -142,12 +143,11 @@ async function main(){
   const q=await db.from("Job").select("id,title,location,contractType,remoteMode,salaryMin,salaryMax,salaryCurrency,deadline,sourceUrl,source,sourceKey,normalizedVersion,companyId").eq("isActive",true).order("createdAt",{ascending:true}).limit(limit);
   if(q.error)throw q.error;
   const jobs=q.data||[], companyIds=[...new Set(jobs.map(j=>j.companyId).filter(Boolean))];
-  let companyMap=new Map();
-  if(companyIds.length){
-    const{data:companies,error:companyError}=await db.from("Company").select("id,name,website").in("id",companyIds);
-    if(companyError)throw companyError;
-    companyMap=new Map((companies||[]).map(c=>[c.id,c]));
-  }
+  const companies = await fetchRowsByIdInBatches(
+    companyIds,
+    (batchIds) => db.from("Company").select("id,name,website").in("id", batchIds),
+  );
+  const companyMap = new Map(companies.map((company) => [company.id, company]));
   for(const j of jobs)j.company=companyMap.get(j.companyId)||null;
   const res=[];let i=0;
   async function worker(){
