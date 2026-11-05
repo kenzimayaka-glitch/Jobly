@@ -25,7 +25,6 @@ export function validateApplicationTransition(
   if (!Object.prototype.hasOwnProperty.call(STEP_NUMBER, nextState)) return "INVALID_APPLICATION_STATE";
   if (!Object.prototype.hasOwnProperty.call(STEP_NUMBER, currentState)) return "CURRENT_APPLICATION_STATE_INVALID";
   if (actor === "CANDIDATE") {
-    if (nextState === "OFFER_DECLINED") return currentState === "OFFER" ? null : "CANDIDATE_TRANSITION_FORBIDDEN";
     if (nextState === "WITHDRAWN") return TERMINAL_STATES.has(currentState) ? "CANDIDATE_TRANSITION_FORBIDDEN" : null;
     return "CANDIDATE_TRANSITION_FORBIDDEN";
   }

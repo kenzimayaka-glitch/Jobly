@@ -30,7 +30,7 @@ test("Mobility recruiter access requires an explicit dossier relationship", () =
 
 test("Candidates may only withdraw or decline an open offer", () => {
   assert.equal(validateApplicationTransition("CANDIDATE", "REVIEW", "WITHDRAWN", ""), null);
-  assert.equal(validateApplicationTransition("CANDIDATE", "OFFER", "OFFER_DECLINED", ""), null);
+  assert.equal(validateApplicationTransition("CANDIDATE", "OFFER", "OFFER_DECLINED", ""), "CANDIDATE_TRANSITION_FORBIDDEN");
   assert.equal(validateApplicationTransition("CANDIDATE", "INTERVIEW", "OFFER_DECLINED", ""), "CANDIDATE_TRANSITION_FORBIDDEN");
   assert.equal(validateApplicationTransition("CANDIDATE", "OFFER", "HIRED", ""), "CANDIDATE_TRANSITION_FORBIDDEN");
   assert.equal(validateApplicationTransition("CANDIDATE", "REJECTED", "WITHDRAWN", ""), "CANDIDATE_TRANSITION_FORBIDDEN");
