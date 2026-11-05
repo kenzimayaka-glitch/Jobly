@@ -317,8 +317,11 @@ function JobDetailInner() {
     });
   const presentationLayout = String(aiPresentation.layout || "STRUCTURED").toUpperCase();
   const matchScore = Math.max(0, Math.min(100, Number(job.matchPercent ?? 0)));
+  const normalizedLocationLabel = Array.isArray(normalized?.location)
+    ? normalized.location.filter(Boolean).join(" · ")
+    : typeof normalized?.location === "string" ? normalized.location.trim() : String(job.location || "").trim();
   const headerFacts = [
-    Array.isArray(normalized?.location) && normalized.location.length ? { icon: MapPin, value: normalized.location.join(" · ") } : null,
+    normalizedLocationLabel ? { icon: MapPin, value: normalizedLocationLabel } : null,
     contract ? { icon: Clock3, value: formatContract(contract) } : null,
     remote ? { icon: Globe2, value: remote } : null,
     salaryMin != null || salaryMax != null ? { icon: null, value: `${formatSalary(salaryMin)}${salaryMax != null ? " – " + formatSalary(salaryMax) : ""} ${salaryCurrency}` } : null,
