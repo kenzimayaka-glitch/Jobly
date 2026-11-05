@@ -9,7 +9,14 @@ function fail(message:string){
  return NextResponse.json({message},{status});
 }
 function publicQuestion(question:any){
- return {...question,options:sanitizeTestQuestionOptions(question.options)};
+ return {
+  id:question.id,
+  position:question.position,
+  prompt:question.prompt,
+  type:question.type,
+  points:question.points,
+  options:sanitizeTestQuestionOptions(question.options),
+ };
 }
 
 async function hasWriterAccess(db:ReturnType<typeof adminClient>,recruitmentId:string,userId:string){
@@ -70,7 +77,7 @@ export async function GET(req:NextRequest){
   const {data:test,error:testError}=await db.from("RecruitmentTestDefinition").select("id,title,instructions,durationseconds,maxattempts").eq("id",testId).eq("recruitmentId",scope.recruitment.id).eq("status","PUBLISHED").maybeSingle();
   if(testError)throw new Error(testError.message);
   if(!test)return fail("TEST_NOT_FOUND");
-  const {data:questions,error:questionsError}=await db.from("RecruitmentTestQuestion").select("id,position,prompt,type,options,points,metadata").eq("testId",testId).order("position",{ascending:true});
+  const {data:questions,error:questionsError}=await db.from("RecruitmentTestQuestion").select("id,position,prompt,type,options,points").eq("testId",testId).order("position",{ascending:true});
   if(questionsError)throw new Error(questionsError.message);
   let session=null,answers:any[]=[];
   if(sessionId){
