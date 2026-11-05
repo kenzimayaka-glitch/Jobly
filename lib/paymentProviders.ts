@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { assertPaymentProviderReady, isProductionRuntime, requiredEnv } from "./billingLifecycleCore";
+export { assertPaymentProviderReady } from "./billingLifecycleCore";
 
 export type ProviderPaymentIntent = {
   provider: string;

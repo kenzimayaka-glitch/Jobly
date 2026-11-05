@@ -27,7 +27,7 @@ export function isDefinitiveProviderFailure(message: string): boolean {
 }
 
 
-function requiredEnv(name: string): string {
+export function requiredEnv(name: string): string {
   const value = String(process.env[name] || "").trim();
   if (!value) throw new Error(name + "_NOT_CONFIGURED");
   return value;
