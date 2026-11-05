@@ -1,6 +1,11 @@
 name: Africa Harvest Processor
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/africa-harvest-processor.yml"
   schedule:
     - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
@@ -26,7 +31,7 @@ concurrency:
 jobs:
   process:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
@@ -37,14 +42,16 @@ jobs:
       - name: Type-check harvest processor
         run: deno check --node-modules-dir=auto --config=supabase/functions/job-harvest-process/deno.json supabase/functions/job-harvest-process/index.ts
       - name: Process pending captures (scheduled batch 1; manual approval)
-        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.apply == true)
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.apply == true) || (github.event_name == 'push' && contains(github.event.head_commit.message, 'JOBLY-PENDING-DRAIN-20261105'))
         env:
           PROCESS_URL: https://mpoyaegtwtmhookdzqdy.supabase.co/functions/v1/job-harvest-process
           SOURCE_KEYS: ${{ inputs.source_keys || 'inep_mozambique,lmis_sl,nelex_ng,ajira_portal,sica_anpe_bj,zimbabwe_psc_erecruitment,anpe_bj,anpe_bf,anpe_ne,anpetogo,essa_sa,hrjobs_liberia,iefp_cv,kenya_psc_jobs,oppz_zambia_jobs,onem_app_cd,senjob_sn,south_africa_gov_jobs,beta_mauritania,botswana_mof_recruitment' }}
+          DRAIN_ALL: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, 'JOBLY-PENDING-DRAIN-20261105') }}
         run: |
           OIDC_TOKEN="$(curl --fail-with-body --silent --show-error -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=jobly-harvest")"
           TOKEN="$(python -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "$OIDC_TOKEN")"
           test -n "$TOKEN" || { echo "GitHub Actions OIDC token unavailable"; exit 1; }
+          if [ "$DRAIN_ALL" = "true" ]; then SOURCE_KEYS=""; fi
           BODY="$(python - <<'PY'
           import json, os
           keys = list(dict.fromkeys(x.strip() for x in os.environ["SOURCE_KEYS"].split(",") if x.strip()))
@@ -58,4 +65,12 @@ jobs:
           print(json.dumps(body))
           PY
           )"
-          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 5 -X POST "$PROCESS_URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data "$BODY"
+          PASSES=1
+          if [ "$DRAIN_ALL" = "true" ]; then PASSES=45; fi
+          for pass in $(seq 1 "$PASSES"); do
+            echo "Pending capture processing pass $pass/$PASSES"
+            RESPONSE="$(curl --fail-with-body --silent --show-error --retry 3 --retry-delay 5 -X POST "$PROCESS_URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data "$BODY")"
+            echo "$RESPONSE"
+            SELECTED="$(python -c 'import json,sys; print(int(json.load(sys.stdin).get("selected",0)))' <<< "$RESPONSE")"
+            if [ "$SELECTED" -lt 40 ]; then break; fi
+          done
