@@ -42,7 +42,8 @@ export async function getInstitutionMobilityRequestIds(db: MobilityDb, instituti
   if (!programIds.length) return [];
   const allocations = await db.from("MobilityFundingAllocation").select("mobilityRequestId").in("programId", programIds).limit(1000);
   failOnQueryError(allocations.error, "MOBILITY_INSTITUTION_ALLOCATION_LOOKUP_FAILED");
-  return [...new Set((allocations.data ?? []).map((row: { mobilityRequestId: string }) => String(row.mobilityRequestId)).filter(Boolean))];
+  const requestIds: string[] = (allocations.data ?? []).map((row: { mobilityRequestId: string }) => String(row.mobilityRequestId)).filter((id: string) => id.length > 0);
+  return Array.from(new Set<string>(requestIds));
 }
 
 export async function institutionOwnsMobilityRequest(db: MobilityDb, institutionId: string, requestId: string): Promise<boolean> {
