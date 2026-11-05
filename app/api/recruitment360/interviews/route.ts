@@ -28,7 +28,7 @@ export async function GET(req:NextRequest){
    const {data:roles,error:roleError}=await db.from("RecruitmentRole").select("role").eq("recruitmentId",recruitment.id).eq("userId",user.id);
    if(roleError)throw new Error(roleError.message);
    const recruiterAllowed=(roles??[]).some((row:any)=>hasRecruitmentRole(row.role,INTERVIEW_ROLES));
-   const candidateAllowed=String(application.userId)===String(user.id);
+   const candidateAllowed=String(application.userId)===String(auth.id);
    if(!candidateAllowed&&!recruiterAllowed)return NextResponse.json({message:"FORBIDDEN"},{status:403});
    recruitmentIds=[recruitment.id];
    if(candidateAllowed)candidateApplicationId=applicationId;
@@ -50,9 +50,9 @@ export async function GET(req:NextRequest){
   const {data:apps,error:appsError}=appIds.length?await db.from("Application").select("id,userId").in("id",appIds):{data:[],error:null};
   if(appsError)throw new Error(appsError.message);
   const userIds=[...new Set((apps??[]).map((row:any)=>String(row.userId)))];
-  const {data:users,error:usersError}=userIds.length?await db.from("User").select("id,firstName,lastName,displayName").in("id",userIds):{data:[],error:null};
+  const {data:users,error:usersError}=userIds.length?await db.from("User").select("id,authUserId,firstName,lastName,displayName").in("authUserId",userIds):{data:[],error:null};
   if(usersError)throw new Error(usersError.message);
-  const userMap=new Map((users??[]).map((row:any)=>[String(row.id),row]));
+  const userMap=new Map((users??[]).map((row:any)=>[String(row.authUserId),row]));
   const appMap=new Map((apps??[]).map((row:any)=>[String(row.id),row]));
   return NextResponse.json({interviews:(interviews??[]).map((row:any)=>{
    const candidate=userMap.get(String(appMap.get(String(row.applicationId))?.userId));
@@ -105,7 +105,7 @@ export async function POST(req:NextRequest){
    if(!interview)return failure("INTERVIEW_NOT_FOUND");
    const {data:application,error:applicationError}=await db.from("Application").select("userId").eq("id",interview.applicationId).maybeSingle();
    if(applicationError)throw applicationError;
-   if(!application||String(application.userId)!==String(user.id))return failure("FORBIDDEN");
+   if(!application||String(application.userId)!==String(auth.id))return failure("FORBIDDEN");
    if(["CANCELLED","COMPLETED","NO_SHOW"].includes(String(interview.status).toUpperCase()))return failure("INTERVIEW_NOT_ACTIVE");
    const {data,error}=await db.from("RecruitmentInterview").update({candidateConfirmedAt:new Date().toISOString(),updatedAt:new Date().toISOString()}).eq("id",interviewId).eq("applicationId",interview.applicationId).select("*").single();
    if(error)throw error;
