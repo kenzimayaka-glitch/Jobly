@@ -14,6 +14,7 @@ import ScoreRing from "@/components/ScoreRing";
 import ScoreDonut from "@/components/ScoreDonut";
 import { AnchoredNotice } from "@/components/AnchoredNotice";
 import { announceExternalApplicationToJia } from "@/lib/jia/external-application";
+import { openExternalApplicationInAndroid } from "@/lib/jia/android-bridge";
 
 type CompanyWebProfile = {
   name: string;
@@ -407,7 +408,19 @@ export function JoblyOfferFeed() {
     const phone = applicationPhone(job);
     const applicationUrl = externalApplicationTarget(job);
     if (applicationUrl) {
-      announceExternalApplicationToJia({ jobId: job.id, source: job.source, title: job.title, company: job.company?.name, targetUrl: applicationUrl, sourceUrl: job.sourceUrl, description: job.description });
+      const context = {
+        jobId: job.id,
+        source: job.source,
+        title: job.title,
+        company: job.company?.name,
+        targetUrl: applicationUrl,
+        sourceUrl: job.sourceUrl,
+        description: job.description,
+      };
+      // Android native shell handles the promoter URL in its single WebView.
+      // Browser and PWA retain the current external-tab + J'IA handoff.
+      if (openExternalApplicationInAndroid(context)) return;
+      announceExternalApplicationToJia(context);
       const opened = window.open(applicationUrl, "_blank");
       if (opened) opened.opener = null;
       return;
