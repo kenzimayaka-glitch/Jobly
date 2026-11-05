@@ -59,6 +59,9 @@ jobs:
       - name: Mobility P1 business and access regression tests
         run: pnpm test:mobility-p1
 
+      - name: Recruitment360 candidate and access regression tests
+        run: pnpm test:recruitment360
+
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
