@@ -1,6 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 import {adminClient,ensureUser,getAuthUser} from "../../../../lib/server-auth";
 import {hasRecruitmentRole,RECRUITMENT_READ_ROLES} from "../../../../lib/recruitment360/access";
+import {sanitizeTestQuestionOptions} from "../../../../lib/recruitment360/test-runtime";
 
 function fail(message:string){
  const status=message==="FORBIDDEN"?403:message.includes("NOT_FOUND")?404:
@@ -8,18 +9,9 @@ function fail(message:string){
  return NextResponse.json({message},{status});
 }
 function publicQuestion(question:any){
- const options=question.options;
- const clean=(value:any)=>{
-  if(Array.isArray(value))return value.map(clean);
-  if(value&&typeof value==="object"){
-   const copy={...value};
-   for(const key of ["correct","answer","correctAnswer","acceptedAnswers","explanation","solution","grading"])delete copy[key];
-   return copy;
-  }
-  return value;
- };
- return {...question,options:clean(options)};
+ return {...question,options:sanitizeTestQuestionOptions(question.options)};
 }
+
 async function authorizedApplication(db:ReturnType<typeof adminClient>,applicationId:string,userId:string){
  const {data:application,error}=await db.from("Application").select("id,userId,recruiterJobId").eq("id",applicationId).maybeSingle();
  if(error)throw new Error(error.message);
