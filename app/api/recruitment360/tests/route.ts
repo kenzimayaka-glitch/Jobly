@@ -1,6 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {adminClient,ensureUser,getAuthUser} from "../../../../lib/server-auth";
-import {hasRecruitmentRole,RECRUITMENT_READ_ROLES} from "../../../../lib/recruitment360/access";
+import {hasRecruitmentRole,RECRUITMENT_READ_ROLES,RECRUITMENT_WRITE_ROLES} from "../../../../lib/recruitment360/access";
 import {sanitizeTestQuestionOptions} from "../../../../lib/recruitment360/test-runtime";
 
 function fail(message:string){
@@ -12,6 +12,11 @@ function publicQuestion(question:any){
  return {...question,options:sanitizeTestQuestionOptions(question.options)};
 }
 
+async function hasWriterAccess(db:ReturnType<typeof adminClient>,recruitmentId:string,userId:string){
+ const {data,error}=await db.from("RecruitmentRole").select("role").eq("recruitmentId",recruitmentId).eq("userId",userId);
+ if(error)throw new Error(error.message);
+ return (data??[]).some((row:any)=>hasRecruitmentRole(row.role,RECRUITMENT_WRITE_ROLES));
+}
 async function authorizedApplication(db:ReturnType<typeof adminClient>,applicationId:string,userId:string){
  const {data:application,error}=await db.from("Application").select("id,userId,recruiterJobId").eq("id",applicationId).maybeSingle();
  if(error)throw new Error(error.message);
@@ -34,8 +39,20 @@ export async function GET(req:NextRequest){
  try{
   const db=adminClient(),user=await ensureUser(db,auth);
   const applicationId=String(req.nextUrl.searchParams.get("applicationId")||"").trim();
+  const recruitmentId=String(req.nextUrl.searchParams.get("recruitmentId")||"").trim();
   const testId=String(req.nextUrl.searchParams.get("testId")||"").trim();
   const sessionId=String(req.nextUrl.searchParams.get("sessionId")||"").trim();
+  if(!applicationId&&recruitmentId){
+   if(!(await hasWriterAccess(db,recruitmentId,String(user.id))))return fail("FORBIDDEN");
+   const {data:tests,error:testsError}=await db.from("RecruitmentTestDefinition").select("id,title,instructions,durationseconds,maxattempts,status,createdAt").eq("recruitmentId",recruitmentId).order("createdAt",{ascending:false});
+   if(testsError)throw new Error(testsError.message);
+   const ids=(tests??[]).map((item:any)=>item.id);
+   const {data:questions,error:questionsError}=ids.length?await db.from("RecruitmentTestQuestion").select("testId,id,position,type").in("testId",ids):{data:[],error:null};
+   if(questionsError)throw new Error(questionsError.message);
+   const countMap=new Map<string,number>();
+   for(const question of questions??[])countMap.set(String(question.testId),(countMap.get(String(question.testId))??0)+1);
+   return NextResponse.json({tests:(tests??[]).map((item:any)=>({...item,questionCount:countMap.get(String(item.id))??0}))});
+  }
   if(!applicationId)return fail("APPLICATION_REQUIRED");
   const scope=await authorizedApplication(db,applicationId,String(user.id));
   if(!scope.application||!scope.recruitment)return fail("APPLICATION_NOT_FOUND");
@@ -77,6 +94,72 @@ export async function POST(req:NextRequest){
  try{
   const db=adminClient(),user=await ensureUser(db,auth),body=await req.json().catch(()=>({}));
   const action=String(body.action??"").trim().toLowerCase();
+  if(action==="create-test"){
+   const recruitmentId=String(body.recruitmentId??"").trim();
+   const title=String(body.title??"").trim();
+   const instructions=String(body.instructions??"").trim();
+   const durationSeconds=Number(body.durationSeconds);
+   const maxAttempts=Number(body.maxAttempts??1);
+   if(!recruitmentId||title.length<3)return fail("TEST_FIELDS_REQUIRED");
+   if(!Number.isInteger(durationSeconds)||durationSeconds<60||durationSeconds>86400||!Number.isInteger(maxAttempts)||maxAttempts<1||maxAttempts>5)return fail("TEST_CONFIGURATION_INVALID");
+   if(!(await hasWriterAccess(db,recruitmentId,String(user.id))))return fail("FORBIDDEN");
+   const {data,error}=await db.from("RecruitmentTestDefinition").insert({
+    recruitmentId,title:title.slice(0,180),instructions:instructions.slice(0,4000),
+    durationseconds:durationSeconds,maxattempts:maxAttempts,status:"DRAFT",createdByUserId:String(user.id)
+   }).select("id,title,instructions,durationseconds,maxattempts,status").single();
+   if(error)throw error;
+   return NextResponse.json({test:data},{status:201});
+  }
+  if(action==="add-question"){
+   const testId=String(body.testId??"").trim(),prompt=String(body.prompt??"").trim();
+   const type=String(body.type??"").trim().toUpperCase(),points=Number(body.points??1);
+   if(!testId||prompt.length<5)return fail("QUESTION_FIELDS_REQUIRED");
+   if(!["SINGLE_CHOICE","NUMBER"].includes(type))return fail("QUESTION_TYPE_NOT_SUPPORTED");
+   if(!Number.isFinite(points)||points<=0||points>1000)return fail("QUESTION_POINTS_INVALID");
+   const {data:test,error:testError}=await db.from("RecruitmentTestDefinition").select("id,recruitmentId,status").eq("id",testId).maybeSingle();
+   if(testError)throw testError;
+   if(!test)return fail("TEST_NOT_FOUND");
+   if(test.status!=="DRAFT")return fail("TEST_NOT_EDITABLE");
+   if(!(await hasWriterAccess(db,String(test.recruitmentId),String(user.id))))return fail("FORBIDDEN");
+   let options:any={};
+   if(type==="SINGLE_CHOICE"){
+    const choices=Array.isArray(body.choices)?body.choices.map((value:any)=>String(value??"").trim()).filter(Boolean):[];
+    const correct=String(body.correct??"").trim();
+    if(choices.length<2||choices.length>10||!correct||!choices.includes(correct)||new Set(choices).size!==choices.length)return fail("QUESTION_CHOICES_INVALID");
+    options={choices:choices.map(value=>({value,label:value})),correct};
+   }else{
+    const correct=Number(body.correct);
+    if(!Number.isFinite(correct))return fail("QUESTION_CORRECT_VALUE_INVALID");
+    options={correct:String(correct)};
+   }
+   const {data:previous,error:previousError}=await db.from("RecruitmentTestQuestion").select("position").eq("testId",testId).order("position",{ascending:false}).limit(1).maybeSingle();
+   if(previousError)throw previousError;
+   const position=Number(previous?.position??0)+1;
+   const {data:question,error}=await db.from("RecruitmentTestQuestion").insert({testId,position,prompt:prompt.slice(0,2000),type,options,points,metadata:{}}).select("id,testId,position,prompt,type,points").single();
+   if(error)throw error;
+   return NextResponse.json({question},{status:201});
+  }
+  if(action==="publish"||action==="close"){
+   const testId=String(body.testId??"").trim();
+   if(!testId)return fail("TEST_REQUIRED");
+   const {data:test,error:testError}=await db.from("RecruitmentTestDefinition").select("id,recruitmentId,status").eq("id",testId).maybeSingle();
+   if(testError)throw testError;
+   if(!test)return fail("TEST_NOT_FOUND");
+   if(!(await hasWriterAccess(db,String(test.recruitmentId),String(user.id))))return fail("FORBIDDEN");
+   if(action==="publish"){
+    const {data:questions,error:questionsError}=await db.from("RecruitmentTestQuestion").select("id,type,options").eq("testId",testId);
+    if(questionsError)throw questionsError;
+    if(!questions?.length)return fail("TEST_QUESTIONS_REQUIRED");
+    const invalid=questions.some((question:any)=>question.type==="SINGLE_CHOICE"
+      ?!Array.isArray(question.options?.choices)||question.options.choices.length<2||!question.options.choices.some((choice:any)=>String(choice.value)===String(question.options.correct))
+      :question.type==="NUMBER"?question.options?.correct==null:true);
+    if(invalid)return fail("TEST_QUESTION_CONFIGURATION_INVALID");
+   }
+   const nextStatus=action==="publish"?"PUBLISHED":"CLOSED";
+   const {data,error}=await db.from("RecruitmentTestDefinition").update({status:nextStatus,updatedAt:new Date().toISOString()}).eq("id",testId).select("id,status").single();
+   if(error)throw error;
+   return NextResponse.json({test:data});
+  }
   if(action==="start"){
    const applicationId=String(body.applicationId??"").trim(),testId=String(body.testId??"").trim();
    if(!applicationId||!testId)return fail("TEST_FIELDS_REQUIRED");
