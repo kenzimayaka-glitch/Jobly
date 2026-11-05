@@ -9,6 +9,8 @@ on:
       - "app/jobs/[id]/page.tsx"
       - "components/JoblyOfferFeed.tsx"
       - "scripts/android-jia-bridge.test.mjs"
+      - "lib/paymentSms/**"
+      - "scripts/payment-sms-parser.test.mjs"
       - ".github/workflows/android-jia.yml"
   push:
     branches:
@@ -33,6 +35,8 @@ jobs:
         with:
           node-version: 22
       - run: node --test scripts/android-jia-bridge.test.mjs
+      - name: Payment SMS parser tests
+        run: node --experimental-strip-types --test scripts/payment-sms-parser.test.mjs
 
   android-debug-build:
     runs-on: ubuntu-latest
