@@ -76,10 +76,15 @@ jobs:
           api="https://api.github.com/repos/${REPO}"
           encoded="$(jq -rn --arg value "${BRANCH}" '$value|@uri')"
           headers=(-H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json")
+          open_prs="$(curl -fsS "${headers[@]}" "${api}/pulls?state=open&per_page=100")"
+          if jq -e --arg branch "${BRANCH}" 'any(.[]; .head.ref == $branch or .base.ref == $branch)' >/dev/null <<<"${open_prs}"; then
+            echo "::error::Another open PR now references ${BRANCH}; refusing deletion."
+            exit 1
+          fi
           branch_response="$(curl -fsS "${headers[@]}" "${api}/branches/${encoded}")"
           actual_sha="$(jq -r '.commit.sha' <<<"${branch_response}")"
           protected="$(jq -r '.protected' <<<"${branch_response}")"
-          [[ "${actual_sha}" == "${EXPECTED_SHA}" && "${protected}" == "false" ]] || {
+          [[ "${actual_sha}" == "${EXPECTED_SHA}" && "${protected}" == "false" && "${BRANCH}" != "main" ]] || {
             echo "::error::Branch changed between verification and deletion; refusing to delete."
             exit 1
           }
