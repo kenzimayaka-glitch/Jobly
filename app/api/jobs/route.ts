@@ -206,16 +206,6 @@ export async function GET(request:NextRequest){
    supabase.from("User").select("country,preferredLanguages,englishLevel").eq("id",user.id).maybeSingle()
   ]);
   if(profileRes.error)throw new Error(profileRes.error.message);if(userRes.error)throw new Error(userRes.error.message);if(experiencesRes.error)throw new Error(experiencesRes.error.message);if(skillsRes.error)throw new Error(skillsRes.error.message);if(educationRes.error)throw new Error(educationRes.error.message);if(recruiterJobsRes.error)throw new Error(recruiterJobsRes.error.message);
-  const jobsNeedingFallback=((jobsRes.data as Job[])||[]).filter(j=>!j.sourcePublishedAt);
-  const fallbackJobIds=jobsNeedingFallback.map(j=>j.id);
-  const harvestRes=fallbackJobIds.length
-    ?await supabase.from("JobHarvestCapture").select("jobId,discoveredAt").in("jobId",fallbackJobIds).order("discoveredAt",{ascending:true})
-    :{data:[],error:null};
-  if(harvestRes.error)throw new Error(harvestRes.error.message);
-  const firstHarvestByJob=new Map<string,string>();
-  for(const row of (harvestRes.data||[]) as Array<{jobId:string;discoveredAt:string}>){
-    if(row.jobId&&!firstHarvestByJob.has(row.jobId))firstHarvestByJob.set(row.jobId,row.discoveredAt);
-  }
   const profile:Profile=profileRes.data||{targetRoles:[],targetCities:[],contractPreferences:[],remotePreference:"INDIFFERENT",preferredSectors:[]};
   const preferredLanguages=Array.from(new Set([...(Array.isArray((userRes.data as any)?.preferredLanguages)?(userRes.data as any).preferredLanguages:[]), ...((userRes.data as any)?.englishLevel ? ["en"] : [])].map((x)=>normalizeJobLanguage(x)).filter((x):x is NonNullable<ReturnType<typeof normalizeJobLanguage>>=>Boolean(x))));
   const countryAliases:Record<string,string>={CAMEROUN:"CM",CAMEROON:"CM",SENEGAL:"SN",GABON:"GA",CONGO:"CG", "REPUBLIQUE DU CONGO":"CG","CENTRAFRIQUE":"CF","REPUBLIQUE CENTRAFRICAINE":"CF","TCHAD":"TD","GUINEE EQUATORIALE":"GQ","COTE D IVOIRE":"CI","COTE D'IVOIRE":"CI","BENIN":"BJ","BURKINA FASO":"BF","GUINEE":"GN","MALI":"ML","NIGER":"NE","TOGO":"TG","NIGERIA":"NG","GHANA":"GH","RWANDA":"RW","AFRIQUE DU SUD":"ZA","SOUTH AFRICA":"ZA","ZAMBIE":"ZM","ZAMBIA":"ZM","OUGANDA":"UG","UGANDA":"UG","LIBERIA":"LR","SOUDAN DU SUD":"SS","SOUTH SUDAN":"SS","ESWATINI":"SZ"};
@@ -233,6 +223,16 @@ export async function GET(request:NextRequest){
         ? await fetchAllActiveJobs(supabase, [activeCountryCode])
         : await supabase.from("Job").select("*").eq("isActive", true).order("createdAt", { ascending: false }).limit(600);
   if (jobsRes.error) throw new Error(jobsRes.error.message);
+  const jobsNeedingFallback=((jobsRes.data as Job[])||[]).filter(j=>!j.sourcePublishedAt);
+  const fallbackJobIds=jobsNeedingFallback.map(j=>j.id);
+  const harvestRes=fallbackJobIds.length
+    ?await supabase.from("JobHarvestCapture").select("jobId,discoveredAt").in("jobId",fallbackJobIds).order("discoveredAt",{ascending:true})
+    :{data:[],error:null};
+  if(harvestRes.error)throw new Error(harvestRes.error.message);
+  const firstHarvestByJob=new Map<string,string>();
+  for(const row of (harvestRes.data||[]) as Array<{jobId:string;discoveredAt:string}>){
+    if(row.jobId&&!firstHarvestByJob.has(row.jobId))firstHarvestByJob.set(row.jobId,row.discoveredAt);
+  }
   const experiences=(experiencesRes.data as Experience[])||[];const skills=(skillsRes.data as Skill[])||[];const education=(educationRes.data as Education[])||[];const yearsExperience=computeYearsExperience(experiences);
   type Unified={normalizedContent?:NormalizedContent|null;source:"discovery"|"recruiter";sourceId:string;countryCode:string|null;title:string;description:string;location:string|null;contractType:string|null;remoteMode:string|null;minExperienceYears:number|null;companyName:string|null;companyId:string|null;createdAt:string;publishedAt:string|null;firstHarvestAt:string|null;deadline:string|null;sourceUrl:string|null;sourcePlatform:string|null;applicationReady:boolean;applicationProfile:Record<string,unknown>;visualUrl:string|null;visualSource:string|null;applicationCheckedAt:string|null;sector:string|null;tags:string[];language?:string|null;languageRequirements?:string[]|null};
   const discovery=((jobsRes.data as Job[])||[]);
