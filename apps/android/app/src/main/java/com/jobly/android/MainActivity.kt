@@ -53,7 +53,7 @@ class MainActivity : Activity() {
     private var applicationMode = false
     private var assistantMode = false
     private var currentApplicationUrl = ""
-    private var applicationContext = JSONObject()
+    private var applicationPayload = JSONObject()
     private var bridgeAvailable = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,7 +85,7 @@ class MainActivity : Activity() {
         applicationMode = savedInstanceState?.getBoolean(STATE_APPLICATION_MODE) ?: false
         assistantMode = savedInstanceState?.getBoolean(STATE_ASSISTANT_MODE) ?: false
         currentApplicationUrl = savedInstanceState?.getString(STATE_APPLICATION_URL).orEmpty()
-        applicationContext = runCatching {
+        applicationPayload = runCatching {
             JSONObject(savedInstanceState?.getString(STATE_APPLICATION_CONTEXT).orEmpty())
         }.getOrDefault(JSONObject())
 
@@ -293,7 +293,7 @@ class MainActivity : Activity() {
             return
         }
         val safeUrl = safeHttpsUrl(url) ?: return
-        applicationContext = context
+        applicationPayload = context
         currentApplicationUrl = safeUrl
         applicationMode = true
         assistantMode = false
@@ -314,13 +314,13 @@ class MainActivity : Activity() {
             currentApplicationUrl = currentUrl
 
             val assistantUrl = Uri.parse(baseUrl + "/jia/android-assist").buildUpon()
-                .appendQueryParameter("jobId", bounded(applicationContext.optString("jobId"), 120))
-                .appendQueryParameter("source", bounded(applicationContext.optString("source"), 40))
-                .appendQueryParameter("title", bounded(applicationContext.optString("title"), 240).ifBlank { "Candidature externe" })
-                .appendQueryParameter("company", bounded(applicationContext.optString("company"), 180))
+                .appendQueryParameter("jobId", bounded(applicationPayload.optString("jobId"), 120))
+                .appendQueryParameter("source", bounded(applicationPayload.optString("source"), 40))
+                .appendQueryParameter("title", bounded(applicationPayload.optString("title"), 240).ifBlank { "Candidature externe" })
+                .appendQueryParameter("company", bounded(applicationPayload.optString("company"), 180))
                 .appendQueryParameter("targetUrl", currentUrl)
-                .appendQueryParameter("sourceUrl", safeHttpsUrl(applicationContext.optString("sourceUrl")) ?: currentUrl)
-                .appendQueryParameter("description", bounded(applicationContext.optString("description"), 3000))
+                .appendQueryParameter("sourceUrl", safeHttpsUrl(applicationPayload.optString("sourceUrl")) ?: currentUrl)
+                .appendQueryParameter("description", bounded(applicationPayload.optString("description"), 3000))
                 .appendQueryParameter("fields", fields.toString())
                 .build()
             assistantMode = true
@@ -344,7 +344,7 @@ class MainActivity : Activity() {
         applicationMode = false
         assistantMode = false
         currentApplicationUrl = ""
-        applicationContext = JSONObject()
+        applicationPayload = JSONObject()
         fallbackBanner.visibility = View.GONE
         updateToolbar()
         webView.loadUrl(baseUrl)
@@ -440,7 +440,7 @@ class MainActivity : Activity() {
         outState.putBoolean(STATE_APPLICATION_MODE, applicationMode)
         outState.putBoolean(STATE_ASSISTANT_MODE, assistantMode)
         outState.putString(STATE_APPLICATION_URL, currentApplicationUrl)
-        outState.putString(STATE_APPLICATION_CONTEXT, applicationContext.toString())
+        outState.putString(STATE_APPLICATION_CONTEXT, applicationPayload.toString())
     }
 
     @Deprecated("Deprecated in Android 13; file picker callback remains supported.")
@@ -516,15 +516,26 @@ class MainActivity : Activity() {
                 .filter((element) => {
                   if (!visible(element)) return false;
                   const type = (element.getAttribute('type') || '').toLowerCase();
-                  return !['hidden', 'password', 'file', 'submit', 'button', 'reset', 'image'].includes(type);
+                  const autocomplete = (element.getAttribute('autocomplete') || '').toLowerCase();
+                  const identity = [
+                    element.getAttribute('name') || '',
+                    element.getAttribute('id') || '',
+                    element.getAttribute('aria-label') || '',
+                    element.getAttribute('placeholder') || '',
+                    autocomplete
+                  ].join(' ');
+                  const sensitiveCodeField = autocomplete === 'one-time-code' ||
+                    /(otp|one[-_ ]?time|verification[-_ ]?code|security[-_ ]?code|passcode)/i.test(identity);
+                  return !['hidden', 'password', 'file', 'submit', 'button', 'reset', 'image'].includes(type) &&
+                    !sensitiveCodeField;
                 })
-                .slice(0, 40)
+                .slice(0, 30)
                 .map((element) => {
                   const tag = element.tagName.toLowerCase();
                   const type = tag === 'textarea' ? 'textarea' : tag === 'select'
                     ? 'select' : (element.getAttribute('type') || 'text').toLowerCase();
                   const options = tag === 'select'
-                    ? Array.from(element.options).map((option) => (option.textContent || '').trim()).filter(Boolean).slice(0, 12)
+                    ? Array.from(element.options).map((option) => (option.textContent || '').trim()).filter(Boolean).slice(0, 8)
                     : [];
                   return {
                     label: String(labelFor(element)).slice(0, 180),
