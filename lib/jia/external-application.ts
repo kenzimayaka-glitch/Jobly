@@ -1,7 +1,7 @@
 export type ExternalApplicationContext = {
   jobId: string; source: string; title: string; company?: string | null;
   targetUrl?: string | null; sourceUrl?: string | null; description?: string | null;
-  formFields?: Array<{ label: string; type?: string; required?: boolean; options?: string[] }>;
+  formFields?: Array<{ index?: number; label: string; type?: string; required?: boolean; options?: string[] }>;
   prompt?: string;
 };
 function bounded(value: unknown, max = 1200): string {
