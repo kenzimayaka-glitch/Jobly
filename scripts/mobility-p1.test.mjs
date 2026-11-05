@@ -211,3 +211,10 @@ test("la règle de seuil ne valide jamais un coût supérieur à 50 % masqué pa
   assert.equal(decision.status, "INELIGIBLE");
   assert.ok((decision.burdenPercent ?? 0) > 50);
 });
+
+test("la migration aligne MobilityRequest.recruiterGuaranteed avec le modèle Prisma", () => {
+  const sql = readFileSync(new URL("../supabase/migrations/20261105160000_mobility_provider_funding_runtime.sql", import.meta.url), "utf8");
+  const schema = readFileSync(new URL("../packages/database/prisma/schema.prisma", import.meta.url), "utf8");
+  assert.match(sql, /alter table public\."MobilityRequest"[\s\S]*add column if not exists "recruiterGuaranteed" boolean not null default false/);
+  assert.match(schema, /recruiterGuaranteed Boolean\s+@default\(false\)/);
+});
