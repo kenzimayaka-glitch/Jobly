@@ -222,7 +222,7 @@ async function loadListing(
     appIds.length ? supabase.from("RecruitmentTestSession").select("applicationId,id,status").in("applicationId", appIds) : Promise.resolve({ data: [], error: null }),
     appIds.length ? supabase.from("RecruitmentInterview").select("applicationId,id,status").in("applicationId", appIds) : Promise.resolve({ data: [], error: null }),
     appIds.length ? supabase.from("RecruitmentDecision").select("applicationId,id,outcome").in("applicationId", appIds) : Promise.resolve({ data: [], error: null }),
-    userIds.length ? supabase.from("Profile").select("userId,firstName,lastName").in("userId", userIds) : Promise.resolve({ data: [], error: null }),
+    userIds.length ? supabase.from("User").select("authUserId,firstName,lastName,displayName").in("authUserId", userIds) : Promise.resolve({ data: [], error: null }),
     supabase.from("RecruitmentListingErratum").select("erratumNumber,summary,details").eq("versionId", versionId).order("erratumNumber", { ascending: true }),
   ]);
   for (const result of [statesRes, shortlistsRes, testsRes, interviewsRes, decisionsRes, profilesRes, errataRes]) {
@@ -234,7 +234,7 @@ async function loadListing(
   const tests = new Set((testsRes.data || []).map((x: any) => x.applicationId));
   const interviews = new Set((interviewsRes.data || []).map((x: any) => x.applicationId));
   const decisions = new Set((decisionsRes.data || []).map((x: any) => x.applicationId));
-  const profiles = new Map((profilesRes.data || []).map((x: any) => [String(x.userId), x]));
+  const profiles = new Map((profilesRes.data || []).map((x: any) => [String(x.authUserId), x]));
 
   const eligible = appRows
     .filter((a: any) => qualifies(stage, a, states.get(a.id), shortlists.get(a.id), tests.has(a.id), interviews.has(a.id), decisions.has(a.id)))
