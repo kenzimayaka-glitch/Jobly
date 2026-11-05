@@ -10,7 +10,15 @@ export async function planJiaAction(args:{userId:string;goal:Record<string,unkno
  if(error)throw new Error(error.message); return {run:data,decision};
 }
 export async function verifyJiaAction(args:{userId:string;runId:string;result:Record<string,unknown>;verified:boolean;outcome?:Record<string,unknown>}){
- const sb=adminClient(); const {data,error}=await sb.from("jia_action_runs").update({result:args.result,verification:{verified:args.verified,at:new Date().toISOString()},outcome:args.outcome??null,status:args.verified?"VERIFIED":"FAILED",updated_at:new Date().toISOString()}).eq("id",args.runId).eq("user_id",args.userId).select("*").single();
+ const sb=adminClient();
+ const hasObservedOutcome = args.verified && Boolean(
+  args.outcome?.isOutcome === true ||
+  args.outcome?.externalSideEffect === true ||
+  args.outcome?.observed === true ||
+  (typeof args.outcome?.evidenceId === "string" && args.outcome.evidenceId.length > 0)
+ );
+ const outcome = args.outcome ? { ...args.outcome, isOutcome: hasObservedOutcome } : { isOutcome: false };
+ const {data,error}=await sb.from("jia_action_runs").update({result:args.result,verification:{verified:args.verified,at:new Date().toISOString()},outcome,status:args.verified?"VERIFIED":"FAILED",updated_at:new Date().toISOString()}).eq("id",args.runId).eq("user_id",args.userId).select("*").single();
  if(error)throw new Error(error.message); return data;
 }
 export {evaluateJiaPolicy,canAutoExecute};
