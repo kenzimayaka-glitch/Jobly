@@ -334,8 +334,8 @@ function JobDetailInner() {
 
   function openExternalApplication(url: string) {
     announceExternalApplicationToJia({ jobId: String(currentJob.id), source: String(source || "discovery"), title: displayTitle, company, targetUrl: url, sourceUrl: sourceLink, description: normalizedIdentity.description || currentJob.description });
-    const opened = window.open(url, "_blank", "noopener,noreferrer");
-    if (!opened) setError("Le navigateur a bloqué l’ouverture du site du recruteur. Utilise le lien officiel affiché dans la fiche.");
+    const opened = window.open(url, "_blank");
+    if (opened) opened.opener = null;
   }
 
   function assistWithExternalApplication() {
