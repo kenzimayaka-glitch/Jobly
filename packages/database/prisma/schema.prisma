@@ -925,7 +925,7 @@ model EventFeaturedCampaign {
   startAt DateTime
   endAt DateTime
   price Int
-  paymentId String @unique
+  paymentId String? @unique
   status String @default("PENDING_PAYMENT")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
