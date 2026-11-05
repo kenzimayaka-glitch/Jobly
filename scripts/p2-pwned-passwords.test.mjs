@@ -12,8 +12,9 @@ import {
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const password = "password";
-const knownPrefix = "5BAA6";
-const knownSuffix = "1E4C9B3F0682250B6CF8331B7EE68FD8";
+const knownFullHash = "5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8";
+const knownPrefix = knownFullHash.slice(0, 5);
+const knownSuffix = knownFullHash.slice(5);
 
 function response(body, status = 200) {
   return new Response(body, {
@@ -36,7 +37,7 @@ test("HIBP query sends only the five-character SHA-1 prefix with padding", async
   });
 
   assert.equal(capturedUrl, `https://api.pwnedpasswords.com/range/${knownPrefix}`);
-  assert.equal(capturedUrl.includes(password), false);
+  assert.equal(capturedUrl.includes(knownFullHash), false);
   assert.equal(capturedUrl.includes(knownSuffix), false);
   assert.equal(capturedInit.headers["Add-Padding"], "true");
   assert.equal(capturedInit.cache, "no-store");
