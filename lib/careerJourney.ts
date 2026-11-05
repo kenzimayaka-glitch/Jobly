@@ -173,11 +173,11 @@ export async function generateJourneyRecommendations(ctx: Awaited<ReturnType<typ
     })
     .eq("id", journey.id)
     .eq("userId", user.id)
-    .select("id")
+    .select("id,latestReadiness,lastReevaluatedAt")
     .maybeSingle();
   if (journeyUpdateError) throw new Error(`Impossible de persister la réévaluation Career Journey : ${journeyUpdateError.message}`);
   if (!persistedJourney) throw new Error("La réévaluation Career Journey n'a modifié aucun parcours.");
-  return { assessment, created };
+  return { assessment, created, persistedJourney };
 }
 
 export async function updateMission(supabase: any, userId: string, missionId: string, action: JourneyAction, patch: any = {}) {
