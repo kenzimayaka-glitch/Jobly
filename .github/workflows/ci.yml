@@ -50,6 +50,9 @@ jobs:
       - name: Mobility / Recruitment360 API access regression tests
         run: node --experimental-strip-types --test scripts/api-access-p0.test.mjs
 
+      - name: Recruitment360 candidate test runtime regression tests
+        run: node --experimental-strip-types --test scripts/recruitment360-flow.test.mjs
+
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
