@@ -35,13 +35,13 @@ export async function GET(req:NextRequest){
    if(!resolved)return NextResponse.json({message:"Candidature introuvable."},{status:404});
    if(!resolved.recruitment||String(resolved.recruitment.id)!==rid)return NextResponse.json({message:"Candidature hors recrutement."},{status:404});
    const recruiterAllowed=await recruiterHasAccess(s,String(u.id),rid,RECRUITMENT_READ_ROLES);
-   const candidateAllowed=String(resolved.application.userId)===String(u.id);
+   const candidateAllowed=String(resolved.application.userId)===String(auth.id);
    if(!recruiterAllowed&&!candidateAllowed)return NextResponse.json({message:"FORBIDDEN"},{status:403});
 
    let reviewQuery=s.from("RecruitmentReview").select("*")
     .eq("applicationId",aid).order("createdAt",{ascending:false});
    // A person who is also a recruiter remains a candidate on their own application.
-   if(candidateAllowed)reviewQuery=reviewQuery.eq("reviewerUserId",u.id).eq("reviewerRole","TALENT");
+   if(candidateAllowed)reviewQuery=reviewQuery.eq("reviewerUserId",auth.id).eq("reviewerRole","TALENT");
    const {data:reviews,error:reviewError}=await reviewQuery;
    if(reviewError)throw new Error(reviewError.message);
 
@@ -112,7 +112,7 @@ export async function POST(req:NextRequest){
    if(comment.length>2000)return NextResponse.json({message:"COMMENT_TOO_LONG"},{status:400});
    const recommendation=typeof b.recommendation==="boolean"?b.recommendation:null;
    const {data,error}=await s.rpc("recruitment360_lot7_submit_review",{
-    p_application_id:applicationId,p_actor_user_id:u.id,
+    p_application_id:applicationId,p_actor_user_id:candidateAllowed?auth.id:u.id,
     p_reviewer_role:candidateAllowed?"TALENT":"RECRUITER",
     p_process_rating:processRating,p_experience_rating:experienceRating,
     p_jobly_rating:joblyRating,p_recommendation:recommendation,p_comment:comment||null
