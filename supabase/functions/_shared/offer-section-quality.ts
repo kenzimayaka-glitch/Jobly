@@ -94,7 +94,7 @@ function extractLabeledSections(sections: OfferSections): void {
       const repeatsProfile = normalizedValue.length >= 18 &&
         normalizedProfile.includes(normalizedValue);
       const danglingFragment =
-        /\b(?:de|des|du|d|à|au|aux|et|ou|pour|avec|dans|sur|of|and|or|to|for|with|in)|['’]$/i
+        /(?:\b(?:de|des|du|d|à|au|aux|et|ou|pour|avec|dans|sur|of|and|or|to|for|with|in)|['’])$/i
           .test(value.trim());
       return !repeatsProfile && !danglingFragment;
     });
