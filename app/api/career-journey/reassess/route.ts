@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
 
     const [applicationsResult, verifiedActionResult] = await Promise.all([
       ctx.supabase.from("Application").select("id,status,updatedAt,createdAt,interviewAt,submittedAt").eq("userId", ctx.user.id).order("updatedAt", { ascending: false }).limit(50),
-      ctx.supabase.from("jia_action_runs").select("id,action,status,outcome,created_at,updated_at").eq("user_id", ctx.user.id).eq("status", "VERIFIED").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      ctx.supabase.from("jia_action_runs").select("id,action,status,outcome,created_at,updated_at").eq("user_id", ctx.user.id).eq("status", "VERIFIED").eq("outcome->>isOutcome", "true").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
     if (applicationsResult.error) throw new Error(applicationsResult.error.message);
     if (verifiedActionResult.error) throw new Error(verifiedActionResult.error.message);
