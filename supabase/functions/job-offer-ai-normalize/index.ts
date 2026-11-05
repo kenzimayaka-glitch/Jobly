@@ -99,7 +99,9 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const serviceKey = env("SUPABASE_SERVICE_ROLE_KEY");
+  let secretDefault = "";
+  try { secretDefault = String(asRecord(JSON.parse(env("SUPABASE_SECRET_KEYS") || "{}")).default || ""); } catch {}
+  const serviceKey = env("SUPABASE_SERVICE_ROLE_KEY") || secretDefault;
   const projectUrl = env("SUPABASE_URL");
   if (!serviceKey || !projectUrl) return json({ ok: false, message: "Supabase service runtime is not configured." }, 500);
 
