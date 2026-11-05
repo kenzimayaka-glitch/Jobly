@@ -10,7 +10,7 @@ const SECTION_ORDER: OfferSectionName[] = [
 ];
 
 const APPLICATION_MARKER =
-  /(?:comment\s+postuler|pour\s+postuler|modalit[eé]s?\s+de\s+candidature|dossier\s+de\s+candidature|how\s+to\s+apply|application\s+instructions|direct\s+your\s+applications?\s+to|applications?\s+must\s+be\s+addressed|send\s+(?:your\s+)?(?:cv|resume|application)|envoyer\s+(?:votre\s+)?(?:cv|candidature|dossier)|d[eé]poser\s+(?:votre\s+)?candidature)/i;
+  /(?:comment\s+postuler|pour\s+postuler|modalit[eé]s?\s+de\s+candidature|dossier\s+de\s+candidature|lien\s+de\s+candidature|date\s+limite\s+de\s+candidature|objet\s+(?:du\s+mail|de\s+l.?e?mail)|how\s+to\s+apply|application\s+instructions|direct\s+your\s+applications?\s+to|applications?\s+must\s+be\s+addressed|send\s+(?:your\s+)?(?:cv|resume|application)|envoyer\s+(?:votre\s+)?(?:cv|candidature|dossier)|d[eé]poser\s+(?:votre\s+)?candidature)/i;
 
 function decodeEntities(value: string): string {
   return value
