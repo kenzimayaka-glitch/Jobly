@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft, CheckCircle2, Chrome, CircleAlert, Download, ExternalLink,
+  ArrowLeft, CheckCircle2, CircleAlert, Download,
   Laptop, LoaderCircle, LockKeyhole, PauseCircle, Puzzle, RefreshCw, ShieldCheck,
   Sparkles, Zap
 } from "lucide-react";
