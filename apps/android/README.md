@@ -50,6 +50,35 @@ L'URL par défaut est https://jobly-c0651.vercel.app. Le binaire debug est produ
 
 Le code source et le pipeline CI Android sont versionnés. Le build CI doit réussir avant toute fusion. La publication Play Store, la signature release et les tests sur appareils physiques restent des étapes séparées.
 
+## Intégrité APK et signature de publication
+
+- Le shell vérifie le nom de package et l'empreinte SHA-256 du certificat qui a réellement signé l'APK installé, avant de créer la WebView.
+- Une version release est refusée si l'empreinte attendue n'est pas renseignée, si le package est débogable ou si le certificat de signature ne correspond pas.
+- Les builds debug restent utilisables pour les tests locaux et l'émulateur. Ils ne constituent pas un APK de production.
+- La signature release utilise un keystore privé fourni à Gradle, jamais stocké dans le dépôt.
+
+Variables nécessaires pour compiler un APK release :
+
+| Variable | Valeur attendue |
+| --- | --- |
+| `JOBLY_ANDROID_KEYSTORE_PATH` | Chemin du keystore privé sur la machine/runner de build |
+| `JOBLY_ANDROID_KEYSTORE_PASSWORD` | Mot de passe du keystore |
+| `JOBLY_ANDROID_KEY_ALIAS` | Alias de la clé de signature |
+| `JOBLY_ANDROID_KEY_PASSWORD` | Mot de passe de la clé |
+| `JOBLY_ANDROID_RELEASE_CERT_SHA256` | Empreinte SHA-256 du certificat, 64 caractères hexadécimaux (les deux-points sont acceptés) |
+
+L'empreinte se relève avec `keytool -list -v -keystore <keystore> -alias <alias>`. Dans un pipeline, conserver le keystore et les mots de passe dans les secrets CI, et matérialiser le fichier temporairement sur le runner. Ne jamais committer le keystore, un mot de passe, ni un fichier `*.jks`/`*.keystore`.
+
+Exemple de compilation après configuration des variables :
+
+    gradle -p apps/android :app:assembleRelease
+
+Le build release échoue intentionnellement si la signature et son empreinte ne sont pas fournies. Aucun certificat de publication n'est encore provisionné dans ce dépôt ; le contrôle bloque donc une release tant que l'identité de signature officielle n'a pas été confirmée.
+
+### Limite du contrôle actuel
+
+Cette vérification détecte un APK re-signé avec un autre certificat sur un appareil Android non compromis. Elle ne prouve pas, à elle seule, que le bootloader est verrouillé, que le système est certifié ou que l'appareil n'est pas rooté : un attaquant contrôlant l'appareil peut altérer les contrôles locaux. L'attestation distante matérielle (Key Attestation vérifiée côté serveur) reste un chantier distinct à raccorder et à valider sur des appareils physiques. Aucun contrôle `PLAY_RECOGNIZED` ou `LICENSED` n'est exigé : l'APK Jobly reste distribuable hors Play Store.
+
 
 ## Confirmation Mobile Money dans le même APK
 
