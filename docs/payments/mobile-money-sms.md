@@ -39,7 +39,7 @@ Activation requires a trusted paired device, exact sender allow-list match, a su
 No artificial two-minute delay is used. If a receipt has not arrived yet, Jobly records the customer's reference and returns the page to normal use; a later incoming receipt can settle the order automatically. AI may flag suspicious patterns but never authorizes an entitlement.
 
 ## Database rollout
-`supabase/operations/payment_sms_foundation.sql` is a draft, not an applied production migration. It must be reviewed, converted into the repo's canonical Supabase migration format, tested on a non-production project, and only then applied through the authorized deployment process. It requires the already-applied billing lifecycle migration and `finalize_payment` RPC.
+The canonical migration `supabase/migrations/20261106040000_payment_sms_mobile_money_foundation.sql` is versioned in the branch but **has not been applied**. It requires the existing billing lifecycle migration and `finalize_payment` RPC. Validate it on a non-production Supabase project first; applying it to production remains a separate, explicitly authorized deployment step. `supabase/operations/payment_sms_foundation.sql` remains a review copy and must not be executed separately.
 
 ## Production enablement blockers
 - Exact SMS sender labels as displayed by the real handset inbox are still required for each operator. The pasted message bodies do not include the sender field, so no sender allow-list is fabricated.
