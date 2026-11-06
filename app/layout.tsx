@@ -15,8 +15,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "JOBLY — J'IA, Intelligence Artificielle JOBLY",
-  description: "Une intelligence qui travaille pour votre carrière.",
+  title: "JOBLY — Your Career OS",
+  description: "Your Career OS, powered by J'IA.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "../../lib/supabase";
@@ -262,7 +263,7 @@ export default function OnboardingPage() {
     <div className="pointer-events-none absolute -right-12 bottom-24 h-36 w-36 rounded-full bg-[#FFE135]/20 blur-2xl" />
     <section className="relative mx-auto flex h-full w-full max-w-[420px] flex-col pt-5 pb-4">
       <header className="flex shrink-0 items-center justify-between">
-        <img src="/jobly-logo-reference.jpg" alt="JOBLY" className="h-auto w-[132px] mix-blend-multiply" />
+        <Image src="/jobly-logo-official-transparent.png" alt="JOBLY — Your Career OS" width={400} height={120} sizes="156px" className="h-auto w-[156px] object-contain" priority />
       </header>
 
       <div className="mt-2 flex min-h-0 flex-1 flex-col">

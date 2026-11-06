@@ -24,7 +24,6 @@ import {
   ShieldStarIcon,
   PeopleStarIcon,
   CheckCircleIcon,
-  SparkleIcon,
 } from "../components/AuthIcons";
 
 // Petit "plouf" d'eau douce, synthétisé (pas de fichier audio à charger) :
@@ -164,10 +163,10 @@ function CountryPicker({ country, onChange, placeholder }: { country: Country; o
 const translations = {
   fr: {
     title: "Votre avenir\ncommence ici",
-    subtitle: "Rejoignez des milliers de talents et obtenez votre emploi idéal en quelques clics. CV, opportunités, coaching — tout est prêt pour vous.",
+    subtitle: "Rejoignez des milliers d’opportunités.",
     google: "Continuer avec Google",
     conditions: "En continuant, vous acceptez nos Conditions et Politique de confidentialité",
-    create: "Créer un compte",
+    create: "Créer mon compte",
     login: "Se connecter",
     loginTitle: "Connexion",
     loginSubtitle: "Entrez votre Username et votre Mot de passe",
@@ -213,7 +212,7 @@ const translations = {
   },
   en: {
     title: "Your future\nstarts here",
-    subtitle: "Join thousands of talents and get your ideal job in just a few clicks. CV, opportunities, coaching — everything is ready for you.",
+    subtitle: "Join thousands of opportunities.",
     google: "Continue with Google",
     conditions: "By continuing, you agree to our Terms and Privacy Policy",
     create: "Create my account",
@@ -264,16 +263,14 @@ const translations = {
 
 const BENEFITS = {
   fr: [
-    { Icon: ShieldStarIcon, title: "100% gratuit", subtitle: "Accès à un univers de possibilités" },
-    { Icon: PeopleStarIcon, title: "J'IA matche sur-mesure", subtitle: "Ne cherche plus, choisis" },
-    { Icon: CheckCircleIcon, title: "J'IA postule à ta place", subtitle: "50 offres, un clic, zéro effort" },
-    { Icon: SparkleIcon, title: "Assistance mobilité", subtitle: "Fini les frictions du premier mois" },
+    { Icon: ShieldStarIcon, title: "100% Gratuit", subtitle: "Accès aux opportunités", iconClass: "text-[#3478C8]" },
+    { Icon: PeopleStarIcon, title: "Coaching IA", subtitle: "Conseils personnalisés", iconClass: "text-[#8064D8]" },
+    { Icon: CheckCircleIcon, title: "Placement Rapide", subtitle: "Construis ta carrière", iconClass: "text-[#28A99B]" },
   ],
   en: [
-    { Icon: ShieldStarIcon, title: "100% Free", subtitle: "Access a universe of possibilities" },
-    { Icon: PeopleStarIcon, title: "J'IA matches for you", subtitle: "Stop searching, start choosing" },
-    { Icon: CheckCircleIcon, title: "J'IA applies for you", subtitle: "50 jobs, one click, zero effort" },
-    { Icon: SparkleIcon, title: "Mobility assistance", subtitle: "No more first-month friction" },
+    { Icon: ShieldStarIcon, title: "100% Free", subtitle: "Access opportunities", iconClass: "text-[#3478C8]" },
+    { Icon: PeopleStarIcon, title: "AI Coaching", subtitle: "Personalized guidance", iconClass: "text-[#8064D8]" },
+    { Icon: CheckCircleIcon, title: "Fast Placement", subtitle: "Build your career", iconClass: "text-[#28A99B]" },
   ],
 } as const;
 
@@ -765,90 +762,94 @@ export default function Home() {
   }
   async function forgot() { if (!email.includes("@")) return setMessage("Entre l'adresse e-mail associée à ton compte."); setBusy(true); setMessage(""); try { await requestPasswordReset(email); goTo("reset-sent"); } catch (e) { setMessage(e instanceof Error ? e.message : "Impossible d'envoyer l'e-mail de récupération."); } finally { setBusy(false); } }
 
-  return <main className={`relative min-h-screen flex flex-col justify-between w-full ${screen === "welcome" ? "overflow-hidden bg-[#081b52] text-white" : "bg-off-white dark:bg-[#0A1931] dark:text-white overflow-y-auto"}`}>
-    {screen === "welcome" && <><div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_15%_0%,rgba(90,126,255,.7),transparent_30%),radial-gradient(circle_at_100%_35%,rgba(116,79,255,.58),transparent_34%),linear-gradient(145deg,#071a50_0%,#132b82_54%,#07163f_100%)]" /><div aria-hidden="true" className="pointer-events-none absolute -left-16 top-20 z-0 h-52 w-52 rounded-full bg-blue-300/20 blur-3xl" /><div aria-hidden="true" className="pointer-events-none absolute -right-20 bottom-20 z-0 h-72 w-72 rounded-full bg-violet-400/25 blur-3xl" /></>}
-    <BubbleField />
-    {screen === "welcome" && (
-      <div className="fixed right-4 top-4 z-30 flex gap-1 rounded-full border border-white/40 bg-white/40 p-1 shadow-premium backdrop-blur-xl"><button type="button" onClick={()=>{setLang("fr");try{localStorage.setItem("jobly-lang","fr")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="fr"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇫🇷 FR</button><button type="button" onClick={()=>{setLang("en");try{localStorage.setItem("jobly-lang","en")}catch{}}} className={`rounded-full px-3 py-1.5 text-[13px] transition-all ${lang==="en"?"bg-canari font-semibold text-deep-blue shadow-glow-canari":"text-deep-blue/50"}`}>🇬🇧 EN</button></div>
-    )}
+  return <main className={`relative min-h-[100svh] flex flex-col justify-between w-full ${screen === "welcome" ? "overflow-x-hidden bg-white text-[#0A1931]" : "bg-off-white dark:bg-[#0A1931] dark:text-white overflow-y-auto"}`}>
+    {screen !== "welcome" && <BubbleField />}
     <div className="relative flex min-h-0 flex-1 w-full flex-col gap-0">
-      {screen !== "login" && screen !== "signup" && <header className="z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"><div ref={logoRef} className="rounded-2xl bg-white/95 p-2 shadow-2xl"><Image src="/jobly-logo-reference.jpg" alt="Jobly — Your Career OS" width={170} height={60} className="h-auto w-[150px] object-contain" priority /></div></header>}
+      {screen !== "login" && screen !== "signup" && <header className={screen === "welcome" ? "relative z-30 flex h-[90px] shrink-0 items-center justify-between px-5 pt-2 sm:h-[104px] sm:px-8" : "z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"}>
+        <div ref={logoRef} className={screen === "welcome" ? "shrink-0" : "rounded-2xl bg-white/95 p-2 shadow-2xl"}>
+          <Image src="/jobly-logo-official-transparent.png" alt="JOBLY — Your Career OS" width={400} height={120} className={screen === "welcome" ? "h-auto w-[132px] object-contain sm:w-[175px]" : "h-auto w-[150px] object-contain"} priority />
+        </div>
+        {screen === "welcome" && <div role="group" aria-label="Choisir la langue / Choose language" className="relative isolate flex items-center gap-1 rounded-full bg-[#EEF1F5] p-1.5 shadow-inner">
+          <motion.button type="button" aria-label="Français" aria-pressed={lang === "fr"} whileTap={{ scale: 0.94 }} onClick={() => { setLang("fr"); try { localStorage.setItem("jobly-lang", "fr"); } catch {} }} className="relative isolate inline-flex min-w-[64px] items-center justify-center gap-1 rounded-full px-2 py-2.5 text-[13px] font-bold tracking-wide text-[#0A1931] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD60A] focus-visible:ring-offset-2">
+            {lang === "fr" && <motion.span layoutId="jobly-language-active" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 -z-10 rounded-full bg-white shadow-[0_2px_9px_rgba(10,25,49,0.13)]" />}
+            <motion.span aria-hidden="true" animate={lang === "fr" ? { y: [0, -1, 0], rotate: [0, -3, 0, 3, 0] } : { y: 0, rotate: 0 }} transition={lang === "fr" ? { duration: 2.8, repeat: Infinity, ease: "easeInOut" } : { duration: 0.18 }} className="relative z-10 text-[21px] leading-none">🇫🇷</motion.span>
+            <span className="relative z-10">FR</span>
+          </motion.button>
+          <motion.button type="button" aria-label="English" aria-pressed={lang === "en"} whileTap={{ scale: 0.94 }} onClick={() => { setLang("en"); try { localStorage.setItem("jobly-lang", "en"); } catch {} }} className="relative isolate inline-flex min-w-[64px] items-center justify-center gap-1 rounded-full px-2 py-2.5 text-[13px] font-bold tracking-wide text-[#0A1931] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD60A] focus-visible:ring-offset-2">
+            {lang === "en" && <motion.span layoutId="jobly-language-active" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 -z-10 rounded-full bg-white shadow-[0_2px_9px_rgba(10,25,49,0.13)]" />}
+            <motion.span aria-hidden="true" animate={lang === "en" ? { y: [0, -1, 0], rotate: [0, -3, 0, 3, 0] } : { y: 0, rotate: 0 }} transition={lang === "en" ? { duration: 2.8, repeat: Infinity, ease: "easeInOut" } : { duration: 0.18 }} className="relative z-10 text-[21px] leading-none">🇬🇧</motion.span>
+            <span className="relative z-10">EN</span>
+          </motion.button>
+        </div>}
+      </header>}
       {screen === "welcome" && (
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.section
-            key={lang}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.32, ease: "easeOut" }}
-            className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
-          >
-            <div className="relative h-[48%] shrink-0 overflow-hidden px-4 pt-0">
-              <div aria-hidden="true" className="pointer-events-none absolute left-[10%] top-[-5%] z-[2] h-[64%] w-[44%] opacity-60">
-                <div className="h-full w-full -rotate-[26deg] border-l border-dashed border-sky-blue/50" />
-              </div>
-
-              <div className="relative z-20 mt-2 w-[45%]">
-                
-                <h1 className="font-[var(--font-inter)] text-[32px] leading-[34px] font-extrabold tracking-[-0.8px] text-white">
-                  {translations[lang].title.split("\n").map((line, i) => (
-                    <span key={line}>{line}{i === 0 && <br />}</span>
-                  ))}
-                </h1>
-                <svg aria-hidden="true" width="54" height="5" viewBox="0 0 54 5" className="mt-3 overflow-visible">
-                  <path d="M1 1.5 C17 4.8 37 4.8 53 1.5" fill="none" stroke="#FFD60A" strokeWidth="5" strokeLinecap="round" />
-                </svg>
-                <p className="mt-2.5 max-w-[165px] font-[var(--font-inter)] text-[12px] font-bold tracking-[0.01em] text-white/80">
-                  Powered by <span className="font-black tracking-[-0.055em]"><span className="text-deep-blue">J'</span><span className="text-[#39D7FF]">I</span><span className="bg-gradient-to-br from-[#39D7FF] via-[#5BCBFF] to-[#FFE135] bg-clip-text text-transparent">A</span></span>
-                </p>
-                <p className="relative z-10 mt-3 w-[95%] text-[13px] leading-[18px] font-[var(--font-inter)] font-bold italic text-white/90">
-                  {translations[lang].subtitle}
-                </p>
-              </div>
-
-              <div className="absolute -bottom-10 right-[-8%] z-[5] h-[72%] w-[70%]">
-                <Image
-                  fill
-                  priority
-                  src="/hero-jobly-community.webp"
-                  alt="Communauté Jobly diverse"
-                  sizes="62vw"
-                  className="object-cover object-top drop-shadow-[0_20px_40px_rgba(0,0,0,.35)]"
-                  style={{
-                    WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 14%, black 100%), linear-gradient(to bottom, transparent 0%, black 14%, black 78%, transparent 100%)",
-                    maskImage: "linear-gradient(to right, transparent 0%, black 14%, black 100%), linear-gradient(to bottom, transparent 0%, black 14%, black 78%, transparent 100%)",
-                    WebkitMaskComposite: "destination-in",
-                    maskComposite: "intersect",
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="relative z-20 mt-0 shrink-0 flex flex-row gap-3 px-4">
-              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[56px] w-[48%] rounded-xl bg-canari font-[var(--font-inter)] font-bold text-[14px] text-deep-blue shadow-glow-canari transition-transform active:scale-[0.96]">
-                {translations[lang].create}
-              </button>
-              <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[56px] w-[48%] rounded-xl border border-white/50 bg-deep-blue/90 font-[var(--font-inter)] font-bold text-[14px] text-off-white shadow-premium backdrop-blur-xl transition-transform active:scale-[0.96]">
-                {translations[lang].login}
-              </button>
-            </div>
-
-            <div className="relative z-20 mt-3 shrink-0 grid grid-cols-4 gap-2.5 px-3 pb-1">
-              {BENEFITS[lang].map(({ Icon, title, subtitle }) => (
-                <div key={title} className="relative overflow-hidden rounded-[24px]">
-                  <div className="pointer-events-none absolute -top-20 -left-20 h-[300px] w-[300px] rounded-full bg-[#FFE135]/30 blur-[80px]" />
-                  <div className="pointer-events-none absolute -bottom-20 -right-20 h-[300px] w-[300px] rounded-full bg-[#22448B]/20 blur-[80px]" />
-                  <div className="pointer-events-none absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#FF8C00]/15 blur-[90px]" />
-                  <div className="relative min-h-[82px] rounded-[24px] border border-white/40 bg-white/20 p-3 text-center font-[var(--font-inter)] shadow-premium backdrop-blur-[40px]">
-                    <Icon className="mx-auto mb-1 h-3.5 w-3.5 text-sky-blue sm:h-4 sm:w-4" />
-                    <p className="font-[var(--font-inter)] text-[11px] font-bold leading-[12px] text-deep-blue">{title}</p>
-                    <p className="mt-1 font-[var(--font-inter)] text-[9px] font-bold leading-[10px] text-[#7a7f89]">{subtitle}</p>
-                  </div>
+        <>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.section
+              key={lang}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.32, ease: "easeOut" }}
+              className="relative mx-auto flex min-h-[410px] w-full max-w-[1200px] flex-1 flex-col overflow-hidden sm:min-h-[480px] lg:min-h-[600px] lg:flex-row lg:items-center lg:px-10"
+            >
+              <div className="relative min-h-[410px] w-full flex-1 sm:min-h-[480px] lg:min-h-[600px]">
+                <div aria-hidden="true" className="pointer-events-none absolute right-[7%] top-[13%] z-[3] text-[#FFD60A]">
+                  <svg viewBox="0 0 54 58" className="h-12 w-12 sm:h-14 sm:w-14" fill="none">
+                    <path d="M25 1l4.5 17.5L47 23l-17.5 4.5L25 45l-4.5-17.5L3 23l17.5-4.5L25 1Z" fill="currentColor"/>
+                    <path d="M46 38l2.2 7.8L56 48l-7.8 2.2L46 58l-2.2-7.8L36 48l7.8-2.2L46 38Z" fill="currentColor" opacity=".65"/>
+                  </svg>
                 </div>
-              ))}
-            </div>
-          </motion.section>
-        </AnimatePresence>
+                <div className="relative z-20 ml-5 mt-[104px] w-[48%] sm:ml-8 sm:mt-[112px] sm:w-[46%] lg:ml-0 lg:mt-0 lg:w-[43%]">
+                  <h1 className="font-[var(--font-inter)] text-[clamp(2rem,7.4vw,3.8rem)] font-extrabold leading-[0.98] tracking-[-1.25px] text-[#0A1931]">
+                    {translations[lang].title.split("\n").map((line, i) => (
+                      <span key={i} className="block">{line}</span>
+                    ))}
+                  </h1>
+                  <svg aria-hidden="true" width="56" height="8" viewBox="0 0 56 8" className="mt-4 overflow-visible sm:mt-5">
+                    <path d="M2 2 C18 6 39 6 54 2" fill="none" stroke="#FFD60A" strokeWidth="5" strokeLinecap="round" />
+                  </svg>
+                  <p className="mt-3 max-w-[205px] font-[var(--font-inter)] text-[14px] leading-[1.45] text-[#27364A] sm:mt-4 sm:text-[17px]">
+                    {translations[lang].subtitle}
+                  </p>
+                </div>
+                <div className="pointer-events-none absolute bottom-0 right-[-10%] top-[13%] z-10 w-[82%] sm:right-[-5%] sm:top-[8%] sm:w-[78%] lg:right-0 lg:top-[2%] lg:w-[62%]">
+                  <Image
+                    fill
+                    priority
+                    src="/hero-jobly-community.webp"
+                    alt="Des jeunes professionnels africains réunis au sein de la communauté Jobly"
+                    sizes="(max-width: 640px) 82vw, 62vw"
+                    className="object-cover object-top drop-shadow-[0_18px_34px_rgba(10,25,49,0.16)]"
+                    style={{
+                      WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 16%, black 100%), linear-gradient(to bottom, transparent 0%, black 8%, black 86%, transparent 100%)",
+                      maskImage: "linear-gradient(to right, transparent 0%, black 16%, black 100%), linear-gradient(to bottom, transparent 0%, black 8%, black 86%, transparent 100%)",
+                      WebkitMaskComposite: "destination-in",
+                      maskComposite: "intersect",
+                    }}
+                  />
+                </div>
+              </div>
+            </motion.section>
+          </AnimatePresence>
+          <div className="relative z-20 mx-auto grid w-full max-w-[1100px] grid-cols-2 gap-3 px-5 sm:gap-5 sm:px-8">
+            <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[58px] rounded-[22px] bg-[#2865DC] px-2 font-[var(--font-inter)] text-[14px] font-extrabold text-white shadow-[0_10px_24px_rgba(40,101,220,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:text-[17px]">
+              {translations[lang].create}
+            </button>
+            <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[58px] rounded-[22px] bg-[#FFD60A] px-2 font-[var(--font-inter)] text-[14px] font-extrabold text-[#0A1931] shadow-[0_10px_24px_rgba(255,214,10,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:text-[17px]">
+              {translations[lang].login}
+            </button>
+          </div>
+          <div className="relative z-20 mx-auto mt-4 grid w-full max-w-[1100px] grid-cols-3 gap-2 px-5 sm:mt-6 sm:gap-4 sm:px-8">
+            {BENEFITS[lang].map(({ Icon, title, subtitle, iconClass }) => (
+              <div key={title} className="flex min-h-[104px] flex-col items-center justify-center rounded-[24px] border border-slate-100 bg-white px-1.5 py-3 text-center shadow-[0_5px_18px_rgba(10,25,49,0.055)] sm:min-h-[124px] sm:rounded-[28px] sm:px-3">
+                <Icon className={`mb-2 h-6 w-6 sm:h-7 sm:w-7 ${iconClass}`} />
+                <p className="font-[var(--font-inter)] text-[10px] font-extrabold leading-tight text-[#0A1931] sm:text-[14px]">{title}</p>
+                <p className="mt-1 font-[var(--font-inter)] text-[9px] leading-tight text-[#737A85] sm:text-[12px]">{subtitle}</p>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {screen === "login" && (
@@ -1111,17 +1112,22 @@ export default function Home() {
       {screen === "reset-sent" && <section className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-4 text-center"><div className="mx-auto mb-4 text-5xl" aria-hidden="true">✉️</div><h1 className="text-[32px] font-extrabold text-navy">{translations[lang].sentTitle}</h1><p className="my-3 text-sm text-jobly-gray">{translations[lang].sentText}</p><button type="button" onClick={()=>{reset();goTo("login");}} className="h-[52px] rounded-2xl bg-jobly-blue font-extrabold text-white">{translations[lang].backLogin}</button></section>}
 
       {message && screen !== "journey" && screen !== "jia-welcome" && screen !== "login" && <div role="status" aria-live="polite" className="rounded-2xl border border-blue-100 bg-blue-50 px-3.5 py-2.5 text-center text-xs text-blue-800">{message}</div>}
-      {screen !== "journey" && screen !== "jia-welcome" && screen !== "signup" && screen !== "signup-otp" && screen !== "signup-password" && screen !== "login" && <footer className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-4 pt-2 text-center">
+      {screen !== "journey" && screen !== "jia-welcome" && screen !== "signup" && screen !== "signup-otp" && screen !== "signup-password" && screen !== "login" && <footer className={screen === "welcome" ? "relative z-30 mt-auto w-full px-4 pb-6 pt-5 text-center" : "absolute bottom-0 left-0 right-0 z-30 px-4 pb-4 pt-2 text-center"}>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={`footer-${lang}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeOut" }}>
             
             
-            {screen === "welcome" && <div className="relative mx-auto mt-1 h-[29px] w-[120px]" aria-hidden="true">
-              <motion.svg viewBox="0 0 120 29" className="absolute inset-0 h-full w-full">
-                <motion.path d="M58 27 C44 23 46 12 61 9 C72 7 77 2 74 0" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: [0, 0.7, 0.12, 0] }} transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut" }} />
-              </motion.svg>
-            </div>}
-            {screen === "welcome" && <p className="text-[11px] text-jobly-gray">{translations[lang].madeWith} <span ref={heartTargetRef} className="inline-block h-[14px] w-[14px] align-[-3px]" aria-hidden="true">&nbsp;</span> {translations[lang].by}</p>}
+            {screen === "welcome" && (
+              <>
+                <div className="mx-auto mt-4 h-px w-[120px] bg-slate-200"/>
+                <div className="relative mx-auto mt-1 h-[18px] w-[120px]" aria-hidden="true">
+                  <motion.svg viewBox="0 0 120 29" className="absolute inset-0 h-full w-full">
+                    <motion.path d="M58 27 C44 23 46 12 61 9 C72 7 77 2 74 0" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: [0, 0.7, 0.12, 0] }} transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut" }} />
+                  </motion.svg>
+                </div>
+                <p className="mt-2 text-[14px] leading-none text-[#5F6670] sm:text-[15px]">Built with <span ref={heartTargetRef} className="inline-block h-[14px] w-[14px] align-[-3px]" aria-hidden="true">&nbsp;</span> by Team <strong className="ml-1 text-[17px] font-extrabold text-[#FFD60A] sm:text-[18px]">M</strong></p>
+              </>
+            )}
           </motion.div>
         </AnimatePresence>
       </footer>}
