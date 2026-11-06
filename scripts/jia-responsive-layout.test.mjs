@@ -53,7 +53,7 @@ test("long workspace data cannot force the conversation wider than a phone viewp
 });
 
 test("mobile choices, status badges and business cards preserve readable wrapping", () => {
-  assert.match(blocks, /flex min-w-0 cursor-pointer items-start/);
+  assert.match(blocks, /flex min-h-11 min-w-0 cursor-pointer items-start/);
   assert.match(blocks, /flex-1 break-words \[overflow-wrap:anywhere\]/);
   assert.match(blocks, /max-w-\[42%\] shrink-0 whitespace-normal break-words/);
   assert.match(blocks, /const primary = "inline-flex min-h-11/);
