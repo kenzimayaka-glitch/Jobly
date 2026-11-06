@@ -204,3 +204,24 @@ test("rejects a detailed merchant SMS naming another beneficiary account", () =>
   assert.equal(result.merchantAccount, "237699095589");
   assert.ok(result.fraudFlags.includes("SMS_MERCHANT_ACCOUNT_MISMATCH"));
 });
+
+
+test("converts local operator date and time using the paired merchant timezone", () => {
+  const result = parsePaymentSms({
+    senderId: "JOBLY-MTN-TEST",
+    body: "Vous avez recu 10 000 FCFA de 677123456 sur votre compte. Transaction ID: MTNABC123456. Date: 06/11/2026 10:15:00",
+  }, {
+    senderIds: { SMS_MTN: ["JOBLY-MTN-TEST"] },
+    merchantAccount: "237699123456",
+    timeZone: "Africa/Douala",
+  });
+  assert.equal(result.occurredAt, "2026-11-06T09:15:00.000Z");
+});
+
+test("does not guess a local timestamp when the merchant timezone is absent", () => {
+  const result = parsePaymentSms({
+    senderId: "JOBLY-MTN-TEST",
+    body: "Paiement réussi. Transaction ID: MTNABC123456. Montant: 10 000 FCFA. Date: 06/11/2026 10:15",
+  }, { senderIds: { SMS_MTN: ["JOBLY-MTN-TEST"] }, merchantAccount: "237699123456" });
+  assert.equal(result.occurredAt, null);
+});
