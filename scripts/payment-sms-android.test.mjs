@@ -13,6 +13,8 @@ test("Jobly APK receives SMS only with the declared restricted permission", () =
   assert.match(receiver, /SMS_RECEIVED_ACTION/);
   assert.match(receiver, /findUniqueForSender\(context, senderId\)/);
   assert.ok(receiver.indexOf("findUniqueForSender(context, senderId)") < receiver.indexOf("enqueueUniqueWork"));
+  assert.ok(receiver.includes("queuedFile.writeText(encryptedBody"));
+  assert.ok(receiver.includes("KEY_ENCRYPTED_SMS_FILE to queuedFile.absolutePath"));
 });
 
 test("the merchant token and sender allowlist are encrypted with Android Keystore", () => {
@@ -54,6 +56,8 @@ test("pairing and SMS permission requests use the existing origin-restricted Job
   assert.match(activity, /cancelAllWorkByTag\(PaymentSmsReceiver\.deviceTag\(deviceId\)\)/);
   assert.match(activity, /requestPermissions\(arrayOf\(Manifest\.permission\.RECEIVE_SMS\)/);
   assert.match(bridge, /PAIR_PAYMENT_SMS_DEVICE/);
+  assert.ok(bridge.includes("revokeJoblyPaymentSmsDeviceLocally(deviceId: string)"));
+  assert.match(bridge, /payload: \\{ deviceId \\}/);
   assert.match(bridge, /requestJoblyPaymentSmsPermission/);
   assert.match(page, /pairJoblyPaymentSmsDevice/);
   assert.match(page, /Réessayer l’autorisation SMS/);
