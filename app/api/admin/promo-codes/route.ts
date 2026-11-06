@@ -10,6 +10,10 @@ async function getAdmin(request: NextRequest) {
   const user = await ensureUser(sb, au);
   const denied = requireRole(user, ["ADMIN"]);
   if (denied) return { error: NextResponse.json({ message: denied.error }, { status: denied.status }) };
+  const { data: identity, error } = await sb.from("AdminIdentity").select("active")
+    .eq("authUserId", au.id).eq("ownerUserId", user.id).maybeSingle();
+  if (error) return { error: NextResponse.json({ message: error.message }, { status: 500 }) };
+  if (!identity?.active) return { error: NextResponse.json({ message: "Identité ADMIN maître inactive." }, { status: 403 }) };
   return { sb, user };
 }
 
