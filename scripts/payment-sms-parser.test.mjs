@@ -13,7 +13,7 @@ const config = {
 test("parses a fully labelled synthetic successful receipt", () => {
   const result = parsePaymentSms({
     senderId: "jobly-mtn-test",
-    body: "Paiement réussi. Transaction ID: MTNABC123456. Montant: 10 000 FCFA. De: 237677123456 vers: 237699123456. Date: 2026-11-06 10:15:00",
+    body: "Payment de 699123456 MERCHANT BUSINESS par 677123456 CUSTOMER reussi. Transaction ID: MTNABC123456. Montant: 10 000 FCFA. Date: 2026-11-06 10:15:00",
   }, config);
 
   assert.equal(result.provider, "SMS_MTN");
@@ -22,6 +22,7 @@ test("parses a fully labelled synthetic successful receipt", () => {
   assert.equal(result.transactionId, "MTNABC123456");
   assert.equal(result.amountXaf, 10000);
   assert.equal(result.currency, "XAF");
+  assert.equal(result.direction, "INBOUND");
   assert.equal(result.payerPhone, "237677123456");
   assert.equal(result.merchantAccount, "237699123456");
   assert.equal(result.occurredAt, null);
@@ -83,7 +84,7 @@ test("keeps unknown and incomplete messages non-authoritative", () => {
 test("accepts an authentic receipt when operator omits the payer phone", () => {
   const result = parsePaymentSms({
     senderId: "JOBLY-MTN-TEST",
-    body: "Paiement réussi. Transaction ID: MTNABC123456. Montant: 10 000 FCFA.",
+    body: "Vous avez recu 10 000 FCFA sur votre compte Mobile Money. Financial Transaction Id: 18163059064.",
   }, {
     senderIds: { SMS_MTN: ["JOBLY-MTN-TEST"] },
     merchantAccount: "237699123456",
