@@ -376,8 +376,8 @@ export default function AdminPaymentSmsPage() {
             <input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={100} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" />
           </label>
           <label className="block text-sm font-bold">
-            Numéro du compte marchand sur cette SIM
-            <input value={merchantAccount} onChange={(event) => setMerchantAccount(event.target.value)} placeholder="2376XXXXXXXX" autoComplete="off" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-mono" />
+            Numéro du compte marchand central
+            <input value={merchantAccount} readOnly placeholder="Configure d’abord le numéro dans la section centrale ci-dessus" autoComplete="off" className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-slate-600" />
           </label>
           <label className="block text-sm font-bold">
             Noms d’expéditeur SMS exacts
