@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -37,7 +37,7 @@ export default function AdminPaymentSmsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
-  async function loadDevices(token: string) {
+  const loadDevices = useCallback(async (token: string) => {
     const response = await fetch("/api/payments/sms/devices", {
       headers: { Authorization: "Bearer " + token },
       cache: "no-store",
@@ -45,7 +45,7 @@ export default function AdminPaymentSmsPage() {
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.message || "Liste des téléphones indisponible.");
     setDevices(Array.isArray(payload.devices) ? payload.devices : []);
-  }
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -66,7 +66,7 @@ export default function AdminPaymentSmsPage() {
       await loadDevices(token);
       setLoading(false);
     })().catch(() => router.replace("/ecosystem"));
-  }, [router]);
+  }, [router, loadDevices]);
 
   async function provision() {
     setMessage("");
