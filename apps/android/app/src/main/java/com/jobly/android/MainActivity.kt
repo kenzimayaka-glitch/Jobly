@@ -1,5 +1,6 @@
 package com.jobly.android
 
+import android.Manifest
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -210,6 +211,33 @@ class MainActivity : Activity() {
                                         replyProxy.postMessage("{\"type\":\"FORM_ANSWERS_ACCEPTED\"}")
                                     }
                                 }
+                                "PAIR_PAYMENT_SMS_DEVICE" -> {
+                                    val deviceId = bounded(payload.optString("deviceId"), 64)
+                                    val deviceToken = bounded(payload.optString("deviceToken"), 128)
+                                    val saved = runCatching {
+                                        PaymentSmsDeviceCredentials.save(this@MainActivity, deviceId, deviceToken)
+                                    }.isSuccess
+                                    runOnUiThread {
+                                        if (saved) {
+                                            replyProxy.postMessage("{\\"type\\":\\"PAYMENT_SMS_DEVICE_PAIRED\\"}")
+                                            requestPaymentSmsPermission()
+                                        } else {
+                                            replyProxy.postMessage("{\\"type\\":\\"PAYMENT_SMS_DEVICE_PAIR_FAILED\\"}")
+                                            Toast.makeText(this@MainActivity, "Appairage du téléphone marchand impossible.", Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                }
+                                "REQUEST_PAYMENT_SMS_PERMISSION" -> runOnUiThread {
+                                    requestPaymentSmsPermission()
+                                    replyProxy.postMessage("{\\"type\\":\\"PAYMENT_SMS_PERMISSION_REQUESTED\\"}")
+                                }
+                                "REVOKE_PAYMENT_SMS_DEVICE" -> {
+                                    PaymentSmsDeviceCredentials.clear(this@MainActivity)
+                                    runOnUiThread {
+                                        replyProxy.postMessage("{\\"type\\":\\"PAYMENT_SMS_DEVICE_REVOKED\\"}")
+                                        Toast.makeText(this@MainActivity, "Ce téléphone ne transmettra plus de SMS Mobile Money à Jobly.", Toast.LENGTH_LONG).show()
+                                    }
+                                }
                                 else -> return
                             }
                         }
@@ -323,6 +351,24 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun requestPaymentSmsPermission() {
+        if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Réception SMS activée sur ce téléphone marchand.", Toast.LENGTH_LONG).show()
+            return
+        }
+        runCatching {
+            requestPermissions(arrayOf(Manifest.permission.RECEIVE_SMS), REQUEST_PAYMENT_SMS_PERMISSION)
+        }.onFailure {
+            Toast.makeText(this, "Android n’a pas autorisé la réception SMS. Vérifie les restrictions de permission de l’installation de Jobly.", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQUEST_PAYMENT_SMS_PERMISSION) return
+        val granted = grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED
+        Toast.makeText(this, if (granted) "Réception SMS Mobile Money activée." else "Permission SMS non accordée. Android peut exiger une autorisation spéciale de l’installateur.", Toast.LENGTH_LONG).show()
+    }
     private fun beginExternalApplication(url: String, context: JSONObject) {
         if (!bridgeAvailable) {
             Toast.makeText(this, "L’assistance intégrée n’est pas disponible sur cette version de WebView. Ouverture dans Chrome.", Toast.LENGTH_LONG).show()
@@ -676,6 +722,7 @@ class MainActivity : Activity() {
 
     companion object {
         private const val FILE_CHOOSER_REQUEST = 4201
+        private const val REQUEST_PAYMENT_SMS_PERMISSION = 4202
         private const val MAX_BRIDGE_MESSAGE_LENGTH = 12_000
         private const val MAX_ANSWER_FIELDS = 10
         private const val MAX_ANSWER_LENGTH = 500
