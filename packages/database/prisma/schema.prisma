@@ -302,6 +302,57 @@ model AdminManagedAccount {
   @@index([ownerAdminUserId, status, createdAt])
 }
 
+model AdminSupportTicket {
+  id               String   @id @default(uuid()) @db.Uuid
+  requesterUserId  String
+  subject          String
+  category         String   @default("GENERAL")
+  priority         String   @default("NORMAL")
+  status           String   @default("OPEN")
+  source           String   @default("IN_APP")
+  assignedToUserId String?
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @db.Timestamptz(6)
+  lastMessageAt    DateTime @default(now()) @db.Timestamptz(6)
+  resolvedAt       DateTime? @db.Timestamptz(6)
+  messages         AdminSupportTicketMessage[]
+
+  @@index([status, priority, lastMessageAt])
+  @@index([requesterUserId, createdAt])
+}
+
+model AdminSupportTicketMessage {
+  id           String   @id @default(uuid()) @db.Uuid
+  ticketId     String   @db.Uuid
+  authorUserId String?
+  authorRole   String
+  body         String   @db.Text
+  isInternal   Boolean  @default(false)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  ticket       AdminSupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+}
+
+model AdminCommunityReport {
+  id              String   @id @default(uuid()) @db.Uuid
+  postId          String
+  communityId     String
+  reporterUserId  String
+  reason          String
+  details         String?  @db.Text
+  status          String   @default("OPEN")
+  reviewAction    String?
+  reviewedByUserId String?
+  reviewedAt      DateTime? @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([postId, reporterUserId])
+  @@index([status, createdAt])
+  @@index([postId, status])
+}
+
 model Profile {
   id             String   @id @default(cuid())
   userId         String   @unique
