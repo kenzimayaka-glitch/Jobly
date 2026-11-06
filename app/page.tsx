@@ -521,6 +521,7 @@ export default function Home() {
   const logoRef = useRef<HTMLDivElement>(null);
   const heartTargetRef = useRef<HTMLSpanElement>(null);
   const [heartPath, setHeartPath] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
+  const [heartLanded, setHeartLanded] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [rememberMe, setRememberMeState] = useState(false);
 
@@ -1340,9 +1341,18 @@ export default function Home() {
           y: { duration: 2.65, ease: [0.16, 1, 0.3, 1] },
           scale: { duration: 2.65, ease: "easeOut" },
         }}
+        onAnimationComplete={() => setHeartLanded(true)}
         aria-hidden="true"
       >
-        <span className="block">❤️</span>
+        <motion.span
+          className="block origin-center"
+          animate={heartLanded ? { scale: [1, 1.14, 1, 1.1, 1] } : { scale: 1 }}
+          transition={heartLanded
+            ? { duration: 0.9, repeat: Infinity, repeatDelay: 0.12, ease: "easeInOut" }
+            : { duration: 0 }}
+        >
+          ❤️
+        </motion.span>
       </motion.span>
     )}
   </main>;
