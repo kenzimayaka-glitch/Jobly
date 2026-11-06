@@ -1,5 +1,6 @@
 export type OfflineSnapshot = {
   userId: string;
+  authUserId: string;
   generatedAt: string;
   expiresAt: string;
   user: Record<string, unknown>;
@@ -136,7 +137,7 @@ export async function saveOfflineSnapshot(snapshot: OfflineSnapshot) {
   try { window.localStorage.setItem(OFFLINE_USER_KEY, snapshot.userId); } catch {}
 }
 
-export async function getOfflineSnapshot(userId = getOfflineUserId()): Promise<OfflineSnapshot | null> {
+export async function getOfflineSnapshot(userId = getOfflineUserId(), expectedAuthUserId?: string): Promise<OfflineSnapshot | null> {
   if (!userId) return null;
   const db = await openDatabase();
   let record: EncryptedRecord | undefined;
@@ -153,6 +154,7 @@ export async function getOfflineSnapshot(userId = getOfflineUserId()): Promise<O
     await clearOfflineData(userId);
     return null;
   }
+  if (expectedAuthUserId && snapshot.authUserId !== expectedAuthUserId) return null;
   return snapshot;
 }
 
