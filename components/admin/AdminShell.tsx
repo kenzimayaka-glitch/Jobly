@@ -13,7 +13,7 @@ const NAV = [
   { href: "/admin/support", label: "Tickets Support", group: "Opérations" },
   { href: "/admin/finance", label: "Cockpit Finance", group: "Finance" },
   { href: "/admin/community", label: "Modération Community", group: "Opérations" },
-  { href: "/admin/analytics", label: "Reporting transversal", group: "Intelligence" },
+  { href: "/admin/analytics", label: "Intelligence 360 · BI", group: "Intelligence" },
   { href: "/admin/accounts", label: "Comptes & institutions", group: "Écosystème" },
   { href: "/admin/jia", label: "J’IA · CEO", group: "Intelligence" },
   { href: "/admin/jia/chat", label: "J’IA · Copilot", group: "Intelligence" },
