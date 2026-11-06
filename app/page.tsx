@@ -289,16 +289,16 @@ const HOME_HEADLINES = {
 
 const BENEFITS = {
   fr: [
-    { Icon: ShieldStarIcon, kind: "static", title: "100% Gratuit", subtitle: "Accès aux opportunités qui correspondent le mieux à votre profil", iconClass: "text-[#3478C8]" },
-    { Icon: PeopleStarIcon, kind: "offers", title: "Offres Afrique", subtitle: "offres actives sur Jobly", iconClass: "text-[#8064D8]" },
-    { Icon: CheckCircleIcon, kind: "talents", title: "Un pipeline de Talent", subtitle: "profils Talent inscrits", iconClass: "text-[#28A99B]" },
-    { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "+50 candidatures en un clic", iconClass: "text-[#D99A16]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "100 % GRATUIT", subtitle: "Accédez aux opportunités qui correspondent le mieux à votre profil.", iconClass: "text-[#3478C8]" },
+    { Icon: PeopleStarIcon, kind: "offers", title: "DES OFFRES DE TOUTE L’AFRIQUE", subtitle: "Offres disponibles sur Jobly à travers l’Afrique.", iconClass: "text-[#8064D8]" },
+    { Icon: CheckCircleIcon, kind: "talents", title: "UN PIPELINE DE TALENT", subtitle: "Talents partout en Afrique.", iconClass: "text-[#28A99B]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "Postulez à 50+ offres en un clic. Simplifiez vos candidatures avec J’IA.", iconClass: "text-[#D99A16]" },
   ],
   en: [
-    { Icon: ShieldStarIcon, kind: "static", title: "100% Free", subtitle: "Access to the opportunities that best match your profile", iconClass: "text-[#3478C8]" },
-    { Icon: PeopleStarIcon, kind: "offers", title: "Africa offers", subtitle: "active offers on Jobly", iconClass: "text-[#8064D8]" },
-    { Icon: CheckCircleIcon, kind: "talents", title: "A Talent pipeline", subtitle: "registered Talent profiles", iconClass: "text-[#28A99B]" },
-    { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "+50 applications in one click", iconClass: "text-[#D99A16]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "100% FREE", subtitle: "Access opportunities that best match your profile.", iconClass: "text-[#3478C8]" },
+    { Icon: PeopleStarIcon, kind: "offers", title: "OFFERS ACROSS AFRICA", subtitle: "Offers available on Jobly across Africa.", iconClass: "text-[#8064D8]" },
+    { Icon: CheckCircleIcon, kind: "talents", title: "A TALENT PIPELINE", subtitle: "Talents across Africa.", iconClass: "text-[#28A99B]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "Apply to 50+ offers in one click. Simplify your applications with J’IA.", iconClass: "text-[#D99A16]" },
   ],
 } as const;
 
@@ -997,7 +997,7 @@ export default function Home() {
               </>
             )}
           </div>
-          <div className="jobly-public-home-benefits relative z-20 mx-auto mt-2 grid w-full max-w-[1100px] grid-cols-4 gap-1 px-3 sm:mt-6 sm:gap-3 sm:px-6 lg:gap-4 lg:px-8">
+          <div className="jobly-public-home-benefits relative z-20 mx-auto mt-2 grid w-full max-w-[1100px] grid-cols-2 gap-2 px-3 sm:mt-6 sm:grid-cols-4 sm:gap-3 sm:px-6 lg:gap-4 lg:px-8">
             {BENEFITS[lang].map(({ Icon, kind, title, subtitle, iconClass }) => {
               const metric = kind === "offers"
                 ? homeStats?.offersCount ?? null
@@ -1011,15 +1011,11 @@ export default function Home() {
               return (
                 <div key={title} className="flex min-w-0 flex-col items-center justify-center rounded-[16px] border border-slate-100 bg-white px-1 py-2 text-center shadow-[0_5px_18px_rgba(10,25,49,0.055)] sm:min-h-[124px] sm:rounded-[24px] sm:px-2 sm:py-3 lg:rounded-[28px] lg:px-3">
                   <Icon className={`mb-1 h-6 w-6 sm:mb-2 sm:h-7 sm:w-7 ${iconClass}`} />
-                  {kind === "static" ? (
-                    <p className="font-[var(--font-inter)] text-[10px] font-extrabold leading-tight text-[#0A1931] sm:text-[14px]">{title}</p>
-                  ) : (
-                    <>
-                      <div className="font-[var(--font-inter)] text-[18px] font-extrabold leading-none tracking-tight text-[#0A1931] sm:text-[25px]">
-                        <AnimatedCounter value={displayedMetric} locale={lang === "fr" ? "fr-FR" : "en-US"} />
-                      </div>
-                      <p className="mt-1 font-[var(--font-inter)] text-[9px] font-extrabold leading-tight text-[#0A1931] sm:text-[13px]">{title}</p>
-                    </>
+                  <p className="font-[var(--font-inter)] text-[10px] font-extrabold leading-tight text-[#0A1931] sm:text-[14px]">{title}</p>
+                  {kind !== "static" && (
+                    <div className="mt-1 font-[var(--font-inter)] text-[18px] font-extrabold leading-none tracking-tight text-[#0A1931] sm:text-[25px]">
+                      <AnimatedCounter value={displayedMetric} locale={lang === "fr" ? "fr-FR" : "en-US"} />
+                    </div>
                   )}
                   <p className="mt-1 font-[var(--font-inter)] text-[9px] leading-tight text-[#737A85] sm:text-[12px]">{subtitle}</p>
                 </div>
