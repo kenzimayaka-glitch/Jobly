@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { adminClient,ensureUser,getAuthUser } from "../../../../../lib/server-auth";
 import { EVENT_FEATURED_DAYS,EVENT_FEATURED_PRICE } from "../../../../../lib/events";
 import { getEventManualPaymentInstructions } from "../../../../../lib/eventManualPayments";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 const fail=(message:string,status=400,code="EVENT_FEATURE_ERROR")=>NextResponse.json({error:code,message},{status});
 
@@ -13,6 +14,12 @@ export async function POST(request:NextRequest,context:{params:Promise<{id:strin
     const {id}=await context.params;
     const sb=adminClient();
     const user=await ensureUser(sb,auth);
+    const limited=await enforceApiRateLimit(request,sb,{
+      scope:"event-feature-request",identity:user.id,
+      accountWindows:[{limit:5,windowSeconds:3600},{limit:10,windowSeconds:86400}],
+      ipWindows:[{limit:10,windowSeconds:3600}],requireIp:true
+    });
+    if(limited)return limited;
     const {data:event,error:eventError}=await sb.from("Event")
       .select("id,creatorUserId,status").eq("id",id).maybeSingle();
     if(eventError)throw new Error(eventError.message);
