@@ -123,14 +123,17 @@ test("Bon Plans suggestions enter review and never publish directly", () => {
   assert.match(page, /proposalPending/);
 });
 
-test("Only ADMIN and MODERATOR can approve or reject Bon Plans", () => {
+test("Bon Plans decisions require the active root AdminIdentity", () => {
   const queue = read("app/api/bon-plans/moderation/route.ts");
   const decision = read("app/api/bon-plans/[id]/moderation/route.ts");
   const page = read("app/bons-plans/page.tsx");
-  assert.match(queue, /user\.role !== "ADMIN"/);
-  assert.match(queue, /user\.role !== "MODERATOR"/);
-  assert.match(decision, /moderator\.role !== "ADMIN"/);
-  assert.match(decision, /moderator\.role !== "MODERATOR"/);
+  assert.match(queue, /String\\(user\\.role\\)\\.toUpperCase\\(\\) !== "ADMIN"/);
+  assert.match(queue, /from\\("AdminIdentity"\\)/);
+  assert.match(queue, /identity\\?\\.active/);
+  assert.match(decision, /String\\(moderator\\.role\\)\\.toUpperCase\\(\\) !== "ADMIN"/);
+  assert.match(decision, /from\\("AdminIdentity"\\)/);
+  assert.match(decision, /identity\\?\\.active/);
+  assert.doesNotMatch(decision, /MODERATOR/);
   assert.match(decision, /status !== "PENDING_REVIEW"/);
   assert.match(decision, /announceEventToCommunities/);
   assert.match(page, /moderatePlan/);
