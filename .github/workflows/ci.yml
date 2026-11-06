@@ -80,6 +80,7 @@ jobs:
           supabase/functions/_shared/application-readiness.test.ts
           supabase/functions/_shared/job-sector-classification.test.ts
           supabase/functions/_shared/offer-quality.test.ts
+          supabase/functions/_shared/job-freshness.test.ts
           supabase/functions/_shared/offer-section-quality.test.ts
 
       - name: Validate offer ingestion functions
