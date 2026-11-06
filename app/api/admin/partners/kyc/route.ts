@@ -113,6 +113,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Ce dossier a déjà été traité ou n’est pas soumis.", currentStatus: kyc.status }, { status: 409 });
     }
 
+    const { data: previousPartner, error: previousPartnerError } = await supabase
+      .from("Partner")
+      .select("id,kycStatus,kycCompletedAt")
+      .eq("id", partnerId)
+      .maybeSingle();
+    if (previousPartnerError) throw new Error(previousPartnerError.message);
+    if (!previousPartner) return NextResponse.json({ message: "Profil partenaire introuvable." }, { status: 404 });
+
     const now = new Date().toISOString();
     const { data: changedKyc, error: kycUpdateError } = await supabase
       .from("PartnerKyc")
@@ -148,7 +156,10 @@ export async function POST(request: NextRequest) {
       metadata: { partnerId, decision, note: note || null, reviewedAt: now },
     });
     if (auditError) {
-      await supabase.from("Partner").update({ kycStatus: "PENDING", kycCompletedAt: null }).eq("id", partnerId);
+      await supabase.from("Partner").update({
+        kycStatus: previousPartner.kycStatus,
+        kycCompletedAt: previousPartner.kycCompletedAt,
+      }).eq("id", partnerId);
       await supabase.from("PartnerKyc").update({ status: "SUBMITTED", updatedAt: now }).eq("id", kyc.id);
       throw new Error(auditError.message);
     }
