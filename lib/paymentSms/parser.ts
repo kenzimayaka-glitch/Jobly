@@ -77,10 +77,12 @@ function normalizePhone(value: string | null): string | null {
 
 function parseStatus(body: string): ParsedPaymentSmsStatus {
   const text = body.normalize("NFKC").toLocaleLowerCase("fr");
-  if (/\b(echec|échec|failed|failure|annul[eé]|rejet[eé]|declined|refus[eé])\b/.test(text)) {
+  // Negative language takes precedence over positive words ("pas réussi", "not paid").
+  if (/\b(?:non|pas|not)\s+(?:été\s+)?(?:réussi|reussi|effectué|effectue|payé|payee|paid|successful|confirmed|confirmé|reçu|recu)\b/.test(text)
+    || /\b(echec|échec|failed|failure|annul[eé]|rejet[eé]|declined|refus[eé])\b/.test(text)) {
     return "FAILED";
   }
-  if (/\b(en cours|pending|processing|traitement en cours)\b/.test(text)) {
+  if (/\b(en cours|en attente|pending|processing|traitement en cours|awaiting confirmation)\b/.test(text)) {
     return "PENDING";
   }
   if (/\b(successful|success|réussi|reussi|effectué|effectue|pay[eé]|paid|reçu|recu|received|credited|confirm[eé])\b/.test(text)) {
@@ -90,22 +92,14 @@ function parseStatus(body: string): ParsedPaymentSmsStatus {
 }
 
 function parseOccurredAt(body: string): string | null {
+  // Only normalize timestamps with an explicit UTC offset. A local SMS timestamp
+  // without an offset is deliberately left unknown; server timezone is not guessed.
   const iso = captureFirst(body, [
-    /\b((?:20\d{2})-(?:0?[1-9]|1[0-2])-(?:0?[1-9]|[12]\d|3[01])[ T](?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?)\b/,
+    /\b((?:20\d{2})-(?:0?[1-9]|1[0-2])-(?:0?[1-9]|[12]\d|3[01])[ T](?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?(?:Z|[+-](?:0\d|1[0-4]):[0-5]\d))\b/i,
   ]);
-  if (iso) {
-    const normalized = iso.replace(" ", "T");
-    const date = new Date(normalized);
-    return Number.isNaN(date.getTime()) ? null : date.toISOString();
-  }
-  const local = captureFirst(body, [
-    /\b((?:0?[1-9]|[12]\d|3[01])[/-](?:0?[1-9]|1[0-2])[/-]20\d{2}[ ,]+(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?)\b/,
-  ]);
-  if (!local) return null;
-  const match = /^(\d{1,2})[/-](\d{1,2})[/-](20\d{2})[ ,]+(\d{2}:\d{2}(?::\d{2})?)$/.exec(local);
-  if (!match) return null;
-  const [, day, month, year, time] = match;
-  const date = new Date(`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${time}`);
+  if (!iso) return null;
+  const normalized = iso.replace(" ", "T");
+  const date = new Date(normalized);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
