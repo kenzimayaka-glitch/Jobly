@@ -31,6 +31,7 @@ import { useOutfit, type Outfit } from "@/lib/jia/outfit";
 import { GESTURES, type GestureId } from "@/lib/jia/gestures";
 import { commandIntent, extractWakeCommand, isFinancialRequest } from "@/lib/jia/guard";
 import { getSupabaseClient } from "../lib/supabase";
+import { canWriteJiaConversation } from "@/lib/jia/conversation-write-guard";
 import { useI18n, type DictKey } from "@/lib/i18n";
 import { decide as decideAutonomy, observe as observeAutonomy } from "@/lib/jia/autonomy";
 import JiaConversationSurface, { type JiaConversationMessage } from "@/components/jia/JiaConversationSurface";
@@ -647,10 +648,16 @@ export default function JiaPresence() {
     }
     conversationWriteQueueRef.current = conversationWriteQueueRef.current.then(async () => {
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token || session.user.id !== ownerUserId ||
-          conversationOwnerUserIdRef.current !== ownerUserId ||
-          conversationIdRef.current !== conversationId ||
-          conversationWriteEpochRef.current !== epoch) return;
+      if (!canWriteJiaConversation({
+        accessToken: session?.access_token,
+        sessionUserId: session?.user?.id,
+        ownerUserId,
+        currentOwnerUserId: conversationOwnerUserIdRef.current,
+        currentConversationId: conversationIdRef.current,
+        capturedConversationId: conversationId,
+        currentEpoch: conversationWriteEpochRef.current,
+        capturedEpoch: epoch,
+      })) return;
       const response = await fetch("/api/jia/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
@@ -868,10 +875,16 @@ export default function JiaPresence() {
     if (!conversationId || !ownerUserId) return;
     conversationWriteQueueRef.current = conversationWriteQueueRef.current.then(async () => {
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token || session.user.id !== ownerUserId ||
-          conversationOwnerUserIdRef.current !== ownerUserId ||
-          conversationIdRef.current !== conversationId ||
-          conversationWriteEpochRef.current !== epoch) return;
+      if (!canWriteJiaConversation({
+        accessToken: session?.access_token,
+        sessionUserId: session?.user?.id,
+        ownerUserId,
+        currentOwnerUserId: conversationOwnerUserIdRef.current,
+        currentConversationId: conversationIdRef.current,
+        capturedConversationId: conversationId,
+        currentEpoch: conversationWriteEpochRef.current,
+        capturedEpoch: epoch,
+      })) return;
       const response = await fetch("/api/jia/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
