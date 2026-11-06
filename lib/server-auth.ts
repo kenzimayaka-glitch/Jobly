@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import { verifyAndroidRequestSignature } from "@/lib/android-key-attestation";
 
 /**
  * Shared server-side auth helpers for JOBLY API routes.
@@ -89,14 +90,55 @@ export async function getAuthUser(request: NextRequest) {
       if (isNativeAndroidWebView && !isAttestationBootstrap) {
         const { data: attestation, error: attestationError } = await service
           .from("AndroidDeviceAttestation")
-          .select("id")
+          .select("id,publicKeyPem")
           .eq("userId", internalUser.id)
           .eq("deviceId", deviceId)
           .is("revokedAt", null)
           .gt("expiresAt", new Date().toISOString())
           .maybeSingle();
         if (attestationError) throw new Error("Contrôle d'intégrité Android indisponible.");
-        if (!attestation) return null;
+        if (!attestation?.publicKeyPem) return null;
+
+        const proofId = request.headers.get("x-jobly-attestation-challenge") || "";
+        const proofTimestamp = request.headers.get("x-jobly-attestation-timestamp") || "";
+        const proofSignature = request.headers.get("x-jobly-attestation-signature") || "";
+        const timestampNumber = Number(proofTimestamp);
+        if (!/^[0-9a-f-]{36}$/i.test(proofId) || !/^\\d{13}$/.test(proofTimestamp) ||
+            !Number.isSafeInteger(timestampNumber) || Math.abs(Date.now() - timestampNumber) > 30_000) {
+          return null;
+        }
+
+        const requestBody = Buffer.from(await request.clone().arrayBuffer());
+        if (requestBody.byteLength > 4 * 1024 * 1024) return null;
+        const bodyHash = crypto.createHash("sha256").update(requestBody).digest("hex");
+        const requestPath = new URL(request.url);
+        const canonical = [
+          request.method.toUpperCase(),
+          requestPath.pathname + requestPath.search,
+          proofTimestamp,
+          proofId,
+          bodyHash,
+        ].join("\\n");
+
+        const { data: proof, error: proofError } = await service
+          .from("AndroidAttestationChallenge")
+          .update({ usedAt: new Date().toISOString() })
+          .eq("id", proofId)
+          .eq("userId", internalUser.id)
+          .eq("deviceId", deviceId)
+          .eq("purpose", "REQUEST")
+          .is("usedAt", null)
+          .gt("expiresAt", new Date().toISOString())
+          .select("challengeHash")
+          .maybeSingle();
+        if (proofError) throw new Error("Contrôle de preuve Android indisponible.");
+        const expectedHash = crypto.createHash("sha256").update(canonical).digest("hex");
+        if (!proof?.challengeHash || proof.challengeHash !== expectedHash) return null;
+        if (!verifyAndroidRequestSignature({
+          publicKeyPem: attestation.publicKeyPem,
+          payload: canonical,
+          signature: proofSignature,
+        })) return null;
       }
       const deviceLabel = request.headers.get("x-jobly-device-name")?.trim() || inferredDeviceLabel(userAgent);
       const { data: registration, error: registrationError } = await service.rpc("register_jobly_device_session", {
