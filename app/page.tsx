@@ -851,7 +851,7 @@ export default function Home() {
   }, [screen, email]);
 
   async function google() { setBusy(true); setMessage(""); try { await signInWithGoogle(); } catch (e) { setMessage(e instanceof Error ? e.message : "Connexion Google impossible."); setBusy(false); } }
-  async function login() { if (!validUsername) return setMessage("Entre un username valide (3 à 15 caractères)."); if (passwordError) return setMessage(passwordError); setBusy(true); setMessage(""); try { setRememberMe(rememberMe); await loginWithUsernamePassword(username, password); const afterLogin = window.sessionStorage.getItem("jobly:after-login"); if (afterLogin) { window.sessionStorage.removeItem("jobly:after-login"); window.location.assign(afterLogin); } else { window.location.assign((window.localStorage.getItem("jobly:last-ecosystem") === "recruiter") ? "/recruiter" : (window.localStorage.getItem("jobly:last-ecosystem") === "partner") ? "/partner" : (window.localStorage.getItem("jobly:last-ecosystem") === "talent") ? "/career-brain" : "/ecosystem"); } } catch (e) { setMessage(e instanceof Error ? e.message : "Connexion impossible."); } finally { setBusy(false); } }
+  async function login() { if (!validUsername) return setMessage("Entre un username valide (1 à 40 caractères)."); if (!password) return setMessage("Entre ton mot de passe."); setBusy(true); setMessage(""); try { setRememberMe(rememberMe); await loginWithUsernamePassword(username, password); const afterLogin = window.sessionStorage.getItem("jobly:after-login"); if (afterLogin) { window.sessionStorage.removeItem("jobly:after-login"); window.location.assign(afterLogin); } else { window.location.assign((window.localStorage.getItem("jobly:last-ecosystem") === "recruiter") ? "/recruiter" : (window.localStorage.getItem("jobly:last-ecosystem") === "partner") ? "/partner" : (window.localStorage.getItem("jobly:last-ecosystem") === "talent") ? "/career-brain" : "/ecosystem"); } } catch (e) { setMessage(e instanceof Error ? e.message : "Connexion impossible."); } finally { setBusy(false); } }
   async function startSignup() {
     if (!firstName.trim() || !lastName.trim()) return setMessage("Nom et prénom sont obligatoires.");
     if (!isValidEmail(email)) return setMessage("Entre une adresse e-mail valide.");
@@ -1090,6 +1090,7 @@ export default function Home() {
               <button type="button" onClick={google} disabled={busy} className="h-[52px] rounded-full border border-gray-200 bg-white font-semibold flex items-center justify-center gap-2">
                 <GoogleIcon className="w-5 h-5" />{translations[lang].google}
               </button>
+              {message && <div role="alert" aria-live="assertive" className="rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-center text-[13px] font-semibold text-red-700">{message}</div>}
               {message && <div role="alert" aria-live="assertive" className="rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-center text-[13px] font-semibold text-red-700">{message}</div>}
             </form>
             <p className="relative -mt-2 text-center text-[13px] text-gray-500">{translations[lang].noAccount}{" "}<button type="button" onClick={()=>{reset();goTo("signup");}} className="font-bold text-[#22448B]">Créer un compte</button></p>

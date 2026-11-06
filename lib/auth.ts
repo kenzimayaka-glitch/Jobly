@@ -45,8 +45,7 @@ export async function verifyEmailOtp(email: string, token: string) {
 }
 
 export async function loginWithUsernamePassword(username: string, password: string) {
-  const passwordError = validatePassword(password);
-  if (passwordError) throw new Error(passwordError);
+  if (!username.trim() || !password) throw new Error("Username et mot de passe sont obligatoires.");
   const response = await fetch("/api/auth/username/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -119,7 +118,10 @@ export async function updatePassword(password: string) {
 export async function signInWithGoogle() {
   const { error } = await getSupabaseClient().auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${window.location.origin}/auth/callback` },
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback`,
+      queryParams: { prompt: "select_account" },
+    },
   });
   if (error) throw new Error(error.message || "Connexion Google impossible.");
 }

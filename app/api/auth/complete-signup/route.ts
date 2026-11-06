@@ -25,10 +25,13 @@ export async function POST(request: NextRequest) {
     if (authUser.email?.toLowerCase() !== email) return NextResponse.json({ message: "L'adresse e-mail vérifiée ne correspond pas à l'inscription." }, { status: 400 });
 
     const supabase = adminClient();
-    const { data: conflict } = await supabase.from("User").select("id").ilike("username", username).maybeSingle();
-    if (conflict) return NextResponse.json({ message: "Ce username est déjà utilisé. Choisis-en un autre." }, { status: 409 });
     const { data: existing, error: existingError } = await supabase.from("User").select("id").eq("authUserId", authUser.id).maybeSingle();
     if (existingError) throw new Error(existingError.message);
+    const { data: conflict, error: conflictError } = await supabase.from("User").select("id").ilike("username", username).maybeSingle();
+    if (conflictError) throw new Error("Vérification de l'unicité du username impossible.");
+    if (conflict && conflict.id !== existing?.id) {
+      return NextResponse.json({ message: "Ce username est déjà utilisé. Choisis-en un autre." }, { status: 409 });
+    }
     const now = new Date().toISOString();
     const payload = { authUserId: authUser.id, email, phone, firstName, lastName, displayName: username, username, country, privacyAcceptedAt: now, updatedAt: now };
     const welcomeFields = existing ? {} : { aiWelcomeCredits: 30, aiWelcomeGrantedAt: now };
