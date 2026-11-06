@@ -6,7 +6,6 @@ import {
   getOfflineSnapshot,
   getOfflineUserId,
   saveOfflineSnapshot,
-  updateOfflineSnapshot,
   type OfflineSnapshot,
 } from "@/lib/offline-store";
 
@@ -172,14 +171,19 @@ export default function OfflineWorkspacePage() {
             <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-900">{snapshot.offers.length} offres</span>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {snapshot.offers.slice(0, 50).map((offer) => (
-              <article key={String(offer.id)} className="rounded-2xl border border-slate-200 p-4">
-                <h3 className="font-extrabold">{String(offer.title || "Offre Jobly")}</h3>
-                <p className="mt-1 text-xs text-slate-500">{String(offer.company?.name || "Entreprise non précisée")} · {String(offer.location || "Afrique")}</p>
-                <p className="mt-3 line-clamp-3 text-xs leading-5 text-slate-600">{String(offer.description || "")}</p>
-                <button type="button" onClick={() => void prepareApplication(String(offer.id))} disabled={!offer.applicationReady} className="mt-3 rounded-xl bg-[#0A1931] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">Préparer ma candidature</button>
-              </article>
-            ))}
+            {snapshot.offers.slice(0, 50).map((offer) => {
+              const company = offer.company && typeof offer.company === "object"
+                ? offer.company as Record<string, unknown>
+                : null;
+              return (
+                <article key={String(offer.id)} className="rounded-2xl border border-slate-200 p-4">
+                  <h3 className="font-extrabold">{String(offer.title || "Offre Jobly")}</h3>
+                  <p className="mt-1 text-xs text-slate-500">{String(company?.name || "Entreprise non précisée")} · {String(offer.location || "Afrique")}</p>
+                  <p className="mt-3 line-clamp-3 text-xs leading-5 text-slate-600">{String(offer.description || "")}</p>
+                  <button type="button" onClick={() => void prepareApplication(String(offer.id))} disabled={offer.applicationReady !== true} className="mt-3 rounded-xl bg-[#0A1931] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">Préparer ma candidature</button>
+                </article>
+              );
+            })}
             {snapshot.offers.length === 0 ? <p className="text-sm text-slate-500">Aucune offre n'a été téléchargée. Revenez dans les paramètres lorsque vous serez en ligne.</p> : null}
           </div>
         </section>
