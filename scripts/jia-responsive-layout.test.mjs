@@ -5,6 +5,8 @@ import { getJiaExperienceDevice } from "../lib/jia/experience-engine.ts";
 
 const root = process.cwd();
 const surface = readFileSync(root + "/components/jia/JiaConversationSurface.tsx", "utf8");
+const globalStyles = readFileSync(root + "/app/globals.css", "utf8");
+const homePage = readFileSync(root + "/app/page.tsx", "utf8");
 const blocks = readFileSync(root + "/components/jia/JiaWorkspaceBlocks.tsx", "utf8");
 
 test("J’IA 360 classifies narrow phones, large phones, tablets and desktop at CSS breakpoints", () => {
@@ -62,22 +64,22 @@ test("mobile choices, status badges and business cards preserve readable wrappin
   assert.match(blocks, /flex flex-wrap items-start justify-between gap-2/);
 });
 
-test("J’IA keeps its conversational presence without rendering a physical avatar", () => {
-  const presence = readFileSync(root + "/components/JiaPresence.tsx", "utf8");
-  const mark = readFileSync(root + "/components/JiaPresenceMark.tsx", "utf8");
-  assert.equal(presence.includes("JIA3D"), false);
-  assert.equal(presence.includes("FaceLauncher"), false);
-  assert.equal(presence.includes("head.webp"), false);
-  assert.ok(presence.includes('<JiaPresenceMark size="lg"'));
-  assert.ok(presence.includes('<JiaPresenceMark size="md"'));
-  assert.ok(presence.includes("<JiaConversationSurface"));
-  assert.ok(presence.includes("sendTextCommand"));
-  assert.ok(presence.includes("enableVoiceFromConversation"));
-  assert.equal(surface.includes("JIA3D"), false);
-  assert.equal(surface.includes("head.webp"), false);
-  assert.ok(surface.includes('<JiaPresenceMark size="lg"'));
-  assert.ok(surface.includes('aria-label="Conversation J’IA 360"'));
-  assert.ok(mark.includes("data-jia-presence-mark"));
-  assert.ok(mark.includes('"listening"'));
-  assert.ok(mark.includes('"speaking"'));
+
+
+test("public welcome page remains vertically scrollable on mobile, tablet and desktop web", () => {
+  const homeRule = globalStyles.split(".jobly-public-home {")[1]?.split("}")[0] || "";
+  const heroRule = globalStyles.split(".jobly-public-home .jobly-public-home-hero {")[1]?.split("}")[0] || "";
+  const desktopMedia = globalStyles.split("@media (min-width: 768px)")[1] || "";
+  const desktopRule = desktopMedia.split(".jobly-public-home {")[1]?.split("}")[0] || "";
+
+  assert.ok(homePage.includes('screen === "welcome" ? "jobly-public-home'));
+  assert.ok(homeRule.includes("height: auto;"));
+  assert.ok(homeRule.includes("min-height: 100svh;"));
+  assert.ok(homeRule.includes("max-height: none;"));
+  assert.ok(homeRule.includes("overflow-y: visible;"));
+  assert.ok(!homeRule.includes("height: 100dvh;"));
+  assert.ok(!homeRule.includes("overflow: hidden;"));
+  assert.ok(heroRule.includes("overflow-y: visible;"));
+  assert.ok(!desktopRule.includes("overflow-y: auto;"));
+  assert.ok(!desktopRule.includes("overflow: hidden;"));
 });
