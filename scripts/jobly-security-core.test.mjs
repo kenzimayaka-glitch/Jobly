@@ -109,9 +109,9 @@ test("job ingestion and merchant SMS entry points use shared anti-abuse limits",
   const ingest = readFileSync(resolve(root, "app/api/jobs/ingest/sources/route.ts"), "utf8");
   const sms = readFileSync(resolve(root, "app/api/payments/sms/ingest/route.ts"), "utf8");
   assert.match(harvest, /scope: "job-harvest"/);
-  assert.match(harvest, /kind === "cron"/);
+  assert.match(harvest, /authorization\.kind === "cron"/);
   assert.match(ingest, /scope: "job-source-ingest"/);
-  assert.match(ingest, /kind === "cron"/);
+  assert.match(ingest, /authorization\.kind === "cron"/);
   assert.match(sms, /scope: "payment-sms-ingest"/);
   assert.match(sms, /tokenMatches\(token, String\(device\.tokenHash\)\)/);
 });
