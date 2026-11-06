@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import PwaInit from "../components/PwaInit";
 import OfflineCoordinator from "../components/OfflineCoordinator";
+import AndroidAttestationBootstrap from "../components/AndroidAttestationBootstrap";
 import JiaObserver from "../components/JiaObserver";
 import JiaPresence from "../components/JiaPresence";
 import JiaTorchEffect from "../components/JiaTorchEffect";
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <LanguageProvider>
             <PwaInit />
             <OfflineCoordinator />
+            <AndroidAttestationBootstrap />
             <JiaObserver />
             <JiaPresence />
             <JiaTorchEffect />
