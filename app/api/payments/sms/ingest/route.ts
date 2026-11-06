@@ -56,14 +56,17 @@ export async function POST(request: NextRequest) {
       .from("PaymentSmsReceipt").select("id,processingStatus")
       .eq("payloadHash", payloadHash).maybeSingle();
     if (duplicateError) throw new Error(duplicateError.message);
-    if (duplicateReceipt) return NextResponse.json({
+    // A receipt left in RECEIVED means a previous server attempt stopped before
+    // finalization. Reuse its already-reviewed evidence rather than dropping the retry.
+    const retryingReceipt = duplicateReceipt?.processingStatus === "RECEIVED";
+    if (duplicateReceipt && !retryingReceipt) return NextResponse.json({
       accepted: true, duplicate: true, receiptId: duplicateReceipt.id,
       processingStatus: duplicateReceipt.processingStatus, entitlementChanged: false,
     });
 
-    // Every unique SMS from a paired, allow-listed sender receives a real AI review.
-    // The AI sees a redacted semantic copy; it cannot supply payment values or authorize billing.
-    const aiReview = parsed.senderTrusted && parsed.provider
+    // Every new unique SMS receives one mandatory AI review. A retry of an already
+    // reviewed RECEIVED receipt reuses the stored decision and does not spend another AI call.
+    const aiReview = !retryingReceipt && parsed.senderTrusted && parsed.provider
       ? await analyzePaymentSmsWithAi({ senderId, body: smsBody, parsed })
       : null;
 
@@ -75,46 +78,51 @@ export async function POST(request: NextRequest) {
     const initialStatus = !parsed.senderTrusted || parsed.status !== "SUCCESSFUL" ||
       !parsed.transactionId || !parsed.amountXaf || allFraudFlags.length > 0 ||
       !aiReview?.accepted ? "REJECTED" : "RECEIVED";
-    const { data: receipt, error: receiptError } = await supabase.from("PaymentSmsReceipt").insert({
-      deviceId: device.id,
-      provider,
-      senderId: parsed.senderId,
-      transactionId: parsed.transactionId,
-      amount: parsed.amountXaf,
-      currency: parsed.currency,
-      payerPhone: parsed.payerPhone,
-      merchantAccount: String(device.merchantAccount),
-      status: parsed.status,
-      processingStatus: initialStatus,
-      occurredAt: parsed.occurredAt,
-      receivedAt,
-      parserVersion: parsed.parserVersion,
-      payloadHash,
-      rawMessageHash,
-      fraudFlags: allFraudFlags,
-      matchDetails: {
-        source: "android_sms_receiver",
-        bodyPersisted: false,
-        aiReview: aiReview ? {
-          version: aiReview.version,
-          provider: aiReview.provider,
-          model: aiReview.model,
-          messageKind: aiReview.messageKind,
-          status: aiReview.status,
-          direction: aiReview.direction,
-          confidence: aiReview.confidence,
-          suspiciousSignals: aiReview.suspiciousSignals,
-          accepted: aiReview.accepted,
-          flags: aiReview.flags,
-        } : { skipped: true, reason: "UNTRUSTED_OR_AMBIGUOUS_SENDER" },
-      },
-    }).select("id,processingStatus,matchedPaymentId").single();
+    let receiptId = duplicateReceipt?.id || "";
+    if (!retryingReceipt) {
+      const { data: receipt, error: receiptError } = await supabase.from("PaymentSmsReceipt").insert({
+        deviceId: device.id,
+        provider,
+        senderId: parsed.senderId,
+        transactionId: parsed.transactionId,
+        amount: parsed.amountXaf,
+        currency: parsed.currency,
+        payerPhone: parsed.payerPhone,
+        merchantAccount: String(device.merchantAccount),
+        status: parsed.status,
+        processingStatus: initialStatus,
+        occurredAt: parsed.occurredAt,
+        receivedAt,
+        parserVersion: parsed.parserVersion,
+        payloadHash,
+        rawMessageHash,
+        fraudFlags: allFraudFlags,
+        matchDetails: {
+          source: "android_sms_receiver",
+          bodyPersisted: false,
+          aiReview: aiReview ? {
+            version: aiReview.version,
+            provider: aiReview.provider,
+            model: aiReview.model,
+            messageKind: aiReview.messageKind,
+            status: aiReview.status,
+            direction: aiReview.direction,
+            confidence: aiReview.confidence,
+            suspiciousSignals: aiReview.suspiciousSignals,
+            accepted: aiReview.accepted,
+            flags: aiReview.flags,
+          } : { skipped: true, reason: "UNTRUSTED_OR_AMBIGUOUS_SENDER" },
+        },
+      }).select("id,processingStatus,matchedPaymentId").single();
 
-    if (receiptError?.code === "23505") return NextResponse.json({ accepted: true, duplicate: true, entitlementChanged: false });
-    if (receiptError) throw new Error(receiptError.message);
-    if (initialStatus === "REJECTED") {
-      return NextResponse.json({ accepted: true, receiptId: receipt.id, processingStatus: "REJECTED", entitlementChanged: false });
+      if (receiptError?.code === "23505") return NextResponse.json({ accepted: true, duplicate: true, entitlementChanged: false });
+      if (receiptError) throw new Error(receiptError.message);
+      receiptId = receipt.id;
+      if (initialStatus === "REJECTED") {
+        return NextResponse.json({ accepted: true, receiptId, processingStatus: "REJECTED", entitlementChanged: false });
+      }
     }
+    if (!receiptId) throw new Error("SMS_RECEIPT_ID_UNAVAILABLE");
 
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data: candidates, error: candidateError } = await supabase.from("Payment")
@@ -126,37 +134,53 @@ export async function POST(request: NextRequest) {
       .in("status", ["CREATED", "PENDING"])
       .gte("createdAt", cutoff)
       .lte("createdAt", receivedAt)
-      .limit(50);
+      .limit(51);
     if (candidateError) throw new Error(candidateError.message);
 
     const match = matchPaymentSmsToOrder({
       parsed,
       merchantAccount: String(device.merchantAccount),
       candidates: (candidates || []) as PaymentSmsCandidate[],
+      candidateLimitReached: (candidates || []).length > 50,
       now: new Date(receivedAt),
     });
     if (match.outcome !== "MATCHED") {
       const processingStatus = match.outcome === "AMBIGUOUS" ? "AMBIGUOUS" : "UNMATCHED";
       const { error: updateError } = await supabase.from("PaymentSmsReceipt")
-        .update({ processingStatus, matchDetails: { reason: match.reason, candidateCount: match.candidateCount } }).eq("id", receipt.id);
+        .update({ processingStatus, matchDetails: { reason: match.reason, candidateCount: match.candidateCount } }).eq("id", receiptId);
       if (updateError) throw new Error(updateError.message);
-      return NextResponse.json({ accepted: true, receiptId: receipt.id, processingStatus, entitlementChanged: false });
+      return NextResponse.json({ accepted: true, receiptId, processingStatus, entitlementChanged: false });
     }
 
     const { data: finalized, error: finalizeError } = await supabase.rpc("finalize_payment_from_sms", {
-      p_receipt_id: receipt.id,
+      p_receipt_id: receiptId,
       p_payment_id: match.payment.id,
       p_user_id: match.payment.userId,
       p_now: receivedAt,
       p_match_reason: match.reason,
     });
     if (finalizeError) {
-      await supabase.from("PaymentSmsReceipt")
-        .update({ processingStatus: "REJECTED", matchDetails: { reason: "FINALIZE_PAYMENT_REJECTED", errorCode: String(finalizeError.message || "").slice(0, 100) } })
-        .eq("id", receipt.id).in("processingStatus", ["RECEIVED", "UNMATCHED", "AMBIGUOUS"]);
-      return NextResponse.json({ accepted: true, receiptId: receipt.id, processingStatus: "REJECTED", entitlementChanged: false });
+      const finalizeCode = String((finalizeError as { code?: unknown }).code || "");
+      const finalizeMessage = String(finalizeError.message || "");
+      const permanentFailure = /^23/.test(finalizeCode) ||
+        ["42501", "22P02"].includes(finalizeCode) ||
+        /\b(?:SMS_[A-Z_]+|INVALID_PAYMENT_TRANSITION|PAYMENT_NOT_FOUND|AMOUNT_MISMATCH|SUBSCRIPTION_NOT_FOUND|SUBSCRIPTION_NOT_PENDING)\b/.test(finalizeMessage);
+      if (!permanentFailure) {
+        // Leave the receipt in RECEIVED so the WorkManager retry can resume the
+        // same already-reviewed SMS after a transient database/network failure.
+        return err(
+          "La confirmation serveur est temporairement indisponible. Le téléphone marchand réessaiera automatiquement.",
+          503,
+          "SMS_FINALIZATION_RETRY",
+        );
+      }
+      const { error: rejectError } = await supabase.from("PaymentSmsReceipt")
+        .update({ processingStatus: "REJECTED", matchDetails: { reason: "FINALIZE_PAYMENT_REJECTED", errorCode: finalizeMessage.slice(0, 100) } })
+        .eq("id", receiptId).in("processingStatus", ["RECEIVED", "UNMATCHED", "AMBIGUOUS"]);
+      if (rejectError) throw new Error(rejectError.message);
+      return NextResponse.json({ accepted: true, receiptId, processingStatus: "REJECTED", entitlementChanged: false });
     }
-    return NextResponse.json({ accepted: true, receiptId: receipt.id, processingStatus: "MATCHED", entitlementChanged: true, idempotent: Boolean((finalized as any)?.idempotent) });
+    return NextResponse.json({ accepted: true, receiptId, processingStatus: "MATCHED", entitlementChanged: true, idempotent: Boolean((finalized as any)?.idempotent) });
   } catch (error) {
     if (error instanceof Error && error.message === "Aucun moteur IA JOBLY disponible.") {
       return err(
