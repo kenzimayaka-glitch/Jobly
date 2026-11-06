@@ -80,7 +80,7 @@ function parseStatus(body: string): ParsedPaymentSmsStatus {
   if (/\b(en cours|en attente|pending|processing|traitement en cours|awaiting confirmation)\b/.test(text)) {
     return "PENDING";
   }
-  if (/\b(successful|success|réussi|reussi|effectué|effectue|pay[eé]|paid|reçu|recu|received|credited|confirm[eé])\b/.test(text)) {
+  if (/\b(successful|success|réussi|reussi|effectué|effectue|finalis[eé]|completed|complete|pay[eé]|paid|reçu|recu|received|credited|confirm[eé])\b/.test(text)) {
     return "SUCCESSFUL";
   }
   return "UNKNOWN";
@@ -89,7 +89,7 @@ function parseStatus(body: string): ParsedPaymentSmsStatus {
 function parseDirection(body: string): PaymentSmsDirection {
   const text = body.normalize("NFKC").toLocaleLowerCase("fr");
   // Outgoing/debit notifications must never activate a merchant subscription.
-  if (/\b(?:votre paiement|your payment|payment of|paiement successintegral|vous avez envoy[eé]|you sent|transfer sent|debit(?:ed)?)\b/.test(text)
+  if (/\b(?:votre paiement|your payment|payment of|paiement successintegral|vous avez envoy[eé]|vous avez transf[eé]r[eé]|vous avez pay[eé]|vous avez effectu[eé} un paiement|you sent|you have paid|you paid|payment sent|transfer sent|transfert sortant|debit(?:ed)?)\b/.test(text)
     || /\b(?:a ete|a été)\s+finalis[eé]\b/.test(text)) {
     return "OUTBOUND";
   }
