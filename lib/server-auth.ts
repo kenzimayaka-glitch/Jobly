@@ -103,7 +103,7 @@ export async function getAuthUser(request: NextRequest) {
         const proofTimestamp = request.headers.get("x-jobly-attestation-timestamp") || "";
         const proofSignature = request.headers.get("x-jobly-attestation-signature") || "";
         const timestampNumber = Number(proofTimestamp);
-        if (!/^[0-9a-f-]{36}$/i.test(proofId) || !/^\\d{13}$/.test(proofTimestamp) ||
+        if (!/^[0-9a-f-]{36}$/i.test(proofId) || !/^\d{13}$/.test(proofTimestamp) ||
             !Number.isSafeInteger(timestampNumber) || Math.abs(Date.now() - timestampNumber) > 30_000) {
           return null;
         }
@@ -118,7 +118,7 @@ export async function getAuthUser(request: NextRequest) {
           proofTimestamp,
           proofId,
           bodyHash,
-        ].join("\\n");
+        ].join("\n");
 
         const { data: proof, error: proofError } = await service
           .from("AndroidAttestationChallenge")
