@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 
-test("device listing is restricted to ADMIN and FINANCE and never returns the token hash", () => {
+test("device listing is restricted to the active root AdminIdentity and never returns the token hash", () => {
   const route = read("../app/api/payments/sms/devices/route.ts");
   const getStart = route.indexOf("export async function GET");
   const postStart = route.indexOf("export async function POST");
