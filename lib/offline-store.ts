@@ -123,7 +123,7 @@ async function decryptRecord<T>(record: EncryptedRecord): Promise<T> {
 }
 
 
-export async function saveOfflineDocument(userId: string, name: string, blob: Blob) {
+export async function saveOfflineDocument(userId: string, blob: Blob) {
   if (!userId || !blob.size || blob.size > 12 * 1024 * 1024) {
     throw new Error("Document hors connexion invalide (12 Mo maximum).");
   }
