@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
     const rawLimit = Number(request.nextUrl.searchParams.get("limit") || 50);
     const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(PAGE_MAX, Math.floor(rawLimit))) : 50;
     const before = request.nextUrl.searchParams.get("before");
+    const beforeId = request.nextUrl.searchParams.get("beforeId");
     let messagesQuery = ctx.db.from("JiaConversationMessage")
       .select("id,conversationId,role,content,sources,workspace,payloadVersion,createdAt")
       .eq("conversationId", conversation.id)
@@ -73,7 +74,11 @@ export async function GET(request: NextRequest) {
     if (before) {
       const date = new Date(before);
       if (Number.isNaN(date.getTime())) return NextResponse.json({ message: "Curseur d'historique invalide." }, { status: 400 });
-      messagesQuery = messagesQuery.lt("createdAt", date.toISOString());
+      if (beforeId) {
+        messagesQuery = messagesQuery.or(`createdAt.lt.${date.toISOString()},and(createdAt.eq.${date.toISOString()},id.lt.${beforeId})`);
+      } else {
+        messagesQuery = messagesQuery.lt("createdAt", date.toISOString());
+      }
     }
     const { data, error } = await messagesQuery;
     if (error) throw new Error(error.message);
@@ -83,6 +88,7 @@ export async function GET(request: NextRequest) {
       conversation,
       messages: rows.slice(0, limit).reverse(),
       hasMore,
+      nextCursor: rows.length > 0 ? { before: rows[Math.min(limit, rows.length) - 1].createdAt, beforeId: rows[Math.min(limit, rows.length) - 1].id } : null,
     });
   } catch (error) {
     return NextResponse.json({

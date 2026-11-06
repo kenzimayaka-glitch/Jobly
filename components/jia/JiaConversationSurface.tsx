@@ -64,6 +64,9 @@ type Props = {
   onSaveProfile: (args: { messageId: string; displayName: string; phone: string; headline: string; summary: string; location: string; skills: string[] }) => Promise<void>;
   onUploadCv: (args: { messageId: string; file: File }) => Promise<boolean>;
   onUpdateWorkspace: (messageId: string, workspace: JiaWorkspaceBlock) => void;
+  hasMoreMessages: boolean;
+  loadingOlderMessages: boolean;
+  onLoadOlderMessages: () => void;
   onEnableVoice?: () => void;
 };
 
@@ -182,6 +185,7 @@ export default function JiaConversationSurface(props: Props) {
     pendingAction, quickLinks, onClose, onInputChange, onSubmit, speaking,
     onConfirmAction, onCancelAction, onNavigate, onPrepareApplication, onSubmitAssessment, onSubmitApplication,
     onSaveProfile, onUploadCv, onUpdateWorkspace,
+    hasMoreMessages, loadingOlderMessages, onLoadOlderMessages,
   } = props;
   const reducedMotion = useReducedMotion();
   const visualTransition = reducedMotion ? "transition-none" : "transition-all duration-500 ease-out";
@@ -390,6 +394,18 @@ export default function JiaConversationSurface(props: Props) {
                   </div>
                   <p className="mt-1.5 text-[16px] font-extrabold tracking-[-.025em] text-[#10233F] sm:text-[18px]">{layoutGuide(layout)?.title}</p>
                   <p className="mt-1 text-[11px] leading-5 text-[#6B7C92]">{layoutGuide(layout)?.description}</p>
+                </div>
+              )}
+              {hasMoreMessages && (
+                <div className="mx-auto w-full max-w-2xl text-center">
+                  <button
+                    type="button"
+                    onClick={onLoadOlderMessages}
+                    disabled={loadingOlderMessages}
+                    className="min-h-10 rounded-full border border-[#DCE6F2] bg-white px-4 py-2 text-[10px] font-extrabold text-[#31547F] shadow-sm disabled:opacity-50"
+                  >
+                    {loadingOlderMessages ? "Chargement de l’historique…" : "Charger les messages précédents"}
+                  </button>
                 </div>
               )}
               {messages.length === 0 ? (
