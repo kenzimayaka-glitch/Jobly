@@ -76,6 +76,7 @@ export default function AdminPaymentSmsPage() {
       const paired = pairJoblyPaymentSmsDevice({
         deviceId: payload.device.id,
         deviceToken: payload.deviceToken,
+        senderIds: payload.device.senderIds || allowlist,
       });
       if (!paired) {
         await fetch("/api/payments/sms/devices/" + payload.device.id, {
