@@ -40,7 +40,11 @@ export async function runOpenAICompatible(
       max_tokens: 1800,
       stream: false,
     }),
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(
+      Number.isFinite(Number(request.context.timeoutMs))
+        ? Math.max(1000, Math.min(10000, Number(request.context.timeoutMs)))
+        : 30000,
+    ),
   });
 
   const data = await response.json().catch(() => ({}));
