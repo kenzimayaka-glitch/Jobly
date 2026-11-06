@@ -969,10 +969,13 @@ export default function JiaPresence() {
     location: string;
     skills: string[];
   }) => {
+    const initiatingOwner = sessionUserIdRef.current;
+    const initiatingEpoch = conversationWriteEpochRef.current;
     setCommandBusy(true);
     try {
+      if (!initiatingOwner) throw new Error("Session requise pour modifier le profil.");
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise pour modifier le profil.");
+      if (!session?.access_token || session.user.id !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       const headers = { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token };
       const profileResponse = await fetch("/api/profile", {
         method: "PUT",
@@ -988,6 +991,7 @@ export default function JiaPresence() {
       });
       const profileBody = await profileResponse.json().catch(() => ({}));
       if (!profileResponse.ok) throw new Error(profileBody.message || "Jobly n'a pas enregistré les informations du profil.");
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
 
       const skillsResponse = await fetch("/api/profile", {
         method: "PUT",
@@ -996,6 +1000,7 @@ export default function JiaPresence() {
       });
       const skillsBody = await skillsResponse.json().catch(() => ({}));
       if (!skillsResponse.ok) throw new Error(skillsBody.message || "Les compétences n'ont pas été enregistrées.");
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
 
       const message = conversationMessagesRef.current?.find((item) => item.id === args.messageId);
       if (message?.workspace?.kind === "profile") {
@@ -1015,6 +1020,8 @@ export default function JiaPresence() {
   }, [updateJiaWorkspace]);
 
   const uploadJiaCv = useCallback(async (args: { messageId: string; file: File }): Promise<boolean> => {
+    const initiatingOwner = sessionUserIdRef.current;
+    const initiatingEpoch = conversationWriteEpochRef.current;
     const { file } = args;
     if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
       throw new Error("Le CV doit être un fichier PDF.");
@@ -1027,8 +1034,9 @@ export default function JiaPresence() {
     }
     setCommandBusy(true);
     try {
+      if (!initiatingOwner) throw new Error("Session requise pour remplacer le CV.");
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise pour remplacer le CV.");
+      if (!session?.access_token || session.user.id !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return false;
       const form = new FormData();
       form.append("file", file);
       const response = await fetch("/api/talent/cv/original", {
@@ -1038,12 +1046,14 @@ export default function JiaPresence() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok || body.stored !== true) throw new Error(body.message || "Jobly n'a pas confirmé l'enregistrement du CV.");
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return false;
 
       const profileResponse = await fetch("/api/profile", {
         headers: { Authorization: "Bearer " + session.access_token },
         cache: "no-store",
       });
       const profileBody = profileResponse.ok ? await profileResponse.json().catch(() => ({})) : {};
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return false;
       const refreshedUser = profileBody.user || {};
       const message = conversationMessagesRef.current.find((item) => item.id === args.messageId);
       if (message?.workspace?.kind === "profile") {
@@ -1124,16 +1134,20 @@ export default function JiaPresence() {
   }, [eco, hasMoreConversationMessages, loadingOlderMessages]);
 
   const prepareJiaApplication = useCallback(async (offer: JiaWorkspaceOffer) => {
+    const initiatingOwner = sessionUserIdRef.current;
+    const initiatingEpoch = conversationWriteEpochRef.current;
     setCommandBusy(true);
     try {
+      if (!initiatingOwner) throw new Error("Session requise pour préparer une candidature.");
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise pour préparer une candidature.");
+      if (!session?.access_token || session.user.id !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       const response = await fetch("/api/applications", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
         body: JSON.stringify({ source: offer.source, jobId: offer.id, locale: langRef.current === "en" ? "en" : "fr" }),
       });
       const result = await response.json().catch(() => ({}));
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       if (!response.ok) throw new Error(result.message || "Jobly n'a pas pu préparer cette candidature.");
       const prepared = result.prepared || {};
       const applicationProfile = result.applicationProfile || {};
@@ -1157,6 +1171,7 @@ export default function JiaPresence() {
       );
       say("Ta candidature est préparée et reste sous ton contrôle. Elle n'a pas été envoyée.", { gesture: "welcome", speak: true, sticky: true });
     } catch (error) {
+      if (initiatingOwner && (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch)) return;
       const message = error instanceof Error ? error.message : "Impossible de préparer cette candidature.";
       appendConversationMessage("assistant", message);
       say(message, { gesture: "secure", speak: false, sticky: true });
@@ -1171,16 +1186,20 @@ export default function JiaPresence() {
     letter: string;
   }) => {
     if (!args.applicationId) throw new Error("Identifiant de candidature absent.");
+    const initiatingOwner = sessionUserIdRef.current;
+    const initiatingEpoch = conversationWriteEpochRef.current;
     setCommandBusy(true);
     try {
+      if (!initiatingOwner) throw new Error("Session requise pour envoyer cette candidature.");
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise pour envoyer cette candidature.");
+      if (!session?.access_token || session.user.id !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       const response = await fetch("/api/applications/" + encodeURIComponent(args.applicationId) + "/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
         body: JSON.stringify({ letterText: args.letter }),
       });
       const result = await response.json().catch(() => ({}));
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       if (!response.ok || result.submitted !== true) {
         throw new Error(result.message || "Jobly n’a pas confirmé l’envoi de cette candidature.");
       }
@@ -1206,10 +1225,13 @@ export default function JiaPresence() {
     score: number;
     resultSummary: string;
   }) => {
+    const initiatingOwner = sessionUserIdRef.current;
+    const initiatingEpoch = conversationWriteEpochRef.current;
     setCommandBusy(true);
     try {
+      if (!initiatingOwner) throw new Error("Session requise pour enregistrer cet exercice.");
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise pour enregistrer cet exercice.");
+      if (!session?.access_token || session.user.id !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       const response = await fetch("/api/career-journey/assessments", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
@@ -1222,6 +1244,7 @@ export default function JiaPresence() {
         }),
       });
       const result = await response.json().catch(() => ({}));
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       if (!response.ok) throw new Error(result.message || "L'enregistrement de l'évaluation a échoué.");
       const assessmentMessage = conversationMessagesRef.current.find((message) => message.id === args.messageId);
       if (assessmentMessage?.workspace?.kind === "questionnaire") {
