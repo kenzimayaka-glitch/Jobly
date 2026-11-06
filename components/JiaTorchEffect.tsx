@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "./ThemeProvider";
 
-type TorchTarget = { x: number; y: number; width: number; height: number };
+type TorchTarget = { x: number; y: number; width: number; height: number; originX: number; originY: number };
 
 const HIDDEN_JIA_ROUTES = [
   /^\/$/, /^\/ecosystem/, /^\/auth\//, /^\/onboarding/, /^\/legal\//,
@@ -27,11 +27,17 @@ export default function JiaTorchEffect() {
 
     const onPointerDown = (event: PointerEvent) => {
       if (event.pointerType === "mouse" && event.button !== 0) return;
+      const anchor = document.querySelector<HTMLElement>("[data-jia-presence-anchor]");
+      const rect = anchor?.getBoundingClientRect();
+      const fallbackX = Math.max(24, window.innerWidth - 58);
+      const fallbackY = Math.max(24, window.innerHeight - 153);
       setTarget({
         x: event.clientX,
         y: event.clientY,
         width: window.innerWidth,
         height: window.innerHeight,
+        originX: rect ? rect.left + rect.width * 0.78 : fallbackX,
+        originY: rect ? rect.top + rect.height * 0.54 : fallbackY,
       });
       if (hideTimer.current !== null) window.clearTimeout(hideTimer.current);
       hideTimer.current = window.setTimeout(() => setTarget(null), 1050);
@@ -47,7 +53,7 @@ export default function JiaTorchEffect() {
   if (resolvedTheme !== "dark" || !jiaVisible || !target) return null;
 
   // J’IA lives at the lower-right edge; the torch is anchored beside her hand.
-  const origin = { x: Math.max(24, target.width - 58), y: Math.max(24, target.height - 153) };
+  const origin = { x: target.originX, y: target.originY };
   const dx = target.x - origin.x;
   const dy = target.y - origin.y;
   const distance = Math.max(1, Math.hypot(dx, dy));
