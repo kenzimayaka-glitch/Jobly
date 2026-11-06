@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, authUser, ensureUser } from "../../../../../../lib/mobilityServer";
+import { enforceApiRateLimit } from "../../../../../../lib/server-security";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,6 +11,14 @@ export async function POST(req: NextRequest) {
     if (String(user.role || "").toUpperCase() !== "ADMIN") {
       return NextResponse.json({ message: "Vérification budgétaire réservée à un administrateur Jobly." }, { status: 403 });
     }
+    const limited = await enforceApiRateLimit(req, db, {
+      scope: "mobility-admin-program-verify",
+      identity: user.id,
+      accountWindows: [{ limit: 5, windowSeconds: 60 }, { limit: 20, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 10, windowSeconds: 60 }, { limit: 40, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const body = await req.json().catch(() => ({}));
     const programId = String(body.programId || "").trim();
     if (!programId || body.activate !== true) {
@@ -30,6 +39,13 @@ export async function POST(req: NextRequest) {
       || !String(program.commitmentEvidenceUrl || "").startsWith("https://")) {
       return NextResponse.json({ message: "Le montant, la devise XAF, la référence et la preuve HTTPS de l'engagement budgétaire doivent être contrôlés." }, { status: 422 });
     }
+    const audit = await db.from("CEOAuditLog").insert({
+      adminUserId: user.id,
+      action: "MOBILITY_PROGRAM_BUDGET_VERIFIED",
+      endpoint: "/api/mobility/admin/programs/verify",
+      metadata: { programId, verifiedAt: new Date().toISOString() },
+    });
+    if (audit.error) throw new Error(audit.error.message);
     const { data, error } = await db.from("MobilityProgram").update({
       status: "ACTIVE",
       commitmentVerifiedByUserId: user.id,
