@@ -25,7 +25,7 @@ type Splash = {
   particles: Array<{ dx: number; dy: number; size: number }>;
 };
 
-const BUBBLE_COUNT = 14;
+const BUBBLE_COUNT = 10;
 const JOBLY_PALETTE = [
   "#FFE135",
   "#FFE135",
@@ -69,6 +69,7 @@ export default function BubbleField() {
   const burstRef = useRef<((b: Bubble, idx: number) => void) | null>(null);
 
   useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     let last = performance.now();
 
     function burst(b: Bubble, idx: number) {
@@ -190,7 +191,7 @@ export default function BubbleField() {
   }, []);
 
   return (
-    <div ref={containerRef} className="pointer-events-none absolute inset-0 z-[6] overflow-hidden" aria-hidden="true">
+    <div ref={containerRef} className="pointer-events-none absolute inset-0 z-[1] overflow-hidden" aria-hidden="true">
       {bubblesRef.current.map((b, idx) => (
         <div
           key={b.id}

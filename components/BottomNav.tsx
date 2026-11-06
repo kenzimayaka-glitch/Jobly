@@ -20,7 +20,6 @@ export const TALENT_NAV: NavItem[] = [
   { icon: "check", label: "Candidatures", labelKey: "nav.applications", href: "/candidatures" },
   { icon: "sparkle", label: "Career AI", labelKey: "nav.careerAi", href: "/career-brain" },
   { icon: "gift", label: "Bon Plan", labelKey: "nav.bonPlan", href: "/bons-plans" },
-  { icon: "gift", label: "Bon Plan", href: "/bons-plans" },
   { icon: "orbit", label: "Écosystèmes", labelKey: "nav.ecosystems", href: "/ecosystem?mode=switcher" },
 ];
 

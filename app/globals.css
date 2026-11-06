@@ -20,12 +20,27 @@ html, body {
   margin: 0 !important;
   padding: 0 !important;
   width: 100% !important;
-  min-height: 100dvh !important;
+  min-height: 100% !important;
+  height: auto;
   overflow-x: hidden !important;
   overflow-y: auto;
-  overscroll-behavior-y: auto;
+  overscroll-behavior-y: none;
   background: white !important;
   color: var(--navy);
+}
+
+body { min-height: 100dvh !important; }
+
+@supports (height: 100dvh) {
+  .h-screen { height: 100dvh; }
+  .min-h-screen { min-height: 100dvh; }
+}
+
+@media (max-width: 767px) {
+  .w-screen { width: 100%; }
+  :where(main, section, article, aside, nav, header, footer) { min-width: 0; }
+  :where(img, video, canvas) { max-width: 100%; }
+  :where(input, select, textarea, button) { max-width: 100%; }
 }
 
 button, input { font: inherit; }
@@ -317,4 +332,118 @@ body{
 @keyframes jobly-burst {
   from { transform: translate(-50%, -50%) rotate(0deg) scale(1); opacity: 1; }
   to   { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--r)) scale(.2); opacity: 0; }
+}
+
+
+/* JOBLY responsive application surface: browser, Android WebView and installed PWA. */
+.jobly-app,
+.jobly-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+.jobly-app main,
+.jobly-page main,
+.jobly-app section,
+.jobly-page section {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.jobly-public-home {
+  box-sizing: border-box;
+  height: 100dvh;
+  min-height: 100svh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.jobly-public-home-header { height: clamp(64px, 10svh, 90px); }
+.jobly-public-home-hero,
+.jobly-public-home-hero-inner { min-height: 0; }
+
+.jobly-public-home-copy {
+  width: 54%;
+  margin-top: clamp(58px, 11svh, 96px);
+}
+
+.jobly-public-home-image { right: -12%; top: 10%; width: 82%; }
+
+.jobly-public-home-cta button {
+  width: 100%;
+  min-width: 0;
+  height: clamp(46px, 7.4svh, 58px);
+  font-size: clamp(11px, 3.2vw, 14px);
+  line-height: 1.15;
+}
+
+.jobly-public-home-benefits > div {
+  min-width: 0;
+  min-height: clamp(74px, 12svh, 98px);
+}
+
+.jobly-public-home-benefits svg {
+  width: clamp(18px, 5vw, 24px);
+  height: clamp(18px, 5vw, 24px);
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.jobly-public-home-benefits p:first-of-type { font-size: clamp(8px, 2.45vw, 12px); }
+.jobly-public-home-benefits p:last-of-type { font-size: clamp(7px, 2.1vw, 10px); }
+
+.jobly-public-home-footer {
+  flex: 0 0 auto;
+  padding-top: 6px;
+  padding-bottom: max(6px, env(safe-area-inset-bottom));
+}
+
+.jobly-public-home-footer-divider { margin-top: 2px; }
+.jobly-public-home-footer-trail { margin-top: 2px; }
+
+@media (min-width: 640px) {
+  .jobly-public-home-copy { width: 46%; margin-top: clamp(84px, 12svh, 112px); }
+  .jobly-public-home-image { right: -5%; top: 8%; width: 78%; }
+  .jobly-public-home-cta button { height: 66px; font-size: 17px; }
+  .jobly-public-home-benefits > div { min-height: 124px; }
+  .jobly-public-home-benefits svg { width: 28px; height: 28px; margin-bottom: 8px; }
+  .jobly-public-home-benefits p:first-of-type { font-size: 14px; }
+  .jobly-public-home-benefits p:last-of-type { font-size: 12px; }
+}
+
+@media (min-width: 768px) {
+  .jobly-public-home {
+    height: auto;
+    min-height: 100dvh;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .jobly-public-home-header { height: 104px; }
+  .jobly-public-home-copy { width: 43%; margin-top: 0; }
+  .jobly-public-home-image { right: 0; top: 2%; width: 62%; }
+}
+
+@media (max-width: 767px) and (max-height: 520px) {
+  .jobly-public-home-header { height: 52px; }
+  .jobly-public-home-copy { width: 55%; margin-top: 26px; }
+  .jobly-public-home-copy h1 { font-size: clamp(1.5rem, 5.5vw, 2.1rem); }
+  .jobly-public-home-copy p { margin-top: 6px; font-size: 11px; }
+  .jobly-public-home-image { top: 6%; right: -14%; width: 82%; }
+  .jobly-public-home-cta button { height: 40px; border-radius: 14px; }
+  .jobly-public-home-benefits { margin-top: 6px; }
+  .jobly-public-home-benefits > div { min-height: 58px; padding-block: 4px; border-radius: 14px; }
+  .jobly-public-home-benefits svg { width: 16px; height: 16px; margin-bottom: 2px; }
+  .jobly-public-home-benefits p:first-of-type { font-size: 8px; }
+  .jobly-public-home-benefits p:last-of-type { font-size: 7px; }
+  .jobly-public-home-footer { padding-top: 2px; padding-bottom: max(4px, env(safe-area-inset-bottom)); }
+  .jobly-public-home-footer-divider { margin-top: 0; }
+  .jobly-public-home-footer-trail { height: 7px; margin-top: 0; }
+  .jobly-public-home-footer-signature { margin-top: 0; font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jobly-public-home-footer-trail path { animation: none !important; opacity: 0 !important; }
 }

@@ -762,12 +762,12 @@ export default function Home() {
   }
   async function forgot() { if (!email.includes("@")) return setMessage("Entre l'adresse e-mail associée à ton compte."); setBusy(true); setMessage(""); try { await requestPasswordReset(email); goTo("reset-sent"); } catch (e) { setMessage(e instanceof Error ? e.message : "Impossible d'envoyer l'e-mail de récupération."); } finally { setBusy(false); } }
 
-  return <main className={`relative min-h-[100svh] flex flex-col justify-between w-full ${screen === "welcome" ? "overflow-x-hidden bg-white text-[#0A1931]" : "bg-off-white dark:bg-[#0A1931] dark:text-white overflow-y-auto"}`}>
-    {screen !== "welcome" && <BubbleField />}
-    <div className="relative flex min-h-0 flex-1 w-full flex-col gap-0">
-      {screen !== "login" && screen !== "signup" && <header className={screen === "welcome" ? "relative z-30 flex h-[90px] shrink-0 items-center justify-between px-5 pt-2 sm:h-[104px] sm:px-8" : "z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"}>
+  return <main className={`relative isolate flex w-full flex-col ${screen === "welcome" ? "jobly-public-home bg-white text-[#0A1931]" : "min-h-[100dvh] overflow-x-hidden bg-off-white dark:bg-[#0A1931] dark:text-white overflow-y-auto"}`}>
+    <BubbleField />
+    <div className="relative z-10 flex min-h-0 flex-1 w-full flex-col gap-0">
+      {screen !== "login" && screen !== "signup" && <header className={screen === "welcome" ? "jobly-public-home-header relative z-30 flex shrink-0 items-center justify-between px-4 pt-[max(4px,env(safe-area-inset-top))] sm:h-[104px] sm:px-8" : "relative z-20 flex h-[84px] w-full shrink-0 items-start px-4 pt-5 sm:px-8"}>
         <div ref={logoRef} className={screen === "welcome" ? "shrink-0" : "rounded-2xl bg-white/95 p-2 shadow-2xl"}>
-          <Image src="/jobly-logo-official-transparent.png" alt="JOBLY — Your Career OS" width={400} height={120} className={screen === "welcome" ? "h-auto w-[132px] object-contain sm:w-[175px]" : "h-auto w-[150px] object-contain"} priority />
+          <Image src="/jobly-logo-official-transparent.png" alt="JOBLY — Your Career OS" width={400} height={120} className={screen === "welcome" ? "h-auto w-[116px] object-contain sm:w-[175px]" : "h-auto w-[150px] object-contain"} priority />
         </div>
         {screen === "welcome" && <div role="group" aria-label="Choisir la langue / Choose language" className="relative isolate flex items-center gap-1 rounded-full bg-[#EEF1F5] p-1.5 shadow-inner">
           <motion.button type="button" aria-label="Français" aria-pressed={lang === "fr"} whileTap={{ scale: 0.94 }} onClick={() => { setLang("fr"); try { localStorage.setItem("jobly-lang", "fr"); } catch {} }} className="relative isolate inline-flex min-w-[64px] items-center justify-center gap-1 rounded-full px-2 py-2.5 text-[13px] font-bold tracking-wide text-[#0A1931] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD60A] focus-visible:ring-offset-2">
@@ -791,16 +791,16 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.32, ease: "easeOut" }}
-              className="relative mx-auto flex min-h-[410px] w-full max-w-[1200px] flex-1 flex-col overflow-hidden sm:min-h-[480px] lg:min-h-[600px] lg:flex-row lg:items-center lg:px-10"
+              className="jobly-public-home-hero relative z-10 mx-auto flex w-full max-w-[1200px] flex-1 flex-col overflow-hidden lg:flex-row lg:items-center lg:px-10"
             >
-              <div className="relative min-h-[410px] w-full flex-1 sm:min-h-[480px] lg:min-h-[600px]">
+              <div className="jobly-public-home-hero-inner relative w-full flex-1">
                 <div aria-hidden="true" className="pointer-events-none absolute right-[7%] top-[13%] z-[3] text-[#FFD60A]">
                   <svg viewBox="0 0 54 58" className="h-12 w-12 sm:h-14 sm:w-14" fill="none">
                     <path d="M25 1l4.5 17.5L47 23l-17.5 4.5L25 45l-4.5-17.5L3 23l17.5-4.5L25 1Z" fill="currentColor"/>
                     <path d="M46 38l2.2 7.8L56 48l-7.8 2.2L46 58l-2.2-7.8L36 48l7.8-2.2L46 38Z" fill="currentColor" opacity=".65"/>
                   </svg>
                 </div>
-                <div className="relative z-20 ml-5 mt-[104px] w-[48%] sm:ml-8 sm:mt-[112px] sm:w-[46%] lg:ml-0 lg:mt-0 lg:w-[43%]">
+                <div className="jobly-public-home-copy relative z-20 ml-4 sm:ml-8 lg:ml-0 lg:mt-0 lg:w-[43%]">
                   <h1 className="font-[var(--font-inter)] text-[clamp(2rem,7.4vw,3.8rem)] font-extrabold leading-[0.98] tracking-[-1.25px] text-[#0A1931]">
                     {translations[lang].title.split("\n").map((line, i) => (
                       <span key={i} className="block">{line}</span>
@@ -813,7 +813,7 @@ export default function Home() {
                     {translations[lang].subtitle}
                   </p>
                 </div>
-                <div className="pointer-events-none absolute bottom-0 right-[-10%] top-[13%] z-10 w-[82%] sm:right-[-5%] sm:top-[8%] sm:w-[78%] lg:right-0 lg:top-[2%] lg:w-[62%]">
+                <div className="jobly-public-home-image pointer-events-none absolute bottom-0 right-[-10%] top-[10%] z-10 w-[82%] sm:right-[-5%] sm:top-[8%] sm:w-[78%] lg:right-0 lg:top-[2%] lg:w-[62%]">
                   <Image
                     fill
                     priority
@@ -832,17 +832,17 @@ export default function Home() {
               </div>
             </motion.section>
           </AnimatePresence>
-          <div className="relative z-20 mx-auto grid w-full max-w-[1100px] grid-cols-2 gap-3 px-5 sm:gap-5 sm:px-8">
-            <button type="button" onClick={() => { reset(); goTo("signup"); }} className="h-[58px] rounded-[22px] bg-[#2865DC] px-2 font-[var(--font-inter)] text-[14px] font-extrabold text-white shadow-[0_10px_24px_rgba(40,101,220,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:text-[17px]">
+          <div className="jobly-public-home-cta relative z-20 mx-auto grid w-full max-w-[1100px] grid-cols-2 gap-2 px-4 sm:gap-5 sm:px-8">
+            <button type="button" onClick={() => { reset(); goTo("signup"); }} className="rounded-[18px] bg-[#2865DC] px-2 font-[var(--font-inter)] font-extrabold text-white shadow-[0_10px_24px_rgba(40,101,220,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:rounded-[22px] sm:text-[17px]">
               {translations[lang].create}
             </button>
-            <button type="button" onClick={() => { reset(); goTo("login"); }} className="h-[58px] rounded-[22px] bg-[#FFD60A] px-2 font-[var(--font-inter)] text-[14px] font-extrabold text-[#0A1931] shadow-[0_10px_24px_rgba(255,214,10,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:text-[17px]">
+            <button type="button" onClick={() => { reset(); goTo("login"); }} className="rounded-[18px] bg-[#FFD60A] px-2 font-[var(--font-inter)] font-extrabold text-[#0A1931] shadow-[0_10px_24px_rgba(255,214,10,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:rounded-[22px] sm:text-[17px]">
               {translations[lang].login}
             </button>
           </div>
-          <div className="relative z-20 mx-auto mt-4 grid w-full max-w-[1100px] grid-cols-3 gap-2 px-5 sm:mt-6 sm:gap-4 sm:px-8">
+          <div className="jobly-public-home-benefits relative z-20 mx-auto mt-2 grid w-full max-w-[1100px] grid-cols-3 gap-1.5 px-4 sm:mt-6 sm:gap-4 sm:px-8">
             {BENEFITS[lang].map(({ Icon, title, subtitle, iconClass }) => (
-              <div key={title} className="flex min-h-[104px] flex-col items-center justify-center rounded-[24px] border border-slate-100 bg-white px-1.5 py-3 text-center shadow-[0_5px_18px_rgba(10,25,49,0.055)] sm:min-h-[124px] sm:rounded-[28px] sm:px-3">
+              <div key={title} className="flex flex-col items-center justify-center rounded-[18px] border border-slate-100 bg-white px-1 py-2 text-center shadow-[0_5px_18px_rgba(10,25,49,0.055)] sm:min-h-[124px] sm:rounded-[28px] sm:px-3 sm:py-3">
                 <Icon className={`mb-2 h-6 w-6 sm:h-7 sm:w-7 ${iconClass}`} />
                 <p className="font-[var(--font-inter)] text-[10px] font-extrabold leading-tight text-[#0A1931] sm:text-[14px]">{title}</p>
                 <p className="mt-1 font-[var(--font-inter)] text-[9px] leading-tight text-[#737A85] sm:text-[12px]">{subtitle}</p>
@@ -1112,26 +1112,26 @@ export default function Home() {
       {screen === "reset-sent" && <section className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-4 text-center"><div className="mx-auto mb-4 text-5xl" aria-hidden="true">✉️</div><h1 className="text-[32px] font-extrabold text-navy">{translations[lang].sentTitle}</h1><p className="my-3 text-sm text-jobly-gray">{translations[lang].sentText}</p><button type="button" onClick={()=>{reset();goTo("login");}} className="h-[52px] rounded-2xl bg-jobly-blue font-extrabold text-white">{translations[lang].backLogin}</button></section>}
 
       {message && screen !== "journey" && screen !== "jia-welcome" && screen !== "login" && <div role="status" aria-live="polite" className="rounded-2xl border border-blue-100 bg-blue-50 px-3.5 py-2.5 text-center text-xs text-blue-800">{message}</div>}
-      {screen !== "journey" && screen !== "jia-welcome" && screen !== "signup" && screen !== "signup-otp" && screen !== "signup-password" && screen !== "login" && <footer className={screen === "welcome" ? "relative z-30 mt-auto w-full px-4 pb-6 pt-5 text-center" : "absolute bottom-0 left-0 right-0 z-30 px-4 pb-4 pt-2 text-center"}>
+      {screen !== "journey" && screen !== "jia-welcome" && screen !== "signup" && screen !== "signup-otp" && screen !== "signup-password" && screen !== "login" && <footer className={screen === "welcome" ? "jobly-public-home-footer relative z-30 mt-auto w-full px-3 text-center sm:px-4 sm:pb-6 sm:pt-5" : "absolute bottom-0 left-0 right-0 z-30 px-4 pb-4 pt-2 text-center"}>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={`footer-${lang}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeOut" }}>
             
             
             {screen === "welcome" && (
               <>
-                <div className="mx-auto mt-4 h-px w-[120px] bg-slate-200"/>
-                <div className="relative mx-auto mt-1 h-[18px] w-[120px]" aria-hidden="true">
+                <div className="jobly-public-home-footer-divider mx-auto h-px w-[120px] bg-slate-200"/>
+                <div className="jobly-public-home-footer-trail relative mx-auto h-[12px] w-[120px]" aria-hidden="true">
                   <motion.svg viewBox="0 0 120 29" className="absolute inset-0 h-full w-full">
-                    <motion.path d="M58 27 C44 23 46 12 61 9 C72 7 77 2 74 0" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: [0, 0.7, 0.12, 0] }} transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut" }} />
+                    <motion.path d="M58 27 C44 23 46 12 61 9 C72 7 77 2 74 0" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: [0, 0.7, 0.12, 0] }} transition={{ duration: 2.2, ease: "easeOut" }} />
                   </motion.svg>
                 </div>
-                <p className="mt-2 text-[14px] leading-none text-[#5F6670] sm:text-[15px]">Built with <span ref={heartTargetRef} className="inline-block h-[14px] w-[14px] align-[-3px]" aria-hidden="true">&nbsp;</span> by Team <strong className="ml-1 text-[17px] font-extrabold text-[#FFD60A] sm:text-[18px]">M</strong></p>
+                <p className="jobly-public-home-footer-signature mt-1 text-[13px] leading-none text-[#5F6670] sm:mt-2 sm:text-[15px]">Built with <span ref={heartTargetRef} className="inline-block h-[14px] w-[14px] align-[-3px]" aria-hidden="true">&nbsp;</span> by Team <strong className="ml-1 text-[17px] font-extrabold text-[#FFD60A] sm:text-[18px]">M</strong></p>
               </>
             )}
           </motion.div>
         </AnimatePresence>
       </footer>}
     </div>
-    {screen === "welcome" && heartPath && <motion.span className="pointer-events-none fixed left-0 top-0 z-[60] text-[16px] leading-none drop-shadow-[0_2px_5px_rgba(239,68,68,0.28)]" initial={{ x: heartPath.startX, y: heartPath.startY, scale: 0.94 }} animate={{ x: heartPath.endX, y: heartPath.endY, scale: [0.94, 0.9, 1.02, 0.88, 0.98] }} transition={{ x: { duration: 2.65, ease: [0.16, 1, 0.3, 1] }, y: { duration: 2.65, ease: [0.16, 1, 0.3, 1] }, scale: { delay: 2.65, duration: 0.82, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" } }} aria-hidden="true">❤️</motion.span>}
+    {screen === "welcome" && heartPath && <motion.span className="pointer-events-none fixed left-0 top-0 z-[60] text-[16px] leading-none drop-shadow-[0_2px_5px_rgba(239,68,68,0.28)]" initial={{ x: heartPath.startX, y: heartPath.startY, scale: 0.94 }} animate={{ x: heartPath.endX, y: heartPath.endY, scale: [0.94, 1.06, 1] }} transition={{ x: { duration: 2.65, ease: [0.16, 1, 0.3, 1] }, y: { duration: 2.65, ease: [0.16, 1, 0.3, 1] }, scale: { delay: 2.65, duration: 0.5, ease: "easeOut" } }} aria-hidden="true">❤️</motion.span>}
   </main>;
 }
