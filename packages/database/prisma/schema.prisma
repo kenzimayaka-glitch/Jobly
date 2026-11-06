@@ -381,6 +381,7 @@ model Payment {
   payerPhone             String?
   reportedTransactionId  String?
   smsMerchantAccount     String?
+  smsMerchantCode        String?
   paidAt                 DateTime?
   refundedAt             DateTime?
   failureReason          String?
@@ -393,6 +394,16 @@ model Payment {
   @@index([provider, reportedTransactionId])
 }
 
+
+model PaymentSmsProviderConfig {
+  provider          String   @id
+  merchantAccount   String
+  merchantCode      String
+  isActive          Boolean  @default(true)
+  updatedByUserId   String
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(6)
+}
 
 model PaymentSmsDevice {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
