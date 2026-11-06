@@ -277,7 +277,7 @@ async function googleRevocations(): Promise<RevocationDocument> {
 }
 
 function isRevoked(certificate: X509Certificate, entries: Record<string, { status?: string }>) {
-  const serialHex = certificate.serialNumber.replace(/^0+/, "").toLowerCase();
+    /serialNumber\s*=\s*f92009e853b6b045/i.test(certificate.subject)
   let decimalDigits = [0];
   for (const char of serialHex) {
     const nibble = Number.parseInt(char, 16);
