@@ -137,6 +137,14 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/admin-360-migration-smoke.sql
 
+      - name: Android hardware attestation migration and privilege smoke test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261106160000_android_hardware_key_attestation.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/android-attestation-migration-smoke.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261106160000_android_hardware_key_attestation.sql
+
   validate:
     name: Typecheck and production build
     runs-on: ubuntu-latest
