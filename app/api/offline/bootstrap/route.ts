@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       userId: user.id,
+      authUserId: authUser.id,
       generatedAt: generatedAt.toISOString(),
       expiresAt: expiresAt.toISOString(),
       user: {
