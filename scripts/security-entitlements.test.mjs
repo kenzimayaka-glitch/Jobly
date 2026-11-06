@@ -403,3 +403,18 @@ test("Mobility provider profile, services, assignments and reports use shared ab
     assert.match(source, /requireIp: true/);
   }
 });
+
+
+test("Mobility subsidy and provider assignment changes roll back when audit events fail", () => {
+  const subsidy = read("../app/api/mobility/partner/validate/route.ts");
+  const assignment = read("../app/api/mobility/partner/assignments/route.ts");
+  const applications = read("../app/api/mobility/program-applications/route.ts");
+  assert.match(subsidy, /if \(eventError\)[\s\S]*?const rollback = await sb\.from\("MobilityRequest"\)\.update/);
+  assert.match(subsidy, /rolledBack: true/);
+  assert.match(assignment, /if \(eventError\)[\s\S]*?const rollback = await db\.from\("MobilityProviderAssignment"\)\.update/);
+  assert.match(assignment, /acceptedAt: current\.acceptedAt/);
+  assert.match(assignment, /completedAt: current\.completedAt/);
+  assert.match(assignment, /rolledBack: true/);
+  assert.match(applications, /if \(eventError\)[\s\S]*?from\("MobilityProgramApplication"\)\.delete/);
+  assert.match(applications, /MOBILITY_PROGRAM_APPLICATION_AUDIT_FAILED_ROLLED_BACK/);
+});
