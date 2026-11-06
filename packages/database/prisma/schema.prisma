@@ -194,6 +194,8 @@ model User {
   offlineSyncReceipts OfflineSyncReceipt[]
   adminIdentity AdminIdentity? @relation("AdminIdentityOwner")
   adminWorkspaces AdminWorkspace[] @relation("AdminWorkspaceOwner")
+  managedAccounts AdminManagedAccount[] @relation("ManagedAccountOwner")
+  managedAccount AdminManagedAccount? @relation("ManagedAccountUser")
 }
 
 model JiaConversation {
@@ -278,6 +280,26 @@ model AdminWorkspace {
 
   @@unique([ownerUserId, code])
   @@index([ownerUserId, enabled])
+}
+
+model AdminManagedAccount {
+  id                  String   @id @default(cuid())
+  ownerAdminUserId    String
+  userId              String   @unique
+  accountType         String
+  organizationType    String?
+  organizationName    String?
+  website             String?
+  city                String?
+  country             String?
+  status              String   @default("INVITED")
+  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(6)
+  ownerAdmin          User     @relation("ManagedAccountOwner", fields: [ownerAdminUserId], references: [id], onDelete: Cascade)
+  user                User     @relation("ManagedAccountUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerAdminUserId, userId])
+  @@index([ownerAdminUserId, status, createdAt])
 }
 
 model Profile {
