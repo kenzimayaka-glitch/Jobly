@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert@1";
-import { resolveEffectivePublicationDate } from "./job-freshness.ts";
+import { normalizeDeadlineTimestamp, resolveEffectivePublicationDate } from "./job-freshness.ts";
 
 const base = {
   firstHarvestAt: null,
@@ -116,4 +116,39 @@ Deno.test("future publication dates are rejected", () => {
   });
   assertEquals(result.publishedInFuture, true);
   assertEquals(result.visible, false);
+});
+
+Deno.test("date-only source deadlines remain valid until the end of the advertised day", () => {
+  assertEquals(
+    normalizeDeadlineTimestamp("2026-11-06"),
+    "2026-11-06T23:59:59.999Z",
+  );
+  assertEquals(
+    normalizeDeadlineTimestamp("2026-11-06T00:00:00.000Z"),
+    "2026-11-06T23:59:59.999Z",
+  );
+  assertEquals(
+    normalizeDeadlineTimestamp("2026-11-06T16:00:00.000Z"),
+    "2026-11-06T16:00:00.000Z",
+  );
+
+  const duringDeadlineDay = resolveEffectivePublicationDate({
+    sourcePublishedAt: "2026-10-22T00:00:00.000Z",
+    firstHarvestAt: null,
+    createdAt: null,
+    deadline: "2026-11-06",
+    now: "2026-11-06T16:30:00.000Z",
+  });
+  assertEquals(duringDeadlineDay.visible, true);
+  assertEquals(duringDeadlineDay.expiredByDeadline, false);
+
+  const afterDeadlineDay = resolveEffectivePublicationDate({
+    sourcePublishedAt: "2026-10-22T00:00:00.000Z",
+    firstHarvestAt: null,
+    createdAt: null,
+    deadline: "2026-11-06",
+    now: "2026-11-07T00:00:00.000Z",
+  });
+  assertEquals(afterDeadlineDay.visible, false);
+  assertEquals(afterDeadlineDay.expiredByDeadline, true);
 });
