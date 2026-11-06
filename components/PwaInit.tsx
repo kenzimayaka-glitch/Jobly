@@ -20,8 +20,8 @@ export default function PwaInit() {
         const rawUrl = input instanceof Request ? input.url : String(input);
         const url = new URL(rawUrl, window.location.href);
         if (url.origin === window.location.origin && url.pathname.startsWith("/api/")) {
-          const requestHeaders = input instanceof Request ? input.headers : undefined;
-          const headers = new Headers(init?.headers ?? requestHeaders);
+          const headers = new Headers(input instanceof Request ? input.headers : undefined);
+          new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
           headers.set("x-jobly-device-id", getJoblyDeviceId());
           headers.set("x-jobly-device-name", getJoblyDeviceLabel());
           return nativeFetch(input, { ...init, headers });
