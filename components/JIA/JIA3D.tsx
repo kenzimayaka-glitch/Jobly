@@ -11,7 +11,7 @@ import { clipConfig, pickClipKey, pickClipSources, preloadClips } from "./clips"
 import { useOutfit } from "@/lib/jia/outfit";
 import { JIA_AVATAR_APPEARANCES, type JiaAvatarAppearanceVariation } from "@/lib/jia/visual-variations";
 import type { JIA100Move } from "./movements";
-// GLTF runtime: the official J’IA model is loaded through drei/useGLTF.
+// gltf runtime: the official J’IA model is loaded through drei/useGLTF.
 type Move = JIA100Move;
 
 const MOVE_CLIP_HINTS: Record<string, string[]> = {
