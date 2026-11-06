@@ -1,66 +1,55 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 
-type Metric = { key: string; label: string; available: boolean; count: number | null; reason: string | null };
-type Data = { snapshotAt: string; metrics: Metric[]; roleCounts: { role: string; available: boolean; count: number | null }[] };
-
-export default function AdminAnalyticsPage() {
-  const [token,setToken]=useState("");
-  const [data,setData]=useState<Data|null>(null);
-  const [loading,setLoading]=useState(true);
-  const [error,setError]=useState("");
-  const load=useCallback(async(accessToken:string)=>{
-    const response=await fetch("/api/admin/analytics",{headers:{Authorization:"Bearer "+accessToken},cache:"no-store"});
-    const body=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(body.message||"Indicateurs indisponibles.");
-    setData(body);
-  },[]);
-  useEffect(()=>{
-    let alive=true;
-    (async()=>{
-      const session=await getSupabaseClient().auth.getSession();
-      const accessToken=session.data.session?.access_token;
-      if(!accessToken)throw new Error("Session ADMIN requise.");
-      if(!alive)return;setToken(accessToken);
-      await load(accessToken);
-      if(alive)setLoading(false);
-    })().catch(e=>{if(alive){setError(e instanceof Error?e.message:"Chargement impossible.");setLoading(false);}});
-    return()=>{alive=false;};
-  },[load]);
-  if(loading)return <main className="grid min-h-[55dvh] place-items-center text-sm font-bold">Calcul des indicateurs réels…</main>;
-  return (
-    <main className="min-h-[calc(100dvh-64px)] px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        <header className="flex flex-wrap items-end justify-between gap-3">
-          <div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#3156A4]">ADMIN · ANALYST</p><h1 className="mt-2 text-2xl font-black text-[#10264A] sm:text-3xl">Intelligence & reporting</h1><p className="mt-2 max-w-3xl text-sm text-[#66758D]">Indicateurs calculés à partir des tables Jobly interrogées au moment de l'instantané. Les sources indisponibles restent distinctes des valeurs nulles.</p></div>
-          <button onClick={()=>load(token).catch(e=>setError(e.message))} className="rounded-full border border-[#DCE4F0] bg-white px-4 py-2.5 text-xs font-black">Actualiser</button>
-        </header>
-        {error&&<p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-900">{error}</p>}
-        <div className="mt-3 text-[10px] text-[#8793A5]">Instantané : {data?.snapshotAt ? new Date(data.snapshotAt).toLocaleString("fr-FR") : "—"}</div>
-        <section className="mt-5 rounded-[22px] border border-[#DCE4F0] bg-white p-4 sm:p-5">
-          <h2 className="text-sm font-black text-[#10264A]">Répartition des identités utilisateur</h2>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {data?.roleCounts.map((row)=> <div key={row.role} className="rounded-xl bg-[#F5F7FB] p-3"><p className="text-[10px] font-black text-[#6D7B91]">{row.role}</p><p className="mt-1 text-2xl font-black tabular-nums">{row.available ? row.count?.toLocaleString("fr-FR") : "—"}</p></div>)}
-          </div>
-        </section>
-        <section className="mt-5">
-          <div className="flex items-end justify-between gap-3"><h2 className="text-lg font-black text-[#10264A]">Indicateurs par domaine</h2><span className="text-[10px] font-semibold text-[#8793A5]">Comptages exacts retournés par Supabase</span></div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {data?.metrics.map((metric)=> <article key={metric.key} className="rounded-[20px] border border-[#DCE4F0] bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-2"><h3 className="text-xs font-black text-[#40516C]">{metric.label}</h3><span className={"rounded-full px-2 py-1 text-[8px] font-black "+(metric.available?"bg-[#E6F7EF] text-[#126642]":"bg-[#FFF1E5] text-[#9B4C13]")}>{metric.available?"DISPONIBLE":"NON LUE"}</span></div>
-              <p className="mt-4 text-3xl font-black tabular-nums text-[#10264A]">{metric.available?metric.count?.toLocaleString("fr-FR"):"—"}</p>
-              {!metric.available&&<p className="mt-2 break-words text-[10px] text-[#9B4C13]">{metric.reason}</p>}
-            </article>)}
-          </div>
-        </section>
-        <section className="mt-7 rounded-2xl border border-[#DCE4F0] bg-[#EDF2FA] p-4">
-          <h2 className="text-sm font-black">Analyse complémentaire</h2>
-          <p className="mt-1 text-xs leading-relaxed text-[#53627B]">Les métriques ci-dessus sont des volumes, pas des prévisions ni des taux de réussite. Les analyses temporelles et projections sont affichées par J’IA CEO lorsqu'une série historique vérifiable est disponible.</p>
-          <div className="mt-3 flex flex-wrap gap-2"><a href="/admin/jia" className="rounded-full bg-[#10264A] px-4 py-2.5 text-xs font-black text-white">Ouvrir CEO Intelligence</a><a href="/admin/jia/chat" className="rounded-full border border-[#D0DAE8] bg-white px-4 py-2.5 text-xs font-black">Interroger CEO Copilot</a></div>
-        </section>
-      </div>
-    </main>
-  );
+type Metric = { key:string; label:string; module:string; available:boolean; count:number|null; reason:string|null; periodValue:number|null; previousValue:number|null; change:number|null; historyAvailable:boolean };
+type Point = Record<string, number|string>;
+type Decision = { id:string; title:string; module:string; recommendation:string; hypothesis?:string|null; status:string; priority:string; ownerUserId?:string|null; dueAt?:string|null };
+type Analytics = {
+ generatedAt:string; range:{from:string;to:string;compareFrom:string;compareTo:string;groupBy:string;timeZone:string};
+ history:{available:boolean;hasRows:boolean;source:string;note:string};
+ current:{metrics:Metric[];roleCounts:{role:string;available:boolean;count:number|null}[];rolesTotal:number};
+ summary:Metric[];series:Point[];metricKeys:string[];countries:{country:string;value:number}[];
+ goals:any[];alerts:any[];decisions:Decision[];forecasts:{metric:string;d7:number;d30:number;d90:number;method:string;confidence:string}[];
+ unavailable:Record<string,string|null>;
+};
+const navy="#10264A", blue="#3156A4", yellow="#FFE135";
+const fmt=(v:number|null|undefined)=>v==null?"—":new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0}).format(v);
+const pct=(v:number|null)=>v==null?"—":(v>0?"+":"")+v.toFixed(1)+" %";
+const metricNames:Record<string,string>={users:"Utilisateurs",jobs:"Offres agrégées",recruiter_jobs:"Offres recruteurs",applications:"Candidatures",payments:"Paiements",events:"Événements",subscriptions:"Abonnements",mobility_requests:"Mobility",harvest_captures:"Captures",revenue_confirmed_xaf:"Revenus confirmés (XAF)"};
+const lanes=[{key:"backlog",label:"À planifier"},{key:"planned",label:"Planifié"},{key:"in_progress",label:"En cours"},{key:"done",label:"Terminé"}];
+function Chart({series,metric}:{series:Point[];metric:string}) {
+ const values=series.map(p=>Number(p[metric]||0)); const max=Math.max(1,...values); const width=760,height=210,pad=24;
+ const points=values.map((v,i)=>({x:pad+(series.length<=1?0:i*(width-2*pad)/(series.length-1)),y:height-pad-(v/max)*(height-2*pad)}));
+ const path=points.map((p,i)=>(i?"L":"M")+p.x+","+p.y).join(" ");
+ return <div className="w-full overflow-hidden"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Évolution de ${metricNames[metric]||metric}`} className="h-[190px] w-full">
+  {[0,1,2,3].map(n=><line key={n} x1={pad} x2={width-pad} y1={pad+n*(height-2*pad)/3} y2={pad+n*(height-2*pad)/3} stroke="#E8EDF5" strokeDasharray="4 5"/>)}
+  {points.length>1&&<path d={path+` L ${points[points.length-1].x} ${height-pad} L ${points[0].x} ${height-pad} Z`} fill={blue} opacity=".08"/>}
+  {points.length>1&&<path d={path} fill="none" stroke={blue} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>}
+  {points.map((p,i)=><circle key={i} cx={p.x} cy={p.y} r="3.5" fill={yellow} stroke={navy} strokeWidth="1.5"/>)}
+ </svg><div className="flex justify-between px-2 text-[9px] text-slate-400"><span>{String(series[0]?.date||"")}</span><span>{String(series[Math.floor(series.length/2)]?.date||"")}</span><span>{String(series[series.length-1]?.date||"")}</span></div></div>;
+}
+function Donut({items}:{items:{role:string;count:number|null;available:boolean}[]}) {
+ const total=items.reduce((s,x)=>s+(x.count||0),0);let offset=0;const colors=["#3156A4","#FFE135","#18A572","#7B8BA8"];
+ return <div className="flex flex-wrap items-center gap-5"><svg viewBox="0 0 120 120" className="h-32 w-32 shrink-0"><circle cx="60" cy="60" r="43" fill="none" stroke="#EDF1F7" strokeWidth="16"/>{items.map((x,i)=>{const part=total?(x.count||0)/total:0;const dash=part*270;const el=<circle key={x.role} cx="60" cy="60" r="43" fill="none" stroke={colors[i%colors.length]} strokeWidth="16" strokeDasharray={`${dash} 270`} strokeDashoffset={-offset} transform="rotate(-90 60 60)"/>;offset+=dash;return el;})}<text x="60" y="57" textAnchor="middle" fontSize="17" fontWeight="800" fill={navy}>{fmt(total)}</text><text x="60" y="70" textAnchor="middle" fontSize="7" fill="#718096">COMPTES</text></svg><div className="grid flex-1 grid-cols-2 gap-3">{items.map((x,i)=><div key={x.role} className="flex items-center gap-2 text-xs"><i className="h-2.5 w-2.5 rounded-full" style={{background:colors[i%colors.length]}}/><span className="text-slate-500">{x.role}</span><b className="ml-auto text-slate-800">{x.available?fmt(x.count):"—"}</b></div>)}</div></div>;
+}
+export default function AdminAnalyticsPage(){
+ const [token,setToken]=useState("");const [data,setData]=useState<Analytics|null>(null);const [loading,setLoading]=useState(true);const [error,setError]=useState("");const [range,setRange]=useState("30d");const [group,setGroup]=useState("day");const [metric,setMetric]=useState("users");const [from,setFrom]=useState("");const [to,setTo]=useState("");const [refreshing,setRefreshing]=useState(false);
+ const load=useCallback(async(t:string,r=range,g=group)=>{const q=new URLSearchParams({range:r,groupBy:g});if(r==="custom"){if(from)q.set("from",from);if(to)q.set("to",to);}const response=await fetch("/api/admin/analytics?"+q.toString(),{headers:{Authorization:"Bearer "+t},cache:"no-store"});const body=await response.json().catch(()=>({}));if(!response.ok)throw new Error(body.message||"Analyse indisponible.");setData(body);setError("");},[range,group,from,to]);
+ useEffect(()=>{let live=true;(async()=>{const session=await getSupabaseClient().auth.getSession();const t=session.data.session?.access_token;if(!t)throw new Error("Session ADMIN requise.");if(!live)return;setToken(t);await load(t);if(live)setLoading(false);})().catch(e=>{if(live){setError(e instanceof Error?e.message:"Chargement impossible.");setLoading(false);}});return()=>{live=false;};},[load]);
+ const refreshHistory=async()=>{setRefreshing(true);try{const r=await fetch("/api/admin/analytics/refresh",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({})});const b=await r.json();if(!r.ok)throw new Error(b.message||"Reconstruction impossible.");await load(token);setError("Historique actualisé : "+b.upsertedRows+" agrégats recalculés.");}catch(e){setError(e instanceof Error?e.message:"Erreur.");}finally{setRefreshing(false);}};
+ const exportReport=async(format:string)=>{try{const r=await fetch("/api/admin/analytics/export?"+new URLSearchParams({range,groupBy:group,format}),{headers:{Authorization:"Bearer "+token}});if(!r.ok){const b=await r.json().catch(()=>({}));throw new Error(b.message||"Export indisponible.");}const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="jobly-intelligence-"+range+"."+format;a.click();URL.revokeObjectURL(url);}catch(e){setError(e instanceof Error?e.message:"Export impossible.");}};
+ const decisions=useMemo(()=>data?.decisions||[],[data]);
+ if(loading)return <main className="grid min-h-[60dvh] place-items-center text-sm font-bold text-slate-600">Chargement de JOBLY INTELLIGENCE 360…</main>;
+ return <main className="min-h-[calc(100dvh-64px)] bg-[#F4F7FB] px-3 py-5 sm:px-6 lg:px-8"><div className="mx-auto max-w-[1500px]">
+  <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[.22em]" style={{color:blue}}>ADMIN · ANALYST · AFRICA/Douala</p><h1 className="mt-2 text-2xl font-black sm:text-3xl" style={{color:navy}}>JOBLY INTELLIGENCE 360</h1><p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">Cockpit CEO · données métier, tendances, comparaisons, décisions et prévisions contrôlées.</p></div><div className="flex flex-wrap gap-2"><button onClick={()=>refreshHistory()} disabled={refreshing} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold disabled:opacity-50">{refreshing?"Reconstruction…":"Reconstruire l'historique"}</button>{["csv","xlsx","pdf"].map(f=><button key={f} onClick={()=>exportReport(f)} className="rounded-xl px-3 py-2 text-xs font-black text-white" style={{background:navy}}>Exporter {f.toUpperCase()}</button>)}</div></header>
+  {error&&<p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-900">{error}</p>}
+  <section className="mt-5 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"><label className="text-[10px] font-bold text-slate-500">Période<select value={range} onChange={e=>setRange(e.target.value)} className="mt-1 block rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800"><option value="7d">7 derniers jours</option><option value="30d">30 derniers jours</option><option value="90d">90 derniers jours</option><option value="365d">365 derniers jours</option><option value="custom">Personnalisée</option></select></label>{range==="custom"&&<><label className="text-[10px] font-bold text-slate-500">Du<input type="date" value={from} onChange={e=>setFrom(e.target.value)} className="mt-1 block rounded-lg border border-slate-200 px-3 py-2 text-xs"/></label><label className="text-[10px] font-bold text-slate-500">Au<input type="date" value={to} onChange={e=>setTo(e.target.value)} className="mt-1 block rounded-lg border border-slate-200 px-3 py-2 text-xs"/></label></>}<label className="text-[10px] font-bold text-slate-500">Regroupement<select value={group} onChange={e=>setGroup(e.target.value)} className="mt-1 block rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800"><option value="day">Jour par jour</option><option value="week">Semaine par semaine</option><option value="month">Mois par mois</option><option value="quarter">Trimestre</option><option value="year">Année par année</option></select></label><button onClick={()=>load(token)} className="rounded-lg px-4 py-2.5 text-xs font-black" style={{background:yellow,color:navy}}>Appliquer</button><span className="ml-auto text-[9px] text-slate-400">Comparaison : période précédente de même durée · {data?.range.timeZone}</span></section>
+  <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{(data?.summary||[]).slice(0,8).map(m=><article key={m.key} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-2"><p className="text-xs font-bold text-slate-500">{m.label}</p><span className={`rounded-full px-2 py-1 text-[9px] font-black ${m.available?"bg-emerald-50 text-emerald-700":"bg-amber-50 text-amber-700"}`}>{m.available?"LIVE":"INDISPONIBLE"}</span></div><p className="mt-3 text-2xl font-black tabular-nums" style={{color:navy}}>{m.available?fmt(m.count):"—"}</p><div className="mt-2 flex items-center justify-between text-[10px] text-slate-400"><span>Variation historique</span><b className={m.change===null?"text-slate-400":m.change>=0?"text-emerald-600":"text-rose-600"}>{pct(m.change)}</b></div>{!m.historyAvailable&&<p className="mt-2 text-[9px] text-amber-700">Historique de cette période non disponible.</p>}</article>)}</section>
+  <section className="mt-4 grid gap-4 xl:grid-cols-[1.65fr_1fr]"><article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-sm font-black" style={{color:navy}}>Tendances temporelles</h2><p className="mt-1 text-[10px] text-slate-400">Séries quotidiennes agrégées selon le regroupement choisi</p></div><select value={metric} onChange={e=>setMetric(e.target.value)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs">{data?.metricKeys.map(k=><option key={k} value={k}>{metricNames[k]||k}</option>)}</select></div>{data?.history.hasRows?<Chart series={data.series} metric={metric}/>:<div className="mt-5 rounded-xl bg-slate-50 p-5 text-xs text-slate-500">Aucune série historique observée pour cette période. Lance la reconstruction à partir des horodatages réellement disponibles.</div>}<div className="mt-3 flex flex-wrap gap-3 text-[9px] text-slate-400"><span>● Données observées</span><span>Comparaison période précédente : voir les KPI</span><span>Fuseau Africa/Douala</span></div></article><article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><h2 className="text-sm font-black" style={{color:navy}}>Structure des comptes</h2><p className="mt-1 text-[10px] text-slate-400">Répartition actuelle des identités par rôle</p><div className="mt-5"><Donut items={data?.current.roleCounts||[]}/></div><div className="mt-5 rounded-xl bg-slate-50 p-3 text-[10px] text-slate-500">Total des comptes interrogés : <b>{fmt(data?.current.rolesTotal)}</b></div></article></section>
+  <section className="mt-4 grid gap-4 xl:grid-cols-2"><article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><h2 className="text-sm font-black" style={{color:navy}}>Performance par pays</h2><p className="mt-1 text-[10px] text-slate-400">Agrégats historiques par dimension pays disponibles dans les sources</p><div className="mt-4 space-y-3">{(data?.countries||[]).map(c=><div key={c.country}><div className="mb-1 flex justify-between text-[10px]"><b>{c.country}</b><span>{fmt(c.value)}</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full" style={{width:`${Math.min(100,c.value/Math.max(1,data?.countries[0]?.value||1)*100)}%`,background:blue}}/></div></div>)}{!data?.countries.length&&<p className="rounded-xl bg-slate-50 p-4 text-xs text-slate-500">Aucune dimension pays vérifiée disponible pour cette période.</p>}</div></article><article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><h2 className="text-sm font-black" style={{color:navy}}>Prévisions de tendance</h2><p className="mt-1 text-[10px] text-slate-400">Projection de référence, pas une promesse de résultat</p><div className="mt-4 grid grid-cols-3 gap-2">{[7,30,90].map(day=><div key={day} className="rounded-xl bg-slate-50 p-3"><p className="text-[9px] font-black text-slate-400">J+{day}</p>{(data?.forecasts||[]).slice(0,4).map(f=><p key={f.metric} className="mt-2 text-[10px]"><span className="block text-slate-500">{metricNames[f.metric]||f.metric}</span><b className="text-sm" style={{color:navy}}>{fmt(day===7?f.d7:day===30?f.d30:f.d90)}</b></p>)}</div>)}</div><p className="mt-3 text-[9px] text-amber-700">{data?.forecasts.length?"Méthode : moyenne quotidienne observée × horizon. Confiance faible à modérée.":"Prévisions désactivées : historique observé insuffisant."}</p></article></section>
+  <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-sm font-black" style={{color:navy}}>Daily Business Control · Kanban des décisions</h2><p className="mt-1 text-[10px] text-slate-400">Les recommandations deviennent des actions suivies, pas des cartes décoratives.</p></div><span className="text-[9px] text-slate-400">{decisions.length} actions ouvertes</span></div><div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">{lanes.map(lane=><div key={lane.key} className="min-w-0 rounded-xl bg-[#F2F5FA] p-3"><div className="mb-3 flex items-center justify-between"><h3 className="text-xs font-black text-slate-700">{lane.label}</h3><span className="rounded-full bg-white px-2 py-1 text-[9px] font-bold text-slate-500">{decisions.filter(d=>d.status===lane.key).length}</span></div><div className="space-y-2">{decisions.filter(d=>d.status===lane.key).map(d=><div key={d.id} className="rounded-xl border border-slate-200 bg-white p-3"><div className="flex items-center justify-between gap-2"><span className="text-[9px] font-black uppercase text-blue-700">{d.module}</span><span className="text-[8px] font-black uppercase text-slate-400">{d.priority}</span></div><p className="mt-2 text-xs font-bold text-slate-800">{d.title}</p><p className="mt-1 text-[10px] leading-relaxed text-slate-500">{d.recommendation}</p><div className="mt-3 flex flex-wrap gap-1">{lanes.filter(x=>x.key!==d.status).map(x=><button key={x.key} onClick={async()=>{const r=await fetch("/api/admin/analytics/decisions/"+d.id,{method:"PATCH",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({status:x.key})});if(r.ok)load(token);}} className="rounded-md border border-slate-200 px-2 py-1 text-[8px] font-bold text-slate-500">{x.label}</button>)}</div></div>)}</div></div>)}</div></section>
+  <footer className="mt-4 flex flex-wrap justify-between gap-2 text-[9px] text-slate-400"><span>{data?.history.note}</span><span>Instantané {data?.generatedAt?new Date(data.generatedAt).toLocaleString("fr-FR",{timeZone:"Africa/Douala"}):"—"} · Source protégée ADMIN</span></footer>
+ </div></main>;
 }
