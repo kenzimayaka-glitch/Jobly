@@ -75,6 +75,9 @@ jobs:
       - name: Lot 0 — verify isolated E2E public connection (read-only)
         run: node e2e/lot0-preflight.mjs
 
+      - name: Lot 1 — validate isolated Auth session lifecycle (no email/SMS)
+        run: node e2e/auth-session-smoke.mjs
+
       - name: Typecheck
         run: pnpm typecheck
 
