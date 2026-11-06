@@ -3,7 +3,7 @@
 import JSZip from "jszip";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
-import { saveOfflineSnapshot, type OfflineSnapshot } from "@/lib/offline-store";
+import { saveOfflineDocument, saveOfflineSnapshot, type OfflineSnapshot } from "@/lib/offline-store";
 
 type Device = {
   deviceId: string;
@@ -116,8 +116,20 @@ export default function SettingsPage() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.message || "Téléchargement hors connexion impossible.");
-      await saveOfflineSnapshot(payload as OfflineSnapshot);
-      setOfflineExpiry((payload as OfflineSnapshot).expiresAt);
+      const snapshot = payload as OfflineSnapshot;
+      await saveOfflineSnapshot(snapshot);
+      const cvResponse = await fetch("/api/account/backup/files/cv", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (cvResponse.ok) {
+        const cv = await cvResponse.blob();
+        await saveOfflineDocument(snapshot.userId, "cv-original.pdf", cv);
+      } else if (cvResponse.status !== 404) {
+        const cvError = await cvResponse.json().catch(() => ({}));
+        throw new Error(cvError.message || "Le CV n'a pas pu être téléchargé pour le mode hors connexion.");
+      }
+      setOfflineExpiry(snapshot.expiresAt);
       setNotice({ tone: "success", message: "Les données essentielles sont chiffrées et disponibles sur cet appareil pendant 7 jours. La synchronisation automatique est activée." });
     } catch (error) {
       setNotice({ tone: "error", message: error instanceof Error ? error.message : "Préparation hors connexion impossible." });
