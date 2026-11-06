@@ -192,3 +192,15 @@ test("recruiter public talent profile gates pitch and advertising video on live 
   assert.match(route, /publicDiscoverable", true/);
   assert.match(route, /Cache-Control": "private, no-store, max-age=0"/);
 });
+
+
+test("Talent showcase action images are server-gated by active Premium and Pro plan limits", () => {
+  const imageUpload = read("../app/api/auth/talent-showcase/image/route.ts");
+  const showcase = read("../app/api/auth/talent-showcase/route.ts");
+  assert.match(imageUpload, /getActivePlanCode\(supabase, user\.id, "TALENT"\)/);
+  assert.match(imageUpload, /plan === "PRO" \? 6 : plan === "PREMIUM" \? 3 : 0/);
+  assert.match(imageUpload, /currentImages\.length >= imageLimit/);
+  assert.match(showcase, /paidMediaEligible && Array\.isArray\(user\.actionImages\)/);
+  assert.match(showcase, /imageLimit = plan === "PRO" \? 6 : plan === "PREMIUM" \? 3 : 0/);
+  assert.match(showcase, /candidateImages\.length > imageLimit/);
+});
