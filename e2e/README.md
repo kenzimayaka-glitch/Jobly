@@ -59,16 +59,12 @@ Le compte ADMIN existe et ses quatre espaces sont actifs. Son mot de passe n'est
 
 Le workflow E2E est désormais déclenché **manuellement uniquement** (`workflow_dispatch`) afin d'éviter de consommer les minutes CI à chaque mise à jour de PR. Il ne déclenche aucun déploiement.
 
-Avant le build et le navigateur, `e2e/lot0-preflight.mjs` exécute des contrôles exclusivement en lecture :
+Avant le build et le navigateur, `e2e/lot0-preflight.mjs` vérifie exclusivement en lecture :
 - URL et référence du projet Supabase strictement égales à `JOBLY-E2E` ;
-- présence des variables publiques E2E attendues ;
-- acceptation de la clé serveur par l'API Auth du projet E2E ;
-- existence et confirmation du compte Auth ADMIN ;
-- correspondance unique entre Auth et `public.User`, avec rôle `ADMIN` ;
-- présence d'une `AdminIdentity` active et liée ;
-- quatre espaces ADMIN activés.
+- correspondance de la clé publishable publique avec le projet E2E ;
+- disponibilité de l'API Auth E2E via une requête GET.
 
-Le contrôle n'effectue aucune création de compte, connexion interactive, écriture SQL, migration, envoi d'e-mail/SMS, opération Storage, exécution Edge Function ou appel de paiement. Il ne lit ni n'utilise aucun secret de JOBLY-PROD.
+Le préflight ne prétend pas vérifier l'identité ADMIN, les profils métier ou une connexion interactive. Il n'effectue aucune création de compte, écriture SQL, migration, envoi d'e-mail/SMS, opération Storage, exécution Edge Function ou appel de paiement. Il ne lit ni n'utilise aucun secret de JOBLY-PROD.
 
 ### Résultats SQL en lecture seule — recontrôle du 6 novembre
 
@@ -85,9 +81,9 @@ Ces vérifications n'ont exécuté que des requêtes `SELECT` sur JOBLY-E2E et J
 Aucune action de configuration n'est demandée à l'utilisateur. Le workflow ne dépend plus de secrets GitHub `E2E_*` :
 - l'URL, la référence et la clé publishable (publique par conception) de JOBLY-E2E sont vérifiées directement par le préflight ;
 - aucun `service_role`, mot de passe ADMIN ou jeton privé n'est injecté dans GitHub Actions ;
-- l'identité Admin, son rattachement, son activation et ses quatre espaces ont été vérifiés par requêtes SQL en lecture seule via la connexion Supabase, sans secret exporté.
+- l'identité Admin, son rattachement, son activation et ses quatre espaces ont été vérifiés séparément par requêtes SQL en lecture seule ; le préflight CI ne les recontrôle pas.
 
-Le préflight CI ne prétend pas valider une connexion interactive ADMIN. Les parcours Auth et les comptes métier synthétiques restent à préparer et à tester dans l'environnement E2E, sans demander à l'utilisateur de créer des secrets ni de toucher à Production.
+Le préflight CI ne prétend pas valider une connexion interactive ADMIN. Les parcours Auth et les comptes métier synthétiques restent BLOQUÉS : le connecteur disponible ne fournit pas d'opération Auth Admin permettant de créer un utilisateur E2E avec mot de passe sans secret privé. Aucune insertion directe dans le schéma interne `auth` n'est tentée. Le smoke UI reste utile, mais ne vaut pas recette Auth.
 **Critère de sortie Lot 0 :** le préflight doit terminer avec `PASS`, puis les comptes synthétiques requis et les contrôles RLS/grants doivent être prouvés. En attendant, Lot 0 reste BLOQUÉ et le Lot 1 n'est pas déclaré commencé.
 ## Catalogue de recette
 
