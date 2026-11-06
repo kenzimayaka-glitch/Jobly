@@ -82,7 +82,7 @@ jobs:
       - name: Start local Next.js server
         shell: bash
         run: |
-          pnpm start -- --hostname 127.0.0.1 > artifacts/e2e/next-server.log 2>&1 &
+          pnpm exec next start --hostname 127.0.0.1 > artifacts/e2e/next-server.log 2>&1 &
           echo $! > artifacts/e2e/next-server.pid
           for attempt in $(seq 1 40); do
             if curl --silent --fail http://127.0.0.1:3000/ >/dev/null; then
