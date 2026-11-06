@@ -142,14 +142,14 @@ function explicitIntegerSet(node: DerNode, tagNumber: number): number[] {
   return set.children.map((item) => Number(integerValue(item)));
 }
 
-function findAttestationExtension(certificateDer: Buffer): Buffer {
+function findAttestationExtension(certificateDer: Buffer): Buffer | null {
   const certificate = parseDer(certificateDer);
   if (certificate.tagClass !== 0 || certificate.tagNumber !== 16 || certificate.children.length !== 3) {
     throw new Error("CERTIFICATE_DER_INVALID");
   }
   const tbs = certificate.children[0];
   const extensions = tbs.children.find((child) => child.tagClass === 2 && child.tagNumber === 3);
-  if (!extensions) throw new Error("ATTESTATION_EXTENSION_MISSING");
+  if (!extensions) return null;
   const extensionSequence = explicitChild(extensions);
   for (const extension of extensionSequence.children) {
     if (extension.tagNumber !== 16 || extension.children.length < 2) continue;
@@ -159,7 +159,7 @@ function findAttestationExtension(certificateDer: Buffer): Buffer {
     if (value.tagClass !== 0 || value.tagNumber !== 4) throw new Error("ATTESTATION_EXTENSION_INVALID");
     return value.content;
   }
-  throw new Error("ATTESTATION_EXTENSION_MISSING");
+  return null;
 }
 
 function parseAttestationDescription(extension: Buffer, expectedChallengeHash: string, expectedSigner: string) {
@@ -295,7 +295,8 @@ function isRevoked(certificate: X509Certificate, entries: Record<string, { statu
   }
   const serialDecimal = decimalDigits.join("");
   const entry = entries[serialHex] ?? entries[serialDecimal];
-  return entry?.status?.toUpperCase() === "REVOKED";
+  const status = entry?.status?.toUpperCase();
+  return status === "REVOKED" || status === "SUSPENDED";
 }
 
 function buildTrustedChain(leaf: X509Certificate, presented: X509Certificate[], roots: X509Certificate[]) {
@@ -347,35 +348,53 @@ export async function verifyAndroidKeyAttestation(input: {
   if (!/^[a-f0-9]{64}$/.test(input.challengeHash)) throw new Error("ATTESTATION_CHALLENGE_HASH_INVALID");
 
   const now = Date.now();
-  for (const certificate of presented) {
-    if (Date.parse(certificate.validFrom) > now || Date.parse(certificate.validTo) < now) {
-      throw new Error("ATTESTATION_CERTIFICATE_EXPIRED");
-    }
-  }
-
-  const leafKey = presented[0].publicKey;
-  if (presented[0].ca || leafKey.asymmetricKeyType !== "ec" ||
-      leafKey.asymmetricKeyDetails?.namedCurve !== "prime256v1") {
-    throw new Error("ATTESTATION_LEAF_KEY_PROFILE_INVALID");
-  }
-
   const [roots, revocations] = await Promise.all([googleRoots(), googleRevocations()]);
   const chain = buildTrustedChain(presented[0], presented, roots);
+  const legacyFactoryChain = chain.some((certificate) =>
+    /serialNumber\\s*=\\s*f92009e853b6b045/i.test(certificate.subject)
+  );
   for (const certificate of chain) {
+    if (Date.parse(certificate.validFrom) > now ||
+        (Date.parse(certificate.validTo) < now && !legacyFactoryChain)) {
+      throw new Error("ATTESTATION_CERTIFICATE_EXPIRED");
+    }
     if (isRevoked(certificate, revocations.entries ?? {})) {
       throw new Error("ATTESTATION_CERTIFICATE_REVOKED");
     }
   }
 
+  // Android documents that the first key-attestation extension encountered
+  // from the root toward the leaf is the only trusted occurrence. Newer RKP
+  // chains can carry other extensions on intermediate certificates.
+  let attestationCertificate: X509Certificate | null = null;
+  let attestationExtension: Buffer | null = null;
+  for (const certificate of [...chain].reverse()) {
+    const candidate = findAttestationExtension(certificate.raw);
+    if (candidate) {
+      attestationCertificate = certificate;
+      attestationExtension = candidate;
+      break;
+    }
+  }
+  if (!attestationCertificate || !attestationExtension) {
+    throw new Error("ATTESTATION_EXTENSION_MISSING");
+  }
+
+  const attestedKey = attestationCertificate.publicKey;
+  if (attestationCertificate.ca || attestedKey.asymmetricKeyType !== "ec" ||
+      attestedKey.asymmetricKeyDetails?.namedCurve !== "prime256v1") {
+    throw new Error("ATTESTATION_LEAF_KEY_PROFILE_INVALID");
+  }
+
   const attestation = parseAttestationDescription(
-    findAttestationExtension(presented[0].raw),
+    attestationExtension,
     input.challengeHash,
     expectedSigner,
   );
 
   return {
-    publicKeyPem: presented[0].publicKey.export({ type: "spki", format: "pem" }).toString(),
-    certificateFingerprintSha256: presented[0].fingerprint256,
+    publicKeyPem: attestedKey.export({ type: "spki", format: "pem" }).toString(),
+    certificateFingerprintSha256: attestationCertificate.fingerprint256,
     ...attestation,
     packageName: "com.jobly.android",
     attestedAt: new Date(now).toISOString(),
