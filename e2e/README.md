@@ -1,6 +1,6 @@
 # Jobly — recette E2E globale
 
-**Statut :** Lot 0 toujours BLOQUÉ jusqu'à validation des secrets E2E et du compte ADMIN lié. Le contrôle navigateur précédent a couvert l'interface publique uniquement ; il ne valide pas le Lot 0 ni les parcours Auth complets.
+**Statut :** Lot 0 partiellement validé. Aucun secret ni réglage manuel n'est demandé à l'utilisateur. Les contrôles d'environnement, de schéma, de RLS et de liaison Admin sont documentés ; les comptes métier et parcours Auth restent à éprouver.
 
 ## Environnements autorisés
 
@@ -53,7 +53,7 @@ Le compte ADMIN existe et ses quatre espaces sont actifs. Son mot de passe n'est
 - L'Advisor signale 25 tables RLS sans politique explicite. Le contrôle des privilèges directs confirme qu'aucun rôle client n'a de droits sur ces tables : elles sont réservées au rôle serveur. Ce signal INFO n'est donc pas traité comme une exposition confirmée.
 - L'Advisor signale également `pg_net` dans le schéma `public`. Supabase documente que cette extension est gérée par `supabase_admin` et que des `REVOKE` lancés par `postgres` peuvent être sans effet. Ne pas réappliquer aveuglément la migration de verrouillage existante ; vérifier d'abord l'exposition effective du schéma Data API et les dépendances.
 - La protection des mots de passe compromis via HaveIBeenPwned n'est pas activée ; Supabase la réserve au forfait Pro ou supérieur. C'est une limitation de forfait, pas une réussite de test.
-- Les fonctions Edge et le calendrier d'ingestion ne sont pas provisionnés dans E2E. Les parcours qui en dépendent restent BLOQUÉS jusqu'à installation contrôlée des fonctions et secrets E2E.
+- Les fonctions Edge et le calendrier d'ingestion ne sont pas provisionnés dans E2E. Les parcours qui en dépendent restent hors périmètre tant que des variantes E2E sûres ne sont pas préparées.
 
 ## Reprise corrective du Lot 0 — 2026-11-06
 
@@ -61,7 +61,7 @@ Le workflow E2E est désormais déclenché **manuellement uniquement** (`workflo
 
 Avant le build et le navigateur, `e2e/lot0-preflight.mjs` exécute des contrôles exclusivement en lecture :
 - URL et référence du projet Supabase strictement égales à `JOBLY-E2E` ;
-- présence des variables/secrets E2E requis ;
+- présence des variables publiques E2E attendues ;
 - acceptation de la clé serveur par l'API Auth du projet E2E ;
 - existence et confirmation du compte Auth ADMIN ;
 - correspondance unique entre Auth et `public.User`, avec rôle `ADMIN` ;
@@ -121,7 +121,7 @@ Un lot n'est déclaré vert qu'après exécution de tous ses tests obligatoires,
 
 Le premier contrôle d'écran mobile a bien confirmé l'absence de débordement horizontal (viewport/document/body : 390/390/390 px), mais la capture a révélé un chevauchement visuel entre le texte du hero et l'illustration. Une correction CSS ciblée pour les écrans de moins de 640 px est ajoutée, ainsi qu'une assertion Playwright géométrique afin que le chevauchement ne puisse plus passer inaperçu. Le correctif reste à confirmer par le rerun navigateur.
 
-Le run 42295562370 a exécuté 5 contrôles d'interface : 5 PASS, 0 FAIL et 0 erreur JavaScript. En revanche, l'API `/api/public/home-stats` a répondu HTTP 503 ; ce point est classé BLOCKED, car la clé serveur E2E et les identifiants ADMIN dédiés ne sont pas encore configurés dans GitHub Actions. Aucun formulaire ni appel externe n'a été soumis.
+Le run 42295562370 a exécuté 5 contrôles d'interface : 5 PASS, 0 FAIL et 0 erreur JavaScript. L'API `/api/public/home-stats` a répondu HTTP 503 faute de configuration serveur E2E dans le workflow. Le workflow a depuis été corrigé pour ne plus dépendre de secrets manuels ; ce endpoint reste à retester avec son mode public ou un mécanisme serveur isolé. Aucun formulaire ni appel externe n'a été soumis.
 
 ## Tests navigateur disponibles
 
@@ -129,7 +129,7 @@ Le workflow `.github/workflows/jobly-e2e-recipe.yml` construit le site dans GitH
 
 Le script `browser-smoke.mjs` couvre uniquement le parcours public d'entrée et les écrans de connexion/inscription, sans envoyer de formulaire ni contacter un service externe. Ce premier smoke ne valide pas encore les flux authentifiés, les APIs métier ni la persistance en base.
 
-Pour la suite authentifiée, les secrets devront être ajoutés dans GitHub Actions sous des noms E2E dédiés : `E2E_SUPABASE_SERVICE_ROLE_KEY`, `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD` et, selon les tests, `E2E_DATABASE_URL`. Ne jamais les écrire dans le dépôt ou les transmettre dans la conversation. Le script et le workflow devront refuser toute URL Supabase ne correspondant pas à la référence E2E.
+La suite authentifiée ne doit pas dépendre de secrets que l'utilisateur aurait à créer. Les comptes de test devront être provisionnés par un mécanisme interne limité à JOBLY-E2E, avec des identifiants éphémères et sans réutiliser les identités ou secrets de Production. Le workflow actuel ne consomme aucun secret privé.
 
 ## Rapport et preuves
 
