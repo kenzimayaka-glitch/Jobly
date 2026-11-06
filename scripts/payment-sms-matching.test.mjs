@@ -99,3 +99,28 @@ test("does not match if the beneficiary inside the SMS differs from the paired S
   assert.equal(result.outcome, "UNMATCHED");
   assert.equal(result.reason, "SMS_MERCHANT_MISMATCH");
 });
+
+
+test("refuses automatic unique-order matching when the candidate search was truncated", () => {
+  const result = matchPaymentSmsToOrder({
+    parsed,
+    merchantAccount: "237699123456",
+    candidates: [{ ...base }],
+    candidateLimitReached: true,
+    now,
+  });
+  assert.equal(result.outcome, "AMBIGUOUS");
+  assert.equal(result.reason, "CANDIDATE_SEARCH_LIMIT_REACHED");
+});
+
+test("an exact unique transaction reference can still match in a truncated candidate search", () => {
+  const result = matchPaymentSmsToOrder({
+    parsed,
+    merchantAccount: "237699123456",
+    candidates: [{ ...base, reportedTransactionId: parsed.transactionId }],
+    candidateLimitReached: true,
+    now,
+  });
+  assert.equal(result.outcome, "MATCHED");
+  if (result.outcome === "MATCHED") assert.equal(result.reason, "TRANSACTION_ID");
+});
