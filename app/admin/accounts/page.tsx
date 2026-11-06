@@ -254,6 +254,7 @@ export default function AdminAccountsPage() {
                     {item.country && <span>{item.country}</span>}
                     <span>Créé le {new Date(item.createdAt).toLocaleDateString("fr-FR")}</span>
                   </div>
+                  <button type="button" onClick={() => router.push("/admin/accounts/" + encodeURIComponent(item.id))} className="mt-4 rounded-full bg-[#10264A] px-4 py-2.5 text-[10px] font-black text-white">Sélectionner ce compte ↗</button>
                 </article>
               ))}
             </div>
