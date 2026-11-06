@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { adminClient } from "../../../../../lib/server-auth";
 import { matchPaymentSmsToOrder, type PaymentSmsCandidate } from "../../../../../lib/paymentSms/matching";
 import { parsePaymentSms, type PaymentSmsProvider } from "../../../../../lib/paymentSms/parser";
+import { analyzePaymentSmsWithAi } from "../../../../../lib/paymentSms/ai-review";
 
 const err = (message: string, status: number, code = message) => NextResponse.json({ error: code, message }, { status });
 
