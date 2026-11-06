@@ -418,3 +418,43 @@ test("Mobility subsidy and provider assignment changes roll back when audit even
   assert.match(applications, /if \(eventError\)[\s\S]*?from\("MobilityProgramApplication"\)\.delete/);
   assert.match(applications, /MOBILITY_PROGRAM_APPLICATION_AUDIT_FAILED_ROLLED_BACK/);
 });
+
+
+test("Event directory, publishing, featuring, media and payment proof routes are rate-limited", () => {
+  const events = read("../app/api/events/route.ts");
+  const media = read("../app/api/events/media/route.ts");
+  const proof = read("../app/api/events/payments/proof/route.ts");
+  const featured = read("../app/api/events/[id]/feature/route.ts");
+  const manualPayment = read("../app/api/events/payments/[paymentId]/manual/route.ts");
+  const detail = read("../app/api/events/[id]/route.ts");
+  const ecosystem = read("../app/api/events/[id]/ecosystem/route.ts");
+  assert.match(events, /scope:"public-events-directory"/);
+  assert.match(events, /scope:"event-create"/);
+  assert.match(events, /contentLength>64\*1024/);
+  assert.match(media, /scope:"event-media-upload"/);
+  assert.match(media, /contentLength>EVENT_MEDIA_MAX_BYTES/);
+  assert.match(proof, /scope: "event-payment-proof-upload"/);
+  assert.match(proof, /Cache-Control/);
+  assert.match(featured, /scope:"event-feature-request"/);
+  assert.match(manualPayment, /scope: "event-manual-payment-status"/);
+  assert.match(manualPayment, /scope: "event-manual-payment-submit"/);
+  assert.match(manualPayment, /Cache-Control/);
+  assert.match(detail, /scope:"public-event-detail"/);
+  assert.match(ecosystem, /scope: "public-event-ecosystem"/);
+  for (const source of [events,media,proof,featured,manualPayment,detail,ecosystem]) {
+    assert.match(source, /enforceApiRateLimit/);
+    assert.match(source, /requireIp\s*:\s*true/);
+  }
+});
+
+test("Mobility and Partner J'IA intelligence endpoints have shared per-account/IP limits", () => {
+  const mobility = read("../app/api/mobility/jia/intelligence/route.ts");
+  const partner = read("../app/api/partner/jia/intelligence/route.ts");
+  assert.match(mobility, /scope:"mobility-jia-intelligence"/);
+  assert.match(partner, /scope:"partner-jia-intelligence"/);
+  for (const source of [mobility, partner]) {
+    assert.match(source, /enforceApiRateLimit/);
+    assert.match(source, /requireIp:true/);
+    assert.match(source, /Cache-Control/);
+  }
+});
