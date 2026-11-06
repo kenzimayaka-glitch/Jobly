@@ -125,3 +125,54 @@ test("partner profile and commission endpoints have separate shared account and 
     assert.match(source, /requireIp: true/);
   }
 });
+
+
+test("auth, username and WhatsApp OTP routes use shared anti-abuse controls", () => {
+  const usernameCheck = read("../app/api/auth/username/check/route.ts");
+  const usernameLogin = read("../app/api/auth/username/login/route.ts");
+  const signup = read("../app/api/auth/complete-signup/route.ts");
+  const whatsappRequest = read("../app/api/auth/whatsapp/request/route.ts");
+  const whatsappVerify = read("../app/api/auth/whatsapp/verify/route.ts");
+  assert.match(usernameCheck, /scope: "auth-username-check"/);
+  assert.match(usernameLogin, /scope: "auth-username-login"/);
+  assert.match(signup, /scope: "auth-complete-signup"/);
+  assert.match(whatsappRequest, /scope: "auth-whatsapp-otp-request"/);
+  assert.match(whatsappVerify, /scope: "auth-whatsapp-otp-verify"/);
+  for (const source of [usernameCheck, usernameLogin, signup, whatsappRequest, whatsappVerify]) {
+    assert.match(source, /enforceApiRateLimit/);
+    assert.match(source, /requireIp: true/);
+  }
+  assert.match(whatsappRequest, /identity: "phone:" \+ phoneKey/);
+  assert.match(whatsappVerify, /identity: "phone:" \+ phoneKey/);
+  assert.match(whatsappVerify, /\^\\d\{4,8\}\$/);
+});
+
+test("Premium talent media routes resolve live entitlements and rate-limit uploads", () => {
+  const ad = read("../app/api/auth/talent-ad/route.ts");
+  const pitch = read("../app/api/auth/video-pitch/route.ts");
+  const showcase = read("../app/api/auth/talent-showcase/route.ts");
+  const showcaseImage = read("../app/api/auth/talent-showcase/image/route.ts");
+  assert.match(ad, /getActivePlanCode\(supabase, user\.id, "TALENT"\)/);
+  assert.match(pitch, /getActivePlanCode\(supabase, user\.id, "TALENT"\)/);
+  assert.match(showcase, /getActivePlanCode\(supabase, user\.id, "TALENT"\)/);
+  assert.doesNotMatch(ad + pitch + showcase, /\.select\("plan,updatedAt"\)/);
+  for (const source of [ad, pitch, showcase, showcaseImage]) {
+    assert.match(source, /enforceApiRateLimit/);
+    assert.match(source, /accountWindows:/);
+    assert.match(source, /ipWindows:/);
+    assert.match(source, /requireIp: true/);
+  }
+  assert.match(ad, /hasValidVideoSignature/);
+  assert.match(pitch, /hasValidVideoSignature/);
+  assert.match(showcaseImage, /hasValidImageSignature/);
+});
+
+test("profile photo uploads are allow-listed, signature checked, and rate-limited", () => {
+  const route = read("../app/api/auth/profile-photo/route.ts");
+  assert.match(route, /scope: "auth-profile-photo-upload"/);
+  assert.match(route, /allowedImageTypes/);
+  assert.match(route, /hasJpeg/);
+  assert.match(route, /hasPng/);
+  assert.match(route, /hasWebp/);
+  assert.match(route, /requireIp: true/);
+});
