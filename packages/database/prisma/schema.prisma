@@ -19,6 +19,7 @@ enum UserRole {
   RECRUITER
   PARTNER
   ADMIN
+  // Retained for historical compatibility; internal staff functions are AdminWorkspace views.
   SUPPORT
   FINANCE
   MODERATOR
@@ -191,6 +192,10 @@ model User {
   jiaConversations JiaConversation[]
   deviceSessions UserDeviceSession[]
   offlineSyncReceipts OfflineSyncReceipt[]
+  adminIdentity AdminIdentity? @relation("AdminIdentityOwner")
+  adminWorkspaces AdminWorkspace[] @relation("AdminWorkspaceOwner")
+  managedAccounts AdminManagedAccount[] @relation("ManagedAccountOwner")
+  managedAccount AdminManagedAccount? @relation("ManagedAccountUser")
 }
 
 model JiaConversation {
@@ -251,6 +256,101 @@ model OfflineSyncReceipt {
 
   @@unique([userId, operationId])
   @@index([userId, createdAt])
+}
+
+model AdminIdentity {
+  id          String   @id @default(cuid())
+  ownerUserId String   @unique
+  authUserId  String   @unique @db.Uuid
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  owner       User     @relation("AdminIdentityOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+}
+
+model AdminWorkspace {
+  id          String   @id @default(cuid())
+  ownerUserId String
+  code        String
+  label       String
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  owner       User     @relation("AdminWorkspaceOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerUserId, code])
+  @@index([ownerUserId, enabled])
+}
+
+model AdminManagedAccount {
+  id                  String   @id @default(cuid())
+  ownerAdminUserId    String
+  userId              String   @unique
+  accountType         String
+  organizationType    String?
+  organizationName    String?
+  website             String?
+  city                String?
+  country             String?
+  status              String   @default("INVITED")
+  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(6)
+  ownerAdmin          User     @relation("ManagedAccountOwner", fields: [ownerAdminUserId], references: [id], onDelete: Cascade)
+  user                User     @relation("ManagedAccountUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerAdminUserId, userId])
+  @@index([ownerAdminUserId, status, createdAt])
+}
+
+model AdminSupportTicket {
+  id               String   @id @default(uuid()) @db.Uuid
+  requesterUserId  String
+  subject          String
+  category         String   @default("GENERAL")
+  priority         String   @default("NORMAL")
+  status           String   @default("OPEN")
+  source           String   @default("IN_APP")
+  assignedToUserId String?
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @db.Timestamptz(6)
+  lastMessageAt    DateTime @default(now()) @db.Timestamptz(6)
+  resolvedAt       DateTime? @db.Timestamptz(6)
+  messages         AdminSupportTicketMessage[]
+
+  @@index([status, priority, lastMessageAt])
+  @@index([requesterUserId, createdAt])
+}
+
+model AdminSupportTicketMessage {
+  id           String   @id @default(uuid()) @db.Uuid
+  ticketId     String   @db.Uuid
+  authorUserId String?
+  authorRole   String
+  body         String   @db.Text
+  isInternal   Boolean  @default(false)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  ticket       AdminSupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+}
+
+model AdminCommunityReport {
+  id              String   @id @default(uuid()) @db.Uuid
+  postId          String
+  communityId     String
+  reporterUserId  String
+  reason          String
+  details         String?  @db.Text
+  status          String   @default("OPEN")
+  reviewAction    String?
+  reviewedByUserId String?
+  reviewedAt      DateTime? @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([postId, reporterUserId])
+  @@index([status, createdAt])
+  @@index([postId, status])
 }
 
 model Profile {
