@@ -1,1 +1,7 @@
 .vercel
+
+# Android release signing material — never commit private keystores
+*.jks
+*.p12
+*.keystore
+Jobly-Android-Signing/
