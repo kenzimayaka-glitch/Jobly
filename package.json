@@ -14,6 +14,7 @@
     "uat:iclan": "node scripts/iclan-uat-smoke.mjs",
     "uat:iclan:pay": "node scripts/iclan-uat-smoke.mjs --pay",
     "test:jia-watch": "node scripts/jia-watch-intelligence-smoke.mjs",
+    "test:offline-first": "node --test scripts/offline-first.test.mjs",
     "test:career-os": "node scripts/career-os-gate.mjs",
     "test:africa-p0": "node --experimental-strip-types --test scripts/africa-p0.test.mjs",
     "test:event-core": "node --experimental-strip-types --test scripts/event-core-p1.test.mjs",
