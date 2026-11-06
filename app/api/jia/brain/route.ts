@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureUser, getAuthUser, adminClient } from "@/lib/server-auth";
+import { getJiaAvailableEcosystems, isJiaEcosystem } from "@/lib/jia/access";
 import { runJiaBrain } from "@/lib/jia/brain";
 import { runUnifiedCognitiveCycle } from "@/lib/jia/runtime";
 
@@ -17,7 +18,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const action = typeof body?.action === "string" ? body.action : "";
     const message = typeof body?.message === "string" ? body.message : "";
-    const ecosystem = body?.ecosystem === "RECRUITER" || body?.ecosystem === "PARTNER" ? body.ecosystem : "TALENT";
+    const requestedEcosystem = String(body?.ecosystem || "TALENT").toUpperCase();
+    if (!isJiaEcosystem(requestedEcosystem)) {
+      return NextResponse.json({ message: "Écosystème J’IA invalide." }, { status: 400 });
+    }
+    const availableEcosystems = await getJiaAvailableEcosystems(sb, user, auth.id);
+    if (!availableEcosystems.includes(requestedEcosystem)) {
+      return NextResponse.json({ message: "Cet espace J’IA n'est pas autorisé pour ce compte." }, { status: 403 });
+    }
+    const ecosystem = requestedEcosystem;
     const recentDialogue = Array.isArray(body?.recentDialogue)
       ? body.recentDialogue.filter((value: unknown): value is string => typeof value === "string").slice(-6)
       : [];
