@@ -166,7 +166,7 @@ test("ADMIN 360 operational consoles are wired to authenticated, root-owned endp
   assert.match(finance, /readTable\(db, "Commission"/);
   assert.match(analyst, /count:\s*count \?\? 0/);
   assert.match(analyst, /available: false, count: null/);
-  assert.match(analyst, /from\("CommunityPost"\)/);
+  assert.match(analyst, /"communityPosts",\s*"Publications Community",\s*"CommunityPost"/);
   assert.match(communityReport, /from\("AdminCommunityReport"\)/);
   assert.match(communityQueue, /from\("AdminIdentity"\)/);
   assert.match(communityDecision, /from\("AdminIdentity"\)/);
