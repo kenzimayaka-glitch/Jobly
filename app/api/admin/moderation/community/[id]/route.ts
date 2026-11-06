@@ -41,11 +41,17 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       status: nextStatus, reviewAction: action, reviewedByUserId: admin.id, reviewedAt: now, updatedAt: now,
     }).eq("id", id).select("*").single();
     if (updateError) throw new Error(updateError.message);
-    await db.from("AuditLog").insert({
+    const { error: auditError } = await db.from("AuditLog").insert({
       id: crypto.randomUUID(), userId: admin.id, action: "COMMUNITY_MODERATION_" + action,
       entityType: "AdminCommunityReport", entityId: id, metadata: { postId: report.postId, communityId: report.communityId },
     });
-    return NextResponse.json({ report: updated, message: action === "HIDE_POST" ? "Publication masquée; décision journalisée." : action === "RESTORE_POST" ? "Publication restaurée." : "Signalement classé sans retrait du contenu." });
+    if (auditError) {
+      return NextResponse.json({
+        report: updated,
+        warning: "La décision a été appliquée, mais l'écriture du journal d'audit a échoué. Une vérification administrateur est requise.",
+      }, { status: 503 });
+    }
+    return NextResponse.json({ report: updated, message: action === "HIDE_POST" ? "Publication masquée; décision journalisée." : action === "RESTORE_POST" ? "Publication restaurée et journalisée." : "Signalement classé sans retrait du contenu et journalisé." });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Décision de modération impossible." }, { status: 500 });
   }
