@@ -6,6 +6,7 @@ import { detectLanguageRequirements, normalizeJobLanguage } from "../../../lib/j
 import { getActivePlanCode } from "../../../lib/entitlements";
 import { evaluateTalentMarketAction, normalizeTargetCountryCodes } from "../../../lib/talentMarketEntitlements";
 import { resolveEffectivePublicationDate } from "../../../supabase/functions/_shared/job-freshness";
+import { enforceApiRateLimit } from "../../../lib/server-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -182,6 +183,14 @@ export async function GET(request:NextRequest){
  try{
   const authUser=await getAuthUser(request);if(!authUser)return NextResponse.json({message:"Session requise."},{status:401});
   const supabase=adminClient();
+  const rateLimitResponse = await enforceApiRateLimit(request, supabase, {
+    scope: "job-feed",
+    identity: `user:${authUser.id}`,
+    accountWindows: [{ limit: 12, windowSeconds: 60 }, { limit: 60, windowSeconds: 3600 }],
+    ipWindows: [{ limit: 90, windowSeconds: 60 }, { limit: 500, windowSeconds: 3600 }],
+    requireIp: true,
+  });
+  if (rateLimitResponse) return rateLimitResponse;
   const {data:user,error:userError}=await supabase.from("User").select("id").eq("authUserId",authUser.id).maybeSingle();
   if(userError)throw new Error(userError.message);
   if(!user)return NextResponse.json({message:"Compte Jobly introuvable."},{status:404});
