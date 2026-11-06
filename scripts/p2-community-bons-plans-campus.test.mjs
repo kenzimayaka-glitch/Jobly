@@ -127,12 +127,12 @@ test("Bon Plans decisions require the active root AdminIdentity", () => {
   const queue = read("app/api/bon-plans/moderation/route.ts");
   const decision = read("app/api/bon-plans/[id]/moderation/route.ts");
   const page = read("app/bons-plans/page.tsx");
-  assert.match(queue, /String\\(user\\.role\\)\\.toUpperCase\\(\\) !== "ADMIN"/);
-  assert.match(queue, /from\\("AdminIdentity"\\)/);
-  assert.match(queue, /identity\\?\\.active/);
-  assert.match(decision, /String\\(moderator\\.role\\)\\.toUpperCase\\(\\) !== "ADMIN"/);
-  assert.match(decision, /from\\("AdminIdentity"\\)/);
-  assert.match(decision, /identity\\?\\.active/);
+  assert.ok(queue.includes('String(user.role).toUpperCase() !== "ADMIN"'));
+  assert.ok(queue.includes('from("AdminIdentity")'));
+  assert.ok(queue.includes("identity?.active"));
+  assert.ok(decision.includes('String(moderator.role).toUpperCase() !== "ADMIN"'));
+  assert.ok(decision.includes('from("AdminIdentity")'));
+  assert.ok(decision.includes("identity?.active"));
   assert.doesNotMatch(decision, /MODERATOR/);
   assert.match(decision, /status !== "PENDING_REVIEW"/);
   assert.match(decision, /announceEventToCommunities/);
