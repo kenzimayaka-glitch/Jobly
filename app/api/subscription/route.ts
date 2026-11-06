@@ -15,7 +15,7 @@ import { getIdempotentResult, saveIdempotentResult } from "../../../lib/idempote
 import { assertPaymentProviderReady, getProvider } from "../../../lib/paymentProviders";
 import { resolveActiveEntitlements } from "../../../lib/entitlements";
 import { isDefinitiveProviderFailure } from "../../../lib/billingLifecycleCore";
-import { buildPaymentSmsUssd, getPaymentSmsCheckoutConfig, normalizeMobileMoneyPhone } from "../../../lib/paymentSms/config";
+import { buildPaymentSmsUssd, getPaymentSmsCheckoutConfig, normalizeMobileMoneyPhone, type PaymentSmsCheckoutConfig } from "../../../lib/paymentSms/config";
 import type { PaymentSmsProvider } from "../../../lib/paymentSms/parser";
 
 const PAID_PLANS = new Set<PlanCode>(["START", "PREMIUM", "PRO"]);
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     const paymentResult = latestSubscription?.status === "PENDING"
       ? await supabase
           .from("Payment")
-          .select("id,status,amount,currency,provider,createdAt,payerPhone,reportedTransactionId,smsMerchantAccount")
+          .select("id,status,amount,currency,provider,createdAt,payerPhone,reportedTransactionId,smsMerchantAccount,smsMerchantCode")
           .eq("subscriptionId", latestSubscription.id)
           .eq("userId", user.id)
           .in("status", ["CREATED", "PENDING"])
@@ -96,8 +96,13 @@ export async function GET(request: NextRequest) {
     const existingPayment = paymentResult.data as any;
     if (existingPayment?.provider === "SMS_MTN" || existingPayment?.provider === "SMS_ORANGE") {
       try {
-        const config = buildPaymentSmsUssd(existingPayment.provider as PaymentSmsProvider, Number(existingPayment.amount));
-        checkout = { provider: config.provider, providerLabel: config.providerLabel, merchantAccount: config.merchantAccount, merchantCode: config.merchantCode, paymentCode: config.paymentCode, ussdCode: config.ussdCode, amount: existingPayment.amount, currency: existingPayment.currency, paymentReference: existingPayment.id, payerPhone: existingPayment.payerPhone, reportedTransactionId: existingPayment.reportedTransactionId };
+        const config = buildPaymentSmsUssd(existingPayment.provider as PaymentSmsProvider, Number(existingPayment.amount), {
+          provider: existingPayment.provider as PaymentSmsProvider,
+          providerLabel: existingPayment.provider === "SMS_MTN" ? "MTN Mobile Money" : "Orange Money",
+          merchantAccount: String(existingPayment.smsMerchantAccount || ""),
+          merchantCode: String(existingPayment.smsMerchantCode || ""),
+        });
+        checkout = { provider: config.provider, providerLabel: config.providerLabel, merchantAccount: config.merchantAccount, paymentCode: config.paymentCode, ussdCode: config.ussdCode, amount: existingPayment.amount, currency: existingPayment.currency, paymentReference: existingPayment.id, payerPhone: existingPayment.payerPhone, reportedTransactionId: existingPayment.reportedTransactionId };
       } catch { /* Never invent a payment code when configuration is missing. */ }
     }
 
@@ -113,7 +118,7 @@ export async function GET(request: NextRequest) {
           ? (resolved.subscription.status === "TRIAL" ? resolved.subscription.trialEndsAt : resolved.subscription.currentPeriodEnd)
           : resolved.promo?.endsat || null,
       },
-      payment: paymentResult.data || null,
+      payment: paymentResult.data ? (({ smsMerchantCode: _privateMerchantCode, ...safePayment }: any) => safePayment)(paymentResult.data) : null,
       checkout,
       entitlements: productEntitlements(productType, resolved.planCode),
       prices: {
@@ -137,16 +142,17 @@ export async function POST(request: NextRequest) {
     const interval = String(body.interval || "").toUpperCase() as BillingInterval;
     const providerName = String(body.provider || "MOCK").toUpperCase();
     const isSmsProvider = providerName === "SMS_MTN" || providerName === "SMS_ORANGE";
-    let smsCheckout: ReturnType<typeof getPaymentSmsCheckoutConfig> | null = null;
+    let smsCheckout: PaymentSmsCheckoutConfig | null = null;
     let normalizedPayerPhone: string | null = null;
 
     if (!PAID_PLANS.has(planCode)) return jsonError("Plan payant invalide.", 400, "INVALID_PLAN");
     if (interval !== "MONTHLY" && interval !== "ANNUAL") return jsonError("Intervalle invalide.", 400, "INVALID_INTERVAL");
     if (providerName !== "MOCK" && providerName !== "ICLAN" && !isSmsProvider) return jsonError("Provider indisponible.", 400, "PROVIDER_UNAVAILABLE");
+    const supabase = adminClient();
     if (isSmsProvider) {
       normalizedPayerPhone = normalizeMobileMoneyPhone(body.phone || auth.phone);
       if (!normalizedPayerPhone) return jsonError("Saisissez un numéro Mobile Money valide.", 400, "INVALID_PAYER_PHONE");
-      try { smsCheckout = getPaymentSmsCheckoutConfig(providerName as PaymentSmsProvider); }
+      try { smsCheckout = await getPaymentSmsCheckoutConfig(supabase, providerName as PaymentSmsProvider); }
       catch (configError) {
         const code = configError instanceof Error ? configError.message : "PAYMENT_SMS_NOT_CONFIGURED";
         return jsonError("Le paiement Mobile Money n'est pas encore configuré pour cet opérateur.", 503, code);
@@ -159,7 +165,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const supabase = adminClient();
     const user = await ensureUser(supabase, auth);
     let productType: ProductType;
     try {
@@ -239,6 +244,7 @@ export async function POST(request: NextRequest) {
       status: isSmsProvider ? "PENDING" : "CREATED",
       payerPhone: normalizedPayerPhone,
       smsMerchantAccount: smsCheckout?.merchantAccount || null,
+      smsMerchantCode: smsCheckout?.merchantCode || null,
       idempotencyKey: idempotency.key,
       createdAt: now,
       updatedAt: now,
@@ -249,12 +255,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (isSmsProvider && smsCheckout) {
-      const operatorCode = buildPaymentSmsUssd(providerName as PaymentSmsProvider, amount);
+      const operatorCode = buildPaymentSmsUssd(providerName as PaymentSmsProvider, amount, smsCheckout!);
       const response = {
         subscription: { id: subscription.id, plan: currentEntitlements.planCode, planCode: subscription.planCode, requestedPlan: subscription.planCode, status: "PENDING", productType, currentPeriodEnd: currentEntitlements.subscription?.currentPeriodEnd || currentEntitlements.promo?.endsat || null },
         payment: { id: paymentId, userId: user.id, subscriptionId, provider: providerName, amount, currency: "XAF", status: "PENDING", payerPhone: normalizedPayerPhone, createdAt: now },
         provider: providerName,
-        checkout: { provider: operatorCode.provider, providerLabel: operatorCode.providerLabel, merchantAccount: operatorCode.merchantAccount, merchantCode: operatorCode.merchantCode, paymentCode: operatorCode.paymentCode, ussdCode: operatorCode.ussdCode, amount, currency: "XAF", paymentReference: paymentId, payerPhone: normalizedPayerPhone },
+        checkout: { provider: operatorCode.provider, providerLabel: operatorCode.providerLabel, merchantAccount: operatorCode.merchantAccount, paymentCode: operatorCode.paymentCode, ussdCode: operatorCode.ussdCode, amount, currency: "XAF", paymentReference: paymentId, payerPhone: normalizedPayerPhone },
         instructions: "Composez le code affiché, payez le montant exact sur votre téléphone, puis indiquez la référence de transaction reçue par SMS. Jobly rapprochera automatiquement la confirmation opérateur.",
         entitlementGranted: false,
       };
