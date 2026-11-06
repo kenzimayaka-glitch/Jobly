@@ -80,8 +80,12 @@ test("Android CI builds a debug APK and runs static privacy tests", () => {
   assert.match(workflow, /packages: "platform-tools"/);
   assert.doesNotMatch(workflow, /sdkmanager tools/);
   assert.match(workflow, /:app:assembleDebug/);
-  assert.match(workflow, /name: Upload debug APK/);
-  assert.match(workflow, /jobly-android-debug-apk/);
+  assert.match(workflow, /name: Upload Play-safe and internal debug APKs/);
+  assert.match(workflow, /jobly-android-debug-apks/);
+  assert.match(workflow, /:app:bundlePlayRelease/);
+  assert.match(workflow, /jobly-android-play-release-validation-unsigned-aab/);
+  assert.match(workflow, /connectedPlayDebugAndroidTest/);
+  assert.match(workflow, /connectedInternalDebugAndroidTest/);
   assert.ok(workflow.includes("components/JoblyOfferFeed.tsx"));
   assert.match(workflow, /android-jia-bridge\.test\.mjs/);
   assert.ok(existsSync(new URL("../apps/android/README.md", import.meta.url)));
