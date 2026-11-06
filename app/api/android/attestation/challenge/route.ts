@@ -18,8 +18,8 @@ export async function POST(request: NextRequest) {
     const limited = await enforceApiRateLimit(request, db, {
       scope: "android-attestation-challenge",
       identity: user.id,
-      accountWindows: [{ limit: 8, windowSeconds: 3600 }],
-      ipWindows: [{ limit: 24, windowSeconds: 3600 }],
+      accountWindows: [{ limit: 20, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 40, windowSeconds: 3600 }],
       requireIp: true,
     });
     if (limited) return limited;
@@ -31,23 +31,9 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date();
-    const { data: existing, error: existingError } = await db
-      .from("AndroidDeviceAttestation")
-      .select("securityLevel,verifiedBootState,deviceLocked,verifiedAt,expiresAt,revokedAt")
-      .eq("userId", user.id)
-      .eq("deviceId", deviceId)
-      .is("revokedAt", null)
-      .gt("expiresAt", now.toISOString())
-      .maybeSingle();
-    if (existingError) throw new Error("ATTESTATION_STATUS_LOOKUP_FAILED");
-    if (existing?.deviceLocked && existing.verifiedBootState === "VERIFIED") {
-      return NextResponse.json({
-        alreadyVerified: true,
-        securityLevel: existing.securityLevel,
-        verifiedAt: existing.verifiedAt,
-        expiresAt: existing.expiresAt,
-      }, { headers: noStore });
-    }
+    await db.from("AndroidAttestationChallenge")
+      .delete()
+      .lt("expiresAt", new Date(now.getTime() - 24 * 60 * 60_000).toISOString());
 
     const challenge = randomBytes(32);
     const challengeId = randomUUID();
@@ -56,12 +42,12 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       deviceId,
       challengeHash: createHash("sha256").update(challenge).digest("hex"),
+      purpose: "REGISTER",
       expiresAt: new Date(now.getTime() + 5 * 60_000).toISOString(),
     });
     if (error) throw new Error("ATTESTATION_CHALLENGE_CREATE_FAILED");
 
     return NextResponse.json({
-      alreadyVerified: false,
       challengeId,
       challenge: challenge.toString("base64"),
       expiresInSeconds: 300,
