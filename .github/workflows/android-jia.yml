@@ -73,6 +73,24 @@ jobs:
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - name: Assemble debug APK
         run: gradle -p apps/android :app:assembleDebug --stacktrace
+      - name: Assert unsigned release APKs are rejected
+        shell: bash
+        run: |
+          set +e
+          env -u JOBLY_ANDROID_KEYSTORE_PATH \\
+              -u JOBLY_ANDROID_KEYSTORE_PASSWORD \\
+              -u JOBLY_ANDROID_KEY_ALIAS \\
+              -u JOBLY_ANDROID_KEY_PASSWORD \\
+              -u JOBLY_ANDROID_RELEASE_CERT_SHA256 \\
+              gradle -p apps/android :app:assembleRelease > /tmp/jobly-release-guard.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/jobly-release-guard.log
+          if [ "$status" -eq 0 ]; then
+            echo "Release build unexpectedly accepted missing signing credentials."
+            exit 1
+          fi
+          grep -F "Release APK signing is mandatory" /tmp/jobly-release-guard.log
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
