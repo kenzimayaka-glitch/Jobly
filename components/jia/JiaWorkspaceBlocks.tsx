@@ -124,6 +124,17 @@ function ApplicationsBlock({ block }: { block: Extract<JiaWorkspaceBlock, { kind
   );
 }
 
+function cvDateRange(startDate: string | null, endDate: string | null) {
+  const year = (value: string | null) => {
+    if (!value) return "";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "" : String(date.getFullYear());
+  };
+  const start = year(startDate);
+  const end = year(endDate) || (start ? "Aujourd'hui" : "");
+  return [start, end].filter(Boolean).join(" — ");
+}
+
 function ProfileBlock({ block, onNavigate }: {
   block: Extract<JiaWorkspaceBlock, { kind: "profile" }>;
   onNavigate: Props["onNavigate"];
@@ -150,6 +161,41 @@ function ProfileBlock({ block, onNavigate }: {
           <div className="rounded-xl bg-[#F3F7FC] p-2"><p className="text-[16px] font-black text-[#1264EB]">{block.educationCount}</p><p className="text-[9px] font-bold text-[#718198]">Formations</p></div>
         </div>
         {block.skills.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{block.skills.slice(0, 8).map((skill) => <span key={skill} className="rounded-full bg-[#EAF3FF] px-2.5 py-1 text-[9px] font-bold text-[#315B92]">{skill}</span>)}</div>}
+        {block.experiences.length > 0 && (
+          <div className="mt-4 border-t border-[#E8EEF5] pt-3">
+            <p className="text-[9px] font-black uppercase tracking-[.13em] text-[#6B7C92]">Expérience professionnelle</p>
+            <div className="mt-2 space-y-3">
+              {block.experiences.slice(0, 3).map((item, index) => (
+                <article key={item.title + ":" + item.company + ":" + index}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-extrabold text-[#173A6B]">{item.title || "Expérience professionnelle"}</p>
+                      <p className="text-[10px] text-[#6B7C92]">{item.company}</p>
+                    </div>
+                    {cvDateRange(item.startDate, item.endDate) && <span className="shrink-0 text-[9px] font-semibold text-[#8492A5]">{cvDateRange(item.startDate, item.endDate)}</span>}
+                  </div>
+                  {item.description && <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-[#64758B]">{item.description}</p>}
+                </article>
+              ))}
+            </div>
+          </div>
+        )}
+        {block.education.length > 0 && (
+          <div className="mt-4 border-t border-[#E8EEF5] pt-3">
+            <p className="text-[9px] font-black uppercase tracking-[.13em] text-[#6B7C92]">Formation</p>
+            <div className="mt-2 space-y-2.5">
+              {block.education.slice(0, 3).map((item, index) => (
+                <article key={item.institution + ":" + index}>
+                  <p className="text-[11px] font-extrabold text-[#173A6B]">{[item.degree, item.field].filter(Boolean).join(" · ") || "Formation"}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] text-[#6B7C92]">{item.institution}</p>
+                    {cvDateRange(item.startDate, item.endDate) && <span className="shrink-0 text-[9px] font-semibold text-[#8492A5]">{cvDateRange(item.startDate, item.endDate)}</span>}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" className={primary} onClick={() => onNavigate("/talent/profile")}>Modifier mon profil <ArrowUpRight size={13}/></button>
           <button type="button" className={secondary} onClick={() => onNavigate("/talent/cvs")}>Mes CV <FileText size={13}/></button>
