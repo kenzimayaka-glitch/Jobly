@@ -18,7 +18,10 @@ type MerchantDevice = {
   label: string;
   provider: Provider;
   merchantAccount: string;
+  senderIds: string[];
   status: string;
+  lastSeenAt?: string | null;
+  createdAt?: string;
 };
 
 export default function AdminPaymentSmsPage() {
@@ -30,9 +33,19 @@ export default function AdminPaymentSmsPage() {
   const [label, setLabel] = useState("Téléphone marchand MTN");
   const [merchantAccount, setMerchantAccount] = useState("");
   const [senderIds, setSenderIds] = useState("");
-  const [device, setDevice] = useState<MerchantDevice | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [devices, setDevices] = useState<MerchantDevice[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+
+  async function loadDevices(token: string) {
+    const response = await fetch("/api/payments/sms/devices", {
+      headers: { Authorization: "Bearer " + token },
+      cache: "no-store",
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.message || "Liste des téléphones indisponible.");
+    setDevices(Array.isArray(payload.devices) ? payload.devices : []);
+  }
 
   useEffect(() => {
     (async () => {
@@ -50,6 +63,7 @@ export default function AdminPaymentSmsPage() {
       }
       setAccessToken(token);
       setNativeAvailable(isJoblyAndroidPaymentSmsAvailable());
+      await loadDevices(token);
       setLoading(false);
     })().catch(() => router.replace("/ecosystem"));
   }, [router]);
@@ -65,7 +79,17 @@ export default function AdminPaymentSmsPage() {
       setMessage("Renseigne le compte marchand et au moins un nom d’expéditeur exact.");
       return;
     }
-    setBusy(true);
+    if (allowlist.length > 10) {
+      setMessage("Maximum 10 noms d’expéditeur exacts par profil.");
+      return;
+    }
+    const normalizedProvider = provider;
+    if (devices.some((item) => item.provider === normalizedProvider && item.merchantAccount.replace(/\D/g, "") === merchantAccount.replace(/\D/g, ""))) {
+      setMessage("Ce compte marchand est déjà appairé dans Jobly.");
+      return;
+    }
+
+    setBusy("provision");
     try {
       const response = await fetch("/api/payments/sms/devices", {
         method: "POST",
@@ -74,6 +98,7 @@ export default function AdminPaymentSmsPage() {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message || "Provisionnement impossible.");
+
       const paired = pairJoblyPaymentSmsDevice({
         deviceId: payload.device.id,
         deviceToken: payload.deviceToken,
@@ -84,20 +109,22 @@ export default function AdminPaymentSmsPage() {
           method: "DELETE",
           headers: { Authorization: "Bearer " + accessToken },
         }).catch(() => undefined);
-        throw new Error("Le pont Android n’a pas accepté l’appairage ; le téléphone serveur a été révoqué.");
+        throw new Error("Le pont Android n’a pas accepté l’appairage ; le profil serveur a été révoqué.");
       }
-      setDevice(payload.device);
-      setMessage("Téléphone appairé dans l’APK Jobly. Android va demander l’autorisation de réception SMS. Aucun SMS ne sera envoyé tant que cette permission n’est pas accordée.");
+
+      await loadDevices(accessToken);
+      setMerchantAccount("");
+      setSenderIds("");
+      setMessage("Profil marchand appairé dans le même APK Jobly. Android va demander l’autorisation de réception SMS. Tu peux ajouter l’autre opérateur sans écraser ce profil.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Provisionnement impossible.");
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
-  async function revoke() {
-    if (!device) return;
-    setBusy(true);
+  async function revoke(device: MerchantDevice) {
+    setBusy(device.id);
     setMessage("");
     try {
       const response = await fetch("/api/payments/sms/devices/" + device.id, {
@@ -106,13 +133,13 @@ export default function AdminPaymentSmsPage() {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message || "Révocation impossible.");
-      revokeJoblyPaymentSmsDeviceLocally();
-      setDevice(null);
-      setMessage("Téléphone révoqué côté serveur et jeton local supprimé.");
+      revokeJoblyPaymentSmsDeviceLocally(device.id);
+      setDevices((current) => current.filter((item) => item.id !== device.id));
+      setMessage("Profil " + device.label + " révoqué. Les tâches SMS de ce profil sont annulées sans affecter l’autre opérateur.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Révocation impossible.");
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
@@ -123,80 +150,98 @@ export default function AdminPaymentSmsPage() {
       <PageHeader eyebrow="ADMIN · FINANCE" label="Réception Mobile Money" onBack={() => router.push("/admin")} />
       <div className="mx-auto max-w-3xl space-y-5 px-5 py-7">
         <div>
-          <h1 className="text-3xl font-black">Téléphone marchand Jobly</h1>
+          <h1 className="text-3xl font-black">Téléphones marchands Jobly</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Appaire ce même APK Jobly au téléphone qui reçoit les SMS de confirmation MTN ou Orange Money.
-            Le jeton est transmis au composant natif et chiffré avec Android Keystore ; il n’est pas affiché à l’écran.
+            Configure les profils MTN et Orange sur le même APK Jobly. Chaque profil conserve son compte marchand, sa liste
+            d’expéditeurs et son jeton chiffré indépendamment. Aucun deuxième APK n’est nécessaire.
           </p>
         </div>
 
         {!nativeAvailable && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-            Cet écran doit être ouvert dans l’APK Jobly sur le téléphone marchand. Le Web/PWA sert à consulter les paiements,
-            mais ne peut pas lire la boîte SMS du téléphone.
+            La liste peut être consultée depuis Web/PWA. Pour appairer une SIM et recevoir ses SMS, ouvre cet écran dans
+            l’APK Jobly installé sur le téléphone marchand. Le site Web ne peut pas lire la boîte SMS.
           </div>
         )}
 
-        {device ? (
-          <section className="space-y-3 rounded-3xl border border-emerald-200 bg-white p-5 shadow-sm">
-            <div className="text-xs font-black uppercase tracking-wide text-emerald-700">Téléphone appairé</div>
-            <h2 className="text-xl font-black">{device.label}</h2>
-            <div className="text-sm text-slate-600">{device.provider === "SMS_MTN" ? "MTN Mobile Money" : "Orange Money"} · {device.merchantAccount}</div>
-            <div className="break-all rounded-xl bg-slate-50 p-3 font-mono text-xs">{device.id}</div>
-            <div className="flex flex-wrap gap-3">
-              <button onClick={() => requestJoblyPaymentSmsPermission()} className="rounded-xl bg-[#0B2A5B] px-4 py-3 text-sm font-bold text-white">
-                Réessayer l’autorisation SMS
-              </button>
-              <button disabled={busy} onClick={revoke} className="rounded-xl border border-red-200 px-4 py-3 text-sm font-bold text-red-700 disabled:opacity-50">
-                Révoquer ce téléphone
-              </button>
-            </div>
-          </section>
-        ) : (
-          <section className="space-y-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <label className="block text-sm font-bold">
-              Opérateur
-              <select value={provider} onChange={(event) => {
-                const next = event.target.value as Provider;
-                setProvider(next);
-                setLabel(next === "SMS_MTN" ? "Téléphone marchand MTN" : "Téléphone marchand Orange");
-              }} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <option value="SMS_MTN">MTN Mobile Money</option>
-                <option value="SMS_ORANGE">Orange Money</option>
-              </select>
-            </label>
-            <label className="block text-sm font-bold">
-              Nom du téléphone
-              <input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={100} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" />
-            </label>
-            <label className="block text-sm font-bold">
-              Numéro du compte marchand sur cette SIM
-              <input value={merchantAccount} onChange={(event) => setMerchantAccount(event.target.value)} placeholder="2376XXXXXXXX" autoComplete="off" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-mono" />
-            </label>
-            <label className="block text-sm font-bold">
-              Noms d’expéditeur SMS exacts
-              <textarea value={senderIds} onChange={(event) => setSenderIds(event.target.value)} rows={3} placeholder={"Copie ici les expéditeurs observés sur de vrais SMS opérateur, un par ligne"} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-mono text-sm" />
-            </label>
-            <p className="rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-500">
-              Ne saisis pas de nom supposé. Utilise uniquement les identifiants exacts observés sur des SMS officiels reçus par ce téléphone marchand.
-              Un nom d’expéditeur seul ne suffit jamais à valider un paiement.
-            </p>
-            <button disabled={busy || !nativeAvailable} onClick={provision} className="w-full rounded-2xl bg-[#0B2A5B] px-5 py-3 font-black text-white disabled:opacity-40">
-              {busy ? "Appairage…" : "Appairer ce téléphone"}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-black">Profils appairés · {devices.length}</h2>
+            <button onClick={() => loadDevices(accessToken).catch((error) => setMessage(error.message))} className="rounded-full border bg-white px-4 py-2 text-xs font-bold">
+              Actualiser
             </button>
-          </section>
-        )}
+          </div>
+          {devices.map((device) => (
+            <article key={device.id} className="space-y-3 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs font-black uppercase tracking-wide text-emerald-700">Actif · {device.provider === "SMS_MTN" ? "MTN Mobile Money" : "Orange Money"}</div>
+                  <h3 className="mt-1 text-lg font-black">{device.label}</h3>
+                  <p className="mt-1 text-sm text-slate-600">Compte marchand : {device.merchantAccount}</p>
+                  <p className="mt-1 text-xs text-slate-500">Expéditeurs autorisés : {device.senderIds.join(", ")}</p>
+                  <p className="mt-1 break-all font-mono text-[10px] text-slate-400">{device.id}</p>
+                  <p className="mt-1 text-xs text-slate-500">Dernier contact : {device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString("fr-FR") : "Pas encore reçu de SMS"}</p>
+                </div>
+                <button disabled={busy === device.id} onClick={() => revoke(device)} className="rounded-xl border border-red-200 px-4 py-3 text-sm font-bold text-red-700 disabled:opacity-50">
+                  {busy === device.id ? "Révocation…" : "Révoquer ce profil"}
+                </button>
+              </div>
+              {nativeAvailable && (
+                <button onClick={() => requestJoblyPaymentSmsPermission()} className="rounded-xl bg-[#0B2A5B] px-4 py-3 text-sm font-bold text-white">
+                  Réessayer l’autorisation SMS
+                </button>
+              )}
+            </article>
+          ))}
+          {devices.length === 0 && <div className="rounded-2xl border bg-white p-5 text-sm text-slate-500">Aucun téléphone marchand appairé.</div>}
+        </section>
+
+        <section className="space-y-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div>
+            <h2 className="text-lg font-black">Ajouter un profil marchand</h2>
+            <p className="mt-1 text-xs leading-5 text-slate-500">Tu peux enregistrer une SIM MTN et une SIM Orange dans le même APK. Le sender ID doit être unique entre les profils de ce téléphone pour éviter tout rapprochement ambigu.</p>
+          </div>
+          <label className="block text-sm font-bold">
+            Opérateur
+            <select value={provider} onChange={(event) => {
+              const next = event.target.value as Provider;
+              setProvider(next);
+              setLabel(next === "SMS_MTN" ? "Téléphone marchand MTN" : "Téléphone marchand Orange");
+            }} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <option value="SMS_MTN">MTN Mobile Money</option>
+              <option value="SMS_ORANGE">Orange Money</option>
+            </select>
+          </label>
+          <label className="block text-sm font-bold">
+            Nom du profil
+            <input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={100} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3" />
+          </label>
+          <label className="block text-sm font-bold">
+            Numéro du compte marchand sur cette SIM
+            <input value={merchantAccount} onChange={(event) => setMerchantAccount(event.target.value)} placeholder="2376XXXXXXXX" autoComplete="off" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-mono" />
+          </label>
+          <label className="block text-sm font-bold">
+            Noms d’expéditeur SMS exacts
+            <textarea value={senderIds} onChange={(event) => setSenderIds(event.target.value)} rows={3} placeholder={"Copie ici les expéditeurs observés sur de vrais SMS opérateur, un par ligne"} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-mono text-sm" />
+          </label>
+          <p className="rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-500">
+            N’utilise jamais un nom supposé. Les expéditeurs doivent provenir de vrais SMS reçus sur cette SIM.
+            Un nom d’expéditeur seul ne suffit jamais à valider un paiement.
+          </p>
+          <button disabled={busy !== null || !nativeAvailable} onClick={provision} className="w-full rounded-2xl bg-[#0B2A5B] px-5 py-3 font-black text-white disabled:opacity-40">
+            {busy === "provision" ? "Appairage…" : "Appairer ce profil dans l’APK Jobly"}
+          </button>
+        </section>
 
         {message && <p role="status" className="rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700 shadow-sm">{message}</p>}
 
         <section className="rounded-2xl bg-slate-900 p-5 text-sm leading-6 text-white">
-          <b>À propos de la permission Android</b>
+          <b>Permission Android restreinte</b>
           <p className="mt-2 text-slate-200">
-            Android traite la réception SMS comme une permission restreinte. Selon la version du système et le mode d’installation,
-            l’installateur peut devoir autoriser explicitement cette permission. L’appairage seul ne garantit donc pas que le système
-            autorise la réception : il faudra vérifier l’état sur ce téléphone réel.
+            Selon la version Android et le mode d’installation, l’installateur peut devoir autoriser explicitement RECEIVE_SMS.
+            L’appairage seul ne garantit pas cette permission : elle devra être contrôlée sur le téléphone marchand réel.
           </p>
-          <p className="mt-2 text-slate-200">Jobly ne demande jamais le PIN Mobile Money et ne conserve pas le texte brut du SMS sur le serveur.</p>
+          <p className="mt-2 text-slate-200">Jobly ne lit pas l’historique SMS, ne transmet que les expéditeurs autorisés et ne demande jamais le PIN Mobile Money.</p>
         </section>
       </div>
     </main>
