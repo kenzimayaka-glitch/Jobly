@@ -17,17 +17,11 @@ type NativeReply = {
   error?: string;
 };
 
-declare global {
-  interface Window {
-    joblyAndroid?: AndroidBridge;
-  }
-}
-
 export default function AndroidAttestationBootstrap() {
   useEffect(() => {
     if (typeof window === "undefined" || !/android/i.test(navigator.userAgent)) return;
 
-    const bridge = window.joblyAndroid;
+    const bridge = (window as Window & { joblyAndroid?: AndroidBridge }).joblyAndroid;
     if (!bridge || typeof bridge.postMessage !== "function") return;
 
     const supabase = getSupabaseClient();
