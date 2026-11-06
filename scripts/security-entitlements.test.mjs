@@ -390,6 +390,7 @@ test("Mobility provider profile, services, assignments and reports use shared ab
   assert.match(profile, /Cache-Control/);
   assert.match(assignments, /scope: "mobility-provider-assignments-read"/);
   assert.match(assignments, /scope: "mobility-provider-assignment-update"/);
+  assert.match(assignments, /contentLength > 8 \* 1024/);
   assert.match(services, /scope: "mobility-provider-services-read"/);
   assert.match(services, /scope: "mobility-provider-service-create"/);
   assert.match(services, /scope: "mobility-provider-service-archive"/);
