@@ -15,6 +15,7 @@ import {
 } from "../lib/auth";
 import { setRememberMe, getSupabaseClient } from "../lib/supabase";
 import { assertPasswordNotPwned } from "../lib/pwnedPasswords";
+import { validateNewPassword } from "../lib/passwordPolicy";
 import BubbleField from "../components/BubbleField";
 import JoblyLogo from "../components/JoblyLogo";
 import HomeCtaStory, { type HomeCtaStoryKind } from "../components/HomeCtaStory";
@@ -719,7 +720,8 @@ export default function Home() {
   // Le username est soumis à la même règle partout : non vide, 40 caractères max.
   // L'unicité est ensuite vérifiée côté API avant la création du compte.
   const validUsername = username.trim().length > 0 && username.trim().length <= 40;
-  const passwordError = validatePassword(password);
+  const loginPasswordError = validatePassword(password);
+  const newPasswordError = validateNewPassword(password);
 
   useEffect(() => { try { const saved = window.localStorage.getItem("jobly-lang") as "fr" | "en" | null; if (saved === "fr" || saved === "en") setLang(saved); } catch {} }, []);
 
@@ -851,7 +853,7 @@ export default function Home() {
   }, [screen, email]);
 
   async function google() { setBusy(true); setMessage(""); try { await signInWithGoogle(); } catch (e) { setMessage(e instanceof Error ? e.message : "Connexion Google impossible."); setBusy(false); } }
-  async function login() { if (!validUsername) return setMessage("Entre un username valide (3 à 15 caractères)."); if (passwordError) return setMessage(passwordError); setBusy(true); setMessage(""); try { setRememberMe(rememberMe); await loginWithUsernamePassword(username, password); const afterLogin = window.sessionStorage.getItem("jobly:after-login"); if (afterLogin) { window.sessionStorage.removeItem("jobly:after-login"); window.location.assign(afterLogin); } else { window.location.assign((window.localStorage.getItem("jobly:last-ecosystem") === "recruiter") ? "/recruiter" : (window.localStorage.getItem("jobly:last-ecosystem") === "partner") ? "/partner" : (window.localStorage.getItem("jobly:last-ecosystem") === "talent") ? "/career-brain" : "/ecosystem"); } } catch (e) { setMessage(e instanceof Error ? e.message : "Connexion impossible."); } finally { setBusy(false); } }
+  async function login() { if (!validUsername) return setMessage("Entre un username valide (3 à 15 caractères)."); if (loginPasswordError) return setMessage(loginPasswordError); setBusy(true); setMessage(""); try { setRememberMe(rememberMe); await loginWithUsernamePassword(username, password); const afterLogin = window.sessionStorage.getItem("jobly:after-login"); if (afterLogin) { window.sessionStorage.removeItem("jobly:after-login"); window.location.assign(afterLogin); } else { window.location.assign((window.localStorage.getItem("jobly:last-ecosystem") === "recruiter") ? "/recruiter" : (window.localStorage.getItem("jobly:last-ecosystem") === "partner") ? "/partner" : (window.localStorage.getItem("jobly:last-ecosystem") === "talent") ? "/career-brain" : "/ecosystem"); } } catch (e) { setMessage(e instanceof Error ? e.message : "Connexion impossible."); } finally { setBusy(false); } }
   async function startSignup() {
     if (!firstName.trim() || !lastName.trim()) return setMessage("Nom et prénom sont obligatoires.");
     if (!isValidEmail(email)) return setMessage("Entre une adresse e-mail valide.");
@@ -890,7 +892,7 @@ export default function Home() {
     // Verrouille immédiatement le bouton pour éviter les doubles soumissions
     // et valide localement les trois prérequis avant tout appel réseau.
     if (!validUsername) return setMessage("Choisis un username non vide (40 caractères maximum).");
-    if (passwordError) return setMessage(passwordError);
+    if (newPasswordError) return setMessage(newPasswordError);
     if (!privacyAccepted) return setMessage("Tu dois accepter la politique de confidentialité.");
     setBusy(true); setMessage("");
     try {
@@ -1184,6 +1186,7 @@ export default function Home() {
           </div>
         </label>
         <div className="my-3"><PasswordStrengthGauge password={password}/></div>
+        <p className="mb-2 -mt-2 text-[10px] leading-[1.35] text-slate-500">12 caractères minimum, avec majuscule, minuscule, chiffre et symbole. Les mots de passe compromis sont refusés.</p>
         <p className="mb-1.5 text-[11px] leading-[1.35] text-slate-500">{translations[lang].conditions}</p>
         <label className="mb-4 flex items-start gap-2 text-xs text-slate-600"><input type="checkbox" checked={privacyAccepted} onChange={e=>setPrivacyAccepted(e.target.checked)} className="mt-0.5"/><span>{translations[lang].accept}</span></label>
         <button
