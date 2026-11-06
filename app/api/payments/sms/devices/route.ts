@@ -1,3 +1,23 @@
+export async function GET(request: NextRequest) {
+  try {
+    const auth = await getAuthUser(request);
+    if (!auth) return err("Session requise.", 401, "UNAUTHENTICATED");
+    const supabase = adminClient();
+    const actor = await ensureUser(supabase, auth);
+    if (!["ADMIN", "FINANCE"].includes(String(actor.role))) return err("Accès administrateur requis.", 403, "FORBIDDEN");
+
+    const { data: devices, error } = await supabase.from("PaymentSmsDevice")
+      .select("id,label,provider,merchantAccount,senderIds,status,lastSeenAt,createdAt,revokedAt")
+      .eq("status", "ACTIVE")
+      .order("createdAt", { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return NextResponse.json({ devices: devices || [] });
+  } catch (error) {
+    return err(error instanceof Error ? error.message : "Liste des téléphones indisponible.", 500);
+  }
+}
+
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
