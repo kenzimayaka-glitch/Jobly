@@ -3,7 +3,7 @@
 create table if not exists public."AdminIdentity" (
   "id" text primary key default ('admin_' || replace(gen_random_uuid()::text, '-', '')),
   "ownerUserId" text not null references public."User"("id") on delete cascade,
-  "authUserId" uuid not null unique,
+  "authUserId" uuid not null unique references auth.users(id) on delete cascade,
   "active" boolean not null default true,
   "createdAt" timestamptz not null default now(),
   "updatedAt" timestamptz not null default now(),
