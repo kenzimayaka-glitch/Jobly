@@ -6,13 +6,21 @@ import { buildEventEcosystemConnections, scoreEventForProfile } from "../../../l
 import { estimateAndDistributeEvent } from "../../../lib/eventDistribution";
 import { discoverEventPartners } from "../../../lib/eventPartnerDiscovery";
 import { getEventManualPaymentInstructions } from "../../../lib/eventManualPayments";
+import { enforceApiRateLimit } from "../../../lib/server-security";
 
 export const dynamic = "force-dynamic";
 const fail=(message:string,status=400,code="EVENT_ERROR")=>NextResponse.json({error:code,message},{status});
 
 export async function GET(request:NextRequest){
   try{
-    const sb=adminClient(),now=new Date().toISOString();
+    const sb=adminClient();
+    const limited=await enforceApiRateLimit(request,sb,{
+      scope:"public-events-directory",
+      ipWindows:[{limit:60,windowSeconds:60},{limit:600,windowSeconds:3600}],
+      requireIp:true
+    });
+    if(limited)return limited;
+    const now=new Date().toISOString();
     const {data:events,error}=await sb.from("Event").select("*").eq("status","PUBLISHED").lte("campaignStartAt",now).gte("campaignEndAt",now).order("createdAt",{ascending:false}).limit(100);
     if(error)throw new Error(error.message);
     const {data:featured,error:fe}=await sb.from("EventFeaturedCampaign").select("eventId,startAt,endAt,slot,status").eq("status","ACTIVE").lte("startAt",now).gte("endAt",now).order("slot",{ascending:true}).limit(6);
@@ -53,7 +61,7 @@ export async function GET(request:NextRequest){
           {key:"HUB",status:"AVAILABLE"}
         ]
       }
-    });
+    },{headers:{"Cache-Control":"private, no-store, max-age=0",Vary:"Authorization"}});
   }catch(e){return fail(e instanceof Error?e.message:"Impossible de charger les événements.",500,"EVENTS_UNAVAILABLE");}
 }
 
@@ -61,6 +69,16 @@ export async function POST(request:NextRequest){
   try{
     const auth=await getAuthUser(request);
     if(!auth)return fail("Session requise.",401,"UNAUTHENTICATED");
+    const contentLength=Number(request.headers.get("content-length")||0);
+    if(contentLength>64*1024)return fail("Données événement trop volumineuses.",413,"EVENT_TOO_LARGE");
+    const sb=adminClient();
+    const user=await ensureUser(sb,auth);
+    const limited=await enforceApiRateLimit(request,sb,{
+      scope:"event-create",identity:user.id,
+      accountWindows:[{limit:3,windowSeconds:3600},{limit:8,windowSeconds:86400}],
+      ipWindows:[{limit:10,windowSeconds:3600}],requireIp:true
+    });
+    if(limited)return limited;
     const body=await request.json().catch(()=>null);
     if(!body || typeof body!=="object" || Array.isArray(body))return fail("Données événement invalides.");
 
@@ -116,8 +134,6 @@ export async function POST(request:NextRequest){
       ? body.audience.filter((value:unknown):value is string=>typeof value==="string"&&value.trim().length>0&&value.trim().length<=80).slice(0,8).map((value:string)=>value.trim())
       : [];
 
-    const sb=adminClient();
-    const user=await ensureUser(sb,auth);
     const now=new Date().toISOString();
     const {data:entitlement,error:entitlementError}=await sb.from("EventEntitlement")
       .select("*").eq("organizerUserId",user.id).eq("active",true).lte("validFrom",now)
