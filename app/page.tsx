@@ -17,6 +17,7 @@ import { setRememberMe, getSupabaseClient } from "../lib/supabase";
 import { assertPasswordNotPwned } from "../lib/pwnedPasswords";
 import BubbleField from "../components/BubbleField";
 import JoblyLogo from "../components/JoblyLogo";
+import HomeCtaStory, { type HomeCtaStoryKind } from "../components/HomeCtaStory";
 import WaterScene from "../components/WaterScene";
 import {
   GoogleIcon,
@@ -487,6 +488,8 @@ const JOURNEY_SLIDES = [
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("welcome");
+  const [homeStory, setHomeStory] = useState<HomeCtaStoryKind | null>(null);
+  const homeStoryTimer = useRef<number | null>(null);
   const [headlineIndex, setHeadlineIndex] = useState(0);
   const prefersReducedMotion = useReducedMotion();
   const [homeStats, setHomeStats] = useState<PublicHomeStats | null>(null);
@@ -777,6 +780,27 @@ export default function Home() {
     return () => { window.cancelAnimationFrame(frame); window.removeEventListener("resize", measureHeartPath); };
   }, [screen, lang]);
   const reset = () => { setMessage(""); setBusy(false); setResendBusy(false); setOtp(""); };
+  function startHomeStory(next: HomeCtaStoryKind) {
+    if (homeStory || busy) return;
+    if (prefersReducedMotion) {
+      reset();
+      goTo(next);
+      return;
+    }
+    setHomeStory(next);
+    if (homeStoryTimer.current !== null) window.clearTimeout(homeStoryTimer.current);
+    homeStoryTimer.current = window.setTimeout(() => {
+      homeStoryTimer.current = null;
+      setHomeStory(null);
+      reset();
+      goTo(next);
+    }, 2720);
+  }
+
+  useEffect(() => () => {
+    if (homeStoryTimer.current !== null) window.clearTimeout(homeStoryTimer.current);
+  }, []);
+
 
   // Filet de sécurité (14/09/2026) : si l'utilisateur clique quand même sur un
   // lien reçu par e-mail (au lieu de saisir le code sur cet écran), Supabase
@@ -954,13 +978,21 @@ export default function Home() {
               </div>
             </motion.section>
           </AnimatePresence>
-          <div className="jobly-public-home-cta relative z-20 mx-auto grid w-full max-w-[1100px] grid-cols-2 gap-2 px-4 sm:gap-5 sm:px-8">
-            <button type="button" onClick={() => { reset(); goTo("signup"); }} className="rounded-[18px] bg-[#2865DC] px-2 font-[var(--font-inter)] font-extrabold text-white shadow-[0_10px_24px_rgba(40,101,220,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:rounded-[22px] sm:text-[17px]">
-              {translations[lang].create}
-            </button>
-            <button type="button" onClick={() => { reset(); goTo("login"); }} className="rounded-[18px] bg-[#FFD60A] px-2 font-[var(--font-inter)] font-extrabold text-[#0A1931] shadow-[0_10px_24px_rgba(255,214,10,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:rounded-[22px] sm:text-[17px]">
-              {translations[lang].login}
-            </button>
+          <div className="jobly-public-home-cta relative z-20 mx-auto grid min-h-[52px] w-full max-w-[1100px] grid-cols-2 gap-2 px-4 sm:min-h-[66px] sm:gap-5 sm:px-8" aria-busy={Boolean(homeStory)}>
+            {homeStory ? (
+              <div className="col-span-2 min-w-0">
+                <HomeCtaStory kind={homeStory} lang={lang} />
+              </div>
+            ) : (
+              <>
+                <button type="button" onClick={() => startHomeStory("signup")} className="min-h-[52px] rounded-[18px] bg-[#2865DC] px-2 font-[var(--font-inter)] font-extrabold text-white shadow-[0_10px_24px_rgba(40,101,220,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:rounded-[22px] sm:text-[17px]">
+                  {translations[lang].create}
+                </button>
+                <button type="button" onClick={() => startHomeStory("login")} className="min-h-[52px] rounded-[18px] bg-[#FFD60A] px-2 font-[var(--font-inter)] font-extrabold text-[#0A1931] shadow-[0_10px_24px_rgba(255,214,10,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:rounded-[22px] sm:text-[17px]">
+                  {translations[lang].login}
+                </button>
+              </>
+            )}
           </div>
           <div className="jobly-public-home-benefits relative z-20 mx-auto mt-2 grid w-full max-w-[1100px] grid-cols-4 gap-1 px-3 sm:mt-6 sm:gap-3 sm:px-6 lg:gap-4 lg:px-8">
             {BENEFITS[lang].map(({ Icon, kind, title, subtitle, marketingReference, iconClass }) => {
