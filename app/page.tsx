@@ -261,28 +261,28 @@ const translations = {
 
 const HOME_HEADLINES = {
   fr: [
-    "L’Afrique en mouvement.",
-    "Talents et opportunités réunis.",
-    "Les entreprises trouvent leurs talents.",
-    "Recruter autrement, simplement.",
-    "Des carrières qui prennent leur élan.",
-    "Des compétences qui font la différence.",
-    "Des partenariats qui ouvrent des portes.",
-    "Des projets qui prennent vie.",
-    "L’intelligence au service des ambitions.",
-    "Un écosystème, mille possibilités.",
+    "L’Afrique regorge de talents, d’idées et d’opportunités.",
+    "Trouvez les talents qui feront grandir votre organisation.",
+    "Accédez à des milliers d’opportunités à travers l’Afrique.",
+    "Recrutez autrement et découvrez de nouveaux potentiels.",
+    "Développez votre carrière, vos projets et votre réseau.",
+    "Connectez votre entreprise aux compétences dont elle a besoin.",
+    "Faites avancer vos ambitions avec un écosystème qui vous accompagne.",
+    "Créez des connexions, développez des partenariats et ouvrez de nouvelles perspectives.",
+    "Avec J’IA, transformez vos idées en actions.",
+    "Ensemble, construisons l’avenir professionnel de l’Afrique.",
   ],
   en: [
-    "Africa in motion.",
-    "Where talent meets opportunity.",
-    "Businesses find their talent.",
-    "Recruit differently. Simply.",
-    "Careers move forward.",
-    "Skills that make a difference.",
-    "Partnerships that open doors.",
-    "Projects come to life.",
-    "Intelligence for your ambitions.",
-    "One ecosystem. A thousand possibilities.",
+    "Africa is rich in talent, ideas and opportunities.",
+    "Find the talent that will help your organization grow.",
+    "Access thousands of opportunities across Africa.",
+    "Recruit differently and discover new potential.",
+    "Grow your career, projects and network.",
+    "Connect your business with the skills it needs.",
+    "Move your ambitions forward with an ecosystem that supports you.",
+    "Build connections, grow partnerships and open new perspectives.",
+    "With J’IA, turn your ideas into action.",
+    "Together, let’s build Africa’s professional future.",
   ],
 } as const;
 
@@ -920,7 +920,7 @@ export default function Home() {
                   <svg aria-hidden="true" width="56" height="8" viewBox="0 0 56 8" className="mt-4 overflow-visible sm:mt-5">
                     <path d="M2 2 C18 6 39 6 54 2" fill="none" stroke="#FFD60A" strokeWidth="5" strokeLinecap="round" />
                   </svg>
-                  <div aria-live="off" className="relative mt-3 h-[48px] w-full max-w-[205px] sm:mt-4">
+                  <div aria-live="off" className="relative mt-3 h-[76px] w-full max-w-[220px] sm:mt-4 sm:h-[80px] sm:max-w-[250px]">
                     <AnimatePresence mode="wait" initial={false}>
                       <motion.p
                         key={`${lang}-${headlineIndex}`}
@@ -928,7 +928,7 @@ export default function Home() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: prefersReducedMotion ? 0 : -7 }}
                         transition={{ duration: prefersReducedMotion ? 0.18 : 0.55, ease: "easeOut" }}
-                        className="absolute inset-0 flex items-center font-[var(--font-inter)] text-[14px] font-semibold leading-[1.35] tracking-[-0.01em] text-[#27364A] sm:text-[16px]"
+                        className="absolute inset-0 flex items-center font-[var(--font-inter)] text-[13px] font-semibold leading-[1.3] tracking-[-0.01em] text-[#27364A] sm:text-[15px]"
                       >
                         {HOME_HEADLINES[lang][headlineIndex]}
                       </motion.p>
