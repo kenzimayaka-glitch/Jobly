@@ -88,14 +88,16 @@ function OffersBlock({ block, onPrepareApplication, onNavigate, variationIndex }
       {block.offers.map((offer) => (
         <article key={offer.source + ":" + offer.id}
           data-jia-offer-structure={presentation.structure}
-          className={surface + " " + (presentation.density === "airy" ? "p-4" : presentation.density === "compact" ? "p-2.5" : "p-3.5")}>
+          className={surface + " " + (presentation.density === "airy" ? "p-4" : presentation.density === "compact" ? "p-2.5" : "p-3.5") + " " + (presentation.structure === "editorial" ? "rounded-[28px] border-t-4 border-t-[#FFD21A]" : presentation.structure === "timeline" ? "rounded-r-2xl rounded-l-sm border-l-4 border-l-[#1264EB]" : presentation.structure === "spotlight" ? "shadow-[0_16px_42px_rgba(18,100,235,.12)]" : presentation.structure === "list" ? "rounded-lg shadow-none" : presentation.structure === "dossier" ? "border-2 border-[#DCE6F2]" : presentation.structure === "mosaic" ? "rounded-[26px] bg-gradient-to-br from-white to-[#F2F7FF]" : "")}>
           <div className={presentation.structure === "split" || presentation.structure === "comparison" ? "grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]" : "flex items-start justify-between gap-3"}>
             <div className="min-w-0">
               <h3 className="text-[13px] font-extrabold leading-5 text-[#10233F]">{offer.title}</h3>
               <p className="mt-0.5 text-[11px] font-semibold text-[#526A87]">{offer.companyName || "Entreprise non précisée"}</p>
             </div>
             {offer.matchPercent !== null && (
-              <span className="max-w-[42%] shrink-0 whitespace-normal break-words rounded-full bg-[#EAF4EE] px-2.5 py-1 text-center text-[10px] font-black text-[#187443]">
+              <span
+                data-jia-match-placement={presentation.matchPlacement}
+                className={`max-w-[42%] shrink-0 whitespace-normal break-words rounded-full bg-[#EAF4EE] px-2.5 py-1 text-center text-[10px] font-black text-[#187443] ${presentation.matchPlacement === "ribbon" ? "rounded-r-none border-l-4 border-[#187443]" : presentation.matchPlacement === "footer" ? "self-end" : presentation.matchPlacement === "inline" ? "text-[9px]" : presentation.matchPlacement === "aside" ? "mt-1" : ""}`}>
                 {Math.round(offer.matchPercent)} % match
               </span>
             )}
@@ -240,10 +242,10 @@ function ProfileBlock({ block, messageId, onNavigate, onSaveProfile, onUploadCv,
 
   return (
     <section className="mt-3 space-y-3" aria-label="Mon profil et mon CV">
-      <div className={surface + " " + (presentation.density === "airy" ? "p-4" : presentation.density === "compact" ? "p-2.5" : "p-3.5")}
+      <div className={surface + " flex flex-col " + (presentation.density === "airy" ? "gap-4 p-4" : presentation.density === "compact" ? "gap-2 p-2.5" : "gap-3 p-3.5") + " " + (presentation.structure === "minimal" ? "shadow-none border-slate-200" : presentation.structure === "showcase" ? "border-t-4 border-t-[#FFD21A] shadow-[0_16px_40px_rgba(18,100,235,.09)]" : presentation.structure === "dossier" ? "border-2 border-double border-[#C7D5E8]" : presentation.structure === "timeline" ? "border-l-4 border-l-[#1264EB]" : presentation.structure === "editorial" ? "rounded-[28px]" : "")}
         data-jia-document-presentation={presentation.id}
         data-jia-document-structure={presentation.structure}
-        style={{ borderRadius: presentation.structure === "minimal" ? 12 : presentation.structure === "showcase" ? 28 : 20 }}>
+        style={{ borderRadius: presentation.structure === "minimal" ? 12 : presentation.structure === "showcase" ? 28 : 20, display: "flex", flexDirection: "column" }}>
         <div className="flex items-center gap-2">
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#FFF4BE] text-[#775900]"><UserRound size={17}/></div>
           <div className="min-w-0">
@@ -252,7 +254,7 @@ function ProfileBlock({ block, messageId, onNavigate, onSaveProfile, onUploadCv,
           </div>
           <span className="ml-auto shrink-0 text-[10px] font-black text-[#1264EB]">{Math.round(completion / 6 * 100)} %</span>
         </div>
-        {block.summary && <p className="mt-3 line-clamp-4 text-[11px] leading-5 text-[#52637A]">{block.summary}</p>}
+        {block.summary && <p style={{ order: presentation.sectionOrder.indexOf("summary") + 1 }} className="mt-3 line-clamp-4 text-[11px] leading-5 text-[#52637A]">{block.summary}</p>}
         {(block.location || block.phone || block.email) && (
           <p className="mt-2 break-words text-[10px] text-[#718198]">
             {[block.location, block.phone, block.email].filter(Boolean).join(" · ")}
@@ -263,9 +265,9 @@ function ProfileBlock({ block, messageId, onNavigate, onSaveProfile, onUploadCv,
           <div className="rounded-xl bg-[#F3F7FC] p-2"><p className="text-[16px] font-black text-[#1264EB]">{block.experienceCount}</p><p className="text-[9px] font-bold text-[#718198]">Expériences</p></div>
           <div className="rounded-xl bg-[#F3F7FC] p-2"><p className="text-[16px] font-black text-[#1264EB]">{block.educationCount}</p><p className="text-[9px] font-bold text-[#718198]">Formations</p></div>
         </div>
-        {block.skills.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{block.skills.slice(0, 8).map((skill) => <span key={skill} className="rounded-full bg-[#EAF3FF] px-2.5 py-1 text-[9px] font-bold text-[#315B92]">{skill}</span>)}</div>}
+        {block.skills.length > 0 && <div style={{ order: presentation.sectionOrder.indexOf("skills") + 1 }} className="mt-3 flex flex-wrap gap-1.5">{block.skills.slice(0, 8).map((skill) => <span key={skill} className="rounded-full bg-[#EAF3FF] px-2.5 py-1 text-[9px] font-bold text-[#315B92]">{skill}</span>)}</div>}
         {block.experiences.length > 0 && (
-          <div className="mt-4 border-t border-[#E8EEF5] pt-3">
+          <div style={{ order: presentation.sectionOrder.indexOf("experience") + 1 }} className={`mt-4 border-t border-[#E8EEF5] pt-3 ${presentation.columns === 2 ? "sm:col-span-1" : ""}`}>
             <p className="text-[9px] font-black uppercase tracking-[.13em] text-[#6B7C92]">Expérience professionnelle</p>
             <div className="mt-2 space-y-3">
               {block.experiences.slice(0, 3).map((item, index) => (
@@ -284,7 +286,7 @@ function ProfileBlock({ block, messageId, onNavigate, onSaveProfile, onUploadCv,
           </div>
         )}
         {block.education.length > 0 && (
-          <div className="mt-4 border-t border-[#E8EEF5] pt-3">
+          <div style={{ order: presentation.sectionOrder.indexOf("education") + 1 }} className={`mt-4 border-t border-[#E8EEF5] pt-3 ${presentation.columns === 2 ? "sm:col-span-1" : ""}`}>
             <p className="text-[9px] font-black uppercase tracking-[.13em] text-[#6B7C92]">Formation</p>
             <div className="mt-2 space-y-2.5">
               {block.education.slice(0, 3).map((item, index) => (
@@ -430,7 +432,10 @@ function QuestionnaireBlock({ block, messageId, onSubmitAssessment, onUpdateWork
       {(block.adaptive ? [currentIndex] : block.questions.map((_, index) => index)).map((index) => {
         const question = block.questions[index];
         return (
-        <fieldset key={block.assessmentId + ":" + index} className="rounded-xl border border-[#E3EAF3] bg-white p-3" disabled={Boolean(block.result) || submitting}>
+        <fieldset key={block.assessmentId + ":" + index}
+          data-jia-question-arrangement={presentation.arrangement}
+          className={`rounded-xl border border-[#E3EAF3] bg-white p-3 ${presentation.arrangement === "stepper" ? "border-l-4 border-l-[#1264EB]" : presentation.arrangement === "focus" ? "shadow-[0_12px_28px_rgba(18,100,235,.08)]" : presentation.arrangement === "scenario" ? "rounded-[26px] border-[#F1D88B]" : presentation.arrangement === "matrix" ? "border-2" : presentation.arrangement === "rail" ? "border-r-4 border-r-[#FFD21A]" : presentation.arrangement === "tiles" ? "bg-[#F8FAFD]" : ""}`}
+          disabled={Boolean(block.result) || submitting}>
           <legend className="px-1 text-[11px] font-extrabold leading-5 text-[#173A6B]">
             {presentation.showQuestionNumber ? (index + 1) + ". " : ""}{question.prompt}
           </legend>
@@ -451,6 +456,7 @@ function QuestionnaireBlock({ block, messageId, onSubmitAssessment, onUpdateWork
                     setAnswers(nextAnswers);
                     onUpdateWorkspace(messageId, { ...block, answers: nextAnswers });
                   }}/>
+                  {presentation.optionShape === "numbered" && <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#EAF3FF] text-[9px] font-black text-[#315B92]">{choiceIndex + 1}</span>}
                   <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">{choice}</span>
                   {correct && <CheckCircle2 size={13}/>}
                 </label>
