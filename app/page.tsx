@@ -517,6 +517,7 @@ export default function Home() {
   const journeyPointerRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const [jiaLine, setJiaLine] = useState(0);
   const [dropLanded, setDropLanded] = useState(false);
+  const homeRootRef = useRef<HTMLElement>(null);
   const logoRef = useRef<HTMLDivElement>(null);
   const heartTargetRef = useRef<HTMLSpanElement>(null);
   const [heartPath, setHeartPath] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
@@ -764,22 +765,52 @@ export default function Home() {
   }, [screen]);
   useEffect(() => {
     if (screen !== "welcome") return;
+
+    const heartSize = 18;
+    let active = true;
+    let firstFrame = 0;
+    let secondFrame = 0;
+
     const measureHeartPath = () => {
+      if (!active) return;
       const logo = logoRef.current;
       const target = heartTargetRef.current;
       if (!logo || !target) return;
+
       const logoRect = logo.getBoundingClientRect();
       const targetRect = target.getBoundingClientRect();
       setHeartPath({
-        startX: logoRect.left + logoRect.width - 18,
+        startX: logoRect.right - heartSize,
         startY: logoRect.top + logoRect.height * 0.42,
-        endX: targetRect.left + targetRect.width / 2 - 9,
-        endY: targetRect.top + targetRect.height / 2 - 9,
+        endX: targetRect.left + (targetRect.width - heartSize) / 2,
+        endY: targetRect.top + (targetRect.height - heartSize) / 2,
       });
     };
-    const frame = window.requestAnimationFrame(measureHeartPath);
-    window.addEventListener("resize", measureHeartPath);
-    return () => { window.cancelAnimationFrame(frame); window.removeEventListener("resize", measureHeartPath); };
+
+    // Wait for the page's first layout pass before measuring the landing slot.
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(measureHeartPath);
+    });
+
+    const resizeObserver = typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(measureHeartPath)
+      : null;
+    if (logoRef.current) resizeObserver?.observe(logoRef.current);
+    if (heartTargetRef.current) resizeObserver?.observe(heartTargetRef.current);
+    if (homeRootRef.current) resizeObserver?.observe(homeRootRef.current);
+
+    window.addEventListener("resize", measureHeartPath, { passive: true });
+    window.addEventListener("scroll", measureHeartPath, true);
+    document.fonts?.ready.then(measureHeartPath).catch(() => {});
+
+    return () => {
+      active = false;
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", measureHeartPath);
+      window.removeEventListener("scroll", measureHeartPath, true);
+    };
   }, [screen, lang]);
   const reset = () => { setMessage(""); setBusy(false); setResendBusy(false); setOtp(""); };
   function startHomeStory(next: HomeCtaStoryKind) {
@@ -894,7 +925,7 @@ export default function Home() {
   }
   async function forgot() { if (!email.includes("@")) return setMessage("Entre l'adresse e-mail associée à ton compte."); setBusy(true); setMessage(""); try { await requestPasswordReset(email); goTo("reset-sent"); } catch (e) { setMessage(e instanceof Error ? e.message : "Impossible d'envoyer l'e-mail de récupération."); } finally { setBusy(false); } }
 
-  return <main className={`relative isolate flex w-full flex-col ${screen === "welcome" ? "jobly-public-home bg-white text-[#0A1931]" : "min-h-[100dvh] overflow-x-hidden bg-off-white dark:bg-[#0A1931] dark:text-white overflow-y-auto"}`}>
+  return <main ref={homeRootRef} className={`relative isolate flex w-full flex-col ${screen === "welcome" ? "jobly-public-home bg-white text-[#0A1931]" : "min-h-[100dvh] overflow-x-hidden bg-off-white dark:bg-[#0A1931] dark:text-white overflow-y-auto"}`}>
     <BubbleField />
     <div className="relative z-10 flex min-h-0 flex-1 w-full flex-col gap-0">
       {screen !== "login" && screen !== "signup" && <header className={screen === "welcome" ? "jobly-public-home-header relative z-30 flex shrink-0 items-center justify-between px-4 pt-[max(4px,env(safe-area-inset-top))] sm:h-[104px] sm:px-8" : "relative z-20 flex h-[84px] w-full shrink-0 items-start px-4 pt-5 sm:px-8"}>
@@ -1299,6 +1330,20 @@ export default function Home() {
         </AnimatePresence>
       </footer>}
     </div>
-    {screen === "welcome" && heartPath && <motion.span className="pointer-events-none fixed left-0 top-0 z-[60] text-[16px] leading-none drop-shadow-[0_2px_5px_rgba(239,68,68,0.28)]" initial={{ x: heartPath.startX, y: heartPath.startY, scale: 0.94 }} animate={{ x: heartPath.endX, y: heartPath.endY, scale: [0.94, 1.06, 1] }} transition={{ x: { duration: 2.65, ease: [0.16, 1, 0.3, 1] }, y: { duration: 2.65, ease: [0.16, 1, 0.3, 1] }, scale: { delay: 2.65, duration: 0.5, ease: "easeOut" } }} aria-hidden="true">❤️</motion.span>}
+    {screen === "welcome" && heartPath && (
+      <motion.span
+        className="pointer-events-none fixed left-0 top-0 z-[60] grid h-[18px] w-[18px] place-items-center text-[16px] leading-none drop-shadow-[0_2px_5px_rgba(239,68,68,0.28)]"
+        initial={{ x: heartPath.startX, y: heartPath.startY, scale: 0.94 }}
+        animate={{ x: heartPath.endX, y: heartPath.endY, scale: [0.94, 1.06, 1] }}
+        transition={{
+          x: { duration: 2.65, ease: [0.16, 1, 0.3, 1] },
+          y: { duration: 2.65, ease: [0.16, 1, 0.3, 1] },
+          scale: { duration: 2.65, ease: "easeOut" },
+        }}
+        aria-hidden="true"
+      >
+        <span className="block">❤️</span>
+      </motion.span>
+    )}
   </main>;
 }
