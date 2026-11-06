@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, animate } from "framer-motion";
 import {
   loginWithUsernamePassword,
   requestEmailOtp,
@@ -263,16 +263,43 @@ const translations = {
 
 const BENEFITS = {
   fr: [
-    { Icon: ShieldStarIcon, title: "100% Gratuit", subtitle: "Accès aux opportunités", iconClass: "text-[#3478C8]" },
-    { Icon: PeopleStarIcon, title: "Coaching IA", subtitle: "Conseils personnalisés", iconClass: "text-[#8064D8]" },
-    { Icon: CheckCircleIcon, title: "Placement Rapide", subtitle: "Construis ta carrière", iconClass: "text-[#28A99B]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "100 % Gratuit", subtitle: "Accès aux opportunités", iconClass: "text-[#3478C8]" },
+    { Icon: PeopleStarIcon, kind: "offers", title: "Offres de toute l’Afrique", subtitle: "offres actives sur Jobly", iconClass: "text-[#8064D8]" },
+    { Icon: CheckCircleIcon, kind: "talents", title: "Pipeline de talents", subtitle: "J’IA matche et postule avec vous", iconClass: "text-[#28A99B]" },
   ],
   en: [
-    { Icon: ShieldStarIcon, title: "100% Free", subtitle: "Access opportunities", iconClass: "text-[#3478C8]" },
-    { Icon: PeopleStarIcon, title: "AI Coaching", subtitle: "Personalized guidance", iconClass: "text-[#8064D8]" },
-    { Icon: CheckCircleIcon, title: "Fast Placement", subtitle: "Build your career", iconClass: "text-[#28A99B]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "100% Free", subtitle: "Access to opportunities", iconClass: "text-[#3478C8]" },
+    { Icon: PeopleStarIcon, kind: "offers", title: "Africa-wide opportunities", subtitle: "active offers on Jobly", iconClass: "text-[#8064D8]" },
+    { Icon: CheckCircleIcon, kind: "talents", title: "Talent pipeline", subtitle: "J’IA matches and applies with you", iconClass: "text-[#28A99B]" },
   ],
 } as const;
+
+type PublicHomeStats = { offersCount: number; talentsCount: number };
+
+function AnimatedCounter({ value, locale }: { value: number | null; locale: string }) {
+  const [displayedValue, setDisplayedValue] = useState<number | null>(null);
+  const previousValue = useRef(0);
+
+  useEffect(() => {
+    if (value === null) return;
+    const controls = animate(previousValue.current, value, {
+      duration: 0.9,
+      ease: "easeOut",
+      onUpdate: (latest) => {
+        previousValue.current = latest;
+        setDisplayedValue(Math.round(latest));
+      },
+      onComplete: () => {
+        previousValue.current = value;
+        setDisplayedValue(value);
+      },
+    });
+    return () => controls.stop();
+  }, [value]);
+
+  if (value === null) return <span aria-label="Chargement">…</span>;
+  return <span>{new Intl.NumberFormat(locale).format(displayedValue ?? 0)}</span>;
+}
 
 function PasswordRules({ password }: { password: string }) {
   const rules = [
@@ -449,6 +476,55 @@ export default function Home() {
   const [resendBusy, setResendBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [lang, setLang] = useState<"fr" | "en">("fr");
+  const [homeStats, setHomeStats] = useState<PublicHomeStats | null>(null);
+
+  useEffect(() => {
+    if (screen !== "welcome") return;
+
+    let active = true;
+    let controller: AbortController | null = null;
+
+    const refreshStats = async () => {
+      controller?.abort();
+      controller = new AbortController();
+
+      try {
+        const response = await fetch("/api/public/home-stats", {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error("home-stats-unavailable");
+
+        const payload = await response.json() as Partial<PublicHomeStats>;
+        if (
+          !Number.isSafeInteger(payload.offersCount) ||
+          !Number.isSafeInteger(payload.talentsCount) ||
+          (payload.offersCount ?? -1) < 0 ||
+          (payload.talentsCount ?? -1) < 0
+        ) throw new Error("invalid-home-stats");
+
+        if (active) {
+          setHomeStats({
+            offersCount: payload.offersCount as number,
+            talentsCount: payload.talentsCount as number,
+          });
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
+        // Keep the last verified values; never replace unavailable data with marketing numbers.
+      }
+    };
+
+    void refreshStats();
+    const interval = window.setInterval(() => void refreshStats(), 60_000);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      controller?.abort();
+    };
+  }, [screen]);
   const [country, setCountry] = useState<Country>(() => COUNTRIES.find((item) => item.code === "CM") || COUNTRIES[0]);
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
   const [journeyIndex, setJourneyIndex] = useState(0);
@@ -841,13 +917,30 @@ export default function Home() {
             </button>
           </div>
           <div className="relative z-20 mx-auto mt-4 grid w-full max-w-[1100px] grid-cols-3 gap-2 px-5 sm:mt-6 sm:gap-4 sm:px-8">
-            {BENEFITS[lang].map(({ Icon, title, subtitle, iconClass }) => (
-              <div key={title} className="flex min-h-[104px] flex-col items-center justify-center rounded-[24px] border border-slate-100 bg-white px-1.5 py-3 text-center shadow-[0_5px_18px_rgba(10,25,49,0.055)] sm:min-h-[124px] sm:rounded-[28px] sm:px-3">
-                <Icon className={`mb-2 h-6 w-6 sm:h-7 sm:w-7 ${iconClass}`} />
-                <p className="font-[var(--font-inter)] text-[10px] font-extrabold leading-tight text-[#0A1931] sm:text-[14px]">{title}</p>
-                <p className="mt-1 font-[var(--font-inter)] text-[9px] leading-tight text-[#737A85] sm:text-[12px]">{subtitle}</p>
-              </div>
-            ))}
+            {BENEFITS[lang].map(({ Icon, kind, title, subtitle, iconClass }) => {
+              const metric = kind === "offers"
+                ? homeStats?.offersCount ?? null
+                : kind === "talents"
+                  ? homeStats?.talentsCount ?? null
+                  : null;
+
+              return (
+                <div key={title} className="flex min-h-[104px] flex-col items-center justify-center rounded-[24px] border border-slate-100 bg-white px-1.5 py-3 text-center shadow-[0_5px_18px_rgba(10,25,49,0.055)] sm:min-h-[124px] sm:rounded-[28px] sm:px-3">
+                  <Icon className={`mb-1 h-6 w-6 sm:mb-2 sm:h-7 sm:w-7 ${iconClass}`} />
+                  {kind === "static" ? (
+                    <p className="font-[var(--font-inter)] text-[10px] font-extrabold leading-tight text-[#0A1931] sm:text-[14px]">{title}</p>
+                  ) : (
+                    <>
+                      <p className="font-[var(--font-inter)] text-[18px] font-extrabold leading-none tracking-tight text-[#0A1931] sm:text-[25px]">
+                        <AnimatedCounter value={metric} locale={lang === "fr" ? "fr-FR" : "en-US"} />
+                      </p>
+                      <p className="mt-1 font-[var(--font-inter)] text-[9px] font-extrabold leading-tight text-[#0A1931] sm:text-[13px]">{title}</p>
+                    </>
+                  )}
+                  <p className="mt-1 font-[var(--font-inter)] text-[9px] leading-tight text-[#737A85] sm:text-[12px]">{subtitle}</p>
+                </div>
+              );
+            })}
           </div>
         </>
       )}
