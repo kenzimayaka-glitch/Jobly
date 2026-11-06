@@ -242,6 +242,26 @@ class MainActivity : Activity() {
                             val command = runCatching { JSONObject(raw) }.getOrNull() ?: return
                             val payload = command.optJSONObject("payload") ?: return
                             when (command.optString("type")) {
+                                "SIGN_ANDROID_API_REQUEST" -> {
+                                    val challengeId = bounded(payload.optString("challengeId"), 64)
+                                    val signed = runCatching {
+                                        AndroidKeyAttestation.signRequestPayload(
+                                            bounded(payload.optString("payload"), 8192)
+                                        )
+                                    }
+                                    val response = if (signed.isSuccess) {
+                                        JSONObject()
+                                            .put("type", "ANDROID_API_REQUEST_SIGNATURE")
+                                            .put("challengeId", challengeId)
+                                            .put("signature", signed.getOrThrow())
+                                    } else {
+                                        JSONObject()
+                                            .put("type", "ANDROID_API_REQUEST_SIGNATURE")
+                                            .put("challengeId", challengeId)
+                                            .put("error", signed.exceptionOrNull()?.message ?: "ANDROID_REQUEST_SIGNING_FAILED")
+                                    }
+                                    replyProxy.postMessage(response.toString())
+                                }
                                 "CREATE_ANDROID_KEY_ATTESTATION" -> {
                                     val challenge = bounded(payload.optString("challenge"), 256)
                                     val challengeId = bounded(payload.optString("challengeId"), 64)
