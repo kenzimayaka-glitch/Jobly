@@ -263,7 +263,7 @@ const translations = {
 
 const BENEFITS = {
   fr: [
-    { Icon: ShieldStarIcon, kind: "static", title: "100 % Gratuit", subtitle: "Accès aux opportunités", iconClass: "text-[#3478C8]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "100% Gratuit", subtitle: "Accès aux opportunités", iconClass: "text-[#3478C8]" },
     { Icon: PeopleStarIcon, kind: "offers", title: "Offres de toute l’Afrique", subtitle: "offres actives sur Jobly", iconClass: "text-[#8064D8]" },
     { Icon: CheckCircleIcon, kind: "talents", title: "Pipeline de talents", subtitle: "J’IA matche et postule avec vous", iconClass: "text-[#28A99B]" },
   ],
