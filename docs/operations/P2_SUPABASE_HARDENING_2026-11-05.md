@@ -116,61 +116,74 @@ Le script [p2_supabase_admin_default_acl.sql](../../supabase/operations/p2_supab
 L'historique de production contient `20261105175610 / p2_supabase_hardening_20261105`, mais aucun fichier de migration correspondant n'a été retrouvé sous `supabase/migrations` sur `main`. Le SQL exact n'a pas été reconstitué artificiellement. Cet écart de traçabilité reste à réconcilier depuis sa source d'origine.
 
 
-## Contrôle de suivi — 6 novembre 2026
+## Contrôle de suivi — 6 novembre 2026 (dernier état vérifié)
 
-### État réel des deux WARN de sécurité
+### État Security Advisor
 
-**pg_net — toujours WARN, mais dépendance active vérifiée**
+- `function_search_path_mutable` : **corrigé**, le WARN a disparu après le réglage de `public.jobly_p1_resegment_offer(jsonb)` sur `search_path = pg_catalog`.
+- `rls_enabled_no_policy` : **corrigé** après découverte d'une nouvelle table de sauvegarde P1. Voir la section suivante.
+- Deux WARN restent : `extension_in_public` pour `pg_net`, et `auth_leaked_password_protection` pour HIBP.
 
-Le contrôle SQL complémentaire confirme :
+### Nouvelle alerte RLS sur la sauvegarde P1 : corrigée
 
-- extension pg_net 0.20.4, enregistrée dans public, propriétaire supabase_admin ;
-- postgres n'est pas membre de supabase_admin et ne peut donc pas prendre ce rôle ;
-- file net.http_request_queue vide au moment du contrôle ;
-- le cron Jobly jobid=1, planifié à 15 */6 * * *, appelle bien net.http_post vers la fonction Edge /functions/v1/discover-jobs.
+La dernière lecture Advisor a détecté `public.JobP1QualityLiveIngestionBackup`, une table de sauvegarde contenant **252 lignes**, avec RLS activé mais sans politique explicite.
 
-**Décision :** ne pas supprimer/recréer l'extension ni désactiver le cron depuis ce rôle. Cela interromprait le mécanisme d'ingestion périodique. La correction exige une intervention privilégiée Supabase/support, coordonnée avec la préservation du cron et un test HTTP 2xx de la fonction après bascule. Le WARN reste ouvert en attendant cette intervention.
+Migration appliquée : `20261105234414 / p2_explicit_deny_job_p1_live_ingestion_backup_20261106`.
 
-**Protection HIBP — toujours WARN, contrainte de forfait**
+Vérifications après migration :
+- politique `deny_client_access` ajoutée pour `anon` et `authenticated`, avec `USING (false)` et `WITH CHECK (false)` ;
+- aucun privilège SQL donné à `anon` ou `authenticated` sur cette table ;
+- `service_role` conserve SELECT/INSERT/UPDATE/DELETE et `BYPASSRLS=true) ;
+- Security Advisor ne remonte plus `rls_enabled_no_policy`.
 
-Le projet est toujours sur le plan Free. La documentation Supabase confirme que la protection intégrée HaveIBeenPwned est disponible sur Pro et au-dessus. Aucun changement d'offre ni paiement n'a été autorisé ou effectué. Ce WARN reste ouvert jusqu'à une décision de forfait ou à une solution de contrôle distincte qui ne prétendrait pas activer le réglage Supabase natif.
+Aucune donnée de sauvegarde n'a été supprimée.
 
-### État réel des INFO de performance
+### `pg_net` : déplacement toujours bloqué par les privilèges managés
 
-- Les 38 FK non indexées sont toujours réparties sur les mêmes 31 tables ; les 31 comptages SQL exacts sont à **0 ligne**. L'ajout immédiat de 38 index créerait des structures sans bénéfice de requête actuel et risquerait de rajouter des alertes d'index inutilisés. L'indexation est donc différée jusqu'à l'arrivée de données ou l'activation mesurée des parcours.
-- Les 168 index inutilisés totalisent **2 342 912 octets (2 288 Kio, environ 2,23 Mio)**. Les quatre index doublons exacts déjà identifiés ont été supprimés ; les index uniques équivalents sont conservés. Les 168 restants couvrent notamment des parcours de Recrutement 360, Mobility, Paiements, Community/Campus et J'IA. Leur suppression en bloc n'est pas sûre sans analyse des requêtes et plans d'exécution représentatifs ; aucune suppression supplémentaire n'a été faite.
+État actuellement vérifié :
+- `pg_net 0.20.4`, schéma enregistré `public), propriétaire `supabase_admin` ;
+- connexion courante `postgres), sans appartenance au rôle interne `supabase_admin` ;
+- le cron `jobly-discover-jobs-every-6h` reste actif, horaire `15 */6 * * *`, et appelle `net.http_post` vers `/functions/v1/discover-jobs` ;
+- file `net.http_request_queue` vide ; aucun dossier d'archive de cutover n'a été créé.
+
+La procédure contrôlée a été tentée une fois ; son garde-fou s'est arrêté avant toute DDL. **L'extension n'a pas bougé et le cron n'a pas été arrêté.** Le rôle `postgres` ne peut pas s'attribuer lui-même les privilèges réservés à Supabase.
+
+**Intervention nécessaire :** Supabase Support / opérateur privilégié doit exécuter le déplacement documenté dans [p2_pg_net_recreate_2026-11-05.sql](../../supabase/operations/p2_pg_net_recreate_2026-11-05.sql), en conservant le cron, puis valider un vrai retour HTTP 2xx de la fonction d'ingestion. Le ticket n'a pas été envoyé : aucun outil connecté ne permet de créer un ticket Support au nom du propriétaire du compte.
+
+Source : [Supabase — pg_net et déplacement d'extension](https://supabase.com/docs/guides/database/extensions/pg_net).
+
+### Protection HIBP : activation impossible sur le plan Free
+
+- Organisation Jobly confirmée sur `free`.
+- Supabase confirme que la protection HIBP native est réservée au plan Pro ou supérieur.
+- Le plan Pro commence à **25 USD/mois** ; les coûts de compute et de dépassement d'usage peuvent s'ajouter suivant la configuration et la consommation.
+- Aucun upgrade ni paiement n'a été fait ; le connecteur disponible ne fournit pas d'action pour changer l'abonnement ou modifier le réglage Auth.
+
+Après passage au plan Pro, le réglage doit être activé dans les paramètres Auth du projet (Password Security / Leaked Password Protection), puis contrôlé dans Security Advisor.
+
+Sources : [Supabase — Password security](https://supabase.com/docs/guides/auth/password-security) ; [Supabase — Pricing](https://supabase.com/pricing).
+
+### Performance et Health Advisor
+
+- Clés étrangères non indexées : **0**.
+- Index inutilisés : **206 INFO** (168 préexistants + 38 index FK ajoutés). Les index restent en place pour ne pas supprimer à l'aveugle des chemins métiers ou des index préparatoires.
 - Health Advisor : **0 alerte**.
-
-### CI — vérification terminée
-
-Les cinq workflows déclenchés par le commit c39531353821b3aa68bd03852789c5c198f657ea sont tous terminés avec succès :
-
-| Workflow | Run GitHub | Résultat |
-|---|---:|---|
-| Verify offer pipeline | [42125190894](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42125190894) | SUCCESS |
-| Jobly CI — Typecheck & Build | [42125190919](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42125190919) | SUCCESS |
-| Verify Africa source registry | [42125190940](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42125190940) | SUCCESS |
-| Offer migration to latest version | [42125191115](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42125191115) | SUCCESS |
-| Jobly Offer 360 Audit | [42125190713](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42125190713) | SUCCESS |
-
-Les étapes TypeScript, build de production, tests de régression Mission Afrique, Event Core, Mobility, Billing, vérification du registre Afrique, migration des offres et audit des offres actives sont vertes. La CI liée à ce commit est donc **5/5 verte**.
-
-Ce suivi documentaire ne déclenche pas de déploiement applicatif : aucune modification de code applicatif n'est incluse dans cette mise à jour. Aucun déploiement Netlify n'est utilisé.
 
 ## Verdict
 
-**Le chantier n'est pas encore entièrement vert dans Supabase Advisor.** Les corrections de code et d'index sûres sont appliquées, mais deux WARN de sécurité restent bloqués par des prérequis externes et 206 INFO de performance demeurent visibles.
+**Le chantier n'est pas encore vert dans Supabase Advisor.** Les contrôles RLS et FK sont assainis, et les corrections SQL sûres sont appliquées. Deux WARN restent bloqués par des privilèges/paramètres de compte que le connecteur ne peut pas modifier.
 
-- 72 alertes RLS/no-policy : corrigées.
-- Defaults d'EXECUTE pour les nouvelles fonctions créées par `postgres` : durcis.
+- 72 alertes RLS/no-policy historiques : corrigées.
+- Nouvelle sauvegarde P1 de 252 lignes : politique explicite de refus client ajoutée, accès service-role préservé.
+- Defaults d'EXECUTE pour les nouvelles fonctions créées par `postgres) : durcis.
 - Quatre doublons exacts d'index : supprimés, index uniques conservés.
 - 38 clés étrangères non indexées : **corrigées** ; l'Advisor en signale maintenant 0.
 - `function_search_path_mutable` : corrigé ; WARN disparu.
-- Index inutilisés : 206 INFO (168 préexistants + 38 index FK nouvellement créés), conservés après examen pour ne pas supprimer à l'aveugle des chemins métiers ou des optimisations FK prévues.
-- `pg_net` dans `public` : WARN en attente d'une intervention privilégiée Supabase ; l'opération contrôlée a échoué au garde-fou sans changer la base.
-- Protection HIBP : WARN lié au plan Free ; le réglage natif exige Pro ou supérieur. Aucun upgrade ni coût n'a été engagé.
+- Index inutilisés : 206 INFO, examinés et conservés.
+- `pg_net` dans `public` : WARN ouvert ; seule une intervention Supabase Support/opérateur privilégié peut effectuer le déplacement sans contourner les protections de rôle.
+- Protection HIBP : WARN ouvert ; exige le plan Pro ou supérieur et l'activation dans les paramètres Auth.
 - Health Advisor : 0 alerte.
 
-**Pour déclarer le vert complet dans Advisor, il reste deux actions hors du périmètre de privilèges actuel :** l'intervention Supabase Support sur `pg_net`, et l'activation native de HIBP après autorisation d'un changement vers Pro. Les 206 INFO de performance ne sont pas des défauts d'accès ; elles nécessitent des validations d'usage avant tout retrait d'index.
+**Pour clôturer les deux derniers WARN :** faire exécuter le cutover `pg_net` par Supabase Support, puis passer l'organisation Jobly au plan Pro (à partir de 25 USD/mois, hors éventuels coûts variables) et activer HIBP dans Auth. Ces actions ne sont pas exécutables par les privilèges ni les outils actuellement connectés.
 
 Aucun paiement, `DROP ... CASCADE`, suppression d'index de contrainte, contournement de propriété Supabase ou déploiement Netlify n'a été effectué.
