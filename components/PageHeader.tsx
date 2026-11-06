@@ -107,6 +107,16 @@ export default function PageHeader({
 
           <button
             type="button"
+            onClick={() => router.push("/support")}
+            aria-label="Ouvrir le Support Jobly"
+            title="Aide & Support"
+            className="jobly-focus flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-[#0A1931] transition active:scale-95"
+          >
+            <span aria-hidden="true" className="text-lg font-black">?</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => router.push("/notifications")}
             aria-label={t("header.notifications")}
             className="jobly-focus relative flex h-11 w-11 items-center justify-center rounded-full bg-canari-blue-soft text-canari-blue transition active:scale-95"
