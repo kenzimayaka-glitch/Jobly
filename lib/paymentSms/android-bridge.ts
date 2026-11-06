@@ -1,6 +1,7 @@
 export type PaymentSmsDevicePairing = {
   deviceId: string;
   deviceToken: string;
+  senderIds: string[];
 };
 
 declare global {
@@ -27,6 +28,7 @@ export function pairJoblyPaymentSmsDevice(credentials: PaymentSmsDevicePairing):
       payload: {
         deviceId: credentials.deviceId,
         deviceToken: credentials.deviceToken,
+        senderIds: credentials.senderIds.slice(0, 10),
       },
     }));
     return true;
