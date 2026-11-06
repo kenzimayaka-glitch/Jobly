@@ -53,3 +53,14 @@ test("sender allowlists are case-normalized and rechecked case-insensitively at 
   assert.ok(migration.includes("upper(regexp_replace(btrim(allowed.sender_id)"));
   assert.ok(migration.includes('upper(regexp_replace(btrim(v_receipt."senderId")'));
 });
+
+
+test("SMS ingestion resumes transient RECEIVED receipts and preserves WorkManager retries", () => {
+  const route = read("../app/api/payments/sms/ingest/route.ts");
+  assert.match(route, /const retryingReceipt = duplicateReceipt\?\.processingStatus === "RECEIVED"/);
+  assert.match(route, /const aiReview = !retryingReceipt/);
+  assert.match(route, /\.limit\(51\)/);
+  assert.match(route, /candidateLimitReached: \(candidates \|\| \[\]\)\.length > 50/);
+  assert.match(route, /"SMS_FINALIZATION_RETRY"/);
+  assert.match(route, /processingStatus: "REJECTED"/);
+});
