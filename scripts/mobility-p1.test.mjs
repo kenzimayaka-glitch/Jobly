@@ -91,10 +91,17 @@ test("le Talent ne peut pas fournir le salaire de référence", () => {
   assert.doesNotMatch(route, /body\.salary|body\["salary"\]/);
 });
 
-test("le gate Premium utilise planCode et une liste de plans autorisés", () => {
+test("le gate Mobility utilise les droits Talent actifs et une liste de plans autorisés", () => {
   const server = readFileSync(new URL("../lib/mobilityServer.ts", import.meta.url), "utf8");
-  assert.match(server, /select\("planCode,status,currentPeriodEnd,trialEndsAt"\)/);
+  const entitlements = readFileSync(new URL("../lib/entitlements.ts", import.meta.url), "utf8");
+  const lifecycle = readFileSync(new URL("../lib/billingLifecycleCore.ts", import.meta.url), "utf8");
+  assert.match(server, /getActivePlanCode\(sb, String\(user\.id\), "TALENT"\)/);
   assert.match(server, /new Set\(\["START", "PREMIUM", "PRO"\]\)/);
+  assert.match(entitlements, /\.eq\("productType", productType\)/);
+  assert.match(entitlements, /\.eq\("producttype", productType\)/);
+  assert.match(lifecycle, /record\.status === "ACTIVE"[\s\S]*?isFuture\(record\.currentPeriodEnd, nowMs\)/);
+  assert.match(lifecycle, /record\.status === "TRIAL"[\s\S]*?isFuture\(record\.trialEndsAt, nowMs\)/);
+  assert.doesNotMatch(server, /currentPeriodEnd === null|TRIALING/);
 });
 
 test("les rapports Mobility ne sortent que les dossiers reliés à l'acteur", () => {
