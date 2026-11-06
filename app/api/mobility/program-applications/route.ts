@@ -112,7 +112,14 @@ export async function POST(req: NextRequest) {
       visibleToRecruiter: true,
       visibleToInstitution: true,
     });
-    if (eventError) throw new Error("MOBILITY_PROGRAM_APPLICATION_AUDIT_FAILED: " + eventError.message);
+    if (eventError) {
+      const rollback = await db.from("MobilityProgramApplication").delete()
+        .eq("id", application.id).eq("applicantUserId", user.id);
+      if (rollback.error) {
+        throw new Error("MOBILITY_PROGRAM_APPLICATION_AUDIT_FAILED: " + eventError.message + "; ROLLBACK_FAILED: " + rollback.error.message);
+      }
+      throw new Error("MOBILITY_PROGRAM_APPLICATION_AUDIT_FAILED_ROLLED_BACK: " + eventError.message);
+    }
     return NextResponse.json({ application }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Candidature au programme impossible." }, { status: 500 });
