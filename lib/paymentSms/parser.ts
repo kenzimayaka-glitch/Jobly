@@ -28,6 +28,7 @@ export type PaymentSmsParseResult = {
 
 export type PaymentSmsParserConfig = {
   senderIds: Partial<Record<PaymentSmsProvider, string[]>>;
+  merchantAccount?: string;
 };
 
 function normalizeSender(value: string): string {
@@ -133,7 +134,7 @@ export function parsePaymentSms(
   ]);
   const merchantText = captureFirst(body, [
     /\b(?:vers|to|marchand|merchant|compte\s+marchand|num[eé]ro\s+marchand|merchant\s+account)\s*[:#=\-]?\s*((?:\+?237)?[0-9][0-9\s-]{7,18})\b/i,
-  ]);
+  ]) || config.merchantAccount || null;
 
   const fraudFlags: string[] = [];
   if (!provider) fraudFlags.push("UNTRUSTED_OR_AMBIGUOUS_SENDER");
