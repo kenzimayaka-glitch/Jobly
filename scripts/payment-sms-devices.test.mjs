@@ -37,3 +37,11 @@ test("customer verification accepts dotted Orange transaction references", () =>
   const route = read("../app/api/payments/[id]/verify/route.ts");
   assert.ok(route.includes("A-Z0-9._-"));
 });
+
+test("new merchant devices must match the central provider configuration", () => {
+  const route = read("../app/api/payments/sms/devices/route.ts");
+  assert.match(route, /PaymentSmsProviderConfig/);
+  assert.match(route, /providerConfig\.merchantAccount/);
+  assert.match(route, /MERCHANT_ACCOUNT_CONFIG_MISMATCH/);
+  assert.match(route, /PROVIDER_CONFIG_REQUIRED/);
+});
