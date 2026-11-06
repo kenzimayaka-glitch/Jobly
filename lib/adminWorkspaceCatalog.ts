@@ -22,6 +22,11 @@ export const ADMIN_WORKSPACE_TEMPLATES: AdminWorkspaceTemplate[] = [
     boundary: "Le dépôt ne contient pas encore de file de tickets utilisateurs centralisée. Cet espace relie les outils de support réellement disponibles sans afficher de faux dossiers.",
     lanes: [
       { title: "Dossiers opérationnels", subtitle: "Parcours et prestataires", cards: [
+        {
+          title: "Tickets & interventions",
+          description: "Traiter les demandes, affecter un agent, répondre ou ajouter une note interne.",
+          href: "/admin/support",
+        },
         { title: "Mobility", description: "Consulter les prestataires, KYC, programmes, dossiers et preuves de transfert.", href: "/admin/mobility" },
       ]},
       { title: "Diagnostic", subtitle: "Flux et incidents d'offres", cards: [
@@ -40,6 +45,7 @@ export const ADMIN_WORKSPACE_TEMPLATES: AdminWorkspaceTemplate[] = [
     boundary: "Les validations restent soumises aux contrôles serveur existants. Cet espace ne déclenche aucun paiement sortant automatiquement.",
     lanes: [
       { title: "À vérifier", subtitle: "Pièces de paiement entrantes", cards: [
+        { title: "Cockpit financier", description: "Suivre paiements, justificatifs, SMS, abonnements, commissions et fonds Mobility.", href: "/admin/finance" },
         { title: "Paiements événements", description: "Examiner les justificatifs et décider de leur validation.", href: "/admin/events/payments" },
       ]},
       { title: "Rapprochement", subtitle: "Configuration de réception", cards: [
@@ -60,6 +66,7 @@ export const ADMIN_WORKSPACE_TEMPLATES: AdminWorkspaceTemplate[] = [
     lanes: [
       { title: "À examiner", subtitle: "Propositions en attente", cards: [] },
       { title: "Outils de contrôle", subtitle: "Contrôle des flux", cards: [
+        { title: "Signalements Community", description: "Examiner les signalements, masquer ou restaurer les publications et tracer les décisions.", href: "/admin/community" },
         { title: "Réindexation des offres", description: "Relancer et contrôler le traitement des offres agrégées.", href: "/admin/jobs/reprocess" },
       ]},
       { title: "Décisions", subtitle: "Historique de la session", cards: [] },
@@ -73,6 +80,7 @@ export const ADMIN_WORKSPACE_TEMPLATES: AdminWorkspaceTemplate[] = [
     boundary: "Les indicateurs affichés proviennent des sources connectées au cockpit J’IA. Les couches sans données fiables ne doivent pas être interprétées comme des résultats nuls.",
     lanes: [
       { title: "Situation", subtitle: "Vue transversale", cards: [
+        { title: "Reporting transversal", description: "Volumes exacts par domaine et disponibilité des sources Jobly.", href: "/admin/analytics" },
         { title: "CEO Intelligence", description: "Situation business, risques, opportunités, KPI et projections 7 / 30 / 90 jours.", href: "/admin/jia" },
       ]},
       { title: "Investigation", subtitle: "Analyse conversationnelle", cards: [
