@@ -16,6 +16,6 @@ export async function GET(req:NextRequest){
   if(limited)return limited;
   const snapshot=await buildCEOIntelligence(sb);
   await sb.from("CEOAuditLog").insert({adminUserId:user.id,action:"VIEW_CEO_SNAPSHOT",endpoint:"/api/admin/jia/ceo",metadata:{generatedAt:snapshot.generatedAt}});
-  return NextResponse.json({snapshot});
+  return NextResponse.json({snapshot},{headers:{"Cache-Control":"private, no-store, max-age=0",Vary:"Authorization"}});
  }catch(e){return NextResponse.json({error:"CEO_INTELLIGENCE_UNAVAILABLE",message:e instanceof Error?e.message:"Intelligence CEO indisponible."},{status:500});}
 }
