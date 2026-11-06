@@ -108,16 +108,12 @@ export async function getAuthUser(request: NextRequest) {
           return null;
         }
 
-        const requestBody = Buffer.from(await request.clone().arrayBuffer());
-        if (requestBody.byteLength > 4 * 1024 * 1024) return null;
-        const bodyHash = crypto.createHash("sha256").update(requestBody).digest("hex");
         const requestPath = new URL(request.url);
         const canonical = [
           request.method.toUpperCase(),
           requestPath.pathname + requestPath.search,
           proofTimestamp,
           proofId,
-          bodyHash,
         ].join("\n");
 
         const { data: proof, error: proofError } = await service
