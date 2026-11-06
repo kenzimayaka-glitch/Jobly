@@ -40,6 +40,7 @@ export async function analyzePaymentSmsWithAi(input: {
         "Un remboursement, une annulation, un débit, un SMS promotionnel ou un message en attente ne constitue jamais un encaissement.",
         "Retourne un JSON avec messageKind, status, direction, confidence (0 à 1), suspiciousSignals (codes courts).",
       ].join(" "),
+      timeoutMs: 5000,
       outputSchema: {
         messageKind: ["MERCHANT_CREDIT", "CUSTOMER_DEBIT", "CUSTOMER_CREDIT", "REVERSAL", "FAILED", "PENDING", "PROMOTIONAL", "UNKNOWN"],
         status: ["SUCCESSFUL", "FAILED", "PENDING", "UNKNOWN"],
@@ -49,7 +50,7 @@ export async function analyzePaymentSmsWithAi(input: {
       },
     },
     "SPEED",
-    { maxAttempts: 2, allowDeterministic: false },
+    { maxAttempts: 1, allowDeterministic: false },
   );
 
   return evaluatePaymentSmsAiReview({
