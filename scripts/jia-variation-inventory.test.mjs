@@ -10,6 +10,17 @@ import {
 } from "../lib/jia/experience-engine.ts";
 import { GESTURES } from "../lib/jia/gestures.ts";
 import { JIA_100_MOVES } from "../components/JIA/movements.ts";
+import {
+  JIA_AVATAR_FRAMING_VARIATIONS,
+  JIA_CONVERSATION_LAYOUT_VARIATIONS,
+  JIA_DOCUMENT_PRESENTATIONS,
+  JIA_MESSAGE_ENTRANCES,
+  JIA_OFFER_PRESENTATIONS,
+  JIA_QUESTION_PRESENTATIONS,
+  JIA_SCENE_TRANSITIONS,
+  JIA_SCENE_VARIATIONS,
+  JIA_STICKER_REACTIONS,
+} from "../lib/jia/visual-variations.ts";
 
 const root = process.cwd();
 const rig = JSON.parse(readFileSync(join(root, "components/JIA/JIA_Rig.json"), "utf8"));
@@ -71,18 +82,18 @@ const bodyGestureCatalog = [
   ...rigOnlyBodyNames.map((id) => ({ id: "rig:" + id })),
 ];
 const variationCatalog = {
-  "conversation-layouts": JIA_PRESENTATION_MODES.map((id) => ({ id })),
-  "scenes-and-ambiences": [{ id: "water-scene" }],
+  "conversation-layouts": JIA_CONVERSATION_LAYOUT_VARIATIONS,
+  "scenes-and-ambiences": JIA_SCENE_VARIATIONS,
   "avatar-appearances": outfitDirs.map((id) => ({ id })),
-  "avatar-placement-and-framing": ["stage-aside", "stage-inline", "compact-launcher", "contextual"].map((id) => ({ id })),
+  "avatar-placement-and-framing": JIA_AVATAR_FRAMING_VARIATIONS,
   "body-gestures": bodyGestureCatalog,
   "facial-expressions": facialShapes.map((id) => ({ id })),
-  "scene-transitions": [],
-  "message-entrances": [{ id: "fade-rise-message" }],
-  "stickers-and-reactions": [],
-  "offer-presentations": [{ id: "offers-block" }],
-  "interactive-questions": [{ id: "standard-mcq" }, { id: "adaptive-mcq" }],
-  "documents-and-cv": [{ id: "profile-cv" }, { id: "prepared-application-letter" }],
+  "scene-transitions": JIA_SCENE_TRANSITIONS,
+  "message-entrances": JIA_MESSAGE_ENTRANCES,
+  "stickers-and-reactions": JIA_STICKER_REACTIONS,
+  "offer-presentations": JIA_OFFER_PRESENTATIONS,
+  "interactive-questions": JIA_QUESTION_PRESENTATIONS,
+  "documents-and-cv": JIA_DOCUMENT_PRESENTATIONS,
 };
 const coverage = getJiaVariationCoverage(variationCatalog);
 
@@ -115,6 +126,36 @@ test("all 50 registered facial expressions have semantic gestures and runnable r
   assert.equal(availableSemanticMoves.length, 34);
 });
 
+test("every newly rendered visual family exposes fifty concrete, non-duplicate presets", () => {
+  const lists = [
+    JIA_CONVERSATION_LAYOUT_VARIATIONS,
+    JIA_SCENE_VARIATIONS,
+    JIA_AVATAR_FRAMING_VARIATIONS,
+    JIA_SCENE_TRANSITIONS,
+    JIA_MESSAGE_ENTRANCES,
+    JIA_STICKER_REACTIONS,
+    JIA_OFFER_PRESENTATIONS,
+    JIA_QUESTION_PRESENTATIONS,
+    JIA_DOCUMENT_PRESENTATIONS,
+  ];
+  for (const list of lists) {
+    assert.equal(list.length, 50);
+    assert.equal(new Set(list.map((item) => item.id)).size, 50);
+    assert.equal(new Set(list.map((item) => JSON.stringify(Object.fromEntries(Object.entries(item).filter(([key]) => key !== "id"))))).size, 50);
+  }
+});
+
+test("the surface and workspace renderer actually consume the variation catalog", () => {
+  const surface = readFileSync(join(root, "components/jia/JiaConversationSurface.tsx"), "utf8");
+  const blocks = readFileSync(join(root, "components/jia/JiaWorkspaceBlocks.tsx"), "utf8");
+  for (const token of ["data-jia-scene={sceneVariation.id}","data-jia-layout-variation={layoutVariation.id}","JIA_MESSAGE_ENTRANCES","JIA_STICKER_REACTIONS","data-jia-avatar-framing={avatarFraming.id}"]) {
+    assert.ok(surface.includes(token), "surface must render " + token);
+  }
+  for (const token of ["JIA_OFFER_PRESENTATIONS","JIA_DOCUMENT_PRESENTATIONS","JIA_QUESTION_PRESENTATIONS","data-jia-offer-presentation","data-jia-document-presentation","data-jia-question-presentation"]) {
+    assert.ok(blocks.includes(token), "workspace blocks must render " + token);
+  }
+});
+
 test("all 50 body gesture variations resolve to real clip or rig movement assets", () => {
   assert.equal(bodyGestureCatalog.length, 50);
   assert.equal(uniqueGestureNames.length, 39);
@@ -127,32 +168,30 @@ test("all 50 body gesture variations resolve to real clip or rig movement assets
 
 test("the audit never treats theoretical combinations as produced variations", () => {
   const byFamily = Object.fromEntries(coverage.map((item) => [item.family, item]));
-  assert.equal(byFamily["conversation-layouts"].available, 6);
-  assert.equal(byFamily["scenes-and-ambiences"].available, 1);
+  assert.equal(byFamily["conversation-layouts"].available, 50);
+  assert.equal(byFamily["scenes-and-ambiences"].available, 50);
   assert.equal(byFamily["avatar-appearances"].available, 3);
-  assert.equal(byFamily["avatar-placement-and-framing"].available, 4);
+  assert.equal(byFamily["avatar-placement-and-framing"].available, 50);
   assert.equal(byFamily["body-gestures"].available, 50);
   assert.equal(byFamily["facial-expressions"].available, 50);
-  assert.equal(byFamily["stickers-and-reactions"].available, 0);
+  assert.equal(byFamily["scene-transitions"].available, 50);
+  assert.equal(byFamily["message-entrances"].available, 50);
+  assert.equal(byFamily["stickers-and-reactions"].available, 50);
+  assert.equal(byFamily["offer-presentations"].available, 50);
+  assert.equal(byFamily["interactive-questions"].available, 50);
+  assert.equal(byFamily["documents-and-cv"].available, 50);
   assert.ok(coverage.every((item) => item.available <= 1000));
   assert.ok(coverage.every((item) => item.complete === (item.available >= JIA_VARIATION_TARGET)));
 });
 
 test("coverage report marks incomplete families explicitly instead of manufacturing IDs", () => {
   const incomplete = coverage.filter((item) => !item.complete).map((item) => item.family);
-  assert.deepEqual(incomplete, [
-    "conversation-layouts",
-    "scenes-and-ambiences",
-    "avatar-appearances",
-    "avatar-placement-and-framing",
-    "scene-transitions",
-    "message-entrances",
-    "stickers-and-reactions",
-    "offer-presentations",
-    "interactive-questions",
-    "documents-and-cv",
+  assert.deepEqual(incomplete, ["avatar-appearances"]);
+  assert.deepEqual(coverage.filter((item) => item.complete).map((item) => item.family), [
+    "conversation-layouts","scenes-and-ambiences","avatar-placement-and-framing",
+    "body-gestures","facial-expressions","scene-transitions","message-entrances",
+    "stickers-and-reactions","offer-presentations","interactive-questions","documents-and-cv",
   ]);
-  assert.deepEqual(coverage.filter((item) => item.complete).map((item) => item.family), ["body-gestures","facial-expressions"]);
 });
 
 console.log("[J’IA 360 variation audit]", JSON.stringify(coverage));
