@@ -52,7 +52,7 @@ const variationCatalog = {
   "scenes-and-ambiences": [{ id: "water-scene" }],
   "avatar-appearances": outfitDirs.map((id) => ({ id })),
   "avatar-placement-and-framing": ["stage-aside", "stage-inline", "compact-launcher", "contextual"].map((id) => ({ id })),
-  "body-gestures": clipPaths.map((id) => ({ id })),
+  "body-gestures": uniqueGestureNames.map((id) => ({ id })),
   "facial-expressions": facialShapes.map((id) => ({ id })),
   "scene-transitions": [],
   "message-entrances": [{ id: "fade-rise-message" }],
