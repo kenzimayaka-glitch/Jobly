@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import { resolveActiveEntitlements } from "./entitlements";
 
 export function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -47,28 +48,15 @@ export async function ensureUser(
 export async function requirePremium(request: NextRequest) {
   const au = await authUser(request);
   if (!au) return { error: "Session requise.", status: 401 as const };
+
   const sb = adminClient();
   const user = await ensureUser(sb, au);
-  const { data: subscriptions, error } = await sb.from("Subscription")
-    .select("planCode,status,currentPeriodEnd,trialEndsAt")
-    .eq("userId", user.id)
-    .order("createdAt", { ascending: false })
-    .limit(1);
-  if (error) throw new Error("SUBSCRIPTION_LOOKUP_FAILED: " + error.message);
-
-  const subscription = subscriptions?.[0];
+  // Use the shared billing resolver so Mobility honours only unexpired ACTIVE/TRIAL
+  // subscriptions and valid PRO promotional grants, exactly like the other modules.
+  const resolved = await resolveActiveEntitlements(sb, user.id, "TALENT");
   const allowedPlans = new Set(["START", "PREMIUM", "PRO"]);
-  const planCode = String(subscription?.planCode || "").toUpperCase();
-  const status = String(subscription?.status || "").toUpperCase();
-  const now = Date.now();
-  const currentPeriodEnd = subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).getTime() : null;
-  const trialEndsAt = subscription?.trialEndsAt ? new Date(subscription.trialEndsAt).getTime() : null;
-  const periodValid = currentPeriodEnd === null || (Number.isFinite(currentPeriodEnd) && currentPeriodEnd > now);
-  const trialValid = status !== "TRIALING" || (trialEndsAt !== null && Number.isFinite(trialEndsAt) && trialEndsAt > now);
-  const active = !!subscription && allowedPlans.has(planCode)
-    && ["ACTIVE", "TRIALING"].includes(status) && periodValid && trialValid;
 
-  if (!active) {
+  if (!allowedPlans.has(resolved.planCode)) {
     return { error: "Mobility nécessite un pack START, PREMIUM ou PRO actif.", status: 403 as const };
   }
   return { user, sb };
