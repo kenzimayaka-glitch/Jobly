@@ -13,11 +13,13 @@ import {
   Mic,
   Presentation,
   ShieldCheck,
+  Shuffle,
   Sparkles,
   X,
 } from "lucide-react";
 import JIA3D from "@/components/JIA/JIA3D";
 import {
+  pickJiaPresentationLayout,
   resolveJiaExperience,
   type JiaExperienceDevice,
   type JiaExperienceIntent,
@@ -142,6 +144,9 @@ export default function JiaConversationSurface(props: Props) {
   } = props;
   const reducedMotion = useReducedMotion();
   const [selectedLayout, setSelectedLayout] = useState<"auto" | JiaPresentationMode>("auto");
+  const [autoLayout, setAutoLayout] = useState<JiaPresentationMode>("messenger");
+  const [layoutRefresh, setLayoutRefresh] = useState(0);
+  const layoutHistory = useRef<JiaPresentationMode[]>([]);
   const [device, setDevice] = useState<JiaExperienceDevice>("desktop");
   const [showShortcuts, setShowShortcuts] = useState(false);
   const bottomAnchor = useRef<HTMLDivElement | null>(null);
@@ -189,7 +194,14 @@ export default function JiaConversationSurface(props: Props) {
     motionPreference: reducedMotion ? "reduced" : "immersive",
     systemReducedMotion: Boolean(reducedMotion),
   });
-  const layout = experience.layout;
+  const layout = selectedLayout === "auto" ? autoLayout : experience.layout;
+
+  useEffect(() => {
+    if (selectedLayout !== "auto") return;
+    const next = pickJiaPresentationLayout(role, intent, layoutHistory.current);
+    layoutHistory.current = [...layoutHistory.current, next].slice(-12);
+    setAutoLayout(next);
+  }, [intent, lastUserMessage, layoutRefresh, role, selectedLayout]);
   const suggestions = ecosystem === "RECRUITER"
     ? ["Trouve des candidats pertinents", "Aide-moi à rédiger une offre", "Résume mes candidatures"]
     : ecosystem === "PARTNER"
@@ -291,9 +303,18 @@ export default function JiaConversationSurface(props: Props) {
 
           <nav aria-label="Présentation de la conversation" className={`shrink-0 border-y px-3 py-2 ${layout === "stage" ? "border-white/10 bg-[#0B2452]" : "border-[#E9EEF5] bg-white"}`}>
             <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <button type="button" aria-pressed={selectedLayout === "auto"} onClick={() => setSelectedLayout("auto")}
+              <button type="button" aria-pressed={selectedLayout === "auto"} onClick={() => { setSelectedLayout("auto"); setLayoutRefresh((value) => value + 1); }}
                 className={`flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11px] font-extrabold transition ${selectedLayout === "auto" ? "bg-[#FFD21A] text-[#10233F]" : layout === "stage" ? "bg-white/10 text-white/80" : "bg-[#F1F5FA] text-[#66768B]"}`}>
                 <Sparkles size={13} /> Auto
+              </button>
+              <button
+                type="button"
+                onClick={() => { setSelectedLayout("auto"); setLayoutRefresh((value) => value + 1); }}
+                title="Nouvelle composition"
+                aria-label="Nouvelle composition"
+                className={`flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-extrabold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1264EB] ${layout === "stage" ? "border-white/15 bg-white/10 text-white/80 hover:bg-white/15" : "border-[#DCE6F2] bg-white text-[#52637A] hover:border-[#1264EB]/40 hover:text-[#1264EB]"}`}
+              >
+                <Shuffle size={13} /> Nouvelle composition
               </button>
               {MODES.map((mode) => {
                 const Icon = mode.icon;
