@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       .order("createdAt", { ascending: false })
       .limit(500);
     if (error) throw new Error(error.message);
-    return NextResponse.json({ providers: data || [] });
+    return NextResponse.json({ providers: data || [] }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Registre prestataire indisponible." }, { status: 500 });
   }
