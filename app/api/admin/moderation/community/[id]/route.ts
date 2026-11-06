@@ -48,7 +48,8 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     if (auditError) {
       return NextResponse.json({
         report: updated,
-        warning: "La décision a été appliquée, mais l'écriture du journal d'audit a échoué. Une vérification administrateur est requise.",
+        message: "La décision a été appliquée, mais l'écriture du journal d'audit a échoué. Une vérification administrateur est requise.",
+        warning: true,
       }, { status: 503 });
     }
     return NextResponse.json({ report: updated, message: action === "HIDE_POST" ? "Publication masquée; décision journalisée." : action === "RESTORE_POST" ? "Publication restaurée et journalisée." : "Signalement classé sans retrait du contenu et journalisé." });
