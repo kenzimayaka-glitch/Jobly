@@ -502,3 +502,71 @@ test("Mobility requires a current Talent subscription or an active Talent promot
   assert.match(entitlements, /\.eq\("productType", productType\)/);
   assert.match(entitlements, /\.eq\("producttype", productType\)/);
 });
+
+
+test("Talent discoverability and Gmail status require typed writes and shared rate limits", () => {
+  const discoverability = read("../app/api/talent/discoverability/route.ts");
+  const candidateGmail = read("../app/api/talent/gmail/status/route.ts");
+  assert.match(discoverability, /typeof body\.publicDiscoverable !== "boolean"/);
+  assert.match(discoverability, /scope: "talent-discoverability-update"/);
+  assert.match(discoverability, /requireIp: true/);
+  assert.match(candidateGmail, /scope: "candidate-gmail-status-read"/);
+  assert.match(candidateGmail, /scope: "candidate-gmail-disconnect"/);
+  assert.match(candidateGmail, /Cache-Control/);
+});
+
+test("Talent and Recruiter AI welcome-credit endpoints are rate-limited and non-cacheable", () => {
+  const talent = read("../app/api/talent/ai-bonus/route.ts");
+  const recruiter = read("../app/api/recruiter/ai-bonus/route.ts");
+  assert.match(talent, /scope: "talent-ai-welcome-credit-read"/);
+  assert.match(talent, /scope: "talent-ai-welcome-credit-seen"/);
+  assert.match(recruiter, /recruiter-ai-welcome-credit-read/);
+  assert.match(recruiter, /recruiter-ai-welcome-credit-seen/);
+  for (const source of [talent,recruiter]) {
+    assert.match(source, /enforceApiRateLimit/);
+    assert.match(source, /requireIp: true/);
+    assert.match(source, /Cache-Control/);
+  }
+});
+
+test("Recruiter JIA, Gmail status and Mobility public program registry are rate-limited", () => {
+  const jia = read("../app/api/recruiter/jia/intelligence/route.ts");
+  const gmail = read("../app/api/recruiter/gmail/status/route.ts");
+  const programs = read("../app/api/mobility/programs/route.ts");
+  assert.match(jia, /scope:"recruiter-jia-intelligence"/);
+  assert.match(gmail, /scope: "recruiter-gmail-status-read"/);
+  assert.match(gmail, /scope: "recruiter-gmail-disconnect"/);
+  assert.match(programs, /scope: "mobility-program-directory"/);
+  for (const source of [jia,gmail,programs]) {
+    assert.match(source, /enforceApiRateLimit/);
+    assert.match(source, /requireIp:\s*true/);
+    assert.match(source, /Cache-Control/);
+  }
+});
+
+test("Recruiter job and application APIs keep ownership checks and use shared abuse controls", () => {
+  const jobs = read("../app/api/recruiter/jobs/route.ts");
+  const job = read("../app/api/recruiter/jobs/[id]/route.ts");
+  const applications = read("../app/api/recruiter/applications/route.ts");
+  const application = read("../app/api/recruiter/applications/[id]/route.ts");
+  const discover = read("../app/api/recruiter/discover/[token]/route.ts");
+  assert.match(jobs, /scope: "recruiter-jobs-read"/);
+  assert.match(jobs, /scope: "recruiter-job-create"/);
+  assert.match(jobs, /authorizeRecruiterWorkspace/);
+  assert.match(job, /scope: "recruiter-job-read"/);
+  assert.match(job, /scope: "recruiter-job-update"/);
+  assert.match(job, /scope: "recruiter-job-delete"/);
+  assert.match(job, /eq\("recruiterUserId", userId\)/);
+  assert.match(applications, /scope: "recruiter-applications-read"/);
+  assert.match(applications, /recruiterUserId", user\.id/);
+  assert.match(applications, /\.limit\(500\)/);
+  assert.match(application, /scope: "recruiter-application-update"/);
+  assert.match(application, /recruiterJob\.recruiterUserId/);
+  assert.match(discover, /scope:"recruiter-candidate-discovery-share"/);
+  assert.match(discover, /identity:"share:"\+token/);
+  assert.match(discover, /Cache-Control/);
+  for (const source of [jobs,job,applications,application,discover]) {
+    assert.match(source, /enforceApiRateLimit/);
+    assert.match(source, /requireIp\s*:\s*true/);
+  }
+});
