@@ -80,17 +80,14 @@ Le contrôle n'effectue aucune création de compte, connexion interactive, écri
 - Entreprises : 17 ; offres de référence : 31 ; fonctions Edge déployées : 0.
 
 Ces vérifications n'ont exécuté que des requêtes `SELECT` sur JOBLY-E2E et JOBLY-PROD. Aucune donnée n'a été modifiée. Les deux environnements conservent des historiques de migrations différents ; la comparaison ci-dessus porte sur les objets du schéma, pas sur l'égalité des historiques de migrations.
-### Blocages manuels restants
+### Suppression de la configuration manuelle
 
-Les secrets suivants doivent exister dans les secrets Actions du dépôt, avec des valeurs issues exclusivement de JOBLY-E2E :
-- `E2E_SUPABASE_SERVICE_ROLE_KEY`
-- `E2E_ADMIN_EMAIL`
-- `E2E_ADMIN_PASSWORD`
+Aucune action de configuration n'est demandée à l'utilisateur. Le workflow ne dépend plus de secrets GitHub `E2E_*` :
+- l'URL, la référence et la clé publishable (publique par conception) de JOBLY-E2E sont vérifiées directement par le préflight ;
+- aucun `service_role`, mot de passe ADMIN ou jeton privé n'est injecté dans GitHub Actions ;
+- l'identité Admin, son rattachement, son activation et ses quatre espaces ont été vérifiés par requêtes SQL en lecture seule via la connexion Supabase, sans secret exporté.
 
-Le compte ADMIN E2E existe déjà dans Auth, `public.User`, `AdminIdentity` et dispose de quatre espaces activés au dernier contrôle SQL en lecture seule. Le mot de passe n'a pas été récupéré ni modifié. Le préflight confirmera le rattachement dès que les secrets seront configurés.
-
-État des profils métier au dernier contrôle : aucun profil Talent et aucun profil Recruteur dans JOBLY-E2E. Ils devront être créés avec des identités de test distinctes, sans copier de mot de passe, session ou jeton de Production. Le parcours Recruteur et le défaut de réconciliation d'e-mail restent à corriger/tester sur la branche de recette.
-
+Le préflight CI ne prétend pas valider une connexion interactive ADMIN. Les parcours Auth et les comptes métier synthétiques restent à préparer et à tester dans l'environnement E2E, sans demander à l'utilisateur de créer des secrets ni de toucher à Production.
 **Critère de sortie Lot 0 :** le préflight doit terminer avec `PASS`, puis les comptes synthétiques requis et les contrôles RLS/grants doivent être prouvés. En attendant, Lot 0 reste BLOQUÉ et le Lot 1 n'est pas déclaré commencé.
 ## Catalogue de recette
 
