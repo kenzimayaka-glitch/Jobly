@@ -356,7 +356,7 @@ export default function JiaConversationSurface(props: Props) {
                   <Mic size={12} className="mr-1 inline" /> {listening ? "Micro actif" : "Voix"}
                 </div>
               )}
-              <button type="button" onClick={onClose} aria-label="Fermer la conversation" className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1264EB] ${layout === "stage" ? "text-white hover:bg-white/10" : "text-[#5E6E82] hover:bg-[#F0F4F9]"}`}>
+              <button type="button" onClick={onClose} aria-label="Fermer la conversation" className={`grid h-11 w-11 shrink-0 place-items-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1264EB] ${layout === "stage" ? "text-white hover:bg-white/10" : "text-[#5E6E82] hover:bg-[#F0F4F9]"}`}>
                 <X size={19} />
               </button>
             </div>
@@ -431,7 +431,7 @@ export default function JiaConversationSurface(props: Props) {
                     type="button"
                     onClick={onLoadOlderMessages}
                     disabled={loadingOlderMessages}
-                    className="min-h-10 rounded-full border border-[#DCE6F2] bg-white px-4 py-2 text-[10px] font-extrabold text-[#31547F] shadow-sm disabled:opacity-50"
+                    className="min-h-11 rounded-full border border-[#DCE6F2] bg-white px-4 py-2 text-[10px] font-extrabold text-[#31547F] shadow-sm disabled:opacity-50"
                   >
                     {loadingOlderMessages ? "Chargement de l’historique…" : "Charger les messages précédents"}
                   </button>

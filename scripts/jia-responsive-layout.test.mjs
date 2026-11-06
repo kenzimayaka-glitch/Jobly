@@ -56,5 +56,8 @@ test("mobile choices, status badges and business cards preserve readable wrappin
   assert.match(blocks, /flex min-w-0 cursor-pointer items-start/);
   assert.match(blocks, /flex-1 break-words \[overflow-wrap:anywhere\]/);
   assert.match(blocks, /max-w-\[42%\] shrink-0 whitespace-normal break-words/);
+  assert.match(blocks, /const primary = "inline-flex min-h-11/);
+  assert.match(blocks, /const secondary = "inline-flex min-h-11/);
+  assert.match(blocks, /min-h-11 min-w-0 cursor-pointer items-start/);
   assert.match(blocks, /flex flex-wrap items-start justify-between gap-2/);
 });

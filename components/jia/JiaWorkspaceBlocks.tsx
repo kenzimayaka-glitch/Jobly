@@ -44,8 +44,8 @@ type Props = {
 };
 
 const surface = "rounded-2xl border border-[#DCE6F2] bg-white p-3.5 shadow-[0_8px_22px_rgba(16,43,85,.045)]";
-const primary = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#1264EB] px-3.5 py-2 text-[11px] font-extrabold text-white transition hover:bg-[#0D52C5] disabled:cursor-not-allowed disabled:opacity-50";
-const secondary = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#DCE6F2] bg-white px-3.5 py-2 text-[11px] font-extrabold text-[#31547F] transition hover:border-[#1264EB]/50";
+const primary = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#1264EB] px-3.5 py-2 text-[11px] font-extrabold text-white transition hover:bg-[#0D52C5] disabled:cursor-not-allowed disabled:opacity-50";
+const secondary = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#DCE6F2] bg-white px-3.5 py-2 text-[11px] font-extrabold text-[#31547F] transition hover:border-[#1264EB]/50";
 
 function OffersBlock({ block, onPrepareApplication, onNavigate }: {
   block: Extract<JiaWorkspaceBlock, { kind: "offers" }>;
@@ -413,7 +413,7 @@ function QuestionnaireBlock({ block, messageId, onSubmitAssessment, onUpdateWork
                   ? "border-[#1264EB] bg-[#EEF5FF] text-[#173A6B]"
                   : "border-[#EDF1F6] text-[#52637A] hover:border-[#B9CBE2]";
               return (
-                <label key={choice} className={"flex min-w-0 cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-[10px] leading-4 transition " + optionClass}>
+                <label key={choice} className={"flex min-h-11 min-w-0 cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-3 text-[10px] leading-4 transition " + optionClass}>
                   <input type="radio" name={block.assessmentId + ":" + index} className="mt-0.5 accent-[#1264EB]" checked={selected} onChange={() => {
                     const nextAnswers = { ...answers, [String(index)]: choiceIndex };
                     setAnswers(nextAnswers);
