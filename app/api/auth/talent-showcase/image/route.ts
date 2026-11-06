@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
+import { getActivePlanCode } from "@/lib/entitlements";
 import { enforceApiRateLimit } from "@/lib/server-security";
 import crypto from "node:crypto";
 
@@ -42,6 +43,16 @@ export async function POST(request: NextRequest) {
       requireIp: true,
     });
     if (limited) return limited;
+
+    const plan = await getActivePlanCode(supabase, user.id, "TALENT");
+    const imageLimit = plan === "PRO" ? 6 : plan === "PREMIUM" ? 3 : 0;
+    if (!imageLimit) {
+      return NextResponse.json({ message: "Les images d’actions sont réservées à Premium et Pro." }, { status: 403 });
+    }
+    const currentImages = Array.isArray(user.actionImages) ? user.actionImages.filter((value: unknown) => typeof value === "string") : [];
+    if (currentImages.length >= imageLimit) {
+      return NextResponse.json({ message: `Votre formule ${plan} permet ${imageLimit} images d’actions maximum.`, limit: imageLimit }, { status: 409 });
+    }
 
     const contentLength = Number(request.headers.get("content-length") || 0);
     if (contentLength > MAX_BYTES + 512 * 1024) return NextResponse.json({ message: "5 Mo maximum par image." }, { status: 413 });
