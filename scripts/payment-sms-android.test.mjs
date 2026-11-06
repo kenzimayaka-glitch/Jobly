@@ -4,12 +4,15 @@ import { readFileSync } from "node:fs";
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 
-test("Jobly APK receives SMS only with the declared restricted permission", () => {
-  const manifest = read("../apps/android/app/src/main/AndroidManifest.xml");
+test("only the internal merchant APK declares the restricted SMS receiver", () => {
+  const playManifest = read("../apps/android/app/src/main/AndroidManifest.xml");
+  const internalManifest = read("../apps/android/app/src/internal/AndroidManifest.xml");
   const receiver = read("../apps/android/app/src/main/java/com/jobly/android/PaymentSmsReceiver.kt");
-  assert.match(manifest, /android\.permission\.RECEIVE_SMS/);
-  assert.match(manifest, /\.PaymentSmsReceiver/);
-  assert.ok(manifest.includes('android:permission="android.permission.BROADCAST_SMS"'));
+  assert.doesNotMatch(playManifest, /android\.permission\.RECEIVE_SMS/);
+  assert.doesNotMatch(playManifest, /\.PaymentSmsReceiver/);
+  assert.match(internalManifest, /android\.permission\.RECEIVE_SMS/);
+  assert.match(internalManifest, /\.PaymentSmsReceiver/);
+  assert.ok(internalManifest.includes('android:permission="android.permission.BROADCAST_SMS"'));
   assert.match(receiver, /SMS_RECEIVED_ACTION/);
   assert.match(receiver, /findUniqueForSender\(context, senderId\)/);
   assert.ok(receiver.indexOf("findUniqueForSender(context, senderId)") < receiver.indexOf("enqueueUniqueWork"));
@@ -58,6 +61,9 @@ test("pairing and SMS permission requests use the existing origin-restricted Job
   assert.match(activity, /REQUEST_PAYMENT_SMS_PERMISSION/);
   assert.match(activity, /cancelAllWorkByTag\(PaymentSmsReceiver\.deviceTag\(deviceId\)\)/);
   assert.match(activity, /requestPermissions\(arrayOf\(Manifest\.permission\.RECEIVE_SMS\)/);
+  assert.match(activity, /if \(!BuildConfig\.PAYMENT_SMS_AUTORECEIVE_ENABLED\)/);
+  assert.match(bridge, /isJoblyAndroidPaymentSmsAutoReceiveAvailable/);
+  assert.match(page, /autoSmsReceiveAvailable/);
   assert.match(bridge, /PAIR_PAYMENT_SMS_DEVICE/);
   assert.ok(bridge.includes("revokeJoblyPaymentSmsDeviceLocally(deviceId: string)"));
   assert.ok(bridge.includes("payload: { deviceId }"));
@@ -75,8 +81,10 @@ test("pairing and SMS permission requests use the existing origin-restricted Job
 test("the native receiver remains inside the existing Jobly Android package", () => {
   const receiver = read("../apps/android/app/src/main/java/com/jobly/android/PaymentSmsReceiver.kt");
   const manifest = read("../apps/android/app/src/main/AndroidManifest.xml");
+  const internalManifest = read("../apps/android/app/src/internal/AndroidManifest.xml");
   assert.match(receiver, /^package com\.jobly\.android/m);
   assert.match(manifest, /android:name="\.MainActivity"/);
+  assert.match(internalManifest, /android:name="\.PaymentSmsReceiver"/);
   assert.doesNotMatch(manifest, /<application[^>]*android:process=/);
 });
 
@@ -113,6 +121,8 @@ test("administrator manages central MTN and Orange settings from Web, PWA and th
 test("Android receives only one explicitly shared SMS without inbox-read permission", () => {
   const manifest = read("../apps/android/app/src/main/AndroidManifest.xml");
   const activity = read("../apps/android/app/src/main/java/com/jobly/android/MainActivity.kt");
+  assert.doesNotMatch(manifest, /android\.permission\.RECEIVE_SMS/);
+  assert.doesNotMatch(manifest, /\.PaymentSmsReceiver/);
   assert.match(manifest, /android\.intent\.action\.SEND/);
   assert.match(manifest, /android\.intent\.category\.DEFAULT/);
   assert.match(manifest, /android:mimeType="text\/plain"/);
@@ -125,6 +135,21 @@ test("Android receives only one explicitly shared SMS without inbox-read permiss
   assert.match(activity, /jobly:payment-sms-shared/);
   assert.match(activity, /pendingSharedPaymentSms = null/);
   assert.doesNotMatch(activity, /READ_SMS/);
+});
+
+test("Google Play and internal Android variants keep SMS permission scopes separate", () => {
+  const gradle = read("../apps/android/app/build.gradle.kts");
+  const playManifest = read("../apps/android/app/src/main/AndroidManifest.xml");
+  const internalManifest = read("../apps/android/app/src/internal/AndroidManifest.xml");
+  const readme = read("../apps/android/README.md");
+  assert.match(gradle, /create\("play"\)[\s\S]*?PAYMENT_SMS_AUTORECEIVE_ENABLED", "false"/);
+  assert.match(gradle, /create\("internal"\)[\s\S]*?applicationIdSuffix = "\.internal"/);
+  assert.match(gradle, /PAYMENT_SMS_AUTORECEIVE_ENABLED", "true"/);
+  assert.doesNotMatch(playManifest, /RECEIVE_SMS|PaymentSmsReceiver/);
+  assert.match(internalManifest, /RECEIVE_SMS/);
+  assert.match(internalManifest, /PaymentSmsReceiver/);
+  assert.match(readme, /bundlePlayRelease/);
+  assert.match(readme, /Partager.*Jobly/);
 });
 
 test("customer SMS analysis is corroborative and cannot finalize an entitlement by itself", () => {

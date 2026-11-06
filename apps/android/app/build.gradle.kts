@@ -22,6 +22,20 @@ android {
         buildConfigField("String", "JOBLY_BASE_URL", "\"$joblyBaseUrl\"")
     }
 
+    flavorDimensions += "distribution"
+
+    productFlavors {
+        create("play") {
+            dimension = "distribution"
+            buildConfigField("boolean", "PAYMENT_SMS_AUTORECEIVE_ENABLED", "false")
+        }
+        create("internal") {
+            dimension = "distribution"
+            applicationIdSuffix = ".internal"
+            buildConfigField("boolean", "PAYMENT_SMS_AUTORECEIVE_ENABLED", "true")
+        }
+    }
+
     buildFeatures {
         buildConfig = true
     }

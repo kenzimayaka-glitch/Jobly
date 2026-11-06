@@ -36,15 +36,22 @@ Le shell Android réutilise une seule WebView pour Jobly, le formulaire externe 
 
 Ouvre le dossier apps/android dans Android Studio, installe Android SDK 36 et utilise JDK 17.
 
-Commande avec Gradle 8.13 installé :
+Les variantes sont séparées pour respecter Google Play sans supprimer le flux de réception automatique réservé aux appareils marchands internes :
+
+- **Play Store** : package `com.jobly.android`, sans permission `RECEIVE_SMS` et sans receiver système. Le candidat ou le payeur ouvre le SMS dans son application Messages puis choisit **Partager → Jobly**. Jobly analyse uniquement le reçu explicitement partagé et attend toujours la preuve indépendante du compte marchand avant d'activer un abonnement.
+- **Interne marchand** : package `com.jobly.android.internal`, avec le receiver automatique de SMS pour les téléphones SIM marchands administrés par Jobly. Cette variante n'est pas destinée au Google Play Store.
+
+Commandes avec Gradle 8.13 installé :
 
     gradle -p apps/android :app:assembleDebug
+    gradle -p apps/android :app:bundlePlayRelease
+    gradle -p apps/android :app:assembleInternalDebug
 
 Pour compiler avec une URL Vercel de prévisualisation :
 
-    gradle -p apps/android -PjoblyBaseUrl=https://TON-URL-VERCEL :app:assembleDebug
+    gradle -p apps/android -PjoblyBaseUrl=https://TON-URL-VERCEL :app:assemblePlayDebug
 
-L'URL par défaut est https://jobly-c0651.vercel.app. Le binaire debug est produit dans apps/android/app/build/outputs/apk/debug/.
+L'URL par défaut est https://jobly-c0651.vercel.app. Le bundle Play de validation est produit dans `apps/android/app/build/outputs/bundle/playRelease/`. Le bundle créé par CI est non signé tant que le keystore de publication n'est pas fourni via un secret de signature configuré séparément.
 
 ## État de livraison
 
@@ -64,4 +71,4 @@ Le téléphone Android marchand utilise ce même package `com.jobly.android` et 
 
 ### Permission SMS restreinte
 
-Le manifeste déclare `RECEIVE_SMS` et l'APK demande l'autorisation après l'appairage. Certaines versions Android et certains modes d'installation appliquent une restriction supplémentaire. L'appairage et le build APK ne prouvent donc pas que la permission est réellement accordée. Il faut vérifier l'état de permission et la réception d'un SMS opérateur sur le modèle physique qui portera la SIM marchande.
+La variante Play Store ne déclare ni `RECEIVE_SMS`, ni receiver de réception en arrière-plan. Le reçu client arrive uniquement par le partage explicite du SMS. La variante interne conserve le flux automatique de réception pour les téléphones marchands administrés et doit être distribuée hors Play. La variante Play doit être publiée avec `:app:bundlePlayRelease`, puis testée sur une piste interne Google Play; la compilation seule ne vaut pas approbation de la fiche ni validation de signature.

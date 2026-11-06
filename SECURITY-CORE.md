@@ -1,38 +1,55 @@
-# Jobly Security Core — première livraison
+# Jobly Security Core — état vérifié au 6 novembre 2026
 
-Date : 6 novembre 2026  
-Branche : `feat/jobly-security-core-20261106`  
-Base main synchronisée : `3f54986968c8752aa4d8083ba3f3439b4bdbbd9c`
+## Production déjà protégée
 
-## Implémenté dans cette branche
-- Rate limiter atomique partagé entre instances Next.js et stocké en base; limites par compte + IP sur le feed, les opportunités, les droits et abonnements, la création/annulation d'abonnement, la vérification de paiement, les collectes/réindexations et l'ingestion des SMS marchands; limitation IP sur le détail d'offre.
-- Les identifiants d'IP et de compte sont HMAC-SHA-256; aucune IP brute ni identifiant brut n'est stocké dans les compteurs. Les erreurs DB/config ferment l'accès avec 503; dépassement retourne 429 et Retry-After.
-- Migration pour retirer les accès directs anon/authenticated aux tables `Job`, `RecruiterJob`, `Company`, `JobHarvestCapture`, `JobOfferPipeline` et `JobSource`; les routes serveur existantes utilisent le client serveur privilégié. L'audit Supabase a constaté que `JobOfferPipeline` et `JobSource` n'avaient déjà pas de grants de lecture aux rôles API, mais la migration fixe explicitement cette règle.
-- En-têtes web: HSTS, nosniff, anti-framing, Referrer-Policy, Permissions-Policy; API no-store/noindex; source maps de production désactivées; X-Powered-By désactivé.
-- Renforcement Android: resource shrinking R8 et règle keep pour le worker WorkManager. R8/minification, `allowBackup=false`, HTTP clair désactivé et bridge WebView origin-bound étaient déjà présents.
-- Le Service Worker existant contourne déjà les réponses `/api/`, `/auth/`, `/_next/data/` pour ne pas mettre en cache les données privées.
+- PR #252 fusionnée sur `main`, commit `19b584eec939d9162f7c9306246eeea1d34fcd79`.
+- Migration Supabase `20261106091500_jobly_security_core` appliquée sur JOBLY-PROD (`mpoyaegtwtmhookdzqdy`) et smoke test exécuté.
+- Les accès directs anon/authenticated aux tables sensibles `Job`, `RecruiterJob`, `Company`, `JobHarvestCapture`, `JobOfferPipeline`, `JobSource` sont révoqués; la lecture serveur `service_role` est préservée.
+- Le catalogue comptait 2 715 offres actives au contrôle suivant migration.
+- Limiteur atomique partagé entre instances, identifiants HMAC-SHA-256, réponses 429/Retry-After, et fermeture 503 si le contrôle serveur ne peut pas être effectué.
+- Secret `JOBLY_RATE_LIMIT_SECRET` configuré dans les environnements Vercel Production, Preview et Development.
+- En-têtes HTTP de sécurité, anti-cache des API, sourcemaps de production protégées/désactivées et réponse `X-Powered-By` retirée.
+- Android : R8 et resource shrinking activés; règles ProGuard pour le worker WorkManager.
+- Déploiement Vercel de production vérifié `READY` sur `jobly-c0651.vercel.app`; aucun runtime error dans l'heure contrôlée.
 
-## Non déclaré comme actif
-- Play Integrity (client + vérification serveur Google) : nécessite Play Console, configuration Google Cloud et identité serveur; aucune vérification fictive ajoutée.
-- CSP stricte : reportée jusqu'à l'inventaire des fournisseurs externes afin de ne pas casser OAuth, paiements, médias et J'IA.
-- WAF / Bot Management / Turnstile : pas activé dans cette PR; le rate limiting n'arrête pas le scraping distribué.
-- Les endpoints de droits et d'abonnement recalculent toujours les droits côté serveur via les lignes Subscription/PromoRedemption et isEligibleSubscription; les endpoints de vérification paiement restent liés au propriétaire interne du paiement et à la finalisation serveur. L'audit exhaustif de chaque action Premium dans tous les modules reste à compléter : chaque fonction protégée doit appeler la règle d'entitlement côté serveur, jamais lire un drapeau client.
+## Deuxième vague en préparation sur branche dédiée
 
-## Blocages externes
-1. Le dépôt GitHub `kenzimayaka-glitch/Jobly` est actuellement **public**. Tant qu'il reste public, le code source et cette branche sont clonables. L'intégration ne permet pas de changer la visibilité; si le code est propriétaire, passer le dépôt en privé dans GitHub Settings > General > Danger Zone, puis vérifier Actions et Vercel.
-2. La migration Supabase incluse n'a pas été appliquée à JOBLY-PROD. Le nouveau code du limiter échouera volontairement en 503 tant que la migration n'est pas appliquée; déployer dans l'ordre migration, smoke test, puis application.
-3. Supabase Security Advisor signalait la protection contre les mots de passe compromis désactivée; l'activer dans Auth > Password Security.
-4. L'état Secret Scanning / Push Protection n'a pas pu être lu via l'intégration; vérifier et activer sur GitHub.
-5. L'accès au endpoint branch-protection a répondu 403; les règles branch protection de main doivent être contrôlées manuellement. Le endpoint rulesets ne retournait aucun ruleset.
+Branche : `feat/security-red-remediation-20261106` (non fusionnée tant que les contrôles CI et la revue ne sont pas terminés).
 
-## Ingestion
-Les Edge Functions Harvest à `verify_jwt=false` inspectées vérifient dans leur code un JWT GitHub Actions OIDC (issuer, audience, repository, ref). Ne pas les basculer aveuglément vers le JWT Supabase, ce qui casserait le pipeline OIDC.
+- Android Play/internal split : la variante `play` conserve le package public `com.jobly.android`, mais ne déclare ni `RECEIVE_SMS` ni receiver système. Le paiement côté utilisateur passe par le partage volontaire d'un reçu depuis Messages vers Jobly; l'API n'active pas l'abonnement sur cette seule preuve.
+- Variante `internal` : conserve la réception automatique pour le téléphone marchand géré par Jobly, avec package distinct `com.jobly.android.internal`; elle n'est pas destinée au Play Store.
+- L'interface d'administration affiche la capacité réelle de la variante Android avant de proposer la permission.
+- Validation AAB Play ajoutée en CI. L'artefact de validation est non signé tant qu'un keystore de publication n'est pas fourni par secret; aucun upload Play Console n'a été effectué.
+- Réévaluation Career Journey : contrôle START+ et limitation partagée par compte/IP.
+- Lots de candidatures : vérification serveur des limites de postulation groupée et du quota hebdomadaire avant création.
+- Gmail recruteur : rôle RECRUITER/ADMIN requis; utilisation et stockage des jetons Gmail réservés aux plans PREMIUM/PRO.
+- J'IA proactive : limite atomique partagée compte/IP au lieu d'une Map mémoire par instance.
+- Tests de régression d'entitlements et CodeQL v4 pour TypeScript/JavaScript, Kotlin et workflows; Dependabot hebdomadaire ajouté.
 
-## Ordre de mise en production
-1. Régler la visibilité privée du dépôt si le code doit être propriétaire.
-2. Examiner et appliquer la migration via le processus normal Supabase; vérifier les advisors et le smoke test.
-3. Tester le feed Talent/recruteur, les détails publics, Company et les candidatures (les lectures directes Data API sont volontairement fermées).
-4. Déployer le code seulement après vérification de la migration.
-5. Ajouter Play Integrity et une CSP stricte lorsque les prérequis externes seront configurés.
+## Contrôles externes toujours requis
 
-Aucune migration n'a été exécutée sur la production, aucune configuration Vercel n'a été modifiée et aucun déploiement/merge n'a été effectué par cette branche.
+1. **GitHub dépôt public** : la visibilité actuelle reste `public`. L'intégration connectée ne possède pas l'action d'administration pour le passer en privé. Si le code est propriétaire, changer la visibilité dans GitHub Settings → General → Danger Zone.
+2. **Protection de `main`** : les règles de revue obligatoire, statuts requis, interdiction du force push/deletion et absence de bypass doivent être activées depuis les réglages GitHub; l'action connectée ne sait pas écrire ces règles.
+3. **Secret Scanning / Push Protection** : activation à confirmer depuis GitHub Code Security; un workflow CodeQL ne remplace pas ces fonctions.
+4. **Supabase Auth — mots de passe compromis** : l'option Leaked Password Protection reste à activer dans Auth → Password Security lorsque disponible sur le plan du projet.
+5. **Vercel WAF personnalisé / Bot Management** : le projet Hobby n'avait pas de configuration Seawall initialisée (API retourne `Seawall Config not found`). Ne pas déclarer de règle custom active. La mitigation DDoS de plateforme est distincte de ces règles personnalisées.
+6. **Turnstile** : les clés `TURNSTILE_*` sont absentes; l'intégration n'est pas active.
+7. **Play Integrity** : pas encore configuré côté Play Console + Google Cloud, et aucun verdict n'est vérifié par le serveur. Ne pas assimiler la signature ou R8 à Play Integrity.
+8. **Signature release Android** : l'AAB de validation CI ne sera pas publiable avant configuration d'un keystore release sécurisé et d'une piste de test Google Play.
+9. **Audit Premium exhaustif** : 186 routes API ont été recensées. La deuxième vague couvre les contournements identifiés ci-dessus, mais toutes les actions Premium dans chaque module n'ont pas encore une matrice d'évidence complète.
+10. **Supabase `pg_net`** : l'extension est non-relocatable et une tâche cron l'utilise. Ne pas la déplacer sans migration coordonnée de la tâche.
+
+## Modèle Android SMS et Google Play
+
+- Le bundle destiné au Play Store ne demande pas l'accès à la boîte SMS; le payeur partage manuellement un reçu choisi.
+- Le receiver automatique appartient uniquement à la variante interne de l'appareil marchand.
+- Le SMS client reste une preuve de corroboration; l'abonnement ne devient actif qu'après confirmation indépendante du compte marchand ou prestataire.
+- Le ciblage Android est API 36; la compilation ne remplace pas les tests sur appareils physiques, la signature release et l'examen de Google Play.
+
+## Ordre de validation de cette deuxième vague
+
+1. Contrôles CI Node/TypeScript/Android et CodeQL.
+2. Vérification des manifests fusionnés Play et internal, build `bundlePlayRelease`, instrumentation tests.
+3. Audit des changements API Premium et test de non-régression FREE/START/PREMIUM/PRO.
+4. Fusion du PR après CI verte, puis un seul déploiement Vercel Production.
+5. Vérifications post-déploiement; upload Google Play seulement après signature release et piste de test.
