@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       endpoint: "/api/payments/sms/config",
       metadata: {
         provider,
-        merchantAccount,
+        merchantAccountLast4: merchantAccount.slice(-4),
         merchantCodeChanged,
         updatedAt: now,
       },
