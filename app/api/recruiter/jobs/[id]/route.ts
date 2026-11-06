@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, cleanStrings, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
 import { enforceRecruiterMarketEntitlement, normalizeRecruiterMarket } from "../../../../../lib/recruiterMarket";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -24,7 +25,15 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const user = await ensureUser(supabase, authUser);
     const job = await loadOwnedJob(supabase, user.id, id);
     if (!job) return NextResponse.json({ message: "Offre introuvable." }, { status: 404 });
-    return NextResponse.json({ job });
+    const limited = await enforceApiRateLimit(req, supabase, {
+      scope: "recruiter-job-read",
+      identity: user.id,
+      accountWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 600, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 100, windowSeconds: 60 }, { limit: 1000, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
+    return NextResponse.json({ job }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (e) {
     return NextResponse.json({ message: e instanceof Error ? e.message : "Erreur." }, { status: 500 });
   }
@@ -39,18 +48,28 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     const user = await ensureUser(supabase, authUser);
     const existing = await loadOwnedJob(supabase, user.id, id);
     if (!existing) return NextResponse.json({ message: "Offre introuvable." }, { status: 404 });
-
-    const b = await req.json();
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    if (contentLength > 64 * 1024) return NextResponse.json({ message: "Mise à jour d'offre trop volumineuse." }, { status: 413 });
+    const limited = await enforceApiRateLimit(req, supabase, {
+      scope: "recruiter-job-update",
+      identity: user.id,
+      accountWindows: [{ limit: 10, windowSeconds: 60 }, { limit: 60, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 20, windowSeconds: 60 }, { limit: 120, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
+    const b = await req.json().catch(() => null);
+    if (!b || typeof b !== "object" || Array.isArray(b)) return NextResponse.json({ message: "Données d'offre invalides." }, { status: 400 });
     const payload: Record<string, unknown> = { updatedAt: new Date().toISOString() };
 
     if (typeof b.title === "string") {
       const title = b.title.trim();
-      if (!title) return NextResponse.json({ message: "Le titre est obligatoire." }, { status: 400 });
+      if (!title || title.length > 160) return NextResponse.json({ message: "Le titre est obligatoire et limité à 160 caractères." }, { status: 400 });
       payload.title = title;
     }
     if (typeof b.description === "string") {
       const description = b.description.trim();
-      if (!description) return NextResponse.json({ message: "La description est obligatoire." }, { status: 400 });
+      if (!description || description.length > 12000) return NextResponse.json({ message: "La description est obligatoire et limitée à 12 000 caractères." }, { status: 400 });
       payload.description = description;
     }
     if (typeof b.location === "string") payload.location = b.location.trim() || null;
@@ -83,7 +102,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       .single();
     if (error) throw new Error(error.message);
 
-    return NextResponse.json({ job: data });
+    return NextResponse.json({ job: data }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (e) {
     return NextResponse.json({ message: e instanceof Error ? e.message : "Erreur." }, { status: 500 });
   }
@@ -98,6 +117,14 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
     const user = await ensureUser(supabase, authUser);
     const existing = await loadOwnedJob(supabase, user.id, id);
     if (!existing) return NextResponse.json({ message: "Offre introuvable." }, { status: 404 });
+    const limited = await enforceApiRateLimit(req, supabase, {
+      scope: "recruiter-job-delete",
+      identity: user.id,
+      accountWindows: [{ limit: 5, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 10, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
 
     const { error } = await supabase
       .from("RecruiterJob")
