@@ -249,3 +249,14 @@ test("distinguishes an explicit customer-side merchant number from a configured 
   assert.equal(noRecipient.merchantAccount, "237699095589");
   assert.equal(noRecipient.merchantAccountFromMessage, false);
 });
+
+
+test("does not accept a negated finalized customer payment", () => {
+  const result = parsePaymentSms({
+    senderId: "MTN-SENDER-TEST",
+    body: "Votre paiement de 10 000 FCFA vers 237699095589 n'a pas été finalisé. Transaction ID: 18163059064.",
+  }, liveShapeConfig);
+  assert.equal(result.direction, "OUTBOUND");
+  assert.equal(result.status, "FAILED");
+  assert.ok(result.fraudFlags.includes("MESSAGE_NOT_CONFIRMED_SUCCESS"));
+});
