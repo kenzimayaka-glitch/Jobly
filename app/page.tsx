@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { AnimatePresence, motion, animate } from "framer-motion";
+import { AnimatePresence, motion, animate, useReducedMotion } from "framer-motion";
 import {
   loginWithUsernamePassword,
   requestEmailOtp,
@@ -163,7 +163,6 @@ function CountryPicker({ country, onChange, placeholder }: { country: Country; o
 const translations = {
   fr: {
     title: "Votre avenir\ncommence ici",
-    subtitle: "Rejoignez des milliers d’opportunités.",
     google: "Continuer avec Google",
     conditions: "En continuant, vous acceptez nos Conditions et Politique de confidentialité",
     create: "Créer mon compte",
@@ -212,7 +211,6 @@ const translations = {
   },
   en: {
     title: "Your future\nstarts here",
-    subtitle: "Join thousands of opportunities.",
     google: "Continue with Google",
     conditions: "By continuing, you agree to our Terms and Privacy Policy",
     create: "Create my account",
@@ -259,6 +257,33 @@ const translations = {
     madeWith: "Made with",
     by: "by MAYAKA",
   },
+} as const;
+
+const HOME_HEADLINES = {
+  fr: [
+    "L’Afrique en mouvement.",
+    "Talents et opportunités réunis.",
+    "Les entreprises trouvent leurs talents.",
+    "Recruter autrement, simplement.",
+    "Des carrières qui prennent leur élan.",
+    "Des compétences qui font la différence.",
+    "Des partenariats qui ouvrent des portes.",
+    "Des projets qui prennent vie.",
+    "L’intelligence au service des ambitions.",
+    "Un écosystème, mille possibilités.",
+  ],
+  en: [
+    "Africa in motion.",
+    "Where talent meets opportunity.",
+    "Businesses find their talent.",
+    "Recruit differently. Simply.",
+    "Careers move forward.",
+    "Skills that make a difference.",
+    "Partnerships that open doors.",
+    "Projects come to life.",
+    "Intelligence for your ambitions.",
+    "One ecosystem. A thousand possibilities.",
+  ],
 } as const;
 
 const BENEFITS = {
@@ -462,6 +487,8 @@ const JOURNEY_SLIDES = [
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("welcome");
+  const [headlineIndex, setHeadlineIndex] = useState(0);
+  const prefersReducedMotion = useReducedMotion();
   const [homeStats, setHomeStats] = useState<PublicHomeStats | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -536,6 +563,14 @@ export default function Home() {
       window.clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    if (screen !== "welcome") return;
+    const interval = window.setInterval(() => {
+      setHeadlineIndex((current) => (current + 1) % HOME_HEADLINES.fr.length);
+    }, 4000);
+    return () => window.clearInterval(interval);
+  }, [screen]);
 
   // Piège "retour" DÉFINITIF (15/09/2026) : la version du 14/09 encodait bien
   // l'écran dans history.state, mais elle ne posait qu'UNE seule entrée de
@@ -846,12 +881,12 @@ export default function Home() {
           <Image src="/jobly-logo-official-transparent.png" alt="JOBLY — Your Career OS" width={400} height={120} className={screen === "welcome" ? "h-auto w-[116px] object-contain sm:w-[175px]" : "h-auto w-[150px] object-contain"} priority />
         </div>
         {screen === "welcome" && <div role="group" aria-label="Choisir la langue / Choose language" className="relative isolate flex items-center gap-1 rounded-full bg-[#EEF1F5] p-1.5 shadow-inner">
-          <motion.button type="button" aria-label="Français" aria-pressed={lang === "fr"} whileTap={{ scale: 0.94 }} onClick={() => { setLang("fr"); try { localStorage.setItem("jobly-lang", "fr"); } catch {} }} className="relative isolate inline-flex min-w-[64px] items-center justify-center gap-1 rounded-full px-2 py-2.5 text-[13px] font-bold tracking-wide text-[#0A1931] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD60A] focus-visible:ring-offset-2">
+          <motion.button type="button" aria-label="Français" aria-pressed={lang === "fr"} whileTap={{ scale: 0.94 }} onClick={() => { setLang("fr"); setHeadlineIndex(0); try { localStorage.setItem("jobly-lang", "fr"); } catch {} }} className="relative isolate inline-flex min-w-[64px] items-center justify-center gap-1 rounded-full px-2 py-2.5 text-[13px] font-bold tracking-wide text-[#0A1931] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD60A] focus-visible:ring-offset-2">
             {lang === "fr" && <motion.span layoutId="jobly-language-active" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 -z-10 rounded-full bg-white shadow-[0_2px_9px_rgba(10,25,49,0.13)]" />}
             <motion.span aria-hidden="true" animate={lang === "fr" ? { y: [0, -1, 0], rotate: [0, -3, 0, 3, 0] } : { y: 0, rotate: 0 }} transition={lang === "fr" ? { duration: 2.8, repeat: Infinity, ease: "easeInOut" } : { duration: 0.18 }} className="relative z-10 text-[21px] leading-none">🇫🇷</motion.span>
             <span className="relative z-10">FR</span>
           </motion.button>
-          <motion.button type="button" aria-label="English" aria-pressed={lang === "en"} whileTap={{ scale: 0.94 }} onClick={() => { setLang("en"); try { localStorage.setItem("jobly-lang", "en"); } catch {} }} className="relative isolate inline-flex min-w-[64px] items-center justify-center gap-1 rounded-full px-2 py-2.5 text-[13px] font-bold tracking-wide text-[#0A1931] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD60A] focus-visible:ring-offset-2">
+          <motion.button type="button" aria-label="English" aria-pressed={lang === "en"} whileTap={{ scale: 0.94 }} onClick={() => { setLang("en"); setHeadlineIndex(0); try { localStorage.setItem("jobly-lang", "en"); } catch {} }} className="relative isolate inline-flex min-w-[64px] items-center justify-center gap-1 rounded-full px-2 py-2.5 text-[13px] font-bold tracking-wide text-[#0A1931] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD60A] focus-visible:ring-offset-2">
             {lang === "en" && <motion.span layoutId="jobly-language-active" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 -z-10 rounded-full bg-white shadow-[0_2px_9px_rgba(10,25,49,0.13)]" />}
             <motion.span aria-hidden="true" animate={lang === "en" ? { y: [0, -1, 0], rotate: [0, -3, 0, 3, 0] } : { y: 0, rotate: 0 }} transition={lang === "en" ? { duration: 2.8, repeat: Infinity, ease: "easeInOut" } : { duration: 0.18 }} className="relative z-10 text-[21px] leading-none">🇬🇧</motion.span>
             <span className="relative z-10">EN</span>
@@ -885,9 +920,20 @@ export default function Home() {
                   <svg aria-hidden="true" width="56" height="8" viewBox="0 0 56 8" className="mt-4 overflow-visible sm:mt-5">
                     <path d="M2 2 C18 6 39 6 54 2" fill="none" stroke="#FFD60A" strokeWidth="5" strokeLinecap="round" />
                   </svg>
-                  <p className="mt-3 max-w-[205px] font-[var(--font-inter)] text-[14px] leading-[1.45] text-[#27364A] sm:mt-4 sm:text-[17px]">
-                    {translations[lang].subtitle}
-                  </p>
+                  <div aria-live="off" className="relative mt-3 h-[48px] w-full max-w-[205px] sm:mt-4">
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.p
+                        key={`${lang}-${headlineIndex}`}
+                        initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 7 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: prefersReducedMotion ? 0 : -7 }}
+                        transition={{ duration: prefersReducedMotion ? 0.18 : 0.55, ease: "easeOut" }}
+                        className="absolute inset-0 flex items-center font-[var(--font-inter)] text-[14px] font-semibold leading-[1.35] tracking-[-0.01em] text-[#27364A] sm:text-[16px]"
+                      >
+                        {HOME_HEADLINES[lang][headlineIndex]}
+                      </motion.p>
+                    </AnimatePresence>
+                  </div>
                 </div>
                 <div className="jobly-public-home-image pointer-events-none absolute bottom-0 right-[-10%] top-[10%] z-10 w-[82%] sm:right-[-5%] sm:top-[8%] sm:w-[78%] lg:right-0 lg:top-[2%] lg:w-[62%]">
                   <Image
