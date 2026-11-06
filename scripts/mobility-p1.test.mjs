@@ -93,8 +93,9 @@ test("le Talent ne peut pas fournir le salaire de référence", () => {
 
 test("le gate Premium utilise planCode et une liste de plans autorisés", () => {
   const server = readFileSync(new URL("../lib/mobilityServer.ts", import.meta.url), "utf8");
-  assert.match(server, /select\("planCode,status,currentPeriodEnd,trialEndsAt"\)/);
+  assert.match(server, /resolveActiveEntitlements\(sb, user\.id, "TALENT"\)/);
   assert.match(server, /new Set\(\["START", "PREMIUM", "PRO"\]\)/);
+  assert.doesNotMatch(server, /status === "TRIALING"/);
 });
 
 test("les rapports Mobility ne sortent que les dossiers reliés à l'acteur", () => {

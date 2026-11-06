@@ -4,7 +4,8 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "../../lib/supabase";
-import { completeSignupProfile, checkUsernameAvailable, validatePassword } from "../../lib/auth";
+import { completeSignupProfile, checkUsernameAvailable } from "../../lib/auth";
+import { validateNewPassword } from "../../lib/passwordPolicy";
 import { assertPasswordNotPwned } from "../../lib/pwnedPasswords";
 
 const DRAFT_KEY = "jobly-signup-draft";
@@ -218,7 +219,7 @@ export default function OnboardingPage() {
         return setMessage("Impossible de vérifier le username. Vérifie ta connexion et réessaie.");
       }
     }
-    const passwordError = validatePassword(password);
+    const passwordError = validateNewPassword(password);
     if (passwordError) return setMessage(passwordError);
     if (!privacyAccepted) return setMessage("Tu dois accepter les conditions et la politique de confidentialité.");
 
@@ -296,6 +297,7 @@ export default function OnboardingPage() {
           </label>
           <label className="mt-2.5 block"><span className="mb-1 block text-[11px] font-extrabold text-[#0A1931]">Mot de passe</span><div className="flex h-[47px] items-center rounded-2xl border border-slate-200 bg-white px-4 shadow-sm focus-within:border-[#0D4BE0] focus-within:ring-2 focus-within:ring-[#0D4BE0]/10"><input type={showPassword ? "text" : "password"} value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="Crée un mot de passe sécurisé" autoComplete="new-password" className="w-full bg-transparent text-[14px] font-semibold outline-none"/><button type="button" aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"} onClick={()=>setShowPassword(v=>!v)} className="ml-2 text-slate-400"><EyeIcon open={showPassword}/></button></div></label>
           <PasswordStrengthGauge password={password} />
+          <p className="mt-1 text-[10px] leading-[1.35] text-slate-500">12 caractères minimum, avec majuscule, minuscule, chiffre et symbole. Les mots de passe compromis sont refusés.</p>
           <p className="mt-3 text-[10px] leading-[1.35] text-slate-500">En continuant, tu acceptes nos Conditions et Politique de confidentialité.</p>
           <label className="mt-1.5 flex items-start gap-2.5"><input type="checkbox" checked={privacyAccepted} onChange={e=>setPrivacyAccepted(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#0D4BE0]"/><span className="text-[10px] leading-[1.35] text-slate-500">J'accepte les <a href="/legal/terms" className="font-bold text-[#0D4BE0] underline">Conditions d'utilisation</a> et la <a href="/legal/privacy" className="font-bold text-[#0D4BE0] underline">Politique de confidentialité</a>.</span></label>
         </div>

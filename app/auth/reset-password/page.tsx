@@ -138,7 +138,7 @@ function ResetPasswordInner() {
               </label>
 
               <p className="mb-4 text-[11px] leading-[1.35] text-slate-500">
-                Minimum 6 caractères avec minuscule, majuscule, chiffre et caractère spécial.
+                12 caractères minimum, avec minuscule, majuscule, chiffre et symbole. Les mots de passe compromis sont refusés.
               </p>
 
               <button type="button" onClick={submit} disabled={busy} className="h-[52px] w-full rounded-2xl bg-[#FFDE00] text-base font-extrabold text-black disabled:opacity-50">

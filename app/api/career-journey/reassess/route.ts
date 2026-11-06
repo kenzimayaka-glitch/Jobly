@@ -1,10 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { getOrCreateJourney, generateJourneyRecommendations } from "@/lib/careerJourney";
+import { getCareerJourneyEntitlements } from "@/lib/careerJourneyEntitlements";
+import { enforceApiRateLimit } from "@/lib/server-security";
 
 export async function POST(request: NextRequest) {
   try {
     const ctx = await getOrCreateJourney(request);
+    const rateLimited = await enforceApiRateLimit(request, ctx.supabase, {
+      scope: "career-reassess",
+      identity: ctx.user.id,
+      accountWindows: [{ limit: 2, windowSeconds: 86400 }, { limit: 8, windowSeconds: 604800 }],
+      ipWindows: [{ limit: 20, windowSeconds: 86400 }, { limit: 60, windowSeconds: 604800 }],
+      requireIp: true,
+    });
+    if (rateLimited) return rateLimited;
+
+    const entitlement = await getCareerJourneyEntitlements(ctx.supabase, ctx.user.id);
+    if (!entitlement.canPeriodicReview) {
+      return NextResponse.json({ message: "La réévaluation périodique est disponible à partir de Start.", requiredPlan: "START" }, { status: 403 });
+    }
+    if (!ctx.journey.consentFollowUp || ctx.journey.reviewFrequency === "OFF") {
+      return NextResponse.json({ message: "La réévaluation périodique nécessite le consentement de suivi et une fréquence active." }, { status: 400 });
+    }
+
     const end = new Date();
     const start = new Date(end);
     start.setDate(end.getDate() - 30);

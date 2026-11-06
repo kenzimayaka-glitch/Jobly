@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { adminClient, ensureUser, getAuthUser } from "./server-auth";
 import type { NextRequest } from "next/server";
+import { getActivePlanCode } from "./entitlements";
 
 function encryptionKey() {
   const root = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -24,18 +25,37 @@ export function decryptToken(value: string) {
   return Buffer.concat([decipher.update(Buffer.from(ciphertextRaw, "base64url")), decipher.final()]).toString("utf8");
 }
 
-export async function recruiterContext(req: NextRequest) {
+type RecruiterContext = { authUser: any; supabase: any; user: any };
+
+export async function recruiterContext(req: NextRequest): Promise<RecruiterContext | null> {
   const authUser = await getAuthUser(req);
   if (!authUser) return null;
   const supabase = adminClient();
   const user = await ensureUser(supabase, authUser);
+  const profile = await supabase.from("RecruiterProfile").select("id").eq("userId", user.id).maybeSingle();
+  if (profile.error) throw new Error(profile.error.message);
+  if (!["RECRUITER", "ADMIN"].includes(String(user.role || "").toUpperCase()) && !profile.data) {
+    throw new Error("RECRUITER_ROLE_REQUIRED");
+  }
   return { authUser, supabase, user };
+}
+
+export function hasRecruiterGmailEntitlement(planCode: string): boolean {
+  return new Set(["PREMIUM", "PRO"]).has(String(planCode || "").toUpperCase());
+}
+
+async function assertRecruiterGmailEntitlement(context: RecruiterContext): Promise<void> {
+  const plan = await getActivePlanCode(context.supabase, context.user.id, "RECRUITER");
+  if (!hasRecruiterGmailEntitlement(plan)) {
+    throw new Error("RECRUITER_GMAIL_PREMIUM_REQUIRED");
+  }
 }
 
 export async function saveGmailTokens(req: NextRequest, payload: { email: string; accessToken?: string | null; refreshToken?: string | null; scopes?: string[] }) {
   const context = await recruiterContext(req);
   if (!context) throw new Error("Session Jobly requise.");
   const now = new Date();
+  await assertRecruiterGmailEntitlement(context);
   const { supabase, user } = context;
   const record = {
     recruiterUserId: user.id,
@@ -61,6 +81,7 @@ function googleClientCredentials() {
 export async function getGmailAccessToken(req: NextRequest) {
   const context = await recruiterContext(req);
   if (!context) throw new Error("Session Jobly requise.");
+  await assertRecruiterGmailEntitlement(context);
   const { data: connection, error } = await context.supabase.from("RecruiterGmailConnection").select("*").eq("recruiterUserId", context.user.id).maybeSingle();
   if (error) throw new Error(error.message);
   if (!connection?.encryptedAccessToken) throw new Error("Gmail n'est pas connecté.");

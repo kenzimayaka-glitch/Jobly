@@ -176,6 +176,9 @@ jobs:
       - name: Jobly Security Core rate-limit and hardening tests
         run: pnpm test:security-core
 
+      - name: Server-side security entitlements regression tests
+        run: pnpm test:security-entitlements
+
       - name: J’IA 360 adaptive experience engine tests
         run: pnpm test:jia-experience
 
