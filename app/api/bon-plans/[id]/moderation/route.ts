@@ -11,9 +11,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
   const db = adminClient();
   const moderator = await ensureUser(db, auth);
-  if (moderator.role !== "ADMIN" && moderator.role !== "MODERATOR") {
-    return NextResponse.json({ error: "Droit de modération requis." }, { status: 403 });
+  if (String(moderator.role).toUpperCase() !== "ADMIN") {
+    return NextResponse.json({ error: "Droit de modération réservé au compte ADMIN maître." }, { status: 403 });
   }
+  const { data: identity, error: identityError } = await db.from("AdminIdentity").select("active")
+    .eq("authUserId", auth.id).eq("ownerUserId", moderator.id).maybeSingle();
+  if (identityError) throw new Error(identityError.message);
+  if (!identity?.active) return NextResponse.json({ error: "Identité ADMIN maître inactive." }, { status: 403 });
 
   const { id } = await context.params;
   const body = await request.json().catch(() => ({}));

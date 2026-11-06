@@ -15,6 +15,7 @@ type Partner = {
   payoutPhone: string | null;
   kycStatus: string;
 };
+type Institution = { organizationType: string | null; organizationName: string | null; website: string | null; city: string | null; country: string | null; status: string } | null;
 
 type Commission = {
   id: string;
@@ -70,6 +71,7 @@ export default function PartnerDashboard() {
   const [token, setToken] = useState<string | null>(null);
 
   const [partner, setPartner] = useState<Partner | null>(null);
+  const [institution, setInstitution] = useState<Institution>(null);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [totals, setTotals] = useState({ payable: 0, paid: 0, pending: 0 });
 
@@ -97,6 +99,7 @@ export default function PartnerDashboard() {
       if (!profileRes.ok) throw new Error(profileBody.message || "Profil partenaire indisponible.");
       if (!commissionsRes.ok) throw new Error(commissionsBody.message || "Commissions indisponibles.");
       setPartner(profileBody.partner);
+      setInstitution(profileBody.institution || null);
       setAvatarUrl(profileBody.partner?.avatarUrl || "");
       // Restore previously saved method
       if (profileBody.partner?.payoutProvider) {
@@ -173,9 +176,22 @@ export default function PartnerDashboard() {
         <div className="mx-auto w-full max-w-3xl px-5 py-5 sm:px-6">
           {toastMessage && <button onClick={()=>setToastMessage("")} className="mb-4 w-full rounded-2xl bg-emerald-50 p-3 text-left text-xs font-extrabold text-emerald-700">{toastMessage}</button>}
           <h1 className="font-heading text-[26px] font-extrabold leading-tight tracking-[-0.02em] text-navy sm:text-[32px]">
-            Gagnez des commissions
+            {institution ? "Espace partenaire institutionnel" : "Gagnez des commissions"}
           </h1>
-          <p className="mt-1 text-sm text-jobly-gray">Partagez JOBLY, suivez vos commissions.</p>
+          <p className="mt-1 text-sm text-jobly-gray">{institution ? "Votre organisation est rattachée à l'écosystème Jobly." : "Partagez JOBLY, suivez vos commissions."}</p>
+          {institution && (
+            <section className="mt-4 rounded-[20px] border border-blue-100 bg-white p-4 shadow-card sm:p-5">
+              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-jobly-blue">Organisation partenaire</div>
+              <h2 className="mt-1 break-words text-lg font-extrabold text-navy">{institution.organizationName || "Organisation"}</h2>
+              <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold text-jobly-gray">
+                {institution.organizationType && <span className="rounded-full bg-blue-50 px-3 py-1">{institution.organizationType.replace(/_/g, " ")}</span>}
+                {institution.city && <span className="rounded-full bg-slate-50 px-3 py-1">{institution.city}</span>}
+                {institution.country && <span className="rounded-full bg-slate-50 px-3 py-1">{institution.country}</span>}
+                <span className="rounded-full bg-amber-50 px-3 py-1">Vérification partenaire : {institution.status === "ACTIVE" ? "e-mail confirmé" : "invitation à accepter"}</span>
+              </div>
+              {institution.website && <a href={institution.website} target="_blank" rel="noreferrer" className="mt-3 inline-block break-all text-xs font-bold text-jobly-blue underline">{institution.website}</a>}
+            </section>
+          )}
 
           {error && (
             <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">
