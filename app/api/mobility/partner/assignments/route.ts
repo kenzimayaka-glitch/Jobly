@@ -39,6 +39,8 @@ export async function PATCH(req: NextRequest) {
   try {
     const auth = await authUser(req);
     if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    if (contentLength > 8 * 1024) return NextResponse.json({ message: "Mise à jour d'affectation trop volumineuse." }, { status: 413 });
     const body = await req.json().catch(() => ({}));
     const assignmentId = String(body.assignmentId || "").trim();
     const nextStatus = String(body.status || "").toUpperCase();
