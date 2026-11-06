@@ -27,8 +27,20 @@ CREATE TABLE public."PaymentSmsMerchantAccount" (
   "updatedAt" timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT "PaymentSmsMerchantAccount_provider_merchantAccount_key"
     UNIQUE (provider, "merchantAccount"),
+  CONSTRAINT "PaymentSmsMerchantAccount_values_nonempty_check"
+    CHECK (
+      length(btrim("merchantAccount")) > 0
+      AND length(btrim("shortCode")) > 0
+      AND length(btrim("ussdCode")) > 0
+    ),
   CONSTRAINT "PaymentSmsMerchantAccount_active_sender_check"
-    CHECK (NOT "isActive" OR cardinality("senderAllowlist") > 0)
+    CHECK (
+      NOT "isActive"
+      OR (
+        cardinality("senderAllowlist") > 0
+        AND array_position("senderAllowlist", '') IS NULL
+      )
+    )
 );
 
 CREATE TABLE public."PaymentSmsIntent" (
@@ -145,6 +157,14 @@ BEGIN
     RETURN jsonb_build_object(
       'matched', true,
       'paymentId', v_receipt."paymentId",
+      'idempotent', true
+    );
+  END IF;
+
+  IF v_receipt."processingStatus" = 'REJECTED' THEN
+    RETURN jsonb_build_object(
+      'matched', false,
+      'decision', 'REJECTED',
       'idempotent', true
     );
   END IF;
