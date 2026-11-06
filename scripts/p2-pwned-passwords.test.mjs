@@ -9,6 +9,7 @@ import {
   checkPasswordExposure,
   PwnedPasswordLookupError,
 } from "../lib/pwnedPasswords.ts";
+import { validateNewPassword, MIN_NEW_PASSWORD_LENGTH } from "../lib/passwordPolicy.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const password = "password";
@@ -22,6 +23,17 @@ function response(body, status = 200) {
     headers: { "Content-Type": "text/plain" },
   });
 }
+
+
+test("new passwords enforce a 12-character mixed-character policy", () => {
+  assert.equal(MIN_NEW_PASSWORD_LENGTH, 12);
+  assert.equal(validateNewPassword("N4v!gation-Plan2026"), null);
+  assert.match(validateNewPassword("A1!bcDef"), /au moins 12 caractères/);
+  assert.match(validateNewPassword("secure-password-2026"), /majuscule/);
+  assert.match(validateNewPassword("SECURE-PASSWORD-2026"), /minuscule/);
+  assert.match(validateNewPassword("Secure-Password!"), /chiffre/);
+  assert.match(validateNewPassword("SecurePassword2026"), /symbole/);
+});
 
 test("HIBP query sends only the five-character SHA-1 prefix with padding", async () => {
   let capturedUrl = "";
@@ -123,4 +135,9 @@ test("all Jobly password creation and reset routes call the shared HIBP guard", 
   assert.match(onboarding, /assertPasswordNotPwned\(password\)/);
   assert.match(auth, /await assertPasswordNotPwned\(password\)/);
   assert.match(auth, /export async function updatePassword/);
+  assert.match(home, /validateNewPassword\(password\)/);
+  assert.match(onboarding, /validateNewPassword\(password\)/);
+  assert.match(auth, /validateNewPassword\(password\)/);
+  // Keep sign-in validation separate so established accounts can still log in.
+  assert.match(home, /loginPasswordError = validatePassword\(password\)/);
 });
