@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
+import { enforceApiRateLimit } from "../../../../lib/server-security";
 
 // GET /api/recruiter/applications — espace Recruiter existant (spec 12.2).
 //
@@ -16,6 +17,14 @@ export async function GET(req: NextRequest) {
     if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    const limited = await enforceApiRateLimit(req, supabase, {
+      scope: "recruiter-applications-read",
+      identity: user.id,
+      accountWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 250, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 500, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     // ?markViewed=0 : lecture « passive » (dashboard, compteurs, pitchs). Sans cela, ouvrir
     // le dashboard marquait toutes les candidatures « Vues » côté candidat sans qu’aucune
     // n’ait été réellement ouverte. Les écrans de traitement (ATS, Candidatures) gardent le
@@ -35,7 +44,7 @@ export async function GET(req: NextRequest) {
       .from("Application")
       .select("*")
       .in("recruiterJobId", ownJobIds)
-      .order("updatedAt", { ascending: false });
+      .order("updatedAt", { ascending: false }).limit(500);
     if (appsError) throw new Error(appsError.message);
 
     const applications = apps || [];
@@ -93,7 +102,7 @@ export async function GET(req: NextRequest) {
       atsScore: typeof a.atsScore === "number" ? a.atsScore : null,
     }));
 
-    return NextResponse.json({ applications: results });
+    return NextResponse.json({ applications: results }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (error) {
     return NextResponse.json(
       { message: error instanceof Error ? error.message : "Impossible de charger les candidatures reçues." },
