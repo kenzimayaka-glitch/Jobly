@@ -33,6 +33,7 @@ import { commandIntent, extractWakeCommand, isFinancialRequest } from "@/lib/jia
 import { getSupabaseClient } from "../lib/supabase";
 import { useI18n, type DictKey } from "@/lib/i18n";
 import { decide as decideAutonomy, observe as observeAutonomy } from "@/lib/jia/autonomy";
+import JiaConversationSurface, { type JiaConversationMessage } from "@/components/jia/JiaConversationSurface";
 
 
 type Ecosystem = "TALENT" | "RECRUITER" | "PARTNER";
@@ -152,6 +153,7 @@ export default function JiaPresence() {
   const [sourceLinks, setSourceLinks] = useState<Array<{ title: string; url: string; snippet?: string }>>([]);
   const [healthStatus, setHealthStatus] = useState<"idle" | "checking" | "ready" | "error">("idle");
   const [recentDialogue, setRecentDialogue] = useState<string[]>([]);
+  const [conversationMessages, setConversationMessages] = useState<JiaConversationMessage[]>([]);
 
   const modeRef = useRef<"text" | "voice">("text");
   const langRef = useRef(lang);
@@ -380,9 +382,23 @@ export default function JiaPresence() {
     }
   }, []);
 
+  const appendConversationMessage = useCallback((role: "user" | "assistant", text: string, sources?: JiaConversationMessage["sources"]) => {
+    const normalized = text.trim();
+    if (!normalized) return;
+    idSeq.current += 1;
+    setConversationMessages((current) => [...current, {
+      id: `jia-${Date.now()}-${idSeq.current}`,
+      role,
+      text: normalized,
+      createdAt: Date.now(),
+      ...(sources?.length ? { sources } : {}),
+    }].slice(-100));
+  }, []);
+
   const sendTextCommand = useCallback(async () => {
     const command = commandInput.trim();
     if (!command || commandBusy) return;
+    appendConversationMessage("user", command);
     setCommandBusy(true);
     setCommandInput("");
     try {
@@ -409,10 +425,8 @@ export default function JiaPresence() {
         throw new Error("J’IA a produit une réponse répétée ; nouvelle réponse demandée.");
       }
       setRecentDialogue((history) => [...history, command, answer].filter(Boolean).slice(-12));
-      const sourceSuffix = nextSources.length
-        ? `\n\nSources vérifiables : ${nextSources.slice(0, 3).map((source: { title: string; url: string }) => source.title || source.url).join(" · ")}`
-        : "";
       const proposedType = out.proposedAction?.type as string | undefined;
+      appendConversationMessage("assistant", out.message || "Je suis prête à t’aider.", nextSources);
       if (proposedType) setPendingAction({ type: proposedType, message: command, target: out.proposedAction?.target });
       say(`${out.message || "Je suis prête à t’aider."}${sourceSuffix}`, {
         gesture: proposedType ? "analyze" : "reassure",
@@ -421,11 +435,13 @@ export default function JiaPresence() {
         sticky: true,
       });
     } catch (error) {
-      say(error instanceof Error ? error.message : "Je n’ai pas réussi à répondre.", { gesture: "secure", sticky: true, speak: false });
+      const message = error instanceof Error ? error.message : "Je n’ai pas réussi à répondre.";
+      appendConversationMessage("assistant", message);
+      say(message, { gesture: "secure", sticky: true, speak: false });
     } finally {
       setCommandBusy(false);
     }
-  }, [commandBusy, commandInput, recentDialogue, router, say]);
+  }, [appendConversationMessage, commandBusy, commandInput, recentDialogue, router, say]);
 
   const confirmPendingAction = useCallback(async () => {
     if (!pendingAction) return;
@@ -440,14 +456,18 @@ export default function JiaPresence() {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.message || "Action non disponible.");
       setPendingAction(null);
-      say("C’est préparé. Je t’ouvre l’espace correspondant.", { gesture: "welcome", speak: true, sticky: true });
-      if (pendingAction.target || result.next) router.push(pendingAction.target || result.next);
+      const confirmation = typeof result.message === "string" && result.message.trim()
+        ? result.message.trim()
+        : "L’action a été acceptée par le service Jobly.";
+      appendConversationMessage("assistant", confirmation);
+      say(confirmation, { gesture: "welcome", speak: true, sticky: true });
+      if (pendingAction.target || result.next) { setPanelOpen(false); router.push(pendingAction.target || result.next); }
     } catch (error) {
       say(error instanceof Error ? error.message : "Je n’ai pas pu préparer cette action.", { gesture: "secure", sticky: true, speak: false });
     } finally {
       setCommandBusy(false);
     }
-  }, [pendingAction, router, say]);
+  }, [appendConversationMessage, pendingAction, router, say]);
 
   // ── Candidature externe : ouvrir J'IA avec le contexte de l'offre ─────────
   useEffect(() => {
@@ -460,11 +480,12 @@ export default function JiaPresence() {
       setExpandedHere(true);
       setPanelOpen(true);
       setCommandInput(prompt);
+      appendConversationMessage("assistant", "Le contexte de cette candidature externe est prêt. Vérifie les informations puis envoie ta demande pour préparer tes réponses.");
       say("J’ai préparé le contexte de cette candidature. Vérifie la demande dans mon panneau, puis envoie-la pour préparer tes réponses.", { gesture: "analyze", speak: false, sticky: true });
     };
     window.addEventListener("jobly:jia-application-assist", onApplicationAssist);
     return () => window.removeEventListener("jobly:jia-application-assist", onApplicationAssist);
-  }, [pathname, say]);
+  }, [appendConversationMessage, pathname, say]);
 
   useEffect(() => {
     window.dispatchEvent(new Event("jobly:jia-ready"));
@@ -474,11 +495,14 @@ export default function JiaPresence() {
   useEffect(() => {
     const onResponse = (event: Event) => {
       const d = (event as CustomEvent<{ message?: string; gesture?: JiaGesture }>).detail;
-      if (d?.message) say(d.message, { gesture: d.gesture || "reassure" });
+      if (d?.message) {
+        appendConversationMessage("assistant", d.message);
+        say(d.message, { gesture: d.gesture || "reassure" });
+      }
     };
     window.addEventListener("jobly:jia-response", onResponse);
     return () => window.removeEventListener("jobly:jia-response", onResponse);
-  }, [say]);
+  }, [appendConversationMessage, say]);
 
   useEffect(() => {
     const play = (id: GestureId, opts?: { message?: string; target?: string }) => {
@@ -703,6 +727,13 @@ export default function JiaPresence() {
   }
   function go(href: string) { setPanelOpen(false); router.push(href); }
 
+  const enableVoiceFromConversation = useCallback(() => {
+    if (!voiceSupported) return;
+    window.dispatchEvent(new CustomEvent("jobly:jia-preferences-changed", {
+      detail: { mode: "voice", enabled: true, proactive: prefs.proactive },
+    }));
+  }, [prefs.proactive, voiceSupported]);
+
   if (!visible) return null;
 
   const statusLabel = prefs.mode === "voice"
@@ -729,7 +760,7 @@ export default function JiaPresence() {
       >
         {/* Bulle de message + panneau d’actions — ancrés au personnage */}
         <AnimatePresence>
-          {(bubble || panelOpen) && (
+          {bubble && !panelOpen && (
             <motion.div key="stack" initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.2 }}
               className="absolute bottom-full right-0 mb-2 flex w-[min(280px,calc(100vw-24px))] flex-col items-end gap-2">
                   {bubble && (
@@ -751,41 +782,7 @@ export default function JiaPresence() {
                   </button>
                 </div>
               )}
-              {panelOpen && (
-                <div data-jia-panel className="w-full rounded-[20px] border border-line bg-white p-3 shadow-[0_16px_40px_rgba(10,25,49,.16)]">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-[13px] font-black text-ink">{t("jia.panel.title")}</div>
-                    <span className="rounded-full bg-canari-blue-soft px-2 py-1 text-[10px] font-extrabold text-canari-blue">{healthStatus === "checking" ? "Vérification…" : healthStatus === "error" ? "Connexion à vérifier" : healthStatus === "ready" ? "J’IA connectée" : statusLabel}</span>
-                  </div>
-                  <p className="mt-1 text-[11px] leading-4 text-muted">Parle-lui ou écris-lui ce que tu veux faire. J’IA répond et te guide vers l’action suivante.</p>
-                  {pendingAction && (
-                    <div className="mt-2 rounded-xl border border-canari-blue/30 bg-canari-blue-soft p-2.5 text-[11px] text-ink">
-                      <p className="font-extrabold">J’IA attend ton autorisation pour préparer cette action.</p>
-                      <div className="mt-2 flex gap-2">
-                        <button type="button" onClick={() => void confirmPendingAction()} disabled={commandBusy} className="min-h-8 rounded-lg bg-canari-blue px-3 text-[11px] font-extrabold text-white disabled:opacity-50">Autoriser</button>
-                        <button type="button" onClick={() => setPendingAction(null)} disabled={commandBusy} className="min-h-8 rounded-lg border border-line px-3 text-[11px] font-extrabold text-muted">Annuler</button>
-                      </div>
-                    </div>
-                  )}
-                  <form onSubmit={(event) => { event.preventDefault(); void sendTextCommand(); }} className="mt-2.5 flex items-center gap-2 rounded-xl border border-line bg-white p-1.5 focus-within:border-canari-blue">
-                    <input value={commandInput} onChange={(event) => setCommandInput(event.target.value)} placeholder="Ex. Trouve-moi un emploi" aria-label="Message à J’IA" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-xs font-semibold text-ink outline-none placeholder:text-muted" disabled={commandBusy} />
-                    <button type="submit" aria-label="Envoyer à J’IA" disabled={commandBusy || !commandInput.trim()} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-canari-blue text-white disabled:opacity-40">{commandBusy ? "…" : "↑"}</button>
-                  </form>
-                  <div className="mt-2.5 flex flex-wrap gap-1.5">
-                    {CHIPS[eco].map((c) => (
-                      <button key={c.href} type="button" onClick={() => go(c.href)}
-                        className="min-h-[36px] rounded-full bg-canari-blue-soft px-3 text-[12px] font-extrabold text-canari-blue transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-canari-blue">
-                        {t(c.key)}
-                      </button>
-                    ))}
-                  </div>
-                  <button type="button" onClick={() => go("/jia/extension")} className="mt-2 min-h-[36px] w-full rounded-xl border border-canari-blue/20 bg-canari-blue-soft px-3 text-left text-[11px] font-extrabold text-canari-blue hover:bg-canari-blue/10">Installer J’IA sur ordinateur ↗</button>
-                  <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-line pt-2">
-                    <button type="button" onClick={() => go(SETTINGS_HREF[eco])} className="min-h-[36px] text-[12px] font-extrabold text-canari-blue underline-offset-2 hover:underline">{t("jia.panel.settings")}</button>
-                    <button type="button" onClick={() => { setPanelOpen(false); setHiddenPaths((p) => [...p, pathname]); }} className="min-h-[36px] text-[12px] font-bold text-muted hover:text-ink">{t("jia.hideOnPage")}</button>
-                  </div>
-                </div>
-              )}
+
             </motion.div>
           )}
         </AnimatePresence>
@@ -812,6 +809,26 @@ export default function JiaPresence() {
           </div>
         )}
       </motion.div>
+
+      <JiaConversationSurface
+        open={panelOpen}
+        ecosystem={eco}
+        messages={conversationMessages}
+        inputValue={commandInput}
+        busy={commandBusy}
+        status={healthStatus}
+        voiceMode={prefs.mode === "voice"}
+        listening={listening}
+        pendingAction={pendingAction}
+        quickLinks={CHIPS[eco].map((item) => ({ label: t(item.key), href: item.href }))}
+        onClose={() => setPanelOpen(false)}
+        onInputChange={setCommandInput}
+        onSubmit={() => void sendTextCommand()}
+        onConfirmAction={() => void confirmPendingAction()}
+        onCancelAction={() => setPendingAction(null)}
+        onNavigate={go}
+        onEnableVoice={voiceSupported ? enableVoiceFromConversation : undefined}
+      />
     </>
   );
 }
