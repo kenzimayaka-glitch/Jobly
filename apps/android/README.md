@@ -85,7 +85,8 @@ Le serveur :
 - consulte la liste officielle de révocation des clés d'attestation ;
 - contrôle l'extension Android Key Attestation, le package `com.jobly.android`, l'empreinte du certificat de signature, le niveau TEE/StrongBox, `deviceLocked=true` et `verifiedBootState=VERIFIED` ;
 - conserve la clé publique et le verdict pour 24 heures ;
-- refuse les appels API authentifiés depuis le WebView Android natif tant qu'une attestation valide n'est pas enregistrée. La PWA et les navigateurs Android ordinaires ne sont pas soumis à ce verrou natif.
+- exige ensuite, pour chaque appel API authentifié du WebView natif, une signature ECDSA SHA-256 produite par la clé privée Android Keystore ; chaque défi est lié à la méthode, au chemin, à l'horodatage et à un nonce à usage unique ;
+- refuse les appels API authentifiés depuis le WebView Android natif tant que l'attestation et la preuve de possession de la clé ne sont pas valides. La PWA et les navigateurs Android ordinaires ne sont pas soumis à ce verrou natif.
 
 Tables privées service-role : `AndroidAttestationChallenge` et `AndroidDeviceAttestation`. Les migrations sont versionnées dans `supabase/migrations`.
 
