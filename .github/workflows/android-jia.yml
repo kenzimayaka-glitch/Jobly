@@ -161,7 +161,7 @@ jobs:
       contents: read
     env:
       JOBLY_ANDROID_KEYSTORE_BASE64: ${{ secrets.JOBLY_ANDROID_KEYSTORE_BASE64 }}
-      JOBLY_ANDROID_KEYSTORE_PATH: /tmp/jobly-release.jks
+      JOBLY_ANDROID_KEYSTORE_PATH: /tmp/jobly-release.p12
       JOBLY_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.JOBLY_ANDROID_KEYSTORE_PASSWORD }}
       JOBLY_ANDROID_KEY_ALIAS: ${{ secrets.JOBLY_ANDROID_KEY_ALIAS }}
       JOBLY_ANDROID_KEY_PASSWORD: ${{ secrets.JOBLY_ANDROID_KEY_PASSWORD }}
@@ -201,7 +201,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          actual="$(keytool -exportcert -keystore "$JOBLY_ANDROID_KEYSTORE_PATH" -storepass "$JOBLY_ANDROID_KEYSTORE_PASSWORD" -alias "$JOBLY_ANDROID_KEY_ALIAS" | sha256sum | cut -d ' ' -f1 | tr '[:lower:]' '[:upper:]')"
+          actual="$(keytool -exportcert -storetype PKCS12 -keystore "$JOBLY_ANDROID_KEYSTORE_PATH" -storepass "$JOBLY_ANDROID_KEYSTORE_PASSWORD" -alias "$JOBLY_ANDROID_KEY_ALIAS" | sha256sum | cut -d ' ' -f1 | tr '[:lower:]' '[:upper:]')"
           expected="$(printf '%s' "$JOBLY_ANDROID_RELEASE_CERT_SHA256" | tr -d ' :\r\n' | tr '[:lower:]' '[:upper:]')"
           if [[ "$actual" != "$expected" ]]; then
             echo "Configured certificate fingerprint does not match the keystore." >&2
