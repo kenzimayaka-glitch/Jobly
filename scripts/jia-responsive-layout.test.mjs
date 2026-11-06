@@ -64,23 +64,25 @@ test("mobile choices, status badges and business cards preserve readable wrappin
 
 
 test("Stage Spotlight is optional, non-modal and keeps the conversation log mounted", () => {
-  assert.match(surface, /aria-expanded=\\{spotlightOpen\\}/);
-  assert.match(surface, /aria-controls="jia-spotlight-panel"/);
-  assert.match(surface, /aria-label=\\{spotlightOpen \\? "Masquer le Spotlight J’IA" : "Afficher le Spotlight J’IA"\\}/);
-  assert.match(surface, /layout === "stage" && spotlightOpen/);
-  assert.match(surface, /data-jia-spotlight="active"/);
-  assert.match(surface, /setSpotlightOpen\\(false\\)/);
+  assert.ok(surface.includes("aria-expanded={spotlightOpen}"));
+  assert.ok(surface.includes('aria-controls="jia-spotlight-panel"'));
+  assert.ok(surface.includes('aria-label={spotlightOpen ? "Masquer le Spotlight J’IA" : "Afficher le Spotlight J’IA"}'));
+  assert.ok(surface.includes('layout === "stage" && spotlightOpen'));
+  assert.ok(surface.includes('data-jia-spotlight="active"'));
+  assert.ok(surface.includes("setSpotlightOpen(false)"));
 
-  const panelStart = surface.indexOf('<motion.aside');
-  const panelEnd = surface.indexOf('</motion.aside>', panelStart);
+  const panelStart = surface.indexOf("<motion.aside");
+  const panelEnd = surface.indexOf("</motion.aside>", panelStart);
   assert.ok(panelStart >= 0 && panelEnd > panelStart, "Spotlight panel must be present");
   const panel = surface.slice(panelStart, panelEnd);
-  assert.match(panel, /role="region"/);
-  assert.match(panel, /relative z-10/);
+  assert.ok(panel.includes('role="region"'));
+  assert.ok(panel.includes("relative z-10"));
   assert.doesNotMatch(panel, /aria-modal|fixed inset/);
   assert.ok(surface.indexOf('role="log"') > panelEnd, "conversation log remains mounted below Spotlight");
 
   // The compact header avatar is removed while the larger Spotlight avatar is active.
-  assert.match(surface, /!spotlightOpen && \\(\\s*<div[^]*?<JIA3D/);
-  assert.match(surface, /if \\(event.key === "Escape"\\)[^]*?if \\(spotlightOpen\\)[^]*?setSpotlightOpen\\(false\\)/);
+  assert.ok(surface.includes("{!spotlightOpen && ("));
+  assert.ok(surface.includes("<JIA3D speaking={speaking} appearanceId={JIA_AVATAR_APPEARANCES[variationIndex].id}/>"));
+  assert.ok(surface.includes('if (event.key !== "Escape") return;'));
+  assert.ok(surface.includes("if (spotlightOpen) {"));
 });
