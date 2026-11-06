@@ -289,13 +289,13 @@ const HOME_HEADLINES = {
 
 const BENEFITS = {
   fr: [
-    { Icon: ShieldStarIcon, kind: "static", title: "100% Gratuit", subtitle: "Accès aux opportunités qui correspondent à votre profil", iconClass: "text-[#3478C8]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "100% Gratuit", subtitle: "Accès aux opportunités qui correspondent le mieux à votre profil", iconClass: "text-[#3478C8]" },
     { Icon: PeopleStarIcon, kind: "offers", title: "Offres Afrique", subtitle: "offres actives sur Jobly", iconClass: "text-[#8064D8]" },
     { Icon: CheckCircleIcon, kind: "talents", title: "Un pipeline de Talent", subtitle: "profils Talent inscrits", iconClass: "text-[#28A99B]" },
     { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "+50 candidatures en un clic", iconClass: "text-[#D99A16]" },
   ],
   en: [
-    { Icon: ShieldStarIcon, kind: "static", title: "100% Free", subtitle: "Access to opportunities that match your profile", iconClass: "text-[#3478C8]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "100% Free", subtitle: "Access to the opportunities that best match your profile", iconClass: "text-[#3478C8]" },
     { Icon: PeopleStarIcon, kind: "offers", title: "Africa offers", subtitle: "active offers on Jobly", iconClass: "text-[#8064D8]" },
     { Icon: CheckCircleIcon, kind: "talents", title: "A Talent pipeline", subtitle: "registered Talent profiles", iconClass: "text-[#28A99B]" },
     { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "+50 applications in one click", iconClass: "text-[#D99A16]" },
