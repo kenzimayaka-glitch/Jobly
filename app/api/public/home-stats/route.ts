@@ -118,7 +118,7 @@ export async function GET() {
     const [discoveryOffers, recruiterOffers, talentProfiles] = await Promise.all([
       fetchAllActiveDiscoveryOffers(supabase),
       fetchPublishedRecruiterOffers(supabase, now),
-      supabase.from("Profile").select("id", { count: "exact", head: true }),
+      supabase.from("Profile").select("id, User!inner(role)", { count: "exact", head: true }).eq("User.role", "TALENT"),
     ]);
 
     if (talentProfiles.error) throw talentProfiles.error;
