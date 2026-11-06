@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import AuthExperienceShell from "../../components/AuthExperienceShell";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "../../lib/supabase";
@@ -279,40 +279,51 @@ export default function OnboardingPage() {
     finally { setBusy(false); }
   }
 
-  return <main className="relative min-h-[100dvh] w-full overflow-x-hidden overflow-y-auto bg-white px-4 text-[#0A1931]">
-    <div className="pointer-events-none absolute -left-16 top-16 h-28 w-28 rounded-full bg-[#8B5CF6]/15 blur-xl" />
-    <div className="pointer-events-none absolute -right-12 bottom-24 h-36 w-36 rounded-full bg-[#FFE135]/20 blur-2xl" />
-    <section className="relative mx-auto flex min-h-[100dvh] w-full max-w-[420px] flex-col pt-5 pb-4">
-      <header className="flex shrink-0 items-center justify-between">
-        <Image src="/jobly-logo-official-transparent.png" alt="JOBLY — Your Career OS" width={400} height={120} sizes="156px" className="h-auto w-[156px] object-contain" priority />
-      </header>
-
-      <div className="mt-2 flex min-h-0 flex-1 flex-col">
-        <div className="flex shrink-0 items-start justify-between gap-4">
-          <div className="pt-2 text-center"><p className="text-[12px] font-extrabold uppercase tracking-[0.16em] text-[#0D4BE0]">{googleSetup ? "Connexion Google" : "Dernière étape"}</p><h1 className="mt-1 text-[31px] font-extrabold leading-[1.02] tracking-[-0.035em]">{googleSetup ? "Finalise ton identité" : "Crée ton accès"}<br/><span className="relative inline-block">JOBLY<span className="absolute -bottom-1 left-0 h-1.5 w-16 rounded-full bg-[#FFD21A]" /></span></h1><p className="mt-6 max-w-[260px] text-[13px] leading-[1.35] text-slate-500">{googleSetup ? "Ajoute les informations manquantes, choisis ton Username et définis un mot de passe JOBLY." : "Choisi ton Username et ton Mot de passe pour commencer"}</p></div>
-          <label className="group relative mt-1 block shrink-0 cursor-pointer text-center"><div className="relative grid h-[82px] w-[82px] place-items-center overflow-hidden rounded-full border-[3px] border-[#FFD21A] bg-[#FFF8D8] text-[#0D4BE0] shadow-lg shadow-[#FFD21A]/20">{preview ? <img src={preview} alt="Photo de profil" className="h-full w-full object-cover"/> : <CameraIcon />}<span className="absolute inset-x-0 bottom-0 bg-[#0A1931]/75 py-1 text-[8px] font-extrabold text-white">PHOTO</span></div><span className="mt-1 block text-[10px] font-extrabold text-[#0A1931]">Photo de Profil</span><input type="file" accept="image/*" className="hidden" onChange={(e) => choosePhoto(e.target.files?.[0])}/></label>
+  return (
+    <AuthExperienceShell
+      language="fr"
+      eyebrow={googleSetup ? "CONNEXION GOOGLE" : "DERNIÈRE ÉTAPE"}
+      title={googleSetup ? "Finalise ton identité" : "Crée ton accès JOBLY"}
+      description={googleSetup ? "Ton compte Google est connecté. Complète les informations manquantes pour accéder à tout ton espace JOBLY." : "Choisis ton username et ton mot de passe pour commencer."}
+      step={3}
+      stepLabel="Identité et sécurité"
+    >
+      <div className="mx-auto w-full max-w-[448px]">
+        <div className="mb-4 flex items-center gap-4 rounded-2xl border border-[#E8EDF4] bg-[#F8FAFC] p-3">
+          <label className="group relative block shrink-0 cursor-pointer">
+            <span className="relative grid h-[64px] w-[64px] place-items-center overflow-hidden rounded-2xl border-2 border-[#FFD21A] bg-[#FFF8D8] text-[#2457A7]">
+              {preview ? <img src={preview} alt="Photo de profil" className="h-full w-full object-cover" /> : <CameraIcon />}
+            </span>
+            <input type="file" accept="image/*" className="sr-only" onChange={(e) => choosePhoto(e.target.files?.[0])} />
+          </label>
+          <div className="min-w-0">
+            <p className="text-[12px] font-extrabold text-[#1D2C42]">Personnalise ton espace</p>
+            <p className="mt-1 text-[11px] leading-5 text-[#8792A2]">Ajoute une photo maintenant ou plus tard depuis ton profil.</p>
+          </div>
         </div>
 
         {googleSetup && (
           <div className="mt-3 grid shrink-0 grid-cols-2 gap-2">
             <label className="block">
               <span className="mb-1 block text-[11px] font-extrabold text-[#0A1931]">Prénom</span>
-              <input value={draft.firstName} onChange={(e) => setDraft((current) => ({ ...current, firstName: e.target.value }))} autoComplete="given-name" required placeholder="Prénom" className="h-[43px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-[13px] outline-none focus:border-[#0D4BE0]" />
+              <input value={draft.firstName} onChange={(e) => setDraft((current) => ({ ...current, firstName: e.target.value }))} autoComplete="given-name" required placeholder="Prénom" className="h-[48px] w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 text-[13px] text-[#0A1931] outline-none transition focus:border-[#2457A7] focus:bg-white focus:ring-4 focus:ring-[#2457A7]/10" />
             </label>
             <label className="block">
               <span className="mb-1 block text-[11px] font-extrabold text-[#0A1931]">Nom</span>
-              <input value={draft.lastName} onChange={(e) => setDraft((current) => ({ ...current, lastName: e.target.value }))} autoComplete="family-name" required placeholder="Nom" className="h-[43px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-[13px] outline-none focus:border-[#0D4BE0]" />
+              <input value={draft.lastName} onChange={(e) => setDraft((current) => ({ ...current, lastName: e.target.value }))} autoComplete="family-name" required placeholder="Nom" className="h-[48px] w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 text-[13px] text-[#0A1931] outline-none transition focus:border-[#2457A7] focus:bg-white focus:ring-4 focus:ring-[#2457A7]/10" />
             </label>
             <label className="block">
               <span className="mb-1 block text-[11px] font-extrabold text-[#0A1931]">Téléphone</span>
-              <input value={draft.phone} onChange={(e) => setDraft((current) => ({ ...current, phone: e.target.value.slice(0, 24) }))} autoComplete="tel" inputMode="tel" required placeholder="+237 6…" className="h-[43px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-[13px] outline-none focus:border-[#0D4BE0]" />
+              <input value={draft.phone} onChange={(e) => setDraft((current) => ({ ...current, phone: e.target.value.slice(0, 24) }))} autoComplete="tel" inputMode="tel" required placeholder="+237 6…" className="h-[48px] w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 text-[13px] text-[#0A1931] outline-none transition focus:border-[#2457A7] focus:bg-white focus:ring-4 focus:ring-[#2457A7]/10" />
             </label>
             <label className="block">
               <span className="mb-1 block text-[11px] font-extrabold text-[#0A1931]">Pays (code ISO)</span>
-              <input value={draft.country} onChange={(e) => setDraft((current) => ({ ...current, country: e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2) }))} autoComplete="country" required maxLength={2} placeholder="CM" className="h-[43px] w-full rounded-2xl border border-slate-200 bg-white px-3 text-[13px] outline-none focus:border-[#0D4BE0]" />
+              <input value={draft.country} onChange={(e) => setDraft((current) => ({ ...current, country: e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2) }))} autoComplete="country" required maxLength={2} placeholder="CM" className="h-[48px] w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 text-[13px] text-[#0A1931] outline-none transition focus:border-[#2457A7] focus:bg-white focus:ring-4 focus:ring-[#2457A7]/10" />
             </label>
           </div>
         )}
+
+
 
         <div className="mt-4 shrink-0">
           <label className="block">
@@ -344,7 +355,7 @@ export default function OnboardingPage() {
 
         <div className="mt-auto shrink-0 pt-3"><button type="button" disabled={busy} onClick={submit} className="h-[52px] w-full rounded-2xl bg-[#FFDE00] text-[15px] font-extrabold text-[#0A1931] shadow-[0_10px_24px_rgba(255,222,0,0.28)] transition-transform active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50">{busy ? "Création…" : googleSetup ? "Finaliser mon compte →" : "Commencer →"}</button>{message && <p role="alert" className="mt-2 text-center text-[11px] font-semibold text-red-600">{message}</p>}</div>
       </div>
-    </section>
-    {cropSource && <Cropper src={cropSource} onCancel={()=>setCropSource("")} onConfirm={acceptCrop}/>} 
-  </main>;
+      {cropSource && <Cropper src={cropSource} onCancel={() => setCropSource("")} onConfirm={acceptCrop} />}
+    </AuthExperienceShell>
+  );;
 }

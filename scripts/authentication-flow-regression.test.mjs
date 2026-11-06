@@ -57,3 +57,22 @@ test("Google profile details are requested when Google metadata is incomplete", 
   assert.match(onboarding, /draft\.firstName/);
   assert.match(onboarding, /draft\.lastName/);
 });
+
+test("authentication screens share the responsive Jobly experience shell", () => {
+  const shell = read("components/AuthExperienceShell.tsx");
+  for (const screen of ["login", "signup", "signup-otp", "signup-password", "forgot", "reset-sent"]) {
+    assert.match(home, new RegExp('screen === "' + screen + '"'));
+  }
+  assert.equal((home.match(/<AuthExperienceShell/g) || []).length, 6);
+  assert.match(shell, /min-h-\[100dvh\]/);
+  assert.match(shell, /lg:grid-cols-/);
+  assert.match(shell, /overflow-hidden/);
+  assert.match(home, /autoComplete="one-time-code"/);
+  assert.match(home, /aria-live="assertive"/);
+});
+
+test("Google identity completion uses the same responsive, stepped authentication shell", () => {
+  assert.match(onboarding, /AuthExperienceShell/);
+  assert.match(onboarding, /step=\{3\}/);
+  assert.match(onboarding, /Finalise ton identité/);
+});
