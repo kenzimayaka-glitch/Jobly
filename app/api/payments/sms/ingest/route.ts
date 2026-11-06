@@ -43,6 +43,11 @@ export async function POST(request: NextRequest) {
       { senderId, body: smsBody },
       { senderIds: senderAllowlist, merchantAccount: String(device.merchantAccount) },
     );
+    // Every unique SMS from a paired, allow-listed sender receives a real AI review.
+    // The AI sees a redacted semantic copy; it cannot supply payment values or authorize billing.
+    const aiReview = parsed.senderTrusted && parsed.provider
+      ? await analyzePaymentSmsWithAi({ senderId, body: smsBody, parsed })
+      : null;
     const receivedAt = new Date().toISOString();
     const rawMessageHash = crypto.createHash("sha256").update(smsBody, "utf8").digest("hex");
     const payloadHash = crypto.createHash("sha256")
