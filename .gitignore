@@ -1,1 +1,44 @@
-.vercel
+# Dependencies
+node_modules/
+.pnp/
+.pnp.*
+
+# Next.js and build output
+.next/
+out/
+dist/
+build/
+coverage/
+
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Local credentials / signing material
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+local.properties
+
+# Android / Gradle output
+.gradle/
+apps/android/.gradle/
+apps/android/build/
+apps/android/app/build/
+
+# Local tooling and test artifacts
+.vercel/
+.e2e-tools/
+playwright-report/
+test-results/
+artifacts/
+
+# Editor / operating system files
+.DS_Store
+Thumbs.db
+*.log
