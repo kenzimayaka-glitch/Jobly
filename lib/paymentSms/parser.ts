@@ -73,7 +73,7 @@ function normalizePhone(value: string | null): string | null {
 
 function parseStatus(body: string): ParsedPaymentSmsStatus {
   const text = body.normalize("NFKC").toLocaleLowerCase("fr");
-  if (/\b(?:non|pas|not)\s+(?:été\s+)?(?:réussi|reussi|effectué|effectue|payé|payee|paid|successful|confirmed|confirmé|reçu|recu)\b/.test(text)
+  if (/\b(?:non|pas|not)\s+(?:été\s+)?(?:réussi|reussi|effectué|effectue|finalis[eé]|completed|complete|payé|payee|paid|successful|confirmed|confirmé|reçu|recu)\b/.test(text)
     || /\b(transaction\s+failed|failed|failure|echec|échec|annul[eé]|rejet[eé]|declined|refus[eé])\b/.test(text)) {
     return "FAILED";
   }
