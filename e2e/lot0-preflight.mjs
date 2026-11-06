@@ -37,8 +37,17 @@ async function getJson(url, label) {
   return response.json();
 }
 
-const settings = await getJson(`${projectUrl}/auth/v1/settings`, "Contrôle de la clé Supabase E2E");
-assert.ok(settings && typeof settings === "object", "Réponse Auth Supabase E2E invalide.");
+const publicSettingsResponse = await fetch(`${projectUrl}/auth/v1/settings`, {
+  method: "GET",
+  headers: { apikey: publishableKey, Accept: "application/json" },
+  cache: "no-store",
+});
+assert.ok(publicSettingsResponse.ok, `La clé publique configurée ne correspond pas à JOBLY-E2E (HTTP ${publicSettingsResponse.status}).`);
+const publicSettings = await publicSettingsResponse.json();
+assert.ok(publicSettings && typeof publicSettings === "object", "Réponse Auth publique Supabase E2E invalide.");
+
+const settings = await getJson(`${projectUrl}/auth/v1/settings`, "Contrôle de la clé serveur Supabase E2E");
+assert.ok(settings && typeof settings === "object", "Réponse Auth serveur Supabase E2E invalide.");
 
 const usersPayload = await getJson(`${projectUrl}/auth/v1/admin/users?page=1&per_page=1000`, "Lecture des comptes Auth E2E");
 const authUsers = Array.isArray(usersPayload?.users) ? usersPayload.users : [];
