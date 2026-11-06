@@ -4,6 +4,7 @@ import {buildCEOIntelligence} from "@/lib/ceoIntelligence";
 import {remember,reflect} from "@/lib/jia/cognitive";
 import {publishTraceEvent} from "@/lib/jia/eventBus";
 import {runUnifiedCognitiveCycle} from "@/lib/jia/runtime";
+import {enforceApiRateLimit} from "@/lib/server-security";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -15,6 +16,12 @@ async function getAdmin(req:NextRequest){
   const sb=adminClient();
   const user=await ensureUser(sb,auth);
   if(String(user.role)!=="ADMIN")return null;
+  const limited=await enforceApiRateLimit(req,sb,{
+    scope:"admin-jia-ceo-chat",identity:user.id,
+    accountWindows:[{limit:5,windowSeconds:60},{limit:40,windowSeconds:3600}],
+    ipWindows:[{limit:10,windowSeconds:60},{limit:80,windowSeconds:3600}],requireIp:true
+  });
+  if(limited)return {rateLimited:limited};
   return {auth,sb,user};
 }
 
@@ -22,6 +29,7 @@ export async function GET(req:NextRequest){
   try{
     const admin=await getAdmin(req);
     if(!admin)return NextResponse.json({message:"Accès CEO réservé à l’administrateur."},{status:403});
+    if("rateLimited" in admin)return admin.rateLimited;
     const conversationId=new URL(req.url).searchParams.get("conversationId");
     if(!conversationId)return NextResponse.json({conversation:null,messages:[]});
     const {data:conversation,error:conversationError}=await admin.sb.from("JiaCEOConversation").select("id,title,createdAt,updatedAt").eq("id",conversationId).eq("adminUserId",admin.user.id).maybeSingle();
@@ -39,9 +47,13 @@ export async function POST(req:NextRequest){
   try{
     const admin=await getAdmin(req);
     if(!admin)return NextResponse.json({message:"Accès CEO réservé à l’administrateur."},{status:403});
+    if("rateLimited" in admin)return admin.rateLimited;
+    const contentLength=Number(req.headers.get("content-length")||0);
+    if(contentLength>24*1024)return NextResponse.json({message:"Message CEO trop volumineux."},{status:413});
     const body=await req.json().catch(()=>({}));
     const message=String(body.message||"").trim();
     if(!message)return NextResponse.json({message:"Message requis."},{status:400});
+    if(message.length>12000)return NextResponse.json({message:"12 000 caractères maximum par message."},{status:422});
     let conversationId=typeof body.conversationId==="string"&&body.conversationId?body.conversationId:null;
     if(conversationId){
       const {data:existing,error}=await admin.sb.from("JiaCEOConversation").select("id").eq("id",conversationId).eq("adminUserId",admin.user.id).maybeSingle();
