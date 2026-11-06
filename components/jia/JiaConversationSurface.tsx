@@ -16,6 +16,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import JIA3D from "@/components/JIA/JIA3D";
 import {
   resolveJiaExperience,
   type JiaExperienceDevice,
@@ -43,6 +44,7 @@ type Props = {
   status: "idle" | "checking" | "ready" | "error";
   voiceMode: boolean;
   listening: boolean;
+  speaking: boolean;
   pendingAction?: { type: string; message: string; target?: string } | null;
   quickLinks: Array<{ label: string; href: string }>;
   onClose: () => void;
@@ -135,7 +137,7 @@ function messageSurface(layout: JiaPresentationMode, role: "user" | "assistant")
 export default function JiaConversationSurface(props: Props) {
   const {
     open, ecosystem, messages, inputValue, busy, status, voiceMode, listening,
-    pendingAction, quickLinks, onClose, onInputChange, onSubmit,
+    pendingAction, quickLinks, onClose, onInputChange, onSubmit, speaking,
     onConfirmAction, onCancelAction, onNavigate,
   } = props;
   const reducedMotion = useReducedMotion();
@@ -275,9 +277,8 @@ export default function JiaConversationSurface(props: Props) {
             {layout === "stage" && (
               <div className="relative mx-4 mb-3 flex items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[.07] px-3 py-2.5 sm:mx-6">
                 <div className="pointer-events-none absolute -right-3 -top-8 h-24 w-24 rounded-full bg-[#FFD21A]/20 blur-2xl" />
-                <div className="relative h-16 w-14 shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/jia/outfits/blue/head.webp" alt="" aria-hidden="true" className="h-full w-full object-contain" />
+                <div className="relative h-28 w-20 shrink-0 sm:h-36 sm:w-24">
+                  <JIA3D speaking={speaking} />
                 </div>
                 <div className="relative min-w-0">
                   <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#FFD21A]">J’IA prend la parole</p>
