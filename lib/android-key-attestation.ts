@@ -149,9 +149,14 @@ function parseAttestationDescription(extension: Buffer, expectedChallengeHash: s
     throw new Error("ATTESTATION_DESCRIPTION_INVALID");
   }
 
+  if (description.children[1].tagNumber !== 10 || description.children[3].tagNumber !== 10 ||
+      description.children[4].tagNumber !== 4 || description.children[6].tagNumber !== 16 ||
+      description.children[7].tagNumber !== 16) {
+    throw new Error("ATTESTATION_DESCRIPTION_FIELD_TYPES_INVALID");
+  }
   const attestationSecurityLevel = Number(integerValue(description.children[1]));
   const keySecurityLevel = Number(integerValue(description.children[3]));
-  if (attestationSecurityLevel < 1 || keySecurityLevel < 1) {
+  if (![1, 2].includes(attestationSecurityLevel) || ![1, 2].includes(keySecurityLevel)) {
     throw new Error("ATTESTATION_NOT_HARDWARE_BACKED");
   }
 
@@ -168,7 +173,10 @@ function parseAttestationDescription(extension: Buffer, expectedChallengeHash: s
   const rootSequence = root.tagNumber === 16 ? root : root.children[0];
   if (!rootSequence || rootSequence.children.length < 3) throw new Error("ROOT_OF_TRUST_INVALID");
 
-  const deviceLocked = rootSequence.children[1].content[0] === 0xff;
+  if (rootSequence.children[1].tagNumber !== 1 || rootSequence.children[2].tagNumber !== 10) {
+    throw new Error("ROOT_OF_TRUST_FIELD_TYPES_INVALID");
+  }
+  const deviceLocked = rootSequence.children[1].content.length === 1 && rootSequence.children[1].content[0] === 0xff;
   const verifiedBootState = Number(integerValue(rootSequence.children[2]));
   if (!deviceLocked || verifiedBootState !== 0) throw new Error("DEVICE_BOOT_STATE_UNTRUSTED");
 
@@ -183,6 +191,9 @@ function parseAttestationDescription(extension: Buffer, expectedChallengeHash: s
 
   const packageSet = appId.children[0];
   const signerSet = appId.children[1];
+  if (packageSet.tagNumber !== 17 || signerSet.tagNumber !== 17) {
+    throw new Error("ATTESTATION_APPLICATION_ID_SET_INVALID");
+  }
   const packageNames = packageSet.children.flatMap((item) => {
     if (item.tagNumber !== 16 || !item.children.length) return [];
     const name = item.children[0];
@@ -254,6 +265,7 @@ function buildTrustedChain(leaf: X509Certificate, presented: X509Certificate[], 
   for (let depth = 0; depth < MAX_CERTIFICATES; depth++) {
     if (trustedFingerprints.has(current.fingerprint256)) return chain;
     const issuer = candidates.find((candidate) =>
+      candidate.ca &&
       candidate.fingerprint256 !== current.fingerprint256 &&
       !visited.has(candidate.fingerprint256) &&
       candidate.subject === current.issuer &&
@@ -296,6 +308,12 @@ export async function verifyAndroidKeyAttestation(input: {
     if (Date.parse(certificate.validFrom) > now || Date.parse(certificate.validTo) < now) {
       throw new Error("ATTESTATION_CERTIFICATE_EXPIRED");
     }
+  }
+
+  const leafKey = presented[0].publicKey;
+  if (presented[0].ca || leafKey.asymmetricKeyType !== "ec" ||
+      leafKey.asymmetricKeyDetails?.namedCurve !== "prime256v1") {
+    throw new Error("ATTESTATION_LEAF_KEY_PROFILE_INVALID");
   }
 
   const [roots, revocations] = await Promise.all([googleRoots(), googleRevocations()]);
