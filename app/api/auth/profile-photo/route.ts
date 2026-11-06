@@ -1,20 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, getAuthUser } from "../../../../lib/server-auth";
+import { enforceApiRateLimit } from "../../../../lib/server-security";
 import crypto from "node:crypto";
 
 export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
     if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+    const supabase = adminClient();
+    const rateLimited = await enforceApiRateLimit(request, supabase, {
+      scope: "auth-profile-photo-upload",
+      identity: authUser.id,
+      accountWindows: [{ limit: 8, windowSeconds: 3600 }, { limit: 20, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 20, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (rateLimited) return rateLimited;
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > 12 * 1024 * 1024) return NextResponse.json({ message: "Le fichier dépasse la taille maximale autorisée." }, { status: 413 });
     const form = await request.formData();
     const kind = form.get("kind") === "hero" ? "hero" : "profile";
     const file = form.get("photo");
     if (!(file instanceof File)) return NextResponse.json({ message: "Photo manquante." }, { status: 400 });
-    if (!file.type.startsWith("image/")) return NextResponse.json({ message: "Le fichier doit être une image." }, { status: 400 });
+    const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+    if (!allowedImageTypes.has(file.type)) return NextResponse.json({ message: "Formats acceptés : JPEG, PNG ou WebP." }, { status: 415 });
     if (kind === "hero" && file.type !== "image/png") return NextResponse.json({ message: "Le visuel Hero doit être un PNG transparent." }, { status: 400 });
     if (file.size > (kind === "hero" ? 10 : 5) * 1024 * 1024) return NextResponse.json({ message: kind === "hero" ? "Le visuel Hero est trop volumineux." : "La photo doit faire au maximum 5 Mo." }, { status: 400 });
 
-    const supabase = adminClient();
     const bucket = "profile-photos";
     const { data: buckets } = await supabase.storage.listBuckets();
     if (!buckets?.some((b) => b.name === bucket)) {
