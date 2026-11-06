@@ -31,7 +31,7 @@ internal object AndroidIntegrityGuard {
         }
 
         val applicationInfo = context.applicationInfo
-        val debuggableFlag = applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
+        val debuggableFlag = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
 
         if (BuildConfig.DEBUG) {
             return if (debuggableFlag) {
@@ -67,7 +67,7 @@ internal object AndroidIntegrityGuard {
 
         val actualPins = signatures.map { signature ->
             val digest = MessageDigest.getInstance("SHA-256").digest(signature.toByteArray())
-            digest.joinToString("") { byte -> "%02X".format(Locale.ROOT, byte) }
+            digest.joinToString("") { byte -> "%02X".format(Locale.ROOT, byte.toInt() and 0xFF) }
         }.toSet()
 
         if (actualPins != expectedPins) {
