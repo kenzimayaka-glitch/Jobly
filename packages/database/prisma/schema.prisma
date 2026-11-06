@@ -381,7 +381,6 @@ model Payment {
   payerPhone             String?
   reportedTransactionId  String?
   smsMerchantAccount     String?
-  smsMerchantCode        String?
   paidAt                 DateTime?
   refundedAt             DateTime?
   failureReason          String?
@@ -394,6 +393,12 @@ model Payment {
   @@index([provider, reportedTransactionId])
 }
 
+
+model PaymentSmsOrderConfig {
+  paymentId    String   @id
+  merchantCode String
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+}
 
 model PaymentSmsProviderConfig {
   provider          String   @id
