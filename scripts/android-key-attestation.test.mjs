@@ -41,6 +41,9 @@ test("server verifier pins Google roots, checks revocation, nonce, TEE, locked v
   assert.match(verifier, /https:\/\/android\.googleapis\.com\/attestation\/status/);
   assert.match(verifier, /ATTESTATION_CERTIFICATE_CHAIN_UNTRUSTED/);
   assert.match(verifier, /ATTESTATION_CERTIFICATE_REVOKED/);
+  assert.match(verifier, /SUSPENDED/);
+  assert.match(verifier, /legacyFactoryChain/);
+  assert.match(verifier, /findAttestationExtension\(certificate\.raw\)/);
   assert.match(verifier, /ATTESTATION_CHALLENGE_MISMATCH/);
   assert.match(verifier, /ATTESTATION_NOT_HARDWARE_BACKED/);
   assert.match(verifier, /DEVICE_BOOT_STATE_UNTRUSTED/);
