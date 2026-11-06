@@ -263,16 +263,16 @@ const translations = {
 
 const BENEFITS = {
   fr: [
-    { Icon: ShieldStarIcon, kind: "static", title: "100% Gratuit", subtitle: "Accès aux opportunités", iconClass: "text-[#3478C8]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "100% Gratuit", subtitle: "Accès aux opportunités", marketingReference: "", iconClass: "text-[#3478C8]" },
     { Icon: PeopleStarIcon, kind: "offers", title: "Offres Afrique", subtitle: "offres actives sur Jobly", marketingReference: "Référence marketing : 75 000", iconClass: "text-[#8064D8]" },
     { Icon: CheckCircleIcon, kind: "talents", title: "Talents Jobly", subtitle: "profils Talent inscrits", marketingReference: "Référence marketing : 315 000", iconClass: "text-[#28A99B]" },
-    { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "Matche et postule avec vous", iconClass: "text-[#D99A16]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "Matche et postule avec vous", marketingReference: "", iconClass: "text-[#D99A16]" },
   ],
   en: [
-    { Icon: ShieldStarIcon, kind: "static", title: "100% Free", subtitle: "Access to opportunities", iconClass: "text-[#3478C8]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "100% Free", subtitle: "Access to opportunities", marketingReference: "", iconClass: "text-[#3478C8]" },
     { Icon: PeopleStarIcon, kind: "offers", title: "Africa offers", subtitle: "active offers on Jobly", marketingReference: "Marketing reference: 75,000", iconClass: "text-[#8064D8]" },
     { Icon: CheckCircleIcon, kind: "talents", title: "Jobly talents", subtitle: "registered Talent profiles", marketingReference: "Marketing reference: 315,000", iconClass: "text-[#28A99B]" },
-    { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "Matches and applies with you", iconClass: "text-[#D99A16]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "Matches and applies with you", marketingReference: "", iconClass: "text-[#D99A16]" },
   ],
 } as const;
 
