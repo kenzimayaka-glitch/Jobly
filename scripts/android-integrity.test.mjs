@@ -71,5 +71,6 @@ test("Android CI runs the integrity checks before assembling the APK", () => {
   const workflow = read(".github/workflows/android-jia.yml");
   assert.match(workflow, /scripts\/android-integrity\.test\.mjs/);
   assert.match(workflow, /android-debug-build:/);
+  assert.match(workflow, /Assert unsigned release APKs are rejected/);
   assert.match(workflow, /android-emulator-smoke:/);
 });
