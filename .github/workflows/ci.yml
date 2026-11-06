@@ -117,7 +117,7 @@ jobs:
         run: pnpm test:billing
 
       - name: Mobile Money SMS payment regression tests
-        run: node --experimental-strip-types --test scripts/payment-sms-parser.test.mjs scripts/payment-sms-matching.test.mjs scripts/payment-sms-config.test.mjs scripts/payment-sms-devices.test.mjs scripts/payment-sms-ai.test.mjs
+        run: node --experimental-strip-types --test scripts/payment-sms-parser.test.mjs scripts/payment-sms-matching.test.mjs scripts/payment-sms-config.test.mjs scripts/payment-sms-devices.test.mjs scripts/payment-sms-ai.test.mjs scripts/payment-sms-android.test.mjs scripts/payment-sms-customer-share.test.mjs
 
       - name: Mobility P1 business and access regression tests
         run: pnpm test:mobility-p1
