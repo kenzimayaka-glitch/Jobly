@@ -7,6 +7,7 @@ import {
   getUserMobilityInstitutionIds,
   getMobilityProviderRequestIds,
 } from "../../../../../lib/mobilityAccess";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,6 +15,14 @@ export async function GET(req: NextRequest) {
     if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const sb = adminClient();
     const user = await ensureUser(sb, auth);
+    const limited = await enforceApiRateLimit(req, sb, {
+      scope: "mobility-partner-report-export",
+      identity: user.id,
+      accountWindows: [{ limit: 5, windowSeconds: 3600 }, { limit: 20, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 10, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const role = String(user.role || "").toUpperCase();
     const isAdmin = role === "ADMIN";
     const isRecruiter = role === "RECRUITER";
@@ -64,7 +73,7 @@ export async function GET(req: NextRequest) {
 
 async function exportRows(rows: any[], req: NextRequest) {
   const format = req.nextUrl.searchParams.get("format");
-  if (format === "json") return NextResponse.json({ rows, count: rows.length });
+  if (format === "json") return NextResponse.json({ rows, count: rows.length }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
 
   if (format === "xlsx") {
     const workbook = new ExcelJS.Workbook();
@@ -87,6 +96,7 @@ async function exportRows(rows: any[], req: NextRequest) {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition": "attachment; filename=jobly-mobility-report.xlsx",
+        "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization",
       },
     });
   }
@@ -100,6 +110,7 @@ async function exportRows(rows: any[], req: NextRequest) {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": "attachment; filename=jobly-mobility-report.csv",
+      "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization",
     },
   });
 }
