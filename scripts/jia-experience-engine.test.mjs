@@ -6,6 +6,7 @@ import {
   JIA_VARIATION_FAMILIES,
   JIA_VARIATION_TARGET,
   getJiaVariationCoverage,
+  pickJiaPresentationLayout,
   pickJiaVariation,
   resolveJiaExperience,
 } from "../lib/jia/experience-engine.ts";
@@ -142,4 +143,36 @@ test("compact avatar preference is honored regardless of layout", () => {
     compactAvatar: true,
   });
   assert.equal(resolved.avatarPresentation, "compact-launcher");
+});
+
+test("automatic presentation selection stays compatible with the conversation intent", () => {
+  const layout = pickJiaPresentationLayout("TALENT", "opportunities", [], () => 0);
+  assert.equal(layout, "gallery");
+  assert.ok(["gallery", "explorer", "stage", "messenger"].includes(layout));
+});
+
+test("automatic presentation selection avoids the three most recent compatible layouts", () => {
+  const layout = pickJiaPresentationLayout(
+    "TALENT",
+    "opportunities",
+    ["gallery", "explorer", "stage"],
+    () => 0,
+  );
+  assert.equal(layout, "messenger");
+});
+
+test("automatic presentation can rotate repeatedly without immediately repeating", () => {
+  const history = [];
+  for (let index = 0; index < 8; index += 1) {
+    const next = pickJiaPresentationLayout("RECRUITER", "candidate_search", history, () => 0);
+    assert.notEqual(next, history.at(-1));
+    history.push(next);
+  }
+  assert.ok(history.every((item) => ["gallery", "workspace", "stage", "messenger"].includes(item)));
+});
+
+test("presentation selection does not mutate the caller history", () => {
+  const history = ["gallery", "explorer"];
+  pickJiaPresentationLayout("TALENT", "opportunities", history, () => 0.5);
+  assert.deepEqual(history, ["gallery", "explorer"]);
 });
