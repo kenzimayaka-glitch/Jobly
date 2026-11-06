@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
+import { isEligibleSubscription } from "../../../../lib/billingLifecycleCore";
+import { enforceApiRateLimit } from "../../../../lib/server-security";
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,6 +10,14 @@ export async function GET(request: NextRequest) {
 
     const sb = adminClient();
     const user = await ensureUser(sb, auth);
+    const rateLimited = await enforceApiRateLimit(request, sb, {
+      scope: "partner-distributor-dashboard",
+      identity: user.id,
+      accountWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 300, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 600, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (rateLimited) return rateLimited;
     const { data: partner, error: partnerError } = await sb
       .from("Partner")
       .select("id,referralCode,partnerType,kycStatus,agreementId")
@@ -31,7 +41,7 @@ export async function GET(request: NextRequest) {
     if (referredIds.length) {
       const { data, error } = await sb
         .from("Subscription")
-        .select("id,userId,planCode,status,priceAmount,priceCurrency,billingInterval,createdAt")
+        .select("id,userId,planCode,status,priceAmount,priceCurrency,billingInterval,currentPeriodEnd,trialEndsAt,createdAt")
         .in("userId", referredIds)
         .eq("productType", "RECRUITER");
       if (error) throw new Error(error.message);
@@ -46,16 +56,17 @@ export async function GET(request: NextRequest) {
       .order("createdAt", { ascending: false });
     if (commissionsError) throw new Error(commissionsError.message);
 
+    const activeSubscriptions = subscriptions.filter((subscription) => isEligibleSubscription(subscription, Date.now()));
     const paidCompanies = new Set(
-      subscriptions
-        .filter((s) => ["PREMIUM", "PRO"].includes(String(s.planCode).toUpperCase()) && s.status === "ACTIVE")
+      activeSubscriptions
+        .filter((s) => ["PREMIUM", "PRO"].includes(String(s.planCode).toUpperCase()))
         .map((s) => s.userId),
     );
     const premium = new Set(
-      subscriptions.filter((s) => String(s.planCode).toUpperCase() === "PREMIUM" && s.status === "ACTIVE").map((s) => s.userId),
+      activeSubscriptions.filter((s) => String(s.planCode).toUpperCase() === "PREMIUM").map((s) => s.userId),
     ).size;
     const pro = new Set(
-      subscriptions.filter((s) => String(s.planCode).toUpperCase() === "PRO" && s.status === "ACTIVE").map((s) => s.userId),
+      activeSubscriptions.filter((s) => String(s.planCode).toUpperCase() === "PRO").map((s) => s.userId),
     ).size;
     const totalCompanies = new Set(referredIds).size;
     const conversion = totalCompanies ? Math.round((paidCompanies.size / totalCompanies) * 1000) / 10 : 0;

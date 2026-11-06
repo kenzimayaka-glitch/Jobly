@@ -68,3 +68,40 @@ test("recruiter talent discovery does not expose expired paid-media entitlements
   assert.match(route, /requireIp: true/);
   assert.match(route, /advertisingEligible: isPaidMediaEligible/);
 });
+
+
+test("Brand Ambassador onboarding never self-verifies identity and admin review is audited", () => {
+  const onboarding = read("../app/api/partner/ba-onboarding/route.ts");
+  const review = read("../app/api/admin/partners/kyc/route.ts");
+  const reviewUi = read("../app/admin/partners/kyc/page.tsx");
+  const partnerUi = read("../app/partner/onboarding/page.tsx");
+  assert.match(onboarding, /status: "SUBMITTED"/);
+  assert.match(onboarding, /kycStatus: "PENDING"/);
+  assert.doesNotMatch(onboarding, /kycStatus: "VERIFIED"/);
+  assert.match(onboarding, /storage\.updateBucket\(BUCKET, options\)/);
+  assert.match(onboarding, /public: false/);
+  assert.match(onboarding, /fileSizeLimit: 10 \* 1024 \* 1024/);
+  assert.match(review, /String\(user\.role\)\.toUpperCase\(\) !== "ADMIN"/);
+  assert.match(review, /previousPartner\.partnerType && previousPartner\.partnerType !== "BRAND_AMBASSADOR"/);
+  assert.match(review, /\.eq\("status", "SUBMITTED"\)/);
+  assert.match(review, /\["VERIFIED", "REJECTED"\]/);
+  assert.match(review, /createSignedUrl/);
+  assert.match(review, /from\("CEOAuditLog"\)\.insert/);
+  assert.match(review, /PARTNER_KYC_APPROVED/);
+  assert.match(review, /PARTNER_KYC_REJECTED/);
+  assert.match(review, /decision === "REJECTED" && note\.length < 8/);
+  assert.match(reviewUi, /Valider l’identité/);
+  assert.match(partnerUi, /vérification humaine en attente/);
+});
+
+
+test("Distributor metrics count only currently eligible subscriptions and are rate-limited", () => {
+  const route = read("../app/api/partner/distributor/route.ts");
+  assert.match(route, /isEligibleSubscription/);
+  assert.match(route, /currentPeriodEnd,trialEndsAt/);
+  assert.match(route, /activeSubscriptions = subscriptions\.filter/);
+  assert.match(route, /scope: "partner-distributor-dashboard"/);
+  assert.match(route, /accountWindows:/);
+  assert.match(route, /ipWindows:/);
+  assert.match(route, /requireIp: true/);
+});

@@ -336,6 +336,13 @@ class MainActivity : Activity() {
                 override fun onPageFinished(view: WebView, url: String) {
                     super.onPageFinished(view, url)
                     val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return
+                    if (isTrustedJoblyOrigin(uri)) {
+                        val smsAutoReceive = if (BuildConfig.PAYMENT_SMS_AUTORECEIVE_ENABLED) "true" else "false"
+                        view.evaluateJavascript(
+                            "window.__joblyAndroidPaymentSmsAutoReceive = $smsAutoReceive; window.dispatchEvent(new CustomEvent('jobly:android-capabilities', { detail: { paymentSmsAutoReceive: $smsAutoReceive } }));",
+                            null
+                        )
+                    }
                     val sharedSms = pendingSharedPaymentSms
                     if (sharedSms != null && isTrustedJoblyOrigin(uri) && uri.path == "/abonnement") {
                         val bodyJson = JSONObject.quote(sharedSms.optString("body"))
@@ -411,6 +418,14 @@ class MainActivity : Activity() {
     }
 
     private fun requestPaymentSmsPermission() {
+        if (!BuildConfig.PAYMENT_SMS_AUTORECEIVE_ENABLED) {
+            Toast.makeText(
+                this,
+                "Dans la version Google Play, Jobly ne lit jamais la boîte SMS. Ouvre le reçu Mobile Money puis choisis Partager → Jobly pour le rapprocher.",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
         if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(this, "Réception SMS activée sur ce téléphone marchand.", Toast.LENGTH_LONG).show()
             return

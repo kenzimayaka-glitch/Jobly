@@ -68,13 +68,45 @@ jobs:
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - name: Assemble debug APK
         run: gradle -p apps/android :app:assembleDebug --stacktrace
-      - name: Upload debug APK
+      - name: Upload Play-safe and internal debug APKs
         uses: actions/upload-artifact@v4
         with:
-          name: jobly-android-debug-apk
-          path: apps/android/app/build/outputs/apk/debug/app-debug.apk
+          name: jobly-android-debug-apks
+          path: apps/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
           retention-days: 14
+      - name: Build Google Play release AAB for manifest and R8 validation
+        run: gradle -p apps/android :app:bundlePlayRelease --stacktrace
+      - name: Upload unsigned Google Play release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: jobly-android-play-release-validation-unsigned-aab
+          path: apps/android/app/build/outputs/bundle/playRelease/*.aab
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Verify packaged Play and internal manifest separation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t play_manifests < <(find apps/android/app/build/intermediates -type f -path '*/playRelease/*' -name AndroidManifest.xml)
+          mapfile -t internal_manifests < <(find apps/android/app/build/intermediates -type f -path '*/internalDebug/*' -name AndroidManifest.xml)
+          test "${#play_manifests[@]}" -gt 0
+          test "${#internal_manifests[@]}" -gt 0
+          for manifest in "${play_manifests[@]}"; do
+            if grep -Eq 'android.permission.(RECEIVE_SMS|READ_SMS)|PaymentSmsReceiver' "$manifest"; then
+              echo "Restricted SMS permission or receiver leaked into Play manifest: $manifest"
+              exit 1
+            fi
+          done
+          internal_has_receiver=false
+          for manifest in "${internal_manifests[@]}"; do
+            if grep -q 'android.permission.RECEIVE_SMS' "$manifest" && grep -q 'PaymentSmsReceiver' "$manifest"; then
+              internal_has_receiver=true
+            fi
+          done
+          test "$internal_has_receiver" = true
+
 
   android-emulator-smoke:
     runs-on: ubuntu-latest
@@ -109,4 +141,4 @@ jobs:
           script: |
             adb devices -l
             trap 'adb logcat -d -t 500 || true' EXIT
-            timeout 12m gradle -p apps/android --no-daemon --console=plain -PjoblyBaseUrl=https://jobly.test :app:connectedDebugAndroidTest --stacktrace
+            timeout 12m gradle -p apps/android --no-daemon --console=plain -PjoblyBaseUrl=https://jobly.test :app:connectedPlayDebugAndroidTest :app:connectedInternalDebugAndroidTest --stacktrace

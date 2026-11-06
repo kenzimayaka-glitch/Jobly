@@ -14,11 +14,24 @@ function buildAgreement(input: { name: string; username: string | null; email: s
 }
 
 async function ensurePrivateBucket(supabase: ReturnType<typeof adminClient>) {
-  const { data } = await supabase.storage.getBucket(BUCKET);
-  if (!data) {
-    const { error } = await supabase.storage.createBucket(BUCKET, { public: false, fileSizeLimit: 10 * 1024 * 1024, allowedMimeTypes: ["image/jpeg", "image/png", "application/pdf"] });
-    if (error && !error.message.toLowerCase().includes("already exists")) throw new Error(error.message);
+  const options = {
+    public: false,
+    fileSizeLimit: 10 * 1024 * 1024,
+    allowedMimeTypes: ["image/jpeg", "image/png", "application/pdf"],
+  };
+  const { data, error: lookupError } = await supabase.storage.getBucket(BUCKET);
+  if (lookupError && !lookupError.message.toLowerCase().includes("not found")) {
+    throw new Error(lookupError.message);
   }
+  if (!data) {
+    const { error } = await supabase.storage.createBucket(BUCKET, options);
+    if (error && !error.message.toLowerCase().includes("already exists")) throw new Error(error.message);
+    if (!error) return;
+  }
+
+  // A pre-existing bucket, including a create race, must not retain a public-access flag.
+  const { error: updateError } = await supabase.storage.updateBucket(BUCKET, options);
+  if (updateError) throw new Error(updateError.message);
 }
 
 export async function GET(request: NextRequest) {
@@ -87,7 +100,8 @@ export async function POST(request: NextRequest) {
     const { data: agreement, error: agreementError } = await supabase.from("PartnerAgreement").insert({ partnerId: partner.id, version: TERMS_VERSION, agreementType: "BRAND_AMBASSADOR_FREELANCE", partnerName, partnerUsername: user.username, partnerEmail: user.email, partnerPhone: user.phone, adminSignerName: signerName, adminSignerRole: signerRole, documentContent, acceptedAt: now, status: "ACCEPTED" }).select("id,version,agreementType,partnerName,partnerUsername,adminSignerName,adminSignerRole,documentContent,acceptedAt,status,createdAt").single();
     if (agreementError) throw new Error(agreementError.message);
 
-    const { data: updatedPartner, error: updateError } = await supabase.from("Partner").update({ kycStatus: "VERIFIED", kycCompletedAt: now, agreementId: agreement.id, locationText, locationLat, locationLng, locationConsent: true, locationUpdatedAt: now }).eq("id", partner.id).select("*").single();
+    // Submission is not approval: only an administrator may validate the KYC file.
+    const { data: updatedPartner, error: updateError } = await supabase.from("Partner").update({ kycStatus: "PENDING", kycCompletedAt: null, agreementId: agreement.id, locationText, locationLat, locationLng, locationConsent: true, locationUpdatedAt: now }).eq("id", partner.id).select("*").single();
     if (updateError) throw new Error(updateError.message);
 
     return NextResponse.json({ partner: updatedPartner, kyc: { status: "SUBMITTED", termsVersion: TERMS_VERSION }, agreement }, { status: 201 });
