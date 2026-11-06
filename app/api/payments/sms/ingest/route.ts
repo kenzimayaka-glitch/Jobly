@@ -35,9 +35,12 @@ export async function POST(request: NextRequest) {
     }
 
     const provider = String(device.provider) as PaymentSmsProvider;
+    const senderAllowlist: Partial<Record<PaymentSmsProvider, string[]>> = {
+      [provider]: Array.isArray(device.senderIds) ? device.senderIds.map((value: unknown) => String(value)) : [],
+    };
     const parsed = parsePaymentSms(
       { senderId, body: smsBody },
-      { provider, senderIds: Array.isArray(device.senderIds) ? device.senderIds : [], merchantAccount: String(device.merchantAccount) },
+      { senderIds: senderAllowlist, merchantAccount: String(device.merchantAccount) },
     );
     const receivedAt = new Date().toISOString();
     const rawMessageHash = crypto.createHash("sha256").update(smsBody, "utf8").digest("hex");
