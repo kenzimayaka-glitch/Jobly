@@ -41,6 +41,7 @@ Branche : `feat/security-red-remediation-20261106` (non fusionnée tant que les 
 - Mobility Talent/recruteur : limites sur création de dossier, candidatures programme, convention employeur, garantie recruteur et validation de subvention, tout en gardant le contrôle de propriété du dossier, la règle d'éligibilité 50 % et le rôle de l'acteur habilité.
 - Cohérence Mobility : si l'événement métier ne peut pas être écrit, la validation de subvention et la mise à jour d'affectation sont annulées et leur état précédent restauré; une candidature à un programme est supprimée si son événement d'audit ne peut pas être enregistré.
 - Events : limites IP sur le répertoire/détail/écosystème publics; limites compte/IP sur création, mise en avant, dépôt de média et dépôt de justificatif; formulaires de paiement manuel plafonnés et non-cacheables; URLs/objets de justificatif restent rattachés au compte de l'organisateur.
+- Justificatifs de paiement Event : bucket `jobly-payment-proofs` créé/réappliqué en privé, taille maximale 10 Mo et formats JPEG/PNG/WebP/GIF/PDF; le propriétaire du dossier ne peut utiliser que ses propres chemins, Finance reçoit une URL signée de 5 minutes et non-cacheable.
 
 ## Contrôles externes toujours requis
 
