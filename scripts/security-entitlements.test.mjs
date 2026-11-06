@@ -458,3 +458,20 @@ test("Mobility and Partner J'IA intelligence endpoints have shared per-account/I
     assert.match(source, /Cache-Control/);
   }
 });
+
+
+test("Public Event APIs expose only display fields and sensitive event responses are not cacheable", () => {
+  const directory = read("../app/api/events/route.ts");
+  const detail = read("../app/api/events/[id]/route.ts");
+  const ecosystem = read("../app/api/events/[id]/ecosystem/route.ts");
+  const media = read("../app/api/events/media/route.ts");
+  const featured = read("../app/api/events/[id]/feature/route.ts");
+  assert.doesNotMatch(directory, /from\("Event"\)\.select\("\*"\)/);
+  assert.doesNotMatch(detail, /from\("Event"\)\.select\("\*"\)/);
+  for (const source of [directory,detail]) {
+    assert.doesNotMatch(source, /safetyAcceptedAt|rightsAcceptedAt|creatorUserId/);
+  }
+  assert.match(ecosystem, /scope: "public-event-ecosystem"/);
+  assert.match(media, /Cache-Control/);
+  assert.match(featured, /Cache-Control/);
+});
