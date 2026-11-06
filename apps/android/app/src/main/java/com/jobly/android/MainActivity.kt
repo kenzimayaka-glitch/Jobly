@@ -235,6 +235,7 @@ class MainActivity : Activity() {
                                 }
                                 "REVOKE_PAYMENT_SMS_DEVICE" -> {
                                     PaymentSmsDeviceCredentials.clear(this@MainActivity)
+                                    androidx.work.WorkManager.getInstance(this@MainActivity).cancelAllWorkByTag(PaymentSmsReceiver.WORK_TAG)
                                     runOnUiThread {
                                         replyProxy.postMessage(JSONObject().put("type", "PAYMENT_SMS_DEVICE_REVOKED").toString())
                                         Toast.makeText(this@MainActivity, "Ce téléphone ne transmettra plus de SMS Mobile Money à Jobly.", Toast.LENGTH_LONG).show()
