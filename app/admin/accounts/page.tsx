@@ -114,7 +114,7 @@ export default function AdminAccountsPage() {
         body: JSON.stringify(form),
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.message || "Création impossible.");
+      if (!response.ok && !body.auditWarning) throw new Error(body.message || "Création impossible.");
       setNotice(body.message || "Compte créé.");
       setForm({ ...emptyForm, accountType: form.accountType });
       await load(token);
