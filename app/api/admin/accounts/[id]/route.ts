@@ -24,7 +24,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     if (!managed) return NextResponse.json({ message: "Ce compte ne fait pas partie de votre portefeuille administré." }, { status: 404 });
 
     const { data: user, error: userError } = await db.from("User")
-      .select("id,email,displayName,firstName,lastName,phone,country,role,createdAt")
+      .select("id,authUserId,email,displayName,firstName,lastName,phone,country,role,createdAt")
       .eq("id", managed.userId).maybeSingle();
     if (userError) throw new Error(userError.message);
     if (!user) return NextResponse.json({ message: "Identité Jobly introuvable." }, { status: 404 });
@@ -50,9 +50,21 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       profile = data;
     }
 
-    const status = managed.status;
+    let status = managed.status;
+    if (status !== "SUSPENDED" && typeof user.authUserId === "string" && user.authUserId) {
+      const { data: authData, error: authError } = await db.auth.admin.getUserById(user.authUserId);
+      if (authError) throw new Error("Vérification de l'activation du compte impossible.");
+      const nextStatus = authData.user?.email_confirmed_at ? "ACTIVE" : "INVITED";
+      if (nextStatus !== status) {
+        const { error: statusError } = await db.from("AdminManagedAccount")
+          .update({ status: nextStatus, updatedAt: new Date().toISOString() }).eq("id", managed.id);
+        if (statusError) throw new Error(statusError.message);
+        status = nextStatus;
+      }
+    }
+    const { authUserId: _authUserId, ...safeUser } = user;
     return NextResponse.json({
-      account: { ...managed, user, profile, status },
+      account: { ...managed, user: safeUser, profile, status },
       context: { principal: "ADMIN_MASTER", selectedAccountId: managed.id, writeAsPartner: false },
     });
   } catch (error) {
