@@ -180,3 +180,15 @@ test("profile photo uploads are allow-listed, signature checked, and rate-limite
   assert.match(route, /hasWebp/);
   assert.match(route, /requireIp: true/);
 });
+
+
+test("recruiter public talent profile gates pitch and advertising video on live plan", () => {
+  const route = read("../app/api/recruiter/talents/profile/route.ts");
+  assert.match(route, /getActivePlanCode\(supabase, id, "TALENT"\)/);
+  assert.match(route, /paidMediaEligible = plan === "PREMIUM" \|\| plan === "PRO"/);
+  assert.match(route, /advertisingVideoUrl: paidMediaEligible \? userResult\.data\.advertisingVideoUrl : null/);
+  assert.match(route, /pitchVideoUrl: paidMediaEligible \? userResult\.data\.pitchVideoUrl : null/);
+  assert.match(route, /scope: "recruiter-talent-profile"/);
+  assert.match(route, /publicDiscoverable", true/);
+  assert.match(route, /Cache-Control": "private, no-store, max-age=0"/);
+});
