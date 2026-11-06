@@ -94,16 +94,27 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               ))}
             </section>
           ))}
-          {spaces.length > 0 && (
-            <section className="mb-5">
-              <div className="px-3 pb-2 text-[9px] font-black uppercase tracking-[0.2em] text-white/40">Espaces activés</div>
-              {ADMIN_WORKSPACE_TEMPLATES.filter((template) => spaces.some((space) => space.code === template.code)).map((template) => (
-                <button key={template.code} onClick={() => router.push("/admin/workspaces/" + template.code)} className={"mb-1 flex w-full items-center rounded-xl px-3 py-2.5 text-left text-xs font-semibold " + (pathname.endsWith("/" + template.code) ? "bg-white/15 text-[#FFE135]" : "text-white/75 hover:bg-white/10")}>
-                  <span className="mr-2.5 inline-block h-1.5 w-1.5 rounded-full bg-[#FFE135]" />{template.label}
+          <section className="mb-5">
+            <div className="px-3 pb-2 text-[9px] font-black uppercase tracking-[0.2em] text-white/40">Espaces ADMIN</div>
+            {ADMIN_WORKSPACE_TEMPLATES.map((template) => {
+              const enabled = spaces.some((space) => space.code === template.code && space.enabled);
+              const active = pathname.endsWith("/" + template.code);
+              return (
+                <button
+                  key={template.code}
+                  onClick={() => router.push(enabled ? "/admin/workspaces/" + template.code : "/admin/workspaces")}
+                  aria-label={template.label + (enabled ? " · espace activé" : " · créer l'espace")}
+                  className={"mb-1 flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-semibold transition " + (active ? "bg-[#FFE135] text-[#10264A]" : "text-white/75 hover:bg-white/10 hover:text-white")}
+                >
+                  <span className="flex items-center">
+                    <span className={"mr-2.5 inline-block h-1.5 w-1.5 rounded-full " + (enabled ? "bg-[#FFE135]" : "bg-white/35")} />
+                    {template.label}
+                  </span>
+                  <span className="text-[8px] font-black uppercase tracking-wide opacity-60">{enabled ? "Actif" : "Créer"}</span>
                 </button>
-              ))}
-            </section>
-          )}
+              );
+            })}
+          </section>
         </nav>
         <div className="border-t border-white/10 p-4">
           <button onClick={switchToUser} className="w-full rounded-xl bg-white px-4 py-3 text-left text-xs font-black text-[#10264A] hover:bg-[#FFE135]">
