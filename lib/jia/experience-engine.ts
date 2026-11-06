@@ -49,6 +49,13 @@ export type JiaMotionPreference = "immersive" | "soft" | "reduced";
 export type JiaExperienceRole = "TALENT" | "RECRUITER" | "PARTNER" | "ADMIN";
 export type JiaExperienceDevice = "mobile" | "tablet" | "desktop";
 
+/** Match the CSS breakpoints used by J’IA 360 and Tailwind's sm/lg tiers. */
+export function getJiaExperienceDevice(width: number): JiaExperienceDevice {
+  if (!Number.isFinite(width) || width < 640) return "mobile";
+  if (width < 1024) return "tablet";
+  return "desktop";
+}
+
 export type JiaExperienceIntent =
   | "conversation"
   | "opportunities"

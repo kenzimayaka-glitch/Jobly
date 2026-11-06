@@ -77,7 +77,7 @@ function OffersBlock({ block, onPrepareApplication, onNavigate }: {
               <p className="mt-0.5 text-[11px] font-semibold text-[#526A87]">{offer.companyName || "Entreprise non précisée"}</p>
             </div>
             {offer.matchPercent !== null && (
-              <span className="shrink-0 rounded-full bg-[#EAF4EE] px-2.5 py-1 text-[10px] font-black text-[#187443]">
+              <span className="max-w-[42%] shrink-0 whitespace-normal break-words rounded-full bg-[#EAF4EE] px-2.5 py-1 text-center text-[10px] font-black text-[#187443]">
                 {Math.round(offer.matchPercent)} % match
               </span>
             )}
@@ -126,12 +126,12 @@ function ApplicationsBlock({ block }: { block: Extract<JiaWorkspaceBlock, { kind
       {block.error && <p role="status" className="rounded-xl bg-[#FFF4E8] p-3 text-[11px] text-[#92520C]">{block.error}</p>}
       {block.applications.length === 0 && <p className={surface + " text-[11px] text-[#6B7C92]"}>Aucune candidature enregistrée pour le moment.</p>}
       {block.applications.slice(0, 6).map((item) => (
-        <article key={item.id} className="flex items-start justify-between gap-3 rounded-xl border border-[#E5EBF3] bg-white p-3">
+        <article key={item.id} className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-[#E5EBF3] bg-white p-3">
           <div className="min-w-0">
             <p className="text-[12px] font-extrabold text-[#173A6B]">{item.job?.title || "Offre non disponible"}</p>
             <p className="mt-0.5 text-[10px] text-[#718198]">{[item.job?.companyName, item.job?.location].filter(Boolean).join(" · ") || "Détails à confirmer"}</p>
           </div>
-          <span className="shrink-0 rounded-full bg-[#F1F5FA] px-2 py-1 text-[9px] font-extrabold text-[#52637A]">{item.statusLabel || item.status}</span>
+          <span className="max-w-full shrink-0 whitespace-normal break-words rounded-full bg-[#F1F5FA] px-2 py-1 text-[9px] font-extrabold text-[#52637A] sm:max-w-[42%] sm:text-right">{item.statusLabel || item.status}</span>
         </article>
       ))}
     </section>
@@ -245,12 +245,12 @@ function ProfileBlock({ block, messageId, onNavigate, onSaveProfile, onUploadCv 
             <div className="mt-2 space-y-3">
               {block.experiences.slice(0, 3).map((item, index) => (
                 <article key={item.title + ":" + item.company + ":" + index}>
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-col items-start justify-between gap-1 sm:flex-row sm:items-start sm:gap-2">
                     <div className="min-w-0">
                       <p className="text-[11px] font-extrabold text-[#173A6B]">{item.title || "Expérience professionnelle"}</p>
                       <p className="text-[10px] text-[#6B7C92]">{item.company}</p>
                     </div>
-                    {cvDateRange(item.startDate, item.endDate) && <span className="shrink-0 text-[9px] font-semibold text-[#8492A5]">{cvDateRange(item.startDate, item.endDate)}</span>}
+                    {cvDateRange(item.startDate, item.endDate) && <span className="text-[9px] font-semibold text-[#8492A5] sm:shrink-0">{cvDateRange(item.startDate, item.endDate)}</span>}
                   </div>
                   {item.description && <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-[#64758B]">{item.description}</p>}
                 </article>
@@ -265,9 +265,9 @@ function ProfileBlock({ block, messageId, onNavigate, onSaveProfile, onUploadCv 
               {block.education.slice(0, 3).map((item, index) => (
                 <article key={item.institution + ":" + index}>
                   <p className="text-[11px] font-extrabold text-[#173A6B]">{[item.degree, item.field].filter(Boolean).join(" · ") || "Formation"}</p>
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-col items-start justify-between gap-1 sm:flex-row sm:items-center sm:gap-2">
                     <p className="text-[10px] text-[#6B7C92]">{item.institution}</p>
-                    {cvDateRange(item.startDate, item.endDate) && <span className="shrink-0 text-[9px] font-semibold text-[#8492A5]">{cvDateRange(item.startDate, item.endDate)}</span>}
+                    {cvDateRange(item.startDate, item.endDate) && <span className="text-[9px] font-semibold text-[#8492A5] sm:shrink-0">{cvDateRange(item.startDate, item.endDate)}</span>}
                   </div>
                 </article>
               ))}
@@ -392,9 +392,9 @@ function QuestionnaireBlock({ block, messageId, onSubmitAssessment, onUpdateWork
   return (
     <section className="mt-3 space-y-3" aria-label="Questionnaire J’IA">
       <div className="rounded-2xl border border-[#F1D88B] bg-gradient-to-br from-[#FFFBEB] to-white p-3.5">
-        <div className="flex items-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#FFD21A] text-[#594300]"><ClipboardCheck size={17}/></div>
-          <div><p className="text-[12px] font-extrabold text-[#10233F]">{block.title}</p><p className="text-[10px] font-semibold text-[#8A6A10]">{block.adaptive ? (asked.length + "/" + (block.maxQuestions || 5) + " questions adaptatives") : (block.questions.length + " questions")} · {block.competency}</p></div>
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#FFD21A] text-[#594300]"><ClipboardCheck size={17}/></div>
+          <div className="min-w-0"><p className="break-words text-[12px] font-extrabold text-[#10233F]">{block.title}</p><p className="text-[10px] font-semibold text-[#8A6A10]">{block.adaptive ? (asked.length + "/" + (block.maxQuestions || 5) + " questions adaptatives") : (block.questions.length + " questions")} · {block.competency}</p></div>
         </div>
         <p className="mt-2 text-[10px] leading-5 text-[#6B5A2A]">{block.objective}</p>
       </div>
@@ -413,13 +413,13 @@ function QuestionnaireBlock({ block, messageId, onSubmitAssessment, onUpdateWork
                   ? "border-[#1264EB] bg-[#EEF5FF] text-[#173A6B]"
                   : "border-[#EDF1F6] text-[#52637A] hover:border-[#B9CBE2]";
               return (
-                <label key={choice} className={"flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-[10px] leading-4 transition " + optionClass}>
+                <label key={choice} className={"flex min-w-0 cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-[10px] leading-4 transition " + optionClass}>
                   <input type="radio" name={block.assessmentId + ":" + index} className="mt-0.5 accent-[#1264EB]" checked={selected} onChange={() => {
                     const nextAnswers = { ...answers, [String(index)]: choiceIndex };
                     setAnswers(nextAnswers);
                     onUpdateWorkspace(messageId, { ...block, answers: nextAnswers });
                   }}/>
-                  <span className="flex-1">{choice}</span>
+                  <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">{choice}</span>
                   {correct && <CheckCircle2 size={13}/>}
                 </label>
               );
@@ -555,8 +555,8 @@ function BusinessSummaryBlock({ block, onNavigate }: { block: Extract<JiaWorkspa
       </div>
       {block.items.length === 0 ? <div className={surface}><p className="text-[11px] font-bold text-[#173A6B]">Aucun élément à afficher dans ce périmètre.</p></div> : block.items.map((item) => (
         <article key={item.id} className={surface}>
-          <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-[11px] font-extrabold text-[#173A6B]">{item.title}</p>{item.subtitle && <p className="mt-0.5 text-[10px] text-[#6B7C92]">{item.subtitle}</p>}</div>
-          {item.status && <span className="shrink-0 rounded-full bg-[#F1F5FA] px-2 py-1 text-[9px] font-bold text-[#52637A]">{item.status}</span>}</div>
+          <div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0 flex-1"><p className="break-words text-[11px] font-extrabold text-[#173A6B]">{item.title}</p>{item.subtitle && <p className="mt-0.5 break-words text-[10px] text-[#6B7C92]">{item.subtitle}</p>}</div>
+          {item.status && <span className="max-w-[42%] shrink-0 whitespace-normal break-words rounded-full bg-[#F1F5FA] px-2 py-1 text-right text-[9px] font-bold text-[#52637A]">{item.status}</span>}</div>
           {item.detail && <p className="mt-2 text-[10px] leading-4 text-[#64758B]">{item.detail}</p>}
         </article>
       ))}

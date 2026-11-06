@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import JIA3D from "@/components/JIA/JIA3D";
 import {
+  getJiaExperienceDevice,
   pickJiaPresentationLayout,
   resolveJiaExperience,
   type JiaExperienceDevice,
@@ -195,17 +196,35 @@ export default function JiaConversationSurface(props: Props) {
   const [layoutRefresh, setLayoutRefresh] = useState(0);
   const layoutHistory = useRef<JiaPresentationMode[]>([]);
   const [device, setDevice] = useState<JiaExperienceDevice>("desktop");
+  const [viewportMetrics, setViewportMetrics] = useState({ height: 0, offsetTop: 0 });
   const [showShortcuts, setShowShortcuts] = useState(false);
   const bottomAnchor = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const updateDevice = () => {
-      const width = window.innerWidth;
-      setDevice(width < 640 ? "mobile" : width < 1024 ? "tablet" : "desktop");
+    const updateViewport = () => {
+      const viewport = window.visualViewport;
+      const width = viewport?.width ?? window.innerWidth;
+      const height = Math.max(1, Math.round(viewport?.height ?? window.innerHeight));
+      const offsetTop = Math.max(0, Math.round(viewport?.offsetTop ?? 0));
+      setDevice(getJiaExperienceDevice(width));
+      setViewportMetrics((current) =>
+        current.height === height && current.offsetTop === offsetTop
+          ? current
+          : { height, offsetTop }
+      );
     };
-    updateDevice();
-    window.addEventListener("resize", updateDevice, { passive: true });
-    return () => window.removeEventListener("resize", updateDevice);
+    updateViewport();
+    const viewport = window.visualViewport;
+    window.addEventListener("resize", updateViewport, { passive: true });
+    window.addEventListener("orientationchange", updateViewport);
+    viewport?.addEventListener("resize", updateViewport, { passive: true });
+    viewport?.addEventListener("scroll", updateViewport, { passive: true });
+    return () => {
+      window.removeEventListener("resize", updateViewport);
+      window.removeEventListener("orientationchange", updateViewport);
+      viewport?.removeEventListener("resize", updateViewport);
+      viewport?.removeEventListener("scroll", updateViewport);
+    };
   }, []);
 
   useEffect(() => {
@@ -288,7 +307,13 @@ export default function JiaConversationSurface(props: Props) {
         animate={{ opacity: 1 }}
         exit={reducedMotion ? { opacity: 1 } : { opacity: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.22 }}
-        className="fixed inset-0 z-[80] flex items-stretch justify-center bg-[#07172F]/45 p-0 backdrop-blur-[3px] sm:items-center sm:p-3 lg:justify-end lg:p-4"
+        className="fixed inset-x-0 z-[80] flex items-stretch justify-center overflow-hidden bg-[#07172F]/45 p-0 backdrop-blur-[3px] sm:items-center sm:p-3 lg:justify-end lg:p-4"
+        style={{
+          top: viewportMetrics.offsetTop,
+          height: viewportMetrics.height || "100dvh",
+          paddingLeft: "env(safe-area-inset-left, 0px)",
+          paddingRight: "env(safe-area-inset-right, 0px)",
+        }}
         onMouseDown={(event) => {
           if (event.target === event.currentTarget) onClose();
         }}
@@ -301,7 +326,8 @@ export default function JiaConversationSurface(props: Props) {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 12, scale: 0.99 }}
           transition={{ duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
-          className="relative flex h-[100dvh] w-full max-w-[780px] min-h-0 flex-col overflow-hidden border border-white/70 bg-white shadow-[0_30px_100px_rgba(7,23,47,.28)] sm:h-[min(900px,calc(100dvh-24px))] sm:rounded-[28px] lg:max-w-[min(860px,calc(100vw-32px))]"
+          data-jia-viewport={device}
+          className="relative flex h-full w-full min-h-0 max-w-[780px] flex-col overflow-hidden border border-white/70 bg-white shadow-[0_30px_100px_rgba(7,23,47,.28)] sm:h-[min(900px,calc(100%-24px))] sm:rounded-[28px] lg:max-w-[min(860px,calc(100vw-32px))]"
           style={{
             paddingTop: "env(safe-area-inset-top, 0px)",
             paddingBottom: "env(safe-area-inset-bottom, 0px)",
@@ -353,7 +379,7 @@ export default function JiaConversationSurface(props: Props) {
           <nav aria-label="Présentation de la conversation" className={`shrink-0 border-y px-3 py-2 ${layout === "stage" ? "border-white/10 bg-[#0B2452]" : "border-[#E9EEF5] bg-white"}`}>
             <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <button type="button" aria-pressed={selectedLayout === "auto"} onClick={() => { setSelectedLayout("auto"); setLayoutRefresh((value) => value + 1); }}
-                className={`flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11px] font-extrabold transition ${selectedLayout === "auto" ? "bg-[#FFD21A] text-[#10233F]" : layout === "stage" ? "bg-white/10 text-white/80" : "bg-[#F1F5FA] text-[#66768B]"}`}>
+                className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11px] font-extrabold transition ${selectedLayout === "auto" ? "bg-[#FFD21A] text-[#10233F]" : layout === "stage" ? "bg-white/10 text-white/80" : "bg-[#F1F5FA] text-[#66768B]"}`}>
                 <Sparkles size={13} /> Auto
               </button>
               <button
@@ -361,7 +387,7 @@ export default function JiaConversationSurface(props: Props) {
                 onClick={() => { setSelectedLayout("auto"); setLayoutRefresh((value) => value + 1); }}
                 title="Nouvelle composition"
                 aria-label="Nouvelle composition"
-                className={`flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-extrabold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1264EB] ${layout === "stage" ? "border-white/15 bg-white/10 text-white/80 hover:bg-white/15" : "border-[#DCE6F2] bg-white text-[#52637A] hover:border-[#1264EB]/40 hover:text-[#1264EB]"}`}
+                className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-extrabold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1264EB] ${layout === "stage" ? "border-white/15 bg-white/10 text-white/80 hover:bg-white/15" : "border-[#DCE6F2] bg-white text-[#52637A] hover:border-[#1264EB]/40 hover:text-[#1264EB]"}`}
               >
                 <Shuffle size={13} /> Nouvelle composition
               </button>
@@ -370,7 +396,7 @@ export default function JiaConversationSurface(props: Props) {
                 const active = selectedLayout === mode.id;
                 return (
                   <button key={mode.id} type="button" aria-pressed={active} onClick={() => setSelectedLayout(mode.id)}
-                    className={`flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11px] font-extrabold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1264EB] ${active ? "bg-[#1264EB] text-white shadow-sm" : layout === "stage" ? "bg-white/10 text-white/80 hover:bg-white/15" : "bg-[#F1F5FA] text-[#52637A] hover:bg-[#E8EEF7]"}`}>
+                    className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11px] font-extrabold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1264EB] ${active ? "bg-[#1264EB] text-white shadow-sm" : layout === "stage" ? "bg-white/10 text-white/80 hover:bg-white/15" : "bg-[#F1F5FA] text-[#52637A] hover:bg-[#E8EEF7]"}`}>
                     <Icon size={13} /> {mode.label}
                   </button>
                 );
@@ -454,7 +480,7 @@ export default function JiaConversationSurface(props: Props) {
                           </div>
                         )}
                         <div className={`min-w-0 ${layout === "gallery" && !mine ? "max-w-[94%] sm:max-w-[96%]" : "max-w-[88%] sm:max-w-[82%]"} ${mine ? "items-end" : "items-start"} flex flex-col`}>
-                          <div className={`rounded-[21px] px-4 py-3 text-[13px] leading-[1.65] ${visualTransition} sm:px-5 sm:py-3.5 ${mine ? "rounded-br-[7px]" : "rounded-bl-[7px]"} ${messageSurface(layout, message.role)} ${layout === "workspace" && !mine ? "rounded-xl border-l-[3px] border-l-[#1264EB]" : ""} ${layout === "gallery" && !mine ? "w-full min-w-[min(250px,70vw)] rounded-[24px] border-t-[3px] border-t-[#FFD21A]" : ""} ${layout === "interactive" && !mine ? "rounded-[24px] border-l-[4px] border-l-[#F28C28]" : ""} ${layout === "explorer" && !mine ? "rounded-[24px] bg-white/95" : ""}`}>
+                          <div className={`min-w-0 max-w-full rounded-[21px] px-3.5 py-3 text-[13px] leading-[1.65] [overflow-wrap:anywhere] ${visualTransition} sm:px-5 sm:py-3.5 ${mine ? "rounded-br-[7px]" : "rounded-bl-[7px]"} ${messageSurface(layout, message.role)} ${layout === "workspace" && !mine ? "rounded-xl border-l-[3px] border-l-[#1264EB]" : ""} ${layout === "gallery" && !mine ? "w-full min-w-[min(220px,68vw)] rounded-[24px] border-t-[3px] border-t-[#FFD21A]" : ""} ${layout === "interactive" && !mine ? "rounded-[24px] border-l-[4px] border-l-[#F28C28]" : ""} ${layout === "explorer" && !mine ? "rounded-[24px] bg-white/95" : ""}`}>
                             <p className="whitespace-pre-wrap break-words">{message.text}</p>
                             {message.sources && message.sources.length > 0 && (
                               <div className={`mt-3 border-t pt-2.5 ${layout === "stage" && !mine ? "border-white/15" : "border-[#DCE5F0]"}`}>
@@ -511,11 +537,11 @@ export default function JiaConversationSurface(props: Props) {
                   <div className="min-w-0 flex-1">
                     <p className="text-[12px] font-extrabold text-[#10233F]">J’IA attend ton autorisation</p>
                     <p className="mt-1 break-words text-[11px] leading-5 text-[#64748B]">{pendingAction.message}</p>
-                    <div className="mt-3 flex gap-2">
-                      <button type="button" onClick={onConfirmAction} disabled={busy} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1264EB] px-4 text-[11px] font-extrabold text-white hover:bg-[#0C53C7] disabled:opacity-50">
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" onClick={onConfirmAction} disabled={busy} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1264EB] px-4 text-[11px] font-extrabold text-white hover:bg-[#0C53C7] disabled:opacity-50">
                         <Check size={14}/> Autoriser
                       </button>
-                      <button type="button" onClick={onCancelAction} disabled={busy} className="min-h-10 rounded-xl border border-[#DCE5F0] px-4 text-[11px] font-extrabold text-[#52637A] hover:bg-[#F6F8FB]">Annuler</button>
+                      <button type="button" onClick={onCancelAction} disabled={busy} className="min-h-11 rounded-xl border border-[#DCE5F0] px-4 text-[11px] font-extrabold text-[#52637A] hover:bg-[#F6F8FB]">Annuler</button>
                     </div>
                   </div>
                 </div>
@@ -523,10 +549,10 @@ export default function JiaConversationSurface(props: Props) {
             )}
 
             <footer className={`relative shrink-0 border-t px-3 pb-3 pt-2.5 sm:px-6 sm:pb-4 ${layout === "stage" ? "border-white/10 bg-[#0B2452]" : "border-[#E8EDF4] bg-white"}`}>
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className={`text-[9px] font-bold ${layout === "stage" ? "text-white/55" : "text-[#8290A2]"}`}>Entrée pour envoyer · Maj + Entrée pour une ligne</div>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div className={`hidden text-[9px] font-bold sm:block ${layout === "stage" ? "text-white/55" : "text-[#8290A2]"}`}>Entrée pour envoyer · Maj + Entrée pour une ligne</div>
                 <button type="button" onClick={() => setShowShortcuts((value) => !value)} aria-expanded={showShortcuts}
-                  className={`inline-flex items-center gap-1 text-[10px] font-extrabold ${layout === "stage" ? "text-[#FFD21A]" : "text-[#1264EB]"}`}>
+                  className={`inline-flex min-h-11 items-center gap-1 text-[10px] font-extrabold ${layout === "stage" ? "text-[#FFD21A]" : "text-[#1264EB]"}`}>
                   Raccourcis Jobly <ChevronDown size={12} className={showShortcuts ? "rotate-180" : ""}/>
                 </button>
               </div>
@@ -534,7 +560,7 @@ export default function JiaConversationSurface(props: Props) {
                 <div className="mb-2 flex flex-wrap gap-1.5">
                   {quickLinks.map((link) => (
                     <button key={link.href} type="button" onClick={() => onNavigate(link.href)}
-                      className="min-h-8 rounded-full border border-[#DCE7F6] bg-[#F5F8FD] px-3 text-[10px] font-bold text-[#315B92] hover:border-[#1264EB]/40">
+                      className="min-h-11 rounded-full border border-[#DCE7F6] bg-[#F5F8FD] px-3 text-[10px] font-bold text-[#315B92] hover:border-[#1264EB]/40">
                       {link.label}
                     </button>
                   ))}
@@ -550,16 +576,16 @@ export default function JiaConversationSurface(props: Props) {
                   placeholder={ecosystem === "RECRUITER" ? "Que souhaites-tu faire pour ton recrutement ?" : ecosystem === "PARTNER" ? "Comment puis-je t’accompagner ?" : "Écris à J’IA…"}
                   aria-label="Message à J’IA"
                   disabled={busy}
-                  className={`max-h-32 min-h-11 min-w-0 flex-1 resize-y bg-transparent px-3 py-3 text-[13px] leading-5 outline-none placeholder:text-[#9AA7B6] disabled:opacity-60 ${layout === "stage" ? "text-white" : "text-[#10233F]"}`}
+                  className={`max-h-32 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-3 py-3 text-[13px] leading-5 outline-none placeholder:text-[#9AA7B6] disabled:opacity-60 sm:resize-y ${layout === "stage" ? "text-white" : "text-[#10233F]"}`}
                 />
                 {props.onEnableVoice && !voiceMode && (
                   <button type="button" onClick={props.onEnableVoice} aria-label="Activer le mode vocal" title="Mode vocal"
-                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${layout === "stage" ? "text-white/75 hover:bg-white/10" : "text-[#687A91] hover:bg-[#EAF0F8]"}`}>
+                    className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${layout === "stage" ? "text-white/75 hover:bg-white/10" : "text-[#687A91] hover:bg-[#EAF0F8]"}`}>
                     <Mic size={18}/>
                   </button>
                 )}
                 <button type="submit" disabled={busy || !inputValue.trim()} aria-label="Envoyer le message"
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#FFD21A] text-[#10233F] shadow-sm transition hover:brightness-95 active:scale-95 disabled:opacity-40">
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#FFD21A] text-[#10233F] shadow-sm transition hover:brightness-95 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1264EB] disabled:opacity-40">
                   {busy ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#10233F]/25 border-t-[#10233F]"/> : <ArrowUp size={19} strokeWidth={2.8}/>}
                 </button>
               </form>
