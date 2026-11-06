@@ -52,7 +52,7 @@ export default function AdminSupportPage() {
         body: JSON.stringify(values),
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.message || "Mise à jour impossible.");
+      if (!response.ok) throw new Error(body.message || body.warning || "Mise à jour impossible.");
       await load(token, filter);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Mise à jour impossible."); }
     finally { setBusy(null); }
