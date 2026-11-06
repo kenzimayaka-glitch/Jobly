@@ -1,7 +1,73 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
+import { enforceApiRateLimit } from "@/lib/server-security";
 import crypto from "node:crypto";
-const BUCKET="talent-showcase",MAX=5*1024*1024;
-async function auth(req:NextRequest){const t=req.headers.get("authorization")?.replace(/^Bearer\\s+/i,"");if(!t)return null;const u=process.env.NEXT_PUBLIC_SUPABASE_URL,k=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;if(!u||!k)throw new Error("Supabase client non configuré.");const sb=createClient(u,k,{auth:{autoRefreshToken:false,persistSession:false}});return (await sb.auth.getUser(t)).data.user||null;}
-function admin(){const u=process.env.NEXT_PUBLIC_SUPABASE_URL,k=process.env.SUPABASE_SERVICE_ROLE_KEY;if(!u||!k)throw new Error("Supabase serveur non configuré.");return createClient(u,k,{auth:{autoRefreshToken:false,persistSession:false}});}
-export async function POST(req:NextRequest){try{const au=await auth(req);if(!au)return NextResponse.json({message:"Session requise."},{status:401});const sb=admin(),u=await sb.from("User").select("id").eq("authUserId",au.id).maybeSingle();if(!u.data)return NextResponse.json({message:"Utilisateur introuvable."},{status:404});const f=(await req.formData()).get("file");if(!(f instanceof File)||!f.type.startsWith("image/"))return NextResponse.json({message:"Image invalide."},{status:415});if(f.size>MAX)return NextResponse.json({message:"5 Mo maximum par image."},{status:413});const bs=await sb.storage.listBuckets();if(bs.error)throw new Error(bs.error.message);if(!bs.data?.some((b:any)=>b.name===BUCKET)){const x=await sb.storage.createBucket(BUCKET,{public:true,fileSizeLimit:String(MAX),allowedMimeTypes:["image/jpeg","image/png","image/webp"]});if(x.error&&!/already exists/i.test(x.error.message))throw new Error(x.error.message);}const ext=f.type.split("/")[1].replace("jpeg","jpg"),path=u.data.id+"/"+Date.now()+"-"+crypto.randomUUID()+"."+ext;const x=await sb.storage.from(BUCKET).upload(path,new Uint8Array(await f.arrayBuffer()),{contentType:f.type,upsert:false,cacheControl:"31536000"});if(x.error)throw new Error(x.error.message);return NextResponse.json({url:sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl,path});}catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Upload impossible."},{status:500});}}
+
+const BUCKET = "talent-showcase";
+const MAX_BYTES = 5 * 1024 * 1024;
+const MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+function hasValidImageSignature(bytes: Uint8Array, type: string): boolean {
+  if (type === "image/jpeg") return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (type === "image/png") return bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+  if (type === "image/webp") return bytes.length >= 12 &&
+    String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
+    String.fromCharCode(...bytes.slice(8, 12)) === "WEBP";
+  return false;
+}
+
+async function ensurePublicBucket(supabase: ReturnType<typeof adminClient>) {
+  const options = { public: true, fileSizeLimit: MAX_BYTES, allowedMimeTypes: Array.from(MIME_TYPES) };
+  const { data, error } = await supabase.storage.getBucket(BUCKET);
+  if (error && !/not found/i.test(error.message)) throw new Error(error.message);
+  if (!data) {
+    const created = await supabase.storage.createBucket(BUCKET, options);
+    if (created.error && !/already exists/i.test(created.error.message)) throw new Error(created.error.message);
+  }
+  const updated = await supabase.storage.updateBucket(BUCKET, options);
+  if (updated.error) throw new Error(updated.error.message);
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const auth = await getAuthUser(request);
+    if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+    const supabase = adminClient();
+    const user = await ensureUser(supabase, auth);
+    const limited = await enforceApiRateLimit(request, supabase, {
+      scope: "talent-showcase-image-upload",
+      identity: user.id,
+      accountWindows: [{ limit: 10, windowSeconds: 3600 }, { limit: 30, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 20, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
+
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > MAX_BYTES + 512 * 1024) return NextResponse.json({ message: "5 Mo maximum par image." }, { status: 413 });
+
+    const form = await request.formData();
+    const file = form.get("file");
+    if (!(file instanceof File) || !MIME_TYPES.has(file.type)) {
+      return NextResponse.json({ message: "Formats acceptés : JPEG, PNG ou WebP." }, { status: 415 });
+    }
+    if (file.size < 12 || file.size > MAX_BYTES) return NextResponse.json({ message: "5 Mo maximum par image." }, { status: 413 });
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (!hasValidImageSignature(bytes.slice(0, 16), file.type)) {
+      return NextResponse.json({ message: "Le contenu du fichier ne correspond pas à une image acceptée." }, { status: 415 });
+    }
+
+    await ensurePublicBucket(supabase);
+    const extension = file.type === "image/jpeg" ? "jpg" : file.type === "image/png" ? "png" : "webp";
+    const path = `${user.id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+    const upload = await supabase.storage.from(BUCKET).upload(path, bytes, {
+      contentType: file.type,
+      upsert: false,
+      cacheControl: "31536000",
+    });
+    if (upload.error) throw new Error(upload.error.message);
+    return NextResponse.json({ url: supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl, path });
+  } catch (error) {
+    return NextResponse.json({ message: error instanceof Error ? error.message : "Upload impossible." }, { status: 500 });
+  }
+}
