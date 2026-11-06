@@ -5,7 +5,7 @@ import { getProvider } from "../../../../../lib/paymentProviders";
 const err = (message: string, status: number, code = message) => NextResponse.json({ error: code, message }, { status });
 const ref = (value: unknown) => {
   const valueText = String(value || "").trim().toUpperCase();
-  return /^[A-Z0-9][A-Z0-9_-]{4,63}$/.test(valueText) ? valueText : null;
+  return /^[A-Z0-9][A-Z0-9._-]{4,63}$/.test(valueText) ? valueText : null;
 };
 const digits = (value: unknown) => String(value || "").replace(/\D/g, "");
 
