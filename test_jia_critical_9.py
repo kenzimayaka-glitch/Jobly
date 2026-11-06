@@ -55,9 +55,10 @@ GATES = {
             "lib/jia/mobilityIntelligence.ts": ["buildMobilityIntelligence"],
         }
     },
-    "07_physical_presence": {
+    "07_conversational_presence": {
         "files": {
-            "components/JiaPresence.tsx": ["JIA3D", "/api/jia/cycle", "jobly:jia-cognitive-cycle", "jobly:jia-external-signal"],
+            "components/JiaPresence.tsx": ["JiaPresenceMark", "/api/jia/cycle", "jobly:jia-cognitive-cycle", "jobly:jia-external-signal"],
+            "components/JiaPresenceMark.tsx": ["data-jia-presence-mark", "listening", "speaking"],
             "components/JIA/JIA3D.tsx": ["jia-officielle.glb", "speaking", "morph", "gltf"],
             "components/JIA/movements.ts": ["breath", "gesture"],
             "components/JIA/gestureMap.ts": ["gesture"],
