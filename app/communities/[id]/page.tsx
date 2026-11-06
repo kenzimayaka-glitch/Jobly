@@ -175,6 +175,23 @@ export default function CommunityPage() {
     setCommentsOpen((current) => ({ ...current, [post.id]: true }));
   }
 
+  async function reportPost(post: Post) {
+    const reason = window.prompt("Motif : HARASSMENT, HATE, SPAM, SCAM, MISINFORMATION, ILLEGAL, PRIVACY ou OTHER", "OTHER")?.trim().toUpperCase();
+    if (!reason) return;
+    const allowed = ["HARASSMENT","HATE","SPAM","SCAM","MISINFORMATION","ILLEGAL","PRIVACY","OTHER"];
+    if (!allowed.includes(reason)) { setMessage("Motif invalide. Réessaie avec une des catégories proposées."); return; }
+    const details = window.prompt("Précision facultative pour aider la modération :")?.trim() || "";
+    const headers = await communityAuthHeaders();
+    const response = await fetch(`/api/community/${encodeURIComponent(String(params.id))}/posts/${encodeURIComponent(post.id)}/report`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ reason, details }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) { setMessage(body.message || t("common.error.generic")); return; }
+    setMessage(body.message || "Signalement transmis à la modération Jobly.");
+  }
+
   async function commentOnPost(post: Post) {
     const value = (commentDrafts[post.id] || "").trim();
     if (!value) return;
@@ -282,6 +299,7 @@ export default function CommunityPage() {
                             <button type="button" aria-expanded={Boolean(commentsOpen[post.id])} onClick={() => void toggleComments(post)} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-[#0B1F4B]">
                               {t("community.detail.comments", { n: post.commentCount })}
                             </button>
+                            <button type="button" onClick={() => void reportPost(post)} className="rounded-xl border border-red-100 bg-white px-3 py-2 text-xs font-black text-red-700">Signaler</button>
                           </div>
                           {commentsOpen[post.id] && (
                             <div className="mt-3 rounded-2xl bg-slate-50 p-3">
