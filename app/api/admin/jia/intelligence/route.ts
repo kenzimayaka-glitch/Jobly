@@ -19,6 +19,6 @@ export async function GET(req:NextRequest){
   const snapshot=await buildAdminTransversalIntelligence(sb,includeMarketWatch);
   const audit=await sb.from("CEOAuditLog").insert({adminUserId:user.id,action:"VIEW_TRANSVERSAL_JIA_INTELLIGENCE",endpoint:"/api/admin/jia/intelligence",metadata:{generatedAt:snapshot.generatedAt,layers:snapshot.layers.map(l=>l.layer)}});
   if(audit.error)throw new Error(audit.error.message);
-  return NextResponse.json(snapshot);
+  return NextResponse.json(snapshot,{headers:{"Cache-Control":"private, no-store, max-age=0",Vary:"Authorization"}});
  }catch(error){return NextResponse.json({error:"JIA_INTELLIGENCE_UNAVAILABLE",message:error instanceof Error?error.message:"Intelligence J’IA indisponible."},{status:500});}
 }
