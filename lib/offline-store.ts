@@ -9,11 +9,16 @@ export type OfflineSnapshot = {
   education: Record<string, unknown>[];
   applications: Record<string, unknown>[];
   offers: Record<string, unknown>[];
+  role?: string;
+  recruiterProfile?: Record<string, unknown> | null;
+  recruiterJobs?: Record<string, unknown>[];
+  partnerProfile?: Record<string, unknown> | null;
 };
 
 export type OfflineOperation =
   | { id: string; type: "profile.update"; createdAt: string; payload: { headline?: string; summary?: string; location?: string; targetRoles?: string[]; preferredSectors?: string[] } }
-  | { id: string; type: "application.prepare"; createdAt: string; payload: { jobId?: string; recruiterJobId?: string; language?: string } };
+  | { id: string; type: "application.prepare"; createdAt: string; payload: { jobId?: string; recruiterJobId?: string; language?: string } }
+  | { id: string; type: "recruiter.job-draft"; createdAt: string; payload: { title: string; description: string; location?: string; contract?: string; salary?: string; sector?: string; tags?: string[] } };
 
 type EncryptedRecord = {
   id: string;
