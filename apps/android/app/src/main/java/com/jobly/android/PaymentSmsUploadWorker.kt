@@ -75,6 +75,7 @@ class PaymentSmsUploadWorker(
                 requestMethod = "POST"
                 connectTimeout = CONNECT_TIMEOUT_MS
                 readTimeout = READ_TIMEOUT_MS
+                instanceFollowRedirects = false
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 setRequestProperty("Accept", "application/json")
@@ -115,7 +116,7 @@ class PaymentSmsUploadWorker(
         const val KEY_SENDER_ID = "sender_id"
         const val KEY_ENCRYPTED_SMS_FILE = "encrypted_sms_file"
         private const val MAX_SMS_LENGTH = 5000
-        private const val MAX_ENCRYPTED_FILE_LENGTH = 16000
+        private const val MAX_ENCRYPTED_FILE_LENGTH = 30000
         private const val CONNECT_TIMEOUT_MS = 8000
         private const val READ_TIMEOUT_MS = 8000
     }
