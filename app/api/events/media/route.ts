@@ -45,7 +45,7 @@ export async function POST(request:NextRequest){
       sizeBytes:file.size,
       durationSeconds:inspected.durationSeconds,
       maxVideoSeconds:EVENT_VIDEO_MAX_SECONDS
-    });
+    },{headers:{"Cache-Control":"private, no-store, max-age=0",Vary:"Authorization"}});
   }catch(e){
     return NextResponse.json({message:e instanceof Error?e.message:"Upload impossible."},{status:500});
   }
