@@ -24,7 +24,7 @@ test("parses a fully labelled synthetic successful receipt", () => {
   assert.equal(result.currency, "XAF");
   assert.equal(result.payerPhone, "237677123456");
   assert.equal(result.merchantAccount, "237699123456");
-  assert.equal(result.occurredAt, "2026-11-06T10:15:00.000Z");
+  assert.equal(result.occurredAt, null);
   assert.deepEqual(result.fraudFlags, []);
 });
 
@@ -93,4 +93,29 @@ test("accepts an authentic receipt when operator omits the payer phone", () => {
   assert.equal(result.payerPhone, null);
   assert.equal(result.merchantAccount, "237699123456");
   assert.deepEqual(result.fraudFlags, []);
+});
+
+test("rejects an explicit negative payment confirmation even when it contains a positive word", () => {
+  const result = parsePaymentSms({
+    senderId: "JOBLY-MTN-TEST",
+    body: "Paiement non réussi. Transaction ID: MTNABC123456. Montant: 10 000 FCFA.",
+  }, { senderIds: { SMS_MTN: ["JOBLY-MTN-TEST"] }, merchantAccount: "237699123456" });
+  assert.equal(result.status, "FAILED");
+  assert.ok(result.fraudFlags.includes("MESSAGE_NOT_CONFIRMED_SUCCESS"));
+});
+
+test("does not guess a timezone for local timestamps", () => {
+  const result = parsePaymentSms({
+    senderId: "JOBLY-MTN-TEST",
+    body: "Paiement réussi. Transaction ID: MTNABC123456. Montant: 10 000 FCFA. Date: 06/11/2026 10:15",
+  }, { senderIds: { SMS_MTN: ["JOBLY-MTN-TEST"] }, merchantAccount: "237699123456" });
+  assert.equal(result.occurredAt, null);
+});
+
+test("normalizes an SMS timestamp only when the UTC offset is explicit", () => {
+  const result = parsePaymentSms({
+    senderId: "JOBLY-MTN-TEST",
+    body: "Paiement réussi. Transaction ID: MTNABC123456. Montant: 10 000 FCFA. Date: 2026-11-06 10:15:00+01:00",
+  }, { senderIds: { SMS_MTN: ["JOBLY-MTN-TEST"] }, merchantAccount: "237699123456" });
+  assert.equal(result.occurredAt, "2026-11-06T09:15:00.000Z");
 });
