@@ -49,7 +49,10 @@ export default function OfflineCoordinator() {
       const { data } = await getSupabaseClient().auth.getSession();
       const authUserId = data.session?.user?.id;
       if (!data.session?.access_token || !authUserId) {
-        setConnectivity("offline");
+        // A public visitor is not offline just because they have not signed in.
+        // Only the browser's actual network state determines offline availability.
+        setConnectivity(navigator.onLine ? "online" : "offline");
+        setMessage("");
         await refreshCount();
         return;
       }
