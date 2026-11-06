@@ -506,6 +506,7 @@ export default function JiaPresence() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!active) return;
         applySession(session);
+        if (!session?.access_token) return;
         const res = await fetch(`/api/jia/preferences?ecosystem=${eco}`, { headers: { Authorization: `Bearer ${session.access_token}` } });
         if (!res.ok || !active) return;
         const data = await res.json();
