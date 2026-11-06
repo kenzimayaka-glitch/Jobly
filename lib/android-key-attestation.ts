@@ -105,10 +105,13 @@ function decodeOid(bytes: Buffer): string {
   return parts.join(".");
 }
 
-function integerValue(node: DerNode): bigint {
-  if (!node.content.length || node.content.length > 16) throw new Error("DER_INVALID_INTEGER");
-  let value = 0n;
-  for (const byte of node.content) value = (value << 8n) | BigInt(byte);
+function integerValue(node: DerNode): number {
+  if (!node.content.length || node.content.length > 6) throw new Error("DER_INVALID_INTEGER");
+  let value = 0;
+  for (const byte of node.content) {
+    value = value * 256 + byte;
+    if (!Number.isSafeInteger(value)) throw new Error("DER_INTEGER_OUT_OF_RANGE");
+  }
   return value;
 }
 
@@ -275,7 +278,22 @@ async function googleRevocations(): Promise<RevocationDocument> {
 
 function isRevoked(certificate: X509Certificate, entries: Record<string, { status?: string }>) {
   const serialHex = certificate.serialNumber.replace(/^0+/, "").toLowerCase();
-  const serialDecimal = serialHex ? BigInt("0x" + serialHex).toString(10) : "0";
+  let decimalDigits = [0];
+  for (const char of serialHex) {
+    const nibble = Number.parseInt(char, 16);
+    if (!Number.isInteger(nibble)) return false;
+    let carry = nibble;
+    for (let i = decimalDigits.length - 1; i >= 0; i--) {
+      const next = decimalDigits[i] * 16 + carry;
+      decimalDigits[i] = next % 10;
+      carry = Math.floor(next / 10);
+    }
+    while (carry > 0) {
+      decimalDigits.unshift(carry % 10);
+      carry = Math.floor(carry / 10);
+    }
+  }
+  const serialDecimal = decimalDigits.join("");
   const entry = entries[serialHex] ?? entries[serialDecimal];
   return entry?.status?.toUpperCase() === "REVOKED";
 }
