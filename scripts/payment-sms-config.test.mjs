@@ -93,18 +93,20 @@ test("normalizes local Cameroonian Mobile Money numbers consistently", () => {
   assert.equal(normalizeMobileMoneyPhone("+237 658 174 722"), "237658174722");
 });
 
-test("configuration API masks merchant secrets and restricts mutations to ADMIN", () => {
+test("configuration API masks merchant secrets and restricts access to active root ADMIN", () => {
   const route = readFileSync(new URL("../app/api/payments/sms/config/route.ts", import.meta.url), "utf8");
   const getStart = route.indexOf("export async function GET");
   const postStart = route.indexOf("export async function POST");
   const get = route.slice(getStart, postStart);
   const post = route.slice(postStart);
   assert.ok(getStart >= 0 && postStart > getStart);
-  assert.match(get, /getAdmin\(request, true\)/);
+  assert.ok(get.includes("getAdmin(request)"));
   assert.match(get, /merchantCodeHint/);
   assert.doesNotMatch(get, /merchantCode: item\.merchantCode/);
-  assert.match(post, /getAdmin\(request\)/);
-  assert.match(route, /String\(actor\.role\) !== "ADMIN"/);
+  assert.ok(post.includes("getAdmin(request)"));
+  assert.ok(route.includes('String(actor.role).toUpperCase() !== "ADMIN"'));
+  assert.ok(route.includes('from("AdminIdentity")'));
+  assert.ok(route.includes("identity?.active"));
   assert.match(route, /PAYMENT_SMS_PROVIDER_CONFIG_UPDATED/);
   assert.doesNotMatch(post, /merchantCode,\s*merchantAccount.*metadata/s);
 });
