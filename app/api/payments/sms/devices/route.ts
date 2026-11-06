@@ -4,7 +4,11 @@ export async function GET(request: NextRequest) {
     if (!auth) return err("Session requise.", 401, "UNAUTHENTICATED");
     const supabase = adminClient();
     const actor = await ensureUser(supabase, auth);
-    if (!["ADMIN", "FINANCE"].includes(String(actor.role))) return err("Accès administrateur requis.", 403, "FORBIDDEN");
+    if (String(actor.role).toUpperCase() !== "ADMIN") return err("Accès réservé au compte ADMIN maître.", 403, "FORBIDDEN");
+    const { data: identity, error: identityError } = await supabase.from("AdminIdentity").select("active")
+      .eq("authUserId", auth.id).eq("ownerUserId", actor.id).maybeSingle();
+    if (identityError) throw new Error(identityError.message);
+    if (!identity?.active) return err("Identité ADMIN maître inactive.", 403, "ADMIN_IDENTITY_INACTIVE");
 
     const { data: devices, error } = await supabase.from("PaymentSmsDevice")
       .select("id,label,provider,merchantAccount,timeZone,senderIds,status,lastSeenAt,createdAt,revokedAt")
@@ -40,7 +44,11 @@ export async function POST(request: NextRequest) {
     if (!auth) return err("Session requise.", 401, "UNAUTHENTICATED");
     const supabase = adminClient();
     const actor = await ensureUser(supabase, auth);
-    if (!["ADMIN", "FINANCE"].includes(String(actor.role))) return err("Accès administrateur requis.", 403, "FORBIDDEN");
+    if (String(actor.role).toUpperCase() !== "ADMIN") return err("Accès réservé au compte ADMIN maître.", 403, "FORBIDDEN");
+    const { data: identity, error: identityError } = await supabase.from("AdminIdentity").select("active")
+      .eq("authUserId", auth.id).eq("ownerUserId", actor.id).maybeSingle();
+    if (identityError) throw new Error(identityError.message);
+    if (!identity?.active) return err("Identité ADMIN maître inactive.", 403, "ADMIN_IDENTITY_INACTIVE");
 
     const body = await request.json().catch(() => ({}));
     const provider = String(body.provider || "").toUpperCase() as PaymentSmsProvider;
