@@ -92,6 +92,8 @@ test("Brand Ambassador onboarding never self-verifies identity and admin review 
   assert.match(review, /\.eq\("status", "SUBMITTED"\)/);
   assert.match(review, /\["VERIFIED", "REJECTED"\]/);
   assert.match(review, /createSignedUrl/);
+  assert.match(review, /export const dynamic = "force-dynamic"/);
+  assert.match(review, /Cache-Control": "private, no-store, max-age=0"/);
   assert.match(review, /from\("CEOAuditLog"\)\.insert/);
   assert.match(review, /PARTNER_KYC_APPROVED/);
   assert.match(review, /PARTNER_KYC_REJECTED/);
