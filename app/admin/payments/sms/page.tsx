@@ -8,6 +8,7 @@ import {
   isJoblyAndroidPaymentSmsAvailable,
   pairJoblyPaymentSmsDevice,
   revokeJoblyPaymentSmsDeviceLocally,
+  requestJoblyPaymentSmsPermission,
 } from "@/lib/paymentSms/android-bridge";
 
 type Provider = "SMS_MTN" | "SMS_ORANGE";
@@ -142,9 +143,14 @@ export default function AdminPaymentSmsPage() {
             <h2 className="text-xl font-black">{device.label}</h2>
             <div className="text-sm text-slate-600">{device.provider === "SMS_MTN" ? "MTN Mobile Money" : "Orange Money"} · {device.merchantAccount}</div>
             <div className="break-all rounded-xl bg-slate-50 p-3 font-mono text-xs">{device.id}</div>
-            <button disabled={busy} onClick={revoke} className="rounded-xl border border-red-200 px-4 py-3 text-sm font-bold text-red-700 disabled:opacity-50">
-              Révoquer ce téléphone
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={() => requestJoblyPaymentSmsPermission()} className="rounded-xl bg-[#0B2A5B] px-4 py-3 text-sm font-bold text-white">
+                Réessayer l’autorisation SMS
+              </button>
+              <button disabled={busy} onClick={revoke} className="rounded-xl border border-red-200 px-4 py-3 text-sm font-bold text-red-700 disabled:opacity-50">
+                Révoquer ce téléphone
+              </button>
+            </div>
           </section>
         ) : (
           <section className="space-y-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
