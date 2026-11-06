@@ -33,6 +33,19 @@ export async function POST(request: NextRequest) {
     if (!inspected.ok || !["IMAGE","FLYER"].includes(inspected.type)) {
       return NextResponse.json({ message: "Format non accepté. Utilisez une image ou un PDF." }, { status: 422 });
     }
+    const bucketOptions = {
+      public: false,
+      fileSizeLimit: MAX_BYTES,
+      allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"],
+    };
+    const { data: existingBucket, error: bucketLookupError } = await sb.storage.getBucket(BUCKET);
+    if (bucketLookupError && !/not found/i.test(bucketLookupError.message)) throw new Error(bucketLookupError.message);
+    if (!existingBucket) {
+      const created = await sb.storage.createBucket(BUCKET, bucketOptions);
+      if (created.error && !/already exists/i.test(created.error.message)) throw new Error(created.error.message);
+    }
+    const bucketUpdate = await sb.storage.updateBucket(BUCKET, bucketOptions);
+    if (bucketUpdate.error) throw new Error(bucketUpdate.error.message);
     const path = user.id + "/" + crypto.randomUUID() + "." + inspected.extension;
     const { error } = await sb.storage.from(BUCKET).upload(path, bytes, {
       contentType: inspected.mimeType,
