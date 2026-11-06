@@ -53,11 +53,11 @@ export async function GET(request: NextRequest) {
       title, reportType:"executive", fileFormat:format, parameters:Object.fromEntries(params.entries()),
       payload:{ generatedAt:report.generatedAt, range:report.range, rows, series:report.series },
       createdByUserId:user.id,
-    });
+    }).select("id").single();
     if (saveError) return NextResponse.json({message:"Export produit mais archivage du rapport impossible : "+saveError.message},{status:503});
     return new NextResponse(new Uint8Array(bytes),{headers:{
       "Content-Type":contentType,"Content-Disposition":'attachment; filename="'+filename+'"',
-      "Cache-Control":"no-store"
+      "Cache-Control":"no-store", "X-Report-Id":savedReport.id, "Access-Control-Expose-Headers":"X-Report-Id"
     }});
   } catch (error) { return analyticsError(error); }
 }
