@@ -315,8 +315,8 @@ export default function AdminPaymentSmsPage() {
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-black">Profils appairés · {devices.length}</h2>
-            <button onClick={() => loadDevices(accessToken).catch((error) => setMessage(error.message))} className="rounded-full border bg-white px-4 py-2 text-xs font-bold">
-              Actualiser
+            <button onClick={() => Promise.all([loadDevices(accessToken), loadProviderConfigs(accessToken)]).catch((error) => setMessage(error.message))} className="rounded-full border bg-white px-4 py-2 text-xs font-bold">
+              Actualiser les paramètres
             </button>
           </div>
           {devices.map((device) => (
