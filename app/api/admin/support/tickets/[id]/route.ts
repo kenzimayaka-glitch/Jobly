@@ -38,10 +38,11 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     const { data, error } = await db.from("AdminSupportTicket").update(patch).eq("id", id).select("*").maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) return NextResponse.json({ message: "Ticket introuvable." }, { status: 404 });
-    await db.from("AuditLog").insert({
+    const { error: auditError } = await db.from("AuditLog").insert({
       id: crypto.randomUUID(), userId: admin.id, action: "SUPPORT_TICKET_UPDATED",
       entityType: "AdminSupportTicket", entityId: id, metadata: patch,
     });
+    if (auditError) return NextResponse.json({ ticket: data, warning: "Le changement est appliqué, mais le journal d'audit n'a pas pu être écrit." }, { status: 503 });
     return NextResponse.json({ ticket: data });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Mise à jour impossible." }, { status: 500 });
