@@ -16,7 +16,7 @@ const maxFor=(op:AiOperation,key:string)=>op==="CV_INTELLIGENCE"&&key==="cvText"
 const INPUT_KEYS:Record<AiOperation,string[]>={
   OFFER_INTELLIGENCE:["jobTitle","jobDescription","company","location","contract","skills"], CV_INTELLIGENCE:["cvText","targetRole","jobDescription"], MATCHING:["jobTitle","jobDescription","jobId","matchSignals"],
   APPLICATION_COPILOT:["jobTitle","jobDescription"], APPLICATION_STRATEGY:["jobTitle","jobDescription","applicationId","stage"], LEARNING:["goal","timePerWeek","targetRole","skillGaps"],
-  INTERVIEW:["answer","difficulty","role","jobDescription","company"], CAREER_COMPANION:["goal","blocker","targetRole","horizon"], NOTIFICATION:["signalType","opportunityId","reason","urgency"]
+  INTERVIEW:["answer","difficulty","role","jobDescription","company"], CAREER_COMPANION:["goal","blocker","targetRole","horizon"], NOTIFICATION:["signalType","opportunityId","reason","urgency"], PAYMENT_SMS_INTELLIGENCE:[]
 };
 const sanitizeInput=(op:AiOperation,input:any)=>{if(!input||typeof input!=="object")return {};return Object.fromEntries((INPUT_KEYS[op]||[]).filter(k=>typeof input[k]==="string"||typeof input[k]==="number"||Array.isArray(input[k])).map(k=>[k,Array.isArray(input[k])?input[k].slice(0,20).map((x:any)=>redactPII(String(x)).slice(0,1000)):typeof input[k]==="string"?redactPII(String(input[k])).slice(0,maxFor(op,k)):input[k]]));};
 
