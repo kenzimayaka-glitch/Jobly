@@ -5,6 +5,9 @@ import { matchPaymentSmsToOrder, type PaymentSmsCandidate } from "../../../../..
 import { parsePaymentSms, type PaymentSmsProvider } from "../../../../../lib/paymentSms/parser";
 import { analyzePaymentSmsWithAi } from "../../../../../lib/paymentSms/ai-review";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 const err = (message: string, status: number, code = message) => NextResponse.json({ error: code, message }, { status });
 
 function tokenMatches(rawToken: string, expectedHash: string): boolean {
