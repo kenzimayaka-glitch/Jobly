@@ -23,11 +23,6 @@ declare global {
   }
 }
 
-async function sha256Hex(value: ArrayBuffer) {
-  const digest = await crypto.subtle.digest("SHA-256", value);
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 export default function AndroidAttestationBootstrap() {
   useEffect(() => {
     if (typeof window === "undefined" || !/android/i.test(navigator.userAgent)) return;
@@ -110,16 +105,7 @@ export default function AndroidAttestationBootstrap() {
           data.session?.access_token;
         if (!accessToken) return nativeFetch(input, init);
 
-        const bodyBytes = await outgoing.clone().arrayBuffer();
-        if (bodyBytes.byteLength > 4 * 1024 * 1024) {
-          return new Response(JSON.stringify({ message: "Corps de requête trop volumineux pour la preuve d'intégrité." }), {
-            status: 413,
-            headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-          });
-        }
-
         const timestamp = String(Date.now());
-        const bodyHash = await sha256Hex(bodyBytes);
         const path = url.pathname + url.search;
         const authHeaders = {
           "Content-Type": "application/json",
@@ -134,7 +120,6 @@ export default function AndroidAttestationBootstrap() {
             deviceId,
             method: outgoing.method,
             path,
-            bodyHash,
             timestamp,
           }),
           cache: "no-store",
