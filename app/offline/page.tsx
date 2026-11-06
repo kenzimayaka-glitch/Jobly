@@ -20,6 +20,7 @@ export default function OfflineWorkspacePage() {
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
   const [draftLocation, setDraftLocation] = useState("");
+  const [cvAvailable, setCvAvailable] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
 
   const loadLocal = useCallback(async () => {
@@ -28,6 +29,7 @@ export default function OfflineWorkspacePage() {
     const authUserId = data.session?.user?.id;
     const cached = authUserId ? await getOfflineSnapshot(getOfflineUserId(), authUserId) : null;
     setSnapshot(cached);
+    if (cached && authUserId) setCvAvailable(Boolean(await getOfflineDocument(cached.userId)));
     setHeadline(String(cached?.profile?.headline || ""));
     setSummary(String(cached?.profile?.summary || ""));
     setLoading(false);
@@ -145,6 +147,27 @@ export default function OfflineWorkspacePage() {
           <div role="status" className={`mt-4 rounded-2xl border p-3 text-sm font-semibold ${notice.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-900" : notice.tone === "error" ? "border-red-200 bg-red-50 text-red-900" : "border-blue-200 bg-blue-50 text-blue-900"}`}>
             {notice.message}
           </div>
+        ) : null}
+
+        {cvAvailable && snapshot ? (
+          <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-black">Votre CV original est disponible hors connexion</h2>
+                <p className="mt-1 text-xs text-slate-500">Le PDF est chiffré dans le stockage privé de cet appareil.</p>
+              </div>
+              <button type="button" onClick={async () => {
+                const pdf = await getOfflineDocument(snapshot.userId);
+                if (!pdf) return;
+                const url = URL.createObjectURL(pdf);
+                const anchor = document.createElement("a");
+                anchor.href = url;
+                anchor.download = String(snapshot.user.cvOriginalFileName || "mon-cv.pdf");
+                anchor.click();
+                URL.revokeObjectURL(url);
+              }} className="rounded-xl bg-[#0A1931] px-4 py-2.5 text-xs font-bold text-white">Ouvrir mon CV</button>
+            </div>
+          </section>
         ) : null}
 
         <section className="mt-5 grid gap-4 md:grid-cols-2">
