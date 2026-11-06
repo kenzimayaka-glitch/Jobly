@@ -39,6 +39,8 @@ Branche : `feat/security-red-remediation-20261106` (non fusionnée tant que les 
 - Réponses des tableaux admin sensibles et des URLs signées : `Cache-Control: private, no-store` et variation sur Authorization.
 - Mobility prestataire : limiteurs sur demande/édition de profil, dépôt KYC, services, affectations et rapports; stockage KYC privé avec signature PDF/JPEG/PNG; exports CSV/XLSX et URLs KYC signées non-cacheables.
 - Mobility Talent/recruteur : limites sur création de dossier, candidatures programme, convention employeur, garantie recruteur et validation de subvention, tout en gardant le contrôle de propriété du dossier, la règle d'éligibilité 50 % et le rôle de l'acteur habilité.
+- Cohérence Mobility : si l'événement métier ne peut pas être écrit, la validation de subvention et la mise à jour d'affectation sont annulées et leur état précédent restauré; une candidature à un programme est supprimée si son événement d'audit ne peut pas être enregistré.
+- Events : limites IP sur le répertoire/détail/écosystème publics; limites compte/IP sur création, mise en avant, dépôt de média et dépôt de justificatif; formulaires de paiement manuel plafonnés et non-cacheables; URLs/objets de justificatif restent rattachés au compte de l'organisateur.
 
 ## Contrôles externes toujours requis
 
