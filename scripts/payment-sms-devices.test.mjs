@@ -13,7 +13,7 @@ test("device listing is restricted to ADMIN and FINANCE and never returns the to
   assert.match(get, /getAuthUser\(request\)/);
   assert.match(get, /ensureUser\(supabase, auth\)/);
   assert.match(get, /\["ADMIN", "FINANCE"\]/);
-  assert.match(get, /select\("id,label,provider,merchantAccount,senderIds,status,lastSeenAt,createdAt,revokedAt"\)/);
+  assert.match(get, /select\("id,label,provider,merchantAccount,timeZone,senderIds,status,lastSeenAt,createdAt,revokedAt"\)/);
   assert.doesNotMatch(get, /tokenHash|deviceToken/);
 });
 
