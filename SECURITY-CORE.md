@@ -7,7 +7,7 @@ Base main synchronisée : `3f54986968c8752aa4d8083ba3f3439b4bdbbd9c`
 ## Implémenté dans cette branche
 - Rate limiter atomique partagé entre instances Next.js et stocké en base; limites par compte + IP sur le feed et les opportunités, par IP sur le détail d'offre.
 - Les identifiants d'IP et de compte sont HMAC-SHA-256; aucune IP brute ni identifiant brut n'est stocké dans les compteurs. Les erreurs DB/config ferment l'accès avec 503; dépassement retourne 429 et Retry-After.
-- Migration pour retirer les accès directs anon/authenticated aux tables `Job`, `RecruiterJob`, `Company`, `JobHarvestCapture`; les routes serveur existantes utilisent le client serveur privilégié.
+- Migration pour retirer les accès directs anon/authenticated aux tables `Job`, `RecruiterJob`, `Company`, `JobHarvestCapture`, `JobOfferPipeline` et `JobSource`; les routes serveur existantes utilisent le client serveur privilégié.
 - En-têtes web: HSTS, nosniff, anti-framing, Referrer-Policy, Permissions-Policy; API no-store/noindex; source maps de production désactivées; X-Powered-By désactivé.
 - Renforcement Android: resource shrinking R8 et règle keep pour le worker WorkManager. R8/minification, `allowBackup=false`, HTTP clair désactivé et bridge WebView origin-bound étaient déjà présents.
 - Le Service Worker existant contourne déjà les réponses `/api/`, `/auth/`, `/_next/data/` pour ne pas mettre en cache les données privées.

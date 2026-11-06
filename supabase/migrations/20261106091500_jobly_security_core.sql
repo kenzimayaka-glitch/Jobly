@@ -62,15 +62,21 @@ alter table public."Job" enable row level security;
 alter table public."RecruiterJob" enable row level security;
 alter table public."Company" enable row level security;
 alter table public."JobHarvestCapture" enable row level security;
+alter table public."JobOfferPipeline" enable row level security;
+alter table public."JobSource" enable row level security;
 
 revoke all privileges on table public."Job" from public, anon, authenticated;
 revoke all privileges on table public."RecruiterJob" from public, anon, authenticated;
 revoke all privileges on table public."Company" from public, anon, authenticated;
 revoke all privileges on table public."JobHarvestCapture" from public, anon, authenticated;
+revoke all privileges on table public."JobOfferPipeline" from public, anon, authenticated;
+revoke all privileges on table public."JobSource" from public, anon, authenticated;
 grant all privileges on table public."Job" to service_role;
 grant all privileges on table public."RecruiterJob" to service_role;
 grant all privileges on table public."Company" to service_role;
 grant all privileges on table public."JobHarvestCapture" to service_role;
+grant all privileges on table public."JobOfferPipeline" to service_role;
+grant all privileges on table public."JobSource" to service_role;
 
 drop policy if exists "Job_active_select" on public."Job";
 drop policy if exists "Company_public_select" on public."Company";

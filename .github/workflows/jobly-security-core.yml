@@ -41,11 +41,17 @@ jobs:
           CREATE TABLE public."RecruiterJob" ("id" text PRIMARY KEY, "status" text NOT NULL DEFAULT 'published');
           CREATE TABLE public."Company" ("id" text PRIMARY KEY, "name" text NOT NULL);
           CREATE TABLE public."JobHarvestCapture" ("id" text PRIMARY KEY, "status" text NOT NULL);
-          GRANT ALL ON public."Job", public."RecruiterJob", public."Company", public."JobHarvestCapture" TO PUBLIC, anon, authenticated, service_role;
+          CREATE TABLE public."JobOfferPipeline" ("id" text PRIMARY KEY);
+          CREATE TABLE public."JobSource" ("id" text PRIMARY KEY);
+          GRANT ALL ON public."Job", public."RecruiterJob", public."Company", public."JobHarvestCapture", public."JobOfferPipeline", public."JobSource" TO PUBLIC, anon, authenticated, service_role;
           ALTER TABLE public."Job" ENABLE ROW LEVEL SECURITY;
           ALTER TABLE public."RecruiterJob" ENABLE ROW LEVEL SECURITY;
           ALTER TABLE public."Company" ENABLE ROW LEVEL SECURITY;
           ALTER TABLE public."JobHarvestCapture" ENABLE ROW LEVEL SECURITY;
+          ALTER TABLE public."JobOfferPipeline" ENABLE ROW LEVEL SECURITY;
+          ALTER TABLE public."JobSource" ENABLE ROW LEVEL SECURITY;
+          CREATE POLICY "deny_client_access" ON public."JobOfferPipeline" FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+          CREATE POLICY "deny_client_access" ON public."JobSource" FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
           CREATE POLICY "Job_active_select" ON public."Job" FOR SELECT TO PUBLIC USING ("isActive" = true);
           CREATE POLICY "p2_recruiter_job_select" ON public."RecruiterJob" FOR SELECT TO authenticated USING ("status" = 'published');
           CREATE POLICY "Company_public_select" ON public."Company" FOR SELECT TO PUBLIC USING (true);

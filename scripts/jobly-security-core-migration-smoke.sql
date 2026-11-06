@@ -6,6 +6,10 @@ begin
   if has_table_privilege('authenticated', 'public."RecruiterJob"', 'SELECT') then raise exception 'authenticated can still select RecruiterJob'; end if;
   if has_table_privilege('anon', 'public."Company"', 'SELECT') then raise exception 'anon can still select Company'; end if;
   if has_table_privilege('anon', 'public."JobHarvestCapture"', 'SELECT') then raise exception 'anon can still select JobHarvestCapture'; end if;
+  if has_table_privilege('anon', 'public."JobOfferPipeline"', 'SELECT') then raise exception 'anon can inspect normalized pipeline evidence'; end if;
+  if has_table_privilege('authenticated', 'public."JobOfferPipeline"', 'SELECT') then raise exception 'authenticated can inspect normalized pipeline evidence'; end if;
+  if has_table_privilege('anon', 'public."JobSource"', 'SELECT') then raise exception 'anon can inspect source registry'; end if;
+  if has_table_privilege('authenticated', 'public."JobSource"', 'SELECT') then raise exception 'authenticated can inspect source registry'; end if;
   if not has_table_privilege('service_role', 'public."Job"', 'SELECT') then raise exception 'service_role lost Job access'; end if;
   if has_table_privilege('anon', 'public."JoblyRateLimitBucket"', 'SELECT') then raise exception 'anon can inspect rate-limit buckets'; end if;
   if has_function_privilege('anon', 'public.consume_jobly_rate_limit(text,text,integer,integer)', 'EXECUTE') then raise exception 'anon can call rate-limit RPC'; end if;
