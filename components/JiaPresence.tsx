@@ -823,13 +823,13 @@ export default function JiaPresence() {
         voiceMode={prefs.mode === "voice"}
         listening={listening}
         pendingAction={pendingAction}
-        quickLinks={CHIPS[eco].map((item) => ({ label: t(item.key), href: item.href }))}
+        quickLinks={[...CHIPS[eco].map((item) => ({ label: t(item.key), href: item.href })), { label: "Extension J’IA pour ordinateur", href: "/jia/extension" }]}
         onClose={() => setPanelOpen(false)}
         onInputChange={setCommandInput}
         onSubmit={() => void sendTextCommand()}
         onConfirmAction={() => void confirmPendingAction()}
         onCancelAction={() => setPendingAction(null)}
-        onNavigate={go}
+        onNavigate={(href) => href === "/jia/extension" ? go("/jia/extension") : go(href)}
         onEnableVoice={voiceSupported ? enableVoiceFromConversation : undefined}
       />
     </>
