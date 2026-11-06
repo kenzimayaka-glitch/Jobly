@@ -179,7 +179,7 @@ function QuestionnaireBlock({ block, messageId, onSubmitAssessment }: {
     setLocalError("");
     const answerMap = Object.fromEntries(block.questions.map((question, index) => [
       String(index + 1),
-      { prompt: question.prompt, selected: question.choices[answers[String(index)]], correct: answers[String(index)] === question.correctIndex },
+      question.choices[answers[String(index)]] || "",
     ]));
     const resultSummary = "Résultat indicatif : " + computedScore + "/100 sur " + block.competency + ". Cet exercice ne constitue pas une certification.";
     try {
