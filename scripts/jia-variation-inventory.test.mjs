@@ -11,6 +11,7 @@ import {
 import { GESTURES } from "../lib/jia/gestures.ts";
 import { JIA_100_MOVES } from "../components/JIA/movements.ts";
 import {
+  JIA_AVATAR_APPEARANCES,
   JIA_AVATAR_FRAMING_VARIATIONS,
   JIA_CONVERSATION_LAYOUT_VARIATIONS,
   JIA_DOCUMENT_PRESENTATIONS,
@@ -84,7 +85,7 @@ const bodyGestureCatalog = [
 const variationCatalog = {
   "conversation-layouts": JIA_CONVERSATION_LAYOUT_VARIATIONS,
   "scenes-and-ambiences": JIA_SCENE_VARIATIONS,
-  "avatar-appearances": outfitDirs.map((id) => ({ id })),
+  "avatar-appearances": JIA_AVATAR_APPEARANCES,
   "avatar-placement-and-framing": JIA_AVATAR_FRAMING_VARIATIONS,
   "body-gestures": bodyGestureCatalog,
   "facial-expressions": facialShapes.map((id) => ({ id })),
@@ -157,6 +158,17 @@ test("every newly rendered visual family exposes fifty concrete, non-duplicate p
   }
 });
 
+test("fifty unique clothing-detail appearances are selected by the Stage avatar renderer", () => {
+  assert.equal(JIA_AVATAR_APPEARANCES.length, 50);
+  assert.equal(new Set(JIA_AVATAR_APPEARANCES.map(item => item.id)).size, 50);
+  assert.equal(new Set(JIA_AVATAR_APPEARANCES.map(({id,...item}) => JSON.stringify(item))).size, 50);
+  const avatar = readFileSync(join(root, "components/JIA/JIA3D.tsx"), "utf8");
+  const surface = readFileSync(join(root, "components/jia/JiaConversationSurface.tsx"), "utf8");
+  assert.ok(avatar.includes("JIAAppearanceOverlay"));
+  assert.ok(avatar.includes("data-jia-avatar-appearance"));
+  assert.ok(surface.includes("appearanceId={JIA_AVATAR_APPEARANCES[variationIndex].id}"));
+});
+
 test("the surface and workspace renderer actually consume the variation catalog", () => {
   const surface = readFileSync(join(root, "components/jia/JiaConversationSurface.tsx"), "utf8");
   const blocks = readFileSync(join(root, "components/jia/JiaWorkspaceBlocks.tsx"), "utf8");
@@ -182,7 +194,7 @@ test("the audit never treats theoretical combinations as produced variations", (
   const byFamily = Object.fromEntries(coverage.map((item) => [item.family, item]));
   assert.equal(byFamily["conversation-layouts"].available, 50);
   assert.equal(byFamily["scenes-and-ambiences"].available, 50);
-  assert.equal(byFamily["avatar-appearances"].available, 3);
+  assert.equal(byFamily["avatar-appearances"].available, 50);
   assert.equal(byFamily["avatar-placement-and-framing"].available, 50);
   assert.equal(byFamily["body-gestures"].available, 50);
   assert.equal(byFamily["facial-expressions"].available, 50);
@@ -198,9 +210,9 @@ test("the audit never treats theoretical combinations as produced variations", (
 
 test("coverage report marks incomplete families explicitly instead of manufacturing IDs", () => {
   const incomplete = coverage.filter((item) => !item.complete).map((item) => item.family);
-  assert.deepEqual(incomplete, ["avatar-appearances"]);
+  assert.deepEqual(incomplete, []);
   assert.deepEqual(coverage.filter((item) => item.complete).map((item) => item.family), [
-    "conversation-layouts","scenes-and-ambiences","avatar-placement-and-framing",
+    "conversation-layouts","scenes-and-ambiences","avatar-appearances","avatar-placement-and-framing",
     "body-gestures","facial-expressions","scene-transitions","message-entrances",
     "stickers-and-reactions","offer-presentations","interactive-questions","documents-and-cv",
   ]);
