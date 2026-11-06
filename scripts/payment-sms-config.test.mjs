@@ -1,33 +1,47 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getPaymentSmsCheckoutConfig } from "../lib/paymentSms/config.ts";
+import { buildPaymentSmsUssd, normalizeMobileMoneyPhone } from "../lib/paymentSms/config.ts";
 
 const keys = [
-  "JOBLY_MTN_MERCHANT_ACCOUNT", "JOBLY_MTN_PAYMENT_CODE", "JOBLY_MTN_USSD_CODE",
-  "JOBLY_ORANGE_MERCHANT_ACCOUNT", "JOBLY_ORANGE_PAYMENT_CODE", "JOBLY_ORANGE_USSD_CODE",
+  "JOBLY_MTN_MERCHANT_ACCOUNT", "JOBLY_MTN_MERCHANT_CODE",
+  "JOBLY_ORANGE_MERCHANT_ACCOUNT", "JOBLY_ORANGE_MERCHANT_CODE",
 ];
 const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 
-function configure(prefix, ussd) {
-  process.env[prefix + "_MERCHANT_ACCOUNT"] = "+237699123456";
-  process.env[prefix + "_PAYMENT_CODE"] = "PAYMENT-CODE-TEST";
-  process.env[prefix + "_USSD_CODE"] = ussd;
+function configure(prefix, merchantCode, account = "699123456") {
+  process.env[prefix + "_MERCHANT_ACCOUNT"] = account;
+  process.env[prefix + "_MERCHANT_CODE"] = merchantCode;
 }
 
-test("accepts USSD strings beginning with either * or #", () => {
-  configure("JOBLY_MTN", "*126*1#");
-  configure("JOBLY_ORANGE", "#150*50#");
-  assert.equal(getPaymentSmsCheckoutConfig("SMS_MTN").ussdCode, "*126*1#");
-  assert.equal(getPaymentSmsCheckoutConfig("SMS_ORANGE").ussdCode, "#150*50#");
+test("builds the exact MTN merchant shortcode with amount", () => {
+  configure("JOBLY_MTN", "123456");
+  const code = buildPaymentSmsUssd("SMS_MTN", 1000);
+  assert.equal(code.ussdCode, "*126*16*123456*1000#");
+  assert.equal(code.paymentCode, code.ussdCode);
+  assert.equal(code.merchantAccount, "237699123456");
 });
 
-test("rejects malformed shortcodes and missing merchant configuration", () => {
-  configure("JOBLY_MTN", "126#");
-  assert.throws(() => getPaymentSmsCheckoutConfig("SMS_MTN"), /USSD_CODE_INVALID/);
-  delete process.env.JOBLY_ORANGE_MERCHANT_ACCOUNT;
-  process.env.JOBLY_ORANGE_PAYMENT_CODE = "PAYMENT-CODE-TEST";
-  process.env.JOBLY_ORANGE_USSD_CODE = "#150#";
-  assert.throws(() => getPaymentSmsCheckoutConfig("SMS_ORANGE"), /JOBLY_ORANGE_MERCHANT_ACCOUNT_NOT_CONFIGURED/);
+test("builds the exact Orange merchant shortcode with amount", () => {
+  configure("JOBLY_ORANGE", "654321");
+  const code = buildPaymentSmsUssd("SMS_ORANGE", 2500);
+  assert.equal(code.ussdCode, "#150*47*654321*2500#");
+  assert.equal(code.paymentCode, code.ussdCode);
+});
+
+test("rejects missing/invalid merchant codes and unsafe amounts", () => {
+  configure("JOBLY_MTN", "bad code");
+  assert.throws(() => buildPaymentSmsUssd("SMS_MTN", 1000), /JOBLY_MTN_MERCHANT_CODE_INVALID/);
+  delete process.env.JOBLY_ORANGE_MERCHANT_CODE;
+  process.env.JOBLY_ORANGE_MERCHANT_ACCOUNT = "699123456";
+  assert.throws(() => buildPaymentSmsUssd("SMS_ORANGE", 1000), /JOBLY_ORANGE_MERCHANT_CODE_NOT_CONFIGURED/);
+  configure("JOBLY_MTN", "123456");
+  assert.throws(() => buildPaymentSmsUssd("SMS_MTN", 0), /PAYMENT_AMOUNT_INVALID/);
+  assert.throws(() => buildPaymentSmsUssd("SMS_MTN", 100.5), /PAYMENT_AMOUNT_INVALID/);
+});
+
+test("normalizes local Cameroonian Mobile Money numbers consistently", () => {
+  assert.equal(normalizeMobileMoneyPhone("658174722"), "237658174722");
+  assert.equal(normalizeMobileMoneyPhone("+237 658 174 722"), "237658174722");
 });
 
 test.after(() => {
