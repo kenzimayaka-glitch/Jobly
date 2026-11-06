@@ -135,7 +135,7 @@ test("all 50 registered facial expressions have semantic gestures and runnable r
   const availableSemanticMoves = Object.entries(GESTURES)
     .filter(([id]) => facialMoveNames.has(id))
     .map(([id]) => id);
-  assert.equal(availableSemanticMoves.length, 44);
+  assert.equal(availableSemanticMoves.length, 45);
 });
 
 test("every newly rendered visual family exposes fifty concrete, non-duplicate presets", () => {
