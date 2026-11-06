@@ -263,16 +263,16 @@ const translations = {
 
 const BENEFITS = {
   fr: [
-    { Icon: ShieldStarIcon, kind: "static", title: "100% Gratuit", subtitle: "Accès aux opportunités", iconClass: "text-[#3478C8]" },
-    { Icon: PeopleStarIcon, kind: "offers", title: "Offres Afrique", subtitle: "offres actives sur Jobly", iconClass: "text-[#8064D8]" },
-    { Icon: CheckCircleIcon, kind: "talents", title: "Talents Jobly", subtitle: "profils Talent inscrits", iconClass: "text-[#28A99B]" },
-    { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "Matche et postule avec vous", iconClass: "text-[#D99A16]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "100% Gratuit", subtitle: "Accès aux opportunités", marketingReference: "", iconClass: "text-[#3478C8]" },
+    { Icon: PeopleStarIcon, kind: "offers", title: "Offres Afrique", subtitle: "offres actives sur Jobly", marketingReference: "Référence marketing : 75 000", iconClass: "text-[#8064D8]" },
+    { Icon: CheckCircleIcon, kind: "talents", title: "Talents Jobly", subtitle: "profils Talent inscrits", marketingReference: "Référence marketing : 315 000", iconClass: "text-[#28A99B]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "Matche et postule avec vous", marketingReference: "", iconClass: "text-[#D99A16]" },
   ],
   en: [
-    { Icon: ShieldStarIcon, kind: "static", title: "100% Free", subtitle: "Access to opportunities", iconClass: "text-[#3478C8]" },
-    { Icon: PeopleStarIcon, kind: "offers", title: "Africa offers", subtitle: "active offers on Jobly", iconClass: "text-[#8064D8]" },
-    { Icon: CheckCircleIcon, kind: "talents", title: "Jobly talents", subtitle: "registered Talent profiles", iconClass: "text-[#28A99B]" },
-    { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "Matches and applies with you", iconClass: "text-[#D99A16]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "100% Free", subtitle: "Access to opportunities", marketingReference: "", iconClass: "text-[#3478C8]" },
+    { Icon: PeopleStarIcon, kind: "offers", title: "Africa offers", subtitle: "active offers on Jobly", marketingReference: "Marketing reference: 75,000", iconClass: "text-[#8064D8]" },
+    { Icon: CheckCircleIcon, kind: "talents", title: "Jobly talents", subtitle: "registered Talent profiles", marketingReference: "Marketing reference: 315,000", iconClass: "text-[#28A99B]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "Matches and applies with you", marketingReference: "", iconClass: "text-[#D99A16]" },
   ],
 } as const;
 
@@ -917,7 +917,7 @@ export default function Home() {
             </button>
           </div>
           <div className="jobly-public-home-benefits relative z-20 mx-auto mt-2 grid w-full max-w-[1100px] grid-cols-4 gap-1 px-3 sm:mt-6 sm:gap-3 sm:px-6 lg:gap-4 lg:px-8">
-            {BENEFITS[lang].map(({ Icon, kind, title, subtitle, iconClass }) => {
+            {BENEFITS[lang].map(({ Icon, kind, title, subtitle, marketingReference, iconClass }) => {
               const metric = kind === "offers"
                 ? homeStats?.offersCount ?? null
                 : kind === "talents"
@@ -938,6 +938,9 @@ export default function Home() {
                     </>
                   )}
                   <p className="mt-1 font-[var(--font-inter)] text-[9px] leading-tight text-[#737A85] sm:text-[12px]">{subtitle}</p>
+                  {marketingReference && (
+                    <p className="mt-1 font-[var(--font-inter)] text-[8px] font-semibold leading-tight text-[#8A6B18] sm:text-[10px]">{marketingReference}</p>
+                  )}
                 </div>
               );
             })}
