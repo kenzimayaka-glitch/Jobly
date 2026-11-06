@@ -298,7 +298,7 @@ function AnimatedCounter({ value, locale }: { value: number | null; locale: stri
   }, [value]);
 
   if (value === null) return <span aria-label="Chargement">…</span>;
-  return <span>{new Intl.NumberFormat(locale).format(displayedValue ?? 0)}+</span>;
+  return <span>{new Intl.NumberFormat(locale).format(displayedValue ?? 0)}</span>;
 }
 
 function PasswordRules({ password }: { password: string }) {
