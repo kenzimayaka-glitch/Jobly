@@ -18,11 +18,14 @@ export async function runAiOrchestrator(
   input: Record<string, unknown>,
   context: Record<string, unknown>,
   priority: AiPriority = "BALANCED",
+  options: { maxAttempts?: number; allowDeterministic?: boolean } = {},
 ): Promise<AiOrchestrationResult> {
   const request: AiTaskRequest = { operation, input, context, priority };
   const attempts: AiProviderId[] = [];
 
   for (const id of PROVIDER_ORDER[priority]) {
+    if (id === "DETERMINISTIC" && options.allowDeterministic === false) continue;
+    if (options.maxAttempts !== undefined && attempts.length >= options.maxAttempts) break;
     const provider = getProvider(id);
     if (!provider.enabled || !provider.supports(operation)) continue;
     attempts.push(id);
