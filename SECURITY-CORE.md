@@ -28,6 +28,8 @@ Branche : `feat/security-red-remediation-20261106` (non fusionnée tant que les 
 - Brand Ambassador KYC : la soumission des pièces reste `PENDING`; seule une route ADMIN peut valider/rejeter un dossier soumis. Le back-office affiche les deux pièces par URL signée de 5 minutes et journalise la décision dans `CEOAuditLog`; le rejet exige un motif.
 - Production vérifiée : la table `PartnerKyc` est actuellement vide, aucun dossier partenaire existant n'a donc été modifié ou rétrogradé par cette correction.
 - Tests de régression d'entitlements, Android/Play et migration; CodeQL v4 pour TypeScript/JavaScript, Kotlin et workflows; Dependabot hebdomadaire ajouté.
+- Authentification : limiteurs atomiques IP/compte sur le contrôle de disponibilité username, connexion username, finalisation d'inscription et OTP WhatsApp demande/vérification.
+- Médias Talent : pitch, publicité, showcase, images et photos de profil ont des limites d'upload IP/compte, limite de taille, liste MIME et vérification de signature; les droits Premium/Pro utilisent le résolveur abonnement/promo actif avec échéance (`planCode`) au lieu de lire le seul statut ACTIVE.
 
 ## Contrôles externes toujours requis
 
