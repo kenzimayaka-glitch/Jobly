@@ -1,4 +1,4 @@
-import { resolveEffectivePublicationDate as resolveSharedPublicationDate } from "../_shared/job-freshness.ts";
+import { normalizeDeadlineTimestamp, resolveEffectivePublicationDate as resolveSharedPublicationDate } from "../_shared/job-freshness.ts";
 
 export type PublicationExtraction = {
   value: string | null;
@@ -28,10 +28,7 @@ function toDate(value: string | null | undefined): string | null {
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 function toDeadlineDate(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const raw = String(value).trim();
-  if (/^20\d{2}-\d{2}-\d{2}$/.test(raw)) return raw + "T23:59:59.999Z";
-  return toDate(raw);
+  return normalizeDeadlineTimestamp(value);
 }
 function endOfDayDeadline(value: string): string {
   return value.replace(/T00:00:00\.000Z$/, "T23:59:59.999Z");

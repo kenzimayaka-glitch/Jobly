@@ -4,15 +4,26 @@ import { resolveSourceUrl } from "./country-url-resolver.ts";
 import { crawlExhaustiveSource } from "./exhaustive-crawler.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { extractApplicationContact } from "../_shared/application-contact.ts";
+import { resolveApplicationReadiness } from "../_shared/application-readiness.ts";
+import { classifyJobSector } from "../_shared/job-sector-classification.ts";
+import { deriveOfferQualityStatus } from "../_shared/offer-quality.ts";
+import { normalizeDeadlineTimestamp } from "../_shared/job-freshness.ts";
+import { sanitizeOfferSections } from "../_shared/offer-section-quality.ts";
+import { extractSourceDeadline } from "./date-extraction.ts";
 const NORMALIZED_VERSION = "jobly-offer-v1";
 
 type NormalizedOffer = {
   version: string; title: string | null; company: string | null; location: string[];
   region: string | null; sector: string | null; contractType: string | null; remoteMode: string | null;
   salary: { min: number | null; max: number | null; currency: string | null };
-  experience: string[]; education: string[]; skills: string[]; qualities: string[];
+  experience: string[]; education: string[]; profile: string[]; skills: string[]; qualities: string[];
   missions: string[]; benefits: string[]; description: string[]; application: string[];
   deadline: string | null; source: { name: string; url: string }; qualityScore: number | null; flags: string[];
+  displayModel?: string;
+  sections?: Record<string, unknown>;
+  presentation?: Record<string, unknown>;
+  aiProcessing?: { status: string; provider: string; processedAt?: string | null };
 };
 
 function normalize(value:string):string {
@@ -59,9 +70,9 @@ function fallbackNormalized(item:any):NormalizedOffer {
   return {version:NORMALIZED_VERSION,title:cleanHumanText(String(item.title||""))||null,company:cleanHumanText(String(item.company||""))||null,
     location:item.location?String(item.location).split(/[,;|]/).map((x:string)=>cleanHumanText(x)).filter(Boolean):[],region:null,sector:null,
     contractType:inferContract(raw),remoteMode:inferRemote(raw),salary:{min:null,max:null,currency:"XAF"},
-    experience:Array.from(new Set([...cleanArray(sections.experience),...extractExperience(raw)])).slice(0,10),education:cleanArray(sections.formation),skills:cleanArray(sections.skills),qualities:cleanArray(sections.qualities),
+    experience:Array.from(new Set([...cleanArray(sections.experience),...extractExperience(raw)])).slice(0,10),education:cleanArray(sections.formation),profile:cleanArray(sections.profile),skills:cleanArray(sections.skills),qualities:cleanArray(sections.qualities),
     missions:cleanArray(sections.missions),benefits:cleanArray(sections.benefits),description:cleanArray(sections.description),application:Array.from(new Set([...cleanArray(sections.application),...extractApplication(raw)])).slice(0,12),
-    deadline:item.deadline||null,source:{name:String(item.source||""),url:String(item.url||"")},qualityScore:null,flags:[],
+    deadline:normalizeDeadlineTimestamp(item.deadline),source:{name:String(item.source||""),url:String(item.url||"")},qualityScore:null,flags:[],
     displayModel:`jobly-source-${String(item.sourceKey||"unknown")}-adaptive-v1`,
     presentation:{layout:"STRUCTURED",sourceKey:String(item.sourceKey||""),sourceLabel:String(item.source||item.sourceKey||"Source"),sourceDisplayModel:`jobly-source-${String(item.sourceKey||"unknown")}-adaptive-v1`,sections:[]},
     aiProcessing:{status:"PENDING",provider:"GEMINI"}};
@@ -71,15 +82,25 @@ function normalizeAiResult(ai:any,item:any):NormalizedOffer {
   const base=fallbackNormalized(item);
   const arr=(v:any)=>Array.isArray(v)?v.map((x:any)=>cleanHumanText(String(x))).filter((x:string)=>x.length>=2).slice(0,40):[];
   const n=(v:any)=>Number.isFinite(Number(v))?Number(v):null; const s=ai?.sections||{};
+  const cleaned=sanitizeOfferSections({
+    description:arr(s.description).length?arr(s.description):base.description,
+    missions:arr(s.missions).length?arr(s.missions):base.missions,
+    profile:arr(s.profile).length?arr(s.profile):base.profile,
+    education:arr(s.education).length?arr(s.education):base.education,
+    experience:arr(s.experience).length?arr(s.experience):base.experience,
+    skills:arr(s.skills).length?arr(s.skills):base.skills,
+    qualities:arr(s.qualities).length?arr(s.qualities):base.qualities,
+    benefits:arr(s.benefits).length?arr(s.benefits):base.benefits,
+    application:arr(s.application).length?arr(s.application):base.application,
+  }).sections;
   return {...base,title:cleanHumanText(String(ai?.title||base.title||""))||null,company:cleanHumanText(String(ai?.company||base.company||""))||null,
-    location:arr(ai?.location).length?arr(ai.location):base.location,region:cleanHumanText(String(ai?.region||""))||null,sector:cleanHumanText(String(ai?.sector||""))||null,
+    location:arr(ai?.location).length?arr(ai.location):base.location,region:cleanHumanText(String(ai?.region||""))||null,sector:cleanHumanText(String(ai?.sector||base.sector||""))||null,
     contractType:cleanHumanText(String(ai?.contractType||base.contractType||""))||null,remoteMode:cleanHumanText(String(ai?.remoteMode||base.remoteMode||""))||null,
     salary:{min:n(ai?.salaryMin),max:n(ai?.salaryMax),currency:cleanHumanText(String(ai?.salaryCurrency||"XAF"))||"XAF"},
-    experience:arr(s.experience).length?arr(s.experience):base.experience,education:arr(s.education).length?arr(s.education):base.education,
-    skills:arr(s.skills).length?arr(s.skills):base.skills,qualities:arr(s.qualities).length?arr(s.qualities):base.qualities,
-    missions:arr(s.missions).length?arr(s.missions):base.missions,benefits:arr(s.benefits).length?arr(s.benefits):base.benefits,
-    description:arr(s.description).length?arr(s.description):base.description,application:arr(s.application).length?arr(s.application):base.application,
-    deadline:ai?.deadline||base.deadline,qualityScore:n(ai?.qualityScore),flags:arr(ai?.flags)};
+    experience:cleaned.experience,education:cleaned.education,profile:cleaned.profile,
+    skills:cleaned.skills,qualities:cleaned.qualities,missions:cleaned.missions,benefits:cleaned.benefits,
+    description:cleaned.description,application:cleaned.application,
+    deadline:normalizeDeadlineTimestamp(ai?.deadline||base.deadline),qualityScore:n(ai?.qualityScore),flags:arr(ai?.flags)};
 }
 
 
@@ -164,7 +185,7 @@ async function enrich(item:any,source:any){
     if(json)return{...item,title:clean(json.title)||item.title,description:cleanDescription(json.description)||item.description,company:clean(json.hiringOrganization?.name)||item.company,website:clean(json.hiringOrganization?.url||json.hiringOrganization?.sameAs)||item.website||null,location:clean(json.jobLocation?.address?.addressLocality||json.jobLocation?.name)||item.location,deadline:json.validThrough||item.deadline,published:json.datePosted||item.published};
     const title=clean((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]||"")).replace(/\s*[-|].*$/," ");
     const sourceDescription=cleanDescription(html).slice(0,10000);
-    return{...item,title:title||item.title||"Offre d'emploi",description:sourceDescription||item.description||`Offre publiée sur ${source.name}`,location:item.location||inferCity(clean(html)),company:item.company||inferCompany(title)||"Employeur non précisé",deadline:item.deadline||parseDate(clean(html))};
+    return{...item,title:title||item.title||"Offre d'emploi",description:sourceDescription||item.description||`Offre publiée sur ${source.name}`,location:item.location||inferCity(clean(html)),company:item.company||inferCompany(title)||"Employeur non précisé",deadline:item.deadline||extractSourceDeadline(String(html||""),item.url,source.key)};
   }catch{return item}
 }
 
@@ -177,9 +198,11 @@ async function backfillExistingOffers(supabase:any){
   if(error) throw error;
   let repaired=0,skipped=0;
   for(const job of jobs||[]){
-    const item={title:String(job.title||""),company:"",location:String(job.location||""),description:String(job.description||""),deadline:job.deadline||null,url:String(job.sourceUrl||""),source:String(job.source||"Jobly"),sourceKey:String(job.sourceKey||""),published:null};
+    const item={title:String(job.title||""),company:"",location:String(job.location||""),description:String(job.description||""),deadline:normalizeDeadlineTimestamp(job.deadline),url:String(job.sourceUrl||""),source:String(job.source||"Jobly"),sourceKey:String(job.sourceKey||""),published:null};
     if(!item.url || item.description.trim().length<2){skipped++;continue;}
     const normalized=normalizeAiResult(null,item);
+    const backfillSector=classifyJobSector(item.title,item.description,normalized.skills);
+    normalized.sector=backfillSector==="Other"?(normalized.sector||"Other"):backfillSector;
     normalized.aiProcessing={status:"PENDING",provider:"GEMINI"};
     const {error:e}=await supabase.from("Job").update({
       normalizedContent:normalized,
@@ -188,6 +211,8 @@ async function backfillExistingOffers(supabase:any){
       aiProcessed:false,
       aiProcessedAt:null,
       aiQualityScore:null,
+      aiSector:normalized.sector,
+      qualityStatus:deriveOfferQualityStatus({title:normalized.title||job.title,description:normalized.description.join("\n\n")||job.description,sourceUrl:job.sourceUrl}),
       aiSummary:normalized.description.slice(0,3).join(" "),
       aiFlags:normalized.flags,
       aiSkills:normalized.skills,
@@ -235,10 +260,22 @@ Deno.serve(async(req)=>{
    }
    for(const item of items){const externalId=hash(item.url||`${item.title}|${item.company}|${item.location}`);const contentHash=hash(`${item.title}|${item.company}|${item.description}|${item.location}|${item.deadline||""}`);const ai:any=null;
     const normalizedContent=normalizeAiResult(ai,item);
-    const text=`${item.title} ${item.description}`;const opportunityType=inferOpportunityType(item);if(opportunityType==="APPEL_OFFRES" || opportunityType==="CONCOURS" || opportunityType==="FORMATION" || opportunityType==="RECRUTEMENT_INSUFFISANT") continue;const phoneNumbers=extractPhone(text);let companyId:string|null=null;const companyName=String(ai?.company||item.company||"").trim();const companyWebsite=String(item.website||"").trim()||null;let companyLogo:string|null=null;
+    const text=`${item.title} ${item.description}`;
+    const opportunityType=inferOpportunityType(item);
+    if(opportunityType==="APPEL_OFFRES" || opportunityType==="CONCOURS" || opportunityType==="FORMATION" || opportunityType==="RECRUTEMENT_INSUFFISANT") continue;
+    const ruleSector=classifyJobSector(item.title,item.description,normalizedContent.skills);
+    normalizedContent.sector=ruleSector==="Other"?(normalizedContent.sector||"Other"):ruleSector;
+    const applicationContacts=extractApplicationContact(text,item.applicationEmail??ai?.applicationEmail,item.applicationPhone??ai?.applicationPhone);
+    const applicationUrl=String(item.applicationUrl??ai?.applicationUrl??"").trim()||null;
+    const applicationReadiness=resolveApplicationReadiness({email:applicationContacts.email,phone:applicationContacts.phone,applicationUrl});
+    const phoneNumbers=applicationContacts.phone?[applicationContacts.phone]:[];
+    let companyId:string|null=null;const companyName=String(ai?.company||item.company||"").trim();const companyWebsite=String(item.website||"").trim()||null;let companyLogo:string|null=null;
     if(companyWebsite){try{const host=new URL(companyWebsite.startsWith("http")?companyWebsite:`https://${companyWebsite}`).hostname.replace(/^www\./,"");companyLogo=`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`;}catch{}}
-    if(companyName){const existingCompany=await supabase.from("Company").select("id,website,logoUrl").eq("name",companyName).maybeSingle();if(existingCompany.error)throw existingCompany.error;if(existingCompany.data?.id){companyId=existingCompany.data.id;const updates:any={};if(companyWebsite&&!existingCompany.data.website)updates.website=companyWebsite;if(companyLogo&&!existingCompany.data.logoUrl)updates.logoUrl=companyLogo;if(Object.keys(updates).length)await supabase.from("Company").update(updates).eq("id",companyId);}else{const createdCompany=await supabase.from("Company").insert({name:companyName,website:companyWebsite,logoUrl:companyLogo}).select("id").single();if(createdCompany.error)throw createdCompany.error;companyId=createdCompany.data.id}}const row:any={opportunityType,title:normalizedContent.title||ai?.title||item.title,companyId,description:normalizedContent.description.join("\n\n")||cleanDescription(item.description)||`Offre publiée via ${source.name}.`,language:/[àâçéèêëîïôùûüÿœ]/i.test(text)?"fr":"en",location:normalizedContent.location.join(", ")||item.location||inferCity(text),contractType:normalizedContent.contractType||ai?.contractType||inferContract(text),salaryMin:normalizedContent.salary.min,salaryMax:normalizedContent.salary.max,salaryCurrency:normalizedContent.salary.currency||"XAF",source:source.name,sourceKey:source.key,sourceUrl:item.url,externalId,contentHash,deadline:item.deadline||parseDate(item.description),sourcePublishedAt:item.published||null,lastSeenAt:new Date().toISOString(),isActive:true,remoteMode:normalizedContent.remoteMode||ai?.remoteMode||inferRemote(text),minExperienceYears:Number.isFinite(ai?.minExperienceYears)?ai.minExperienceYears:inferExperience(text),aiProcessed:Boolean(ai),aiProcessedAt:ai?new Date().toISOString():null,aiSector:normalizedContent.sector||null,aiSummary:ai?.summary||normalizedContent.description.slice(0,3).join(" "),aiQualityScore:Number.isFinite(normalizedContent.qualityScore)?Math.max(0,Math.min(100,normalizedContent.qualityScore)):null,aiFlags:Array.isArray(ai?.flags)?ai.flags:[],aiSkills:Array.isArray(ai?.skills)?ai.skills:normalizedContent.skills,normalizedContent,normalizedVersion:NORMALIZED_VERSION,normalizedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),applicationReady:phoneNumbers.length===0,applicationProfile:phoneNumbers.length?{channel:"WHATSAPP_PHONE",phoneNumbers,comingSoon:true}:{channel:"EMAIL",comingSoon:false}};
+    if(companyName){const existingCompany=await supabase.from("Company").select("id,website,logoUrl").eq("name",companyName).maybeSingle();if(existingCompany.error)throw existingCompany.error;if(existingCompany.data?.id){companyId=existingCompany.data.id;const updates:any={};if(companyWebsite&&!existingCompany.data.website)updates.website=companyWebsite;if(companyLogo&&!existingCompany.data.logoUrl)updates.logoUrl=companyLogo;if(Object.keys(updates).length)await supabase.from("Company").update(updates).eq("id",companyId);}else{const createdCompany=await supabase.from("Company").insert({name:companyName,website:companyWebsite,logoUrl:companyLogo}).select("id").single();if(createdCompany.error)throw createdCompany.error;companyId=createdCompany.data.id}}const row:any={opportunityType,title:normalizedContent.title||ai?.title||item.title,companyId,description:normalizedContent.description.join("\n\n")||cleanDescription(item.description)||`Offre publiée via ${source.name}.`,language:/[àâçéèêëîïôùûüÿœ]/i.test(text)?"fr":"en",location:normalizedContent.location.join(", ")||item.location||inferCity(text),contractType:normalizedContent.contractType||ai?.contractType||inferContract(text),salaryMin:normalizedContent.salary.min,salaryMax:normalizedContent.salary.max,salaryCurrency:normalizedContent.salary.currency||"XAF",source:source.name,sourceKey:source.key,sourceUrl:item.url,externalId,contentHash,deadline:normalizeDeadlineTimestamp(item.deadline||extractSourceDeadline(String(item.description||""),item.url,source.key)),sourcePublishedAt:item.published||null,lastSeenAt:new Date().toISOString(),isActive:true,remoteMode:normalizedContent.remoteMode||ai?.remoteMode||inferRemote(text),minExperienceYears:Number.isFinite(ai?.minExperienceYears)?ai.minExperienceYears:inferExperience(text),aiProcessed:Boolean(ai),aiProcessedAt:ai?new Date().toISOString():null,aiSummary:ai?.summary||normalizedContent.description.slice(0,3).join(" "),aiQualityScore:typeof normalizedContent.qualityScore==="number"&&Number.isFinite(normalizedContent.qualityScore)?Math.max(0,Math.min(100,normalizedContent.qualityScore)):null,aiSector:normalizedContent.sector,qualityStatus:deriveOfferQualityStatus({title:normalizedContent.title||item.title,description:normalizedContent.description.join("\n\n")||cleanDescription(item.description),sourceUrl:item.url}),aiFlags:Array.isArray(ai?.flags)?ai.flags:[],aiSkills:Array.isArray(ai?.skills)?ai.skills:normalizedContent.skills,normalizedContent:{...normalizedContent,applicationUrl:applicationReadiness.applicationUrl,applicationEmail:applicationContacts.email,applicationPhone:applicationContacts.phone,applicationAvailability:applicationReadiness.applicationAvailability},normalizedVersion:NORMALIZED_VERSION,normalizedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),applicationReady:applicationReadiness.applicationReady,applicationProfile:{channel:applicationContacts.email?"EMAIL":applicationContacts.phone?"WHATSAPP_PHONE":applicationReadiness.applicationUrl?"ONLINE_FORM":"SOURCE_ONLY",phoneNumbers,applicationEmail:applicationContacts.email,applicationPhone:applicationContacts.phone,applicationUrl:applicationReadiness.applicationUrl,applicationReady:applicationReadiness.applicationReady,applicationAvailability:applicationReadiness.applicationAvailability,sourceUrl:item.url,comingSoon:!applicationReadiness.applicationReady}};
     const existing=await supabase.from("Job").select("id,title,description,normalizedContent,normalizedVersion,normalizedAt,aiQualityScore,aiSummary,aiFlags,aiSkills,aiProcessed,aiProcessedAt,contentHash,companyId,updatedAt,lastSeenAt,isActive").eq("sourceKey",source.key).eq("externalId",externalId).maybeSingle();if(existing.error)throw existing.error;if(existing.data?.id){
+      // A previously archived offer is never reactivated by a listing-page rediscovery.
+      // Only the detailed harvest processor may reopen it after source and freshness validation.
+      if(existing.data.isActive===false) continue;
       const candidateQuality=offerQuality(row);
       const existingQuality=offerQuality(existing.data);
       if(!existing.data.normalizedContent || !existing.data.normalizedVersion || candidateQuality>=existingQuality){

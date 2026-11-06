@@ -24,6 +24,30 @@ function validIso(value:string|null|undefined):string|null {
   const parsed=new Date(value);
   return Number.isFinite(parsed.getTime())?parsed.toISOString():null;
 }
+
+/**
+ * Normalize a source deadline without an explicit time to the end of that
+ * calendar day. Some feeds serialize a date-only deadline as midnight UTC;
+ * interpreting it literally expires the offer at the start of the advertised
+ * day. Explicit non-midnight times are preserved.
+ */
+export function normalizeDeadlineTimestamp(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const dateOnly = raw.match(/^(\d{4}-\d{2}-\d{2})$/);
+  const utcMidnight = raw.match(/^(\d{4}-\d{2}-\d{2})T00:00(?::00(?:\.0{1,3})?)?(?:Z|\+00:00)?$/i);
+  const datePart = dateOnly?.[1] ?? utcMidnight?.[1];
+  if (datePart) {
+    const midnight = new Date(datePart + "T00:00:00.000Z");
+    if (!Number.isFinite(midnight.getTime()) || midnight.toISOString().slice(0, 10) !== datePart) return null;
+    return datePart + "T23:59:59.999Z";
+  }
+
+  const parsed = new Date(raw);
+  return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : null;
+}
 /** Priority: source date, first harvest, Job.createdAt. Source dates expire after 2 calendar months; estimates after 30 days. */
 export function resolveEffectivePublicationDate(input:PublicationFreshnessInput):PublicationFreshnessResult {
   const now=new Date(input.now||new Date().toISOString());
@@ -44,7 +68,8 @@ export function resolveEffectivePublicationDate(input:PublicationFreshnessInput)
   const publishedInFuture=Number.isFinite(effectiveMs)&&effectiveMs>nowMs;
   // Keep the exact expiry instant visible; it expires immediately after that instant.
   const expiredByFreshness=!Number.isFinite(effectiveMs)||(!publishedInFuture&&Number.isFinite(expiresAtMs)&&nowMs>expiresAtMs);
-  const deadlineMs=input.deadline?new Date(input.deadline).getTime():NaN;
+  const normalizedDeadline=normalizeDeadlineTimestamp(input.deadline);
+  const deadlineMs=normalizedDeadline?new Date(normalizedDeadline).getTime():NaN;
   const expiredByDeadline=Number.isFinite(deadlineMs)&&deadlineMs<nowMs;
   let rejectionCode:string|null=null;
   if(!effectivePublishedAt)rejectionCode="MISSING_PUBLICATION_AND_FALLBACK_DATE";

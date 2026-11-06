@@ -1,6 +1,10 @@
 export type DiscoveryItem = {
   title:string; description:string; company:string; location:string; url:string;
   deadline:string|null; published:string|null;
+  website?:string|null;
+  applicationEmail?:string|null;
+  applicationPhone?:string|null;
+  applicationUrl?:string|null;
 };
 
 function decodeEntities(value:string):string {
@@ -126,7 +130,7 @@ async function fetchInfosConcoursEducation(): Promise<DiscoveryItem[]> {
       description,
       company: "",
       website: null,
-      location: inferCity(title + " " + description),
+      location: "", // Do not infer a city when the source did not declare one.
       url: link,
       deadline: null,
       published: typeof post?.date === "string" ? post.date : null,
