@@ -115,8 +115,12 @@ export default function PartnerKycReviewPage() {
                     <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-800">À vérifier</span>
                   </div>
                   <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                    <a href={item.documents.frontUrl || undefined} target="_blank" rel="noopener noreferrer" className="rounded-xl border p-3 text-sm font-bold text-blue-700 underline decoration-dotted">Ouvrir le document recto ↗</a>
-                    <a href={item.documents.backUrl || undefined} target="_blank" rel="noopener noreferrer" className="rounded-xl border p-3 text-sm font-bold text-blue-700 underline decoration-dotted">Ouvrir le document verso ↗</a>
+                    {item.documents.frontUrl
+                      ? <a href={item.documents.frontUrl} target="_blank" rel="noopener noreferrer" className="rounded-xl border p-3 text-sm font-bold text-blue-700 underline decoration-dotted">Ouvrir le document recto ↗</a>
+                      : <span className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Document recto indisponible — rechargez le dossier</span>}
+                    {item.documents.backUrl
+                      ? <a href={item.documents.backUrl} target="_blank" rel="noopener noreferrer" className="rounded-xl border p-3 text-sm font-bold text-blue-700 underline decoration-dotted">Ouvrir le document verso ↗</a>
+                      : <span className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Document verso indisponible — rechargez le dossier</span>}
                   </div>
                   <p className="mt-3 text-xs text-slate-600">Localisation déclarée : {item.locationText || "—"} · Consentements enregistrés · Version {item.termsVersion || "—"}</p>
                   <label className="mt-4 block text-xs font-bold text-slate-700">
