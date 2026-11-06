@@ -34,6 +34,13 @@ import { getSupabaseClient } from "../lib/supabase";
 import { useI18n, type DictKey } from "@/lib/i18n";
 import { decide as decideAutonomy, observe as observeAutonomy } from "@/lib/jia/autonomy";
 import JiaConversationSurface, { type JiaConversationMessage } from "@/components/jia/JiaConversationSurface";
+import {
+  buildJiaPracticeQuestionnaire,
+  detectJiaWorkspaceIntent,
+  type JiaWorkspaceBlock,
+  type JiaWorkspaceIntent,
+  type JiaWorkspaceOffer,
+} from "@/lib/jia/workspace";
 
 
 type Ecosystem = "TALENT" | "RECRUITER" | "PARTNER";
@@ -88,6 +95,120 @@ const CHIPS: Record<Ecosystem, { key: DictKey; href: string }[]> = {
   ],
 };
 const SETTINGS_HREF: Record<Ecosystem, string> = { TALENT: "/talent/settings", RECRUITER: "/recruiter/settings", PARTNER: "/partner/settings" };
+
+async function loadJiaWorkspace(
+  intent: JiaWorkspaceIntent,
+  command: string,
+  accessToken: string,
+): Promise<JiaWorkspaceBlock | null> {
+  if (!intent) return null;
+  const headers = { Authorization: "Bearer " + accessToken };
+
+  if (intent === "OFFERS") {
+    const scope = /\bafrique\b/i.test(command) ? "&scope=africa" : "";
+    const roleMatch = command.match(/\b(?:offre|emploi|poste)\s+(?:de|pour)\s+(.+?)(?:\s+(?:à|au|aux|en|dans|avec)\b|[?.!,]|$)/i);
+    const query = roleMatch?.[1]?.trim().slice(0, 80);
+    const search = query ? "&q=" + encodeURIComponent(query) : "";
+    const response = await fetch("/api/jobs?limit=5" + scope + search, { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Le flux des offres est momentanément indisponible.");
+    const jobs = Array.isArray(json.jobs) ? json.jobs : [];
+    return {
+      kind: "offers",
+      totalAvailable: Number(json.totalAvailable) || 0,
+      matchingCount: Number(json.matchingCount) || 0,
+      offers: jobs.slice(0, 5).map((job: Record<string, any>) => ({
+        id: String(job.id || ""),
+        source: job.source === "recruiter" ? "recruiter" : "discovery",
+        title: String(job.title || "Offre sans titre"),
+        companyName: typeof job.company?.name === "string" ? job.company.name : null,
+        location: typeof job.location === "string" ? job.location : null,
+        contractType: typeof job.contractType === "string" ? job.contractType : null,
+        remoteMode: typeof job.remoteMode === "string" ? job.remoteMode : null,
+        matchPercent: Number.isFinite(Number(job.matchPercent)) ? Number(job.matchPercent) : null,
+        deadline: typeof job.deadline === "string" ? job.deadline : null,
+        sourceUrl: typeof job.sourceUrl === "string" ? job.sourceUrl : null,
+        applicationReady: job.applicationReady === true,
+      })).filter((job: JiaWorkspaceOffer) => Boolean(job.id)),
+    };
+  }
+
+  if (intent === "APPLICATIONS") {
+    const response = await fetch("/api/applications", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Le suivi des candidatures est indisponible.");
+    const applications = Array.isArray(json.applications) ? json.applications : [];
+    return {
+      kind: "applications",
+      counters: {
+        envoyees: Number(json.counters?.envoyees) || 0,
+        vues: Number(json.counters?.vues) || 0,
+        entretien: Number(json.counters?.entretien) || 0,
+      },
+      applications: applications.slice(0, 8).map((item: Record<string, any>) => ({
+        id: String(item.id || ""),
+        status: String(item.status || "UNKNOWN"),
+        statusLabel: String(item.statusLabel || item.status || "À suivre"),
+        createdAt: String(item.createdAt || ""),
+        updatedAt: String(item.updatedAt || ""),
+        job: item.job ? {
+          title: String(item.job.title || "Offre"),
+          companyName: typeof item.job.companyName === "string" ? item.job.companyName : null,
+          location: typeof item.job.location === "string" ? item.job.location : null,
+        } : null,
+      })).filter((item: { id: string }) => Boolean(item.id)),
+    };
+  }
+
+  if (intent === "PROFILE") {
+    const response = await fetch("/api/profile", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Le profil Talent est indisponible.");
+    const user = json.user || {};
+    const profile = json.profile || {};
+    const skills = Array.isArray(json.skills) ? json.skills.map((skill: any) => String(skill?.name || "")).filter(Boolean) : [];
+    return {
+      kind: "profile",
+      displayName: String(user.displayName || [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "Profil Talent"),
+      email: typeof user.email === "string" ? user.email : null,
+      headline: String(profile.headline || ""),
+      summary: String(profile.summary || ""),
+      skills,
+      experienceCount: Array.isArray(json.experiences) ? json.experiences.length : 0,
+      educationCount: Array.isArray(json.education) ? json.education.length : 0,
+      cvOriginalUrl: typeof user.cvOriginalUrl === "string" ? user.cvOriginalUrl : null,
+      cvOriginalFileName: typeof user.cvOriginalFileName === "string" ? user.cvOriginalFileName : null,
+    };
+  }
+
+  const practice = buildJiaPracticeQuestionnaire(command);
+  const response = await fetch("/api/career-journey/assessments", {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      competency: practice.competency,
+      title: practice.title,
+      objective: practice.objective,
+      format: "MCQ",
+      adaptive: false,
+      voiceAllowed: true,
+      questions: practice.questions.map((question) => ({ prompt: question.prompt, choices: question.choices })),
+    }),
+  });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(json.message || "Je n'ai pas pu créer cet exercice.");
+  const assessmentId = typeof json.assessment?.id === "string" ? json.assessment.id : "";
+  if (!assessmentId) throw new Error("L'évaluation n'a pas reçu d'identifiant Jobly.");
+  return {
+    kind: "questionnaire",
+    assessmentId,
+    title: practice.title,
+    competency: practice.competency,
+    objective: practice.objective,
+    questions: practice.questions,
+  };
+}
+
 
 function speak(text: string, lang: "fr" | "en", onEnd?: () => void) {
   if (typeof window === "undefined" || !window.speechSynthesis || !text) { onEnd?.(); return; }
@@ -382,7 +503,7 @@ export default function JiaPresence() {
     }
   }, []);
 
-  const appendConversationMessage = useCallback((role: "user" | "assistant", text: string, sources?: JiaConversationMessage["sources"]) => {
+  const appendConversationMessage = useCallback((role: "user" | "assistant", text: string, sources?: JiaConversationMessage["sources"], workspace?: JiaWorkspaceBlock) => {
     const normalized = text.trim();
     if (!normalized) return;
     idSeq.current += 1;
@@ -392,6 +513,7 @@ export default function JiaPresence() {
       text: normalized,
       createdAt: Date.now(),
       ...(sources?.length ? { sources } : {}),
+      ...(workspace ? { workspace } : {}),
     }]);
   }, []);
 
@@ -431,6 +553,20 @@ export default function JiaPresence() {
       if (!response.ok) throw new Error(out.message || "J’IA est momentanément indisponible.");
       const nextSources = Array.isArray(out.sources) ? out.sources.filter((source: unknown): source is { title: string; url: string; snippet?: string } => Boolean(source && typeof source === "object" && "url" in source && typeof source.url === "string" && /^https?:\/\//i.test(source.url))).slice(0, 5) : [];
       setSourceLinks(nextSources);
+      const workspaceIntent = detectJiaWorkspaceIntent(command, eco);
+      let workspaceBlock: JiaWorkspaceBlock | null = null;
+      if (workspaceIntent) {
+        try {
+          workspaceBlock = await loadJiaWorkspace(workspaceIntent, command, session.access_token);
+        } catch (workspaceError) {
+          workspaceBlock = {
+            kind: "notice",
+            title: "Espace Jobly non disponible",
+            message: workspaceError instanceof Error ? workspaceError.message : "Le service Jobly demandé n'a pas répondu.",
+            href: workspaceIntent === "OFFERS" ? "/jobs" : workspaceIntent === "APPLICATIONS" ? "/candidatures" : workspaceIntent === "PROFILE" ? "/talent/profile" : "/career-journey",
+          };
+        }
+      }
       const answer = typeof out.message === "string" ? out.message.trim() : "";
       const previousAnswer = recentDialogue[recentDialogue.length - 1]?.trim().toLocaleLowerCase();
       if (answer && answer.toLocaleLowerCase() === previousAnswer) {
@@ -438,7 +574,7 @@ export default function JiaPresence() {
       }
       setRecentDialogue((history) => [...history, command, answer].filter(Boolean).slice(-12));
       const proposedType = out.proposedAction?.type as string | undefined;
-      appendConversationMessage("assistant", out.message || "Je suis prête à t’aider.", nextSources);
+      appendConversationMessage("assistant", out.message || "Je suis prête à t’aider.", nextSources, workspaceBlock || undefined);
       const sourceSuffix = nextSources.length
         ? `\n\nSources vérifiables : ${nextSources.slice(0, 3).map((source: { title: string; url: string }) => source.title || source.url).join(" · ")}`
         : "";
@@ -456,7 +592,86 @@ export default function JiaPresence() {
     } finally {
       setCommandBusy(false);
     }
-  }, [appendConversationMessage, commandBusy, commandInput, recentDialogue, say]);
+  }, [appendConversationMessage, commandBusy, commandInput, eco, recentDialogue, say]);
+
+
+  const prepareJiaApplication = useCallback(async (offer: JiaWorkspaceOffer) => {
+    setCommandBusy(true);
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token) throw new Error("Session requise pour préparer une candidature.");
+      const response = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+        body: JSON.stringify({ source: offer.source, jobId: offer.id, locale: langRef.current === "en" ? "en" : "fr" }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || "Jobly n'a pas pu préparer cette candidature.");
+      const prepared = result.prepared || {};
+      const applicationProfile = result.applicationProfile || {};
+      const block: JiaWorkspaceBlock = {
+        kind: "prepared-application",
+        title: offer.title,
+        channel: String(prepared.channel?.channel || "À confirmer"),
+        subject: String(prepared.subject || ""),
+        letter: String(prepared.letter || ""),
+        email: typeof applicationProfile.applicationEmail === "string" ? applicationProfile.applicationEmail : null,
+        phone: typeof applicationProfile.applicationPhone === "string" ? applicationProfile.applicationPhone : null,
+        warnings: Array.isArray(prepared.warnings) ? prepared.warnings.filter((item: unknown): item is string => typeof item === "string") : [],
+        sourceUrl: offer.sourceUrl,
+      };
+      appendConversationMessage(
+        "assistant",
+        "La candidature pour « " + offer.title + " » a été préparée dans Jobly. Relis le contenu et vérifie le canal ci-dessous : rien n'a été envoyé automatiquement.",
+        undefined,
+        block,
+      );
+      say("Ta candidature est préparée et reste sous ton contrôle. Elle n'a pas été envoyée.", { gesture: "welcome", speak: true, sticky: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Impossible de préparer cette candidature.";
+      appendConversationMessage("assistant", message);
+      say(message, { gesture: "secure", speak: false, sticky: true });
+    } finally {
+      setCommandBusy(false);
+    }
+  }, [appendConversationMessage, say]);
+
+  const submitJiaAssessment = useCallback(async (args: {
+    messageId: string;
+    assessmentId: string;
+    answers: Record<string, unknown>;
+    score: number;
+    resultSummary: string;
+  }) => {
+    setCommandBusy(true);
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token) throw new Error("Session requise pour enregistrer cet exercice.");
+      const response = await fetch("/api/career-journey/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+        body: JSON.stringify({
+          action: "ATTEMPT",
+          assessmentId: args.assessmentId,
+          answers: args.answers,
+          score: args.score,
+          resultSummary: args.resultSummary,
+          completed: true,
+          acceptedByUser: false,
+          feedback: { evaluated: "Exercice pratique J’IA", limitation: "Résultat indicatif ; ne constitue pas une certification officielle." },
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || "L'enregistrement de l'évaluation a échoué.");
+      setConversationMessages((current) => current.map((message) => {
+        if (message.id !== args.messageId || message.workspace?.kind !== "questionnaire") return message;
+        return { ...message, workspace: { ...message.workspace, result: { score: args.score, summary: args.resultSummary } } };
+      }));
+      appendConversationMessage("assistant", "Ton exercice est enregistré dans Career Journey. Le résultat reste indicatif et ne vaut pas certification.");
+    } finally {
+      setCommandBusy(false);
+    }
+  }, [appendConversationMessage]);
 
   const confirmPendingAction = useCallback(async () => {
     if (!pendingAction) return;
@@ -847,6 +1062,8 @@ export default function JiaPresence() {
         onConfirmAction={() => void confirmPendingAction()}
         onCancelAction={() => setPendingAction(null)}
         onNavigate={(href) => href === "/jia/extension" ? go("/jia/extension") : go(href)}
+        onPrepareApplication={prepareJiaApplication}
+        onSubmitAssessment={submitJiaAssessment}
         onEnableVoice={voiceSupported ? enableVoiceFromConversation : undefined}
       />
     </>
