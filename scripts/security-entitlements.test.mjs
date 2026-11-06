@@ -487,3 +487,17 @@ test("Event payment proofs use a private bucket with constrained document format
   assert.match(route, /allowedMimeTypes: \["image\/jpeg", "image\/png", "image\/webp", "image\/gif", "application\/pdf"\]/);
   assert.match(route, /scope: "event-payment-proof-upload"/);
 });
+
+
+test("Mobility requires a current Talent subscription or an active Talent promotion", () => {
+  const gate = read("../lib/mobilityServer.ts");
+  const lifecycle = read("../lib/billingLifecycleCore.ts");
+  const entitlements = read("../lib/entitlements.ts");
+  assert.match(gate, /getActivePlanCode\(sb, String\(user\.id\), "TALENT"\)/);
+  assert.match(gate, /allowedPlans\.has/);
+  assert.doesNotMatch(gate, /TRIALING|currentPeriodEnd === null/);
+  assert.match(lifecycle, /record\.status === "ACTIVE"[\s\S]*?isFuture\(record\.currentPeriodEnd, nowMs\)/);
+  assert.match(lifecycle, /record\.status === "TRIAL"[\s\S]*?isFuture\(record\.trialEndsAt, nowMs\)/);
+  assert.match(entitlements, /\.eq\("productType", productType\)/);
+  assert.match(entitlements, /\.eq\("producttype", productType\)/);
+});
