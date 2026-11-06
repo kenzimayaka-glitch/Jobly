@@ -33,8 +33,8 @@ export type JiaWorkspaceQuestion = {
 export type JiaWorkspaceBlock =
   | { kind: "offers"; offers: JiaWorkspaceOffer[]; totalAvailable: number; matchingCount: number; error?: string }
   | { kind: "applications"; applications: JiaWorkspaceApplication[]; counters: { envoyees: number; vues: number; entretien: number }; error?: string }
-  | { kind: "profile"; displayName: string; email: string | null; headline: string; summary: string; skills: string[]; experiences: Array<{ title: string; company: string; startDate: string | null; endDate: string | null; description: string | null }>; education: Array<{ institution: string; degree: string | null; field: string | null; startDate: string | null; endDate: string | null }>; experienceCount: number; educationCount: number; cvOriginalUrl: string | null; cvOriginalFileName: string | null; error?: string }
-  | { kind: "questionnaire"; assessmentId: string; title: string; competency: string; objective: string; questions: JiaWorkspaceQuestion[]; result?: { score: number; summary: string }; error?: string }
+  | { kind: "profile"; displayName: string; email: string | null; phone: string | null; location: string | null; headline: string; summary: string; skills: string[]; experiences: Array<{ title: string; company: string; startDate: string | null; endDate: string | null; description: string | null }>; education: Array<{ institution: string; degree: string | null; field: string | null; startDate: string | null; endDate: string | null }>; experienceCount: number; educationCount: number; cvOriginalUrl: string | null; cvOriginalFileName: string | null; error?: string }
+  | { kind: "questionnaire"; assessmentId: string; title: string; competency: string; objective: string; questions: JiaWorkspaceQuestion[]; answers?: Record<string, number>; result?: { score: number; summary: string }; error?: string }
   | { kind: "prepared-application"; applicationId: string; title: string; channel: string; subject: string; letter: string; email: string | null; phone: string | null; warnings: string[]; sourceUrl: string | null; submitted?: boolean }
   | { kind: "notice"; title: string; message: string; href?: string };
 

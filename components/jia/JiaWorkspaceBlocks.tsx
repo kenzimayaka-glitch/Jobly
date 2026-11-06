@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import {
   ArrowUpRight,
   BriefcaseBusiness,
@@ -15,11 +15,24 @@ import {
 } from "lucide-react";
 import type { JiaWorkspaceBlock, JiaWorkspaceOffer } from "@/lib/jia/workspace";
 
+type ProfileSavePayload = {
+  messageId: string;
+  displayName: string;
+  phone: string;
+  headline: string;
+  summary: string;
+  location: string;
+  skills: string[];
+};
+
 type Props = {
   block: JiaWorkspaceBlock;
   messageId: string;
   onPrepareApplication: (offer: JiaWorkspaceOffer) => Promise<void>;
   onNavigate: (href: string) => void;
+  onSaveProfile: (args: ProfileSavePayload) => Promise<void>;
+  onUploadCv: (args: { messageId: string; file: File }) => Promise<boolean>;
+  onUpdateWorkspace: (messageId: string, workspace: JiaWorkspaceBlock) => void;
   onSubmitAssessment: (args: {
     messageId: string;
     assessmentId: string;
@@ -136,14 +149,73 @@ function cvDateRange(startDate: string | null, endDate: string | null) {
   return [start, end].filter(Boolean).join(" — ");
 }
 
-function ProfileBlock({ block, onNavigate }: {
+function ProfileBlock({ block, messageId, onNavigate, onSaveProfile, onUploadCv }: {
   block: Extract<JiaWorkspaceBlock, { kind: "profile" }>;
+  messageId: string;
   onNavigate: Props["onNavigate"];
+  onSaveProfile: Props["onSaveProfile"];
+  onUploadCv: Props["onUploadCv"];
 }) {
   const completion = [
     Boolean(block.displayName), Boolean(block.headline), Boolean(block.summary),
     block.skills.length > 0, block.experienceCount > 0, block.educationCount > 0,
   ].filter(Boolean).length;
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [draft, setDraft] = useState({
+    displayName: block.displayName,
+    phone: block.phone || "",
+    headline: block.headline,
+    summary: block.summary,
+    location: block.location || "",
+    skills: block.skills.join(", "),
+  });
+
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (saving) return;
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      await onSaveProfile({
+        messageId,
+        displayName: draft.displayName.trim(),
+        phone: draft.phone.trim(),
+        headline: draft.headline.trim(),
+        summary: draft.summary.trim(),
+        location: draft.location.trim(),
+        skills: [...new Set(draft.skills.split(/[,;\r\n]+/).map((item) => item.trim()).filter(Boolean))].slice(0, 30),
+      });
+      setEditing(false);
+      setSuccess("Profil enregistré dans Jobly.");
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Impossible d'enregistrer le profil.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function uploadCv(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || uploading) return;
+    setUploading(true);
+    setError("");
+    setSuccess("");
+    try {
+      const saved = await onUploadCv({ messageId, file });
+      if (saved) setSuccess("CV original mis à jour dans Jobly.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Impossible de remplacer le CV.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return (
     <section className="mt-3 space-y-3" aria-label="Mon profil et mon CV">
       <div className={surface}>
@@ -156,6 +228,11 @@ function ProfileBlock({ block, onNavigate }: {
           <span className="ml-auto shrink-0 text-[10px] font-black text-[#1264EB]">{Math.round(completion / 6 * 100)} %</span>
         </div>
         {block.summary && <p className="mt-3 line-clamp-4 text-[11px] leading-5 text-[#52637A]">{block.summary}</p>}
+        {(block.location || block.phone || block.email) && (
+          <p className="mt-2 break-words text-[10px] text-[#718198]">
+            {[block.location, block.phone, block.email].filter(Boolean).join(" · ")}
+          </p>
+        )}
         <div className="mt-3 grid grid-cols-3 gap-2 text-center">
           <div className="rounded-xl bg-[#F3F7FC] p-2"><p className="text-[16px] font-black text-[#1264EB]">{block.skills.length}</p><p className="text-[9px] font-bold text-[#718198]">Compétences</p></div>
           <div className="rounded-xl bg-[#F3F7FC] p-2"><p className="text-[16px] font-black text-[#1264EB]">{block.experienceCount}</p><p className="text-[9px] font-bold text-[#718198]">Expériences</p></div>
@@ -198,21 +275,63 @@ function ProfileBlock({ block, onNavigate }: {
           </div>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" className={primary} onClick={() => onNavigate("/talent/profile")}>Modifier mon profil <ArrowUpRight size={13}/></button>
+          <button type="button" className={primary} onClick={() => { setEditing((value) => !value); setError(""); setSuccess(""); }}>
+            {editing ? "Fermer l'édition" : "Modifier ici"} <ArrowUpRight size={13}/>
+          </button>
+          <button type="button" className={secondary} onClick={() => onNavigate("/talent/profile")}>Profil complet <ArrowUpRight size={13}/></button>
           <button type="button" className={secondary} onClick={() => onNavigate("/talent/cvs")}>Mes CV <FileText size={13}/></button>
           {block.cvOriginalUrl && <a href={block.cvOriginalUrl} target="_blank" rel="noopener noreferrer" className={secondary}>CV importé <ArrowUpRight size={13}/></a>}
+          <label className={secondary + " cursor-pointer " + (uploading ? "pointer-events-none opacity-50" : "")}>
+            {uploading ? "Enregistrement du CV…" : "Remplacer le CV PDF"}
+            <input type="file" accept="application/pdf,.pdf" className="sr-only" disabled={uploading} onChange={(event) => void uploadCv(event)}/>
+          </label>
         </div>
+        {editing && (
+          <form onSubmit={(event) => void saveProfile(event)} className="mt-4 space-y-2.5 rounded-2xl border border-[#DCE6F2] bg-[#F8FAFD] p-3">
+            <label className="block text-[10px] font-bold text-[#52637A]">
+              Nom affiché
+              <input value={draft.displayName} onChange={(event) => setDraft((current) => ({ ...current, displayName: event.target.value }))} maxLength={120} className="mt-1 min-h-10 w-full rounded-xl border border-[#DCE5F0] bg-white px-3 text-[12px] text-[#10233F] outline-none focus:border-[#1264EB]"/>
+            </label>
+            <label className="block text-[10px] font-bold text-[#52637A]">
+              Intitulé professionnel
+              <input value={draft.headline} onChange={(event) => setDraft((current) => ({ ...current, headline: event.target.value }))} maxLength={180} className="mt-1 min-h-10 w-full rounded-xl border border-[#DCE5F0] bg-white px-3 text-[12px] text-[#10233F] outline-none focus:border-[#1264EB]"/>
+            </label>
+            <label className="block text-[10px] font-bold text-[#52637A]">
+              Localisation
+              <input value={draft.location} onChange={(event) => setDraft((current) => ({ ...current, location: event.target.value }))} maxLength={120} className="mt-1 min-h-10 w-full rounded-xl border border-[#DCE5F0] bg-white px-3 text-[12px] text-[#10233F] outline-none focus:border-[#1264EB]"/>
+            </label>
+            <label className="block text-[10px] font-bold text-[#52637A]">
+              Téléphone
+              <input value={draft.phone} onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))} maxLength={40} className="mt-1 min-h-10 w-full rounded-xl border border-[#DCE5F0] bg-white px-3 text-[12px] text-[#10233F] outline-none focus:border-[#1264EB]"/>
+            </label>
+            <label className="block text-[10px] font-bold text-[#52637A]">
+              Résumé professionnel
+              <textarea value={draft.summary} onChange={(event) => setDraft((current) => ({ ...current, summary: event.target.value }))} maxLength={4000} rows={5} className="mt-1 w-full rounded-xl border border-[#DCE5F0] bg-white p-3 text-[11px] leading-5 text-[#10233F] outline-none focus:border-[#1264EB]"/>
+            </label>
+            <label className="block text-[10px] font-bold text-[#52637A]">
+              Compétences (séparées par des virgules)
+              <input value={draft.skills} onChange={(event) => setDraft((current) => ({ ...current, skills: event.target.value }))} maxLength={1200} className="mt-1 min-h-10 w-full rounded-xl border border-[#DCE5F0] bg-white px-3 text-[12px] text-[#10233F] outline-none focus:border-[#1264EB]"/>
+            </label>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button type="button" className={secondary} disabled={saving} onClick={() => setEditing(false)}>Annuler</button>
+              <button type="submit" className={primary} disabled={saving}>{saving ? "Enregistrement…" : "Enregistrer le profil"}</button>
+            </div>
+          </form>
+        )}
+        {error && <p role="alert" className="mt-2 rounded-xl bg-[#FFF4E8] p-3 text-[10px] text-[#92520C]">{error}</p>}
+        {success && <p role="status" className="mt-2 rounded-xl bg-[#EFF9F2] p-3 text-[10px] font-bold text-[#17613B]">{success}</p>}
       </div>
     </section>
   );
 }
 
-function QuestionnaireBlock({ block, messageId, onSubmitAssessment }: {
+function QuestionnaireBlock({ block, messageId, onSubmitAssessment, onUpdateWorkspace }: {
   block: Extract<JiaWorkspaceBlock, { kind: "questionnaire" }>;
   messageId: string;
   onSubmitAssessment: Props["onSubmitAssessment"];
+  onUpdateWorkspace: Props["onUpdateWorkspace"];
 }) {
-  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [answers, setAnswers] = useState<Record<string, number>>(block.answers || {});
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState("");
   const complete = block.questions.length > 0 && block.questions.every((_, index) => answers[String(index)] !== undefined);
@@ -267,7 +386,11 @@ function QuestionnaireBlock({ block, messageId, onSubmitAssessment }: {
                   : "border-[#EDF1F6] text-[#52637A] hover:border-[#B9CBE2]";
               return (
                 <label key={choice} className={"flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-[10px] leading-4 transition " + optionClass}>
-                  <input type="radio" name={block.assessmentId + ":" + index} className="mt-0.5 accent-[#1264EB]" checked={selected} onChange={() => setAnswers((current) => ({ ...current, [String(index)]: choiceIndex }))}/>
+                  <input type="radio" name={block.assessmentId + ":" + index} className="mt-0.5 accent-[#1264EB]" checked={selected} onChange={() => {
+                    const nextAnswers = { ...answers, [String(index)]: choiceIndex };
+                    setAnswers(nextAnswers);
+                    onUpdateWorkspace(messageId, { ...block, answers: nextAnswers });
+                  }}/>
                   <span className="flex-1">{choice}</span>
                   {correct && <CheckCircle2 size={13}/>}
                 </label>
@@ -295,10 +418,11 @@ function QuestionnaireBlock({ block, messageId, onSubmitAssessment }: {
   );
 }
 
-function PreparedApplicationBlock({ block, messageId, onSubmitApplication }: {
+function PreparedApplicationBlock({ block, messageId, onSubmitApplication, onUpdateWorkspace }: {
   block: Extract<JiaWorkspaceBlock, { kind: "prepared-application" }>;
   messageId: string;
   onSubmitApplication: Props["onSubmitApplication"];
+  onUpdateWorkspace: Props["onUpdateWorkspace"];
 }) {
   const [letter, setLetter] = useState(block.letter);
   const [sending, setSending] = useState(false);
@@ -340,7 +464,11 @@ function PreparedApplicationBlock({ block, messageId, onSubmitApplication }: {
           Relis et ajuste ta lettre avant l’envoi
           <textarea
             value={letter}
-            onChange={(event) => setLetter(event.target.value)}
+            onChange={(event) => {
+              const nextLetter = event.target.value;
+              setLetter(nextLetter);
+              onUpdateWorkspace(messageId, { ...block, letter: nextLetter });
+            }}
             disabled={sending || sent}
             rows={7}
             maxLength={30000}
@@ -382,12 +510,12 @@ function PreparedApplicationBlock({ block, messageId, onSubmitApplication }: {
   );
 }
 
-export default function JiaWorkspaceBlocks({ block, messageId, onPrepareApplication, onNavigate, onSubmitAssessment, onSubmitApplication }: Props) {
+export default function JiaWorkspaceBlocks({ block, messageId, onPrepareApplication, onNavigate, onSaveProfile, onUploadCv, onUpdateWorkspace, onSubmitAssessment, onSubmitApplication }: Props) {
   if (block.kind === "offers") return <OffersBlock block={block} onPrepareApplication={onPrepareApplication} onNavigate={onNavigate}/>;
   if (block.kind === "applications") return <ApplicationsBlock block={block}/>;
-  if (block.kind === "profile") return <ProfileBlock block={block} onNavigate={onNavigate}/>;
-  if (block.kind === "questionnaire") return <QuestionnaireBlock block={block} messageId={messageId} onSubmitAssessment={onSubmitAssessment}/>;
-  if (block.kind === "prepared-application") return <PreparedApplicationBlock block={block} messageId={messageId} onSubmitApplication={onSubmitApplication}/>;
+  if (block.kind === "profile") return <ProfileBlock block={block} messageId={messageId} onNavigate={onNavigate} onSaveProfile={onSaveProfile} onUploadCv={onUploadCv}/>;
+  if (block.kind === "questionnaire") return <QuestionnaireBlock block={block} messageId={messageId} onSubmitAssessment={onSubmitAssessment} onUpdateWorkspace={onUpdateWorkspace}/>;
+  if (block.kind === "prepared-application") return <PreparedApplicationBlock block={block} messageId={messageId} onSubmitApplication={onSubmitApplication} onUpdateWorkspace={onUpdateWorkspace}/>;
   return (
     <section className="mt-3 rounded-2xl border border-[#E3EAF3] bg-white p-3.5">
       <div className="flex items-center gap-2"><GraduationCap size={16} className="text-[#1264EB]"/><p className="text-[11px] font-extrabold text-[#173A6B]">{block.title}</p></div>

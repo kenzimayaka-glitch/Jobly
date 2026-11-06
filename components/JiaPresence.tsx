@@ -171,6 +171,8 @@ async function loadJiaWorkspace(
       kind: "profile",
       displayName: String(user.displayName || [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "Profil Talent"),
       email: typeof user.email === "string" ? user.email : null,
+      phone: typeof profile.phone === "string" ? profile.phone : typeof user.phone === "string" ? user.phone : null,
+      location: typeof profile.location === "string" ? profile.location : null,
       headline: String(profile.headline || ""),
       summary: String(profile.summary || ""),
       skills,
@@ -608,6 +610,117 @@ export default function JiaPresence() {
     }
   }, [appendConversationMessage, commandBusy, commandInput, eco, recentDialogue, say]);
 
+
+  const saveJiaProfile = useCallback(async (args: {
+    messageId: string;
+    displayName: string;
+    phone: string;
+    headline: string;
+    summary: string;
+    location: string;
+    skills: string[];
+  }) => {
+    setCommandBusy(true);
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token) throw new Error("Session requise pour modifier le profil.");
+      const headers = { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token };
+      const profileResponse = await fetch("/api/profile", {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          section: "profil",
+          displayName: args.displayName,
+          phone: args.phone,
+          headline: args.headline,
+          summary: args.summary,
+          location: args.location,
+        }),
+      });
+      const profileBody = await profileResponse.json().catch(() => ({}));
+      if (!profileResponse.ok) throw new Error(profileBody.message || "Jobly n'a pas enregistré les informations du profil.");
+
+      const skillsResponse = await fetch("/api/profile", {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ section: "skills", skills: args.skills.map((name) => ({ name })) }),
+      });
+      const skillsBody = await skillsResponse.json().catch(() => ({}));
+      if (!skillsResponse.ok) throw new Error(skillsBody.message || "Les compétences n'ont pas été enregistrées.");
+
+      setConversationMessages((current) => current.map((message) => {
+        if (message.id !== args.messageId || message.workspace?.kind !== "profile") return message;
+        return {
+          ...message,
+          workspace: {
+            ...message.workspace,
+            displayName: args.displayName,
+            phone: args.phone || null,
+            headline: args.headline,
+            summary: args.summary,
+            location: args.location || null,
+            skills: args.skills,
+          },
+        };
+      }));
+    } finally {
+      setCommandBusy(false);
+    }
+  }, []);
+
+  const uploadJiaCv = useCallback(async (args: { messageId: string; file: File }): Promise<boolean> => {
+    const { file } = args;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      throw new Error("Le CV doit être un fichier PDF.");
+    }
+    if (file.size <= 0 || file.size > 3 * 1024 * 1024) {
+      throw new Error("Le CV original doit peser entre 1 octet et 3 Mo.");
+    }
+    if (!window.confirm("Remplacer le CV original enregistré dans Jobly ? Le nouveau PDF deviendra le document de référence de ton profil.")) {
+      return false;
+    }
+    setCommandBusy(true);
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token) throw new Error("Session requise pour remplacer le CV.");
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch("/api/talent/cv/original", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + session.access_token },
+        body: form,
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || body.stored !== true) throw new Error(body.message || "Jobly n'a pas confirmé l'enregistrement du CV.");
+
+      const profileResponse = await fetch("/api/profile", {
+        headers: { Authorization: "Bearer " + session.access_token },
+        cache: "no-store",
+      });
+      const profileBody = profileResponse.ok ? await profileResponse.json().catch(() => ({})) : {};
+      const refreshedUser = profileBody.user || {};
+      setConversationMessages((current) => current.map((message) => {
+        if (message.id !== args.messageId || message.workspace?.kind !== "profile") return message;
+        return {
+          ...message,
+          workspace: {
+            ...message.workspace,
+            cvOriginalFileName: typeof refreshedUser.cvOriginalFileName === "string" ? refreshedUser.cvOriginalFileName : (body.fileName || file.name),
+            cvOriginalUrl: typeof refreshedUser.cvOriginalUrl === "string" ? refreshedUser.cvOriginalUrl : null,
+          },
+        };
+      }));
+      return true;
+    } finally {
+      setCommandBusy(false);
+    }
+  }, []);
+
+  const updateJiaWorkspace = useCallback((messageId: string, workspace: JiaWorkspaceBlock) => {
+    setConversationMessages((current) => current.map((message) =>
+      message.id === messageId && message.role === "assistant" ? { ...message, workspace } : message
+    ));
+  }, []);
 
   const prepareJiaApplication = useCallback(async (offer: JiaWorkspaceOffer) => {
     setCommandBusy(true);
@@ -1111,6 +1224,9 @@ export default function JiaPresence() {
         onPrepareApplication={prepareJiaApplication}
         onSubmitAssessment={submitJiaAssessment}
         onSubmitApplication={submitJiaApplication}
+        onSaveProfile={saveJiaProfile}
+        onUploadCv={uploadJiaCv}
+        onUpdateWorkspace={updateJiaWorkspace}
         onEnableVoice={voiceSupported ? enableVoiceFromConversation : undefined}
       />
     </>

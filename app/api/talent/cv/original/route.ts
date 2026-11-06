@@ -32,15 +32,31 @@ export async function POST(request: NextRequest) {
     const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
     const bytes = Buffer.from(await file.arrayBuffer());
     if (bytes.length <= 0 || bytes.length > 3 * 1024 * 1024) return NextResponse.json({ error: "PDF_TOO_LARGE", message: "Le CV original dépasse la limite de 3 Mo." }, { status: 413 });
+    if (bytes.length < 5 || bytes.subarray(0, 5).toString("ascii") !== "%PDF-") {
+      return NextResponse.json({ error: "PDF_INVALID", message: "Le contenu du fichier ne correspond pas à un PDF valide." }, { status: 415 });
+    }
     const canonicalFileName = await canonicalCvFileName(admin, auth.id);
     const storagePath = `${auth.id}/${crypto.randomUUID()}.pdf`;
     const upload = await admin.storage.from("talent-cvs").upload(storagePath, bytes, { contentType: "application/pdf", upsert: false });
     if (upload.error) throw new Error(upload.error.message);
     const { data: user, error: userError } = await admin.from("User").select("id,cvOriginalStoragePath").eq("authUserId", auth.id).maybeSingle();
     if (userError || !user?.id) { await admin.storage.from("talent-cvs").remove([storagePath]); throw new Error(userError?.message || "Profil Jobly introuvable."); }
-    if (user.cvOriginalStoragePath) await admin.storage.from("talent-cvs").remove([user.cvOriginalStoragePath]);
-    const { error: updateError } = await admin.from("User").update({ cvOriginalStoragePath: storagePath, cvOriginalFileName: canonicalFileName, cvOriginalPageCount: Number(form.get("pages") || 0) || null, cvOriginalUploadedAt: new Date().toISOString() }).eq("id", user.id);
-    if (updateError) { await admin.storage.from("talent-cvs").remove([storagePath]); throw new Error(updateError.message); }
+    const previousStoragePath = typeof user.cvOriginalStoragePath === "string" ? user.cvOriginalStoragePath : null;
+    const { error: updateError } = await admin.from("User").update({
+      cvOriginalStoragePath: storagePath,
+      cvOriginalFileName: canonicalFileName,
+      cvOriginalPageCount: Number(form.get("pages") || 0) || null,
+      cvOriginalUploadedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }).eq("id", user.id);
+    if (updateError) {
+      await admin.storage.from("talent-cvs").remove([storagePath]);
+      throw new Error(updateError.message);
+    }
+    // L'ancien fichier n'est retiré qu'après persistance du nouveau chemin.
+    if (previousStoragePath && previousStoragePath !== storagePath) {
+      await admin.storage.from("talent-cvs").remove([previousStoragePath]);
+    }
     return NextResponse.json({ ok: true, stored: true, storagePath, fileName: canonicalFileName });
   } catch (error) {
     return NextResponse.json({ error: "CV_ORIGINAL_SAVE_FAILED", message: error instanceof Error ? error.message : "Impossible d’enregistrer le CV original." }, { status: 500 });

@@ -9,6 +9,7 @@ test("J’IA recognizes the four Talent workspace intents", () => {
   assert.equal(detectJiaWorkspaceIntent("Trouve des offres adaptées à mon profil", "TALENT"), "OFFERS");
   assert.equal(detectJiaWorkspaceIntent("Montre mes candidatures", "TALENT"), "APPLICATIONS");
   assert.equal(detectJiaWorkspaceIntent("Ouvre mon CV et mon profil", "TALENT"), "PROFILE");
+  assert.equal(detectJiaWorkspaceIntent("Je veux modifier mon profil depuis J’IA", "TALENT"), "PROFILE");
   assert.equal(detectJiaWorkspaceIntent("Crée un questionnaire Excel", "TALENT"), "ASSESSMENT");
 });
 

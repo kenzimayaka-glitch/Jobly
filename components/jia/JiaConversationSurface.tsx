@@ -61,6 +61,9 @@ type Props = {
   onPrepareApplication: (offer: JiaWorkspaceOffer) => Promise<void>;
   onSubmitAssessment: (args: { messageId: string; assessmentId: string; answers: Record<string, unknown>; score: number; resultSummary: string }) => Promise<void>;
   onSubmitApplication: (args: { messageId: string; applicationId: string; letter: string }) => Promise<void>;
+  onSaveProfile: (args: { messageId: string; displayName: string; phone: string; headline: string; summary: string; location: string; skills: string[] }) => Promise<void>;
+  onUploadCv: (args: { messageId: string; file: File }) => Promise<boolean>;
+  onUpdateWorkspace: (messageId: string, workspace: JiaWorkspaceBlock) => void;
   onEnableVoice?: () => void;
 };
 
@@ -178,6 +181,7 @@ export default function JiaConversationSurface(props: Props) {
     open, ecosystem, messages, inputValue, busy, status, voiceMode, listening,
     pendingAction, quickLinks, onClose, onInputChange, onSubmit, speaking,
     onConfirmAction, onCancelAction, onNavigate, onPrepareApplication, onSubmitAssessment, onSubmitApplication,
+    onSaveProfile, onUploadCv, onUpdateWorkspace,
   } = props;
   const reducedMotion = useReducedMotion();
   const visualTransition = reducedMotion ? "transition-none" : "transition-all duration-500 ease-out";
@@ -452,6 +456,9 @@ export default function JiaConversationSurface(props: Props) {
                                 onPrepareApplication={onPrepareApplication}
                                 onSubmitAssessment={onSubmitAssessment}
                                 onSubmitApplication={onSubmitApplication}
+                                onSaveProfile={onSaveProfile}
+                                onUploadCv={onUploadCv}
+                                onUpdateWorkspace={onUpdateWorkspace}
                               />
                             )}
                           </div>
