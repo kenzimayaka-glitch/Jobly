@@ -123,6 +123,22 @@ function findContextField(node: DerNode, tagNumber: number): DerNode | undefined
   return node.children.find((child) => child.tagClass === 2 && child.tagNumber === tagNumber);
 }
 
+function explicitIntegerField(node: DerNode, tagNumber: number): number | null {
+  const field = findContextField(node, tagNumber);
+  if (!field) return null;
+  const value = explicitChild(field);
+  if (value.tagNumber !== 2) throw new Error("ATTESTATION_INTEGER_FIELD_INVALID");
+  return Number(integerValue(value));
+}
+
+function explicitIntegerSet(node: DerNode, tagNumber: number): number[] {
+  const field = findContextField(node, tagNumber);
+  if (!field) return [];
+  const set = explicitChild(field);
+  if (set.tagNumber !== 17) throw new Error("ATTESTATION_INTEGER_SET_INVALID");
+  return set.children.map((item) => Number(integerValue(item)));
+}
+
 function findAttestationExtension(certificateDer: Buffer): Buffer {
   const certificate = parseDer(certificateDer);
   if (certificate.tagClass !== 0 || certificate.tagNumber !== 16 || certificate.children.length !== 3) {
@@ -167,6 +183,15 @@ function parseAttestationDescription(extension: Buffer, expectedChallengeHash: s
 
   const softwareEnforced = description.children[6];
   const hardwareEnforced = description.children[7];
+  const purposes = explicitIntegerSet(hardwareEnforced, 1);
+  const algorithm = explicitIntegerField(hardwareEnforced, 2);
+  const keySize = explicitIntegerField(hardwareEnforced, 3);
+  const digests = explicitIntegerSet(hardwareEnforced, 5);
+  const origin = explicitIntegerField(hardwareEnforced, 702);
+  if (!purposes.includes(2) || !purposes.includes(3) ||
+      algorithm !== 3 || keySize !== 256 || !digests.includes(4) || origin !== 0) {
+    throw new Error("ATTESTATION_KEY_AUTHORIZATION_PROFILE_INVALID");
+  }
   const rootField = findContextField(hardwareEnforced, ROOT_OF_TRUST_TAG);
   if (!rootField) throw new Error("HARDWARE_ROOT_OF_TRUST_MISSING");
   const root = explicitChild(rootField);
