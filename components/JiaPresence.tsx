@@ -392,7 +392,7 @@ export default function JiaPresence() {
       text: normalized,
       createdAt: Date.now(),
       ...(sources?.length ? { sources } : {}),
-    }].slice(-100));
+    }]);
   }, []);
 
   useEffect(() => {
