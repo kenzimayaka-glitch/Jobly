@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
+import { adminClient, getAuthUser } from "@/lib/server-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +25,12 @@ export async function POST(request: NextRequest) {
     }
 
     const db = adminClient();
-    const user = await ensureUser(db, auth);
+    const metadata = auth.user_metadata || {};
+    const firstName = String(metadata.first_name || "").trim() || null;
+    const lastName = String(metadata.last_name || "").trim() || null;
+    const phone = auth.phone || null;
+    const now = new Date().toISOString();
+
     const { data: activeIdentities, error: activeError } = await db.from("AdminIdentity")
       .select("authUserId")
       .eq("active", true)
@@ -35,6 +40,58 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Un compte administrateur maître est déjà activé. Contactez cet administrateur pour toute délégation." }, { status: 409 });
     }
 
+    const { data: linkedUser, error: linkedError } = await db.from("User")
+      .select("*").eq("authUserId", auth.id).maybeSingle();
+    if (linkedError) throw new Error(linkedError.message);
+
+    let user = linkedUser;
+    if (!user) {
+      // Reuse the pre-existing unlinked ADMIN row when present instead of creating a duplicate identity.
+      const { data: unlinkedAdmin, error: unlinkedError } = await db.from("User")
+        .select("*").eq("role", "ADMIN").is("authUserId", null).limit(1).maybeSingle();
+      if (unlinkedError) throw new Error(unlinkedError.message);
+      if (unlinkedAdmin) {
+        const { data: rebound, error: reboundError } = await db.from("User").update({
+          authUserId: auth.id,
+          email: verifiedEmail,
+          phone,
+          firstName,
+          lastName,
+          displayName: String(metadata.full_name || metadata.name || unlinkedAdmin.displayName || verifiedEmail),
+          role: "ADMIN",
+          updatedAt: now,
+        }).eq("id", unlinkedAdmin.id).is("authUserId", null).select("*").maybeSingle();
+        if (reboundError) throw new Error(reboundError.message);
+        if (!rebound) throw new Error("Le compte administrateur initial a changé pendant l'activation. Réessayez.");
+        user = rebound;
+      } else {
+        const { data: created, error: createError } = await db.from("User").insert({
+          id: crypto.randomUUID(),
+          authUserId: auth.id,
+          email: verifiedEmail,
+          phone,
+          firstName,
+          lastName,
+          displayName: String(metadata.full_name || metadata.name || verifiedEmail),
+          role: "ADMIN",
+          updatedAt: now,
+        }).select("*").single();
+        if (createError) throw new Error(createError.message);
+        user = created;
+      }
+    } else {
+      const { data: updated, error: updateError } = await db.from("User").update({
+        email: verifiedEmail,
+        phone: phone || user.phone,
+        firstName: firstName || user.firstName,
+        lastName: lastName || user.lastName,
+        displayName: String(metadata.full_name || metadata.name || user.displayName || verifiedEmail),
+        role: "ADMIN",
+        updatedAt: now,
+      }).eq("id", user.id).select("*").single();
+      if (updateError) throw new Error(updateError.message);
+      user = updated;
+    }
     const { data: ownerIdentity, error: ownerError } = await db.from("AdminIdentity")
       .select("id,authUserId")
       .eq("ownerUserId", user.id)
@@ -59,16 +116,6 @@ export async function POST(request: NextRequest) {
     const lastName = String(metadata.last_name || "").trim() || null;
     const phone = auth.phone || null;
     const { error: userError } = await db.from("User").update({
-      role: "ADMIN",
-      email: verifiedEmail,
-      phone,
-      firstName,
-      lastName,
-      displayName: String(metadata.full_name || metadata.name || user.displayName || verifiedEmail),
-      updatedAt: now,
-    }).eq("id", user.id);
-    if (userError) throw new Error(userError.message);
-
     const { data: profile, error: profileLookupError } = await db.from("Profile")
       .select("id").eq("userId", user.id).maybeSingle();
     if (profileLookupError) throw new Error(profileLookupError.message);
