@@ -25,7 +25,12 @@ export async function POST(request: NextRequest) {
     const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
     if (!allowedImageTypes.has(file.type)) return NextResponse.json({ message: "Formats acceptés : JPEG, PNG ou WebP." }, { status: 415 });
     if (kind === "hero" && file.type !== "image/png") return NextResponse.json({ message: "Le visuel Hero doit être un PNG transparent." }, { status: 400 });
-    if (file.size > (kind === "hero" ? 10 : 5) * 1024 * 1024) return NextResponse.json({ message: kind === "hero" ? "Le visuel Hero est trop volumineux." : "La photo doit faire au maximum 5 Mo." }, { status: 400 });
+    if (file.size < 12 || file.size > (kind === "hero" ? 10 : 5) * 1024 * 1024) return NextResponse.json({ message: kind === "hero" ? "Le visuel Hero est trop volumineux ou invalide." : "La photo doit faire au maximum 5 Mo." }, { status: 400 });
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const hasJpeg = file.type === "image/jpeg" && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    const hasPng = file.type === "image/png" && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+    const hasWebp = file.type === "image/webp" && String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" && String.fromCharCode(...bytes.slice(8, 12)) === "WEBP";
+    if (!(hasJpeg || hasPng || hasWebp)) return NextResponse.json({ message: "Le contenu du fichier ne correspond pas à une image JPEG, PNG ou WebP valide." }, { status: 415 });
 
     const bucket = "profile-photos";
     const { data: buckets } = await supabase.storage.listBuckets();
