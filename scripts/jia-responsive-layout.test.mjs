@@ -30,6 +30,8 @@ test("conversation sizing follows the visible viewport and all device safe areas
   assert.match(surface, /env\(safe-area-inset-top/);
   assert.match(surface, /env\(safe-area-inset-bottom/);
   assert.match(surface, /data-jia-viewport=\{device\}/);
+  assert.match(surface, /sm:max-h-\[900px\]/);
+  assert.doesNotMatch(surface, /calc\(100%-24px\)/);
 });
 
 test("all six presentation controls remain swipe-scrollable and touch friendly", () => {

@@ -327,7 +327,7 @@ export default function JiaConversationSurface(props: Props) {
           exit={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 12, scale: 0.99 }}
           transition={{ duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
           data-jia-viewport={device}
-          className="relative flex h-full w-full min-h-0 max-w-[780px] flex-col overflow-hidden border border-white/70 bg-white shadow-[0_30px_100px_rgba(7,23,47,.28)] sm:h-[min(900px,calc(100%-24px))] sm:rounded-[28px] lg:max-w-[min(860px,calc(100vw-32px))]"
+          className="relative flex h-full w-full min-h-0 max-w-[780px] flex-col overflow-hidden border border-white/70 bg-white shadow-[0_30px_100px_rgba(7,23,47,.28)] sm:max-h-[900px] sm:rounded-[28px] lg:max-w-[min(860px,calc(100vw-32px))]"
           style={{
             paddingTop: "env(safe-area-inset-top, 0px)",
             paddingBottom: "env(safe-area-inset-bottom, 0px)",
