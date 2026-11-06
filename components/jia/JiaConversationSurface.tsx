@@ -118,6 +118,37 @@ function layoutSurface(layout: JiaPresentationMode) {
   }
 }
 
+function layoutGuide(layout: JiaPresentationMode) {
+  switch (layout) {
+    case "gallery":
+      return {
+        eyebrow: "GALERIE DE CONVERSATION",
+        title: "Découvrir et comparer",
+        description: "Les messages prennent la forme de cartes aérées, faciles à parcourir.",
+      };
+    case "workspace":
+      return {
+        eyebrow: "ESPACE DE TRAVAIL",
+        title: "Construire ensemble",
+        description: "Un cadre plus structuré pour avancer sur tes documents et tes décisions.",
+      };
+    case "explorer":
+      return {
+        eyebrow: "EXPLORATION",
+        title: "Ouvrir le champ des possibles",
+        description: "Une présentation plus ample pour parcourir les idées et les pistes évoquées.",
+      };
+    case "interactive":
+      return {
+        eyebrow: "MODE INTERACTIF",
+        title: "Avancer étape par étape",
+        description: "Une composition pensée pour mettre les questions et les choix en évidence.",
+      };
+    default:
+      return null;
+  }
+}
+
 function messageSurface(layout: JiaPresentationMode, role: "user" | "assistant") {
   if (role === "user") {
     return layout === "stage"
@@ -338,6 +369,18 @@ export default function JiaConversationSurface(props: Props) {
             )}
 
             <div className={`relative flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-6 ${layout === "stage" ? "scrollbar-thin" : ""}`} role="log" aria-live="polite" aria-relevant="additions text">
+              {layoutGuide(layout) && (
+                <div className={`mx-auto w-full max-w-2xl overflow-hidden rounded-[22px] border px-4 py-3.5 sm:px-5 ${layout === "gallery" ? "border-[#E9DFB3] bg-white shadow-[0_14px_32px_rgba(16,43,85,.06)]" : layout === "workspace" ? "border-[#DDE7F4] bg-white shadow-[0_12px_28px_rgba(16,43,85,.05)]" : layout === "explorer" ? "border-[#CFE0F7] bg-gradient-to-br from-white to-[#EAF3FF]" : "border-[#F0DFA0] bg-gradient-to-br from-white to-[#FFF8D8]"}`}>
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${layout === "interactive" ? "bg-[#F28C28]" : "bg-[#1264EB]"}`} />
+                    <p className={`text-[9px] font-extrabold uppercase tracking-[.16em] ${layout === "interactive" ? "text-[#9B6500]" : "text-[#52709A]"}`}>
+                      {layoutGuide(layout)?.eyebrow}
+                    </p>
+                  </div>
+                  <p className="mt-1.5 text-[16px] font-extrabold tracking-[-.025em] text-[#10233F] sm:text-[18px]">{layoutGuide(layout)?.title}</p>
+                  <p className="mt-1 text-[11px] leading-5 text-[#6B7C92]">{layoutGuide(layout)?.description}</p>
+                </div>
+              )}
               {messages.length === 0 ? (
                 <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center py-6">
                   <div className={`mb-5 flex items-center gap-3 ${layout === "stage" ? "text-white" : "text-[#10233F]"}`}>
@@ -380,8 +423,8 @@ export default function JiaConversationSurface(props: Props) {
                             <img src="/jia/outfits/blue/head.webp" alt="" aria-hidden="true" className="h-full w-full scale-[1.4] object-contain" />
                           </div>
                         )}
-                        <div className={`min-w-0 max-w-[88%] sm:max-w-[82%] ${mine ? "items-end" : "items-start"} flex flex-col`}>
-                          <div className={`rounded-[21px] px-4 py-3 text-[13px] leading-[1.65] sm:px-5 sm:py-3.5 ${mine ? "rounded-br-[7px]" : "rounded-bl-[7px]"} ${messageSurface(layout, message.role)} ${layout === "workspace" && !mine ? "rounded-xl" : ""} ${layout === "gallery" && !mine ? "w-full min-w-[min(250px,70vw)] rounded-[24px]" : ""}`}>
+                        <div className={`min-w-0 ${layout === "gallery" && !mine ? "max-w-[94%] sm:max-w-[96%]" : "max-w-[88%] sm:max-w-[82%]"} ${mine ? "items-end" : "items-start"} flex flex-col`}>
+                          <div className={`rounded-[21px] px-4 py-3 text-[13px] leading-[1.65] sm:px-5 sm:py-3.5 ${mine ? "rounded-br-[7px]" : "rounded-bl-[7px]"} ${messageSurface(layout, message.role)} ${layout === "workspace" && !mine ? "rounded-xl border-l-[3px] border-l-[#1264EB]" : ""} ${layout === "gallery" && !mine ? "w-full min-w-[min(250px,70vw)] rounded-[24px] border-t-[3px] border-t-[#FFD21A]" : ""} ${layout === "interactive" && !mine ? "rounded-[24px] border-l-[4px] border-l-[#F28C28]" : ""} ${layout === "explorer" && !mine ? "rounded-[24px] bg-white/95" : ""}`}>
                             <p className="whitespace-pre-wrap break-words">{message.text}</p>
                             {message.sources && message.sources.length > 0 && (
                               <div className={`mt-3 border-t pt-2.5 ${layout === "stage" && !mine ? "border-white/15" : "border-[#DCE5F0]"}`}>
