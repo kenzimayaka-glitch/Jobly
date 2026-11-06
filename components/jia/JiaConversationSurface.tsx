@@ -176,7 +176,7 @@ export default function JiaConversationSurface(props: Props) {
   const {
     open, ecosystem, messages, inputValue, busy, status, voiceMode, listening,
     pendingAction, quickLinks, onClose, onInputChange, onSubmit, speaking,
-    onConfirmAction, onCancelAction, onNavigate,
+    onConfirmAction, onCancelAction, onNavigate, onPrepareApplication, onSubmitAssessment,
   } = props;
   const reducedMotion = useReducedMotion();
   const visualTransition = reducedMotion ? "transition-none" : "transition-all duration-500 ease-out";
