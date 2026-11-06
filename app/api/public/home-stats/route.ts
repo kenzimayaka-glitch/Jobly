@@ -7,6 +7,14 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 1000;
 const CAPTURE_ID_BATCH_SIZE = 200;
+const AFRICAN_COUNTRY_CODES = [
+  "AO", "BF", "BI", "BJ", "BW", "CD", "CF", "CG", "CI", "CM", "CV",
+  "DJ", "DZ", "EG", "ER", "ET", "GA", "GH", "GM", "GN", "GQ", "GW",
+  "KE", "KM", "LR", "LS", "LY", "MA", "MG", "ML", "MR", "MU", "MW",
+  "MZ", "NA", "NE", "NG", "RW", "SC", "SD", "SL", "SN", "SO", "SS",
+  "ST", "SZ", "TD", "TG", "TN", "TZ", "UG", "ZA", "ZM", "ZW",
+  "EH",
+] as const;
 
 type DiscoveryOffer = {
   id: string;
@@ -33,6 +41,7 @@ async function fetchAllActiveDiscoveryOffers(
       .from("Job")
       .select("id,sourcePublishedAt,createdAt,deadline,opportunityType")
       .eq("isActive", true)
+      .in("countryCode", [...AFRICAN_COUNTRY_CODES])
       .range(offset, offset + PAGE_SIZE - 1);
 
     if (error) throw error;
@@ -96,6 +105,7 @@ async function fetchPublishedRecruiterOffers(
       .select("id,createdAt")
       .eq("status", "published")
       .eq("applicationReady", true)
+      .in("countryCode", [...AFRICAN_COUNTRY_CODES])
       .gte("createdAt", twoMonthsAgo)
       .range(offset, offset + PAGE_SIZE - 1);
 
@@ -149,7 +159,7 @@ export async function GET() {
 
     return NextResponse.json(
       {
-        // Exact totals only: no legacy marketing baseline is included.
+        // Count only visible, fresh offers located in African countries.
         offersCount: visibleDiscoveryOffers + visibleRecruiterOffers,
         talentsCount: talentProfiles.count ?? 0,
         updatedAt: nowIso,
