@@ -1091,7 +1091,6 @@ export default function Home() {
                 <GoogleIcon className="w-5 h-5" />{translations[lang].google}
               </button>
               {message && <div role="alert" aria-live="assertive" className="rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-center text-[13px] font-semibold text-red-700">{message}</div>}
-              {message && <div role="alert" aria-live="assertive" className="rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-center text-[13px] font-semibold text-red-700">{message}</div>}
             </form>
             <p className="relative -mt-2 text-center text-[13px] text-gray-500">{translations[lang].noAccount}{" "}<button type="button" onClick={()=>{reset();goTo("signup");}} className="font-bold text-[#22448B]">Créer un compte</button></p>
           </div>

@@ -227,6 +227,7 @@ export default function OnboardingPage() {
 
   async function submit() {
     if (!draft.firstName.trim() || !draft.lastName.trim() || !draft.phone.trim() || !draft.country) return setMessage("Les informations d'inscription sont introuvables. Reviens à l'inscription et réessaie.");
+    if (!username.trim() || username.trim().length > 40) return setMessage("Choisis un username de 1 à 40 caractères.");
     if (!email) return setMessage("Adresse e-mail vérifiée introuvable.");
     if (usernameStatus === "taken") return setMessage("Username indisponible");
     if (usernameStatus !== "available") {
