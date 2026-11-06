@@ -180,10 +180,6 @@ const MOVE_TO_CLIP: Partial<Record<JIA100Move, string>> = {
   point_button: "point_you",
   point_you: "point_you",
   point_self: "hand_chest",
-  point_left: "point_you",
-  point_right: "point_you",
-  point_up: "point_up",
-  point_down: "point_you",
   hand_chest: "hand_chest",
   scarf_touch: "scarf_touch",
   think_chin: "think_chin",
@@ -383,11 +379,9 @@ export default function JIA3D({ speaking, appearanceId = "jia-appearance-01" }: 
       if (!next) return;
       const preferred = MOVE_TO_CLIP[next] ?? next;
       const key = pickClipKey(preferred, outfit);
-      const fallbackKey = !key && next.startsWith("point_")
-        ? pickClipKey(outfit === "white" && next === "point_up" ? "point_up" : "point_you", outfit)
-        : undefined;
-      const chosen = key ?? fallbackKey;
-      setClip(chosen && clipConfig(chosen, outfit) ? chosen : null);
+      // Only use a clip when it represents this gesture; otherwise the live 3D rig
+      // performs the directional pose instead of showing a misleading generic point.
+      setClip(key && clipConfig(key, outfit) ? key : null);
     };
     window.addEventListener("jobly:jia-move", onMove);
     return () => window.removeEventListener("jobly:jia-move", onMove);
