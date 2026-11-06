@@ -135,7 +135,12 @@ BEGIN
   IF v_device.provider <> v_receipt.provider
      OR regexp_replace(v_device."merchantAccount", '[^0-9]', '', 'g')
         <> regexp_replace(v_receipt."merchantAccount", '[^0-9]', '', 'g')
-     OR NOT (v_receipt."senderId" = ANY(v_device."senderIds")) THEN
+     OR NOT EXISTS (
+       SELECT 1
+         FROM unnest(v_device."senderIds") AS allowed(sender_id)
+        WHERE upper(regexp_replace(btrim(allowed.sender_id), '\s+', ' ', 'g'))
+              = upper(regexp_replace(btrim(v_receipt."senderId"), '\s+', ' ', 'g'))
+     ) THEN
     RAISE EXCEPTION 'SMS_DEVICE_RECEIPT_MISMATCH';
   END IF;
 
