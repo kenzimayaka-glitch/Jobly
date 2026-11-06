@@ -168,7 +168,7 @@ export async function getOfflineDocument(userId: string): Promise<Blob | null> {
   return new Blob([plaintext], { type: "application/pdf" });
 }
 
-export function getOfflineUserId(authUserId?: string) {
+export function getOfflineUserId(authUserId?: string | null) {
   if (typeof window === "undefined") return null;
   try {
     const key = authUserId ? `${OFFLINE_USER_KEY}:${authUserId}` : OFFLINE_USER_KEY;
