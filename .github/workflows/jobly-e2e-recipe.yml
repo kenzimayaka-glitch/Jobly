@@ -1,0 +1,110 @@
+name: Jobly — Recette E2E isolée
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "e2e/**"
+      - ".github/workflows/jobly-e2e-recipe.yml"
+      - "app/**"
+      - "components/**"
+      - "lib/**"
+      - "public/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jobly-e2e-recipe-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-smoke:
+    name: Auth entry — browser smoke on JOBLY-E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      E2E_PROJECT_REF: ofqqrryamslxoqkklraw
+      E2E_BASE_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_SUPABASE_URL: https://ofqqrryamslxoqkklraw.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y
+      NEXT_PUBLIC_JOBLY_PUBLIC_URL: http://127.0.0.1:3000
+      JOBLY_PUBLIC_URL: http://127.0.0.1:3000
+      JOBLY_API_BASE_URL: http://127.0.0.1:3000
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+      E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+      E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+      NODE_ENV: production
+    steps:
+      - name: Checkout exact PR commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install application dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Install pinned Playwright runtime
+        run: |
+          npm install --prefix .e2e-tools --no-save --no-package-lock playwright@1.65.0
+          ./.e2e-tools/node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Assert the test environment is isolated
+        shell: bash
+        run: |
+          test "$E2E_PROJECT_REF" = "ofqqrryamslxoqkklraw"
+          test "$NEXT_PUBLIC_SUPABASE_URL" = "https://ofqqrryamslxoqkklraw.supabase.co"
+          if [[ "$NEXT_PUBLIC_SUPABASE_URL" == *"mpoyaegtwtmhookdzqdy"* ]]; then
+            echo "::error::Production Supabase URL is forbidden in the E2E workflow."
+            exit 1
+          fi
+          mkdir -p artifacts/e2e
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build the local test application
+        run: pnpm build
+
+      - name: Start local Next.js server
+        shell: bash
+        run: |
+          pnpm start -- --hostname 127.0.0.1 > artifacts/e2e/next-server.log 2>&1 &
+          echo $! > artifacts/e2e/next-server.pid
+          for attempt in $(seq 1 40); do
+            if curl --silent --fail http://127.0.0.1:3000/ >/dev/null; then
+              echo "Local Jobly server is ready."
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::Local Jobly server did not become ready."
+          tail -n 100 artifacts/e2e/next-server.log || true
+          exit 1
+
+      - name: Run browser recipe — auth UI only, no external writes
+        env:
+          PLAYWRIGHT_MODULE_PATH: ${{ github.workspace }}/.e2e-tools/node_modules/playwright/index.mjs
+        run: node e2e/browser-smoke.mjs
+
+      - name: Upload screenshots and E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jobly-e2e-auth-ui-${{ github.run_id }}
+          path: artifacts/e2e/
+          if-no-files-found: warn
+          retention-days: 14
