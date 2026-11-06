@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, getAuthUser } from "../../../../lib/server-auth";
+import { enforceApiRateLimit } from "../../../../lib/server-security";
 
 export async function GET(request: NextRequest) {
   const auth = await getAuthUser(request);
@@ -14,6 +15,14 @@ export async function GET(request: NextRequest) {
   if (String(user.role) !== "TALENT") {
     return NextResponse.json({ message: "Cette ressource est réservée au compte Talent." }, { status: 403 });
   }
+  const limited = await enforceApiRateLimit(request, sb, {
+    scope: "talent-ai-welcome-credit-read",
+    identity: user.id,
+    accountWindows: [{ limit: 10, windowSeconds: 60 }, { limit: 50, windowSeconds: 3600 }],
+    ipWindows: [{ limit: 20, windowSeconds: 60 }, { limit: 100, windowSeconds: 3600 }],
+    requireIp: true,
+  });
+  if (limited) return limited;
 
   const { data: claim, error: claimError } = await sb.rpc("claim_ai_welcome_credit", {
     p_user_id: String(user.id),
@@ -43,7 +52,7 @@ export async function GET(request: NextRequest) {
     grantedAt,
     firstDashboardVisit,
     message: firstDashboardVisit ? "🎁 30 crédits J’IA vous sont offerts à l’inscription. Utilisez-les pour découvrir J’IA et Jobly." : null,
-  });
+  }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
 }
 
 export async function POST(request: NextRequest) {
@@ -59,6 +68,14 @@ export async function POST(request: NextRequest) {
   if (String(user.role) !== "TALENT") {
     return NextResponse.json({ message: "Cette ressource est réservée au compte Talent." }, { status: 403 });
   }
+  const limited = await enforceApiRateLimit(request, sb, {
+    scope: "talent-ai-welcome-credit-seen",
+    identity: user.id,
+    accountWindows: [{ limit: 5, windowSeconds: 3600 }],
+    ipWindows: [{ limit: 10, windowSeconds: 3600 }],
+    requireIp: true,
+  });
+  if (limited) return limited;
 
   if (Number(user.aiWelcomeCredits || 0) > 0 && !user.aiWelcomeSeenAt) {
     const { error: seenError } = await sb.from("User")
@@ -67,5 +84,5 @@ export async function POST(request: NextRequest) {
       .is("aiWelcomeSeenAt", null);
     if (seenError) return NextResponse.json({ message: seenError.message }, { status: 500 });
   }
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
 }
