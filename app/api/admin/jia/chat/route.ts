@@ -1,6 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 import {adminClient,ensureUser,getAuthUser} from "@/lib/server-auth";
 import {buildCEOIntelligence} from "@/lib/ceoIntelligence";
+import { buildAnalytics360 } from "@/lib/adminAnalytics360";
 import {remember,reflect} from "@/lib/jia/cognitive";
 import {publishTraceEvent} from "@/lib/jia/eventBus";
 import {runUnifiedCognitiveCycle} from "@/lib/jia/runtime";
@@ -14,7 +15,11 @@ async function getAdmin(req:NextRequest){
   if(!auth)return null;
   const sb=adminClient();
   const user=await ensureUser(sb,auth);
-  if(String(user.role)!=="ADMIN")return null;
+  if(String(user.role).toUpperCase()!=="ADMIN")return null;
+  const {data:identity,error:identityError}=await sb.from("AdminIdentity").select("id")
+    .eq("authUserId",auth.id).eq("ownerUserId",user.id).eq("active",true).maybeSingle();
+  if(identityError)throw new Error(identityError.message);
+  if(!identity)return null;
   return {auth,sb,user};
 }
 
@@ -60,7 +65,26 @@ export async function POST(req:NextRequest){
     const terms=message.toLowerCase().split(/\W+/).filter((x:string)=>x.length>3).slice(0,20);
     const knowledge=(allKnowledge||[]).map((x:any)=>{const hay=(String(x.title||"")+" "+String(x.domain||"")+" "+String(x.content||"")).toLowerCase();const score=terms.reduce((n:number,t:string)=>n+(hay.includes(t)?1:0),0);return {...x,_score:score};}).filter((x:any)=>x._score>0).sort((a:any,b:any)=>b._score-a._score).slice(0,30).map(({_score,...x}:any)=>x);
     const ceoSnapshot=await buildCEOIntelligence(admin.sb);
-    const cognitive=await runUnifiedCognitiveCycle(admin.sb,{userId:String(admin.user.id),ecosystem:"ADMIN",scope:"ADMIN",ceoSnapshot,action:"CEO_CHAT",message});
+    const analytics360=await buildAnalytics360(admin.sb,new URLSearchParams({range:"30d",groupBy:"week"}));
+    const joblyIntelligence360={
+      generatedAt:analytics360.generatedAt,
+      range:analytics360.range,
+      history:analytics360.history,
+      currentMetrics:analytics360.summary.map((metric)=>({
+        key:metric.key,label:metric.label,module:metric.module,
+        available:metric.available,count:metric.count,
+        periodValue:metric.periodValue,previousValue:metric.previousValue,change:metric.change,
+      })),
+      accountDistribution:analytics360.current.roleCounts,
+      series:analytics360.series,
+      countries:analytics360.countries,
+      forecasts:analytics360.forecasts,
+      alerts:analytics360.alerts,
+      decisions:analytics360.decisions,
+      unavailable:analytics360.unavailable,
+      humanApprovalRequired:true,
+    };
+    const cognitive=await runUnifiedCognitiveCycle(admin.sb,{userId:String(admin.user.id),ecosystem:"ADMIN",scope:"ADMIN",ceoSnapshot:{...ceoSnapshot,joblyIntelligence360},action:"CEO_CHAT",message});
     const {error:insertUserError}=await admin.sb.from("JiaCEOMessage").insert({conversationId,role:"user",content:message});
     if(insertUserError)throw new Error(insertUserError.message);
 
@@ -79,6 +103,7 @@ export async function POST(req:NextRequest){
           conversationHistory:(history||[]).reverse(),
           adminRole:"ADMIN",
           ceoSnapshot,
+          joblyIntelligence360,
           cognitiveCycle:cognitive
         }
       }),

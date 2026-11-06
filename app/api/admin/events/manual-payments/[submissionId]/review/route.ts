@@ -9,7 +9,11 @@ export async function POST(request:NextRequest,context:{params:Promise<{submissi
     if(!auth)return fail("Session requise.",401,"UNAUTHENTICATED");
     const sb=adminClient();
     const user=await ensureUser(sb,auth);
-    if(!["ADMIN","FINANCE"].includes(String(user.role)))return fail("Accès réservé à ADMIN/FINANCE.",403,"FORBIDDEN");
+    if(String(user.role).toUpperCase()!=="ADMIN")return fail("Accès réservé au compte ADMIN maître.",403,"FORBIDDEN");
+    const {data:identity,error:identityError}=await sb.from("AdminIdentity").select("active")
+      .eq("authUserId",auth.id).eq("ownerUserId",user.id).maybeSingle();
+    if(identityError)throw new Error(identityError.message);
+    if(!identity?.active)return fail("Identité ADMIN maître inactive.",403,"ADMIN_IDENTITY_INACTIVE");
     const {submissionId}=await context.params;
     const body=await request.json().catch(()=>({}));
     const decision=String(body.decision??"").toUpperCase();

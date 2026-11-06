@@ -9,9 +9,13 @@ async function getModerator(request: NextRequest) {
   if (!auth) return { response: NextResponse.json({ error: "Authentification requise." }, { status: 401 }) };
   const db = adminClient();
   const user = await ensureUser(db, auth);
-  if (user.role !== "ADMIN" && user.role !== "MODERATOR") {
-    return { response: NextResponse.json({ error: "Droit de modération requis." }, { status: 403 }) };
+  if (String(user.role).toUpperCase() !== "ADMIN") {
+    return { response: NextResponse.json({ error: "Droit de modération réservé au compte ADMIN maître." }, { status: 403 }) };
   }
+  const { data: identity, error } = await db.from("AdminIdentity").select("active")
+    .eq("authUserId", auth.id).eq("ownerUserId", user.id).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!identity?.active) return { response: NextResponse.json({ error: "Identité ADMIN maître inactive." }, { status: 403 }) };
   return { db, user };
 }
 

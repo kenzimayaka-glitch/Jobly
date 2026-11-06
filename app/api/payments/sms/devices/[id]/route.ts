@@ -10,7 +10,11 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const { id } = await params;
     const supabase = adminClient();
     const actor = await ensureUser(supabase, auth);
-    if (!["ADMIN", "FINANCE"].includes(String(actor.role))) return err("Accès administrateur requis.", 403, "FORBIDDEN");
+    if (String(actor.role).toUpperCase() !== "ADMIN") return err("Accès réservé au compte ADMIN maître.", 403, "FORBIDDEN");
+    const { data: identity, error: identityError } = await supabase.from("AdminIdentity").select("active")
+      .eq("authUserId", auth.id).eq("ownerUserId", actor.id).maybeSingle();
+    if (identityError) throw new Error(identityError.message);
+    if (!identity?.active) return err("Identité ADMIN maître inactive.", 403, "ADMIN_IDENTITY_INACTIVE");
 
     const now = new Date().toISOString();
     const { data: device, error } = await supabase.from("PaymentSmsDevice")

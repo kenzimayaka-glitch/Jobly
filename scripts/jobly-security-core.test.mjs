@@ -128,7 +128,7 @@ test("pg_net schema and outbound HTTP functions are private to server roles", as
   assert.match(migration, /revoke all privileges on schema net from public, anon, authenticated/i);
   assert.match(migration, /revoke execute on all functions in schema net from public, anon, authenticated/i);
   assert.match(migration, /grant execute on all functions in schema net to service_role/i);
-  assert.match(migration, /alter default privileges for role postgres in schema net revoke execute/i);
+  assert.match(migration, /alter default privileges for role postgres in schema net\s+revoke execute/i);
   assert.match(workflow, /CREATE SCHEMA net/);
   assert.match(workflow, /lockdown_pg_net_client_execution\.sql/);
   assert.match(smoke, /has_schema_privilege\('anon', 'net', 'USAGE'\)/);

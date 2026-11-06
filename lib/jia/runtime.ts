@@ -10,16 +10,17 @@ import {evaluateJiaPolicy} from "./policy";
 import {observeInternet} from "./internet";
 
 export const JIA_COGNITIVE_CYCLE=["PERCEIVE","UNDERSTAND","MEMORY","BELIEF","WORLD_MODEL","REASON","PREDICT","ANTICIPATE","GOAL","PLAN","POLICY","PROPOSE","ACT","VERIFY","EVALUATE","REFLECT","LEARN"] as const;
-export type JiaCycleInput={userId:string;ecosystem?:"TALENT"|"RECRUITER"|"PARTNER"|"MOBILITY"|"COMMUNITY"|"BUSINESS"|"ADMIN";scope?:"USER"|"ADMIN";ceoSnapshot?:Awaited<ReturnType<typeof buildCEOIntelligence>>;path?:string;action?:string;message?:string;internetQuery?:string;includeInternet?:boolean};
+export type JiaCycleInput={userId:string;ecosystem?:"TALENT"|"RECRUITER"|"PARTNER"|"MOBILITY"|"COMMUNITY"|"BUSINESS"|"ADMIN";scope?:"USER"|"ADMIN";ceoSnapshot?:(Awaited<ReturnType<typeof buildCEOIntelligence>> & {joblyIntelligence360?:{alerts?:Array<{id:string;severity:string;title:string;detail:string}>;decisions?:Array<{id:string;title:string;module:string;recommendation:string;priority:string;status:string}>;currentMetrics?:Array<{key:string;label:string;available:boolean;change:number|null}>}});path?:string;action?:string;message?:string;internetQuery?:string;includeInternet?:boolean};
 
 export async function runUnifiedCognitiveCycle(sb:SupabaseClient,input:JiaCycleInput){
  const ecosystem=input.ecosystem??"TALENT";
  const adminScope=input.scope==="ADMIN"||ecosystem==="ADMIN";
- const [{context},snapshot,ceo]=await Promise.all([
+ const [{context},snapshot]=await Promise.all([
   adminScope?Promise.resolve({context:null as any,error:null}):buildJiaContext(sb,input.userId,{operation:"UNIFIED_COGNITIVE_CYCLE",input:{path:input.path??"",action:input.action??"",message:input.message??""}}),
-  getCognitiveSnapshot(input.userId),
-  adminScope?(input.ceoSnapshot??buildCEOIntelligence(sb)):Promise.resolve(null)
+  getCognitiveSnapshot(input.userId)
  ]);
+ const ceo:NonNullable<JiaCycleInput["ceoSnapshot"]>|null =
+  adminScope ? (input.ceoSnapshot ?? await buildCEOIntelligence(sb)) : null;
  let internetAvailable=Boolean((snapshot.self?.state as Record<string,unknown>|undefined)?.internetAvailable);
  const failures:string[]=[];
  if(input.includeInternet&&input.internetQuery?.trim()){
@@ -32,6 +33,11 @@ export async function runUnifiedCognitiveCycle(sb:SupabaseClient,input:JiaCycleI
  const signals:Signal[]=[];
  if(adminScope&&ceo){
    for(const alert of ceo.alerts)signals.push({id:"ceo-risk:"+alert.id,type:"CEO_RISK",title:alert.title,detail:alert.detail,confidence:alert.severity==="CRITICAL"?"HIGH":"MEDIUM"});
+   for(const alert of ceo.joblyIntelligence360?.alerts??[])signals.push({id:"bi-alert:"+alert.id,type:"BI_ALERT",title:alert.title,detail:alert.detail,confidence:alert.severity.toLowerCase()==="critical"?"HIGH":"MEDIUM"});
+   for(const metric of ceo.joblyIntelligence360?.currentMetrics??[]){
+    if(metric.available&&metric.change!==null&&metric.change<=-20)signals.push({id:"bi-decline:"+metric.key,type:"BI_TREND_DECLINE",title:metric.label+" en baisse",detail:"Variation observée de "+metric.change.toFixed(1)+"% sur la période comparée.",confidence:"MEDIUM"});
+   }
+   for(const decision of (ceo.joblyIntelligence360?.decisions??[]).filter((item)=>item.priority.toLowerCase()==="critical"||item.priority.toLowerCase()==="high").slice(0,10))signals.push({id:"bi-decision:"+decision.id,type:"BI_DECISION",title:decision.title,detail:decision.recommendation,confidence:decision.priority.toLowerCase()==="critical"?"HIGH":"MEDIUM"});
    for(const opportunity of ceo.opportunities)signals.push({id:"ceo-opportunity:"+opportunity.id,type:"CEO_OPPORTUNITY",title:opportunity.title,detail:opportunity.reason,confidence:"MEDIUM"});
    if(ceo.temporal.pendingApprovals>0)signals.push({id:"ceo-approvals",type:"CEO_APPROVAL_QUEUE",title:"Approbations CEO en attente",detail:String(ceo.temporal.pendingApprovals)+" trace(s) attendent une validation.",confidence:"HIGH"});
  }else{

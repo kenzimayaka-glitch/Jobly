@@ -64,6 +64,78 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/jia-conversation-migration-smoke.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/database/prisma/migrations/20261106080000_jia_canonical_conversations/migration.sql
 
+  admin-360-migrations:
+    name: Admin 360 & Intelligence 360 — isolated PostgreSQL migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: jobly
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d jobly"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Create minimal Supabase-compatible schema
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE anon NOLOGIN;
+          CREATE ROLE authenticated NOLOGIN;
+          CREATE ROLE service_role NOLOGIN BYPASSRLS;
+          CREATE SCHEMA auth;
+          CREATE TABLE auth.users (id uuid PRIMARY KEY);
+          CREATE SCHEMA net;
+          GRANT ALL ON SCHEMA net TO PUBLIC, anon, authenticated, service_role;
+          CREATE FUNCTION net.http_post(text) RETURNS bigint LANGUAGE sql AS $$ SELECT 1::bigint $$;
+          GRANT EXECUTE ON FUNCTION net.http_post(text) TO PUBLIC, anon, authenticated, service_role;
+          CREATE TABLE public."User" (
+            "id" text PRIMARY KEY,
+            "createdAt" timestamptz NOT NULL DEFAULT now(),
+            "country" text
+          );
+          -- Existing source with a timestamp column but no rows: the BI backfill
+          -- must persist explicit observed zeros rather than fabricate missing data.
+          CREATE TABLE public."Job" (
+            "id" text PRIMARY KEY,
+            "createdAt" timestamptz NOT NULL DEFAULT now()
+          );
+          CREATE TABLE public."Payment" (
+            "id" text PRIMARY KEY,
+            "createdAt" timestamptz NOT NULL DEFAULT now(),
+            "paidAt" timestamptz,
+            "amount" numeric(18,2),
+            "currency" text,
+            "status" text
+          );
+          GRANT SELECT ON public."User", public."Job", public."Payment" TO service_role;
+          SQL
+      - name: Apply Admin 360 and BI migrations in order
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261106101400_admin_360_workspaces.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261106110000_lockdown_pg_net_client_execution.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261106115000_admin_managed_accounts.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261106123000_admin_support_community_operations.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261106140000_jobly_intelligence_360.sql
+      - name: Verify RLS, grants, root singleton and BI backfill
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/admin-360-migration-smoke.sql
+
   validate:
     name: Typecheck and production build
     runs-on: ubuntu-latest

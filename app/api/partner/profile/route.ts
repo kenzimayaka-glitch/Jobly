@@ -38,7 +38,13 @@ export async function GET(request: NextRequest) {
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
     const partner = await ensurePartner(supabase, user.id);
-    return NextResponse.json({ partner });
+    const { data: institution, error: institutionError } = await supabase.from("AdminManagedAccount")
+      .select("organizationType,organizationName,website,city,country,status")
+      .eq("userId", user.id)
+      .eq("accountType", "PARTNER")
+      .maybeSingle();
+    if (institutionError) throw new Error(institutionError.message);
+    return NextResponse.json({ partner, institution: institution || null });
   } catch (error) {
     return NextResponse.json(
       { message: error instanceof Error ? error.message : "Impossible de charger le profil partenaire." },

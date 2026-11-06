@@ -6,7 +6,11 @@ export async function GET(req:NextRequest){
  try{
   const auth=await getAuthUser(req); if(!auth)return NextResponse.json({error:"UNAUTHENTICATED",message:"Session requise."},{status:401});
   const sb=adminClient(),user=await ensureUser(sb,auth);
-  if(String(user.role)!=="ADMIN")return NextResponse.json({error:"FORBIDDEN",message:"Accès CEO réservé à l’administrateur."},{status:403});
+  if(String(user.role).toUpperCase()!=="ADMIN")return NextResponse.json({error:"FORBIDDEN",message:"Accès CEO réservé à l’administrateur."},{status:403});
+  const {data:identity,error:identityError}=await sb.from("AdminIdentity").select("id")
+    .eq("authUserId",auth.id).eq("ownerUserId",user.id).eq("active",true).maybeSingle();
+  if(identityError)throw new Error(identityError.message);
+  if(!identity)return NextResponse.json({error:"FORBIDDEN",message:"Identité ADMIN maître inactive."},{status:403});
   const snapshot=await buildCEOIntelligence(sb);
   await sb.from("CEOAuditLog").insert({adminUserId:user.id,action:"VIEW_CEO_SNAPSHOT",endpoint:"/api/admin/jia/ceo",metadata:{generatedAt:snapshot.generatedAt}});
   return NextResponse.json({snapshot});

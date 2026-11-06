@@ -12,20 +12,24 @@ function maskMerchantCode(value: string): string {
   return value.length <= 4 ? "••••" : "••••" + value.slice(-4);
 }
 
-async function getAdmin(request: NextRequest, allowFinance = false) {
+async function getAdmin(request: NextRequest) {
   const auth = await getAuthUser(request);
   if (!auth) return { error: err("Session requise.", 401, "UNAUTHENTICATED") };
   const supabase = adminClient();
   const actor = await ensureUser(supabase, auth);
-  if (String(actor.role) !== "ADMIN" && !(allowFinance && String(actor.role) === "FINANCE")) {
-    return { error: err("Seul un administrateur Jobly peut modifier la configuration Mobile Money.", 403, "ADMIN_REQUIRED") };
+  if (String(actor.role).toUpperCase() !== "ADMIN") {
+    return { error: err("Seul le compte ADMIN maître peut gérer Mobile Money.", 403, "ADMIN_REQUIRED") };
   }
+  const { data: identity, error } = await supabase.from("AdminIdentity").select("active")
+    .eq("authUserId", auth.id).eq("ownerUserId", actor.id).maybeSingle();
+  if (error) return { error: err("Vérification de l'identité ADMIN impossible.", 500, "ADMIN_IDENTITY_CHECK_FAILED") };
+  if (!identity?.active) return { error: err("Identité ADMIN maître inactive.", 403, "ADMIN_IDENTITY_INACTIVE") };
   return { supabase, actor };
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const access = await getAdmin(request, true);
+    const access = await getAdmin(request);
     if ("error" in access) return access.error;
     const { data, error } = await access.supabase
       .from("PaymentSmsProviderConfig")
