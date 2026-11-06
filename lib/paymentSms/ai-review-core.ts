@@ -104,3 +104,51 @@ export function evaluatePaymentSmsAiReview(input: {
   };
 }
 
+
+
+/**
+ * A payer-side shared SMS is a corroborating claim, never a merchant receipt.
+ * Accept only an AI classification that agrees with deterministic outgoing-payment facts.
+ */
+export function evaluateCustomerPaymentSmsAiReview(input: {
+  output: unknown;
+  provider: string;
+  model: string;
+  parsed: PaymentSmsParseResult;
+}): PaymentSmsAiReview {
+  const value = asRecord(input.output);
+  const rawKind = String(value?.messageKind || "UNKNOWN").toUpperCase() as PaymentSmsAiMessageKind;
+  const rawStatus = String(value?.status || "UNKNOWN").toUpperCase();
+  const rawDirection = String(value?.direction || "UNKNOWN").toUpperCase();
+  const rawConfidence = Number(value?.confidence);
+  const confidence = Number.isFinite(rawConfidence) ? Math.max(0, Math.min(1, rawConfidence)) : 0;
+  const suspiciousSignals = Array.isArray(value?.suspiciousSignals)
+    ? value.suspiciousSignals.filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim().toUpperCase().replace(/[^A-Z0-9_]/g, "_").slice(0, 64))
+        .filter(Boolean).slice(0, 8)
+    : [];
+
+  const flags: string[] = [];
+  if (!MESSAGE_KINDS.has(rawKind)) flags.push("AI_INVALID_MESSAGE_KIND");
+  if (rawKind !== "CUSTOMER_DEBIT") flags.push("AI_NOT_CUSTOMER_DEBIT");
+  if (!STATUSES.has(rawStatus)) flags.push("AI_INVALID_STATUS");
+  if (!DIRECTIONS.has(rawDirection)) flags.push("AI_INVALID_DIRECTION");
+  if (rawStatus !== input.parsed.status) flags.push("AI_STATUS_CONFLICT");
+  if (rawDirection !== input.parsed.direction) flags.push("AI_DIRECTION_CONFLICT");
+  if (confidence < 0.8) flags.push("AI_LOW_CONFIDENCE");
+  if (suspiciousSignals.length) flags.push("AI_SUSPICIOUS_SIGNALS");
+
+  return {
+    version: "1.0.0",
+    provider: input.provider,
+    model: input.model,
+    messageKind: MESSAGE_KINDS.has(rawKind) ? rawKind : "UNKNOWN",
+    status: STATUSES.has(rawStatus) ? rawStatus as PaymentSmsAiReview["status"] : "UNKNOWN",
+    direction: DIRECTIONS.has(rawDirection) ? rawDirection as PaymentSmsAiReview["direction"] : "UNKNOWN",
+    confidence,
+    suspiciousSignals,
+    accepted: flags.length === 0 && input.parsed.senderTrusted &&
+      input.parsed.status === "SUCCESSFUL" && input.parsed.direction === "OUTBOUND",
+    flags,
+  };
+}
