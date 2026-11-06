@@ -119,10 +119,12 @@ BEGIN
   END IF;
   IF v_receipt.provider <> v_payment.provider THEN RAISE EXCEPTION 'SMS_PROVIDER_MISMATCH'; END IF;
   IF v_receipt."transactionId" IS NULL
-     OR v_payment."reportedTransactionId" IS DISTINCT FROM v_receipt."transactionId" THEN
+     OR (v_payment."reportedTransactionId" IS NOT NULL
+         AND v_payment."reportedTransactionId" IS DISTINCT FROM v_receipt."transactionId") THEN
     RAISE EXCEPTION 'SMS_TRANSACTION_REFERENCE_MISMATCH';
   END IF;
-  IF v_receipt."receivedAt" < v_payment."createdAt" - interval '2 minutes' THEN
+  IF coalesce(v_receipt."occurredAt", v_receipt."receivedAt") < v_payment."createdAt" - interval '2 minutes'
+     OR coalesce(v_receipt."occurredAt", v_receipt."receivedAt") > p_now + interval '5 minutes' THEN
     RAISE EXCEPTION 'SMS_RECEIPT_PREDATES_PAYMENT_ORDER';
   END IF;
   IF v_receipt.amount IS DISTINCT FROM v_payment.amount
@@ -140,6 +142,14 @@ BEGIN
   IF v_payment.status NOT IN ('CREATED', 'PENDING') THEN
     RAISE EXCEPTION 'INVALID_PAYMENT_TRANSITION';
   END IF;
+
+  -- Capture the transaction reference from the trusted merchant receipt.
+  -- The unique provider/reference index prevents a replay or cross-order reuse.
+  UPDATE public."Payment"
+     SET "reportedTransactionId" = v_receipt."transactionId",
+         "updatedAt" = p_now
+   WHERE id = p_payment_id
+     AND "reportedTransactionId" IS NULL;
 
   UPDATE public."PaymentSmsReceipt"
      SET "processingStatus" = 'MATCHED',
