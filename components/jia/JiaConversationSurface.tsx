@@ -174,6 +174,7 @@ export default function JiaConversationSurface(props: Props) {
     onConfirmAction, onCancelAction, onNavigate,
   } = props;
   const reducedMotion = useReducedMotion();
+  const visualTransition = reducedMotion ? "transition-none" : "transition-all duration-500 ease-out";
   const [selectedLayout, setSelectedLayout] = useState<"auto" | JiaPresentationMode>("auto");
   const [autoLayout, setAutoLayout] = useState<JiaPresentationMode>("messenger");
   const [layoutRefresh, setLayoutRefresh] = useState(0);
@@ -360,7 +361,7 @@ export default function JiaConversationSurface(props: Props) {
             </div>
           </nav>
 
-          <div className={`relative flex min-h-0 flex-1 flex-col overflow-hidden transition-all duration-500 ease-out ${layoutSurface(layout)}`}>
+          <div className={`relative flex min-h-0 flex-1 flex-col overflow-hidden ${visualTransition} ${layoutSurface(layout)}`}>
             {layout === "explorer" && (
               <div aria-hidden="true" className="pointer-events-none absolute -right-20 top-8 h-56 w-56 rounded-full bg-[#FFD21A]/20 blur-3xl" />
             )}
@@ -415,7 +416,7 @@ export default function JiaConversationSurface(props: Props) {
                         initial={reducedMotion ? false : { opacity: 0, y: 9 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: reducedMotion ? 0 : 0.22, delay: reducedMotion ? 0 : Math.min(index * 0.018, 0.12) }}
-                        className={`flex w-full items-end gap-2.5 transition-all duration-500 ease-out ${mine ? "justify-end" : "justify-start"}`}
+                        className={`flex w-full items-end gap-2.5 ${visualTransition} ${mine ? "justify-end" : "justify-start"}`}
                       >
                         {!mine && (
                           <div className={`mb-1 grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-xl border ${layout === "stage" ? "border-white/15 bg-white/10" : "border-[#E2EAF4] bg-[#FFF7D7]"}`}>
@@ -424,7 +425,7 @@ export default function JiaConversationSurface(props: Props) {
                           </div>
                         )}
                         <div className={`min-w-0 ${layout === "gallery" && !mine ? "max-w-[94%] sm:max-w-[96%]" : "max-w-[88%] sm:max-w-[82%]"} ${mine ? "items-end" : "items-start"} flex flex-col`}>
-                          <div className={`rounded-[21px] px-4 py-3 text-[13px] leading-[1.65] transition-all duration-500 ease-out sm:px-5 sm:py-3.5 ${mine ? "rounded-br-[7px]" : "rounded-bl-[7px]"} ${messageSurface(layout, message.role)} ${layout === "workspace" && !mine ? "rounded-xl border-l-[3px] border-l-[#1264EB]" : ""} ${layout === "gallery" && !mine ? "w-full min-w-[min(250px,70vw)] rounded-[24px] border-t-[3px] border-t-[#FFD21A]" : ""} ${layout === "interactive" && !mine ? "rounded-[24px] border-l-[4px] border-l-[#F28C28]" : ""} ${layout === "explorer" && !mine ? "rounded-[24px] bg-white/95" : ""}`}>
+                          <div className={`rounded-[21px] px-4 py-3 text-[13px] leading-[1.65] ${visualTransition} sm:px-5 sm:py-3.5 ${mine ? "rounded-br-[7px]" : "rounded-bl-[7px]"} ${messageSurface(layout, message.role)} ${layout === "workspace" && !mine ? "rounded-xl border-l-[3px] border-l-[#1264EB]" : ""} ${layout === "gallery" && !mine ? "w-full min-w-[min(250px,70vw)] rounded-[24px] border-t-[3px] border-t-[#FFD21A]" : ""} ${layout === "interactive" && !mine ? "rounded-[24px] border-l-[4px] border-l-[#F28C28]" : ""} ${layout === "explorer" && !mine ? "rounded-[24px] bg-white/95" : ""}`}>
                             <p className="whitespace-pre-wrap break-words">{message.text}</p>
                             {message.sources && message.sources.length > 0 && (
                               <div className={`mt-3 border-t pt-2.5 ${layout === "stage" && !mine ? "border-white/15" : "border-[#DCE5F0]"}`}>
