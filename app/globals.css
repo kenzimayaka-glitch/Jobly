@@ -447,3 +447,316 @@ body{
 @media (prefers-reduced-motion: reduce) {
   .jobly-public-home-footer-trail path { animation: none !important; opacity: 0 !important; }
 }
+
+
+/* ───────────────────────────────────────────────────────────────────────────
+   JOBLY MIDNIGHT AFRICA — global theme tokens and dark-surface system
+   ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+  --jobly-theme-bg: #FFFFFF;
+  --jobly-theme-surface: #FFFFFF;
+  --jobly-theme-surface-raised: #F7FAFF;
+  --jobly-theme-text: #0A1931;
+  --jobly-theme-muted: #5F6F86;
+  --jobly-theme-border: #DCE7F4;
+  --jobly-theme-field: #FFFFFF;
+  --jobly-theme-shadow: 0 14px 38px rgba(10,25,49,.075);
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --jobly-theme-bg: #081321;
+  --jobly-theme-surface: #142438;
+  --jobly-theme-surface-raised: #1B3048;
+  --jobly-theme-text: #F4F7FC;
+  --jobly-theme-muted: #A8B6C8;
+  --jobly-theme-border: #293E55;
+  --jobly-theme-field: #102136;
+  --jobly-theme-shadow: 0 16px 42px rgba(0,0,0,.24);
+  --jobly-ink: #F4F7FC;
+  --jobly-muted: #A8B6C8;
+  --jobly-border: #293E55;
+  --navy: #F4F7FC;
+}
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+  background: var(--jobly-theme-bg) !important;
+  background-color: var(--jobly-theme-bg) !important;
+  color: var(--jobly-theme-text) !important;
+}
+html[data-theme="dark"] body {
+  background-image:
+    radial-gradient(circle at 8% 0%, rgba(255,210,26,.055), transparent 27%),
+    radial-gradient(circle at 94% 8%, rgba(76,145,255,.09), transparent 28%) !important;
+}
+html[data-theme="dark"] .jobly-app,
+html[data-theme="dark"] .jobly-page,
+html[data-theme="dark"] .talent-bg,
+html[data-theme="dark"] .talent-shell {
+  color: var(--jobly-theme-text) !important;
+  background: var(--jobly-theme-bg) !important;
+  background-image:
+    radial-gradient(circle at 8% 0%, rgba(255,210,26,.055), transparent 27%),
+    radial-gradient(circle at 94% 8%, rgba(76,145,255,.075), transparent 28%) !important;
+}
+html[data-theme="dark"] .jobly-page { min-height: 100dvh; }
+html[data-theme="dark"] .jobly-surface,
+html[data-theme="dark"] .jobly-card,
+html[data-theme="dark"] .jobly-card-unified,
+html[data-theme="dark"] .talent-shell .talent-card,
+html[data-theme="dark"] .talent-shell .jobly-card,
+html[data-theme="dark"] .jobly-appearance-panel {
+  color: var(--jobly-theme-text) !important;
+  background: var(--jobly-theme-surface) !important;
+  border-color: var(--jobly-theme-border) !important;
+  box-shadow: var(--jobly-theme-shadow);
+}
+html[data-theme="dark"] .jobly-card-unified:hover {
+  border-color: #49627E !important;
+  box-shadow: 0 20px 48px rgba(0,0,0,.3);
+}
+
+/* Shared Tailwind surfaces used across Talent, Recruiter and Partner. */
+html[data-theme="dark"] .bg-white,
+html[data-theme="dark"] [class~="bg-white/95"],
+html[data-theme="dark"] [class~="bg-white/90"],
+html[data-theme="dark"] [class~="bg-white/80"] {
+  background-color: var(--jobly-theme-surface) !important;
+}
+html[data-theme="dark"] .bg-slate-50,
+html[data-theme="dark"] .bg-gray-50,
+html[data-theme="dark"] .bg-slate-100,
+html[data-theme="dark"] .bg-gray-100,
+html[data-theme="dark"] .bg-surface {
+  background-color: var(--jobly-theme-surface-raised) !important;
+}
+html[data-theme="dark"] .talent-shell .bg-white {
+  background: var(--jobly-theme-surface) !important;
+}
+html[data-theme="dark"] .talent-shell .talent-card,
+html[data-theme="dark"] .talent-shell .jobly-card {
+  background: rgba(20,36,56,.96) !important;
+  border-color: var(--jobly-theme-border) !important;
+}
+
+/* Main typography: preserve canary/blue/status accents while lifting dark neutrals. */
+html[data-theme="dark"] .text-navy,
+html[data-theme="dark"] .text-ink,
+html[data-theme="dark"] .text-jobly-ink,
+html[data-theme="dark"] .text-slate-950,
+html[data-theme="dark"] .text-slate-900,
+html[data-theme="dark"] .text-slate-800,
+html[data-theme="dark"] .text-gray-950,
+html[data-theme="dark"] .text-gray-900,
+html[data-theme="dark"] .text-gray-800,
+html[data-theme="dark"] [class~="text-[#0A1931]"] {
+  color: var(--jobly-theme-text) !important;
+}
+html[data-theme="dark"] .text-muted,
+html[data-theme="dark"] .jobly-muted,
+html[data-theme="dark"] .talent-muted,
+html[data-theme="dark"] .text-jobly-gray,
+html[data-theme="dark"] .text-slate-700,
+html[data-theme="dark"] .text-slate-600,
+html[data-theme="dark"] .text-slate-500,
+html[data-theme="dark"] .text-gray-700,
+html[data-theme="dark"] .text-gray-600,
+html[data-theme="dark"] .text-gray-500 {
+  color: var(--jobly-theme-muted) !important;
+}
+html[data-theme="dark"] .jobly-section-title,
+html[data-theme="dark"] .talent-section-title {
+  color: var(--jobly-theme-text) !important;
+}
+
+/* Borders, form controls and data-heavy surfaces. */
+html[data-theme="dark"] .border-line,
+html[data-theme="dark"] .border-slate-100,
+html[data-theme="dark"] .border-slate-200,
+html[data-theme="dark"] .border-gray-100,
+html[data-theme="dark"] .border-gray-200,
+html[data-theme="dark"] [class~="border-[#DCE7F4]"] {
+  border-color: var(--jobly-theme-border) !important;
+}
+html[data-theme="dark"] .field,
+html[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+  color: var(--jobly-theme-text);
+  background-color: var(--jobly-theme-field);
+  border-color: var(--jobly-theme-border);
+}
+html[data-theme="dark"] .field::placeholder,
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: #8294AA;
+  opacity: 1;
+}
+html[data-theme="dark"] .field:focus,
+html[data-theme="dark"] input:focus,
+html[data-theme="dark"] textarea:focus,
+html[data-theme="dark"] select:focus {
+  border-color: #6AA5FF;
+  box-shadow: 0 0 0 3px rgba(76,145,255,.18);
+}
+html[data-theme="dark"] option {
+  color: var(--jobly-theme-text);
+  background: var(--jobly-theme-surface);
+}
+html[data-theme="dark"] table,
+html[data-theme="dark"] thead,
+html[data-theme="dark"] tbody,
+html[data-theme="dark"] tr,
+html[data-theme="dark"] td,
+html[data-theme="dark"] th {
+  border-color: var(--jobly-theme-border);
+}
+html[data-theme="dark"] .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html[data-theme="dark"] .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--jobly-theme-border) !important;
+}
+
+/* Light-blue surfaces become quiet midnight-blue surfaces, not white cards. */
+html[data-theme="dark"] .bg-canari-blue-soft,
+html[data-theme="dark"] .talent-soft-blue,
+html[data-theme="dark"] .talent-chip-blue,
+html[data-theme="dark"] .jobly-soft-blue {
+  background: rgba(44,104,177,.2) !important;
+  color: #A9CCFF !important;
+}
+html[data-theme="dark"] .talent-outline {
+  color: #C7DDF8 !important;
+  background: #172B42 !important;
+  border-color: #3A536F !important;
+}
+html[data-theme="dark"] .talent-shell .field {
+  background: var(--jobly-theme-field) !important;
+  border-color: var(--jobly-theme-border) !important;
+}
+html[data-theme="dark"] .shadow-sm,
+html[data-theme="dark"] .shadow-md,
+html[data-theme="dark"] .shadow-lg {
+  --tw-shadow-color: rgba(0,0,0,.24);
+}
+
+/* Theme picker shared by all account ecosystems. */
+.jobly-appearance-panel {
+  border: 1px solid var(--jobly-theme-border);
+  border-radius: 24px;
+  padding: 20px;
+  background: var(--jobly-theme-surface);
+  color: var(--jobly-theme-text);
+  box-shadow: var(--jobly-theme-shadow);
+}
+.jobly-appearance-mark {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 12px;
+  color: #0A1931;
+  background: #FFD21A;
+  box-shadow: 0 6px 18px rgba(255,210,26,.2);
+}
+.jobly-theme-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.jobly-theme-option {
+  display: flex;
+  min-width: 0;
+  min-height: 66px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #DCE7F4;
+  border-radius: 16px;
+  background: #F7FAFF;
+  color: #42536A;
+  font-size: 12px;
+  font-weight: 800;
+  transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
+}
+.jobly-theme-option:active { transform: scale(.98); }
+.jobly-theme-option:focus-visible {
+  outline: 3px solid rgba(76,145,255,.35);
+  outline-offset: 3px;
+}
+.jobly-theme-option[data-active="true"] {
+  border-color: #FFD21A;
+  background: #FFF7D0;
+  color: #0A1931;
+  box-shadow: 0 6px 18px rgba(255,210,26,.12);
+}
+html[data-theme="dark"] .jobly-theme-option {
+  border-color: #30465F;
+  background: #102136;
+  color: #C1CDDA;
+}
+html[data-theme="dark"] .jobly-theme-option[data-active="true"] {
+  border-color: #FFD21A;
+  background: rgba(255,210,26,.14);
+  color: #FFE58A;
+}
+
+/* J’IA’s playful night torch: warm beam follows each tap/click without intercepting it. */
+.jia-torch-beam {
+  position: fixed;
+  inset: 0;
+  z-index: 43;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  overflow: visible;
+  animation: jia-torch-fade 1.05s ease-out both;
+}
+.jia-torch-prop {
+  position: fixed;
+  z-index: 46;
+  width: 38px;
+  height: 26px;
+  pointer-events: none;
+  transform-origin: 50% 50%;
+  filter: drop-shadow(0 0 8px rgba(255,210,26,.75));
+  animation: jia-torch-wiggle .22s ease-in-out 2;
+}
+.jia-torch-spark {
+  fill: none;
+  stroke: rgba(255,245,203,.88);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 9px rgba(255,210,26,.85));
+  animation: jia-torch-spark 1s ease-out both;
+}
+@keyframes jia-torch-fade {
+  0% { opacity: 0; }
+  18% { opacity: 1; }
+  72% { opacity: .82; }
+  100% { opacity: 0; }
+}
+@keyframes jia-torch-wiggle {
+  0%,100% { filter: drop-shadow(0 0 6px rgba(255,210,26,.55)); }
+  50% { filter: drop-shadow(0 0 14px rgba(255,225,120,1)); }
+}
+@keyframes jia-torch-spark {
+  0% { opacity: .9; stroke-width: 3; }
+  100% { opacity: 0; stroke-width: 0; }
+}
+@media (max-width: 480px) {
+  .jobly-appearance-panel { padding: 16px; }
+  .jobly-theme-options { gap: 6px; }
+  .jobly-theme-option { min-height: 62px; font-size: 11px; border-radius: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] *,
+  .jia-torch-beam,
+  .jia-torch-prop,
+  .jia-torch-spark {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
