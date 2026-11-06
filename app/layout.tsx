@@ -44,8 +44,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <LanguageProvider>
             <PwaInit />
-            <OfflineCoordinator />
             <AndroidAttestationBootstrap />
+            <OfflineCoordinator />
             <JiaObserver />
             <JiaPresence />
             <JiaTorchEffect />
