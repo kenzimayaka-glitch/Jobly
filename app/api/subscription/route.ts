@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     const paymentResult = latestSubscription?.status === "PENDING"
       ? await supabase
           .from("Payment")
-          .select("id,status,amount,currency,provider,createdAt,payerPhone,reportedTransactionId,smsMerchantAccount,smsMerchantCode")
+          .select("id,status,amount,currency,provider,createdAt,payerPhone,reportedTransactionId,smsMerchantAccount")
           .eq("subscriptionId", latestSubscription.id)
           .eq("userId", user.id)
           .in("status", ["CREATED", "PENDING"])
@@ -96,11 +96,17 @@ export async function GET(request: NextRequest) {
     const existingPayment = paymentResult.data as any;
     if (existingPayment?.provider === "SMS_MTN" || existingPayment?.provider === "SMS_ORANGE") {
       try {
+        const { data: orderConfig, error: orderConfigError } = await supabase
+          .from("PaymentSmsOrderConfig")
+          .select("merchantCode")
+          .eq("paymentId", existingPayment.id)
+          .maybeSingle();
+        if (orderConfigError) throw new Error("PAYMENT_SMS_ORDER_CONFIG_READ_FAILED");
         const config = buildPaymentSmsUssd(existingPayment.provider as PaymentSmsProvider, Number(existingPayment.amount), {
           provider: existingPayment.provider as PaymentSmsProvider,
           providerLabel: existingPayment.provider === "SMS_MTN" ? "MTN Mobile Money" : "Orange Money",
           merchantAccount: String(existingPayment.smsMerchantAccount || ""),
-          merchantCode: String(existingPayment.smsMerchantCode || ""),
+          merchantCode: String(orderConfig?.merchantCode || ""),
         });
         checkout = { provider: config.provider, providerLabel: config.providerLabel, merchantAccount: config.merchantAccount, paymentCode: config.paymentCode, ussdCode: config.ussdCode, amount: existingPayment.amount, currency: existingPayment.currency, paymentReference: existingPayment.id, payerPhone: existingPayment.payerPhone, reportedTransactionId: existingPayment.reportedTransactionId };
       } catch { /* Never invent a payment code when configuration is missing. */ }
@@ -118,7 +124,7 @@ export async function GET(request: NextRequest) {
           ? (resolved.subscription.status === "TRIAL" ? resolved.subscription.trialEndsAt : resolved.subscription.currentPeriodEnd)
           : resolved.promo?.endsat || null,
       },
-      payment: paymentResult.data ? (({ smsMerchantCode: _privateMerchantCode, ...safePayment }: any) => safePayment)(paymentResult.data) : null,
+      payment: paymentResult.data || null,
       checkout,
       entitlements: productEntitlements(productType, resolved.planCode),
       prices: {
@@ -244,7 +250,6 @@ export async function POST(request: NextRequest) {
       status: isSmsProvider ? "PENDING" : "CREATED",
       payerPhone: normalizedPayerPhone,
       smsMerchantAccount: smsCheckout?.merchantAccount || null,
-      smsMerchantCode: smsCheckout?.merchantCode || null,
       idempotencyKey: idempotency.key,
       createdAt: now,
       updatedAt: now,
@@ -252,6 +257,21 @@ export async function POST(request: NextRequest) {
     if (paymentError) {
       await supabase.from("Subscription").update({ status: "EXPIRED", updatedAt: new Date().toISOString() }).eq("id", subscriptionId).eq("status", "PENDING");
       throw new Error(paymentError.message);
+    }
+
+    if (isSmsProvider && smsCheckout) {
+      const { error: orderConfigError } = await supabase.from("PaymentSmsOrderConfig").insert({
+        paymentId,
+        merchantCode: smsCheckout.merchantCode,
+      });
+      if (orderConfigError) {
+        const failedAt = new Date().toISOString();
+        await Promise.all([
+          supabase.from("Payment").update({ status: "FAILED", failureReason: "SMS_CONFIG_SNAPSHOT_FAILED", updatedAt: failedAt }).eq("id", paymentId),
+          supabase.from("Subscription").update({ status: "EXPIRED", updatedAt: failedAt }).eq("id", subscriptionId).eq("status", "PENDING"),
+        ]);
+        throw new Error("PAYMENT_SMS_ORDER_CONFIG_SAVE_FAILED");
+      }
     }
 
     if (isSmsProvider && smsCheckout) {
