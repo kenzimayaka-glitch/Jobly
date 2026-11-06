@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient } from "@/lib/server-auth";
+import { enforceApiRateLimit } from "@/lib/server-security";
 
 // Un username est unique quelle que soit sa casse ou ses espaces superflus :
 // "Kenzi", "KENZI" et " kenzi " désignent le même identifiant. On normalise
@@ -20,6 +21,12 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = adminClient();
+    const rateLimited = await enforceApiRateLimit(request, supabase, {
+      scope: "auth-username-check",
+      ipWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 200, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (rateLimited) return rateLimited;
     const { data, error } = await supabase
       .from("User")
       .select("id")
