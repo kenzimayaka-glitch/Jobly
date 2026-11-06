@@ -118,6 +118,6 @@ class PaymentSmsUploadWorker(
         private const val MAX_SMS_LENGTH = 5000
         private const val MAX_ENCRYPTED_FILE_LENGTH = 30000
         private const val CONNECT_TIMEOUT_MS = 8000
-        private const val READ_TIMEOUT_MS = 60000
+        private const val READ_TIMEOUT_MS = 70000
     }
 }
