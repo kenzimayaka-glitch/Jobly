@@ -34,7 +34,9 @@ test("WorkManager queues ciphertext and posts only to the Jobly SMS endpoint", (
   const gradle = read("../apps/android/app/build.gradle.kts");
   assert.match(gradle, /androidx\.work:work-runtime/);
   assert.match(receiver, /PaymentSmsDeviceCredentials\.encrypt\(context, smsBody\)/);
-  assert.match(receiver, /KEY_ENCRYPTED_SMS_BODY to encryptedBody/);
+  assert.ok(receiver.includes("KEY_ENCRYPTED_SMS_FILE to queuedFile.absolutePath"));
+  assert.ok(worker.includes("KEY_ENCRYPTED_SMS_FILE"));
+  assert.ok(worker.includes("safePath.delete()"));
   assert.match(worker, /\/api\/payments\/sms\/ingest/);
   assert.match(worker, /x-jobly-sms-device/);
   assert.match(worker, /Authorization/);
@@ -57,13 +59,13 @@ test("pairing and SMS permission requests use the existing origin-restricted Job
   assert.match(activity, /requestPermissions\(arrayOf\(Manifest\.permission\.RECEIVE_SMS\)/);
   assert.match(bridge, /PAIR_PAYMENT_SMS_DEVICE/);
   assert.ok(bridge.includes("revokeJoblyPaymentSmsDeviceLocally(deviceId: string)"));
-  assert.match(bridge, /payload: \\{ deviceId \\}/);
+  assert.ok(bridge.includes("payload: { deviceId }"));
   assert.match(bridge, /requestJoblyPaymentSmsPermission/);
   assert.match(page, /pairJoblyPaymentSmsDevice/);
   assert.match(page, /Réessayer l’autorisation SMS/);
   assert.match(page, /devices\.map\(\(device\)/);
   assert.match(page, /revokeJoblyPaymentSmsDeviceLocally\(device\.id\)/);
-  assert.match(page, /un sender ID doit être unique/i);
+  assert.match(page, /sender ID doit être unique/i);
   assert.match(page, /isJoblyAndroidPaymentSmsAvailable/);
   assert.match(page, /senderIds/);
   assert.match(admin, /\/admin\/payments\/sms/);
@@ -75,4 +77,17 @@ test("the native receiver remains inside the existing Jobly Android package", ()
   assert.match(receiver, /^package com\.jobly\.android/m);
   assert.match(manifest, /android:name="\.MainActivity"/);
   assert.doesNotMatch(manifest, /<application[^>]*android:process=/);
+});
+
+test("one APK can hold distinct MTN and Orange merchant profiles safely", () => {
+  const credentials = read("../apps/android/app/src/main/java/com/jobly/android/PaymentSmsDeviceCredentials.kt");
+  const receiver = read("../apps/android/app/src/main/java/com/jobly/android/PaymentSmsReceiver.kt");
+  const activity = read("../apps/android/app/src/main/java/com/jobly/android/MainActivity.kt");
+  const page = read("../app/admin/payments/sms/page.tsx");
+  assert.match(credentials, /records\.add\(Credentials\(deviceId, token, allowlist\.toSet\(\)\)\)/);
+  assert.match(credentials, /return matches\.singleOrNull\(\)/);
+  assert.match(receiver, /deviceTag\(credentials\.deviceId\)/);
+  assert.match(activity, /PaymentSmsDeviceCredentials\.clear\(this@MainActivity, deviceId\)/);
+  assert.match(activity, /PaymentSmsReceiver\.deleteQueuedFiles\(this@MainActivity, deviceId\)/);
+  assert.match(page, /devices\.map\(\(device\)/);
 });
