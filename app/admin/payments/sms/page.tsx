@@ -131,12 +131,12 @@ export default function AdminPaymentSmsPage() {
       }
       const response = await fetch("/api/me", { headers: { Authorization: "Bearer " + token } });
       const payload = await response.json();
-      if (!response.ok || !["ADMIN", "FINANCE"].includes(String(payload.user?.role))) {
+      if (!response.ok || String(payload.user?.role).toUpperCase() !== "ADMIN" || !payload.capabilities?.canSwitchAdmin) {
         router.replace("/ecosystem");
         return;
       }
       setAccessToken(token);
-      setIsAdmin(String(payload.user?.role) === "ADMIN");
+      setIsAdmin(true);
       setNativeAvailable(isJoblyAndroidPaymentSmsAvailable());
       const [, configs] = await Promise.all([loadDevices(token), loadProviderConfigs(token)]);
       setMerchantAccount(configs.find((item) => item.provider === "SMS_MTN")?.merchantAccount || "");
