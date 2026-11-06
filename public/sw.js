@@ -15,7 +15,8 @@ async function precacheOfflineWorkspace(cache) {
     await cache.put("/offline", copy);
     const html = await response.text();
     const assets = new Set();
-    for (const match of html.matchAll(/(?:src|href)="([^"]*\\/_next\\/static\\/[^"]+)"/g)) {
+    for (const match of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
+      if (!match[1].includes("/_next/static/")) continue;
       try {
         const url = new URL(match[1], self.location.origin);
         if (url.origin === self.location.origin) assets.add(url.href);
