@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { adminClient } from "@/lib/server-auth";
+import { enforceApiRateLimit } from "@/lib/server-security";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +35,14 @@ export async function GET(request: NextRequest) {
   const name = clean(params.get("name"));
   const location = clean(params.get("location"));
   if (!name) return NextResponse.json({ message: "Nom d'entreprise requis." }, { status: 400 });
+  if (name.length > 160 || location.length > 160) return NextResponse.json({ message: "Nom ou localisation trop long." }, { status: 422 });
+  const supabase = adminClient();
+  const limited = await enforceApiRateLimit(request, supabase, {
+    scope: "public-company-profile-lookup",
+    ipWindows: [{ limit: 20, windowSeconds: 60 }, { limit: 100, windowSeconds: 3600 }],
+    requireIp: true,
+  });
+  if (limited) return limited;
 
   const result: CompanyProfile = {
     name, address: null, location: null, phone: null, website: null,
