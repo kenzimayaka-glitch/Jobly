@@ -1,21 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   ArrowUp,
   Check,
   ChevronDown,
   Compass,
-  FileText,
   Grid2X2,
   LayoutDashboard,
-  Maximize2,
   MessageCircle,
-  Minimize2,
   Mic,
   Presentation,
-  Search,
   ShieldCheck,
   Sparkles,
   X,
@@ -146,6 +142,7 @@ export default function JiaConversationSurface(props: Props) {
   const [selectedLayout, setSelectedLayout] = useState<"auto" | JiaPresentationMode>("auto");
   const [device, setDevice] = useState<JiaExperienceDevice>("desktop");
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const bottomAnchor = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const updateDevice = () => {
@@ -175,6 +172,11 @@ export default function JiaConversationSurface(props: Props) {
     () => [...messages].reverse().find((message) => message.role === "user")?.text ?? "",
     [messages],
   );
+  useEffect(() => {
+    if (!open) return;
+    bottomAnchor.current?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "end" });
+  }, [busy, messages.length, open, reducedMotion]);
+
   const role = roleFromEcosystem(ecosystem);
   const intent = inferIntent(lastUserMessage, ecosystem);
   const experience = resolveJiaExperience({
@@ -391,6 +393,7 @@ export default function JiaConversationSurface(props: Props) {
                   )}
                 </div>
               )}
+              <div ref={bottomAnchor} aria-hidden="true" />
             </div>
 
             {pendingAction && (
