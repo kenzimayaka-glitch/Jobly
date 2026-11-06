@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - "apps/android/**"
+      - "scripts/payment-sms-android.test.mjs"
+      - "lib/paymentSms/android-bridge.ts"
+      - "app/admin/page.tsx"
+      - "app/admin/payments/sms/**"
       - "app/jia/android-assist/**"
       - "lib/jia/android-bridge.ts"
       - "app/jobs/[id]/page.tsx"
@@ -32,7 +36,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test scripts/android-jia-bridge.test.mjs
+      - run: node --test scripts/android-jia-bridge.test.mjs scripts/payment-sms-android.test.mjs
 
   android-debug-build:
     runs-on: ubuntu-latest
