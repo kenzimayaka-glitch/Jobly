@@ -141,7 +141,7 @@ export function parsePaymentSms(
   if (status !== "SUCCESSFUL") fraudFlags.push("MESSAGE_NOT_CONFIRMED_SUCCESS");
   if (!transactionId) fraudFlags.push("TRANSACTION_ID_MISSING");
   if (!amountXaf) fraudFlags.push("AMOUNT_MISSING_OR_INVALID");
-  if (!normalizePhone(payerText)) fraudFlags.push("PAYER_PHONE_MISSING_OR_INVALID");
+  // Some operator receipts omit the payer number; validate it only when present.
   if (!normalizePhone(merchantText)) fraudFlags.push("MERCHANT_ACCOUNT_MISSING_OR_INVALID");
 
   return {
