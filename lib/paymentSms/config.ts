@@ -27,7 +27,7 @@ export function getPaymentSmsCheckoutConfig(provider: PaymentSmsProvider): Payme
     provider,
     providerLabel: provider === "SMS_MTN" ? "MTN Mobile Money" : "Orange Money",
     merchantAccount: normalizeAccount(required(`${prefix}_MERCHANT_ACCOUNT`)),
-    merchantCode: required(`${prefix}_MERCHANT_CODE`).replace(/\s+/g, ""),
+    merchantCode: required(`${prefix}_MERCHANT_CODE`),
   };
 }
 
