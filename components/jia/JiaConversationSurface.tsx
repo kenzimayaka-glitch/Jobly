@@ -207,6 +207,7 @@ export default function JiaConversationSurface(props: Props) {
   const [device, setDevice] = useState<JiaExperienceDevice>("desktop");
   const [viewportMetrics, setViewportMetrics] = useState({ height: 0, offsetTop: 0 });
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [spotlightOpen, setSpotlightOpen] = useState(false);
   const [messageReactions, setMessageReactions] = useState<Record<string, string[]>>({});
   const bottomAnchor = useRef<HTMLDivElement | null>(null);
 
@@ -242,14 +243,19 @@ export default function JiaConversationSurface(props: Props) {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      if (spotlightOpen) {
+        setSpotlightOpen(false);
+        return;
+      }
+      onClose();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, onClose]);
+  }, [open, onClose, spotlightOpen]);
 
   const lastUserMessage = useMemo(
     () => [...messages].reverse().find((message) => message.role === "user")?.text ?? "",
@@ -314,6 +320,10 @@ export default function JiaConversationSurface(props: Props) {
       return { ...current, [messageId]: active.includes(emoji) ? active.filter((item) => item !== emoji) : [...active, emoji].slice(-5) };
     });
   };
+
+  useEffect(() => {
+    if (layout !== "stage" && spotlightOpen) setSpotlightOpen(false);
+  }, [layout, spotlightOpen]);
 
   useEffect(() => {
     if (selectedLayout !== "auto") return;
@@ -415,21 +425,32 @@ export default function JiaConversationSurface(props: Props) {
             </div>
 
             {layout === "stage" && (
-              <div className="relative mx-4 mb-3 flex items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[.07] px-3 py-2.5 sm:mx-6">
+              <div className="relative mx-4 mb-3 flex min-h-[66px] items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[.07] px-3 py-2.5 sm:mx-6">
                 <div className="pointer-events-none absolute -right-3 -top-8 h-24 w-24 rounded-full bg-[#FFD21A]/20 blur-2xl" />
-                <div className="relative shrink-0" style={{
-                  width: `${Math.round(avatarFraming.width * avatarFraming.scale)}px`,
-                  height: `${Math.round((avatarFraming.crop === "close-up" ? 150 : avatarFraming.crop === "portrait" ? 138 : avatarFraming.crop === "three-quarter" ? 128 : avatarFraming.crop === "full" ? 116 : 124) * avatarFraming.scale)}px`,
-                  transform: `translate(${avatarFraming.offsetX}px, ${avatarFraming.offsetY}px)`,
-                  clipPath: avatarFraming.crop === "close-up" ? "inset(0 0 12% 0 round 18px)" : avatarFraming.crop === "portrait" ? "inset(0 5% 0 5% round 22px)" : avatarFraming.crop === "three-quarter" ? "inset(0 0 8% 0 round 16px)" : "none",
-                }} data-jia-avatar-framing={avatarFraming.id} data-jia-avatar-anchor={avatarFraming.anchor}>
-                  <JIA3D speaking={speaking} appearanceId={JIA_AVATAR_APPEARANCES[variationIndex].id} />
+                {!spotlightOpen && (
+                  <div className="relative h-[66px] w-[54px] shrink-0 overflow-hidden rounded-xl" data-jia-avatar-framing={avatarFraming.id} data-jia-avatar-anchor={avatarFraming.anchor}>
+                    <JIA3D speaking={speaking} appearanceId={JIA_AVATAR_APPEARANCES[variationIndex].id} />
+                  </div>
+                )}
+                <div className="relative min-w-0 flex-1">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#FFD21A]">
+                    {spotlightOpen ? "Spotlight activé" : "J’IA prend la parole"}
+                  </p>
+                  <p className="mt-0.5 text-[12px] leading-5 text-white/85">
+                    {spotlightOpen ? "J’IA est mise en avant ; le fil reste accessible juste en dessous." : "Je présente les informations sans interrompre le fil de notre échange."}
+                  </p>
                 </div>
-                <div className="relative min-w-0">
-                  <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#FFD21A]">J’IA prend la parole</p>
-                  <p className="mt-0.5 text-[12px] leading-5 text-white/85">Je présente les informations sans interrompre le fil de notre échange.</p>
-                </div>
-                <Sparkles className="ml-auto shrink-0 text-[#FFD21A]" size={18} />
+                <button
+                  type="button"
+                  aria-expanded={spotlightOpen}
+                  aria-controls="jia-spotlight-panel"
+                  aria-label={spotlightOpen ? "Masquer le Spotlight J’IA" : "Afficher le Spotlight J’IA"}
+                  onClick={() => setSpotlightOpen((value) => !value)}
+                  className="relative inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-[#FFD21A]/40 bg-[#FFD21A] px-3 text-[10px] font-extrabold text-[#10233F] shadow-sm transition hover:bg-[#FFE16B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                >
+                  <Sparkles size={13}/>
+                  {spotlightOpen ? "Réduire" : "Spotlight"}
+                </button>
               </div>
             )}
           </header>
@@ -483,7 +504,48 @@ export default function JiaConversationSurface(props: Props) {
                 }} />
               ))}
             </div>
-            {layout === "explorer" && (
+            <AnimatePresence initial={false}>
+              {layout === "stage" && spotlightOpen && (
+                <motion.aside
+                  id="jia-spotlight-panel"
+                  role="region"
+                  aria-label="Spotlight de J’IA"
+                  initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: -10, scale: 0.985 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={reducedMotion ? { opacity: 1 } : { opacity: 0, y: -8, scale: 0.99 }}
+                  transition={{ duration: reducedMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  className="relative z-10 mx-3 mt-3 flex shrink-0 items-center gap-3 overflow-hidden rounded-[22px] border border-white/15 bg-gradient-to-br from-[#0B2452] via-[#123D7D] to-[#174F99] px-3 py-2.5 text-white shadow-[0_16px_38px_rgba(7,23,47,.22)] sm:mx-6 sm:gap-5 sm:px-5 sm:py-4"
+                  data-jia-spotlight="active"
+                >
+                  <div className="pointer-events-none absolute -right-8 -top-12 h-32 w-32 rounded-full bg-[#FFD21A]/25 blur-3xl"/>
+                  <div className="relative h-[116px] w-[88px] shrink-0 overflow-hidden rounded-[18px] border border-white/15 bg-white/[.07] sm:h-[156px] sm:w-[122px]">
+                    <JIA3D speaking={speaking} appearanceId={JIA_AVATAR_APPEARANCES[variationIndex].id}/>
+                  </div>
+                  <div className="relative min-w-0 flex-1 py-1">
+                    <p className="text-[9px] font-black uppercase tracking-[.18em] text-[#FFD21A]">J’IA · Spotlight</p>
+                    <h2 className="mt-1 text-[17px] font-extrabold leading-tight tracking-[-.02em] sm:text-[21px]">
+                      Présente avec toi.
+                    </h2>
+                    <p className="mt-1.5 max-w-md text-[10px] leading-5 text-white/75 sm:text-[12px]">
+                      L’avatar reste dans une zone dédiée. Tu peux poursuivre la lecture, répondre ou utiliser les actions Jobly sans fenêtre modale.
+                    </p>
+                    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 text-[9px] font-bold text-white/85">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#18A558]"/> {speaking ? "J’IA parle" : "À ton écoute"}
+                      </span>
+                      <span className="hidden min-h-7 items-center rounded-full bg-[#FFD21A]/15 px-2.5 text-[9px] font-bold text-[#FFE28A] sm:inline-flex">
+                        Le fil reste actif
+                      </span>
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setSpotlightOpen(false)} aria-label="Fermer Spotlight"
+                    className="relative grid h-10 w-10 shrink-0 place-items-center self-start rounded-full text-white/80 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD21A]">
+                    <X size={17}/>
+                  </button>
+                </motion.aside>
+              )}
+            </AnimatePresence>
+                        {layout === "explorer" && (
               <div aria-hidden="true" className="pointer-events-none absolute -right-20 top-8 h-56 w-56 rounded-full bg-[#FFD21A]/20 blur-3xl" />
             )}
             {layout === "gallery" && (
