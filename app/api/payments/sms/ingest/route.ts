@@ -43,16 +43,26 @@ export async function POST(request: NextRequest) {
       { senderId, body: smsBody },
       { senderIds: senderAllowlist, merchantAccount: String(device.merchantAccount) },
     );
-    // Every unique SMS from a paired, allow-listed sender receives a real AI review.
-    // The AI sees a redacted semantic copy; it cannot supply payment values or authorize billing.
-    const aiReview = parsed.senderTrusted && parsed.provider
-      ? await analyzePaymentSmsWithAi({ senderId, body: smsBody, parsed })
-      : null;
     const receivedAt = new Date().toISOString();
     const rawMessageHash = crypto.createHash("sha256").update(smsBody, "utf8").digest("hex");
     const payloadHash = crypto.createHash("sha256")
       .update(`${device.id}\n${parsed.senderId}\n${rawMessageHash}`)
       .digest("hex");
+
+    const { data: duplicateReceipt, error: duplicateError } = await supabase
+      .from("PaymentSmsReceipt").select("id,processingStatus")
+      .eq("payloadHash", payloadHash).maybeSingle();
+    if (duplicateError) throw new Error(duplicateError.message);
+    if (duplicateReceipt) return NextResponse.json({
+      accepted: true, duplicate: true, receiptId: duplicateReceipt.id,
+      processingStatus: duplicateReceipt.processingStatus, entitlementChanged: false,
+    });
+
+    // Every unique SMS from a paired, allow-listed sender receives a real AI review.
+    // The AI sees a redacted semantic copy; it cannot supply payment values or authorize billing.
+    const aiReview = parsed.senderTrusted && parsed.provider
+      ? await analyzePaymentSmsWithAi({ senderId, body: smsBody, parsed })
+      : null;
 
     const { error: heartbeatError } = await supabase.from("PaymentSmsDevice")
       .update({ lastSeenAt: receivedAt, updatedAt: receivedAt }).eq("id", device.id).eq("status", "ACTIVE");
