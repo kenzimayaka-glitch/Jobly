@@ -65,7 +65,7 @@ export default function AdminPaymentSmsPage() {
     setDevices(Array.isArray(payload.devices) ? payload.devices : []);
   }, []);
 
-  const loadProviderConfigs = useCallback(async (token: string) => {
+  const loadProviderConfigs = useCallback(async (token: string): Promise<ProviderConfig[]> => {
     const response = await fetch("/api/payments/sms/config", {
       headers: { Authorization: "Bearer " + token },
       cache: "no-store",
@@ -84,8 +84,8 @@ export default function AdminPaymentSmsPage() {
         merchantAccount: configs.find((item) => item.provider === "SMS_ORANGE")?.merchantAccount || "",
       },
     }));
-    setMerchantAccount(configs.find((item) => item.provider === provider)?.merchantAccount || "");
-  }, [provider]);
+    return configs;
+  }, []);
 
   async function saveProviderConfig(selectedProvider: Provider) {
     const draft = configDrafts[selectedProvider];
@@ -111,7 +111,8 @@ export default function AdminPaymentSmsPage() {
         ...current,
         [selectedProvider]: { ...current[selectedProvider], merchantCode: "" },
       }));
-      await loadProviderConfigs(accessToken);
+      const refreshedConfigs = await loadProviderConfigs(accessToken);
+      setMerchantAccount(refreshedConfigs.find((item) => item.provider === selectedProvider)?.merchantAccount || "");
       setMessage(payload.message || "Configuration synchronisée avec Jobly.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Configuration Mobile Money impossible à enregistrer.");
@@ -137,7 +138,8 @@ export default function AdminPaymentSmsPage() {
       setAccessToken(token);
       setIsAdmin(String(payload.user?.role) === "ADMIN");
       setNativeAvailable(isJoblyAndroidPaymentSmsAvailable());
-      await Promise.all([loadDevices(token), loadProviderConfigs(token)]);
+      const [, configs] = await Promise.all([loadDevices(token), loadProviderConfigs(token)]);
+      setMerchantAccount(configs.find((item) => item.provider === "SMS_MTN")?.merchantAccount || "");
       setLoading(false);
     })().catch(() => router.replace("/ecosystem"));
   }, [router, loadDevices, loadProviderConfigs]);
