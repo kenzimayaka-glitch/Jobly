@@ -2,10 +2,13 @@
 
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Environment, useAnimations, useGLTF } from "@react-three/drei";
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { JIA3DErrorBoundary } from "./JIAFallback";
 import JIAProcedural3D from "./JIAProcedural3D";
 import * as THREE from "three";
+import { motion } from "framer-motion";
+import { clipConfig, pickClipKey, pickClipSources, preloadClips } from "./clips";
+import { useOutfit } from "@/lib/jia/outfit";
 import { JIA_AVATAR_APPEARANCES, type JiaAvatarAppearanceVariation } from "@/lib/jia/visual-variations";
 import type { JIA100Move } from "./movements";
 // GLTF runtime: the official J’type Move = JIA100Move;earching" | "hand_shake" | "money" | "writing";
@@ -167,6 +170,28 @@ function JIAAppearanceOverlay({ appearance }: { appearance: JiaAvatarAppearanceV
     </svg>
   );
 }
+
+const MOVE_TO_CLIP: Partial<Record<JIA100Move, string>> = {
+  wave_hi: "wave_hi",
+  wave_bye: "wave_bye",
+  explain_open: "explain_open",
+  explain_wide: "explain_wide",
+  point_button: "point_you",
+  point_you: "point_you",
+  point_self: "hand_chest",
+  point_left: "point_you",
+  point_right: "point_you",
+  point_up: "point_up",
+  point_down: "point_you",
+  hand_chest: "hand_chest",
+  scarf_touch: "scarf_touch",
+  think_chin: "think_chin",
+  think_doubt: "think_doubt",
+  smile_soft: "smile_soft",
+  smile_wide: "smile_wide",
+  smile_shy: "smile_shy",
+  celebrate_jump: "celebrate_jump",
+};
 
 function Model({ speaking }: { speaking: boolean }) {
   const group = useRef<THREE.Group>(null);
@@ -345,34 +370,105 @@ function Model({ speaking }: { speaking: boolean }) {
 
 export default function JIA3D({ speaking, appearanceId = "jia-appearance-01" }: { speaking: boolean; appearanceId?: string }) {
   const appearance = JIA_AVATAR_APPEARANCES.find((item) => item.id === appearanceId) || JIA_AVATAR_APPEARANCES[0];
+  const outfit = useOutfit();
+  const [clip, setClip] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const clipCfg = clip ? clipConfig(clip, outfit) : undefined;
+
+  useEffect(() => {
+    preloadClips(outfit);
+    const onMove = (event: Event) => {
+      const next = (event as CustomEvent<{ move?: JIA100Move }>).detail?.move;
+      if (!next) return;
+      const preferred = MOVE_TO_CLIP[next] ?? next;
+      const key = pickClipKey(preferred, outfit);
+      const fallbackKey = !key && next.startsWith("point_")
+        ? pickClipKey(outfit === "white" && next === "point_up" ? "point_up" : "point_you", outfit)
+        : undefined;
+      const chosen = key ?? fallbackKey;
+      setClip(chosen && clipConfig(chosen, outfit) ? chosen : null);
+    };
+    window.addEventListener("jobly:jia-move", onMove);
+    return () => window.removeEventListener("jobly:jia-move", onMove);
+  }, [outfit]);
+
+  const endClip = useCallback(() => {
+    setClip(null);
+    window.dispatchEvent(new CustomEvent("jobly:jia-move", { detail: { move: "idle" } }));
+  }, []);
+
+  useEffect(() => {
+    if (!clipCfg) return;
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = 0;
+    video.play().catch(endClip);
+  }, [clipCfg?.webm, endClip]);
+
   return (
     <div className="relative h-full w-full overflow-hidden rounded-[28px]" aria-hidden="true">
-      <JIA3DErrorBoundary
-        fallback={
-          <Canvas camera={{ position: [0, 0.05, 2.35], fov: 32 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: true }}>
-            <ambientLight intensity={1.7} />
-            <directionalLight position={[2, 3, 4]} intensity={2.2} color="#fff6df" />
+      <div className="absolute inset-0" style={{ opacity: clipCfg ? 0 : 1 }}>
+        <JIA3DErrorBoundary
+          fallback={
+            <Canvas camera={{ position: [0, 0.05, 2.35], fov: 32 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: true }}>
+              <ambientLight intensity={1.7} />
+              <directionalLight position={[2, 3, 4]} intensity={2.2} color="#fff6df" />
+              <Suspense fallback={null}>
+                <JIAProcedural3D speaking={speaking} />
+              </Suspense>
+            </Canvas>
+          }
+        >
+          <Canvas
+            camera={{ position: [0, 0.05, 2.35], fov: 32 }}
+            dpr={[1, 1.5]}
+            gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+          >
+            <ambientLight intensity={1.5} />
+            <directionalLight position={[2, 3, 4]} intensity={2.1} color="#fff6df" />
+            <directionalLight position={[-2, 1, 2]} intensity={0.7} color="#8fc9ff" />
             <Suspense fallback={null}>
-              <JIAProcedural3D speaking={speaking} />
+              <Model speaking={speaking} />
+              <Environment preset="studio" />
             </Suspense>
           </Canvas>
-        }
-      >
-        <Canvas
-          camera={{ position: [0, 0.05, 2.35], fov: 32 }}
-          dpr={[1, 1.5]}
-          gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+        </JIA3DErrorBoundary>
+      </div>
+      {clipCfg && (
+        <motion.video
+          key={clip}
+          ref={videoRef}
+          className="absolute pointer-events-none"
+          style={{
+            left: `${clipCfg.fit.left}%`,
+            top: `${clipCfg.fit.top}%`,
+            width: `${clipCfg.fit.width}%`,
+            aspectRatio: "1 / 1",
+            transformOrigin: `50% ${clipCfg.fit.originY}%`,
+            WebkitMaskImage: "linear-gradient(to bottom, #000 78%, transparent 100%)",
+            maskImage: "linear-gradient(to bottom, #000 78%, transparent 100%)",
+          }}
+          initial={{ opacity: 0, scale: clipCfg.fit.scaleFrom }}
+          animate={{ opacity: 1, scale: [clipCfg.fit.scaleFrom, clipCfg.fit.scaleTo] }}
+          exit={{ opacity: 0 }}
+          transition={{
+            opacity: { duration: 0.18 },
+            scale: { duration: clipCfg.duration, ease: "linear" },
+          }}
+          muted
+          playsInline
+          autoPlay
+          preload="auto"
+          aria-hidden="true"
+          onEnded={endClip}
+          onError={endClip}
         >
-          <ambientLight intensity={1.5} />
-          <directionalLight position={[2, 3, 4]} intensity={2.1} color="#fff6df" />
-          <directionalLight position={[-2, 1, 2]} intensity={0.7} color="#8fc9ff" />
-          <Suspense fallback={null}>
-            <Model speaking={speaking} />
-            <Environment preset="studio" />
-          </Suspense>
-        </Canvas>
-      </JIA3DErrorBoundary>
-      <JIAAppearanceOverlay appearance={appearance}/>
+          {pickClipSources(clipCfg).map((source) => (
+            <source key={source.src} src={source.src} type={source.type} />
+          ))}
+        </motion.video>
+      )}
+      {!clipCfg && <JIAAppearanceOverlay appearance={appearance} />}
     </div>
   );
 }
