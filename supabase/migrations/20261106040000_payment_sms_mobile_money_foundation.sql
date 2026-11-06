@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS public."PaymentSmsDevice" (
   label text NOT NULL,
   provider text NOT NULL CHECK (provider IN ('SMS_MTN', 'SMS_ORANGE')),
   "merchantAccount" text NOT NULL,
+  "timeZone" text NOT NULL DEFAULT 'Africa/Douala',
   "senderIds" text[] NOT NULL CHECK (cardinality("senderIds") > 0),
   "tokenHash" text NOT NULL,
   status text NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'REVOKED')),
@@ -28,6 +29,9 @@ CREATE TABLE IF NOT EXISTS public."PaymentSmsDevice" (
   "createdAt" timestamptz NOT NULL DEFAULT now(),
   "updatedAt" timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public."PaymentSmsDevice"
+  ADD COLUMN IF NOT EXISTS "timeZone" text NOT NULL DEFAULT 'Africa/Douala';
 
 CREATE TABLE IF NOT EXISTS public."PaymentSmsReceipt" (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
