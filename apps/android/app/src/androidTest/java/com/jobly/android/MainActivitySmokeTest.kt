@@ -22,6 +22,17 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class MainActivitySmokeTest {
     @Test
+    fun debugBuildPassesOnlyAsDevelopmentAndReportsItsStatus() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val report = AndroidIntegrityGuard.inspect(context)
+
+        assertEquals("com.jobly.android", context.packageName)
+        assertTrue("The CI debug APK must remain testable", report.allowedToStart)
+        assertTrue("A debug APK must never be reported as a verified release", report.debugBuild)
+        assertEquals("DEBUG_BUILD", report.reasonCode)
+    }
+
+    @Test
     fun launchesJoblyInARestrictedHttpsWebView() {
         val scenario = ActivityScenario.launch(MainActivity::class.java)
         try {
