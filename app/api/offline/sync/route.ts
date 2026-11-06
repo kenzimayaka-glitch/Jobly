@@ -29,7 +29,7 @@ async function claimReceipt(db: ReturnType<typeof adminClient>, userId: string, 
   return true;
 }
 
-async function applyOperation(db: ReturnType<typeof adminClient>, userId: string, operation: OfflineOperation) {
+async function applyOperation(db: ReturnType<typeof adminClient>, userId: string, authUserId: string, operation: OfflineOperation) {
   const payload = operation.payload || {};
   if (operation.type === "profile.update") {
     const update: Record<string, unknown> = {};
@@ -80,6 +80,31 @@ async function applyOperation(db: ReturnType<typeof adminClient>, userId: string
     return;
   }
 
+  if (operation.type === "recruiter.job-draft") {
+    const { data: recruiter, error: recruiterError } = await db.from("RecruiterProfile")
+      .select("companyName").eq("userId", authUserId).maybeSingle();
+    if (recruiterError) throw new Error(recruiterError.message);
+    if (!recruiter) throw new Error("Cette action est réservée à un compte recruteur.");
+    const title = typeof payload.title === "string" ? payload.title.trim().slice(0, 180) : "";
+    const description = typeof payload.description === "string" ? payload.description.trim().slice(0, 12000) : "";
+    if (!title || !description) throw new Error("Le titre et la description de l'offre sont obligatoires.");
+    const { error } = await db.from("RecruiterJob").insert({
+      id: newId(),
+      recruiterUserId: authUserId,
+      title,
+      companyName: recruiter.companyName || "Mon entreprise",
+      description,
+      location: typeof payload.location === "string" ? payload.location.trim().slice(0, 180) || null : null,
+      contract: typeof payload.contract === "string" ? payload.contract.slice(0, 50) : "CDI",
+      salary: typeof payload.salary === "string" ? payload.salary.trim().slice(0, 100) || null : null,
+      sector: typeof payload.sector === "string" ? payload.sector.trim().slice(0, 100) || null : null,
+      tags: strings(payload.tags, 15),
+      status: "draft",
+    });
+    if (error) throw new Error(error.message);
+    return;
+  }
+
   throw new Error("Type d'opération hors connexion non autorisé.");
 }
 
@@ -112,7 +137,7 @@ export async function POST(request: NextRequest) {
       }
       try {
         const shouldApply = await claimReceipt(db, user.id, id);
-        if (shouldApply) await applyOperation(db, user.id, operation);
+        if (shouldApply) await applyOperation(db, user.id, authUser.id, operation);
         const { error: receiptError } = await db.from("OfflineSyncReceipt")
           .update({ status: "APPLIED", appliedAt: new Date().toISOString() })
           .eq("userId", user.id).eq("operationId", id);
