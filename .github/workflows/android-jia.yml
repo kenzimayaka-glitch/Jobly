@@ -85,6 +85,29 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Verify packaged Play and internal manifest separation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t play_manifests < <(find apps/android/app/build/intermediates -type f -path '*/playRelease/*' -name AndroidManifest.xml)
+          mapfile -t internal_manifests < <(find apps/android/app/build/intermediates -type f -path '*/internalDebug/*' -name AndroidManifest.xml)
+          test "${#play_manifests[@]}" -gt 0
+          test "${#internal_manifests[@]}" -gt 0
+          for manifest in "${play_manifests[@]}"; do
+            if grep -Eq 'android.permission.(RECEIVE_SMS|READ_SMS)|PaymentSmsReceiver' "$manifest"; then
+              echo "Restricted SMS permission or receiver leaked into Play manifest: $manifest"
+              exit 1
+            fi
+          done
+          internal_has_receiver=false
+          for manifest in "${internal_manifests[@]}"; do
+            if grep -q 'android.permission.RECEIVE_SMS' "$manifest" && grep -q 'PaymentSmsReceiver' "$manifest"; then
+              internal_has_receiver=true
+            fi
+          done
+          test "$internal_has_receiver" = true
+
+
   android-emulator-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 20
