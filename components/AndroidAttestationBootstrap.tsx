@@ -49,6 +49,7 @@ export default function AndroidAttestationBootstrap() {
           challenge?: string;
         };
         if (!challengeResponse.ok || challenge.alreadyVerified || !challenge.challengeId || !challenge.challenge) {
+          running = false;
           return;
         }
 
