@@ -648,9 +648,9 @@ export default function JiaPresence() {
     }
     conversationWriteQueueRef.current = conversationWriteQueueRef.current.then(async () => {
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!canWriteJiaConversation({
-        accessToken: session?.access_token,
-        sessionUserId: session?.user?.id,
+      if (!session || !canWriteJiaConversation({
+        accessToken: session.access_token,
+        sessionUserId: session.user.id,
         ownerUserId,
         currentOwnerUserId: conversationOwnerUserIdRef.current,
         currentConversationId: conversationIdRef.current,
@@ -875,9 +875,9 @@ export default function JiaPresence() {
     if (!conversationId || !ownerUserId) return;
     conversationWriteQueueRef.current = conversationWriteQueueRef.current.then(async () => {
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!canWriteJiaConversation({
-        accessToken: session?.access_token,
-        sessionUserId: session?.user?.id,
+      if (!session || !canWriteJiaConversation({
+        accessToken: session.access_token,
+        sessionUserId: session.user.id,
         ownerUserId,
         currentOwnerUserId: conversationOwnerUserIdRef.current,
         currentConversationId: conversationIdRef.current,
