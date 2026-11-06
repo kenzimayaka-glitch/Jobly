@@ -84,7 +84,8 @@ export default function AdminPaymentSmsPage() {
         merchantAccount: configs.find((item) => item.provider === "SMS_ORANGE")?.merchantAccount || "",
       },
     }));
-  }, []);
+    setMerchantAccount(configs.find((item) => item.provider === provider)?.merchantAccount || "");
+  }, [provider]);
 
   async function saveProviderConfig(selectedProvider: Provider) {
     const draft = configDrafts[selectedProvider];
@@ -325,6 +326,14 @@ export default function AdminPaymentSmsPage() {
                   <div className="text-xs font-black uppercase tracking-wide text-emerald-700">Actif · {device.provider === "SMS_MTN" ? "MTN Mobile Money" : "Orange Money"}</div>
                   <h3 className="mt-1 text-lg font-black">{device.label}</h3>
                   <p className="mt-1 text-sm text-slate-600">Compte marchand : {device.merchantAccount}</p>
+                  {(() => {
+                    const centralAccount = providerConfigs.find((item) => item.provider === device.provider)?.merchantAccount;
+                    const normalizedDevice = device.merchantAccount.replace(/\\D/g, "");
+                    const normalizedCentral = String(centralAccount || "").replace(/\\D/g, "");
+                    return centralAccount && normalizedDevice !== normalizedCentral ? (
+                      <p className="mt-2 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">Ce téléphone écoute encore l’ancien compte marchand. La nouvelle SIM doit être appairée pour recevoir les confirmations des prochaines commandes.</p>
+                    ) : null;
+                  })()}
                   <p className="mt-1 text-xs text-slate-500">Expéditeurs autorisés : {device.senderIds.join(", ")}</p>
                   <p className="mt-1 break-all font-mono text-[10px] text-slate-400">{device.id}</p>
                   <p className="mt-1 text-xs text-slate-500">Dernier contact : {device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString("fr-FR") : "Pas encore reçu de SMS"}</p>
@@ -353,6 +362,7 @@ export default function AdminPaymentSmsPage() {
             <select value={provider} onChange={(event) => {
               const next = event.target.value as Provider;
               setProvider(next);
+              setMerchantAccount(providerConfigs.find((item) => item.provider === next)?.merchantAccount || "");
               setLabel(next === "SMS_MTN" ? "Téléphone marchand MTN" : "Téléphone marchand Orange");
             }} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3">
               <option value="SMS_MTN">MTN Mobile Money</option>
