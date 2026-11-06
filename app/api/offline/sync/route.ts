@@ -97,6 +97,9 @@ export async function POST(request: NextRequest) {
     }
     const db = adminClient();
     const user = await ensureUser(db, authUser);
+    if (typeof body.userId !== "string" || body.userId !== user.id) {
+      return NextResponse.json({ message: "Ces opérations hors connexion appartiennent à un autre compte Jobly." }, { status: 403 });
+    }
     const applied: string[] = [];
     const failed: { id: string; message: string }[] = [];
 
