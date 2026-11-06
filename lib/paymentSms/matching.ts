@@ -14,7 +14,7 @@ export type PaymentSmsCandidate = {
 };
 
 export type PaymentSmsMatchResult =
-  | { outcome: "MATCHED"; payment: PaymentSmsCandidate; reason: "TRANSACTION_ID" }
+  | { outcome: "MATCHED"; payment: PaymentSmsCandidate; reason: "TRANSACTION_ID" | "UNIQUE_ORDER" }
   | { outcome: "UNMATCHED"; reason: string; candidateCount: number }
   | { outcome: "AMBIGUOUS"; reason: string; candidateCount: number };
 
@@ -50,26 +50,41 @@ export function matchPaymentSmsToOrder(input: {
     return { outcome: "UNMATCHED", reason: "SMS_MERCHANT_MISMATCH", candidateCount: 0 };
   }
 
+  const occurredAt = parsed.occurredAt ? Date.parse(parsed.occurredAt) : now.getTime();
+  if (!Number.isFinite(occurredAt) || occurredAt > now.getTime() + 5 * 60 * 1000) {
+    return { outcome: "UNMATCHED", reason: "SMS_TRANSACTION_TIME_INVALID", candidateCount: 0 };
+  }
+
   const eligible = input.candidates.filter((candidate) => {
     if (candidate.provider !== parsed.provider || !candidate.userId) return false;
     if (!["CREATED", "PENDING"].includes(candidate.status)) return false;
     if (Number(candidate.amount) !== parsed.amountXaf || candidate.currency.toUpperCase() !== "XAF") return false;
     if (normalizePhone(candidate.smsMerchantAccount) !== merchant) return false;
     const createdAt = Date.parse(candidate.createdAt);
-    return Number.isFinite(createdAt) && createdAt <= now.getTime() && now.getTime() - createdAt <= maxAgeMs;
+    if (!Number.isFinite(createdAt) || createdAt > now.getTime()) return false;
+    // Prefer the operator's transaction timestamp when it is present. Never
+    // allow a receipt that predates the Jobly checkout beyond a small clock skew.
+    if (occurredAt < createdAt - 2 * 60 * 1000 || occurredAt - createdAt > maxAgeMs) return false;
+    // An explicitly entered but different reference is a hard conflict, not
+    // a reason to fall back to amount-based matching.
+    const submittedReference = normalizeId(candidate.reportedTransactionId);
+    if (submittedReference && submittedReference !== normalizeId(parsed.transactionId)) return false;
+    // A known payer mismatch removes the candidate. Missing payer numbers are
+    // not fabricated; uniqueness is still required below.
+    if (parsed.payerPhone && candidate.payerPhone &&
+        normalizePhone(parsed.payerPhone) !== normalizePhone(candidate.payerPhone)) return false;
+    return true;
   });
 
   const transactionId = normalizeId(parsed.transactionId);
-  // A transaction ID must have been submitted by the customer. Never infer a match
-  // from amount or payer phone alone, even when a single candidate is found.
   const exactReference = eligible.filter((candidate) => normalizeId(candidate.reportedTransactionId) === transactionId);
-  if (exactReference.length === 1) {
-    const payment = exactReference[0];
-    if (parsed.payerPhone && payment.payerPhone && normalizePhone(parsed.payerPhone) !== normalizePhone(payment.payerPhone)) {
-      return { outcome: "UNMATCHED", reason: "PAYER_PHONE_MISMATCH", candidateCount: 1 };
-    }
-    return { outcome: "MATCHED", payment, reason: "TRANSACTION_ID" };
-  }
+  if (exactReference.length === 1) return { outcome: "MATCHED", payment: exactReference[0], reason: "TRANSACTION_ID" };
   if (exactReference.length > 1) return { outcome: "AMBIGUOUS", reason: "TRANSACTION_ID_NOT_UNIQUE", candidateCount: exactReference.length };
-  return { outcome: "UNMATCHED", reason: "CUSTOMER_TRANSACTION_REFERENCE_NOT_FOUND", candidateCount: eligible.length };
+
+  const unclaimedOrders = eligible.filter((candidate) => !candidate.reportedTransactionId);
+  if (unclaimedOrders.length === 1) return { outcome: "MATCHED", payment: unclaimedOrders[0], reason: "UNIQUE_ORDER" };
+  if (unclaimedOrders.length > 1) {
+    return { outcome: "AMBIGUOUS", reason: "MULTIPLE_ORDERS_SHARE_PAYMENT_SIGNATURE", candidateCount: unclaimedOrders.length };
+  }
+  return { outcome: "UNMATCHED", reason: "NO_UNIQUE_PAYMENT_ORDER", candidateCount: eligible.length };
 }
