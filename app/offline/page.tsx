@@ -30,7 +30,7 @@ export default function OfflineWorkspacePage() {
     try {
       const { data } = await getSupabaseClient().auth.getSession();
       const authUserId = data.session?.user?.id;
-      const cached = authUserId ? await getOfflineSnapshot(getOfflineUserId(authUserId), authUserId) : null;
+      const cached = authUserId ? await getOfflineSnapshot(getOfflineUserId(authUserId ?? undefined), authUserId) : null;
       setSnapshot(cached);
       if (cached && authUserId) setCvAvailable(Boolean(await getOfflineDocument(cached.userId)));
       setHeadline(String(cached?.profile?.headline || ""));
