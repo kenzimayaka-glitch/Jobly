@@ -26,15 +26,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (!transactionId) return err("Saisissez la référence exacte du SMS opérateur.", 400, "TRANSACTION_REFERENCE_REQUIRED");
       if (payment.status === "SUCCESSFUL") return NextResponse.json({ accepted: true, matched: true, payment, idempotent: true });
       if (!["CREATED", "PENDING"].includes(String(payment.status))) return err("Ce paiement ne peut plus être modifié.", 409, "PAYMENT_NOT_OPEN");
-      if (payment.reportedTransactionId && String(payment.reportedTransactionId).toUpperCase() !== transactionId) {
-        return err("Une autre référence est déjà associée à cette commande.", 409, "TRANSACTION_REFERENCE_CONFLICT");
-      }
+      // A customer may correct a mistyped reference while the order remains open.
+      // A unique DB index prevents the same operator transaction from being claimed twice.
       if (!payment.smsMerchantAccount) return err("Compte marchand manquant.", 409, "MERCHANT_ACCOUNT_MISSING");
       const now = new Date().toISOString();
       const { data: updated, error: updateError } = await supabase.from("Payment")
         .update({ reportedTransactionId: transactionId, updatedAt: now })
         .eq("id", payment.id).eq("userId", user.id).in("status", ["CREATED", "PENDING"])
         .select("*").maybeSingle();
+      if (updateError?.code === "23505") return err("Cette référence est déjà associée à une autre commande.", 409, "TRANSACTION_REFERENCE_ALREADY_USED");
       if (updateError) throw new Error(updateError.message);
       if (!updated) return err("La commande a changé. Actualisez son statut.", 409, "PAYMENT_STATE_CHANGED");
 
