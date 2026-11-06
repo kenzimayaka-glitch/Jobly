@@ -89,3 +89,15 @@ test("Brand Ambassador onboarding never self-verifies identity and admin review 
   assert.match(reviewUi, /Valider l’identité/);
   assert.match(partnerUi, /vérification humaine en attente/);
 });
+
+
+test("Distributor metrics count only currently eligible subscriptions and are rate-limited", () => {
+  const route = read("../app/api/partner/distributor/route.ts");
+  assert.match(route, /isEligibleSubscription/);
+  assert.match(route, /currentPeriodEnd,trialEndsAt/);
+  assert.match(route, /activeSubscriptions = subscriptions\.filter/);
+  assert.match(route, /scope: "partner-distributor-dashboard"/);
+  assert.match(route, /accountWindows:/);
+  assert.match(route, /ipWindows:/);
+  assert.match(route, /requireIp: true/);
+});
