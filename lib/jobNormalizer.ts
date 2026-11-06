@@ -174,14 +174,52 @@ function classifyUnlabelledLine(line: string): SectionKey | null {
   return null;
 }
 
-function isStrongApplicationLine(line: string): boolean {
+function applicationSignalScore(line: string): number {
   const normalized = key(line);
-  return (
-    /@/.test(normalized) ||
-    /\b(?:objet|subject|indiquer en objet|mettre en objet|avec pour objet)\b/.test(normalized) ||
-    /\b(?:envoyer|envoyez|adressez|transmettez|postulez|candidater|soumettre|deposer|déposer|apply)\b.*\b(?:cv|curriculum|lettre|mail|email|dossier|candidature|postuler)\b/.test(normalized) ||
-    /\b(?:cv|curriculum|lettre de motivation|dossier de candidature|pieces? a fournir|documents? a (?:fournir|joindre))\b/.test(normalized)
-  );
+  if (!normalized) return 0;
+  let score = 0;
+  if (/@/.test(normalized)) score += 5;
+  if (/\b(?:objet|subject|indiquer en objet|mettre en objet|avec pour objet|mentionner en objet)\b/.test(normalized)) score += 5;
+  if (/\b(?:adresse de candidature|email de candidature|mail de candidature|telephone de candidature|numero de candidature)\b/.test(normalized)) score += 5;
+  if (/\b(?:postulez|postuler|candidater|apply)\b/.test(normalized)) score += 3;
+  if (/\b(?:candidature|candidatures)\b.*\b(?:envoyer|envoyez|envoyee|envoyees|transmettre|transmettez|adressez|deposer|deposez|soumettre)\b/.test(normalized)) score += 3;
+  if (/\b(?:envoyer|envoyez|envoyee|envoyees|adressez|transmettez|deposer|deposez|soumettre)\b/.test(normalized) &&
+      /\b(?:cv|curriculum vitae|lettre de motivation|dossier de candidature|pieces? a fournir|documents? a (?:fournir|joindre)|fichier|pdf|mail|email)\b/.test(normalized)) score += 3;
+  if (/\b(?:cv|curriculum vitae|lettre de motivation|dossier de candidature|pieces? a fournir|documents? a (?:fournir|joindre)|fichier|pdf)\b/.test(normalized)) score += 3;
+  if (/\b(?:avant le|au plus tard le|date limite|deadline)\b/.test(normalized) &&
+      /\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\b(?:janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\b/.test(normalized)) score += 1;
+  return score;
+}
+
+function isStrongApplicationLine(line: string): boolean {
+  return applicationSignalScore(line) >= 3;
+}
+
+function normalizedDuplicateKey(value: string): string {
+  return key(value)
+    .replace(/\b(?:merci de|veuillez|priere de|pri[eè]re de)\b/g, "")
+    .replace(/\b(?:cliquer|cliquez|suivre|consulter)\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenSet(value: string): Set<string> {
+  return new Set(normalizedDuplicateKey(value).split(" ").filter(token => token.length > 1));
+}
+
+function nearDuplicate(a: string, b: string): boolean {
+  const na = normalizedDuplicateKey(a);
+  const nb = normalizedDuplicateKey(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  if (na.length >= 30 && (na.includes(nb) || nb.includes(na))) return true;
+  const aTokens = tokenSet(a);
+  const bTokens = tokenSet(b);
+  if (aTokens.size < 5 || bTokens.size < 5) return false;
+  let common = 0;
+  for (const token of aTokens) if (bTokens.has(token)) common++;
+  const overlap = common / Math.min(aTokens.size, bTokens.size);
+  return overlap >= 0.92;
 }
 
 function enforceSectionExclusivity(sections: Record<SectionKey, string[]>): Record<SectionKey, string[]> {
@@ -189,18 +227,9 @@ function enforceSectionExclusivity(sections: Record<SectionKey, string[]>): Reco
     Object.entries(sections).map(([name, values]) => [name, unique(values)]),
   ) as Record<SectionKey, string[]>;
 
-  // Move strongly identifiable unlabelled lines out of the context section.
-  const context: string[] = [];
-  for (const line of working.description) {
-    const target = classifyUnlabelledLine(line);
-    if (target && target !== "description") working[target].push(line);
-    else context.push(line);
-  }
-  working.description = context;
-
-  // A malformed source can accidentally attach candidature lines to a
-  // profile/qualities bucket. Strong application evidence always belongs to
-  // the application section, regardless of the source bucket.
+  // First pass: application evidence is the most specific semantic signal.
+  // It must win even when a source incorrectly places the line under profile,
+  // qualities, description, or another section.
   for (const section of SECTION_PRIORITY) {
     if (section === "application") continue;
     const kept: string[] = [];
@@ -211,19 +240,45 @@ function enforceSectionExclusivity(sections: Record<SectionKey, string[]>): Reco
     working[section] = kept;
   }
 
-  // A semantic fact gets one owner. Keep the most specific category first and
-  // never copy the same fact into several sections.
-  const seen = new Set<string>();
+  // Unlabelled context is classified only after application has been given
+  // first ownership. This prevents generic words such as "qualités" or
+  // "organisation" from stealing an actual candidature instruction.
+  const context: string[] = [];
+  for (const line of working.description) {
+    const target = classifyUnlabelledLine(line);
+    if (target && target !== "description") working[target].push(line);
+    else context.push(line);
+  }
+  working.description = context;
+
+  // Re-run the application gate after contextual classification because the
+  // classifier can create a new application candidate.
+  for (const section of SECTION_PRIORITY) {
+    if (section === "application") continue;
+    const kept: string[] = [];
+    for (const line of working[section]) {
+      if (isStrongApplicationLine(line)) working.application.push(line);
+      else kept.push(line);
+    }
+    working[section] = kept;
+  }
+
+  // Canonical ownership: application first, then the most specific factual
+  // sections. Exact duplicates and very-high-overlap copies are removed only
+  // when they represent the same sentence/fact; short shared phrases remain.
+  const seen: string[] = [];
   for (const section of SECTION_PRIORITY) {
     const next: string[] = [];
     for (const line of working[section]) {
-      const signature = key(line);
-      if (!signature || seen.has(signature)) continue;
-      seen.add(signature);
+      const signature = normalizedDuplicateKey(line);
+      if (!signature) continue;
+      if (seen.some(previous => nearDuplicate(previous, line))) continue;
+      seen.push(line);
       next.push(line);
     }
     working[section] = next;
   }
+
   return working;
 }
 
