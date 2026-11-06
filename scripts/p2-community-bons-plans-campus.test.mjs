@@ -123,16 +123,67 @@ test("Bon Plans suggestions enter review and never publish directly", () => {
   assert.match(page, /proposalPending/);
 });
 
-test("Only ADMIN and MODERATOR can approve or reject Bon Plans", () => {
+test("Bon Plans decisions require the active root AdminIdentity", () => {
   const queue = read("app/api/bon-plans/moderation/route.ts");
   const decision = read("app/api/bon-plans/[id]/moderation/route.ts");
   const page = read("app/bons-plans/page.tsx");
-  assert.match(queue, /user\.role !== "ADMIN"/);
-  assert.match(queue, /user\.role !== "MODERATOR"/);
-  assert.match(decision, /moderator\.role !== "ADMIN"/);
-  assert.match(decision, /moderator\.role !== "MODERATOR"/);
+  assert.ok(queue.includes('String(user.role).toUpperCase() !== "ADMIN"'));
+  assert.ok(queue.includes('from("AdminIdentity")'));
+  assert.ok(queue.includes("identity?.active"));
+  assert.ok(decision.includes('String(moderator.role).toUpperCase() !== "ADMIN"'));
+  assert.ok(decision.includes('from("AdminIdentity")'));
+  assert.ok(decision.includes("identity?.active"));
+  assert.doesNotMatch(decision, /MODERATOR/);
   assert.match(decision, /status !== "PENDING_REVIEW"/);
   assert.match(decision, /announceEventToCommunities/);
   assert.match(page, /moderatePlan/);
   assert.match(page, /bonplans-moderation-title/);
+});
+
+
+test("ADMIN 360 operational consoles are wired to authenticated, root-owned endpoints", () => {
+  const catalog = read("lib/adminWorkspaceCatalog.ts");
+  const shell = read("components/admin/AdminShell.tsx");
+  const supportPublic = read("app/api/support/tickets/route.ts");
+  const supportAdmin = read("app/api/admin/support/tickets/route.ts");
+  const supportUpdate = read("app/api/admin/support/tickets/[id]/route.ts");
+  const finance = read("app/api/admin/finance/overview/route.ts");
+  const analyst = read("app/api/admin/analytics/route.ts");
+  const communityReport = read("app/api/community/[id]/posts/[postId]/report/route.ts");
+  const communityQueue = read("app/api/admin/moderation/community/route.ts");
+  const communityDecision = read("app/api/admin/moderation/community/[id]/route.ts");
+
+  for (const code of ["SUPPORT", "FINANCE", "MODERATOR", "ANALYST"]) assert.ok(catalog.includes(code));
+  for (const href of ["/admin/support", "/admin/finance", "/admin/community", "/admin/analytics", "/admin/accounts"]) assert.ok(shell.includes(href));
+  assert.match(supportPublic, /getAuthUser\(request\)/);
+  assert.match(supportAdmin, /from\("AdminIdentity"\)/);
+  assert.match(supportAdmin, /identity\?\.active/);
+  assert.match(supportUpdate, /from\("AuditLog"\)/);
+  assert.match(finance, /from\("Payment"\)/);
+  assert.match(finance, /from\("PaymentSmsReceipt"\)/);
+  assert.match(finance, /from\("EventManualPaymentSubmission"\)/);
+  assert.match(finance, /from\("Subscription"\)/);
+  assert.match(finance, /from\("Commission"\)/);
+  assert.match(analyst, /count:\s*count \?\? 0/);
+  assert.match(analyst, /available: false, count: null/);
+  assert.match(analyst, /from\("CommunityPost"\)/);
+  assert.match(communityReport, /from\("AdminCommunityReport"\)/);
+  assert.match(communityQueue, /from\("AdminIdentity"\)/);
+  assert.match(communityDecision, /from\("AdminIdentity"\)/);
+  assert.match(communityDecision, /COMMUNITY_MODERATION_/);
+});
+
+test("ADMIN 360 schema protects managed accounts, support records and community reports", () => {
+  const managed = read("supabase/migrations/20261106115000_admin_managed_accounts.sql");
+  const operations = read("supabase/migrations/20261106123000_admin_support_community_operations.sql");
+  const schema = read("packages/database/prisma/schema.prisma");
+  for (const table of ["AdminManagedAccount", "AdminSupportTicket", "AdminSupportTicketMessage", "AdminCommunityReport"]) {
+    assert.ok(schema.includes("model " + table));
+  }
+  for (const table of ["AdminManagedAccount", "AdminSupportTicket", "AdminSupportTicketMessage", "AdminCommunityReport"]) {
+    const migration = table === "AdminManagedAccount" ? managed : operations;
+    assert.ok(migration.includes('alter table public."' + table + '" enable row level security'));
+    assert.ok(migration.includes('revoke all on table public."' + table + '" from public, anon, authenticated'));
+    assert.ok(migration.includes('grant all on table public."' + table + '" to service_role'));
+  }
 });
