@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
 import { enforceApiRateLimit } from "@/lib/server-security";
