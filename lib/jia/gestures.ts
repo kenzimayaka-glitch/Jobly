@@ -119,7 +119,17 @@ export type GestureId =
   | "point_right"
   | "point_up"
   | "point_down"
-  | "point_self";
+  | "point_self"
+  | "blink_slow"
+  | "smile_soft"
+  | "smile_wide"
+  | "wink_right"
+  | "lips_bite"
+  | "yawn"
+  | "think_chin"
+  | "point_left"
+  | "confused"
+  | "reading";
 
 const idle: HeadPose = { yaw: 0, pitch: 0, roll: 0 };
 const center: GazeTarget = { x: 0, y: 0 };
@@ -418,6 +428,55 @@ export const GESTURES: Record<GestureId, GestureSpec> = {
     id: "point_self", category: "core", label: "Se désigner",
     head: { yaw: 3, pitch: -1, roll: 2 }, gaze: { x: 0.2, y: -0.1 },
     brow: 0.45, mouth: "smile", duration: 1300,
+  },  blink_slow: {
+    id: "blink_slow", category: "emotional", label: "Clignement lent",
+    head: { yaw: 0, pitch: 0, roll: 0 }, gaze: { x: 0, y: 0 },
+    brow: 0.18, mouth: "idle", duration: 1200,
+  },
+  smile_soft: {
+    id: "smile_soft", category: "emotional", label: "Sourire discret",
+    head: { yaw: 0, pitch: -1, roll: 0 }, gaze: { x: 0, y: 0 },
+    brow: 0.38, mouth: "warm", duration: 1200,
+  },
+  smile_wide: {
+    id: "smile_wide", category: "emotional", label: "Grand sourire",
+    head: { yaw: 0, pitch: -2, roll: 0 }, gaze: { x: 0, y: -0.1 },
+    brow: 0.72, mouth: "smile", duration: 1300,
+  },
+  wink_right: {
+    id: "wink_right", category: "emotional", label: "Clin d'œil droit",
+    head: { yaw: -3, pitch: 0, roll: -2 }, gaze: { x: -0.1, y: 0 },
+    brow: 0.4, mouth: "smile", duration: 900,
+  },
+  lips_bite: {
+    id: "lips_bite", category: "emotional", label: "Réflexion concentrée",
+    head: { yaw: 1, pitch: 1, roll: 0 }, gaze: { x: 0, y: 0.1 },
+    brow: 0.12, mouth: "firm", duration: 1200,
+  },
+  yawn: {
+    id: "yawn", category: "emotional", label: "Bâillement",
+    head: { yaw: 0, pitch: 1, roll: 0 }, gaze: { x: 0, y: 0.2 },
+    brow: 0.08, mouth: "oh", duration: 1500,
+  },
+  think_chin: {
+    id: "think_chin", category: "emotional", label: "Réflexion, main au menton",
+    head: { yaw: 2, pitch: 3, roll: 2 }, gaze: { x: 0.1, y: 0.4 },
+    brow: 0.22, mouth: "idle", duration: 1700,
+  },
+  point_left: {
+    id: "point_left", category: "core", label: "Pointer à gauche",
+    head: { yaw: -8, pitch: 0, roll: 0 }, gaze: { x: -0.65, y: 0 },
+    brow: 0.4, mouth: "talk", duration: 1300,
+  },
+  confused: {
+    id: "confused", category: "emotional", label: "Perplexité",
+    head: { yaw: -4, pitch: 2, roll: -4 }, gaze: { x: -0.3, y: 0.2 },
+    brow: 0.18, mouth: "firm", duration: 1500,
+  },
+  reading: {
+    id: "reading", category: "core", label: "Lire attentivement",
+    head: { yaw: 0, pitch: 5, roll: 0 }, gaze: { x: 0, y: 0.45 },
+    brow: 0.3, mouth: "idle", duration: 1600,
   },
 };
 
