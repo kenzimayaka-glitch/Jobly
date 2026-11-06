@@ -59,7 +59,20 @@ export default function PageHeader({
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={() => router.push("/notifications")}
+            onClick={() => router.push("/settings")}
+            aria-label="Paramètres et sauvegarde"
+            title="Paramètres"
+            className="jobly-focus flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-[#0A1931] transition active:scale-95"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.7 2.94-.08-.03a1.7 1.7 0 0 0-1.8.25l-.07.05h-3.4l-.02-.08a1.7 1.7 0 0 0-1.28-1.32l-.09-.02-1.7-2.94.06-.06A1.7 1.7 0 0 0 10 14l-.03-.09v-3.4l.08-.02a1.7 1.7 0 0 0 1.32-1.28l.02-.09 2.94-1.7.06.06a1.7 1.7 0 0 0 1.88.34l.06-.03 2.94 1.7-.03.08a1.7 1.7 0 0 0 .25 1.8l.05.07v3.4l-.08.02a1.7 1.7 0 0 0-1.32 1.28l-.02.09Z"/>
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => router.push("/notifications")
             aria-label={t("header.notifications")}
             className="jobly-focus relative flex h-11 w-11 items-center justify-center rounded-full bg-canari-blue-soft text-canari-blue transition active:scale-95"
           >
