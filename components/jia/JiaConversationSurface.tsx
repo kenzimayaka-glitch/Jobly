@@ -26,6 +26,8 @@ import {
   type JiaExperienceRole,
   type JiaPresentationMode,
 } from "@/lib/jia/experience-engine";
+import JiaWorkspaceBlocks from "@/components/jia/JiaWorkspaceBlocks";
+import type { JiaWorkspaceBlock, JiaWorkspaceOffer } from "@/lib/jia/workspace";
 
 export type JiaConversationMessage = {
   id: string;
@@ -33,6 +35,7 @@ export type JiaConversationMessage = {
   text: string;
   createdAt: number;
   sources?: Array<{ title: string; url: string; snippet?: string }>;
+  workspace?: JiaWorkspaceBlock;
 };
 
 type JiaEcosystem = "TALENT" | "RECRUITER" | "PARTNER";
@@ -55,6 +58,8 @@ type Props = {
   onConfirmAction: () => void;
   onCancelAction: () => void;
   onNavigate: (href: string) => void;
+  onPrepareApplication: (offer: JiaWorkspaceOffer) => Promise<void>;
+  onSubmitAssessment: (args: { messageId: string; assessmentId: string; answers: Record<string, unknown>; score: number; resultSummary: string }) => Promise<void>;
   onEnableVoice?: () => void;
 };
 
@@ -437,6 +442,15 @@ export default function JiaConversationSurface(props: Props) {
                                   </a>
                                 ))}
                               </div>
+                            )}
+                            {message.workspace && !mine && (
+                              <JiaWorkspaceBlocks
+                                block={message.workspace}
+                                messageId={message.id}
+                                onNavigate={onNavigate}
+                                onPrepareApplication={onPrepareApplication}
+                                onSubmitAssessment={onSubmitAssessment}
+                              />
                             )}
                           </div>
                           <span className={`mt-1 px-1 text-[9px] font-semibold ${layout === "stage" ? "text-white/45" : "text-[#98A5B6]"}`}>
