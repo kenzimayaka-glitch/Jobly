@@ -5,11 +5,13 @@ create table if not exists public."AndroidAttestationChallenge" (
   "userId" text not null references public."User"("id") on delete cascade,
   "deviceId" text not null,
   "challengeHash" text not null,
+  "purpose" text not null default 'REGISTER',
   "expiresAt" timestamptz not null,
   "usedAt" timestamptz,
   "createdAt" timestamptz not null default now(),
   constraint "AndroidAttestationChallenge_device_length" check (length("deviceId") between 1 and 160),
-  constraint "AndroidAttestationChallenge_hash_length" check (length("challengeHash") = 64)
+  constraint "AndroidAttestationChallenge_hash_length" check (length("challengeHash") = 64),
+  constraint "AndroidAttestationChallenge_purpose_check" check ("purpose" in ('REGISTER', 'REQUEST'))
 );
 
 create index if not exists "AndroidAttestationChallenge_user_device_idx"
