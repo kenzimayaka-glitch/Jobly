@@ -167,7 +167,10 @@ export default function OfflineCoordinator() {
           <span className="block">{label}</span>
           {message ? <span className="block mt-0.5 font-medium opacity-80">{message}</span> : null}
         </span>
-        {pendingCount > 0 ? <span className="shrink-0 rounded-full bg-black/5 px-2.5 py-1">{pendingCount} en attente</span> : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {connectivity === "offline" || pendingCount > 0 ? <a href="/offline" className="rounded-full bg-black/5 px-2.5 py-1 text-[11px] font-extrabold">Ouvrir</a> : null}
+          {pendingCount > 0 ? <span className="rounded-full bg-black/5 px-2.5 py-1">{pendingCount} en attente</span> : null}
+        </div>
       </div>
     </div>
   );
