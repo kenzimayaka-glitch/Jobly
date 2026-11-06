@@ -59,7 +59,20 @@ function AuthCallbackInner() {
             }
             await refreshGmailConnection();
           }
-          if (mounted) router.replace(next);
+          let destination = next;
+          if (!gmailRequested && session.user.app_metadata?.provider === "google") {
+            const identityResponse = await fetch("/api/auth/identity-status", {
+              method: "GET",
+              headers: { Authorization: `Bearer ${session.access_token}` },
+              cache: "no-store",
+            });
+            const identity = await identityResponse.json().catch(() => ({}));
+            if (!identityResponse.ok) {
+              throw new Error(identity.message || "Impossible de vérifier ton identité JOBLY.");
+            }
+            if (identity.needsSetup) destination = "/onboarding?source=google";
+          }
+          if (mounted) router.replace(destination);
           return;
         }
 

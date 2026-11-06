@@ -17,6 +17,7 @@ import { setRememberMe, getSupabaseClient } from "../lib/supabase";
 import { assertPasswordNotPwned } from "../lib/pwnedPasswords";
 import BubbleField from "../components/BubbleField";
 import JoblyLogo from "../components/JoblyLogo";
+import AuthExperienceShell from "../components/AuthExperienceShell";
 import HomeCtaStory, { type HomeCtaStoryKind } from "../components/HomeCtaStory";
 import WaterScene from "../components/WaterScene";
 import {
@@ -851,7 +852,7 @@ export default function Home() {
   }, [screen, email]);
 
   async function google() { setBusy(true); setMessage(""); try { await signInWithGoogle(); } catch (e) { setMessage(e instanceof Error ? e.message : "Connexion Google impossible."); setBusy(false); } }
-  async function login() { if (!validUsername) return setMessage("Entre un username valide (3 à 15 caractères)."); if (passwordError) return setMessage(passwordError); setBusy(true); setMessage(""); try { setRememberMe(rememberMe); await loginWithUsernamePassword(username, password); const afterLogin = window.sessionStorage.getItem("jobly:after-login"); if (afterLogin) { window.sessionStorage.removeItem("jobly:after-login"); window.location.assign(afterLogin); } else { window.location.assign((window.localStorage.getItem("jobly:last-ecosystem") === "recruiter") ? "/recruiter" : (window.localStorage.getItem("jobly:last-ecosystem") === "partner") ? "/partner" : (window.localStorage.getItem("jobly:last-ecosystem") === "talent") ? "/career-brain" : "/ecosystem"); } } catch (e) { setMessage(e instanceof Error ? e.message : "Connexion impossible."); } finally { setBusy(false); } }
+  async function login() { if (!validUsername) return setMessage("Entre un username valide (1 à 40 caractères)."); if (!password) return setMessage("Entre ton mot de passe."); setBusy(true); setMessage(""); try { setRememberMe(rememberMe); await loginWithUsernamePassword(username, password); const afterLogin = window.sessionStorage.getItem("jobly:after-login"); if (afterLogin) { window.sessionStorage.removeItem("jobly:after-login"); window.location.assign(afterLogin); } else { window.location.assign((window.localStorage.getItem("jobly:last-ecosystem") === "recruiter") ? "/recruiter" : (window.localStorage.getItem("jobly:last-ecosystem") === "partner") ? "/partner" : (window.localStorage.getItem("jobly:last-ecosystem") === "talent") ? "/career-brain" : "/ecosystem"); } } catch (e) { setMessage(e instanceof Error ? e.message : "Connexion impossible."); } finally { setBusy(false); } }
   async function startSignup() {
     if (!firstName.trim() || !lastName.trim()) return setMessage("Nom et prénom sont obligatoires.");
     if (!isValidEmail(email)) return setMessage("Entre une adresse e-mail valide.");
@@ -926,9 +927,9 @@ export default function Home() {
   async function forgot() { if (!email.includes("@")) return setMessage("Entre l'adresse e-mail associée à ton compte."); setBusy(true); setMessage(""); try { await requestPasswordReset(email); goTo("reset-sent"); } catch (e) { setMessage(e instanceof Error ? e.message : "Impossible d'envoyer l'e-mail de récupération."); } finally { setBusy(false); } }
 
   return <main ref={homeRootRef} className={`relative isolate flex w-full flex-col ${screen === "welcome" ? "jobly-public-home bg-white text-[#0A1931]" : "min-h-[100dvh] overflow-x-hidden bg-off-white dark:bg-[#0A1931] dark:text-white overflow-y-auto"}`}>
-    <BubbleField />
+    {screen === "welcome" && <BubbleField />}
     <div className="relative z-10 flex min-h-0 flex-1 w-full flex-col gap-0">
-      {screen !== "login" && screen !== "signup" && <header className={screen === "welcome" ? "jobly-public-home-header relative z-30 flex shrink-0 items-center justify-between px-4 pt-[max(4px,env(safe-area-inset-top))] sm:h-[104px] sm:px-8" : "relative z-20 flex h-[84px] w-full shrink-0 items-start px-4 pt-5 sm:px-8"}>
+      {!["login", "signup", "signup-otp", "signup-password", "forgot", "reset-sent"].includes(screen) && <header className={screen === "welcome" ? "jobly-public-home-header relative z-30 flex shrink-0 items-center justify-between px-4 pt-[max(4px,env(safe-area-inset-top))] sm:h-[104px] sm:px-8" : "relative z-20 flex h-[84px] w-full shrink-0 items-start px-4 pt-5 sm:px-8"}>
         <div ref={logoRef} className={screen === "welcome" ? "shrink-0" : "rounded-2xl bg-white/95 p-2 shadow-2xl"}>
           <Image src="/jobly-logo-official-transparent.png" alt="JOBLY — Your Career OS" width={400} height={120} className={screen === "welcome" ? "h-auto w-[116px] object-contain sm:w-[175px]" : "h-auto w-[150px] object-contain"} priority />
         </div>
@@ -1050,152 +1051,193 @@ export default function Home() {
         </>
       )}
 
-      {screen === "login" && (
-        <section className="min-h-screen flex flex-col items-center justify-center px-6 py-8 -translate-y-[20px]">
-          <div className="w-full max-w-[420px] flex flex-col gap-6">
-            <div className="flex justify-between items-center">
-              <JoblyLogo size="hero" showTagline />
-              <button type="button" onClick={toggleDarkMode} aria-label={darkMode ? "Désactiver le mode nuit" : "Activer le mode nuit"} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-[15px] text-navy">
-                {darkMode ? "☀️" : "🌙"}
-              </button>
+            {screen === "login" && (
+        <AuthExperienceShell
+          language={lang}
+          eyebrow={lang === "fr" ? "ESPACE PERSONNEL" : "YOUR ACCOUNT"}
+          title={translations[lang].loginTitle}
+          description={translations[lang].loginSubtitle}
+          headerAction={
+            <button type="button" onClick={toggleDarkMode} aria-label={darkMode ? "Désactiver le mode nuit" : "Activer le mode nuit"} className="grid h-10 w-10 place-items-center rounded-xl border border-[#E8EDF4] bg-white text-base shadow-sm transition hover:border-[#C7D3E3] dark:border-white/10 dark:bg-white/10 dark:text-white">
+              {darkMode ? "☀️" : "🌙"}
+            </button>
+          }
+          footer={
+            <p className="text-center text-[13px] text-[#6E7A8C] dark:text-slate-300">
+              {translations[lang].noAccount}{" "}
+              <button type="button" onClick={() => { reset(); goTo("signup"); }} className="font-extrabold text-[#2457A7] underline-offset-4 hover:underline dark:text-[#91B7FF]">Créer un compte</button>
+            </p>
+          }
+        >
+          <form className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); login(); }}>
+            <label className="block">
+              <span className="mb-2 block text-[12px] font-bold text-[#344258] dark:text-slate-200">{translations[lang].username}</span>
+              <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="ex. Kenzi" autoComplete="username" autoCapitalize="none" spellCheck={false} required className="h-[54px] w-full rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 text-[15px] font-medium text-[#0A1931] outline-none transition placeholder:text-[#A4ADBA] hover:border-[#C8D3E1] focus:border-[#2457A7] focus:bg-white focus:ring-4 focus:ring-[#2457A7]/10 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500 dark:focus:bg-white/10" />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-[12px] font-bold text-[#344258] dark:text-slate-200">{translations[lang].password}</span>
+              <div className="flex h-[54px] items-center rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 transition hover:border-[#C8D3E1] focus-within:border-[#2457A7] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#2457A7]/10 dark:border-white/10 dark:bg-white/5 dark:focus-within:bg-white/10">
+                <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required className="w-full bg-transparent text-[15px] font-medium text-[#0A1931] outline-none placeholder:text-[#A4ADBA] dark:text-white dark:placeholder:text-slate-500" placeholder="••••••••" />
+                <button type="button" aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"} onClick={() => setShowPassword((value) => !value)} className="ml-3 shrink-0 text-[#7D8998] transition hover:text-[#2457A7] dark:text-slate-400"><EyeIcon open={showPassword} /></button>
+              </div>
+            </label>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+              <label className="flex items-center gap-2 text-[12px] font-semibold text-[#536176] dark:text-slate-300">
+                <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMeState(e.target.checked)} className="h-4 w-4 rounded accent-[#FFD60A]" />
+                Rester connecté
+              </label>
+              <button type="button" onClick={() => { setMessage(""); goTo("forgot"); }} className="text-[12px] font-extrabold text-[#2457A7] hover:underline dark:text-[#91B7FF]">{translations[lang].forgot}</button>
             </div>
-            <div className="flex flex-col gap-2 text-center">
-              <h1 className="text-[32px] font-bold leading-none text-[#0A1931]">{translations[lang].loginTitle}</h1>
-              <p className="text-[14px] text-gray-500">{translations[lang].loginSubtitle}</p>
+
+            <button type="submit" disabled={busy} aria-busy={busy} className="mt-1 flex h-[54px] w-full items-center justify-center rounded-2xl bg-[#FFD60A] px-5 text-[14px] font-extrabold text-[#0A1931] shadow-[0_10px_24px_rgba(255,214,10,0.22)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_28px_rgba(255,214,10,0.28)] active:translate-y-0 disabled:cursor-wait disabled:opacity-60">
+              {busy ? "Connexion…" : `${translations[lang].login} →`}
+            </button>
+
+            <div className="flex items-center gap-3" aria-hidden="true">
+              <span className="h-px flex-1 bg-[#E8EDF4] dark:bg-white/10" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#A0AAB8]">{translations[lang].or}</span>
+              <span className="h-px flex-1 bg-[#E8EDF4] dark:bg-white/10" />
             </div>
-            <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); login(); }}>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-semibold text-[#0A1931]">{translations[lang].username}</label>
-                <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="ex. Kenzi" autoComplete="username" className="h-[48px] w-full rounded-full border border-gray-200 px-5 text-[15px] outline-none focus:border-jobly-blue" />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-semibold text-[#0A1931]">{translations[lang].password}</label>
-                <div className="flex h-[48px] items-center rounded-full border border-gray-200 px-5">
-                  <input type={showPassword?"text":"password"} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password" className="w-full bg-transparent outline-none" placeholder="••••••••" />
-                  <button type="button" aria-label={showPassword?"Masquer le mot de passe":"Afficher le mot de passe"} onClick={()=>setShowPassword(v=>!v)} className="text-slate-400"><EyeIcon open={showPassword}/></button>
-                </div>
-              </div>
-              <div className="flex justify-between items-center px-1 mt-1">
-                <label className="flex items-center gap-2 text-[13px] font-semibold text-[#0A1931]">
-                  <input type="checkbox" checked={rememberMe} onChange={e=>setRememberMeState(e.target.checked)} className="h-4 w-4 rounded accent-[#FFE135]" />Rester connecté
-                </label>
-                <button type="button" onClick={()=>{setMessage("");goTo("forgot");}} className="text-[13px] font-bold text-[#22448B]">{translations[lang].forgot}</button>
-              </div>
-              <button type="submit" disabled={busy} className="mt-6 h-[52px] w-full rounded-full bg-[#FFE135] font-bold text-[#0A1931]">{busy ? "Connexion…" : `${translations[lang].login} →`}</button>
-              <div className="flex items-center gap-4 my-2">
-                <div className="h-px flex-1 bg-gray-200" />
-                <span className="text-xs text-gray-400">{translations[lang].or}</span>
-                <div className="h-px flex-1 bg-gray-200" />
-              </div>
-              <button type="button" onClick={google} disabled={busy} className="h-[52px] rounded-full border border-gray-200 bg-white font-semibold flex items-center justify-center gap-2">
-                <GoogleIcon className="w-5 h-5" />{translations[lang].google}
-              </button>
-              {message && <div role="alert" aria-live="assertive" className="rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-center text-[13px] font-semibold text-red-700">{message}</div>}
-            </form>
-            <p className="relative -mt-2 text-center text-[13px] text-gray-500">{translations[lang].noAccount}{" "}<button type="button" onClick={()=>{reset();goTo("signup");}} className="font-bold text-[#22448B]">Créer un compte</button></p>
-          </div>
-        </section>
+
+            <button type="button" onClick={google} disabled={busy} className="flex h-[54px] w-full items-center justify-center gap-3 rounded-2xl border border-[#E2E8F0] bg-white text-[13px] font-bold text-[#24344B] shadow-sm transition hover:border-[#B9C8DC] hover:bg-[#FAFBFD] disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10">
+              <GoogleIcon className="h-5 w-5" />
+              {translations[lang].google}
+            </button>
+            <p className="-mt-2 text-center text-[10px] text-[#9AA4B2] dark:text-slate-500">{lang === "fr" ? "Le sélecteur Google te permet de choisir le compte à utiliser." : "Google will let you choose which account to use."}</p>
+
+            {message && <div role="alert" aria-live="assertive" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center text-[12px] font-semibold leading-5 text-red-700">{message}</div>}
+          </form>
+        </AuthExperienceShell>
       )}
 
-{screen === "signup" && (
-        <section className="min-h-screen flex flex-col items-center justify-center px-6 py-8">
-          <div className="w-full max-w-[420px] flex flex-col gap-8">
-            <div className="flex justify-start">
-              <JoblyLogo size="hero" showTagline />
+      {screen === "signup" && (
+        <AuthExperienceShell
+          language={lang}
+          eyebrow={lang === "fr" ? "REJOINDRE JOBLY" : "JOIN JOBLY"}
+          title={translations[lang].signupTitle}
+          description={translations[lang].signupSubtitle}
+          step={1}
+          stepLabel={lang === "fr" ? "Informations" : "Details"}
+          footer={
+            <p className="text-center text-[13px] text-[#6E7A8C] dark:text-slate-300">
+              {lang === "fr" ? "Tu as déjà un compte ?" : "Already have an account?"}{" "}
+              <button type="button" onClick={() => { reset(); goTo("login"); }} className="font-extrabold text-[#2457A7] underline-offset-4 hover:underline dark:text-[#91B7FF]">{translations[lang].login}</button>
+            </p>
+          }
+        >
+          <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); startSignup(); }}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 block text-[12px] font-bold text-[#344258] dark:text-slate-200">{translations[lang].lastName}</span>
+                <input value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" required placeholder="BITSEKI" className="h-[52px] w-full rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 text-[14px] text-[#0A1931] outline-none transition placeholder:text-[#A4ADBA] focus:border-[#2457A7] focus:bg-white focus:ring-4 focus:ring-[#2457A7]/10 dark:border-white/10 dark:bg-white/5 dark:text-white" />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-[12px] font-bold text-[#344258] dark:text-slate-200">{translations[lang].firstName}</span>
+                <input value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" required placeholder="MAYAKA" className="h-[52px] w-full rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 text-[14px] text-[#0A1931] outline-none transition placeholder:text-[#A4ADBA] focus:border-[#2457A7] focus:bg-white focus:ring-4 focus:ring-[#2457A7]/10 dark:border-white/10 dark:bg-white/5 dark:text-white" />
+              </label>
             </div>
-            <div className="flex flex-col gap-2 text-center">
-              <h1 className="text-[32px] font-bold leading-none text-[#0A1931]">{translations[lang].signupTitle}</h1>
-              <p className="text-[14px] text-gray-500">{translations[lang].signupSubtitle}</p>
-            </div>
-            <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); startSignup(); }}>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[13px] font-semibold text-[#0A1931]">{translations[lang].lastName}</label>
-                  <input value={lastName} onChange={e=>setLastName(e.target.value)} autoComplete="family-name" className="h-[48px] w-full rounded-full border border-gray-200 px-5 text-[15px] outline-none focus:border-jobly-blue" placeholder="BITSEKI" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[13px] font-semibold text-[#0A1931]">{translations[lang].firstName}</label>
-                  <input value={firstName} onChange={e=>setFirstName(e.target.value)} autoComplete="given-name" className="h-[48px] w-full rounded-full border border-gray-200 px-5 text-[15px] outline-none focus:border-jobly-blue" placeholder="MAYAKA" />
-                </div>
+            <label className="block">
+              <span className="mb-2 block text-[12px] font-bold text-[#344258] dark:text-slate-200">{translations[lang].phone}</span>
+              <div className="flex h-[52px] items-center rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 transition focus-within:border-[#2457A7] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#2457A7]/10 dark:border-white/10 dark:bg-white/5 dark:focus-within:bg-white/10">
+                <CountryPicker country={country} placeholder={translations[lang].countrySearch} onChange={(value) => { setCountry(value); setPhone(""); }} />
+                <span className="mx-2 h-6 w-px bg-[#E2E8F0] dark:bg-white/10" />
+                <input value={formatPhoneDisplay(phone, country.code)} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 15))} inputMode="tel" autoComplete="tel" required placeholder={country.code === "CM" ? "6 12 34 56 78" : "Numéro"} className="min-w-0 w-full bg-transparent text-[14px] text-[#0A1931] outline-none dark:text-white" />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-semibold text-[#0A1931]">{translations[lang].phone}</label>
-                <div className="flex h-[48px] items-center rounded-full border border-gray-200 px-3">
-                  <CountryPicker country={country} placeholder={translations[lang].countrySearch} onChange={(c)=>{setCountry(c);setPhone("")}} />
-                  <span className="mx-1 h-6 w-px bg-gray-200" />
-                  <input value={formatPhoneDisplay(phone,country.code)} onChange={e=>setPhone(e.target.value.replace(/\D/g,"").slice(0,15))} inputMode="tel" autoComplete="tel" placeholder={country.code==="CM"?"6 12 34 56 78":"Numéro"} className="w-full bg-transparent text-[15px] outline-none" />
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-semibold text-[#0A1931]">{translations[lang].email}</label>
-                <input type="email" value={email} onChange={e=>setEmail(e.target.value)} inputMode="email" autoComplete="email" placeholder="vous@exemple.com" className="h-[48px] w-full rounded-full border border-gray-200 px-5 text-[15px] outline-none focus:border-jobly-blue" />
-              </div>
-              <button type="submit" disabled={busy} className="mt-6 h-[52px] w-full rounded-full bg-[#FFE135] font-bold text-[#0A1931]">{busy ? "Envoi du code…" : translations[lang].continue}</button>
-            </form>
-          </div>
-        </section>
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-[12px] font-bold text-[#344258] dark:text-slate-200">{translations[lang].email}</span>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" autoComplete="email" required placeholder="vous@exemple.com" className="h-[52px] w-full rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 text-[14px] text-[#0A1931] outline-none transition placeholder:text-[#A4ADBA] focus:border-[#2457A7] focus:bg-white focus:ring-4 focus:ring-[#2457A7]/10 dark:border-white/10 dark:bg-white/5 dark:text-white" />
+            </label>
+            <button type="submit" disabled={busy} aria-busy={busy} className="mt-2 flex h-[54px] w-full items-center justify-center rounded-2xl bg-[#FFD60A] px-5 text-[14px] font-extrabold text-[#0A1931] shadow-[0_10px_24px_rgba(255,214,10,0.22)] transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60">{busy ? "Envoi du code…" : translations[lang].continue + " →"}</button>
+            {message && <div role="status" aria-live="polite" className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-center text-[12px] font-semibold leading-5 text-blue-800">{message}</div>}
+          </form>
+        </AuthExperienceShell>
       )}
 
-{screen === "signup-otp" && <section className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center px-4 py-4 text-center"><div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] bg-[#EAF0FF] text-[#FFDE00]"><PhoneIcon className="h-8 w-8"/></div><h1 className="mb-2 text-[32px] font-extrabold text-navy">{translations[lang].verifyTitle}</h1><p className="mb-5 text-sm text-jobly-gray">{translations[lang].verifyText} <strong>{email}</strong>.</p><input value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,"").slice(0,6))} inputMode="numeric" autoComplete="one-time-code" placeholder={translations[lang].codePlaceholder} aria-label={translations[lang].codePlaceholder} className="mb-3 h-[54px] w-full rounded-2xl border text-center text-xl tracking-[0.25em]"/><button type="button" onClick={verifySignupOtp} disabled={busy||otp.length!==6} className="h-[52px] w-full rounded-2xl bg-[#FFDE00] font-extrabold text-black">{busy?"Vérification…":translations[lang].verify}</button><button type="button" onClick={resendSignupOtp} disabled={busy||resendBusy} className="mt-2 text-[13px] font-bold text-jobly-blue">{resendBusy?"Envoi…":translations[lang].resend}</button></section>}
-
-      {screen === "signup-password" && <section className="mx-auto w-full max-w-[420px] flex-1 px-4 py-4">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div className="text-center">
-            <h1 className="text-[32px] font-extrabold text-navy">{translations[lang].finalTitle}</h1>
-            <p className="mt-1 text-sm text-jobly-gray">{translations[lang].finalSubtitle}</p>
-          </div>
-          <label className="group relative mt-1 block shrink-0 cursor-pointer text-center">
-            <div className="relative grid h-[82px] w-[82px] place-items-center overflow-hidden rounded-full border-[3px] border-[#FFDE00] bg-[#FFF8D8] text-jobly-blue shadow-lg shadow-[#FFDE00]/20">
-              {preview ? <img src={preview} alt="Photo de profil" className="h-full w-full object-cover"/> : <CameraIcon />}
-              <span className="absolute inset-x-0 bottom-0 bg-navy/75 py-1 text-[8px] font-extrabold text-white">PHOTO</span>
+      {screen === "signup-otp" && (
+        <AuthExperienceShell
+          language={lang}
+          eyebrow={lang === "fr" ? "VÉRIFICATION DE L’E-MAIL" : "EMAIL VERIFICATION"}
+          title={translations[lang].verifyTitle}
+          description={`${translations[lang].verifyText} ${email}.`}
+          step={2}
+          stepLabel={lang === "fr" ? "Vérification" : "Verification"}
+          footer={<p className="text-center text-[12px] text-[#8792A2]">{lang === "fr" ? "Ton adresse e-mail reste liée à ton compte JOBLY." : "Your email stays linked to your JOBLY account."}</p>}
+        >
+          <form className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); verifySignupOtp(); }}>
+            <div className="relative rounded-2xl border border-[#DDE5EF] bg-[#F8FAFC] p-3 transition focus-within:border-[#2457A7] focus-within:ring-4 focus-within:ring-[#2457A7]/10 dark:border-white/10 dark:bg-white/5">
+              <div className="grid grid-cols-6 gap-2" aria-hidden="true">
+                {Array.from({ length: 6 }, (_, index) => (
+                  <span key={index} className={`grid h-[54px] place-items-center rounded-xl border text-xl font-extrabold text-[#0A1931] dark:text-white ${otp[index] ? "border-[#FFD60A] bg-white dark:bg-white/10" : "border-[#E4EAF2] bg-white/70 dark:border-white/10 dark:bg-white/5"}`}>{otp[index] || "·"}</span>
+                ))}
+              </div>
+              <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} required aria-label={translations[lang].codePlaceholder} className="absolute inset-0 h-full w-full cursor-text opacity-[0.015]" />
             </div>
-            <span className="mt-1 block text-[10px] font-extrabold text-navy">Photo de profil</span>
-            <input type="file" accept="image/*" className="hidden" onChange={(e) => choosePhoto(e.target.files?.[0])}/>
-          </label>
-        </div>
-        <label className="block">
-          <span className="mb-1 block text-xs font-bold">{translations[lang].username}</span>
-          <div className="relative">
-            <input
-              value={username}
-              onChange={e=>setUsername(e.target.value.replace(/\s/g,"").slice(0,40))}
-              autoComplete="username"
-              placeholder="Kenzi"
-              aria-invalid={usernameStatus === "taken"}
-              className={`h-12 w-full rounded-2xl border px-3 pr-10 ${usernameStatus === "taken" ? "border-[#FF2D2D]" : usernameStatus === "available" ? "border-[#FFDE00]" : "border-slate-200"}`}
-            />
-            {usernameStatus === "available" && (
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" aria-hidden="true">
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="#FFDE00"><circle cx="12" cy="12" r="12" /><path d="M7 12.5l3 3 7-7" stroke="#0A1931" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <button type="submit" disabled={busy || otp.length !== 6} aria-busy={busy} className="flex h-[54px] w-full items-center justify-center rounded-2xl bg-[#FFD60A] text-[14px] font-extrabold text-[#0A1931] shadow-[0_10px_24px_rgba(255,214,10,0.22)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50">{busy ? "Vérification…" : translations[lang].verify + " →"}</button>
+            <div className="text-center">
+              <p className="text-[12px] text-[#8792A2]">{lang === "fr" ? "Tu n’as pas reçu le code ?" : "Didn't receive the code?"}</p>
+              <button type="button" onClick={resendSignupOtp} disabled={busy || resendBusy} className="mt-1 text-[12px] font-extrabold text-[#2457A7] hover:underline disabled:opacity-50 dark:text-[#91B7FF]">{resendBusy ? "Envoi…" : translations[lang].resend}</button>
+            </div>
+            {message && <div role="status" aria-live="polite" className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-center text-[12px] font-semibold leading-5 text-blue-800">{message}</div>}
+          </form>
+        </AuthExperienceShell>
+      )}
+
+      {screen === "signup-password" && (
+        <AuthExperienceShell
+          language={lang}
+          eyebrow={lang === "fr" ? "SÉCURISER TON COMPTE" : "SECURE YOUR ACCOUNT"}
+          title={translations[lang].finalTitle}
+          description={translations[lang].finalSubtitle}
+          step={3}
+          stepLabel={lang === "fr" ? "Accès personnel" : "Personal access"}
+        >
+          <div className="mb-5 flex items-center gap-4 rounded-2xl border border-[#E8EDF4] bg-[#F8FAFC] p-3 dark:border-white/10 dark:bg-white/5">
+            <label className="group relative block shrink-0 cursor-pointer">
+              <span className="relative grid h-[64px] w-[64px] place-items-center overflow-hidden rounded-2xl border-2 border-[#FFD60A] bg-[#FFF8D8] text-[#2457A7]">
+                {preview ? <img src={preview} alt="Photo de profil" className="h-full w-full object-cover" /> : <CameraIcon />}
               </span>
-            )}
-            {usernameStatus === "checking" && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-400" aria-hidden="true">…</span>
-            )}
+              <input type="file" accept="image/*" className="sr-only" onChange={(e) => choosePhoto(e.target.files?.[0])} />
+            </label>
+            <div className="min-w-0">
+              <p className="text-[12px] font-extrabold text-[#1D2C42] dark:text-white">Personnalise ton espace</p>
+              <p className="mt-1 text-[11px] leading-5 text-[#8792A2] dark:text-slate-400">Ajoute une photo maintenant ou plus tard depuis ton profil.</p>
+            </div>
           </div>
-        </label>
-        <p className="my-1.5 text-[11px] text-slate-400">{translations[lang].usernameFormatHint}</p>
-        {usernameStatus === "taken" && <p className="mb-2 text-[12px] font-bold" style={{ color: "#FF2D2D" }} role="alert">{translations[lang].usernameTaken}</p>}
-        <label className="mt-2 block">
-          <span className="mb-1 block text-xs font-bold">{translations[lang].password}</span>
-          <div className="flex h-12 items-center rounded-2xl border px-3">
-            <input type={showPassword?"text":"password"} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="new-password" className="w-full outline-none" placeholder="••••••••"/>
-            <button type="button" aria-label={showPassword?"Masquer le mot de passe":"Afficher le mot de passe"} onClick={()=>setShowPassword(v=>!v)}><EyeIcon open={showPassword}/></button>
-          </div>
-        </label>
-        <div className="my-3"><PasswordStrengthGauge password={password}/></div>
-        <p className="mb-1.5 text-[11px] leading-[1.35] text-slate-500">{translations[lang].conditions}</p>
-        <label className="mb-4 flex items-start gap-2 text-xs text-slate-600"><input type="checkbox" checked={privacyAccepted} onChange={e=>setPrivacyAccepted(e.target.checked)} className="mt-0.5"/><span>{translations[lang].accept}</span></label>
-        <button
-          type="button"
-          onClick={finishSignup}
-          disabled={busy}
-          className="h-[52px] w-full rounded-2xl bg-[#FFDE00] font-extrabold text-black disabled:opacity-40"
-        >{busy?"Création…":translations[lang].signup}</button>
-        {message && <div role="alert" aria-live="assertive" className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-center text-[13px] font-semibold text-red-700">{message}</div>}
-      </section>}
 
-      {cropSource && <Cropper src={cropSource} onCancel={() => setCropSource("")} onConfirm={acceptCrop} />}
+          <div className="flex flex-col gap-4">
+            <label className="block">
+              <span className="mb-2 block text-[12px] font-bold text-[#344258] dark:text-slate-200">{translations[lang].username}</span>
+              <div className="relative">
+                <input value={username} onChange={(e) => setUsername(e.target.value.replace(/\s/g, "").slice(0, 40))} autoComplete="username" placeholder="Kenzi" aria-invalid={usernameStatus === "taken"} required className={`h-[52px] w-full rounded-2xl border bg-[#F8FAFC] px-4 pr-11 text-[14px] font-semibold text-[#0A1931] outline-none transition focus:ring-4 focus:ring-[#2457A7]/10 dark:bg-white/5 dark:text-white ${usernameStatus === "taken" ? "border-red-400" : usernameStatus === "available" ? "border-[#FFD60A]" : "border-[#E2E8F0] focus:border-[#2457A7] dark:border-white/10"}`} />
+                {usernameStatus === "available" && <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#16834B]" aria-hidden="true">✓</span>}
+                {usernameStatus === "checking" && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] text-slate-400" aria-hidden="true">…</span>}
+              </div>
+              <p className="mt-1.5 text-[10px] text-[#929EAE]">{translations[lang].usernameFormatHint}</p>
+              {usernameStatus === "taken" && <p className="mt-1 text-[11px] font-bold text-red-600" role="alert">{translations[lang].usernameTaken}</p>}
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-[12px] font-bold text-[#344258] dark:text-slate-200">{translations[lang].password}</span>
+              <div className="flex h-[52px] items-center rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 transition focus-within:border-[#2457A7] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#2457A7]/10 dark:border-white/10 dark:bg-white/5 dark:focus-within:bg-white/10">
+                <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" required className="w-full bg-transparent text-[14px] text-[#0A1931] outline-none dark:text-white" placeholder="••••••••" />
+                <button type="button" aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"} onClick={() => setShowPassword((value) => !value)} className="ml-3 text-slate-400"><EyeIcon open={showPassword} /></button>
+              </div>
+            </label>
+            <PasswordStrengthGauge password={password} />
+            <p className="text-[10px] leading-[1.45] text-[#8792A2] dark:text-slate-400">{translations[lang].conditions}</p>
+            <label className="flex items-start gap-2.5 text-[11px] leading-5 text-[#647184] dark:text-slate-300">
+              <input type="checkbox" checked={privacyAccepted} onChange={(e) => setPrivacyAccepted(e.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-[#FFD60A]" />
+              <span>{translations[lang].accept}</span>
+            </label>
+            <button type="button" onClick={finishSignup} disabled={busy} aria-busy={busy} className="flex h-[54px] w-full items-center justify-center rounded-2xl bg-[#FFD60A] text-[14px] font-extrabold text-[#0A1931] shadow-[0_10px_24px_rgba(255,214,10,0.22)] transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-50">{busy ? "Création…" : translations[lang].signup + " →"}</button>
+            {message && <div role="alert" aria-live="assertive" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center text-[12px] font-semibold leading-5 text-red-700">{message}</div>}
+          </div>
+        </AuthExperienceShell>
+      )}
+
+{cropSource && <Cropper src={cropSource} onCancel={() => setCropSource("")} onConfirm={acceptCrop} />}
 
       {screen === "journey" && (() => {
         const slide = JOURNEY_SLIDES[journeyIndex];
@@ -1292,25 +1334,44 @@ export default function Home() {
         </div>
       )}
 
-      {screen === "forgot" && (
-        <section className="container mx-auto flex w-[92%] max-w-[440px] flex-1 flex-col justify-center px-4 py-4">
-          <div className="mb-3 flex w-full items-center justify-end">
-            <button type="button" onClick={toggleDarkMode} aria-label={darkMode ? "Désactiver le mode nuit" : "Activer le mode nuit"} className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F5F9] text-[15px] text-navy">{darkMode ? "☀️" : "🌙"}</button>
-          </div>
-          <h1 className="mb-1 w-full text-center text-[36px] font-extrabold leading-none tracking-[-0.03em] text-navy">{translations[lang].forgotTitle}</h1>
-          <p className="mb-5 w-full text-center text-sm text-jobly-gray">{translations[lang].forgotText}</p>
-          <label className="mb-3 block w-full">
-            <span className="mb-1.5 block text-[13px] font-bold text-navy">{translations[lang].email}</span>
-            <input type="email" value={email} onChange={e=>setEmail(e.target.value)} inputMode="email" autoComplete="email" placeholder="vous@exemple.com" className="h-[50px] w-full rounded-2xl border border-slate-300 px-4 text-[15px] outline-none focus:border-jobly-blue"/>
-          </label>
-          <button type="button" onClick={forgot} disabled={busy} className="h-[52px] w-full rounded-2xl bg-[#FFDE00] text-base font-extrabold text-black">{busy?"Envoi…":translations[lang].reset}</button>
-          <button type="button" onClick={()=>goTo("login")} className="mt-4 w-full text-center text-[13px] font-extrabold text-jobly-blue">← {translations[lang].login}</button>
-        </section>
+            {screen === "forgot" && (
+        <AuthExperienceShell
+          language={lang}
+          eyebrow={lang === "fr" ? "RÉCUPÉRER L’ACCÈS" : "ACCOUNT RECOVERY"}
+          title={translations[lang].forgotTitle}
+          description={translations[lang].forgotText}
+          headerAction={
+            <button type="button" onClick={toggleDarkMode} aria-label={darkMode ? "Désactiver le mode nuit" : "Activer le mode nuit"} className="grid h-10 w-10 place-items-center rounded-xl border border-[#E8EDF4] bg-white text-base shadow-sm dark:border-white/10 dark:bg-white/10 dark:text-white">{darkMode ? "☀️" : "🌙"}</button>
+          }
+        >
+          <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); forgot(); }}>
+            <label className="block">
+              <span className="mb-2 block text-[12px] font-bold text-[#344258] dark:text-slate-200">{translations[lang].email}</span>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" autoComplete="email" required placeholder="vous@exemple.com" className="h-[54px] w-full rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 text-[14px] text-[#0A1931] outline-none transition placeholder:text-[#A4ADBA] focus:border-[#2457A7] focus:bg-white focus:ring-4 focus:ring-[#2457A7]/10 dark:border-white/10 dark:bg-white/5 dark:text-white" />
+            </label>
+            <button type="submit" disabled={busy} aria-busy={busy} className="mt-1 flex h-[54px] w-full items-center justify-center rounded-2xl bg-[#FFD60A] text-[14px] font-extrabold text-[#0A1931] transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60">{busy ? "Envoi…" : translations[lang].reset + " →"}</button>
+            <button type="button" onClick={() => goTo("login")} className="h-11 text-[12px] font-extrabold text-[#2457A7] hover:underline dark:text-[#91B7FF]">← {translations[lang].login}</button>
+            {message && <div role="status" aria-live="polite" className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-center text-[12px] font-semibold leading-5 text-blue-800">{message}</div>}
+          </form>
+        </AuthExperienceShell>
       )}
-      {screen === "reset-sent" && <section className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-4 text-center"><div className="mx-auto mb-4 text-5xl" aria-hidden="true">✉️</div><h1 className="text-[32px] font-extrabold text-navy">{translations[lang].sentTitle}</h1><p className="my-3 text-sm text-jobly-gray">{translations[lang].sentText}</p><button type="button" onClick={()=>{reset();goTo("login");}} className="h-[52px] rounded-2xl bg-jobly-blue font-extrabold text-white">{translations[lang].backLogin}</button></section>}
+      {screen === "reset-sent" && (
+        <AuthExperienceShell
+          language={lang}
+          eyebrow={lang === "fr" ? "E-MAIL ENVOYÉ" : "EMAIL SENT"}
+          title={translations[lang].sentTitle}
+          description={translations[lang].sentText}
+          footer={<p className="text-center text-[12px] text-[#8792A2]">{lang === "fr" ? "Pense à vérifier tes courriers indésirables." : "Remember to check your spam folder."}</p>}
+        >
+          <div className="flex flex-col items-center text-center">
+            <div className="mb-5 grid h-20 w-20 place-items-center rounded-[26px] bg-[#FFF7D6] text-3xl" aria-hidden="true">✉️</div>
+            <button type="button" onClick={() => { reset(); goTo("login"); }} className="flex h-[54px] w-full items-center justify-center rounded-2xl bg-[#FFD60A] text-[14px] font-extrabold text-[#0A1931] shadow-[0_10px_24px_rgba(255,214,10,0.2)]">{translations[lang].backLogin} →</button>
+          </div>
+        </AuthExperienceShell>
+      )}
 
-      {message && screen !== "journey" && screen !== "jia-welcome" && screen !== "login" && <div role="status" aria-live="polite" className="rounded-2xl border border-blue-100 bg-blue-50 px-3.5 py-2.5 text-center text-xs text-blue-800">{message}</div>}
-      {screen !== "journey" && screen !== "jia-welcome" && screen !== "signup" && screen !== "signup-otp" && screen !== "signup-password" && screen !== "login" && <footer className={screen === "welcome" ? "jobly-public-home-footer relative z-30 mt-auto w-full px-3 text-center sm:px-4 sm:pb-6 sm:pt-5" : "absolute bottom-0 left-0 right-0 z-30 px-4 pb-4 pt-2 text-center"}>
+{message && screen !== "journey" && screen !== "jia-welcome" && !["login", "signup", "signup-otp", "signup-password", "forgot", "reset-sent"].includes(screen) && <div role="status" aria-live="polite" className="rounded-2xl border border-blue-100 bg-blue-50 px-3.5 py-2.5 text-center text-xs text-blue-800">{message}</div>}
+      {!["journey", "jia-welcome", "login", "signup", "signup-otp", "signup-password", "forgot", "reset-sent"].includes(screen) && <footer className={screen === "welcome" ? "jobly-public-home-footer relative z-30 mt-auto w-full px-3 text-center sm:px-4 sm:pb-6 sm:pt-5" : "absolute bottom-0 left-0 right-0 z-30 px-4 pb-4 pt-2 text-center"}>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={`footer-${lang}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeOut" }}>
             
