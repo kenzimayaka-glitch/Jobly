@@ -59,6 +59,10 @@ test("offline sync is account-bound, deduplicated, and limited to safe operation
   const route = await read("app/api/offline/sync/route.ts");
   assert.match(route, /body\.userId !== user\.id/);
   assert.match(route, /OfflineSyncReceipt/);
+  assert.match(route, /type ReceiptClaim/);
+  assert.match(route, /"busy"/);
+  assert.match(route, /lt\("createdAt", staleBefore\)/);
+  assert.match(route, /id: operation\.id/);
   assert.match(route, /profile\.update/);
   assert.match(route, /application\.prepare/);
   assert.match(route, /recruiter\.job-draft/);
