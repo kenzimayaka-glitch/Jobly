@@ -48,7 +48,6 @@ test("does not treat a pending message as a successful payment", () => {
   assert.equal(result.provider, "SMS_ORANGE");
   assert.equal(result.status, "PENDING");
   assert.ok(result.fraudFlags.includes("MESSAGE_NOT_CONFIRMED_SUCCESS"));
-  assert.ok(result.fraudFlags.includes("PAYER_PHONE_MISSING_OR_INVALID"));
   assert.ok(result.fraudFlags.includes("MERCHANT_ACCOUNT_MISSING_OR_INVALID"));
 });
 
@@ -79,4 +78,19 @@ test("keeps unknown and incomplete messages non-authoritative", () => {
   assert.equal(result.amountXaf, null);
   assert.equal(result.currency, null);
   assert.ok(result.fraudFlags.length >= 4);
+});
+
+test("accepts an authentic receipt when operator omits the payer phone", () => {
+  const result = parsePaymentSms({
+    senderId: "JOBLY-MTN-TEST",
+    body: "Paiement réussi. Transaction ID: MTNABC123456. Montant: 10 000 FCFA.",
+  }, {
+    senderIds: { SMS_MTN: ["JOBLY-MTN-TEST"] },
+    merchantAccount: "237699123456",
+  });
+  assert.equal(result.senderTrusted, true);
+  assert.equal(result.status, "SUCCESSFUL");
+  assert.equal(result.payerPhone, null);
+  assert.equal(result.merchantAccount, "237699123456");
+  assert.deepEqual(result.fraudFlags, []);
 });
