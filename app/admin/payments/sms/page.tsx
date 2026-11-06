@@ -13,6 +13,17 @@ import {
 
 type Provider = "SMS_MTN" | "SMS_ORANGE";
 
+type ProviderConfig = {
+  provider: Provider;
+  merchantAccount: string;
+  configured: boolean;
+  active: boolean;
+  merchantCodeHint: string | null;
+  updatedAt?: string | null;
+};
+
+type ProviderConfigDraft = { merchantAccount: string; merchantCode: string };
+
 type MerchantDevice = {
   id: string;
   label: string;
@@ -36,6 +47,13 @@ export default function AdminPaymentSmsPage() {
   const [devices, setDevices] = useState<MerchantDevice[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [providerConfigs, setProviderConfigs] = useState<ProviderConfig[]>([]);
+  const [configDrafts, setConfigDrafts] = useState<Record<Provider, ProviderConfigDraft>>({
+    SMS_MTN: { merchantAccount: "", merchantCode: "" },
+    SMS_ORANGE: { merchantAccount: "", merchantCode: "" },
+  });
+  const [configBusy, setConfigBusy] = useState<Provider | null>(null);
 
   const loadDevices = useCallback(async (token: string) => {
     const response = await fetch("/api/payments/sms/devices", {
@@ -46,6 +64,60 @@ export default function AdminPaymentSmsPage() {
     if (!response.ok) throw new Error(payload.message || "Liste des téléphones indisponible.");
     setDevices(Array.isArray(payload.devices) ? payload.devices : []);
   }, []);
+
+  const loadProviderConfigs = useCallback(async (token: string) => {
+    const response = await fetch("/api/payments/sms/config", {
+      headers: { Authorization: "Bearer " + token },
+      cache: "no-store",
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.message || "Configuration Mobile Money indisponible.");
+    const configs = Array.isArray(payload.configs) ? payload.configs as ProviderConfig[] : [];
+    setProviderConfigs(configs);
+    setConfigDrafts((current) => ({
+      SMS_MTN: {
+        ...current.SMS_MTN,
+        merchantAccount: configs.find((item) => item.provider === "SMS_MTN")?.merchantAccount || "",
+      },
+      SMS_ORANGE: {
+        ...current.SMS_ORANGE,
+        merchantAccount: configs.find((item) => item.provider === "SMS_ORANGE")?.merchantAccount || "",
+      },
+    }));
+  }, []);
+
+  async function saveProviderConfig(selectedProvider: Provider) {
+    const draft = configDrafts[selectedProvider];
+    if (!draft.merchantAccount.trim()) {
+      setMessage("Renseigne le numéro du compte marchand.");
+      return;
+    }
+    setConfigBusy(selectedProvider);
+    setMessage("");
+    try {
+      const response = await fetch("/api/payments/sms/config", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: selectedProvider,
+          merchantAccount: draft.merchantAccount.trim(),
+          merchantCode: draft.merchantCode.trim(),
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || "Enregistrement impossible.");
+      setConfigDrafts((current) => ({
+        ...current,
+        [selectedProvider]: { ...current[selectedProvider], merchantCode: "" },
+      }));
+      await loadProviderConfigs(accessToken);
+      setMessage(payload.message || "Configuration synchronisée avec Jobly.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Configuration Mobile Money impossible à enregistrer.");
+    } finally {
+      setConfigBusy(null);
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -62,11 +134,12 @@ export default function AdminPaymentSmsPage() {
         return;
       }
       setAccessToken(token);
+      setIsAdmin(String(payload.user?.role) === "ADMIN");
       setNativeAvailable(isJoblyAndroidPaymentSmsAvailable());
-      await loadDevices(token);
+      await Promise.all([loadDevices(token), loadProviderConfigs(token)]);
       setLoading(false);
     })().catch(() => router.replace("/ecosystem"));
-  }, [router, loadDevices]);
+  }, [router, loadDevices, loadProviderConfigs]);
 
   async function provision() {
     setMessage("");
@@ -160,8 +233,8 @@ export default function AdminPaymentSmsPage() {
         <div>
           <h1 className="text-3xl font-black">Téléphones marchands Jobly</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Configure les profils MTN et Orange sur le même APK Jobly. Chaque profil conserve son compte marchand, sa liste
-            d’expéditeurs et son jeton chiffré indépendamment. Aucun deuxième APK n’est nécessaire.
+            Les codes marchands et numéros de réception sont administrés ici, côté serveur. Les changements sont utilisés
+            par les prochaines commandes sur Web, PWA et APK, sans redéployer Jobly.
           </p>
         </div>
 
@@ -171,6 +244,72 @@ export default function AdminPaymentSmsPage() {
             l’APK Jobly installé sur le téléphone marchand. Le site Web ne peut pas lire la boîte SMS.
           </div>
         )}
+
+        <section className="space-y-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div>
+            <h2 className="text-lg font-black">Configuration marchande centralisée</h2>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Un code et un numéro par opérateur. Le code existant n’est jamais réaffiché ; laisse le champ vide pour le conserver.
+              Toute modification est appliquée aux nouvelles commandes, sans redéploiement.
+            </p>
+          </div>
+          {(["SMS_MTN", "SMS_ORANGE"] as Provider[]).map((operator) => {
+            const saved = providerConfigs.find((item) => item.provider === operator);
+            const draft = configDrafts[operator];
+            return (
+              <article key={operator} className="space-y-3 rounded-2xl border border-slate-100 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="font-black">{operator === "SMS_MTN" ? "MTN Mobile Money" : "Orange Money"}</h3>
+                  <span className={saved?.configured ? "text-xs font-bold text-emerald-700" : "text-xs font-bold text-amber-700"}>
+                    {saved?.configured ? "Configuré" : "À configurer"}
+                  </span>
+                </div>
+                <label className="block text-sm font-bold">
+                  Numéro du compte marchand / SIM de réception
+                  <input
+                    value={draft.merchantAccount}
+                    onChange={(event) => setConfigDrafts((current) => ({ ...current, [operator]: { ...current[operator], merchantAccount: event.target.value } }))}
+                    placeholder="2376XXXXXXXX"
+                    autoComplete="off"
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-mono"
+                    disabled={!isAdmin}
+                  />
+                </label>
+                <label className="block text-sm font-bold">
+                  Code marchand {saved?.merchantCodeHint ? <span className="text-xs font-normal text-slate-500">({saved.merchantCodeHint} actuellement)</span> : null}
+                  <input
+                    type="password"
+                    value={draft.merchantCode}
+                    onChange={(event) => setConfigDrafts((current) => ({ ...current, [operator]: { ...current[operator], merchantCode: event.target.value } }))}
+                    placeholder={saved?.configured ? "Laisser vide pour conserver" : "Saisir le code marchand"}
+                    autoComplete="new-password"
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-mono"
+                    disabled={!isAdmin}
+                  />
+                </label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-slate-500">
+                    {saved?.updatedAt ? "Dernière mise à jour : " + new Date(saved.updatedAt).toLocaleString("fr-FR") : "Aucun paramètre enregistré."}
+                  </p>
+                  {isAdmin && (
+                    <button
+                      disabled={configBusy !== null}
+                      onClick={() => saveProviderConfig(operator)}
+                      className="rounded-xl bg-[#0B2A5B] px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
+                    >
+                      {configBusy === operator ? "Synchronisation…" : "Enregistrer et synchroniser"}
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+          {!isAdmin && <p className="text-xs text-slate-500">Le rôle Finance peut consulter l’état masqué. Seul un administrateur peut modifier les paramètres.</p>}
+          <p className="rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-600">
+            Le changement de numéro de réception doit être suivi de l’appairage de la nouvelle SIM dans l’APK Jobly.
+            Les profils restent isolés par opérateur ; aucune permission SMS n’est accordée à distance.
+          </p>
+        </section>
 
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-3">
