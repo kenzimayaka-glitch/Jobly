@@ -83,6 +83,12 @@ Chaque test reçoit un identifiant stable, son rôle, ses préconditions, ses é
 
 Un lot n'est déclaré vert qu'après exécution de tous ses tests obligatoires, preuve conservée, contrôle de l'état en base, régression réussie et absence d'anomalie P0/P1 ouverte. Aucun scénario non exécuté n'est comptabilisé comme réussi.
 
+## Constat UX relevé pendant la première preuve navigateur
+
+Le premier contrôle d'écran mobile a bien confirmé l'absence de débordement horizontal (viewport/document/body : 390/390/390 px), mais la capture a révélé un chevauchement visuel entre le texte du hero et l'illustration. Une correction CSS ciblée pour les écrans de moins de 640 px est ajoutée, ainsi qu'une assertion Playwright géométrique afin que le chevauchement ne puisse plus passer inaperçu. Le correctif reste à confirmer par le rerun navigateur.
+
+Le run 42295562370 a exécuté 5 contrôles d'interface : 5 PASS, 0 FAIL et 0 erreur JavaScript. En revanche, l'API `/api/public/home-stats` a répondu HTTP 503 ; ce point est classé BLOCKED, car la clé serveur E2E et les identifiants ADMIN dédiés ne sont pas encore configurés dans GitHub Actions. Aucun formulaire ni appel externe n'a été soumis.
+
 ## Tests navigateur disponibles
 
 Le workflow `.github/workflows/jobly-e2e-recipe.yml` construit le site dans GitHub Actions, démarre Next.js localement et lance Playwright en Chromium. Il ne déploie rien sur Vercel.

@@ -110,12 +110,22 @@ try {
     body: document.body.scrollWidth,
   }));
   assert.ok(dimensions.document <= dimensions.viewport + 1, `Mobile horizontal overflow detected: viewport=${dimensions.viewport}, document=${dimensions.document}`);
+
+  // The hero copy and artwork must not overlap at phone widths.
+  const copyBox = await mobile.locator(".jobly-public-home-copy").boundingBox();
+  const imageBox = await mobile.locator(".jobly-public-home-image").boundingBox();
+  assert.ok(copyBox && imageBox, "Mobile hero copy or artwork is missing.");
+  const overlapX = Math.min(copyBox.x + copyBox.width, imageBox.x + imageBox.width) - Math.max(copyBox.x, imageBox.x);
+  const overlapY = Math.min(copyBox.y + copyBox.height, imageBox.y + imageBox.height) - Math.max(copyBox.y, imageBox.y);
+  assert.ok(overlapX <= 0 || overlapY <= 0, `Mobile hero copy overlaps the artwork: copy=${JSON.stringify(copyBox)}, image=${JSON.stringify(imageBox)}`);
+
   await mobile.screenshot({ path: path.join(evidenceDir, "auth-home-mobile.png"), fullPage: true });
   results.push({ id: "JOBLY-E2E-AUTH-005", status: "PASS", evidence: "auth-home-mobile.png" });
 
   assert.deepEqual(pageErrors, [], "Uncaught browser errors occurred during the auth UI journey.");
 
   const missingServerKey = !serviceKey;
+  const homeStatsUnavailable = homeStatsResponses.some((status) => status >= 500);
   const report = {
     createdAt: new Date().toISOString(),
     runId: process.env.GITHUB_RUN_ID || "local",
@@ -126,10 +136,15 @@ try {
     executed: results.length,
     passed: results.length,
     failed: 0,
-    blocked: missingServerKey ? [
-      { id: "JOBLY-E2E-AUTH-006", status: "BLOCKED", reason: "E2E_SUPABASE_SERVICE_ROLE_KEY is not configured; server-backed identity and data checks were not run." },
-      { id: "JOBLY-E2E-AUTH-007", status: "BLOCKED", reason: "E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD are not configured; actual Auth sign-in, session refresh and sign-out were not run." },
-    ] : [],
+    blocked: [
+      ...(missingServerKey ? [
+        { id: "JOBLY-E2E-AUTH-006", status: "BLOCKED", reason: "E2E_SUPABASE_SERVICE_ROLE_KEY is not configured; server-backed identity and data checks were not run." },
+        { id: "JOBLY-E2E-AUTH-007", status: "BLOCKED", reason: "E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD are not configured; actual Auth sign-in, session refresh and sign-out were not run." },
+      ] : []),
+      ...(homeStatsUnavailable ? [
+        { id: "JOBLY-E2E-HOME-001", status: "BLOCKED", reason: "The public home-stats API returned a server error; provision the dedicated E2E server key and re-run the data-backed homepage check." },
+      ] : []),
+    ],
     results,
     mobileDimensions: dimensions,
     pageErrors,
@@ -137,7 +152,7 @@ try {
     limitations: [
       "The script does not submit signup, OTP, login, payment, application, email or external-provider requests.",
       "UI PASS does not prove server-side authentication or database persistence.",
-      ...(missingServerKey ? ["The home-stats endpoint may be unavailable without the dedicated E2E server key."] : []),
+      ...(homeStatsUnavailable ? ["The home-stats endpoint returned HTTP 503 in this run; it is not counted as a passing backend check."] : []),
     ],
   };
   await writeFile(path.join(evidenceDir, "lot1-auth-ui-smoke.json"), JSON.stringify(report, null, 2) + "\n");

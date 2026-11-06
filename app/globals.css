@@ -448,6 +448,12 @@ body{
   .jobly-public-home-footer-signature { margin-top: 0; font-size: 11px; }
 }
 
+/* Keep the public hero copy and artwork side by side on narrow phones. */
+@media (max-width: 639px) {
+  .jobly-public-home-copy { width: 54%; }
+  .jobly-public-home-image { right: -20%; top: 12%; width: 60%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .jobly-public-home-footer-trail path { animation: none !important; opacity: 0 !important; }
 }
