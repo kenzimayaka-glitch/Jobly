@@ -130,11 +130,14 @@ test("all Jobly password creation and reset routes call the shared HIBP guard", 
   const home = readFileSync(path.join(root, "app/page.tsx"), "utf8");
   const onboarding = readFileSync(path.join(root, "app/onboarding/page.tsx"), "utf8");
   const auth = readFileSync(path.join(root, "lib/auth.ts"), "utf8");
+  const reset = readFileSync(path.join(root, "app/auth/reset-password/page.tsx"), "utf8");
 
   assert.match(home, /assertPasswordNotPwned\(password\)/);
   assert.match(onboarding, /assertPasswordNotPwned\(password\)/);
   assert.match(auth, /await assertPasswordNotPwned\(password\)/);
   assert.match(auth, /export async function updatePassword/);
+  assert.match(reset, /await updatePassword\(password\)/);
+  assert.match(reset, /12 caractères minimum/);
   assert.match(home, /validateNewPassword\(password\)/);
   assert.match(onboarding, /validateNewPassword\(password\)/);
   assert.match(auth, /validateNewPassword\(password\)/);
