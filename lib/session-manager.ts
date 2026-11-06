@@ -1,5 +1,6 @@
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "./supabase";
+import { getJoblyDeviceId, getJoblyDeviceLabel } from "./device-identity";
 
 export type JoblySessionStatus =
   | "loading"
@@ -151,6 +152,8 @@ class JoblySessionManager {
     const call = (accessToken: string) => {
       const headers = new Headers(init.headers);
       headers.set("Authorization", `Bearer ${accessToken}`);
+      headers.set("x-jobly-device-id", getJoblyDeviceId());
+      headers.set("x-jobly-device-name", getJoblyDeviceLabel());
       return fetch(input, { ...init, headers });
     };
 
