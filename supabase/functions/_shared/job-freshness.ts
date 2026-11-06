@@ -36,8 +36,8 @@ export function normalizeDeadlineTimestamp(value: unknown): string | null {
   const raw = String(value).trim();
   if (!raw) return null;
 
-  const dateOnly = raw.match(/^(\\d{4}-\\d{2}-\\d{2})$/);
-  const utcMidnight = raw.match(/^(\\d{4}-\\d{2}-\\d{2})T00:00(?::00(?:\\.0{1,3})?)?(?:Z|\\+00:00)?$/i);
+  const dateOnly = raw.match(/^(\d{4}-\d{2}-\d{2})$/);
+  const utcMidnight = raw.match(/^(\d{4}-\d{2}-\d{2})T00:00(?::00(?:\.0{1,3})?)?(?:Z|\+00:00)?$/i);
   const datePart = dateOnly?.[1] ?? utcMidnight?.[1];
   if (datePart) {
     const midnight = new Date(datePart + "T00:00:00.000Z");
