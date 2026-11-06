@@ -8,7 +8,8 @@ export type AiOperation =
   | "LEARNING"
   | "INTERVIEW"
   | "CAREER_COMPANION"
-  | "NOTIFICATION";
+  | "NOTIFICATION"
+  | "PAYMENT_SMS_INTELLIGENCE";
 
 /**
  * P5 Free-First economic guardrail.
@@ -34,6 +35,8 @@ export const AI_OPERATION_COST: Record<AiOperation, number> = {
   INTERVIEW: 3,
   CAREER_COMPANION: 1,
   NOTIFICATION: 1,
+  // Internal merchant-security operation; never deducted from a candidate AI quota.
+  PAYMENT_SMS_INTELLIGENCE: 1,
 };
 
 export function monthlyAiBudgetXaf(plan: AiPlan): number {
