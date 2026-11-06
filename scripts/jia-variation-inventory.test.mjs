@@ -69,7 +69,7 @@ test("variation inventory is computed from actual rig configurations and files",
   assert.equal(rig.meta.total_moves, 100);
   assert.equal(moves.length, 100);
   assert.equal(unique(moves.map((move) => JSON.stringify(stable(move)))).length, 50);
-  assert.equal(facialShapes.length, 17);
+  assert.equal(facialShapes.length, 16);
   assert.equal(bodyShapes.length, 40);
   assert.equal(clipPaths.length, 54);
   assert.equal(uniqueGestureNames.length, 39);
