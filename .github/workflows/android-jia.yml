@@ -118,4 +118,4 @@ jobs:
           script: |
             adb devices -l
             trap 'adb logcat -d -t 500 || true' EXIT
-            timeout 12m gradle -p apps/android --no-daemon --console=plain -PjoblyBaseUrl=https://jobly.test :app:connectedDebugAndroidTest --stacktrace
+            timeout 12m gradle -p apps/android --no-daemon --console=plain -PjoblyBaseUrl=https://jobly.test :app:connectedPlayDebugAndroidTest :app:connectedInternalDebugAndroidTest --stacktrace
