@@ -15,18 +15,60 @@ function strings(value: unknown, max = 20): string[] {
   return value.slice(0, max).filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0).map((entry) => entry.trim().slice(0, 120));
 }
 
-async function claimReceipt(db: ReturnType<typeof adminClient>, userId: string, operationId: string) {
+type ReceiptClaim = "claimed" | "applied" | "busy";
+
+async function claimReceipt(db: ReturnType<typeof adminClient>, userId: string, operationId: string): Promise<ReceiptClaim> {
+  const now = new Date();
+  const staleBefore = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
   const { data: existing, error: readError } = await db.from("OfflineSyncReceipt")
-    .select("status").eq("userId", userId).eq("operationId", operationId).maybeSingle();
+    .select("status,createdAt")
+    .eq("userId", userId)
+    .eq("operationId", operationId)
+    .maybeSingle();
   if (readError) throw new Error(readError.message);
-  if (existing?.status === "APPLIED") return false;
+  if (existing?.status === "APPLIED") return "applied";
+
   if (!existing) {
     const { error } = await db.from("OfflineSyncReceipt").insert({
       id: newId(), userId, operationId, status: "PROCESSING",
     });
-    if (error && error.code !== "23505") throw new Error(error.message);
+    if (!error) return "claimed";
+    if (error.code !== "23505") throw new Error(error.message);
+    // A concurrent request has claimed the unique receipt; re-read below.
+    const { data: concurrent, error: concurrentError } = await db.from("OfflineSyncReceipt")
+      .select("status,createdAt")
+      .eq("userId", userId)
+      .eq("operationId", operationId)
+      .maybeSingle();
+    if (concurrentError) throw new Error(concurrentError.message);
+    if (!concurrent || concurrent.status === "APPLIED") return concurrent ? "applied" : "busy";
+    if (concurrent.status === "PROCESSING" && new Date(concurrent.createdAt).getTime() > now.getTime() - 5 * 60 * 1000) {
+      return "busy";
+    }
   }
-  return true;
+
+  if (existing?.status === "ERROR") {
+    const { data: claimed, error } = await db.from("OfflineSyncReceipt")
+      .update({ status: "PROCESSING", createdAt: now.toISOString() })
+      .eq("userId", userId)
+      .eq("operationId", operationId)
+      .eq("status", "ERROR")
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return claimed ? "claimed" : "busy";
+  }
+
+  const { data: reclaimed, error: reclaimError } = await db.from("OfflineSyncReceipt")
+    .update({ status: "PROCESSING", createdAt: now.toISOString() })
+    .eq("userId", userId)
+    .eq("operationId", operationId)
+    .eq("status", "PROCESSING")
+    .lt("createdAt", staleBefore)
+    .select("id")
+    .maybeSingle();
+  if (reclaimError) throw new Error(reclaimError.message);
+  return reclaimed ? "claimed" : "busy";
 }
 
 async function applyOperation(db: ReturnType<typeof adminClient>, userId: string, authUserId: string, operation: OfflineOperation) {
@@ -88,8 +130,15 @@ async function applyOperation(db: ReturnType<typeof adminClient>, userId: string
     const title = typeof payload.title === "string" ? payload.title.trim().slice(0, 180) : "";
     const description = typeof payload.description === "string" ? payload.description.trim().slice(0, 12000) : "";
     if (!title || !description) throw new Error("Le titre et la description de l'offre sont obligatoires.");
+    const { data: alreadyCreated, error: alreadyCreatedError } = await db.from("RecruiterJob")
+      .select("id")
+      .eq("id", operation.id)
+      .eq("recruiterUserId", authUserId)
+      .maybeSingle();
+    if (alreadyCreatedError) throw new Error(alreadyCreatedError.message);
+    if (alreadyCreated) return;
     const { error } = await db.from("RecruiterJob").insert({
-      id: newId(),
+      id: operation.id,
       recruiterUserId: authUserId,
       title,
       companyName: recruiter.companyName || "Mon entreprise",
@@ -136,8 +185,16 @@ export async function POST(request: NextRequest) {
         continue;
       }
       try {
-        const shouldApply = await claimReceipt(db, user.id, id);
-        if (shouldApply) await applyOperation(db, user.id, authUser.id, operation);
+        const claim = await claimReceipt(db, user.id, id);
+        if (claim === "applied") {
+          applied.push(id);
+          continue;
+        }
+        if (claim === "busy") {
+          failed.push({ id, message: "Cette opération est déjà en cours de synchronisation. Elle sera reprise automatiquement." });
+          continue;
+        }
+        await applyOperation(db, user.id, authUser.id, operation);
         const { error: receiptError } = await db.from("OfflineSyncReceipt")
           .update({ status: "APPLIED", appliedAt: new Date().toISOString() })
           .eq("userId", user.id).eq("operationId", id);
