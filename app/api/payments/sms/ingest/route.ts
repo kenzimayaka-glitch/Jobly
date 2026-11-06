@@ -78,8 +78,23 @@ export async function POST(request: NextRequest) {
       parserVersion: parsed.parserVersion,
       payloadHash,
       rawMessageHash,
-      fraudFlags: parsed.fraudFlags,
-      matchDetails: { source: "android_sms_receiver", bodyPersisted: false },
+      fraudFlags: allFraudFlags,
+      matchDetails: {
+        source: "android_sms_receiver",
+        bodyPersisted: false,
+        aiReview: aiReview ? {
+          version: aiReview.version,
+          provider: aiReview.provider,
+          model: aiReview.model,
+          messageKind: aiReview.messageKind,
+          status: aiReview.status,
+          direction: aiReview.direction,
+          confidence: aiReview.confidence,
+          suspiciousSignals: aiReview.suspiciousSignals,
+          accepted: aiReview.accepted,
+          flags: aiReview.flags,
+        } : { skipped: true, reason: "UNTRUSTED_OR_AMBIGUOUS_SENDER" },
+      },
     }).select("id,processingStatus,matchedPaymentId").single();
 
     if (receiptError?.code === "23505") return NextResponse.json({ accepted: true, duplicate: true, entitlementChanged: false });
