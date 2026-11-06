@@ -19,6 +19,7 @@ enum UserRole {
   RECRUITER
   PARTNER
   ADMIN
+  // Retained for historical compatibility; internal staff functions are AdminWorkspace views.
   SUPPORT
   FINANCE
   MODERATOR
@@ -260,8 +261,8 @@ model AdminIdentity {
   ownerUserId String   @unique
   authUserId  String   @unique @db.Uuid
   active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
   owner       User     @relation("AdminIdentityOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
 }
 
@@ -271,8 +272,8 @@ model AdminWorkspace {
   code        String
   label       String
   enabled     Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
   owner       User     @relation("AdminWorkspaceOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
 
   @@unique([ownerUserId, code])
