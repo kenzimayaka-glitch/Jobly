@@ -7,6 +7,13 @@ test("redacts private values before AI analysis", () => {
   const result = redactPaymentSmsForAi("Paiement de 699095589 MERCHANT BUSINESS par 658174722 CUSTOMER reussi. ID transaction:MP240417.1311.B48838, Montant:1000 FCFA.");
   for (const value of ["MERCHANT BUSINESS","CUSTOMER","699095589","658174722","MP240417.1311.B48838","1000"]) assert.ok(!result.includes(value));
   assert.ok(result.includes("<MONTANT>"));
+
+  const shortOrange = redactPaymentSmsForAi(
+    "Paiement de ROYAL MINISTRIES INTL2 reussi par 658174722 CUSTOMER. ID transaction:MP240417.1311.B48838, Montant:1000 FCFA.",
+  );
+  for (const value of ["ROYAL MINISTRIES INTL2", "CUSTOMER", "658174722", "MP240417.1311.B48838", "1000"]) {
+    assert.ok(!shortOrange.includes(value));
+  }
 });
 
 test("accepts a consistent incoming merchant credit classification", () => {
