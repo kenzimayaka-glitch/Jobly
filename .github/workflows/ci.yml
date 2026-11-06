@@ -88,6 +88,9 @@ jobs:
           DIRECT_URL: postgresql://postgres:postgres@localhost:5432/jobly?schema=public
         run: pnpm db:validate
 
+      - name: Offline-first, encrypted backup and device-session regression tests
+        run: pnpm test:offline-first
+
       - name: Typecheck
         run: pnpm typecheck
 
