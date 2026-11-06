@@ -234,11 +234,15 @@ class MainActivity : Activity() {
                                     replyProxy.postMessage(JSONObject().put("type", "PAYMENT_SMS_PERMISSION_REQUESTED").toString())
                                 }
                                 "REVOKE_PAYMENT_SMS_DEVICE" -> {
-                                    PaymentSmsDeviceCredentials.clear(this@MainActivity)
-                                    androidx.work.WorkManager.getInstance(this@MainActivity).cancelAllWorkByTag(PaymentSmsReceiver.WORK_TAG)
+                                    val deviceId = bounded(payload.optString("deviceId"), 64)
+                                    if (deviceId.isNotBlank()) {
+                                        PaymentSmsDeviceCredentials.clear(this@MainActivity, deviceId)
+                                        androidx.work.WorkManager.getInstance(this@MainActivity)
+                                            .cancelAllWorkByTag(PaymentSmsReceiver.deviceTag(deviceId))
+                                    }
                                     runOnUiThread {
                                         replyProxy.postMessage(JSONObject().put("type", "PAYMENT_SMS_DEVICE_REVOKED").toString())
-                                        Toast.makeText(this@MainActivity, "Ce téléphone ne transmettra plus de SMS Mobile Money à Jobly.", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(this@MainActivity, "Compte marchand supprimé de cet APK.", Toast.LENGTH_LONG).show()
                                     }
                                 }
                                 else -> return
