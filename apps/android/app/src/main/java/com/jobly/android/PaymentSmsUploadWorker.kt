@@ -20,9 +20,12 @@ class PaymentSmsUploadWorker(
 
     override fun doWork(): Result {
         val credentials = PaymentSmsDeviceCredentials.read(applicationContext) ?: return Result.failure()
+        val queuedDeviceId = inputData.getString(KEY_DEVICE_ID).orEmpty()
         val senderId = inputData.getString(KEY_SENDER_ID)?.trim().orEmpty()
         val encryptedBody = inputData.getString(KEY_ENCRYPTED_SMS_BODY).orEmpty()
-        if (senderId.isBlank() || encryptedBody.isBlank()) return Result.failure()
+        if (queuedDeviceId != credentials.deviceId || senderId.isBlank() || encryptedBody.isBlank()) return Result.failure()
+        val normalizedSender = senderId.trim().replace(Regex("\\\\s+"), " ").uppercase(java.util.Locale.ROOT)
+        if (!credentials.senderIds.contains(normalizedSender)) return Result.failure()
 
         val smsBody = runCatching {
             PaymentSmsDeviceCredentials.decrypt(applicationContext, encryptedBody)
@@ -64,6 +67,7 @@ class PaymentSmsUploadWorker(
     }
 
     companion object {
+        const val KEY_DEVICE_ID = "device_id"
         const val KEY_SENDER_ID = "sender_id"
         const val KEY_ENCRYPTED_SMS_BODY = "encrypted_sms_body"
         private const val MAX_SMS_LENGTH = 5000
