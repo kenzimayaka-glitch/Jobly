@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, ensureUser, getAuthUser, newId } from "../../../../../lib/server-auth";
+import { adminClient, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
 import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 const BUCKET = "partner-private-documents";
@@ -147,13 +147,11 @@ export async function POST(request: NextRequest) {
       throw new Error(partnerUpdateError?.message || "Le profil partenaire n’a pas pu être mis à jour.");
     }
 
-    const { error: auditError } = await supabase.from("AuditLog").insert({
-      id: newId(),
-      userId: user.id,
+    const { error: auditError } = await supabase.from("CEOAuditLog").insert({
+      adminUserId: user.id,
       action: decision === "VERIFIED" ? "PARTNER_KYC_APPROVED" : "PARTNER_KYC_REJECTED",
-      entityType: "PartnerKyc",
-      entityId: String(kyc.id),
-      metadata: { partnerId, decision, note: note || null, reviewedAt: now },
+      endpoint: "/api/admin/partners/kyc",
+      metadata: { partnerId, kycId: String(kyc.id), decision, note: note || null, reviewedAt: now },
     });
     if (auditError) {
       await supabase.from("Partner").update({
