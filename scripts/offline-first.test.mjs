@@ -26,6 +26,14 @@ test("production session migrations restrict registry tables and functions to se
   assert.match(throttle, /interval '5 minutes'/);
 });
 
+test("public visitors with no Supabase session are not marked offline while the browser is online", async () => {
+  const coordinator = await read("components/OfflineCoordinator.tsx");
+  const noSessionBranch = coordinator.match(/if \(!data\.session\?\.access_token \|\| !authUserId\) \{([\s\S]*?)\n\s*\}/);
+  assert.ok(noSessionBranch, "the unauthenticated visitor branch must remain explicit");
+  assert.match(noSessionBranch[1], /setConnectivity\(navigator\.onLine \? "online" : "offline"\)/);
+  assert.doesNotMatch(noSessionBranch[1], /setConnectivity\("offline"\)/);
+});
+
 test("service worker never caches API/auth data or private page HTML as the homepage", async () => {
   const sw = await read("public/sw.js");
   assert.match(sw, /url\.pathname\.startsWith\("\/api\/"\)/);
