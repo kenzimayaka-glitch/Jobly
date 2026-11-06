@@ -5,6 +5,7 @@ on:
     paths:
       - "apps/android/**"
       - "scripts/payment-sms-android.test.mjs"
+      - "scripts/android-integrity.test.mjs"
       - "lib/paymentSms/android-bridge.ts"
       - "app/admin/page.tsx"
       - "app/admin/payments/sms/**"
@@ -19,6 +20,7 @@ on:
       - "scripts/jia-workspace.test.mjs"
       - "components/JoblyOfferFeed.tsx"
       - "scripts/android-jia-bridge.test.mjs"
+      - "scripts/android-integrity.test.mjs"
       - ".github/workflows/android-jia.yml"
   push:
     branches:
@@ -49,6 +51,8 @@ jobs:
         with:
           node-version: 22
       - run: node --test scripts/android-jia-bridge.test.mjs scripts/payment-sms-android.test.mjs
+      - name: Android APK integrity regression tests
+        run: node --test scripts/android-integrity.test.mjs
 
   android-debug-build:
     runs-on: ubuntu-latest
