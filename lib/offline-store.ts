@@ -58,7 +58,7 @@ async function getEncryptionKey(userId: string): Promise<CryptoKey> {
   const db = await openDatabase();
   try {
     const existing = await new Promise<StoredKey | undefined>((resolve, reject) => {
-      const request = db.transaction("keys", "readonly").objectStore("keys").get(resolvedUserId);
+      const request = db.transaction("keys", "readonly").objectStore("keys").get(userId);
       request.onsuccess = () => resolve(request.result as StoredKey | undefined);
       request.onerror = () => reject(request.error);
     });
@@ -68,7 +68,7 @@ async function getEncryptionKey(userId: string): Promise<CryptoKey> {
     return await new Promise<CryptoKey>((resolve, reject) => {
       const tx = db.transaction("keys", "readwrite");
       const store = tx.objectStore("keys");
-      const get = store.get(resolvedUserId);
+      const get = store.get(userId);
       let selected = generated;
       get.onsuccess = () => {
         if (get.result?.key) selected = (get.result as StoredKey).key;
