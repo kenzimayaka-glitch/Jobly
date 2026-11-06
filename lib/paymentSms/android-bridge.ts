@@ -50,3 +50,14 @@ export function revokeJoblyPaymentSmsDeviceLocally(): boolean {
     return false;
   }
 }
+
+/** Ask Android to retry the RECEIVE_SMS runtime permission request. */
+export function requestJoblyPaymentSmsPermission(): boolean {
+  if (!isJoblyAndroidPaymentSmsAvailable()) return false;
+  try {
+    window.joblyAndroid!.postMessage(JSON.stringify({ type: "REQUEST_PAYMENT_SMS_PERMISSION", payload: {} }));
+    return true;
+  } catch {
+    return false;
+  }
+}
