@@ -92,33 +92,96 @@ export async function ensureUser(
   supabase: ReturnType<typeof adminClient>,
   authUser: { id: string; email?: string | null; phone?: string | null; user_metadata?: Record<string, unknown> }
 ) {
-  const { data: existing, error: lookupError } = await supabase
-    .from("User")
-    .select("*")
-    .eq("authUserId", authUser.id)
-    .maybeSingle();
-  if (lookupError) throw new Error(lookupError.message);
-  if (existing) return existing;
-
+  const email = authUser.email?.trim().toLowerCase() || null;
   const displayName =
     (authUser.user_metadata?.full_name as string | undefined) ||
     (authUser.user_metadata?.name as string | undefined) ||
     null;
   const now = new Date().toISOString();
+
+  const findByAuthId = async () => {
+    const { data, error } = await supabase
+      .from("User")
+      .select("*")
+      .eq("authUserId", authUser.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data;
+  };
+
+  const findByEmail = async () => {
+    if (!email) return null;
+    const exact = await supabase.from("User").select("*").eq("email", email).maybeSingle();
+    if (exact.error) throw new Error(exact.error.message);
+    if (exact.data) return exact.data;
+
+    // Legacy rows may preserve the casing entered before Auth normalized the email.
+    const folded = await supabase.from("User").select("*").ilike("email", email).maybeSingle();
+    if (folded.error) throw new Error(folded.error.message);
+    return folded.data;
+  };
+
+  const linkLegacyRow = async (legacy: Record<string, any>) => {
+    if (legacy.authUserId) {
+      if (legacy.authUserId === authUser.id) return legacy;
+      throw new Error("AUTH_USER_EMAIL_ALREADY_LINKED");
+    }
+
+    const updates: Record<string, unknown> = {
+      authUserId: authUser.id,
+      updatedAt: now,
+    };
+    if (!legacy.email && email) updates.email = email;
+    if (!legacy.phone && authUser.phone) updates.phone = authUser.phone;
+    if (!legacy.displayName && displayName) updates.displayName = displayName;
+
+    const { data: linked, error: linkError } = await supabase
+      .from("User")
+      .update(updates)
+      .eq("id", legacy.id)
+      .is("authUserId", null)
+      .select("*")
+      .maybeSingle();
+
+    if (linkError && linkError.code !== "23505") throw new Error(linkError.message);
+    if (linked) return linked;
+
+    // Another request may have won the same email-linking race.
+    const raced = await findByAuthId();
+    if (raced) return raced;
+    throw new Error("AUTH_USER_EMAIL_LINK_CONFLICT");
+  };
+
+  const existing = await findByAuthId();
+  if (existing) return existing;
+
+  const legacy = await findByEmail();
+  if (legacy) return linkLegacyRow(legacy);
+
   const { data, error } = await supabase
     .from("User")
     .insert({
       id: crypto.randomUUID(),
       authUserId: authUser.id,
-      email: authUser.email ?? null,
+      email,
       phone: authUser.phone ?? null,
       displayName,
       updatedAt: now,
     })
     .select("*")
     .single();
-  if (error) throw new Error(error.message);
-  return data;
+
+  if (!error) return data;
+
+  // Idempotent retry: a parallel request may have created or linked the row.
+  if (error.code === "23505") {
+    const raced = await findByAuthId();
+    if (raced) return raced;
+    const racedLegacy = await findByEmail();
+    if (racedLegacy) return linkLegacyRow(racedLegacy);
+  }
+
+  throw new Error(error.message);
 }
 
 export function cleanStrings(value: unknown): string[] {
@@ -136,13 +199,11 @@ export type BillingProductType = "TALENT" | "RECRUITER";
 
 /**
  * An account may carry both a Talent profile and a Recruiter profile.
- * Recruiter ownership is tied to the Supabase Auth UID (RecruiterProfile.userId),
- * whereas billing rows are tied to the internal User.id.
- */
+ * RecruiterProfile and billing rows are both tied to the internal User.id.
+  */
 export async function resolveBillingProductType(
   supabase: ReturnType<typeof adminClient>,
-  internalUser: { role?: string },
-  authUserId: string,
+  internalUser: { id: string; role?: string },
   requested?: unknown,
 ): Promise<BillingProductType> {
   const requestedValue = String(requested || "").trim().toUpperCase();
@@ -158,7 +219,7 @@ export async function resolveBillingProductType(
     const { data, error } = await supabase
       .from("RecruiterProfile")
       .select("id")
-      .eq("userId", authUserId)
+      .eq("userId", internalUser.id)
       .limit(1)
       .maybeSingle();
     if (error) throw new Error("RECRUITER_PROFILE_LOOKUP_FAILED: " + error.message);
