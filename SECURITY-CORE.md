@@ -28,9 +28,9 @@ Branche : `feat/security-red-remediation-20261106` (non fusionnée tant que les 
 
 ## Contrôles externes toujours requis
 
-1. **GitHub dépôt public** : la visibilité actuelle reste `public`. L'intégration connectée ne possède pas l'action d'administration pour le passer en privé. Si le code est propriétaire, changer la visibilité dans GitHub Settings → General → Danger Zone.
-2. **Protection de `main`** : les règles de revue obligatoire, statuts requis, interdiction du force push/deletion et absence de bypass doivent être activées depuis les réglages GitHub; l'action connectée ne sait pas écrire ces règles.
-3. **Secret Scanning / Push Protection** : activation à confirmer depuis GitHub Code Security; un workflow CodeQL ne remplace pas ces fonctions.
+1. **GitHub visibilité** : le dépôt est actuellement `public`. Je ne l'ai pas rendu privé car cela peut casser l'accès public ou les workflows externes et la décision de confidentialité n'a pas été demandée. Le passer en privé seulement si le dépôt doit être propriétaire; l'intégration connectée n'expose pas l'action d'administration nécessaire.
+2. **Protection de `main`** : l'API connectée retourne une liste de rulesets vide; la lecture de l'endpoint de branch protection renvoie 403, donc je ne peux pas confirmer l'existence ou l'absence d'une ancienne règle de protection. Une règle explicite doit exiger les checks CI, une revue, bloquer le force push et la suppression, et limiter les bypass.
+3. **Secret Scanning / Push Protection** : le dépôt est public. GitHub indique que le secret scanning s'exécute automatiquement et que la protection utilisateur contre les secrets connus bloque par défaut certains pushes vers les dépôts publics. L'activation des alertes et des contrôles de bypass au niveau du dépôt n'a pas été vérifiée par l'intégration; CodeQL ne remplace pas ces fonctions.
 4. **Supabase Auth — mots de passe compromis** : l'option Leaked Password Protection reste à activer dans Auth → Password Security lorsque disponible sur le plan du projet.
 5. **Vercel WAF personnalisé / Bot Management** : le projet Hobby n'avait pas de configuration Seawall initialisée (API retourne `Seawall Config not found`). Ne pas déclarer de règle custom active. La mitigation DDoS de plateforme est distincte de ces règles personnalisées.
 6. **Turnstile** : les clés `TURNSTILE_*` sont absentes; l'intégration n'est pas active.
