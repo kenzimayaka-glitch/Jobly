@@ -191,3 +191,16 @@ test("keeps Orange failed transaction IDs non-authoritative", () => {
   assert.notEqual(result.direction, "INBOUND");
   assert.ok(result.fraudFlags.includes("MESSAGE_NOT_CONFIRMED_SUCCESS"));
 });
+
+test("rejects a detailed merchant SMS naming another beneficiary account", () => {
+  const result = parsePaymentSms({
+    senderId: "ORANGE-SENDER-TEST",
+    body: "Payment de 699095589 MERCHANT BUSINESS par 658174722 CUSTOMER reussi. ID Transaction: MP240417.1311.B48838. Montant transaction: 1000 FCFA.",
+  }, {
+    senderIds: { SMS_ORANGE: ["ORANGE-SENDER-TEST"] },
+    merchantAccount: "237699999999",
+  });
+  assert.equal(result.direction, "INBOUND");
+  assert.equal(result.merchantAccount, "237699095589");
+  assert.ok(result.fraudFlags.includes("SMS_MERCHANT_ACCOUNT_MISMATCH"));
+});
