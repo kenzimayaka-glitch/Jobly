@@ -236,3 +236,44 @@ export const JIA_DOCUMENT_PRESENTATIONS: JiaDocumentPresentationVariation[] = Ar
   density: index % 3 === 0 ? "airy" : index % 3 === 1 ? "balanced" : "compact",
   headingScale: 0.94 + (index % 10) * 0.025,
 }));
+
+
+export type JiaAvatarAppearanceVariation = {
+  id: string;
+  blazerAccent: string;
+  scarfAccent: string;
+  embroidery: string;
+  pin: string;
+  pinShape: "sun" | "leaf" | "flower" | "star" | "diamond";
+  lapel: "classic" | "double" | "angled" | "curved" | "stitched";
+  scarfDetail: "border" | "dot" | "woven" | "diagonal" | "petal";
+  stitchDensity: number;
+  pinScale: number;
+  motifOffset: number;
+};
+
+const BLAZER_ACCENTS = ["#0A397F","#124A91","#1D5AA3","#17427B","#235A8F","#163D72","#245D9F","#0C467F","#2A5F97","#194B82"] as const;
+const SCARF_ACCENTS = ["#F4C84B","#E6B33A","#DFA52B","#F0C65D","#D9A22F","#EFC14B","#C99427","#F6D36A","#E5AE36","#DCA02A"] as const;
+const EMBROIDERY_COLORS = ["#EAC15A","#F1D98A","#B98A32","#E6B955","#CBA34E"] as const;
+const PIN_SHAPES: JiaAvatarAppearanceVariation["pinShape"][] = ["sun","leaf","flower","star","diamond"];
+const LAPEL_STYLES: JiaAvatarAppearanceVariation["lapel"][] = ["classic","double","angled","curved","stitched"];
+const SCARF_DETAILS: JiaAvatarAppearanceVariation["scarfDetail"][] = ["border","dot","woven","diagonal","petal"];
+
+export const JIA_AVATAR_APPEARANCES: JiaAvatarAppearanceVariation[] = Array.from({ length: 50 }, (_, index) => {
+  const blazer = index % 10;
+  const scarf = Math.floor(index / 5);
+  const embroidery = (index * 3) % 5;
+  return {
+    id: "jia-appearance-" + String(index + 1).padStart(2, "0"),
+    blazerAccent: BLAZER_ACCENTS[blazer],
+    scarfAccent: SCARF_ACCENTS[scarf],
+    embroidery: EMBROIDERY_COLORS[embroidery],
+    pin: index % 2 === 0 ? "#D7A83B" : "#C49631",
+    pinShape: PIN_SHAPES[index % PIN_SHAPES.length],
+    lapel: LAPEL_STYLES[Math.floor(index / 10)],
+    scarfDetail: SCARF_DETAILS[(index * 2 + Math.floor(index / 10)) % SCARF_DETAILS.length],
+    stitchDensity: 2 + ((index * 7) % 8),
+    pinScale: 0.82 + ((index * 3) % 8) * 0.055,
+    motifOffset: ((index * 11) % 17) - 8,
+  };
+});
