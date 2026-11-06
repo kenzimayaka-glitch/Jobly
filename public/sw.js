@@ -1,6 +1,7 @@
-const CACHE = "jobly-pwa-v2";
+const CACHE = "jobly-pwa-v3";
 const APP_SHELL = [
   "/",
+  "/offline",
   "/manifest.webmanifest",
   "/jobly-logo-official-transparent.png",
   "/hero-jobly-community.webp"
@@ -52,7 +53,7 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         })
-        .catch(async () => (await caches.match("/")) || Response.error())
+        .catch(async () => (await caches.match("/offline")) || (await caches.match("/")) || Response.error())
     );
     return;
   }
