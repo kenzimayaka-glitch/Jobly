@@ -8,6 +8,25 @@ export const dynamic = "force-dynamic";
 
 const noStore = { "Cache-Control": "private, no-store, max-age=0", "X-Content-Type-Options": "nosniff" };
 
+async function readLimitedJson(request: NextRequest, maxBytes: number): Promise<unknown> {
+  const reader = request.body?.getReader();
+  if (!reader) throw new Error("ATTESTATION_BODY_MISSING");
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error("ATTESTATION_BODY_TOO_LARGE");
+    }
+    chunks.push(value);
+  }
+  const bytes = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
+  return JSON.parse(bytes.toString("utf8")) as unknown;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
@@ -24,7 +43,7 @@ export async function POST(request: NextRequest) {
     });
     if (limited) return limited;
 
-    const body = await request.json().catch(() => ({})) as {
+    const body = await readLimitedJson(request, 140 * 1024) as {
       challengeId?: unknown;
       deviceId?: unknown;
       certificateChain?: unknown;
@@ -32,8 +51,12 @@ export async function POST(request: NextRequest) {
     const challengeId = typeof body.challengeId === "string" ? body.challengeId : "";
     const deviceId = typeof body.deviceId === "string" ? body.deviceId.trim() : "";
     const certificateChain = Array.isArray(body.certificateChain) ? body.certificateChain : [];
+    const encodedChainBytes = certificateChain.reduce(
+      (sum, value) => sum + (typeof value === "string" ? value.length : 0), 0
+    );
     if (!/^[0-9a-f-]{36}$/i.test(challengeId) || !/^[A-Za-z0-9:_-]{1,160}$/.test(deviceId) ||
         certificateChain.length < 2 || certificateChain.length > 8 ||
+        encodedChainBytes > 128 * 1024 ||
         certificateChain.some((value) => typeof value !== "string")) {
       return NextResponse.json({ message: "Preuve d'intégrité invalide." }, { status: 400, headers: noStore });
     }
