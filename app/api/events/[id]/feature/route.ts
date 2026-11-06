@@ -48,7 +48,7 @@ export async function POST(request:NextRequest,context:{params:Promise<{id:strin
         if(campaignError.message.includes("FEATURED_FULL"))return fail("Les 6 emplacements Grand rendez-vous sont occupés.",409,"FEATURED_FULL");
         throw new Error(campaignError.message);
       }
-      return NextResponse.json({campaign,payment:null,free:true},{status:201});
+      return NextResponse.json({campaign,payment:null,free:true},{status:201,headers:{"Cache-Control":"private, no-store, max-age=0",Vary:"Authorization"}});
     }
 
     const paymentId=crypto.randomUUID();
@@ -82,7 +82,7 @@ export async function POST(request:NextRequest,context:{params:Promise<{id:strin
         instructions:getEventManualPaymentInstructions(),
         submissionUrl:"/events/payment/"+paymentId
       }
-    },{status:201});
+    },{status:201,headers:{"Cache-Control":"private, no-store, max-age=0",Vary:"Authorization"}});
   }catch(e){
     return fail(e instanceof Error?e.message:"Mise en avant impossible.",500);
   }
