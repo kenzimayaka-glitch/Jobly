@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, authUser, ensureUser } from "../../../../lib/mobilityServer";
+import { enforceApiRateLimit } from "../../../../lib/server-security";
 
 export async function GET(req: NextRequest) {
   try {
@@ -7,6 +8,14 @@ export async function GET(req: NextRequest) {
     if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const db = adminClient();
     const user = await ensureUser(db, auth);
+    const limited = await enforceApiRateLimit(req, db, {
+      scope: "mobility-program-applications-read",
+      identity: user.id,
+      accountWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 300, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 600, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const requestId = req.nextUrl.searchParams.get("requestId");
     if (!requestId) return NextResponse.json({ message: "requestId requis." }, { status: 400 });
     const { data: request, error: requestError } = await db.from("MobilityRequest")
@@ -22,7 +31,7 @@ export async function GET(req: NextRequest) {
       .eq("applicantUserId", user.id)
       .order("submittedAt", { ascending: false });
     if (error) throw new Error(error.message);
-    return NextResponse.json({ applications: data || [] });
+    return NextResponse.json({ applications: data || [] }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Candidatures Mobility indisponibles." }, { status: 500 });
   }
@@ -34,6 +43,16 @@ export async function POST(req: NextRequest) {
     if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const db = adminClient();
     const user = await ensureUser(db, auth);
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    if (contentLength > 12 * 1024) return NextResponse.json({ message: "Candidature programme trop volumineuse." }, { status: 413 });
+    const limited = await enforceApiRateLimit(req, db, {
+      scope: "mobility-program-application-submit",
+      identity: user.id,
+      accountWindows: [{ limit: 3, windowSeconds: 3600 }, { limit: 6, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 10, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const body = await req.json().catch(() => ({}));
     const requestId = String(body.requestId || "").trim();
     const programId = String(body.programId || "").trim();
