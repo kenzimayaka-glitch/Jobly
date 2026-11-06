@@ -112,6 +112,6 @@ test("configuration API masks merchant secrets and restricts mutations to ADMIN"
 test("per-order merchant code snapshots are read from the server-only table", () => {
   const route = readFileSync(new URL("../app/api/subscription/route.ts", import.meta.url), "utf8");
   assert.match(route, /from\("PaymentSmsOrderConfig"\)/);
-  assert.match(route, /merchantCode: smsCheckout\?\.merchantCode/);
+  assert.match(route, /merchantCode: smsCheckout\.merchantCode/);
   assert.doesNotMatch(route, /smsMerchantCode:/);
 });
