@@ -21,6 +21,18 @@ internal object AndroidKeyAttestation {
         val hardwareKeyStore: Boolean
     )
 
+    fun signRequestPayload(payloadBase64: String): String {
+        val payload = Base64.decode(payloadBase64, Base64.DEFAULT)
+        require(payload.isNotEmpty() && payload.size <= 4096) { "ANDROID_ATTESTATION_PAYLOAD_INVALID" }
+        val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        val privateKey = keyStore.getKey(KEY_ALIAS, null) as? java.security.PrivateKey
+            ?: throw IllegalStateException("ANDROID_ATTESTATION_PRIVATE_KEY_MISSING")
+        val signer = java.security.Signature.getInstance("SHA256withECDSA")
+        signer.initSign(privateKey)
+        signer.update(payload)
+        return Base64.encodeToString(signer.sign(), Base64.NO_WRAP)
+    }
+
     fun createCertificateChain(challengeBase64: String): Result {
         check(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) { "ANDROID_KEY_ATTESTATION_UNSUPPORTED" }
         val challenge = Base64.decode(challengeBase64, Base64.DEFAULT)
