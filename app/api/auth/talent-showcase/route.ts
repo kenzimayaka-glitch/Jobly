@@ -23,15 +23,17 @@ export async function GET(request: NextRequest) {
       supabase.from("Profile").select("publicDiscoverable").eq("userId", user.id).maybeSingle(),
     ]);
     if (profile.error) throw new Error(profile.error.message);
+    const paidMediaEligible = plan === "PREMIUM" || plan === "PRO";
+    const imageLimit = plan === "PRO" ? 6 : plan === "PREMIUM" ? 3 : 0;
     return NextResponse.json({
       plan,
       publicDiscoverable: profile.data?.publicDiscoverable === true,
-      actionImages: Array.isArray(user.actionImages) ? user.actionImages : [],
+      actionImages: paidMediaEligible && Array.isArray(user.actionImages) ? user.actionImages.slice(0, imageLimit) : [],
       portfolioBusiness: user.portfolioBusiness || { text: "", url: "" },
       executiveSummary: user.executiveSummary || "",
-      advertisingVideoUrl: user.advertisingVideoUrl || null,
-      pitchVideoUrl: user.pitchVideoUrl || null,
-      pitchVideoDurationMs: user.pitchVideoDurationMs || null,
+      advertisingVideoUrl: paidMediaEligible ? user.advertisingVideoUrl || null : null,
+      pitchVideoUrl: paidMediaEligible ? user.pitchVideoUrl || null : null,
+      pitchVideoDurationMs: paidMediaEligible ? user.pitchVideoDurationMs || null : null,
     });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible de charger la vitrine." }, { status: 500 });
@@ -59,6 +61,13 @@ export async function PUT(request: NextRequest) {
     }
     const update: Record<string, unknown> = { updatedAt: new Date().toISOString() };
     if (Array.isArray(body.actionImages)) {
+      const plan = await getActivePlanCode(supabase, user.id, "TALENT");
+      const imageLimit = plan === "PRO" ? 6 : plan === "PREMIUM" ? 3 : 0;
+      if (!imageLimit) return NextResponse.json({ message: "Les images d’actions sont réservées à Premium et Pro." }, { status: 403 });
+      const candidateImages = body.actionImages.filter((value: unknown): value is string => typeof value === "string" && value.startsWith("https://"));
+      if (candidateImages.length > imageLimit) {
+        return NextResponse.json({ message: `Votre formule ${plan} permet ${imageLimit} images d’actions maximum.`, limit: imageLimit }, { status: 422 });
+      }
       update.actionImages = body.actionImages
         .filter((value: unknown): value is string => typeof value === "string" && value.startsWith("https://"))
         .slice(0, 6);
