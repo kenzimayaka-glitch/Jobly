@@ -23,11 +23,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
-import JIA3D from "./JIA/JIA3D";
 import type { JIAMove } from "./JIA/JIA";
 import type { JiaGesture } from "./WaterScene";
 import { GESTURE_TO_MOVE } from "./JIA/gestureMap";
-import { useOutfit, type Outfit } from "@/lib/jia/outfit";
 import { GESTURES, type GestureId } from "@/lib/jia/gestures";
 import { commandIntent, extractWakeCommand, isFinancialRequest } from "@/lib/jia/guard";
 import { getSupabaseClient } from "../lib/supabase";
@@ -35,6 +33,7 @@ import { canWriteJiaConversation, mergeJiaConversationMessages } from "@/lib/jia
 import { useI18n, type DictKey } from "@/lib/i18n";
 import { decide as decideAutonomy, observe as observeAutonomy } from "@/lib/jia/autonomy";
 import JiaConversationSurface, { type JiaConversationMessage } from "@/components/jia/JiaConversationSurface";
+import JiaPresenceMark from "./JiaPresenceMark";
 import {
   buildJiaAdaptiveQuestionBank,
   buildJiaPracticeQuestionnaire,
@@ -345,20 +344,6 @@ function isTypingTarget(el: Element | null) {
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (el as HTMLElement).isContentEditable === true;
 }
 
-/** Visage de J’IA (recadrage du master validé) — sert de bouton lorsqu’elle est réduite. */
-function FaceLauncher({ onClick, label, listening, outfit }: { onClick: () => void; label: string; listening: boolean; outfit: Outfit }) {
-  // Chaque tenue a désormais son propre head.webp (public/jia/outfits/<outfit>/) : le visage
-  // n'est plus partagé, donc le lanceur réduit doit connaître la tenue courante.
-  return (
-    <button type="button" onClick={onClick} aria-label={label} title={label}
-      className="relative grid h-[52px] w-[52px] place-items-center overflow-hidden rounded-full border-2 border-canari-blue bg-canari-soft shadow-[0_10px_26px_rgba(0,87,184,.28)] transition active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-canari-blue/30">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`/jia/outfits/${outfit}/head.webp`} alt="" aria-hidden="true" className="h-[54px] w-[54px] scale-[1.7] translate-y-[6px] object-contain" />
-      {listening && <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500" />}
-    </button>
-  );
-}
-
 export default function JiaPresence() {
   const pathname = usePathname() ?? "/";
   const router = useRouter();
@@ -372,7 +357,6 @@ export default function JiaPresence() {
   const [bubble, setBubble] = useState<Bubble | null>(null);
   const [gesture, setGesture] = useState<JiaGesture>("welcome");
   const [move, setMove] = useState<JIAMove | undefined>(undefined);
-  const outfit = useOutfit();
   const [speaking, setSpeaking] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(true);
@@ -1616,13 +1600,13 @@ export default function JiaPresence() {
         </AnimatePresence>
 
         {showFigure ? (
-          <div data-jia-presence-anchor="true" className="relative w-[96px] sm:w-[120px]" style={{ aspectRatio: "1200 / 1248" }} onPointerDown={(e) => dragControls.start(e)}>
+          <div data-jia-presence-anchor="true" className="relative h-[96px] w-[96px] sm:h-[120px] sm:w-[120px]" onPointerDown={(e) => dragControls.start(e)}>
             <button type="button" onClick={() => { if (!wasDragged.current) setPanelOpen((v) => !v); }} aria-expanded={panelOpen} aria-label={t("jia.open")} title={t("jia.move")}
-              className="absolute inset-0 cursor-grab rounded-3xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-canari-blue/30 active:cursor-grabbing">
-              <JIA3D speaking={speaking} />
+              className="absolute inset-0 grid cursor-grab place-items-center rounded-full focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-canari-blue/30 active:cursor-grabbing">
+              <JiaPresenceMark size="lg" listening={listening} speaking={speaking} />
             </button>
             <button type="button" onClick={minimize} aria-label={t("jia.minimize")} title={t("jia.minimize")}
-              className="absolute -left-1 top-0 grid h-9 w-9 place-items-center rounded-full border border-line bg-white/95 text-muted shadow-md transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-canari-blue">
+              className="absolute -left-1 top-0 z-10 grid h-9 w-9 place-items-center rounded-full border border-line bg-white/95 text-muted shadow-md transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-canari-blue">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M6 12h12" /></svg>
             </button>
             {prefs.mode === "voice" && (
@@ -1633,7 +1617,10 @@ export default function JiaPresence() {
           </div>
         ) : (
           <div onPointerDown={(e) => dragControls.start(e)}>
-            <FaceLauncher onClick={() => { if (!wasDragged.current) expand(); }} label={t("jia.open")} listening={listening} outfit={outfit} />
+            <button type="button" onClick={() => { if (!wasDragged.current) expand(); }} aria-label={t("jia.open")} title={t("jia.open")}
+              className="grid h-[52px] w-[52px] place-items-center rounded-full border border-[#FFD21A] bg-white shadow-[0_10px_26px_rgba(0,87,184,.22)] transition active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-canari-blue/30">
+              <JiaPresenceMark size="md" listening={listening} speaking={speaking} />
+            </button>
           </div>
         )}
           </>
