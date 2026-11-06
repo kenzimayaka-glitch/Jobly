@@ -49,3 +49,19 @@ L'URL par défaut est https://jobly-c0651.vercel.app. Le binaire debug est produ
 ## État de livraison
 
 Le code source et le pipeline CI Android sont versionnés. Le build CI doit réussir avant toute fusion. La publication Play Store, la signature release et les tests sur appareils physiques restent des étapes séparées.
+
+
+## Confirmation Mobile Money dans le même APK
+
+Le téléphone Android marchand utilise ce même package `com.jobly.android` et la même WebView Jobly. Aucun second APK ou service compagnon n'est créé.
+
+1. Un ADMIN configure les codes marchands MTN/Orange et les numéros de compte depuis `/admin/payments/sms`. Ces paramètres sont centralisés côté serveur et ne sont pas codés dans l'application.
+2. L'administrateur ouvre le même écran dans l'APK du téléphone qui porte la SIM de réception, puis appaire le profil avec les identifiants d'expéditeur SMS exacts, relevés sur de vrais messages opérateur.
+3. Le serveur provisionne le téléphone et retourne un jeton d'appairage unique. Le pont natif limité à l'origine HTTPS Jobly et au document principal remet le jeton au composant Android.
+4. Le jeton et la liste d'expéditeurs sont chiffrés AES-GCM avec une clé Android Keystore. Le receiver ne met en file que les SMS d'un expéditeur autorisé ; le corps est chiffré avant stockage local.
+5. WorkManager transmet le SMS vers `/api/payments/sms/ingest` en HTTPS. Le serveur vérifie à nouveau appareil, jeton, expéditeur, compte marchand, montant, devise et référence transactionnelle. Le SMS brut n'est pas conservé en base.
+6. La révocation supprime le profil et ses tâches locales dans l'APK.
+
+### Permission SMS restreinte
+
+Le manifeste déclare `RECEIVE_SMS` et l'APK demande l'autorisation après l'appairage. Certaines versions Android et certains modes d'installation appliquent une restriction supplémentaire. L'appairage et le build APK ne prouvent donc pas que la permission est réellement accordée. Il faut vérifier l'état de permission et la réception d'un SMS opérateur sur le modèle physique qui portera la SIM marchande.

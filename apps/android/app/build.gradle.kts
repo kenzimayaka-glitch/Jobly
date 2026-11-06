@@ -50,6 +50,7 @@ kotlin {
 
 dependencies {
     implementation("androidx.webkit:webkit:1.18.0")
+    implementation("androidx.work:work-runtime:2.10.1")
 
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:core:1.6.1")
