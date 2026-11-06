@@ -58,8 +58,10 @@ export async function POST(request: NextRequest) {
       .update({ lastSeenAt: receivedAt, updatedAt: receivedAt }).eq("id", device.id).eq("status", "ACTIVE");
     if (heartbeatError) throw new Error(heartbeatError.message);
 
-    const initialStatus = !parsed.senderTrusted || parsed.status !== "SUCCESSFUL" || !parsed.transactionId || !parsed.amountXaf || parsed.fraudFlags.length > 0
-      ? "REJECTED" : "RECEIVED";
+    const allFraudFlags = [...parsed.fraudFlags, ...(aiReview?.flags || [])];
+    const initialStatus = !parsed.senderTrusted || parsed.status !== "SUCCESSFUL" ||
+      !parsed.transactionId || !parsed.amountXaf || allFraudFlags.length > 0 ||
+      !aiReview?.accepted ? "REJECTED" : "RECEIVED";
     const { data: receipt, error: receiptError } = await supabase.from("PaymentSmsReceipt").insert({
       deviceId: device.id,
       provider,
