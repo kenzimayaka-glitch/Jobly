@@ -24,6 +24,13 @@ export async function POST(req: NextRequest) {
     if (!transactionId || body.confirmExternalTransfer !== true) {
       return NextResponse.json({ message: "Identifiant et confirmation explicite du transfert externe requis." }, { status: 400 });
     }
+    const audit = await db.from("CEOAuditLog").insert({
+      adminUserId: user.id,
+      action: "MOBILITY_FUNDING_DISBURSEMENT_VERIFY_ATTEMPT",
+      endpoint: "/api/mobility/admin/funding/verify",
+      metadata: { transactionId, attemptedAt: new Date().toISOString() },
+    });
+    if (audit.error) throw new Error(audit.error.message);
     const { data, error } = await db.rpc("mobility_verify_funding_disbursement", {
       p_transaction_id: transactionId,
       p_admin_user_id: String(user.id),
@@ -33,14 +40,7 @@ export async function POST(req: NextRequest) {
       const clientError = /MOBILITY_(ADMIN_REQUIRED|TRANSACTION_NOT_FOUND|TRANSACTION_NOT_VERIFIABLE)/.test(message);
       return NextResponse.json({ message }, { status: clientError ? 422 : 500 });
     }
-    const audit = await db.from("CEOAuditLog").insert({
-      adminUserId: user.id,
-      action: "MOBILITY_FUNDING_DISBURSEMENT_VERIFIED",
-      endpoint: "/api/mobility/admin/funding/verify",
-      metadata: { transactionId, verifiedAt: new Date().toISOString() },
-    });
-    if (audit.error) throw new Error(audit.error.message);
-    return NextResponse.json({ transaction: data, message: "Transfert externe contrôlé et confirmé." });
+    return NextResponse.json({ transaction: data, message: "Transfert externe contrôlé et confirmé." }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Vérification du décaissement impossible." }, { status: 500 });
   }
