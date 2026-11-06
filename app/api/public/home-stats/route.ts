@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 1000;
 const CAPTURE_ID_BATCH_SIZE = 200;
-const TWO_MONTHS_MS = 62 * 24 * 60 * 60 * 1000;
+
 
 type DiscoveryOffer = {
   id: string;
@@ -88,7 +88,9 @@ async function fetchPublishedRecruiterOffers(
   supabase: ReturnType<typeof adminClient>,
   now: Date,
 ): Promise<RecruiterOffer[]> {
-  const twoMonthsAgo = new Date(now.getTime() - TWO_MONTHS_MS).toISOString();
+  const twoMonthsAgoDate = new Date(now);
+  twoMonthsAgoDate.setMonth(twoMonthsAgoDate.getMonth() - 2);
+  const twoMonthsAgo = twoMonthsAgoDate.toISOString();
   const offers: RecruiterOffer[] = [];
 
   for (let offset = 0; ; offset += PAGE_SIZE) {
@@ -156,7 +158,7 @@ export async function GET() {
       },
       {
         headers: {
-          "Cache-Control": "public, max-age=0, s-maxage=60, stale-while-revalidate=30",
+          "Cache-Control": "public, max-age=0, s-maxage=30, stale-while-revalidate=30",
         },
       },
     );
