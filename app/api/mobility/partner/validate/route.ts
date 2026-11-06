@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { data: request, error: requestError } = await sb.from("MobilityRequest")
-      .select("id,eligibilityStatus,eligibilityThresholdPercent,recruiterGuaranteed")
+      .select("id,eligibilityStatus,eligibilityThresholdPercent,recruiterGuaranteed,subventionPercent,currentStep,status")
       .eq("id", requestId)
       .maybeSingle();
     if (requestError) throw new Error("MOBILITY_REQUEST_LOOKUP_FAILED: " + requestError.message);
@@ -84,10 +84,23 @@ export async function POST(req: NextRequest) {
       visibleToInstitution: true,
     });
     if (eventError) {
+      const rollback = await sb.from("MobilityRequest").update({
+        subventionPercent: request.subventionPercent ?? 0,
+        currentStep: request.currentStep,
+        status: request.status,
+        updatedAt: new Date().toISOString(),
+      }).eq("id", requestId);
+      if (rollback.error) {
+        return NextResponse.json({
+          message: "Échec du journal d'audit et échec du retour arrière : " + rollback.error.message,
+          auditError: eventError.message,
+          rollbackError: true,
+        }, { status: 500 });
+      }
       return NextResponse.json({
-        message: "La validation a été enregistrée, mais l'événement d'audit n'a pas pu être écrit : " + eventError.message,
-        request: data,
+        message: "La validation a été annulée car son événement d'audit n'a pas pu être écrit : " + eventError.message,
         auditError: true,
+        rolledBack: true,
       }, { status: 500 });
     }
     return NextResponse.json({ request: data });
