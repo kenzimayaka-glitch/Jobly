@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
       .in("id", userIds);
     if (usersError) throw new Error(usersError.message);
 
-    const userById = new Map((users || []).map((entry: Record<string, unknown>) => [String(entry.id), entry]));
+    const userById = new Map<string, Record<string, unknown>>((users || []).map((entry: Record<string, unknown>): [string, Record<string, unknown>] => [String(entry.id), entry]));
     const accounts = await Promise.all(rows.map(async (row: Record<string, unknown>) => {
       const managedUser = userById.get(String(row.userId)) || null;
       let status = String(row.status || "INVITED");
