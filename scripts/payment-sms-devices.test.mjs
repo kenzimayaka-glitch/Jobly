@@ -32,3 +32,8 @@ test("device revocation is role-gated and audited", () => {
   assert.match(route, /status: "REVOKED"/);
   assert.match(route, /PAYMENT_SMS_DEVICE_REVOKED/);
 });
+
+test("customer verification accepts dotted Orange transaction references", () => {
+  const route = read("../app/api/payments/[id]/verify/route.ts");
+  assert.ok(route.includes("A-Z0-9._-"));
+});
