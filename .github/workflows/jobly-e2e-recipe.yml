@@ -3,6 +3,17 @@ name: Jobly — Recette E2E isolée
 # Manual only: avoid spending CI minutes on every PR update during Lot 0.
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - e2e/recette
+    paths:
+      - "e2e/**"
+      - ".github/workflows/jobly-e2e-recipe.yml"
+      - "app/**"
+      - "components/**"
+      - "lib/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
 
 permissions:
   contents: read
