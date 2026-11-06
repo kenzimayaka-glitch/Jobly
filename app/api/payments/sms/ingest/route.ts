@@ -145,6 +145,13 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ accepted: true, receiptId: receipt.id, processingStatus: "MATCHED", entitlementChanged: true, idempotent: Boolean((finalized as any)?.idempotent) });
   } catch (error) {
+    if (error instanceof Error && error.message === "Aucun moteur IA JOBLY disponible.") {
+      return err(
+        "Le contrôle IA Mobile Money est temporairement indisponible. Le SMS chiffré reste dans la file du téléphone marchand et sera réessayé.",
+        503,
+        "SMS_AI_UNAVAILABLE",
+      );
+    }
     return err(error instanceof Error ? error.message : "Réception du SMS impossible.", 500);
   }
 }
