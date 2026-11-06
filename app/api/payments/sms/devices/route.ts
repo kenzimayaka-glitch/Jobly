@@ -51,6 +51,16 @@ export async function POST(request: NextRequest) {
       ? [...new Set(body.senderIds.map((value: unknown) => String(value || "").normalize("NFKC").trim().replace(/\s+/g, " ")).filter((value: string) => value.length > 0 && value.length <= 120))]
       : [];
     if (!merchantAccount) return err("Numéro marchand invalide.", 400, "INVALID_MERCHANT_ACCOUNT");
+    const { data: providerConfig, error: providerConfigError } = await supabase
+      .from("PaymentSmsProviderConfig")
+      .select("merchantAccount,isActive")
+      .eq("provider", provider)
+      .maybeSingle();
+    if (providerConfigError) throw new Error("PAYMENT_SMS_CONFIG_READ_FAILED");
+    if (!providerConfig?.isActive) return err("Configure d’abord le code marchand et le numéro central de cet opérateur.", 409, "PROVIDER_CONFIG_REQUIRED");
+    if (String(providerConfig.merchantAccount).replace(/\D/g, "") !== merchantAccount.replace(/\D/g, "")) {
+      return err("Le numéro de cette SIM ne correspond pas au compte marchand central. Mets à jour la configuration ou vérifie la nouvelle SIM.", 409, "MERCHANT_ACCOUNT_CONFIG_MISMATCH");
+    }
     if (!label) return err("Nom du téléphone requis.", 400, "DEVICE_LABEL_REQUIRED");
     if (!senderIds.length || senderIds.length > 10) return err("Configurez entre 1 et 10 noms d'expéditeurs exacts.", 400, "SENDER_ALLOWLIST_REQUIRED");
 
