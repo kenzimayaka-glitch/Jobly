@@ -12,12 +12,12 @@ function maskMerchantCode(value: string): string {
   return value.length <= 4 ? "••••" : "••••" + value.slice(-4);
 }
 
-async function getAdmin(request: NextRequest) {
+async function getAdmin(request: NextRequest, allowFinance = false) {
   const auth = await getAuthUser(request);
   if (!auth) return { error: err("Session requise.", 401, "UNAUTHENTICATED") };
   const supabase = adminClient();
   const actor = await ensureUser(supabase, auth);
-  if (String(actor.role) !== "ADMIN") {
+  if (String(actor.role) !== "ADMIN" && !(allowFinance && String(actor.role) === "FINANCE")) {
     return { error: err("Seul un administrateur Jobly peut modifier la configuration Mobile Money.", 403, "ADMIN_REQUIRED") };
   }
   return { supabase, actor };
@@ -25,7 +25,7 @@ async function getAdmin(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const access = await getAdmin(request);
+    const access = await getAdmin(request, true);
     if ("error" in access) return access.error;
     const { data, error } = await access.supabase
       .from("PaymentSmsProviderConfig")
