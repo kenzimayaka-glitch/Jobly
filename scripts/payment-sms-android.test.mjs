@@ -11,19 +11,19 @@ test("Jobly APK receives SMS only with the declared restricted permission", () =
   assert.match(manifest, /\.PaymentSmsReceiver/);
   assert.ok(manifest.includes('android:permission="android.permission.BROADCAST_SMS"'));
   assert.match(receiver, /SMS_RECEIVED_ACTION/);
-  assert.match(receiver, /isAllowedSender\(context, senderId\)/);
-  assert.ok(receiver.indexOf("isAllowedSender(context, senderId)") < receiver.indexOf("enqueueUniqueWork"));
+  assert.match(receiver, /findUniqueForSender\(context, senderId\)/);
+  assert.ok(receiver.indexOf("findUniqueForSender(context, senderId)") < receiver.indexOf("enqueueUniqueWork"));
 });
 
 test("the merchant token and sender allowlist are encrypted with Android Keystore", () => {
   const credentials = read("../apps/android/app/src/main/java/com/jobly/android/PaymentSmsDeviceCredentials.kt");
   assert.match(credentials, /AndroidKeyStore/);
   assert.match(credentials, /AES\/GCM\/NoPadding/);
-  assert.match(credentials, /TOKEN_CIPHERTEXT/);
-  assert.match(credentials, /SENDER_IDS_CIPHERTEXT/);
+  assert.match(credentials, /RECORDS_CIPHERTEXT/);
+  assert.match(credentials, /findUniqueForSender/);
+  assert.match(credentials, /return matches\.singleOrNull\(\)/);
   assert.match(credentials, /setRandomizedEncryptionRequired\(true\)/);
-  assert.doesNotMatch(credentials, /putString\(TOKEN_CIPHERTEXT, token\)/);
-  assert.doesNotMatch(credentials, /putString\(SENDER_IDS_CIPHERTEXT, JSONArray\(allowlist\)\.toString\(\)\)/);
+  assert.doesNotMatch(credentials, /putString\(RECORDS_CIPHERTEXT, array\.toString\(\)\)/);
 });
 
 test("WorkManager queues ciphertext and posts only to the Jobly SMS endpoint", () => {
@@ -51,12 +51,15 @@ test("pairing and SMS permission requests use the existing origin-restricted Job
   assert.match(activity, /isTrustedJoblyOrigin\(sourceOrigin\)/);
   assert.match(activity, /PAIR_PAYMENT_SMS_DEVICE/);
   assert.match(activity, /REQUEST_PAYMENT_SMS_PERMISSION/);
-  assert.match(activity, /cancelAllWorkByTag/);
+  assert.match(activity, /cancelAllWorkByTag\(PaymentSmsReceiver\.deviceTag\(deviceId\)\)/);
   assert.match(activity, /requestPermissions\(arrayOf\(Manifest\.permission\.RECEIVE_SMS\)/);
   assert.match(bridge, /PAIR_PAYMENT_SMS_DEVICE/);
   assert.match(bridge, /requestJoblyPaymentSmsPermission/);
   assert.match(page, /pairJoblyPaymentSmsDevice/);
   assert.match(page, /Réessayer l’autorisation SMS/);
+  assert.match(page, /devices\.map\(\(device\)/);
+  assert.match(page, /revokeJoblyPaymentSmsDeviceLocally\(device\.id\)/);
+  assert.match(page, /un sender ID doit être unique/i);
   assert.match(page, /isJoblyAndroidPaymentSmsAvailable/);
   assert.match(page, /senderIds/);
   assert.match(admin, /\/admin\/payments\/sms/);
