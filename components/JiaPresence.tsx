@@ -625,6 +625,7 @@ export default function JiaPresence() {
       const applicationProfile = result.applicationProfile || {};
       const block: JiaWorkspaceBlock = {
         kind: "prepared-application",
+        applicationId: String(result.application?.id || ""),
         title: offer.title,
         channel: String(prepared.channel?.channel || "À confirmer"),
         subject: String(prepared.subject || ""),
@@ -649,6 +650,40 @@ export default function JiaPresence() {
       setCommandBusy(false);
     }
   }, [appendConversationMessage, say]);
+
+  const submitJiaApplication = useCallback(async (args: {
+    messageId: string;
+    applicationId: string;
+    letter: string;
+  }) => {
+    if (!args.applicationId) throw new Error("Identifiant de candidature absent.");
+    setCommandBusy(true);
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token) throw new Error("Session requise pour envoyer cette candidature.");
+      const response = await fetch("/api/applications/" + encodeURIComponent(args.applicationId) + "/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+        body: JSON.stringify({ letterText: args.letter }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.submitted !== true) {
+        throw new Error(result.message || "Jobly n’a pas confirmé l’envoi de cette candidature.");
+      }
+      setConversationMessages((current) => current.map((message) => {
+        if (message.id !== args.messageId || message.workspace?.kind !== "prepared-application") return message;
+        return { ...message, workspace: { ...message.workspace, submitted: true } };
+      }));
+      appendConversationMessage(
+        "assistant",
+        result.pendingProof
+          ? "L’email est parti via Gmail. Jobly enregistre encore la preuve d’envoi ; le suivi reste à vérifier dans Mes candidatures."
+          : "Jobly confirme l’envoi de ta candidature via Gmail. Tu peux suivre son statut dans Mes candidatures.",
+      );
+    } finally {
+      setCommandBusy(false);
+    }
+  }, [appendConversationMessage]);
 
   const submitJiaAssessment = useCallback(async (args: {
     messageId: string;
@@ -1075,6 +1110,7 @@ export default function JiaPresence() {
         onNavigate={(href) => href === "/jia/extension" ? go("/jia/extension") : go(href)}
         onPrepareApplication={prepareJiaApplication}
         onSubmitAssessment={submitJiaAssessment}
+        onSubmitApplication={submitJiaApplication}
         onEnableVoice={voiceSupported ? enableVoiceFromConversation : undefined}
       />
     </>

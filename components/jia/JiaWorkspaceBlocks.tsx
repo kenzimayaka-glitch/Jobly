@@ -27,6 +27,7 @@ type Props = {
     score: number;
     resultSummary: string;
   }) => Promise<void>;
+  onSubmitApplication: (args: { messageId: string; applicationId: string; letter: string }) => Promise<void>;
 };
 
 const surface = "rounded-2xl border border-[#DCE6F2] bg-white p-3.5 shadow-[0_8px_22px_rgba(16,43,85,.045)]";
@@ -294,25 +295,99 @@ function QuestionnaireBlock({ block, messageId, onSubmitAssessment }: {
   );
 }
 
+function PreparedApplicationBlock({ block, messageId, onSubmitApplication }: {
+  block: Extract<JiaWorkspaceBlock, { kind: "prepared-application" }>;
+  messageId: string;
+  onSubmitApplication: Props["onSubmitApplication"];
+}) {
+  const [letter, setLetter] = useState(block.letter);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(Boolean(block.submitted));
+  const [error, setError] = useState("");
+
+  async function submit() {
+    if (sending || sent || !block.applicationId || !letter.trim()) return;
+    const recipient = block.email ? " vers " + block.email : "";
+    const confirmed = window.confirm(
+      "Confirmer l’envoi réel de cette candidature" + recipient + " via ton compte Gmail ?\n\n" +
+      "Le message sera envoyé avec le CV préparé en pièce jointe. Cet envoi ne pourra pas être annulé."
+    );
+    if (!confirmed) return;
+    setSending(true);
+    setError("");
+    try {
+      await onSubmitApplication({ messageId, applicationId: block.applicationId, letter });
+      setSent(true);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "L’envoi n’a pas été confirmé.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <section className="mt-3 rounded-2xl border border-[#B8DEC8] bg-[#F3FAF6] p-3.5">
+      <div className="flex items-center gap-2">
+        <CheckCircle2 size={17} className="text-[#187443]"/>
+        <p className="text-[12px] font-extrabold text-[#17613B]">{sent ? "Candidature envoyée" : "Candidature préparée — pas encore envoyée"}</p>
+      </div>
+      <p className="mt-2 text-[10px] text-[#456C57]">Canal : {block.channel || "à confirmer"}</p>
+      {block.email && <p className="mt-1 break-all text-[10px] text-[#456C57]">E-mail destinataire : {block.email}</p>}
+      {block.phone && <p className="mt-1 text-[10px] text-[#456C57]">Téléphone : {block.phone}</p>}
+      {block.subject && <p className="mt-2 text-[11px] font-bold text-[#173A6B]">Objet : {block.subject}</p>}
+      {block.letter && (
+        <label className="mt-2 block text-[10px] font-bold text-[#456C57]">
+          Relis et ajuste ta lettre avant l’envoi
+          <textarea
+            value={letter}
+            onChange={(event) => setLetter(event.target.value)}
+            disabled={sending || sent}
+            rows={7}
+            maxLength={30000}
+            className="mt-1 max-h-64 w-full rounded-xl border border-[#DCE9E0] bg-white p-3 text-[10px] font-normal leading-5 text-[#40566C] outline-none focus:border-[#1264EB] disabled:opacity-70"
+          />
+        </label>
+      )}
+      {block.warnings.length > 0 && (
+        <ul className="mt-2 list-disc space-y-1 pl-4 text-[9px] text-[#8A5A20]">
+          {block.warnings.map((warning, index) => <li key={index}>{warning}</li>)}
+        </ul>
+      )}
+      {error && <p role="alert" className="mt-2 rounded-xl bg-[#FFF4E8] p-3 text-[10px] text-[#92520C]">{error}</p>}
+      {sent ? (
+        <p role="status" className="mt-3 rounded-xl bg-white p-3 text-[10px] font-bold text-[#17613B]">
+          Le service Jobly a confirmé l’envoi. Le suivi est disponible dans Mes candidatures.
+        </p>
+      ) : block.channel.toUpperCase() === "EMAIL" && block.applicationId ? (
+        <div className="mt-3 space-y-2">
+          <p className="text-[9px] leading-4 text-[#8A5A20]">
+            Le bouton envoie réellement l’email depuis ton compte Gmail et joint le CV préparé. Une connexion Gmail active et les contrôles de quota Jobly sont nécessaires.
+          </p>
+          <button type="button" className={primary} disabled={sending || !letter.trim()} onClick={() => void submit()}>
+            {sending ? <RefreshCw size={13} className="animate-spin"/> : <CheckCircle2 size={13}/>}
+            {sending ? "Envoi en cours…" : "Relire, confirmer et envoyer"}
+          </button>
+        </div>
+      ) : (
+        <p className="mt-3 text-[10px] leading-5 text-[#6B7C92]">
+          Ce canal n’est pas automatisable par email. J’IA ne simule pas l’envoi.
+        </p>
+      )}
+      {block.sourceUrl && /^https?:\/\//i.test(block.sourceUrl) && (
+        <a href={block.sourceUrl} target="_blank" rel="noopener noreferrer" className={secondary + " mt-3"}>
+          Consulter l'annonce <ArrowUpRight size={13}/>
+        </a>
+      )}
+    </section>
+  );
+}
+
 export default function JiaWorkspaceBlocks({ block, messageId, onPrepareApplication, onNavigate, onSubmitAssessment }: Props) {
   if (block.kind === "offers") return <OffersBlock block={block} onPrepareApplication={onPrepareApplication} onNavigate={onNavigate}/>;
   if (block.kind === "applications") return <ApplicationsBlock block={block}/>;
   if (block.kind === "profile") return <ProfileBlock block={block} onNavigate={onNavigate}/>;
   if (block.kind === "questionnaire") return <QuestionnaireBlock block={block} messageId={messageId} onSubmitAssessment={onSubmitAssessment}/>;
-  if (block.kind === "prepared-application") {
-    return (
-      <section className="mt-3 rounded-2xl border border-[#B8DEC8] bg-[#F3FAF6] p-3.5">
-        <div className="flex items-center gap-2"><CheckCircle2 size={17} className="text-[#187443]"/><p className="text-[12px] font-extrabold text-[#17613B]">Candidature préparée — pas encore envoyée</p></div>
-        <p className="mt-2 text-[10px] text-[#456C57]">Canal : {block.channel || "à confirmer"}</p>
-        {block.email && <p className="mt-1 break-all text-[10px] text-[#456C57]">E-mail : {block.email}</p>}
-        {block.phone && <p className="mt-1 text-[10px] text-[#456C57]">Téléphone : {block.phone}</p>}
-        {block.subject && <p className="mt-2 text-[11px] font-bold text-[#173A6B]">Objet : {block.subject}</p>}
-        {block.letter && <div className="mt-2 max-h-52 overflow-y-auto whitespace-pre-wrap rounded-xl border border-[#DCE9E0] bg-white p-3 text-[10px] leading-5 text-[#40566C]">{block.letter}</div>}
-        {block.warnings.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-4 text-[9px] text-[#8A5A20]">{block.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}
-        {block.sourceUrl && /^https?:\/\//i.test(block.sourceUrl) && <a href={block.sourceUrl} target="_blank" rel="noopener noreferrer" className={secondary + " mt-3"}>Consulter l'annonce <ArrowUpRight size={13}/></a>}
-      </section>
-    );
-  }
+  if (block.kind === "prepared-application") return <PreparedApplicationBlock block={block} messageId={messageId} onSubmitApplication={onSubmitApplication}/>;
   return (
     <section className="mt-3 rounded-2xl border border-[#E3EAF3] bg-white p-3.5">
       <div className="flex items-center gap-2"><GraduationCap size={16} className="text-[#1264EB]"/><p className="text-[11px] font-extrabold text-[#173A6B]">{block.title}</p></div>

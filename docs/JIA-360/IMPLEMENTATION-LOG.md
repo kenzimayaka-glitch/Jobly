@@ -104,3 +104,13 @@ Cette livraison est une première expérience UI raccordée au Brain existant ; 
 
 ---
 Ce journal décrit l'état réel du code et les limites prouvées au moment de sa rédaction ; il ne constitue pas une certification de production.
+
+
+## 8. Envoi de candidature depuis la conversation — confirmation explicite
+
+- Le bloc de candidature préparée transporte maintenant l’identifiant réel de l’enregistrement `Application`.
+- La lettre est modifiable dans le bloc avant transmission.
+- Le bouton de transmission n’apparaît que pour le canal `EMAIL` et affiche une confirmation native rappelant que l’email sera réellement envoyé via le Gmail connecté avec le CV en pièce jointe.
+- Après confirmation, J’IA appelle uniquement `POST /api/applications/{id}/submit`, qui conserve les vérifications serveur existantes : propriétaire de la candidature, statut, quota, canal EMAIL, CV, adresse destinataire et connexion Gmail.
+- Le bloc n’affiche « envoyée » qu’après une réponse du service Jobly avec `submitted: true`. Une preuve en attente est explicitement distinguée.
+- Les autres canaux ne sont jamais présentés comme envoyés : ils restent à poursuivre via la source ou le module approprié.
