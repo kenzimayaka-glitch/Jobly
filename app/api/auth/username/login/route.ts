@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { adminClient } from "../../../../../lib/server-auth";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,6 +10,12 @@ export async function POST(request: NextRequest) {
     const password = String(body.password || "");
     if (!username || !password) return NextResponse.json({ message: "Username et mot de passe sont obligatoires." }, { status: 400 });
     const supabaseAdmin = adminClient();
+    const rateLimited = await enforceApiRateLimit(request, supabaseAdmin, {
+      scope: "auth-username-login",
+      ipWindows: [{ limit: 5, windowSeconds: 60 }, { limit: 20, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (rateLimited) return rateLimited;
     const { data: user, error } = await supabaseAdmin.from("User").select("email").ilike("username", username).maybeSingle();
     if (error) throw new Error(error.message);
     if (!user?.email) { console.info("[auth/username/login] lookup_not_found"); return NextResponse.json({ message: "Username ou mot de passe incorrect." }, { status: 401 }); }
