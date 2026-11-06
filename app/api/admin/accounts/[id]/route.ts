@@ -50,11 +50,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       profile = data;
     }
 
-    let status = managed.status;
-    if (user.email) {
-      const { data: authData } = await db.auth.admin.getUserById(managed.userId === user.id ? "" : "");
-      void authData;
-    }
+    const status = managed.status;
     return NextResponse.json({
       account: { ...managed, user, profile, status },
       context: { principal: "ADMIN_MASTER", selectedAccountId: managed.id, writeAsPartner: false },
