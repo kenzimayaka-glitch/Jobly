@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import JoblyLogo from "./JoblyLogo";
 import { useI18n } from "@/lib/i18n";
+import { getSupabaseClient } from "@/lib/supabase";
 
 type Role = "talent" | "recruiter" | "partner";
 
@@ -42,7 +44,35 @@ export default function PageHeader({
   const router = useRouter();
   const pathname = usePathname() ?? "";
   const { t } = useI18n();
+  const [canSwitchAdmin, setCanSwitchAdmin] = useState(false);
   const eco = resolveRole(role, theme, eyebrow, pathname);
+
+  useEffect(() => {
+    let alive = true;
+    setCanSwitchAdmin(false);
+    if (pathname.startsWith("/admin")) return () => { alive = false; };
+    (async () => {
+      const session = await getSupabaseClient().auth.getSession();
+      const token = session.data.session?.access_token;
+      if (!token) return;
+      const response = await fetch("/api/me", { headers: { Authorization: "Bearer " + token }, cache: "no-store" });
+      const body = await response.json().catch(() => ({}));
+      if (alive && response.ok) setCanSwitchAdmin(Boolean(body.capabilities?.canSwitchAdmin));
+    })().catch(() => {});
+    return () => { alive = false; };
+  }, [pathname]);
+
+  async function switchToAdmin() {
+    const session = await getSupabaseClient().auth.getSession();
+    const token = session.data.session?.access_token;
+    if (!token) return;
+    const response = await fetch("/api/admin/context", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "ADMIN" }),
+    });
+    if (response.ok) router.push("/admin");
+  }
 
   return (
     <header className={`sticky top-0 z-30 px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 ${transparent ? "border-b-0 bg-transparent shadow-none backdrop-blur-0" : "border-b border-line bg-white/95 shadow-[0_6px_24px_rgba(10,25,49,.04)] backdrop-blur-xl"}`}>
@@ -57,6 +87,11 @@ export default function PageHeader({
         </button>
 
         <div className="flex items-center gap-2.5">
+          {canSwitchAdmin && (
+            <button type="button" onClick={switchToAdmin} aria-label="Ouvrir l'espace administrateur" title="Espace ADMIN" className="jobly-focus rounded-full border border-[#DCE4F0] bg-[#10264A] px-3 py-2 text-[10px] font-black text-white transition hover:bg-[#1A3B70]">
+              ADMIN ↗
+            </button>
+          )}
           <button
             type="button"
             onClick={() => router.push("/settings")}
