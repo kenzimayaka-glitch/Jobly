@@ -76,3 +76,36 @@ test("Google identity completion uses the same responsive, stepped authenticatio
   assert.match(onboarding, /step=\{3\}/);
   assert.match(onboarding, /Finalise ton identité/);
 });
+
+test("legacy email-only User rows are linked before an insert can violate User_email_key", () => {
+  const serverAuth = read("lib/server-auth.ts");
+  const implementation = serverAuth.slice(
+    serverAuth.indexOf("export async function ensureUser("),
+    serverAuth.indexOf("export function cleanStrings"),
+  );
+  assert.match(implementation, /\.eq\("authUserId", authUser\.id\)/);
+  assert.match(implementation, /const legacy = await findByEmail\(\)/);
+  assert.match(implementation, /\.is\("authUserId", null\)/);
+  assert.match(implementation, /\.update\(updates\)/);
+  assert.match(implementation, /error\.code === "23505"/);
+  assert.doesNotMatch(implementation, /\.insert\([\s\S]*?\)\s*\.select[\s\S]*?before/i);
+});
+
+test("email linking preserves an already linked account and rejects a different Auth owner", () => {
+  const serverAuth = read("lib/server-auth.ts");
+  const implementation = serverAuth.slice(
+    serverAuth.indexOf("export async function ensureUser("),
+    serverAuth.indexOf("export function cleanStrings"),
+  );
+  assert.match(implementation, /if \(existing\) return existing/);
+  assert.match(implementation, /legacy\.authUserId === authUser\.id/);
+  assert.match(implementation, /AUTH_USER_EMAIL_ALREADY_LINKED/);
+});
+
+test("recruiter billing resolves RecruiterProfile by internal User.id", () => {
+  const serverAuth = read("lib/server-auth.ts");
+  const subscription = read("app/api/subscription/route.ts");
+  assert.match(serverAuth, /internalUser: \{ id: string; role\?: string \}/);
+  assert.match(serverAuth, /\.eq\("userId", internalUser\.id\)/);
+  assert.doesNotMatch(subscription, /resolveBillingProductType\(supabase, user, auth\.id/);
+});
