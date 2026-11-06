@@ -60,7 +60,7 @@ android {
         buildConfigField("String", "JOBLY_RELEASE_CERT_SHA256", "\"$releaseCertificateSha256\"")
     }
 
-signingConfigs {
+    signingConfigs {
         create("joblyRelease") {
             if (releaseStoreFile.isNotBlank()) {
                 storeFile = rootProject.file(releaseStoreFile)
