@@ -24,4 +24,4 @@ jobs:
         with:
           node-version: 22
       - name: Test parser and transaction matching
-        run: node --experimental-strip-types --test scripts/payment-sms-parser.test.mjs scripts/payment-sms-matching.test.mjs
+        run: node --experimental-strip-types --test scripts/payment-sms-parser.test.mjs scripts/payment-sms-matching.test.mjs scripts/payment-sms-config.test.mjs scripts/payment-sms-devices.test.mjs
