@@ -279,8 +279,9 @@ async function googleRevocations(): Promise<RevocationDocument> {
 function isRevoked(certificate: X509Certificate, entries: Record<string, { status?: string }>) {
   const serialHex = certificate.serialNumber.replace(/^0+/, "").toLowerCase();
   const entry = entries[serialHex];
-  const status = entry?.status?.toUpperCase();
-  return status === "REVOKED" || status === "SUSPENDED";
+  if (!entry) return false;
+  const status = entry.status?.toUpperCase();
+  return status !== "GOOD";
 }
 function buildTrustedChain(leaf: X509Certificate, presented: X509Certificate[], roots: X509Certificate[]) {
   const candidates = [...presented, ...roots];
