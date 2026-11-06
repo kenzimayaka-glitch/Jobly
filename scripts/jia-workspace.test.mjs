@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildJiaAdaptiveQuestionBank,
   buildJiaPracticeQuestionnaire,
   detectJiaWorkspaceIntent,
 } from "../lib/jia/workspace.ts";
@@ -41,4 +42,15 @@ test("generic practice assessment is explicit about its non-certifying scope", (
   const assessment = buildJiaPracticeQuestionnaire("Propose un quiz");
   assert.equal(assessment.questions.length, 3);
   assert.match(assessment.objective, /pas une certification/i);
+});
+
+
+test("adaptive question bank offers six distinct questions across three difficulty levels", () => {
+  for (const prompt of ["questionnaire Excel", "quiz commercial", "questionnaire communication", "quiz général"]) {
+    const bank = buildJiaAdaptiveQuestionBank(prompt);
+    assert.equal(bank.questions.length, 6);
+    assert.deepEqual(new Set(bank.questions.map((question) => question.difficulty)), new Set([1, 2, 3]));
+    assert.equal(new Set(bank.questions.map((question) => question.prompt)).size, 6);
+    assert.ok(bank.questions.every((question) => question.choices.length === 4));
+  }
 });

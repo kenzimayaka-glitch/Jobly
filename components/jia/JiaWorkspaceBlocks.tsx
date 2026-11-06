@@ -334,28 +334,54 @@ function QuestionnaireBlock({ block, messageId, onSubmitAssessment, onUpdateWork
   const [answers, setAnswers] = useState<Record<string, number>>(block.answers || {});
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState("");
-  const complete = block.questions.length > 0 && block.questions.every((_, index) => answers[String(index)] !== undefined);
-  const computedScore = block.questions.length
-    ? Math.round(block.questions.reduce((score, question, index) => score + (answers[String(index)] === question.correctIndex ? 1 : 0), 0) / block.questions.length * 100)
+  const asked = block.adaptive ? (block.askedQuestionIndexes?.length ? block.askedQuestionIndexes : [0]) : block.questions.map((_, index) => index);
+  const currentIndex = block.currentQuestionIndex ?? asked[asked.length - 1] ?? 0;
+  const currentQuestion = block.questions[currentIndex];
+  const currentAnswered = answers[String(currentIndex)] !== undefined;
+  const complete = block.adaptive
+    ? asked.length >= (block.maxQuestions || 5) && asked.every((index) => answers[String(index)] !== undefined)
+    : block.questions.length > 0 && block.questions.every((_, index) => answers[String(index)] !== undefined);
+  const usedIndexes = block.adaptive ? asked : block.questions.map((_, index) => index);
+  const computedScore = usedIndexes.length
+    ? Math.round(usedIndexes.reduce((score, index) => score + (answers[String(index)] === block.questions[index].correctIndex ? 1 : 0), 0) / usedIndexes.length * 100)
     : 0;
+
+  function updateAnswers(nextAnswers: Record<string, number>) {
+    setAnswers(nextAnswers);
+    onUpdateWorkspace(messageId, { ...block, answers: nextAnswers });
+  }
+
+  function continueAdaptive() {
+    if (!block.adaptive || !currentAnswered || complete || block.result) return;
+    const currentIsCorrect = answers[String(currentIndex)] === currentQuestion.correctIndex;
+    const currentDifficulty = currentQuestion.difficulty || block.currentDifficulty || 1;
+    const targetDifficulty = Math.min(3, Math.max(1, currentDifficulty + (currentIsCorrect ? 1 : -1))) as 1 | 2 | 3;
+    const nextIndex = block.questions.findIndex((question, index) =>
+      !asked.includes(index) && (question.difficulty || 1) === targetDifficulty
+    );
+    const fallbackIndex = block.questions.findIndex((_, index) => !asked.includes(index));
+    const chosenIndex = nextIndex >= 0 ? nextIndex : fallbackIndex;
+    if (chosenIndex < 0) return;
+    onUpdateWorkspace(messageId, {
+      ...block,
+      answers,
+      currentQuestionIndex: chosenIndex,
+      currentDifficulty: targetDifficulty,
+      askedQuestionIndexes: [...asked, chosenIndex],
+    });
+  }
 
   async function submit() {
     if (!complete || submitting || block.result) return;
     setSubmitting(true);
     setLocalError("");
-    const answerMap = Object.fromEntries(block.questions.map((question, index) => [
+    const answerMap = Object.fromEntries(usedIndexes.map((index) => [
       String(index + 1),
-      question.choices[answers[String(index)]] || "",
+      block.questions[index].choices[answers[String(index)]] || "",
     ]));
-    const resultSummary = "Résultat indicatif : " + computedScore + "/100 sur " + block.competency + ". Cet exercice ne constitue pas une certification.";
+    const resultSummary = "Résultat indicatif : " + computedScore + "/100 sur " + block.competency + ". Parcours " + (block.adaptive ? "adaptatif" : "standard") + ", non certifiant.";
     try {
-      await onSubmitAssessment({
-        messageId,
-        assessmentId: block.assessmentId,
-        answers: answerMap,
-        score: computedScore,
-        resultSummary,
-      });
+      await onSubmitAssessment({ messageId, assessmentId: block.assessmentId, answers: answerMap, score: computedScore, resultSummary });
     } catch (error) {
       setLocalError(error instanceof Error ? error.message : "Impossible d'enregistrer les réponses.");
     } finally {
@@ -368,11 +394,13 @@ function QuestionnaireBlock({ block, messageId, onSubmitAssessment, onUpdateWork
       <div className="rounded-2xl border border-[#F1D88B] bg-gradient-to-br from-[#FFFBEB] to-white p-3.5">
         <div className="flex items-center gap-2">
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#FFD21A] text-[#594300]"><ClipboardCheck size={17}/></div>
-          <div><p className="text-[12px] font-extrabold text-[#10233F]">{block.title}</p><p className="text-[10px] font-semibold text-[#8A6A10]">{block.questions.length} questions · {block.competency}</p></div>
+          <div><p className="text-[12px] font-extrabold text-[#10233F]">{block.title}</p><p className="text-[10px] font-semibold text-[#8A6A10]">{block.adaptive ? (asked.length + "/" + (block.maxQuestions || 5) + " questions adaptatives") : (block.questions.length + " questions")} · {block.competency}</p></div>
         </div>
         <p className="mt-2 text-[10px] leading-5 text-[#6B5A2A]">{block.objective}</p>
       </div>
-      {block.questions.map((question, index) => (
+      {(block.adaptive ? [currentIndex] : block.questions.map((_, index) => index)).map((index) => {
+        const question = block.questions[index];
+        return (
         <fieldset key={block.assessmentId + ":" + index} className="rounded-xl border border-[#E3EAF3] bg-white p-3" disabled={Boolean(block.result) || submitting}>
           <legend className="px-1 text-[11px] font-extrabold leading-5 text-[#173A6B]">{index + 1}. {question.prompt}</legend>
           <div className="mt-2 space-y-1.5">
@@ -399,7 +427,8 @@ function QuestionnaireBlock({ block, messageId, onSubmitAssessment, onUpdateWork
           </div>
           {block.result && <p className="mt-2 text-[10px] leading-4 text-[#58708C]">{question.explanation}</p>}
         </fieldset>
-      ))}
+        );
+      })}
       {block.error && <p role="alert" className="rounded-xl bg-[#FFF4E8] p-3 text-[10px] text-[#92520C]">{block.error}</p>}
       {localError && <p role="alert" className="rounded-xl bg-[#FFF4E8] p-3 text-[10px] text-[#92520C]">{localError}</p>}
       {block.result ? (
@@ -407,13 +436,17 @@ function QuestionnaireBlock({ block, messageId, onSubmitAssessment, onUpdateWork
           <p className="text-[15px] font-black text-[#17613B]">{block.result.score}/100</p>
           <p className="mt-1 text-[10px] leading-5 text-[#3E7056]">{block.result.summary}</p>
         </div>
+      ) : block.adaptive && !complete ? (
+        <button type="button" className={primary} disabled={!currentAnswered || submitting} onClick={continueAdaptive}>
+          Continuer selon ma réponse
+        </button>
       ) : (
         <button type="button" className={primary} disabled={!complete || submitting} onClick={() => void submit()}>
           {submitting ? <RefreshCw size={13} className="animate-spin"/> : <CheckCircle2 size={13}/>}
           Valider mes réponses
         </button>
       )}
-      <p className="text-[9px] leading-4 text-[#8492A5]">Exercice facultatif d'entraînement. Le score est indicatif et ne constitue ni une certification ni une décision de recrutement.</p>
+      <p className="text-[9px] leading-4 text-[#8492A5]">Exercice facultatif. Le score est indicatif et ne constitue ni une certification ni une décision de recrutement. Le mode adaptatif ajuste la difficulté dans une banque de questions préparée.</p>
     </section>
   );
 }

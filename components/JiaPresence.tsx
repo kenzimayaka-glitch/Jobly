@@ -35,6 +35,7 @@ import { useI18n, type DictKey } from "@/lib/i18n";
 import { decide as decideAutonomy, observe as observeAutonomy } from "@/lib/jia/autonomy";
 import JiaConversationSurface, { type JiaConversationMessage } from "@/components/jia/JiaConversationSurface";
 import {
+  buildJiaAdaptiveQuestionBank,
   buildJiaPracticeQuestionnaire,
   detectJiaWorkspaceIntent,
   type JiaWorkspaceBlock,
@@ -276,31 +277,47 @@ async function loadJiaWorkspace(
   }
 
   if (intent !== "ASSESSMENT") return null;
-  const practice = buildJiaPracticeQuestionnaire(command);
-  const response = await fetch("/api/career-journey/assessments", {
-    method: "POST",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      competency: practice.competency,
-      title: practice.title,
-      objective: practice.objective,
-      format: "MCQ",
-      adaptive: false,
-      voiceAllowed: true,
-      questions: practice.questions.map((question) => ({ prompt: question.prompt, choices: question.choices })),
-    }),
-  });
-  const json = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(json.message || "Je n'ai pas pu créer cet exercice.");
-  const assessmentId = typeof json.assessment?.id === "string" ? json.assessment.id : "";
+  const bank = buildJiaAdaptiveQuestionBank(command);
+  const createAssessment = async (adaptive: boolean, questions: typeof bank.questions) => {
+    const response = await fetch("/api/career-journey/assessments", {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        competency: bank.competency,
+        title: bank.title,
+        objective: bank.objective,
+        format: "MCQ",
+        adaptive,
+        voiceAllowed: true,
+        questions: questions.map((question) => ({ prompt: question.prompt, choices: question.choices })),
+      }),
+    });
+    const json = await response.json().catch(() => ({}));
+    return { response, json };
+  };
+  let created = await createAssessment(true, bank.questions);
+  let adaptiveGranted = created.response.ok;
+  if (!created.response.ok && created.response.status === 403 && created.json.requiredPlan === "PREMIUM") {
+    created = await createAssessment(false, bank.questions.slice(0, 3));
+  }
+  if (!created.response.ok) throw new Error(created.json.message || "Je n'ai pas pu créer cet exercice.");
+  const assessmentId = typeof created.json.assessment?.id === "string" ? created.json.assessment.id : "";
   if (!assessmentId) throw new Error("L'évaluation n'a pas reçu d'identifiant Jobly.");
+  const questions = adaptiveGranted ? bank.questions : bank.questions.slice(0, 3);
   return {
     kind: "questionnaire",
     assessmentId,
-    title: practice.title,
-    competency: practice.competency,
-    objective: practice.objective,
-    questions: practice.questions,
+    title: bank.title,
+    competency: bank.competency,
+    objective: adaptiveGranted
+      ? bank.objective + " Le parcours Premium adapte la difficulté suivante selon tes réponses."
+      : bank.objective + " Mode de pratique standard : trois questions.",
+    questions,
+    adaptive: adaptiveGranted,
+    currentQuestionIndex: 0,
+    currentDifficulty: 1,
+    askedQuestionIndexes: adaptiveGranted ? [0] : [0, 1, 2],
+    maxQuestions: adaptiveGranted ? 5 : 3,
   };
 }
 
