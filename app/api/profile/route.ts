@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
+import { enforceApiRateLimit } from "@/lib/server-security";
 
 
 function heroPhotoUrlForSource(supabase: ReturnType<typeof adminClient>, photoUrl: string | null | undefined) {
@@ -26,6 +27,14 @@ export async function GET(request: NextRequest) {
     if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    const rateLimited = await enforceApiRateLimit(request, supabase, {
+      scope: "talent-profile-read",
+      identity: user.id,
+      accountWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 300, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 600, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (rateLimited) return rateLimited;
     const [profile, experiences, skills, education] = await Promise.all([
       supabase.from("Profile").select("*").eq("userId", user.id).maybeSingle(),
       supabase.from("Experience").select("*").eq("userId", user.id).order("startDate", { ascending: false }),
@@ -38,7 +47,7 @@ export async function GET(request: NextRequest) {
       user: { id: user.id, email: user.email, phone: user.phone, displayName: user.displayName, profilePhotoUrl: user.profilePhotoUrl, heroPhotoUrl: heroPhotoUrlForSource(supabase, user.profilePhotoUrl), pitchVideoUrl: user.pitchVideoUrl ?? null, pitchVideoDurationMs: user.pitchVideoDurationMs ?? null, pitchVideoUpdatedAt: user.pitchVideoUpdatedAt ?? null, englishLevel: user.englishLevel, licences: user.licences ?? [], cvOriginalStoragePath: user.cvOriginalStoragePath ?? null, cvOriginalFileName: user.cvOriginalFileName ?? null, cvOriginalPageCount: user.cvOriginalPageCount ?? null, cvOriginalUploadedAt: user.cvOriginalUploadedAt ?? null, cvOriginalUrl: originalCvSignedUrl },
       profile: profile.data ?? { headline: "", summary: "", location: "", targetRoles: [], preferredSectors: [] },
       experiences: experiences.data ?? [], skills: skills.data ?? [], education: education.data ?? [],
-    });
+    }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible de charger le profil." }, { status: 500 });
   }
@@ -48,10 +57,26 @@ export async function PUT(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
     if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
-    const body = await request.json();
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > 128 * 1024) return NextResponse.json({ message: "Le profil dépasse la taille maximale autorisée." }, { status: 413 });
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ message: "Données de profil invalides." }, { status: 400 });
     const section = typeof body.section === "string" ? body.section : "all";
+    const allowedSections = new Set(["profil", "objectif", "experience", "skills", "formation", "all"]);
+    if (!allowedSections.has(section)) return NextResponse.json({ message: "Section de profil inconnue." }, { status: 400 });
+    for (const key of ["experiences", "skills", "education", "licences", "targetRoles", "preferredSectors"]) {
+      if (Array.isArray(body[key]) && body[key].length > 50) return NextResponse.json({ message: "50 éléments maximum par section." }, { status: 422 });
+    }
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    const rateLimited = await enforceApiRateLimit(request, supabase, {
+      scope: "talent-profile-update",
+      identity: user.id,
+      accountWindows: [{ limit: 10, windowSeconds: 60 }, { limit: 60, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 20, windowSeconds: 60 }, { limit: 120, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (rateLimited) return rateLimited;
 
     // Each section is persisted independently. Saving one section never erases another.
     if (section === "profil" || section === "all") {
