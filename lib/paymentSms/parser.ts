@@ -20,6 +20,7 @@ export type PaymentSmsParseResult = {
   currency: "XAF" | null;
   payerPhone: string | null;
   merchantAccount: string | null;
+  merchantAccountFromMessage: boolean;
   occurredAt: string | null;
   fraudFlags: string[];
 };
@@ -201,9 +202,11 @@ export function parsePaymentSms(
     /\b(?:par|payer|payeur|from|num[eé]ro\s+payeur|t[eé]l[eé]phone\s+payeur)\s*[:#=\-]?\s*((?:\+?237)?[0-9][0-9\s-]{7,18})\b/i,
     /\(((?:\+?237)?[0-9][0-9\s-]{7,18})\)/,
   ]);
-  const merchantText = structuredMerchantPayment?.[1] || captureFirst(body, [
+  const merchantTextFromMessage = structuredMerchantPayment?.[1] || captureFirst(body, [
     /\b(?:vers|to|marchand|merchant|compte\s+marchand|num[eé]ro\s+marchand|merchant\s+account)\s*[:#=\-]?\s*((?:\+?237)?[0-9][0-9\s-]{7,18})\b/i,
-  ]) || config.merchantAccount || null;
+  ]);
+  const merchantAccountFromMessage = Boolean(merchantTextFromMessage);
+  const merchantText = merchantTextFromMessage || config.merchantAccount || null;
 
   const fraudFlags: string[] = [];
   if (!provider) fraudFlags.push("UNTRUSTED_OR_AMBIGUOUS_SENDER");
@@ -230,6 +233,7 @@ export function parsePaymentSms(
     currency: amountXaf === null ? null : "XAF",
     payerPhone: normalizePhone(payerText),
     merchantAccount: parsedMerchantAccount,
+    merchantAccountFromMessage,
     occurredAt: parseOccurredAt(body, config.timeZone),
     fraudFlags,
   };
