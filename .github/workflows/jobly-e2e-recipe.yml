@@ -1,15 +1,7 @@
 name: Jobly — Recette E2E isolée
 
+# Manual only: avoid spending CI minutes on every PR update during Lot 0.
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - "e2e/**"
-      - ".github/workflows/jobly-e2e-recipe.yml"
-      - "app/**"
-      - "components/**"
-      - "lib/**"
-      - "public/**"
   workflow_dispatch:
 
 permissions:
@@ -72,6 +64,9 @@ jobs:
             exit 1
           fi
           mkdir -p artifacts/e2e
+
+      - name: Lot 0 — verify E2E secrets and ADMIN linkage (read-only)
+        run: node e2e/lot0-preflight.mjs
 
       - name: Typecheck
         run: pnpm typecheck
