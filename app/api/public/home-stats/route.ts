@@ -5,6 +5,10 @@ import { resolveEffectivePublicationDate } from "../../../../supabase/functions/
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Public counters keep the requested legacy minimums while tracking every live record.
+// Additions and removals in Jobly therefore move the displayed value in either direction.
+const OFFERS_BASELINE = 75_000;
+const TALENTS_BASELINE = 315_000;
 const PAGE_SIZE = 1000;
 const CAPTURE_ID_BATCH_SIZE = 200;
 
@@ -152,8 +156,8 @@ export async function GET() {
 
     return NextResponse.json(
       {
-        offersCount: visibleDiscoveryOffers + visibleRecruiterOffers,
-        talentsCount: talentProfiles.count ?? 0,
+        offersCount: OFFERS_BASELINE + visibleDiscoveryOffers + visibleRecruiterOffers,
+        talentsCount: TALENTS_BASELINE + (talentProfiles.count ?? 0),
         updatedAt: nowIso,
       },
       {
