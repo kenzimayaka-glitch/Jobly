@@ -760,3 +760,46 @@ html[data-theme="dark"] .jobly-theme-option[data-active="true"] {
     transition-duration: .01ms !important;
   }
 }
+
+
+/* JOBLY homepage CTA storytelling — signup and sign-in have separate micro-films. */
+.jobly-home-story {
+  isolation: isolate;
+  border: 1px solid rgba(255,255,255,.22);
+  box-shadow: 0 12px 28px rgba(10,25,49,.16), inset 0 1px 0 rgba(255,255,255,.14);
+}
+.jobly-home-story--login {
+  color: #0A1931;
+  background: linear-gradient(105deg, #FFD21A 0%, #FFE991 52%, #FFD21A 100%);
+}
+.jobly-home-story--signup {
+  color: #FFFFFF;
+  background: linear-gradient(105deg, #174A9B 0%, #2865DC 52%, #4789F4 100%);
+}
+.jobly-home-story-caption {
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  left: 12px;
+  right: 12px;
+  overflow: hidden;
+  color: currentColor;
+  font-size: clamp(7px, 1.7vw, 10px);
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: .025em;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0,0,0,.12);
+  pointer-events: none;
+}
+.jobly-home-story--signup .jobly-home-story-caption {
+  text-shadow: 0 1px 4px rgba(0,0,0,.28);
+}
+.jobly-home-story svg {
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .jobly-home-story-caption { animation: none !important; }
+}
