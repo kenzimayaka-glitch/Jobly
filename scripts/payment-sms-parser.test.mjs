@@ -174,6 +174,7 @@ test("rejects outgoing MTN payments even when they are described as finalized", 
     body: "Votre paiement de 715 XAF a un bénéficiaire (237653928155) a ete finalise a 2026-07-31 21:55:42. Identifiant de transaction financiere : 18164419116.",
   }, liveShapeConfig);
   assert.equal(finalized.direction, "OUTBOUND");
+  assert.equal(finalized.status, "SUCCESSFUL");
   assert.ok(finalized.fraudFlags.includes("OUTGOING_PAYMENT_NOT_MERCHANT_RECEIPT"));
 
   const successIntegral = parsePaymentSms({
