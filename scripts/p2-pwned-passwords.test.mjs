@@ -33,6 +33,7 @@ test("new passwords enforce a 12-character mixed-character policy", () => {
   assert.match(validateNewPassword("SECURE-PASSWORD-2026"), /minuscule/);
   assert.match(validateNewPassword("Secure-Password!"), /chiffre/);
   assert.match(validateNewPassword("SecurePassword2026"), /symbole/);
+  assert.match(validateNewPassword("Secure Password2026"), /symbole/);
 });
 
 test("HIBP query sends only the five-character SHA-1 prefix with padding", async () => {
