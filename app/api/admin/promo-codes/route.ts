@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { authUser, adminClient, ensureUser, requireRole } from "../../../../lib/mobilityServer";
 import { generatePromoCode, normalizePromoCode, promoCodeHash, promoEndDate } from "../../../../lib/promo";
+import { enforceApiRateLimit } from "../../../../lib/server-security";
 
 async function getAdmin(request: NextRequest) {
   const au = await authUser(request);
@@ -10,6 +11,14 @@ async function getAdmin(request: NextRequest) {
   const user = await ensureUser(sb, au);
   const denied = requireRole(user, ["ADMIN"]);
   if (denied) return { error: NextResponse.json({ message: denied.error }, { status: denied.status }) };
+  const limited = await enforceApiRateLimit(request, sb, {
+    scope: "admin-promo-codes",
+    identity: user.id,
+    accountWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 200, windowSeconds: 3600 }],
+    ipWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 400, windowSeconds: 3600 }],
+    requireIp: true,
+  });
+  if (limited) return { error: limited };
   return { sb, user };
 }
 
