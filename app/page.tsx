@@ -174,8 +174,8 @@ const translations = {
     password: "Mot de passe",
     forgot: "Mot de passe oublié ?",
     noAccount: "Pas encore de compte ?",
-    signupTitle: "Crée ton compte",
-    signupSubtitle: "Veuillez remplir vos informations d’identification.",
+    signupTitle: "Créer votre compte",
+    signupSubtitle: "Veuillez renseigner vos informations d’identification.",
     lastName: "Nom",
     firstName: "Prénom",
     phone: "Numéro de téléphone",
@@ -1035,7 +1035,7 @@ export default function Home() {
                 {darkMode ? "☀️" : "🌙"}
               </button>
             </div>
-            <div className="flex flex-col gap-2 text-left">
+            <div className="flex flex-col gap-2 text-center">
               <h1 className="text-[32px] font-bold leading-none text-[#0A1931]">{translations[lang].loginTitle}</h1>
               <p className="text-[14px] text-gray-500">{translations[lang].loginSubtitle}</p>
             </div>
@@ -1079,7 +1079,7 @@ export default function Home() {
             <div className="flex justify-start">
               <JoblyLogo size="hero" showTagline />
             </div>
-            <div className="flex flex-col gap-2 text-left">
+            <div className="flex flex-col gap-2 text-center">
               <h1 className="text-[32px] font-bold leading-none text-[#0A1931]">{translations[lang].signupTitle}</h1>
               <p className="text-[14px] text-gray-500">{translations[lang].signupSubtitle}</p>
             </div>
