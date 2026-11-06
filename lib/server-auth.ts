@@ -20,8 +20,34 @@ export function adminClient() {
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
+function decodeSessionId(token: string): string | null {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as Record<string, unknown>;
+    const value = typeof claims.session_id === "string" ? claims.session_id : "";
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function getAuthSessionId(request: NextRequest) {
+  const token = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "");
+  return token ? decodeSessionId(token) : null;
+}
+
+function inferredDeviceLabel(userAgent: string) {
+  if (/android/i.test(userAgent)) return "Android";
+  if (/iphone|ipad|ipod/i.test(userAgent)) return "iPhone / iPad";
+  if (/windows/i.test(userAgent)) return "Windows";
+  if (/macintosh|mac os/i.test(userAgent)) return "Mac";
+  if (/linux/i.test(userAgent)) return "Linux";
+  return "Navigateur Web";
+}
+
 export async function getAuthUser(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  const token = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "");
   if (!token) return null;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -29,7 +55,38 @@ export async function getAuthUser(request: NextRequest) {
   const supabase = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data.user) return null;
+
+  // Existing and newly provisioned accounts share one server-side limit.
+  // The verified JWT session_id, not client-provided metadata, identifies the session.
+  const sessionId = decodeSessionId(token);
+  if (sessionId) {
+    const service = adminClient();
+    const { data: internalUser, error: userError } = await service
+      .from("User")
+      .select("id")
+      .eq("authUserId", data.user.id)
+      .maybeSingle();
+    if (userError) throw new Error("Vérification du compte Jobly impossible.");
+    if (internalUser?.id) {
+      const requestedDeviceId = request.headers.get("x-jobly-device-id")?.trim() || `legacy-${sessionId}`;
+      const deviceId = /^[A-Za-z0-9:_-]{1,160}$/.test(requestedDeviceId) ? requestedDeviceId : `legacy-${sessionId}`;
+      const userAgent = request.headers.get("user-agent") || "";
+      const deviceLabel = request.headers.get("x-jobly-device-name")?.trim() || inferredDeviceLabel(userAgent);
+      const { data: registration, error: registrationError } = await service.rpc("register_jobly_device_session", {
+        p_auth_user_id: data.user.id,
+        p_auth_session_id: sessionId,
+        p_device_id: deviceId,
+        p_device_label: deviceLabel.slice(0, 100),
+        p_user_agent: userAgent.slice(0, 1000),
+      });
+      if (registrationError) throw new Error("Contrôle des appareils connectés indisponible.");
+      if (registration && typeof registration === "object" && (registration as { allowed?: boolean }).allowed === false) {
+        return null;
+      }
+    }
+  }
   return data.user;
+}
 }
 
 export async function ensureUser(
