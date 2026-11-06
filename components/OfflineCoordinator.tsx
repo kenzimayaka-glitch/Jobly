@@ -146,7 +146,6 @@ export default function OfflineCoordinator() {
       window.removeEventListener("offline", onOffline);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("jobly:device-session-revoked", onFocus as EventListener);
       auth.data.subscription.unsubscribe();
     };
   }, [refreshCount, synchronize, validateDeviceSession]);
