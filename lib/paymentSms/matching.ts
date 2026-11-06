@@ -39,6 +39,7 @@ export function matchPaymentSmsToOrder(input: {
 
   if (!parsed.senderTrusted || !parsed.provider) return { outcome: "UNMATCHED", reason: "SENDER_NOT_ALLOWLISTED", candidateCount: 0 };
   if (parsed.status !== "SUCCESSFUL") return { outcome: "UNMATCHED", reason: "SMS_NOT_SUCCESSFUL", candidateCount: 0 };
+  if (parsed.direction !== "INBOUND") return { outcome: "UNMATCHED", reason: "SMS_NOT_MERCHANT_RECEIPT", candidateCount: 0 };
   if (!parsed.transactionId) return { outcome: "UNMATCHED", reason: "TRANSACTION_ID_MISSING", candidateCount: 0 };
   if (!parsed.amountXaf || parsed.currency !== "XAF") return { outcome: "UNMATCHED", reason: "AMOUNT_OR_CURRENCY_INVALID", candidateCount: 0 };
   if (parsed.fraudFlags.length > 0) return { outcome: "UNMATCHED", reason: "FRAUD_FLAGS_PRESENT", candidateCount: 0 };
