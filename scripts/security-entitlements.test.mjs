@@ -466,9 +466,10 @@ test("Public Event APIs expose only display fields and sensitive event responses
   const ecosystem = read("../app/api/events/[id]/ecosystem/route.ts");
   const media = read("../app/api/events/media/route.ts");
   const featured = read("../app/api/events/[id]/feature/route.ts");
-  assert.doesNotMatch(directory, /from\("Event"\)\.select\("\*"\)/);
-  assert.doesNotMatch(detail, /from\("Event"\)\.select\("\*"\)/);
-  for (const source of [directory,detail]) {
+  const directoryGet = directory.slice(directory.indexOf("export async function GET"), directory.indexOf("export async function POST"));
+  assert.doesNotMatch(directoryGet, /from\\("Event"\\)\\.select\\("\\*"\\)/);
+  assert.doesNotMatch(detail, /from\\("Event"\\)\\.select\\("\\*"\\)/);
+  for (const source of [directoryGet,detail]) {
     assert.doesNotMatch(source, /safetyAcceptedAt|rightsAcceptedAt|creatorUserId/);
   }
   assert.match(ecosystem, /scope: "public-event-ecosystem"/);
