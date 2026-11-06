@@ -67,6 +67,6 @@ class PaymentSmsReceiver : BroadcastReceiver() {
     companion object {
         private const val MAX_SMS_LENGTH = 5000
         private const val WORK_PREFIX = "jobly-payment-sms-"
-        private const val WORK_TAG = "jobly-payment-sms-upload"
+        const val WORK_TAG = "jobly-payment-sms-upload"
     }
 }
