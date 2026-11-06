@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, authUser, ensureUser } from "../../../../../../lib/mobilityServer";
+import { enforceApiRateLimit } from "../../../../../../lib/server-security";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,6 +11,14 @@ export async function POST(req: NextRequest) {
     if (String(user.role || "").toUpperCase() !== "ADMIN") {
       return NextResponse.json({ message: "Vérification des décaissements réservée à un administrateur Jobly." }, { status: 403 });
     }
+    const limited = await enforceApiRateLimit(req, db, {
+      scope: "mobility-admin-funding-verify",
+      identity: user.id,
+      accountWindows: [{ limit: 5, windowSeconds: 60 }, { limit: 20, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 10, windowSeconds: 60 }, { limit: 40, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const body = await req.json().catch(() => ({}));
     const transactionId = String(body.transactionId || "").trim();
     if (!transactionId || body.confirmExternalTransfer !== true) {
@@ -24,6 +33,13 @@ export async function POST(req: NextRequest) {
       const clientError = /MOBILITY_(ADMIN_REQUIRED|TRANSACTION_NOT_FOUND|TRANSACTION_NOT_VERIFIABLE)/.test(message);
       return NextResponse.json({ message }, { status: clientError ? 422 : 500 });
     }
+    const audit = await db.from("CEOAuditLog").insert({
+      adminUserId: user.id,
+      action: "MOBILITY_FUNDING_DISBURSEMENT_VERIFIED",
+      endpoint: "/api/mobility/admin/funding/verify",
+      metadata: { transactionId, verifiedAt: new Date().toISOString() },
+    });
+    if (audit.error) throw new Error(audit.error.message);
     return NextResponse.json({ transaction: data, message: "Transfert externe contrôlé et confirmé." });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Vérification du décaissement impossible." }, { status: 500 });
