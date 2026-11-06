@@ -118,12 +118,24 @@ test("all 50 registered facial expressions have semantic gestures and runnable r
   const moves = new Set(JIA_100_MOVES);
   const facialMoveNames = new Set(entries.filter(([, move]) => move.eyes || move.eyebrows || move.mouth).map(([key]) => key.replace(/^\\d+_/, "")));
   assert.equal(facialShapes.length, 50);
-  assert.equal(facialMoveNames.size, 50);
+  assert.equal(facialMoveNames.size, 60);
   assert.ok([...facialMoveNames].every((name) => rigNames.has(name) && moves.has(name)));
+  const gestureMapping = readFileSync(join(root, "components/JIA/gestureMap.ts"), "utf8");
+  const mappedMoves = new Set([...gestureMapping.matchAll(/^\\s*[a-z0-9_]+:\\s*"([a-z0-9_]+)"[,]?\\s*$/gm)].map((match) => match[1]));
+  const groups = new Map();
+  for (const [key, move] of entries) {
+    if (!(move.eyes || move.eyebrows || move.mouth)) continue;
+    const name = key.replace(/^\\d+_/, "");
+    const signature = JSON.stringify(stable({ eyes: move.eyes || null, eyebrows: move.eyebrows || null, mouth: move.mouth || null }));
+    if (!groups.has(signature)) groups.set(signature, []);
+    groups.get(signature).push(name);
+  }
+  assert.equal(groups.size, 50);
+  assert.equal([...groups.values()].filter(names => names.some(name => mappedMoves.has(name))).length, 50);
   const availableSemanticMoves = Object.entries(GESTURES)
     .filter(([id]) => facialMoveNames.has(id))
     .map(([id]) => id);
-  assert.equal(availableSemanticMoves.length, 34);
+  assert.equal(availableSemanticMoves.length, 44);
 });
 
 test("every newly rendered visual family exposes fifty concrete, non-duplicate presets", () => {
