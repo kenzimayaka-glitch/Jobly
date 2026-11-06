@@ -21,7 +21,7 @@ export async function GET(request:NextRequest){
     });
     if(limited)return limited;
     const now=new Date().toISOString();
-    const {data:events,error}=await sb.from("Event").select("*").eq("status","PUBLISHED").lte("campaignStartAt",now).gte("campaignEndAt",now).order("createdAt",{ascending:false}).limit(100);
+    const {data:events,error}=await sb.from("Event").select("id,organizerName,title,description,domain,subdomains,startAt,endAt,campaignStartAt,campaignEndAt,mode,venue,city,country,registrationMode,registrationUrl,audience,mediaType,mediaUrl,mediaSizeBytes,mediaDurationSeconds,status,publicationSource,priceAmount,priceCurrency,createdAt,updatedAt").eq("status","PUBLISHED").lte("campaignStartAt",now).gte("campaignEndAt",now).order("createdAt",{ascending:false}).limit(100);
     if(error)throw new Error(error.message);
     const {data:featured,error:fe}=await sb.from("EventFeaturedCampaign").select("eventId,startAt,endAt,slot,status").eq("status","ACTIVE").lte("startAt",now).gte("endAt",now).order("slot",{ascending:true}).limit(6);
     if(fe)throw new Error(fe.message);
