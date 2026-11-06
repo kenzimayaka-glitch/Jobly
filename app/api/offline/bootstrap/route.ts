@@ -17,15 +17,18 @@ export async function GET(request: NextRequest) {
 
     const db = adminClient();
     const user = await ensureUser(db, authUser);
-    const [profile, experiences, skills, education, applications, offers] = await Promise.all([
+    const [profile, experiences, skills, education, applications, offers, recruiterProfile, recruiterJobs, partnerProfile] = await Promise.all([
       db.from("Profile").select("firstName,lastName,phone,country,headline,summary,location,targetRoles,preferredSectors,targetCities,contractPreferences,remotePreference").eq("userId", user.id).maybeSingle(),
       db.from("Experience").select("id,company,title,startDate,endDate,description,provenance").eq("userId", user.id).order("startDate", { ascending: false }).limit(100),
       db.from("Skill").select("id,name,level,provenance").eq("userId", user.id).order("name").limit(200),
       db.from("Education").select("id,institution,degree,field,startDate,endDate,provenance").eq("userId", user.id).order("startDate", { ascending: false }).limit(100),
       db.from("Application").select("id,jobId,recruiterJobId,status,language,letterText,atsScore,submittedAt,createdAt,updatedAt").eq("userId", user.id).order("updatedAt", { ascending: false }).limit(200),
       db.from("Job").select("id,title,description,location,contractType,deadline,source,sourceUrl,lastSeenAt,remoteMode,salaryMin,salaryMax,salaryCurrency,companyId,applicationReady,countryCode").eq("isActive", true).order("lastSeenAt", { ascending: false }).limit(OFFER_LIMIT),
+      db.from("RecruiterProfile").select("companyName,sector,website,location,verified").eq("userId", authUser.id).maybeSingle(),
+      db.from("RecruiterJob").select("id,title,companyName,description,location,mode,contract,salary,sector,tags,status,createdAt,updatedAt").eq("recruiterUserId", authUser.id).order("updatedAt", { ascending: false }).limit(100),
+      db.from("Partner").select("referralCode,partnerType,kycStatus,locationText").eq("userId", user.id).maybeSingle(),
     ]);
-    for (const result of [profile, experiences, skills, education, applications, offers]) {
+    for (const result of [profile, experiences, skills, education, applications, offers, recruiterProfile, recruiterJobs, partnerProfile]) {
       if (result.error) throw new Error(result.error.message);
     }
 
@@ -57,6 +60,10 @@ export async function GET(request: NextRequest) {
       skills: skills.data || [],
       education: education.data || [],
       applications: applications.data || [],
+      role: String(user.role || "TALENT"),
+      recruiterProfile: recruiterProfile.data || null,
+      recruiterJobs: recruiterJobs.data || [],
+      partnerProfile: partnerProfile.data || null,
       offers: (offers.data || []).map((job) => ({
         id: job.id,
         title: job.title,
