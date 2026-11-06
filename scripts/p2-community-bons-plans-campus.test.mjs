@@ -182,8 +182,8 @@ test("ADMIN 360 schema protects managed accounts, support records and community 
   }
   for (const table of ["AdminManagedAccount", "AdminSupportTicket", "AdminSupportTicketMessage", "AdminCommunityReport"]) {
     const migration = table === "AdminManagedAccount" ? managed : operations;
-    assert.match(migration, new RegExp('alter table public\\\\."' + table + '" enable row level security'));
-    assert.match(migration, new RegExp('revoke all on table public\\\\."' + table + '" from public, anon, authenticated'));
-    assert.match(migration, new RegExp('grant all on table public\\\\."' + table + '" to service_role'));
+    assert.ok(migration.includes('alter table public."' + table + '" enable row level security'));
+    assert.ok(migration.includes('revoke all on table public."' + table + '" from public, anon, authenticated'));
+    assert.ok(migration.includes('grant all on table public."' + table + '" to service_role'));
   }
 });
