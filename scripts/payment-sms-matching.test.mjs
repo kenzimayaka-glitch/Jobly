@@ -68,3 +68,38 @@ test("requires positive incoming direction, not an unknown direction", () => {
   assert.equal(result.outcome, "UNMATCHED");
   assert.equal(result.reason, "SMS_NOT_MERCHANT_RECEIPT");
 });
+
+test("matches dotted Orange transaction IDs only to the exact Orange order", () => {
+  const orangeParsed = {
+    ...parsed,
+    provider: "SMS_ORANGE",
+    transactionId: "MP240417.1311.B48838",
+    amountXaf: 1000,
+    merchantAccount: "237699095589",
+    payerPhone: "237658174722",
+  };
+  const orangeOrder = {
+    ...base,
+    provider: "SMS_ORANGE",
+    amount: 1000,
+    payerPhone: "237658174722",
+    reportedTransactionId: "MP240417.1311.B48838",
+    smsMerchantAccount: "237699095589",
+  };
+  const result = matchPaymentSmsToOrder({
+    parsed: orangeParsed,
+    merchantAccount: "237699095589",
+    candidates: [orangeOrder],
+    now,
+  });
+  assert.equal(result.outcome, "MATCHED");
+});
+
+test("does not match if the beneficiary inside the SMS differs from the paired SIM", () => {
+  const result = run(
+    { reportedTransactionId: "MTNABC123456" },
+    { merchantAccount: "237688888888" }
+  );
+  assert.equal(result.outcome, "UNMATCHED");
+  assert.equal(result.reason, "SMS_MERCHANT_MISMATCH");
+});
