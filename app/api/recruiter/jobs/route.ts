@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, cleanStrings, ensureUser, getAuthUser, newId } from "../../../../lib/server-auth";
 import { enforceRecruiterMarketEntitlement, normalizeRecruiterMarket } from "../../../../lib/recruiterMarket";
+import { enforceApiRateLimit } from "../../../../lib/server-security";
 
 async function authorizeRecruiterWorkspace(supabase: ReturnType<typeof adminClient>, user: { id: string; role?: string }, authUserId: string) {
   if (user.role === "RECRUITER" || user.role === "ADMIN") return true;
@@ -33,6 +34,14 @@ export async function GET(req: NextRequest) {
     if (!await authorizeRecruiterWorkspace(supabase, user, authUser.id)) {
       return NextResponse.json({ message: "Espace recruteur requis." }, { status: 403 });
     }
+    const limited = await enforceApiRateLimit(req, supabase, {
+      scope: "recruiter-jobs-read",
+      identity: user.id,
+      accountWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 300, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 600, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
 
     const { data, error } = await supabase
       .from("RecruiterJob")
@@ -44,7 +53,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ message: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ jobs: data || [] });
+    return NextResponse.json({ jobs: data || [] }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (e) {
     return NextResponse.json(
       { message: e instanceof Error ? e.message : "Erreur." },
@@ -59,17 +68,27 @@ export async function POST(req: NextRequest) {
     if (!authUser) {
       return NextResponse.json({ message: "Session requise." }, { status: 401 });
     }
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    if (contentLength > 64 * 1024) return NextResponse.json({ message: "Offre trop volumineuse." }, { status: 413 });
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
     if (!await authorizeRecruiterWorkspace(supabase, user, authUser.id)) {
       return NextResponse.json({ message: "Espace recruteur requis." }, { status: 403 });
     }
-
-    const b = await req.json();
+    const limited = await enforceApiRateLimit(req, supabase, {
+      scope: "recruiter-job-create",
+      identity: user.id,
+      accountWindows: [{ limit: 10, windowSeconds: 3600 }, { limit: 30, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 20, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
+    const b = await req.json().catch(() => null);
+    if (!b || typeof b !== "object" || Array.isArray(b)) return NextResponse.json({ message: "Données d'offre invalides." }, { status: 400 });
     const title = String(b.title || "").trim();
     const description = String(b.description || "").trim();
 
-    if (!title || !description) {
+    if (!title || !description || title.length > 160 || description.length > 12000) {
       return NextResponse.json(
         { message: "Le titre et la description sont obligatoires." },
         { status: 400 }
@@ -77,6 +96,10 @@ export async function POST(req: NextRequest) {
     }
 
     let company = String(b.companyName || "").trim();
+    if (company.length > 160) return NextResponse.json({ message: "Le nom d'entreprise est trop long." }, { status: 422 });
+    if (String(b.location || "").length > 180 || String(b.salary || "").length > 120 || String(b.sector || "").length > 120) {
+      return NextResponse.json({ message: "Les informations de l'offre dépassent les limites autorisées." }, { status: 422 });
+    }
     if (!company) {
       const p = await supabase
         .from("RecruiterProfile")
@@ -119,7 +142,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ job: data }, { status: 201 });
+    return NextResponse.json({ job: data }, { status: 201, headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (e) {
     return NextResponse.json(
       { message: e instanceof Error ? e.message : "Erreur." },
