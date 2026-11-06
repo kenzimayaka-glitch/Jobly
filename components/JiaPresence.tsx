@@ -709,6 +709,9 @@ export default function JiaPresence() {
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.message || "Sauvegarde du message impossible.");
     }).catch((error) => {
+      // A rejected request from a prior account/session must not mark the new
+      // account's conversation as disconnected.
+      if (sessionUserIdRef.current !== ownerUserId || conversationWriteEpochRef.current !== epoch) return;
       setHealthStatus("error");
       console.error("[J’IA conversation] Persist failed", error);
     });
@@ -955,6 +958,7 @@ export default function JiaPresence() {
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.message || "Sauvegarde de la carte impossible.");
     }).catch((error) => {
+      if (sessionUserIdRef.current !== ownerUserId || conversationWriteEpochRef.current !== epoch) return;
       setHealthStatus("error");
       console.error("[J’IA conversation] Workspace state persist failed", error);
     });
@@ -1126,6 +1130,7 @@ export default function JiaPresence() {
       setConversationMessages(nextMessages);
       setHasMoreConversationMessages(body.hasMore === true);
     } catch (error) {
+      if (sessionUserIdRef.current !== capturedOwner || conversationWriteEpochRef.current !== capturedEpoch) return;
       setHealthStatus("error");
       console.error("[J’IA conversation] Older page load failed", error);
     } finally {
