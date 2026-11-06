@@ -155,7 +155,12 @@ export function parsePaymentSms(
   if (direction !== "INBOUND") fraudFlags.push(direction === "OUTBOUND" ? "OUTGOING_PAYMENT_NOT_MERCHANT_RECEIPT" : "PAYMENT_DIRECTION_UNCONFIRMED");
   if (!transactionId) fraudFlags.push("TRANSACTION_ID_MISSING");
   if (!amountXaf) fraudFlags.push("AMOUNT_MISSING_OR_INVALID");
-  if (!normalizePhone(merchantText)) fraudFlags.push("MERCHANT_ACCOUNT_MISSING_OR_INVALID");
+  const parsedMerchantAccount = normalizePhone(merchantText);
+  const configuredMerchantAccount = normalizePhone(config.merchantAccount || null);
+  if (!parsedMerchantAccount) fraudFlags.push("MERCHANT_ACCOUNT_MISSING_OR_INVALID");
+  else if (configuredMerchantAccount && parsedMerchantAccount !== configuredMerchantAccount) {
+    fraudFlags.push("SMS_MERCHANT_ACCOUNT_MISMATCH");
+  }
 
   return {
     parserVersion: "0.2.0",
@@ -168,7 +173,7 @@ export function parsePaymentSms(
     amountXaf,
     currency: amountXaf === null ? null : "XAF",
     payerPhone: normalizePhone(payerText),
-    merchantAccount: normalizePhone(merchantText),
+    merchantAccount: parsedMerchantAccount,
     occurredAt: parseOccurredAt(body),
     fraudFlags,
   };
