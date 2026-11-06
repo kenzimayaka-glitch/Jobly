@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       adminUserId: actor.id,
       action: "PAYMENT_SMS_DEVICE_PROVISIONED",
       endpoint: "/api/payments/sms/devices",
-      metadata: { deviceId: device.id, provider, merchantAccount, senderIds },
+      metadata: { deviceId: device.id, provider, merchantAccountLast4: merchantAccount.slice(-4), senderIds },
     });
     if (auditError) {
       await supabase.from("PaymentSmsDevice").update({ status: "REVOKED", revokedAt: new Date().toISOString() }).eq("id", device.id);
