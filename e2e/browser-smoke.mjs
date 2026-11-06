@@ -100,7 +100,8 @@ try {
   results.push({ id: "JOBLY-E2E-AUTH-004", status: "PASS", evidence: "auth-signup-desktop.png" });
 
   // JOBLY-E2E-AUTH-005 — mobile welcome screen has no horizontal viewport overflow.
-  const mobile = await context.newPage({ viewport: { width: 390, height: 844 } });
+  const mobile = await context.newPage();
+  await mobile.setViewportSize({ width: 390, height: 844 });
   await mobile.goto(baseURL, { waitUntil: "domcontentloaded", timeout: 30000 });
   await mobile.locator('img[alt="JOBLY — Your Career OS"]').waitFor({ state: "visible", timeout: 15000 });
   const dimensions = await mobile.evaluate(() => ({
