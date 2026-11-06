@@ -6,6 +6,14 @@ on:
       - "apps/android/**"
       - "scripts/payment-sms-android.test.mjs"
       - "scripts/android-integrity.test.mjs"
+      - "scripts/android-key-attestation.test.mjs"
+      - "app/api/android/attestation/**"
+      - "lib/android-key-attestation.ts"
+      - "lib/server-auth.ts"
+      - "lib/session-manager.ts"
+      - "components/AndroidAttestationBootstrap.tsx"
+      - "app/layout.tsx"
+      - "supabase/migrations/*android_hardware_key_attestation.sql"
       - "lib/paymentSms/android-bridge.ts"
       - "app/admin/page.tsx"
       - "app/admin/payments/sms/**"
@@ -38,6 +46,14 @@ on:
       - "scripts/jia-workspace.test.mjs"
       - "scripts/android-jia-bridge.test.mjs"
       - "scripts/android-integrity.test.mjs"
+      - "scripts/android-key-attestation.test.mjs"
+      - "app/api/android/attestation/**"
+      - "lib/android-key-attestation.ts"
+      - "lib/server-auth.ts"
+      - "lib/session-manager.ts"
+      - "components/AndroidAttestationBootstrap.tsx"
+      - "app/layout.tsx"
+      - "supabase/migrations/*android_hardware_key_attestation.sql"
       - ".github/workflows/android-jia.yml"
 
 permissions:
@@ -54,6 +70,8 @@ jobs:
       - run: node --test scripts/android-jia-bridge.test.mjs scripts/payment-sms-android.test.mjs
       - name: Android APK integrity regression tests
         run: node --test scripts/android-integrity.test.mjs
+      - name: Android hardware attestation server regression tests
+        run: node --experimental-strip-types --test scripts/android-key-attestation.test.mjs
 
   android-debug-build:
     runs-on: ubuntu-latest
