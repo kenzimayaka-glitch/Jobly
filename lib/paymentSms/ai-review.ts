@@ -19,7 +19,7 @@ export async function analyzePaymentSmsWithAi(input: {
     {
       task: "CLASSIFY_OPERATOR_SMS",
       redactedSms: redactPaymentSmsForAi(input.body),
-      senderLabel: input.senderId.slice(0, 120),
+      senderLabel: input.parsed.provider,
       parserFacts: {
         provider: input.parsed.provider,
         status: input.parsed.status,
