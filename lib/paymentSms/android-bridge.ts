@@ -38,12 +38,12 @@ export function pairJoblyPaymentSmsDevice(credentials: PaymentSmsDevicePairing):
 }
 
 /** Clear the locally stored merchant device credentials on the current APK. */
-export function revokeJoblyPaymentSmsDeviceLocally(): boolean {
-  if (!isJoblyAndroidPaymentSmsAvailable()) return false;
+export function revokeJoblyPaymentSmsDeviceLocally(deviceId: string): boolean {
+  if (!isJoblyAndroidPaymentSmsAvailable() || !deviceId) return false;
   try {
     window.joblyAndroid!.postMessage(JSON.stringify({
       type: "REVOKE_PAYMENT_SMS_DEVICE",
-      payload: {},
+      payload: { deviceId },
     }));
     return true;
   } catch {
