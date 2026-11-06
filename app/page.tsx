@@ -767,7 +767,7 @@ export default function Home() {
     <div className="relative flex min-h-0 flex-1 w-full flex-col gap-0">
       {screen !== "login" && screen !== "signup" && <header className={screen === "welcome" ? "relative z-30 flex h-[90px] shrink-0 items-center justify-between px-5 pt-2 sm:h-[104px] sm:px-8" : "z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"}>
         <div ref={logoRef} className={screen === "welcome" ? "shrink-0" : "rounded-2xl bg-white/95 p-2 shadow-2xl"}>
-          <Image src="/jobly-logo-reference.jpg" alt="Jobly — Your AI Career Agent" width={170} height={60} className={screen === "welcome" ? "h-auto w-[132px] object-contain sm:w-[175px]" : "h-auto w-[150px] object-contain"} priority />
+          <Image src="/jobly-logo-official-transparent.png" alt="JOBLY — Your Career OS" width={400} height={120} className={screen === "welcome" ? "h-auto w-[132px] object-contain sm:w-[175px]" : "h-auto w-[150px] object-contain"} priority />
         </div>
         {screen === "welcome" && <div role="group" aria-label="Choisir la langue / Choose language" className="relative isolate flex items-center gap-1 rounded-full bg-[#EEF1F5] p-1.5 shadow-inner">
           <motion.button type="button" aria-label="Français" aria-pressed={lang === "fr"} whileTap={{ scale: 0.94 }} onClick={() => { setLang("fr"); try { localStorage.setItem("jobly-lang", "fr"); } catch {} }} className="relative isolate inline-flex min-w-[64px] items-center justify-center gap-1 rounded-full px-2 py-2.5 text-[13px] font-bold tracking-wide text-[#0A1931] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD60A] focus-visible:ring-offset-2">
@@ -1119,19 +1119,13 @@ export default function Home() {
             
             {screen === "welcome" && (
               <>
-                <p className="mx-auto mb-2 max-w-[760px] text-[10px] leading-relaxed text-[#5F6670] sm:text-[12px]">{translations[lang].conditions}</p>
-                <nav aria-label="Liens juridiques" className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] font-medium text-[#25364A] underline underline-offset-2 sm:text-[13px]">
-                  <a href="/legal/terms">{translations[lang].terms}</a>
-                  <span aria-hidden="true" className="text-[#2865DC]">•</span>
-                  <a href="/legal/privacy">{translations[lang].privacy}</a>
-                </nav>
                 <div className="mx-auto mt-4 h-px w-[120px] bg-slate-200"/>
                 <div className="relative mx-auto mt-1 h-[18px] w-[120px]" aria-hidden="true">
                   <motion.svg viewBox="0 0 120 29" className="absolute inset-0 h-full w-full">
                     <motion.path d="M58 27 C44 23 46 12 61 9 C72 7 77 2 74 0" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: [0, 0.7, 0.12, 0] }} transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut" }} />
                   </motion.svg>
                 </div>
-                <p className="mt-1 text-[12px] text-[#5F6670]">{translations[lang].madeWith} <span ref={heartTargetRef} className="inline-block h-[14px] w-[14px] align-[-3px]" aria-hidden="true">&nbsp;</span> {translations[lang].by}</p>
+                <p className="mt-2 text-[14px] leading-none text-[#5F6670] sm:text-[15px]">Built with <span ref={heartTargetRef} className="inline-block h-[14px] w-[14px] align-[-3px]" aria-hidden="true">&nbsp;</span> by Team <strong className="ml-1 text-[17px] font-extrabold text-[#FFD60A] sm:text-[18px]">M</strong></p>
               </>
             )}
           </motion.div>

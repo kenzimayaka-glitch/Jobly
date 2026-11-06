@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { forwardRef } from "react";
 
 type JoblyLogoProps = {
@@ -9,24 +10,25 @@ type JoblyLogoProps = {
 };
 
 const JoblyLogo = forwardRef<HTMLDivElement, JoblyLogoProps>(function JoblyLogo(
-  { size = "hero", className = "", showTagline = true },
+  { size = "hero", className = "" },
   ref,
 ) {
   const hero = size === "hero";
-  const width = hero ? 339 : 120;
-  const height = hero ? 115 : 40;
+  const width = hero ? 340 : 140;
+  const height = hero ? 102 : 42;
 
   return (
     <div
       ref={ref}
-      aria-label={showTagline ? "JobLy — Your Career OS." : "JobLy"}
+      aria-label="JOBLY — Your Career OS"
       className={`inline-flex select-none items-center leading-none ${className}`}
     >
-      <img
-        src="/IMG-20260928-WA1495.jpg"
-        alt={showTagline ? "JobLy — Your Career OS." : "JobLy"}
+      <Image
+        src="/jobly-logo-official-transparent.png"
+        alt="JOBLY — Your Career OS"
         width={width}
         height={height}
+        sizes={hero ? "(max-width: 640px) 80vw, 340px" : "140px"}
         className="block h-auto w-auto max-w-full object-contain"
       />
     </div>
