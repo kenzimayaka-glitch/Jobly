@@ -17,12 +17,16 @@ async function requireAdmin(request: NextRequest) {
   return { db };
 }
 
-async function readTable(db: ReturnType<typeof adminClient>, table: string, select: string, orderBy: string) {
+type FinanceRow = Record<string, unknown>;
+type FinanceTableSnapshot = { available: boolean; total: number | null; items: FinanceRow[]; reason: string | null };
+
+async function readTable(db: ReturnType<typeof adminClient>, table: string, select: string, orderBy: string): Promise<FinanceTableSnapshot> {
   try {
     const { data, count, error } = await db.from(table).select(select, { count: "exact" })
       .order(orderBy, { ascending: false }).limit(30);
     if (error) return { available: false, total: null, items: [], reason: error.message };
-    return { available: true, total: count ?? data?.length ?? 0, items: data || [], reason: null };
+    const rows = (data || []) as unknown as FinanceRow[];
+    return { available: true, total: count ?? rows.length, items: rows, reason: null };
   } catch (error) {
     return { available: false, total: null, items: [], reason: error instanceof Error ? error.message : "Source indisponible." };
   }
@@ -42,7 +46,7 @@ export async function GET(request: NextRequest) {
       readTable(db, "MobilityFundingTransaction", "id,allocationId,transactionType,amount,currency,provider,externalReference,status,executedAt,createdAt", "createdAt"),
     ]);
     if (manualProofs.available && manualProofs.items.length) {
-      const paymentIds = manualProofs.items.map((row: { paymentId: string }) => row.paymentId).filter(Boolean);
+      const paymentIds = manualProofs.items.map((row) => typeof row.paymentId === "string" ? row.paymentId : "").filter((id): id is string => id.length > 0);
       if (paymentIds.length) {
         const { data: proofPayments, error: proofPaymentError } = await db.from("Payment")
           .select("id,amount,currency,status,provider,feature").in("id", paymentIds);
@@ -52,7 +56,7 @@ export async function GET(request: NextRequest) {
           manualProofs.total = null;
           manualProofs.items = [];
         } else {
-          manualProofs.items = manualProofs.items.map((row: { paymentId: string }) => ({
+          manualProofs.items = manualProofs.items.map((row) => ({
             ...row,
             payment: (proofPayments || []).find((payment: { id: string }) => payment.id === row.paymentId) || null,
           }));
