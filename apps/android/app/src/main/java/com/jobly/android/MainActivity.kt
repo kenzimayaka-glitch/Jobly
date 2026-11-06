@@ -63,6 +63,28 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val integrity = AndroidIntegrityGuard.inspect(this)
+        if (!integrity.allowedToStart) {
+            val message = when (integrity.reasonCode) {
+                "RELEASE_CERTIFICATE_PIN_NOT_CONFIGURED" ->
+                    "Cette version de Jobly n'a pas été signée avec une identité de publication configurée. Installe une version officielle signée."
+                "SIGNING_CERTIFICATE_MISMATCH" ->
+                    "La signature de cette application ne correspond pas à l'identité officielle de Jobly. L'application a été bloquée."
+                "RELEASE_MARKED_DEBUGGABLE" ->
+                    "Une version de publication ne peut pas être exécutée en mode débogage."
+                else ->
+                    "L'intégrité de cette installation Jobly n'a pas pu être vérifiée. Réinstalle une version officielle."
+            }
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Vérification de sécurité")
+                .setMessage(message)
+                .setCancelable(false)
+                .setPositiveButton("Fermer") { _, _ -> finish() }
+                .show()
+            return
+        }
+
         window.statusBarColor = Color.rgb(247, 250, 255)
         window.navigationBarColor = Color.WHITE
 
