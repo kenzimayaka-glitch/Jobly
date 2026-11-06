@@ -335,7 +335,7 @@ test("Mobility administrative disbursement, program and provider actions are rat
   assert.match(providerVerify, /scope: "mobility-admin-provider-verify"/);
   assert.match(providerVerify, /MOBILITY_PROVIDER_KYC_REVIEW_ATTEMPT/);
   assert.match(generatePass, /scope:"mobility-admin-generate-pass"/);
-  assert.match(generatePass, /MOBILITY_PASS_MANUALLY_ISSUED/);
+  assert.match(generatePass, /MOBILITY_PASS_MANUAL_ISSUE_ATTEMPT/);
   for (const source of [fundingPending,fundingVerify,programs,programVerify,providers,providerVerify,generatePass]) {
     assert.match(source, /enforceApiRateLimit/);
     assert.match(source, /requireIp:true|requireIp: true/);
