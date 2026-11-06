@@ -330,8 +330,8 @@ export default function AdminPaymentSmsPage() {
                   <p className="mt-1 text-sm text-slate-600">Compte marchand : {device.merchantAccount}</p>
                   {(() => {
                     const centralAccount = providerConfigs.find((item) => item.provider === device.provider)?.merchantAccount;
-                    const normalizedDevice = device.merchantAccount.replace(/\\D/g, "");
-                    const normalizedCentral = String(centralAccount || "").replace(/\\D/g, "");
+                    const normalizedDevice = device.merchantAccount.replace(/\D/g, "");
+                    const normalizedCentral = String(centralAccount || "").replace(/\D/g, "");
                     return centralAccount && normalizedDevice !== normalizedCentral ? (
                       <p className="mt-2 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">Ce téléphone écoute encore l’ancien compte marchand. La nouvelle SIM doit être appairée pour recevoir les confirmations des prochaines commandes.</p>
                     ) : null;
