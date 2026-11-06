@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient } from "@/lib/server-auth";
 import { analyticsError, buildAnalytics360, requireAdminAnalytics } from "@/lib/adminAnalytics360";
 
 export const runtime = "nodejs";
