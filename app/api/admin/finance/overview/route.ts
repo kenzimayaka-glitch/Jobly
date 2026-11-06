@@ -41,6 +41,24 @@ export async function GET(request: NextRequest) {
       readTable(db, "Commission", "id,partnerId,event,amount,currency,status,createdAt,paidAt", "createdAt"),
       readTable(db, "MobilityFundingTransaction", "id,allocationId,transactionType,amount,currency,provider,externalReference,status,executedAt,createdAt", "createdAt"),
     ]);
+    if (manualProofs.available && manualProofs.items.length) {
+      const paymentIds = manualProofs.items.map((row: { paymentId: string }) => row.paymentId).filter(Boolean);
+      if (paymentIds.length) {
+        const { data: proofPayments, error: proofPaymentError } = await db.from("Payment")
+          .select("id,amount,currency,status,provider,feature").in("id", paymentIds);
+        if (proofPaymentError) {
+          manualProofs.reason = proofPaymentError.message;
+          manualProofs.available = false;
+          manualProofs.total = null;
+          manualProofs.items = [];
+        } else {
+          manualProofs.items = manualProofs.items.map((row: { paymentId: string }) => ({
+            ...row,
+            payment: (proofPayments || []).find((payment: { id: string }) => payment.id === row.paymentId) || null,
+          }));
+        }
+      }
+    }
     return NextResponse.json({
       snapshotAt: new Date().toISOString(),
       sources: { payments, manualProofs, smsReceipts, subscriptions, commissions, mobilityTransactions },
