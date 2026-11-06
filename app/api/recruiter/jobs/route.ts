@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminClient, cleanStrings, ensureUser, getAuthUser, newId } from "../../../../lib/server-auth";
 import { enforceRecruiterMarketEntitlement, normalizeRecruiterMarket } from "../../../../lib/recruiterMarket";
 
+async function authorizeRecruiterWorkspace(supabase: ReturnType<typeof adminClient>, user: { id: string; role?: string }, authUserId: string) {
+  if (user.role === "RECRUITER" || user.role === "ADMIN") return true;
+  const { data, error } = await supabase.from("RecruiterProfile").select("id").eq("userId", authUserId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (data) return true;
+  const { data: ownedJob, error: jobsError } = await supabase.from("RecruiterJob").select("id").eq("recruiterUserId", user.id).limit(1).maybeSingle();
+  if (jobsError) throw new Error(jobsError.message);
+  return Boolean(ownedJob);
+}
+
 // NOTE (C0.9.7): cette route interrogeait auparavant une table "recruiter_jobs"
 // qui n'existe dans aucune migration ni script SQL du projet, avec le client
 // Supabase scoped-session (clé anon + Authorization) et "recruiter_id" = uid
@@ -20,6 +30,9 @@ export async function GET(req: NextRequest) {
     }
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    if (!await authorizeRecruiterWorkspace(supabase, user, authUser.id)) {
+      return NextResponse.json({ message: "Espace recruteur requis." }, { status: 403 });
+    }
 
     const { data, error } = await supabase
       .from("RecruiterJob")
@@ -48,6 +61,9 @@ export async function POST(req: NextRequest) {
     }
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    if (!await authorizeRecruiterWorkspace(supabase, user, authUser.id)) {
+      return NextResponse.json({ message: "Espace recruteur requis." }, { status: 403 });
+    }
 
     const b = await req.json();
     const title = String(b.title || "").trim();
