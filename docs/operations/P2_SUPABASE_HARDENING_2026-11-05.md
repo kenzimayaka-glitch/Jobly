@@ -143,15 +143,16 @@ Aucune donnée de sauvegarde n'a été supprimée.
 État vérifié sur la base de production :
 - `pg_net 0.20.4`, non relocalisable, enregistrement d'extension dans `public`, propriétaire `supabase_admin` ;
 - le rôle `postgres` n'est pas membre de `supabase_admin` et ne peut pas s'attribuer cette appartenance ;
-- les fonctions d'extension sont dans le schéma `net`, en `SECURITY INVOKER`, mais le catalogue montre `USAGE` du schéma et `EXECUTE` sur les fonctions pour `anon` et `authenticated` ;
-- aucun réglage `pgrst.db_schemas` n'a été trouvé dans la configuration de rôle du rôle `authenticator`. L'exposition réelle des schémas dans le Dashboard Data API n'est pas lisible par le connecteur : elle doit être vérifiée dans **Project Settings → API → Exposed schemas**. Le schéma `net` ne doit pas être exposé à PostgREST ;
+- les fonctions de `pg_net` sont dans `net` et le catalogue actuel les indique `SECURITY INVOKER` ; l'usage du schéma et les droits d'exécution apparaissent pour `anon`/`authenticated`, conformément aux grants par défaut de l'extension ;
+- contrôle des rôles : `anon` et `authenticated` ont `rolcanlogin=false` (ils ne peuvent pas ouvrir de connexion PostgreSQL directe) ; `authenticator` est le rôle de connexion PostgREST ;
+- aucun `pgrst.db_schemas` n'a été trouvé dans la configuration PostgreSQL de rôle de `authenticator`. Le connecteur ne lit pas la liste configurée dans le Dashboard. Supabase documente que `net` n'est pas exposé à la Data API par défaut ; l'exposition doit rester ainsi ;
 - le cron `jobly-discover-jobs-every-6h` reste actif, horaire `15 */6 * * *`, et appelle `net.http_post` vers `/functions/v1/discover-jobs`.
 
 La procédure de déplacement contrôlé a été tentée une fois ; son garde-fou s'est arrêté avant toute DDL. **L'extension n'a pas bougé et le cron n'a pas été arrêté.** Aucun privilège du propriétaire managé n'a été contourné. Les droits sur les objets de l'extension ne peuvent pas être modifiés par le rôle actuel `postgres`.
 
-**Voie gratuite sans interruption :** garder l'extension et son cron actifs, confirmer dans le Dashboard que `net` n'est pas exposé à la Data API, et demander à Supabase Support / opérateur privilégié soit de retirer les droits client inutiles, soit d'exécuter ensuite le déplacement documenté dans [p2_pg_net_recreate_2026-11-05.sql](../../supabase/operations/p2_pg_net_recreate_2026-11-05.sql). Dans tous les cas, conserver le cron et vérifier un vrai retour HTTP 2xx de l'ingestion. Le ticket Support n'a pas été envoyé : aucun outil connecté ne permet de créer un ticket au nom du propriétaire du compte.
+**Voie gratuite sans interruption :** conserver l'extension et le cron ; ne pas révoquer les grants `PUBLIC` par défaut sur les tables/fonctions `net`, car Supabase indique qu'ils sont utilisés par le worker `pg_net` et les tâches cron et que leur retrait peut casser l'ingestion. Garder `net` hors des schémas exposés dans les paramètres Data API. Pour supprimer le WARN Advisor `extension_in_public`, il restera nécessaire qu'un opérateur privilégié exécute le déplacement documenté dans [p2_pg_net_recreate_2026-11-05.sql](../../supabase/operations/p2_pg_net_recreate_2026-11-05.sql), sans `CASCADE`, en préservant le cron et en validant un vrai retour HTTP 2xx. Le ticket Support n'a pas été envoyé : aucun outil connecté ne permet de créer un ticket au nom du propriétaire du compte.
 
-Source : [Supabase — pg_net et déplacement d'extension](https://supabase.com/docs/guides/database/extensions/pg_net) ; [Supabase — schémas exposés par la Data API](https://supabase.com/docs/guides/api/using-custom-schemas).
+Sources : [Supabase — pg_net](https://supabase.com/docs/guides/database/extensions/pg_net) ; [Supabase — grants pg_net et limites de révocation](https://supabase.com/kb/troubleshooting/revoking-access-to-pg_net-objects-has-no-effect-0bbc16) ; [Supabase — schémas exposés par la Data API](https://supabase.com/docs/guides/api/using-custom-schemas).
 
 ### Protection HIBP native Supabase : WARN conservé, protection Jobly gratuite ajoutée
 
@@ -186,7 +187,7 @@ Source : [Have I Been Pwned — Pwned Passwords API](https://haveibeenpwned.com/
 - Index inutilisés : 206 INFO, examinés et conservés.
 - Mot de passe compromis : vérification gratuite HIBP active dans les parcours de création et de réinitialisation de mot de passe Jobly ; tests ajoutés à la CI.
 - `auth_leaked_password_protection` : WARN natif Supabase ouvert, sans upgrade ni dépense.
-- `pg_net` : WARN ouvert ; extension et cron conservés ; vérification de l'exposition Data API à confirmer dans le Dashboard, puis action du support nécessaire pour changer les droits propriétaires ou déplacer l'extension.
+- `pg_net` : WARN Advisor ouvert parce que l'extension est enregistrée dans `public` ; cron conservé et actif. Les rôles clients sont `NOLOGIN` et Supabase indique que le schéma `net` n'est pas exposé à la Data API par défaut ; les grants par défaut ne doivent pas être révoqués car ils soutiennent le worker/cron. Le déplacement reste une opération privilégiée.
 - Health Advisor : 0 alerte lors du dernier relevé historique.
 
 Aucun paiement, `DROP ... CASCADE`, suppression d'index de contrainte, contournement de propriété Supabase ou déploiement Netlify n'a été effectué.
