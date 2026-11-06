@@ -89,7 +89,7 @@ function parseStatus(body: string): ParsedPaymentSmsStatus {
 function parseDirection(body: string): PaymentSmsDirection {
   const text = body.normalize("NFKC").toLocaleLowerCase("fr");
   // Outgoing/debit notifications must never activate a merchant subscription.
-  if (/\b(?:votre paiement|your payment|payment of|paiement successintegral|vous avez envoy[eé]|vous avez transf[eé]r[eé]|vous avez pay[eé]|vous avez effectu[eé} un paiement|you sent|you have paid|you paid|payment sent|transfer sent|transfert sortant|debit(?:ed)?)\b/.test(text)
+  if (/\b(?:votre paiement|your payment|payment of|paiement successintegral|vous avez envoy[eé]|vous avez transf[eé]r[eé]|vous avez pay[eé]|vous avez effectu[eé] un paiement|you sent|you have paid|you paid|payment sent|transfer sent|transfert sortant|debit(?:ed)?)\b/.test(text)
     || /\b(?:a ete|a été)\s+finalis[eé]\b/.test(text)) {
     return "OUTBOUND";
   }
