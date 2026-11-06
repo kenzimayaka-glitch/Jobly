@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../../../../lib/server-auth";
+import { enforceApiRateLimit } from "../../../../../../../lib/server-security";
 
 const fail=(message:string,status=400,code="MANUAL_PAYMENT_REVIEW_ERROR")=>NextResponse.json({message,error:code},{status});
 
@@ -10,6 +11,12 @@ export async function POST(request:NextRequest,context:{params:Promise<{submissi
     const sb=adminClient();
     const user=await ensureUser(sb,auth);
     if(!["ADMIN","FINANCE"].includes(String(user.role)))return fail("Accès réservé à ADMIN/FINANCE.",403,"FORBIDDEN");
+    const limited=await enforceApiRateLimit(request,sb,{
+      scope:"admin-event-manual-payment-review",identity:user.id,
+      accountWindows:[{limit:10,windowSeconds:60},{limit:60,windowSeconds:3600}],
+      ipWindows:[{limit:20,windowSeconds:60},{limit:120,windowSeconds:3600}],requireIp:true
+    });
+    if(limited)return limited;
     const {submissionId}=await context.params;
     const body=await request.json().catch(()=>({}));
     const decision=String(body.decision??"").toUpperCase();
