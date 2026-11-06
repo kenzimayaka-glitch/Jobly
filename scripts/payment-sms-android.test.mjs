@@ -35,6 +35,9 @@ test("WorkManager queues ciphertext and posts only to the Jobly SMS endpoint", (
   assert.match(worker, /\/api\/payments\/sms\/ingest/);
   assert.match(worker, /x-jobly-sms-device/);
   assert.match(worker, /Authorization/);
+  assert.match(worker, /configuredBase\\.protocol !== "https"/);
+  assert.match(worker, /queuedDeviceId !== credentials\\.deviceId/);
+  assert.match(worker, /credentials\\.senderIds\\.contains/);
   assert.match(worker, /Result\.retry\(\)/);
   assert.doesNotMatch(worker, /Log\./);
 });
@@ -47,9 +50,12 @@ test("pairing and SMS permission requests use the existing origin-restricted Job
   assert.match(activity, /isTrustedJoblyOrigin\(sourceOrigin\)/);
   assert.match(activity, /PAIR_PAYMENT_SMS_DEVICE/);
   assert.match(activity, /REQUEST_PAYMENT_SMS_PERMISSION/);
+  assert.match(activity, /cancelAllWorkByTag/);
   assert.match(activity, /requestPermissions\(arrayOf\(Manifest\.permission\.RECEIVE_SMS\)/);
   assert.match(bridge, /PAIR_PAYMENT_SMS_DEVICE/);
+  assert.match(bridge, /requestJoblyPaymentSmsPermission/);
   assert.match(page, /pairJoblyPaymentSmsDevice/);
+  assert.match(page, /Réessayer l’autorisation SMS/);
   assert.match(page, /isJoblyAndroidPaymentSmsAvailable/);
   assert.match(page, /senderIds/);
   assert.match(admin, /\/admin\/payments\/sms/);
