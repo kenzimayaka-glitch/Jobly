@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     catch { return err("Fuseau horaire invalide.", 400, "INVALID_TIME_ZONE"); }
     const merchantAccount = normalizeAccount(body.merchantAccount);
     const senderIds = Array.isArray(body.senderIds)
-      ? [...new Set(body.senderIds.map((value: unknown) => String(value || "").normalize("NFKC").trim().replace(/\s+/g, " ")).filter((value: string) => value.length > 0 && value.length <= 120))]
+      ? [...new Set(body.senderIds.map((value: unknown) => String(value || "").normalize("NFKC").trim().replace(/\s+/g, " ").toUpperCase()).filter((value: string) => value.length > 0 && value.length <= 120))]
       : [];
     if (!merchantAccount) return err("Numéro marchand invalide.", 400, "INVALID_MERCHANT_ACCOUNT");
     const { data: providerConfig, error: providerConfigError } = await supabase
