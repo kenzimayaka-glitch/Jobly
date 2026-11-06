@@ -33,9 +33,18 @@ import { commandIntent, extractWakeCommand, isFinancialRequest } from "@/lib/jia
 import { getSupabaseClient } from "../lib/supabase";
 import { useI18n, type DictKey } from "@/lib/i18n";
 import { decide as decideAutonomy, observe as observeAutonomy } from "@/lib/jia/autonomy";
+import JiaConversationSurface, { type JiaConversationMessage } from "@/components/jia/JiaConversationSurface";
+import {
+  buildJiaAdaptiveQuestionBank,
+  buildJiaPracticeQuestionnaire,
+  detectJiaWorkspaceIntent,
+  type JiaWorkspaceBlock,
+  type JiaWorkspaceIntent,
+  type JiaWorkspaceOffer,
+} from "@/lib/jia/workspace";
 
 
-type Ecosystem = "TALENT" | "RECRUITER" | "PARTNER";
+type Ecosystem = "TALENT" | "RECRUITER" | "PARTNER" | "ADMIN";
 type Bubble = { id: number; text: string; gesture?: JiaGesture; move?: JIAMove };
 type Prefs = { enabled: boolean; mode: "text" | "voice"; proactive: boolean };
 
@@ -54,7 +63,7 @@ declare global {
 }
 
 // Écrans où J’IA ne s’affiche jamais (auth, onboarding, pages publiques, scène dédiée).
-const HIDDEN_ROUTES = [/^\/$/, /^\/ecosystem/, /^\/auth\//, /^\/onboarding/, /^\/legal\//, /^\/cv\/share\//, /^\/pass\//, /^\/download/, /^\/join/, /^\/recruiter\/discover\//, /^\/admin/];
+const HIDDEN_ROUTES = [/^\/$/, /^\/ecosystem/, /^\/auth\//, /^\/onboarding/, /^\/legal\//, /^\/cv\/share\//, /^\/pass\//, /^\/download/, /^\/join/, /^\/recruiter\/discover\//, /^\/admin\/login/, /^\/admin\/jia\/chat/];
 // Écrans denses (formulaires, ATS, CV, paiement) : J’IA démarre en bulle-visage.
 const COMPACT_ROUTES = [/^\/recruiter\/jobs\/new/, /^\/recruiter\/onboarding/, /^\/partner\/onboarding/, /^\/recruiter\/ats/, /^\/talent\/cvs/, /^\/abonnement/, /^\/partner\/(payment|kyc)/, /^\/recruiter\/settings/, /^\/talent\/settings/, /^\/partner\/settings/];
 // Écrans sensibles : le texte visible n’est jamais transmis au modèle proactif.
@@ -64,6 +73,7 @@ const COLLAPSE_KEY = "jobly-jia-collapsed";
 const PREDICT_MIN_INTERVAL = 30_000;
 
 function ecosystemOf(pathname: string): Ecosystem {
+  if (pathname.startsWith("/admin")) return "ADMIN";
   if (pathname.startsWith("/recruiter")) return "RECRUITER";
   if (pathname.startsWith("/partner")) return "PARTNER";
   return "TALENT";
@@ -85,8 +95,232 @@ const CHIPS: Record<Ecosystem, { key: DictKey; href: string }[]> = {
     { key: "jia.panel.referral", href: "/partner/referral" },
     { key: "jia.panel.commissions", href: "/partner/payment" },
   ],
+  ADMIN: [
+    { key: "jia.panel.dashboard", href: "/admin" },
+    { key: "jia.panel.ats", href: "/admin/jia" },
+  ],
 };
-const SETTINGS_HREF: Record<Ecosystem, string> = { TALENT: "/talent/settings", RECRUITER: "/recruiter/settings", PARTNER: "/partner/settings" };
+const SETTINGS_HREF: Record<Ecosystem, string> = { TALENT: "/talent/settings", RECRUITER: "/recruiter/settings", PARTNER: "/partner/settings", ADMIN: "/admin" };
+
+async function loadJiaWorkspace(
+  intent: JiaWorkspaceIntent,
+  command: string,
+  accessToken: string,
+): Promise<JiaWorkspaceBlock | null> {
+  if (!intent) return null;
+  const headers = { Authorization: "Bearer " + accessToken };
+
+  if (intent === "OFFERS") {
+    const scope = /\bafrique\b/i.test(command) ? "&scope=africa" : "";
+    const roleMatch = command.match(/\b(?:offre|emploi|poste)\s+(?:de|pour)\s+(.+?)(?:\s+(?:à|au|aux|en|dans|avec)\b|[?.!,]|$)/i);
+    const query = roleMatch?.[1]?.trim().slice(0, 80);
+    const search = query ? "&q=" + encodeURIComponent(query) : "";
+    const response = await fetch("/api/jobs?limit=5" + scope + search, { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Le flux des offres est momentanément indisponible.");
+    const jobs = Array.isArray(json.jobs) ? json.jobs : [];
+    return {
+      kind: "offers",
+      totalAvailable: Number(json.totalAvailable) || 0,
+      matchingCount: Number(json.matchingCount) || 0,
+      offers: jobs.slice(0, 5).map((job: Record<string, any>) => ({
+        id: String(job.id || ""),
+        source: job.source === "recruiter" ? "recruiter" : "discovery",
+        title: String(job.title || "Offre sans titre"),
+        companyName: typeof job.company?.name === "string" ? job.company.name : null,
+        location: typeof job.location === "string" ? job.location : null,
+        contractType: typeof job.contractType === "string" ? job.contractType : null,
+        remoteMode: typeof job.remoteMode === "string" ? job.remoteMode : null,
+        matchPercent: Number.isFinite(Number(job.matchPercent)) ? Number(job.matchPercent) : null,
+        deadline: typeof job.deadline === "string" ? job.deadline : null,
+        sourceUrl: typeof job.sourceUrl === "string" ? job.sourceUrl : null,
+        applicationReady: job.applicationReady === true,
+      })).filter((job: JiaWorkspaceOffer) => Boolean(job.id)),
+    };
+  }
+
+  if (intent === "APPLICATIONS") {
+    const response = await fetch("/api/applications", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Le suivi des candidatures est indisponible.");
+    const applications = Array.isArray(json.applications) ? json.applications : [];
+    return {
+      kind: "applications",
+      counters: {
+        envoyees: Number(json.counters?.envoyees) || 0,
+        vues: Number(json.counters?.vues) || 0,
+        entretien: Number(json.counters?.entretien) || 0,
+      },
+      applications: applications.slice(0, 8).map((item: Record<string, any>) => ({
+        id: String(item.id || ""),
+        status: String(item.status || "UNKNOWN"),
+        statusLabel: String(item.statusLabel || item.status || "À suivre"),
+        createdAt: String(item.createdAt || ""),
+        updatedAt: String(item.updatedAt || ""),
+        job: item.job ? {
+          title: String(item.job.title || "Offre"),
+          companyName: typeof item.job.companyName === "string" ? item.job.companyName : null,
+          location: typeof item.job.location === "string" ? item.job.location : null,
+        } : null,
+      })).filter((item: { id: string }) => Boolean(item.id)),
+    };
+  }
+
+  if (intent === "RECRUITER_JOBS") {
+    const response = await fetch("/api/recruiter/jobs", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Les offres recruteur sont indisponibles.");
+    const jobs = Array.isArray(json.jobs) ? json.jobs : [];
+    return { kind: "business-summary", title: "Mes offres publiées et brouillons", metricLabel: "Offres", metric: jobs.length,
+      items: jobs.slice(0, 8).map((job: Record<string, any>) => ({ id: String(job.id || ""), title: String(job.title || "Offre sans titre"), subtitle: [job.companyName, job.location].filter(Boolean).join(" · "), detail: [job.status, job.distributionScope, job.countryCode].filter(Boolean).join(" · "), status: String(job.status || "") })).filter((item: { id: string }) => Boolean(item.id)),
+      href: "/recruiter/jobs", hrefLabel: "Gérer mes offres", note: "Données lues depuis les offres du compte recruteur connecté." };
+  }
+  if (intent === "RECRUITER_APPLICATIONS") {
+    const response = await fetch("/api/recruiter/applications?markViewed=0", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Les candidatures reçues sont indisponibles.");
+    const rows = Array.isArray(json.applications) ? json.applications : [];
+    return { kind: "business-summary", title: "Candidatures reçues", metricLabel: "Candidatures", metric: rows.length,
+      items: rows.slice(0, 8).map((item: Record<string, any>) => ({ id: String(item.id || ""), title: String(item.candidateName || "Candidat"), subtitle: String(item.jobTitle || "Offre de l'entreprise"), detail: [item.status, item.viewedAt ? "Consultée" : "Non consultée"].filter(Boolean).join(" · "), status: String(item.status || "") })).filter((item: { id: string }) => Boolean(item.id)),
+      href: "/recruiter/candidatures", hrefLabel: "Traiter les candidatures", note: "Lecture passive : cette carte ne modifie pas les statuts « Vu »." };
+  }
+  if (intent === "RECRUITER_TALENTS") {
+    const response = await fetch("/api/recruiter/talents", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Les profils Talent publics sont indisponibles.");
+    const rows = Array.isArray(json.talents) ? json.talents : [];
+    return { kind: "business-summary", title: "Talents publics découvrables", metricLabel: "Profils publics", metric: Number(json.count) || rows.length,
+      items: rows.slice(0, 8).map((item: Record<string, any>) => ({ id: String(item.userId || ""), title: String(item.name || "Talent Jobly"), subtitle: [item.headline, item.location].filter(Boolean).join(" · "), detail: Array.isArray(item.topSkills) ? item.topSkills.map((skill: any) => String(skill.name || "")).filter(Boolean).slice(0, 4).join(" · ") : "", status: String(item.plan || "") })).filter((item: { id: string }) => Boolean(item.id)),
+      href: "/recruiter/talents", hrefLabel: "Explorer les talents", note: "Profils ayant activé leur visibilité publique. Aucun contact privé n'est exposé." };
+  }
+  if (intent === "PARTNER_PROFILE") {
+    const response = await fetch("/api/mobility/partner/me", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Le dossier prestataire Mobility est indisponible.");
+    const provider = json.provider || null, rows = Array.isArray(json.services) ? json.services : [];
+    return { kind: "business-summary", title: "Mon espace partenaire Mobility", metricLabel: "Services", metric: rows.length,
+      items: rows.slice(0, 8).map((item: Record<string, any>) => ({ id: String(item.id || ""), title: String(item.title || item.serviceType || "Service"), subtitle: [item.city, item.serviceType].filter(Boolean).join(" · "), detail: [item.status, item.currency && item.priceAmount != null ? String(item.priceAmount) + " " + item.currency : ""].filter(Boolean).join(" · "), status: String(item.status || "") })).filter((item: { id: string }) => Boolean(item.id)),
+      href: "/partner", hrefLabel: "Ouvrir mon espace partenaire", note: provider ? "Dossier : " + String(provider.status || "PENDING_REVIEW") + " · KYC : " + String(provider.kycStatus || "PENDING") : "Aucun dossier prestataire enregistré. J’IA n'en crée pas automatiquement." };
+  }
+  if (intent === "PARTNER_ASSIGNMENTS") {
+    const response = await fetch("/api/mobility/partner/assignments", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Les affectations exigent un prestataire vérifié et actif.");
+    const rows = Array.isArray(json.assignments) ? json.assignments : [];
+    return { kind: "business-summary", title: "Mes affectations Mobility", metricLabel: "Affectations", metric: rows.length,
+      items: rows.slice(0, 8).map((item: Record<string, any>) => ({ id: String(item.id || ""), title: String(item.MobilityProviderService?.title || "Mission Mobility"), subtitle: [item.MobilityRequest?.departCity, item.MobilityRequest?.arriveeCity].filter(Boolean).join(" → "), detail: [item.status, item.currency && item.agreedAmount != null ? String(item.agreedAmount) + " " + item.currency : ""].filter(Boolean).join(" · "), status: String(item.status || "") })).filter((item: { id: string }) => Boolean(item.id)),
+      href: "/partner", hrefLabel: "Suivre mes missions", note: "Lecture seule : aucune affectation n'est modifiée depuis cette carte." };
+  }
+  if (intent === "PARTNER_COMMISSIONS") {
+    const response = await fetch("/api/partner/commissions", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Les commissions partenaires sont indisponibles.");
+    const rows = Array.isArray(json.commissions) ? json.commissions : [], totals = json.totals || {};
+    return { kind: "business-summary", title: "Mes commissions", metricLabel: "Commissions", metric: rows.length,
+      items: rows.slice(0, 8).map((item: Record<string, any>) => ({ id: String(item.id || ""), title: String(item.description || item.type || "Commission"), subtitle: String(item.createdAt || ""), detail: [item.amount != null ? String(item.amount) + " " + String(item.currency || "XAF") : "", item.status].filter(Boolean).join(" · "), status: String(item.status || "") })).filter((item: { id: string }) => Boolean(item.id)),
+      href: "/partner/payment", hrefLabel: "Voir le détail des paiements", note: ["À payer : " + String(totals.payable || 0), "En attente : " + String(totals.pending || 0), "Payé : " + String(totals.paid || 0)].join(" · ") + ". Montants fournis par Jobly." };
+  }
+  if (intent === "PARTNER_REPORTS") {
+    const response = await fetch("/api/mobility/partner/reports?format=json", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Les rapports Mobility ne sont pas accessibles.");
+    const rows = Array.isArray(json.rows) ? json.rows : [];
+    return { kind: "business-summary", title: "Rapport de suivi Mobility", metricLabel: "Dossiers visibles", metric: Number(json.count) || rows.length,
+      items: rows.slice(0, 8).map((item: Record<string, any>) => ({ id: String(item.id || ""), title: [item.departCity, item.arriveeCity].filter(Boolean).join(" → ") || "Dossier mobilité", subtitle: String(item.status || ""), detail: [item.eligibilityStatus, item.costTotal != null ? String(item.costTotal) + " XAF" : ""].filter(Boolean).join(" · "), status: String(item.status || "") })).filter((item: { id: string }) => Boolean(item.id)),
+      href: "/partner", hrefLabel: "Ouvrir mon espace partenaire", note: "Rapport limité aux dossiers reliés au compte par les règles Mobility." };
+  }
+  if (intent === "ADMIN_OVERVIEW") {
+    const response = await fetch("/api/admin/jia/intelligence", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "L'intelligence transversale Admin est indisponible.");
+    const rows = Array.isArray(json.layers) ? json.layers : [];
+    return { kind: "business-summary", title: "Intelligence transversale Jobly", metricLabel: "Domaines analysés", metric: rows.length,
+      items: rows.slice(0, 10).map((layer: Record<string, any>, index: number) => ({ id: String(layer.layer || layer.id || index), title: String(layer.title || layer.layer || "Domaine"), subtitle: String(layer.status || layer.health || ""), detail: String(layer.summary || layer.description || ""), status: String(layer.status || layer.health || "") })),
+      href: "/admin/jia", hrefLabel: "Ouvrir le cockpit J’IA Admin", note: "Vue Admin séparée du Copilot CEO et de sa mémoire privée." };
+  }
+
+  if (intent === "PROFILE") {
+    const response = await fetch("/api/profile", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Le profil Talent est indisponible.");
+    const user = json.user || {};
+    const profile = json.profile || {};
+    const skills = Array.isArray(json.skills) ? json.skills.map((skill: any) => String(skill?.name || "")).filter(Boolean) : [];
+    return {
+      kind: "profile",
+      displayName: String(user.displayName || [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "Profil Talent"),
+      email: typeof user.email === "string" ? user.email : null,
+      phone: typeof profile.phone === "string" ? profile.phone : typeof user.phone === "string" ? user.phone : null,
+      location: typeof profile.location === "string" ? profile.location : null,
+      headline: String(profile.headline || ""),
+      summary: String(profile.summary || ""),
+      skills,
+      experiences: Array.isArray(json.experiences) ? json.experiences.slice(0, 5).map((item: any) => ({
+        title: String(item?.title || ""),
+        company: String(item?.company || ""),
+        startDate: typeof item?.startDate === "string" ? item.startDate : null,
+        endDate: typeof item?.endDate === "string" ? item.endDate : null,
+        description: typeof item?.description === "string" ? item.description : null,
+      })) : [],
+      education: Array.isArray(json.education) ? json.education.slice(0, 4).map((item: any) => ({
+        institution: String(item?.institution || ""),
+        degree: typeof item?.degree === "string" ? item.degree : null,
+        field: typeof item?.field === "string" ? item.field : null,
+        startDate: typeof item?.startDate === "string" ? item.startDate : null,
+        endDate: typeof item?.endDate === "string" ? item.endDate : null,
+      })) : [],
+      experienceCount: Array.isArray(json.experiences) ? json.experiences.length : 0,
+      educationCount: Array.isArray(json.education) ? json.education.length : 0,
+      cvOriginalUrl: typeof user.cvOriginalUrl === "string" ? user.cvOriginalUrl : null,
+      cvOriginalFileName: typeof user.cvOriginalFileName === "string" ? user.cvOriginalFileName : null,
+    };
+  }
+
+  if (intent !== "ASSESSMENT") return null;
+  const bank = buildJiaAdaptiveQuestionBank(command);
+  const createAssessment = async (adaptive: boolean, questions: typeof bank.questions) => {
+    const response = await fetch("/api/career-journey/assessments", {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        competency: bank.competency,
+        title: bank.title,
+        objective: bank.objective,
+        format: "MCQ",
+        adaptive,
+        voiceAllowed: true,
+        questions: questions.map((question) => ({ prompt: question.prompt, choices: question.choices })),
+      }),
+    });
+    const json = await response.json().catch(() => ({}));
+    return { response, json };
+  };
+  let created = await createAssessment(true, bank.questions);
+  let adaptiveGranted = created.response.ok;
+  if (!created.response.ok && created.response.status === 403 && created.json.requiredPlan === "PREMIUM") {
+    created = await createAssessment(false, bank.questions.slice(0, 3));
+  }
+  if (!created.response.ok) throw new Error(created.json.message || "Je n'ai pas pu créer cet exercice.");
+  const assessmentId = typeof created.json.assessment?.id === "string" ? created.json.assessment.id : "";
+  if (!assessmentId) throw new Error("L'évaluation n'a pas reçu d'identifiant Jobly.");
+  const questions = adaptiveGranted ? bank.questions : bank.questions.slice(0, 3);
+  return {
+    kind: "questionnaire",
+    assessmentId,
+    title: bank.title,
+    competency: bank.competency,
+    objective: adaptiveGranted
+      ? bank.objective + " Le parcours Premium adapte la difficulté suivante selon tes réponses."
+      : bank.objective + " Mode de pratique standard : trois questions.",
+    questions,
+    adaptive: adaptiveGranted,
+    currentQuestionIndex: 0,
+    currentDifficulty: 1,
+    askedQuestionIndexes: adaptiveGranted ? [0] : [0, 1, 2],
+    maxQuestions: adaptiveGranted ? 5 : 3,
+  };
+}
+
 
 function speak(text: string, lang: "fr" | "en", onEnd?: () => void) {
   if (typeof window === "undefined" || !window.speechSynthesis || !text) { onEnd?.(); return; }
@@ -152,6 +386,15 @@ export default function JiaPresence() {
   const [sourceLinks, setSourceLinks] = useState<Array<{ title: string; url: string; snippet?: string }>>([]);
   const [healthStatus, setHealthStatus] = useState<"idle" | "checking" | "ready" | "error">("idle");
   const [recentDialogue, setRecentDialogue] = useState<string[]>([]);
+  const [conversationMessages, setConversationMessages] = useState<JiaConversationMessage[]>([]);
+  const conversationMessagesRef = useRef<JiaConversationMessage[]>([]);
+  const [hasMoreConversationMessages, setHasMoreConversationMessages] = useState(false);
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
+  const [conversationPersistenceReady, setConversationPersistenceReady] = useState(false);
+
+  const conversationIdRef = useRef<string | null>(null);
+  const pendingConversationMessagesRef = useRef<Array<{ ecosystem: Ecosystem; message: JiaConversationMessage }>>([]);
+  const conversationWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const modeRef = useRef<"text" | "voice">("text");
   const langRef = useRef(lang);
@@ -380,9 +623,141 @@ export default function JiaPresence() {
     }
   }, []);
 
+  const persistConversationMessage = useCallback((ecosystem: Ecosystem, message: JiaConversationMessage) => {
+    const conversationId = conversationIdRef.current;
+    if (!conversationId) {
+      pendingConversationMessagesRef.current.push({ ecosystem, message });
+      return;
+    }
+    conversationWriteQueueRef.current = conversationWriteQueueRef.current.then(async () => {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token) throw new Error("Session requise pour sauvegarder la conversation.");
+      const response = await fetch("/api/jia/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+        body: JSON.stringify({
+          action: "append",
+          conversationId,
+          message: {
+            id: message.id,
+            role: message.role,
+            text: message.text,
+            sources: message.sources || [],
+            workspace: message.workspace || null,
+          },
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "Sauvegarde du message impossible.");
+    }).catch((error) => {
+      setHealthStatus("error");
+      console.error("[J’IA conversation] Persist failed", error);
+    });
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!signedIn) {
+        conversationIdRef.current = null;
+        setConversationPersistenceReady(false);
+        setConversationMessages([]);
+        setHasMoreConversationMessages(false);
+        return;
+      }
+      conversationIdRef.current = null;
+      setConversationPersistenceReady(false);
+      setHealthStatus("checking");
+      try {
+        const { data: { session } } = await getSupabaseClient().auth.getSession();
+        if (!session?.access_token) throw new Error("Session requise.");
+        const headers = { Authorization: "Bearer " + session.access_token };
+        const contextResponse = await fetch("/api/jia/context?ecosystem=" + encodeURIComponent(eco), { headers, cache: "no-store" });
+        const contextBody = await contextResponse.json().catch(() => ({}));
+        if (!contextResponse.ok) throw new Error(contextBody.message || "Accès à cet espace J’IA refusé.");
+        const response = await fetch("/api/jia/conversations?ecosystem=" + encodeURIComponent(eco) + "&limit=50", { headers, cache: "no-store" });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.message || "Restauration de la conversation impossible.");
+        let conversation = body.conversation;
+        if (!conversation?.id) {
+          const createResponse = await fetch("/api/jia/conversations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+            body: JSON.stringify({ action: "create", ecosystem: eco }),
+          });
+          const createBody = await createResponse.json().catch(() => ({}));
+          if (!createResponse.ok || !createBody.conversation?.id) {
+            throw new Error(createBody.message || "Création de la conversation impossible.");
+          }
+          conversation = createBody.conversation;
+        }
+        if (!active) return;
+        conversationIdRef.current = String(conversation.id);
+        const restored: JiaConversationMessage[] = (Array.isArray(body.messages) ? body.messages : []).map((item: Record<string, any>) => ({
+          id: String(item.id),
+          role: item.role === "user" ? "user" : "assistant",
+          text: String(item.content || ""),
+          createdAt: new Date(item.createdAt).getTime(),
+          ...(Array.isArray(item.sources) && item.sources.length ? { sources: item.sources } : {}),
+          ...(item.workspace && typeof item.workspace === "object" ? { workspace: item.workspace as JiaWorkspaceBlock } : {}),
+        }));
+        setConversationMessages(restored);
+        setHasMoreConversationMessages(body.hasMore === true);
+        setConversationPersistenceReady(true);
+        setHealthStatus("ready");
+        const pending = pendingConversationMessagesRef.current;
+        const readyForThisEcosystem = pending.filter((queued) => queued.ecosystem === eco);
+        pendingConversationMessagesRef.current = pending.filter((queued) => queued.ecosystem !== eco);
+        for (const queued of readyForThisEcosystem) {
+          persistConversationMessage(queued.ecosystem, queued.message);
+        }
+      } catch (error) {
+        if (!active) return;
+        setHealthStatus("error");
+        setConversationPersistenceReady(false);
+        console.error("[J’IA conversation] Restore failed", error);
+      }
+    })();
+    return () => { active = false; };
+  }, [eco, signedIn, persistConversationMessage]);
+
+  useEffect(() => { conversationMessagesRef.current = conversationMessages; }, [conversationMessages]);
+
+  const appendConversationMessage = useCallback((role: "user" | "assistant", text: string, sources?: JiaConversationMessage["sources"], workspace?: JiaWorkspaceBlock) => {
+    const normalized = text.trim();
+    if (!normalized) return;
+    idSeq.current += 1;
+    const id = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `jia-${Date.now()}-${idSeq.current}`;
+    const message: JiaConversationMessage = {
+      id,
+      role,
+      text: normalized,
+      createdAt: Date.now(),
+      ...(sources?.length ? { sources } : {}),
+      ...(workspace ? { workspace } : {}),
+    };
+    setConversationMessages((current) => [...current, message]);
+    persistConversationMessage(eco, message);
+  }, [eco, persistConversationMessage]);
+
+  useEffect(() => {
+    const onTranscript = (event: Event) => {
+      const detail = (event as CustomEvent<{ command?: string; transcript?: string }>).detail;
+      const text = typeof detail?.command === "string" && detail.command.trim()
+        ? detail.command.trim()
+        : typeof detail?.transcript === "string" ? detail.transcript.trim() : "";
+      if (text) appendConversationMessage("user", text);
+    };
+    window.addEventListener("jobly:jia-transcript", onTranscript);
+    return () => window.removeEventListener("jobly:jia-transcript", onTranscript);
+  }, [appendConversationMessage]);
+
   const sendTextCommand = useCallback(async () => {
     const command = commandInput.trim();
     if (!command || commandBusy) return;
+    appendConversationMessage("user", command);
     setCommandBusy(true);
     setCommandInput("");
     try {
@@ -403,16 +778,31 @@ export default function JiaPresence() {
       if (!response.ok) throw new Error(out.message || "J’IA est momentanément indisponible.");
       const nextSources = Array.isArray(out.sources) ? out.sources.filter((source: unknown): source is { title: string; url: string; snippet?: string } => Boolean(source && typeof source === "object" && "url" in source && typeof source.url === "string" && /^https?:\/\//i.test(source.url))).slice(0, 5) : [];
       setSourceLinks(nextSources);
+      const workspaceIntent = detectJiaWorkspaceIntent(command, eco);
+      let workspaceBlock: JiaWorkspaceBlock | null = null;
+      if (workspaceIntent) {
+        try {
+          workspaceBlock = await loadJiaWorkspace(workspaceIntent, command, session.access_token);
+        } catch (workspaceError) {
+          workspaceBlock = {
+            kind: "notice",
+            title: "Espace Jobly non disponible",
+            message: workspaceError instanceof Error ? workspaceError.message : "Le service Jobly demandé n'a pas répondu.",
+            href: workspaceIntent === "OFFERS" ? "/jobs" : workspaceIntent === "APPLICATIONS" ? "/candidatures" : workspaceIntent === "PROFILE" ? "/talent/profile" : "/career-journey",
+          };
+        }
+      }
       const answer = typeof out.message === "string" ? out.message.trim() : "";
       const previousAnswer = recentDialogue[recentDialogue.length - 1]?.trim().toLocaleLowerCase();
       if (answer && answer.toLocaleLowerCase() === previousAnswer) {
         throw new Error("J’IA a produit une réponse répétée ; nouvelle réponse demandée.");
       }
       setRecentDialogue((history) => [...history, command, answer].filter(Boolean).slice(-12));
+      const proposedType = out.proposedAction?.type as string | undefined;
+      appendConversationMessage("assistant", out.message || "Je suis prête à t’aider.", nextSources, workspaceBlock || undefined);
       const sourceSuffix = nextSources.length
         ? `\n\nSources vérifiables : ${nextSources.slice(0, 3).map((source: { title: string; url: string }) => source.title || source.url).join(" · ")}`
         : "";
-      const proposedType = out.proposedAction?.type as string | undefined;
       if (proposedType) setPendingAction({ type: proposedType, message: command, target: out.proposedAction?.target });
       say(`${out.message || "Je suis prête à t’aider."}${sourceSuffix}`, {
         gesture: proposedType ? "analyze" : "reassure",
@@ -421,11 +811,286 @@ export default function JiaPresence() {
         sticky: true,
       });
     } catch (error) {
-      say(error instanceof Error ? error.message : "Je n’ai pas réussi à répondre.", { gesture: "secure", sticky: true, speak: false });
+      const message = error instanceof Error ? error.message : "Je n’ai pas réussi à répondre.";
+      appendConversationMessage("assistant", message);
+      say(message, { gesture: "secure", sticky: true, speak: false });
     } finally {
       setCommandBusy(false);
     }
-  }, [commandBusy, commandInput, recentDialogue, router, say]);
+  }, [appendConversationMessage, commandBusy, commandInput, eco, recentDialogue, say]);
+
+
+  const updateJiaWorkspace = useCallback((messageId: string, workspace: JiaWorkspaceBlock) => {
+    setConversationMessages((current) => current.map((message) =>
+      message.id === messageId && message.role === "assistant" ? { ...message, workspace } : message
+    ));
+    const conversationId = conversationIdRef.current;
+    if (!conversationId) return;
+    conversationWriteQueueRef.current = conversationWriteQueueRef.current.then(async () => {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token) throw new Error("Session requise pour sauvegarder la carte.");
+      const response = await fetch("/api/jia/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+        body: JSON.stringify({ action: "update-workspace", conversationId, messageId, workspace }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "Sauvegarde de la carte impossible.");
+    }).catch((error) => {
+      setHealthStatus("error");
+      console.error("[J’IA conversation] Workspace state persist failed", error);
+    });
+  }, []);
+
+  const saveJiaProfile = useCallback(async (args: {
+    messageId: string;
+    displayName: string;
+    phone: string;
+    headline: string;
+    summary: string;
+    location: string;
+    skills: string[];
+  }) => {
+    setCommandBusy(true);
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token) throw new Error("Session requise pour modifier le profil.");
+      const headers = { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token };
+      const profileResponse = await fetch("/api/profile", {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          section: "profil",
+          displayName: args.displayName,
+          phone: args.phone,
+          headline: args.headline,
+          summary: args.summary,
+          location: args.location,
+        }),
+      });
+      const profileBody = await profileResponse.json().catch(() => ({}));
+      if (!profileResponse.ok) throw new Error(profileBody.message || "Jobly n'a pas enregistré les informations du profil.");
+
+      const skillsResponse = await fetch("/api/profile", {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ section: "skills", skills: args.skills.map((name) => ({ name })) }),
+      });
+      const skillsBody = await skillsResponse.json().catch(() => ({}));
+      if (!skillsResponse.ok) throw new Error(skillsBody.message || "Les compétences n'ont pas été enregistrées.");
+
+      const message = conversationMessagesRef.current?.find((item) => item.id === args.messageId);
+      if (message?.workspace?.kind === "profile") {
+        updateJiaWorkspace(args.messageId, {
+          ...message.workspace,
+          displayName: args.displayName,
+          phone: args.phone || null,
+          headline: args.headline,
+          summary: args.summary,
+          location: args.location || null,
+          skills: args.skills,
+        });
+      }
+    } finally {
+      setCommandBusy(false);
+    }
+  }, [updateJiaWorkspace]);
+
+  const uploadJiaCv = useCallback(async (args: { messageId: string; file: File }): Promise<boolean> => {
+    const { file } = args;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      throw new Error("Le CV doit être un fichier PDF.");
+    }
+    if (file.size <= 0 || file.size > 3 * 1024 * 1024) {
+      throw new Error("Le CV original doit peser entre 1 octet et 3 Mo.");
+    }
+    if (!window.confirm("Remplacer le CV original enregistré dans Jobly ? Le nouveau PDF deviendra le document de référence de ton profil.")) {
+      return false;
+    }
+    setCommandBusy(true);
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token) throw new Error("Session requise pour remplacer le CV.");
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch("/api/talent/cv/original", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + session.access_token },
+        body: form,
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || body.stored !== true) throw new Error(body.message || "Jobly n'a pas confirmé l'enregistrement du CV.");
+
+      const profileResponse = await fetch("/api/profile", {
+        headers: { Authorization: "Bearer " + session.access_token },
+        cache: "no-store",
+      });
+      const profileBody = profileResponse.ok ? await profileResponse.json().catch(() => ({})) : {};
+      const refreshedUser = profileBody.user || {};
+      const message = conversationMessagesRef.current.find((item) => item.id === args.messageId);
+      if (message?.workspace?.kind === "profile") {
+        updateJiaWorkspace(args.messageId, {
+          ...message.workspace,
+          cvOriginalFileName: typeof refreshedUser.cvOriginalFileName === "string" ? refreshedUser.cvOriginalFileName : (body.fileName || file.name),
+          cvOriginalUrl: typeof refreshedUser.cvOriginalUrl === "string" ? refreshedUser.cvOriginalUrl : null,
+        });
+      }
+      return true;
+    } finally {
+      setCommandBusy(false);
+    }
+  }, [updateJiaWorkspace]);
+
+  const loadOlderConversationMessages = useCallback(async () => {
+    if (loadingOlderMessages || !hasMoreConversationMessages || !conversationIdRef.current || !conversationMessages.length) return;
+    setLoadingOlderMessages(true);
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token) throw new Error("Session requise.");
+      const oldest = conversationMessages[0];
+      const query = new URLSearchParams({
+        ecosystem: eco,
+        conversationId: conversationIdRef.current,
+        before: new Date(oldest.createdAt).toISOString(),
+        beforeId: oldest.id,
+        limit: "50",
+      });
+      const response = await fetch("/api/jia/conversations?" + query.toString(), {
+        headers: { Authorization: "Bearer " + session.access_token },
+        cache: "no-store",
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "Historique précédent indisponible.");
+      const older: JiaConversationMessage[] = (Array.isArray(body.messages) ? body.messages : []).map((item: Record<string, any>) => ({
+        id: String(item.id),
+        role: item.role === "user" ? "user" : "assistant",
+        text: String(item.content || ""),
+        createdAt: new Date(item.createdAt).getTime(),
+        ...(Array.isArray(item.sources) && item.sources.length ? { sources: item.sources } : {}),
+        ...(item.workspace && typeof item.workspace === "object" ? { workspace: item.workspace as JiaWorkspaceBlock } : {}),
+      }));
+      setConversationMessages((current) => {
+        const known = new Set(current.map((item) => item.id));
+        return [...older.filter((item) => !known.has(item.id)), ...current];
+      });
+      setHasMoreConversationMessages(body.hasMore === true);
+    } catch (error) {
+      setHealthStatus("error");
+      console.error("[J’IA conversation] Older page load failed", error);
+    } finally {
+      setLoadingOlderMessages(false);
+    }
+  }, [conversationMessages, eco, hasMoreConversationMessages, loadingOlderMessages]);
+
+  const prepareJiaApplication = useCallback(async (offer: JiaWorkspaceOffer) => {
+    setCommandBusy(true);
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token) throw new Error("Session requise pour préparer une candidature.");
+      const response = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+        body: JSON.stringify({ source: offer.source, jobId: offer.id, locale: langRef.current === "en" ? "en" : "fr" }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || "Jobly n'a pas pu préparer cette candidature.");
+      const prepared = result.prepared || {};
+      const applicationProfile = result.applicationProfile || {};
+      const block: JiaWorkspaceBlock = {
+        kind: "prepared-application",
+        applicationId: String(result.application?.id || ""),
+        title: offer.title,
+        channel: String(prepared.channel?.channel || "À confirmer"),
+        subject: String(prepared.subject || ""),
+        letter: String(prepared.letter || ""),
+        email: typeof applicationProfile.applicationEmail === "string" ? applicationProfile.applicationEmail : null,
+        phone: typeof applicationProfile.applicationPhone === "string" ? applicationProfile.applicationPhone : null,
+        warnings: Array.isArray(prepared.warnings) ? prepared.warnings.filter((item: unknown): item is string => typeof item === "string") : [],
+        sourceUrl: offer.sourceUrl,
+      };
+      appendConversationMessage(
+        "assistant",
+        "La candidature pour « " + offer.title + " » a été préparée dans Jobly. Relis le contenu et vérifie le canal ci-dessous : rien n'a été envoyé automatiquement.",
+        undefined,
+        block,
+      );
+      say("Ta candidature est préparée et reste sous ton contrôle. Elle n'a pas été envoyée.", { gesture: "welcome", speak: true, sticky: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Impossible de préparer cette candidature.";
+      appendConversationMessage("assistant", message);
+      say(message, { gesture: "secure", speak: false, sticky: true });
+    } finally {
+      setCommandBusy(false);
+    }
+  }, [appendConversationMessage, say]);
+
+  const submitJiaApplication = useCallback(async (args: {
+    messageId: string;
+    applicationId: string;
+    letter: string;
+  }) => {
+    if (!args.applicationId) throw new Error("Identifiant de candidature absent.");
+    setCommandBusy(true);
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token) throw new Error("Session requise pour envoyer cette candidature.");
+      const response = await fetch("/api/applications/" + encodeURIComponent(args.applicationId) + "/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+        body: JSON.stringify({ letterText: args.letter }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.submitted !== true) {
+        throw new Error(result.message || "Jobly n’a pas confirmé l’envoi de cette candidature.");
+      }
+      const applicationMessage = conversationMessagesRef.current.find((message) => message.id === args.messageId);
+      if (applicationMessage?.workspace?.kind === "prepared-application") {
+        updateJiaWorkspace(args.messageId, { ...applicationMessage.workspace, submitted: true });
+      }
+      appendConversationMessage(
+        "assistant",
+        result.pendingProof
+          ? "L’email est parti via Gmail. Jobly enregistre encore la preuve d’envoi ; le suivi reste à vérifier dans Mes candidatures."
+          : "Jobly confirme l’envoi de ta candidature via Gmail. Tu peux suivre son statut dans Mes candidatures.",
+      );
+    } finally {
+      setCommandBusy(false);
+    }
+  }, [appendConversationMessage]);
+
+  const submitJiaAssessment = useCallback(async (args: {
+    messageId: string;
+    assessmentId: string;
+    answers: Record<string, unknown>;
+    score: number;
+    resultSummary: string;
+  }) => {
+    setCommandBusy(true);
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token) throw new Error("Session requise pour enregistrer cet exercice.");
+      const response = await fetch("/api/career-journey/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+        body: JSON.stringify({
+          action: "ATTEMPT",
+          assessmentId: args.assessmentId,
+          answers: args.answers,
+          completed: true,
+          feedback: { evaluated: "Auto-évaluation formative locale", limitation: "Le score indicatif est calculé dans l'interface et n'est pas enregistré comme une preuve évaluée par IA ni comme une certification." },
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || "L'enregistrement de l'évaluation a échoué.");
+      const assessmentMessage = conversationMessagesRef.current.find((message) => message.id === args.messageId);
+      if (assessmentMessage?.workspace?.kind === "questionnaire") {
+        updateJiaWorkspace(args.messageId, { ...assessmentMessage.workspace, result: { score: args.score, summary: args.resultSummary } });
+      }
+      appendConversationMessage("assistant", "Ton exercice est enregistré dans Career Journey. Le résultat reste indicatif et ne vaut pas certification.");
+    } finally {
+      setCommandBusy(false);
+    }
+  }, [appendConversationMessage]);
 
   const confirmPendingAction = useCallback(async () => {
     if (!pendingAction) return;
@@ -440,14 +1105,18 @@ export default function JiaPresence() {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.message || "Action non disponible.");
       setPendingAction(null);
-      say("C’est préparé. Je t’ouvre l’espace correspondant.", { gesture: "welcome", speak: true, sticky: true });
-      if (pendingAction.target || result.next) router.push(pendingAction.target || result.next);
+      const confirmation = typeof result.message === "string" && result.message.trim()
+        ? result.message.trim()
+        : "L’action a été acceptée par le service Jobly.";
+      appendConversationMessage("assistant", confirmation);
+      say(confirmation, { gesture: "welcome", speak: true, sticky: true });
+      if (pendingAction.target || result.next) { setPanelOpen(false); router.push(pendingAction.target || result.next); }
     } catch (error) {
       say(error instanceof Error ? error.message : "Je n’ai pas pu préparer cette action.", { gesture: "secure", sticky: true, speak: false });
     } finally {
       setCommandBusy(false);
     }
-  }, [pendingAction, router, say]);
+  }, [appendConversationMessage, pendingAction, router, say]);
 
   // ── Candidature externe : ouvrir J'IA avec le contexte de l'offre ─────────
   useEffect(() => {
@@ -460,11 +1129,12 @@ export default function JiaPresence() {
       setExpandedHere(true);
       setPanelOpen(true);
       setCommandInput(prompt);
+      appendConversationMessage("assistant", "Le contexte de cette candidature externe est prêt. Vérifie les informations puis envoie ta demande pour préparer tes réponses.");
       say("J’ai préparé le contexte de cette candidature. Vérifie la demande dans mon panneau, puis envoie-la pour préparer tes réponses.", { gesture: "analyze", speak: false, sticky: true });
     };
     window.addEventListener("jobly:jia-application-assist", onApplicationAssist);
     return () => window.removeEventListener("jobly:jia-application-assist", onApplicationAssist);
-  }, [pathname, say]);
+  }, [appendConversationMessage, pathname, say]);
 
   useEffect(() => {
     window.dispatchEvent(new Event("jobly:jia-ready"));
@@ -474,11 +1144,14 @@ export default function JiaPresence() {
   useEffect(() => {
     const onResponse = (event: Event) => {
       const d = (event as CustomEvent<{ message?: string; gesture?: JiaGesture }>).detail;
-      if (d?.message) say(d.message, { gesture: d.gesture || "reassure" });
+      if (d?.message) {
+        appendConversationMessage("assistant", d.message);
+        say(d.message, { gesture: d.gesture || "reassure" });
+      }
     };
     window.addEventListener("jobly:jia-response", onResponse);
     return () => window.removeEventListener("jobly:jia-response", onResponse);
-  }, [say]);
+  }, [appendConversationMessage, say]);
 
   useEffect(() => {
     const play = (id: GestureId, opts?: { message?: string; target?: string }) => {
@@ -703,6 +1376,13 @@ export default function JiaPresence() {
   }
   function go(href: string) { setPanelOpen(false); router.push(href); }
 
+  const enableVoiceFromConversation = useCallback(() => {
+    if (!voiceSupported) return;
+    window.dispatchEvent(new CustomEvent("jobly:jia-preferences-changed", {
+      detail: { mode: "voice", enabled: true, proactive: prefs.proactive },
+    }));
+  }, [prefs.proactive, voiceSupported]);
+
   if (!visible) return null;
 
   const statusLabel = prefs.mode === "voice"
@@ -727,9 +1407,11 @@ export default function JiaPresence() {
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 88px)", touchAction: "none" }}
         animate={{ opacity: suspended ? 0 : 1 }} transition={{ duration: 0.15 }}
       >
+        {!panelOpen && (
+          <>
         {/* Bulle de message + panneau d’actions — ancrés au personnage */}
         <AnimatePresence>
-          {(bubble || panelOpen) && (
+          {bubble && !panelOpen && (
             <motion.div key="stack" initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.2 }}
               className="absolute bottom-full right-0 mb-2 flex w-[min(280px,calc(100vw-24px))] flex-col items-end gap-2">
                   {bubble && (
@@ -751,41 +1433,7 @@ export default function JiaPresence() {
                   </button>
                 </div>
               )}
-              {panelOpen && (
-                <div data-jia-panel className="w-full rounded-[20px] border border-line bg-white p-3 shadow-[0_16px_40px_rgba(10,25,49,.16)]">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-[13px] font-black text-ink">{t("jia.panel.title")}</div>
-                    <span className="rounded-full bg-canari-blue-soft px-2 py-1 text-[10px] font-extrabold text-canari-blue">{healthStatus === "checking" ? "Vérification…" : healthStatus === "error" ? "Connexion à vérifier" : healthStatus === "ready" ? "J’IA connectée" : statusLabel}</span>
-                  </div>
-                  <p className="mt-1 text-[11px] leading-4 text-muted">Parle-lui ou écris-lui ce que tu veux faire. J’IA répond et te guide vers l’action suivante.</p>
-                  {pendingAction && (
-                    <div className="mt-2 rounded-xl border border-canari-blue/30 bg-canari-blue-soft p-2.5 text-[11px] text-ink">
-                      <p className="font-extrabold">J’IA attend ton autorisation pour préparer cette action.</p>
-                      <div className="mt-2 flex gap-2">
-                        <button type="button" onClick={() => void confirmPendingAction()} disabled={commandBusy} className="min-h-8 rounded-lg bg-canari-blue px-3 text-[11px] font-extrabold text-white disabled:opacity-50">Autoriser</button>
-                        <button type="button" onClick={() => setPendingAction(null)} disabled={commandBusy} className="min-h-8 rounded-lg border border-line px-3 text-[11px] font-extrabold text-muted">Annuler</button>
-                      </div>
-                    </div>
-                  )}
-                  <form onSubmit={(event) => { event.preventDefault(); void sendTextCommand(); }} className="mt-2.5 flex items-center gap-2 rounded-xl border border-line bg-white p-1.5 focus-within:border-canari-blue">
-                    <input value={commandInput} onChange={(event) => setCommandInput(event.target.value)} placeholder="Ex. Trouve-moi un emploi" aria-label="Message à J’IA" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-xs font-semibold text-ink outline-none placeholder:text-muted" disabled={commandBusy} />
-                    <button type="submit" aria-label="Envoyer à J’IA" disabled={commandBusy || !commandInput.trim()} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-canari-blue text-white disabled:opacity-40">{commandBusy ? "…" : "↑"}</button>
-                  </form>
-                  <div className="mt-2.5 flex flex-wrap gap-1.5">
-                    {CHIPS[eco].map((c) => (
-                      <button key={c.href} type="button" onClick={() => go(c.href)}
-                        className="min-h-[36px] rounded-full bg-canari-blue-soft px-3 text-[12px] font-extrabold text-canari-blue transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-canari-blue">
-                        {t(c.key)}
-                      </button>
-                    ))}
-                  </div>
-                  <button type="button" onClick={() => go("/jia/extension")} className="mt-2 min-h-[36px] w-full rounded-xl border border-canari-blue/20 bg-canari-blue-soft px-3 text-left text-[11px] font-extrabold text-canari-blue hover:bg-canari-blue/10">Installer J’IA sur ordinateur ↗</button>
-                  <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-line pt-2">
-                    <button type="button" onClick={() => go(SETTINGS_HREF[eco])} className="min-h-[36px] text-[12px] font-extrabold text-canari-blue underline-offset-2 hover:underline">{t("jia.panel.settings")}</button>
-                    <button type="button" onClick={() => { setPanelOpen(false); setHiddenPaths((p) => [...p, pathname]); }} className="min-h-[36px] text-[12px] font-bold text-muted hover:text-ink">{t("jia.hideOnPage")}</button>
-                  </div>
-                </div>
-              )}
+
             </motion.div>
           )}
         </AnimatePresence>
@@ -811,7 +1459,39 @@ export default function JiaPresence() {
             <FaceLauncher onClick={() => { if (!wasDragged.current) expand(); }} label={t("jia.open")} listening={listening} outfit={outfit} />
           </div>
         )}
+          </>
+        )}
       </motion.div>
+
+      <JiaConversationSurface
+        open={panelOpen}
+        ecosystem={eco}
+        messages={conversationMessages}
+        inputValue={commandInput}
+        busy={commandBusy}
+        status={healthStatus}
+        voiceMode={prefs.mode === "voice"}
+        listening={listening}
+        speaking={speaking}
+        pendingAction={pendingAction}
+        quickLinks={[...CHIPS[eco].map((item) => ({ label: t(item.key), href: item.href })), { label: "Extension J’IA pour ordinateur", href: "/jia/extension" }]}
+        onClose={() => { setPanelOpen(false); dismissBubble(); }}
+        onInputChange={setCommandInput}
+        onSubmit={() => void sendTextCommand()}
+        onConfirmAction={() => void confirmPendingAction()}
+        onCancelAction={() => setPendingAction(null)}
+        onNavigate={(href) => href === "/jia/extension" ? go("/jia/extension") : go(href)}
+        onPrepareApplication={prepareJiaApplication}
+        onSubmitAssessment={submitJiaAssessment}
+        onSubmitApplication={submitJiaApplication}
+        onSaveProfile={saveJiaProfile}
+        onUploadCv={uploadJiaCv}
+        onUpdateWorkspace={updateJiaWorkspace}
+        hasMoreMessages={hasMoreConversationMessages}
+        loadingOlderMessages={loadingOlderMessages}
+        onLoadOlderMessages={() => void loadOlderConversationMessages()}
+        onEnableVoice={voiceSupported ? enableVoiceFromConversation : undefined}
+      />
     </>
   );
 }

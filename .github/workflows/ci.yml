@@ -53,6 +53,9 @@ jobs:
       - name: P2 free HIBP password screening tests
         run: pnpm test:p2-hibp
 
+      - name: J’IA 360 adaptive experience engine tests
+        run: pnpm test:jia-experience
+
       - name: Career OS architecture gate
         run: pnpm test:career-os
 
