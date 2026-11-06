@@ -5,8 +5,7 @@ import { getJiaAvailableEcosystems, isJiaEcosystem } from "@/lib/jia/access";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MODES = new Set(["text","voice"]);
-const MODES = new Set(["text","voice"]);
+const MODES = new Set(["text", "voice"]);
 
 export async function GET(req: NextRequest) {
   try {
