@@ -1,7 +1,7 @@
 /**
  * lib/jia/gestures.ts
  *
- * Vocabulaire sémantique de J'IA — 24 intentions gestuelles, tel que figé
+ * Vocabulaire sémantique de J'IA — 68 intentions gestuelles enrichies et exécutables
  * dans README.md (checkpoint 20/09/2026) et Statut.md.
  *
  * Ce fichier est le CONTRAT partagé entre :
