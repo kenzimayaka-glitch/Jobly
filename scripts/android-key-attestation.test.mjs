@@ -61,8 +61,9 @@ test("per-request assertion challenge binds method, path, timestamp and body has
   const route = read("app/api/android/attestation/assertion/route.ts");
   assert.match(route, /getAuthUser/);
   assert.match(route, /enforceApiRateLimit/);
-  assert.match(route, /bodyHash/);
+  assert.match(route, /method/);
   assert.match(route, /timestamp/);
+  assert.match(route, /path/);
   assert.match(route, /purpose: "REQUEST"/);
   assert.match(route, /canonical/);
   assert.match(route, /expiresInSeconds: 30/);
@@ -122,7 +123,8 @@ test("native Android WebView API access fails closed without a fresh verified at
   assert.match(auth, /x-jobly-attestation-signature/);
   assert.match(auth, /verifyAndroidRequestSignature/);
   assert.match(auth, /purpose", "REQUEST"/);
-  assert.match(auth, /request\.clone\(\)/);
+  assert.match(auth, /const canonical = \[/);
+  assert.match(auth, /x-jobly-attestation-challenge/);
   assert.match(auth, /expiresAt/);
   assert.match(auth, /if \(!attestation\?\.publicKeyPem\) return null/);
 });
@@ -134,4 +136,5 @@ test("attestation storage is private to service_role and RLS has no client polic
   assert.match(migration, /revoke all on table public\."AndroidDeviceAttestation" from public, anon, authenticated/i);
   assert.match(migration, /grant all on table public\."AndroidAttestationChallenge" to service_role/i);
   assert.match(migration, /grant all on table public\."AndroidDeviceAttestation" to service_role/i);
+  assert.match(migration, /purpose" in \('REGISTER', 'REQUEST'\)/);
 });
