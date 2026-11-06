@@ -45,3 +45,11 @@ test("new merchant devices must match the central provider configuration", () =>
   assert.match(route, /MERCHANT_ACCOUNT_CONFIG_MISMATCH/);
   assert.match(route, /PROVIDER_CONFIG_REQUIRED/);
 });
+
+test("sender allowlists are case-normalized and rechecked case-insensitively at finalization", () => {
+  const route = read("../app/api/payments/sms/devices/route.ts");
+  const migration = read("../supabase/migrations/20261106040000_payment_sms_mobile_money_foundation.sql");
+  assert.ok(route.includes('.replace(/\\s+/g, " ").toUpperCase())'));
+  assert.ok(migration.includes("upper(regexp_replace(btrim(allowed.sender_id)"));
+  assert.ok(migration.includes('upper(regexp_replace(btrim(v_receipt."senderId")'));
+});
