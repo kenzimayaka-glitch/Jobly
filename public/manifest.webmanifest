@@ -14,6 +14,12 @@
     "productivity",
     "lifestyle"
   ],
+  "share_target": {
+    "action": "/jia/share",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  },
   "icons": [
     {
       "src": "/icons/jobly-wa9815-192.png",

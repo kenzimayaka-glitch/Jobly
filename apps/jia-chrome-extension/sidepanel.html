@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Jobly J'IA</title>
+  <style>
+    :root{color-scheme:light;font-family:Inter,system-ui,sans-serif;color:#17212b;background:#f6f8fc}
+    *{box-sizing:border-box}body{margin:0;padding:18px}header{margin-bottom:16px}
+    .eyebrow{font-size:10px;font-weight:900;letter-spacing:1.4px;color:#8b7500}
+    h1{font-size:22px;margin:8px 0}h2{font-size:14px;margin:0 0 8px}
+    p{font-size:12px;line-height:1.5;color:#667085}
+    .card{background:white;border:1px solid #e6eaf0;border-radius:18px;padding:15px;margin:12px 0}
+    button{width:100%;min-height:42px;border:0;border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer}
+    .primary{background:#ffd60a;margin-top:12px;color:#17212b}
+    .secondary{background:#edf3ff;color:#22448b}
+    button:disabled{opacity:.45;cursor:not-allowed}
+    ul{padding-left:18px}li{font-size:12px;margin:6px 0}
+    .status{min-height:18px;font-size:11px}
+    .state{display:inline-flex;padding:5px 9px;border-radius:99px;background:#fff4b8;color:#725900;font-size:10px;font-weight:900}
+    footer{font-size:11px;color:#667085;line-height:1.5}
+  </style>
+</head>
+<body>
+<header>
+  <span class="eyebrow">JOBLY · J'IA</span>
+  <h1>Assistant de candidature</h1>
+  <p>Le contexte de ton offre reste disponible pendant ta navigation.</p>
+  <span id="state" class="state">Vérification…</span>
+</header>
+<section id="offer" class="card"><p>Aucune offre Jobly liée pour le moment.</p></section>
+<section class="card">
+  <h2>Activation de J'IA</h2>
+  <p id="activationCopy">Active l'assistant pour utiliser le contexte Jobly dans ce navigateur.</p>
+  <button id="toggle" class="primary" type="button">Activer J'IA</button>
+</section>
+<section class="card">
+  <h2>Formulaire du recruteur</h2>
+  <p>Après ton autorisation pour ce site, J'IA lit uniquement les libellés visibles des champs. Les valeurs saisies, mots de passe et fichiers ne sont pas lus.</p>
+  <button id="scan" class="secondary" type="button">Analyser les champs visibles</button>
+  <ul id="fields"></ul>
+  <button id="assist" class="primary" disabled type="button">Préparer avec J'IA dans Jobly</button>
+  <p id="status" class="status" role="status"></p>
+</section>
+<footer>Tu gardes le contrôle du formulaire et tu valides toi-même chaque réponse et l'envoi final.</footer>
+<script src="sidepanel.js"></script>
+</body>
+</html>
