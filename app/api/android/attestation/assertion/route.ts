@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     if (!/^[A-Za-z0-9:_-]{1,160}$/.test(deviceId) ||
         !["GET", "POST", "PUT", "PATCH", "DELETE"].includes(method) ||
-        !/^\/api\/[^\\r\\n#\\\\]{1,1800}$/.test(path) ||
+        !/^\/api\/[^\r\n#\\]{1,1800}$/.test(path) ||
         path.startsWith("/api/android/attestation/") ||
         path.includes("..") ||
         !/^\d{13}$/.test(timestamp) ||
