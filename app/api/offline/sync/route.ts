@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     for (const raw of operations) {
       const operation = raw && typeof raw === "object" ? raw : null;
       const id = typeof operation?.id === "string" ? operation.id : "";
-      if (!/^[0-9a-f-]{36}$/i.test(id)) {
+      if (!operation || !/^[0-9a-f-]{36}$/i.test(id)) {
         failed.push({ id: id || "unknown", message: "Identifiant d'opération invalide." });
         continue;
       }
