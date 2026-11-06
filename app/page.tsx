@@ -263,14 +263,14 @@ const translations = {
 
 const BENEFITS = {
   fr: [
-    { Icon: ShieldStarIcon, title: "100% Gratuit", subtitle: "Accès aux opportunités", color: "#3478C8" },
-    { Icon: PeopleStarIcon, title: "Coaching IA", subtitle: "Conseils personnalisés", color: "#8064D8" },
-    { Icon: CheckCircleIcon, title: "Placement Rapide", subtitle: "Construis ta carrière", color: "#28A99B" },
+    { Icon: ShieldStarIcon, title: "100% Gratuit", subtitle: "Accès aux opportunités", iconClass: "text-[#3478C8]" },
+    { Icon: PeopleStarIcon, title: "Coaching IA", subtitle: "Conseils personnalisés", iconClass: "text-[#8064D8]" },
+    { Icon: CheckCircleIcon, title: "Placement Rapide", subtitle: "Construis ta carrière", iconClass: "text-[#28A99B]" },
   ],
   en: [
-    { Icon: ShieldStarIcon, title: "100% Free", subtitle: "Access opportunities", color: "#3478C8" },
-    { Icon: PeopleStarIcon, title: "AI Coaching", subtitle: "Personalized guidance", color: "#8064D8" },
-    { Icon: CheckCircleIcon, title: "Fast Placement", subtitle: "Build your career", color: "#28A99B" },
+    { Icon: ShieldStarIcon, title: "100% Free", subtitle: "Access opportunities", iconClass: "text-[#3478C8]" },
+    { Icon: PeopleStarIcon, title: "AI Coaching", subtitle: "Personalized guidance", iconClass: "text-[#8064D8]" },
+    { Icon: CheckCircleIcon, title: "Fast Placement", subtitle: "Build your career", iconClass: "text-[#28A99B]" },
   ],
 } as const;
 
@@ -841,9 +841,9 @@ export default function Home() {
             </button>
           </div>
           <div className="relative z-20 mx-auto mt-4 grid w-full max-w-[1100px] grid-cols-3 gap-2 px-5 sm:mt-6 sm:gap-4 sm:px-8">
-            {BENEFITS[lang].map(({ Icon, title, subtitle, color }) => (
+            {BENEFITS[lang].map(({ Icon, title, subtitle, iconClass }) => (
               <div key={title} className="flex min-h-[104px] flex-col items-center justify-center rounded-[24px] border border-slate-100 bg-white px-1.5 py-3 text-center shadow-[0_5px_18px_rgba(10,25,49,0.055)] sm:min-h-[124px] sm:rounded-[28px] sm:px-3">
-                <Icon className="mb-2 h-6 w-6 sm:h-7 sm:w-7" style={{ color }} />
+                <Icon className={`mb-2 h-6 w-6 sm:h-7 sm:w-7 ${iconClass}`} />
                 <p className="font-[var(--font-inter)] text-[10px] font-extrabold leading-tight text-[#0A1931] sm:text-[14px]">{title}</p>
                 <p className="mt-1 font-[var(--font-inter)] text-[9px] leading-tight text-[#737A85] sm:text-[12px]">{subtitle}</p>
               </div>
