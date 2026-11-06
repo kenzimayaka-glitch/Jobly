@@ -8,11 +8,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const username = String(body.username || "").trim();
     const password = String(body.password || "");
-    if (!username || !password) return NextResponse.json({ message: "Username et mot de passe sont obligatoires." }, { status: 400 });
+    if (!username || username.length > 40 || !password || password.length > 256) {
+      return NextResponse.json({ message: "Username ou mot de passe invalide." }, { status: 400 });
+    }
     const supabaseAdmin = adminClient();
     const rateLimited = await enforceApiRateLimit(request, supabaseAdmin, {
       scope: "auth-username-login",
-      ipWindows: [{ limit: 5, windowSeconds: 60 }, { limit: 20, windowSeconds: 3600 }],
+      identity: "username:" + username.toLowerCase(),
+      accountWindows: [{ limit: 5, windowSeconds: 900 }, { limit: 20, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 10, windowSeconds: 60 }, { limit: 30, windowSeconds: 3600 }],
       requireIp: true,
     });
     if (rateLimited) return rateLimited;
