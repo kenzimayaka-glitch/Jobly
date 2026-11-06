@@ -75,9 +75,31 @@ Exemple de compilation après configuration des variables :
 
 Le build release échoue intentionnellement si la signature et son empreinte ne sont pas fournies. Aucun certificat de publication n'est encore provisionné dans ce dépôt ; le contrôle bloque donc une release tant que l'identité de signature officielle n'a pas été confirmée.
 
-### Limite du contrôle actuel
+### Attestation matérielle distante
 
-Cette vérification détecte un APK re-signé avec un autre certificat sur un appareil Android non compromis. Elle ne prouve pas, à elle seule, que le bootloader est verrouillé, que le système est certifié ou que l'appareil n'est pas rooté : un attaquant contrôlant l'appareil peut altérer les contrôles locaux. L'attestation distante matérielle (Key Attestation vérifiée côté serveur) reste un chantier distinct à raccorder et à valider sur des appareils physiques. Aucun contrôle `PLAY_RECOGNIZED` ou `LICENSED` n'est exigé : l'APK Jobly reste distribuable hors Play Store.
+L'APK demande au serveur un nonce aléatoire de 256 bits, puis crée une clé EC P-256 dans Android Keystore avec `setAttestationChallenge`. La clé privée ne quitte pas Android Keystore ; seule la chaîne X.509 est transmise au serveur.
+
+Le serveur :
+- consomme le nonce une seule fois et dans une fenêtre de cinq minutes ;
+- vérifie la chaîne de certificats vers les racines Android officielles publiées par Google ;
+- consulte la liste officielle de révocation des clés d'attestation ;
+- contrôle l'extension Android Key Attestation, le package `com.jobly.android`, l'empreinte du certificat de signature, le niveau TEE/StrongBox, `deviceLocked=true` et `verifiedBootState=VERIFIED` ;
+- conserve la clé publique et le verdict pour 24 heures ;
+- refuse les appels API authentifiés depuis le WebView Android natif tant qu'une attestation valide n'est pas enregistrée. La PWA et les navigateurs Android ordinaires ne sont pas soumis à ce verrou natif.
+
+Tables privées service-role : `AndroidAttestationChallenge` et `AndroidDeviceAttestation`. Les migrations sont versionnées dans `supabase/migrations`.
+
+Configuration serveur nécessaire :
+- `JOBLY_ANDROID_RELEASE_CERT_SHA256` : empreinte SHA-256 du certificat officiel de signature APK, identique à celle intégrée dans le build release.
+- Les secrets du keystore restent uniquement dans le système de build et ne sont jamais stockés dans le dépôt ni dans le navigateur.
+
+Une clé d'attestation matérielle indisponible, une racine inconnue, une liste de révocation inaccessible ou une empreinte de signature non configurée entraînent un refus (fail-closed). Les appareils sans TEE/StrongBox ou avec bootloader déverrouillé ne reçoivent pas le verdict « vérifié ».
+
+Aucun contrôle `PLAY_RECOGNIZED` ou `LICENSED` n'est exigé : l'APK Jobly reste distribuable hors Play Store.
+
+### Limites opérationnelles à clôturer avant production
+
+La validation serveur est codée, mais la signature de publication ne peut pas être inventée ni remplacée sans risque : il faut réutiliser le keystore déjà utilisé pour les APK distribués et renseigner son empreinte officielle. Si aucun APK n'a encore été distribué, une nouvelle identité de signature peut être créée après confirmation. Les tests d'émulateur ne remplacent pas un essai sur au moins un appareil physique Android avec TEE et bootloader verrouillé.
 
 
 ## Confirmation Mobile Money dans le même APK
