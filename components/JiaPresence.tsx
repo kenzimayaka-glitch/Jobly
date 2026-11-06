@@ -654,11 +654,8 @@ export default function JiaPresence() {
           action: "ATTEMPT",
           assessmentId: args.assessmentId,
           answers: args.answers,
-          score: args.score,
-          resultSummary: args.resultSummary,
           completed: true,
-          acceptedByUser: false,
-          feedback: { evaluated: "Exercice pratique J’IA", limitation: "Résultat indicatif ; ne constitue pas une certification officielle." },
+          feedback: { evaluated: "Auto-évaluation formative locale", limitation: "Le score indicatif est calculé dans l'interface et n'est pas enregistré comme une preuve évaluée par IA ni comme une certification." },
         }),
       });
       const result = await response.json().catch(() => ({}));
