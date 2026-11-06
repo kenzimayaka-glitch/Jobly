@@ -5,10 +5,6 @@ import { resolveEffectivePublicationDate } from "../../../../supabase/functions/
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// These are the requested public minimums. Real records are added on top,
-// so every insert/delete changes the visible counters without going below them.
-const OFFERS_BASELINE = 75_000;
-const TALENTS_BASELINE = 315_000;
 const PAGE_SIZE = 1000;
 const CAPTURE_ID_BATCH_SIZE = 200;
 
@@ -153,8 +149,9 @@ export async function GET() {
 
     return NextResponse.json(
       {
-        offersCount: OFFERS_BASELINE + visibleDiscoveryOffers + visibleRecruiterOffers,
-        talentsCount: TALENTS_BASELINE + (talentProfiles.count ?? 0),
+        // Exact totals only: no legacy marketing baseline is included.
+        offersCount: visibleDiscoveryOffers + visibleRecruiterOffers,
+        talentsCount: talentProfiles.count ?? 0,
         updatedAt: nowIso,
       },
       {
