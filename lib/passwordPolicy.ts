@@ -20,7 +20,10 @@ export function validateNewPassword(password: string): string | null {
   if (!/[0-9]/.test(password)) {
     return "Le nouveau mot de passe doit contenir un chiffre.";
   }
-  if (![...password].some((character) => ALLOWED_SPECIAL_CHARACTER_CODES.has(character.charCodeAt(0)))) {
+  const hasAllowedSpecialCharacter = [...password].some((character) =>
+    ALLOWED_SPECIAL_CHARACTER_CODES.has(character.charCodeAt(0))
+  );
+  if (!hasAllowedSpecialCharacter) {
     return "Le nouveau mot de passe doit contenir un symbole spécial autorisé.";
   }
   return null;
