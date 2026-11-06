@@ -114,18 +114,18 @@ test("variation inventory is computed from actual rig configurations and files",
 });
 
 test("all 50 registered facial expressions have semantic gestures and runnable rig moves", () => {
-  const rigNames = new Set(Object.keys(rig.moves).map((key) => key.replace(/^\\d+_/, "")));
+  const rigNames = new Set(Object.keys(rig.moves).map((key) => key.replace(/^\d+_/, "")));
   const moves = new Set(JIA_100_MOVES);
-  const facialMoveNames = new Set(entries.filter(([, move]) => move.eyes || move.eyebrows || move.mouth).map(([key]) => key.replace(/^\\d+_/, "")));
+  const facialMoveNames = new Set(entries.filter(([, move]) => move.eyes || move.eyebrows || move.mouth).map(([key]) => key.replace(/^\d+_/, "")));
   assert.equal(facialShapes.length, 50);
   assert.equal(facialMoveNames.size, 60);
   assert.ok([...facialMoveNames].every((name) => rigNames.has(name) && moves.has(name)));
   const gestureMapping = readFileSync(join(root, "components/JIA/gestureMap.ts"), "utf8");
-  const mappedMoves = new Set([...gestureMapping.matchAll(/^\\s*[a-z0-9_]+:\\s*"([a-z0-9_]+)"[,]?\\s*$/gm)].map((match) => match[1]));
+  const mappedMoves = new Set([...gestureMapping.matchAll(/^\s*[a-z0-9_]+:\s*"([a-z0-9_]+)"[,]?\s*$/gm)].map((match) => match[1]));
   const groups = new Map();
   for (const [key, move] of entries) {
     if (!(move.eyes || move.eyebrows || move.mouth)) continue;
-    const name = key.replace(/^\\d+_/, "");
+    const name = key.replace(/^\d+_/, "");
     const signature = JSON.stringify(stable({ eyes: move.eyes || null, eyebrows: move.eyebrows || null, mouth: move.mouth || null }));
     if (!groups.has(signature)) groups.set(signature, []);
     groups.get(signature).push(name);
