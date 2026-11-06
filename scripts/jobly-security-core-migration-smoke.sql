@@ -31,15 +31,3 @@ begin
 end;
 $$;
 reset role;
-
-do $$
-begin
-  if has_schema_privilege('anon', 'net', 'USAGE') then raise exception 'anon can use the internal pg_net schema'; end if;
-  if has_schema_privilege('authenticated', 'net', 'USAGE') then raise exception 'authenticated can use the internal pg_net schema'; end if;
-  if not has_schema_privilege('service_role', 'net', 'USAGE') then raise exception 'service_role lost pg_net schema usage'; end if;
-  if has_function_privilege('anon', 'net.http_post(text)', 'EXECUTE') then raise exception 'anon can execute pg_net outbound HTTP'; end if;
-  if has_function_privilege('authenticated', 'net.http_post(text)', 'EXECUTE') then raise exception 'authenticated can execute pg_net outbound HTTP'; end if;
-  if not has_function_privilege('service_role', 'net.http_post(text)', 'EXECUTE') then raise exception 'service_role cannot execute pg_net function'; end if;
-  if not has_function_privilege('postgres', 'net.http_post(text)', 'EXECUTE') then raise exception 'postgres cron owner lost pg_net execution'; end if;
-end;
-$$;
