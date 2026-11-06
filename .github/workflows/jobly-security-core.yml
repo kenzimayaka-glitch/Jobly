@@ -37,10 +37,6 @@ jobs:
           CREATE ROLE anon NOLOGIN;
           CREATE ROLE authenticated NOLOGIN;
           CREATE ROLE service_role NOLOGIN BYPASSRLS;
-          CREATE SCHEMA net;
-          GRANT USAGE ON SCHEMA net TO PUBLIC, anon, authenticated, service_role;
-          CREATE FUNCTION net.http_post(url text) RETURNS bigint LANGUAGE sql AS 'SELECT 1::bigint';
-          GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA net TO PUBLIC, anon, authenticated, service_role;
           CREATE TABLE public."Job" ("id" text PRIMARY KEY, "isActive" boolean NOT NULL DEFAULT true);
           CREATE TABLE public."RecruiterJob" ("id" text PRIMARY KEY, "status" text NOT NULL DEFAULT 'published');
           CREATE TABLE public."Company" ("id" text PRIMARY KEY, "name" text NOT NULL);
@@ -65,10 +61,6 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261106091500_jobly_security_core.sql
-      - name: Apply pg_net client-role lockdown
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly
-        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261106110000_lockdown_pg_net_client_execution.sql
       - name: Verify privileges and atomic limits
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly
