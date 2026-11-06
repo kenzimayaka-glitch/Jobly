@@ -27,6 +27,7 @@ export type PaymentSmsParseResult = {
 export type PaymentSmsParserConfig = {
   senderIds: Partial<Record<PaymentSmsProvider, string[]>>;
   merchantAccount?: string;
+  timeZone?: string;
 };
 
 function normalizeSender(value: string): string {
@@ -106,15 +107,70 @@ function parseDirection(body: string): PaymentSmsDirection {
   return "UNKNOWN";
 }
 
-function parseOccurredAt(body: string): string | null {
-  // Local MTN timestamps have no offset. Keep them unknown rather than guessing
-  // the server timezone. Explicit offset timestamps remain safely normalizable.
+function localDateTimeToIso(value: string, timeZone: string): string | null {
+  const normalized = value.normalize("NFKC").trim();
+  const dayFirst = /^(\d{1,2})[/. -](\d{1,2})[/. -](20\d{2})[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(normalized);
+  const yearFirst = /^(20\d{2})-(\d{1,2})-(\d{1,2})[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(normalized);
+  if (!dayFirst && !yearFirst) return null;
+
+  const year = Number(dayFirst ? dayFirst[3] : yearFirst![1]);
+  const month = Number(dayFirst ? dayFirst[2] : yearFirst![2]);
+  const day = Number(dayFirst ? dayFirst[1] : yearFirst![3]);
+  const hour = Number(dayFirst ? dayFirst[4] : yearFirst![4]);
+  const minute = Number(dayFirst ? dayFirst[5] : yearFirst![5]);
+  const second = Number((dayFirst ? dayFirst[6] : yearFirst![6]) || 0);
+  const calendarCheck = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  if (calendarCheck.getUTCFullYear() !== year || calendarCheck.getUTCMonth() !== month - 1 ||
+      calendarCheck.getUTCDate() !== day || calendarCheck.getUTCHours() !== hour ||
+      calendarCheck.getUTCMinutes() !== minute || calendarCheck.getUTCSeconds() !== second) return null;
+
+  try {
+    const targetAsUtc = Date.UTC(year, month - 1, day, hour, minute, second);
+    let instant = targetAsUtc;
+    const formatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    });
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const parts = Object.fromEntries(formatter.formatToParts(new Date(instant))
+        .filter((part) => part.type !== "literal").map((part) => [part.type, Number(part.value)]));
+      const representedAsUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+      const corrected = targetAsUtc - (representedAsUtc - instant);
+      if (corrected === instant) break;
+      instant = corrected;
+    }
+    const finalParts = Object.fromEntries(formatter.formatToParts(new Date(instant))
+      .filter((part) => part.type !== "literal").map((part) => [part.type, Number(part.value)]));
+    if (finalParts.year !== year || finalParts.month !== month || finalParts.day !== day ||
+        finalParts.hour !== hour || finalParts.minute !== minute || finalParts.second !== second) return null;
+    return new Date(instant).toISOString();
+  } catch {
+    return null;
+  }
+}
+
+function parseOccurredAt(body: string, timeZone?: string): string | null {
+  // Explicit offsets are authoritative. Local operator timestamps are interpreted
+  // only in the timezone configured for the paired merchant handset.
   const iso = captureFirst(body, [
     /\b((?:20\d{2})-(?:0?[1-9]|1[0-2])-(?:0?[1-9]|[12]\d|3[01])[ T](?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?(?:Z|[+-](?:0\d|1[0-4]):[0-5]\d))\b/i,
   ]);
-  if (!iso) return null;
-  const date = new Date(iso.replace(" ", "T"));
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  if (iso) {
+    const date = new Date(iso.replace(" ", "T"));
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+  if (!timeZone) return null;
+  const local = captureFirst(body, [
+    /\b((?:0?[1-9]|[12]\d|3[01])[/. -](?:0?[1-9]|1[0-2])[/. -]20\d{2}[ T]+(?:[01]?\d|2[0-3]):[0-5]\d(?::[0-5]\d)?)\b/i,
+    /\b(20\d{2}-(?:0?[1-9]|1[0-2])-(?:0?[1-9]|[12]\d|3[01])[ T]+(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?)\b/i,
+  ]);
+  return local ? localDateTimeToIso(local, timeZone) : null;
 }
 
 export function parsePaymentSms(
@@ -174,7 +230,7 @@ export function parsePaymentSms(
     currency: amountXaf === null ? null : "XAF",
     payerPhone: normalizePhone(payerText),
     merchantAccount: parsedMerchantAccount,
-    occurredAt: parseOccurredAt(body),
+    occurredAt: parseOccurredAt(body, config.timeZone),
     fraudFlags,
   };
 }
