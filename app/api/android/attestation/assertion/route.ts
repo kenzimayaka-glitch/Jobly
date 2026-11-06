@@ -28,13 +28,11 @@ export async function POST(request: NextRequest) {
       deviceId?: unknown;
       method?: unknown;
       path?: unknown;
-      bodyHash?: unknown;
       timestamp?: unknown;
     };
     const deviceId = typeof body.deviceId === "string" ? body.deviceId.trim() : "";
     const method = typeof body.method === "string" ? body.method.toUpperCase() : "";
     const path = typeof body.path === "string" ? body.path : "";
-    const bodyHash = typeof body.bodyHash === "string" ? body.bodyHash.toLowerCase() : "";
     const timestamp = typeof body.timestamp === "string" ? body.timestamp : "";
     const timestampNumber = Number(timestamp);
 
@@ -43,7 +41,6 @@ export async function POST(request: NextRequest) {
         !/^\/api\/[A-Za-z0-9/_?&=.%:+,-]{1,1800}$/.test(path) ||
         path.startsWith("/api/android/attestation/") ||
         path.includes("\\") || path.includes("..") ||
-        !/^[a-f0-9]{64}$/.test(bodyHash) ||
         !/^\d{13}$/.test(timestamp) ||
         !Number.isSafeInteger(timestampNumber) ||
         Math.abs(Date.now() - timestampNumber) > 30_000) {
@@ -64,12 +61,12 @@ export async function POST(request: NextRequest) {
     }
 
     const challengeId = randomUUID();
-    const canonical = [method, path, timestamp, challengeId, bodyHash].join("\n");
+    const canonical = [method, path, timestamp, challengeId].join("\n");
     const challengeHash = createHash("sha256").update(canonical).digest("hex");
     const now = new Date();
     await db.from("AndroidAttestationChallenge")
       .delete()
-      .lt("expiresAt", new Date(now.getTime() - 24 * 60 * 60_000).toISOString());
+      .lt("expiresAt", now.toISOString());
 
     const { error } = await db.from("AndroidAttestationChallenge").insert({
       id: challengeId,
