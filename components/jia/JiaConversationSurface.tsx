@@ -17,7 +17,6 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import JIA3D from "@/components/JIA/JIA3D";
 import {
   getJiaExperienceDevice,
   pickJiaPresentationLayout,
@@ -29,9 +28,8 @@ import {
 } from "@/lib/jia/experience-engine";
 import JiaWorkspaceBlocks from "@/components/jia/JiaWorkspaceBlocks";
 import type { JiaWorkspaceBlock, JiaWorkspaceOffer } from "@/lib/jia/workspace";
+import JiaPresenceMark from "@/components/JiaPresenceMark";
 import {
-  JIA_AVATAR_APPEARANCES,
-  JIA_AVATAR_FRAMING_VARIATIONS,
   JIA_CONVERSATION_LAYOUT_VARIATIONS,
   JIA_MESSAGE_ENTRANCES,
   JIA_SCENE_TRANSITIONS,
@@ -275,7 +273,6 @@ export default function JiaConversationSurface(props: Props) {
   const layoutVariation = JIA_CONVERSATION_LAYOUT_VARIATIONS[variationIndex];
   const sceneVariation = JIA_SCENE_VARIATIONS[variationIndex];
   const sceneTransition = JIA_SCENE_TRANSITIONS[variationIndex];
-  const avatarFraming = JIA_AVATAR_FRAMING_VARIATIONS[variationIndex];
   const layoutGridTemplate = (() => {
     const wide = device === "desktop" || device === "tablet";
     if (!wide || layoutVariation.columns === 1) return "minmax(0,1fr)";
@@ -390,10 +387,8 @@ export default function JiaConversationSurface(props: Props) {
             <div className="pointer-events-none absolute -right-14 -top-20 h-48 w-48 rounded-full bg-[#FFD21A]/25 blur-3xl" />
             <div className="pointer-events-none absolute -left-16 -top-20 h-44 w-44 rounded-full bg-[#1264EB]/15 blur-3xl" />
             <div className="relative flex items-center gap-3 px-4 pb-3 pt-3 sm:px-6 sm:pt-4">
-              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-[#D7E4F7] bg-[#FFF7D3] shadow-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/jia/outfits/blue/head.webp" alt="Portrait de J’IA" className="h-full w-full scale-[1.35] object-contain object-center" />
-                <span className="absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#18A558]" />
+              <div className="relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-[#D7E4F7] bg-[#F1F6FF] shadow-sm">
+                <JiaPresenceMark size="md" listening={listening} speaking={speaking} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className={`flex items-center gap-2 text-[15px] font-extrabold tracking-tight ${layout === "stage" ? "text-white" : "text-[#10233F]"}`}>
@@ -417,13 +412,8 @@ export default function JiaConversationSurface(props: Props) {
             {layout === "stage" && (
               <div className="relative mx-4 mb-3 flex items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[.07] px-3 py-2.5 sm:mx-6">
                 <div className="pointer-events-none absolute -right-3 -top-8 h-24 w-24 rounded-full bg-[#FFD21A]/20 blur-2xl" />
-                <div className="relative shrink-0" style={{
-                  width: `${Math.round(avatarFraming.width * avatarFraming.scale)}px`,
-                  height: `${Math.round((avatarFraming.crop === "close-up" ? 150 : avatarFraming.crop === "portrait" ? 138 : avatarFraming.crop === "three-quarter" ? 128 : avatarFraming.crop === "full" ? 116 : 124) * avatarFraming.scale)}px`,
-                  transform: `translate(${avatarFraming.offsetX}px, ${avatarFraming.offsetY}px)`,
-                  clipPath: avatarFraming.crop === "close-up" ? "inset(0 0 12% 0 round 18px)" : avatarFraming.crop === "portrait" ? "inset(0 5% 0 5% round 22px)" : avatarFraming.crop === "three-quarter" ? "inset(0 0 8% 0 round 16px)" : "none",
-                }} data-jia-avatar-framing={avatarFraming.id} data-jia-avatar-anchor={avatarFraming.anchor}>
-                  <JIA3D speaking={speaking} appearanceId={JIA_AVATAR_APPEARANCES[variationIndex].id} />
+                <div className="relative grid h-[76px] w-[76px] shrink-0 place-items-center sm:h-[88px] sm:w-[88px]" data-jia-presence-stage>
+                  <JiaPresenceMark size="lg" speaking={speaking} listening={listening} />
                 </div>
                 <div className="relative min-w-0">
                   <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#FFD21A]">J’IA prend la parole</p>
@@ -568,9 +558,8 @@ export default function JiaConversationSurface(props: Props) {
                         data-jia-message-entrance={entrance.id}
                       >
                         {!mine && (
-                          <div className={`mb-1 grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-xl border ${layout === "stage" ? "border-white/15 bg-white/10" : "border-[#E2EAF4] bg-[#FFF7D7]"}`}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/jia/outfits/blue/head.webp" alt="" aria-hidden="true" className="h-full w-full scale-[1.4] object-contain" />
+                          <div className={`mb-1 grid h-8 w-8 shrink-0 place-items-center rounded-xl border ${layout === "stage" ? "border-white/15 bg-white/10" : "border-[#E2EAF4] bg-[#FFF7D7]"}`}>
+                            <JiaPresenceMark size="sm" />
                           </div>
                         )}
                         <div className={`min-w-0 ${layout === "gallery" && !mine ? "max-w-[94%] sm:max-w-[96%]" : "max-w-[88%] sm:max-w-[82%]"} ${mine ? "items-end" : "items-start"} flex flex-col`}>
@@ -631,9 +620,8 @@ export default function JiaConversationSurface(props: Props) {
                   })}
                   {busy && (
                     <div className="flex items-end gap-2.5" role="status" aria-label="J’IA prépare une réponse">
-                      <div className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-xl border border-[#E2EAF4] bg-[#FFF7D7]">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src="/jia/outfits/blue/head.webp" alt="" aria-hidden="true" className="h-full w-full scale-[1.4] object-contain" />
+                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-[#E2EAF4] bg-[#FFF7D7]">
+                        <JiaPresenceMark size="sm" speaking />
                       </div>
                       <div className={`flex items-center gap-1.5 rounded-2xl rounded-bl-md px-4 py-3 ${layout === "stage" ? "bg-white/10" : "bg-white shadow-sm"}`}>
                         {[0, 1, 2].map((dot) => <span key={dot} className={`h-1.5 w-1.5 rounded-full ${layout === "stage" ? "bg-[#FFD21A]" : "bg-[#1264EB]"} ${reducedMotion ? "" : "animate-pulse"}`} style={{ animationDelay: `${dot * 180}ms` }} />)}
