@@ -30,6 +30,7 @@ export function matchPaymentSmsToOrder(input: {
   parsed: PaymentSmsParseResult;
   merchantAccount: string;
   candidates: PaymentSmsCandidate[];
+  candidateLimitReached?: boolean;
   now?: Date;
   maxAgeMs?: number;
 }): PaymentSmsMatchResult {
@@ -80,6 +81,12 @@ export function matchPaymentSmsToOrder(input: {
   const exactReference = eligible.filter((candidate) => normalizeId(candidate.reportedTransactionId) === transactionId);
   if (exactReference.length === 1) return { outcome: "MATCHED", payment: exactReference[0], reason: "TRANSACTION_ID" };
   if (exactReference.length > 1) return { outcome: "AMBIGUOUS", reason: "TRANSACTION_ID_NOT_UNIQUE", candidateCount: exactReference.length };
+
+  // A unique transaction reference is protected by a database unique index.
+  // Without that exact reference, never claim uniqueness from a truncated query.
+  if (input.candidateLimitReached) {
+    return { outcome: "AMBIGUOUS", reason: "CANDIDATE_SEARCH_LIMIT_REACHED", candidateCount: input.candidates.length };
+  }
 
   const unclaimedOrders = eligible.filter((candidate) => !candidate.reportedTransactionId);
   if (unclaimedOrders.length === 1) return { outcome: "MATCHED", payment: unclaimedOrders[0], reason: "UNIQUE_ORDER" };
