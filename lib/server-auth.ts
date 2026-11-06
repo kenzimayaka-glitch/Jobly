@@ -68,12 +68,24 @@ export async function getAuthUser(request: NextRequest) {
       .maybeSingle();
     if (userError) throw new Error("Vérification du compte Jobly impossible.");
     if (internalUser?.id) {
-      const requestedDeviceId = request.headers.get("x-jobly-device-id")?.trim() || `legacy-${sessionId}`;
-      const deviceId = /^[A-Za-z0-9:_-]{1,160}$/.test(requestedDeviceId) ? requestedDeviceId : `legacy-${sessionId}`;
       const userAgent = request.headers.get("user-agent") || "";
       const pathname = new URL(request.url).pathname;
       const isNativeAndroidWebView = /android/i.test(userAgent) && /\\bwv\\b/i.test(userAgent);
       const isAttestationBootstrap = pathname.startsWith("/api/android/attestation/");
+      let requestedDeviceId = request.headers.get("x-jobly-device-id")?.trim() || "";
+      if (!requestedDeviceId && isNativeAndroidWebView) {
+        const { data: currentDeviceSession, error: deviceSessionError } = await service
+          .from("UserDeviceSession")
+          .select("deviceId")
+          .eq("userId", internalUser.id)
+          .eq("authSessionId", sessionId)
+          .is("revokedAt", null)
+          .maybeSingle();
+        if (deviceSessionError) throw new Error("Vérification de l'appareil Android impossible.");
+        requestedDeviceId = currentDeviceSession?.deviceId || "";
+      }
+      if (!requestedDeviceId) requestedDeviceId = `legacy-${sessionId}`;
+      const deviceId = /^[A-Za-z0-9:_-]{1,160}$/.test(requestedDeviceId) ? requestedDeviceId : `legacy-${sessionId}`;
       if (isNativeAndroidWebView && !isAttestationBootstrap) {
         const { data: attestation, error: attestationError } = await service
           .from("AndroidDeviceAttestation")
