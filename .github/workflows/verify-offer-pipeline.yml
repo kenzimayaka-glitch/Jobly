@@ -30,6 +30,8 @@ jobs:
           deno-version: v2.x
       - name: Test Gemini offer normalization and adaptive display contract
         run: deno test supabase/functions/job-offer-ai-normalize/normalizer.test.ts
+      - name: Test source-only promoter applications and J’IA handoff
+        run: node --test scripts/external-application-assistant.test.mjs scripts/jia-extension-onboarding.test.mjs
       - name: Type-check Gemini offer normalization function
         run: deno check --node-modules-dir=auto supabase/functions/job-offer-ai-normalize/index.ts
       - run: pnpm typecheck

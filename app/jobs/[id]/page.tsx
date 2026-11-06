@@ -26,6 +26,7 @@ import JoblyOfferWatermark from "@/components/JoblyOfferWatermark";
 import { parseJobDetailSections, type JobDetailSections } from "@/lib/jobContent";
 import { normalizeJobIdentity } from "@/lib/jobNormalizer";
 import { extractApplicationEmail, extractApplicationSubject } from "@/lib/applicationSubject";
+import { announceExternalApplicationToJia } from "@/lib/jia/external-application";
 
 type MatchItem = {
   id: string;
@@ -216,10 +217,10 @@ function JobDetailInner() {
   }
 
   async function apply() {
+    if (applicationLink) { openExternalApplication(applicationLink); return; }
     if (phoneChannel) return openWhatsApp();
-    if (applicationLink) { window.open(applicationLink, "_blank", "noopener,noreferrer"); return; }
     if (emailChannel) return openEmail();
-    if (sourceLink) { window.open(sourceLink, "_blank", "noopener,noreferrer"); return; }
+    if (sourceLink) { openExternalApplication(sourceLink); return; }
   }
 
   async function shareOffer() {
@@ -232,7 +233,8 @@ function JobDetailInner() {
   if (loading) return <main className="grid min-h-[100dvh] place-items-center bg-[#F7FAFF] font-bold text-[#17212B]">Chargement…</main>;
   if (error || !job) return <main className="talent-shell min-h-[100dvh] bg-[#F7FAFF] text-navy"><PageHeader label="Offre" onBack={() => router.replace("/jobs")} theme="talent"/><div className="mx-auto mt-8 max-w-2xl px-5"><div className="rounded-[24px] bg-white p-6 shadow-sm"><h1 className="text-xl font-black">Offre indisponible</h1><p className="mt-2 text-sm text-slate-500">{error || "Cette offre n’est plus disponible."}</p><button onClick={() => router.replace("/jobs")} className="mt-5 rounded-2xl bg-[#22448B] px-5 py-3 text-sm font-black text-white">Retour aux offres</button></div></div></main>;
 
-  const normalized = job.normalizedContent;
+  const currentJob = job;
+  const normalized = currentJob.normalizedContent;
   const normalizedDescription = Array.isArray(normalized?.description) ? normalized.description.join("\n\n") : "";
   const normalizedIdentity = normalizeJobIdentity({
     title: normalized?.title || job.displayTitle || job.title,
@@ -328,7 +330,17 @@ function JobDetailInner() {
     salaryMin != null || salaryMax != null ? { icon: null, value: `${formatSalary(salaryMin)}${salaryMax != null ? " – " + formatSalary(salaryMax) : ""} ${salaryCurrency}` } : null,
   ].filter(Boolean) as Array<{ icon: any; value: string }>;
 
-  const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Plateforme externe" : sourceLink ? "Modalités à vérifier sur la source originale" : null;
+  const applicationMode = emailChannel ? "Candidature par e-mail" : phoneChannel ? "Candidature par téléphone / WhatsApp" : applicationLink ? "Candidature sur la plateforme externe du recruteur" : sourceLink ? "Candidature à poursuivre sur le site du promoteur" : null;
+
+  function openExternalApplication(url: string) {
+    announceExternalApplicationToJia({ jobId: String(currentJob.id), source: String(source || "discovery"), title: displayTitle, company, targetUrl: url, sourceUrl: sourceLink, description: normalizedIdentity.description || currentJob.description });
+    const opened = window.open(url, "_blank");
+    if (opened) opened.opener = null;
+  }
+
+  function assistWithExternalApplication() {
+    announceExternalApplicationToJia({ jobId: String(currentJob.id), source: String(source || "discovery"), title: displayTitle, company, targetUrl: applicationLink || sourceLink, sourceUrl: sourceLink, description: normalizedIdentity.description || currentJob.description });
+  }
 
 
   const compactItems = (items: string[], limit = 12) => Array.from(new Set(items.map(cleanLine).filter(Boolean))).slice(0, limit);
@@ -392,8 +404,8 @@ function JobDetailInner() {
                       </div>
                     )}
                     {section.items.length > 0 && renderBullets(section.items)}
-                    {!emailChannel && !phoneChannel && !applicationLink && sourceLink && <p className="text-sm leading-6 text-amber-800">Aucun contact ni formulaire de candidature n’a été confirmé dans les données collectées. Consultez l’annonce originale pour vérifier la procédure et la disponibilité du poste.</p>}
-                    {sourceLink && <a href={sourceLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-black text-blue-700 underline underline-offset-4">Consulter l’annonce originale <ExternalLink size={15}/></a>}
+                    {!emailChannel && !phoneChannel && !applicationLink && sourceLink && <p className="text-sm leading-6 text-amber-800">Le formulaire externe n’est pas collecté par Jobly. Ouvre le site du promoteur pour consulter la procédure officielle et poursuivre ta candidature.</p>}
+                    {sourceLink && <a href={sourceLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-black text-blue-700 underline underline-offset-4">Ouvrir l’annonce chez le promoteur <ExternalLink size={15}/></a>}
                     {applicationMode && <p className="text-sm leading-6 text-slate-500">{applicationMode}</p>}
                   </div>
                 </DetailSection>
@@ -408,8 +420,9 @@ function JobDetailInner() {
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <button disabled={busy || deadlineExpired || (!emailChannel && !phoneChannel && !applicationLink && !sourceLink)} onClick={apply} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#FFD60A] px-5 py-4 text-sm font-black text-[#17212B] shadow-[0_10px_25px_rgba(255,214,10,.22)] transition hover:brightness-[.98] disabled:opacity-50">
-                {deadlineExpired ? <span>Offre expirée</span> : emailChannel ? <><GmailIcon/><span>Postuler</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler</span></> : sourceLink ? <><ExternalLink size={17}/><span>Consulter la source</span></> : <span>Modalités indisponibles</span>}
+                {deadlineExpired ? <span>Offre expirée</span> : emailChannel ? <><GmailIcon/><span>Postuler par e-mail</span></> : phoneChannel ? <><WhatsAppIcon/><span>Postuler par WhatsApp</span></> : applicationLink ? <><ExternalLink size={17}/><span>Postuler sur le site du recruteur</span></> : sourceLink ? <><ExternalLink size={17}/><span>Voir chez le promoteur</span></> : <span>Modalités indisponibles</span>}
               </button>
+              {(applicationLink || sourceLink) && !deadlineExpired && <button type="button" onClick={assistWithExternalApplication} className="flex items-center justify-center gap-2 rounded-2xl border border-[#22448B]/20 bg-[#F1F6FF] px-5 py-4 text-sm font-extrabold text-[#22448B]"><Sparkles size={17}/> Préparer avec J’IA</button>}
               <button type="button" onClick={shareOffer} className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-extrabold text-slate-600">{shared ? <CheckCircle2 size={17} className="text-emerald-600"/> : <Share2 size={17}/>}<span>{shared ? "Lien copié" : "Partager"}</span></button>
             </div>
 
