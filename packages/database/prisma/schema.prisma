@@ -381,6 +381,7 @@ model Payment {
   payerPhone             String?
   reportedTransactionId  String?
   smsMerchantAccount     String?
+  smsOrderConfig         PaymentSmsOrderConfig?
   paidAt                 DateTime?
   refundedAt             DateTime?
   failureReason          String?
@@ -398,6 +399,7 @@ model PaymentSmsOrderConfig {
   paymentId    String   @id
   merchantCode String
   createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  payment      Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 }
 
 model PaymentSmsProviderConfig {
