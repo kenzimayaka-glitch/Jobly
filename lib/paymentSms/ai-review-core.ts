@@ -25,6 +25,11 @@ export function redactPaymentSmsForAi(body: string): string {
     /\b((?:paiement|payment)\s+de)\s+(.{1,180}?)\s+\b(par)\s+(.{1,140}?)\s+\b(r[eé]ussi|success(?:ful)?)\b/gi,
     "$1 <DETAILS_MARCHAND> $3 <DETAILS_PAYEUR> $5",
   );
+  // Short Orange wording puts "reussi" before the payer marker.
+  text = text.replace(
+    /\b((?:paiement|payment)\s+de)\s+(.{1,180}?)\s+\b(r[eé]ussi|success(?:ful)?)\s+\b(par|by)\s+(.{1,140}?)(?=(?:[.,;]|\bID\s+transaction\b|\btransaction\b|\bmontant\b|$))/gi,
+    "$1 <DETAILS_MARCHAND> $3 $4 <DETAILS_PAYEUR>",
+  );
   text = text.replace(
     /(\b(?:vous avez re[cç]u|you have received)\b\s+.{0,45}?\bde)\s+(.{1,140}?)\s+(\b(?:sur votre compte|to your account)\b)/gi,
     "$1 <DETAILS_PAYEUR> $3",
