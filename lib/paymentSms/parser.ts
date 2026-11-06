@@ -73,14 +73,16 @@ function normalizePhone(value: string | null): string | null {
 
 function parseStatus(body: string): ParsedPaymentSmsStatus {
   const text = body.normalize("NFKC").toLocaleLowerCase("fr");
-  if (/\b(?:non|pas|not)\s+(?:été\s+)?(?:réussi|reussi|effectué|effectue|finalis[eé]|completed|complete|payé|payee|paid|successful|confirmed|confirmé|reçu|recu)\b/.test(text)
-    || /\b(transaction\s+failed|failed|failure|echec|échec|annul[eé]|rejet[eé]|declined|refus[eé])\b/.test(text)) {
+  // JS word boundaries treat accented characters as non-word characters;
+  // use an explicit separator lookahead so "finalisé" and "reçu" are recognized.
+  if (/\b(?:non|pas|not)\s+(?:été\s+)?(?:réussi|reussi|effectué|effectue|finalis[eé]|completed|complete|payé|payee|paid|successful|confirmed|confirmé|reçu|recu)(?=$|[^a-z0-9])/.test(text)
+    || /\b(transaction\s+failed|failed|failure|echec|échec|annul[eé]|rejet[eé]|declined|refus[eé])(?=$|[^a-z0-9])/.test(text)) {
     return "FAILED";
   }
-  if (/\b(en cours|en attente|pending|processing|traitement en cours|awaiting confirmation)\b/.test(text)) {
+  if (/\b(en cours|en attente|pending|processing|traitement en cours|awaiting confirmation)(?=$|[^a-z0-9])/.test(text)) {
     return "PENDING";
   }
-  if (/\b(successful|success|réussi|reussi|effectué|effectue|finalis[eé]|completed|complete|pay[eé]|paid|reçu|recu|received|credited|confirm[eé])\b/.test(text)) {
+  if (/\b(successful|success|réussi|reussi|effectué|effectue|finalis[eé]|completed|complete|pay[eé]|paid|reçu|recu|received|credited|confirm[eé])(?=$|[^a-z0-9])/.test(text)) {
     return "SUCCESSFUL";
   }
   return "UNKNOWN";
