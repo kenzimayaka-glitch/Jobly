@@ -24,7 +24,10 @@ Branche : `feat/security-red-remediation-20261106` (non fusionnée tant que les 
 - Lots de candidatures : vérification serveur des limites de postulation groupée et du quota hebdomadaire avant création.
 - Gmail recruteur : rôle RECRUITER/ADMIN requis; utilisation et stockage des jetons Gmail réservés aux plans PREMIUM/PRO.
 - J'IA proactive : limite atomique partagée compte/IP au lieu d'une Map mémoire par instance.
-- Tests de régression d'entitlements et CodeQL v4 pour TypeScript/JavaScript, Kotlin et workflows; Dependabot hebdomadaire ajouté.
+- Top Talent et dashboard Distributor : limitation compte/IP, accès recruteur/partenaire contrôlé et abonnement vérifié par date d'expiration avant de compter une visibilité ou conversion Premium/Pro.
+- Brand Ambassador KYC : la soumission des pièces reste `PENDING`; seule une route ADMIN peut valider/rejeter un dossier soumis. Le back-office affiche les deux pièces par URL signée de 5 minutes et journalise la décision dans `CEOAuditLog`; le rejet exige un motif.
+- Production vérifiée : la table `PartnerKyc` est actuellement vide, aucun dossier partenaire existant n'a donc été modifié ou rétrogradé par cette correction.
+- Tests de régression d'entitlements, Android/Play et migration; CodeQL v4 pour TypeScript/JavaScript, Kotlin et workflows; Dependabot hebdomadaire ajouté.
 
 ## Contrôles externes toujours requis
 
@@ -37,7 +40,7 @@ Branche : `feat/security-red-remediation-20261106` (non fusionnée tant que les 
 7. **Play Integrity** : pas encore configuré côté Play Console + Google Cloud, et aucun verdict n'est vérifié par le serveur. Ne pas assimiler la signature ou R8 à Play Integrity.
 8. **Signature release Android** : l'AAB de validation CI ne sera pas publiable avant configuration d'un keystore release sécurisé et d'une piste de test Google Play.
 9. **Audit Premium exhaustif** : 186 routes API ont été recensées. La deuxième vague couvre les contournements identifiés ci-dessus, mais toutes les actions Premium dans chaque module n'ont pas encore une matrice d'évidence complète.
-10. **Supabase `pg_net`** : l'extension est détenue par `supabase_admin`, non-relocatable, et une tâche cron `postgres` l'utilise. Supabase confirme que les privilèges par défaut de l'extension ne peuvent pas être révoqués par `postgres`; les rôles `anon` et `authenticated` sont `NOLOGIN`, et le schéma `net` n'est pas ajouté à l'exposition PostgREST par défaut. Il faut conserver l'extension et la tâche cron. Le contrôle pertinent est de vérifier les schémas réellement exposés dans Data API et de ne jamais y ajouter `net`; ne pas créer de migration `REVOKE` trompeuse.
+10. **Supabase `pg_net`** : l'extension appartient à `supabase_admin`, est non-relocatable et une tâche cron `postgres` l'utilise. Supabase documente que les grants `PUBLIC` de l'extension ne peuvent pas être retirés par `postgres`; les rôles `anon` et `authenticated` sont `NOLOGIN` (vérifié sur JOBLY-PROD). Le schéma `net` n'est normalement pas exposé par défaut dans la Data API, mais la configuration d'exposition du projet doit être vérifiée dans les réglages API du Dashboard : l'intégration ne fournit pas cette valeur. Ne pas déplacer `pg_net`, ni prétendre que des `REVOKE` lancés par `postgres` ont fonctionné.
 
 ## Modèle Android SMS et Google Play
 
