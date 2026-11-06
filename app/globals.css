@@ -354,10 +354,18 @@ body{
 
 .jobly-public-home {
   box-sizing: border-box;
-  height: 100dvh;
+  /* Let short mobile viewports scroll instead of clipping the welcome content. */
+  height: auto;
   min-height: 100svh;
-  max-height: 100dvh;
-  overflow: hidden;
+  max-height: none;
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+/* The hero can grow with its content; horizontal artwork remains clipped. */
+.jobly-public-home .jobly-public-home-hero {
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 .jobly-public-home-header { height: clamp(64px, 10svh, 90px); }
@@ -415,11 +423,7 @@ body{
 
 @media (min-width: 768px) {
   .jobly-public-home {
-    height: auto;
     min-height: 100dvh;
-    max-height: none;
-    overflow-x: hidden;
-    overflow-y: auto;
   }
   .jobly-public-home-header { height: 104px; }
   .jobly-public-home-copy { width: 43%; margin-top: 0; }
