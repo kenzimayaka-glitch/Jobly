@@ -249,7 +249,7 @@ export async function POST(request: NextRequest) {
     if (managedError) throw new Error(managedError.message);
     createdManagedAccount = true;
 
-    await db.from("AuditLog").insert({
+    const { error: auditError } = await db.from("AuditLog").insert({
       id: crypto.randomUUID(),
       userId: admin.id,
       action: "ADMIN_ACCOUNT_INVITED",
@@ -257,6 +257,7 @@ export async function POST(request: NextRequest) {
       entityId: userId,
       metadata: { accountType, organizationType, organizationName, invitedEmail: email },
     });
+    if (auditError) throw new Error("Compte invité, mais l'audit obligatoire a échoué : " + auditError.message);
 
     return NextResponse.json({
       ok: true,
