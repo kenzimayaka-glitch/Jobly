@@ -570,3 +570,30 @@ test("Recruiter job and application APIs keep ownership checks and use shared ab
     assert.match(source, /requireIp\s*:\s*true/);
   }
 });
+
+
+test("Recruiter application inbox, job mutations and share-token discovery are throttled", () => {
+  const jobList = read("../app/api/recruiter/jobs/route.ts");
+  const jobDetail = read("../app/api/recruiter/jobs/[id]/route.ts");
+  const inbox = read("../app/api/recruiter/applications/route.ts");
+  const applicationUpdate = read("../app/api/recruiter/applications/[id]/route.ts");
+  const share = read("../app/api/recruiter/discover/[token]/route.ts");
+  assert.match(jobList, /scope: "recruiter-jobs-read"/);
+  assert.match(jobList, /scope: "recruiter-job-create"/);
+  assert.match(jobList, /contentLength > 64 \* 1024/);
+  assert.match(jobDetail, /scope: "recruiter-job-read"/);
+  assert.match(jobDetail, /scope: "recruiter-job-update"/);
+  assert.match(jobDetail, /scope: "recruiter-job-delete"/);
+  assert.match(jobDetail, /contentLength > 64 \* 1024/);
+  assert.match(inbox, /scope: "recruiter-applications-read"/);
+  assert.match(inbox, /Cache-Control/);
+  assert.match(applicationUpdate, /scope: "recruiter-application-update"/);
+  assert.match(applicationUpdate, /recruiterJob\.recruiterUserId/);
+  assert.match(share, /scope:"recruiter-candidate-discovery-share"/);
+  assert.match(share, /token.length>256/);
+  assert.match(share, /Cache-Control/);
+  for (const source of [jobList,jobDetail,inbox,applicationUpdate,share]) {
+    assert.match(source, /enforceApiRateLimit/);
+    assert.match(source, /requireIp\s*:\s*true/);
+  }
+});
