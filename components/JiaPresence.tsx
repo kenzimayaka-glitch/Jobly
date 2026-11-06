@@ -905,7 +905,7 @@ export default function JiaPresence() {
         sticky: true,
       });
     } catch (error) {
-      if (initiatingOwner && (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch)) return;
+      if (!initiatingOwner || sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       const message = error instanceof Error ? error.message : "Je n’ai pas réussi à répondre.";
       appendConversationMessage("assistant", message);
       say(message, { gesture: "secure", sticky: true, speak: false });
@@ -1171,7 +1171,7 @@ export default function JiaPresence() {
       );
       say("Ta candidature est préparée et reste sous ton contrôle. Elle n'a pas été envoyée.", { gesture: "welcome", speak: true, sticky: true });
     } catch (error) {
-      if (initiatingOwner && (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch)) return;
+      if (!initiatingOwner || sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       const message = error instanceof Error ? error.message : "Impossible de préparer cette candidature.";
       appendConversationMessage("assistant", message);
       say(message, { gesture: "secure", speak: false, sticky: true });
@@ -1282,7 +1282,7 @@ export default function JiaPresence() {
       say(confirmation, { gesture: "welcome", speak: true, sticky: true });
       if (action.target || result.next) { setPanelOpen(false); router.push(action.target || result.next); }
     } catch (error) {
-      if (initiatingOwner && (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch)) return;
+      if (!initiatingOwner || sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       say(error instanceof Error ? error.message : "Je n’ai pas pu préparer cette action.", { gesture: "secure", sticky: true, speak: false });
     } finally {
       setCommandBusy(false);
