@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr" className="h-full w-full">
-      <body className="h-[100dvh] w-screen m-0 p-0 overflow-visible bg-white antialiased font-sans">
+      <body className="min-h-[100dvh] w-full m-0 p-0 overflow-x-hidden bg-white antialiased font-sans">
         <LanguageProvider>
           <PwaInit />
           <JiaObserver />
