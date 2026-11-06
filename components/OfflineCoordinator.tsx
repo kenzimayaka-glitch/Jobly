@@ -20,7 +20,10 @@ export default function OfflineCoordinator() {
 
   const refreshCount = useCallback(async () => {
     try {
-      setPendingCount(await countPendingOfflineOperations());
+      const { data } = await getSupabaseClient().auth.getSession();
+      const authUserId = data.session?.user?.id;
+      const userId = authUserId ? getOfflineUserId(authUserId) : null;
+      setPendingCount(userId ? await countPendingOfflineOperations(userId) : 0);
     } catch {
       setPendingCount(0);
     }
@@ -42,18 +45,18 @@ export default function OfflineCoordinator() {
       await refreshCount();
       return;
     }
-    const userId = getOfflineUserId();
-    if (!userId) {
-      setConnectivity("online");
-      setPendingCount(0);
-      return;
-    }
-
     try {
       const { data } = await getSupabaseClient().auth.getSession();
-      if (!data.session?.access_token) {
+      const authUserId = data.session?.user?.id;
+      if (!data.session?.access_token || !authUserId) {
         setConnectivity("offline");
         await refreshCount();
+        return;
+      }
+      const userId = getOfflineUserId(authUserId);
+      if (!userId) {
+        setConnectivity("online");
+        setPendingCount(0);
         return;
       }
       const operations = await getPendingOfflineOperations(userId);
