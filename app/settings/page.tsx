@@ -124,7 +124,7 @@ export default function SettingsPage() {
       });
       if (cvResponse.ok) {
         const cv = await cvResponse.blob();
-        await saveOfflineDocument(snapshot.userId, "cv-original.pdf", cv);
+        await saveOfflineDocument(snapshot.userId, cv);
       } else if (cvResponse.status !== 404) {
         const cvError = await cvResponse.json().catch(() => ({}));
         throw new Error(cvError.message || "Le CV n'a pas pu être téléchargé pour le mode hors connexion.");
@@ -325,7 +325,7 @@ export default function SettingsPage() {
             <label className="mt-3 block text-xs font-bold text-slate-600">Confirmer la phrase secrète
               <input type="password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm"/>
             </label>
-            <button type="button" onClick={createEncryptedBackup} disabled={busy !== "" || !navigator.onLine} className="mt-4 h-11 w-full rounded-xl bg-[#0A1931] px-4 text-sm font-extrabold text-white disabled:opacity-50">
+            <button type="button" onClick={createEncryptedBackup} disabled={busy !== "" || !online} className="mt-4 h-11 w-full rounded-xl bg-[#0A1931] px-4 text-sm font-extrabold text-white disabled:opacity-50">
               {busy === "backup" ? "Chiffrement…" : "Créer et télécharger ma sauvegarde"}
             </button>
           </article>
@@ -337,7 +337,7 @@ export default function SettingsPage() {
           <p className="mt-2 text-sm leading-6 text-slate-600">Sélectionnez un fichier .joblybackup et sa phrase secrète. Les informations de profil seront fusionnées sans supprimer vos données actuelles. Les candidatures existantes ne seront ni dupliquées ni remplacées.</p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <input ref={fileInput} type="file" accept=".joblybackup,application/vnd.jobly.backup+json" onChange={(event) => setRestoreFile(event.target.files?.[0] || null)} className="block min-w-0 flex-1 text-xs text-slate-600"/>
-            <button type="button" onClick={restoreEncryptedBackup} disabled={busy !== "" || !navigator.onLine} className="h-11 rounded-xl bg-[#FFD60A] px-5 text-sm font-extrabold text-[#0A1931] disabled:opacity-50">
+            <button type="button" onClick={restoreEncryptedBackup} disabled={busy !== "" || !online} className="h-11 rounded-xl bg-[#FFD60A] px-5 text-sm font-extrabold text-[#0A1931] disabled:opacity-50">
               {busy === "restore" ? "Restauration…" : "Restaurer"}
             </button>
           </div>
