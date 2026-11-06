@@ -7,13 +7,8 @@ import { JIA3DErrorBoundary } from "./JIAFallback";
 import JIAProcedural3D from "./JIAProcedural3D";
 import * as THREE from "three";
 import { JIA_AVATAR_APPEARANCES, type JiaAvatarAppearanceVariation } from "@/lib/jia/visual-variations";
-// GLTF runtime: the official J’IA gltf model is loaded through drei/useGLTF.
-
-type Move =
-  | "idle" | "breathe_deep" | "blink_slow" | "smile_soft" | "wave_hi" | "wave_bye"
-  | "nod_slow" | "listen_tilt" | "shake_no" | "think_chin" | "point_button" | "point_you"
-  | "explain_open" | "scarf_touch" | "ok" | "stop" | "hand_chest" | "celebrate_jump"
-  | "reading" | "matching" | "searching" | "hand_shake" | "money" | "writing";
+import type { JIA100Move } from "./movements";
+// GLTF runtime: the official J’type Move = JIA100Move;earching" | "hand_shake" | "money" | "writing";
 
 const MOVE_CLIP_HINTS: Record<string, string[]> = {
   wave_hi: ["wave", "hello", "greet"],
