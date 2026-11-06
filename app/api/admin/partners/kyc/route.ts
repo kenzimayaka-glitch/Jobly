@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
 import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
+export const dynamic = "force-dynamic";
+
 const BUCKET = "partner-private-documents";
 const SIGNED_URL_TTL_SECONDS = 300;
 
@@ -77,7 +79,10 @@ export async function GET(request: NextRequest) {
       };
     }));
 
-    return NextResponse.json({ count: submissions.length, submissions });
+    return NextResponse.json(
+      { count: submissions.length, submissions },
+      { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } }
+    );
   } catch (error) {
     return NextResponse.json({
       message: error instanceof Error ? error.message : "Impossible de charger les dossiers KYC.",
