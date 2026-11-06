@@ -56,6 +56,16 @@ const GESTURE_MOVE: Record<string, JIA100Move> = {
   point_up: "point_up",
   point_down: "point_down",
   point_self: "point_self",
+  blink_slow: "blink_slow",
+  smile_soft: "smile_soft",
+  smile_wide: "smile_wide",
+  wink_right: "wink_right",
+  lips_bite: "lips_bite",
+  yawn: "yawn",
+  think_chin: "think_chin",
+  point_left: "point_left",
+  confused: "confused",
+  reading: "reading",
 };
 
 const AUTO: JIA100Move[] = [
