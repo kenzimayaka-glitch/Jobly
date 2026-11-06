@@ -111,3 +111,17 @@ test("Distributor metrics count only currently eligible subscriptions and are ra
   assert.match(route, /ipWindows:/);
   assert.match(route, /requireIp: true/);
 });
+
+
+test("partner profile and commission endpoints have separate shared account and IP limits", () => {
+  const profile = read("../app/api/partner/profile/route.ts");
+  const commissions = read("../app/api/partner/commissions/route.ts");
+  assert.match(profile, /scope: "partner-profile-read"/);
+  assert.match(profile, /scope: "partner-profile-update"/);
+  assert.match(commissions, /scope: "partner-commissions-read"/);
+  for (const source of [profile, commissions]) {
+    assert.match(source, /accountWindows:/);
+    assert.match(source, /ipWindows:/);
+    assert.match(source, /requireIp: true/);
+  }
+});
