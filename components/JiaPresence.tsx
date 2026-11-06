@@ -427,6 +427,9 @@ export default function JiaPresence() {
       setRecentDialogue((history) => [...history, command, answer].filter(Boolean).slice(-12));
       const proposedType = out.proposedAction?.type as string | undefined;
       appendConversationMessage("assistant", out.message || "Je suis prête à t’aider.", nextSources);
+      const sourceSuffix = nextSources.length
+        ? `\n\nSources vérifiables : ${nextSources.slice(0, 3).map((source) => source.title || source.url).join(" · ")}`
+        : "";
       if (proposedType) setPendingAction({ type: proposedType, message: command, target: out.proposedAction?.target });
       say(`${out.message || "Je suis prête à t’aider."}${sourceSuffix}`, {
         gesture: proposedType ? "analyze" : "reassure",
@@ -441,7 +444,7 @@ export default function JiaPresence() {
     } finally {
       setCommandBusy(false);
     }
-  }, [appendConversationMessage, commandBusy, commandInput, recentDialogue, router, say]);
+  }, [appendConversationMessage, commandBusy, commandInput, recentDialogue, say]);
 
   const confirmPendingAction = useCallback(async () => {
     if (!pendingAction) return;
