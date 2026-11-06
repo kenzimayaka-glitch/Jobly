@@ -81,6 +81,12 @@ test("Brand Ambassador onboarding never self-verifies identity and admin review 
   assert.match(onboarding, /storage\.updateBucket\(BUCKET, options\)/);
   assert.match(onboarding, /public: false/);
   assert.match(onboarding, /fileSizeLimit: 10 \* 1024 \* 1024/);
+  assert.match(onboarding, /scope: "partner-ba-kyc-read"/);
+  assert.match(onboarding, /scope: "partner-ba-kyc-submit"/);
+  assert.match(onboarding, /accountWindows:/);
+  assert.match(onboarding, /ipWindows:/);
+  assert.match(onboarding, /contentLength > 22 \* 1024 \* 1024/);
+
   assert.match(review, /String\(user\.role\)\.toUpperCase\(\) !== "ADMIN"/);
   assert.match(review, /previousPartner\.partnerType && previousPartner\.partnerType !== "BRAND_AMBASSADOR"/);
   assert.match(review, /\.eq\("status", "SUBMITTED"\)/);
