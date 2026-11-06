@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authUser, adminClient, ensureUser } from "../../../../../lib/mobilityServer";
 import { calculateMobilityEligibility } from "../../../../../lib/mobilityEligibility";
 import { mayGuaranteeMobilityRequest } from "../../../../../lib/mobilityAccess";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,9 +10,19 @@ export async function POST(req: NextRequest) {
     if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const sb = adminClient();
     const user = await ensureUser(sb, auth);
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    if (contentLength > 12 * 1024) return NextResponse.json({ message: "Demande de garantie trop volumineuse." }, { status: 413 });
+    const limited = await enforceApiRateLimit(req, sb, {
+      scope: "mobility-recruiter-guarantee",
+      identity: user.id,
+      accountWindows: [{ limit: 3, windowSeconds: 3600 }, { limit: 6, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 10, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const body = await req.json().catch(() => ({}));
-    const requestId = String(body.requestId || "").trim();
-    if (!requestId) return NextResponse.json({ message: "requestId requis." }, { status: 400 });
+    const requestId = typeof body.requestId === "string" ? body.requestId.trim() : "";
+    if (!requestId || requestId.length > 128) return NextResponse.json({ message: "requestId invalide." }, { status: 400 });
 
     const { data: request, error: requestError } = await sb.from("MobilityRequest")
       .select("id,userId,recruiterUserId,applicationId,costTotal,companyAgreementId,recruiterGuaranteeId,salaryApproved,salaryCurrency,eligibilityThresholdPercent,currentStep")

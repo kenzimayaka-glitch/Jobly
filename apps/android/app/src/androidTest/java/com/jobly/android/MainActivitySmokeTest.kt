@@ -49,7 +49,7 @@ class MainActivitySmokeTest {
 
 
     @Test
-    fun packageDeclaresSmsReceivePermissionAndRegisteredReceiver() {
+    fun packagedSmsCapabilitiesMatchTheDistributionVariant() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         @Suppress("DEPRECATION")
         val packageInfo = context.packageManager.getPackageInfo(
@@ -57,14 +57,28 @@ class MainActivitySmokeTest {
             PackageManager.GET_PERMISSIONS or PackageManager.GET_RECEIVERS
         )
         val requested = packageInfo.requestedPermissions.orEmpty().toSet()
-        assertTrue(
-            "RECEIVE_SMS must be declared for the merchant handset receiver",
-            Manifest.permission.RECEIVE_SMS in requested
-        )
-        assertTrue(
-            "The SMS receiver must be registered in the existing Jobly package",
-            packageInfo.receivers.orEmpty().any { it.name == PaymentSmsReceiver::class.java.name }
-        )
+        val receiverRegistered = packageInfo.receivers.orEmpty()
+            .any { it.name == PaymentSmsReceiver::class.java.name }
+
+        if (BuildConfig.PAYMENT_SMS_AUTORECEIVE_ENABLED) {
+            assertTrue(
+                "Only the internal merchant build may declare RECEIVE_SMS",
+                Manifest.permission.RECEIVE_SMS in requested
+            )
+            assertTrue(
+                "The internal merchant build must register its SMS receiver",
+                receiverRegistered
+            )
+        } else {
+            assertFalse(
+                "The Google Play build must not declare restricted RECEIVE_SMS",
+                Manifest.permission.RECEIVE_SMS in requested
+            )
+            assertFalse(
+                "The Google Play build must not register a background SMS receiver",
+                receiverRegistered
+            )
+        }
     }
 
     @Test

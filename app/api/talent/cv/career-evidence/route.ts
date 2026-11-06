@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
+import { enforceApiRateLimit } from "@/lib/server-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +16,14 @@ export async function GET(request: NextRequest) {
 
     const sb = adminClient();
     const user = await ensureUser(sb, auth);
+    const limited = await enforceApiRateLimit(request, sb, {
+      scope: "talent-cv-career-evidence",
+      identity: user.id,
+      accountWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 200, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 400, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
 
     const [evidenceResult, portfolioResult] = await Promise.all([
       sb.from("CareerEvidence")
@@ -47,7 +56,7 @@ export async function GET(request: NextRequest) {
         userAcceptedOnly: true,
         cvStudioMustRequestExplicitSelectionBeforePersisting: true,
       },
-    });
+    }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (error) {
     return NextResponse.json({
       ok: false,

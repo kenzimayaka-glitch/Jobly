@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -16,6 +17,16 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    if (contentLength > 12 * 1024) return NextResponse.json({ message: "Mise à jour de candidature trop volumineuse." }, { status: 413 });
+    const limited = await enforceApiRateLimit(req, supabase, {
+      scope: "recruiter-application-update",
+      identity: user.id,
+      accountWindows: [{ limit: 10, windowSeconds: 60 }, { limit: 60, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 20, windowSeconds: 60 }, { limit: 120, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
 
     // La candidature doit porter sur une offre RecruiterJob possédée par ce recruteur.
     const { data: existing, error: loadError } = await supabase
@@ -27,11 +38,14 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     if (loadError) throw new Error(loadError.message);
     if (!existing) return NextResponse.json({ message: "Candidature introuvable." }, { status: 404 });
 
-    const b = await req.json();
+    const b = await req.json().catch(() => null);
+    if (!b || typeof b !== "object" || Array.isArray(b)) return NextResponse.json({ message: "Données de candidature invalides." }, { status: 400 });
     const payload: Record<string, unknown> = { updatedAt: new Date().toISOString() };
 
     if (typeof b.interviewAt === "string" && b.interviewAt) {
-      payload.interviewAt = b.interviewAt;
+      const interviewAt = new Date(b.interviewAt);
+      if (!Number.isFinite(interviewAt.getTime())) return NextResponse.json({ message: "Date d'entretien invalide." }, { status: 422 });
+      payload.interviewAt = interviewAt.toISOString();
       payload.status = "INTERVIEW";
       payload.statusSource = "RECRUITER";
     }
@@ -48,7 +62,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     const { data, error } = await supabase.from("Application").update(payload).eq("id", id).select("*").single();
     if (error) throw new Error(error.message);
 
-    return NextResponse.json({ application: data });
+    return NextResponse.json({ application: data }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (error) {
     return NextResponse.json(
       { message: error instanceof Error ? error.message : "Impossible de mettre à jour la candidature." },

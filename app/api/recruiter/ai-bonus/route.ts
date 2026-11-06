@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
 import { getActivePlanCode } from "../../../../lib/entitlements";
+import { enforceApiRateLimit } from "../../../../lib/server-security";
 
-async function loadRecruiter(request: NextRequest) {
+async function loadRecruiter(request: NextRequest, scope: string, write = false) {
   const auth = await getAuthUser(request);
   if (!auth) return { error: NextResponse.json({ message: "Session requise." }, { status: 401 }) };
   const sb = adminClient();
@@ -10,12 +11,20 @@ async function loadRecruiter(request: NextRequest) {
   if (String(user.role) !== "RECRUITER") {
     return { error: NextResponse.json({ message: "Cette ressource est réservée au compte recruteur." }, { status: 403 }) };
   }
+  const limited = await enforceApiRateLimit(request, sb, {
+    scope,
+    identity: user.id,
+    accountWindows: write ? [{ limit: 5, windowSeconds: 3600 }] : [{ limit: 10, windowSeconds: 60 }, { limit: 50, windowSeconds: 3600 }],
+    ipWindows: write ? [{ limit: 10, windowSeconds: 3600 }] : [{ limit: 20, windowSeconds: 60 }, { limit: 100, windowSeconds: 3600 }],
+    requireIp: true,
+  });
+  if (limited) return { error: limited };
   return { sb, user };
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const loaded = await loadRecruiter(request);
+    const loaded = await loadRecruiter(request, "recruiter-ai-welcome-credit-read");
     if ("error" in loaded) return loaded.error;
     const { sb, user } = loaded;
     const plan = String(await getActivePlanCode(sb, user.id, "RECRUITER")).toUpperCase();
@@ -52,7 +61,7 @@ export async function GET(request: NextRequest) {
       grantedAt,
       firstDashboardVisit: !user.aiWelcomeSeenAt && granted > 0,
       message: !user.aiWelcomeSeenAt && granted > 0 ? "🎁 30 crédits J’IA recruteur vous sont offerts à l’inscription." : null,
-    });
+    }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible de charger les crédits J’IA recruteur." }, { status: 500 });
   }
@@ -60,7 +69,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const loaded = await loadRecruiter(request);
+    const loaded = await loadRecruiter(request, "recruiter-ai-welcome-credit-seen", true);
     if ("error" in loaded) return loaded.error;
     const { sb, user } = loaded;
     const { error } = await sb.from("User")
@@ -68,7 +77,7 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id)
       .is("aiWelcomeSeenAt", null);
     if (error) throw new Error(error.message);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible de confirmer la notification." }, { status: 500 });
   }

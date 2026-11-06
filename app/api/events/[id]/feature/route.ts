@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { adminClient,ensureUser,getAuthUser } from "../../../../../lib/server-auth";
 import { EVENT_FEATURED_DAYS,EVENT_FEATURED_PRICE } from "../../../../../lib/events";
 import { getEventManualPaymentInstructions } from "../../../../../lib/eventManualPayments";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 const fail=(message:string,status=400,code="EVENT_FEATURE_ERROR")=>NextResponse.json({error:code,message},{status});
 
@@ -13,6 +14,12 @@ export async function POST(request:NextRequest,context:{params:Promise<{id:strin
     const {id}=await context.params;
     const sb=adminClient();
     const user=await ensureUser(sb,auth);
+    const limited=await enforceApiRateLimit(request,sb,{
+      scope:"event-feature-request",identity:user.id,
+      accountWindows:[{limit:5,windowSeconds:3600},{limit:10,windowSeconds:86400}],
+      ipWindows:[{limit:10,windowSeconds:3600}],requireIp:true
+    });
+    if(limited)return limited;
     const {data:event,error:eventError}=await sb.from("Event")
       .select("id,creatorUserId,status").eq("id",id).maybeSingle();
     if(eventError)throw new Error(eventError.message);
@@ -41,7 +48,7 @@ export async function POST(request:NextRequest,context:{params:Promise<{id:strin
         if(campaignError.message.includes("FEATURED_FULL"))return fail("Les 6 emplacements Grand rendez-vous sont occupés.",409,"FEATURED_FULL");
         throw new Error(campaignError.message);
       }
-      return NextResponse.json({campaign,payment:null,free:true},{status:201});
+      return NextResponse.json({campaign,payment:null,free:true},{status:201,headers:{"Cache-Control":"private, no-store, max-age=0",Vary:"Authorization"}});
     }
 
     const paymentId=crypto.randomUUID();
@@ -75,7 +82,7 @@ export async function POST(request:NextRequest,context:{params:Promise<{id:strin
         instructions:getEventManualPaymentInstructions(),
         submissionUrl:"/events/payment/"+paymentId
       }
-    },{status:201});
+    },{status:201,headers:{"Cache-Control":"private, no-store, max-age=0",Vary:"Authorization"}});
   }catch(e){
     return fail(e instanceof Error?e.message:"Mise en avant impossible.",500);
   }

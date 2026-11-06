@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import sharp from "sharp";
 import { runAiGateway } from "../../../../../lib/aiGateway";
 import { getActivePlanCode } from "../../../../../lib/entitlements";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 export const runtime = "nodejs";
 function safeFilePart(value: unknown) {
@@ -169,6 +170,33 @@ function normalizeOutput(output: any) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) {
+      return NextResponse.json({
+        error: "AUTH_REQUIRED",
+        message: "Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.",
+      }, { status: 401 });
+    }
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > PAID_MAX_BYTES + 512 * 1024) {
+      return NextResponse.json({ error: "PDF_TOO_LARGE", message: "Le CV dépasse la taille maximale autorisée." }, { status: 413 });
+    }
+    const databaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!databaseUrl || !serviceKey) return NextResponse.json({ error: "STORAGE_UNAVAILABLE", message: "Service CV indisponible." }, { status: 503 });
+    const admin = createClient(databaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+    const account = await admin.from("User").select("id,role").eq("authUserId", authUser.id).maybeSingle();
+    if (account.error) throw new Error(account.error.message);
+    if (!account.data?.id) return NextResponse.json({ error: "USER_NOT_FOUND", message: "Profil Jobly introuvable." }, { status: 404 });
+    const limited = await enforceApiRateLimit(request, admin, {
+      scope: "talent-cv-import",
+      identity: account.data.id,
+      accountWindows: [{ limit: 5, windowSeconds: 3600 }, { limit: 10, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 10, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
+
     const contentType = request.headers.get("content-type") || "";
     if (!contentType.includes("multipart/form-data")) {
       return NextResponse.json({ error: "PDF_REQUIRED", message: "Envoie le CV au format PDF." }, { status: 400 });
@@ -182,13 +210,6 @@ export async function POST(request: NextRequest) {
     if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
       return NextResponse.json({ error: "PDF_ONLY", message: "J’IA accepte ici uniquement les CV PDF." }, { status: 415 });
     }
-    const authUser = await getAuthUser(request);
-    if (!authUser) {
-      return NextResponse.json({
-        error: "AUTH_REQUIRED",
-        message: "Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.",
-      }, { status: 401 });
-    }
     const plan = await getPlan(authUser);
     const maxBytes = plan === "FREE" ? FREE_MAX_BYTES : PAID_MAX_BYTES;
     const maxLabel = plan === "FREE" ? "1 Mo" : "3 Mo";
@@ -201,6 +222,9 @@ export async function POST(request: NextRequest) {
       }, { status: 413 });
     }
     const fileBytes = Buffer.from(await file.arrayBuffer());
+    if (fileBytes.length < 5 || fileBytes.subarray(0, 5).toString("ascii") !== "%PDF-") {
+      return NextResponse.json({ error: "PDF_INVALID", message: "Le contenu du fichier ne correspond pas à un PDF valide." }, { status: 415 });
+    }
 
     // pdf-parse v2 loads PDF.js rendering primitives during module evaluation.
     // In Vercel's Node runtime, loading it without the worker CanvasFactory

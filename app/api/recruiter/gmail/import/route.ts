@@ -3,6 +3,7 @@ import { PDFParse } from "pdf-parse";
 import { calculateATSScore } from "../../../../../lib/atsService";
 import { getGmailAccessToken } from "../../../../../lib/gmailServer";
 import { newId } from "../../../../../lib/server-auth";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -13,6 +14,14 @@ function b64urlToBuffer(data: string) { return Buffer.from(data.replace(/-/g, "+
 export async function POST(req: NextRequest) {
   try {
     const { token, context } = await getGmailAccessToken(req);
+    const limited = await enforceApiRateLimit(req, context.supabase, {
+      scope: "recruiter-gmail-import",
+      identity: context.user.id,
+      accountWindows: [{ limit: 1, windowSeconds: 60 }, { limit: 5, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 3, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const jobs = (await context.supabase.from("RecruiterJob").select("id,title,description").eq("recruiterUserId", context.user.id)).data || [];
     const query = "has:attachment filename:pdf newer_than:90d";
     const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=25&q=${encodeURIComponent(query)}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -40,6 +49,7 @@ export async function POST(req: NextRequest) {
         const attachment = await attRes.json(); if (!attRes.ok || !attachment.data) { skipped++; continue; }
         pdfBytes = b64urlToBuffer(attachment.data);
       } else pdfBytes = b64urlToBuffer(pdf.body.data);
+      if (pdfBytes.length > 12 * 1024 * 1024) { skipped++; continue; }
       const parser = new PDFParse({ data: pdfBytes }); const parsed = await parser.getText(); await parser.destroy();
       const cvText = String(parsed.text || "").replace(/\u0000/g, " ").trim(); if (cvText.length < 80) { skipped++; continue; }
 

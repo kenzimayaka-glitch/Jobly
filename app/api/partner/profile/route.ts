@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser, newId } from "../../../../lib/server-auth";
+import { enforceApiRateLimit } from "../../../../lib/server-security";
 
 function randomCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sans caractères ambigus (0/O, 1/I)
@@ -37,6 +38,14 @@ export async function GET(request: NextRequest) {
     if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    const rateLimited = await enforceApiRateLimit(request, supabase, {
+      scope: "partner-profile-read",
+      identity: user.id,
+      accountWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 300, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 600, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (rateLimited) return rateLimited;
     const partner = await ensurePartner(supabase, user.id);
     return NextResponse.json({ partner });
   } catch (error) {
@@ -54,6 +63,14 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    const rateLimited = await enforceApiRateLimit(request, supabase, {
+      scope: "partner-profile-update",
+      identity: user.id,
+      accountWindows: [{ limit: 10, windowSeconds: 60 }, { limit: 60, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 20, windowSeconds: 60 }, { limit: 120, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (rateLimited) return rateLimited;
     await ensurePartner(supabase, user.id);
 
     const payload: Record<string, unknown> = {};

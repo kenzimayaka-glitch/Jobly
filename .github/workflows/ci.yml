@@ -119,6 +119,9 @@ jobs:
       - name: Billing lifecycle regression tests
         run: pnpm test:billing
 
+      - name: Server-side entitlement and shared AI rate-limit regression tests
+        run: node --test scripts/security-entitlements.test.mjs
+
       - name: Mobile Money SMS payment regression tests
         run: node --experimental-strip-types --test scripts/payment-sms-parser.test.mjs scripts/payment-sms-matching.test.mjs scripts/payment-sms-config.test.mjs scripts/payment-sms-devices.test.mjs scripts/payment-sms-ai.test.mjs scripts/payment-sms-android.test.mjs scripts/payment-sms-customer-share.test.mjs
 

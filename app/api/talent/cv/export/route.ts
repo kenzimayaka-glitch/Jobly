@@ -5,6 +5,7 @@ import { adminClient, ensureUser, getAuthUser } from "../../../../../lib/server-
 import { getProvider } from "../../../../../lib/paymentProviders";
 import { getEntitlements } from "../../../../../lib/billingCatalog";
 import { getActivePlanCode } from "../../../../../lib/entitlements";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -77,10 +78,21 @@ export async function POST(request: NextRequest) {
     const auth = await getAuthUser(request);
     if (!auth) return NextResponse.json({ error: "UNAUTHENTICATED", message: "Session requise." }, { status: 401 });
 
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > 64 * 1024) return NextResponse.json({ error: "CV_TOO_LARGE", message: "Les données du CV dépassent la taille maximale." }, { status: 413 });
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "CV_INVALID", message: "Données du CV invalides." }, { status: 400 });
     const sb = adminClient();
     const user = await ensureUser(sb, auth);
-    const body = await request.json();
-    const cv: CVPayload = body?.cv && typeof body.cv === "object" ? body.cv : {};
+    const limited = await enforceApiRateLimit(request, sb, {
+      scope: "talent-cv-export",
+      identity: user.id,
+      accountWindows: [{ limit: 10, windowSeconds: 60 }, { limit: 50, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 20, windowSeconds: 60 }, { limit: 100, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
+    const cv: CVPayload = body.cv && typeof body.cv === "object" && !Array.isArray(body.cv) ? body.cv : {};
 
     const activePlan = await getActivePlanCode(sb, user.id, "TALENT");
     const service = String(body?.service || "ATS").toUpperCase() === "OPTIMIZED" ? "OPTIMIZED" : "ATS";

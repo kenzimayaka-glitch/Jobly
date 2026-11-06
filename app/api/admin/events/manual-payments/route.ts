@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 const fail=(message:string,status=400,code="MANUAL_PAYMENT_ADMIN_ERROR")=>NextResponse.json({message,error:code},{status});
 
@@ -9,6 +10,12 @@ async function requireFinance(request:NextRequest){
   const sb=adminClient();
   const user=await ensureUser(sb,auth);
   if(!["ADMIN","FINANCE"].includes(String(user.role)))return {error:fail("Accès réservé à ADMIN/FINANCE.",403,"FORBIDDEN")};
+  const limited=await enforceApiRateLimit(request,sb,{
+    scope:"admin-event-manual-payment-list",identity:user.id,
+    accountWindows:[{limit:30,windowSeconds:60},{limit:300,windowSeconds:3600}],
+    ipWindows:[{limit:60,windowSeconds:60},{limit:600,windowSeconds:3600}],requireIp:true
+  });
+  if(limited)return {error:limited};
   return {sb,user};
 }
 
@@ -46,7 +53,7 @@ export async function GET(request:NextRequest){
         user:(users??[]).find(x=>x.id===row.userId)??null,
       };
     }));
-    return NextResponse.json({submissions:submissionsWithContext});
+    return NextResponse.json({submissions:submissionsWithContext},{headers:{"Cache-Control":"private, no-store, max-age=0",Vary:"Authorization"}});
   }catch(error){
     return fail(error instanceof Error?error.message:"Chargements des justificatifs impossible.",500);
   }

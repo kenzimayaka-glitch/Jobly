@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getAuthUser } from "../../../../../lib/server-auth";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 import crypto from "node:crypto";
 
 export const runtime = "nodejs";
@@ -21,15 +22,28 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await getAuthUser(request);
     if (!auth) return NextResponse.json({ error: "UNAUTHENTICATED", message: "Session requise." }, { status: 401 });
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > 4 * 1024 * 1024) return NextResponse.json({ error: "PDF_TOO_LARGE", message: "Le CV original dépasse la limite de 3 Mo." }, { status: 413 });
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !serviceKey) return NextResponse.json({ error: "STORAGE_UNAVAILABLE", message: "Stockage du CV indisponible." }, { status: 503 });
+    const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+    const account = await admin.from("User").select("id").eq("authUserId", auth.id).maybeSingle();
+    if (account.error) throw new Error(account.error.message);
+    if (!account.data?.id) return NextResponse.json({ error: "USER_NOT_FOUND", message: "Profil Jobly introuvable." }, { status: 404 });
+    const limited = await enforceApiRateLimit(request, admin, {
+      scope: "talent-cv-original-upload",
+      identity: account.data.id,
+      accountWindows: [{ limit: 5, windowSeconds: 3600 }, { limit: 10, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 10, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const form = await request.formData();
     const file = form.get("file");
     if (!(file instanceof File) || (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf"))) {
       return NextResponse.json({ error: "PDF_REQUIRED", message: "Le CV original doit être un PDF." }, { status: 400 });
     }
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !serviceKey) return NextResponse.json({ error: "STORAGE_UNAVAILABLE", message: "Stockage du CV indisponible." }, { status: 503 });
-    const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
     const bytes = Buffer.from(await file.arrayBuffer());
     if (bytes.length <= 0 || bytes.length > 3 * 1024 * 1024) return NextResponse.json({ error: "PDF_TOO_LARGE", message: "Le CV original dépasse la limite de 3 Mo." }, { status: 413 });
     if (bytes.length < 5 || bytes.subarray(0, 5).toString("ascii") !== "%PDF-") {
@@ -71,6 +85,17 @@ export async function DELETE(request: NextRequest) {
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !serviceKey) return NextResponse.json({ error: "STORAGE_UNAVAILABLE", message: "Stockage du CV indisponible." }, { status: 503 });
     const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+    const account = await admin.from("User").select("id").eq("authUserId", auth.id).maybeSingle();
+    if (account.error) throw new Error(account.error.message);
+    if (!account.data?.id) return NextResponse.json({ error: "USER_NOT_FOUND", message: "Profil Jobly introuvable." }, { status: 404 });
+    const limited = await enforceApiRateLimit(request, admin, {
+      scope: "talent-cv-original-delete",
+      identity: account.data.id,
+      accountWindows: [{ limit: 5, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 10, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const { data: user, error } = await admin.from("User").select("id,cvOriginalStoragePath").eq("authUserId", auth.id).maybeSingle();
     if (error) throw new Error(error.message);
     if (!user?.id) return NextResponse.json({ error: "USER_NOT_FOUND", message: "Profil Jobly introuvable." }, { status: 404 });
@@ -99,6 +124,17 @@ export async function GET(request: NextRequest) {
     const admin = createClient(url, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+    const account = await admin.from("User").select("id").eq("authUserId", auth.id).maybeSingle();
+    if (account.error) throw new Error(account.error.message);
+    if (!account.data?.id) return NextResponse.json({ error: "USER_NOT_FOUND", message: "Profil Jobly introuvable." }, { status: 404 });
+    const limited = await enforceApiRateLimit(request, admin, {
+      scope: "talent-cv-original-read",
+      identity: account.data.id,
+      accountWindows: [{ limit: 20, windowSeconds: 60 }, { limit: 100, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 40, windowSeconds: 60 }, { limit: 200, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
 
     const { data: user, error: userError } = await admin
       .from("User")
@@ -124,7 +160,7 @@ export async function GET(request: NextRequest) {
       fileName: user.cvOriginalFileName || "CV-Jobly.pdf",
       url: data.signedUrl,
       expiresIn: 60,
-    });
+    }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (error) {
     return NextResponse.json({
       error: "CV_ORIGINAL_FAILED",

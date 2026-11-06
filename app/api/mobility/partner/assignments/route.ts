@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, authUser, ensureUser } from "../../../../../lib/mobilityServer";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 export async function GET(req: NextRequest) {
   try {
@@ -7,6 +8,14 @@ export async function GET(req: NextRequest) {
     if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const db = adminClient();
     const user = await ensureUser(db, auth);
+    const limited = await enforceApiRateLimit(req, db, {
+      scope: "mobility-provider-assignments-read",
+      identity: user.id,
+      accountWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 200, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 400, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const { data: provider, error: providerError } = await db.from("MobilityServiceProvider")
       .select("id,status,kycStatus")
       .eq("userId", user.id)
@@ -20,7 +29,7 @@ export async function GET(req: NextRequest) {
       .eq("providerId", provider.id)
       .order("createdAt", { ascending: false });
     if (error) throw new Error(error.message);
-    return NextResponse.json({ assignments: data || [] });
+    return NextResponse.json({ assignments: data || [] }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Demandes prestataire indisponibles." }, { status: 500 });
   }
@@ -30,6 +39,8 @@ export async function PATCH(req: NextRequest) {
   try {
     const auth = await authUser(req);
     if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    if (contentLength > 8 * 1024) return NextResponse.json({ message: "Mise à jour d'affectation trop volumineuse." }, { status: 413 });
     const body = await req.json().catch(() => ({}));
     const assignmentId = String(body.assignmentId || "").trim();
     const nextStatus = String(body.status || "").toUpperCase();
@@ -38,6 +49,14 @@ export async function PATCH(req: NextRequest) {
     }
     const db = adminClient();
     const user = await ensureUser(db, auth);
+    const limited = await enforceApiRateLimit(req, db, {
+      scope: "mobility-provider-assignment-update",
+      identity: user.id,
+      accountWindows: [{ limit: 10, windowSeconds: 60 }, { limit: 60, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 20, windowSeconds: 60 }, { limit: 120, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const { data: provider, error: providerError } = await db.from("MobilityServiceProvider")
       .select("id,status,kycStatus")
       .eq("userId", user.id)
@@ -47,7 +66,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ message: "Prestataire Mobility vérifié et actif requis." }, { status: 403 });
     }
     const { data: current, error: currentError } = await db.from("MobilityProviderAssignment")
-      .select("id,status,mobilityRequestId")
+      .select("id,status,mobilityRequestId,acceptedAt,completedAt")
       .eq("id", assignmentId)
       .eq("providerId", provider.id)
       .maybeSingle();
@@ -91,7 +110,16 @@ export async function PATCH(req: NextRequest) {
       visibleToInstitution: true,
     });
     if (eventError) {
-      return NextResponse.json({ message: "L'état a changé, mais l'événement d'audit n'a pas pu être écrit: " + eventError.message, assignment: data }, { status: 500 });
+      const rollback = await db.from("MobilityProviderAssignment").update({
+        status: current.status,
+        acceptedAt: current.acceptedAt,
+        completedAt: current.completedAt,
+        updatedAt: new Date().toISOString(),
+      }).eq("id", assignmentId).eq("providerId", provider.id);
+      if (rollback.error) {
+        return NextResponse.json({ message: "L'audit a échoué et le retour arrière a aussi échoué: " + rollback.error.message, auditError: eventError.message, rollbackError: true }, { status: 500 });
+      }
+      return NextResponse.json({ message: "Transition annulée car l'événement d'audit n'a pas pu être écrit: " + eventError.message, rolledBack: true }, { status: 500 });
     }
     return NextResponse.json({ assignment: data });
   } catch (error) {

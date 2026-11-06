@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { requirePremium, authUser, adminClient, ensureUser } from "../../../../lib/mobilityServer";
 import { CAMEROON_CITIES, calculateMobilityCosts, type CameroonCityKey } from "../../../../lib/gps";
 import { calculateMobilityEligibility } from "../../../../lib/mobilityEligibility";
+import { enforceApiRateLimit } from "../../../../lib/server-security";
 
 const ACCEPTED_OFFER_STATUSES = new Set(["ACCEPTED", "ACCEPTED_BY_TALENT", "APPROVED", "VALIDATED"]);
 
@@ -12,6 +13,14 @@ export async function GET(req: NextRequest) {
     if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const db = adminClient();
     const user = await ensureUser(db, auth);
+    const limited = await enforceApiRateLimit(req, db, {
+      scope: "mobility-talent-request-read",
+      identity: user.id,
+      accountWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 300, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 600, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const requestId = req.nextUrl.searchParams.get("requestId");
     if (!requestId) return NextResponse.json({ message: "requestId requis." }, { status: 400 });
     const { data: request, error: requestError } = await db.from("MobilityRequest")
@@ -39,8 +48,17 @@ export async function POST(req: NextRequest) {
   try {
     const gate = await requirePremium(req);
     if ("error" in gate) return NextResponse.json({ message: gate.error }, { status: gate.status });
-
-    const body = await req.json();
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    if (contentLength > 24 * 1024) return NextResponse.json({ message: "Données Mobility trop volumineuses." }, { status: 413 });
+    const limited = await enforceApiRateLimit(req, gate.sb, {
+      scope: "mobility-talent-request-create",
+      identity: gate.user.id,
+      accountWindows: [{ limit: 3, windowSeconds: 3600 }, { limit: 6, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 10, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
+    const body = await req.json().catch(() => ({}));
     const applicationId = String(body.applicationId || "").trim();
     const depart = String(body.departKey || "YAOUNDE") as CameroonCityKey;
     const arrivee = String(body.arriveeKey || "DOUALA") as CameroonCityKey;

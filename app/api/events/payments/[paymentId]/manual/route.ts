@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient, ensureUser, getAuthUser } from "../../../../../../lib/server-auth";
 import { EVENT_MANUAL_PAYMENT_METHODS, getEventManualPaymentInstructions } from "../../../../../../lib/eventManualPayments";
+import { enforceApiRateLimit } from "../../../../../../lib/server-security";
 
 const fail = (message: string, status = 400, code = "MANUAL_PAYMENT_ERROR") =>
   NextResponse.json({ message, error: code }, { status });
@@ -39,6 +40,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pay
     const { paymentId } = await context.params;
     const sb = adminClient();
     const user = await ensureUser(sb, auth);
+    const limited = await enforceApiRateLimit(request, sb, {
+      scope: "event-manual-payment-status",
+      identity: user.id,
+      accountWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 200, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 400, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const result = await paymentContext(paymentId, user.id);
     if ("error" in result) return fail("Paiement introuvable ou cible invalide.", 404, result.error);
     return NextResponse.json({
@@ -55,7 +64,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pay
       instructions: getEventManualPaymentInstructions(),
       submission: result.submission,
       canSubmit: result.payment.status === "PENDING" && (!result.submission || result.submission.status === "REJECTED"),
-    });
+    }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Paiement introuvable.", 500);
   }
@@ -66,6 +75,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ pa
     const auth = await getAuthUser(request);
     if (!auth) return fail("Session requise.", 401, "UNAUTHENTICATED");
     const { paymentId } = await context.params;
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > 16 * 1024) return fail("Justificatif trop volumineux.", 413, "REQUEST_TOO_LARGE");
+    const sb = adminClient();
+    const user = await ensureUser(sb, auth);
+    const limited = await enforceApiRateLimit(request, sb, {
+      scope: "event-manual-payment-submit",
+      identity: user.id,
+      accountWindows: [{ limit: 3, windowSeconds: 3600 }, { limit: 6, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 10, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const body = await request.json().catch(() => ({}));
     const paymentMethod = String(body.paymentMethod ?? "").toUpperCase();
     const transactionReference = String(body.transactionReference ?? "").trim();
@@ -81,8 +102,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ pa
       return fail("Ajoutez le chemin du justificatif transmis par Jobly.", 422, "PAYMENT_PROOF_REQUIRED");
     }
 
-    const sb = adminClient();
-    const user = await ensureUser(sb, auth);
     if (!proofPath.startsWith(user.id + "/")) return fail("Le justificatif ne vous appartient pas.", 403, "PAYMENT_PROOF_FORBIDDEN");
     const bucket = "jobly-payment-proofs";
     const { data: proof, error: proofError } = await sb.storage.from(bucket).download(proofPath);
@@ -120,7 +139,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ pa
     return NextResponse.json({
       submission,
       message: "Justificatif transmis. Votre événement reste en attente jusqu'à la validation par Jobly Finance.",
-    }, { status: 201 });
+    }, { status: 201, headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Transmission du justificatif impossible.", 500);
   }

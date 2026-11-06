@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, authUser, ensureUser } from "../../../../../../lib/mobilityServer";
+import { enforceApiRateLimit } from "../../../../../../lib/server-security";
 
 const BUCKET = "mobility-provider-documents";
 
@@ -12,6 +13,14 @@ export async function POST(req: NextRequest) {
     if (String(user.role || "").toUpperCase() !== "ADMIN") {
       return NextResponse.json({ message: "Validation KYC réservée à un administrateur Jobly." }, { status: 403 });
     }
+    const limited = await enforceApiRateLimit(req, db, {
+      scope: "mobility-admin-provider-verify",
+      identity: user.id,
+      accountWindows: [{ limit: 5, windowSeconds: 60 }, { limit: 20, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 10, windowSeconds: 60 }, { limit: 40, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const body = await req.json().catch(() => ({}));
     const providerId = String(body.providerId || "").trim();
     const decision = String(body.decision || "").toUpperCase();
@@ -41,6 +50,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const audit = await db.from("CEOAuditLog").insert({
+      adminUserId: user.id,
+      action: "MOBILITY_PROVIDER_KYC_REVIEW_ATTEMPT",
+      endpoint: "/api/mobility/admin/providers/verify",
+      metadata: { providerId, decision, reason: reason || null, attemptedAt: new Date().toISOString() },
+    });
+    if (audit.error) throw new Error(audit.error.message);
     const status = decision === "VERIFY" ? "ACTIVE" : decision === "REJECT" ? "REJECTED" : "SUSPENDED";
     const kycStatus = decision === "VERIFY" ? "VERIFIED" : decision === "REJECT" ? "REJECTED" : "IN_REVIEW";
     const { data, error } = await db.from("MobilityServiceProvider").update({
@@ -51,7 +67,7 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     }).eq("id", providerId).select("id,status,kycStatus,kycReviewedByUserId,kycReviewedAt").single();
     if (error) throw new Error(error.message);
-    return NextResponse.json({ provider: data, reason: reason || null });
+    return NextResponse.json({ provider: data, reason: reason || null }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Vérification prestataire impossible." }, { status: 500 });
   }

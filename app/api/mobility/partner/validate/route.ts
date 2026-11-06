@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authUser, adminClient, ensureUser } from "../../../../../lib/mobilityServer";
 import { getUserMobilityInstitutionIds, institutionOwnsMobilityRequest } from "../../../../../lib/mobilityAccess";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,6 +9,16 @@ export async function POST(req: NextRequest) {
     if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const sb = adminClient();
     const user = await ensureUser(sb, auth);
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    if (contentLength > 12 * 1024) return NextResponse.json({ message: "Validation de subvention trop volumineuse." }, { status: 413 });
+    const limited = await enforceApiRateLimit(req, sb, {
+      scope: "mobility-subsidy-validation",
+      identity: user.id,
+      accountWindows: [{ limit: 5, windowSeconds: 3600 }, { limit: 15, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 10, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const body = await req.json().catch(() => ({}));
     const requestId = String(body.requestId || "").trim();
     const percentage = Number(body.subventionPercent);
@@ -35,7 +46,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { data: request, error: requestError } = await sb.from("MobilityRequest")
-      .select("id,eligibilityStatus,eligibilityThresholdPercent,recruiterGuaranteed")
+      .select("id,eligibilityStatus,eligibilityThresholdPercent,recruiterGuaranteed,subventionPercent,currentStep,status")
       .eq("id", requestId)
       .maybeSingle();
     if (requestError) throw new Error("MOBILITY_REQUEST_LOOKUP_FAILED: " + requestError.message);
@@ -73,10 +84,23 @@ export async function POST(req: NextRequest) {
       visibleToInstitution: true,
     });
     if (eventError) {
+      const rollback = await sb.from("MobilityRequest").update({
+        subventionPercent: request.subventionPercent ?? 0,
+        currentStep: request.currentStep,
+        status: request.status,
+        updatedAt: new Date().toISOString(),
+      }).eq("id", requestId);
+      if (rollback.error) {
+        return NextResponse.json({
+          message: "Échec du journal d'audit et échec du retour arrière : " + rollback.error.message,
+          auditError: eventError.message,
+          rollbackError: true,
+        }, { status: 500 });
+      }
       return NextResponse.json({
-        message: "La validation a été enregistrée, mais l'événement d'audit n'a pas pu être écrit : " + eventError.message,
-        request: data,
+        message: "La validation a été annulée car son événement d'audit n'a pas pu être écrit : " + eventError.message,
         auditError: true,
+        rolledBack: true,
       }, { status: 500 });
     }
     return NextResponse.json({ request: data });

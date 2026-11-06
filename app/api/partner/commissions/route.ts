@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
+import { enforceApiRateLimit } from "../../../../lib/server-security";
 
 // NOTE : aucune commission n'est générée ici. La brique Billing/paiements
 // (section 1, brique 8 de Statut.md) n'existe pas encore, donc il n'y a
@@ -15,6 +16,14 @@ export async function GET(request: NextRequest) {
     if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    const rateLimited = await enforceApiRateLimit(request, supabase, {
+      scope: "partner-commissions-read",
+      identity: user.id,
+      accountWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 300, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 600, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (rateLimited) return rateLimited;
 
     const { data: partner, error: partnerError } = await supabase
       .from("Partner")

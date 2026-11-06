@@ -5,6 +5,7 @@ import { getActivePlanCode } from "../../../../../lib/entitlements";
 import { getEntitlements } from "../../../../../lib/billingCatalog";
 import { getIdempotentResult, saveIdempotentResult } from "../../../../../lib/idempotency";
 import { getProvider } from "../../../../../lib/paymentProviders";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 const FEATURES = new Set(["CV_ATS_DOWNLOAD","CV_OPTIMIZED_DOWNLOAD"]);
 
@@ -17,6 +18,8 @@ export async function POST(request: NextRequest) {
     const auth = await getAuthUser(request);
     if (!auth) return error("Session requise.", 401, "UNAUTHENTICATED");
 
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > 16 * 1024) return error("Requête de paiement CV trop volumineuse.", 413, "REQUEST_TOO_LARGE");
     const body = await request.json().catch(() => ({}));
     const feature = String(body.feature || "").toUpperCase();
     if (!FEATURES.has(feature)) {
@@ -30,6 +33,14 @@ export async function POST(request: NextRequest) {
 
     const sb = adminClient();
     const user = await ensureUser(sb, auth);
+    const limited = await enforceApiRateLimit(request, sb, {
+      scope: "talent-cv-payment",
+      identity: user.id,
+      accountWindows: [{ limit: 5, windowSeconds: 900 }, { limit: 15, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 15, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const plan = await getActivePlanCode(sb, user.id, "TALENT");
     const entitlements = getEntitlements(plan);
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGmailAccessToken } from "../../../../../lib/gmailServer";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 function b64urlToBuffer(data: string) { return Buffer.from(data.replace(/-/g, "+").replace(/_/g, "/"), "base64"); }
 
@@ -8,6 +9,15 @@ export async function GET(req: NextRequest) {
     const applicationId = new URL(req.url).searchParams.get("applicationId");
     if (!applicationId) return NextResponse.json({ message: "Candidature manquante." }, { status: 400 });
     const { token, context } = await getGmailAccessToken(req);
+    const limited = await enforceApiRateLimit(req, context.supabase, {
+      scope: "recruiter-gmail-attachment",
+      identity: context.user.id,
+      accountWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 200, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 400, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
+    if (applicationId.length > 128) return NextResponse.json({ message: "Candidature invalide." }, { status: 400 });
     const { data: application, error } = await context.supabase.from("Application").select("id,recruiterJobId,sourceMessageId,sourceAttachmentId,sourceFilename").eq("id", applicationId).maybeSingle();
     if (error) throw new Error(error.message);
     if (!application?.sourceMessageId || !application.sourceAttachmentId) return NextResponse.json({ message: "Pièce jointe Gmail indisponible." }, { status: 404 });
