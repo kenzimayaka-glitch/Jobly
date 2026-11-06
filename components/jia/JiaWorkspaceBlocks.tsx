@@ -14,6 +14,11 @@ import {
   UserRound,
 } from "lucide-react";
 import type { JiaWorkspaceBlock, JiaWorkspaceOffer } from "@/lib/jia/workspace";
+import {
+  JIA_DOCUMENT_PRESENTATIONS,
+  JIA_OFFER_PRESENTATIONS,
+  JIA_QUESTION_PRESENTATIONS,
+} from "@/lib/jia/visual-variations";
 
 type ProfileSavePayload = {
   messageId: string;
@@ -28,6 +33,7 @@ type ProfileSavePayload = {
 type Props = {
   block: JiaWorkspaceBlock;
   messageId: string;
+  variationIndex: number;
   onPrepareApplication: (offer: JiaWorkspaceOffer) => Promise<void>;
   onNavigate: (href: string) => void;
   onSaveProfile: (args: ProfileSavePayload) => Promise<void>;
@@ -47,14 +53,23 @@ const surface = "rounded-2xl border border-[#DCE6F2] bg-white p-3.5 shadow-[0_8p
 const primary = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#1264EB] px-3.5 py-2 text-[11px] font-extrabold text-white transition hover:bg-[#0D52C5] disabled:cursor-not-allowed disabled:opacity-50";
 const secondary = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#DCE6F2] bg-white px-3.5 py-2 text-[11px] font-extrabold text-[#31547F] transition hover:border-[#1264EB]/50";
 
-function OffersBlock({ block, onPrepareApplication, onNavigate }: {
+function OffersBlock({ block, onPrepareApplication, onNavigate, variationIndex }: {
   block: Extract<JiaWorkspaceBlock, { kind: "offers" }>;
   onPrepareApplication: Props["onPrepareApplication"];
   onNavigate: Props["onNavigate"];
+  variationIndex: number;
 }) {
   const [busyOffer, setBusyOffer] = useState<string | null>(null);
+  const presentation = JIA_OFFER_PRESENTATIONS[variationIndex % JIA_OFFER_PRESENTATIONS.length];
+  const metadata = (offer: JiaWorkspaceOffer) => ({
+    location: offer.location ? <span className="inline-flex items-center gap-1"><MapPin size={11}/>{offer.location}</span> : null,
+    contract: offer.contractType ? <span className="inline-flex items-center gap-1"><BriefcaseBusiness size={11}/>{offer.contractType}</span> : null,
+    deadline: offer.deadline ? <span className="inline-flex items-center gap-1"><CalendarClock size={11}/>Limite {new Date(offer.deadline).toLocaleDateString("fr-FR")}</span> : null,
+    remote: offer.remoteMode ? <span>{offer.remoteMode === "YES" ? "Télétravail" : offer.remoteMode === "PARTIAL" ? "Hybride" : "Sur site"}</span> : null,
+  });
+  const metaClass = presentation.density === "airy" ? "gap-x-4 gap-y-2" : presentation.density === "compact" ? "gap-x-2 gap-y-0.5" : "gap-x-3 gap-y-1";
   return (
-    <section className="mt-3 space-y-2.5" aria-label="Offres Jobly">
+    <section className="mt-3 space-y-2.5" aria-label="Offres Jobly" data-jia-offer-presentation={presentation.id}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-[9px] font-black uppercase tracking-[.14em] text-[#6B7C92]">Offres Jobly en direct</span>
         <span className="rounded-full bg-[#FFF4BE] px-2.5 py-1 text-[10px] font-black text-[#775900]">
@@ -69,9 +84,12 @@ function OffersBlock({ block, onPrepareApplication, onNavigate }: {
           <button type="button" onClick={() => onNavigate("/jobs")} className={secondary + " mt-3"}>Ouvrir toutes les offres <ArrowUpRight size={13}/></button>
         </div>
       )}
+      <div className={block.offers.length > 1 && presentation.columns === 2 ? "grid grid-cols-1 gap-2.5 sm:grid-cols-2" : "grid grid-cols-1 gap-2.5"}>
       {block.offers.map((offer) => (
-        <article key={offer.source + ":" + offer.id} className={surface}>
-          <div className="flex items-start justify-between gap-3">
+        <article key={offer.source + ":" + offer.id}
+          data-jia-offer-structure={presentation.structure}
+          className={surface + " " + (presentation.density === "airy" ? "p-4" : presentation.density === "compact" ? "p-2.5" : "p-3.5")}>
+          <div className={presentation.structure === "split" || presentation.structure === "comparison" ? "grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]" : "flex items-start justify-between gap-3"}>
             <div className="min-w-0">
               <h3 className="text-[13px] font-extrabold leading-5 text-[#10233F]">{offer.title}</h3>
               <p className="mt-0.5 text-[11px] font-semibold text-[#526A87]">{offer.companyName || "Entreprise non précisée"}</p>
@@ -82,13 +100,14 @@ function OffersBlock({ block, onPrepareApplication, onNavigate }: {
               </span>
             )}
           </div>
-          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-medium text-[#6B7C92]">
-            {offer.location && <span className="inline-flex items-center gap-1"><MapPin size={11}/>{offer.location}</span>}
-            {offer.contractType && <span className="inline-flex items-center gap-1"><BriefcaseBusiness size={11}/>{offer.contractType}</span>}
-            {offer.remoteMode && <span>{offer.remoteMode === "YES" ? "Télétravail" : offer.remoteMode === "PARTIAL" ? "Hybride" : "Sur site"}</span>}
-            {offer.deadline && <span className="inline-flex items-center gap-1"><CalendarClock size={11}/>Limite {new Date(offer.deadline).toLocaleDateString("fr-FR")}</span>}
+          <div className={`mt-2 flex flex-wrap text-[10px] font-medium text-[#6B7C92] ${metaClass}`}>
+            {presentation.metadataOrder.map((key) => {
+              const item = metadata(offer)[key];
+              return item ? <span key={key}>{item}</span> : null;
+            })}
+            {!presentation.metadataOrder.includes("remote") && metadata(offer).remote}
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className={`mt-3 flex flex-wrap gap-2 ${presentation.actionPlacement === "stacked" ? "flex-col items-stretch" : presentation.actionPlacement === "rail" ? "sm:flex-col" : presentation.actionPlacement === "split" ? "justify-between" : ""}`}>
             {offer.applicationReady ? (
               <button type="button" disabled={busyOffer !== null} className={primary}
                 onClick={async () => { setBusyOffer(offer.id); try { await onPrepareApplication(offer); } finally { setBusyOffer(null); } }}>
@@ -104,6 +123,7 @@ function OffersBlock({ block, onPrepareApplication, onNavigate }: {
           </div>
         </article>
       ))}
+      </div>
     </section>
   );
 }
@@ -149,13 +169,15 @@ function cvDateRange(startDate: string | null, endDate: string | null) {
   return [start, end].filter(Boolean).join(" — ");
 }
 
-function ProfileBlock({ block, messageId, onNavigate, onSaveProfile, onUploadCv }: {
+function ProfileBlock({ block, messageId, onNavigate, onSaveProfile, onUploadCv, variationIndex }: {
   block: Extract<JiaWorkspaceBlock, { kind: "profile" }>;
   messageId: string;
   onNavigate: Props["onNavigate"];
   onSaveProfile: Props["onSaveProfile"];
   onUploadCv: Props["onUploadCv"];
+  variationIndex: number;
 }) {
+  const presentation = JIA_DOCUMENT_PRESENTATIONS[variationIndex % JIA_DOCUMENT_PRESENTATIONS.length];
   const completion = [
     Boolean(block.displayName), Boolean(block.headline), Boolean(block.summary),
     block.skills.length > 0, block.experienceCount > 0, block.educationCount > 0,
@@ -218,11 +240,14 @@ function ProfileBlock({ block, messageId, onNavigate, onSaveProfile, onUploadCv 
 
   return (
     <section className="mt-3 space-y-3" aria-label="Mon profil et mon CV">
-      <div className={surface}>
+      <div className={surface + " " + (presentation.density === "airy" ? "p-4" : presentation.density === "compact" ? "p-2.5" : "p-3.5")}
+        data-jia-document-presentation={presentation.id}
+        data-jia-document-structure={presentation.structure}
+        style={{ borderRadius: presentation.structure === "minimal" ? 12 : presentation.structure === "showcase" ? 28 : 20 }}>
         <div className="flex items-center gap-2">
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#FFF4BE] text-[#775900]"><UserRound size={17}/></div>
           <div className="min-w-0">
-            <p className="text-[12px] font-extrabold text-[#10233F]">{block.displayName || "Mon profil Talent"}</p>
+            <p className="text-[#10233F] font-extrabold" style={{ fontSize: `${12 * presentation.headingScale}px` }}>{block.displayName || "Mon profil Talent"}</p>
             <p className="truncate text-[10px] text-[#718198]">{block.headline || "Titre professionnel à renseigner"}</p>
           </div>
           <span className="ml-auto shrink-0 text-[10px] font-black text-[#1264EB]">{Math.round(completion / 6 * 100)} %</span>
@@ -233,7 +258,7 @@ function ProfileBlock({ block, messageId, onNavigate, onSaveProfile, onUploadCv 
             {[block.location, block.phone, block.email].filter(Boolean).join(" · ")}
           </p>
         )}
-        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+        <div className={`mt-3 grid gap-2 text-center ${presentation.columns === 2 ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-3"}`}>
           <div className="rounded-xl bg-[#F3F7FC] p-2"><p className="text-[16px] font-black text-[#1264EB]">{block.skills.length}</p><p className="text-[9px] font-bold text-[#718198]">Compétences</p></div>
           <div className="rounded-xl bg-[#F3F7FC] p-2"><p className="text-[16px] font-black text-[#1264EB]">{block.experienceCount}</p><p className="text-[9px] font-bold text-[#718198]">Expériences</p></div>
           <div className="rounded-xl bg-[#F3F7FC] p-2"><p className="text-[16px] font-black text-[#1264EB]">{block.educationCount}</p><p className="text-[9px] font-bold text-[#718198]">Formations</p></div>
@@ -325,12 +350,14 @@ function ProfileBlock({ block, messageId, onNavigate, onSaveProfile, onUploadCv 
   );
 }
 
-function QuestionnaireBlock({ block, messageId, onSubmitAssessment, onUpdateWorkspace }: {
+function QuestionnaireBlock({ block, messageId, onSubmitAssessment, onUpdateWorkspace, variationIndex }: {
   block: Extract<JiaWorkspaceBlock, { kind: "questionnaire" }>;
   messageId: string;
   onSubmitAssessment: Props["onSubmitAssessment"];
   onUpdateWorkspace: Props["onUpdateWorkspace"];
+  variationIndex: number;
 }) {
+  const presentation = JIA_QUESTION_PRESENTATIONS[variationIndex % JIA_QUESTION_PRESENTATIONS.length];
   const [answers, setAnswers] = useState<Record<string, number>>(block.answers || {});
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState("");
@@ -390,7 +417,9 @@ function QuestionnaireBlock({ block, messageId, onSubmitAssessment, onUpdateWork
   }
 
   return (
-    <section className="mt-3 space-y-3" aria-label="Questionnaire J’IA">
+    <section className={`mt-3 space-y-3 ${presentation.density === "airy" ? "space-y-4" : presentation.density === "compact" ? "text-[.96em]" : ""}`} aria-label="Questionnaire J’IA"
+      data-jia-question-presentation={presentation.id}
+      data-jia-question-arrangement={presentation.arrangement}>
       <div className="rounded-2xl border border-[#F1D88B] bg-gradient-to-br from-[#FFFBEB] to-white p-3.5">
         <div className="flex min-w-0 items-center gap-2">
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#FFD21A] text-[#594300]"><ClipboardCheck size={17}/></div>
@@ -402,8 +431,11 @@ function QuestionnaireBlock({ block, messageId, onSubmitAssessment, onUpdateWork
         const question = block.questions[index];
         return (
         <fieldset key={block.assessmentId + ":" + index} className="rounded-xl border border-[#E3EAF3] bg-white p-3" disabled={Boolean(block.result) || submitting}>
-          <legend className="px-1 text-[11px] font-extrabold leading-5 text-[#173A6B]">{index + 1}. {question.prompt}</legend>
-          <div className="mt-2 space-y-1.5">
+          <legend className="px-1 text-[11px] font-extrabold leading-5 text-[#173A6B]">
+            {presentation.showQuestionNumber ? (index + 1) + ". " : ""}{question.prompt}
+          </legend>
+          {presentation.showProgress && <p className="mt-1 text-[9px] font-bold text-[#8795A8]">Question {asked.indexOf(index) + 1} sur {block.adaptive ? (block.maxQuestions || 5) : block.questions.length}</p>}
+          <div className={`mt-2 grid gap-1.5 ${presentation.columns === 1 ? "grid-cols-1" : presentation.columns === 2 ? "grid-cols-1 sm:grid-cols-2" : presentation.columns === 3 ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}>
             {question.choices.map((choice, choiceIndex) => {
               const selected = answers[String(index)] === choiceIndex;
               const correct = block.result && choiceIndex === question.correctIndex;
@@ -413,7 +445,7 @@ function QuestionnaireBlock({ block, messageId, onSubmitAssessment, onUpdateWork
                   ? "border-[#1264EB] bg-[#EEF5FF] text-[#173A6B]"
                   : "border-[#EDF1F6] text-[#52637A] hover:border-[#B9CBE2]";
               return (
-                <label key={choice} className={"flex min-h-11 min-w-0 cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-3 text-[10px] leading-4 transition " + optionClass}>
+                <label key={choice} className={`flex min-h-11 min-w-0 cursor-pointer items-start gap-2.5 border px-3 py-3 text-[10px] leading-4 transition ${presentation.optionShape === "pill" ? "rounded-full" : presentation.optionShape === "tile" ? "rounded-xl text-center" : presentation.optionShape === "numbered" ? "rounded-md" : presentation.optionShape === "row" ? "rounded-md" : "rounded-lg"} ${optionClass}`}>
                   <input type="radio" name={block.assessmentId + ":" + index} className="mt-0.5 accent-[#1264EB]" checked={selected} onChange={() => {
                     const nextAnswers = { ...answers, [String(index)]: choiceIndex };
                     setAnswers(nextAnswers);
@@ -566,11 +598,11 @@ function BusinessSummaryBlock({ block, onNavigate }: { block: Extract<JiaWorkspa
   );
 }
 
-export default function JiaWorkspaceBlocks({ block, messageId, onPrepareApplication, onNavigate, onSaveProfile, onUploadCv, onUpdateWorkspace, onSubmitAssessment, onSubmitApplication }: Props) {
-  if (block.kind === "offers") return <OffersBlock block={block} onPrepareApplication={onPrepareApplication} onNavigate={onNavigate}/>;
+export default function JiaWorkspaceBlocks({ block, messageId, onPrepareApplication, onNavigate, onSaveProfile, onUploadCv, onUpdateWorkspace, onSubmitAssessment, onSubmitApplication, variationIndex }: Props) {
+  if (block.kind === "offers") return <OffersBlock block={block} onPrepareApplication={onPrepareApplication} onNavigate={onNavigate} variationIndex={variationIndex}/>;
   if (block.kind === "applications") return <ApplicationsBlock block={block}/>;
-  if (block.kind === "profile") return <ProfileBlock block={block} messageId={messageId} onNavigate={onNavigate} onSaveProfile={onSaveProfile} onUploadCv={onUploadCv}/>;
-  if (block.kind === "questionnaire") return <QuestionnaireBlock block={block} messageId={messageId} onSubmitAssessment={onSubmitAssessment} onUpdateWorkspace={onUpdateWorkspace}/>;
+  if (block.kind === "profile") return <ProfileBlock block={block} messageId={messageId} onNavigate={onNavigate} onSaveProfile={onSaveProfile} onUploadCv={onUploadCv} variationIndex={variationIndex}/>;
+  if (block.kind === "questionnaire") return <QuestionnaireBlock block={block} messageId={messageId} onSubmitAssessment={onSubmitAssessment} onUpdateWorkspace={onUpdateWorkspace} variationIndex={variationIndex}/>;
   if (block.kind === "prepared-application") return <PreparedApplicationBlock block={block} messageId={messageId} onSubmitApplication={onSubmitApplication} onUpdateWorkspace={onUpdateWorkspace}/>;
   if (block.kind === "business-summary") return <BusinessSummaryBlock block={block} onNavigate={onNavigate}/>;
   return (
