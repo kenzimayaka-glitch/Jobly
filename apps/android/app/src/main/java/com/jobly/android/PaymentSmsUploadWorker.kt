@@ -34,7 +34,9 @@ class PaymentSmsUploadWorker(
 
         var connection: HttpURLConnection? = null
         return try {
-            val endpoint = URL(BuildConfig.JOBLY_BASE_URL.trimEnd('/') + "/api/payments/sms/ingest")
+            val configuredBase = URL(BuildConfig.JOBLY_BASE_URL)
+            if (configuredBase.protocol != "https" || configuredBase.userInfo != null) return Result.failure()
+            val endpoint = URL(configuredBase.toString().trimEnd('/') + "/api/payments/sms/ingest")
             connection = (endpoint.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = CONNECT_TIMEOUT_MS
