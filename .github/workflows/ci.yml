@@ -16,6 +16,54 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  jia-conversation-migration:
+    name: J’IA conversation migration — isolated PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: jobly
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d jobly"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Create the existing Jobly User and Supabase roles
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE anon NOLOGIN;
+          CREATE ROLE authenticated NOLOGIN;
+          CREATE ROLE service_role NOLOGIN BYPASSRLS;
+          CREATE TABLE public."User" ("id" text PRIMARY KEY);
+          SQL
+
+      - name: Apply J’IA canonical conversation migration
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/database/prisma/migrations/20261106080000_jia_canonical_conversations/migration.sql
+
+      - name: Verify privileges, RLS, constraints and idempotency
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/jia-conversation-migration-smoke.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/database/prisma/migrations/20261106080000_jia_canonical_conversations/migration.sql
+
   validate:
     name: Typecheck and production build
     runs-on: ubuntu-latest
