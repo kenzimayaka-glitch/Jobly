@@ -121,6 +121,9 @@ BEGIN
      OR v_payment."reportedTransactionId" IS DISTINCT FROM v_receipt."transactionId" THEN
     RAISE EXCEPTION 'SMS_TRANSACTION_REFERENCE_MISMATCH';
   END IF;
+  IF v_receipt."receivedAt" < v_payment."createdAt" - interval '2 minutes' THEN
+    RAISE EXCEPTION 'SMS_RECEIPT_PREDATES_PAYMENT_ORDER';
+  END IF;
   IF v_receipt.amount IS DISTINCT FROM v_payment.amount
      OR upper(coalesce(v_receipt.currency, '')) <> upper(v_payment.currency) THEN
     RAISE EXCEPTION 'SMS_AMOUNT_OR_CURRENCY_MISMATCH';
