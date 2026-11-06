@@ -8,14 +8,12 @@ The browser/PWA can display/copy the code and open a `tel:` URI when supported. 
 ## Required server environment
 Configure these values as protected Vercel environment variables for each environment:
 
-- `JOBLY_MTN_MERCHANT_ACCOUNT`
-- `JOBLY_MTN_PAYMENT_CODE`
-- `JOBLY_MTN_USSD_CODE`
-- `JOBLY_ORANGE_MERCHANT_ACCOUNT`
-- `JOBLY_ORANGE_PAYMENT_CODE`
-- `JOBLY_ORANGE_USSD_CODE`
+- `JOBLY_MTN_MERCHANT_ACCOUNT` — receiving SIM/account number (normalized to `237...`)
+- `JOBLY_MTN_MERCHANT_CODE` — actual MTN merchant code used in the USSD string
+- `JOBLY_ORANGE_MERCHANT_ACCOUNT` — receiving SIM/account number (normalized to `237...`)
+- `JOBLY_ORANGE_MERCHANT_CODE` — actual Orange merchant code used in the USSD string
 
-No operator shortcode or merchant number is hard-coded. A checkout provider is unavailable until its three values are configured and validated.
+Only the shortcode format is fixed; actual merchant codes and receiving account numbers are environment secrets/configuration and are never guessed. MTN is generated per order as `*126*16*<merchant-code>*<amount>#`; Orange is generated per order as `#150*47*<merchant-code>*<amount>#`. A checkout provider is unavailable until its merchant account and merchant code are configured and validated.
 
 ## Device provisioning
 An authenticated ADMIN or FINANCE user calls `POST /api/payments/sms/devices` with JSON:
@@ -34,7 +32,7 @@ The response contains `deviceToken` exactly once. Store it in Android Keystore i
 The paired handset posts received SMS to `POST /api/payments/sms/ingest` with `x-jobly-sms-device: <device id>`, `Authorization: Bearer <device token>`, and JSON `{ "senderId": "...", "smsBody": "..." }`. The API persists parsed fields and cryptographic hashes, not the SMS body.
 
 ## Deterministic confirmation rules
-Activation requires a trusted paired device, exact sender allow-list match, successful operator wording, XAF amount, unique operator transaction ID, exact customer-submitted transaction ID, matching provider and merchant account, exact amount/currency, and payer match when the SMS contains a payer phone. A transaction reference cannot belong to two Jobly orders. The SQL function `finalize_payment_from_sms` locks the receipt and finalizes the existing subscription lifecycle atomically.
+Activation requires a trusted paired device, exact sender allow-list match, a successful **incoming merchant credit** (never an outgoing payment), XAF amount, unique operator transaction ID, exact customer-submitted transaction ID, matching provider and merchant account, exact amount/currency, and payer match when the SMS contains a payer phone. Orange detailed receipts can contain both the beneficiary merchant number and the payer number; MTN receipts may identify the payer in parentheses or omit it. Local Cameroon mobile numbers are normalized to the `237` prefix. Orange `MP...` success IDs and `PP...` failed IDs are preserved, as are MTN numeric financial transaction IDs. Repeated wording for one transaction is deduplicated by provider + transaction ID. A transaction reference cannot belong to two Jobly orders. The SQL function `finalize_payment_from_sms` locks the receipt and finalizes the existing subscription lifecycle atomically.
 
 No artificial two-minute delay is used. If a receipt has not arrived yet, Jobly records the customer's reference and returns the page to normal use; a later incoming receipt can settle the order automatically. AI may flag suspicious patterns but never authorizes an entitlement.
 
@@ -42,7 +40,8 @@ No artificial two-minute delay is used. If a receipt has not arrived yet, Jobly 
 `supabase/operations/payment_sms_foundation.sql` is a draft, not an applied production migration. It must be reviewed, converted into the repo's canonical Supabase migration format, tested on a non-production project, and only then applied through the authorized deployment process. It requires the already-applied billing lifecycle migration and `finalize_payment` RPC.
 
 ## Production enablement blockers
-- Genuine redacted MTN and Orange receipt samples must be used to validate sender IDs and provider-specific message formats. Current parser fixtures are synthetic tests only.
-- The merchant shortcodes, USSD codes and merchant account numbers must be supplied and configured.
+- Exact SMS sender labels as displayed by the real handset inbox are still required for each operator. The pasted message bodies do not include the sender field, so no sender allow-list is fabricated.
+- The actual MTN and Orange merchant codes and the receiving merchant account/SIM numbers must still be supplied and configured. The shortcode syntax is now implemented, but no sample recipient account (for example a third-party business name in a receipt) is assumed to belong to Jobly.
+- Parser tests now cover the supplied MTN/Orange message shapes using redacted sender IDs and business/payer names; the final allow-list still needs confirmation on the paired handset.
 - Android SMS receiver, Keystore provisioning, restricted `RECEIVE_SMS` permission and real-handset tests must be completed in the existing `apps/android` project. That project is currently in the unmerged PR #220/#221 dependency stack, so this branch intentionally does not introduce a second Android application.
 - Apply and validate the SQL draft before enabling SMS orders in a production environment.
