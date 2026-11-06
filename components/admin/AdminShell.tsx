@@ -6,9 +6,14 @@ import { getSupabaseClient } from "@/lib/supabase";
 import { ADMIN_WORKSPACE_TEMPLATES, type AdminWorkspaceCode } from "@/lib/adminWorkspaceCatalog";
 
 type WorkspaceRow = { id: string; code: AdminWorkspaceCode; label: string; enabled: boolean };
+type ManagedAccountRow = { id: string; accountType: string; organizationName?: string | null; status: string; user?: { email?: string | null; displayName?: string | null } | null };
 const NAV = [
   { href: "/admin", label: "Vue générale", group: "Pilotage" },
   { href: "/admin/workspaces", label: "Espaces métier", group: "Pilotage" },
+  { href: "/admin/support", label: "Tickets Support", group: "Opérations" },
+  { href: "/admin/finance", label: "Cockpit Finance", group: "Finance" },
+  { href: "/admin/community", label: "Modération Community", group: "Opérations" },
+  { href: "/admin/analytics", label: "Reporting transversal", group: "Intelligence" },
   { href: "/admin/accounts", label: "Comptes & institutions", group: "Écosystème" },
   { href: "/admin/jia", label: "J’IA · CEO", group: "Intelligence" },
   { href: "/admin/jia/chat", label: "J’IA · Copilot", group: "Intelligence" },
@@ -27,6 +32,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const [authorized, setAuthorized] = useState(false);
   const [token, setToken] = useState("");
   const [spaces, setSpaces] = useState<WorkspaceRow[]>([]);
+  const [managedAccounts, setManagedAccounts] = useState<ManagedAccountRow[]>([]);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -48,6 +54,11 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         const spacesResponse = await fetch("/api/admin/workspaces", { headers: { Authorization: "Bearer " + accessToken }, cache: "no-store" });
         const spacesBody = await spacesResponse.json().catch(() => ({}));
         if (spacesResponse.ok) setSpaces((spacesBody.workspaces || []).filter((space: WorkspaceRow) => space.enabled));
+      } catch {}
+      try {
+        const accountsResponse = await fetch("/api/admin/accounts", { headers: { Authorization: "Bearer " + accessToken }, cache: "no-store" });
+        const accountsBody = await accountsResponse.json().catch(() => ({}));
+        if (accountsResponse.ok) setManagedAccounts(accountsBody.accounts || []);
       } catch {}
       setChecking(false);
     })().catch(() => { if (alive) router.replace("/ecosystem"); });
@@ -132,9 +143,16 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#6A7890] xl:hidden">JOBLY · ADMIN 360°</div>
               <div className="text-sm font-black text-[#10264A]">Centre de pilotage</div>
             </div>
-            <button onClick={switchToUser} className="rounded-full border border-[#DCE4F0] px-4 py-2 text-[11px] font-black text-[#17315D] hover:bg-[#FFF5C2] xl:hidden">
+            <button onClick={switchToUser} className="shrink-0 rounded-full border border-[#DCE4F0] px-4 py-2 text-[11px] font-black text-[#17315D] hover:bg-[#FFF5C2] xl:hidden">
               Mode utilisateur
             </button>
+            <label className="min-w-0 flex-1 xl:max-w-[330px]">
+              <span className="sr-only">Sélectionner un compte à administrer</span>
+              <select defaultValue="" onChange={(event) => { const id = event.target.value; if (id) router.push("/admin/accounts/" + encodeURIComponent(id)); }} className="min-h-10 w-full rounded-full border border-[#DCE4F0] bg-white px-3 text-[10px] font-bold text-[#43536C]">
+                <option value="">Compte maître · changer de contexte…</option>
+                {managedAccounts.map((account) => <option key={account.id} value={account.id}>{account.accountType} · {account.organizationName || account.user?.displayName || account.user?.email || "Compte Jobly"}</option>)}
+              </select>
+            </label>
             <div className="hidden rounded-full border border-[#DCE4F0] px-3 py-2 text-[10px] font-bold text-[#52627B] xl:block">Compte ADMIN maître</div>
           </div>
           <nav className="mt-3 flex gap-2 overflow-x-auto pb-1 xl:hidden">
