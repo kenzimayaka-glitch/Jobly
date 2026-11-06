@@ -137,7 +137,7 @@ test("auth, username and WhatsApp OTP routes use shared anti-abuse controls", ()
   const whatsappVerify = read("../app/api/auth/whatsapp/verify/route.ts");
   assert.match(usernameCheck, /scope: "auth-username-check"/);
   assert.match(usernameLogin, /scope: "auth-username-login"/);
-  assert.match(usernameLogin, /identity: "username:" \\+ username\\.toLowerCase\\(\\)/);
+  assert.ok(usernameLogin.includes('identity: "username:" + username.toLowerCase()'));
   assert.match(usernameLogin, /accountWindows:/);
   assert.match(signup, /scope: "auth-complete-signup"/);
   assert.match(whatsappRequest, /scope: "auth-whatsapp-otp-request"/);
