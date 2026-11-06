@@ -275,6 +275,24 @@ export default function JiaConversationSurface(props: Props) {
   const sceneVariation = JIA_SCENE_VARIATIONS[variationIndex];
   const sceneTransition = JIA_SCENE_TRANSITIONS[variationIndex];
   const avatarFraming = JIA_AVATAR_FRAMING_VARIATIONS[variationIndex];
+  const layoutGridTemplate = (() => {
+    const wide = device === "desktop" || device === "tablet";
+    if (!wide || layoutVariation.columns === 1) return "minmax(0,1fr)";
+    if (layoutVariation.structure === "magazine") return "minmax(0,1.25fr) minmax(0,.75fr)";
+    if (layoutVariation.structure === "rail") return "minmax(0,.72fr) minmax(0,1.28fr)";
+    if (layoutVariation.structure === "dossier") return "minmax(0,1.1fr) minmax(0,.9fr)";
+    return "repeat(2,minmax(0,1fr))";
+  })();
+  const transitionOffsetX = sceneTransition.axis === "x" ? sceneTransition.distance : 0;
+  const transitionOffsetY = sceneTransition.axis === "y" ? sceneTransition.distance : 0;
+  const transitionScale = sceneTransition.axis === "scale" ? 1 + sceneTransition.distance / 120 : 1;
+  const transitionRotate = sceneTransition.axis === "rotate" ? sceneTransition.distance : 0;
+  const transitionBlur = sceneTransition.axis === "blur" ? sceneTransition.distance / 8 : 0;
+  const transitionClip = sceneTransition.axis === "clip" ? `inset(${sceneTransition.distance}% 0 0 0 round 38%)` : "none";
+  const transitionCurve = sceneTransition.curve === "backOut" ? "cubic-bezier(.34,1.56,.64,1)" :
+    sceneTransition.curve === "circOut" ? "cubic-bezier(0,.55,.45,1)" :
+    sceneTransition.curve === "anticipate" ? "cubic-bezier(.36,0,.66,-.56)" :
+    sceneTransition.curve === "easeInOut" ? "cubic-bezier(.42,0,.58,1)" : "cubic-bezier(0,.7,.2,1)";
   const sceneBackground = (() => {
     switch (sceneVariation.motif) {
       case "orbit": return "radial-gradient(circle at 18% 24%, rgba(255,210,26,.32) 0 2px, transparent 3px), radial-gradient(circle at 82% 68%, rgba(18,100,235,.18) 0 1px, transparent 2px), repeating-radial-gradient(circle at 72% 30%, transparent 0 26px, rgba(18,100,235,.08) 27px 28px)";
@@ -399,10 +417,11 @@ export default function JiaConversationSurface(props: Props) {
               <div className="relative mx-4 mb-3 flex items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[.07] px-3 py-2.5 sm:mx-6">
                 <div className="pointer-events-none absolute -right-3 -top-8 h-24 w-24 rounded-full bg-[#FFD21A]/20 blur-2xl" />
                 <div className="relative shrink-0" style={{
-                  width: `${Math.round(avatarFraming.width * avatarFraming.scale / 100 * 96)}px`,
-                  height: `${Math.round(avatarFraming.height * avatarFraming.scale / 100 * 156)}px`,
+                  width: `${Math.round(avatarFraming.width * avatarFraming.scale)}px`,
+                  height: `${Math.round((92 + avatarFraming.crop === "close-up" ? 48 : 0) * avatarFraming.scale)}px`,
                   transform: `translate(${avatarFraming.offsetX}px, ${avatarFraming.offsetY}px)`,
-                }} data-jia-avatar-framing={avatarFraming.id}>
+                  clipPath: avatarFraming.crop === "close-up" ? "inset(0 0 12% 0 round 18px)" : avatarFraming.crop === "portrait" ? "inset(0 5% 0 5% round 22px)" : avatarFraming.crop === "three-quarter" ? "inset(0 0 8% 0 round 16px)" : "none",
+                }} data-jia-avatar-framing={avatarFraming.id} data-jia-avatar-anchor={avatarFraming.anchor}>
                   <JIA3D speaking={speaking} />
                 </div>
                 <div className="relative min-w-0">
@@ -447,11 +466,12 @@ export default function JiaConversationSurface(props: Props) {
               <div className="absolute -inset-[18%] rounded-[42%]" style={{
                 backgroundImage: sceneBackground,
                 backgroundSize: `${88 + sceneVariation.composition * 9}px ${76 + sceneVariation.composition * 7}px`,
-                transform: `translate(${sceneVariation.offsetX}px, ${sceneVariation.offsetY}px) rotate(${sceneVariation.rotation}deg) scale(${sceneVariation.scale})`,
+                transform: `translate(${sceneVariation.offsetX + transitionOffsetX}px, ${sceneVariation.offsetY + transitionOffsetY}px) rotate(${sceneVariation.rotation + transitionRotate}deg) scale(${sceneVariation.scale * transitionScale})`,
                 opacity: 0.45 + (sceneVariation.layers * 0.055),
-                filter: `blur(${sceneVariation.blur / 5}px)`,
-                transition: reducedMotion ? "none" : `transform ${sceneTransition.duration}s ease-out`,
-              }} />
+                filter: `blur(${sceneVariation.blur / 5 + transitionBlur}px)`,
+                clipPath: transitionClip,
+                transition: reducedMotion ? "none" : `transform ${sceneTransition.duration}s ${transitionCurve}, filter ${sceneTransition.duration}s ${transitionCurve}, clip-path ${sceneTransition.duration}s ${transitionCurve}`,
+              }} data-jia-scene-transition={sceneTransition.id} />
               {Array.from({ length: sceneVariation.layers }).map((_, layer) => (
                 <span key={layer} className="absolute rounded-full border border-[#1264EB]/[.07]" style={{
                   width: `${64 + layer * 39 + sceneVariation.composition * 5}px`,
@@ -520,13 +540,14 @@ export default function JiaConversationSurface(props: Props) {
                 </div>
               ) : (
                 <div
-                  className="mx-auto grid w-full min-w-0"
+                  className={`mx-auto grid w-full min-w-0 ${layoutVariation.structure === "timeline" ? "border-l border-[#DCE6F2] pl-3" : layoutVariation.structure === "focus" ? "place-items-center" : layoutVariation.structure === "compact" ? "tracking-tight" : layoutVariation.structure === "stage" ? "py-2" : layoutVariation.structure === "dossier" ? "rounded-2xl border border-[#E5ECF5] bg-white/45 p-2" : layoutVariation.structure === "cards" ? "auto-rows-min" : ""}`}
                   style={{
                     maxWidth: layoutVariation.maxWidth,
-                    gridTemplateColumns: layoutVariation.columns === 2 ? "repeat(2,minmax(0,1fr))" : "minmax(0,1fr)",
+                    gridTemplateColumns: layoutGridTemplate,
                     gap: layoutVariation.messageGap,
                   }}
                   data-jia-layout-variation={layoutVariation.id}
+                  data-jia-layout-structure={layoutVariation.structure}
                 >
                   {messages.map((message, index) => {
                     const mine = message.role === "user";
@@ -541,7 +562,7 @@ export default function JiaConversationSurface(props: Props) {
                         initial={reducedMotion ? false : initial}
                         animate={{ opacity: 1, x: 0, y: 0, scale: 1, rotate: 0 }}
                         transition={{ duration: reducedMotion ? 0 : entrance.duration, delay: reducedMotion ? 0 : Math.min(entrance.stagger * index, 0.18) }}
-                        className={`flex min-w-0 w-full items-end gap-2.5 ${visualTransition} ${mine ? "justify-end" : "justify-start"}`}
+                        className={`flex min-w-0 w-full items-end gap-2.5 ${visualTransition} ${mine ? "justify-end" : "justify-start"} ${layoutVariation.structure === "rail" && !mine ? "sm:col-start-2" : ""} ${layoutVariation.structure === "magazine" && mine ? "sm:col-start-2" : ""} ${layoutVariation.structure === "focus" ? "justify-self-center" : ""} ${layoutVariation.structure === "timeline" ? "relative" : ""}`}
                         style={{ marginInlineStart: mine ? 0 : `${Math.round(layoutVariation.assistantOffset * 100)}%` }}
                         data-jia-message-entrance={entrance.id}
                       >
