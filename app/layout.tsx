@@ -3,6 +3,8 @@ import type { Metadata, Viewport } from "next";
 import PwaInit from "../components/PwaInit";
 import JiaObserver from "../components/JiaObserver";
 import JiaPresence from "../components/JiaPresence";
+import JiaTorchEffect from "../components/JiaTorchEffect";
+import { ThemeProvider } from "../components/ThemeProvider";
 
 import ScreenProtection from "../components/ScreenProtection";
 import { LanguageProvider } from "../lib/i18n";
@@ -18,6 +20,8 @@ export const metadata: Metadata = {
   title: "JOBLY — Your Career OS",
   description: "Your Career OS, powered by J'IA.",
 };
+
+const THEME_BOOTSTRAP = `try { const saved = localStorage.getItem("jobly:theme-mode"); const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches; const theme = saved === "dark" || saved === "light" ? saved : (systemDark ? "dark" : "light"); const root = document.documentElement; root.dataset.theme = theme; root.classList.toggle("dark", theme === "dark"); root.style.colorScheme = theme; } catch { document.documentElement.dataset.theme = "light"; }`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
