@@ -15,6 +15,8 @@ import { getIdempotentResult, saveIdempotentResult } from "../../../lib/idempote
 import { assertPaymentProviderReady, getProvider } from "../../../lib/paymentProviders";
 import { resolveActiveEntitlements } from "../../../lib/entitlements";
 import { isDefinitiveProviderFailure } from "../../../lib/billingLifecycleCore";
+import { buildPaymentSmsUssd, getPaymentSmsCheckoutConfig, normalizeMobileMoneyPhone, type PaymentSmsCheckoutConfig } from "../../../lib/paymentSms/config";
+import type { PaymentSmsProvider } from "../../../lib/paymentSms/parser";
 
 const PAID_PLANS = new Set<PlanCode>(["START", "PREMIUM", "PRO"]);
 type ProductType = "TALENT" | "RECRUITER";
@@ -80,7 +82,7 @@ export async function GET(request: NextRequest) {
     const paymentResult = latestSubscription?.status === "PENDING"
       ? await supabase
           .from("Payment")
-          .select("id,status,amount,currency,provider,createdAt")
+          .select("id,status,amount,currency,provider,createdAt,payerPhone,reportedTransactionId,smsMerchantAccount")
           .eq("subscriptionId", latestSubscription.id)
           .eq("userId", user.id)
           .in("status", ["CREATED", "PENDING"])
@@ -89,6 +91,26 @@ export async function GET(request: NextRequest) {
           .maybeSingle()
       : { data: null, error: null };
     if (paymentResult.error) throw new Error(paymentResult.error.message);
+
+    let checkout = null;
+    const existingPayment = paymentResult.data as any;
+    if (existingPayment?.provider === "SMS_MTN" || existingPayment?.provider === "SMS_ORANGE") {
+      try {
+        const { data: orderConfig, error: orderConfigError } = await supabase
+          .from("PaymentSmsOrderConfig")
+          .select("merchantCode")
+          .eq("paymentId", existingPayment.id)
+          .maybeSingle();
+        if (orderConfigError) throw new Error("PAYMENT_SMS_ORDER_CONFIG_READ_FAILED");
+        const config = buildPaymentSmsUssd(existingPayment.provider as PaymentSmsProvider, Number(existingPayment.amount), {
+          provider: existingPayment.provider as PaymentSmsProvider,
+          providerLabel: existingPayment.provider === "SMS_MTN" ? "MTN Mobile Money" : "Orange Money",
+          merchantAccount: String(existingPayment.smsMerchantAccount || ""),
+          merchantCode: String(orderConfig?.merchantCode || ""),
+        });
+        checkout = { provider: config.provider, providerLabel: config.providerLabel, merchantAccount: config.merchantAccount, paymentCode: config.paymentCode, ussdCode: config.ussdCode, amount: existingPayment.amount, currency: existingPayment.currency, paymentReference: existingPayment.id, payerPhone: existingPayment.payerPhone, reportedTransactionId: existingPayment.reportedTransactionId };
+      } catch { /* Never invent a payment code when configuration is missing. */ }
+    }
 
     return NextResponse.json({
       subscription: {
@@ -103,6 +125,7 @@ export async function GET(request: NextRequest) {
           : resolved.promo?.endsat || null,
       },
       payment: paymentResult.data || null,
+      checkout,
       entitlements: productEntitlements(productType, resolved.planCode),
       prices: {
         monthly: effectivePlan.monthlyPriceXaf,
@@ -124,18 +147,30 @@ export async function POST(request: NextRequest) {
     const planCode = String(body.plan || "").toUpperCase() as PlanCode;
     const interval = String(body.interval || "").toUpperCase() as BillingInterval;
     const providerName = String(body.provider || "MOCK").toUpperCase();
+    const isSmsProvider = providerName === "SMS_MTN" || providerName === "SMS_ORANGE";
+    let smsCheckout: PaymentSmsCheckoutConfig | null = null;
+    let normalizedPayerPhone: string | null = null;
 
     if (!PAID_PLANS.has(planCode)) return jsonError("Plan payant invalide.", 400, "INVALID_PLAN");
     if (interval !== "MONTHLY" && interval !== "ANNUAL") return jsonError("Intervalle invalide.", 400, "INVALID_INTERVAL");
-    if (providerName !== "MOCK" && providerName !== "ICLAN") return jsonError("Provider indisponible.", 400, "PROVIDER_UNAVAILABLE");
-    try {
-      assertPaymentProviderReady(providerName);
-    } catch (providerError) {
-      const message = providerError instanceof Error ? providerError.message : "PAYMENT_PROVIDER_NOT_READY";
-      return jsonError(message, 503, message.split(":")[0]);
+    if (providerName !== "MOCK" && providerName !== "ICLAN" && !isSmsProvider) return jsonError("Provider indisponible.", 400, "PROVIDER_UNAVAILABLE");
+    const supabase = adminClient();
+    if (isSmsProvider) {
+      normalizedPayerPhone = normalizeMobileMoneyPhone(body.phone || auth.phone);
+      if (!normalizedPayerPhone) return jsonError("Saisissez un numéro Mobile Money valide.", 400, "INVALID_PAYER_PHONE");
+      try { smsCheckout = await getPaymentSmsCheckoutConfig(supabase, providerName as PaymentSmsProvider); }
+      catch (configError) {
+        const code = configError instanceof Error ? configError.message : "PAYMENT_SMS_NOT_CONFIGURED";
+        return jsonError("Le paiement Mobile Money n'est pas encore configuré pour cet opérateur.", 503, code);
+      }
+    } else {
+      try { assertPaymentProviderReady(providerName); }
+      catch (providerError) {
+        const message = providerError instanceof Error ? providerError.message : "PAYMENT_PROVIDER_NOT_READY";
+        return jsonError(message, 503, message.split(":")[0]);
+      }
     }
 
-    const supabase = adminClient();
     const user = await ensureUser(supabase, auth);
     let productType: ProductType;
     try {
@@ -212,7 +247,9 @@ export async function POST(request: NextRequest) {
       externalId: paymentId,
       amount,
       currency: "XAF",
-      status: "CREATED",
+      status: isSmsProvider ? "PENDING" : "CREATED",
+      payerPhone: normalizedPayerPhone,
+      smsMerchantAccount: smsCheckout?.merchantAccount || null,
       idempotencyKey: idempotency.key,
       createdAt: now,
       updatedAt: now,
@@ -220,6 +257,35 @@ export async function POST(request: NextRequest) {
     if (paymentError) {
       await supabase.from("Subscription").update({ status: "EXPIRED", updatedAt: new Date().toISOString() }).eq("id", subscriptionId).eq("status", "PENDING");
       throw new Error(paymentError.message);
+    }
+
+    if (isSmsProvider && smsCheckout) {
+      const { error: orderConfigError } = await supabase.from("PaymentSmsOrderConfig").insert({
+        paymentId,
+        merchantCode: smsCheckout.merchantCode,
+      });
+      if (orderConfigError) {
+        const failedAt = new Date().toISOString();
+        await Promise.all([
+          supabase.from("Payment").update({ status: "FAILED", failureReason: "SMS_CONFIG_SNAPSHOT_FAILED", updatedAt: failedAt }).eq("id", paymentId),
+          supabase.from("Subscription").update({ status: "EXPIRED", updatedAt: failedAt }).eq("id", subscriptionId).eq("status", "PENDING"),
+        ]);
+        throw new Error("PAYMENT_SMS_ORDER_CONFIG_SAVE_FAILED");
+      }
+    }
+
+    if (isSmsProvider && smsCheckout) {
+      const operatorCode = buildPaymentSmsUssd(providerName as PaymentSmsProvider, amount, smsCheckout!);
+      const response = {
+        subscription: { id: subscription.id, plan: currentEntitlements.planCode, planCode: subscription.planCode, requestedPlan: subscription.planCode, status: "PENDING", productType, currentPeriodEnd: currentEntitlements.subscription?.currentPeriodEnd || currentEntitlements.promo?.endsat || null },
+        payment: { id: paymentId, userId: user.id, subscriptionId, provider: providerName, amount, currency: "XAF", status: "PENDING", payerPhone: normalizedPayerPhone, createdAt: now },
+        provider: providerName,
+        checkout: { provider: operatorCode.provider, providerLabel: operatorCode.providerLabel, merchantAccount: operatorCode.merchantAccount, paymentCode: operatorCode.paymentCode, ussdCode: operatorCode.ussdCode, amount, currency: "XAF", paymentReference: paymentId, payerPhone: normalizedPayerPhone },
+        instructions: "Composez le code affiché, payez le montant exact sur votre téléphone, puis indiquez la référence de transaction reçue par SMS. Jobly rapprochera automatiquement la confirmation opérateur.",
+        entitlementGranted: false,
+      };
+      await saveIdempotentResult(user.id, "/api/subscription", idempotency.key, idempotency.hash, 201, response);
+      return NextResponse.json(response, { status: 201 });
     }
 
     let intent;

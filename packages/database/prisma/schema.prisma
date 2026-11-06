@@ -369,23 +369,91 @@ model Subscription {
 
 model Payment {
   id              String   @id @default(cuid())
-  feature         String?
-  userId          String
-  subscriptionId  String?
-  provider        String
-  externalId      String?  @unique
-  amount          Int
-  currency        String   @default("XAF")
-  status          String
-  idempotencyKey  String
-  paidAt          DateTime?
-  refundedAt      DateTime?
-  failureReason   String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  feature                String?
+  userId                 String
+  subscriptionId         String?
+  provider               String
+  externalId             String?  @unique
+  amount                 Int
+  currency               String   @default("XAF")
+  status                 String
+  idempotencyKey         String
+  payerPhone             String?
+  reportedTransactionId  String?
+  smsMerchantAccount     String?
+  smsOrderConfig         PaymentSmsOrderConfig?
+  paidAt                 DateTime?
+  refundedAt             DateTime?
+  failureReason          String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
   @@unique([userId, idempotencyKey])
   @@index([userId, createdAt])
   @@index([subscriptionId])
+  @@index([provider, status, amount, currency, createdAt])
+  @@index([provider, reportedTransactionId])
+}
+
+
+model PaymentSmsOrderConfig {
+  paymentId    String   @id
+  merchantCode String
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  payment      Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+}
+
+model PaymentSmsProviderConfig {
+  provider          String   @id
+  merchantAccount   String
+  merchantCode      String
+  isActive          Boolean  @default(true)
+  updatedByUserId   String
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(6)
+}
+
+model PaymentSmsDevice {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  label           String
+  provider        String
+  merchantAccount String
+  timeZone        String    @default("Africa/Douala")
+  senderIds       String[]
+  tokenHash       String
+  status          String    @default("ACTIVE")
+  createdByUserId String
+  lastSeenAt      DateTime? @db.Timestamptz(6)
+  revokedAt       DateTime? @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([status])
+}
+
+model PaymentSmsReceipt {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deviceId          String    @db.Uuid
+  provider          String
+  senderId          String
+  transactionId     String?
+  amount            Int?
+  currency          String?
+  payerPhone        String?
+  merchantAccount   String
+  status            String
+  processingStatus  String    @default("RECEIVED")
+  occurredAt        DateTime? @db.Timestamptz(6)
+  receivedAt        DateTime  @default(now()) @db.Timestamptz(6)
+  parserVersion     String
+  payloadHash       String    @unique
+  rawMessageHash    String
+  fraudFlags        Json
+  matchedPaymentId  String?
+  matchDetails      Json
+
+  @@unique([provider, transactionId])
+  @@index([processingStatus, receivedAt])
+  @@index([matchedPaymentId])
 }
 
 model Partner {
