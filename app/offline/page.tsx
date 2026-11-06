@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   enqueueOfflineOperation,
+  getOfflineDocument,
   getOfflineSnapshot,
   getOfflineUserId,
   saveOfflineSnapshot,
   type OfflineSnapshot,
 } from "@/lib/offline-store";
+import { getSupabaseClient } from "@/lib/supabase";
 
 type Notice = { tone: "success" | "error" | "info"; message: string };
 
@@ -25,14 +27,20 @@ export default function OfflineWorkspacePage() {
 
   const loadLocal = useCallback(async () => {
     setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
-    const { data } = await getSupabaseClient().auth.getSession();
-    const authUserId = data.session?.user?.id;
-    const cached = authUserId ? await getOfflineSnapshot(getOfflineUserId(), authUserId) : null;
-    setSnapshot(cached);
-    if (cached && authUserId) setCvAvailable(Boolean(await getOfflineDocument(cached.userId)));
-    setHeadline(String(cached?.profile?.headline || ""));
-    setSummary(String(cached?.profile?.summary || ""));
-    setLoading(false);
+    try {
+      const { data } = await getSupabaseClient().auth.getSession();
+      const authUserId = data.session?.user?.id;
+      const cached = authUserId ? await getOfflineSnapshot(getOfflineUserId(), authUserId) : null;
+      setSnapshot(cached);
+      if (cached && authUserId) setCvAvailable(Boolean(await getOfflineDocument(cached.userId)));
+      setHeadline(String(cached?.profile?.headline || ""));
+      setSummary(String(cached?.profile?.summary || ""));
+    } catch {
+      setSnapshot(null);
+      setCvAvailable(false);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
