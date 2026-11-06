@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "../lib/supabase";
 import SubscriptionCard from "./SubscriptionCard";
 import JiaPreferences from "./JiaPreferences";
+import { useTheme, type ThemeMode } from "./ThemeProvider";
 
 export default function AccountSettings({ ecosystem, backHref, accent = "blue" }: { ecosystem: "TALENT" | "RECRUITER" | "PARTNER"; backHref: string; accent?: "blue" | "yellow" }) {
   const router = useRouter();
+  const { mode: themeMode, setThemeMode } = useTheme();
   const [message, setMessage] = useState("");
   const [notifications, setNotifications] = useState(true);
   const [privateProfile, setPrivateProfile] = useState(false);
@@ -25,6 +27,35 @@ export default function AccountSettings({ ecosystem, backHref, accent = "blue" }
   }
 
   return <div className="space-y-4">
+    <section className="jobly-appearance-panel">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-heading text-lg font-extrabold">Apparence</h2>
+          <p className="mt-1 text-xs leading-5 opacity-75">Choisissez l’ambiance de Jobly sur tous vos appareils.</p>
+        </div>
+        <span className="jobly-appearance-mark" aria-hidden="true">✦</span>
+      </div>
+      <div className="jobly-theme-options mt-4" role="group" aria-label="Thème de l’application">
+        {([
+          { value: "light", label: "Jour", icon: "☀" },
+          { value: "dark", label: "Nuit", icon: "☾" },
+          { value: "system", label: "Système", icon: "◐" },
+        ] as { value: ThemeMode; label: string; icon: string }[]).map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className="jobly-theme-option"
+            data-active={themeMode === option.value}
+            aria-pressed={themeMode === option.value}
+            onClick={() => setThemeMode(option.value)}
+          >
+            <span className="text-lg leading-none" aria-hidden="true">{option.icon}</span>
+            <span>{option.label}</span>
+          </button>
+        ))}
+      </div>
+      <p className="mt-3 text-[11px] leading-5 opacity-70">Le mode Système suit automatiquement les préférences d’affichage de votre téléphone ou ordinateur.</p>
+    </section>
     <section className="rounded-[24px] bg-white p-5 shadow-sm">
       <h2 className="font-heading text-lg font-extrabold">Préférences</h2>
       <label className="mt-4 flex items-center justify-between gap-4 text-sm font-bold"><span>Notifications Jobly</span><button type="button" onClick={()=>setNotifications(v=>!v)} className={`h-7 w-12 rounded-full p-1 ${notifications ? "bg-jobly-blue" : "bg-slate-200"}`}><span className={`block h-5 w-5 rounded-full bg-white transition-transform ${notifications ? "translate-x-5" : ""}`}/></button></label>
