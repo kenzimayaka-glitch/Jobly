@@ -3,6 +3,7 @@ import { adminClient } from "../../../../lib/server-auth";
 import { resolveApplicationContact } from "../../../../lib/applicationEngine";
 import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription, parseJobDetailSections } from "../../../../lib/jobContent";
 import { normalizeJobContent, normalizeJobIdentity } from "../../../../lib/jobNormalizer";
+import { enforceApiRateLimit } from "../../../../lib/server-security";
 
 function companyDomain(website:string|null|undefined):string|null { if(!website) return null; try { const raw=website.startsWith("http")?website:`https://${website}`; return new URL(raw).hostname.toLowerCase().replace(/^www\\./,"") || null; } catch { return null; } }
 
@@ -17,6 +18,12 @@ export async function GET(request: NextRequest, context: Context) {
       return NextResponse.json({ message: "Offre invalide." }, { status: 400 });
     }
     const supabase = adminClient();
+    const rateLimitResponse = await enforceApiRateLimit(request, supabase, {
+      scope: "job-detail",
+      ipWindows: [{ limit: 90, windowSeconds: 60 }, { limit: 600, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (rateLimitResponse) return rateLimitResponse;
     if (source === "discovery") {
       const { data, error } = await supabase.from("Job")
         .select("id,title,description,location,contractType,remoteMode,minExperienceYears,salaryMin,salaryMax,salaryCurrency,deadline,createdAt,sourceUrl,source,applicationReady,applicationProfile,tags,aiSector,normalizedContent,company:Company(name,logoUrl,website,description)")

@@ -4,6 +4,7 @@ import { adminClient, getAuthUser } from "@/lib/server-auth";
 import { collectPublicJobSources, recollectOfferByUrl } from "@/lib/jobSourceCollector";
 import { detectJobLanguage, detectLanguageRequirements } from "@/lib/jobLanguage";
 import { buildCanonicalOffer } from "@/lib/jobCanonicalOffer";
+import { enforceApiRateLimit } from "@/lib/server-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,11 +37,14 @@ function parseDate(value: unknown): string | null {
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 
-async function authorized(request: NextRequest): Promise<boolean> {
+type HarvestAuthorization = { kind: "cron" } | { kind: "user"; userId: string };
+
+async function authorized(request: NextRequest): Promise<HarvestAuthorization | null> {
   const configured = process.env.CRON_SECRET || process.env.JOB_SOURCE_INGEST_SECRET;
   const header = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
-  if (configured && header === configured) return true;
-  return Boolean(await getAuthUser(request));
+  if (configured && header === configured) return { kind: "cron" };
+  const auth = await getAuthUser(request);
+  return auth ? { kind: "user", userId: auth.id } : null;
 }
 
 async function mapWithConcurrency<T>(
@@ -361,7 +365,8 @@ async function processCapture(supabase: ReturnType<typeof adminClient>, row: any
 }
 
 export async function POST(request: NextRequest) {
-  if (!(await authorized(request))) return NextResponse.json({ message: "Non autorisé." }, { status: 401 });
+  const authorization = await authorized(request);
+  if (!authorization) return NextResponse.json({ message: "Non autorisé." }, { status: 401 });
 
   try {
     const url = new URL(request.url);
@@ -369,6 +374,16 @@ export async function POST(request: NextRequest) {
     const sourceKey = url.searchParams.get("source")?.trim() || undefined;
     const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || PROCESS_BATCH), 1), PROCESS_BATCH);
     const supabase = adminClient();
+    const rateLimit = await enforceApiRateLimit(request, supabase, {
+      scope: "job-harvest",
+      identity: authorization.kind === "user" ? `user:${authorization.userId}` : "cron:job-harvest",
+      accountWindows: authorization.kind === "user"
+        ? [{ limit: 2, windowSeconds: 60 }, { limit: 12, windowSeconds: 3600 }]
+        : [{ limit: 5, windowSeconds: 60 }, { limit: 120, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 600, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (rateLimit) return rateLimit;
     const now = new Date();
 
     // Bulk shadow handoff: accept the crawler's raw candidates directly.

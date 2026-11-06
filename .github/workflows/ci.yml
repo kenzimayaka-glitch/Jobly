@@ -101,6 +101,9 @@ jobs:
       - name: P2 free HIBP password screening tests
         run: pnpm test:p2-hibp
 
+      - name: Jobly Security Core rate-limit and hardening tests
+        run: pnpm test:security-core
+
       - name: J’IA 360 adaptive experience engine tests
         run: pnpm test:jia-experience
 
