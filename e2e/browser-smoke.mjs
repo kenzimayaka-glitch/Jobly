@@ -24,18 +24,6 @@ if (!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
   throw new Error("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is required for the browser smoke.");
 }
 
-const serviceKey = process.env.E2E_SUPABASE_SERVICE_ROLE_KEY || "";
-if (serviceKey.split(".").length === 3) {
-  try {
-    const payload = JSON.parse(Buffer.from(serviceKey.split(".")[1], "base64url").toString("utf8"));
-    if (payload.ref && payload.ref !== expectedProjectRef) {
-      throw new Error("Refusing to run: the server-side Supabase key belongs to a different project.");
-    }
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("belongs to a different project")) throw error;
-  }
-}
-
 const modulePath = process.env.PLAYWRIGHT_MODULE_PATH
   || path.resolve(".e2e-tools/node_modules/playwright/index.mjs");
 const { chromium } = await import(pathToFileURL(path.resolve(modulePath)).href);
@@ -124,7 +112,6 @@ try {
 
   assert.deepEqual(pageErrors, [], "Uncaught browser errors occurred during the auth UI journey.");
 
-  const missingServerKey = !serviceKey;
   const homeStatsUnavailable = homeStatsResponses.some((status) => status >= 500);
   const report = {
     createdAt: new Date().toISOString(),
@@ -137,10 +124,8 @@ try {
     passed: results.length,
     failed: 0,
     blocked: [
-      ...(missingServerKey ? [
-        { id: "JOBLY-E2E-AUTH-006", status: "BLOCKED", reason: "E2E_SUPABASE_SERVICE_ROLE_KEY is not configured; server-backed identity and data checks were not run." },
-        { id: "JOBLY-E2E-AUTH-007", status: "BLOCKED", reason: "E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD are not configured; actual Auth sign-in, session refresh and sign-out were not run." },
-      ] : []),
+      { id: "JOBLY-E2E-AUTH-006", status: "BLOCKED", reason: "Aucun mécanisme Auth Admin isolé et éphémère n'est disponible dans les outils de recette ; aucun compte ni mot de passe n'a été créé ou injecté." },
+      { id: "JOBLY-E2E-AUTH-007", status: "BLOCKED", reason: "Connexion réelle, renouvellement de session et déconnexion non exécutés ; le compte Admin existant n'a pas de mot de passe de recette disponible." },
       ...(homeStatsUnavailable ? [
         { id: "JOBLY-E2E-HOME-001", status: "BLOCKED", reason: "The public home-stats API returned a server error; provision the dedicated E2E server key and re-run the data-backed homepage check." },
       ] : []),
@@ -151,6 +136,7 @@ try {
     homeStatsResponses,
     limitations: [
       "The script does not submit signup, OTP, login, payment, application, email or external-provider requests.",
+      "No service_role key, admin password, or Production credential is read or used.",
       "UI PASS does not prove server-side authentication or database persistence.",
       ...(homeStatsUnavailable ? ["The home-stats endpoint returned HTTP 503 in this run; it is not counted as a passing backend check."] : []),
     ],
