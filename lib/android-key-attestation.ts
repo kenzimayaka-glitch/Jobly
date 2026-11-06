@@ -1,4 +1,4 @@
-import { createHash, X509Certificate } from "node:crypto";
+import { createHash, X509Certificate, verify as verifySignature } from "node:crypto";
 
 const ROOTS_URL = "https://android.googleapis.com/attestation/root";
 const STATUS_URL = "https://android.googleapis.com/attestation/status";
@@ -362,4 +362,23 @@ export async function verifyAndroidKeyAttestation(input: {
     packageName: "com.jobly.android",
     attestedAt: new Date(now).toISOString(),
   };
+}
+
+export function verifyAndroidRequestSignature(input: {
+  publicKeyPem: string;
+  payload: string;
+  signature: string;
+}): boolean {
+  if (typeof input.payload !== "string" || input.payload.length > 4096 ||
+      typeof input.signature !== "string" ||
+      !/^[A-Za-z0-9+/]+={0,2}$/.test(input.signature)) return false;
+  const signature = Buffer.from(input.signature, "base64");
+  if (signature.toString("base64") !== input.signature || signature.length < 64 || signature.length > 80) {
+    return false;
+  }
+  try {
+    return verifySignature("sha256", Buffer.from(input.payload, "utf8"), input.publicKeyPem, signature);
+  } catch {
+    return false;
+  }
 }
