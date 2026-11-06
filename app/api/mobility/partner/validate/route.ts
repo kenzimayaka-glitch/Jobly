@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authUser, adminClient, ensureUser } from "../../../../../lib/mobilityServer";
 import { getUserMobilityInstitutionIds, institutionOwnsMobilityRequest } from "../../../../../lib/mobilityAccess";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,6 +9,16 @@ export async function POST(req: NextRequest) {
     if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const sb = adminClient();
     const user = await ensureUser(sb, auth);
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    if (contentLength > 12 * 1024) return NextResponse.json({ message: "Validation de subvention trop volumineuse." }, { status: 413 });
+    const limited = await enforceApiRateLimit(req, sb, {
+      scope: "mobility-subsidy-validation",
+      identity: user.id,
+      accountWindows: [{ limit: 5, windowSeconds: 3600 }, { limit: 15, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 10, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const body = await req.json().catch(() => ({}));
     const requestId = String(body.requestId || "").trim();
     const percentage = Number(body.subventionPercent);
