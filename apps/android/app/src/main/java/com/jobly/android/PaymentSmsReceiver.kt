@@ -21,15 +21,13 @@ import java.util.concurrent.TimeUnit
 class PaymentSmsReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
-        val credentials = PaymentSmsDeviceCredentials.read(context) ?: return
-
         val messages = runCatching { Telephony.Sms.Intents.getMessagesFromIntent(intent) }.getOrNull()
             ?: return
         if (messages.isEmpty()) return
         val senderId = messages.firstOrNull()?.originatingAddress?.trim().orEmpty()
         val smsBody = messages.joinToString(separator = "") { it.messageBody.orEmpty() }.trim()
         if (senderId.isBlank() || smsBody.isBlank() || smsBody.length > MAX_SMS_LENGTH) return
-        if (!PaymentSmsDeviceCredentials.isAllowedSender(context, senderId)) return
+        val credentials = PaymentSmsDeviceCredentials.findUniqueForSender(context, senderId) ?: return
 
         val encryptedBody = runCatching {
             PaymentSmsDeviceCredentials.encrypt(context, smsBody)
@@ -50,10 +48,11 @@ class PaymentSmsReceiver : BroadcastReceiver() {
             )
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.SECONDS)
             .addTag(WORK_TAG)
+            .addTag(deviceTag(credentials.deviceId))
             .build()
 
         WorkManager.getInstance(context).enqueueUniqueWork(
-            WORK_PREFIX + fingerprint,
+            WORK_PREFIX + credentials.deviceId + "-" + fingerprint,
             ExistingWorkPolicy.KEEP,
             request
         )
@@ -68,5 +67,6 @@ class PaymentSmsReceiver : BroadcastReceiver() {
         private const val MAX_SMS_LENGTH = 5000
         private const val WORK_PREFIX = "jobly-payment-sms-"
         const val WORK_TAG = "jobly-payment-sms-upload"
+        fun deviceTag(deviceId: String): String = WORK_TAG + ":" + deviceId
     }
 }
