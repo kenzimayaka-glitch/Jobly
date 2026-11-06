@@ -24,10 +24,6 @@ jobs:
       NEXT_PUBLIC_JOBLY_PUBLIC_URL: http://127.0.0.1:3000
       JOBLY_PUBLIC_URL: http://127.0.0.1:3000
       JOBLY_API_BASE_URL: http://127.0.0.1:3000
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
-      E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
-      E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
-      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
       NODE_ENV: production
     steps:
       - name: Checkout exact PR commit
@@ -65,7 +61,7 @@ jobs:
           fi
           mkdir -p artifacts/e2e
 
-      - name: Lot 0 — verify E2E secrets and ADMIN linkage (read-only)
+      - name: Lot 0 — verify isolated E2E public connection (read-only)
         run: node e2e/lot0-preflight.mjs
 
       - name: Typecheck
