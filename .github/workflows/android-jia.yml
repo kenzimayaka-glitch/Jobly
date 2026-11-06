@@ -20,7 +20,6 @@ on:
       - "scripts/jia-workspace.test.mjs"
       - "components/JoblyOfferFeed.tsx"
       - "scripts/android-jia-bridge.test.mjs"
-      - "scripts/android-integrity.test.mjs"
       - ".github/workflows/android-jia.yml"
   push:
     branches:
@@ -37,6 +36,7 @@ on:
       - "scripts/jia-experience-engine.test.mjs"
       - "scripts/jia-workspace.test.mjs"
       - "scripts/android-jia-bridge.test.mjs"
+      - "scripts/android-integrity.test.mjs"
       - ".github/workflows/android-jia.yml"
 
 permissions:
