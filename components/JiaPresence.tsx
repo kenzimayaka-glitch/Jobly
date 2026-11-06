@@ -387,6 +387,7 @@ export default function JiaPresence() {
   const [healthStatus, setHealthStatus] = useState<"idle" | "checking" | "ready" | "error">("idle");
   const [recentDialogue, setRecentDialogue] = useState<string[]>([]);
   const [conversationMessages, setConversationMessages] = useState<JiaConversationMessage[]>([]);
+  const conversationMessagesRef = useRef<JiaConversationMessage[]>([]);
   const [hasMoreConversationMessages, setHasMoreConversationMessages] = useState(false);
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const [conversationPersistenceReady, setConversationPersistenceReady] = useState(false);
@@ -664,6 +665,7 @@ export default function JiaPresence() {
         setHasMoreConversationMessages(false);
         return;
       }
+      conversationIdRef.current = null;
       setConversationPersistenceReady(false);
       setHealthStatus("checking");
       try {
@@ -703,9 +705,11 @@ export default function JiaPresence() {
         setHasMoreConversationMessages(body.hasMore === true);
         setConversationPersistenceReady(true);
         setHealthStatus("ready");
-        const pending = pendingConversationMessagesRef.current.splice(0);
-        for (const queued of pending) {
-          if (queued.ecosystem === eco) persistConversationMessage(queued.ecosystem, queued.message);
+        const pending = pendingConversationMessagesRef.current;
+        const readyForThisEcosystem = pending.filter((queued) => queued.ecosystem === eco);
+        pendingConversationMessagesRef.current = pending.filter((queued) => queued.ecosystem !== eco);
+        for (const queued of readyForThisEcosystem) {
+          persistConversationMessage(queued.ecosystem, queued.message);
         }
       } catch (error) {
         if (!active) return;
@@ -716,6 +720,8 @@ export default function JiaPresence() {
     })();
     return () => { active = false; };
   }, [eco, signedIn, persistConversationMessage]);
+
+  useEffect(() => { conversationMessagesRef.current = conversationMessages; }, [conversationMessages]);
 
   const appendConversationMessage = useCallback((role: "user" | "assistant", text: string, sources?: JiaConversationMessage["sources"], workspace?: JiaWorkspaceBlock) => {
     const normalized = text.trim();
@@ -814,6 +820,28 @@ export default function JiaPresence() {
   }, [appendConversationMessage, commandBusy, commandInput, eco, recentDialogue, say]);
 
 
+  const updateJiaWorkspace = useCallback((messageId: string, workspace: JiaWorkspaceBlock) => {
+    setConversationMessages((current) => current.map((message) =>
+      message.id === messageId && message.role === "assistant" ? { ...message, workspace } : message
+    ));
+    const conversationId = conversationIdRef.current;
+    if (!conversationId) return;
+    conversationWriteQueueRef.current = conversationWriteQueueRef.current.then(async () => {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token) throw new Error("Session requise pour sauvegarder la carte.");
+      const response = await fetch("/api/jia/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+        body: JSON.stringify({ action: "update-workspace", conversationId, messageId, workspace }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "Sauvegarde de la carte impossible.");
+    }).catch((error) => {
+      setHealthStatus("error");
+      console.error("[J’IA conversation] Workspace state persist failed", error);
+    });
+  }, []);
+
   const saveJiaProfile = useCallback(async (args: {
     messageId: string;
     displayName: string;
@@ -851,25 +879,22 @@ export default function JiaPresence() {
       const skillsBody = await skillsResponse.json().catch(() => ({}));
       if (!skillsResponse.ok) throw new Error(skillsBody.message || "Les compétences n'ont pas été enregistrées.");
 
-      setConversationMessages((current) => current.map((message) => {
-        if (message.id !== args.messageId || message.workspace?.kind !== "profile") return message;
-        return {
-          ...message,
-          workspace: {
-            ...message.workspace,
-            displayName: args.displayName,
-            phone: args.phone || null,
-            headline: args.headline,
-            summary: args.summary,
-            location: args.location || null,
-            skills: args.skills,
-          },
-        };
-      }));
+      const message = conversationMessagesRef.current?.find((item) => item.id === args.messageId);
+      if (message?.workspace?.kind === "profile") {
+        updateJiaWorkspace(args.messageId, {
+          ...message.workspace,
+          displayName: args.displayName,
+          phone: args.phone || null,
+          headline: args.headline,
+          summary: args.summary,
+          location: args.location || null,
+          skills: args.skills,
+        });
+      }
     } finally {
       setCommandBusy(false);
     }
-  }, []);
+  }, [updateJiaWorkspace]);
 
   const uploadJiaCv = useCallback(async (args: { messageId: string; file: File }): Promise<boolean> => {
     const { file } = args;
@@ -902,22 +927,19 @@ export default function JiaPresence() {
       });
       const profileBody = profileResponse.ok ? await profileResponse.json().catch(() => ({})) : {};
       const refreshedUser = profileBody.user || {};
-      setConversationMessages((current) => current.map((message) => {
-        if (message.id !== args.messageId || message.workspace?.kind !== "profile") return message;
-        return {
-          ...message,
-          workspace: {
-            ...message.workspace,
-            cvOriginalFileName: typeof refreshedUser.cvOriginalFileName === "string" ? refreshedUser.cvOriginalFileName : (body.fileName || file.name),
-            cvOriginalUrl: typeof refreshedUser.cvOriginalUrl === "string" ? refreshedUser.cvOriginalUrl : null,
-          },
-        };
-      }));
+      const message = conversationMessagesRef.current.find((item) => item.id === args.messageId);
+      if (message?.workspace?.kind === "profile") {
+        updateJiaWorkspace(args.messageId, {
+          ...message.workspace,
+          cvOriginalFileName: typeof refreshedUser.cvOriginalFileName === "string" ? refreshedUser.cvOriginalFileName : (body.fileName || file.name),
+          cvOriginalUrl: typeof refreshedUser.cvOriginalUrl === "string" ? refreshedUser.cvOriginalUrl : null,
+        });
+      }
       return true;
     } finally {
       setCommandBusy(false);
     }
-  }, []);
+  }, [updateJiaWorkspace]);
 
   const loadOlderConversationMessages = useCallback(async () => {
     if (loadingOlderMessages || !hasMoreConversationMessages || !conversationIdRef.current || !conversationMessages.length) return;
@@ -930,6 +952,7 @@ export default function JiaPresence() {
         ecosystem: eco,
         conversationId: conversationIdRef.current,
         before: new Date(oldest.createdAt).toISOString(),
+        beforeId: oldest.id,
         limit: "50",
       });
       const response = await fetch("/api/jia/conversations?" + query.toString(), {
@@ -958,28 +981,6 @@ export default function JiaPresence() {
       setLoadingOlderMessages(false);
     }
   }, [conversationMessages, eco, hasMoreConversationMessages, loadingOlderMessages]);
-
-  const updateJiaWorkspace = useCallback((messageId: string, workspace: JiaWorkspaceBlock) => {
-    setConversationMessages((current) => current.map((message) =>
-      message.id === messageId && message.role === "assistant" ? { ...message, workspace } : message
-    ));
-    const conversationId = conversationIdRef.current;
-    if (!conversationId) return;
-    conversationWriteQueueRef.current = conversationWriteQueueRef.current.then(async () => {
-      const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise pour sauvegarder la carte.");
-      const response = await fetch("/api/jia/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
-        body: JSON.stringify({ action: "update-workspace", conversationId, messageId, workspace }),
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.message || "Sauvegarde de la carte impossible.");
-    }).catch((error) => {
-      setHealthStatus("error");
-      console.error("[J’IA conversation] Workspace state persist failed", error);
-    });
-  }, []);
 
   const prepareJiaApplication = useCallback(async (offer: JiaWorkspaceOffer) => {
     setCommandBusy(true);
@@ -1042,10 +1043,10 @@ export default function JiaPresence() {
       if (!response.ok || result.submitted !== true) {
         throw new Error(result.message || "Jobly n’a pas confirmé l’envoi de cette candidature.");
       }
-      setConversationMessages((current) => current.map((message) => {
-        if (message.id !== args.messageId || message.workspace?.kind !== "prepared-application") return message;
-        return { ...message, workspace: { ...message.workspace, submitted: true } };
-      }));
+      const applicationMessage = conversationMessagesRef.current.find((message) => message.id === args.messageId);
+      if (applicationMessage?.workspace?.kind === "prepared-application") {
+        updateJiaWorkspace(args.messageId, { ...applicationMessage.workspace, submitted: true });
+      }
       appendConversationMessage(
         "assistant",
         result.pendingProof
@@ -1081,10 +1082,10 @@ export default function JiaPresence() {
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.message || "L'enregistrement de l'évaluation a échoué.");
-      setConversationMessages((current) => current.map((message) => {
-        if (message.id !== args.messageId || message.workspace?.kind !== "questionnaire") return message;
-        return { ...message, workspace: { ...message.workspace, result: { score: args.score, summary: args.resultSummary } } };
-      }));
+      const assessmentMessage = conversationMessagesRef.current.find((message) => message.id === args.messageId);
+      if (assessmentMessage?.workspace?.kind === "questionnaire") {
+        updateJiaWorkspace(args.messageId, { ...assessmentMessage.workspace, result: { score: args.score, summary: args.resultSummary } });
+      }
       appendConversationMessage("assistant", "Ton exercice est enregistré dans Career Journey. Le résultat reste indicatif et ne vaut pas certification.");
     } finally {
       setCommandBusy(false);
