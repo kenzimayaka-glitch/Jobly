@@ -53,7 +53,7 @@ export default function AdminCommunityModerationPage() {
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.message || "Décision impossible.");
       await load(token, status);
-      setMessage(body.message || "Décision enregistrée.");
+      setMessage(body.message || body.warning || "Décision enregistrée.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Décision impossible."); }
     finally { setBusy(null); }
   }
