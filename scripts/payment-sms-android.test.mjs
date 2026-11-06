@@ -41,7 +41,7 @@ test("WorkManager queues ciphertext and posts only to the Jobly SMS endpoint", (
   assert.match(worker, /x-jobly-sms-device/);
   assert.match(worker, /Authorization/);
   assert.ok(worker.includes('configuredBase.protocol !== "https"'));
-  assert.ok(worker.includes("queuedDeviceId !== credentials.deviceId"));
+  assert.ok(worker.includes("PaymentSmsDeviceCredentials.read(applicationContext, queuedDeviceId)"));
   assert.ok(worker.includes("credentials.senderIds.contains"));
   assert.match(worker, /Result\.retry\(\)/);
   assert.doesNotMatch(worker, /Log\./);
