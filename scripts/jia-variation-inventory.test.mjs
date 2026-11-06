@@ -29,20 +29,24 @@ const stable = (value) => {
   return value;
 };
 const moves = Object.values(rig.moves || {});
-const facialShapes = unique(moves.map((move) => JSON.stringify(stable({
-  eyes: move.eyes || null,
-  eyebrows: move.eyebrows || null,
-  mouth: move.mouth || null,
-}))).filter((shape) => shape !== JSON.stringify({ eyes: null, eyebrows: null, mouth: null })));
-const bodyShapes = unique(moves.map((move) => JSON.stringify(stable({
-  head: move.head || null,
-  torso: move.torso || null,
-  arm_L: move.arm_L || null,
-  arm_R: move.arm_R || null,
-  hand_L: move.hand_L || null,
-  hand_R: move.hand_R || null,
-}))).filter((shape) => shape !== JSON.stringify({ head: null, torso: null, arm_L: null, arm_R: null, hand_L: null, hand_R: null })));
-const sceneTransitionExists = readFileSync(join(root, "public/jia-transition-droplet.jpg")).length > 0;
+const facialShapes = unique(moves
+  .filter((move) => move.eyes || move.eyebrows || move.mouth)
+  .map((move) => JSON.stringify(stable({
+    eyes: move.eyes || null,
+    eyebrows: move.eyebrows || null,
+    mouth: move.mouth || null,
+  }))));
+const bodyShapes = unique(moves
+  .filter((move) => move.head || move.torso || move.arm_L || move.arm_R || move.hand_L || move.hand_R)
+  .map((move) => JSON.stringify(stable({
+    head: move.head || null,
+    torso: move.torso || null,
+    arm_L: move.arm_L || null,
+    arm_R: move.arm_R || null,
+    hand_L: move.hand_L || null,
+    hand_R: move.hand_R || null,
+  }))));
+const uniqueGestureNames = unique(clipPaths.map((path) => path.split("/").pop().replace(/\.webm$/i, "").replace(/--\d+$/, "")));
 const variationCatalog = {
   "conversation-layouts": JIA_PRESENTATION_MODES.map((id) => ({ id })),
   "scenes-and-ambiences": [{ id: "water-scene" }],
@@ -50,7 +54,7 @@ const variationCatalog = {
   "avatar-placement-and-framing": ["stage-aside", "stage-inline", "compact-launcher", "contextual"].map((id) => ({ id })),
   "body-gestures": clipPaths.map((id) => ({ id })),
   "facial-expressions": facialShapes.map((id) => ({ id })),
-  "scene-transitions": sceneTransitionExists ? [{ id: "droplet-transition" }] : [],
+  "scene-transitions": [],
   "message-entrances": [{ id: "fade-rise-message" }],
   "stickers-and-reactions": [],
   "offer-presentations": [{ id: "offers-block" }],
@@ -68,6 +72,7 @@ test("variation inventory is computed from actual rig configurations and files",
   assert.equal(facialShapes.length, 16);
   assert.equal(bodyShapes.length, 40);
   assert.equal(clipPaths.length, 53);
+  assert.equal(uniqueGestureNames.length, 39);
   assert.deepEqual(manifests.map((manifest) => Object.keys(manifest).length), [42, 8, 4]);
   assert.equal(coverage.length, 12);
 });
@@ -78,7 +83,7 @@ test("the audit never treats theoretical combinations as produced variations", (
   assert.equal(byFamily["scenes-and-ambiences"].available, 1);
   assert.equal(byFamily["avatar-appearances"].available, 3);
   assert.equal(byFamily["avatar-placement-and-framing"].available, 4);
-  assert.equal(byFamily["body-gestures"].available, 53);
+  assert.equal(byFamily["body-gestures"].available, 39);
   assert.equal(byFamily["facial-expressions"].available, 16);
   assert.equal(byFamily["stickers-and-reactions"].available, 0);
   assert.ok(coverage.every((item) => item.available <= 1000));
@@ -92,6 +97,7 @@ test("coverage report marks incomplete families explicitly instead of manufactur
     "scenes-and-ambiences",
     "avatar-appearances",
     "avatar-placement-and-framing",
+    "body-gestures",
     "facial-expressions",
     "scene-transitions",
     "message-entrances",
@@ -100,7 +106,7 @@ test("coverage report marks incomplete families explicitly instead of manufactur
     "interactive-questions",
     "documents-and-cv",
   ]);
-  assert.equal(coverage.filter((item) => item.complete).length, 1);
+  assert.equal(coverage.filter((item) => item.complete).length, 0);
 });
 
 console.log("[J’IA 360 variation audit]", JSON.stringify(coverage));

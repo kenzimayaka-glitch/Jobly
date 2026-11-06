@@ -35,14 +35,14 @@ test("Recruiter membership is matched by Supabase auth identity or owned recruit
     { id: "internal-recruiter", role: "TALENT" },
     "auth-recruiter",
   );
-  assert.deepEqual(profileAccess, ["RECRUITER", "TALENT"]);
+  assert.deepEqual(profileAccess, ["TALENT", "RECRUITER"]);
 
   const jobAccess = await getJiaAvailableEcosystems(
     mockDb({ RecruiterJob: [{ id: "job-1", recruiterUserId: "internal-recruiter" }] }),
     { id: "internal-recruiter", role: "TALENT" },
     "auth-recruiter",
   );
-  assert.deepEqual(jobAccess, ["RECRUITER", "TALENT"]);
+  assert.deepEqual(jobAccess, ["TALENT", "RECRUITER"]);
 });
 
 test("Partner membership is matched against internal Jobly user identity", async () => {
@@ -51,7 +51,7 @@ test("Partner membership is matched against internal Jobly user identity", async
     { id: "internal-partner", role: "TALENT" },
     "auth-partner",
   );
-  assert.deepEqual(allowed, ["PARTNER", "TALENT"]);
+  assert.deepEqual(allowed, ["TALENT", "PARTNER"]);
 });
 
 test("Admin membership is isolated and does not query or inherit operational role scopes", async () => {
