@@ -377,3 +377,29 @@ test("Mobility provider KYC uploads use private storage, ownership prefix and fi
   assert.match(route, /updateBucket\(BUCKET, bucketOptions\)/);
   assert.match(route, /requireIp: true/);
 });
+
+
+test("Mobility provider profile, services, assignments and reports use shared abuse controls", () => {
+  const profile = read("../app/api/mobility/partner/me/route.ts");
+  const assignments = read("../app/api/mobility/partner/assignments/route.ts");
+  const services = read("../app/api/mobility/partner/services/route.ts");
+  const reports = read("../app/api/mobility/partner/reports/route.ts");
+  const adminDocument = read("../app/api/mobility/admin/providers/document/route.ts");
+  assert.match(profile, /scope: "mobility-provider-profile-read"/);
+  assert.match(profile, /scope: "mobility-provider-profile-submit"/);
+  assert.match(profile, /Cache-Control/);
+  assert.match(assignments, /scope: "mobility-provider-assignments-read"/);
+  assert.match(assignments, /scope: "mobility-provider-assignment-update"/);
+  assert.match(services, /scope: "mobility-provider-services-read"/);
+  assert.match(services, /scope: "mobility-provider-service-create"/);
+  assert.match(services, /scope: "mobility-provider-service-archive"/);
+  assert.match(reports, /scope: "mobility-partner-report-export"/);
+  assert.match(reports, /Cache-Control/);
+  assert.match(adminDocument, /scope: "mobility-admin-provider-kyc-document"/);
+  assert.match(adminDocument, /createSignedUrl/);
+  assert.match(adminDocument, /Cache-Control/);
+  for (const source of [profile,assignments,services,reports,adminDocument]) {
+    assert.match(source, /enforceApiRateLimit/);
+    assert.match(source, /requireIp: true/);
+  }
+});
