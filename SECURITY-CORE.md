@@ -16,7 +16,7 @@ Base main synchronisée : `3f54986968c8752aa4d8083ba3f3439b4bdbbd9c`
 - Play Integrity (client + vérification serveur Google) : nécessite Play Console, configuration Google Cloud et identité serveur; aucune vérification fictive ajoutée.
 - CSP stricte : reportée jusqu'à l'inventaire des fournisseurs externes afin de ne pas casser OAuth, paiements, médias et J'IA.
 - WAF / Bot Management / Turnstile : pas activé dans cette PR; le rate limiting n'arrête pas le scraping distribué.
-- L'audit exhaustif de toutes les actions Premium reste à compléter; les droits doivent être calculés côté serveur pour chaque action sensible, jamais à partir d'un drapeau client.
+- Les endpoints de droits et d'abonnement recalculent toujours les droits côté serveur via les lignes Subscription/PromoRedemption et isEligibleSubscription; les endpoints de vérification paiement restent liés au propriétaire interne du paiement et à la finalisation serveur. L'audit exhaustif de chaque action Premium dans tous les modules reste à compléter : chaque fonction protégée doit appeler la règle d'entitlement côté serveur, jamais lire un drapeau client.
 
 ## Blocages externes
 1. Le dépôt GitHub `kenzimayaka-glitch/Jobly` est actuellement **public**. Tant qu'il reste public, le code source et cette branche sont clonables. L'intégration ne permet pas de changer la visibilité; si le code est propriétaire, passer le dépôt en privé dans GitHub Settings > General > Danger Zone, puis vérifier Actions et Vercel.

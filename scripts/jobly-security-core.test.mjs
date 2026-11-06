@@ -99,3 +99,19 @@ test("Android release keeps R8, resource shrinking, no backup and HTTPS-only tra
   assert.match(manifest, /android:allowBackup="false"/);
   assert.match(manifest, /android:usesCleartextTraffic="false"/);
 });
+
+test("job ingestion and merchant SMS entry points use shared anti-abuse limits", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { fileURLToPath } = await import("node:url");
+  const { dirname, resolve } = await import("node:path");
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+  const harvest = readFileSync(resolve(root, "app/api/jobs/harvest/route.ts"), "utf8");
+  const ingest = readFileSync(resolve(root, "app/api/jobs/ingest/sources/route.ts"), "utf8");
+  const sms = readFileSync(resolve(root, "app/api/payments/sms/ingest/route.ts"), "utf8");
+  assert.match(harvest, /scope: "job-harvest"/);
+  assert.match(harvest, /kind === "cron"/);
+  assert.match(ingest, /scope: "job-source-ingest"/);
+  assert.match(ingest, /kind === "cron"/);
+  assert.match(sms, /scope: "payment-sms-ingest"/);
+  assert.match(sms, /tokenMatches\(token, String\(device\.tokenHash\)\)/);
+});

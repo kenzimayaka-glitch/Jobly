@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient } from "../../../../../lib/server-auth";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 import { matchPaymentSmsToOrder, type PaymentSmsCandidate } from "../../../../../lib/paymentSms/matching";
 import { parsePaymentSms, type PaymentSmsProvider } from "../../../../../lib/paymentSms/parser";
 import { analyzePaymentSmsWithAi } from "../../../../../lib/paymentSms/ai-review";
@@ -37,6 +38,15 @@ export async function POST(request: NextRequest) {
     if (!device || device.status !== "ACTIVE" || !tokenMatches(token, String(device.tokenHash))) {
       return err("Téléphone marchand non autorisé.", 401, "DEVICE_NOT_AUTHORIZED");
     }
+
+    const rateLimit = await enforceApiRateLimit(request, supabase, {
+      scope: "payment-sms-ingest",
+      identity: `device:${device.id}`,
+      accountWindows: [{ limit: 20, windowSeconds: 60 }, { limit: 300, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 1200, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (rateLimit) return rateLimit;
 
     const provider = String(device.provider) as PaymentSmsProvider;
     const senderAllowlist: Partial<Record<PaymentSmsProvider, string[]>> = {

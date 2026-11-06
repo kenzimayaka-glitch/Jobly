@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { adminClient, getAuthUser } from "@/lib/server-auth";
 import { collectPublicJobSources, recollectOfferByUrl } from "@/lib/jobSourceCollector";
 import { detectJobLanguage, detectLanguageRequirements } from "@/lib/jobLanguage";
+import { enforceApiRateLimit } from "@/lib/server-security";
 import {
   buildCanonicalOffer,
   canonicalIsPublishable,
@@ -18,11 +19,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-async function authorized(request: NextRequest): Promise<boolean> {
+type IngestAuthorization = { kind: "cron" } | { kind: "user"; userId: string };
+
+async function authorized(request: NextRequest): Promise<IngestAuthorization | null> {
   const configured = process.env.CRON_SECRET || process.env.JOB_SOURCE_INGEST_SECRET;
   const header = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
-  if (configured && header === configured) return true;
-  return Boolean(await getAuthUser(request));
+  if (configured && header === configured) return { kind: "cron" };
+  const auth = await getAuthUser(request);
+  return auth ? { kind: "user", userId: auth.id } : null;
 }
 
 function normalizeCompany(value: string | null): string | null {
@@ -177,7 +181,8 @@ async function runWithConcurrency<T>(
 }
 
 export async function POST(request: NextRequest) {
-  if (!(await authorized(request))) return NextResponse.json({ message: "Non autorisé." }, { status: 401 });
+  const authorization = await authorized(request);
+  if (!authorization) return NextResponse.json({ message: "Non autorisé." }, { status: 401 });
 
   try {
     const url = new URL(request.url);
@@ -185,6 +190,16 @@ export async function POST(request: NextRequest) {
     const batchSize = Math.min(Math.max(Number(url.searchParams.get("limit") || 20), 1), 40);
     const offset = Math.max(Number(url.searchParams.get("offset") || 0) || 0, 0);
     const supabase = adminClient();
+    const rateLimit = await enforceApiRateLimit(request, supabase, {
+      scope: "job-source-ingest",
+      identity: authorization.kind === "user" ? `user:${authorization.userId}` : "cron:job-source-ingest",
+      accountWindows: authorization.kind === "user"
+        ? [{ limit: 8, windowSeconds: 600 }, { limit: 40, windowSeconds: 3600 }]
+        : [{ limit: 10, windowSeconds: 60 }, { limit: 300, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 1200, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (rateLimit) return rateLimit;
     const now = new Date();
     
     if (mode === "reindex") {
