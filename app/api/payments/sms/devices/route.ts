@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     if (!["ADMIN", "FINANCE"].includes(String(actor.role))) return err("Accès administrateur requis.", 403, "FORBIDDEN");
 
     const { data: devices, error } = await supabase.from("PaymentSmsDevice")
-      .select("id,label,provider,merchantAccount,senderIds,status,lastSeenAt,createdAt,revokedAt")
+      .select("id,label,provider,merchantAccount,timeZone,senderIds,status,lastSeenAt,createdAt,revokedAt")
       .eq("status", "ACTIVE")
       .order("createdAt", { ascending: false })
       .limit(50);
@@ -46,6 +46,9 @@ export async function POST(request: NextRequest) {
     const provider = String(body.provider || "").toUpperCase() as PaymentSmsProvider;
     if (provider !== "SMS_MTN" && provider !== "SMS_ORANGE") return err("Opérateur SMS invalide.", 400, "INVALID_PROVIDER");
     const label = String(body.label || "Téléphone marchand Jobly").trim().slice(0, 100);
+    const timeZone = String(body.timeZone || "Africa/Douala").trim();
+    try { new Intl.DateTimeFormat("en-US", { timeZone }).format(new Date()); }
+    catch { return err("Fuseau horaire invalide.", 400, "INVALID_TIME_ZONE"); }
     const merchantAccount = normalizeAccount(body.merchantAccount);
     const senderIds = Array.isArray(body.senderIds)
       ? [...new Set(body.senderIds.map((value: unknown) => String(value || "").normalize("NFKC").trim().replace(/\s+/g, " ")).filter((value: string) => value.length > 0 && value.length <= 120))]
@@ -67,8 +70,8 @@ export async function POST(request: NextRequest) {
     const deviceToken = crypto.randomBytes(32).toString("base64url");
     const tokenHash = crypto.createHash("sha256").update(deviceToken).digest("hex");
     const { data: device, error } = await supabase.from("PaymentSmsDevice").insert({
-      label, provider, merchantAccount, senderIds, tokenHash, status: "ACTIVE", createdByUserId: actor.id,
-    }).select("id,label,provider,merchantAccount,senderIds,status,createdAt").single();
+      label, provider, merchantAccount, timeZone, senderIds, tokenHash, status: "ACTIVE", createdByUserId: actor.id,
+    }).select("id,label,provider,merchantAccount,timeZone,senderIds,status,createdAt").single();
     if (error) throw new Error(error.message);
 
     const { error: auditError } = await supabase.from("CEOAuditLog").insert({
