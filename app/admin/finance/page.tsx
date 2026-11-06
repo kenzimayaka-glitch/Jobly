@@ -80,8 +80,8 @@ export default function AdminFinancePage() {
                 {!source?.available?<p className="mt-3 text-xs text-[#9B4C13]">Non disponible : {source?.reason}</p>:source.items.length===0?<p className="mt-3 text-xs text-[#8290A5]">Aucune écriture dans cette source.</p>:
                   <div className="mt-3 space-y-2">{source.items.slice(0,10).map(item=>{
                     const when=item.submittedAt||item.receivedAt||item.occurredAt||item.createdAt;
-                    const value=item.amount??item.priceAmount;
-                    const unit=item.currency||item.priceCurrency;
+                    const value=item.amount??item.priceAmount??item.payment?.amount;
+                    const unit=item.currency||item.priceCurrency||item.payment?.currency;
                     return <div key={item.id} className="flex min-w-0 items-center justify-between gap-3 rounded-xl bg-[#F5F7FB] p-3">
                       <div className="min-w-0"><p className="break-all text-[10px] font-black text-[#344762]">{item.transactionId||item.externalReference||item.event||item.feature||item.plan||item.provider||item.transactionType||item.id.slice(0,12)}</p><p className="mt-1 text-[9px] text-[#8290A5]">{[item.status,item.payment?.status,item.processingStatus,item.provider].filter(Boolean).join(" · ")}</p><p className="text-[9px] text-[#8290A5]">{when?new Date(when).toLocaleString("fr-FR"):"Date non renseignée"}</p></div>
                       <strong className="shrink-0 text-xs tabular-nums">{value===undefined?"":amount(value,unit)}</strong>
