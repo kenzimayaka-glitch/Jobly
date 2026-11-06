@@ -31,6 +31,12 @@ Branche : `feat/security-red-remediation-20261106` (non fusionnée tant que les 
 - Tests de régression d'entitlements, Android/Play et migration; CodeQL v4 pour TypeScript/JavaScript, Kotlin et workflows; Dependabot hebdomadaire ajouté.
 - Authentification : limiteurs atomiques IP/compte sur le contrôle de disponibilité username, connexion username, finalisation d'inscription et OTP WhatsApp demande/vérification.
 - Médias Talent : pitch, publicité, showcase, images et photos de profil ont des limites d'upload IP/compte, limite de taille, liste MIME et vérification de signature; les droits Premium/Pro utilisent le résolveur abonnement/promo actif avec échéance (`planCode`) au lieu de lire le seul statut ACTIVE.
+- Profil Talent/recruteur : limites IP/compte sur lecture et écriture, tailles de payload bornées, sections/listes limitées, accès recruteur vérifié avant toute création de profil recruteur, réponses personnelles avec `no-store`.
+- CV : limites partagées sur import PDF, stockage original, export, paiement et preuves Career Journey; signature PDF contrôlée; liens de CV signés très courts et non-cacheables.
+- Gmail : limites spécifiques sur connexion OAuth, import PDF (1/min, 5/h), envoi de mails et téléchargements de pièces jointes; import plafonné à 12 Mo par CV avant analyse.
+- Recherche d'entreprise : limiteur IP sur Google Places/Nominatim et plafonds de longueur des critères, pour contenir les appels API externes.
+- Administration : limiteurs séparés pour J'IA CEO, revue des paiements manuels, codes promo, registres et validations Mobility; les tentatives de confirmation de décaissement, activation budgétaire, revue KYC prestataire et émission manuelle de pass sont journalisées dans `CEOAuditLog` avant mutation.
+- Réponses des tableaux admin sensibles et des URLs signées : `Cache-Control: private, no-store` et variation sur Authorization.
 
 ## Contrôles externes toujours requis
 
