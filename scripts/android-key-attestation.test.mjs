@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { verifyAndroidKeyAttestation } from "../lib/android-key-attestation.ts";
+import { verifyAndroidKeyAttestation, verifyAndroidRequestSignature } from "../lib/android-key-attestation.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relativePath) => readFileSync(path.join(root, relativePath), "utf8");
@@ -16,6 +16,19 @@ test("attestation verifier rejects incomplete or malformed certificate chains be
   await assert.rejects(
     verifyAndroidKeyAttestation({ certificateChain: ["MA==", "MA=="], challengeHash: "0".repeat(64) })
   );
+});
+
+test("per-request proof verifier rejects malformed signatures and invalid public keys", () => {
+  assert.equal(verifyAndroidRequestSignature({
+    publicKeyPem: "invalid",
+    payload: "GET\\n/api/me",
+    signature: "!",
+  }), false);
+  assert.equal(verifyAndroidRequestSignature({
+    publicKeyPem: "invalid",
+    payload: "GET\\n/api/me",
+    signature: Buffer.from([1, 2, 3]).toString("base64"),
+  }), false);
 });
 
 test("server verifier pins Google roots, checks revocation, nonce, TEE, locked verified boot and app identity", () => {
@@ -44,6 +57,17 @@ test("Android challenge endpoint is authenticated, rate-limited, short-lived and
   assert.match(route, /alreadyVerified/);
 });
 
+test("per-request assertion challenge binds method, path, timestamp and body hash", () => {
+  const route = read("app/api/android/attestation/assertion/route.ts");
+  assert.match(route, /getAuthUser/);
+  assert.match(route, /enforceApiRateLimit/);
+  assert.match(route, /bodyHash/);
+  assert.match(route, /timestamp/);
+  assert.match(route, /purpose: "REQUEST"/);
+  assert.match(route, /canonical/);
+  assert.match(route, /expiresInSeconds: 30/);
+});
+
 test("attestation verification consumes a one-use challenge before persisting the verified device", () => {
   const route = read("app/api/android/attestation/verify/route.ts");
   assert.match(route, /getAuthUser/);
@@ -65,6 +89,16 @@ test("native Android creates an Android Keystore key bound to the server nonce a
   assert.match(activity, /ANDROID_KEY_ATTESTATION_RESULT/);
 });
 
+test("native Android signs every request with the attested Android Keystore private key", () => {
+  const native = read("apps/android/app/src/main/java/com/jobly/android/AndroidKeyAttestation.kt");
+  const activity = read("apps/android/app/src/main/java/com/jobly/android/MainActivity.kt");
+  assert.match(native, /AndroidKeyStore/);
+  assert.match(native, /getKey\(KEY_ALIAS, null\)/);
+  assert.match(native, /SHA256withECDSA/);
+  assert.match(activity, /SIGN_ANDROID_API_REQUEST/);
+  assert.match(activity, /ANDROID_API_REQUEST_SIGNATURE/);
+});
+
 test("Android bootstrap enrolls with the authenticated session and native attestation bridge", () => {
   const component = read("components/AndroidAttestationBootstrap.tsx");
   const layout = read("app/layout.tsx");
@@ -72,6 +106,10 @@ test("Android bootstrap enrolls with the authenticated session and native attest
   assert.match(component, /Authorization: "Bearer " \+ accessToken/);
   assert.match(component, /x-jobly-device-id/);
   assert.match(component, /CREATE_ANDROID_KEY_ATTESTATION/);
+  assert.match(component, /SIGN_ANDROID_API_REQUEST/);
+  assert.match(component, /window\.fetch = async/);
+  assert.match(component, /x-jobly-attestation-signature/);
+  assert.match(component, /\/api\/android\/attestation\/assertion/);
   assert.match(component, /\/api\/android\/attestation\/verify/);
   assert.match(layout, /AndroidAttestationBootstrap/);
 });
@@ -81,8 +119,12 @@ test("native Android WebView API access fails closed without a fresh verified at
   assert.match(auth, /isNativeAndroidWebView/);
   assert.match(auth, /isAttestationBootstrap/);
   assert.match(auth, /AndroidDeviceAttestation/);
+  assert.match(auth, /x-jobly-attestation-signature/);
+  assert.match(auth, /verifyAndroidRequestSignature/);
+  assert.match(auth, /purpose", "REQUEST"/);
+  assert.match(auth, /request\.clone\(\)/);
   assert.match(auth, /expiresAt/);
-  assert.match(auth, /if \(!attestation\) return null/);
+  assert.match(auth, /if \(!attestation\?\.publicKeyPem\) return null/);
 });
 
 test("attestation storage is private to service_role and RLS has no client policies", () => {
