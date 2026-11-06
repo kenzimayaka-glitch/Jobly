@@ -26,10 +26,10 @@ async function ensurePrivateBucket(supabase: ReturnType<typeof adminClient>) {
   if (!data) {
     const { error } = await supabase.storage.createBucket(BUCKET, options);
     if (error && !error.message.toLowerCase().includes("already exists")) throw new Error(error.message);
-    return;
+    if (!error) return;
   }
 
-  // A pre-existing bucket must not retain a manually enabled public-access flag.
+  // A pre-existing bucket, including a create race, must not retain a public-access flag.
   const { error: updateError } = await supabase.storage.updateBucket(BUCKET, options);
   if (updateError) throw new Error(updateError.message);
 }
