@@ -7,10 +7,10 @@ export const dynamic = "force-dynamic";
 async function countSource(db: ReturnType<typeof adminClient>, table: string) {
   try {
     const { count, error } = await db.from(table).select("id", { count: "exact", head: true });
-    if (error) return { key: table, available: false, count: null, reason: error.message };
-    return { key: table, available: true, count: count ?? 0, reason: null };
+    if (error) return { available: false, count: null, reason: error.message };
+    return { available: true, count: count ?? 0, reason: null };
   } catch (error) {
-    return { key: table, available: false, count: null, reason: error instanceof Error ? error.message : "Source indisponible." };
+    return { available: false, count: null, reason: error instanceof Error ? error.message : "Source indisponible." };
   }
 }
 
