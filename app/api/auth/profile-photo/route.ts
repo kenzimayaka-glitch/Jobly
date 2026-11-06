@@ -33,11 +33,19 @@ export async function POST(request: NextRequest) {
     if (!(hasJpeg || hasPng || hasWebp)) return NextResponse.json({ message: "Le contenu du fichier ne correspond pas à une image JPEG, PNG ou WebP valide." }, { status: 415 });
 
     const bucket = "profile-photos";
-    const { data: buckets } = await supabase.storage.listBuckets();
-    if (!buckets?.some((b) => b.name === bucket)) {
-      const { error } = await supabase.storage.createBucket(bucket, { public: true, fileSizeLimit: "5MB", allowedMimeTypes: ["image/*"] });
-      if (error && !error.message.toLowerCase().includes("already exists")) throw new Error(error.message);
+    const bucketOptions = {
+      public: true,
+      fileSizeLimit: 10 * 1024 * 1024,
+      allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+    };
+    const { data: existingBucket, error: bucketLookupError } = await supabase.storage.getBucket(bucket);
+    if (bucketLookupError && !/not found/i.test(bucketLookupError.message)) throw new Error(bucketLookupError.message);
+    if (!existingBucket) {
+      const created = await supabase.storage.createBucket(bucket, bucketOptions);
+      if (created.error && !/already exists/i.test(created.error.message)) throw new Error(created.error.message);
     }
+    const bucketUpdate = await supabase.storage.updateBucket(bucket, bucketOptions);
+    if (bucketUpdate.error) throw new Error(bucketUpdate.error.message);
 
     const { data: user } = await supabase.from("User").select("id,profilePhotoUrl").eq("authUserId", authUser.id).maybeSingle();
     if (!user) return NextResponse.json({ message: "Profil JOBLY introuvable." }, { status: 404 });
@@ -55,7 +63,6 @@ export async function POST(request: NextRequest) {
       const extension = file.name.split(".").pop()?.replace(/[^a-z0-9]/gi, "") || "jpg";
       path = `${authUser.id}/${crypto.randomUUID()}.${extension}`;
     }
-    const bytes = new Uint8Array(await file.arrayBuffer());
     const { error: uploadError } = await supabase.storage.from(bucket).upload(path, bytes, { contentType: file.type, upsert: false, cacheControl: "31536000" });
     if (uploadError && !(kind === "hero" && /already exists|duplicate/i.test(uploadError.message))) throw new Error(uploadError.message);
     const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(path);
