@@ -24,7 +24,7 @@ export default function OfflineCoordinator() {
     } catch {
       setPendingCount(0);
     }
-  }, [router]);
+  }, []);
 
   const signOutRevokedSession = useCallback(async () => {
     try {
@@ -34,7 +34,7 @@ export default function OfflineCoordinator() {
     router.replace("/");
     setConnectivity("attention");
     setMessage("Cette connexion a été remplacée par une connexion plus récente. Reconnectez-vous pour continuer.");
-  }, []);
+  }, [router]);
 
   const synchronize = useCallback(async () => {
     if (typeof navigator === "undefined" || !navigator.onLine) {
