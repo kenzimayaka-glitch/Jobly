@@ -71,8 +71,8 @@ export function matchPaymentSmsToOrder(input: {
     if (submittedReference && submittedReference !== normalizeId(parsed.transactionId)) return false;
     // A known payer mismatch removes the candidate. Missing payer numbers are
     // not fabricated; uniqueness is still required below.
-    if (parsed.payerPhone && candidate.payerPhone &&
-        normalizePhone(parsed.payerPhone) !== normalizePhone(candidate.payerPhone)) return false;
+    if (parsed.payerPhone && (!candidate.payerPhone ||
+        normalizePhone(parsed.payerPhone) !== normalizePhone(candidate.payerPhone))) return false;
     return true;
   });
 
