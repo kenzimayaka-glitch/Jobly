@@ -1,7 +1,7 @@
 /**
  * lib/jia/gestures.ts
  *
- * Vocabulaire sémantique de J'IA — 24 intentions gestuelles, tel que figé
+ * Vocabulaire sémantique de J'IA — 68 intentions gestuelles enrichies et exécutables
  * dans README.md (checkpoint 20/09/2026) et Statut.md.
  *
  * Ce fichier est le CONTRAT partagé entre :
@@ -85,7 +85,51 @@ export type GestureId =
   | "call_hr"
   | "filter_sort"
   | "secure_confidential"
-  | "goodbye_see_tomorrow";
+  | "goodbye_see_tomorrow"
+  | "blink_fast"
+  | "blink_double"
+  | "smile_shy"
+  | "stretch"
+  | "focus"
+  | "listen_forward"
+  | "nod_slow"
+  | "nod_fast"
+  | "nod_3x"
+  | "shake_no"
+  | "shake_soft"
+  | "ear_touch"
+  | "lean_in"
+  | "think_up"
+  | "think_side"
+  | "think_frown"
+  | "think_mouth"
+  | "think_temple"
+  | "think_glasses"
+  | "think_chin_rub"
+  | "think_pace"
+  | "think_write"
+  | "think_count"
+  | "think_compare"
+  | "think_idea"
+  | "think_doubt"
+  | "think_solve"
+  | "point_bubble"
+  | "point_score"
+  | "point_cv"
+  | "point_right"
+  | "point_up"
+  | "point_down"
+  | "point_self"
+  | "blink_slow"
+  | "smile_soft"
+  | "smile_wide"
+  | "wink_right"
+  | "lips_bite"
+  | "yawn"
+  | "think_chin"
+  | "point_left"
+  | "confused"
+  | "reading";
 
 const idle: HeadPose = { yaw: 0, pitch: 0, roll: 0 };
 const center: GazeTarget = { x: 0, y: 0 };
@@ -215,6 +259,224 @@ export const GESTURES: Record<GestureId, GestureSpec> = {
     id: "goodbye_see_tomorrow", category: "business", label: "Dire au revoir / à demain",
     head: { yaw: -6, pitch: -2, roll: -3 }, gaze: { x: -0.2, y: -0.1 },
     brow: 0.4, mouth: "smile", clipId: "wave", duration: 1600,
+  },  blink_fast: {
+    id: "blink_fast", category: "emotional", label: "Clignement vif",
+    head: { yaw: 0, pitch: 0, roll: 0 }, gaze: { x: 0, y: 0 },
+    brow: 0.25, mouth: "idle", duration: 700,
+  },
+  blink_double: {
+    id: "blink_double", category: "emotional", label: "Double clignement",
+    head: { yaw: 0, pitch: -1, roll: 0 }, gaze: { x: 0, y: 0 },
+    brow: 0.25, mouth: "smile", duration: 900,
+  },
+  smile_shy: {
+    id: "smile_shy", category: "emotional", label: "Sourire timide",
+    head: { yaw: 3, pitch: 4, roll: 5 }, gaze: { x: 0.1, y: 0.2 },
+    brow: 0.25, mouth: "warm", duration: 1200,
+  },
+  stretch: {
+    id: "stretch", category: "emotional", label: "S'étirer",
+    head: { yaw: -2, pitch: -4, roll: 0 }, gaze: { x: 0, y: -0.1 },
+    brow: 0.15, mouth: "idle", duration: 1500,
+  },
+  focus: {
+    id: "focus", category: "emotional", label: "Concentration",
+    head: { yaw: 0, pitch: -2, roll: 0 }, gaze: { x: 0.1, y: 0 },
+    brow: 0.2, mouth: "firm", duration: 1500,
+  },
+  listen_forward: {
+    id: "listen_forward", category: "emotional", label: "Écoute attentive",
+    head: { yaw: 2, pitch: 4, roll: -3 }, gaze: { x: -0.1, y: 0.1 },
+    brow: 0.45, mouth: "warm", duration: 1700,
+  },
+  nod_slow: {
+    id: "nod_slow", category: "emotional", label: "Acquiescement lent",
+    head: { yaw: 0, pitch: -3, roll: 0 }, gaze: { x: 0, y: -0.1 },
+    brow: 0.35, mouth: "smile", duration: 1800,
+  },
+  nod_fast: {
+    id: "nod_fast", category: "emotional", label: "Acquiescement énergique",
+    head: { yaw: 0, pitch: -6, roll: 1 }, gaze: { x: 0.1, y: -0.1 },
+    brow: 0.55, mouth: "smile", duration: 1200,
+  },
+  nod_3x: {
+    id: "nod_3x", category: "emotional", label: "Triple acquiescement",
+    head: { yaw: -2, pitch: -5, roll: -1 }, gaze: { x: -0.1, y: -0.1 },
+    brow: 0.6, mouth: "smile", duration: 1500,
+  },
+  shake_no: {
+    id: "shake_no", category: "emotional", label: "Désaccord doux",
+    head: { yaw: -5, pitch: 2, roll: -2 }, gaze: { x: -0.25, y: 0 },
+    brow: 0.25, mouth: "firm", duration: 1500,
+  },
+  shake_soft: {
+    id: "shake_soft", category: "emotional", label: "Désaccord nuancé",
+    head: { yaw: 5, pitch: 1, roll: 2 }, gaze: { x: 0.25, y: 0 },
+    brow: 0.3, mouth: "warm", duration: 1500,
+  },
+  ear_touch: {
+    id: "ear_touch", category: "emotional", label: "Écoute attentive",
+    head: { yaw: -4, pitch: 1, roll: 4 }, gaze: { x: -0.2, y: 0 },
+    brow: 0.35, mouth: "warm", duration: 1700,
+  },
+  lean_in: {
+    id: "lean_in", category: "emotional", label: "Se rapprocher pour écouter",
+    head: { yaw: 3, pitch: 5, roll: 0 }, gaze: { x: 0.15, y: -0.1 },
+    brow: 0.4, mouth: "warm", duration: 1700,
+  },
+  think_up: {
+    id: "think_up", category: "emotional", label: "Réflexion vers le haut",
+    head: { yaw: 0, pitch: -6, roll: 2 }, gaze: { x: 0, y: -0.7 },
+    brow: 0.2, mouth: "idle", duration: 1700,
+  },
+  think_side: {
+    id: "think_side", category: "emotional", label: "Réflexion latérale",
+    head: { yaw: -8, pitch: 1, roll: 3 }, gaze: { x: -0.65, y: 0 },
+    brow: 0.15, mouth: "idle", duration: 1700,
+  },
+  think_frown: {
+    id: "think_frown", category: "emotional", label: "Concentration critique",
+    head: { yaw: 2, pitch: 2, roll: -2 }, gaze: { x: 0.2, y: 0.1 },
+    brow: 0.1, mouth: "firm", duration: 1700,
+  },
+  think_mouth: {
+    id: "think_mouth", category: "emotional", label: "Réflexion attentive",
+    head: { yaw: -2, pitch: 2, roll: 1 }, gaze: { x: -0.1, y: 0.1 },
+    brow: 0.2, mouth: "idle", duration: 1700,
+  },
+  think_temple: {
+    id: "think_temple", category: "emotional", label: "Analyse approfondie",
+    head: { yaw: 5, pitch: -1, roll: -4 }, gaze: { x: 0.4, y: -0.1 },
+    brow: 0.3, mouth: "firm", duration: 1800,
+  },
+  think_glasses: {
+    id: "think_glasses", category: "emotional", label: "Ajuster les lunettes",
+    head: { yaw: -3, pitch: -1, roll: 2 }, gaze: { x: 0, y: 0.2 },
+    brow: 0.45, mouth: "idle", duration: 1400,
+  },
+  think_chin_rub: {
+    id: "think_chin_rub", category: "emotional", label: "Réflexion posée",
+    head: { yaw: 4, pitch: 3, roll: 4 }, gaze: { x: 0.1, y: 0.3 },
+    brow: 0.25, mouth: "warm", duration: 1800,
+  },
+  think_pace: {
+    id: "think_pace", category: "emotional", label: "Évaluer plusieurs pistes",
+    head: { yaw: -6, pitch: 1, roll: -3 }, gaze: { x: -0.5, y: 0.1 },
+    brow: 0.15, mouth: "firm", duration: 1900,
+  },
+  think_write: {
+    id: "think_write", category: "emotional", label: "Préparer une idée",
+    head: { yaw: 2, pitch: 5, roll: -2 }, gaze: { x: 0.1, y: 0.55 },
+    brow: 0.1, mouth: "idle", duration: 1700,
+  },
+  think_count: {
+    id: "think_count", category: "emotional", label: "Compter les étapes",
+    head: { yaw: 0, pitch: 3, roll: 1 }, gaze: { x: 0, y: 0.45 },
+    brow: 0.5, mouth: "idle", duration: 1700,
+  },
+  think_compare: {
+    id: "think_compare", category: "emotional", label: "Comparer deux options",
+    head: { yaw: 7, pitch: -1, roll: 2 }, gaze: { x: 0.5, y: 0.05 },
+    brow: 0.35, mouth: "firm", duration: 1800,
+  },
+  think_idea: {
+    id: "think_idea", category: "emotional", label: "Éclair de compréhension",
+    head: { yaw: -2, pitch: -7, roll: 0 }, gaze: { x: -0.1, y: -0.65 },
+    brow: 0.85, mouth: "oh", duration: 1400,
+  },
+  think_doubt: {
+    id: "think_doubt", category: "emotional", label: "Doute constructif",
+    head: { yaw: 3, pitch: 4, roll: -4 }, gaze: { x: 0.2, y: 0.35 },
+    brow: 0.15, mouth: "firm", duration: 1700,
+  },
+  think_solve: {
+    id: "think_solve", category: "emotional", label: "Résolution du problème",
+    head: { yaw: 0, pitch: -3, roll: 0 }, gaze: { x: 0, y: -0.2 },
+    brow: 0.7, mouth: "smile", duration: 1500,
+  },
+  point_bubble: {
+    id: "point_bubble", category: "core", label: "Pointer la conversation",
+    head: { yaw: -4, pitch: 0, roll: 1 }, gaze: { x: -0.35, y: 0 },
+    brow: 0.45, mouth: "talk", duration: 1400,
+  },
+  point_score: {
+    id: "point_score", category: "core", label: "Pointer le score",
+    head: { yaw: 5, pitch: -1, roll: 0 }, gaze: { x: 0.4, y: 0.05 },
+    brow: 0.4, mouth: "smile", duration: 1400,
+  },
+  point_cv: {
+    id: "point_cv", category: "core", label: "Pointer le CV",
+    head: { yaw: 0, pitch: 3, roll: 0 }, gaze: { x: 0, y: 0.35 },
+    brow: 0.35, mouth: "talk", duration: 1400,
+  },
+  point_right: {
+    id: "point_right", category: "core", label: "Pointer à droite",
+    head: { yaw: 7, pitch: 0, roll: 0 }, gaze: { x: 0.65, y: 0 },
+    brow: 0.4, mouth: "talk", duration: 1300,
+  },
+  point_up: {
+    id: "point_up", category: "core", label: "Pointer vers le haut",
+    head: { yaw: 0, pitch: -6, roll: 0 }, gaze: { x: 0, y: -0.65 },
+    brow: 0.5, mouth: "oh", duration: 1300,
+  },
+  point_down: {
+    id: "point_down", category: "core", label: "Pointer vers le bas",
+    head: { yaw: -2, pitch: 6, roll: 0 }, gaze: { x: 0, y: 0.65 },
+    brow: 0.3, mouth: "talk", duration: 1300,
+  },
+  point_self: {
+    id: "point_self", category: "core", label: "Se désigner",
+    head: { yaw: 3, pitch: -1, roll: 2 }, gaze: { x: 0.2, y: -0.1 },
+    brow: 0.45, mouth: "smile", duration: 1300,
+  },  blink_slow: {
+    id: "blink_slow", category: "emotional", label: "Clignement lent",
+    head: { yaw: 0, pitch: 0, roll: 0 }, gaze: { x: 0, y: 0 },
+    brow: 0.18, mouth: "idle", duration: 1200,
+  },
+  smile_soft: {
+    id: "smile_soft", category: "emotional", label: "Sourire discret",
+    head: { yaw: 0, pitch: -1, roll: 0 }, gaze: { x: 0, y: 0 },
+    brow: 0.38, mouth: "warm", duration: 1200,
+  },
+  smile_wide: {
+    id: "smile_wide", category: "emotional", label: "Grand sourire",
+    head: { yaw: 0, pitch: -2, roll: 0 }, gaze: { x: 0, y: -0.1 },
+    brow: 0.72, mouth: "smile", duration: 1300,
+  },
+  wink_right: {
+    id: "wink_right", category: "emotional", label: "Clin d'œil droit",
+    head: { yaw: -3, pitch: 0, roll: -2 }, gaze: { x: -0.1, y: 0 },
+    brow: 0.4, mouth: "smile", duration: 900,
+  },
+  lips_bite: {
+    id: "lips_bite", category: "emotional", label: "Réflexion concentrée",
+    head: { yaw: 1, pitch: 1, roll: 0 }, gaze: { x: 0, y: 0.1 },
+    brow: 0.12, mouth: "firm", duration: 1200,
+  },
+  yawn: {
+    id: "yawn", category: "emotional", label: "Bâillement",
+    head: { yaw: 0, pitch: 1, roll: 0 }, gaze: { x: 0, y: 0.2 },
+    brow: 0.08, mouth: "oh", duration: 1500,
+  },
+  think_chin: {
+    id: "think_chin", category: "emotional", label: "Réflexion, main au menton",
+    head: { yaw: 2, pitch: 3, roll: 2 }, gaze: { x: 0.1, y: 0.4 },
+    brow: 0.22, mouth: "idle", duration: 1700,
+  },
+  point_left: {
+    id: "point_left", category: "core", label: "Pointer à gauche",
+    head: { yaw: -8, pitch: 0, roll: 0 }, gaze: { x: -0.65, y: 0 },
+    brow: 0.4, mouth: "talk", duration: 1300,
+  },
+  confused: {
+    id: "confused", category: "emotional", label: "Perplexité",
+    head: { yaw: -4, pitch: 2, roll: -4 }, gaze: { x: -0.3, y: 0.2 },
+    brow: 0.18, mouth: "firm", duration: 1500,
+  },
+  reading: {
+    id: "reading", category: "core", label: "Lire attentivement",
+    head: { yaw: 0, pitch: 5, roll: 0 }, gaze: { x: 0, y: 0.45 },
+    brow: 0.3, mouth: "idle", duration: 1600,
   },
 };
 

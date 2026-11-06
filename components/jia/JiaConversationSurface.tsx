@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import JIA3D from "@/components/JIA/JIA3D";
 import {
+  getJiaExperienceDevice,
   pickJiaPresentationLayout,
   resolveJiaExperience,
   type JiaExperienceDevice,
@@ -28,6 +29,15 @@ import {
 } from "@/lib/jia/experience-engine";
 import JiaWorkspaceBlocks from "@/components/jia/JiaWorkspaceBlocks";
 import type { JiaWorkspaceBlock, JiaWorkspaceOffer } from "@/lib/jia/workspace";
+import {
+  JIA_AVATAR_APPEARANCES,
+  JIA_AVATAR_FRAMING_VARIATIONS,
+  JIA_CONVERSATION_LAYOUT_VARIATIONS,
+  JIA_MESSAGE_ENTRANCES,
+  JIA_SCENE_TRANSITIONS,
+  JIA_SCENE_VARIATIONS,
+  JIA_STICKER_REACTIONS,
+} from "@/lib/jia/visual-variations";
 
 export type JiaConversationMessage = {
   id: string;
@@ -195,17 +205,36 @@ export default function JiaConversationSurface(props: Props) {
   const [layoutRefresh, setLayoutRefresh] = useState(0);
   const layoutHistory = useRef<JiaPresentationMode[]>([]);
   const [device, setDevice] = useState<JiaExperienceDevice>("desktop");
+  const [viewportMetrics, setViewportMetrics] = useState({ height: 0, offsetTop: 0 });
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [messageReactions, setMessageReactions] = useState<Record<string, string[]>>({});
   const bottomAnchor = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const updateDevice = () => {
-      const width = window.innerWidth;
-      setDevice(width < 640 ? "mobile" : width < 1024 ? "tablet" : "desktop");
+    const updateViewport = () => {
+      const viewport = window.visualViewport;
+      const width = viewport?.width ?? window.innerWidth;
+      const height = Math.max(1, Math.round(viewport?.height ?? window.innerHeight));
+      const offsetTop = Math.max(0, Math.round(viewport?.offsetTop ?? 0));
+      setDevice(getJiaExperienceDevice(width));
+      setViewportMetrics((current) =>
+        current.height === height && current.offsetTop === offsetTop
+          ? current
+          : { height, offsetTop }
+      );
     };
-    updateDevice();
-    window.addEventListener("resize", updateDevice, { passive: true });
-    return () => window.removeEventListener("resize", updateDevice);
+    updateViewport();
+    const viewport = window.visualViewport;
+    window.addEventListener("resize", updateViewport, { passive: true });
+    window.addEventListener("orientationchange", updateViewport);
+    viewport?.addEventListener("resize", updateViewport, { passive: true });
+    viewport?.addEventListener("scroll", updateViewport, { passive: true });
+    return () => {
+      window.removeEventListener("resize", updateViewport);
+      window.removeEventListener("orientationchange", updateViewport);
+      viewport?.removeEventListener("resize", updateViewport);
+      viewport?.removeEventListener("scroll", updateViewport);
+    };
   }, []);
 
   useEffect(() => {
@@ -242,6 +271,49 @@ export default function JiaConversationSurface(props: Props) {
     systemReducedMotion: Boolean(reducedMotion),
   });
   const layout = selectedLayout === "auto" ? autoLayout : experience.layout;
+  const variationIndex = ((layoutRefresh % 50) + 50) % 50;
+  const layoutVariation = JIA_CONVERSATION_LAYOUT_VARIATIONS[variationIndex];
+  const sceneVariation = JIA_SCENE_VARIATIONS[variationIndex];
+  const sceneTransition = JIA_SCENE_TRANSITIONS[variationIndex];
+  const avatarFraming = JIA_AVATAR_FRAMING_VARIATIONS[variationIndex];
+  const layoutGridTemplate = (() => {
+    const wide = device === "desktop" || device === "tablet";
+    if (!wide || layoutVariation.columns === 1) return "minmax(0,1fr)";
+    if (layoutVariation.structure === "magazine") return "minmax(0,1.25fr) minmax(0,.75fr)";
+    if (layoutVariation.structure === "rail") return "minmax(0,.72fr) minmax(0,1.28fr)";
+    if (layoutVariation.structure === "dossier") return "minmax(0,1.1fr) minmax(0,.9fr)";
+    return "repeat(2,minmax(0,1fr))";
+  })();
+  const transitionOffsetX = sceneTransition.axis === "x" ? sceneTransition.distance : 0;
+  const transitionOffsetY = sceneTransition.axis === "y" ? sceneTransition.distance : 0;
+  const transitionScale = sceneTransition.axis === "scale" ? 1 + sceneTransition.distance / 120 : 1;
+  const transitionRotate = sceneTransition.axis === "rotate" ? sceneTransition.distance : 0;
+  const transitionBlur = sceneTransition.axis === "blur" ? sceneTransition.distance / 8 : 0;
+  const transitionClip = sceneTransition.axis === "clip" ? `inset(${sceneTransition.distance}% 0 0 0 round 38%)` : "none";
+  const transitionCurve = sceneTransition.curve === "backOut" ? "cubic-bezier(.34,1.56,.64,1)" :
+    sceneTransition.curve === "circOut" ? "cubic-bezier(0,.55,.45,1)" :
+    sceneTransition.curve === "anticipate" ? "cubic-bezier(.36,0,.66,-.56)" :
+    sceneTransition.curve === "easeInOut" ? "cubic-bezier(.42,0,.58,1)" : "cubic-bezier(0,.7,.2,1)";
+  const sceneBackground = (() => {
+    switch (sceneVariation.motif) {
+      case "orbit": return "radial-gradient(circle at 18% 24%, rgba(255,210,26,.32) 0 2px, transparent 3px), radial-gradient(circle at 82% 68%, rgba(18,100,235,.18) 0 1px, transparent 2px), repeating-radial-gradient(circle at 72% 30%, transparent 0 26px, rgba(18,100,235,.08) 27px 28px)";
+      case "ripple": return "repeating-radial-gradient(circle at 20% 75%, transparent 0 14px, rgba(18,100,235,.09) 15px 16px), radial-gradient(circle at 78% 22%, rgba(255,210,26,.25), transparent 40%)";
+      case "constellation": return "radial-gradient(circle at 10% 14%, rgba(255,210,26,.8) 0 1px, transparent 2px), radial-gradient(circle at 38% 42%, rgba(18,100,235,.4) 0 2px, transparent 3px), radial-gradient(circle at 76% 24%, rgba(18,100,235,.3) 0 1px, transparent 2px), radial-gradient(circle at 88% 78%, rgba(255,210,26,.7) 0 2px, transparent 3px)";
+      case "topography": return "repeating-radial-gradient(ellipse at 20% 20%, transparent 0 17px, rgba(18,100,235,.08) 18px 19px), repeating-radial-gradient(ellipse at 85% 80%, transparent 0 23px, rgba(255,210,26,.16) 24px 25px)";
+      case "ribbon": return "repeating-linear-gradient(125deg, transparent 0 32px, rgba(18,100,235,.05) 33px 36px, transparent 37px 68px), radial-gradient(ellipse at 65% 12%, rgba(255,210,26,.28), transparent 50%)";
+      case "halo": return "radial-gradient(ellipse at 50% 45%, transparent 0 22%, rgba(18,100,235,.08) 23% 24%, transparent 25% 38%, rgba(255,210,26,.2) 39% 40%, transparent 41%)";
+      case "grid": return "linear-gradient(rgba(18,100,235,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(18,100,235,.05) 1px, transparent 1px), radial-gradient(circle at 82% 18%, rgba(255,210,26,.25), transparent 35%)";
+      case "petals": return "radial-gradient(ellipse at 25% 50%, rgba(255,210,26,.18) 0 12%, transparent 13%), radial-gradient(ellipse at 75% 50%, rgba(18,100,235,.09) 0 12%, transparent 13%), radial-gradient(ellipse at 50% 20%, rgba(255,210,26,.13) 0 12%, transparent 13%)";
+      case "arc": return "repeating-conic-gradient(from 220deg at 100% 0%, transparent 0deg 17deg, rgba(18,100,235,.07) 18deg 19deg, transparent 20deg 36deg)";
+      default: return "radial-gradient(circle at 18% 18%, rgba(255,210,26,.25), transparent 25%), radial-gradient(circle at 84% 76%, rgba(18,100,235,.12), transparent 34%)";
+    }
+  })();
+  const toggleReaction = (messageId: string, emoji: string) => {
+    setMessageReactions((current) => {
+      const active = current[messageId] || [];
+      return { ...current, [messageId]: active.includes(emoji) ? active.filter((item) => item !== emoji) : [...active, emoji].slice(-5) };
+    });
+  };
 
   useEffect(() => {
     if (selectedLayout !== "auto") return;
@@ -288,7 +360,13 @@ export default function JiaConversationSurface(props: Props) {
         animate={{ opacity: 1 }}
         exit={reducedMotion ? { opacity: 1 } : { opacity: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.22 }}
-        className="fixed inset-0 z-[80] flex items-stretch justify-center bg-[#07172F]/45 p-0 backdrop-blur-[3px] sm:items-center sm:p-3 lg:justify-end lg:p-4"
+        className="fixed inset-x-0 z-[80] flex items-stretch justify-center overflow-hidden bg-[#07172F]/45 p-0 backdrop-blur-[3px] sm:items-center sm:p-3 lg:justify-end lg:p-4"
+        style={{
+          top: viewportMetrics.offsetTop,
+          height: viewportMetrics.height || "100dvh",
+          paddingLeft: "env(safe-area-inset-left, 0px)",
+          paddingRight: "env(safe-area-inset-right, 0px)",
+        }}
         onMouseDown={(event) => {
           if (event.target === event.currentTarget) onClose();
         }}
@@ -301,7 +379,8 @@ export default function JiaConversationSurface(props: Props) {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 12, scale: 0.99 }}
           transition={{ duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
-          className="relative flex h-[100dvh] w-full max-w-[780px] min-h-0 flex-col overflow-hidden border border-white/70 bg-white shadow-[0_30px_100px_rgba(7,23,47,.28)] sm:h-[min(900px,calc(100dvh-24px))] sm:rounded-[28px] lg:max-w-[min(860px,calc(100vw-32px))]"
+          data-jia-viewport={device}
+          className="relative flex h-full w-full min-h-0 max-w-[780px] flex-col overflow-hidden border border-white/70 bg-white shadow-[0_30px_100px_rgba(7,23,47,.28)] sm:max-h-[900px] sm:rounded-[28px] lg:max-w-[min(860px,calc(100vw-32px))]"
           style={{
             paddingTop: "env(safe-area-inset-top, 0px)",
             paddingBottom: "env(safe-area-inset-bottom, 0px)",
@@ -330,7 +409,7 @@ export default function JiaConversationSurface(props: Props) {
                   <Mic size={12} className="mr-1 inline" /> {listening ? "Micro actif" : "Voix"}
                 </div>
               )}
-              <button type="button" onClick={onClose} aria-label="Fermer la conversation" className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1264EB] ${layout === "stage" ? "text-white hover:bg-white/10" : "text-[#5E6E82] hover:bg-[#F0F4F9]"}`}>
+              <button type="button" onClick={onClose} aria-label="Fermer la conversation" className={`grid h-11 w-11 shrink-0 place-items-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1264EB] ${layout === "stage" ? "text-white hover:bg-white/10" : "text-[#5E6E82] hover:bg-[#F0F4F9]"}`}>
                 <X size={19} />
               </button>
             </div>
@@ -338,8 +417,13 @@ export default function JiaConversationSurface(props: Props) {
             {layout === "stage" && (
               <div className="relative mx-4 mb-3 flex items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[.07] px-3 py-2.5 sm:mx-6">
                 <div className="pointer-events-none absolute -right-3 -top-8 h-24 w-24 rounded-full bg-[#FFD21A]/20 blur-2xl" />
-                <div className="relative h-28 w-20 shrink-0 sm:h-36 sm:w-24">
-                  <JIA3D speaking={speaking} />
+                <div className="relative shrink-0" style={{
+                  width: `${Math.round(avatarFraming.width * avatarFraming.scale)}px`,
+                  height: `${Math.round((avatarFraming.crop === "close-up" ? 150 : avatarFraming.crop === "portrait" ? 138 : avatarFraming.crop === "three-quarter" ? 128 : avatarFraming.crop === "full" ? 116 : 124) * avatarFraming.scale)}px`,
+                  transform: `translate(${avatarFraming.offsetX}px, ${avatarFraming.offsetY}px)`,
+                  clipPath: avatarFraming.crop === "close-up" ? "inset(0 0 12% 0 round 18px)" : avatarFraming.crop === "portrait" ? "inset(0 5% 0 5% round 22px)" : avatarFraming.crop === "three-quarter" ? "inset(0 0 8% 0 round 16px)" : "none",
+                }} data-jia-avatar-framing={avatarFraming.id} data-jia-avatar-anchor={avatarFraming.anchor}>
+                  <JIA3D speaking={speaking} appearanceId={JIA_AVATAR_APPEARANCES[variationIndex].id} />
                 </div>
                 <div className="relative min-w-0">
                   <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#FFD21A]">J’IA prend la parole</p>
@@ -353,7 +437,7 @@ export default function JiaConversationSurface(props: Props) {
           <nav aria-label="Présentation de la conversation" className={`shrink-0 border-y px-3 py-2 ${layout === "stage" ? "border-white/10 bg-[#0B2452]" : "border-[#E9EEF5] bg-white"}`}>
             <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <button type="button" aria-pressed={selectedLayout === "auto"} onClick={() => { setSelectedLayout("auto"); setLayoutRefresh((value) => value + 1); }}
-                className={`flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11px] font-extrabold transition ${selectedLayout === "auto" ? "bg-[#FFD21A] text-[#10233F]" : layout === "stage" ? "bg-white/10 text-white/80" : "bg-[#F1F5FA] text-[#66768B]"}`}>
+                className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11px] font-extrabold transition ${selectedLayout === "auto" ? "bg-[#FFD21A] text-[#10233F]" : layout === "stage" ? "bg-white/10 text-white/80" : "bg-[#F1F5FA] text-[#66768B]"}`}>
                 <Sparkles size={13} /> Auto
               </button>
               <button
@@ -361,7 +445,7 @@ export default function JiaConversationSurface(props: Props) {
                 onClick={() => { setSelectedLayout("auto"); setLayoutRefresh((value) => value + 1); }}
                 title="Nouvelle composition"
                 aria-label="Nouvelle composition"
-                className={`flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-extrabold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1264EB] ${layout === "stage" ? "border-white/15 bg-white/10 text-white/80 hover:bg-white/15" : "border-[#DCE6F2] bg-white text-[#52637A] hover:border-[#1264EB]/40 hover:text-[#1264EB]"}`}
+                className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-extrabold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1264EB] ${layout === "stage" ? "border-white/15 bg-white/10 text-white/80 hover:bg-white/15" : "border-[#DCE6F2] bg-white text-[#52637A] hover:border-[#1264EB]/40 hover:text-[#1264EB]"}`}
               >
                 <Shuffle size={13} /> Nouvelle composition
               </button>
@@ -370,7 +454,7 @@ export default function JiaConversationSurface(props: Props) {
                 const active = selectedLayout === mode.id;
                 return (
                   <button key={mode.id} type="button" aria-pressed={active} onClick={() => setSelectedLayout(mode.id)}
-                    className={`flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11px] font-extrabold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1264EB] ${active ? "bg-[#1264EB] text-white shadow-sm" : layout === "stage" ? "bg-white/10 text-white/80 hover:bg-white/15" : "bg-[#F1F5FA] text-[#52637A] hover:bg-[#E8EEF7]"}`}>
+                    className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11px] font-extrabold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1264EB] ${active ? "bg-[#1264EB] text-white shadow-sm" : layout === "stage" ? "bg-white/10 text-white/80 hover:bg-white/15" : "bg-[#F1F5FA] text-[#52637A] hover:bg-[#E8EEF7]"}`}>
                     <Icon size={13} /> {mode.label}
                   </button>
                 );
@@ -378,7 +462,27 @@ export default function JiaConversationSurface(props: Props) {
             </div>
           </nav>
 
-          <div className={`relative flex min-h-0 flex-1 flex-col overflow-hidden ${visualTransition} ${layoutSurface(layout)}`}>
+          <div className={`relative flex min-h-0 flex-1 flex-col overflow-hidden ${visualTransition} ${layoutSurface(layout)}`} data-jia-scene={sceneVariation.id}>
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+              <div className="absolute -inset-[18%] rounded-[42%]" style={{
+                backgroundImage: sceneBackground,
+                backgroundSize: `${88 + sceneVariation.composition * 9}px ${76 + sceneVariation.composition * 7}px`,
+                transform: `translate(${sceneVariation.offsetX + transitionOffsetX}px, ${sceneVariation.offsetY + transitionOffsetY}px) rotate(${sceneVariation.rotation + transitionRotate}deg) scale(${sceneVariation.scale * transitionScale})`,
+                opacity: 0.45 + (sceneVariation.layers * 0.055),
+                filter: `blur(${sceneVariation.blur / 5 + transitionBlur}px)`,
+                clipPath: transitionClip,
+                transition: reducedMotion ? "none" : `transform ${sceneTransition.duration}s ${transitionCurve}, filter ${sceneTransition.duration}s ${transitionCurve}, clip-path ${sceneTransition.duration}s ${transitionCurve}`,
+              }} data-jia-scene-transition={sceneTransition.id} />
+              {Array.from({ length: sceneVariation.layers }).map((_, layer) => (
+                <span key={layer} className="absolute rounded-full border border-[#1264EB]/[.07]" style={{
+                  width: `${64 + layer * 39 + sceneVariation.composition * 5}px`,
+                  height: `${64 + layer * 39 + sceneVariation.composition * 5}px`,
+                  left: `${8 + ((layer * 23 + sceneVariation.composition * 13) % 82)}%`,
+                  top: `${7 + ((layer * 17 + sceneVariation.composition * 9) % 82)}%`,
+                  transform: `rotate(${sceneVariation.rotation + layer * 17}deg)`,
+                }} />
+              ))}
+            </div>
             {layout === "explorer" && (
               <div aria-hidden="true" className="pointer-events-none absolute -right-20 top-8 h-56 w-56 rounded-full bg-[#FFD21A]/20 blur-3xl" />
             )}
@@ -405,7 +509,7 @@ export default function JiaConversationSurface(props: Props) {
                     type="button"
                     onClick={onLoadOlderMessages}
                     disabled={loadingOlderMessages}
-                    className="min-h-10 rounded-full border border-[#DCE6F2] bg-white px-4 py-2 text-[10px] font-extrabold text-[#31547F] shadow-sm disabled:opacity-50"
+                    className="min-h-11 rounded-full border border-[#DCE6F2] bg-white px-4 py-2 text-[10px] font-extrabold text-[#31547F] shadow-sm disabled:opacity-50"
                   >
                     {loadingOlderMessages ? "Chargement de l’historique…" : "Charger les messages précédents"}
                   </button>
@@ -436,16 +540,32 @@ export default function JiaConversationSurface(props: Props) {
                   </div>
                 </div>
               ) : (
-                <div className={`mx-auto flex w-full flex-col gap-4 ${layout === "gallery" ? "max-w-3xl" : "max-w-2xl"}`}>
+                <div
+                  className={`mx-auto grid w-full min-w-0 ${layoutVariation.structure === "timeline" ? "border-l border-[#DCE6F2] pl-3" : layoutVariation.structure === "focus" ? "place-items-center" : layoutVariation.structure === "compact" ? "tracking-tight" : layoutVariation.structure === "stage" ? "py-2" : layoutVariation.structure === "dossier" ? "rounded-2xl border border-[#E5ECF5] bg-white/45 p-2" : layoutVariation.structure === "cards" ? "auto-rows-min" : ""}`}
+                  style={{
+                    maxWidth: layoutVariation.maxWidth,
+                    gridTemplateColumns: layoutGridTemplate,
+                    gap: layoutVariation.messageGap,
+                  }}
+                  data-jia-layout-variation={layoutVariation.id}
+                  data-jia-layout-structure={layoutVariation.structure}
+                >
                   {messages.map((message, index) => {
                     const mine = message.role === "user";
+                    const entrance = JIA_MESSAGE_ENTRANCES[(variationIndex + index) % JIA_MESSAGE_ENTRANCES.length];
+                    const initial = entrance.axis === "x" ? { opacity: 0, x: (entrance.direction === "reverse" ? -1 : 1) * entrance.distance } :
+                      entrance.axis === "y" ? { opacity: 0, y: entrance.distance } :
+                      entrance.axis === "scale" ? { opacity: 0, scale: Math.max(0.86, 1 - entrance.distance / 120) } :
+                      { opacity: 0, rotate: entrance.distance / 3 };
                     return (
                       <motion.article
                         key={message.id}
-                        initial={reducedMotion ? false : { opacity: 0, y: 9 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: reducedMotion ? 0 : 0.22, delay: reducedMotion ? 0 : Math.min(index * 0.018, 0.12) }}
-                        className={`flex w-full items-end gap-2.5 ${visualTransition} ${mine ? "justify-end" : "justify-start"}`}
+                        initial={reducedMotion ? false : initial}
+                        animate={{ opacity: 1, x: 0, y: 0, scale: 1, rotate: 0 }}
+                        transition={{ duration: reducedMotion ? 0 : entrance.duration, delay: reducedMotion ? 0 : Math.min(entrance.stagger * index, 0.18) }}
+                        className={`flex min-w-0 w-full items-end gap-2.5 ${visualTransition} ${mine ? "justify-end" : "justify-start"} ${layoutVariation.structure === "rail" && !mine ? "sm:col-start-2" : ""} ${layoutVariation.structure === "magazine" && mine ? "sm:col-start-2" : ""} ${layoutVariation.structure === "focus" ? "justify-self-center" : ""} ${layoutVariation.structure === "timeline" ? "relative" : ""}`}
+                        style={{ marginInlineStart: mine ? 0 : `${Math.round(layoutVariation.assistantOffset * 100)}%` }}
+                        data-jia-message-entrance={entrance.id}
                       >
                         {!mine && (
                           <div className={`mb-1 grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-xl border ${layout === "stage" ? "border-white/15 bg-white/10" : "border-[#E2EAF4] bg-[#FFF7D7]"}`}>
@@ -454,7 +574,7 @@ export default function JiaConversationSurface(props: Props) {
                           </div>
                         )}
                         <div className={`min-w-0 ${layout === "gallery" && !mine ? "max-w-[94%] sm:max-w-[96%]" : "max-w-[88%] sm:max-w-[82%]"} ${mine ? "items-end" : "items-start"} flex flex-col`}>
-                          <div className={`rounded-[21px] px-4 py-3 text-[13px] leading-[1.65] ${visualTransition} sm:px-5 sm:py-3.5 ${mine ? "rounded-br-[7px]" : "rounded-bl-[7px]"} ${messageSurface(layout, message.role)} ${layout === "workspace" && !mine ? "rounded-xl border-l-[3px] border-l-[#1264EB]" : ""} ${layout === "gallery" && !mine ? "w-full min-w-[min(250px,70vw)] rounded-[24px] border-t-[3px] border-t-[#FFD21A]" : ""} ${layout === "interactive" && !mine ? "rounded-[24px] border-l-[4px] border-l-[#F28C28]" : ""} ${layout === "explorer" && !mine ? "rounded-[24px] bg-white/95" : ""}`}>
+                          <div className={`min-w-0 max-w-full rounded-[21px] px-3.5 py-3 text-[13px] leading-[1.65] [overflow-wrap:anywhere] ${visualTransition} sm:px-5 sm:py-3.5 ${mine ? "rounded-br-[7px]" : "rounded-bl-[7px]"} ${messageSurface(layout, message.role)} ${layout === "workspace" && !mine ? "rounded-xl border-l-[3px] border-l-[#1264EB]" : ""} ${layout === "gallery" && !mine ? "w-full min-w-[min(220px,68vw)] rounded-[24px] border-t-[3px] border-t-[#FFD21A]" : ""} ${layout === "interactive" && !mine ? "rounded-[24px] border-l-[4px] border-l-[#F28C28]" : ""} ${layout === "explorer" && !mine ? "rounded-[24px] bg-white/95" : ""}`}>
                             <p className="whitespace-pre-wrap break-words">{message.text}</p>
                             {message.sources && message.sources.length > 0 && (
                               <div className={`mt-3 border-t pt-2.5 ${layout === "stage" && !mine ? "border-white/15" : "border-[#DCE5F0]"}`}>
@@ -478,9 +598,30 @@ export default function JiaConversationSurface(props: Props) {
                                 onSaveProfile={onSaveProfile}
                                 onUploadCv={onUploadCv}
                                 onUpdateWorkspace={onUpdateWorkspace}
+                                variationIndex={variationIndex}
                               />
                             )}
                           </div>
+                          <details className="mt-1 max-w-full text-[10px]">
+                            <summary className="inline-flex min-h-8 cursor-pointer list-none items-center gap-1 rounded-full px-2.5 font-bold text-[#718198] hover:bg-black/[.04]">
+                              Réagir {messageReactions[message.id]?.length ? "· " + messageReactions[message.id].length : ""}
+                            </summary>
+                            {messageReactions[message.id]?.length > 0 && (
+                              <div className="my-1 flex flex-wrap gap-1">
+                                {messageReactions[message.id].map((emoji) => <span key={emoji} className="rounded-full border border-[#DCE6F2] bg-white px-2 py-1 text-[12px]">{emoji}</span>)}
+                              </div>
+                            )}
+                            <div className="my-2 grid max-w-[min(340px,82vw)] grid-cols-5 gap-1 rounded-2xl border border-[#DCE6F2] bg-white p-2 shadow-lg sm:grid-cols-10">
+                              {JIA_STICKER_REACTIONS.map((sticker) => {
+                                const active = (messageReactions[message.id] || []).includes(sticker.emoji);
+                                return <button key={sticker.id} type="button" title={sticker.label} aria-label={sticker.label} aria-pressed={active}
+                                  onClick={() => toggleReaction(message.id, sticker.emoji)}
+                                  className={`grid h-9 w-9 place-items-center rounded-xl text-[18px] transition ${active ? "bg-[#FFF2B3] ring-1 ring-[#E8C54C]" : "hover:bg-[#F1F5FA]"}`}>
+                                  {sticker.emoji}
+                                </button>;
+                              })}
+                            </div>
+                          </details>
                           <span className={`mt-1 px-1 text-[9px] font-semibold ${layout === "stage" ? "text-white/45" : "text-[#98A5B6]"}`}>
                             {timeLabel(message.createdAt)}
                           </span>
@@ -511,11 +652,11 @@ export default function JiaConversationSurface(props: Props) {
                   <div className="min-w-0 flex-1">
                     <p className="text-[12px] font-extrabold text-[#10233F]">J’IA attend ton autorisation</p>
                     <p className="mt-1 break-words text-[11px] leading-5 text-[#64748B]">{pendingAction.message}</p>
-                    <div className="mt-3 flex gap-2">
-                      <button type="button" onClick={onConfirmAction} disabled={busy} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1264EB] px-4 text-[11px] font-extrabold text-white hover:bg-[#0C53C7] disabled:opacity-50">
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" onClick={onConfirmAction} disabled={busy} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1264EB] px-4 text-[11px] font-extrabold text-white hover:bg-[#0C53C7] disabled:opacity-50">
                         <Check size={14}/> Autoriser
                       </button>
-                      <button type="button" onClick={onCancelAction} disabled={busy} className="min-h-10 rounded-xl border border-[#DCE5F0] px-4 text-[11px] font-extrabold text-[#52637A] hover:bg-[#F6F8FB]">Annuler</button>
+                      <button type="button" onClick={onCancelAction} disabled={busy} className="min-h-11 rounded-xl border border-[#DCE5F0] px-4 text-[11px] font-extrabold text-[#52637A] hover:bg-[#F6F8FB]">Annuler</button>
                     </div>
                   </div>
                 </div>
@@ -523,10 +664,10 @@ export default function JiaConversationSurface(props: Props) {
             )}
 
             <footer className={`relative shrink-0 border-t px-3 pb-3 pt-2.5 sm:px-6 sm:pb-4 ${layout === "stage" ? "border-white/10 bg-[#0B2452]" : "border-[#E8EDF4] bg-white"}`}>
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className={`text-[9px] font-bold ${layout === "stage" ? "text-white/55" : "text-[#8290A2]"}`}>Entrée pour envoyer · Maj + Entrée pour une ligne</div>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div className={`hidden text-[9px] font-bold sm:block ${layout === "stage" ? "text-white/55" : "text-[#8290A2]"}`}>Entrée pour envoyer · Maj + Entrée pour une ligne</div>
                 <button type="button" onClick={() => setShowShortcuts((value) => !value)} aria-expanded={showShortcuts}
-                  className={`inline-flex items-center gap-1 text-[10px] font-extrabold ${layout === "stage" ? "text-[#FFD21A]" : "text-[#1264EB]"}`}>
+                  className={`inline-flex min-h-11 items-center gap-1 text-[10px] font-extrabold ${layout === "stage" ? "text-[#FFD21A]" : "text-[#1264EB]"}`}>
                   Raccourcis Jobly <ChevronDown size={12} className={showShortcuts ? "rotate-180" : ""}/>
                 </button>
               </div>
@@ -534,7 +675,7 @@ export default function JiaConversationSurface(props: Props) {
                 <div className="mb-2 flex flex-wrap gap-1.5">
                   {quickLinks.map((link) => (
                     <button key={link.href} type="button" onClick={() => onNavigate(link.href)}
-                      className="min-h-8 rounded-full border border-[#DCE7F6] bg-[#F5F8FD] px-3 text-[10px] font-bold text-[#315B92] hover:border-[#1264EB]/40">
+                      className="min-h-11 rounded-full border border-[#DCE7F6] bg-[#F5F8FD] px-3 text-[10px] font-bold text-[#315B92] hover:border-[#1264EB]/40">
                       {link.label}
                     </button>
                   ))}
@@ -550,16 +691,16 @@ export default function JiaConversationSurface(props: Props) {
                   placeholder={ecosystem === "RECRUITER" ? "Que souhaites-tu faire pour ton recrutement ?" : ecosystem === "PARTNER" ? "Comment puis-je t’accompagner ?" : "Écris à J’IA…"}
                   aria-label="Message à J’IA"
                   disabled={busy}
-                  className={`max-h-32 min-h-11 min-w-0 flex-1 resize-y bg-transparent px-3 py-3 text-[13px] leading-5 outline-none placeholder:text-[#9AA7B6] disabled:opacity-60 ${layout === "stage" ? "text-white" : "text-[#10233F]"}`}
+                  className={`max-h-32 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-3 py-3 text-[13px] leading-5 outline-none placeholder:text-[#9AA7B6] disabled:opacity-60 sm:resize-y ${layout === "stage" ? "text-white" : "text-[#10233F]"}`}
                 />
                 {props.onEnableVoice && !voiceMode && (
                   <button type="button" onClick={props.onEnableVoice} aria-label="Activer le mode vocal" title="Mode vocal"
-                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${layout === "stage" ? "text-white/75 hover:bg-white/10" : "text-[#687A91] hover:bg-[#EAF0F8]"}`}>
+                    className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${layout === "stage" ? "text-white/75 hover:bg-white/10" : "text-[#687A91] hover:bg-[#EAF0F8]"}`}>
                     <Mic size={18}/>
                   </button>
                 )}
                 <button type="submit" disabled={busy || !inputValue.trim()} aria-label="Envoyer le message"
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#FFD21A] text-[#10233F] shadow-sm transition hover:brightness-95 active:scale-95 disabled:opacity-40">
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#FFD21A] text-[#10233F] shadow-sm transition hover:brightness-95 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1264EB] disabled:opacity-40">
                   {busy ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#10233F]/25 border-t-[#10233F]"/> : <ArrowUp size={19} strokeWidth={2.8}/>}
                 </button>
               </form>

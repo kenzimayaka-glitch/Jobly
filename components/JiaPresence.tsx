@@ -31,6 +31,7 @@ import { useOutfit, type Outfit } from "@/lib/jia/outfit";
 import { GESTURES, type GestureId } from "@/lib/jia/gestures";
 import { commandIntent, extractWakeCommand, isFinancialRequest } from "@/lib/jia/guard";
 import { getSupabaseClient } from "../lib/supabase";
+import { canWriteJiaConversation, mergeJiaConversationMessages } from "@/lib/jia/conversation-write-guard";
 import { useI18n, type DictKey } from "@/lib/i18n";
 import { decide as decideAutonomy, observe as observeAutonomy } from "@/lib/jia/autonomy";
 import JiaConversationSurface, { type JiaConversationMessage } from "@/components/jia/JiaConversationSurface";
@@ -365,6 +366,8 @@ export default function JiaPresence() {
   const eco = ecosystemOf(pathname);
 
   const [signedIn, setSignedIn] = useState(false);
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  const sessionUserIdRef = useRef<string | null>(null);
   const [prefs, setPrefs] = useState<Prefs>({ enabled: true, mode: "text", proactive: true });
   const [bubble, setBubble] = useState<Bubble | null>(null);
   const [gesture, setGesture] = useState<JiaGesture>("welcome");
@@ -393,7 +396,14 @@ export default function JiaPresence() {
   const [conversationPersistenceReady, setConversationPersistenceReady] = useState(false);
 
   const conversationIdRef = useRef<string | null>(null);
-  const pendingConversationMessagesRef = useRef<Array<{ ecosystem: Ecosystem; message: JiaConversationMessage }>>([]);
+  const conversationOwnerUserIdRef = useRef<string | null>(null);
+  const conversationWriteEpochRef = useRef(0);
+  const pendingConversationMessagesRef = useRef<Array<{
+    ecosystem: Ecosystem;
+    ownerUserId: string;
+    epoch: number;
+    message: JiaConversationMessage;
+  }>>([]);
   const conversationWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const modeRef = useRef<"text" | "voice">("text");
@@ -454,12 +464,49 @@ export default function JiaPresence() {
   // ── Session + préférences par écosystème ─────────────────────────────────
   useEffect(() => {
     let active = true;
+    const supabase = getSupabaseClient();
+    const resetForIdentityChange = () => {
+      conversationWriteEpochRef.current += 1;
+      conversationIdRef.current = null;
+      conversationOwnerUserIdRef.current = null;
+      pendingConversationMessagesRef.current = [];
+      conversationMessagesRef.current = [];
+      conversationWriteQueueRef.current = Promise.resolve();
+      setConversationMessages([]);
+      setHasMoreConversationMessages(false);
+      setLoadingOlderMessages(false);
+      setConversationPersistenceReady(false);
+      setRecentDialogue([]);
+      setSourceLinks([]);
+      setPendingAction(null);
+      setCommandInput("");
+      setCommandBusy(false);
+      setPanelOpen(false);
+      setBubble(null);
+      setPrefs({ enabled: true, mode: "text", proactive: true });
+      externalSignalRef.current = undefined;
+      lastPrediction.current = "";
+      lastAction.current = "";
+      shouldRestart.current = false;
+      recognition.current?.stop();
+    };
+    const applySession = (session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]) => {
+      const nextUserId = session?.user?.id ?? null;
+      if (sessionUserIdRef.current !== nextUserId) resetForIdentityChange();
+      sessionUserIdRef.current = nextUserId;
+      setSignedIn(Boolean(session?.access_token));
+      setSessionUserId(nextUserId);
+    };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
+      applySession(session);
+    });
     (async () => {
       try {
-        const { data: { session } } = await getSupabaseClient().auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
         if (!active) return;
-        if (!session?.access_token) { setSignedIn(false); return; }
-        setSignedIn(true);
+        applySession(session);
+        if (!session?.access_token) return;
         const res = await fetch(`/api/jia/preferences?ecosystem=${eco}`, { headers: { Authorization: `Bearer ${session.access_token}` } });
         if (!res.ok || !active) return;
         const data = await res.json();
@@ -476,8 +523,8 @@ export default function JiaPresence() {
         }
       } catch { /* silence : pas d’état optimiste sur les préférences */ }
     })();
-    return () => { active = false; };
-  }, [pathname, eco]);
+    return () => { active = false; subscription.unsubscribe(); };
+  }, [pathname, eco, sessionUserId]);
 
   // Réduction persistée (préférence d’affichage locale).
   useEffect(() => { try { setCollapsed(window.localStorage.getItem(COLLAPSE_KEY) === "1"); } catch {} }, []);
@@ -624,14 +671,27 @@ export default function JiaPresence() {
   }, []);
 
   const persistConversationMessage = useCallback((ecosystem: Ecosystem, message: JiaConversationMessage) => {
+    if (!signedIn) return;
     const conversationId = conversationIdRef.current;
-    if (!conversationId) {
-      pendingConversationMessagesRef.current.push({ ecosystem, message });
+    const ownerUserId = conversationOwnerUserIdRef.current;
+    const epoch = conversationWriteEpochRef.current;
+    if (!conversationId || !ownerUserId) {
+      const pendingOwner = sessionUserIdRef.current;
+      if (pendingOwner) pendingConversationMessagesRef.current.push({ ecosystem, ownerUserId: pendingOwner, epoch, message });
       return;
     }
     conversationWriteQueueRef.current = conversationWriteQueueRef.current.then(async () => {
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise pour sauvegarder la conversation.");
+      if (!session || !canWriteJiaConversation({
+        accessToken: session.access_token,
+        sessionUserId: session.user.id,
+        ownerUserId,
+        currentOwnerUserId: conversationOwnerUserIdRef.current,
+        currentConversationId: conversationIdRef.current,
+        capturedConversationId: conversationId,
+        currentEpoch: conversationWriteEpochRef.current,
+        capturedEpoch: epoch,
+      })) return;
       const response = await fetch("/api/jia/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
@@ -650,16 +710,24 @@ export default function JiaPresence() {
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.message || "Sauvegarde du message impossible.");
     }).catch((error) => {
+      // A rejected request from a prior account/session must not mark the new
+      // account's conversation as disconnected.
+      if (sessionUserIdRef.current !== ownerUserId || conversationWriteEpochRef.current !== epoch) return;
       setHealthStatus("error");
       console.error("[J’IA conversation] Persist failed", error);
     });
-  }, []);
+  }, [signedIn]);
 
   useEffect(() => {
     let active = true;
     (async () => {
       if (!signedIn) {
+        conversationWriteEpochRef.current += 1;
         conversationIdRef.current = null;
+        conversationOwnerUserIdRef.current = null;
+        pendingConversationMessagesRef.current = [];
+        conversationMessagesRef.current = [];
+        conversationWriteQueueRef.current = Promise.resolve();
         setConversationPersistenceReady(false);
         setConversationMessages([]);
         setHasMoreConversationMessages(false);
@@ -670,7 +738,16 @@ export default function JiaPresence() {
       setHealthStatus("checking");
       try {
         const { data: { session } } = await getSupabaseClient().auth.getSession();
-        if (!session?.access_token) throw new Error("Session requise.");
+        if (!session?.access_token || (sessionUserId && session.user.id !== sessionUserId)) throw new Error("Session requise.");
+        if (conversationOwnerUserIdRef.current && conversationOwnerUserIdRef.current !== session.user.id) {
+          conversationWriteEpochRef.current += 1;
+          pendingConversationMessagesRef.current = [];
+          conversationMessagesRef.current = [];
+          conversationWriteQueueRef.current = Promise.resolve();
+          setConversationMessages([]);
+          setHasMoreConversationMessages(false);
+        }
+        conversationOwnerUserIdRef.current = session.user.id;
         const headers = { Authorization: "Bearer " + session.access_token };
         const contextResponse = await fetch("/api/jia/context?ecosystem=" + encodeURIComponent(eco), { headers, cache: "no-store" });
         const contextBody = await contextResponse.json().catch(() => ({}));
@@ -701,13 +778,25 @@ export default function JiaPresence() {
           ...(Array.isArray(item.sources) && item.sources.length ? { sources: item.sources } : {}),
           ...(item.workspace && typeof item.workspace === "object" ? { workspace: item.workspace as JiaWorkspaceBlock } : {}),
         }));
-        setConversationMessages(restored);
+        const restoreEpoch = conversationWriteEpochRef.current;
+        const pending = pendingConversationMessagesRef.current;
+        const readyForThisEcosystem = pending.filter((queued) =>
+          queued.ecosystem === eco && queued.ownerUserId === session.user.id && queued.epoch === restoreEpoch
+        );
+        // Drop stale queue entries for this ecosystem; keep pending messages for
+        // other tabs/routes until their own conversation has finished restoring.
+        pendingConversationMessagesRef.current = pending.filter((queued) => queued.ecosystem !== eco);
+        const merged = mergeJiaConversationMessages(
+          restored,
+          readyForThisEcosystem.map((queued) => queued.message),
+        );
+        conversationMessagesRef.current = merged;
+        setConversationMessages(merged);
         setHasMoreConversationMessages(body.hasMore === true);
         setConversationPersistenceReady(true);
         setHealthStatus("ready");
-        const pending = pendingConversationMessagesRef.current;
-        const readyForThisEcosystem = pending.filter((queued) => queued.ecosystem === eco);
-        pendingConversationMessagesRef.current = pending.filter((queued) => queued.ecosystem !== eco);
+        // Persist only after the local thread has been reconciled with the
+        // server page, so messages sent during restore are never hidden or lost.
         for (const queued of readyForThisEcosystem) {
           persistConversationMessage(queued.ecosystem, queued.message);
         }
@@ -719,7 +808,7 @@ export default function JiaPresence() {
       }
     })();
     return () => { active = false; };
-  }, [eco, signedIn, persistConversationMessage]);
+  }, [eco, signedIn, sessionUserId, persistConversationMessage]);
 
   useEffect(() => { conversationMessagesRef.current = conversationMessages; }, [conversationMessages]);
 
@@ -738,7 +827,9 @@ export default function JiaPresence() {
       ...(sources?.length ? { sources } : {}),
       ...(workspace ? { workspace } : {}),
     };
-    setConversationMessages((current) => [...current, message]);
+    const nextMessages = [...conversationMessagesRef.current, message];
+    conversationMessagesRef.current = nextMessages;
+    setConversationMessages(nextMessages);
     persistConversationMessage(eco, message);
   }, [eco, persistConversationMessage]);
 
@@ -757,12 +848,15 @@ export default function JiaPresence() {
   const sendTextCommand = useCallback(async () => {
     const command = commandInput.trim();
     if (!command || commandBusy) return;
+    const initiatingOwner = sessionUserIdRef.current;
+    const initiatingEpoch = conversationWriteEpochRef.current;
     appendConversationMessage("user", command);
     setCommandBusy(true);
     setCommandInput("");
     try {
+      if (!initiatingOwner || !signedIn) throw new Error("Session requise.");
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise.");
+      if (!session?.access_token || session.user.id !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       const response = await fetch("/api/jia/brain", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
@@ -775,9 +869,9 @@ export default function JiaPresence() {
         }),
       });
       const out = await response.json().catch(() => ({}));
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       if (!response.ok) throw new Error(out.message || "J’IA est momentanément indisponible.");
       const nextSources = Array.isArray(out.sources) ? out.sources.filter((source: unknown): source is { title: string; url: string; snippet?: string } => Boolean(source && typeof source === "object" && "url" in source && typeof source.url === "string" && /^https?:\/\//i.test(source.url))).slice(0, 5) : [];
-      setSourceLinks(nextSources);
       const workspaceIntent = detectJiaWorkspaceIntent(command, eco);
       let workspaceBlock: JiaWorkspaceBlock | null = null;
       if (workspaceIntent) {
@@ -792,6 +886,10 @@ export default function JiaPresence() {
           };
         }
       }
+      // A sign-out or account switch during a workspace fetch invalidates the
+      // entire response; never attach an earlier account's content to the new thread.
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
+      setSourceLinks(nextSources);
       const answer = typeof out.message === "string" ? out.message.trim() : "";
       const previousAnswer = recentDialogue[recentDialogue.length - 1]?.trim().toLocaleLowerCase();
       if (answer && answer.toLocaleLowerCase() === previousAnswer) {
@@ -811,24 +909,48 @@ export default function JiaPresence() {
         sticky: true,
       });
     } catch (error) {
+      if (!initiatingOwner || sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       const message = error instanceof Error ? error.message : "Je n’ai pas réussi à répondre.";
       appendConversationMessage("assistant", message);
       say(message, { gesture: "secure", sticky: true, speak: false });
     } finally {
       setCommandBusy(false);
     }
-  }, [appendConversationMessage, commandBusy, commandInput, eco, recentDialogue, say]);
+  }, [appendConversationMessage, commandBusy, commandInput, eco, recentDialogue, say, signedIn]);
 
 
   const updateJiaWorkspace = useCallback((messageId: string, workspace: JiaWorkspaceBlock) => {
-    setConversationMessages((current) => current.map((message) =>
+    const nextMessages = conversationMessagesRef.current.map((message) =>
       message.id === messageId && message.role === "assistant" ? { ...message, workspace } : message
-    ));
+    );
+    conversationMessagesRef.current = nextMessages;
+    setConversationMessages(nextMessages);
     const conversationId = conversationIdRef.current;
-    if (!conversationId) return;
+    const ownerUserId = conversationOwnerUserIdRef.current;
+    const epoch = conversationWriteEpochRef.current;
+    if (!conversationId || !ownerUserId) {
+      const pendingOwner = sessionUserIdRef.current;
+      if (pendingOwner) {
+        pendingConversationMessagesRef.current = pendingConversationMessagesRef.current.map((queued) =>
+          queued.ecosystem === eco && queued.ownerUserId === pendingOwner && queued.message.id === messageId
+            ? { ...queued, message: { ...queued.message, workspace } }
+            : queued
+        );
+      }
+      return;
+    }
     conversationWriteQueueRef.current = conversationWriteQueueRef.current.then(async () => {
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise pour sauvegarder la carte.");
+      if (!session || !canWriteJiaConversation({
+        accessToken: session.access_token,
+        sessionUserId: session.user.id,
+        ownerUserId,
+        currentOwnerUserId: conversationOwnerUserIdRef.current,
+        currentConversationId: conversationIdRef.current,
+        capturedConversationId: conversationId,
+        currentEpoch: conversationWriteEpochRef.current,
+        capturedEpoch: epoch,
+      })) return;
       const response = await fetch("/api/jia/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
@@ -837,6 +959,7 @@ export default function JiaPresence() {
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.message || "Sauvegarde de la carte impossible.");
     }).catch((error) => {
+      if (sessionUserIdRef.current !== ownerUserId || conversationWriteEpochRef.current !== epoch) return;
       setHealthStatus("error");
       console.error("[J’IA conversation] Workspace state persist failed", error);
     });
@@ -851,10 +974,13 @@ export default function JiaPresence() {
     location: string;
     skills: string[];
   }) => {
+    const initiatingOwner = sessionUserIdRef.current;
+    const initiatingEpoch = conversationWriteEpochRef.current;
     setCommandBusy(true);
     try {
+      if (!initiatingOwner) throw new Error("Session requise pour modifier le profil.");
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise pour modifier le profil.");
+      if (!session?.access_token || session.user.id !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       const headers = { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token };
       const profileResponse = await fetch("/api/profile", {
         method: "PUT",
@@ -870,6 +996,7 @@ export default function JiaPresence() {
       });
       const profileBody = await profileResponse.json().catch(() => ({}));
       if (!profileResponse.ok) throw new Error(profileBody.message || "Jobly n'a pas enregistré les informations du profil.");
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
 
       const skillsResponse = await fetch("/api/profile", {
         method: "PUT",
@@ -878,6 +1005,7 @@ export default function JiaPresence() {
       });
       const skillsBody = await skillsResponse.json().catch(() => ({}));
       if (!skillsResponse.ok) throw new Error(skillsBody.message || "Les compétences n'ont pas été enregistrées.");
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
 
       const message = conversationMessagesRef.current?.find((item) => item.id === args.messageId);
       if (message?.workspace?.kind === "profile") {
@@ -897,6 +1025,8 @@ export default function JiaPresence() {
   }, [updateJiaWorkspace]);
 
   const uploadJiaCv = useCallback(async (args: { messageId: string; file: File }): Promise<boolean> => {
+    const initiatingOwner = sessionUserIdRef.current;
+    const initiatingEpoch = conversationWriteEpochRef.current;
     const { file } = args;
     if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
       throw new Error("Le CV doit être un fichier PDF.");
@@ -909,8 +1039,9 @@ export default function JiaPresence() {
     }
     setCommandBusy(true);
     try {
+      if (!initiatingOwner) throw new Error("Session requise pour remplacer le CV.");
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise pour remplacer le CV.");
+      if (!session?.access_token || session.user.id !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return false;
       const form = new FormData();
       form.append("file", file);
       const response = await fetch("/api/talent/cv/original", {
@@ -920,12 +1051,14 @@ export default function JiaPresence() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok || body.stored !== true) throw new Error(body.message || "Jobly n'a pas confirmé l'enregistrement du CV.");
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return false;
 
       const profileResponse = await fetch("/api/profile", {
         headers: { Authorization: "Bearer " + session.access_token },
         cache: "no-store",
       });
       const profileBody = profileResponse.ok ? await profileResponse.json().catch(() => ({})) : {};
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return false;
       const refreshedUser = profileBody.user || {};
       const message = conversationMessagesRef.current.find((item) => item.id === args.messageId);
       if (message?.workspace?.kind === "profile") {
@@ -942,15 +1075,28 @@ export default function JiaPresence() {
   }, [updateJiaWorkspace]);
 
   const loadOlderConversationMessages = useCallback(async () => {
-    if (loadingOlderMessages || !hasMoreConversationMessages || !conversationIdRef.current || !conversationMessages.length) return;
+    const capturedConversationId = conversationIdRef.current;
+    const capturedOwner = conversationOwnerUserIdRef.current;
+    const capturedEpoch = conversationWriteEpochRef.current;
+    const currentMessages = conversationMessagesRef.current;
+    if (loadingOlderMessages || !hasMoreConversationMessages || !capturedConversationId || !capturedOwner || !currentMessages.length) return;
     setLoadingOlderMessages(true);
     try {
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise.");
-      const oldest = conversationMessages[0];
+      if (!session || !canWriteJiaConversation({
+        accessToken: session.access_token,
+        sessionUserId: session.user.id,
+        ownerUserId: capturedOwner,
+        currentOwnerUserId: conversationOwnerUserIdRef.current,
+        currentConversationId: conversationIdRef.current,
+        capturedConversationId,
+        currentEpoch: conversationWriteEpochRef.current,
+        capturedEpoch,
+      })) return;
+      const oldest = currentMessages[0];
       const query = new URLSearchParams({
         ecosystem: eco,
-        conversationId: conversationIdRef.current,
+        conversationId: capturedConversationId,
         before: new Date(oldest.createdAt).toISOString(),
         beforeId: oldest.id,
         limit: "50",
@@ -961,6 +1107,17 @@ export default function JiaPresence() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.message || "Historique précédent indisponible.");
+      const { data: { session: currentSession } } = await getSupabaseClient().auth.getSession();
+      if (!currentSession || !canWriteJiaConversation({
+        accessToken: currentSession.access_token,
+        sessionUserId: currentSession.user.id,
+        ownerUserId: capturedOwner,
+        currentOwnerUserId: conversationOwnerUserIdRef.current,
+        currentConversationId: conversationIdRef.current,
+        capturedConversationId,
+        currentEpoch: conversationWriteEpochRef.current,
+        capturedEpoch,
+      })) return;
       const older: JiaConversationMessage[] = (Array.isArray(body.messages) ? body.messages : []).map((item: Record<string, any>) => ({
         id: String(item.id),
         role: item.role === "user" ? "user" : "assistant",
@@ -969,30 +1126,34 @@ export default function JiaPresence() {
         ...(Array.isArray(item.sources) && item.sources.length ? { sources: item.sources } : {}),
         ...(item.workspace && typeof item.workspace === "object" ? { workspace: item.workspace as JiaWorkspaceBlock } : {}),
       }));
-      setConversationMessages((current) => {
-        const known = new Set(current.map((item) => item.id));
-        return [...older.filter((item) => !known.has(item.id)), ...current];
-      });
+      const nextMessages = mergeJiaConversationMessages(older, conversationMessagesRef.current);
+      conversationMessagesRef.current = nextMessages;
+      setConversationMessages(nextMessages);
       setHasMoreConversationMessages(body.hasMore === true);
     } catch (error) {
+      if (sessionUserIdRef.current !== capturedOwner || conversationWriteEpochRef.current !== capturedEpoch) return;
       setHealthStatus("error");
       console.error("[J’IA conversation] Older page load failed", error);
     } finally {
       setLoadingOlderMessages(false);
     }
-  }, [conversationMessages, eco, hasMoreConversationMessages, loadingOlderMessages]);
+  }, [eco, hasMoreConversationMessages, loadingOlderMessages]);
 
   const prepareJiaApplication = useCallback(async (offer: JiaWorkspaceOffer) => {
+    const initiatingOwner = sessionUserIdRef.current;
+    const initiatingEpoch = conversationWriteEpochRef.current;
     setCommandBusy(true);
     try {
+      if (!initiatingOwner) throw new Error("Session requise pour préparer une candidature.");
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise pour préparer une candidature.");
+      if (!session?.access_token || session.user.id !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       const response = await fetch("/api/applications", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
         body: JSON.stringify({ source: offer.source, jobId: offer.id, locale: langRef.current === "en" ? "en" : "fr" }),
       });
       const result = await response.json().catch(() => ({}));
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       if (!response.ok) throw new Error(result.message || "Jobly n'a pas pu préparer cette candidature.");
       const prepared = result.prepared || {};
       const applicationProfile = result.applicationProfile || {};
@@ -1016,6 +1177,7 @@ export default function JiaPresence() {
       );
       say("Ta candidature est préparée et reste sous ton contrôle. Elle n'a pas été envoyée.", { gesture: "welcome", speak: true, sticky: true });
     } catch (error) {
+      if (!initiatingOwner || sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       const message = error instanceof Error ? error.message : "Impossible de préparer cette candidature.";
       appendConversationMessage("assistant", message);
       say(message, { gesture: "secure", speak: false, sticky: true });
@@ -1030,16 +1192,20 @@ export default function JiaPresence() {
     letter: string;
   }) => {
     if (!args.applicationId) throw new Error("Identifiant de candidature absent.");
+    const initiatingOwner = sessionUserIdRef.current;
+    const initiatingEpoch = conversationWriteEpochRef.current;
     setCommandBusy(true);
     try {
+      if (!initiatingOwner) throw new Error("Session requise pour envoyer cette candidature.");
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise pour envoyer cette candidature.");
+      if (!session?.access_token || session.user.id !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       const response = await fetch("/api/applications/" + encodeURIComponent(args.applicationId) + "/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
         body: JSON.stringify({ letterText: args.letter }),
       });
       const result = await response.json().catch(() => ({}));
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       if (!response.ok || result.submitted !== true) {
         throw new Error(result.message || "Jobly n’a pas confirmé l’envoi de cette candidature.");
       }
@@ -1065,10 +1231,13 @@ export default function JiaPresence() {
     score: number;
     resultSummary: string;
   }) => {
+    const initiatingOwner = sessionUserIdRef.current;
+    const initiatingEpoch = conversationWriteEpochRef.current;
     setCommandBusy(true);
     try {
+      if (!initiatingOwner) throw new Error("Session requise pour enregistrer cet exercice.");
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise pour enregistrer cet exercice.");
+      if (!session?.access_token || session.user.id !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       const response = await fetch("/api/career-journey/assessments", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
@@ -1081,6 +1250,7 @@ export default function JiaPresence() {
         }),
       });
       const result = await response.json().catch(() => ({}));
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       if (!response.ok) throw new Error(result.message || "L'enregistrement de l'évaluation a échoué.");
       const assessmentMessage = conversationMessagesRef.current.find((message) => message.id === args.messageId);
       if (assessmentMessage?.workspace?.kind === "questionnaire") {
@@ -1094,15 +1264,21 @@ export default function JiaPresence() {
 
   const confirmPendingAction = useCallback(async () => {
     if (!pendingAction) return;
+    const initiatingOwner = sessionUserIdRef.current;
+    const initiatingEpoch = conversationWriteEpochRef.current;
+    const action = pendingAction;
     setCommandBusy(true);
     try {
+      if (!initiatingOwner) throw new Error("Session requise pour confirmer cette action.");
       const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token || session.user.id !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       const response = await fetch("/api/jia/action", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
-        body: JSON.stringify({ type: pendingAction.type, message: pendingAction.message, confirmed: true }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ type: action.type, message: action.message, confirmed: true }),
       });
       const result = await response.json().catch(() => ({}));
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       if (!response.ok) throw new Error(result.message || "Action non disponible.");
       setPendingAction(null);
       const confirmation = typeof result.message === "string" && result.message.trim()
@@ -1110,8 +1286,9 @@ export default function JiaPresence() {
         : "L’action a été acceptée par le service Jobly.";
       appendConversationMessage("assistant", confirmation);
       say(confirmation, { gesture: "welcome", speak: true, sticky: true });
-      if (pendingAction.target || result.next) { setPanelOpen(false); router.push(pendingAction.target || result.next); }
+      if (action.target || result.next) { setPanelOpen(false); router.push(action.target || result.next); }
     } catch (error) {
+      if (!initiatingOwner || sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       say(error instanceof Error ? error.message : "Je n’ai pas pu préparer cette action.", { gesture: "secure", sticky: true, speak: false });
     } finally {
       setCommandBusy(false);
