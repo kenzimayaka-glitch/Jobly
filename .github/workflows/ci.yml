@@ -9,6 +9,7 @@ on:
       - "fix/**"
       - "feat/**"
       - "chore/**"
+      - "security/**"
   workflow_dispatch:
 
 concurrency:
@@ -175,6 +176,9 @@ jobs:
 
       - name: Jobly Security Core rate-limit and hardening tests
         run: pnpm test:security-core
+
+      - name: Android APK and hardware attestation security tests
+        run: pnpm test:android-integrity
 
       - name: J’IA 360 adaptive experience engine tests
         run: pnpm test:jia-experience
