@@ -145,7 +145,7 @@ export const JIA_MESSAGE_ENTRANCES: JiaMessageEntranceVariation[] = Array.from({
 
 export type JiaStickerReaction = { id: string; emoji: string; label: string };
 
-const STICKER_REACTIONS: JiaStickerReaction[] = [
+const STICKER_REACTIONS: Array<[string, string, string]> = [
   ["sparkles","✨","Éclat"],["heart","❤️","Cœur"],["fire","🔥","Bravo"],["clap","👏","Applaudissements"],["thumbs-up","👍","J'aime"],
   ["thumbs-down","👎","Pas convaincu"],["star","⭐","Étoile"],["party","🎉","Fête"],["rocket","🚀","On y va"],["target","🎯","Objectif"],
   ["lightbulb","💡","Idée"],["brain","🧠","Réflexion"],["eyes","👀","Je regarde"],["thinking","🤔","Je réfléchis"],["hug","🤗","Soutien"],
