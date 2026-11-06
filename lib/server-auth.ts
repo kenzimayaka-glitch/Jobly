@@ -70,7 +70,7 @@ export async function getAuthUser(request: NextRequest) {
     if (internalUser?.id) {
       const userAgent = request.headers.get("user-agent") || "";
       const pathname = new URL(request.url).pathname;
-      const isNativeAndroidWebView = /android/i.test(userAgent) && /\\bwv\\b/i.test(userAgent);
+      const isNativeAndroidWebView = /android/i.test(userAgent) && /\bwv\b/i.test(userAgent);
       const isAttestationBootstrap = pathname.startsWith("/api/android/attestation/");
       let requestedDeviceId = request.headers.get("x-jobly-device-id")?.trim() || "";
       if (!requestedDeviceId && isNativeAndroidWebView) {
