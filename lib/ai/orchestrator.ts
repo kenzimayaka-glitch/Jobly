@@ -24,8 +24,6 @@ export async function runAiOrchestrator(
   const attempts: AiProviderId[] = [];
 
   for (const id of PROVIDER_ORDER[priority]) {
-    // Gemini currently has a fixed 30s transport timeout; the Android receiver waits 8s.
-    if (operation === "PAYMENT_SMS_INTELLIGENCE" && id === "GEMINI") continue;
     if (id === "DETERMINISTIC" && options.allowDeterministic === false) continue;
     if (options.maxAttempts !== undefined && attempts.length >= options.maxAttempts) break;
     const provider = getProvider(id);
