@@ -24,6 +24,11 @@ console.log(JSON.stringify({
   status: "PASS",
   gate: "LOT-0-E2E-PUBLIC-CONNECTION",
   projectRef: expectedRef,
+  authSettings: {
+    disableSignup: settings.disable_signup ?? null,
+    mailerAutoconfirm: settings.mailer_autoconfirm ?? settings.autoconfirm ?? null,
+    phoneAutoconfirm: settings.phone_autoconfirm ?? null,
+  },
   checks: [
     "URL Supabase strictement limitée à JOBLY-E2E",
     "Clé publishable vérifiée sans secret serveur",
