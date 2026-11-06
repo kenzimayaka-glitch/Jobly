@@ -6,6 +6,7 @@ import PageHeader from "@/components/PageHeader";
 import { getSupabaseClient } from "@/lib/supabase";
 import {
   isJoblyAndroidPaymentSmsAvailable,
+  isJoblyAndroidPaymentSmsAutoReceiveAvailable,
   pairJoblyPaymentSmsDevice,
   revokeJoblyPaymentSmsDeviceLocally,
   requestJoblyPaymentSmsPermission,
@@ -40,6 +41,7 @@ export default function AdminPaymentSmsPage() {
   const [accessToken, setAccessToken] = useState("");
   const [loading, setLoading] = useState(true);
   const [nativeAvailable, setNativeAvailable] = useState(false);
+  const [autoSmsReceiveAvailable, setAutoSmsReceiveAvailable] = useState(false);
   const [provider, setProvider] = useState<Provider>("SMS_MTN");
   const [label, setLabel] = useState("Téléphone marchand MTN");
   const [merchantAccount, setMerchantAccount] = useState("");
@@ -144,6 +146,16 @@ export default function AdminPaymentSmsPage() {
     })().catch(() => router.replace("/ecosystem"));
   }, [router, loadDevices, loadProviderConfigs]);
 
+  useEffect(() => {
+    const syncCapabilities = () => {
+      setNativeAvailable(isJoblyAndroidPaymentSmsAvailable());
+      setAutoSmsReceiveAvailable(isJoblyAndroidPaymentSmsAutoReceiveAvailable());
+    };
+    window.addEventListener("jobly:android-capabilities", syncCapabilities);
+    syncCapabilities();
+    return () => window.removeEventListener("jobly:android-capabilities", syncCapabilities);
+  }, []);
+
   async function provision() {
     setMessage("");
     if (!nativeAvailable || !isJoblyAndroidPaymentSmsAvailable()) {
@@ -199,7 +211,9 @@ export default function AdminPaymentSmsPage() {
       await loadDevices(accessToken);
       setMerchantAccount("");
       setSenderIds("");
-      setMessage("Profil marchand appairé dans le même APK Jobly. Android va demander l’autorisation de réception SMS. Tu peux ajouter l’autre opérateur sans écraser ce profil.");
+      setMessage(autoSmsReceiveAvailable
+        ? "Profil marchand appairé dans le build interne Jobly. La réception automatique sera demandée par Android. Tu peux ajouter l’autre opérateur sans écraser ce profil."
+        : "Profil marchand enregistré. Cette version Google Play ne lit pas la boîte SMS : ouvre chaque reçu Mobile Money dans Messages puis choisis Partager → Jobly. Tu peux ajouter l’autre opérateur sans écraser ce profil.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Provisionnement impossible.");
     } finally {
@@ -245,6 +259,12 @@ export default function AdminPaymentSmsPage() {
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
             La liste peut être consultée depuis Web/PWA. Pour appairer une SIM et recevoir ses SMS, ouvre cet écran dans
             l’APK Jobly installé sur le téléphone marchand. Le site Web ne peut pas lire la boîte SMS.
+          </div>
+        )}
+
+        {nativeAvailable && !autoSmsReceiveAvailable && (
+          <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-900">
+            <b>Version Google Play — partage volontaire uniquement.</b> Jobly ne demande pas l’accès à la boîte SMS et ne lit aucun message en arrière-plan. Pour confirmer un paiement, ouvre le reçu dans l’application Messages puis choisis <b>Partager → Jobly</b>. J’IA analyse uniquement ce reçu sélectionné; la confirmation indépendante du compte marchand reste obligatoire.
           </div>
         )}
 
@@ -344,10 +364,15 @@ export default function AdminPaymentSmsPage() {
                   {busy === device.id ? "Révocation…" : "Révoquer ce profil"}
                 </button>
               </div>
-              {nativeAvailable && (
+              {nativeAvailable && autoSmsReceiveAvailable && (
                 <button onClick={() => requestJoblyPaymentSmsPermission()} className="rounded-xl bg-[#0B2A5B] px-4 py-3 text-sm font-bold text-white">
-                  Réessayer l’autorisation SMS
+                  Réessayer l’autorisation SMS (build interne)
                 </button>
+              )}
+              {nativeAvailable && !autoSmsReceiveAvailable && (
+                <p className="rounded-xl bg-sky-50 p-3 text-xs leading-5 text-sky-900">
+                  Google Play : pas de lecture automatique. Partage chaque reçu depuis Messages vers Jobly pour lancer l’analyse.
+                </p>
               )}
             </article>
           ))}
