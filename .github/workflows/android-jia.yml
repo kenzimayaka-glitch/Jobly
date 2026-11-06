@@ -161,7 +161,7 @@ jobs:
       contents: read
     env:
       JOBLY_ANDROID_KEYSTORE_BASE64: ${{ secrets.JOBLY_ANDROID_KEYSTORE_BASE64 }}
-      JOBLY_ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/jobly-release.jks
+      JOBLY_ANDROID_KEYSTORE_PATH: /tmp/jobly-release.jks
       JOBLY_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.JOBLY_ANDROID_KEYSTORE_PASSWORD }}
       JOBLY_ANDROID_KEY_ALIAS: ${{ secrets.JOBLY_ANDROID_KEY_ALIAS }}
       JOBLY_ANDROID_KEY_PASSWORD: ${{ secrets.JOBLY_ANDROID_KEY_PASSWORD }}
