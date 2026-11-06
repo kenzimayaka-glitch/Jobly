@@ -382,7 +382,7 @@ function PreparedApplicationBlock({ block, messageId, onSubmitApplication }: {
   );
 }
 
-export default function JiaWorkspaceBlocks({ block, messageId, onPrepareApplication, onNavigate, onSubmitAssessment }: Props) {
+export default function JiaWorkspaceBlocks({ block, messageId, onPrepareApplication, onNavigate, onSubmitAssessment, onSubmitApplication }: Props) {
   if (block.kind === "offers") return <OffersBlock block={block} onPrepareApplication={onPrepareApplication} onNavigate={onNavigate}/>;
   if (block.kind === "applications") return <ApplicationsBlock block={block}/>;
   if (block.kind === "profile") return <ProfileBlock block={block} onNavigate={onNavigate}/>;
