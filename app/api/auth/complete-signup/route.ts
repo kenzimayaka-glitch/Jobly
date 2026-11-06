@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient, getAuthUser } from "../../../../lib/server-auth";
+import { enforceApiRateLimit } from "../../../../lib/server-security";
 
 // 15/09/2026 : seule l'unicité du username est exigée désormais — plus de
 // contrainte de format à la création du compte (elle rejetait encore un
@@ -25,6 +26,14 @@ export async function POST(request: NextRequest) {
     if (authUser.email?.toLowerCase() !== email) return NextResponse.json({ message: "L'adresse e-mail vérifiée ne correspond pas à l'inscription." }, { status: 400 });
 
     const supabase = adminClient();
+    const rateLimited = await enforceApiRateLimit(request, supabase, {
+      scope: "auth-complete-signup",
+      identity: authUser.id,
+      accountWindows: [{ limit: 5, windowSeconds: 3600 }, { limit: 10, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 10, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (rateLimited) return rateLimited;
     const { data: conflict } = await supabase.from("User").select("id").ilike("username", username).maybeSingle();
     if (conflict) return NextResponse.json({ message: "Ce username est déjà utilisé. Choisis-en un autre." }, { status: 409 });
     const { data: existing, error: existingError } = await supabase.from("User").select("id").eq("authUserId", authUser.id).maybeSingle();
