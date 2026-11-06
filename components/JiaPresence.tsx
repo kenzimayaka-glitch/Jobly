@@ -1258,15 +1258,21 @@ export default function JiaPresence() {
 
   const confirmPendingAction = useCallback(async () => {
     if (!pendingAction) return;
+    const initiatingOwner = sessionUserIdRef.current;
+    const initiatingEpoch = conversationWriteEpochRef.current;
+    const action = pendingAction;
     setCommandBusy(true);
     try {
+      if (!initiatingOwner) throw new Error("Session requise pour confirmer cette action.");
       const { data: { session } } = await getSupabaseClient().auth.getSession();
+      if (!session?.access_token || session.user.id !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       const response = await fetch("/api/jia/action", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
-        body: JSON.stringify({ type: pendingAction.type, message: pendingAction.message, confirmed: true }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ type: action.type, message: action.message, confirmed: true }),
       });
       const result = await response.json().catch(() => ({}));
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       if (!response.ok) throw new Error(result.message || "Action non disponible.");
       setPendingAction(null);
       const confirmation = typeof result.message === "string" && result.message.trim()
@@ -1274,8 +1280,9 @@ export default function JiaPresence() {
         : "L’action a été acceptée par le service Jobly.";
       appendConversationMessage("assistant", confirmation);
       say(confirmation, { gesture: "welcome", speak: true, sticky: true });
-      if (pendingAction.target || result.next) { setPanelOpen(false); router.push(pendingAction.target || result.next); }
+      if (action.target || result.next) { setPanelOpen(false); router.push(action.target || result.next); }
     } catch (error) {
+      if (initiatingOwner && (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch)) return;
       say(error instanceof Error ? error.message : "Je n’ai pas pu préparer cette action.", { gesture: "secure", sticky: true, speak: false });
     } finally {
       setCommandBusy(false);
