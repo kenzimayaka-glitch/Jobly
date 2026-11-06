@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       doc.moveDown().fontSize(8).fillColor("#64748b").text("Les valeurs indisponibles ne sont pas assimilées à zéro. Les projections éventuelles ne sont pas des résultats constatés.");
       doc.end(); bytes=await finished; contentType="application/pdf"; filename="jobly-intelligence-"+stamp+".pdf";
     }
-    const { error: saveError } = await db.from("JoblyAnalyticsReport").insert({
+    const { data: savedReport, error: saveError } = await db.from("JoblyAnalyticsReport").insert({
       title, reportType:"executive", fileFormat:format, parameters:Object.fromEntries(params.entries()),
       payload:{ generatedAt:report.generatedAt, range:report.range, rows, series:report.series },
       createdByUserId:user.id,
