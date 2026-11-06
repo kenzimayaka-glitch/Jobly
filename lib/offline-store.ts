@@ -58,7 +58,7 @@ async function getEncryptionKey(userId: string): Promise<CryptoKey> {
   const db = await openDatabase();
   try {
     const existing = await new Promise<StoredKey | undefined>((resolve, reject) => {
-      const request = db.transaction("keys", "readonly").objectStore("keys").get(userId);
+      const request = db.transaction("keys", "readonly").objectStore("keys").get(resolvedUserId);
       request.onsuccess = () => resolve(request.result as StoredKey | undefined);
       request.onerror = () => reject(request.error);
     });
@@ -68,7 +68,7 @@ async function getEncryptionKey(userId: string): Promise<CryptoKey> {
     return await new Promise<CryptoKey>((resolve, reject) => {
       const tx = db.transaction("keys", "readwrite");
       const store = tx.objectStore("keys");
-      const get = store.get(userId);
+      const get = store.get(resolvedUserId);
       let selected = generated;
       get.onsuccess = () => {
         if (get.result?.key) selected = (get.result as StoredKey).key;
@@ -168,9 +168,12 @@ export async function getOfflineDocument(userId: string): Promise<Blob | null> {
   return new Blob([plaintext], { type: "application/pdf" });
 }
 
-export function getOfflineUserId() {
+export function getOfflineUserId(authUserId?: string) {
   if (typeof window === "undefined") return null;
-  try { return window.localStorage.getItem(OFFLINE_USER_KEY); } catch { return null; }
+  try {
+    const key = authUserId ? `${OFFLINE_USER_KEY}:${authUserId}` : OFFLINE_USER_KEY;
+    return window.localStorage.getItem(key);
+  } catch { return null; }
 }
 
 export async function saveOfflineSnapshot(snapshot: OfflineSnapshot) {
@@ -181,17 +184,19 @@ export async function saveOfflineSnapshot(snapshot: OfflineSnapshot) {
   if (expiry > Date.now() + MAX_OFFLINE_DAYS * 24 * 60 * 60 * 1000 + 5 * 60 * 1000) {
     throw new Error("La durée de conservation hors connexion dépasse la limite autorisée.");
   }
+  if (!snapshot.authUserId) throw new Error("Identité de compte manquante dans la copie hors connexion.");
   await encryptRecord(snapshot.userId, `snapshot:${snapshot.userId}`, "snapshot", snapshot);
-  try { window.localStorage.setItem(OFFLINE_USER_KEY, snapshot.userId); } catch {}
+  try { window.localStorage.setItem(`${OFFLINE_USER_KEY}:${snapshot.authUserId}`, snapshot.userId); } catch {}
 }
 
-export async function getOfflineSnapshot(userId = getOfflineUserId(), expectedAuthUserId?: string): Promise<OfflineSnapshot | null> {
-  if (!userId) return null;
+export async function getOfflineSnapshot(userId?: string, expectedAuthUserId?: string): Promise<OfflineSnapshot | null> {
+  const resolvedUserId = userId || getOfflineUserId(expectedAuthUserId);
+  if (!resolvedUserId) return null;
   const db = await openDatabase();
   let record: EncryptedRecord | undefined;
   try {
     record = await new Promise<EncryptedRecord | undefined>((resolve, reject) => {
-      const request = db.transaction("records", "readonly").objectStore("records").get(`snapshot:${userId}`);
+      const request = db.transaction("records", "readonly").objectStore("records").get(`snapshot:${resolvedUserId}`);
       request.onsuccess = () => resolve(request.result as EncryptedRecord | undefined);
       request.onerror = () => reject(request.error);
     });
@@ -199,7 +204,7 @@ export async function getOfflineSnapshot(userId = getOfflineUserId(), expectedAu
   if (!record) return null;
   const snapshot = await decryptRecord<OfflineSnapshot>(record);
   if (new Date(snapshot.expiresAt).getTime() <= Date.now()) {
-    await clearOfflineData(userId);
+    await clearOfflineData(resolvedUserId, snapshot.authUserId);
     return null;
   }
   if (expectedAuthUserId && snapshot.authUserId !== expectedAuthUserId) return null;
@@ -245,12 +250,12 @@ export async function removePendingOfflineOperations(userId: string, ids: string
   } finally { db.close(); }
 }
 
-export async function countPendingOfflineOperations(userId = getOfflineUserId()): Promise<number> {
+export async function countPendingOfflineOperations(userId?: string): Promise<number> {
   if (!userId) return 0;
   return (await getPendingOfflineOperations(userId)).length;
 }
 
-export async function clearOfflineData(userId: string) {
+export async function clearOfflineData(userId: string, authUserId?: string) {
   const db = await openDatabase();
   try {
     await new Promise<void>((resolve, reject) => {
@@ -267,6 +272,7 @@ export async function clearOfflineData(userId: string) {
     });
   } finally { db.close(); }
   try {
+    if (authUserId) window.localStorage.removeItem(`${OFFLINE_USER_KEY}:${authUserId}`);
     if (window.localStorage.getItem(OFFLINE_USER_KEY) === userId) window.localStorage.removeItem(OFFLINE_USER_KEY);
   } catch {}
 }
