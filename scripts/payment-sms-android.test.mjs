@@ -9,6 +9,7 @@ test("Jobly APK receives SMS only with the declared restricted permission", () =
   const receiver = read("../apps/android/app/src/main/java/com/jobly/android/PaymentSmsReceiver.kt");
   assert.match(manifest, /android\.permission\.RECEIVE_SMS/);
   assert.match(manifest, /\.PaymentSmsReceiver/);
+  assert.ok(manifest.includes('android:permission="android.permission.BROADCAST_SMS"'));
   assert.match(receiver, /SMS_RECEIVED_ACTION/);
   assert.match(receiver, /isAllowedSender\(context, senderId\)/);
   assert.ok(receiver.indexOf("isAllowedSender(context, senderId)") < receiver.indexOf("enqueueUniqueWork"));
@@ -35,9 +36,9 @@ test("WorkManager queues ciphertext and posts only to the Jobly SMS endpoint", (
   assert.match(worker, /\/api\/payments\/sms\/ingest/);
   assert.match(worker, /x-jobly-sms-device/);
   assert.match(worker, /Authorization/);
-  assert.match(worker, /configuredBase\\.protocol !== "https"/);
-  assert.match(worker, /queuedDeviceId !== credentials\\.deviceId/);
-  assert.match(worker, /credentials\\.senderIds\\.contains/);
+  assert.ok(worker.includes('configuredBase.protocol !== "https"'));
+  assert.ok(worker.includes("queuedDeviceId !== credentials.deviceId"));
+  assert.ok(worker.includes("credentials.senderIds.contains"));
   assert.match(worker, /Result\.retry\(\)/);
   assert.doesNotMatch(worker, /Log\./);
 });
