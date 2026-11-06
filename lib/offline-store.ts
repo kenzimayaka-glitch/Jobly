@@ -92,8 +92,8 @@ async function encryptRecord(userId: string, id: string, kind: EncryptedRecord["
     id,
     userId,
     kind,
-    iv: Array.from(iv),
-    ciphertext: Array.from(new Uint8Array(ciphertext)),
+    iv: iv.buffer.slice(0),
+    ciphertext,
     updatedAt: new Date().toISOString(),
   };
   const db = await openDatabase();
