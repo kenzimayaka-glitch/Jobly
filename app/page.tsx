@@ -166,7 +166,7 @@ const translations = {
     subtitle: "Rejoignez des milliers d’opportunités.",
     google: "Continuer avec Google",
     conditions: "En continuant, vous acceptez nos Conditions et Politique de confidentialité",
-    create: "Créer un compte",
+    create: "Créer mon compte",
     login: "Se connecter",
     loginTitle: "Connexion",
     loginSubtitle: "Entrez votre Username et votre Mot de passe",
@@ -265,7 +265,7 @@ const BENEFITS = {
   fr: [
     { Icon: ShieldStarIcon, title: "100% Gratuit", subtitle: "Accès aux opportunités", color: "#3478C8" },
     { Icon: PeopleStarIcon, title: "Coaching IA", subtitle: "Conseils personnalisés", color: "#8064D8" },
-    { Icon: CheckCircleIcon, title: "Placement rapide", subtitle: "Construis ta carrière", color: "#28A99B" },
+    { Icon: CheckCircleIcon, title: "Placement Rapide", subtitle: "Construis ta carrière", color: "#28A99B" },
   ],
   en: [
     { Icon: ShieldStarIcon, title: "100% Free", subtitle: "Access opportunities", color: "#3478C8" },
@@ -767,7 +767,7 @@ export default function Home() {
     <div className="relative flex min-h-0 flex-1 w-full flex-col gap-0">
       {screen !== "login" && screen !== "signup" && <header className={screen === "welcome" ? "relative z-30 flex h-[90px] shrink-0 items-center justify-between px-5 pt-2 sm:h-[104px] sm:px-8" : "z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"}>
         <div ref={logoRef} className={screen === "welcome" ? "shrink-0" : "rounded-2xl bg-white/95 p-2 shadow-2xl"}>
-          <Image src="/jobly-logo-reference.jpg" alt="Jobly — Your Career OS" width={170} height={60} className={screen === "welcome" ? "h-auto w-[132px] object-contain sm:w-[175px]" : "h-auto w-[150px] object-contain"} priority />
+          <Image src="/jobly-logo-reference.jpg" alt="Jobly — Your AI Career Agent" width={170} height={60} className={screen === "welcome" ? "h-auto w-[132px] object-contain sm:w-[175px]" : "h-auto w-[150px] object-contain"} priority />
         </div>
         {screen === "welcome" && <div role="group" aria-label="Choisir la langue / Choose language" className="relative isolate flex items-center gap-1 rounded-full bg-[#EEF1F5] p-1.5 shadow-inner">
           <motion.button type="button" aria-label="Français" aria-pressed={lang === "fr"} whileTap={{ scale: 0.94 }} onClick={() => { setLang("fr"); try { localStorage.setItem("jobly-lang", "fr"); } catch {} }} className="relative isolate inline-flex min-w-[64px] items-center justify-center gap-1 rounded-full px-2 py-2.5 text-[13px] font-bold tracking-wide text-[#0A1931] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD60A] focus-visible:ring-offset-2">
