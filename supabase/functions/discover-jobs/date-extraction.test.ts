@@ -199,3 +199,19 @@ Deno.test("date-only application deadline remains valid through the end of the d
   });
   assertEquals(result.visible, true);
 });
+
+Deno.test("JSON-LD date-only deadline remains valid through end of day", () => {
+  const html = '<script type="application/ld+json">{"@type":"JobPosting","validThrough":"2026-11-06"}</script>';
+  assertEquals(
+    extractSourceDeadline(html, "https://jobs.example.org/job/1", "example"),
+    "2026-11-06T23:59:59.999Z",
+  );
+});
+
+Deno.test("JSON-LD UTC-midnight deadline is treated as a date-only deadline", () => {
+  const html = '<script type="application/ld+json">{"@type":"JobPosting","validThrough":"2026-11-06T00:00:00.000Z"}</script>';
+  assertEquals(
+    extractSourceDeadline(html, "https://jobs.example.org/job/1", "example"),
+    "2026-11-06T23:59:59.999Z",
+  );
+});
