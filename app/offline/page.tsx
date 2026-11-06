@@ -17,6 +17,9 @@ export default function OfflineWorkspacePage() {
   const [online, setOnline] = useState(true);
   const [headline, setHeadline] = useState("");
   const [summary, setSummary] = useState("");
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftDescription, setDraftDescription] = useState("");
+  const [draftLocation, setDraftLocation] = useState("");
   const [notice, setNotice] = useState<Notice | null>(null);
 
   const loadLocal = useCallback(async () => {
@@ -61,6 +64,28 @@ export default function OfflineWorkspacePage() {
         : "Modification sauvegardée localement. Elle sera envoyée au retour d'Internet." });
     } catch (error) {
       setNotice({ tone: "error", message: error instanceof Error ? error.message : "Impossible d'enregistrer la modification." });
+    }
+  }
+
+  async function saveRecruiterDraft() {
+    if (!snapshot) return;
+    if (!draftTitle.trim() || !draftDescription.trim()) {
+      setNotice({ tone: "error", message: "Le titre et la description de l'offre sont obligatoires." });
+      return;
+    }
+    try {
+      await enqueueOfflineOperation(snapshot.userId, {
+        id: crypto.randomUUID(),
+        type: "recruiter.job-draft",
+        createdAt: new Date().toISOString(),
+        payload: { title: draftTitle.trim(), description: draftDescription.trim(), location: draftLocation.trim() },
+      });
+      setNotice({ tone: "success", message: "Brouillon de poste enregistré localement. Il sera créé comme brouillon non publié dès le retour d'Internet." });
+      setDraftTitle("");
+      setDraftDescription("");
+      setDraftLocation("");
+    } catch (error) {
+      setNotice({ tone: "error", message: error instanceof Error ? error.message : "Impossible d'enregistrer le brouillon." });
     }
   }
 
@@ -161,6 +186,44 @@ export default function OfflineWorkspacePage() {
             </div>
           </div>
         </section>
+
+        {snapshot.recruiterProfile ? (
+          <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-black">Espace recruteur hors connexion</h2>
+            <p className="mt-1 text-xs text-slate-500">Vous pouvez préparer des offres. Elles seront créées en brouillon et ne seront jamais publiées automatiquement.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="text-xs font-bold text-slate-600">Intitulé du poste
+                <input value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} maxLength={180} className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm"/>
+              </label>
+              <label className="text-xs font-bold text-slate-600">Lieu
+                <input value={draftLocation} onChange={(event) => setDraftLocation(event.target.value)} maxLength={180} className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm"/>
+              </label>
+            </div>
+            <label className="mt-3 block text-xs font-bold text-slate-600">Description
+              <textarea value={draftDescription} onChange={(event) => setDraftDescription(event.target.value)} maxLength={12000} rows={5} className="mt-1.5 w-full rounded-xl border border-slate-200 p-3 text-sm"/>
+            </label>
+            <button type="button" onClick={() => void saveRecruiterDraft()} className="mt-3 h-11 rounded-xl bg-[#FFD60A] px-5 text-sm font-extrabold text-[#0A1931]">Enregistrer comme brouillon</button>
+            <div className="mt-4 space-y-2">
+              <h3 className="text-sm font-extrabold">Offres de votre compte mises en cache</h3>
+              {(snapshot.recruiterJobs || []).slice(0, 20).map((job) => (
+                <div key={String(job.id)} className="rounded-xl border border-slate-100 p-3">
+                  <p className="text-sm font-bold">{String(job.title)}</p>
+                  <p className="text-xs text-slate-500">{String(job.status)} · {String(job.location || "Lieu non précisé")}</p>
+                </div>
+              ))}
+              {(snapshot.recruiterJobs || []).length === 0 ? <p className="text-xs text-slate-500">Aucune offre recruteur enregistrée sur cet appareil.</p> : null}
+            </div>
+          </section>
+        ) : null}
+
+        {snapshot.partnerProfile ? (
+          <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-black">Espace partenaire hors connexion</h2>
+            <p className="mt-2 text-sm text-slate-600">Code de parrainage : <strong>{String(snapshot.partnerProfile.referralCode || "—")}</strong></p>
+            <p className="mt-1 text-xs text-slate-500">Statut KYC : {String(snapshot.partnerProfile.kycStatus || "Non renseigné")} · {String(snapshot.partnerProfile.partnerType || "Partenaire")}</p>
+            <p className="mt-2 text-xs text-slate-500">Les commissions et actions financières restent accessibles uniquement en ligne.</p>
+          </section>
+        ) : null}
 
         <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
