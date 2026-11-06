@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 import {
   countPendingOfflineOperations,
@@ -12,6 +13,7 @@ import {
 type Connectivity = "online" | "offline" | "syncing" | "attention";
 
 export default function OfflineCoordinator() {
+  const router = useRouter();
   const [connectivity, setConnectivity] = useState<Connectivity>("online");
   const [pendingCount, setPendingCount] = useState(0);
   const [message, setMessage] = useState("");
@@ -22,13 +24,14 @@ export default function OfflineCoordinator() {
     } catch {
       setPendingCount(0);
     }
-  }, []);
+  }, [router]);
 
   const signOutRevokedSession = useCallback(async () => {
     try {
       await getSupabaseClient().auth.signOut({ scope: "local" });
     } catch {}
     window.dispatchEvent(new CustomEvent("jobly:device-session-revoked"));
+    router.replace("/");
     setConnectivity("attention");
     setMessage("Cette connexion a été remplacée par une connexion plus récente. Reconnectez-vous pour continuer.");
   }, []);
