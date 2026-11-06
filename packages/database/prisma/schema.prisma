@@ -417,6 +417,7 @@ model PaymentSmsDevice {
   label           String
   provider        String
   merchantAccount String
+  timeZone        String    @default("Africa/Douala")
   senderIds       String[]
   tokenHash       String
   status          String    @default("ACTIVE")
