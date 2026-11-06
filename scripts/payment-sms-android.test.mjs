@@ -91,3 +91,19 @@ test("one APK can hold distinct MTN and Orange merchant profiles safely", () => 
   assert.match(activity, /PaymentSmsReceiver\.deleteQueuedFiles\(this@MainActivity, deviceId\)/);
   assert.match(page, /devices\.map\(\(device\)/);
 });
+
+test("administrator manages central MTN and Orange settings from Web, PWA and the same APK", () => {
+  const page = read("../app/admin/payments/sms/page.tsx");
+  assert.match(page, /Configuration marchande centralisée/);
+  assert.match(page, /api\/payments\/sms\/config/);
+  assert.match(page, /Enregistrer et synchroniser/);
+  assert.match(page, /loadProviderConfigs/);
+  assert.match(page, /SMS_MTN/);
+  assert.match(page, /SMS_ORANGE/);
+  assert.match(page, /merchantCodeHint/);
+  assert.match(page, /merchantCode: draft\.merchantCode\.trim\(\)/);
+  assert.match(page, /Numéro du compte marchand central/);
+  assert.match(page, /readOnly/);
+  assert.match(page, /merchantAccountLast4|Ce téléphone écoute encore l’ancien compte marchand/);
+  assert.match(page, /Le changement de numéro de réception doit être suivi de l’appairage/);
+});
