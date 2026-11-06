@@ -49,3 +49,20 @@ L'URL par défaut est https://jobly-c0651.vercel.app. Le binaire debug est produ
 ## État de livraison
 
 Le code source et le pipeline CI Android sont versionnés. Le build CI doit réussir avant toute fusion. La publication Play Store, la signature release et les tests sur appareils physiques restent des étapes séparées.
+
+## Confirmation Mobile Money dans le même APK
+
+Le téléphone Android marchand utilise ce même package `com.jobly.android` et la même WebView Jobly. Aucun second APK ou service compagnon n'est créé.
+
+1. Un ADMIN/FINANCE ouvre `/admin/payments/sms` directement dans l'APK du téléphone qui porte la SIM marchande.
+2. Il choisit l'opérateur, renseigne le compte marchand et saisit les identifiants d'expéditeur exactement observés sur des SMS réels.
+3. Le serveur provisionne le téléphone et retourne un jeton à usage d'appairage. Le pont WebView natif, limité à l'origine HTTPS Jobly et au document principal, remet immédiatement ce jeton au composant Android.
+4. Le jeton et la liste exacte des expéditeurs sont chiffrés AES-GCM dans les préférences privées à l'aide d'une clé Android Keystore. Le SMS lui-même est chiffré avant d'être mis en file dans WorkManager.
+5. Le receiver Android ne transmet que les SMS dont l'expéditeur correspond à la liste locale. WorkManager envoie le message chiffré vers `/api/payments/sms/ingest` avec le jeton du téléphone.
+6. Le serveur vérifie à nouveau l'identifiant d'appareil, le jeton, l'expéditeur, le numéro marchand, le montant, la devise et la référence opérateur. Le corps brut n'est pas persisté côté serveur.
+
+### Permission SMS restreinte
+
+Le manifeste déclare `RECEIVE_SMS` et l'application demande l'autorisation Android après l'appairage. Cette permission est traitée comme dangereuse et restreinte par certaines versions Android ; selon le canal d'installation, un installateur peut devoir l'autoriser explicitement. Le simple fait de lister la permission et d'afficher la demande ne garantit pas son attribution. Il faut contrôler le résultat sur le modèle Android réel et le mode d'installation utilisé pour le téléphone marchand.
+
+Le receiver ne lit pas l'historique de la boîte SMS. Il écoute l'événement système reçu et filtre les identifiants d'expéditeur avant toute mise en file d'envoi. Les messages mis en file sont chiffrés sur l'appareil. La révocation dans l'administration Jobly supprime également le jeton local depuis l'écran APK.
