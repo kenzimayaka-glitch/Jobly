@@ -43,7 +43,7 @@ import {
 } from "@/lib/jia/workspace";
 
 
-type Ecosystem = "TALENT" | "RECRUITER" | "PARTNER";
+type Ecosystem = "TALENT" | "RECRUITER" | "PARTNER" | "ADMIN";
 type Bubble = { id: number; text: string; gesture?: JiaGesture; move?: JIAMove };
 type Prefs = { enabled: boolean; mode: "text" | "voice"; proactive: boolean };
 
@@ -62,7 +62,7 @@ declare global {
 }
 
 // Écrans où J’IA ne s’affiche jamais (auth, onboarding, pages publiques, scène dédiée).
-const HIDDEN_ROUTES = [/^\/$/, /^\/ecosystem/, /^\/auth\//, /^\/onboarding/, /^\/legal\//, /^\/cv\/share\//, /^\/pass\//, /^\/download/, /^\/join/, /^\/recruiter\/discover\//, /^\/admin/];
+const HIDDEN_ROUTES = [/^\/$/, /^\/ecosystem/, /^\/auth\//, /^\/onboarding/, /^\/legal\//, /^\/cv\/share\//, /^\/pass\//, /^\/download/, /^\/join/, /^\/recruiter\/discover\//, /^\/admin\/login/, /^\/admin\/jia\/chat/];
 // Écrans denses (formulaires, ATS, CV, paiement) : J’IA démarre en bulle-visage.
 const COMPACT_ROUTES = [/^\/recruiter\/jobs\/new/, /^\/recruiter\/onboarding/, /^\/partner\/onboarding/, /^\/recruiter\/ats/, /^\/talent\/cvs/, /^\/abonnement/, /^\/partner\/(payment|kyc)/, /^\/recruiter\/settings/, /^\/talent\/settings/, /^\/partner\/settings/];
 // Écrans sensibles : le texte visible n’est jamais transmis au modèle proactif.
@@ -72,6 +72,7 @@ const COLLAPSE_KEY = "jobly-jia-collapsed";
 const PREDICT_MIN_INTERVAL = 30_000;
 
 function ecosystemOf(pathname: string): Ecosystem {
+  if (pathname.startsWith("/admin")) return "ADMIN";
   if (pathname.startsWith("/recruiter")) return "RECRUITER";
   if (pathname.startsWith("/partner")) return "PARTNER";
   return "TALENT";
@@ -93,8 +94,12 @@ const CHIPS: Record<Ecosystem, { key: DictKey; href: string }[]> = {
     { key: "jia.panel.referral", href: "/partner/referral" },
     { key: "jia.panel.commissions", href: "/partner/payment" },
   ],
+  ADMIN: [
+    { key: "jia.panel.dashboard", href: "/admin" },
+    { key: "jia.panel.ats", href: "/admin/jia" },
+  ],
 };
-const SETTINGS_HREF: Record<Ecosystem, string> = { TALENT: "/talent/settings", RECRUITER: "/recruiter/settings", PARTNER: "/partner/settings" };
+const SETTINGS_HREF: Record<Ecosystem, string> = { TALENT: "/talent/settings", RECRUITER: "/recruiter/settings", PARTNER: "/partner/settings", ADMIN: "/admin" };
 
 async function loadJiaWorkspace(
   intent: JiaWorkspaceIntent,
@@ -160,6 +165,79 @@ async function loadJiaWorkspace(
     };
   }
 
+  if (intent === "RECRUITER_JOBS") {
+    const response = await fetch("/api/recruiter/jobs", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Les offres recruteur sont indisponibles.");
+    const jobs = Array.isArray(json.jobs) ? json.jobs : [];
+    return { kind: "business-summary", title: "Mes offres publiées et brouillons", metricLabel: "Offres", metric: jobs.length,
+      items: jobs.slice(0, 8).map((job: Record<string, any>) => ({ id: String(job.id || ""), title: String(job.title || "Offre sans titre"), subtitle: [job.companyName, job.location].filter(Boolean).join(" · "), detail: [job.status, job.distributionScope, job.countryCode].filter(Boolean).join(" · "), status: String(job.status || "") })).filter((item: { id: string }) => Boolean(item.id)),
+      href: "/recruiter/jobs", hrefLabel: "Gérer mes offres", note: "Données lues depuis les offres du compte recruteur connecté." };
+  }
+  if (intent === "RECRUITER_APPLICATIONS") {
+    const response = await fetch("/api/recruiter/applications?markViewed=0", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Les candidatures reçues sont indisponibles.");
+    const rows = Array.isArray(json.applications) ? json.applications : [];
+    return { kind: "business-summary", title: "Candidatures reçues", metricLabel: "Candidatures", metric: rows.length,
+      items: rows.slice(0, 8).map((item: Record<string, any>) => ({ id: String(item.id || ""), title: String(item.candidateName || "Candidat"), subtitle: String(item.jobTitle || "Offre de l'entreprise"), detail: [item.status, item.viewedAt ? "Consultée" : "Non consultée"].filter(Boolean).join(" · "), status: String(item.status || "") })).filter((item: { id: string }) => Boolean(item.id)),
+      href: "/recruiter/candidatures", hrefLabel: "Traiter les candidatures", note: "Lecture passive : cette carte ne modifie pas les statuts « Vu »." };
+  }
+  if (intent === "RECRUITER_TALENTS") {
+    const response = await fetch("/api/recruiter/talents", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Les profils Talent publics sont indisponibles.");
+    const rows = Array.isArray(json.talents) ? json.talents : [];
+    return { kind: "business-summary", title: "Talents publics découvrables", metricLabel: "Profils publics", metric: Number(json.count) || rows.length,
+      items: rows.slice(0, 8).map((item: Record<string, any>) => ({ id: String(item.userId || ""), title: String(item.name || "Talent Jobly"), subtitle: [item.headline, item.location].filter(Boolean).join(" · "), detail: Array.isArray(item.topSkills) ? item.topSkills.map((skill: any) => String(skill.name || "")).filter(Boolean).slice(0, 4).join(" · ") : "", status: String(item.plan || "") })).filter((item: { id: string }) => Boolean(item.id)),
+      href: "/recruiter/talents", hrefLabel: "Explorer les talents", note: "Profils ayant activé leur visibilité publique. Aucun contact privé n'est exposé." };
+  }
+  if (intent === "PARTNER_PROFILE") {
+    const response = await fetch("/api/mobility/partner/me", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Le dossier prestataire Mobility est indisponible.");
+    const provider = json.provider || null, rows = Array.isArray(json.services) ? json.services : [];
+    return { kind: "business-summary", title: "Mon espace partenaire Mobility", metricLabel: "Services", metric: rows.length,
+      items: rows.slice(0, 8).map((item: Record<string, any>) => ({ id: String(item.id || ""), title: String(item.title || item.serviceType || "Service"), subtitle: [item.city, item.serviceType].filter(Boolean).join(" · "), detail: [item.status, item.currency && item.priceAmount != null ? String(item.priceAmount) + " " + item.currency : ""].filter(Boolean).join(" · "), status: String(item.status || "") })).filter((item: { id: string }) => Boolean(item.id)),
+      href: "/partner", hrefLabel: "Ouvrir mon espace partenaire", note: provider ? "Dossier : " + String(provider.status || "PENDING_REVIEW") + " · KYC : " + String(provider.kycStatus || "PENDING") : "Aucun dossier prestataire enregistré. J’IA n'en crée pas automatiquement." };
+  }
+  if (intent === "PARTNER_ASSIGNMENTS") {
+    const response = await fetch("/api/mobility/partner/assignments", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Les affectations exigent un prestataire vérifié et actif.");
+    const rows = Array.isArray(json.assignments) ? json.assignments : [];
+    return { kind: "business-summary", title: "Mes affectations Mobility", metricLabel: "Affectations", metric: rows.length,
+      items: rows.slice(0, 8).map((item: Record<string, any>) => ({ id: String(item.id || ""), title: String(item.MobilityProviderService?.title || "Mission Mobility"), subtitle: [item.MobilityRequest?.departCity, item.MobilityRequest?.arriveeCity].filter(Boolean).join(" → "), detail: [item.status, item.currency && item.agreedAmount != null ? String(item.agreedAmount) + " " + item.currency : ""].filter(Boolean).join(" · "), status: String(item.status || "") })).filter((item: { id: string }) => Boolean(item.id)),
+      href: "/partner", hrefLabel: "Suivre mes missions", note: "Lecture seule : aucune affectation n'est modifiée depuis cette carte." };
+  }
+  if (intent === "PARTNER_COMMISSIONS") {
+    const response = await fetch("/api/partner/commissions", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Les commissions partenaires sont indisponibles.");
+    const rows = Array.isArray(json.commissions) ? json.commissions : [], totals = json.totals || {};
+    return { kind: "business-summary", title: "Mes commissions", metricLabel: "Commissions", metric: rows.length,
+      items: rows.slice(0, 8).map((item: Record<string, any>) => ({ id: String(item.id || ""), title: String(item.description || item.type || "Commission"), subtitle: String(item.createdAt || ""), detail: [item.amount != null ? String(item.amount) + " " + String(item.currency || "XAF") : "", item.status].filter(Boolean).join(" · "), status: String(item.status || "") })).filter((item: { id: string }) => Boolean(item.id)),
+      href: "/partner/payment", hrefLabel: "Voir le détail des paiements", note: ["À payer : " + String(totals.payable || 0), "En attente : " + String(totals.pending || 0), "Payé : " + String(totals.paid || 0)].join(" · ") + ". Montants fournis par Jobly." };
+  }
+  if (intent === "PARTNER_REPORTS") {
+    const response = await fetch("/api/mobility/partner/reports?format=json", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "Les rapports Mobility ne sont pas accessibles.");
+    const rows = Array.isArray(json.rows) ? json.rows : [];
+    return { kind: "business-summary", title: "Rapport de suivi Mobility", metricLabel: "Dossiers visibles", metric: Number(json.count) || rows.length,
+      items: rows.slice(0, 8).map((item: Record<string, any>) => ({ id: String(item.id || ""), title: [item.departCity, item.arriveeCity].filter(Boolean).join(" → ") || "Dossier mobilité", subtitle: String(item.status || ""), detail: [item.eligibilityStatus, item.costTotal != null ? String(item.costTotal) + " XAF" : ""].filter(Boolean).join(" · "), status: String(item.status || "") })).filter((item: { id: string }) => Boolean(item.id)),
+      href: "/partner", hrefLabel: "Ouvrir mon espace partenaire", note: "Rapport limité aux dossiers reliés au compte par les règles Mobility." };
+  }
+  if (intent === "ADMIN_OVERVIEW") {
+    const response = await fetch("/api/admin/jia/intelligence", { headers, cache: "no-store" });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.message || "L'intelligence transversale Admin est indisponible.");
+    const rows = Array.isArray(json.layers) ? json.layers : [];
+    return { kind: "business-summary", title: "Intelligence transversale Jobly", metricLabel: "Domaines analysés", metric: rows.length,
+      items: rows.slice(0, 10).map((layer: Record<string, any>, index: number) => ({ id: String(layer.layer || layer.id || index), title: String(layer.title || layer.layer || "Domaine"), subtitle: String(layer.status || layer.health || ""), detail: String(layer.summary || layer.description || ""), status: String(layer.status || layer.health || "") })),
+      href: "/admin/jia", hrefLabel: "Ouvrir le cockpit J’IA Admin", note: "Vue Admin séparée du Copilot CEO et de sa mémoire privée." };
+  }
+
   if (intent === "PROFILE") {
     const response = await fetch("/api/profile", { headers, cache: "no-store" });
     const json = await response.json().catch(() => ({}));
@@ -197,6 +275,7 @@ async function loadJiaWorkspace(
     };
   }
 
+  if (intent !== "ASSESSMENT") return null;
   const practice = buildJiaPracticeQuestionnaire(command);
   const response = await fetch("/api/career-journey/assessments", {
     method: "POST",

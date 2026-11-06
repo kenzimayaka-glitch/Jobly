@@ -38,7 +38,7 @@ export type JiaConversationMessage = {
   workspace?: JiaWorkspaceBlock;
 };
 
-type JiaEcosystem = "TALENT" | "RECRUITER" | "PARTNER";
+type JiaEcosystem = "TALENT" | "RECRUITER" | "PARTNER" | "ADMIN";
 
 type Props = {
   open: boolean;
@@ -102,6 +102,7 @@ function inferIntent(text: string, ecosystem: JiaEcosystem): JiaExperienceIntent
 function roleFromEcosystem(ecosystem: JiaEcosystem): JiaExperienceRole {
   if (ecosystem === "RECRUITER") return "RECRUITER";
   if (ecosystem === "PARTNER") return "PARTNER";
+  if (ecosystem === "ADMIN") return "ADMIN";
   return "TALENT";
 }
 
@@ -248,11 +249,13 @@ export default function JiaConversationSurface(props: Props) {
     layoutHistory.current = [...layoutHistory.current, next].slice(-12);
     setAutoLayout(next);
   }, [intent, lastUserMessage, layoutRefresh, role, selectedLayout]);
-  const suggestions = ecosystem === "RECRUITER"
-    ? ["Trouve des candidats pertinents", "Aide-moi à rédiger une offre", "Résume mes candidatures"]
-    : ecosystem === "PARTNER"
-      ? ["Présente mes programmes", "Aide-moi à suivre mes bénéficiaires", "Prépare un rapport"]
-      : ["Trouve des offres adaptées à mon profil", "Aide-moi à améliorer mon CV", "Prépare ma candidature"];
+  const suggestions = ecosystem === "ADMIN"
+    ? ["Donne-moi une vue d'ensemble de la plateforme", "Quels indicateurs et alertes sont à surveiller ?", "Prépare un rapport de synthèse"]
+    : ecosystem === "RECRUITER"
+      ? ["Trouve des candidats pertinents", "Montre mes offres publiées", "Résume les candidatures reçues"]
+      : ecosystem === "PARTNER"
+        ? ["Montre mes affectations Mobility", "Consulte mes commissions", "Prépare un rapport Mobility"]
+        : ["Trouve des offres adaptées à mon profil", "Aide-moi à améliorer mon CV", "Prépare ma candidature"];
   const statusText = status === "checking"
     ? "Connexion en cours"
     : status === "error"

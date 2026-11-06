@@ -1,4 +1,10 @@
-export type JiaWorkspaceIntent = "OFFERS" | "APPLICATIONS" | "PROFILE" | "ASSESSMENT" | null;
+export type JiaWorkspaceIntent =
+  | "OFFERS" | "APPLICATIONS" | "PROFILE" | "ASSESSMENT"
+  | "RECRUITER_JOBS" | "RECRUITER_APPLICATIONS" | "RECRUITER_TALENTS"
+  | "PARTNER_PROFILE" | "PARTNER_ASSIGNMENTS" | "PARTNER_COMMISSIONS" | "PARTNER_REPORTS"
+  | "ADMIN_OVERVIEW" | null;
+
+export type JiaBusinessSummaryItem = { id: string; title: string; subtitle: string; detail: string; status?: string; };
 
 export type JiaWorkspaceOffer = {
   id: string;
@@ -36,11 +42,26 @@ export type JiaWorkspaceBlock =
   | { kind: "profile"; displayName: string; email: string | null; phone: string | null; location: string | null; headline: string; summary: string; skills: string[]; experiences: Array<{ title: string; company: string; startDate: string | null; endDate: string | null; description: string | null }>; education: Array<{ institution: string; degree: string | null; field: string | null; startDate: string | null; endDate: string | null }>; experienceCount: number; educationCount: number; cvOriginalUrl: string | null; cvOriginalFileName: string | null; error?: string }
   | { kind: "questionnaire"; assessmentId: string; title: string; competency: string; objective: string; questions: JiaWorkspaceQuestion[]; answers?: Record<string, number>; result?: { score: number; summary: string }; error?: string }
   | { kind: "prepared-application"; applicationId: string; title: string; channel: string; subject: string; letter: string; email: string | null; phone: string | null; warnings: string[]; sourceUrl: string | null; submitted?: boolean }
+  | { kind: "business-summary"; title: string; metricLabel: string; metric: number; items: JiaBusinessSummaryItem[]; href: string; hrefLabel: string; note?: string }
   | { kind: "notice"; title: string; message: string; href?: string };
 
 export function detectJiaWorkspaceIntent(message: string, ecosystem: string): JiaWorkspaceIntent {
-  if (ecosystem !== "TALENT") return null;
   const value = message.toLocaleLowerCase();
+  if (ecosystem === "ADMIN") return /\b(tableau de bord|vue d'ensemble|indicateurs|statistiques plateforme|intelligence|alertes|santé de jobly|activité plateforme)\b/.test(value) ? "ADMIN_OVERVIEW" : null;
+  if (ecosystem === "RECRUITER") {
+    if (/\b(candidatures reçues|candidatures entrantes|candidats qui ont postulé|candidatures à traiter)\b/.test(value)) return "RECRUITER_APPLICATIONS";
+    if (/\b(mes offres|offres publiées|mes postes|mes annonces|offres que j'ai publiées)\b/.test(value)) return "RECRUITER_JOBS";
+    if (/\b(candidats? pertinents|trouve des candidats|recherche de candidats|cherche des talents|trouve des talents|profils de talents|talents disponibles)\b/.test(value)) return "RECRUITER_TALENTS";
+    return null;
+  }
+  if (ecosystem === "PARTNER") {
+    if (/\b(mes affectations|affectations|mes missions|missions prestataire|services assignés|prestations en cours)\b/.test(value)) return "PARTNER_ASSIGNMENTS";
+    if (/\b(mes commissions|commissions|mes gains|revenus partenaire)\b/.test(value)) return "PARTNER_COMMISSIONS";
+    if (/\b(rapport|reporting|indicateurs mobilité|dossiers mobilité|statistiques bénéficiaires)\b/.test(value)) return "PARTNER_REPORTS";
+    if (/\b(profil partenaire|mon profil prestataire|mes services mobilité|mon dossier prestataire)\b/.test(value)) return "PARTNER_PROFILE";
+    return null;
+  }
+  if (ecosystem !== "TALENT") return null;
   if (/\b(questionnaire|questionnaires|évaluation|evaluation|teste[- ]moi|fais[- ]moi passer un test|mini[- ]test|quiz)\b/.test(value)) return "ASSESSMENT";
   if (/\b(mes candidatures|ma candidature|candidatures|candidature|applications|suivi des candidatures)\b/.test(value)) return "APPLICATIONS";
   if (/\b(offres?|emplois?|postes?|vacances|jobs?)\b/.test(value)) return "OFFERS";

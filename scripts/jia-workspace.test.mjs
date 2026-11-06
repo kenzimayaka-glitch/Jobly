@@ -13,9 +13,17 @@ test("J’IA recognizes the four Talent workspace intents", () => {
   assert.equal(detectJiaWorkspaceIntent("Crée un questionnaire Excel", "TALENT"), "ASSESSMENT");
 });
 
-test("workspace actions never expose Talent endpoints to other ecosystems", () => {
+test("workspace actions are scoped to the selected Jobly ecosystem", () => {
   assert.equal(detectJiaWorkspaceIntent("Trouve des offres", "RECRUITER"), null);
   assert.equal(detectJiaWorkspaceIntent("Mes candidatures", "PARTNER"), null);
+  assert.equal(detectJiaWorkspaceIntent("Montre les offres publiées", "RECRUITER"), "RECRUITER_JOBS");
+  assert.equal(detectJiaWorkspaceIntent("Montre les candidatures reçues", "RECRUITER"), "RECRUITER_APPLICATIONS");
+  assert.equal(detectJiaWorkspaceIntent("Trouve des candidats pertinents", "RECRUITER"), "RECRUITER_TALENTS");
+  assert.equal(detectJiaWorkspaceIntent("Montre mes affectations", "PARTNER"), "PARTNER_ASSIGNMENTS");
+  assert.equal(detectJiaWorkspaceIntent("Consulte mes commissions", "PARTNER"), "PARTNER_COMMISSIONS");
+  assert.equal(detectJiaWorkspaceIntent("Prépare un rapport Mobility", "PARTNER"), "PARTNER_REPORTS");
+  assert.equal(detectJiaWorkspaceIntent("Vue d'ensemble de la plateforme", "ADMIN"), "ADMIN_OVERVIEW");
+  assert.equal(detectJiaWorkspaceIntent("Montre mes CV", "ADMIN"), null);
 });
 
 test("Excel practice assessment produces three valid multiple-choice questions", () => {

@@ -510,12 +510,36 @@ function PreparedApplicationBlock({ block, messageId, onSubmitApplication, onUpd
   );
 }
 
+function BusinessSummaryBlock({ block, onNavigate }: { block: Extract<JiaWorkspaceBlock, { kind: "business-summary" }>; onNavigate: Props["onNavigate"] }) {
+  return (
+    <section className="mt-3 space-y-2.5" aria-label={block.title}>
+      <div className={surface}>
+        <p className="text-[9px] font-black uppercase tracking-[.14em] text-[#6B7C92]">{block.title}</p>
+        <div className="mt-2 flex items-end justify-between gap-3">
+          <p className="text-[11px] font-bold text-[#52637A]">{block.metricLabel}</p>
+          <p className="text-[25px] font-black tabular-nums text-[#1264EB]">{block.metric.toLocaleString("fr-FR")}</p>
+        </div>
+      </div>
+      {block.items.length === 0 ? <div className={surface}><p className="text-[11px] font-bold text-[#173A6B]">Aucun élément à afficher dans ce périmètre.</p></div> : block.items.map((item) => (
+        <article key={item.id} className={surface}>
+          <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-[11px] font-extrabold text-[#173A6B]">{item.title}</p>{item.subtitle && <p className="mt-0.5 text-[10px] text-[#6B7C92]">{item.subtitle}</p>}</div>
+          {item.status && <span className="shrink-0 rounded-full bg-[#F1F5FA] px-2 py-1 text-[9px] font-bold text-[#52637A]">{item.status}</span>}</div>
+          {item.detail && <p className="mt-2 text-[10px] leading-4 text-[#64758B]">{item.detail}</p>}
+        </article>
+      ))}
+      {block.note && <p className="text-[9px] leading-4 text-[#8492A5]">{block.note}</p>}
+      <button type="button" className={primary} onClick={() => onNavigate(block.href)}>{block.hrefLabel} <ArrowUpRight size={13}/></button>
+    </section>
+  );
+}
+
 export default function JiaWorkspaceBlocks({ block, messageId, onPrepareApplication, onNavigate, onSaveProfile, onUploadCv, onUpdateWorkspace, onSubmitAssessment, onSubmitApplication }: Props) {
   if (block.kind === "offers") return <OffersBlock block={block} onPrepareApplication={onPrepareApplication} onNavigate={onNavigate}/>;
   if (block.kind === "applications") return <ApplicationsBlock block={block}/>;
   if (block.kind === "profile") return <ProfileBlock block={block} messageId={messageId} onNavigate={onNavigate} onSaveProfile={onSaveProfile} onUploadCv={onUploadCv}/>;
   if (block.kind === "questionnaire") return <QuestionnaireBlock block={block} messageId={messageId} onSubmitAssessment={onSubmitAssessment} onUpdateWorkspace={onUpdateWorkspace}/>;
   if (block.kind === "prepared-application") return <PreparedApplicationBlock block={block} messageId={messageId} onSubmitApplication={onSubmitApplication} onUpdateWorkspace={onUpdateWorkspace}/>;
+  if (block.kind === "business-summary") return <BusinessSummaryBlock block={block} onNavigate={onNavigate}/>;
   return (
     <section className="mt-3 rounded-2xl border border-[#E3EAF3] bg-white p-3.5">
       <div className="flex items-center gap-2"><GraduationCap size={16} className="text-[#1264EB]"/><p className="text-[11px] font-extrabold text-[#173A6B]">{block.title}</p></div>
