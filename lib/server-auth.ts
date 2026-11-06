@@ -71,6 +71,21 @@ export async function getAuthUser(request: NextRequest) {
       const requestedDeviceId = request.headers.get("x-jobly-device-id")?.trim() || `legacy-${sessionId}`;
       const deviceId = /^[A-Za-z0-9:_-]{1,160}$/.test(requestedDeviceId) ? requestedDeviceId : `legacy-${sessionId}`;
       const userAgent = request.headers.get("user-agent") || "";
+      const pathname = new URL(request.url).pathname;
+      const isNativeAndroidWebView = /android/i.test(userAgent) && /\\bwv\\b/i.test(userAgent);
+      const isAttestationBootstrap = pathname.startsWith("/api/android/attestation/");
+      if (isNativeAndroidWebView && !isAttestationBootstrap) {
+        const { data: attestation, error: attestationError } = await service
+          .from("AndroidDeviceAttestation")
+          .select("id")
+          .eq("userId", internalUser.id)
+          .eq("deviceId", deviceId)
+          .is("revokedAt", null)
+          .gt("expiresAt", new Date().toISOString())
+          .maybeSingle();
+        if (attestationError) throw new Error("Contrôle d'intégrité Android indisponible.");
+        if (!attestation) return null;
+      }
       const deviceLabel = request.headers.get("x-jobly-device-name")?.trim() || inferredDeviceLabel(userAgent);
       const { data: registration, error: registrationError } = await service.rpc("register_jobly_device_session", {
         p_auth_user_id: data.user.id,
