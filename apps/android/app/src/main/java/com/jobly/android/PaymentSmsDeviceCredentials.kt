@@ -85,7 +85,7 @@ object PaymentSmsDeviceCredentials {
     }
 
     private fun normalizeSender(value: String): String =
-        value.trim().replace(Regex("\\\\s+"), " ").uppercase(java.util.Locale.ROOT)
+        value.trim().replace(Regex("\\s+"), " ").uppercase(java.util.Locale.ROOT)
     private fun getOrCreateKey(): SecretKey {
         val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (keyStore.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
