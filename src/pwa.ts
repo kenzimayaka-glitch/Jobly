@@ -1,8 +1,12 @@
 export function registerJoblyServiceWorker() {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
-  window.addEventListener("load", () => {
+
+  const register = () => {
     navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {
-      // PWA support is progressive; the app remains fully usable without SW.
+      // PWA support is progressive; the app remains usable without a service worker.
     });
-  });
+  };
+
+  if (document.readyState === "complete") register();
+  else window.addEventListener("load", register, { once: true });
 }
