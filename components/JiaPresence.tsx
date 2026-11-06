@@ -395,6 +395,18 @@ export default function JiaPresence() {
     }].slice(-100));
   }, []);
 
+  useEffect(() => {
+    const onTranscript = (event: Event) => {
+      const detail = (event as CustomEvent<{ command?: string; transcript?: string }>).detail;
+      const text = typeof detail?.command === "string" && detail.command.trim()
+        ? detail.command.trim()
+        : typeof detail?.transcript === "string" ? detail.transcript.trim() : "";
+      if (text) appendConversationMessage("user", text);
+    };
+    window.addEventListener("jobly:jia-transcript", onTranscript);
+    return () => window.removeEventListener("jobly:jia-transcript", onTranscript);
+  }, [appendConversationMessage]);
+
   const sendTextCommand = useCallback(async () => {
     const command = commandInput.trim();
     if (!command || commandBusy) return;
@@ -829,7 +841,7 @@ export default function JiaPresence() {
         speaking={speaking}
         pendingAction={pendingAction}
         quickLinks={[...CHIPS[eco].map((item) => ({ label: t(item.key), href: item.href })), { label: "Extension J’IA pour ordinateur", href: "/jia/extension" }]}
-        onClose={() => setPanelOpen(false)}
+        onClose={() => { setPanelOpen(false); dismissBubble(); }}
         onInputChange={setCommandInput}
         onSubmit={() => void sendTextCommand()}
         onConfirmAction={() => void confirmPendingAction()}
