@@ -257,7 +257,15 @@ export async function POST(request: NextRequest) {
       entityId: userId,
       metadata: { accountType, organizationType, organizationName, invitedEmail: email },
     });
-    if (auditError) throw new Error("Compte invité, mais l'audit obligatoire a échoué : " + auditError.message);
+    if (auditError) {
+      return NextResponse.json({
+        ok: true,
+        inviteSent: true,
+        auditWarning: true,
+        account: { id: userId, email, displayName, role: accountType, organizationType, organizationName, status: "INVITED" },
+        message: "L'invitation a été envoyée et le compte créé, mais l'écriture du journal d'audit a échoué. Une vérification ADMIN est requise.",
+      }, { status: 503 });
+    }
 
     return NextResponse.json({
       ok: true,
