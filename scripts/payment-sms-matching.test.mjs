@@ -5,8 +5,8 @@ import { matchPaymentSmsToOrder } from "../lib/paymentSms/matching.ts";
 const now = new Date("2026-11-06T12:00:00.000Z");
 const parsed = {
   parserVersion: "0.2.0", provider: "SMS_MTN", senderId: "JOBLY-MTN-TEST", senderTrusted: true,
-  status: "SUCCESSFUL", transactionId: "MTNABC123456", amountXaf: 10000, currency: "XAF",
-  payerPhone: "237677123456", messageMerchantAccount: "237699123456", occurredAt: now.toISOString(), fraudFlags: [],
+  status: "SUCCESSFUL", direction: "INBOUND", transactionId: "MTNABC123456", amountXaf: 10000, currency: "XAF",
+  payerPhone: "237677123456", merchantAccount: "237699123456", occurredAt: now.toISOString(), fraudFlags: [],
 };
 const base = {
   id: "payment-1", userId: "user-1", provider: "SMS_MTN", status: "PENDING", amount: 10000, currency: "XAF",
@@ -49,4 +49,22 @@ test("does not resolve a transaction reference associated with multiple orders",
 test("rejects a spoofed sender and parser fraud flags", () => {
   assert.equal(run({ reportedTransactionId: "MTNABC123456" }, { senderTrusted: false, provider: null }).outcome, "UNMATCHED");
   assert.equal(run({ reportedTransactionId: "MTNABC123456" }, { fraudFlags: ["SMS_CONTAINS_URL"] }).reason, "FRAUD_FLAGS_PRESENT");
+});
+
+test("refuses outgoing SMS even when status, amount and transaction ID look valid", () => {
+  const result = run(
+    { reportedTransactionId: "MTNABC123456" },
+    { direction: "OUTBOUND" }
+  );
+  assert.equal(result.outcome, "UNMATCHED");
+  assert.equal(result.reason, "SMS_NOT_MERCHANT_RECEIPT");
+});
+
+test("requires positive incoming direction, not an unknown direction", () => {
+  const result = run(
+    { reportedTransactionId: "MTNABC123456" },
+    { direction: "UNKNOWN" }
+  );
+  assert.equal(result.outcome, "UNMATCHED");
+  assert.equal(result.reason, "SMS_NOT_MERCHANT_RECEIPT");
 });
