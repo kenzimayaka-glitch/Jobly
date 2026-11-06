@@ -115,11 +115,14 @@ export async function POST(request: NextRequest) {
 
     const { data: previousPartner, error: previousPartnerError } = await supabase
       .from("Partner")
-      .select("id,kycStatus,kycCompletedAt")
+      .select("id,kycStatus,kycCompletedAt,partnerType")
       .eq("id", partnerId)
       .maybeSingle();
     if (previousPartnerError) throw new Error(previousPartnerError.message);
     if (!previousPartner) return NextResponse.json({ message: "Profil partenaire introuvable." }, { status: 404 });
+    if (previousPartner.partnerType && previousPartner.partnerType !== "BRAND_AMBASSADOR") {
+      return NextResponse.json({ message: "Ce dossier ne correspond pas à un Brand Ambassador." }, { status: 409 });
+    }
 
     const now = new Date().toISOString();
     const { data: changedKyc, error: kycUpdateError } = await supabase
