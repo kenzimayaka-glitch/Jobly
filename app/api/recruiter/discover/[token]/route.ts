@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient } from "@/lib/server-auth";
 import { calculateExplainableMatch } from "@/lib/opportunityAggregator";
+import { enforceApiRateLimit } from "@/lib/server-security";
 
 function years(rows:any[]){const starts=rows.map(x=>new Date(x.startDate).getTime()).filter(Number.isFinite);if(!starts.length)return 0;return Math.max(0,Math.floor((Date.now()-Math.min(...starts))/(1000*60*60*24*365)));}
 
 export async function GET(_request:NextRequest,{params}:{params:Promise<{token:string}>}) {
  try{
-  const {token}=await params;const db=adminClient();
+  const {token}=await params;
+  if(typeof token!=="string"||token.length<16||token.length>256)return NextResponse.json({message:"Partage indisponible."},{status:404,headers:{"Cache-Control":"private, no-store, max-age=0"}});
+  const db=adminClient();
+  const limited=await enforceApiRateLimit(_request,db,{
+    scope:"recruiter-candidate-discovery-share",
+    identity:"share:"+token,
+    accountWindows:[{limit:30,windowSeconds:60},{limit:200,windowSeconds:3600}],
+    ipWindows:[{limit:60,windowSeconds:60},{limit:400,windowSeconds:3600}],
+    requireIp:true
+  });
+  if(limited)return limited;
   const {data:share}=await db.from("CVShare").select("*").eq("token",token).maybeSingle();
   if(!share||share.revokedAt||(share.expiresAt&&new Date(share.expiresAt).getTime()<Date.now())) return NextResponse.json({message:"Partage indisponible."},{status:404});
   let job:any=null;
@@ -14,7 +25,7 @@ export async function GET(_request:NextRequest,{params}:{params:Promise<{token:s
    if(share.source==="recruiter"){const r=await db.from("RecruiterJob").select("id,title,companyName,description,location,contract,remoteMode,minExperienceYears,sector,tags").eq("id",share.jobId).maybeSingle();job=r.data;}
    else {const r=await db.from("Job").select("id,title,description,location,contractType,remoteMode,minExperienceYears,aiSector,aiSkills,companyId").eq("id",share.jobId).maybeSingle();job=r.data?{...r.data,sector:r.data.aiSector,tags:r.data.aiSkills}:null;}
   }
-  if(!job) return NextResponse.json({share:{jobTitle:share.jobTitleSnapshot,companyName:share.companyNameSnapshot},job:null,talents:[]});
+  if(!job) return NextResponse.json({share:{jobTitle:share.jobTitleSnapshot,companyName:share.companyNameSnapshot},job:null,talents:[]},{headers:{"Cache-Control":"private, no-store, max-age=0"}});
   const {data:profiles}=await db.from("Profile").select("userId,firstName,lastName,headline,summary,location,targetRoles,preferredSectors,targetCities,contractPreferences,remotePreference,publicDiscoverable").eq("publicDiscoverable",true).neq("userId",share.userId).limit(250);
   const ids=(profiles||[]).map((p:any)=>p.userId);
   const [users,experiences,skills]=await Promise.all([
@@ -24,6 +35,6 @@ export async function GET(_request:NextRequest,{params}:{params:Promise<{token:s
   ]);
   const userBy=new Map((users.data||[]).map((u:any)=>[u.id,u]));const expBy=new Map<string,any[]>();for(const x of experiences.data||[]){const a=expBy.get(x.userId)||[];a.push(x);expBy.set(x.userId,a);}const skillBy=new Map<string,string[]>();for(const x of skills.data||[]){const a=skillBy.get(x.userId)||[];a.push(x.name);skillBy.set(x.userId,a);}
   const talents=(profiles||[]).map((p:any)=>{const u=userBy.get(p.userId)||{};const e=expBy.get(p.userId)||[];const score=calculateExplainableMatch({targetRoles:p.targetRoles,targetCities:p.targetCities,contractPreferences:p.contractPreferences,remotePreference:p.remotePreference,preferredSectors:p.preferredSectors,skills:skillBy.get(p.userId)||[],experienceYears:years(e)},job);return{id:p.userId,name:[p.firstName,p.lastName].filter(Boolean).join(" ")||u.displayName||"Talent Jobly",headline:p.headline||"Profil professionnel",location:p.location||"",profilePhotoUrl:u.profilePhotoUrl||null,skills:(skillBy.get(p.userId)||[]).slice(0,6),experienceYears:years(e),matchPercent:score};}).sort((a,b)=>b.matchPercent-a.matchPercent).slice(0,12);
-  return NextResponse.json({share:{jobTitle:share.jobTitleSnapshot,companyName:share.companyNameSnapshot},job,talents});
+  return NextResponse.json({share:{jobTitle:share.jobTitleSnapshot,companyName:share.companyNameSnapshot},job,talents},{headers:{"Cache-Control":"private, no-store, max-age=0"}});
  }catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Impossible de charger les talents."},{status:500});}
 }
