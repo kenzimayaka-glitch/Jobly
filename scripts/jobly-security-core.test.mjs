@@ -84,7 +84,7 @@ test("PWA worker bypasses private API and auth responses", async () => {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const worker = readFileSync(resolve(root, "public/sw.js"), "utf8");
   assert.match(worker, /url\.pathname\.startsWith\("\/api\/"\)[\s\S]*url\.pathname\.startsWith\("\/auth\/"\)/);
-  assert.match(worker, /Never cache them/);
+  assert.match(worker, /never cache them/i);
 });
 
 test("Android release keeps R8, resource shrinking, no backup and HTTPS-only traffic", async () => {
