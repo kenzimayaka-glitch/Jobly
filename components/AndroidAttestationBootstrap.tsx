@@ -21,7 +21,7 @@ export default function AndroidAttestationBootstrap() {
   useEffect(() => {
     if (typeof window === "undefined" || !/android/i.test(navigator.userAgent)) return;
 
-    const bridge = (window as Window & { joblyAndroid?: AndroidBridge }).joblyAndroid;
+    const bridge = window.joblyAndroid as AndroidBridge | undefined;
     if (!bridge || typeof bridge.postMessage !== "function") return;
 
     const supabase = getSupabaseClient();
