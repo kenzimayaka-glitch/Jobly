@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import {
   buildPaymentSmsUssd,
   getPaymentSmsCheckoutConfig,
@@ -90,4 +91,27 @@ test("rejects absent, inactive, invalid merchant configuration and unsafe amount
 test("normalizes local Cameroonian Mobile Money numbers consistently", () => {
   assert.equal(normalizeMobileMoneyPhone("658174722"), "237658174722");
   assert.equal(normalizeMobileMoneyPhone("+237 658 174 722"), "237658174722");
+});
+
+test("configuration API masks merchant secrets and restricts mutations to ADMIN", () => {
+  const route = readFileSync(new URL("../app/api/payments/sms/config/route.ts", import.meta.url), "utf8");
+  const getStart = route.indexOf("export async function GET");
+  const postStart = route.indexOf("export async function POST");
+  const get = route.slice(getStart, postStart);
+  const post = route.slice(postStart);
+  assert.ok(getStart >= 0 && postStart > getStart);
+  assert.match(get, /getAdmin\(request, true\)/);
+  assert.match(get, /merchantCodeHint/);
+  assert.doesNotMatch(get, /merchantCode: item\.merchantCode/);
+  assert.match(post, /getAdmin\(request\)/);
+  assert.match(route, /String\(actor\.role\) !== "ADMIN"/);
+  assert.match(route, /PAYMENT_SMS_PROVIDER_CONFIG_UPDATED/);
+  assert.doesNotMatch(post, /merchantCode,\s*merchantAccount.*metadata/s);
+});
+
+test("per-order merchant code snapshots are read from the server-only table", () => {
+  const route = readFileSync(new URL("../app/api/subscription/route.ts", import.meta.url), "utf8");
+  assert.match(route, /from\("PaymentSmsOrderConfig"\)/);
+  assert.match(route, /merchantCode: smsCheckout\?\.merchantCode/);
+  assert.doesNotMatch(route, /smsMerchantCode:/);
 });
