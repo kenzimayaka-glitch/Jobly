@@ -1,10 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { getOrCreateJourney, generateJourneyRecommendations } from "@/lib/careerJourney";
+import { getCareerJourneyEntitlements } from "@/lib/careerJourneyEntitlements";
+import { enforceApiRateLimit } from "@/lib/server-security";
 
 export async function POST(request: NextRequest) {
   try {
     const ctx = await getOrCreateJourney(request);
+    const entitlement = await getCareerJourneyEntitlements(ctx.supabase, ctx.user.id);
+    if (!entitlement.canPeriodicReview) {
+      return NextResponse.json({
+        message: "La réévaluation périodique est disponible à partir de Start.",
+        requiredPlan: "START",
+        currentPlan: entitlement.plan,
+      }, { status: 403 });
+    }
+    const rateLimited = await enforceApiRateLimit(request, ctx.supabase, {
+      scope: "career-reassess",
+      identity: ctx.user.id,
+      accountWindows: [
+        { limit: 1, windowSeconds: 86400 },
+        { limit: 3, windowSeconds: 604800 },
+      ],
+      ipWindows: [{ limit: 30, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (rateLimited) return rateLimited;
+
     const end = new Date();
     const start = new Date(end);
     start.setDate(end.getDate() - 30);
