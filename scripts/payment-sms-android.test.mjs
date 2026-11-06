@@ -108,3 +108,38 @@ test("administrator manages central MTN and Orange settings from Web, PWA and th
   assert.match(page, /merchantAccountLast4|Ce téléphone écoute encore l’ancien compte marchand/);
   assert.match(page, /Le changement de numéro de réception doit être suivi de l’appairage/);
 });
+
+
+test("Android receives only one explicitly shared SMS without inbox-read permission", () => {
+  const manifest = read("../apps/android/app/src/main/AndroidManifest.xml");
+  const activity = read("../apps/android/app/src/main/java/com/jobly/android/MainActivity.kt");
+  assert.match(manifest, /android\.intent\.action\.SEND/);
+  assert.match(manifest, /android\.intent\.category\.DEFAULT/);
+  assert.match(manifest, /android:mimeType="text\/plain"/);
+  assert.doesNotMatch(manifest, /android\.permission\.READ_SMS/);
+  assert.match(activity, /Intent\.ACTION_SEND/);
+  assert.match(activity, /Intent\.EXTRA_TEXT/);
+  assert.match(activity, /MAX_SHARED_PAYMENT_SMS_LENGTH/);
+  assert.match(activity, /pendingSharedPaymentSms/);
+  assert.match(activity, /isTrustedJoblyOrigin\(uri\)/);
+  assert.match(activity, /jobly:payment-sms-shared/);
+  assert.match(activity, /pendingSharedPaymentSms = null/);
+  assert.doesNotMatch(activity, /READ_SMS/);
+});
+
+test("customer SMS analysis is corroborative and cannot finalize an entitlement by itself", () => {
+  const route = read("../app/api/payments/sms/customer-share/route.ts");
+  const ai = read("../lib/paymentSms/ai-review.ts");
+  const page = read("../app/abonnement/page.tsx");
+  assert.match(route, /analyzeCustomerPaymentSmsWithAi/);
+  assert.match(route, /direction !== "OUTBOUND"/);
+  assert.match(route, /status !== "SUCCESSFUL"/);
+  assert.match(route, /SMS_SENDER_NOT_ALLOWLISTED/);
+  assert.match(route, /rawMessageStored: false/);
+  assert.match(route, /entitlementChanged: false/);
+  assert.doesNotMatch(route, /finalize_payment/);
+  assert.match(ai, /CLASSIFY_CUSTOMER_SHARED_PAYMENT_SMS/);
+  assert.match(ai, /ne peut jamais activer un abonnement/);
+  assert.match(page, /Analyser ce SMS avec J’IA/);
+  assert.match(page, /aucun abonnement n'a été activé par le SMS client seul/i);
+});

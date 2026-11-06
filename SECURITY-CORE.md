@@ -2,10 +2,10 @@
 
 Date : 6 novembre 2026  
 Branche : `feat/jobly-security-core-20261106`  
-Base : `main` à `12bffe1dbb7288c3a92ef0a86cd842dfcbafb30f`
+Base main synchronisée : `3f54986968c8752aa4d8083ba3f3439b4bdbbd9c`
 
 ## Implémenté dans cette branche
-- Rate limiter atomique, partagé entre instances Next.js et stocké en base; limites par compte + IP sur le feed et les opportunités, par IP sur le détail d'offre.
+- Rate limiter atomique partagé entre instances Next.js et stocké en base; limites par compte + IP sur le feed et les opportunités, par IP sur le détail d'offre.
 - Les identifiants d'IP et de compte sont HMAC-SHA-256; aucune IP brute ni identifiant brut n'est stocké dans les compteurs. Les erreurs DB/config ferment l'accès avec 503; dépassement retourne 429 et Retry-After.
 - Migration pour retirer les accès directs anon/authenticated aux tables `Job`, `RecruiterJob`, `Company`, `JobHarvestCapture`; les routes serveur existantes utilisent le client serveur privilégié.
 - En-têtes web: HSTS, nosniff, anti-framing, Referrer-Policy, Permissions-Policy; API no-store/noindex; source maps de production désactivées; X-Powered-By désactivé.
@@ -26,7 +26,7 @@ Base : `main` à `12bffe1dbb7288c3a92ef0a86cd842dfcbafb30f`
 5. L'accès au endpoint branch-protection a répondu 403; les règles branch protection de main doivent être contrôlées manuellement. Le endpoint rulesets ne retournait aucun ruleset.
 
 ## Ingestion
-Les Edge Functions Harvest avec `verify_jwt=false` inspectées vérifient dans leur code un JWT GitHub Actions OIDC (issuer, audience, repository, ref). Ne pas activer aveuglément le JWT Supabase sur ces endpoints, ce qui casserait le chemin OIDC; conserver et tester cette vérification.
+Les Edge Functions Harvest à `verify_jwt=false` inspectées vérifient dans leur code un JWT GitHub Actions OIDC (issuer, audience, repository, ref). Ne pas les basculer aveuglément vers le JWT Supabase, ce qui casserait le pipeline OIDC.
 
 ## Ordre de mise en production
 1. Régler la visibilité privée du dépôt si le code doit être propriétaire.
@@ -35,4 +35,4 @@ Les Edge Functions Harvest avec `verify_jwt=false` inspectées vérifient dans l
 4. Déployer le code seulement après vérification de la migration.
 5. Ajouter Play Integrity et une CSP stricte lorsque les prérequis externes seront configurés.
 
-Aucune migration n'a été exécutée sur la production, aucune configuration Vercel n'a été modifiée et aucun merge/déploiement n'a été effectué par cette branche.
+Aucune migration n'a été exécutée sur la production, aucune configuration Vercel n'a été modifiée et aucun déploiement/merge n'a été effectué par cette branche.

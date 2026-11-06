@@ -20,6 +20,7 @@ export type PaymentSmsParseResult = {
   currency: "XAF" | null;
   payerPhone: string | null;
   merchantAccount: string | null;
+  merchantAccountFromMessage: boolean;
   occurredAt: string | null;
   fraudFlags: string[];
 };
@@ -72,14 +73,16 @@ function normalizePhone(value: string | null): string | null {
 
 function parseStatus(body: string): ParsedPaymentSmsStatus {
   const text = body.normalize("NFKC").toLocaleLowerCase("fr");
-  if (/\b(?:non|pas|not)\s+(?:été\s+)?(?:réussi|reussi|effectué|effectue|payé|payee|paid|successful|confirmed|confirmé|reçu|recu)\b/.test(text)
-    || /\b(transaction\s+failed|failed|failure|echec|échec|annul[eé]|rejet[eé]|declined|refus[eé])\b/.test(text)) {
+  // JS word boundaries treat accented characters as non-word characters;
+  // use an explicit separator lookahead so "finalisé" and "reçu" are recognized.
+  if (/\b(?:non|pas|not)\s+(?:été\s+)?(?:réussi|reussi|effectué|effectue|finalis[eé]|completed|complete|payé|payee|paid|successful|confirmed|confirmé|reçu|recu)(?=$|[^a-z0-9])/.test(text)
+    || /\b(transaction\s+failed|failed|failure|echec|échec|annul[eé]|rejet[eé]|declined|refus[eé])(?=$|[^a-z0-9])/.test(text)) {
     return "FAILED";
   }
-  if (/\b(en cours|en attente|pending|processing|traitement en cours|awaiting confirmation)\b/.test(text)) {
+  if (/\b(en cours|en attente|pending|processing|traitement en cours|awaiting confirmation)(?=$|[^a-z0-9])/.test(text)) {
     return "PENDING";
   }
-  if (/\b(successful|success|réussi|reussi|effectué|effectue|pay[eé]|paid|reçu|recu|received|credited|confirm[eé])\b/.test(text)) {
+  if (/\b(successful|success|réussi|reussi|effectué|effectue|finalis[eé]|completed|complete|pay[eé]|paid|reçu|recu|received|credited|confirm[eé])(?=$|[^a-z0-9])/.test(text)) {
     return "SUCCESSFUL";
   }
   return "UNKNOWN";
@@ -88,7 +91,7 @@ function parseStatus(body: string): ParsedPaymentSmsStatus {
 function parseDirection(body: string): PaymentSmsDirection {
   const text = body.normalize("NFKC").toLocaleLowerCase("fr");
   // Outgoing/debit notifications must never activate a merchant subscription.
-  if (/\b(?:votre paiement|your payment|payment of|paiement successintegral|vous avez envoy[eé]|you sent|transfer sent|debit(?:ed)?)\b/.test(text)
+  if (/\b(?:votre paiement|your payment|payment of|paiement successintegral|vous avez envoy[eé]|vous avez transf[eé]r[eé]|vous avez pay[eé]|vous avez effectu[eé] un paiement|you sent|you have paid|you paid|payment sent|transfer sent|transfert sortant|debit(?:ed)?)\b/.test(text)
     || /\b(?:a ete|a été)\s+finalis[eé]\b/.test(text)) {
     return "OUTBOUND";
   }
@@ -201,9 +204,11 @@ export function parsePaymentSms(
     /\b(?:par|payer|payeur|from|num[eé]ro\s+payeur|t[eé]l[eé]phone\s+payeur)\s*[:#=\-]?\s*((?:\+?237)?[0-9][0-9\s-]{7,18})\b/i,
     /\(((?:\+?237)?[0-9][0-9\s-]{7,18})\)/,
   ]);
-  const merchantText = structuredMerchantPayment?.[1] || captureFirst(body, [
+  const merchantTextFromMessage = structuredMerchantPayment?.[1] || captureFirst(body, [
     /\b(?:vers|to|marchand|merchant|compte\s+marchand|num[eé]ro\s+marchand|merchant\s+account)\s*[:#=\-]?\s*((?:\+?237)?[0-9][0-9\s-]{7,18})\b/i,
-  ]) || config.merchantAccount || null;
+  ]);
+  const merchantAccountFromMessage = Boolean(merchantTextFromMessage);
+  const merchantText = merchantTextFromMessage || config.merchantAccount || null;
 
   const fraudFlags: string[] = [];
   if (!provider) fraudFlags.push("UNTRUSTED_OR_AMBIGUOUS_SENDER");
@@ -230,6 +235,7 @@ export function parsePaymentSms(
     currency: amountXaf === null ? null : "XAF",
     payerPhone: normalizePhone(payerText),
     merchantAccount: parsedMerchantAccount,
+    merchantAccountFromMessage,
     occurredAt: parseOccurredAt(body, config.timeZone),
     fraudFlags,
   };

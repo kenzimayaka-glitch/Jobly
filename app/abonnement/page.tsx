@@ -4,6 +4,13 @@ import Link from "next/link";
 import { PLAN_CATALOG, RECRUITER_PLAN_CATALOG, PlanCode } from "../../lib/billingCatalog";
 import { getSupabaseClient } from "../../lib/supabase";
 
+type SharedPaymentSms = { body: string; senderId: string };
+declare global {
+  interface Window {
+    __joblyPendingPaymentSmsShare?: SharedPaymentSms | null;
+  }
+}
+
 const ORDER: PlanCode[] = ["FREE", "START", "PREMIUM", "PRO"];
 function fmt(n: number) { return n === Infinity ? "Illimité" : n.toLocaleString("fr-FR"); }
 
@@ -12,9 +19,32 @@ export default function AbonnementPage() {
   const [productType, setProductType] = useState<"TALENT" | "RECRUITER">("TALENT");
   const [phone, setPhone] = useState(""), [paymentMethod, setPaymentMethod] = useState("MTN MoMo"), [busy, setBusy] = useState(false), [paymentId, setPaymentId] = useState("");
   const [checkout, setCheckout] = useState<any>(null), [transactionId, setTransactionId] = useState("");
+  const [sharedPaymentSms, setSharedPaymentSms] = useState<SharedPaymentSms | null>(null), [sharedSmsSenderId, setSharedSmsSenderId] = useState(""), [sharedSmsBusy, setSharedSmsBusy] = useState(false), [sharedSmsStatus, setSharedSmsStatus] = useState("");
   const [promoCode, setPromoCode] = useState(""), [promoMessage, setPromoMessage] = useState(""), [promoBusy, setPromoBusy] = useState(false), [promo, setPromo] = useState<any>(null);
 
   useEffect(() => { let alive=true; (async()=>{const requested = new URLSearchParams(window.location.search).get("productType")==="RECRUITER"?"RECRUITER":"TALENT";setProductType(requested);const {data:{session}}=await getSupabaseClient().auth.getSession();const token=session?.access_token;if(!token)return;const headers={Authorization:`Bearer ${token}`};const [sr,er]=await Promise.all([fetch(`/api/subscription?productType=${requested}`,{headers}),fetch(`/api/entitlements?productType=${requested}`,{headers})]);const [s,e]=await Promise.all([sr.json(),er.json()]);if(alive){setCurrent(s.subscription||null);setPaymentId(s.payment?.id||"");setCheckout(s.checkout||null);setTransactionId(s.checkout?.reportedTransactionId||"");setPromo(e.promo||null);}})().catch(()=>{});return ()=>{alive=false;}; }, []);
+
+  // Android passes only the exact SMS explicitly selected in the Messages share sheet.
+  // The native bridge keeps it in memory until this screen consumes it; it is not stored locally.
+  useEffect(() => {
+    const consume = (value: unknown) => {
+      if (!value || typeof value !== "object") return;
+      const candidate = value as Partial<SharedPaymentSms>;
+      const body = typeof candidate.body === "string" ? candidate.body.trim().slice(0, 5000) : "";
+      const senderId = typeof candidate.senderId === "string" ? candidate.senderId.trim().slice(0, 120) : "";
+      if (!body) return;
+      setSharedPaymentSms({ body, senderId });
+      setSharedSmsSenderId(senderId);
+      setSharedSmsStatus("SMS reçu depuis Android. Vérifiez l'expéditeur avant l'analyse.");
+    };
+    const onShared = (event: Event) => consume((event as CustomEvent<SharedPaymentSms>).detail);
+    window.addEventListener("jobly:payment-sms-shared", onShared);
+    if (window.__joblyPendingPaymentSmsShare) {
+      consume(window.__joblyPendingPaymentSmsShare);
+      delete window.__joblyPendingPaymentSmsShare;
+    }
+    return () => window.removeEventListener("jobly:payment-sms-shared", onShared);
+  }, []);
 
   // Quiet refresh: this never blocks checkout or navigation in Jobly.
   useEffect(() => {
@@ -103,6 +133,63 @@ export default function AbonnementPage() {
     } catch { setMessage("Erreur réseau pendant la vérification."); }
     finally { setBusy(false); }
   }
+  async function analyzeSharedPaymentSms() {
+    if (!paymentId || !sharedPaymentSms?.body) {
+      setSharedSmsStatus("Aucun SMS partagé ou aucune commande de paiement en attente.");
+      return;
+    }
+    if (!sharedSmsSenderId.trim()) {
+      setSharedSmsStatus("Saisissez l'expéditeur exact affiché au-dessus du SMS dans votre application Messages.");
+      return;
+    }
+    setSharedSmsBusy(true);
+    setSharedSmsStatus("J'IA analyse le SMS partagé…");
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession();
+      const token = session?.access_token;
+      if (!token) { setSharedSmsStatus("Connectez-vous pour analyser ce SMS."); return; }
+      const analysis = await fetch("/api/payments/sms/customer-share", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentId, senderId: sharedSmsSenderId.trim(), smsBody: sharedPaymentSms.body }),
+      });
+      const reviewed = await analysis.json();
+      if (!analysis.ok) {
+        setSharedSmsStatus(reviewed.message || "J'IA n'a pas pu valider les informations de ce SMS.");
+        return;
+      }
+      setTransactionId(reviewed.transactionId || "");
+      const confirmation = await fetch("/api/payments/" + paymentId + "/verify", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionId: reviewed.transactionId }),
+      });
+      const result = await confirmation.json();
+      const refreshed = await fetch("/api/subscription?productType=" + productType, {
+        headers: { Authorization: "Bearer " + token, "Cache-Control": "no-cache" },
+        cache: "no-store",
+      });
+      if (refreshed.ok) {
+        const latest = await refreshed.json();
+        setCurrent(latest.subscription || null);
+        setPaymentId(latest.payment?.id || "");
+        setCheckout(latest.checkout || null);
+      }
+      if (confirmation.ok && result.matched) {
+        setSharedSmsStatus("Le SMS client a été analysé et la preuve indépendante du marchand correspond. Votre abonnement est actif.");
+      } else if (confirmation.ok) {
+        setSharedSmsStatus("SMS client analysé par J'IA : " + Number(reviewed.amount).toLocaleString("fr-FR") + " XAF, référence " + reviewed.transactionId + ". La référence est associée à la commande ; Jobly attend encore la confirmation indépendante du compte marchand ou du prestataire. Aucun abonnement n'a été activé par le SMS client seul.");
+      } else {
+        setSharedSmsStatus(result.message || "SMS client analysé ; la confirmation indépendante reste en attente.");
+      }
+      setSharedPaymentSms(null);
+    } catch {
+      setSharedSmsStatus("Erreur réseau pendant l'analyse. Partagez à nouveau le SMS pour réessayer.");
+    } finally {
+      setSharedSmsBusy(false);
+    }
+  }
+
   async function redeemPromo(){
     setPromoMessage("");
     if(!promoCode.trim()){setPromoMessage("Saisissez un code promo.");return;}
@@ -151,6 +238,6 @@ export default function AbonnementPage() {
       const p=PLAN_CATALOG[code];
       return <section key={code} className={shell}><div className="flex items-center justify-between"><h2 className="text-xl font-black">{p.name}</h2>{code==="PREMIUM"&&<span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">Recommandé</span>}{isCurrent&&<span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">Actuel</span>}</div><p className="mt-2 text-sm text-slate-500">{p.tagline}</p><div className="mt-6"><span className="text-3xl font-black">{code==="FREE"?"0":(annual?p.annualPriceXaf:p.monthlyPriceXaf).toLocaleString("fr-FR")}</span><span className="ml-1 text-sm font-bold text-slate-500">FCFA / {annual?"an":"mois"}</span></div><ul className="mt-4 space-y-1 text-xs font-bold text-slate-500"><li>{fmt(p.applicationsPerWeek)} candidatures / semaine</li><li>Multi-postulation : {p.bulkApplicationLimit>1?`jusqu'à ${p.bulkApplicationLimit}`:"—"}</li><li>{p.aiCredits} crédits IA / mois</li><li>{p.storageMb} Mo de stockage</li><li>CV → ATS : {p.atsConversionIncluded?"inclus":`${p.atsConversionPriceXaf.toLocaleString("fr-FR")} FCFA / conversion`}</li></ul><ul className="mt-6 space-y-2 text-sm text-slate-700">{p.features.map(f=><li key={f}>✓ {f}</li>)}</ul>{action}</section>;
     })}</div>
-    {checkout&&<section className="mx-auto mt-6 max-w-xl rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm"><div className="text-xs font-black uppercase tracking-wide text-slate-500">{checkout.providerLabel} · Code court de paiement</div><div className="mt-2 flex items-center gap-2"><div className="min-w-0 flex-1 rounded-xl bg-slate-50 px-4 py-3 font-mono text-2xl font-black text-slate-900">{checkout.paymentCode}</div><button onClick={()=>navigator.clipboard?.writeText(checkout.paymentCode)} className="rounded-xl bg-slate-900 px-3 py-3 text-xs font-black text-white">Copier</button></div><div className="mt-3 grid grid-cols-2 gap-3 text-sm"><div><div className="text-xs text-slate-500">Compte marchand</div><div className="font-black text-slate-900">{checkout.merchantAccount}</div></div><div><div className="text-xs text-slate-500">Montant exact</div><div className="font-black text-slate-900">{Number(checkout.amount).toLocaleString("fr-FR")} {checkout.currency}</div></div></div><div className="mt-3 text-xs text-slate-500">Référence Jobly : <span className="font-mono font-bold text-slate-800">{checkout.paymentReference}</span></div><a href={"tel:" + String(checkout.ussdCode || "").replace(/#/g, "%23")} className="mt-4 block rounded-xl bg-amber-400 px-4 py-3 text-center font-black text-slate-900">Ouvrir le composeur USSD</a><p className="mt-3 text-xs leading-relaxed text-slate-600">Effectuez le paiement sur votre téléphone et validez-le dans le menu de l’opérateur. Ne communiquez jamais votre PIN à Jobly.</p></section>}{paymentId&&checkout&&<div className="mx-auto mt-4 max-w-xl rounded-2xl bg-white p-4"><p className="text-sm font-bold text-slate-700">Confirmation automatique par J’IA</p><p className="mt-1 text-xs leading-relaxed text-slate-500">Après réception du SMS sur le téléphone marchand appairé, J’IA extrait la référence et rapproche automatiquement le montant, l’opérateur, le numéro payeur et le compte marchand. Vous pouvez continuer à utiliser Jobly pendant ce contrôle.</p><details className="mt-3"><summary className="cursor-pointer text-xs font-bold text-slate-600">Ajouter une référence SMS (facultatif)</summary><input value={transactionId} onChange={e=>setTransactionId(e.target.value)} placeholder="Référence exacte de la transaction" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-mono outline-none"/></details><button disabled={busy} onClick={verify} className="mt-3 w-full rounded-2xl bg-emerald-700 px-6 py-3 font-black text-white disabled:opacity-50">{busy?"Actualisation…":"Actualiser le statut"}</button></div>}{current&&<div className="mx-auto mt-8 max-w-xl rounded-2xl bg-white p-4 text-center text-sm font-bold text-slate-700">{current.status==="PENDING" ? ("Plan actuel : " + (current.plan || "FREE") + " · demande " + (current.requestedPlan || current.planCode) + " enregistrée. Vous pouvez continuer à utiliser Jobly ; la confirmation est automatique.") : ("Plan actuel : " + current.plan + " · statut " + current.status)}</div>}{message&&<p className="mx-auto mt-5 max-w-2xl rounded-2xl bg-amber-50 p-4 text-center text-sm font-bold text-amber-900">{message}</p>}
+    {checkout&&<section className="mx-auto mt-6 max-w-xl rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm"><div className="text-xs font-black uppercase tracking-wide text-slate-500">{checkout.providerLabel} · Code court de paiement</div><div className="mt-2 flex items-center gap-2"><div className="min-w-0 flex-1 rounded-xl bg-slate-50 px-4 py-3 font-mono text-2xl font-black text-slate-900">{checkout.paymentCode}</div><button onClick={()=>navigator.clipboard?.writeText(checkout.paymentCode)} className="rounded-xl bg-slate-900 px-3 py-3 text-xs font-black text-white">Copier</button></div><div className="mt-3 grid grid-cols-2 gap-3 text-sm"><div><div className="text-xs text-slate-500">Compte marchand</div><div className="font-black text-slate-900">{checkout.merchantAccount}</div></div><div><div className="text-xs text-slate-500">Montant exact</div><div className="font-black text-slate-900">{Number(checkout.amount).toLocaleString("fr-FR")} {checkout.currency}</div></div></div><div className="mt-3 text-xs text-slate-500">Référence Jobly : <span className="font-mono font-bold text-slate-800">{checkout.paymentReference}</span></div><a href={"tel:" + String(checkout.ussdCode || "").replace(/#/g, "%23")} className="mt-4 block rounded-xl bg-amber-400 px-4 py-3 text-center font-black text-slate-900">Ouvrir le composeur USSD</a><p className="mt-3 text-xs leading-relaxed text-slate-600">Effectuez le paiement sur votre téléphone et validez-le dans le menu de l’opérateur. Ne communiquez jamais votre PIN à Jobly.</p></section>}{paymentId&&checkout&&<div className="mx-auto mt-4 max-w-xl rounded-2xl bg-white p-4"><p className="text-sm font-bold text-slate-700">Confirmation automatique par J’IA</p><p className="mt-1 text-xs leading-relaxed text-slate-500">Le téléphone marchand Jobly rapproche le SMS d’encaissement. Sur Android, vous pouvez aussi partager ici le SMS de débit reçu sur votre propre téléphone : J’IA en analysera la référence et le montant, sans lire toute votre boîte SMS. Cette preuve client ne suffit jamais à activer seule un abonnement.</p>{sharedPaymentSms&&<div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-left"><div className="text-sm font-black text-slate-800">SMS partagé depuis votre téléphone</div><p className="mt-1 text-xs leading-relaxed text-slate-600">J’IA analysera uniquement ce message. Le contenu brut ne sera pas conservé. Vérifiez l'expéditeur exact tel qu'il apparaît dans votre application Messages.</p><label className="mt-3 block text-xs font-bold text-slate-700">Expéditeur SMS<input value={sharedSmsSenderId} onChange={e=>setSharedSmsSenderId(e.target.value)} placeholder="Ex. nom ou code expéditeur MTN / Orange" maxLength={120} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm"/></label><details className="mt-2"><summary className="cursor-pointer text-xs font-bold text-slate-600">Vérifier le SMS sélectionné</summary><p className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-white p-3 text-xs text-slate-700">{sharedPaymentSms.body}</p></details><button disabled={sharedSmsBusy||busy} onClick={analyzeSharedPaymentSms} className="mt-3 w-full rounded-xl bg-sky-700 px-4 py-3 text-sm font-black text-white disabled:opacity-50">{sharedSmsBusy?"Analyse J’IA…":"Analyser ce SMS avec J’IA"}</button></div>}<details className="mt-3"><summary className="cursor-pointer text-xs font-bold text-slate-600">Ajouter une référence SMS (facultatif)</summary><input value={transactionId} onChange={e=>setTransactionId(e.target.value)} placeholder="Référence exacte de la transaction" className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-mono outline-none"/></details><button disabled={busy} onClick={verify} className="mt-3 w-full rounded-2xl bg-emerald-700 px-6 py-3 font-black text-white disabled:opacity-50">{busy?"Actualisation…":"Actualiser le statut"}</button>{sharedSmsStatus&&<p className="mt-3 rounded-xl bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-slate-700">{sharedSmsStatus}</p>}</div>}{current&&<div className="mx-auto mt-8 max-w-xl rounded-2xl bg-white p-4 text-center text-sm font-bold text-slate-700">{current.status==="PENDING" ? ("Plan actuel : " + (current.plan || "FREE") + " · demande " + (current.requestedPlan || current.planCode) + " enregistrée. Vous pouvez continuer à utiliser Jobly ; la confirmation est automatique.") : ("Plan actuel : " + current.plan + " · statut " + current.status)}</div>}{message&&<p className="mx-auto mt-5 max-w-2xl rounded-2xl bg-amber-50 p-4 text-center text-sm font-bold text-amber-900">{message}</p>}
   </div></main>;
 }
