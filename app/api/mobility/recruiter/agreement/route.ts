@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, authUser, ensureUser } from "../../../../../lib/mobilityServer";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 const TERMS_VERSION = "JOBLY-MOBILITY-EMPLOYER-2026-11-05-v1";
 const TERMS = [
@@ -19,6 +20,14 @@ export async function GET(req: NextRequest) {
     if (!["RECRUITER", "ADMIN"].includes(String(user.role || "").toUpperCase())) {
       return NextResponse.json({ message: "Accès recruteur requis." }, { status: 403 });
     }
+    const limited = await enforceApiRateLimit(req, db, {
+      scope: "mobility-recruiter-agreement-read",
+      identity: user.id,
+      accountWindows: [{ limit: 20, windowSeconds: 60 }, { limit: 200, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 40, windowSeconds: 60 }, { limit: 400, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const { data, error } = await db.from("MobilityCompanyAgreement")
       .select("id,companyName,accepted,acceptedAt,termsVersion,repaymentGuaranteed,payrollDeductionMonths,terminationDoesNotRelease")
       .eq("recruiterUserId", user.id)
@@ -26,7 +35,7 @@ export async function GET(req: NextRequest) {
       .limit(1)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return NextResponse.json({ agreement: data, termsVersion: TERMS_VERSION, terms: TERMS });
+    return NextResponse.json({ agreement: data, termsVersion: TERMS_VERSION, terms: TERMS }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Convention indisponible." }, { status: 500 });
   }
@@ -41,6 +50,16 @@ export async function POST(req: NextRequest) {
     if (!["RECRUITER", "ADMIN"].includes(String(user.role || "").toUpperCase())) {
       return NextResponse.json({ message: "Seul un compte recruteur autorisé peut accepter la convention." }, { status: 403 });
     }
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    if (contentLength > 16 * 1024) return NextResponse.json({ message: "Acceptation de convention trop volumineuse." }, { status: 413 });
+    const limited = await enforceApiRateLimit(req, db, {
+      scope: "mobility-recruiter-agreement-accept",
+      identity: user.id,
+      accountWindows: [{ limit: 3, windowSeconds: 3600 }, { limit: 6, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 10, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const body = await req.json().catch(() => ({}));
     if (body.acceptTerms !== true || body.termsVersion !== TERMS_VERSION || body.authorizedRepresentative !== true) {
       return NextResponse.json({ message: "L'acceptation explicite de la convention et la qualité de représentant habilité sont obligatoires.", termsVersion: TERMS_VERSION, terms: TERMS }, { status: 422 });
