@@ -61,3 +61,20 @@ test("mobile choices, status badges and business cards preserve readable wrappin
   assert.match(blocks, /min-h-11 min-w-0 cursor-pointer items-start/);
   assert.match(blocks, /flex flex-wrap items-start justify-between gap-2/);
 });
+
+test("J’IA keeps its conversational presence without rendering a physical avatar", () => {
+  const presence = readFileSync(root + "/components/JiaPresence.tsx", "utf8");
+  const mark = readFileSync(root + "/components/JiaPresenceMark.tsx", "utf8");
+  assert.doesNotMatch(presence, /import JIA3D|<JIA3D|FaceLauncher|outfits\\/.*head\\.webp/);
+  assert.match(presence, /<JiaPresenceMark size="lg"/);
+  assert.match(presence, /<JiaPresenceMark size="md"/);
+  assert.match(presence, /<JiaConversationSurface/);
+  assert.match(presence, /sendTextCommand/);
+  assert.match(presence, /enableVoiceFromConversation/);
+  assert.doesNotMatch(surface, /import JIA3D|<JIA3D|outfits\\/blue\\/head\\.webp/);
+  assert.match(surface, /<JiaPresenceMark size="lg"/);
+  assert.match(surface, /aria-label="Conversation J’IA 360"/);
+  assert.match(mark, /data-jia-presence-mark/);
+  assert.match(mark, /listening/);
+  assert.match(mark, /speaking/);
+});
