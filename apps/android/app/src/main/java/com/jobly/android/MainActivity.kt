@@ -58,6 +58,8 @@ class MainActivity : Activity() {
     private var pendingFormAnswers: JSONArray? = null
     private var pendingFormOrigin: String? = null
     private var bridgeAvailable = false
+    // One user-selected SMS is held in memory only until the trusted Jobly page consumes it.
+    private var pendingSharedPaymentSms: JSONObject? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,8 +95,47 @@ class MainActivity : Activity() {
         }.getOrDefault(JSONObject())
 
         updateToolbar()
-        if (restored == null) webView.loadUrl(baseUrl)
+        pendingSharedPaymentSms = captureSharedPaymentSms(intent)
+        if (pendingSharedPaymentSms != null) {
+            webView.loadUrl(sharedPaymentSubscriptionUrl())
+        } else if (restored == null) {
+            webView.loadUrl(baseUrl)
+        }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val sharedSms = captureSharedPaymentSms(intent) ?: return
+        pendingSharedPaymentSms = sharedSms
+        applicationMode = false
+        assistantMode = false
+        currentApplicationUrl = ""
+        applicationPayload = JSONObject()
+        pendingFormAnswers = null
+        pendingFormOrigin = null
+        toolbar.visibility = View.GONE
+        fallbackBanner.visibility = View.GONE
+        webView.clearHistory()
+        updateToolbar()
+        webView.loadUrl(sharedPaymentSubscriptionUrl())
+    }
+
+    private fun captureSharedPaymentSms(incoming: Intent?): JSONObject? {
+        if (incoming?.action != Intent.ACTION_SEND || incoming.type != "text/plain") return null
+        val smsBody = incoming.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.trim().orEmpty()
+        if (smsBody.isBlank() || smsBody.length > MAX_SHARED_PAYMENT_SMS_LENGTH) return null
+        val senderId = bounded(incoming.getStringExtra(Intent.EXTRA_SUBJECT), 120)
+        return JSONObject().put("body", smsBody).put("senderId", senderId)
+    }
+
+    private fun sharedPaymentSubscriptionUrl(): String =
+        Uri.parse(baseUrl).buildUpon()
+            .appendPath("abonnement")
+            .appendQueryParameter("sharedSms", "1")
+            .build()
+            .toString()
+
 
     private fun createToolbar(): LinearLayout {
         val bar = LinearLayout(this).apply {
@@ -295,6 +336,14 @@ class MainActivity : Activity() {
                 override fun onPageFinished(view: WebView, url: String) {
                     super.onPageFinished(view, url)
                     val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return
+                    val sharedSms = pendingSharedPaymentSms
+                    if (sharedSms != null && isTrustedJoblyOrigin(uri) && uri.path == "/abonnement") {
+                        val bodyJson = JSONObject.quote(sharedSms.optString("body"))
+                        val senderJson = JSONObject.quote(sharedSms.optString("senderId"))
+                        val script = "(() => { const detail = { body: $bodyJson, senderId: $senderJson }; window.__joblyPendingPaymentSmsShare = detail; window.dispatchEvent(new CustomEvent('jobly:payment-sms-shared', { detail })); })();"
+                        webView.evaluateJavascript(script, null)
+                        pendingSharedPaymentSms = null
+                    }
                     if (pendingFormAnswers != null && applicationMode && !isJiaAssistantUrl(url)) {
                         val currentOrigin = originOf(url)
                         if (currentOrigin == null || currentOrigin != pendingFormOrigin ||
@@ -732,6 +781,7 @@ class MainActivity : Activity() {
             webView.removeAllViews()
             webView.destroy()
         }
+        pendingSharedPaymentSms = null
         super.onDestroy()
     }
 
@@ -739,6 +789,7 @@ class MainActivity : Activity() {
         private const val FILE_CHOOSER_REQUEST = 4201
         private const val REQUEST_PAYMENT_SMS_PERMISSION = 4202
         private const val MAX_BRIDGE_MESSAGE_LENGTH = 12_000
+        private const val MAX_SHARED_PAYMENT_SMS_LENGTH = 5_000
         private const val MAX_ANSWER_FIELDS = 10
         private const val MAX_ANSWER_LENGTH = 500
         private const val STATE_APPLICATION_MODE = "jobly.application.mode"
