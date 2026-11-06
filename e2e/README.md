@@ -1,6 +1,6 @@
 # Jobly — recette E2E globale
 
-**Statut :** préparation Lot 0 terminée partiellement ; Lot 1 (contrôle navigateur de l'accueil et des écrans Auth) instrumenté. La recette globale n'est pas déclarée verte.
+**Statut :** Lot 0 toujours BLOQUÉ jusqu'à validation des secrets E2E et du compte ADMIN lié. Le contrôle navigateur précédent a couvert l'interface publique uniquement ; il ne valide pas le Lot 0 ni les parcours Auth complets.
 
 ## Environnements autorisés
 
@@ -55,6 +55,33 @@ Le compte ADMIN existe et ses quatre espaces sont actifs. Son mot de passe n'est
 - La protection des mots de passe compromis via HaveIBeenPwned n'est pas activée ; Supabase la réserve au forfait Pro ou supérieur. C'est une limitation de forfait, pas une réussite de test.
 - Les fonctions Edge et le calendrier d'ingestion ne sont pas provisionnés dans E2E. Les parcours qui en dépendent restent BLOQUÉS jusqu'à installation contrôlée des fonctions et secrets E2E.
 
+## Reprise corrective du Lot 0 — 2026-11-06
+
+Le workflow E2E est désormais déclenché **manuellement uniquement** (`workflow_dispatch`) afin d'éviter de consommer les minutes CI à chaque mise à jour de PR. Il ne déclenche aucun déploiement.
+
+Avant le build et le navigateur, `e2e/lot0-preflight.mjs` exécute des contrôles exclusivement en lecture :
+- URL et référence du projet Supabase strictement égales à `JOBLY-E2E` ;
+- présence des variables/secrets E2E requis ;
+- acceptation de la clé serveur par l'API Auth du projet E2E ;
+- existence et confirmation du compte Auth ADMIN ;
+- correspondance unique entre Auth et `public.User`, avec rôle `ADMIN` ;
+- présence d'une `AdminIdentity` active et liée ;
+- quatre espaces ADMIN activés.
+
+Le contrôle n'effectue aucune création de compte, connexion interactive, écriture SQL, migration, envoi d'e-mail/SMS, opération Storage, exécution Edge Function ou appel de paiement. Il ne lit ni n'utilise aucun secret de JOBLY-PROD.
+
+### Blocages manuels restants
+
+Les secrets suivants doivent exister dans les secrets Actions du dépôt, avec des valeurs issues exclusivement de JOBLY-E2E :
+- `E2E_SUPABASE_SERVICE_ROLE_KEY`
+- `E2E_ADMIN_EMAIL`
+- `E2E_ADMIN_PASSWORD`
+
+Le compte ADMIN E2E existe déjà dans Auth, `public.User`, `AdminIdentity` et dispose de quatre espaces activés au dernier contrôle SQL en lecture seule. Le mot de passe n'a pas été récupéré ni modifié. Le préflight confirmera le rattachement dès que les secrets seront configurés.
+
+État des profils métier au dernier contrôle : aucun profil Talent et aucun profil Recruteur dans JOBLY-E2E. Ils devront être créés avec des identités de test distinctes, sans copier de mot de passe, session ou jeton de Production. Le parcours Recruteur et le défaut de réconciliation d'e-mail restent à corriger/tester sur la branche de recette.
+
+**Critère de sortie Lot 0 :** le préflight doit terminer avec `PASS`, puis les comptes synthétiques requis et les contrôles RLS/grants doivent être prouvés. En attendant, Lot 0 reste BLOQUÉ et le Lot 1 n'est pas déclaré commencé.
 ## Catalogue de recette
 
 Chaque test reçoit un identifiant stable, son rôle, ses préconditions, ses étapes, ses résultats attendus, une preuve et un statut. Statuts autorisés : `PASS`, `FAIL`, `BLOCKED`, `NOT RUN`. Sévérité : `P0`, `P1`, `P2`, `P3`.
