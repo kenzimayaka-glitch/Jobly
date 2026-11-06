@@ -102,7 +102,13 @@ export default function PartnerKycReviewPage() {
           !submissions.length ? <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">Aucun dossier KYC en attente.</div> :
           <div className="mt-6 space-y-4">
             {submissions.map((item) => {
-              const applicant = item.applicant || {};
+              const applicant = item.applicant ?? {
+                displayName: null,
+                firstName: null,
+                lastName: null,
+                email: null,
+                phone: null,
+              };
               const name = [applicant.firstName, applicant.lastName].filter(Boolean).join(" ") || applicant.displayName || "Partenaire";
               return (
                 <article key={item.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
