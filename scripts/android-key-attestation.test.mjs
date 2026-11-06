@@ -28,6 +28,8 @@ test("server verifier pins Google roots, checks revocation, nonce, TEE, locked v
   assert.match(verifier, /ATTESTATION_NOT_HARDWARE_BACKED/);
   assert.match(verifier, /DEVICE_BOOT_STATE_UNTRUSTED/);
   assert.match(verifier, /ATTESTATION_APPLICATION_ID_MISMATCH/);
+  assert.match(verifier, /ATTESTATION_KEY_AUTHORIZATION_PROFILE_INVALID/);
+  assert.match(verifier, /ATTESTATION_LEAF_KEY_PROFILE_INVALID/);
   assert.match(verifier, /JOBLY_ANDROID_RELEASE_CERT_SHA256/);
   assert.match(verifier, /com\.jobly\.android/);
 });
