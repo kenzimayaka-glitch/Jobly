@@ -231,7 +231,13 @@ export default function SettingsPage() {
       const key = await deriveBackupKey(passphrase, salt);
       let plain: ArrayBuffer;
       try {
-        plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, base64ToBytes(envelope.ciphertext));
+        const encryptedIv = iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength) as ArrayBuffer;
+        const encryptedPayload = base64ToBytes(envelope.ciphertext);
+        const encryptedBuffer = encryptedPayload.buffer.slice(
+          encryptedPayload.byteOffset,
+          encryptedPayload.byteOffset + encryptedPayload.byteLength,
+        ) as ArrayBuffer;
+        plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: encryptedIv }, key, encryptedBuffer);
       } catch {
         throw new Error("Phrase secrète incorrecte ou fichier de sauvegarde endommagé.");
       }
