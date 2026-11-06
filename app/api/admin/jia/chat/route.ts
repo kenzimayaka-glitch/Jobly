@@ -37,7 +37,7 @@ export async function GET(req:NextRequest){
     if(!conversation)return NextResponse.json({message:"Conversation introuvable."},{status:404});
     const {data:messages,error}=await admin.sb.from("JiaCEOMessage").select("id,role,content,metadata,createdAt").eq("conversationId",conversationId).order("createdAt",{ascending:true}).limit(100);
     if(error)throw new Error(error.message);
-    return NextResponse.json({conversation,messages:messages||[]});
+    return NextResponse.json({conversation,messages:messages||[]},{headers:{"Cache-Control":"private, no-store, max-age=0",Vary:"Authorization"}});
   }catch(e){
     return NextResponse.json({message:e instanceof Error?e.message:"Impossible de charger J’IA."},{status:500});
   }
