@@ -25,6 +25,7 @@ test("parses a fully labelled synthetic successful receipt", () => {
   assert.equal(result.direction, "INBOUND");
   assert.equal(result.payerPhone, "237677123456");
   assert.equal(result.merchantAccount, "237699123456");
+  assert.equal(result.merchantAccountFromMessage, true);
   assert.equal(result.occurredAt, null);
   assert.deepEqual(result.fraudFlags, []);
 });
@@ -93,6 +94,7 @@ test("accepts an authentic receipt when operator omits the payer phone", () => {
   assert.equal(result.status, "SUCCESSFUL");
   assert.equal(result.payerPhone, null);
   assert.equal(result.merchantAccount, "237699123456");
+  assert.equal(result.merchantAccountFromMessage, false);
   assert.deepEqual(result.fraudFlags, []);
 });
 
@@ -172,6 +174,7 @@ test("rejects outgoing MTN payments even when they are described as finalized", 
     body: "Votre paiement de 715 XAF a un bénéficiaire (237653928155) a ete finalise a 2026-07-31 21:55:42. Identifiant de transaction financiere : 18164419116.",
   }, liveShapeConfig);
   assert.equal(finalized.direction, "OUTBOUND");
+  assert.equal(finalized.status, "SUCCESSFUL");
   assert.ok(finalized.fraudFlags.includes("OUTGOING_PAYMENT_NOT_MERCHANT_RECEIPT"));
 
   const successIntegral = parsePaymentSms({
@@ -224,4 +227,36 @@ test("does not guess a local timestamp when the merchant timezone is absent", ()
     body: "Paiement réussi. Transaction ID: MTNABC123456. Montant: 10 000 FCFA. Date: 06/11/2026 10:15",
   }, { senderIds: { SMS_MTN: ["JOBLY-MTN-TEST"] }, merchantAccount: "237699123456" });
   assert.equal(result.occurredAt, null);
+});
+
+
+test("distinguishes an explicit customer-side merchant number from a configured fallback", () => {
+  const explicit = parsePaymentSms({
+    senderId: "MTN-SENDER-TEST",
+    body: "Votre paiement de 10 000 FCFA vers 237699095589 est réussi. Transaction ID: 18163059064.",
+  }, liveShapeConfig);
+  assert.equal(explicit.direction, "OUTBOUND");
+  assert.equal(explicit.status, "SUCCESSFUL");
+  assert.equal(explicit.merchantAccount, "237699095589");
+  assert.equal(explicit.merchantAccountFromMessage, true);
+  assert.ok(explicit.fraudFlags.includes("OUTGOING_PAYMENT_NOT_MERCHANT_RECEIPT"));
+
+  const noRecipient = parsePaymentSms({
+    senderId: "MTN-SENDER-TEST",
+    body: "Votre paiement de 10 000 FCFA est réussi. Transaction ID: 18163059064.",
+  }, liveShapeConfig);
+  assert.equal(noRecipient.direction, "OUTBOUND");
+  assert.equal(noRecipient.merchantAccount, "237699095589");
+  assert.equal(noRecipient.merchantAccountFromMessage, false);
+});
+
+
+test("does not accept a negated finalized customer payment", () => {
+  const result = parsePaymentSms({
+    senderId: "MTN-SENDER-TEST",
+    body: "Votre paiement de 10 000 FCFA vers 237699095589 n'a pas été finalisé. Transaction ID: 18163059064.",
+  }, liveShapeConfig);
+  assert.equal(result.direction, "OUTBOUND");
+  assert.equal(result.status, "FAILED");
+  assert.ok(result.fraudFlags.includes("MESSAGE_NOT_CONFIRMED_SUCCESS"));
 });
