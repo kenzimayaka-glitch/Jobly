@@ -277,28 +277,11 @@ async function googleRevocations(): Promise<RevocationDocument> {
 }
 
 function isRevoked(certificate: X509Certificate, entries: Record<string, { status?: string }>) {
-    /serialNumber\s*=\s*f92009e853b6b045/i.test(certificate.subject)
-  let decimalDigits = [0];
-  for (const char of serialHex) {
-    const nibble = Number.parseInt(char, 16);
-    if (!Number.isInteger(nibble)) return false;
-    let carry = nibble;
-    for (let i = decimalDigits.length - 1; i >= 0; i--) {
-      const next = decimalDigits[i] * 16 + carry;
-      decimalDigits[i] = next % 10;
-      carry = Math.floor(next / 10);
-    }
-    while (carry > 0) {
-      decimalDigits.unshift(carry % 10);
-      carry = Math.floor(carry / 10);
-    }
-  }
-  const serialDecimal = decimalDigits.join("");
-  const entry = entries[serialHex] ?? entries[serialDecimal];
+  const serialHex = certificate.serialNumber.replace(/^0+/, "").toLowerCase();
+  const entry = entries[serialHex];
   const status = entry?.status?.toUpperCase();
   return status === "REVOKED" || status === "SUSPENDED";
 }
-
 function buildTrustedChain(leaf: X509Certificate, presented: X509Certificate[], roots: X509Certificate[]) {
   const candidates = [...presented, ...roots];
   const trustedFingerprints = new Set(roots.map((root) => root.fingerprint256));
@@ -351,7 +334,7 @@ export async function verifyAndroidKeyAttestation(input: {
   const [roots, revocations] = await Promise.all([googleRoots(), googleRevocations()]);
   const chain = buildTrustedChain(presented[0], presented, roots);
   const legacyFactoryChain = chain.some((certificate) =>
-    /serialNumber\\s*=\\s*f92009e853b6b045/i.test(certificate.subject)
+    /serialNumber\s*=\s*f92009e853b6b045/i.test(certificate.subject)
   );
   for (const certificate of chain) {
     if (Date.parse(certificate.validFrom) > now ||
