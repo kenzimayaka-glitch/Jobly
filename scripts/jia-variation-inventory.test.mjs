@@ -8,6 +8,8 @@ import {
   JIA_VARIATION_TARGET,
   getJiaVariationCoverage,
 } from "../lib/jia/experience-engine.ts";
+import { GESTURES } from "../lib/jia/gestures.ts";
+import { JIA_100_MOVES } from "../components/JIA/movements.ts";
 
 const root = process.cwd();
 const rig = JSON.parse(readFileSync(join(root, "components/JIA/JIA_Rig.json"), "utf8"));
@@ -98,6 +100,29 @@ test("variation inventory is computed from actual rig configurations and files",
   assert.equal(uniqueGestureNames.length, 39);
   assert.deepEqual(manifests.map((manifest) => Object.keys(manifest).length), [42, 8, 4]);
   assert.equal(coverage.length, 12);
+});
+
+test("all 50 registered facial expressions have semantic gestures and runnable rig moves", () => {
+  const rigNames = new Set(Object.keys(rig.moves).map((key) => key.replace(/^\\d+_/, "")));
+  const moves = new Set(JIA_100_MOVES);
+  const facialMoveNames = new Set(entries.filter(([, move]) => move.eyes || move.eyebrows || move.mouth).map(([key]) => key.replace(/^\\d+_/, "")));
+  assert.equal(facialShapes.length, 50);
+  assert.equal(facialMoveNames.size, 50);
+  assert.ok([...facialMoveNames].every((name) => rigNames.has(name) && moves.has(name)));
+  const availableSemanticMoves = Object.entries(GESTURES)
+    .filter(([id]) => facialMoveNames.has(id))
+    .map(([id]) => id);
+  assert.equal(availableSemanticMoves.length, 34);
+});
+
+test("all 50 body gesture variations resolve to real clip or rig movement assets", () => {
+  assert.equal(bodyGestureCatalog.length, 50);
+  assert.equal(uniqueGestureNames.length, 39);
+  assert.equal(rigOnlyBodyNames.length, 11);
+  for (const item of bodyGestureCatalog) {
+    if (item.id.startsWith("clip:")) assert.ok(clipGestureNames.has(item.id.slice(5)));
+    else assert.ok(rigOnlyBodyNames.includes(item.id.slice(4)));
+  }
 });
 
 test("the audit never treats theoretical combinations as produced variations", () => {
