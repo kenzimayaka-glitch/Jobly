@@ -24,7 +24,6 @@ import {
   ShieldStarIcon,
   PeopleStarIcon,
   CheckCircleIcon,
-  SparkleIcon,
 } from "../components/AuthIcons";
 
 // Petit "plouf" d'eau douce, synthétisé (pas de fichier audio à charger) :
@@ -763,20 +762,20 @@ export default function Home() {
   }
   async function forgot() { if (!email.includes("@")) return setMessage("Entre l'adresse e-mail associée à ton compte."); setBusy(true); setMessage(""); try { await requestPasswordReset(email); goTo("reset-sent"); } catch (e) { setMessage(e instanceof Error ? e.message : "Impossible d'envoyer l'e-mail de récupération."); } finally { setBusy(false); } }
 
-  return <main className={`relative min-h-[100svh] flex flex-col w-full ${screen === "welcome" ? "overflow-x-hidden bg-white text-[#0A1931]" : "bg-off-white dark:bg-[#0A1931] dark:text-white overflow-y-auto"}`}>
+  return <main className={`relative min-h-[100svh] flex flex-col justify-between w-full ${screen === "welcome" ? "overflow-x-hidden bg-white text-[#0A1931]" : "bg-off-white dark:bg-[#0A1931] dark:text-white overflow-y-auto"}`}>
     {screen !== "welcome" && <BubbleField />}
     <div className="relative flex min-h-0 flex-1 w-full flex-col gap-0">
       {screen !== "login" && screen !== "signup" && <header className={screen === "welcome" ? "relative z-30 flex h-[90px] shrink-0 items-center justify-between px-5 pt-2 sm:h-[104px] sm:px-8" : "z-20 flex h-[84px] shrink-0 items-start px-5 pt-5 sm:px-8"}>
         <div ref={logoRef} className={screen === "welcome" ? "shrink-0" : "rounded-2xl bg-white/95 p-2 shadow-2xl"}>
-          <Image src="/jobly-logo-reference.jpg" alt="Jobly — Your Career OS" width={170} height={60} className={screen === "welcome" ? "h-auto w-[145px] object-contain sm:w-[175px]" : "h-auto w-[150px] object-contain"} priority />
+          <Image src="/jobly-logo-reference.jpg" alt="Jobly — Your Career OS" width={170} height={60} className={screen === "welcome" ? "h-auto w-[132px] object-contain sm:w-[175px]" : "h-auto w-[150px] object-contain"} priority />
         </div>
         {screen === "welcome" && <div role="group" aria-label="Choisir la langue / Choose language" className="relative isolate flex items-center gap-1 rounded-full bg-[#EEF1F5] p-1.5 shadow-inner">
-          <motion.button type="button" aria-label="Français" aria-pressed={lang === "fr"} whileTap={{ scale: 0.94 }} onClick={() => { setLang("fr"); try { localStorage.setItem("jobly-lang", "fr"); } catch {} }} className="relative isolate inline-flex min-w-[70px] items-center justify-center gap-1.5 rounded-full px-3 py-2.5 text-[13px] font-bold tracking-wide text-[#0A1931] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD60A] focus-visible:ring-offset-2">
+          <motion.button type="button" aria-label="Français" aria-pressed={lang === "fr"} whileTap={{ scale: 0.94 }} onClick={() => { setLang("fr"); try { localStorage.setItem("jobly-lang", "fr"); } catch {} }} className="relative isolate inline-flex min-w-[64px] items-center justify-center gap-1 rounded-full px-2 py-2.5 text-[13px] font-bold tracking-wide text-[#0A1931] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD60A] focus-visible:ring-offset-2">
             {lang === "fr" && <motion.span layoutId="jobly-language-active" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 -z-10 rounded-full bg-white shadow-[0_2px_9px_rgba(10,25,49,0.13)]" />}
             <motion.span aria-hidden="true" animate={lang === "fr" ? { y: [0, -1, 0], rotate: [0, -3, 0, 3, 0] } : { y: 0, rotate: 0 }} transition={lang === "fr" ? { duration: 2.8, repeat: Infinity, ease: "easeInOut" } : { duration: 0.18 }} className="relative z-10 text-[21px] leading-none">🇫🇷</motion.span>
             <span className="relative z-10">FR</span>
           </motion.button>
-          <motion.button type="button" aria-label="English" aria-pressed={lang === "en"} whileTap={{ scale: 0.94 }} onClick={() => { setLang("en"); try { localStorage.setItem("jobly-lang", "en"); } catch {} }} className="relative isolate inline-flex min-w-[70px] items-center justify-center gap-1.5 rounded-full px-3 py-2.5 text-[13px] font-bold tracking-wide text-[#0A1931] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD60A] focus-visible:ring-offset-2">
+          <motion.button type="button" aria-label="English" aria-pressed={lang === "en"} whileTap={{ scale: 0.94 }} onClick={() => { setLang("en"); try { localStorage.setItem("jobly-lang", "en"); } catch {} }} className="relative isolate inline-flex min-w-[64px] items-center justify-center gap-1 rounded-full px-2 py-2.5 text-[13px] font-bold tracking-wide text-[#0A1931] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD60A] focus-visible:ring-offset-2">
             {lang === "en" && <motion.span layoutId="jobly-language-active" transition={{ type: "spring", stiffness: 420, damping: 32 }} className="absolute inset-0 -z-10 rounded-full bg-white shadow-[0_2px_9px_rgba(10,25,49,0.13)]" />}
             <motion.span aria-hidden="true" animate={lang === "en" ? { y: [0, -1, 0], rotate: [0, -3, 0, 3, 0] } : { y: 0, rotate: 0 }} transition={lang === "en" ? { duration: 2.8, repeat: Infinity, ease: "easeInOut" } : { duration: 0.18 }} className="relative z-10 text-[21px] leading-none">🇬🇧</motion.span>
             <span className="relative z-10">EN</span>
