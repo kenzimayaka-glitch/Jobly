@@ -292,13 +292,13 @@ const BENEFITS = {
     { Icon: ShieldStarIcon, kind: "static", title: "100% Gratuit", subtitle: "Accès aux opportunités", iconClass: "text-[#3478C8]" },
     { Icon: PeopleStarIcon, kind: "offers", title: "Offres Afrique", subtitle: "offres actives sur Jobly", iconClass: "text-[#8064D8]" },
     { Icon: CheckCircleIcon, kind: "talents", title: "Talents Jobly", subtitle: "profils Talent inscrits", iconClass: "text-[#28A99B]" },
-    { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "Matche et postule avec vous", iconClass: "text-[#D99A16]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "+50 candidatures en un clic", iconClass: "text-[#D99A16]" },
   ],
   en: [
     { Icon: ShieldStarIcon, kind: "static", title: "100% Free", subtitle: "Access to opportunities", iconClass: "text-[#3478C8]" },
     { Icon: PeopleStarIcon, kind: "offers", title: "Africa offers", subtitle: "active offers on Jobly", iconClass: "text-[#8064D8]" },
     { Icon: CheckCircleIcon, kind: "talents", title: "Jobly talents", subtitle: "registered Talent profiles", iconClass: "text-[#28A99B]" },
-    { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "Matches and applies with you", iconClass: "text-[#D99A16]" },
+    { Icon: ShieldStarIcon, kind: "static", title: "J’IA", subtitle: "+50 applications in one click", iconClass: "text-[#D99A16]" },
   ],
 } as const;
 
