@@ -139,7 +139,7 @@ test("all 50 registered facial expressions have semantic gestures and runnable r
   assert.equal(availableSemanticMoves.length, 45);
 });
 
-test("every newly rendered visual family exposes fifty concrete, non-duplicate presets", () => {
+test("the visual variation catalog keeps fifty concrete, non-duplicate presets", () => {
   const lists = [
     JIA_CONVERSATION_LAYOUT_VARIATIONS,
     JIA_SCENE_VARIATIONS,
@@ -158,7 +158,7 @@ test("every newly rendered visual family exposes fifty concrete, non-duplicate p
   }
 });
 
-test("fifty unique clothing-detail appearances are selected by the Stage avatar renderer", () => {
+test("fifty unique portrait appearances remain catalogued but are not loaded by the active conversation surface", () => {
   assert.equal(JIA_AVATAR_APPEARANCES.length, 50);
   assert.equal(new Set(JIA_AVATAR_APPEARANCES.map(item => item.id)).size, 50);
   assert.equal(new Set(JIA_AVATAR_APPEARANCES.map(({id,...item}) => JSON.stringify(item))).size, 50);
@@ -166,15 +166,19 @@ test("fifty unique clothing-detail appearances are selected by the Stage avatar 
   const surface = readFileSync(join(root, "components/jia/JiaConversationSurface.tsx"), "utf8");
   assert.ok(avatar.includes("JIAAppearanceOverlay"));
   assert.ok(avatar.includes("data-jia-avatar-appearance"));
-  assert.ok(surface.includes("appearanceId={JIA_AVATAR_APPEARANCES[variationIndex].id}"));
+  assert.equal(surface.includes("JIA3D"), false);
+  assert.equal(surface.includes("JIA_AVATAR_APPEARANCES"), false);
+  assert.ok(surface.includes("<JiaPresenceMark size=\"lg\""));
 });
 
-test("the surface and workspace renderer actually consume the variation catalog", () => {
+test("conversation keeps its adaptive layout while using a non-physical presence mark", () => {
   const surface = readFileSync(join(root, "components/jia/JiaConversationSurface.tsx"), "utf8");
   const blocks = readFileSync(join(root, "components/jia/JiaWorkspaceBlocks.tsx"), "utf8");
-  for (const token of ["data-jia-scene={sceneVariation.id}","data-jia-layout-variation={layoutVariation.id}","JIA_MESSAGE_ENTRANCES","JIA_STICKER_REACTIONS","data-jia-avatar-framing={avatarFraming.id}"]) {
+  for (const token of ["data-jia-scene={sceneVariation.id}","data-jia-layout-variation={layoutVariation.id}","JIA_MESSAGE_ENTRANCES","JIA_STICKER_REACTIONS","data-jia-presence-stage","<JiaPresenceMark size=\"lg\""]) {
     assert.ok(surface.includes(token), "surface must render " + token);
   }
+  assert.equal(surface.includes("data-jia-avatar-framing"), false);
+  assert.equal(surface.includes("JIA3D"), false);
   for (const token of ["JIA_OFFER_PRESENTATIONS","JIA_DOCUMENT_PRESENTATIONS","JIA_QUESTION_PRESENTATIONS","data-jia-offer-presentation","data-jia-document-presentation","data-jia-question-presentation"]) {
     assert.ok(blocks.includes(token), "workspace blocks must render " + token);
   }
