@@ -87,3 +87,28 @@ test("allows five minutes of device clock skew but not more", () => {
   assert.equal(decideSmsPaymentMatch(receipt, [slightSkew]).decision, "MATCH");
   assert.equal(decideSmsPaymentMatch(receipt, [excessSkew]).decision, "NO_MATCH");
 });
+
+test("rejects a non-XAF currency even when the numeric amount matches", () => {
+  assert.deepEqual(decideSmsPaymentMatch({ ...receipt, currency: "USD" }, [candidate]), {
+    decision: "REJECT",
+    reason: "RECEIPT_FIELDS_INCOMPLETE",
+  });
+});
+
+test("does not match an order whose payment or subscription is already settled", () => {
+  assert.equal(
+    decideSmsPaymentMatch(receipt, [{ ...candidate, paymentStatus: "SUCCESSFUL" }]).decision,
+    "NO_MATCH",
+  );
+  assert.equal(
+    decideSmsPaymentMatch(receipt, [{ ...candidate, subscriptionStatus: "ACTIVE" }]).decision,
+    "NO_MATCH",
+  );
+});
+
+test("rejects an invalid receipt timestamp", () => {
+  assert.deepEqual(decideSmsPaymentMatch({ ...receipt, occurredAt: "not-a-date" }, [candidate]), {
+    decision: "REJECT",
+    reason: "RECEIPT_TIME_INVALID",
+  });
+});
