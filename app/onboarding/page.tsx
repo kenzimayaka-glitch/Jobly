@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "../../lib/supabase";
 import { completeSignupProfile, checkUsernameAvailable, validatePassword } from "../../lib/auth";
+import { assertPasswordNotPwned } from "../../lib/pwnedPasswords";
 
 const DRAFT_KEY = "jobly-signup-draft";
 
@@ -223,6 +224,9 @@ export default function OnboardingPage() {
     setBusy(true); setMessage("");
     try {
       const supabase = getSupabaseClient();
+      // Bloque les mots de passe déjà compromis avant toute écriture du profil.
+      // La requête HIBP n'est faite qu'à la validation, jamais pendant la saisie.
+      await assertPasswordNotPwned(password);
       // 15/09/2026 : le profil est désormais créé AVANT de définir le mot de
       // passe (et non après). "Session requise après vérification de
       // l'e-mail." réapparaissait car updateUser({ password }) peut faire

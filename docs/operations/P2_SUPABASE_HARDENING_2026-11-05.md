@@ -140,28 +140,33 @@ Aucune donnée de sauvegarde n'a été supprimée.
 
 ### `pg_net` : déplacement toujours bloqué par les privilèges managés
 
-État actuellement vérifié :
-- `pg_net 0.20.4`, schéma enregistré `public), propriétaire `supabase_admin` ;
-- connexion courante `postgres), sans appartenance au rôle interne `supabase_admin` ;
-- le cron `jobly-discover-jobs-every-6h` reste actif, horaire `15 */6 * * *`, et appelle `net.http_post` vers `/functions/v1/discover-jobs` ;
-- file `net.http_request_queue` vide ; aucun dossier d'archive de cutover n'a été créé.
+État vérifié sur la base de production :
+- `pg_net 0.20.4`, non relocalisable, enregistrement d'extension dans `public`, propriétaire `supabase_admin` ;
+- le rôle `postgres` n'est pas membre de `supabase_admin` et ne peut pas s'attribuer cette appartenance ;
+- les fonctions de `pg_net` sont dans `net` et le catalogue actuel les indique `SECURITY INVOKER` ; l'usage du schéma et les droits d'exécution apparaissent pour `anon`/`authenticated`, conformément aux grants par défaut de l'extension ;
+- contrôle des rôles : `anon` et `authenticated` ont `rolcanlogin=false` (ils ne peuvent pas ouvrir de connexion PostgreSQL directe) ; `authenticator` est le rôle de connexion PostgREST ;
+- aucun `pgrst.db_schemas` n'a été trouvé dans la configuration PostgreSQL de rôle de `authenticator`. Le connecteur ne lit pas la liste configurée dans le Dashboard. Supabase documente que `net` n'est pas exposé à la Data API par défaut ; l'exposition doit rester ainsi ;
+- le cron `jobly-discover-jobs-every-6h` reste actif, horaire `15 */6 * * *`, et appelle `net.http_post` vers `/functions/v1/discover-jobs`.
 
-La procédure contrôlée a été tentée une fois ; son garde-fou s'est arrêté avant toute DDL. **L'extension n'a pas bougé et le cron n'a pas été arrêté.** Le rôle `postgres` ne peut pas s'attribuer lui-même les privilèges réservés à Supabase.
+La procédure de déplacement contrôlé a été tentée une fois ; son garde-fou s'est arrêté avant toute DDL. **L'extension n'a pas bougé et le cron n'a pas été arrêté.** Aucun privilège du propriétaire managé n'a été contourné. Les droits sur les objets de l'extension ne peuvent pas être modifiés par le rôle actuel `postgres`.
 
-**Intervention nécessaire :** Supabase Support / opérateur privilégié doit exécuter le déplacement documenté dans [p2_pg_net_recreate_2026-11-05.sql](../../supabase/operations/p2_pg_net_recreate_2026-11-05.sql), en conservant le cron, puis valider un vrai retour HTTP 2xx de la fonction d'ingestion. Le ticket n'a pas été envoyé : aucun outil connecté ne permet de créer un ticket Support au nom du propriétaire du compte.
+**Voie gratuite sans interruption :** conserver l'extension et le cron ; ne pas révoquer les grants `PUBLIC` par défaut sur les tables/fonctions `net`, car Supabase indique qu'ils sont utilisés par le worker `pg_net` et les tâches cron et que leur retrait peut casser l'ingestion. Garder `net` hors des schémas exposés dans les paramètres Data API. Pour supprimer le WARN Advisor `extension_in_public`, il restera nécessaire qu'un opérateur privilégié exécute le déplacement documenté dans [p2_pg_net_recreate_2026-11-05.sql](../../supabase/operations/p2_pg_net_recreate_2026-11-05.sql), sans `CASCADE`, en préservant le cron et en validant un vrai retour HTTP 2xx. Le ticket Support n'a pas été envoyé : aucun outil connecté ne permet de créer un ticket au nom du propriétaire du compte.
 
-Source : [Supabase — pg_net et déplacement d'extension](https://supabase.com/docs/guides/database/extensions/pg_net).
+Sources : [Supabase — pg_net](https://supabase.com/docs/guides/database/extensions/pg_net) ; [Supabase — grants pg_net et limites de révocation](https://supabase.com/kb/troubleshooting/revoking-access-to-pg_net-objects-has-no-effect-0bbc16) ; [Supabase — schémas exposés par la Data API](https://supabase.com/docs/guides/api/using-custom-schemas).
 
-### Protection HIBP : activation impossible sur le plan Free
+### Protection HIBP native Supabase : WARN conservé, protection Jobly gratuite ajoutée
 
-- Organisation Jobly confirmée sur `free`.
-- Supabase confirme que la protection HIBP native est réservée au plan Pro ou supérieur.
-- Le plan Pro commence à **25 USD/mois** ; les coûts de compute et de dépassement d'usage peuvent s'ajouter suivant la configuration et la consommation.
-- Aucun upgrade ni paiement n'a été fait ; le connecteur disponible ne fournit pas d'action pour changer l'abonnement ou modifier le réglage Auth.
+- L'organisation Jobly est sur le plan `free`. Le contrôle natif Supabase HaveIBeenPwned reste réservé au plan Pro ou supérieur ; aucun upgrade ni paiement n'a été réalisé.
+- Pour ne pas laisser les parcours Jobly sans contrôle gratuit, une intégration applicative du service officiel **Pwned Passwords** a été ajoutée dans `lib/pwnedPasswords.ts`.
+- Le navigateur calcule l'empreinte SHA-1 avec Web Crypto ; seul le préfixe de 5 caractères est transmis à `https://api.pwnedpasswords.com/range/{prefix}`. Le suffixe complet est comparé localement. Le mot de passe en clair et son empreinte complète ne sont jamais transmis ni journalisés.
+- L'en-tête `Add-Padding: true` est activé ; les lignes de padding de compte zéro sont ignorées. Le contrôle ne part qu'au clic de validation, jamais à chaque frappe.
+- Parcours couverts : inscription rapide depuis `app/page.tsx`, onboarding depuis `app/onboarding/page.tsx`, et réinitialisation/changement de mot de passe via `lib/auth.ts:updatePassword`.
+- En cas de mot de passe trouvé dans une fuite, l'opération est refusée avant l'écriture du profil ou la mise à jour Supabase Auth. Si HIBP est indisponible ou renvoie une réponse non valide, le contrôle échoue de manière fermée et demande de réessayer ; aucun mot de passe nouveau n'est accepté sans contrôle.
+- Tests automatisés ajoutés : `scripts/p2-pwned-passwords.test.mjs`, exécutés via `pnpm test:p2-hibp` et branchés dans la CI.
 
-Après passage au plan Pro, le réglage doit être activé dans les paramètres Auth du projet (Password Security / Leaked Password Protection), puis contrôlé dans Security Advisor.
+**Limite de statut :** cette protection protège les nouveaux mots de passe dans les parcours Jobly ciblés, mais elle ne modifie pas le paramètre natif Auth de Supabase. Le WARN `auth_leaked_password_protection` restera donc présent dans Supabase Advisor sur le plan Free.
 
-Sources : [Supabase — Password security](https://supabase.com/docs/guides/auth/password-security) ; [Supabase — Pricing](https://supabase.com/pricing).
+Source : [Have I Been Pwned — Pwned Passwords API](https://haveibeenpwned.com/API/v3).
 
 ### Performance et Health Advisor
 
@@ -171,19 +176,18 @@ Sources : [Supabase — Password security](https://supabase.com/docs/guides/auth
 
 ## Verdict
 
-**Le chantier n'est pas encore vert dans Supabase Advisor.** Les contrôles RLS et FK sont assainis, et les corrections SQL sûres sont appliquées. Deux WARN restent bloqués par des privilèges/paramètres de compte que le connecteur ne peut pas modifier.
+**Le chantier n'est pas encore vert dans Supabase Advisor.** Le contrôle gratuit des nouveaux mots de passe est maintenant intégré dans Jobly, mais le WARN natif Supabase demeure sur le plan Free. Le déplacement `pg_net` et le changement de ses droits internes restent réservés à un opérateur Supabase privilégié.
 
 - 72 alertes RLS/no-policy historiques : corrigées.
-- Nouvelle sauvegarde P1 de 252 lignes : politique explicite de refus client ajoutée, accès service-role préservé.
-- Defaults d'EXECUTE pour les nouvelles fonctions créées par `postgres) : durcis.
+- Les sauvegardes P1 précédemment traitées restent intactes ; une lecture Advisor ultérieure a aussi identifié deux autres tables de sauvegarde à réexaminer : `JobP1ApplicationReadyCorrectionBackup` et `JobP1AuditV6RemediationBackup`.
+- Defaults d'EXECUTE pour les nouvelles fonctions créées par `postgres` : durcis.
 - Quatre doublons exacts d'index : supprimés, index uniques conservés.
-- 38 clés étrangères non indexées : **corrigées** ; l'Advisor en signale maintenant 0.
+- 38 clés étrangères non indexées : **corrigées** ; l'Advisor en signale 0.
 - `function_search_path_mutable` : corrigé ; WARN disparu.
 - Index inutilisés : 206 INFO, examinés et conservés.
-- `pg_net` dans `public` : WARN ouvert ; seule une intervention Supabase Support/opérateur privilégié peut effectuer le déplacement sans contourner les protections de rôle.
-- Protection HIBP : WARN ouvert ; exige le plan Pro ou supérieur et l'activation dans les paramètres Auth.
-- Health Advisor : 0 alerte.
-
-**Pour clôturer les deux derniers WARN :** faire exécuter le cutover `pg_net` par Supabase Support, puis passer l'organisation Jobly au plan Pro (à partir de 25 USD/mois, hors éventuels coûts variables) et activer HIBP dans Auth. Ces actions ne sont pas exécutables par les privilèges ni les outils actuellement connectés.
+- Mot de passe compromis : vérification gratuite HIBP active dans les parcours de création et de réinitialisation de mot de passe Jobly ; tests ajoutés à la CI.
+- `auth_leaked_password_protection` : WARN natif Supabase ouvert, sans upgrade ni dépense.
+- `pg_net` : WARN Advisor ouvert parce que l'extension est enregistrée dans `public` ; cron conservé et actif. Les rôles clients sont `NOLOGIN` et Supabase indique que le schéma `net` n'est pas exposé à la Data API par défaut ; les grants par défaut ne doivent pas être révoqués car ils soutiennent le worker/cron. Le déplacement reste une opération privilégiée.
+- Health Advisor : 0 alerte lors du dernier relevé historique.
 
 Aucun paiement, `DROP ... CASCADE`, suppression d'index de contrainte, contournement de propriété Supabase ou déploiement Netlify n'a été effectué.

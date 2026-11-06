@@ -50,6 +50,9 @@ jobs:
       - name: P2 Jobly offer watermark regression tests
         run: pnpm test:p2-offer-watermark
 
+      - name: P2 free HIBP password screening tests
+        run: pnpm test:p2-hibp
+
       - name: Career OS architecture gate
         run: pnpm test:career-os
 
