@@ -242,6 +242,25 @@ class MainActivity : Activity() {
                             val command = runCatching { JSONObject(raw) }.getOrNull() ?: return
                             val payload = command.optJSONObject("payload") ?: return
                             when (command.optString("type")) {
+                                "CREATE_ANDROID_KEY_ATTESTATION" -> {
+                                    val challenge = bounded(payload.optString("challenge"), 256)
+                                    val challengeId = bounded(payload.optString("challengeId"), 64)
+                                    val result = runCatching {
+                                        AndroidKeyAttestation.createCertificateChain(challenge)
+                                    }
+                                    val response = if (result.isSuccess) {
+                                        JSONObject()
+                                            .put("type", "ANDROID_KEY_ATTESTATION_RESULT")
+                                            .put("challengeId", challengeId)
+                                            .put("certificateChain", JSONArray(result.getOrThrow().certificateChain))
+                                    } else {
+                                        JSONObject()
+                                            .put("type", "ANDROID_KEY_ATTESTATION_RESULT")
+                                            .put("challengeId", challengeId)
+                                            .put("error", result.exceptionOrNull()?.message ?: "ANDROID_ATTESTATION_FAILED")
+                                    }
+                                    replyProxy.postMessage(response.toString())
+                                }
                                 "OPEN_EXTERNAL_APPLICATION" -> {
                                     val target = safeHttpsUrl(payload.optString("targetUrl"))
                                         ?: safeHttpsUrl(payload.optString("sourceUrl"))
