@@ -65,6 +65,7 @@ android {
             if (releaseStoreFile.isNotBlank()) {
                 storeFile = rootProject.file(releaseStoreFile)
             }
+            storeType = "PKCS12"
             storePassword = releaseStorePassword.takeIf { it.isNotBlank() }
             keyAlias = releaseKeyAlias.takeIf { it.isNotBlank() }
             keyPassword = releaseKeyPassword.takeIf { it.isNotBlank() }
