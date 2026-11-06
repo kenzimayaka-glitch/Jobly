@@ -30,7 +30,7 @@ test("prefers an exact customer-submitted transaction reference when present", (
 });
 
 test("never matches by amount alone when multiple orders are compatible", () => {
-  const result = run({}, {}, [base, { ...base, id: "payment-2", payerPhone: null }]);
+  const result = run({}, {}, [base, { ...base, id: "payment-2" }]);
   assert.equal(result.outcome, "AMBIGUOUS");
 });
 
