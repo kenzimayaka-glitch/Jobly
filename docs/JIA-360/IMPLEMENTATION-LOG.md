@@ -36,6 +36,7 @@ Fichier : `components/jia/JiaConversationSurface.tsx`
 - Fenêtre de conversation plein écran sur Android/mobile avec respect des zones de sécurité système.
 - Panneau immersif responsive sur desktop et tablette.
 - Sélecteur manuel des six modes et retour Auto.
+- En mode Auto, sélection semi-aléatoire d’une présentation compatible avec le sujet, avec historique anti-répétition ; bouton « Nouvelle composition » pour relancer une sélection. Le choix manuel verrouille la présentation jusqu’au retour à Auto.
 - Compositions différenciées sans transformer le contenu des messages.
 - Fil lisible, horodatage, sources séparées du texte et indication de réponse en cours.
 - Espace d'accueil avec suggestions contextuelles Talent/Recruteur/Partenaire.
@@ -56,6 +57,7 @@ Fichier : `components/JiaPresence.tsx`
 - Le contexte de candidature externe déjà fusionné (#220/#221) peut ouvrir la nouvelle conversation avec son prompt prérempli.
 - Lorsqu'une scène Stage est active, le widget flottant est démonté et le modèle GLTF J’IA est rendu dans la scène ; cela évite de faire tourner deux instances 3D simultanément.
 - Le mode classique flottant demeure disponible lorsque la conversation immersive est fermée.
+- Les changements de composants J’IA 360 sont inclus dans les déclencheurs du workflow Android WebView afin de valider également le build APK et le smoke test du shell.
 
 ## 3. Tests ajoutés
 
