@@ -4,8 +4,7 @@
 ALTER TABLE public."Payment"
   ADD COLUMN IF NOT EXISTS "payerPhone" text,
   ADD COLUMN IF NOT EXISTS "reportedTransactionId" text,
-  ADD COLUMN IF NOT EXISTS "smsMerchantAccount" text,
-  ADD COLUMN IF NOT EXISTS "smsMerchantCode" text;
+  ADD COLUMN IF NOT EXISTS "smsMerchantAccount" text;
 
 CREATE INDEX IF NOT EXISTS "Payment_sms_match_idx"
   ON public."Payment" (provider, status, amount, currency, "createdAt");
@@ -158,6 +157,21 @@ GRANT EXECUTE ON FUNCTION public.finalize_payment_from_sms(uuid, text, text, tim
 
 -- Central operator settings managed by Jobly administrators. Merchant codes are
 -- never compiled into application code or exposed by public read APIs.
+-- The per-order merchant-code snapshot is isolated from the customer-readable
+-- Payment row. Only service_role can read this table.
+CREATE TABLE IF NOT EXISTS public."PaymentSmsOrderConfig" (
+  "paymentId" text PRIMARY KEY REFERENCES public."Payment"(id) ON DELETE CASCADE,
+  "merchantCode" text NOT NULL CHECK ("merchantCode" ~ '^[A-Za-z0-9_-]{1,40}$'),
+  "createdAt" timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public."PaymentSmsOrderConfig" ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public."PaymentSmsOrderConfig" FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT ON TABLE public."PaymentSmsOrderConfig" TO service_role;
+
+COMMENT ON TABLE public."PaymentSmsOrderConfig" IS
+  'Server-only snapshot of the merchant code used for a payment. Kept outside Payment so customer-facing Payment reads cannot expose merchant configuration.';
+
 CREATE TABLE IF NOT EXISTS public."PaymentSmsProviderConfig" (
   provider text PRIMARY KEY CHECK (provider IN ('SMS_MTN', 'SMS_ORANGE')),
   "merchantAccount" text NOT NULL,
@@ -178,5 +192,3 @@ GRANT SELECT, INSERT, UPDATE ON TABLE public."PaymentSmsProviderConfig" TO servi
 
 COMMENT ON TABLE public."PaymentSmsProviderConfig" IS
   'Central MTN/Orange checkout settings. Read and written only by the server service_role through administrator-checked APIs. Merchant code changes apply to new payments; each pending payment retains its own code snapshot.';
-COMMENT ON COLUMN public."Payment"."smsMerchantCode" IS
-  'Server-side snapshot of the merchant code used to generate this payment order; never returned as a standalone public field.';
