@@ -351,7 +351,9 @@ export default function JIA3D({ speaking, appearanceId = "jia-appearance-01" }: 
           <Canvas camera={{ position: [0, 0.05, 2.35], fov: 32 }} dpr={[1, 1.5]} gl={{ alpha: true, antialias: true }}>
             <ambientLight intensity={1.7} />
             <directionalLight position={[2, 3, 4]} intensity={2.2} color="#fff6df" />
-            <JIAProcedural3D speaking={speaking} />
+            <Suspense fallback={null}>
+              <JIAProcedural3D speaking={speaking} />
+            </Suspense>
           </Canvas>
         }
       >
