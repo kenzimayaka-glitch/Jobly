@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import PwaInit from "../components/PwaInit";
+import OfflineCoordinator from "../components/OfflineCoordinator";
 import JiaObserver from "../components/JiaObserver";
 import JiaPresence from "../components/JiaPresence";
 
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-[100dvh] w-full m-0 p-0 overflow-x-hidden bg-white antialiased font-sans">
         <LanguageProvider>
           <PwaInit />
+          <OfflineCoordinator />
           <JiaObserver />
           <JiaPresence />
           <ScreenProtection />
