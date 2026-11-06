@@ -135,7 +135,7 @@ export function buildJiaAdaptiveQuestionBank(message: string): ReturnType<typeof
   const competency = base.competency.toLocaleLowerCase();
   const extra: JiaWorkspaceQuestion[] = competency === "excel"
     ? [
-        { prompt: "Tu dois afficher « À revoir » si le chiffre d'affaires est inférieur à l'objectif, sinon « Atteint ». Quelle formule convient ?", choices: ["=SI(B2<C2;"À revoir";"Atteint")", "=SOMME(B2:C2)", "=NB(B2:C2)", "=AUJOURDHUI()"], correctIndex: 0, explanation: "SI compare la valeur à l'objectif et renvoie un résultat selon la condition.", difficulty: 2 },
+        { prompt: "Tu dois afficher « À revoir » si le chiffre d'affaires est inférieur à l'objectif, sinon « Atteint ». Quelle formule convient ?", choices: ['=SI(B2<C2;"À revoir";"Atteint")', "=SOMME(B2:C2)", "=NB(B2:C2)", "=AUJOURDHUI()"], correctIndex: 0, explanation: "SI compare la valeur à l'objectif et renvoie un résultat selon la condition.", difficulty: 2 },
         { prompt: "Un tableau de ventes contient plusieurs lignes par produit et par mois. Quel outil résume rapidement les ventes par produit ?", choices: ["Mise en forme du texte", "Tableau croisé dynamique", "Fusionner les cellules", "Rechercher/remplacer"], correctIndex: 1, explanation: "Un tableau croisé dynamique agrège les données selon les champs sélectionnés.", difficulty: 2 },
         { prompt: "Un fichier mensuel contient des colonnes et formats incohérents. Quel outil permet de répéter un nettoyage à chaque actualisation ?", choices: ["Power Query", "WordArt", "Tri manuel uniquement", "Capture d'écran"], correctIndex: 0, explanation: "Power Query enregistre et rejoue les étapes de transformation.", difficulty: 3 },
       ]
