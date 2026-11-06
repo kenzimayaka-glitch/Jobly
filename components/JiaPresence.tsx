@@ -844,12 +844,15 @@ export default function JiaPresence() {
   const sendTextCommand = useCallback(async () => {
     const command = commandInput.trim();
     if (!command || commandBusy) return;
+    const initiatingOwner = sessionUserIdRef.current;
+    const initiatingEpoch = conversationWriteEpochRef.current;
     appendConversationMessage("user", command);
     setCommandBusy(true);
     setCommandInput("");
     try {
+      if (!initiatingOwner || !signedIn) throw new Error("Session requise.");
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise.");
+      if (!session?.access_token || session.user.id !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       const response = await fetch("/api/jia/brain", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
@@ -862,9 +865,9 @@ export default function JiaPresence() {
         }),
       });
       const out = await response.json().catch(() => ({}));
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       if (!response.ok) throw new Error(out.message || "J’IA est momentanément indisponible.");
       const nextSources = Array.isArray(out.sources) ? out.sources.filter((source: unknown): source is { title: string; url: string; snippet?: string } => Boolean(source && typeof source === "object" && "url" in source && typeof source.url === "string" && /^https?:\/\//i.test(source.url))).slice(0, 5) : [];
-      setSourceLinks(nextSources);
       const workspaceIntent = detectJiaWorkspaceIntent(command, eco);
       let workspaceBlock: JiaWorkspaceBlock | null = null;
       if (workspaceIntent) {
@@ -879,6 +882,10 @@ export default function JiaPresence() {
           };
         }
       }
+      // A sign-out or account switch during a workspace fetch invalidates the
+      // entire response; never attach an earlier account's content to the new thread.
+      if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
+      setSourceLinks(nextSources);
       const answer = typeof out.message === "string" ? out.message.trim() : "";
       const previousAnswer = recentDialogue[recentDialogue.length - 1]?.trim().toLocaleLowerCase();
       if (answer && answer.toLocaleLowerCase() === previousAnswer) {
@@ -898,13 +905,14 @@ export default function JiaPresence() {
         sticky: true,
       });
     } catch (error) {
+      if (initiatingOwner && (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch)) return;
       const message = error instanceof Error ? error.message : "Je n’ai pas réussi à répondre.";
       appendConversationMessage("assistant", message);
       say(message, { gesture: "secure", sticky: true, speak: false });
     } finally {
       setCommandBusy(false);
     }
-  }, [appendConversationMessage, commandBusy, commandInput, eco, recentDialogue, say]);
+  }, [appendConversationMessage, commandBusy, commandInput, eco, recentDialogue, say, signedIn]);
 
 
   const updateJiaWorkspace = useCallback((messageId: string, workspace: JiaWorkspaceBlock) => {
@@ -1052,15 +1060,28 @@ export default function JiaPresence() {
   }, [updateJiaWorkspace]);
 
   const loadOlderConversationMessages = useCallback(async () => {
-    if (loadingOlderMessages || !hasMoreConversationMessages || !conversationIdRef.current || !conversationMessages.length) return;
+    const capturedConversationId = conversationIdRef.current;
+    const capturedOwner = conversationOwnerUserIdRef.current;
+    const capturedEpoch = conversationWriteEpochRef.current;
+    const currentMessages = conversationMessagesRef.current;
+    if (loadingOlderMessages || !hasMoreConversationMessages || !capturedConversationId || !capturedOwner || !currentMessages.length) return;
     setLoadingOlderMessages(true);
     try {
       const { data: { session } } = await getSupabaseClient().auth.getSession();
-      if (!session?.access_token) throw new Error("Session requise.");
-      const oldest = conversationMessages[0];
+      if (!session || !canWriteJiaConversation({
+        accessToken: session.access_token,
+        sessionUserId: session.user.id,
+        ownerUserId: capturedOwner,
+        currentOwnerUserId: conversationOwnerUserIdRef.current,
+        currentConversationId: conversationIdRef.current,
+        capturedConversationId,
+        currentEpoch: conversationWriteEpochRef.current,
+        capturedEpoch,
+      })) return;
+      const oldest = currentMessages[0];
       const query = new URLSearchParams({
         ecosystem: eco,
-        conversationId: conversationIdRef.current,
+        conversationId: capturedConversationId,
         before: new Date(oldest.createdAt).toISOString(),
         beforeId: oldest.id,
         limit: "50",
@@ -1071,6 +1092,17 @@ export default function JiaPresence() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.message || "Historique précédent indisponible.");
+      const { data: { session: currentSession } } = await getSupabaseClient().auth.getSession();
+      if (!currentSession || !canWriteJiaConversation({
+        accessToken: currentSession.access_token,
+        sessionUserId: currentSession.user.id,
+        ownerUserId: capturedOwner,
+        currentOwnerUserId: conversationOwnerUserIdRef.current,
+        currentConversationId: conversationIdRef.current,
+        capturedConversationId,
+        currentEpoch: conversationWriteEpochRef.current,
+        capturedEpoch,
+      })) return;
       const older: JiaConversationMessage[] = (Array.isArray(body.messages) ? body.messages : []).map((item: Record<string, any>) => ({
         id: String(item.id),
         role: item.role === "user" ? "user" : "assistant",
@@ -1079,8 +1111,7 @@ export default function JiaPresence() {
         ...(Array.isArray(item.sources) && item.sources.length ? { sources: item.sources } : {}),
         ...(item.workspace && typeof item.workspace === "object" ? { workspace: item.workspace as JiaWorkspaceBlock } : {}),
       }));
-      const known = new Set(conversationMessagesRef.current.map((item) => item.id));
-      const nextMessages = [...older.filter((item) => !known.has(item.id)), ...conversationMessagesRef.current];
+      const nextMessages = mergeJiaConversationMessages(older, conversationMessagesRef.current);
       conversationMessagesRef.current = nextMessages;
       setConversationMessages(nextMessages);
       setHasMoreConversationMessages(body.hasMore === true);
@@ -1090,7 +1121,7 @@ export default function JiaPresence() {
     } finally {
       setLoadingOlderMessages(false);
     }
-  }, [conversationMessages, eco, hasMoreConversationMessages, loadingOlderMessages]);
+  }, [eco, hasMoreConversationMessages, loadingOlderMessages]);
 
   const prepareJiaApplication = useCallback(async (offer: JiaWorkspaceOffer) => {
     setCommandBusy(true);
