@@ -1,4 +1,5 @@
--- Draft for review only. Production application is intentionally separate.
+-- Review mirror only. Do not execute this copy.
+-- Canonical migration: supabase/migrations/20261106040000_payment_sms_mobile_money_foundation.sql
 -- Requires the existing billing_atomic_promo_subscription_upgrade migration first.
 
 ALTER TABLE public."Payment"
@@ -18,6 +19,7 @@ CREATE TABLE IF NOT EXISTS public."PaymentSmsDevice" (
   label text NOT NULL,
   provider text NOT NULL CHECK (provider IN ('SMS_MTN', 'SMS_ORANGE')),
   "merchantAccount" text NOT NULL,
+  "timeZone" text NOT NULL DEFAULT 'Africa/Douala',
   "senderIds" text[] NOT NULL CHECK (cardinality("senderIds") > 0),
   "tokenHash" text NOT NULL,
   status text NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'REVOKED')),
@@ -27,6 +29,9 @@ CREATE TABLE IF NOT EXISTS public."PaymentSmsDevice" (
   "createdAt" timestamptz NOT NULL DEFAULT now(),
   "updatedAt" timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public."PaymentSmsDevice"
+  ADD COLUMN IF NOT EXISTS "timeZone" text NOT NULL DEFAULT 'Africa/Douala';
 
 CREATE TABLE IF NOT EXISTS public."PaymentSmsReceipt" (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -84,11 +89,12 @@ CREATE OR REPLACE FUNCTION public.finalize_payment_from_sms(
 )
 RETURNS jsonb
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = pg_catalog, public
 AS $$
 DECLARE
   v_receipt public."PaymentSmsReceipt"%ROWTYPE;
+  v_device public."PaymentSmsDevice"%ROWTYPE;
   v_payment public."Payment"%ROWTYPE;
   v_result jsonb;
 BEGIN
@@ -116,12 +122,31 @@ BEGIN
      OR v_receipt."processingStatus" NOT IN ('RECEIVED', 'UNMATCHED', 'AMBIGUOUS') THEN
     RAISE EXCEPTION 'SMS_RECEIPT_NOT_ELIGIBLE';
   END IF;
+
+  -- Re-check and lock the paired handset at the final authorization boundary.
+  -- A concurrent revocation cannot race a payment finalization.
+  SELECT * INTO v_device
+    FROM public."PaymentSmsDevice"
+   WHERE id = v_receipt."deviceId"
+   FOR UPDATE;
+  IF NOT FOUND OR v_device.status <> 'ACTIVE' THEN
+    RAISE EXCEPTION 'SMS_DEVICE_REVOKED';
+  END IF;
+  IF v_device.provider <> v_receipt.provider
+     OR regexp_replace(v_device."merchantAccount", '[^0-9]', '', 'g')
+        <> regexp_replace(v_receipt."merchantAccount", '[^0-9]', '', 'g')
+     OR NOT (v_receipt."senderId" = ANY(v_device."senderIds")) THEN
+    RAISE EXCEPTION 'SMS_DEVICE_RECEIPT_MISMATCH';
+  END IF;
+
   IF v_receipt.provider <> v_payment.provider THEN RAISE EXCEPTION 'SMS_PROVIDER_MISMATCH'; END IF;
   IF v_receipt."transactionId" IS NULL
-     OR v_payment."reportedTransactionId" IS DISTINCT FROM v_receipt."transactionId" THEN
+     OR (v_payment."reportedTransactionId" IS NOT NULL
+         AND v_payment."reportedTransactionId" IS DISTINCT FROM v_receipt."transactionId") THEN
     RAISE EXCEPTION 'SMS_TRANSACTION_REFERENCE_MISMATCH';
   END IF;
-  IF v_receipt."receivedAt" < v_payment."createdAt" - interval '2 minutes' THEN
+  IF coalesce(v_receipt."occurredAt", v_receipt."receivedAt") < v_payment."createdAt" - interval '2 minutes'
+     OR coalesce(v_receipt."occurredAt", v_receipt."receivedAt") > p_now + interval '5 minutes' THEN
     RAISE EXCEPTION 'SMS_RECEIPT_PREDATES_PAYMENT_ORDER';
   END IF;
   IF v_receipt.amount IS DISTINCT FROM v_payment.amount
@@ -131,14 +156,24 @@ BEGIN
   IF v_receipt."merchantAccount" IS DISTINCT FROM v_payment."smsMerchantAccount" THEN
     RAISE EXCEPTION 'SMS_MERCHANT_MISMATCH';
   END IF;
-  IF v_receipt."payerPhone" IS NOT NULL AND v_payment."payerPhone" IS NOT NULL
-     AND regexp_replace(v_receipt."payerPhone", '[^0-9]', '', 'g')
-         <> regexp_replace(v_payment."payerPhone", '[^0-9]', '', 'g') THEN
-    RAISE EXCEPTION 'SMS_PAYER_MISMATCH';
+  IF v_receipt."payerPhone" IS NOT NULL THEN
+    IF v_payment."payerPhone" IS NULL THEN RAISE EXCEPTION 'SMS_PAYER_NOT_CONFIRMED'; END IF;
+    IF regexp_replace(v_receipt."payerPhone", '[^0-9]', '', 'g')
+       <> regexp_replace(v_payment."payerPhone", '[^0-9]', '', 'g') THEN
+      RAISE EXCEPTION 'SMS_PAYER_MISMATCH';
+    END IF;
   END IF;
   IF v_payment.status NOT IN ('CREATED', 'PENDING') THEN
     RAISE EXCEPTION 'INVALID_PAYMENT_TRANSITION';
   END IF;
+
+  -- Capture the transaction reference from the trusted merchant receipt.
+  -- The unique provider/reference index prevents a replay or cross-order reuse.
+  UPDATE public."Payment"
+     SET "reportedTransactionId" = v_receipt."transactionId",
+         "updatedAt" = p_now
+   WHERE id = p_payment_id
+     AND "reportedTransactionId" IS NULL;
 
   UPDATE public."PaymentSmsReceipt"
      SET "processingStatus" = 'MATCHED',
