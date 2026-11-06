@@ -87,7 +87,6 @@ export async function getAuthUser(request: NextRequest) {
   }
   return data.user;
 }
-}
 
 export async function ensureUser(
   supabase: ReturnType<typeof adminClient>,
