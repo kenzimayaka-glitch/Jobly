@@ -78,7 +78,7 @@ export default function JiaTorchEffect() {
         preserveAspectRatio="none"
       >
         <defs>
-          <linearGradient id="jia-torch-gradient" x1="0" y1="0" x2="1" y2="0">
+          <linearGradient id="jia-torch-gradient" gradientUnits="userSpaceOnUse" x1={origin.x} y1={origin.y} x2={target.x} y2={target.y}>
             <stop offset="0%" stopColor="#FFD21A" stopOpacity="0.01" />
             <stop offset="58%" stopColor="#FFD98A" stopOpacity="0.12" />
             <stop offset="100%" stopColor="#FFF0C2" stopOpacity="0.25" />
