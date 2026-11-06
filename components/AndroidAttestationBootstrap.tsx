@@ -167,6 +167,7 @@ export default function AndroidAttestationBootstrap() {
         Authorization: "Bearer " + accessToken,
         "x-jobly-device-id": deviceId,
       };
+      let registered = false;
       try {
         const challengeResponse = await nativeFetch("/api/android/attestation/challenge", {
           method: "POST",
@@ -183,7 +184,7 @@ export default function AndroidAttestationBootstrap() {
         }, 20_000);
         if (!Array.isArray(result.certificateChain) || result.certificateChain.length < 2 || result.error) return;
 
-        await nativeFetch("/api/android/attestation/verify", {
+        const verifyResponse = await nativeFetch("/api/android/attestation/verify", {
           method: "POST",
           headers,
           body: JSON.stringify({
@@ -193,9 +194,12 @@ export default function AndroidAttestationBootstrap() {
           }),
           cache: "no-store",
         });
+        registered = verifyResponse.ok;
       } catch {
         // Fail closed: authenticated native API calls remain blocked until
         // the server has verified and stored the hardware-backed attestation.
+      } finally {
+        registrationStarted = registered;
       }
     };
 
@@ -204,7 +208,11 @@ export default function AndroidAttestationBootstrap() {
       if (data.session?.access_token) await register(data.session.access_token);
     };
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session?.access_token) void register(session.access_token);
+      if (event === "SIGNED_OUT") {
+        registrationStarted = false;
+      } else if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session?.access_token) {
+        void register(session.access_token);
+      }
     });
     void initial();
 
