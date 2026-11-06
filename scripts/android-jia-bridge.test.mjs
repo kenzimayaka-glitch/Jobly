@@ -84,6 +84,8 @@ test("Android CI builds a debug APK and runs static privacy tests", () => {
   assert.match(workflow, /jobly-android-debug-apks/);
   assert.match(workflow, /:app:bundlePlayRelease/);
   assert.match(workflow, /jobly-android-play-release-validation-unsigned-aab/);
+  assert.match(workflow, /Verify packaged Play and internal manifest separation/);
+  assert.match(workflow, /android\.permission\.RECEIVE_SMS\|android\.permission\.READ_SMS/);
   assert.match(workflow, /connectedPlayDebugAndroidTest/);
   assert.match(workflow, /connectedInternalDebugAndroidTest/);
   assert.ok(workflow.includes("components/JoblyOfferFeed.tsx"));
