@@ -72,6 +72,7 @@ export default function SettingsPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [offlineExpiry, setOfflineExpiry] = useState<string | null>(null);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [online, setOnline] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const loadDevices = useCallback(async () => {
@@ -91,7 +92,16 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    setOnline(navigator.onLine);
+    const onOnline = () => setOnline(true);
+    const onOffline = () => setOnline(false);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
     void loadDevices();
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
   }, [loadDevices]);
 
   async function prepareOffline() {
@@ -286,7 +296,7 @@ export default function SettingsPage() {
             <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-50 text-xl">📶</div>
             <h2 className="mt-3 text-lg font-black">Préparer le mode hors connexion</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">Téléchargez votre profil, votre historique, vos candidatures et jusqu'à 100 offres récentes. La copie est chiffrée sur cet appareil et expire après 7 jours.</p>
-            <button type="button" onClick={prepareOffline} disabled={busy !== "" || !navigator.onLine} className="mt-4 h-11 w-full rounded-xl bg-[#FFD60A] px-4 text-sm font-extrabold text-[#0A1931] disabled:opacity-50">
+            <button type="button" onClick={prepareOffline} disabled={busy !== "" || !online} className="mt-4 h-11 w-full rounded-xl bg-[#FFD60A] px-4 text-sm font-extrabold text-[#0A1931] disabled:opacity-50">
               {busy === "offline" ? "Préparation…" : "Télécharger mes données sur cet appareil"}
             </button>
             <a href="/offline" className="mt-3 block text-center text-xs font-bold text-[#2457B8]">Ouvrir mon espace hors connexion →</a>
