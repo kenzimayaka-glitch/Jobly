@@ -31,7 +31,7 @@ import { useOutfit, type Outfit } from "@/lib/jia/outfit";
 import { GESTURES, type GestureId } from "@/lib/jia/gestures";
 import { commandIntent, extractWakeCommand, isFinancialRequest } from "@/lib/jia/guard";
 import { getSupabaseClient } from "../lib/supabase";
-import { canWriteJiaConversation } from "@/lib/jia/conversation-write-guard";
+import { canWriteJiaConversation, mergeJiaConversationMessages } from "@/lib/jia/conversation-write-guard";
 import { useI18n, type DictKey } from "@/lib/i18n";
 import { decide as decideAutonomy, observe as observeAutonomy } from "@/lib/jia/autonomy";
 import JiaConversationSurface, { type JiaConversationMessage } from "@/components/jia/JiaConversationSurface";
@@ -367,6 +367,7 @@ export default function JiaPresence() {
 
   const [signedIn, setSignedIn] = useState(false);
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  const sessionUserIdRef = useRef<string | null>(null);
   const [prefs, setPrefs] = useState<Prefs>({ enabled: true, mode: "text", proactive: true });
   const [bubble, setBubble] = useState<Bubble | null>(null);
   const [gesture, setGesture] = useState<JiaGesture>("welcome");
@@ -397,7 +398,12 @@ export default function JiaPresence() {
   const conversationIdRef = useRef<string | null>(null);
   const conversationOwnerUserIdRef = useRef<string | null>(null);
   const conversationWriteEpochRef = useRef(0);
-  const pendingConversationMessagesRef = useRef<Array<{ ecosystem: Ecosystem; message: JiaConversationMessage }>>([]);
+  const pendingConversationMessagesRef = useRef<Array<{
+    ecosystem: Ecosystem;
+    ownerUserId: string;
+    epoch: number;
+    message: JiaConversationMessage;
+  }>>([]);
   const conversationWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const modeRef = useRef<"text" | "voice">("text");
@@ -459,22 +465,47 @@ export default function JiaPresence() {
   useEffect(() => {
     let active = true;
     const supabase = getSupabaseClient();
+    const resetForIdentityChange = () => {
+      conversationWriteEpochRef.current += 1;
+      conversationIdRef.current = null;
+      conversationOwnerUserIdRef.current = null;
+      pendingConversationMessagesRef.current = [];
+      conversationMessagesRef.current = [];
+      conversationWriteQueueRef.current = Promise.resolve();
+      setConversationMessages([]);
+      setHasMoreConversationMessages(false);
+      setLoadingOlderMessages(false);
+      setConversationPersistenceReady(false);
+      setRecentDialogue([]);
+      setSourceLinks([]);
+      setPendingAction(null);
+      setCommandInput("");
+      setCommandBusy(false);
+      setPanelOpen(false);
+      setBubble(null);
+      setPrefs({ enabled: true, mode: "text", proactive: true });
+      externalSignalRef.current = undefined;
+      lastPrediction.current = "";
+      lastAction.current = "";
+      shouldRestart.current = false;
+      recognition.current?.stop();
+    };
+    const applySession = (session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]) => {
+      const nextUserId = session?.user?.id ?? null;
+      if (sessionUserIdRef.current !== nextUserId) resetForIdentityChange();
+      sessionUserIdRef.current = nextUserId;
+      setSignedIn(Boolean(session?.access_token));
+      setSessionUserId(nextUserId);
+    };
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
-      setSignedIn(Boolean(session?.access_token));
-      setSessionUserId(session?.user?.id ?? null);
+      applySession(session);
     });
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!active) return;
-        if (!session?.access_token) {
-          setSignedIn(false);
-          setSessionUserId(null);
-          return;
-        }
-        setSignedIn(true);
-        setSessionUserId(session.user.id);
+        applySession(session);
         const res = await fetch(`/api/jia/preferences?ecosystem=${eco}`, { headers: { Authorization: `Bearer ${session.access_token}` } });
         if (!res.ok || !active) return;
         const data = await res.json();
@@ -492,7 +523,7 @@ export default function JiaPresence() {
       } catch { /* silence : pas d’état optimiste sur les préférences */ }
     })();
     return () => { active = false; subscription.unsubscribe(); };
-  }, [pathname, eco]);
+  }, [pathname, eco, sessionUserId]);
 
   // Réduction persistée (préférence d’affichage locale).
   useEffect(() => { try { setCollapsed(window.localStorage.getItem(COLLAPSE_KEY) === "1"); } catch {} }, []);
@@ -639,11 +670,13 @@ export default function JiaPresence() {
   }, []);
 
   const persistConversationMessage = useCallback((ecosystem: Ecosystem, message: JiaConversationMessage) => {
+    if (!signedIn) return;
     const conversationId = conversationIdRef.current;
     const ownerUserId = conversationOwnerUserIdRef.current;
     const epoch = conversationWriteEpochRef.current;
     if (!conversationId || !ownerUserId) {
-      pendingConversationMessagesRef.current.push({ ecosystem, message });
+      const pendingOwner = sessionUserIdRef.current;
+      if (pendingOwner) pendingConversationMessagesRef.current.push({ ecosystem, ownerUserId: pendingOwner, epoch, message });
       return;
     }
     conversationWriteQueueRef.current = conversationWriteQueueRef.current.then(async () => {
@@ -679,7 +712,7 @@ export default function JiaPresence() {
       setHealthStatus("error");
       console.error("[J’IA conversation] Persist failed", error);
     });
-  }, []);
+  }, [signedIn]);
 
   useEffect(() => {
     let active = true;
@@ -741,14 +774,25 @@ export default function JiaPresence() {
           ...(Array.isArray(item.sources) && item.sources.length ? { sources: item.sources } : {}),
           ...(item.workspace && typeof item.workspace === "object" ? { workspace: item.workspace as JiaWorkspaceBlock } : {}),
         }));
-        conversationMessagesRef.current = restored;
-        setConversationMessages(restored);
+        const restoreEpoch = conversationWriteEpochRef.current;
+        const pending = pendingConversationMessagesRef.current;
+        const readyForThisEcosystem = pending.filter((queued) =>
+          queued.ecosystem === eco && queued.ownerUserId === session.user.id && queued.epoch === restoreEpoch
+        );
+        // Drop stale queue entries for this ecosystem; keep pending messages for
+        // other tabs/routes until their own conversation has finished restoring.
+        pendingConversationMessagesRef.current = pending.filter((queued) => queued.ecosystem !== eco);
+        const merged = mergeJiaConversationMessages(
+          restored,
+          readyForThisEcosystem.map((queued) => queued.message),
+        );
+        conversationMessagesRef.current = merged;
+        setConversationMessages(merged);
         setHasMoreConversationMessages(body.hasMore === true);
         setConversationPersistenceReady(true);
         setHealthStatus("ready");
-        const pending = pendingConversationMessagesRef.current;
-        const readyForThisEcosystem = pending.filter((queued) => queued.ecosystem === eco);
-        pendingConversationMessagesRef.current = pending.filter((queued) => queued.ecosystem !== eco);
+        // Persist only after the local thread has been reconciled with the
+        // server page, so messages sent during restore are never hidden or lost.
         for (const queued of readyForThisEcosystem) {
           persistConversationMessage(queued.ecosystem, queued.message);
         }
@@ -872,7 +916,17 @@ export default function JiaPresence() {
     const conversationId = conversationIdRef.current;
     const ownerUserId = conversationOwnerUserIdRef.current;
     const epoch = conversationWriteEpochRef.current;
-    if (!conversationId || !ownerUserId) return;
+    if (!conversationId || !ownerUserId) {
+      const pendingOwner = sessionUserIdRef.current;
+      if (pendingOwner) {
+        pendingConversationMessagesRef.current = pendingConversationMessagesRef.current.map((queued) =>
+          queued.ecosystem === eco && queued.ownerUserId === pendingOwner && queued.message.id === messageId
+            ? { ...queued, message: { ...queued.message, workspace } }
+            : queued
+        );
+      }
+      return;
+    }
     conversationWriteQueueRef.current = conversationWriteQueueRef.current.then(async () => {
       const { data: { session } } = await getSupabaseClient().auth.getSession();
       if (!session || !canWriteJiaConversation({
