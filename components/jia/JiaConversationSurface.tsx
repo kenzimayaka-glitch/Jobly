@@ -418,7 +418,7 @@ export default function JiaConversationSurface(props: Props) {
                 <div className="pointer-events-none absolute -right-3 -top-8 h-24 w-24 rounded-full bg-[#FFD21A]/20 blur-2xl" />
                 <div className="relative shrink-0" style={{
                   width: `${Math.round(avatarFraming.width * avatarFraming.scale)}px`,
-                  height: `${Math.round((92 + avatarFraming.crop === "close-up" ? 48 : 0) * avatarFraming.scale)}px`,
+                  height: `${Math.round((avatarFraming.crop === "close-up" ? 150 : avatarFraming.crop === "portrait" ? 138 : avatarFraming.crop === "three-quarter" ? 128 : avatarFraming.crop === "full" ? 116 : 124) * avatarFraming.scale)}px`,
                   transform: `translate(${avatarFraming.offsetX}px, ${avatarFraming.offsetY}px)`,
                   clipPath: avatarFraming.crop === "close-up" ? "inset(0 0 12% 0 round 18px)" : avatarFraming.crop === "portrait" ? "inset(0 5% 0 5% round 22px)" : avatarFraming.crop === "three-quarter" ? "inset(0 0 8% 0 round 16px)" : "none",
                 }} data-jia-avatar-framing={avatarFraming.id} data-jia-avatar-anchor={avatarFraming.anchor}>
