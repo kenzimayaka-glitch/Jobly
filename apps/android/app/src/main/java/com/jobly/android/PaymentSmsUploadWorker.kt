@@ -24,7 +24,7 @@ class PaymentSmsUploadWorker(
         val senderId = inputData.getString(KEY_SENDER_ID)?.trim().orEmpty()
         val encryptedBody = inputData.getString(KEY_ENCRYPTED_SMS_BODY).orEmpty()
         if (queuedDeviceId != credentials.deviceId || senderId.isBlank() || encryptedBody.isBlank()) return Result.failure()
-        val normalizedSender = senderId.trim().replace(Regex("\\\\s+"), " ").uppercase(java.util.Locale.ROOT)
+        val normalizedSender = senderId.trim().replace(Regex("\\s+"), " ").uppercase(java.util.Locale.ROOT)
         if (!credentials.senderIds.contains(normalizedSender)) return Result.failure()
 
         val smsBody = runCatching {
