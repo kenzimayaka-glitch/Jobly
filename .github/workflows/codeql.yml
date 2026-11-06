@@ -33,7 +33,7 @@ jobs:
           - language: actions
             build-mode: none
           - language: java-kotlin
-            build-mode: autobuild
+            build-mode: manual
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,9 +67,13 @@ jobs:
         with:
           gradle-version: "8.13"
 
-      - name: Build Android variants for CodeQL
+      - name: Build Android Play and internal variants for CodeQL
         if: matrix.language == 'java-kotlin'
-        uses: github/codeql-action/autobuild@v4
+        run: >-
+          gradle -p apps/android
+          :app:compilePlayDebugKotlin
+          :app:compileInternalDebugKotlin
+          --stacktrace
 
       - name: Analyze
         uses: github/codeql-action/analyze@v4
