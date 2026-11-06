@@ -9,6 +9,7 @@ type WorkspaceRow = { id: string; code: AdminWorkspaceCode; label: string; enabl
 const NAV = [
   { href: "/admin", label: "Vue générale", group: "Pilotage" },
   { href: "/admin/workspaces", label: "Espaces métier", group: "Pilotage" },
+  { href: "/admin/accounts", label: "Comptes & institutions", group: "Écosystème" },
   { href: "/admin/jia", label: "J’IA · CEO", group: "Intelligence" },
   { href: "/admin/jia/chat", label: "J’IA · Copilot", group: "Intelligence" },
   { href: "/admin/jobs/reprocess", label: "Offres & ingestion", group: "Opérations" },
@@ -137,7 +138,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             <div className="hidden rounded-full border border-[#DCE4F0] px-3 py-2 text-[10px] font-bold text-[#52627B] xl:block">Compte ADMIN maître</div>
           </div>
           <nav className="mt-3 flex gap-2 overflow-x-auto pb-1 xl:hidden">
-            {NAV.slice(0, 7).map((item) => (
+            {NAV.map((item) => (
               <button key={item.href} onClick={() => router.push(item.href)} className={"shrink-0 rounded-full px-3 py-2 text-[10px] font-bold " + (isActive(item.href) ? "bg-[#FFE135] text-[#10264A]" : "bg-[#F1F4F9] text-[#53627B]")}>{item.label}</button>
             ))}
             <button onClick={() => router.push("/admin/workspaces")} className="shrink-0 rounded-full bg-[#F1F4F9] px-3 py-2 text-[10px] font-bold text-[#53627B]">Espaces</button>
