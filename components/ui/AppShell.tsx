@@ -28,12 +28,12 @@ export default function AppShell({
   const { t } = useI18n();
   const handleBack = onBack ?? (() => router.push(backHref ?? HOME[role]));
   return (
-    <div className="jobly-page jobly-app relative min-h-[100dvh] text-ink">
+    <div className="jobly-page jobly-app relative min-h-[100dvh] w-full max-w-full text-ink">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[70] focus:rounded-full focus:bg-canari focus:px-4 focus:py-2 focus:font-bold focus:text-ink">
         {t("common.skip")}
       </a>
       <PageHeader label={title ?? ""} eyebrow={eyebrow} initial={initial ?? "J"} avatarUrl={avatarUrl} onBack={handleBack} role={role} />
-      <main id="main" className={cn("mx-auto w-full px-4 pt-5 sm:px-6", WIDTH[width], hideNav ? "pb-10" : "pb-[calc(112px+env(safe-area-inset-bottom))]", className)}>
+      <main id="main" className={cn("mx-auto min-w-0 w-full max-w-full px-3 pt-4 sm:px-6 sm:pt-5", WIDTH[width], hideNav ? "pb-[calc(24px+env(safe-area-inset-bottom))]" : "pb-[calc(112px+env(safe-area-inset-bottom))]", className)}>
         {children}
       </main>
       {!hideNav && <BottomNav active={active} items={NAV[role]} />}
