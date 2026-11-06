@@ -24,9 +24,9 @@ export type OfflineOperation =
 type EncryptedRecord = {
   id: string;
   userId: string;
-  kind: "snapshot" | "queue";
-  iv: number[];
-  ciphertext: number[];
+  kind: "snapshot" | "queue" | "document";
+  iv: number[] | ArrayBuffer;
+  ciphertext: number[] | ArrayBuffer;
   updatedAt: string;
 };
 type StoredKey = { userId: string; key: CryptoKey };
@@ -112,12 +112,60 @@ async function encryptRecord(userId: string, id: string, kind: EncryptedRecord["
 
 async function decryptRecord<T>(record: EncryptedRecord): Promise<T> {
   const key = await getEncryptionKey(record.userId);
+  const iv = record.iv instanceof ArrayBuffer ? new Uint8Array(record.iv) : new Uint8Array(record.iv);
+  const ciphertext = record.ciphertext instanceof ArrayBuffer ? new Uint8Array(record.ciphertext) : new Uint8Array(record.ciphertext);
   const plaintext = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: new Uint8Array(record.iv) },
+    { name: "AES-GCM", iv },
     key,
-    new Uint8Array(record.ciphertext),
+    ciphertext,
   );
   return JSON.parse(new TextDecoder().decode(plaintext)) as T;
+}
+
+
+export async function saveOfflineDocument(userId: string, name: string, blob: Blob) {
+  if (!userId || !blob.size || blob.size > 12 * 1024 * 1024) {
+    throw new Error("Document hors connexion invalide (12 Mo maximum).");
+  }
+  const key = await getEncryptionKey(userId);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const plaintext = await blob.arrayBuffer();
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plaintext);
+  const record: EncryptedRecord = {
+    id: `document:${userId}:cv`,
+    userId,
+    kind: "document",
+    iv: iv.buffer.slice(0),
+    ciphertext,
+    updatedAt: new Date().toISOString(),
+  };
+  const db = await openDatabase();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction("records", "readwrite");
+      tx.objectStore("records").put(record);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error("Impossible de protéger le CV hors connexion."));
+    });
+  } finally { db.close(); }
+}
+
+export async function getOfflineDocument(userId: string): Promise<Blob | null> {
+  const db = await openDatabase();
+  let record: EncryptedRecord | undefined;
+  try {
+    record = await new Promise<EncryptedRecord | undefined>((resolve, reject) => {
+      const request = db.transaction("records", "readonly").objectStore("records").get(`document:${userId}:cv`);
+      request.onsuccess = () => resolve(request.result as EncryptedRecord | undefined);
+      request.onerror = () => reject(request.error);
+    });
+  } finally { db.close(); }
+  if (!record || record.kind !== "document") return null;
+  const key = await getEncryptionKey(userId);
+  const iv = record.iv instanceof ArrayBuffer ? new Uint8Array(record.iv) : new Uint8Array(record.iv);
+  const encrypted = record.ciphertext instanceof ArrayBuffer ? record.ciphertext : new Uint8Array(record.ciphertext).buffer;
+  const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, encrypted);
+  return new Blob([plaintext], { type: "application/pdf" });
 }
 
 export function getOfflineUserId() {
