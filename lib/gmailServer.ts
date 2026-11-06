@@ -37,7 +37,15 @@ export async function recruiterContext(req: NextRequest) {
   const supabase = adminClient();
   const user = await ensureUser(supabase, authUser);
   if (!["RECRUITER", "ADMIN"].includes(String(user.role).toUpperCase())) {
-    throw new Error("Cette connexion Gmail est réservée à l’espace recruteur.");
+    const byInternalId = await supabase.from("RecruiterProfile").select("id").eq("userId", user.id).maybeSingle();
+    if (byInternalId.error) throw new Error(byInternalId.error.message);
+    let profile = byInternalId.data;
+    if (!profile && authUser.id !== user.id) {
+      const byAuthId = await supabase.from("RecruiterProfile").select("id").eq("userId", authUser.id).maybeSingle();
+      if (byAuthId.error) throw new Error(byAuthId.error.message);
+      profile = byAuthId.data;
+    }
+    if (!profile) throw new Error("Cette connexion Gmail est réservée à l’espace recruteur.");
   }
   return { authUser, supabase, user };
 }
