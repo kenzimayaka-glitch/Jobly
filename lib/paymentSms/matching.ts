@@ -46,6 +46,9 @@ export function matchPaymentSmsToOrder(input: {
 
   const merchant = normalizePhone(input.merchantAccount);
   if (!merchant) return { outcome: "UNMATCHED", reason: "MERCHANT_ACCOUNT_NOT_CONFIGURED", candidateCount: 0 };
+  if (parsed.merchantAccount && normalizePhone(parsed.merchantAccount) !== merchant) {
+    return { outcome: "UNMATCHED", reason: "SMS_MERCHANT_MISMATCH", candidateCount: 0 };
+  }
 
   const eligible = input.candidates.filter((candidate) => {
     if (candidate.provider !== parsed.provider || !candidate.userId) return false;
