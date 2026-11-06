@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 
 type Report = {
-  id: string; postId: string; reason: string; details: string | null; status: string; createdAt: string;
+  id: string; postId: string; reason: string; details: string | null; status: string; reviewAction?: string | null; createdAt: string;
   post: { id: string; communityId: string; content: string; status: string; createdAt: string; author?: { displayName?: string | null; username?: string | null } | null } | null;
   community: { name: string; category: string } | null;
   reporter: { displayName?: string | null; username?: string | null; email?: string | null } | null;
