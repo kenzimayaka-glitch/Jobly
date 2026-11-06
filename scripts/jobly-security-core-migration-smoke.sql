@@ -15,6 +15,13 @@ begin
   if has_function_privilege('anon', 'public.consume_jobly_rate_limit(text,text,integer,integer)', 'EXECUTE') then raise exception 'anon can call rate-limit RPC'; end if;
   if has_function_privilege('authenticated', 'public.consume_jobly_rate_limit(text,text,integer,integer)', 'EXECUTE') then raise exception 'authenticated can call rate-limit RPC'; end if;
   if not has_function_privilege('service_role', 'public.consume_jobly_rate_limit(text,text,integer,integer)', 'EXECUTE') then raise exception 'service_role cannot call rate-limit RPC'; end if;
+  if has_schema_privilege('anon', 'net', 'USAGE') then raise exception 'anon can use pg_net schema'; end if;
+  if has_schema_privilege('authenticated', 'net', 'USAGE') then raise exception 'authenticated can use pg_net schema'; end if;
+  if not has_schema_privilege('service_role', 'net', 'USAGE') then raise exception 'service_role cannot use pg_net schema'; end if;
+  if has_function_privilege('anon', 'net.http_post(text)', 'EXECUTE') then raise exception 'anon can call pg_net HTTP'; end if;
+  if has_function_privilege('authenticated', 'net.http_post(text)', 'EXECUTE') then raise exception 'authenticated can call pg_net HTTP'; end if;
+  if not has_function_privilege('service_role', 'net.http_post(text)', 'EXECUTE') then raise exception 'service_role cannot call pg_net HTTP'; end if;
+  if not has_function_privilege('postgres', 'net.http_post(text)', 'EXECUTE') then raise exception 'postgres lost pg_net HTTP execution'; end if;
   if not (select relrowsecurity from pg_class where oid = 'public."Job"'::regclass) then raise exception 'RLS is disabled on Job'; end if;
 end;
 $$;
