@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = adminClient();
     const { data: device, error: deviceError } = await supabase.from("PaymentSmsDevice")
-      .select("id,provider,merchantAccount,senderIds,tokenHash,status")
+      .select("id,provider,merchantAccount,timeZone,senderIds,tokenHash,status")
       .eq("id", deviceId).maybeSingle();
     if (deviceError) throw new Error(deviceError.message);
     if (!device || device.status !== "ACTIVE" || !tokenMatches(token, String(device.tokenHash))) {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     };
     const parsed = parsePaymentSms(
       { senderId, body: smsBody },
-      { senderIds: senderAllowlist, merchantAccount: String(device.merchantAccount) },
+      { senderIds: senderAllowlist, merchantAccount: String(device.merchantAccount), timeZone: String(device.timeZone || "Africa/Douala") },
     );
     const receivedAt = new Date().toISOString();
     const rawMessageHash = crypto.createHash("sha256").update(smsBody, "utf8").digest("hex");
