@@ -54,10 +54,10 @@ test("Android challenge endpoint is authenticated, rate-limited, short-lived and
   assert.match(route, /randomBytes\(32\)/);
   assert.match(route, /expiresAt/);
   assert.match(route, /challengeHash/);
-  assert.match(route, /alreadyVerified/);
+  assert.match(route, /purpose: "REGISTER"/);
 });
 
-test("per-request assertion challenge binds method, path, timestamp and body hash", () => {
+test("per-request assertion challenge binds method, path, timestamp and a one-use nonce", () => {
   const route = read("app/api/android/attestation/assertion/route.ts");
   assert.match(route, /getAuthUser/);
   assert.match(route, /enforceApiRateLimit/);
@@ -113,6 +113,7 @@ test("Android bootstrap enrolls with the authenticated session and native attest
   assert.match(component, /\/api\/android\/attestation\/assertion/);
   assert.match(component, /\/api\/android\/attestation\/verify/);
   assert.match(layout, /AndroidAttestationBootstrap/);
+  assert.ok(layout.indexOf("<AndroidAttestationBootstrap />") < layout.indexOf("<OfflineCoordinator />"));
 });
 
 test("native Android WebView API access fails closed without a fresh verified attestation", () => {
