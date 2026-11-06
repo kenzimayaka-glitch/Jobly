@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
     const sb = adminClient();
     const me = await ensureUser(sb, auth);
-    const recruiter = await sb.from("RecruiterProfile").select("id").eq("userId", auth.id).maybeSingle();
+    const recruiter = await sb.from("RecruiterProfile").select("id").eq("userId", me.id).maybeSingle();
     if (recruiter.error) throw new Error(recruiter.error.message);
     if (me.role !== "RECRUITER" && me.role !== "ADMIN" && !recruiter.data) {
       return NextResponse.json({ message: "Espace recruteur requis." }, { status: 403 });

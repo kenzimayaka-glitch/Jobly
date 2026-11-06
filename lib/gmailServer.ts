@@ -32,7 +32,9 @@ export async function recruiterContext(req: NextRequest): Promise<RecruiterConte
   if (!authUser) return null;
   const supabase = adminClient();
   const user = await ensureUser(supabase, authUser);
-  if (!["RECRUITER", "ADMIN"].includes(String(user.role || "").toUpperCase())) {
+  const profile = await supabase.from("RecruiterProfile").select("id").eq("userId", user.id).maybeSingle();
+  if (profile.error) throw new Error(profile.error.message);
+  if (!["RECRUITER", "ADMIN"].includes(String(user.role || "").toUpperCase()) && !profile.data) {
     throw new Error("RECRUITER_ROLE_REQUIRED");
   }
   return { authUser, supabase, user };
