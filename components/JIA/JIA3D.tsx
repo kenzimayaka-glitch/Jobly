@@ -173,6 +173,7 @@ function Model({ speaking }: { speaking: boolean }) {
   const { scene, animations } = useGLTF("/jia/jia-officielle.glb");
   const { actions } = useAnimations(animations, group);
   const activeMove = useRef<Move>("idle");
+  const activeAction = useRef<THREE.AnimationAction | null>(null);
   const pointer = useRef({ x: 0, y: 0 });
   const blinkClock = useRef({ next: 2, until: 0 });
   const rig = useMemo(() => collectModelRig(scene), [scene]);
@@ -195,6 +196,7 @@ function Model({ speaking }: { speaking: boolean }) {
       if (!clip) return;
       Object.values(actions).forEach((action) => action?.stop());
       const action = actions[clip.name];
+      activeAction.current = action ?? null;
       action?.reset().fadeIn(0.15).play();
       if (action) action.setLoop(THREE.LoopOnce, 1);
       if (action) action.clampWhenFinished = true;
@@ -274,7 +276,11 @@ function Model({ speaking }: { speaking: boolean }) {
       hand.fingers.thumb.forEach((bone, index) => pose(bone, 0, 0, -0.12 / (index + 1)));
     }
 
+    const clipPlaying = Boolean(activeAction.current?.isRunning());
+    if (activeAction.current && !clipPlaying) activeAction.current = null;
+
     for (const bone of rig.all) {
+      if (clipPlaying) break;
       const base = baseRotations.get(bone);
       if (!base) continue;
       const target = targets.get(bone) ?? { x: 0, y: 0, z: 0 };
@@ -317,7 +323,7 @@ function Model({ speaking }: { speaking: boolean }) {
       if (influences) influences[index] = THREE.MathUtils.damp(influences[index] ?? 0, value, 13, delta);
     });
 
-    if (rig.spine) {
+    if (rig.spine && !clipPlaying) {
       const base = baseRotations.get(rig.spine);
       if (base) {
         const breathing = Math.sin(t * (speaking ? 2.2 : 1.1)) * (speaking ? 0.012 : 0.006);
