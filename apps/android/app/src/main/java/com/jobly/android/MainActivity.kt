@@ -239,6 +239,7 @@ class MainActivity : Activity() {
                                         PaymentSmsDeviceCredentials.clear(this@MainActivity, deviceId)
                                         androidx.work.WorkManager.getInstance(this@MainActivity)
                                             .cancelAllWorkByTag(PaymentSmsReceiver.deviceTag(deviceId))
+                                        PaymentSmsReceiver.deleteQueuedFiles(this@MainActivity, deviceId)
                                     }
                                     runOnUiThread {
                                         replyProxy.postMessage(JSONObject().put("type", "PAYMENT_SMS_DEVICE_REVOKED").toString())
