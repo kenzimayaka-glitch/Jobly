@@ -61,11 +61,11 @@ Fichier : `components/JiaPresence.tsx`
 
 ## 3. Tests ajoutés
 
-- `scripts/jia-experience-engine.test.mjs`
-- Commande : `pnpm test:jia-experience`
-- CI : étape dédiée ajoutée à `.github/workflows/ci.yml`.
+- `scripts/jia-experience-engine.test.mjs` et `scripts/jia-workspace.test.mjs`.
+- Commande : `pnpm test:jia-experience`.
+- CI : étape dédiée de `.github/workflows/ci.yml`, étendue au contrat des actions workspace.
 
-Les tests couvrent les six modes, le partage de la palette, les douze familles, la mesure des IDs distincts, l'anti-répétition, la résolution par intention/appareil, le verrouillage manuel et la réduction des animations.
+Les tests couvrent les six modes, la palette, les douze familles, l'anti-répétition, la résolution par intention/appareil, ainsi que l'orientation des commandes Talent, l'isolation des autres rôles et la structure des questionnaires pratiques.
 
 ## 4. Statut et limites actuels
 
@@ -73,8 +73,12 @@ Cette livraison est une première expérience UI raccordée au Brain existant ; 
 
 - **Historique :** conservé dans l'état React du composant racine pour la session courante et les changements de layout/routes. Il n'est pas encore persisté dans une conversation serveur, restauré après fermeture/rechargement ou synchronisé entre appareils.
 - **Layouts :** les six modes ont une première présentation utilisable. Les 50 variantes réelles par famille ne sont pas encore constituées ; le moteur contrôle leur inventaire et la non-répétition.
-- **Offres et données riches :** l'écran sait afficher du texte et des sources. Les cartes d'offres Jobly, leur chargement depuis les services métiers et leurs actions conversationnelles restent à connecter.
-- **Actions :** le panneau réutilise les propositions et confirmations existantes. Il n'ajoute pas à ce stade tous les connecteurs Talent/Recruteur/Admin/Partenaire.
+- **Offres Talent :** les requêtes explicites d'offres appellent `GET /api/jobs` avec la session Supabase du membre. J’IA affiche les offres réellement renvoyées par Jobly, le score de correspondance, la localisation, le contrat, l'échéance, la source et l'état de préparation de la candidature. Le flux par défaut reste classé par le moteur d'adéquation Jobly ; la vue Afrique utilise le scope serveur existant.
+- **Préparation de candidature :** le bouton d'une offre éligible appelle `POST /api/applications`. Jobly contrôle l'offre, le canal de contact, la fraîcheur, le profil, le quota et les doublons ; il crée une candidature au statut de revue utilisateur et renvoie une lettre préparée. Le bloc affiche explicitement « préparée — pas encore envoyée » : aucun envoi automatique n'est déclenché.
+- **Candidatures :** les demandes de suivi appellent `GET /api/applications` et affichent les compteurs et statuts provenant du compte connecté.
+- **Profil/CV :** les demandes correspondantes appellent `GET /api/profile`. J’IA expose un résumé des données présentes et des accès vers les écrans Talent existants ; le lien du CV original n'est affiché que si l'API retourne son URL signée.
+- **Questionnaires :** les demandes explicites créent une évaluation MCQ facultative avec `POST /api/career-journey/assessments`, puis les réponses sont enregistrées par l'action `ATTEMPT`. Le premier catalogue embarqué comprend Excel, vente, communication et un exercice transversal ; ce sont des exercices pratiques indicatifs, non des certifications et non des évaluations de recrutement. L'accès adaptatif Premium n'est pas forcé.
+- **Limites :** cette première tranche ne modifie pas directement le profil, ne publie pas de CV, ne soumet pas une candidature à l'employeur et ne crée pas un canal autonome d'envoi. Les connecteurs opérationnels complets des rôles Recruteur/Partenaire/Admin restent hors périmètre.
 - **Rôles :** la surface est adaptée aux écosystèmes actuellement exposés par JiaPresence (Talent, Recruteur, Partenaire). L'activation Admin exige d'abord le raccordement backend et les contrôles d'accès Admin ; elle ne doit pas être déduite d'un simple pathname.
 - **Avatar :** Stage réutilise le modèle GLTF actuel. Le nouveau design final, la revue anatomique du rig, les 50 variantes de gestes et les apparitions multi-scènes restent à réaliser.
 - **Android :** l'interface fonctionne dans le WebView de l'APK par son adaptation mobile et ses safe areas. Aucun composant natif Android/Jetpack Compose n'a été modifié dans ce lot.
@@ -90,12 +94,13 @@ Cette livraison est une première expérience UI raccordée au Brain existant ; 
 
 ## 6. Prochaine tranche UX/technique
 
-1. Ajouter le chargement réel de cartes d'offres dans le fil avec liens et actions autorisées.
-2. Concevoir les composants typés (offre, questionnaire, profil/CV, progression, confirmation) tout en gardant les mêmes IDs et payloads canoniques lors d'un changement de layout.
-3. Définir la persistance serveur sécurisée des conversations et de l'état des opérations.
-4. Ajouter la sélection de layout adaptative à partir des résultats réels du Brain, sans demander au LLM de réécrire les messages.
-5. Construire les bibliothèques de variations documentées, visualisées et validées.
-6. Réaliser les tests Playwright desktop/mobile et tests Android WebView sur appareils/émulateur.
+1. Étendre les blocs métier aux questionnaires adaptatifs autorisés par les droits, au document/CV structuré et aux parcours de modification avec confirmation explicite.
+2. Ajouter les connecteurs de lecture et d'action du rôle Recruteur, puis Partenaire, en vérifiant à chaque fois l'autorisation serveur.
+3. Définir la persistance serveur sécurisée des conversations, des pièces jointes et de l'état des opérations.
+4. Vérifier le parcours complet de préparation et de revue des candidatures par tests E2E (aucun envoi sans acte utilisateur explicite).
+5. Ajouter la sélection de layout adaptative à partir des résultats réels du Brain, sans demander au LLM de réécrire les messages.
+6. Construire les bibliothèques de variations réellement produites et valider les 50 assets distincts par famille.
+7. Réaliser les tests Playwright desktop/mobile et Android WebView sur appareils/émulateur, puis revoir les conflits de fusion avant sortie du statut draft.
 
 ---
 Ce journal décrit l'état réel du code et les limites prouvées au moment de sa rédaction ; il ne constitue pas une certification de production.
