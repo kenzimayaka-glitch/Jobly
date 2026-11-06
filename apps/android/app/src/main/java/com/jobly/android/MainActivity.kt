@@ -219,22 +219,22 @@ class MainActivity : Activity() {
                                     }.isSuccess
                                     runOnUiThread {
                                         if (saved) {
-                                            replyProxy.postMessage("{\\"type\\":\\"PAYMENT_SMS_DEVICE_PAIRED\\"}")
+                                            replyProxy.postMessage(JSONObject().put("type", "PAYMENT_SMS_DEVICE_PAIRED").toString())
                                             requestPaymentSmsPermission()
                                         } else {
-                                            replyProxy.postMessage("{\\"type\\":\\"PAYMENT_SMS_DEVICE_PAIR_FAILED\\"}")
+                                            replyProxy.postMessage(JSONObject().put("type", "PAYMENT_SMS_DEVICE_PAIR_FAILED").toString())
                                             Toast.makeText(this@MainActivity, "Appairage du téléphone marchand impossible.", Toast.LENGTH_LONG).show()
                                         }
                                     }
                                 }
                                 "REQUEST_PAYMENT_SMS_PERMISSION" -> runOnUiThread {
                                     requestPaymentSmsPermission()
-                                    replyProxy.postMessage("{\\"type\\":\\"PAYMENT_SMS_PERMISSION_REQUESTED\\"}")
+                                    replyProxy.postMessage(JSONObject().put("type", "PAYMENT_SMS_PERMISSION_REQUESTED").toString())
                                 }
                                 "REVOKE_PAYMENT_SMS_DEVICE" -> {
                                     PaymentSmsDeviceCredentials.clear(this@MainActivity)
                                     runOnUiThread {
-                                        replyProxy.postMessage("{\\"type\\":\\"PAYMENT_SMS_DEVICE_REVOKED\\"}")
+                                        replyProxy.postMessage(JSONObject().put("type", "PAYMENT_SMS_DEVICE_REVOKED").toString())
                                         Toast.makeText(this@MainActivity, "Ce téléphone ne transmettra plus de SMS Mobile Money à Jobly.", Toast.LENGTH_LONG).show()
                                     }
                                 }
