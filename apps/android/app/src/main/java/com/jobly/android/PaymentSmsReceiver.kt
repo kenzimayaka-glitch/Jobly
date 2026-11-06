@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 class PaymentSmsReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
-        if (PaymentSmsDeviceCredentials.read(context) == null) return
+        val credentials = PaymentSmsDeviceCredentials.read(context) ?: return
 
         val messages = runCatching { Telephony.Sms.Intents.getMessagesFromIntent(intent) }.getOrNull()
             ?: return
@@ -38,6 +38,7 @@ class PaymentSmsReceiver : BroadcastReceiver() {
         val request = OneTimeWorkRequestBuilder<PaymentSmsUploadWorker>()
             .setInputData(
                 workDataOf(
+                    PaymentSmsUploadWorker.KEY_DEVICE_ID to credentials.deviceId,
                     PaymentSmsUploadWorker.KEY_SENDER_ID to senderId,
                     PaymentSmsUploadWorker.KEY_ENCRYPTED_SMS_BODY to encryptedBody
                 )
