@@ -257,3 +257,39 @@ test("candidate Gmail OAuth and public company lookup are rate-limited", () => {
     assert.match(source, /requireIp: true/);
   }
 });
+
+
+test("CV import and original PDF storage are rate-limited and validate documents", () => {
+  const imported = read("../app/api/talent/cv/import/route.ts");
+  const original = read("../app/api/talent/cv/original/route.ts");
+  assert.match(imported, /scope: "talent-cv-import"/);
+  assert.match(imported, /contentLength > PAID_MAX_BYTES/);
+  assert.match(imported, /subarray\(0, 5\)\.toString\("ascii"\) !== "%PDF-"/);
+  assert.match(original, /scope: "talent-cv-original-upload"/);
+  assert.match(original, /scope: "talent-cv-original-read"/);
+  assert.match(original, /scope: "talent-cv-original-delete"/);
+  assert.match(original, /createSignedUrl\(user\.cvOriginalStoragePath, 60\)/);
+  assert.match(original, /Cache-Control": "private, no-store, max-age=0"/);
+  for (const source of [imported, original]) {
+    assert.match(source, /enforceApiRateLimit/);
+    assert.match(source, /requireIp: true/);
+  }
+});
+
+test("CV export, paid CV payment and Career Journey evidence are throttled", () => {
+  const exportRoute = read("../app/api/talent/cv/export/route.ts");
+  const payment = read("../app/api/talent/cv/payment/route.ts");
+  const evidence = read("../app/api/talent/cv/career-evidence/route.ts");
+  assert.match(exportRoute, /scope: "talent-cv-export"/);
+  assert.match(exportRoute, /contentLength > 64 \* 1024/);
+  assert.match(payment, /scope: "talent-cv-payment"/);
+  assert.match(payment, /getIdempotentResult/);
+  assert.match(evidence, /scope: "talent-cv-career-evidence"/);
+  assert.match(evidence, /acceptedByUser", true/);
+  assert.match(evidence, /verified", true/);
+  assert.match(evidence, /Cache-Control": "private, no-store, max-age=0"/);
+  for (const source of [exportRoute, payment, evidence]) {
+    assert.match(source, /enforceApiRateLimit/);
+    assert.match(source, /requireIp: true/);
+  }
+});
