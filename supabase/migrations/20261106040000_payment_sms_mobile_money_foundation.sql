@@ -89,11 +89,12 @@ CREATE OR REPLACE FUNCTION public.finalize_payment_from_sms(
 )
 RETURNS jsonb
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = pg_catalog, public
 AS $$
 DECLARE
   v_receipt public."PaymentSmsReceipt"%ROWTYPE;
+  v_device public."PaymentSmsDevice"%ROWTYPE;
   v_payment public."Payment"%ROWTYPE;
   v_result jsonb;
 BEGIN
@@ -121,6 +122,23 @@ BEGIN
      OR v_receipt."processingStatus" NOT IN ('RECEIVED', 'UNMATCHED', 'AMBIGUOUS') THEN
     RAISE EXCEPTION 'SMS_RECEIPT_NOT_ELIGIBLE';
   END IF;
+
+  -- Re-check and lock the paired handset at the final authorization boundary.
+  -- A concurrent revocation cannot race a payment finalization.
+  SELECT * INTO v_device
+    FROM public."PaymentSmsDevice"
+   WHERE id = v_receipt."deviceId"
+   FOR UPDATE;
+  IF NOT FOUND OR v_device.status <> 'ACTIVE' THEN
+    RAISE EXCEPTION 'SMS_DEVICE_REVOKED';
+  END IF;
+  IF v_device.provider <> v_receipt.provider
+     OR regexp_replace(v_device."merchantAccount", '[^0-9]', '', 'g')
+        <> regexp_replace(v_receipt."merchantAccount", '[^0-9]', '', 'g')
+     OR NOT (v_receipt."senderId" = ANY(v_device."senderIds")) THEN
+    RAISE EXCEPTION 'SMS_DEVICE_RECEIPT_MISMATCH';
+  END IF;
+
   IF v_receipt.provider <> v_payment.provider THEN RAISE EXCEPTION 'SMS_PROVIDER_MISMATCH'; END IF;
   IF v_receipt."transactionId" IS NULL
      OR (v_payment."reportedTransactionId" IS NOT NULL
@@ -138,10 +156,12 @@ BEGIN
   IF v_receipt."merchantAccount" IS DISTINCT FROM v_payment."smsMerchantAccount" THEN
     RAISE EXCEPTION 'SMS_MERCHANT_MISMATCH';
   END IF;
-  IF v_receipt."payerPhone" IS NOT NULL AND v_payment."payerPhone" IS NOT NULL
-     AND regexp_replace(v_receipt."payerPhone", '[^0-9]', '', 'g')
-         <> regexp_replace(v_payment."payerPhone", '[^0-9]', '', 'g') THEN
-    RAISE EXCEPTION 'SMS_PAYER_MISMATCH';
+  IF v_receipt."payerPhone" IS NOT NULL THEN
+    IF v_payment."payerPhone" IS NULL THEN RAISE EXCEPTION 'SMS_PAYER_NOT_CONFIRMED'; END IF;
+    IF regexp_replace(v_receipt."payerPhone", '[^0-9]', '', 'g')
+       <> regexp_replace(v_payment."payerPhone", '[^0-9]', '', 'g') THEN
+      RAISE EXCEPTION 'SMS_PAYER_MISMATCH';
+    END IF;
   END IF;
   IF v_payment.status NOT IN ('CREATED', 'PENDING') THEN
     RAISE EXCEPTION 'INVALID_PAYMENT_TRANSITION';
