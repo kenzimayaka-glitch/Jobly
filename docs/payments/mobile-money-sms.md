@@ -5,15 +5,17 @@ The shared `/abonnement` page is used by Web, PWA and the Jobly Android WebView.
 
 The browser/PWA can display/copy the code and open a `tel:` URI when supported. It cannot read the device SMS inbox. SMS reception is reserved for the paired Android merchant handset in the existing Jobly APK.
 
-## Required server environment
-Configure these values as protected Vercel environment variables for each environment:
+## Central administrator configuration
+Merchant codes and receiving numbers are **not hardcoded** and do not require a Vercel environment change or application redeployment. A Jobly ADMIN configures each provider in `/admin/payments/sms`; the same screen is available on Web/PWA and inside the existing APK.
 
-- `JOBLY_MTN_MERCHANT_ACCOUNT` — receiving SIM/account number (normalized to `237...`)
-- `JOBLY_MTN_MERCHANT_CODE` — actual MTN merchant code used in the USSD string
-- `JOBLY_ORANGE_MERCHANT_ACCOUNT` — receiving SIM/account number (normalized to `237...`)
-- `JOBLY_ORANGE_MERCHANT_CODE` — actual Orange merchant code used in the USSD string
+The settings are stored in the restricted server-only `PaymentSmsProviderConfig` table. `GET /api/payments/sms/config` returns the configured number and a masked code hint only; `POST /api/payments/sms/config` accepts updates only from the ADMIN role. FINANCE can view the masked configuration. Merchant codes are never returned as standalone fields to ordinary users or written to logs/audit metadata.
 
-Only the shortcode format is fixed; actual merchant codes and receiving account numbers are environment secrets/configuration and are never guessed. MTN is generated per order as `*126*16*<merchant-code>*<amount>#`; Orange is generated per order as `#150*47*<merchant-code>*<amount>#`. A checkout provider is unavailable until its merchant account and merchant code are configured and validated.
+- MTN: `*126*16*<merchant-code>*<amount>#`
+- Orange: `#150*47*<merchant-code>*<amount>#`
+
+Each new payment snapshots its merchant number and merchant code in its payment record. Changing the central configuration affects **new orders only**; an existing pending order continues using the exact USSD configuration that created it.
+
+Changing the receiving number is a separate operational change: the new SIM/device must be paired in the existing Jobly APK and RECEIVE_SMS must be authorized on that physical handset. Web/PWA cannot read SMS, pair a physical SIM, or grant Android permissions remotely.
 
 ## Device provisioning
 An authenticated ADMIN or FINANCE user calls `POST /api/payments/sms/devices` with JSON:
@@ -41,7 +43,7 @@ No artificial two-minute delay is used. If a receipt has not arrived yet, Jobly 
 
 ## Production enablement blockers
 - Exact SMS sender labels as displayed by the real handset inbox are still required for each operator. The pasted message bodies do not include the sender field, so no sender allow-list is fabricated.
-- The actual MTN and Orange merchant codes and the receiving merchant account/SIM numbers must still be supplied and configured. The shortcode syntax is now implemented, but no sample recipient account (for example a third-party business name in a receipt) is assumed to belong to Jobly.
+- The actual MTN and Orange merchant codes and receiving account/SIM numbers must be entered by a Jobly ADMIN in the central settings screen. The shortcode syntax is implemented, but no sample recipient account (for example a third-party business name in a receipt) is assumed to belong to Jobly.
 - Parser tests now cover the supplied MTN/Orange message shapes using redacted sender IDs and business/payer names; the final allow-list still needs confirmation on the paired handset.
 - Android SMS receiver, Keystore provisioning, restricted `RECEIVE_SMS` permission and real-handset tests must be completed in the existing `apps/android` project. That project is currently in the unmerged PR #220/#221 dependency stack, so this branch intentionally does not introduce a second Android application.
 - Apply and validate the SQL draft before enabling SMS orders in a production environment.
