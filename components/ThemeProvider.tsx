@@ -28,6 +28,7 @@ function applyTheme(theme: ResolvedTheme) {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>("system");
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light");
+  const [preferenceLoaded, setPreferenceLoaded] = useState(false);
 
   useEffect(() => {
     try {
@@ -35,10 +36,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       if (isThemeMode(saved)) setMode(saved);
     } catch {
       // Le thème système reste disponible lorsque le stockage est bloqué.
+    } finally {
+      setPreferenceLoaded(true);
     }
   }, []);
 
   useEffect(() => {
+    if (!preferenceLoaded) return;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const syncTheme = () => {
       const next: ResolvedTheme = mode === "system" ? (media.matches ? "dark" : "light") : mode;
@@ -50,7 +54,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (mode !== "system") return;
     media.addEventListener("change", syncTheme);
     return () => media.removeEventListener("change", syncTheme);
-  }, [mode]);
+  }, [mode, preferenceLoaded]);
 
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
