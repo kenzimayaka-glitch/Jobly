@@ -30,6 +30,7 @@ import {
 import JiaWorkspaceBlocks from "@/components/jia/JiaWorkspaceBlocks";
 import type { JiaWorkspaceBlock, JiaWorkspaceOffer } from "@/lib/jia/workspace";
 import {
+  JIA_AVATAR_APPEARANCES,
   JIA_AVATAR_FRAMING_VARIATIONS,
   JIA_CONVERSATION_LAYOUT_VARIATIONS,
   JIA_MESSAGE_ENTRANCES,
@@ -422,7 +423,7 @@ export default function JiaConversationSurface(props: Props) {
                   transform: `translate(${avatarFraming.offsetX}px, ${avatarFraming.offsetY}px)`,
                   clipPath: avatarFraming.crop === "close-up" ? "inset(0 0 12% 0 round 18px)" : avatarFraming.crop === "portrait" ? "inset(0 5% 0 5% round 22px)" : avatarFraming.crop === "three-quarter" ? "inset(0 0 8% 0 round 16px)" : "none",
                 }} data-jia-avatar-framing={avatarFraming.id} data-jia-avatar-anchor={avatarFraming.anchor}>
-                  <JIA3D speaking={speaking} />
+                  <JIA3D speaking={speaking} appearanceId={JIA_AVATAR_APPEARANCES[variationIndex].id} />
                 </div>
                 <div className="relative min-w-0">
                   <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#FFD21A]">J’IA prend la parole</p>
