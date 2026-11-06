@@ -13,7 +13,7 @@ The settings are stored in the restricted server-only `PaymentSmsProviderConfig`
 - MTN: `*126*16*<merchant-code>*<amount>#`
 - Orange: `#150*47*<merchant-code>*<amount>#`
 
-Each new payment snapshots its merchant number and merchant code in its payment record. Changing the central configuration affects **new orders only**; an existing pending order continues using the exact USSD configuration that created it.
+Each new payment snapshots its merchant number on the Payment row and its merchant code in the separate server-only `PaymentSmsOrderConfig` table. The code snapshot is not exposed by customer-readable Payment queries. Changing the central configuration affects **new orders only**; an existing pending order continues using the exact USSD configuration that created it.
 
 Changing the receiving number is a separate operational change: the new SIM/device must be paired in the existing Jobly APK and RECEIVE_SMS must be authorized on that physical handset. Web/PWA cannot read SMS, pair a physical SIM, or grant Android permissions remotely.
 
