@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, authUser, ensureUser } from "../../../../../lib/mobilityServer";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 const PROVIDER_TERMS_VERSION = "JOBLY-MOBILITY-PROVIDER-2026-11-05-v1";
 const BUCKET = "mobility-provider-documents";
@@ -18,18 +19,26 @@ export async function GET(req: NextRequest) {
     if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const db = adminClient();
     const user = await ensureUser(db, auth);
+    const limited = await enforceApiRateLimit(req, db, {
+      scope: "mobility-provider-profile-read",
+      identity: user.id,
+      accountWindows: [{ limit: 20, windowSeconds: 60 }, { limit: 200, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 40, windowSeconds: 60 }, { limit: 400, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const { data: provider, error } = await db.from("MobilityServiceProvider")
       .select("id,providerType,legalName,displayName,registrationNumber,countryCode,city,contactEmail,contactPhone,kycStatus,kycEvidenceStoragePath,status,contractVersion,contractAcceptedAt,createdAt,updatedAt")
       .eq("userId", user.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!provider) return NextResponse.json({ provider: null, termsVersion: PROVIDER_TERMS_VERSION });
+    if (!provider) return NextResponse.json({ provider: null, termsVersion: PROVIDER_TERMS_VERSION }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
     const { data: services, error: serviceError } = await db.from("MobilityProviderService")
       .select("id,serviceType,title,description,city,priceAmount,currency,serviceCapacity,status,createdAt")
       .eq("providerId", provider.id)
       .order("createdAt", { ascending: false });
     if (serviceError) throw new Error(serviceError.message);
-    return NextResponse.json({ provider, services: services || [], termsVersion: PROVIDER_TERMS_VERSION });
+    return NextResponse.json({ provider, services: services || [], termsVersion: PROVIDER_TERMS_VERSION }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Profil prestataire indisponible." }, { status: 500 });
   }
@@ -41,6 +50,16 @@ export async function POST(req: NextRequest) {
     if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const db = adminClient();
     const user = await ensureUser(db, auth);
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    if (contentLength > 32 * 1024) return NextResponse.json({ message: "Dossier prestataire trop volumineux." }, { status: 413 });
+    const limited = await enforceApiRateLimit(req, db, {
+      scope: "mobility-provider-profile-submit",
+      identity: user.id,
+      accountWindows: [{ limit: 3, windowSeconds: 3600 }, { limit: 5, windowSeconds: 86400 }],
+      ipWindows: [{ limit: 10, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const body = await req.json().catch(() => ({}));
     const providerType = String(body.providerType || "").toUpperCase();
     const legalName = String(body.legalName || "").trim();
