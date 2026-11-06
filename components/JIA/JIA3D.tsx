@@ -64,8 +64,8 @@ function JIAAppearanceOverlay({ appearance }: { appearance: JiaAvatarAppearanceV
     switch (appearance.scarfDetail) {
       case "dot": return Array.from({length: 7}, (_, i) => <circle key={i} cx={590 + i * 37} cy={574 + (i % 2) * 11} r="5"/>);
       case "woven": return <path d="M590 570L620 595L650 570L680 595L710 570L740 595L770 570L800 595L830 570" strokeDasharray="8 5"/>;
-      case "diagonal": return Array.from({length: 6}, (_, i) => <path key={i} d={\`M\${600+i*33} 566L\${620+i*33} 600\`}/>);
-      case "petal": return Array.from({length: 5}, (_, i) => <ellipse key={i} cx={620+i*42} cy={582+(i%2)*6} rx="7" ry="12" transform={\`rotate(35 \${620+i*42} \${582+(i%2)*6})\`}/>);
+      case "diagonal": return Array.from({length: 6}, (_, i) => <path key={i} d={"M" + (600+i*33) + " 566L" + (620+i*33) + " 600"}/>);
+      case "petal": return Array.from({length: 5}, (_, i) => <ellipse key={i} cx={620+i*42} cy={582+(i%2)*6} rx="7" ry="12" transform={"rotate(35 " + (620+i*42) + " " + (582+(i%2)*6) + ")"}/>);
       default: return <path d="M585 563C660 603 748 603 822 563"/>;
     }
   })();
@@ -83,12 +83,12 @@ function JIAAppearanceOverlay({ appearance }: { appearance: JiaAvatarAppearanceV
       <g fill="none" stroke={appearance.scarfAccent} strokeWidth="6" strokeLinecap="round" opacity=".92">
         {scarfPattern}
       </g>
-      <g transform={\`translate(822 785) scale(\${appearance.pinScale})\`} fill={appearance.pin} stroke={appearance.embroidery} strokeWidth="2.5" strokeLinejoin="round">
+      <g transform={"translate(822 785) scale(" + appearance.pinScale + ")"} fill={appearance.pin} stroke={appearance.embroidery} strokeWidth="2.5" strokeLinejoin="round">
         {pin}
       </g>
       <g fill="none" stroke={appearance.embroidery} strokeWidth="3" opacity=".9" strokeLinecap="round">
         {Array.from({length: appearance.stitchDensity}, (_, index) => (
-          <path key={index} d={\`M\${520+index*13} \${940+appearance.motifOffset}l8 10\`}/>
+          <path key={index} d={"M" + (520+index*13) + " " + (940+appearance.motifOffset) + "l8 10"}/>
         ))}
         <path d="M510 1040C565 1050 600 1040 640 1016" strokeDasharray="6 10"/>
       </g>
