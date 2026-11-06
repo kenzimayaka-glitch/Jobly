@@ -341,3 +341,39 @@ test("Mobility administrative disbursement, program and provider actions are rat
     assert.match(source, /requireIp:true|requireIp: true/);
   }
 });
+
+
+test("Mobility request, program applications and recruiter guarantee enforce shared limits", () => {
+  const mobilityRequest = read("../app/api/mobility/request/route.ts");
+  const applications = read("../app/api/mobility/program-applications/route.ts");
+  const agreement = read("../app/api/mobility/recruiter/agreement/route.ts");
+  const guarantee = read("../app/api/mobility/recruiter/guarantee/route.ts");
+  const subsidy = read("../app/api/mobility/partner/validate/route.ts");
+  assert.match(mobilityRequest, /scope: "mobility-talent-request-read"/);
+  assert.match(mobilityRequest, /scope: "mobility-talent-request-create"/);
+  assert.match(applications, /scope: "mobility-program-applications-read"/);
+  assert.match(applications, /scope: "mobility-program-application-submit"/);
+  assert.match(applications, /Cache-Control/);
+  assert.match(agreement, /scope: "mobility-recruiter-agreement-read"/);
+  assert.match(agreement, /scope: "mobility-recruiter-agreement-accept"/);
+  assert.match(agreement, /Cache-Control/);
+  assert.match(guarantee, /scope: "mobility-recruiter-guarantee"/);
+  assert.match(subsidy, /scope: "mobility-subsidy-validation"/);
+  for (const source of [mobilityRequest,applications,agreement,guarantee,subsidy]) {
+    assert.match(source, /enforceApiRateLimit/);
+    assert.match(source, /requireIp: true/);
+  }
+});
+
+test("Mobility provider KYC uploads use private storage, ownership prefix and file signatures", () => {
+  const route = read("../app/api/mobility/partner/kyc-document/route.ts");
+  assert.match(route, /scope: "mobility-provider-kyc-document-upload"/);
+  assert.match(route, /public: false/);
+  assert.match(route, /storagePath/);
+  assert.match(route, /user\.id \+ "\/"/);
+  assert.match(route, /validPdf/);
+  assert.match(route, /validJpeg/);
+  assert.match(route, /validPng/);
+  assert.match(route, /updateBucket\(BUCKET, bucketOptions\)/);
+  assert.match(route, /requireIp: true/);
+});
