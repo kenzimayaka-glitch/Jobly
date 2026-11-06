@@ -19,8 +19,14 @@ BEGIN
     RAISE EXCEPTION 'Client roles must not read Android attestation records';
   END IF;
 
-  IF NOT has_table_privilege('service_role', 'public."AndroidAttestationChallenge"', 'select,insert,update,delete')
-     OR NOT has_table_privilege('service_role', 'public."AndroidDeviceAttestation"', 'select,insert,update,delete') THEN
+  IF NOT has_table_privilege('service_role', 'public."AndroidAttestationChallenge"', 'select')
+     OR NOT has_table_privilege('service_role', 'public."AndroidAttestationChallenge"', 'insert')
+     OR NOT has_table_privilege('service_role', 'public."AndroidAttestationChallenge"', 'update')
+     OR NOT has_table_privilege('service_role', 'public."AndroidAttestationChallenge"', 'delete')
+     OR NOT has_table_privilege('service_role', 'public."AndroidDeviceAttestation"', 'select')
+     OR NOT has_table_privilege('service_role', 'public."AndroidDeviceAttestation"', 'insert')
+     OR NOT has_table_privilege('service_role', 'public."AndroidDeviceAttestation"', 'update')
+     OR NOT has_table_privilege('service_role', 'public."AndroidDeviceAttestation"', 'delete') THEN
     RAISE EXCEPTION 'service_role must manage Android attestation records';
   END IF;
 
