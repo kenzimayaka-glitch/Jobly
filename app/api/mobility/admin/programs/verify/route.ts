@@ -41,9 +41,9 @@ export async function POST(req: NextRequest) {
     }
     const audit = await db.from("CEOAuditLog").insert({
       adminUserId: user.id,
-      action: "MOBILITY_PROGRAM_BUDGET_VERIFIED",
+      action: "MOBILITY_PROGRAM_BUDGET_VERIFY_ATTEMPT",
       endpoint: "/api/mobility/admin/programs/verify",
-      metadata: { programId, verifiedAt: new Date().toISOString() },
+      metadata: { programId, attemptedAt: new Date().toISOString() },
     });
     if (audit.error) throw new Error(audit.error.message);
     const { data, error } = await db.from("MobilityProgram").update({
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     }).eq("id", programId).select("id,code,name,status,budgetTotal,currency,commitmentVerifiedAt,commitmentVerifiedByUserId").single();
     if (error) throw new Error(error.message);
-    return NextResponse.json({ program: data });
+    return NextResponse.json({ program: data }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Vérification budgétaire impossible." }, { status: 500 });
   }
