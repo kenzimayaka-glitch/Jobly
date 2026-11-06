@@ -476,3 +476,14 @@ test("Public Event APIs expose only display fields and sensitive event responses
   assert.match(media, /Cache-Control/);
   assert.match(featured, /Cache-Control/);
 });
+
+
+test("Event payment proofs use a private bucket with constrained document formats", () => {
+  const route = read("../app/api/events/payments/proof/route.ts");
+  assert.match(route, /public: false/);
+  assert.match(route, /getBucket\(BUCKET\)/);
+  assert.match(route, /createBucket\(BUCKET, bucketOptions\)/);
+  assert.match(route, /updateBucket\(BUCKET, bucketOptions\)/);
+  assert.match(route, /allowedMimeTypes: \["image\/jpeg", "image\/png", "image\/webp", "image\/gif", "application\/pdf"\]/);
+  assert.match(route, /scope: "event-payment-proof-upload"/);
+});
