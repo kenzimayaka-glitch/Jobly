@@ -37,7 +37,7 @@ Branche : `feat/security-red-remediation-20261106` (non fusionnée tant que les 
 7. **Play Integrity** : pas encore configuré côté Play Console + Google Cloud, et aucun verdict n'est vérifié par le serveur. Ne pas assimiler la signature ou R8 à Play Integrity.
 8. **Signature release Android** : l'AAB de validation CI ne sera pas publiable avant configuration d'un keystore release sécurisé et d'une piste de test Google Play.
 9. **Audit Premium exhaustif** : 186 routes API ont été recensées. La deuxième vague couvre les contournements identifiés ci-dessus, mais toutes les actions Premium dans chaque module n'ont pas encore une matrice d'évidence complète.
-10. **Supabase `pg_net`** : l'extension est non-relocatable et une tâche cron l'utilise. La seconde vague ajoute une migration de moindre privilège : retrait de l'USAGE du schéma `net` et de l'EXECUTE des fonctions aux rôles `PUBLIC`, `anon` et `authenticated`; les privilèges serveur `service_role` et propriétaire `postgres` restent préservés. Le smoke test isolé vérifie ces permissions. L'extension n'est pas déplacée afin de ne pas interrompre la tâche cron.
+10. **Supabase `pg_net`** : l'extension est détenue par `supabase_admin`, non-relocatable, et une tâche cron `postgres` l'utilise. Supabase confirme que les privilèges par défaut de l'extension ne peuvent pas être révoqués par `postgres`; les rôles `anon` et `authenticated` sont `NOLOGIN`, et le schéma `net` n'est pas ajouté à l'exposition PostgREST par défaut. Il faut conserver l'extension et la tâche cron. Le contrôle pertinent est de vérifier les schémas réellement exposés dans Data API et de ne jamais y ajouter `net`; ne pas créer de migration `REVOKE` trompeuse.
 
 ## Modèle Android SMS et Google Play
 
