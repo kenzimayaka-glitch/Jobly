@@ -214,8 +214,10 @@ class MainActivity : Activity() {
                                 "PAIR_PAYMENT_SMS_DEVICE" -> {
                                     val deviceId = bounded(payload.optString("deviceId"), 64)
                                     val deviceToken = bounded(payload.optString("deviceToken"), 128)
+                                    val senderArray = payload.optJSONArray("senderIds") ?: JSONArray()
+                                    val senderIds = (0 until senderArray.length()).map { bounded(senderArray.optString(it), 120) }.filter { it.isNotBlank() }
                                     val saved = runCatching {
-                                        PaymentSmsDeviceCredentials.save(this@MainActivity, deviceId, deviceToken)
+                                        PaymentSmsDeviceCredentials.save(this@MainActivity, deviceId, deviceToken, senderIds)
                                     }.isSuccess
                                     runOnUiThread {
                                         if (saved) {
