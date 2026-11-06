@@ -1,0 +1,52 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFileSync } from "node:fs";
+
+const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
+
+test("J'IA proactive prediction uses the shared account and IP limiter before context or LLM work", () => {
+  const route = read("../app/api/jia/predict/route.ts");
+  assert.match(route, /enforceApiRateLimit/);
+  assert.match(route, /scope: "jia-predict"/);
+  assert.match(route, /identity: auth\.id/);
+  assert.match(route, /accountWindows:[\s\S]*?windowSeconds: 60[\s\S]*?windowSeconds: 3600/);
+  assert.match(route, /ipWindows:[\s\S]*?windowSeconds: 60[\s\S]*?windowSeconds: 3600/);
+  assert.match(route, /requireIp: true/);
+  assert.ok(route.indexOf("if (rateLimited) return rateLimited;") < route.indexOf("buildJiaContext("));
+  assert.ok(route.indexOf("if (rateLimited) return rateLimited;") < route.indexOf("generateText("));
+  assert.doesNotMatch(route, /rateStore|RATE_WINDOW_MS|RATE_MAX/);
+});
+
+test("Career Journey reassessment is a START+ periodic review and has shared abuse limits", () => {
+  const route = read("../app/api/career-journey/reassess/route.ts");
+  assert.match(route, /getCareerJourneyEntitlements/);
+  assert.match(route, /if \(!entitlement\.canPeriodicReview\)/);
+  assert.match(route, /requiredPlan: "START"/);
+  assert.match(route, /scope: "career-reassess"/);
+  assert.match(route, /accountWindows:[\s\S]*?windowSeconds: 86400[\s\S]*?windowSeconds: 604800/);
+  assert.match(route, /requireIp: true/);
+  assert.ok(route.indexOf("if (rateLimited) return rateLimited;") < route.indexOf("generateJourneyRecommendations("));
+  assert.ok(route.indexOf("if (rateLimited) return rateLimited;") < route.indexOf('.from("CareerReview").insert'));
+});
+
+test("batch applications cannot bypass per-plan bulk or weekly submission quotas", () => {
+  const route = read("../app/api/applications/batch/route.ts");
+  assert.match(route, /checkBulkApplicationLimit/);
+  assert.match(route, /checkWeeklyApplicationQuota/);
+  assert.match(route, /if \(!bulk\.allowed\)/);
+  assert.match(route, /if \(!weekly\.allowed \|\| offers\.length > remaining\)/);
+  assert.ok(route.indexOf("checkBulkApplicationLimit(") < route.indexOf('.from("ApplicationBatch").insert'));
+  assert.ok(route.indexOf("checkWeeklyApplicationQuota(") < route.indexOf('.from("ApplicationBatch").insert'));
+  assert.doesNotMatch(route, /body\.offers\) \? body\.offers\.slice\(0, 20\)/);
+});
+
+test("Gmail token storage and use require a recruiter role and Premium or Pro entitlement", () => {
+  const gmail = read("../lib/gmailServer.ts");
+  assert.match(gmail, /getActivePlanCode/);
+  assert.match(gmail, /hasRecruiterGmailEntitlement/);
+  assert.match(gmail, /new Set\(\["PREMIUM", "PRO"\]\)/);
+  assert.match(gmail, /\["RECRUITER", "ADMIN"\]\.includes/);
+  assert.match(gmail, /async function assertRecruiterGmailEntitlement/);
+  assert.ok(gmail.indexOf("await assertRecruiterGmailEntitlement(context);", gmail.indexOf("export async function saveGmailTokens")) > -1);
+  assert.ok(gmail.indexOf("await assertRecruiterGmailEntitlement(context);", gmail.indexOf("export async function getGmailAccessToken")) > -1);
+});
