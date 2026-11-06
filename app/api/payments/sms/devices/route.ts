@@ -28,8 +28,10 @@ const err = (message: string, status: number, code = message) => NextResponse.js
 function normalizeAccount(value: unknown): string | null {
   const raw = String(value || "").trim();
   const digits = raw.replace(/\D/g, "");
+  if (digits.length === 9) return "237" + digits;
+  if (digits.length === 12 && digits.startsWith("237")) return digits;
   if (digits.length < 9 || digits.length > 15) return null;
-  return raw.startsWith("+") ? `+${digits}` : digits;
+  return digits;
 }
 
 export async function POST(request: NextRequest) {
