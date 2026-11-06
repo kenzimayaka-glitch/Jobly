@@ -927,7 +927,7 @@ export default function Home() {
   async function forgot() { if (!email.includes("@")) return setMessage("Entre l'adresse e-mail associée à ton compte."); setBusy(true); setMessage(""); try { await requestPasswordReset(email); goTo("reset-sent"); } catch (e) { setMessage(e instanceof Error ? e.message : "Impossible d'envoyer l'e-mail de récupération."); } finally { setBusy(false); } }
 
   return <main ref={homeRootRef} className={`relative isolate flex w-full flex-col ${screen === "welcome" ? "jobly-public-home bg-white text-[#0A1931]" : "min-h-[100dvh] overflow-x-hidden bg-off-white dark:bg-[#0A1931] dark:text-white overflow-y-auto"}`}>
-    {screen === "welcome" && <BubbleField />
+    {screen === "welcome" && <BubbleField />}
     <div className="relative z-10 flex min-h-0 flex-1 w-full flex-col gap-0">
       {!["login", "signup", "signup-otp", "signup-password", "forgot", "reset-sent"].includes(screen) && <header className={screen === "welcome" ? "jobly-public-home-header relative z-30 flex shrink-0 items-center justify-between px-4 pt-[max(4px,env(safe-area-inset-top))] sm:h-[104px] sm:px-8" : "relative z-20 flex h-[84px] w-full shrink-0 items-start px-4 pt-5 sm:px-8"}>
         <div ref={logoRef} className={screen === "welcome" ? "shrink-0" : "rounded-2xl bg-white/95 p-2 shadow-2xl"}>
@@ -1371,7 +1371,7 @@ export default function Home() {
       )}
 
 {message && screen !== "journey" && screen !== "jia-welcome" && !["login", "signup", "signup-otp", "signup-password", "forgot", "reset-sent"].includes(screen) && <div role="status" aria-live="polite" className="rounded-2xl border border-blue-100 bg-blue-50 px-3.5 py-2.5 text-center text-xs text-blue-800">{message}</div>}
-      {screen !== "journey" && screen !== "jia-welcome" && screen !== "signup" && screen !== "signup-otp" && !["login", "signup", "signup-otp", "signup-password", "forgot", "reset-sent"].includes(screen) && <footer className={screen === "welcome" ? "jobly-public-home-footer relative z-30 mt-auto w-full px-3 text-center sm:px-4 sm:pb-6 sm:pt-5" : "absolute bottom-0 left-0 right-0 z-30 px-4 pb-4 pt-2 text-center"}>
+      {!["journey", "jia-welcome", "login", "signup", "signup-otp", "signup-password", "forgot", "reset-sent"].includes(screen) && <footer className={screen === "welcome" ? "jobly-public-home-footer relative z-30 mt-auto w-full px-3 text-center sm:px-4 sm:pb-6 sm:pt-5" : "absolute bottom-0 left-0 right-0 z-30 px-4 pb-4 pt-2 text-center"}>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={`footer-${lang}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28, ease: "easeOut" }}>
             
