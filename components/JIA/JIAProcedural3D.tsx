@@ -2,7 +2,7 @@
 
 import { useTexture } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import * as THREE from "three";
 
 type Props = { speaking: boolean; move?: string };
@@ -72,7 +72,7 @@ function SpritePlane({
 function PivotGroup({ pivot, parent, children, rotation, scale }: {
   pivot: { x: number; y: number };
   parent?: { x: number; y: number };
-  children: React.ReactNode;
+  children: ReactNode;
   rotation?: [number, number, number];
   scale?: [number, number, number];
 }) {
