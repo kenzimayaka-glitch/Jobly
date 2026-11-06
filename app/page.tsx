@@ -1323,7 +1323,7 @@ export default function Home() {
                     <motion.path d="M58 27 C44 23 46 12 61 9 C72 7 77 2 74 0" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: [0, 0.7, 0.12, 0] }} transition={{ duration: 2.2, ease: "easeOut" }} />
                   </motion.svg>
                 </div>
-                <p className="jobly-public-home-footer-signature mt-1 text-[13px] leading-none text-[#5F6670] sm:mt-2 sm:text-[15px]">Built with <span ref={heartTargetRef} className="inline-block h-[14px] w-[14px] align-[-3px]" aria-hidden="true">&nbsp;</span> by Team <strong className="ml-1 text-[17px] font-extrabold text-[#FFD60A] sm:text-[18px]">M</strong></p>
+                <p className="jobly-public-home-footer-signature mt-1 text-[13px] leading-none text-[#5F6670] sm:mt-2 sm:text-[15px]">Built with <span ref={heartTargetRef} className="mx-[2px] inline-block h-[14px] w-[22px] align-[-3px]" aria-hidden="true">&nbsp;</span> by Team <strong className="ml-1 text-[17px] font-extrabold text-[#FFD60A] sm:text-[18px]">M</strong></p>
               </>
             )}
           </motion.div>
