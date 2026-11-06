@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
-import { getAdminWorkspaceTemplate, type AdminWorkspaceCode } from "@/lib/adminWorkspaceCatalog";
+import { getAdminWorkspaceTemplate } from "@/lib/adminWorkspaceCatalog";
 
 type WorkspaceRow = { code: string; enabled: boolean };
 type BonPlanItem = { id: string; title: string; description: string | null; category: string; country: string; city: string | null; createdAt: string; sourceUrl: string | null; author?: { displayName?: string | null; username?: string | null } | null };
