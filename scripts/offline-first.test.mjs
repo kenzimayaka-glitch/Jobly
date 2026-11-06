@@ -8,7 +8,8 @@ test("device session guard verifies Supabase tokens before enforcing three-devic
   const auth = await read("lib/server-auth.ts");
   assert.match(auth, /auth\.getUser\(token\)/);
   assert.match(auth, /register_jobly_device_session/);
-  assert.match(auth, /allowed\?\s*===\s*false/);
+  assert.match(auth, /allowed\?: boolean/);
+  assert.match(auth, /\.allowed === false/);
   assert.match(auth, /x-jobly-device-id/);
 });
 
