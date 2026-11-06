@@ -53,7 +53,7 @@ export async function GET(request:NextRequest){
         user:(users??[]).find(x=>x.id===row.userId)??null,
       };
     }));
-    return NextResponse.json({submissions:submissionsWithContext});
+    return NextResponse.json({submissions:submissionsWithContext},{headers:{"Cache-Control":"private, no-store, max-age=0",Vary:"Authorization"}});
   }catch(error){
     return fail(error instanceof Error?error.message:"Chargements des justificatifs impossible.",500);
   }
