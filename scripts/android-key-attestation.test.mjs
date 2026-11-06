@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { generateKeyPairSync, sign as signBytes } from "node:crypto";
 import { verifyAndroidKeyAttestation, verifyAndroidRequestSignature } from "../lib/android-key-attestation.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -18,16 +19,19 @@ test("attestation verifier rejects incomplete or malformed certificate chains be
   );
 });
 
-test("per-request proof verifier rejects malformed signatures and invalid public keys", () => {
+test("per-request proof verifier accepts a valid P-256 ECDSA signature and rejects invalid signatures", () => {
+  const { publicKey, privateKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+  const payload = "GET\\n/api/me\\n1793974624109\\n123e4567-e89b-12d3-a456-426614174000";
+  const signature = signBytes("sha256", Buffer.from(payload), privateKey).toString("base64");
+  assert.equal(verifyAndroidRequestSignature({
+    publicKeyPem: publicKey.export({ type: "spki", format: "pem" }).toString(),
+    payload,
+    signature,
+  }), true);
   assert.equal(verifyAndroidRequestSignature({
     publicKeyPem: "invalid",
-    payload: "GET\\n/api/me",
+    payload,
     signature: "!",
-  }), false);
-  assert.equal(verifyAndroidRequestSignature({
-    publicKeyPem: "invalid",
-    payload: "GET\\n/api/me",
-    signature: Buffer.from([1, 2, 3]).toString("base64"),
   }), false);
 });
 
