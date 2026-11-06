@@ -101,7 +101,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Cette identité Jobly est déjà rattachée à un autre accès administrateur." }, { status: 409 });
     }
 
-    const now = new Date().toISOString();
     const { error: identityError } = await db.from("AdminIdentity").upsert({
       id: ownerIdentity?.id || crypto.randomUUID(),
       ownerUserId: user.id,
@@ -111,11 +110,6 @@ export async function POST(request: NextRequest) {
     }, { onConflict: "ownerUserId" });
     if (identityError) throw new Error(identityError.message);
 
-    const metadata = auth.user_metadata || {};
-    const firstName = String(metadata.first_name || "").trim() || null;
-    const lastName = String(metadata.last_name || "").trim() || null;
-    const phone = auth.phone || null;
-    const { error: userError } = await db.from("User").update({
     const { data: profile, error: profileLookupError } = await db.from("Profile")
       .select("id").eq("userId", user.id).maybeSingle();
     if (profileLookupError) throw new Error(profileLookupError.message);
