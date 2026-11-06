@@ -492,7 +492,6 @@ const JOURNEY_SLIDES = [
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("welcome");
   const [homeStory, setHomeStory] = useState<HomeCtaStoryKind | null>(null);
-  const homeStoryTimer = useRef<number | null>(null);
   const [headlineIndex, setHeadlineIndex] = useState(0);
   const prefersReducedMotion = useReducedMotion();
   const [homeStats, setHomeStats] = useState<PublicHomeStats | null>(null);
@@ -791,18 +790,13 @@ export default function Home() {
       return;
     }
     setHomeStory(next);
-    if (homeStoryTimer.current !== null) window.clearTimeout(homeStoryTimer.current);
-    homeStoryTimer.current = window.setTimeout(() => {
-      homeStoryTimer.current = null;
-      setHomeStory(null);
-      reset();
-      goTo(next);
-    }, 2720);
   }
 
-  useEffect(() => () => {
-    if (homeStoryTimer.current !== null) window.clearTimeout(homeStoryTimer.current);
-  }, []);
+  function finishHomeStory(next: HomeCtaStoryKind) {
+    setHomeStory(null);
+    reset();
+    goTo(next);
+  }
 
 
   // Filet de sécurité (14/09/2026) : si l'utilisateur clique quand même sur un
@@ -982,19 +976,19 @@ export default function Home() {
             </motion.section>
           </AnimatePresence>
           <div className="jobly-public-home-cta relative z-20 mx-auto grid min-h-[52px] w-full max-w-[1100px] grid-cols-2 gap-2 px-4 sm:min-h-[66px] sm:gap-5 sm:px-8" aria-busy={Boolean(homeStory)}>
-            {homeStory ? (
-              <div className="col-span-2 min-w-0">
-                <HomeCtaStory kind={homeStory} lang={lang} />
-              </div>
+            {homeStory === "signup" ? (
+              <HomeCtaStory kind="signup" lang={lang} onComplete={() => finishHomeStory("signup")} />
             ) : (
-              <>
-                <button type="button" onClick={() => startHomeStory("signup")} className="min-h-[52px] rounded-[18px] bg-[#2865DC] px-2 font-[var(--font-inter)] font-extrabold text-white shadow-[0_10px_24px_rgba(40,101,220,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:rounded-[22px] sm:text-[17px]">
-                  {translations[lang].create}
-                </button>
-                <button type="button" onClick={() => startHomeStory("login")} className="min-h-[52px] rounded-[18px] bg-[#FFD60A] px-2 font-[var(--font-inter)] font-extrabold text-[#0A1931] shadow-[0_10px_24px_rgba(255,214,10,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:rounded-[22px] sm:text-[17px]">
-                  {translations[lang].login}
-                </button>
-              </>
+              <button type="button" onClick={() => startHomeStory("signup")} className="min-h-[52px] rounded-[18px] bg-[#2865DC] px-2 font-[var(--font-inter)] font-extrabold text-white shadow-[0_10px_24px_rgba(40,101,220,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:rounded-[22px] sm:text-[17px]">
+                {translations[lang].create}
+              </button>
+            )}
+            {homeStory === "login" ? (
+              <HomeCtaStory kind="login" lang={lang} onComplete={() => finishHomeStory("login")} />
+            ) : (
+              <button type="button" onClick={() => startHomeStory("login")} className="min-h-[52px] rounded-[18px] bg-[#FFD60A] px-2 font-[var(--font-inter)] font-extrabold text-[#0A1931] shadow-[0_10px_24px_rgba(255,214,10,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:rounded-[22px] sm:text-[17px]">
+                {translations[lang].login}
+              </button>
             )}
           </div>
           <div className="jobly-public-home-benefits relative z-20 mx-auto mt-2 grid w-full max-w-[1100px] grid-cols-2 gap-2 px-3 sm:mt-6 sm:grid-cols-4 sm:gap-3 sm:px-6 lg:gap-4 lg:px-8">
