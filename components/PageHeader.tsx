@@ -72,7 +72,7 @@ export default function PageHeader({
 
           <button
             type="button"
-            onClick={() => router.push("/notifications")
+            onClick={() => router.push("/notifications")}
             aria-label={t("header.notifications")}
             className="jobly-focus relative flex h-11 w-11 items-center justify-center rounded-full bg-canari-blue-soft text-canari-blue transition active:scale-95"
           >
