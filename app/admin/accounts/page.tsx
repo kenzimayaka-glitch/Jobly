@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 
 type AccountType = "TALENT" | "RECRUITER" | "PARTNER";
@@ -61,6 +62,7 @@ function partnerTypeLabel(code?: string | null) {
 }
 
 export default function AdminAccountsPage() {
+  const router = useRouter();
   const [token, setToken] = useState("");
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [form, setForm] = useState(emptyForm);
