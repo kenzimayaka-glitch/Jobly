@@ -1186,7 +1186,7 @@ export default function Home() {
           </div>
         </label>
         <div className="my-3"><PasswordStrengthGauge password={password}/></div>
-        <p className="mb-2 -mt-2 text-[10px] leading-[1.35] text-slate-500">12 caractères minimum, avec majuscule, minuscule, chiffre et symbole. Les mots de passe compromis sont refusés.</p>
+        <p className="mb-2 -mt-2 text-[10px] leading-[1.35] text-slate-500">{lang === "fr" ? "12 caractères minimum, avec majuscule, minuscule, chiffre et symbole. Les mots de passe compromis sont refusés." : "At least 12 characters, including uppercase, lowercase, a number and a symbol. Compromised passwords are rejected."}</p>
         <p className="mb-1.5 text-[11px] leading-[1.35] text-slate-500">{translations[lang].conditions}</p>
         <label className="mb-4 flex items-start gap-2 text-xs text-slate-600"><input type="checkbox" checked={privacyAccepted} onChange={e=>setPrivacyAccepted(e.target.checked)} className="mt-0.5"/><span>{translations[lang].accept}</span></label>
         <button
