@@ -7,6 +7,7 @@ import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import org.json.JSONArray
 import javax.crypto.spec.GCMParameterSpec
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
@@ -19,20 +20,25 @@ object PaymentSmsDeviceCredentials {
     private const val PREFS = "jobly_payment_sms_secure"
     private const val DEVICE_ID = "device_id"
     private const val TOKEN_CIPHERTEXT = "device_token_ciphertext"
+    private const val SENDER_IDS_CIPHERTEXT = "sender_ids_ciphertext"
     private const val KEY_ALIAS = "jobly_payment_sms_aes_v1"
     private const val TRANSFORMATION = "AES/GCM/NoPadding"
     private const val IV_BYTES = 12
     private const val TAG_BITS = 128
 
-    data class Credentials(val deviceId: String, val token: String)
+    data class Credentials(val deviceId: String, val token: String, val senderIds: Set<String>)
 
-    fun save(context: Context, deviceId: String, token: String) {
+    fun save(context: Context, deviceId: String, token: String, senderIds: List<String>) {
         require(deviceId.length in 20..64) { "INVALID_DEVICE_ID" }
         require(token.length in 32..128) { "INVALID_DEVICE_TOKEN" }
         val encrypted = encrypt(context, token)
+        val allowlist = senderIds.map(::normalizeSender).filter { it.isNotBlank() }.distinct()
+        require(allowlist.isNotEmpty()) { "SMS_SENDER_ALLOWLIST_REQUIRED" }
+        val encryptedSenders = encrypt(context, JSONArray(allowlist).toString())
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putString(DEVICE_ID, deviceId)
             .putString(TOKEN_CIPHERTEXT, encrypted)
+            .putString(SENDER_IDS_CIPHERTEXT, encryptedSenders)
             .apply()
     }
 
@@ -40,9 +46,14 @@ object PaymentSmsDeviceCredentials {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val id = prefs.getString(DEVICE_ID, null) ?: return null
         val encrypted = prefs.getString(TOKEN_CIPHERTEXT, null) ?: return null
+        val encryptedSenders = prefs.getString(SENDER_IDS_CIPHERTEXT, null) ?: return null
         val token = runCatching { decrypt(context, encrypted) }.getOrNull() ?: return null
-        if (id.isBlank() || token.length < 32) return null
-        return Credentials(id, token)
+        val senderIds = runCatching {
+            val array = JSONArray(decrypt(context, encryptedSenders))
+            (0 until array.length()).map { normalizeSender(array.optString(it)) }.filter { it.isNotBlank() }.toSet()
+        }.getOrNull() ?: return null
+        if (id.isBlank() || token.length < 32 || senderIds.isEmpty()) return null
+        return Credentials(id, token, senderIds)
     }
 
     fun clear(context: Context) {
@@ -67,6 +78,14 @@ object PaymentSmsDeviceCredentials {
         return String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8)
     }
 
+    fun isAllowedSender(context: Context, senderId: String): Boolean {
+        val normalized = normalizeSender(senderId)
+        if (normalized.isBlank()) return false
+        return read(context)?.senderIds?.contains(normalized) == true
+    }
+
+    private fun normalizeSender(value: String): String =
+        value.trim().replace(Regex("\\\\s+"), " ").uppercase(java.util.Locale.ROOT)
     private fun getOrCreateKey(): SecretKey {
         val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (keyStore.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
