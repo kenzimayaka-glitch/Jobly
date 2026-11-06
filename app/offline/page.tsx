@@ -24,7 +24,9 @@ export default function OfflineWorkspacePage() {
 
   const loadLocal = useCallback(async () => {
     setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
-    const cached = await getOfflineSnapshot(getOfflineUserId());
+    const { data } = await getSupabaseClient().auth.getSession();
+    const authUserId = data.session?.user?.id;
+    const cached = authUserId ? await getOfflineSnapshot(getOfflineUserId(), authUserId) : null;
     setSnapshot(cached);
     setHeadline(String(cached?.profile?.headline || ""));
     setSummary(String(cached?.profile?.summary || ""));
