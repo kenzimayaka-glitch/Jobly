@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       .order("createdAt", { ascending: true })
       .limit(500);
     if (error) throw new Error(error.message);
-    return NextResponse.json({ transactions: data || [] });
+    return NextResponse.json({ transactions: data || [] }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Transactions en attente indisponibles." }, { status: 500 });
   }
