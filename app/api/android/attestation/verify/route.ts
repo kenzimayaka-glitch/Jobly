@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
       .eq("id", challengeId)
       .eq("userId", user.id)
       .eq("deviceId", deviceId)
+      .eq("purpose", "REGISTER")
       .is("usedAt", null)
       .gt("expiresAt", now)
       .select("challengeHash")
