@@ -1,6 +1,6 @@
 import { jwtVerify, createRemoteJWKSet } from "npm:jose@6";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
+import { normalizeDeadlineTimestamp, resolveEffectivePublicationDate } from "../_shared/job-freshness.ts";
 import { extractApplicationContact, resolveSourceDisplayModel } from "../_shared/application-contact.ts";
 import { resolveApplicationReadiness } from "../_shared/application-readiness.ts";
 import { classifyJobSector } from "../_shared/job-sector-classification.ts";
@@ -228,7 +228,7 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
   const publicationDate = asDate(capture.publishedAt ?? payload.published ?? payload.sourcePublishedAt);
   const publicationDateEstimated =
     profile.publicationDateEstimated === true || payload.publicationDateEstimated === true;
-  const deadline = asDate(capture.deadline ?? payload.deadline);
+  const deadline = normalizeDeadlineTimestamp(capture.deadline ?? payload.deadline);
   const discoveredAt = asDate(capture.discoveredAt);
   const freshness = resolveEffectivePublicationDate({
     sourcePublishedAt: publicationDateEstimated ? null : publicationDate,
