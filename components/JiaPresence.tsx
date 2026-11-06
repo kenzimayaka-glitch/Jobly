@@ -761,6 +761,8 @@ export default function JiaPresence() {
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 88px)", touchAction: "none" }}
         animate={{ opacity: suspended ? 0 : 1 }} transition={{ duration: 0.15 }}
       >
+        {!panelOpen && (
+          <>
         {/* Bulle de message + panneau d’actions — ancrés au personnage */}
         <AnimatePresence>
           {bubble && !panelOpen && (
@@ -811,6 +813,8 @@ export default function JiaPresence() {
             <FaceLauncher onClick={() => { if (!wasDragged.current) expand(); }} label={t("jia.open")} listening={listening} outfit={outfit} />
           </div>
         )}
+          </>
+        )}
       </motion.div>
 
       <JiaConversationSurface
@@ -822,6 +826,7 @@ export default function JiaPresence() {
         status={healthStatus}
         voiceMode={prefs.mode === "voice"}
         listening={listening}
+        speaking={speaking}
         pendingAction={pendingAction}
         quickLinks={[...CHIPS[eco].map((item) => ({ label: t(item.key), href: item.href })), { label: "Extension J’IA pour ordinateur", href: "/jia/extension" }]}
         onClose={() => setPanelOpen(false)}
