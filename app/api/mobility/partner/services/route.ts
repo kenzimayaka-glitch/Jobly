@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, authUser, ensureUser } from "../../../../../lib/mobilityServer";
+import { enforceApiRateLimit } from "../../../../../lib/server-security";
 
 const serviceForProvider: Record<string, string> = {
   FINANCE: "FINANCING",
@@ -13,6 +14,14 @@ export async function GET(req: NextRequest) {
     if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const db = adminClient();
     const user = await ensureUser(db, auth);
+    const limited = await enforceApiRateLimit(req, db, {
+      scope: "mobility-provider-services-read",
+      identity: user.id,
+      accountWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 200, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 60, windowSeconds: 60 }, { limit: 400, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const { data: provider, error: providerError } = await db.from("MobilityServiceProvider")
       .select("id,providerType,status,kycStatus")
       .eq("userId", user.id)
@@ -26,7 +35,7 @@ export async function GET(req: NextRequest) {
       .eq("providerId", provider.id)
       .order("createdAt", { ascending: false });
     if (error) throw new Error(error.message);
-    return NextResponse.json({ services: data || [] });
+    return NextResponse.json({ services: data || [] }, { headers: { "Cache-Control": "private, no-store, max-age=0", Vary: "Authorization" } });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Catalogue indisponible." }, { status: 500 });
   }
@@ -38,6 +47,16 @@ export async function POST(req: NextRequest) {
     if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const db = adminClient();
     const user = await ensureUser(db, auth);
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    if (contentLength > 24 * 1024) return NextResponse.json({ message: "Données du service trop volumineuses." }, { status: 413 });
+    const limited = await enforceApiRateLimit(req, db, {
+      scope: "mobility-provider-service-create",
+      identity: user.id,
+      accountWindows: [{ limit: 10, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 20, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const { data: provider, error: providerError } = await db.from("MobilityServiceProvider")
       .select("id,providerType,status,kycStatus")
       .eq("userId", user.id)
@@ -91,6 +110,14 @@ export async function DELETE(req: NextRequest) {
     if (!id) return NextResponse.json({ message: "Identifiant de service requis." }, { status: 400 });
     const db = adminClient();
     const user = await ensureUser(db, auth);
+    const limited = await enforceApiRateLimit(req, db, {
+      scope: "mobility-provider-service-archive",
+      identity: user.id,
+      accountWindows: [{ limit: 10, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 20, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (limited) return limited;
     const { data: provider, error: providerError } = await db.from("MobilityServiceProvider")
       .select("id")
       .eq("userId", user.id)
