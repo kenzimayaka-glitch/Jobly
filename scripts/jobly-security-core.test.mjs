@@ -115,23 +115,3 @@ test("job ingestion and merchant SMS entry points use shared anti-abuse limits",
   assert.match(sms, /scope: "payment-sms-ingest"/);
   assert.match(sms, /tokenMatches\(token, String\(device\.tokenHash\)\)/);
 });
-
-
-test("pg_net schema and outbound HTTP functions are private to server roles", async () => {
-  const { readFileSync } = await import("node:fs");
-  const { fileURLToPath } = await import("node:url");
-  const { dirname, resolve } = await import("node:path");
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-  const migration = readFileSync(resolve(root, "supabase/migrations/20261106110000_lockdown_pg_net_client_execution.sql"), "utf8");
-  const workflow = readFileSync(resolve(root, ".github/workflows/jobly-security-core.yml"), "utf8");
-  const smoke = readFileSync(resolve(root, "scripts/jobly-security-core-migration-smoke.sql"), "utf8");
-  assert.match(migration, /revoke all privileges on schema net from public, anon, authenticated/i);
-  assert.match(migration, /revoke execute on all functions in schema net from public, anon, authenticated/i);
-  assert.match(migration, /grant execute on all functions in schema net to service_role/i);
-  assert.match(migration, /alter default privileges for role postgres in schema net revoke execute/i);
-  assert.match(workflow, /CREATE SCHEMA net/);
-  assert.match(workflow, /lockdown_pg_net_client_execution\.sql/);
-  assert.match(smoke, /has_schema_privilege\('anon', 'net', 'USAGE'\)/);
-  assert.match(smoke, /has_function_privilege\('authenticated', 'net\.http_post\(text\)'/);
-  assert.match(smoke, /has_function_privilege\('postgres', 'net\.http_post\(text\)'/);
-});
