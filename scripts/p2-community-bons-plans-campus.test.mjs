@@ -160,10 +160,10 @@ test("ADMIN 360 operational consoles are wired to authenticated, root-owned endp
   assert.match(supportAdmin, /identity\?\.active/);
   assert.match(supportUpdate, /from\("AuditLog"\)/);
   assert.match(finance, /from\("Payment"\)/);
-  assert.match(finance, /from\("PaymentSmsReceipt"\)/);
-  assert.match(finance, /from\("EventManualPaymentSubmission"\)/);
-  assert.match(finance, /from\("Subscription"\)/);
-  assert.match(finance, /from\("Commission"\)/);
+  assert.match(finance, /readTable\(db, "PaymentSmsReceipt"/);
+  assert.match(finance, /readTable\(db, "EventManualPaymentSubmission"/);
+  assert.match(finance, /readTable\(db, "Subscription"/);
+  assert.match(finance, /readTable\(db, "Commission"/);
   assert.match(analyst, /count:\s*count \?\? 0/);
   assert.match(analyst, /available: false, count: null/);
   assert.match(analyst, /from\("CommunityPost"\)/);
