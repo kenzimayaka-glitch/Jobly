@@ -62,10 +62,15 @@ export async function POST(request: NextRequest) {
       await db.from("AdminSupportTicket").delete().eq("id", id);
       throw new Error(messageError.message);
     }
-    await db.from("AuditLog").insert({
+    const { error: auditError } = await db.from("AuditLog").insert({
       id: crypto.randomUUID(), userId: user.id, action: "SUPPORT_TICKET_CREATED",
       entityType: "AdminSupportTicket", entityId: id, metadata: { category, source: "IN_APP" },
     });
+    if (auditError) {
+      await db.from("AdminSupportTicketMessage").delete().eq("ticketId", id);
+      await db.from("AdminSupportTicket").delete().eq("id", id);
+      throw new Error("Journal d'audit indisponible; la demande n'a pas été conservée.");
+    }
     return NextResponse.json({ ticket, message: "Votre demande est transmise au Support Jobly." }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Création de la demande impossible." }, { status: 500 });
