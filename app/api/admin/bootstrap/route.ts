@@ -110,6 +110,27 @@ export async function POST(request: NextRequest) {
     }, { onConflict: "ownerUserId" });
     if (identityError) throw new Error(identityError.message);
 
+    // Provision all four internal spaces on first activation. They belong to
+    // the root ADMIN identity and never create separate Supabase Auth users.
+    const defaultWorkspaces = [
+      { code: "SUPPORT", label: "Support" },
+      { code: "FINANCE", label: "Finance" },
+      { code: "MODERATOR", label: "Modération" },
+      { code: "ANALYST", label: "Analyse" },
+    ].map((workspace) => ({
+      id: crypto.randomUUID(),
+      ownerUserId: user.id,
+      code: workspace.code,
+      label: workspace.label,
+      enabled: true,
+      updatedAt: now,
+    }));
+    const { error: workspacesError } = await db.from("AdminWorkspace").upsert(defaultWorkspaces, {
+      onConflict: "ownerUserId,code",
+      ignoreDuplicates: true,
+    });
+    if (workspacesError) throw new Error(workspacesError.message);
+
     const { data: profile, error: profileLookupError } = await db.from("Profile")
       .select("id").eq("userId", user.id).maybeSingle();
     if (profileLookupError) throw new Error(profileLookupError.message);
