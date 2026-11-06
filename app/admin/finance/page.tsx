@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 
-type Ledger = { id: string; amount?: number | string | null; currency?: string | null; status?: string | null; provider?: string | null; feature?: string | null; createdAt?: string | null; submittedAt?: string | null; receivedAt?: string | null; occurredAt?: string | null; transactionId?: string | null; processingStatus?: string | null; plan?: string | null; priceAmount?: number | null; priceCurrency?: string | null; transactionType?: string | null; externalReference?: string | null; event?: string | null };
+type Ledger = { id: string; amount?: number | string | null; currency?: string | null; status?: string | null; payment?: { amount?: number | null; currency?: string | null; status?: string | null } | null; provider?: string | null; feature?: string | null; createdAt?: string | null; submittedAt?: string | null; receivedAt?: string | null; occurredAt?: string | null; transactionId?: string | null; processingStatus?: string | null; plan?: string | null; priceAmount?: number | null; priceCurrency?: string | null; transactionType?: string | null; externalReference?: string | null; event?: string | null };
 type Source = { available: boolean; total: number | null; items: Ledger[]; reason: string | null };
 type Data = { snapshotAt: string; sources: Record<"payments"|"manualProofs"|"smsReceipts"|"subscriptions"|"commissions"|"mobilityTransactions",Source> };
 
@@ -83,7 +83,7 @@ export default function AdminFinancePage() {
                     const value=item.amount??item.priceAmount;
                     const unit=item.currency||item.priceCurrency;
                     return <div key={item.id} className="flex min-w-0 items-center justify-between gap-3 rounded-xl bg-[#F5F7FB] p-3">
-                      <div className="min-w-0"><p className="break-all text-[10px] font-black text-[#344762]">{item.transactionId||item.externalReference||item.event||item.feature||item.plan||item.provider||item.transactionType||item.id.slice(0,12)}</p><p className="mt-1 text-[9px] text-[#8290A5]">{[item.status,item.processingStatus,item.provider].filter(Boolean).join(" · ")}</p><p className="text-[9px] text-[#8290A5]">{when?new Date(when).toLocaleString("fr-FR"):"Date non renseignée"}</p></div>
+                      <div className="min-w-0"><p className="break-all text-[10px] font-black text-[#344762]">{item.transactionId||item.externalReference||item.event||item.feature||item.plan||item.provider||item.transactionType||item.id.slice(0,12)}</p><p className="mt-1 text-[9px] text-[#8290A5]">{[item.status,item.payment?.status,item.processingStatus,item.provider].filter(Boolean).join(" · ")}</p><p className="text-[9px] text-[#8290A5]">{when?new Date(when).toLocaleString("fr-FR"):"Date non renseignée"}</p></div>
                       <strong className="shrink-0 text-xs tabular-nums">{value===undefined?"":amount(value,unit)}</strong>
                     </div>;
                   })}</div>}
