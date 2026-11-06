@@ -27,7 +27,7 @@ export function getPaymentSmsCheckoutConfig(provider: PaymentSmsProvider): Payme
   const merchantAccount = normalizeAccount(required(`${prefix}_MERCHANT_ACCOUNT`));
   const paymentCode = required(`${prefix}_PAYMENT_CODE`);
   const ussdCode = required(`${prefix}_USSD_CODE`);
-  if (!/^\*[0-9*#]{1,40}#?$/.test(ussdCode)) throw new Error(`${prefix}_USSD_CODE_INVALID`);
+  if (!/^[*#][0-9*#]{1,40}#$/.test(ussdCode)) throw new Error(`${prefix}_USSD_CODE_INVALID`);
   if (paymentCode.length > 80 || /[\r\n]/.test(paymentCode)) throw new Error(`${prefix}_PAYMENT_CODE_INVALID`);
   return { provider, providerLabel, merchantAccount, paymentCode, ussdCode };
 }
