@@ -204,3 +204,56 @@ test("Talent showcase action images are server-gated by active Premium and Pro p
   assert.match(showcase, /imageLimit = plan === "PRO" \? 6 : plan === "PREMIUM" \? 3 : 0/);
   assert.match(showcase, /candidateImages\.length > imageLimit/);
 });
+
+
+test("Talent profile API is private, bounded and rate-limited", () => {
+  const route = read("../app/api/profile/route.ts");
+  assert.match(route, /scope: "talent-profile-read"/);
+  assert.match(route, /scope: "talent-profile-update"/);
+  assert.match(route, /Cache-Control": "private, no-store, max-age=0"/);
+  assert.match(route, /contentLength > 128 \* 1024/);
+  assert.match(route, /allowedSections/);
+  assert.match(route, /length > 50/);
+  assert.match(route, /requireIp: true/);
+});
+
+test("Recruiter profile cannot be auto-created for an ordinary Talent account", () => {
+  const route = read("../app/api/recruiter/profile/route.ts");
+  assert.match(route, /\["RECRUITER", "ADMIN"\]\.includes\(role\)/);
+  assert.match(route, /if \(!\["RECRUITER", "ADMIN"\]\.includes\(role\) && !profile\)/);
+  assert.match(route, /recruiter-profile-read/);
+  assert.match(route, /recruiter-profile-update/);
+  assert.match(route, /Cache-Control": "private, no-store, max-age=0"/);
+  assert.match(route, /profile\.id/);
+});
+
+test("recruiter Gmail external actions are separately throttled", () => {
+  const connect = read("../app/api/recruiter/gmail/connect/route.ts");
+  const send = read("../app/api/recruiter/gmail/send/route.ts");
+  const attachment = read("../app/api/recruiter/gmail/attachment/route.ts");
+  const importer = read("../app/api/recruiter/gmail/import/route.ts");
+  assert.match(connect, /scope: "recruiter-gmail-connect"/);
+  assert.match(send, /scope: "recruiter-gmail-send"/);
+  assert.match(attachment, /scope: "recruiter-gmail-attachment"/);
+  assert.match(importer, /scope: "recruiter-gmail-import"/);
+  assert.match(importer, /windowSeconds: 60/);
+  assert.match(importer, /windowSeconds: 3600/);
+  for (const source of [connect, send, attachment, importer]) {
+    assert.match(source, /enforceApiRateLimit/);
+    assert.match(source, /requireIp: true/);
+  }
+});
+
+test("candidate Gmail OAuth and public company lookup are rate-limited", () => {
+  const connect = read("../app/api/talent/gmail/connect/route.ts");
+  const callback = read("../app/api/talent/gmail/callback/route.ts");
+  const company = read("../app/api/company-profile/route.ts");
+  assert.match(connect, /scope: "candidate-gmail-connect"/);
+  assert.match(callback, /scope: "candidate-gmail-oauth-callback"/);
+  assert.match(company, /scope: "public-company-profile-lookup"/);
+  assert.match(company, /name.length > 160/);
+  for (const source of [connect, callback, company]) {
+    assert.match(source, /enforceApiRateLimit/);
+    assert.match(source, /requireIp: true/);
+  }
+});
