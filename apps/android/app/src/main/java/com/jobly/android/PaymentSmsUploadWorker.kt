@@ -19,8 +19,8 @@ class PaymentSmsUploadWorker(
 ) : Worker(appContext, workerParams) {
 
     override fun doWork(): Result {
-        val credentials = PaymentSmsDeviceCredentials.read(applicationContext) ?: return Result.failure()
         val queuedDeviceId = inputData.getString(KEY_DEVICE_ID).orEmpty()
+        val credentials = PaymentSmsDeviceCredentials.read(applicationContext, queuedDeviceId) ?: return Result.failure()
         val senderId = inputData.getString(KEY_SENDER_ID)?.trim().orEmpty()
         val encryptedBody = inputData.getString(KEY_ENCRYPTED_SMS_BODY).orEmpty()
         if (queuedDeviceId != credentials.deviceId || senderId.isBlank() || encryptedBody.isBlank()) return Result.failure()
