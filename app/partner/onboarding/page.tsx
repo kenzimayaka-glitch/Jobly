@@ -107,7 +107,11 @@ export default function BrandAmbassadorOnboardingPage() {
           ) : (
             <section className="mt-6">
               <div className="rounded-2xl border bg-slate-50 p-5 whitespace-pre-wrap text-xs leading-5">{agreement}</div>
-              <button type="button" onClick={() => router.push("/partner")} className="mt-4 w-full rounded-2xl bg-emerald-600 py-4 text-sm font-black text-white">✓ Valider et accéder à mon espace BA</button>
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+                <b>Dossier transmis — vérification humaine en attente.</b>
+                <p className="mt-1">L’envoi de vos documents ne valide pas automatiquement votre identité. Un administrateur Jobly doit examiner les deux pièces avant que votre statut passe à « Vérifié ».</p>
+              </div>
+              <button type="button" onClick={() => router.push("/partner")} className="mt-4 w-full rounded-2xl bg-emerald-600 py-4 text-sm font-black text-white">Accéder à mon espace BA (validation en attente)</button>
             </section>
           )}
         </div>
