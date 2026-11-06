@@ -29,6 +29,7 @@ class PaymentSmsReceiver : BroadcastReceiver() {
         val senderId = messages.firstOrNull()?.originatingAddress?.trim().orEmpty()
         val smsBody = messages.joinToString(separator = "") { it.messageBody.orEmpty() }.trim()
         if (senderId.isBlank() || smsBody.isBlank() || smsBody.length > MAX_SMS_LENGTH) return
+        if (!PaymentSmsDeviceCredentials.isAllowedSender(context, senderId)) return
 
         val encryptedBody = runCatching {
             PaymentSmsDeviceCredentials.encrypt(context, smsBody)
