@@ -189,6 +189,8 @@ model User {
   careerAttempts CareerCompetencyAttempt[]
   careerReviews CareerReview[]
   jiaConversations JiaConversation[]
+  deviceSessions UserDeviceSession[]
+  offlineSyncReceipts OfflineSyncReceipt[]
 }
 
 model JiaConversation {
@@ -220,6 +222,35 @@ model JiaConversationMessage {
 
   @@unique([conversationId, clientMessageId])
   @@index([conversationId, createdAt])
+}
+
+model UserDeviceSession {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String
+  authSessionId String   @unique @db.Uuid
+  deviceId      String
+  deviceLabel   String   @default("Appareil")
+  userAgent     String?
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  lastSeenAt    DateTime @default(now()) @db.Timestamptz(6)
+  revokedAt     DateTime? @db.Timestamptz(6)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+  @@index([userId, revokedAt, createdAt])
+}
+
+model OfflineSyncReceipt {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String
+  operationId String
+  status      String   @default("PROCESSING")
+  appliedAt   DateTime? @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, operationId])
+  @@index([userId, createdAt])
 }
 
 model Profile {
