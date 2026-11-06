@@ -1,6 +1,7 @@
 import { getSupabaseClient } from "./supabase";
 import { getJoblySessionManager } from "./session-manager";
 import { assertPasswordNotPwned } from "./pwnedPasswords";
+import { validateNewPassword } from "./passwordPolicy";
 
 function translateAuthError(message: string) {
   const normalized = message.toLowerCase();
@@ -109,7 +110,7 @@ export async function requestPasswordReset(email: string) {
 }
 
 export async function updatePassword(password: string) {
-  const passwordError = validatePassword(password);
+  const passwordError = validateNewPassword(password);
   if (passwordError) throw new Error(passwordError);
   await assertPasswordNotPwned(password);
   const { error } = await getSupabaseClient().auth.updateUser({ password });
