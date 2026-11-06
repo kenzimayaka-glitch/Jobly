@@ -30,15 +30,92 @@ const MOVE_CLIP_HINTS: Record<string, string[]> = {
   explain_open: ["explain", "talk", "gesture"],
 };
 
-function findBone(root: THREE.Object3D, hints: string[]) {
-  const wanted = hints.map((x) => x.toLowerCase());
-  let found: THREE.Bone | null = null;
+type SideRig = {
+  upperArm: THREE.Bone | null;
+  forearm: THREE.Bone | null;
+  hand: THREE.Bone | null;
+  fingers: Record<"thumb" | "index" | "middle" | "ring" | "little", THREE.Bone[]>;
+};
+
+type ModelRig = {
+  head: THREE.Bone | null;
+  spine: THREE.Bone | null;
+  left: SideRig;
+  right: SideRig;
+  eyes: THREE.Bone[];
+  all: THREE.Bone[];
+  eyeMeshes: THREE.Mesh[];
+  morphs: Array<{ mesh: THREE.Mesh; index: number; name: string }>;
+};
+
+function boneKey(value: string) {
+  return value.toLowerCase().replace(/mixamorig|armature|skeleton|rig/g, "").replace(/[^a-z0-9]/g, "");
+}
+
+function belongsToSide(name: string, side: "left" | "right") {
+  const key = boneKey(name);
+  if (key.includes(side)) return true;
+  return side === "left"
+    ? /^l(clavicle|shoulder|upperarm|arm|forearm|lowerarm|hand|thumb|index|middle|ring|pinky|little)/.test(key)
+    : /^r(clavicle|shoulder|upperarm|arm|forearm|lowerarm|hand|thumb|index|middle|ring|pinky|little)/.test(key);
+}
+
+function collectModelRig(root: THREE.Object3D): ModelRig {
+  const bones: THREE.Bone[] = [];
+  const eyeMeshes: THREE.Mesh[] = [];
+  const morphs: ModelRig["morphs"] = [];
+
   root.traverse((node) => {
-    if (found || !(node as THREE.Bone).isBone) return;
-    const name = node.name.toLowerCase();
-    if (wanted.some((hint) => name.includes(hint))) found = node as THREE.Bone;
+    const candidate = node as THREE.Bone;
+    if (candidate.isBone) bones.push(candidate);
+    const mesh = node as THREE.Mesh;
+    const key = boneKey(node.name);
+    if (mesh.isMesh && /eye|eyeball|iris|pupil/.test(key)) eyeMeshes.push(mesh);
+    if (mesh.isMesh && mesh.morphTargetDictionary && mesh.morphTargetInfluences) {
+      Object.entries(mesh.morphTargetDictionary).forEach(([name, index]) => {
+        morphs.push({ mesh, index, name: name.toLowerCase() });
+      });
+    }
   });
-  return found;
+
+  const sideRig = (side: "left" | "right"): SideRig => {
+    const own = bones.filter((bone) => belongsToSide(bone.name, side));
+    const find = (pattern: RegExp) => own.find((bone) => pattern.test(boneKey(bone.name))) ?? null;
+    const fingers = {
+      thumb: own.filter((bone) => /thumb/.test(boneKey(bone.name))),
+      index: own.filter((bone) => /index|pointfinger/.test(boneKey(bone.name))),
+      middle: own.filter((bone) => /middle|midfinger/.test(boneKey(bone.name))),
+      ring: own.filter((bone) => /ringfinger/.test(boneKey(bone.name))),
+      little: own.filter((bone) => /pinky|pinkie|littlefinger/.test(boneKey(bone.name))),
+    };
+    Object.values(fingers).forEach((chain) => chain.sort((a, b) => {
+      const depth = (name: string) => Number(boneKey(name).match(/(?:[0-9]+)$/)?.[0] ?? 0);
+      return depth(a.name) - depth(b.name);
+    }));
+    return {
+      upperArm: find(/upperarm|shoulderarm|arm$/),
+      forearm: find(/forearm|lowerarm/),
+      hand: find(/hand(?!.*(?:thumb|index|middle|ring|pinky|little))/),
+      fingers,
+    };
+  };
+
+  const head = bones.find((bone) => /head$/.test(boneKey(bone.name))) ?? bones.find((bone) => /head/.test(boneKey(bone.name))) ?? null;
+  const spine = bones.find((bone) => /upperchest|chest|spine2|spine$/.test(boneKey(bone.name))) ?? null;
+  const eyes = bones.filter((bone) => /eye(?!lid)/.test(boneKey(bone.name)));
+  const left = sideRig("left");
+  const right = sideRig("right");
+  const all = Array.from(new Set([
+    head, spine, ...eyes,
+    left.upperArm, left.forearm, left.hand, ...Object.values(left.fingers).flat(),
+    right.upperArm, right.forearm, right.hand, ...Object.values(right.fingers).flat(),
+  ].filter((bone): bone is THREE.Bone => Boolean(bone))));
+
+  return { head, spine, left, right, eyes, all, eyeMeshes, morphs };
+}
+
+function radians(degrees: number) {
+  return THREE.MathUtils.degToRad(degrees);
 }
 
 function JIAAppearanceOverlay({ appearance }: { appearance: JiaAvatarAppearanceVariation }) {
@@ -101,30 +178,26 @@ function Model({ speaking }: { speaking: boolean }) {
   const { scene, animations } = useGLTF("/jia/jia-officielle.glb");
   const { actions } = useAnimations(animations, group);
   const activeMove = useRef<Move>("idle");
-  const spineRef = useRef<THREE.Object3D | null>(null);
-  const bones = useMemo(() => ({
-    head: findBone(scene, ["head", "neck", "mixamorighead"]),
-    spine: findBone(scene, ["spine", "chest", "upperchest"]),
-    leftArm: findBone(scene, ["leftarm", "leftupperarm", "arm_l", "upperarm_l"]),
-    rightArm: findBone(scene, ["rightarm", "rightupperarm", "arm_r", "upperarm_r"]),
-    leftHand: findBone(scene, ["lefthand", "hand_l"]),
-    rightHand: findBone(scene, ["righthand", "hand_r"]),
-  }), [scene]);
-
-  useEffect(() => {
-    spineRef.current = scene.getObjectByName("Spine") as THREE.Object3D | null;
-  }, [scene]);
+  const pointer = useRef({ x: 0, y: 0 });
+  const blinkClock = useRef({ next: 2, until: 0 });
+  const rig = useMemo(() => collectModelRig(scene), [scene]);
+  const baseRotations = useMemo(
+    () => new Map(rig.all.map((bone) => [bone, bone.rotation.clone()])),
+    [rig],
+  );
+  const baseEyePositions = useMemo(
+    () => new Map(rig.eyeMeshes.map((mesh) => [mesh, mesh.position.clone()])),
+    [rig],
+  );
 
   useEffect(() => {
     const onMove = (event: Event) => {
       const next = (event as CustomEvent<{ move?: Move }>).detail?.move;
-      if (next) activeMove.current = next;
-      if (!next || !animations.length) return;
-
+      if (!next) return;
+      activeMove.current = next;
       const hints = MOVE_CLIP_HINTS[next] ?? [];
       const clip = animations.find((item) => hints.some((hint) => item.name.toLowerCase().includes(hint)));
       if (!clip) return;
-
       Object.values(actions).forEach((action) => action?.stop());
       const action = actions[clip.name];
       action?.reset().fadeIn(0.15).play();
@@ -132,59 +205,130 @@ function Model({ speaking }: { speaking: boolean }) {
       if (action) action.clampWhenFinished = true;
     };
 
+    const onPointer = (event: PointerEvent) => {
+      pointer.current.x = THREE.MathUtils.clamp((event.clientX / Math.max(window.innerWidth, 1) - 0.5) * 0.7, -0.35, 0.35);
+      pointer.current.y = THREE.MathUtils.clamp((0.5 - event.clientY / Math.max(window.innerHeight, 1)) * 0.45, -0.22, 0.22);
+    };
+    const onGaze = (event: Event) => {
+      const detail = (event as CustomEvent<{ x?: number; y?: number }>).detail ?? {};
+      pointer.current.x = THREE.MathUtils.clamp(Number(detail.x) || 0, -0.35, 0.35);
+      pointer.current.y = THREE.MathUtils.clamp(Number(detail.y) || 0, -0.22, 0.22);
+    };
+
     window.addEventListener("jobly:jia-move", onMove);
-    return () => window.removeEventListener("jobly:jia-move", onMove);
+    window.addEventListener("pointermove", onPointer, { passive: true });
+    window.addEventListener("jobly:jia-gaze", onGaze);
+    return () => {
+      window.removeEventListener("jobly:jia-move", onMove);
+      window.removeEventListener("pointermove", onPointer);
+      window.removeEventListener("jobly:jia-gaze", onGaze);
+    };
   }, [actions, animations]);
 
   useFrame(({ clock }, delta) => {
     if (!group.current) return;
     const t = clock.getElapsedTime();
     const move = activeMove.current;
-
-    // J’IA reste ancrée : pas de rotation globale autonome.
     group.current.position.y = -1.32 + Math.sin(t * (speaking ? 2.2 : 1.1)) * (speaking ? 0.010 : 0.004);
 
-    const targets: Array<[THREE.Bone | null, THREE.Euler]> = [];
-    const head = bones.head;
-    const leftArm = bones.leftArm;
-    const rightArm = bones.rightArm;
+    // Each controlled bone returns to its authored rest pose when a gesture ends.
+    const targets = new Map<THREE.Bone, { x: number; y: number; z: number }>();
+    const pose = (bone: THREE.Bone | null, x = 0, y = 0, z = 0) => {
+      if (bone) targets.set(bone, { x: radians(x), y: radians(y), z: radians(z) });
+    };
+    const pointing = move.startsWith("point_") || move === "point_button" || move === "point_you";
+    const wave = move === "wave_hi" || move === "wave_bye";
+    const explain = move === "explain_open" || move === "explain_wide" || move === "celebrate_jump";
 
-    if (move === "nod_slow") targets.push([head, new THREE.Euler(THREE.MathUtils.degToRad(7), 0, 0)]);
-    if (move === "shake_no") targets.push([head, new THREE.Euler(0, THREE.MathUtils.degToRad(12), 0)]);
-    if (move === "think_chin") targets.push([head, new THREE.Euler(THREE.MathUtils.degToRad(-5), 0, THREE.MathUtils.degToRad(-5))]);
-    if (move === "listen_tilt") targets.push([head, new THREE.Euler(0, 0, THREE.MathUtils.degToRad(-7))]);
-    if (move === "point_button" || move === "point_you") targets.push([rightArm, new THREE.Euler(THREE.MathUtils.degToRad(-28), 0, THREE.MathUtils.degToRad(-20))]);
-    if (move === "wave_hi" || move === "wave_bye") targets.push([rightArm, new THREE.Euler(THREE.MathUtils.degToRad(-18), 0, THREE.MathUtils.degToRad(-35))]);
-    if (move === "hand_chest" || move === "scarf_touch") targets.push([leftArm, new THREE.Euler(THREE.MathUtils.degToRad(-18), 0, THREE.MathUtils.degToRad(25))]);
-    if (move === "explain_open" || move === "celebrate_jump") {
-      targets.push([leftArm, new THREE.Euler(THREE.MathUtils.degToRad(-18), 0, THREE.MathUtils.degToRad(18))]);
-      targets.push([rightArm, new THREE.Euler(THREE.MathUtils.degToRad(-18), 0, THREE.MathUtils.degToRad(-18))]);
+    if (move === "nod_slow" || move === "nod_fast") pose(rig.head, 7 * Math.sin(t * (move === "nod_fast" ? 7 : 3)), 0, 0);
+    if (move === "shake_no" || move === "shake_soft") pose(rig.head, 0, 10 * Math.sin(t * 4), 0);
+    if (move === "think_chin" || move === "think_doubt") pose(rig.head, -5, 0, -5);
+    if (move === "listen_tilt" || move === "listen_forward") pose(rig.head, 2, 0, -7);
+    if (move === "point_left") {
+      pose(rig.left.upperArm, -28, 0, 20);
+      pose(rig.left.forearm, -32, 0, 5);
+    } else if (move === "point_right" || pointing) {
+      pose(rig.right.upperArm, move === "point_up" ? -68 : move === "point_down" ? -12 : -28, 0, move === "point_up" ? -8 : -20);
+      pose(rig.right.forearm, move === "point_down" ? 48 : -28, 0, -4);
+      pose(rig.right.hand, 0, 0, -8);
+    } else if (wave) {
+      pose(rig.right.upperArm, -18, 0, -35);
+      pose(rig.right.forearm, -48, 0, 0);
+      pose(rig.right.hand, 0, 0, 12 * Math.sin(t * 7));
+    } else if (explain) {
+      pose(rig.left.upperArm, -18, 0, 18);
+      pose(rig.right.upperArm, -18, 0, -18);
+      pose(rig.left.forearm, -20, 0, 8);
+      pose(rig.right.forearm, -20, 0, -8);
+    } else if (move === "hand_chest" || move === "scarf_touch") {
+      pose(rig.left.upperArm, -18, 0, 25);
+      pose(rig.left.forearm, -62, 0, 4);
+    } else if (move === "think_count" || move === "think_idea") {
+      pose(rig.right.upperArm, -38, 0, -18);
+      pose(rig.right.forearm, -48, 0, -5);
     }
 
-    for (const [bone, target] of targets) {
-      if (!bone) continue;
-      bone.rotation.x = THREE.MathUtils.damp(bone.rotation.x, target.x, 7, delta);
-      bone.rotation.y = THREE.MathUtils.damp(bone.rotation.y, target.y, 7, delta);
-      bone.rotation.z = THREE.MathUtils.damp(bone.rotation.z, target.z, 7, delta);
+    // A real finger rig is used when the GLB exposes one. Index extends; the other digits curl.
+    if (pointing || move === "think_idea") {
+      const hand = move === "point_left" ? rig.left : rig.right;
+      const indexDelta = move === "think_idea" ? -0.08 : -0.42;
+      hand.fingers.index.forEach((bone, index) => pose(bone, 0, 0, indexDelta / (index + 1)));
+      (["middle", "ring", "little"] as const).forEach((finger) => {
+        hand.fingers[finger].forEach((bone, index) => pose(bone, 0, 0, 0.32 / (index + 1)));
+      });
+      hand.fingers.thumb.forEach((bone, index) => pose(bone, 0, 0, -0.12 / (index + 1)));
     }
 
-    const spine = spineRef.current;
-    if (spine) {
-      const breathing = Math.sin(t * (speaking ? 2.2 : 1.1)) * (speaking ? 0.012 : 0.006);
-      spine.rotation.x = THREE.MathUtils.damp(spine.rotation.x, breathing, 5, delta);
+    for (const bone of rig.all) {
+      const base = baseRotations.get(bone);
+      if (!base) continue;
+      const target = targets.get(bone) ?? { x: 0, y: 0, z: 0 };
+      bone.rotation.x = THREE.MathUtils.damp(bone.rotation.x, base.x + target.x, 8, delta);
+      bone.rotation.y = THREE.MathUtils.damp(bone.rotation.y, base.y + target.y, 8, delta);
+      bone.rotation.z = THREE.MathUtils.damp(bone.rotation.z, base.z + target.z, 8, delta);
     }
 
-    // Lip-sync léger : recherche de morph targets si le GLB en possède.
-    scene.traverse((node) => {
-      const mesh = node as THREE.Mesh;
-      if (!mesh.morphTargetDictionary || !mesh.morphTargetInfluences) return;
-      const names = Object.keys(mesh.morphTargetDictionary);
-      const mouth = names.find((name) => /mouth|jaw|viseme|talk|open/i.test(name));
-      if (!mouth) return;
-      const index = mesh.morphTargetDictionary[mouth];
-      const target = speaking ? (0.25 + (Math.sin(t * 18) + 1) * 0.18) : 0;
-      mesh.morphTargetInfluences[index] = THREE.MathUtils.damp(mesh.morphTargetInfluences[index] ?? 0, target, 14, delta);
+    // Eyes follow the pointer or a semantic gaze event; fall back to eye meshes if there are no eye bones.
+    const gaze = pointer.current;
+    rig.eyes.forEach((eye) => {
+      const base = baseRotations.get(eye);
+      if (!base) return;
+      eye.rotation.y = THREE.MathUtils.damp(eye.rotation.y, base.y + gaze.x * 0.48, 6, delta);
+      eye.rotation.x = THREE.MathUtils.damp(eye.rotation.x, base.x + gaze.y * 0.38, 6, delta);
     });
+    rig.eyeMeshes.forEach((eye) => {
+      const base = baseEyePositions.get(eye);
+      if (!base || rig.eyes.length) return;
+      eye.position.x = THREE.MathUtils.damp(eye.position.x, base.x + gaze.x * 0.012, 6, delta);
+      eye.position.y = THREE.MathUtils.damp(eye.position.y, base.y + gaze.y * 0.010, 6, delta);
+    });
+
+    // Automatic blink + blend-shape support when the model includes facial morph targets.
+    if (t >= blinkClock.current.next) {
+      blinkClock.current.until = t + 0.13;
+      blinkClock.current.next = t + 2.8 + Math.random() * 2.8;
+    }
+    const blinkValue = t < blinkClock.current.until ? Math.max(0, 1 - (blinkClock.current.until - t) / 0.13) : 0;
+    const mouthValue = speaking ? 0.22 + (Math.sin(t * 18) + 1) * 0.16 : 0;
+    const smileValue = /smile|greet|wave|celebrate|ok|proud/.test(move) ? 0.55 : 0;
+    const browValue = /surpris|idea|curious|think/.test(move) ? 0.35 : 0;
+    rig.morphs.forEach(({ mesh, index, name }) => {
+      let value = 0;
+      if (/blink|eyeclose|eyelidclose/.test(name)) value = blinkValue;
+      else if (/jawopen|mouthopen|viseme_aa|viseme_oh|talk/.test(name)) value = mouthValue;
+      else if (/smile|mouthsmile/.test(name)) value = smileValue;
+      else if (/brow.*up|browinnerup/.test(name)) value = browValue;
+      const influences = mesh.morphTargetInfluences;
+      if (influences) influences[index] = THREE.MathUtils.damp(influences[index] ?? 0, value, 13, delta);
+    });
+
+    if (rig.spine) {
+      const base = baseRotations.get(rig.spine);
+      if (base) {
+        const breathing = Math.sin(t * (speaking ? 2.2 : 1.1)) * (speaking ? 0.012 : 0.006);
+        rig.spine.rotation.x = THREE.MathUtils.damp(rig.spine.rotation.x, base.x + breathing, 5, delta);
+      }
+    }
   });
 
   return (
