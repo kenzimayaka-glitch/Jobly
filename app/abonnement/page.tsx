@@ -16,6 +16,39 @@ export default function AbonnementPage() {
 
   useEffect(() => { let alive=true; (async()=>{const requested = new URLSearchParams(window.location.search).get("productType")==="RECRUITER"?"RECRUITER":"TALENT";setProductType(requested);const {data:{session}}=await getSupabaseClient().auth.getSession();const token=session?.access_token;if(!token)return;const headers={Authorization:`Bearer ${token}`};const [sr,er]=await Promise.all([fetch(`/api/subscription?productType=${requested}`,{headers}),fetch(`/api/entitlements?productType=${requested}`,{headers})]);const [s,e]=await Promise.all([sr.json(),er.json()]);if(alive){setCurrent(s.subscription||null);setPaymentId(s.payment?.id||"");setCheckout(s.checkout||null);setTransactionId(s.checkout?.reportedTransactionId||"");setPromo(e.promo||null);}})().catch(()=>{});return ()=>{alive=false;}; }, []);
 
+  // Quiet refresh: this never blocks checkout or navigation in Jobly.
+  useEffect(() => {
+    if (!paymentId) return;
+    let alive = true;
+    const refresh = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const { data: { session } } = await getSupabaseClient().auth.getSession();
+        const token = session?.access_token;
+        if (!token) return;
+        const response = await fetch("/api/subscription?productType=" + productType, {
+          headers: { Authorization: "Bearer " + token },
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const latest = await response.json();
+        if (!alive) return;
+        setCurrent(latest.subscription || null);
+        setPaymentId(latest.payment?.id || "");
+        setCheckout(latest.checkout || null);
+        setTransactionId(latest.checkout?.reportedTransactionId || "");
+      } catch {
+        // Transient refresh errors do not interrupt the customer session.
+      }
+    };
+    const timer = window.setInterval(() => { void refresh(); }, 8000);
+    window.addEventListener("focus", refresh);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [paymentId, productType]);
   async function choose(code: string) {
     setMessage("");
     if (!phone.trim()) { setMessage("Saisissez le numéro Mobile Money à débiter."); return; }
