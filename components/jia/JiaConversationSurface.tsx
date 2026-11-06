@@ -29,6 +29,14 @@ import {
 } from "@/lib/jia/experience-engine";
 import JiaWorkspaceBlocks from "@/components/jia/JiaWorkspaceBlocks";
 import type { JiaWorkspaceBlock, JiaWorkspaceOffer } from "@/lib/jia/workspace";
+import {
+  JIA_AVATAR_FRAMING_VARIATIONS,
+  JIA_CONVERSATION_LAYOUT_VARIATIONS,
+  JIA_MESSAGE_ENTRANCES,
+  JIA_SCENE_TRANSITIONS,
+  JIA_SCENE_VARIATIONS,
+  JIA_STICKER_REACTIONS,
+} from "@/lib/jia/visual-variations";
 
 export type JiaConversationMessage = {
   id: string;
@@ -198,6 +206,7 @@ export default function JiaConversationSurface(props: Props) {
   const [device, setDevice] = useState<JiaExperienceDevice>("desktop");
   const [viewportMetrics, setViewportMetrics] = useState({ height: 0, offsetTop: 0 });
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [messageReactions, setMessageReactions] = useState<Record<string, string[]>>({});
   const bottomAnchor = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -261,6 +270,31 @@ export default function JiaConversationSurface(props: Props) {
     systemReducedMotion: Boolean(reducedMotion),
   });
   const layout = selectedLayout === "auto" ? autoLayout : experience.layout;
+  const variationIndex = ((layoutRefresh % 50) + 50) % 50;
+  const layoutVariation = JIA_CONVERSATION_LAYOUT_VARIATIONS[variationIndex];
+  const sceneVariation = JIA_SCENE_VARIATIONS[variationIndex];
+  const sceneTransition = JIA_SCENE_TRANSITIONS[variationIndex];
+  const avatarFraming = JIA_AVATAR_FRAMING_VARIATIONS[variationIndex];
+  const sceneBackground = (() => {
+    switch (sceneVariation.motif) {
+      case "orbit": return "radial-gradient(circle at 18% 24%, rgba(255,210,26,.32) 0 2px, transparent 3px), radial-gradient(circle at 82% 68%, rgba(18,100,235,.18) 0 1px, transparent 2px), repeating-radial-gradient(circle at 72% 30%, transparent 0 26px, rgba(18,100,235,.08) 27px 28px)";
+      case "ripple": return "repeating-radial-gradient(circle at 20% 75%, transparent 0 14px, rgba(18,100,235,.09) 15px 16px), radial-gradient(circle at 78% 22%, rgba(255,210,26,.25), transparent 40%)";
+      case "constellation": return "radial-gradient(circle at 10% 14%, rgba(255,210,26,.8) 0 1px, transparent 2px), radial-gradient(circle at 38% 42%, rgba(18,100,235,.4) 0 2px, transparent 3px), radial-gradient(circle at 76% 24%, rgba(18,100,235,.3) 0 1px, transparent 2px), radial-gradient(circle at 88% 78%, rgba(255,210,26,.7) 0 2px, transparent 3px)";
+      case "topography": return "repeating-radial-gradient(ellipse at 20% 20%, transparent 0 17px, rgba(18,100,235,.08) 18px 19px), repeating-radial-gradient(ellipse at 85% 80%, transparent 0 23px, rgba(255,210,26,.16) 24px 25px)";
+      case "ribbon": return "repeating-linear-gradient(125deg, transparent 0 32px, rgba(18,100,235,.05) 33px 36px, transparent 37px 68px), radial-gradient(ellipse at 65% 12%, rgba(255,210,26,.28), transparent 50%)";
+      case "halo": return "radial-gradient(ellipse at 50% 45%, transparent 0 22%, rgba(18,100,235,.08) 23% 24%, transparent 25% 38%, rgba(255,210,26,.2) 39% 40%, transparent 41%)";
+      case "grid": return "linear-gradient(rgba(18,100,235,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(18,100,235,.05) 1px, transparent 1px), radial-gradient(circle at 82% 18%, rgba(255,210,26,.25), transparent 35%)";
+      case "petals": return "radial-gradient(ellipse at 25% 50%, rgba(255,210,26,.18) 0 12%, transparent 13%), radial-gradient(ellipse at 75% 50%, rgba(18,100,235,.09) 0 12%, transparent 13%), radial-gradient(ellipse at 50% 20%, rgba(255,210,26,.13) 0 12%, transparent 13%)";
+      case "arc": return "repeating-conic-gradient(from 220deg at 100% 0%, transparent 0deg 17deg, rgba(18,100,235,.07) 18deg 19deg, transparent 20deg 36deg)";
+      default: return "radial-gradient(circle at 18% 18%, rgba(255,210,26,.25), transparent 25%), radial-gradient(circle at 84% 76%, rgba(18,100,235,.12), transparent 34%)";
+    }
+  })();
+  const toggleReaction = (messageId: string, emoji: string) => {
+    setMessageReactions((current) => {
+      const active = current[messageId] || [];
+      return { ...current, [messageId]: active.includes(emoji) ? active.filter((item) => item !== emoji) : [...active, emoji].slice(-5) };
+    });
+  };
 
   useEffect(() => {
     if (selectedLayout !== "auto") return;
@@ -364,7 +398,11 @@ export default function JiaConversationSurface(props: Props) {
             {layout === "stage" && (
               <div className="relative mx-4 mb-3 flex items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[.07] px-3 py-2.5 sm:mx-6">
                 <div className="pointer-events-none absolute -right-3 -top-8 h-24 w-24 rounded-full bg-[#FFD21A]/20 blur-2xl" />
-                <div className="relative h-28 w-20 shrink-0 sm:h-36 sm:w-24">
+                <div className="relative shrink-0" style={{
+                  width: `${Math.round(avatarFraming.width * avatarFraming.scale / 100 * 96)}px`,
+                  height: `${Math.round(avatarFraming.height * avatarFraming.scale / 100 * 156)}px`,
+                  transform: `translate(${avatarFraming.offsetX}px, ${avatarFraming.offsetY}px)`,
+                }} data-jia-avatar-framing={avatarFraming.id}>
                   <JIA3D speaking={speaking} />
                 </div>
                 <div className="relative min-w-0">
@@ -404,7 +442,26 @@ export default function JiaConversationSurface(props: Props) {
             </div>
           </nav>
 
-          <div className={`relative flex min-h-0 flex-1 flex-col overflow-hidden ${visualTransition} ${layoutSurface(layout)}`}>
+          <div className={`relative flex min-h-0 flex-1 flex-col overflow-hidden ${visualTransition} ${layoutSurface(layout)}`} data-jia-scene={sceneVariation.id}>
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+              <div className="absolute -inset-[18%] rounded-[42%]" style={{
+                backgroundImage: sceneBackground,
+                backgroundSize: `${88 + sceneVariation.composition * 9}px ${76 + sceneVariation.composition * 7}px`,
+                transform: `translate(${sceneVariation.offsetX}px, ${sceneVariation.offsetY}px) rotate(${sceneVariation.rotation}deg) scale(${sceneVariation.scale})`,
+                opacity: 0.45 + (sceneVariation.layers * 0.055),
+                filter: `blur(${sceneVariation.blur / 5}px)`,
+                transition: reducedMotion ? "none" : `transform ${sceneTransition.duration}s ease-out`,
+              }} />
+              {Array.from({ length: sceneVariation.layers }).map((_, layer) => (
+                <span key={layer} className="absolute rounded-full border border-[#1264EB]/[.07]" style={{
+                  width: `${64 + layer * 39 + sceneVariation.composition * 5}px`,
+                  height: `${64 + layer * 39 + sceneVariation.composition * 5}px`,
+                  left: `${8 + ((layer * 23 + sceneVariation.composition * 13) % 82)}%`,
+                  top: `${7 + ((layer * 17 + sceneVariation.composition * 9) % 82)}%`,
+                  transform: `rotate(${sceneVariation.rotation + layer * 17}deg)`,
+                }} />
+              ))}
+            </div>
             {layout === "explorer" && (
               <div aria-hidden="true" className="pointer-events-none absolute -right-20 top-8 h-56 w-56 rounded-full bg-[#FFD21A]/20 blur-3xl" />
             )}
@@ -462,16 +519,31 @@ export default function JiaConversationSurface(props: Props) {
                   </div>
                 </div>
               ) : (
-                <div className={`mx-auto flex w-full flex-col gap-4 ${layout === "gallery" ? "max-w-3xl" : "max-w-2xl"}`}>
+                <div
+                  className="mx-auto grid w-full min-w-0"
+                  style={{
+                    maxWidth: layoutVariation.maxWidth,
+                    gridTemplateColumns: layoutVariation.columns === 2 ? "repeat(2,minmax(0,1fr))" : "minmax(0,1fr)",
+                    gap: layoutVariation.messageGap,
+                  }}
+                  data-jia-layout-variation={layoutVariation.id}
+                >
                   {messages.map((message, index) => {
                     const mine = message.role === "user";
+                    const entrance = JIA_MESSAGE_ENTRANCES[(variationIndex + index) % JIA_MESSAGE_ENTRANCES.length];
+                    const initial = entrance.axis === "x" ? { opacity: 0, x: (entrance.direction === "reverse" ? -1 : 1) * entrance.distance } :
+                      entrance.axis === "y" ? { opacity: 0, y: entrance.distance } :
+                      entrance.axis === "scale" ? { opacity: 0, scale: Math.max(0.86, 1 - entrance.distance / 120) } :
+                      { opacity: 0, rotate: entrance.distance / 3 };
                     return (
                       <motion.article
                         key={message.id}
-                        initial={reducedMotion ? false : { opacity: 0, y: 9 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: reducedMotion ? 0 : 0.22, delay: reducedMotion ? 0 : Math.min(index * 0.018, 0.12) }}
-                        className={`flex w-full items-end gap-2.5 ${visualTransition} ${mine ? "justify-end" : "justify-start"}`}
+                        initial={reducedMotion ? false : initial}
+                        animate={{ opacity: 1, x: 0, y: 0, scale: 1, rotate: 0 }}
+                        transition={{ duration: reducedMotion ? 0 : entrance.duration, delay: reducedMotion ? 0 : Math.min(entrance.stagger * index, 0.18) }}
+                        className={`flex min-w-0 w-full items-end gap-2.5 ${visualTransition} ${mine ? "justify-end" : "justify-start"}`}
+                        style={{ marginInlineStart: mine ? 0 : `${Math.round(layoutVariation.assistantOffset * 100)}%` }}
+                        data-jia-message-entrance={entrance.id}
                       >
                         {!mine && (
                           <div className={`mb-1 grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-xl border ${layout === "stage" ? "border-white/15 bg-white/10" : "border-[#E2EAF4] bg-[#FFF7D7]"}`}>
@@ -504,9 +576,30 @@ export default function JiaConversationSurface(props: Props) {
                                 onSaveProfile={onSaveProfile}
                                 onUploadCv={onUploadCv}
                                 onUpdateWorkspace={onUpdateWorkspace}
+                                variationIndex={variationIndex}
                               />
                             )}
                           </div>
+                          <details className="mt-1 max-w-full text-[10px]">
+                            <summary className="inline-flex min-h-8 cursor-pointer list-none items-center gap-1 rounded-full px-2.5 font-bold text-[#718198] hover:bg-black/[.04]">
+                              Réagir {messageReactions[message.id]?.length ? "· " + messageReactions[message.id].length : ""}
+                            </summary>
+                            {messageReactions[message.id]?.length > 0 && (
+                              <div className="my-1 flex flex-wrap gap-1">
+                                {messageReactions[message.id].map((emoji) => <span key={emoji} className="rounded-full border border-[#DCE6F2] bg-white px-2 py-1 text-[12px]">{emoji}</span>)}
+                              </div>
+                            )}
+                            <div className="my-2 grid max-w-[min(340px,82vw)] grid-cols-5 gap-1 rounded-2xl border border-[#DCE6F2] bg-white p-2 shadow-lg sm:grid-cols-10">
+                              {JIA_STICKER_REACTIONS.map((sticker) => {
+                                const active = (messageReactions[message.id] || []).includes(sticker.emoji);
+                                return <button key={sticker.id} type="button" title={sticker.label} aria-label={sticker.label} aria-pressed={active}
+                                  onClick={() => toggleReaction(message.id, sticker.emoji)}
+                                  className={`grid h-9 w-9 place-items-center rounded-xl text-[18px] transition ${active ? "bg-[#FFF2B3] ring-1 ring-[#E8C54C]" : "hover:bg-[#F1F5FA]"}`}>
+                                  {sticker.emoji}
+                                </button>;
+                              })}
+                            </div>
+                          </details>
                           <span className={`mt-1 px-1 text-[9px] font-semibold ${layout === "stage" ? "text-white/45" : "text-[#98A5B6]"}`}>
                             {timeLabel(message.createdAt)}
                           </span>
