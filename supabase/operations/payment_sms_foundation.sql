@@ -4,7 +4,8 @@
 ALTER TABLE public."Payment"
   ADD COLUMN IF NOT EXISTS "payerPhone" text,
   ADD COLUMN IF NOT EXISTS "reportedTransactionId" text,
-  ADD COLUMN IF NOT EXISTS "smsMerchantAccount" text;
+  ADD COLUMN IF NOT EXISTS "smsMerchantAccount" text,
+  ADD COLUMN IF NOT EXISTS "smsMerchantCode" text;
 
 CREATE INDEX IF NOT EXISTS "Payment_sms_match_idx"
   ON public."Payment" (provider, status, amount, currency, "createdAt");
@@ -153,3 +154,29 @@ $$;
 REVOKE ALL ON FUNCTION public.finalize_payment_from_sms(uuid, text, text, timestamptz, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.finalize_payment_from_sms(uuid, text, text, timestamptz, text) FROM anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.finalize_payment_from_sms(uuid, text, text, timestamptz, text) TO service_role;
+
+
+-- Central operator settings managed by Jobly administrators. Merchant codes are
+-- never compiled into application code or exposed by public read APIs.
+CREATE TABLE IF NOT EXISTS public."PaymentSmsProviderConfig" (
+  provider text PRIMARY KEY CHECK (provider IN ('SMS_MTN', 'SMS_ORANGE')),
+  "merchantAccount" text NOT NULL,
+  "merchantCode" text NOT NULL,
+  "isActive" boolean NOT NULL DEFAULT true,
+  "updatedByUserId" text NOT NULL,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT "PaymentSmsProviderConfig_account_valid"
+    CHECK (length(regexp_replace("merchantAccount", '[^0-9]', '', 'g')) BETWEEN 9 AND 15),
+  CONSTRAINT "PaymentSmsProviderConfig_code_valid"
+    CHECK ("merchantCode" ~ '^[A-Za-z0-9_-]{1,40}$')
+);
+
+ALTER TABLE public."PaymentSmsProviderConfig" ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public."PaymentSmsProviderConfig" FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE ON TABLE public."PaymentSmsProviderConfig" TO service_role;
+
+COMMENT ON TABLE public."PaymentSmsProviderConfig" IS
+  'Central MTN/Orange checkout settings. Read and written only by the server service_role through administrator-checked APIs. Merchant code changes apply to new payments; each pending payment retains its own code snapshot.';
+COMMENT ON COLUMN public."Payment"."smsMerchantCode" IS
+  'Server-side snapshot of the merchant code used to generate this payment order; never returned as a standalone public field.';
