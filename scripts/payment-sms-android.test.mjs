@@ -37,6 +37,7 @@ test("WorkManager queues ciphertext and posts only to the Jobly SMS endpoint", (
   assert.ok(receiver.includes("KEY_ENCRYPTED_SMS_FILE to queuedFile.absolutePath"));
   assert.ok(worker.includes("KEY_ENCRYPTED_SMS_FILE"));
   assert.ok(worker.includes("safePath.delete()"));
+  assert.match(worker, /READ_TIMEOUT_MS = (?:[5-9][0-9]{4}|[1-9][0-9]{5})/);
   assert.match(worker, /\/api\/payments\/sms\/ingest/);
   assert.match(worker, /x-jobly-sms-device/);
   assert.match(worker, /Authorization/);
