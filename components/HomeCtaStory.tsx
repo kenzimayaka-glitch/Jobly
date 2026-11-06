@@ -7,9 +7,11 @@ export type HomeCtaStoryKind = "signup" | "login";
 export default function HomeCtaStory({
   kind,
   lang,
+  onComplete,
 }: {
   kind: HomeCtaStoryKind;
   lang: "fr" | "en";
+  onComplete: () => void;
 }) {
   const isLogin = kind === "login";
 
@@ -138,6 +140,7 @@ export default function HomeCtaStory({
               strokeOpacity="0"
               animate={{ x: [-40, 90, 90, 600], opacity: [0, .65, 0, 0] }}
               transition={{ duration: 2.72, times: [0, .18, .35, 1], ease: "easeOut" }}
+              onAnimationComplete={onComplete}
             />
           </>
         ) : (
@@ -234,6 +237,7 @@ export default function HomeCtaStory({
               initial={{ opacity: 0, scale: .2 }}
               animate={{ opacity: [0, 1, 1, 0], scale: [.2, 1.1, 1, .2], rotate: [0, 45, 90, 135] }}
               transition={{ duration: 2.72, times: [.35, .5, .76, 1], ease: "easeOut" }}
+              onAnimationComplete={onComplete}
             >
               <path d="M768 20 L773 32 L785 37 L773 42 L768 54 L763 42 L751 37 L763 32Z" fill="#FFF4C2" />
               <path d="M930 102 L934 111 L943 115 L934 119 L930 128 L926 119 L917 115 L926 111Z" fill="#FFD21A" />
