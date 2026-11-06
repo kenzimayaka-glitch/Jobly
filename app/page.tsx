@@ -492,7 +492,6 @@ const JOURNEY_SLIDES = [
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("welcome");
   const [homeStory, setHomeStory] = useState<HomeCtaStoryKind | null>(null);
-  const homeStoryTimer = useRef<number | null>(null);
   const [headlineIndex, setHeadlineIndex] = useState(0);
   const prefersReducedMotion = useReducedMotion();
   const [homeStats, setHomeStats] = useState<PublicHomeStats | null>(null);
@@ -518,6 +517,7 @@ export default function Home() {
   const journeyPointerRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const [jiaLine, setJiaLine] = useState(0);
   const [dropLanded, setDropLanded] = useState(false);
+  const homeRootRef = useRef<HTMLElement>(null);
   const logoRef = useRef<HTMLDivElement>(null);
   const heartTargetRef = useRef<HTMLSpanElement>(null);
   const [heartPath, setHeartPath] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
@@ -765,22 +765,52 @@ export default function Home() {
   }, [screen]);
   useEffect(() => {
     if (screen !== "welcome") return;
+
+    const heartSize = 18;
+    let active = true;
+    let firstFrame = 0;
+    let secondFrame = 0;
+
     const measureHeartPath = () => {
+      if (!active) return;
       const logo = logoRef.current;
       const target = heartTargetRef.current;
       if (!logo || !target) return;
+
       const logoRect = logo.getBoundingClientRect();
       const targetRect = target.getBoundingClientRect();
       setHeartPath({
-        startX: logoRect.left + logoRect.width - 18,
+        startX: logoRect.right - heartSize,
         startY: logoRect.top + logoRect.height * 0.42,
-        endX: targetRect.left + targetRect.width / 2 - 9,
-        endY: targetRect.top + targetRect.height / 2 - 9,
+        endX: targetRect.left + (targetRect.width - heartSize) / 2,
+        endY: targetRect.top + (targetRect.height - heartSize) / 2,
       });
     };
-    const frame = window.requestAnimationFrame(measureHeartPath);
-    window.addEventListener("resize", measureHeartPath);
-    return () => { window.cancelAnimationFrame(frame); window.removeEventListener("resize", measureHeartPath); };
+
+    // Wait for the page's first layout pass before measuring the landing slot.
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(measureHeartPath);
+    });
+
+    const resizeObserver = typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(measureHeartPath)
+      : null;
+    if (logoRef.current) resizeObserver?.observe(logoRef.current);
+    if (heartTargetRef.current) resizeObserver?.observe(heartTargetRef.current);
+    if (homeRootRef.current) resizeObserver?.observe(homeRootRef.current);
+
+    window.addEventListener("resize", measureHeartPath, { passive: true });
+    window.addEventListener("scroll", measureHeartPath, true);
+    document.fonts?.ready.then(measureHeartPath).catch(() => {});
+
+    return () => {
+      active = false;
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", measureHeartPath);
+      window.removeEventListener("scroll", measureHeartPath, true);
+    };
   }, [screen, lang]);
   const reset = () => { setMessage(""); setBusy(false); setResendBusy(false); setOtp(""); };
   function startHomeStory(next: HomeCtaStoryKind) {
@@ -791,18 +821,13 @@ export default function Home() {
       return;
     }
     setHomeStory(next);
-    if (homeStoryTimer.current !== null) window.clearTimeout(homeStoryTimer.current);
-    homeStoryTimer.current = window.setTimeout(() => {
-      homeStoryTimer.current = null;
-      setHomeStory(null);
-      reset();
-      goTo(next);
-    }, 2720);
   }
 
-  useEffect(() => () => {
-    if (homeStoryTimer.current !== null) window.clearTimeout(homeStoryTimer.current);
-  }, []);
+  function finishHomeStory(next: HomeCtaStoryKind) {
+    setHomeStory(null);
+    reset();
+    goTo(next);
+  }
 
 
   // Filet de sécurité (14/09/2026) : si l'utilisateur clique quand même sur un
@@ -900,7 +925,7 @@ export default function Home() {
   }
   async function forgot() { if (!email.includes("@")) return setMessage("Entre l'adresse e-mail associée à ton compte."); setBusy(true); setMessage(""); try { await requestPasswordReset(email); goTo("reset-sent"); } catch (e) { setMessage(e instanceof Error ? e.message : "Impossible d'envoyer l'e-mail de récupération."); } finally { setBusy(false); } }
 
-  return <main className={`relative isolate flex w-full flex-col ${screen === "welcome" ? "jobly-public-home bg-white text-[#0A1931]" : "min-h-[100dvh] overflow-x-hidden bg-off-white dark:bg-[#0A1931] dark:text-white overflow-y-auto"}`}>
+  return <main ref={homeRootRef} className={`relative isolate flex w-full flex-col ${screen === "welcome" ? "jobly-public-home bg-white text-[#0A1931]" : "min-h-[100dvh] overflow-x-hidden bg-off-white dark:bg-[#0A1931] dark:text-white overflow-y-auto"}`}>
     <BubbleField />
     <div className="relative z-10 flex min-h-0 flex-1 w-full flex-col gap-0">
       {screen !== "login" && screen !== "signup" && <header className={screen === "welcome" ? "jobly-public-home-header relative z-30 flex shrink-0 items-center justify-between px-4 pt-[max(4px,env(safe-area-inset-top))] sm:h-[104px] sm:px-8" : "relative z-20 flex h-[84px] w-full shrink-0 items-start px-4 pt-5 sm:px-8"}>
@@ -982,19 +1007,19 @@ export default function Home() {
             </motion.section>
           </AnimatePresence>
           <div className="jobly-public-home-cta relative z-20 mx-auto grid min-h-[52px] w-full max-w-[1100px] grid-cols-2 gap-2 px-4 sm:min-h-[66px] sm:gap-5 sm:px-8" aria-busy={Boolean(homeStory)}>
-            {homeStory ? (
-              <div className="col-span-2 min-w-0">
-                <HomeCtaStory kind={homeStory} lang={lang} />
-              </div>
+            {homeStory === "signup" ? (
+              <HomeCtaStory kind="signup" lang={lang} onComplete={() => finishHomeStory("signup")} />
             ) : (
-              <>
-                <button type="button" onClick={() => startHomeStory("signup")} className="min-h-[52px] rounded-[18px] bg-[#2865DC] px-2 font-[var(--font-inter)] font-extrabold text-white shadow-[0_10px_24px_rgba(40,101,220,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:rounded-[22px] sm:text-[17px]">
-                  {translations[lang].create}
-                </button>
-                <button type="button" onClick={() => startHomeStory("login")} className="min-h-[52px] rounded-[18px] bg-[#FFD60A] px-2 font-[var(--font-inter)] font-extrabold text-[#0A1931] shadow-[0_10px_24px_rgba(255,214,10,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:rounded-[22px] sm:text-[17px]">
-                  {translations[lang].login}
-                </button>
-              </>
+              <button type="button" onClick={() => startHomeStory("signup")} className="min-h-[52px] rounded-[18px] bg-[#2865DC] px-2 font-[var(--font-inter)] font-extrabold text-white shadow-[0_10px_24px_rgba(40,101,220,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:rounded-[22px] sm:text-[17px]">
+                {translations[lang].create}
+              </button>
+            )}
+            {homeStory === "login" ? (
+              <HomeCtaStory kind="login" lang={lang} onComplete={() => finishHomeStory("login")} />
+            ) : (
+              <button type="button" onClick={() => startHomeStory("login")} className="min-h-[52px] rounded-[18px] bg-[#FFD60A] px-2 font-[var(--font-inter)] font-extrabold text-[#0A1931] shadow-[0_10px_24px_rgba(255,214,10,0.2)] transition-transform hover:-translate-y-0.5 active:scale-[0.97] sm:h-[66px] sm:rounded-[22px] sm:text-[17px]">
+                {translations[lang].login}
+              </button>
             )}
           </div>
           <div className="jobly-public-home-benefits relative z-20 mx-auto mt-2 grid w-full max-w-[1100px] grid-cols-2 gap-2 px-3 sm:mt-6 sm:grid-cols-4 sm:gap-3 sm:px-6 lg:gap-4 lg:px-8">
@@ -1298,13 +1323,27 @@ export default function Home() {
                     <motion.path d="M58 27 C44 23 46 12 61 9 C72 7 77 2 74 0" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: [0, 0.7, 0.12, 0] }} transition={{ duration: 2.2, ease: "easeOut" }} />
                   </motion.svg>
                 </div>
-                <p className="jobly-public-home-footer-signature mt-1 text-[13px] leading-none text-[#5F6670] sm:mt-2 sm:text-[15px]">Built with <span ref={heartTargetRef} className="inline-block h-[14px] w-[14px] align-[-3px]" aria-hidden="true">&nbsp;</span> by Team <strong className="ml-1 text-[17px] font-extrabold text-[#FFD60A] sm:text-[18px]">M</strong></p>
+                <p className="jobly-public-home-footer-signature mt-1 text-[13px] leading-none text-[#5F6670] sm:mt-2 sm:text-[15px]">Built with <span ref={heartTargetRef} className="mx-[2px] inline-block h-[14px] w-[22px] align-[-3px]" aria-hidden="true">&nbsp;</span> by Team <strong className="ml-1 text-[17px] font-extrabold text-[#FFD60A] sm:text-[18px]">M</strong></p>
               </>
             )}
           </motion.div>
         </AnimatePresence>
       </footer>}
     </div>
-    {screen === "welcome" && heartPath && <motion.span className="pointer-events-none fixed left-0 top-0 z-[60] text-[16px] leading-none drop-shadow-[0_2px_5px_rgba(239,68,68,0.28)]" initial={{ x: heartPath.startX, y: heartPath.startY, scale: 0.94 }} animate={{ x: heartPath.endX, y: heartPath.endY, scale: [0.94, 1.06, 1] }} transition={{ x: { duration: 2.65, ease: [0.16, 1, 0.3, 1] }, y: { duration: 2.65, ease: [0.16, 1, 0.3, 1] }, scale: { delay: 2.65, duration: 0.5, ease: "easeOut" } }} aria-hidden="true">❤️</motion.span>}
+    {screen === "welcome" && heartPath && (
+      <motion.span
+        className="pointer-events-none fixed left-0 top-0 z-[60] grid h-[18px] w-[18px] place-items-center text-[16px] leading-none drop-shadow-[0_2px_5px_rgba(239,68,68,0.28)]"
+        initial={{ x: heartPath.startX, y: heartPath.startY, scale: 0.94 }}
+        animate={{ x: heartPath.endX, y: heartPath.endY, scale: [0.94, 1.06, 1] }}
+        transition={{
+          x: { duration: 2.65, ease: [0.16, 1, 0.3, 1] },
+          y: { duration: 2.65, ease: [0.16, 1, 0.3, 1] },
+          scale: { duration: 2.65, ease: "easeOut" },
+        }}
+        aria-hidden="true"
+      >
+        <span className="block">❤️</span>
+      </motion.span>
+    )}
   </main>;
 }
