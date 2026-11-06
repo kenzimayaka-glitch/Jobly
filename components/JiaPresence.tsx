@@ -440,7 +440,7 @@ export default function JiaPresence() {
       const proposedType = out.proposedAction?.type as string | undefined;
       appendConversationMessage("assistant", out.message || "Je suis prête à t’aider.", nextSources);
       const sourceSuffix = nextSources.length
-        ? `\n\nSources vérifiables : ${nextSources.slice(0, 3).map((source) => source.title || source.url).join(" · ")}`
+        ? `\n\nSources vérifiables : ${nextSources.slice(0, 3).map((source: { title: string; url: string }) => source.title || source.url).join(" · ")}`
         : "";
       if (proposedType) setPendingAction({ type: proposedType, message: command, target: out.proposedAction?.target });
       say(`${out.message || "Je suis prête à t’aider."}${sourceSuffix}`, {
