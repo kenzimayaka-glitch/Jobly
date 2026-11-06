@@ -64,7 +64,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ message: "Prestataire Mobility vérifié et actif requis." }, { status: 403 });
     }
     const { data: current, error: currentError } = await db.from("MobilityProviderAssignment")
-      .select("id,status,mobilityRequestId")
+      .select("id,status,mobilityRequestId,acceptedAt,completedAt")
       .eq("id", assignmentId)
       .eq("providerId", provider.id)
       .maybeSingle();
@@ -108,7 +108,16 @@ export async function PATCH(req: NextRequest) {
       visibleToInstitution: true,
     });
     if (eventError) {
-      return NextResponse.json({ message: "L'état a changé, mais l'événement d'audit n'a pas pu être écrit: " + eventError.message, assignment: data }, { status: 500 });
+      const rollback = await db.from("MobilityProviderAssignment").update({
+        status: current.status,
+        acceptedAt: current.acceptedAt,
+        completedAt: current.completedAt,
+        updatedAt: new Date().toISOString(),
+      }).eq("id", assignmentId).eq("providerId", provider.id);
+      if (rollback.error) {
+        return NextResponse.json({ message: "L'audit a échoué et le retour arrière a aussi échoué: " + rollback.error.message, auditError: eventError.message, rollbackError: true }, { status: 500 });
+      }
+      return NextResponse.json({ message: "Transition annulée car l'événement d'audit n'a pas pu être écrit: " + eventError.message, rolledBack: true }, { status: 500 });
     }
     return NextResponse.json({ assignment: data });
   } catch (error) {
