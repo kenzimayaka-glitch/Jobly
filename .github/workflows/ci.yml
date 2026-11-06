@@ -166,6 +166,8 @@ jobs:
 
       - name: Company logo fallback regression tests
         run: pnpm test:company-logo-fallback
+      - name: Authentication and Google account selection regression tests
+        run: pnpm test:auth
 
       - name: P2 Jobly offer watermark regression tests
         run: pnpm test:p2-offer-watermark

@@ -17,10 +17,11 @@ test("existing username/password authentication is not blocked by new-password s
   assert.match(home, /if \(!password\) return setMessage/);
 });
 
-test("username login errors are visible on the login screen", () => {
+test("username login errors are visible on the login screen exactly once", () => {
   const loginScreen = home.slice(home.indexOf('{screen === "login" && ('), home.indexOf('{screen === "signup" && ('));
   assert.match(loginScreen, /role="alert"/);
   assert.match(loginScreen, /aria-live="assertive"/);
+  assert.equal((loginScreen.match(/aria-live="assertive"/g) || []).length, 1);
 });
 
 test("Google OAuth asks the user to choose an account", () => {
@@ -35,11 +36,12 @@ test("Google callback gates incomplete internal identities through onboarding", 
   assert.match(onboarding, /Finaliser mon compte/);
 });
 
-test("a legacy account is linked only after Supabase validates the password", () => {
+test("legacy account linking and display-name recovery happen only after password verification", () => {
   const signInIndex = loginRoute.indexOf("signInWithPassword");
-  const linkIndex = loginRoute.indexOf(".update({ authUserId: data.user.id");
+  const linkIndex = loginRoute.indexOf("const updates:");
   assert.ok(signInIndex >= 0 && linkIndex > signInIndex);
   assert.match(loginRoute, /\.is\("authUserId", null\)/);
+  assert.match(loginRoute, /\.ilike\("displayName", username\)/);
   assert.match(loginRoute, /account_link_conflict/);
 });
 
@@ -51,6 +53,7 @@ test("signup does not reject the account's own existing username row", () => {
 test("Google profile details are requested when Google metadata is incomplete", () => {
   assert.match(onboarding, /Téléphone/);
   assert.match(onboarding, /Pays \(code ISO\)/);
+  assert.match(onboarding, /Choisis un username de 1 à 40 caractères/);
   assert.match(onboarding, /draft\.firstName/);
   assert.match(onboarding, /draft\.lastName/);
 });
