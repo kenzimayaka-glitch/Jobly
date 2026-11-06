@@ -238,6 +238,62 @@ export function pickJiaVariation<T extends JiaVariationItem>(
 }
 
 /**
+ * Selects one of several compatible layouts for automatic presentation.
+ * Context narrows the pool; recent history prevents the same scene from
+ * repeating. This selector changes presentation only, never message content.
+ */
+export function pickJiaPresentationLayout(
+  role: JiaExperienceRole,
+  intent: JiaExperienceIntent | undefined,
+  recentlyUsed: readonly JiaPresentationMode[] = [],
+  random: () => number = Math.random,
+): JiaPresentationMode {
+  const primary = layoutForIntent(role, intent);
+  const candidates: readonly JiaPresentationMode[] = (() => {
+    switch (intent) {
+      case "opportunities":
+      case "jobs":
+        return ["gallery", "explorer", "stage", "messenger"];
+      case "candidate_search":
+      case "recruitment":
+        return ["gallery", "workspace", "stage", "messenger"];
+      case "document":
+      case "profile":
+      case "cv":
+      case "application":
+      case "analytics":
+      case "operations":
+        return ["workspace", "stage", "messenger", "interactive"];
+      case "questionnaire":
+      case "onboarding":
+      case "guided":
+        return ["interactive", "workspace", "messenger", "stage"];
+      case "exploration":
+      case "mobility":
+      case "market":
+      case "program":
+        return ["explorer", "gallery", "stage", "messenger"];
+      case "presentation":
+      case "explain":
+        return ["stage", "gallery", "explorer", "messenger"];
+      case "success":
+        return ["stage", "gallery", "messenger", "interactive"];
+      case "error":
+        return ["messenger", "workspace", "interactive"];
+      default:
+        return role === "RECRUITER"
+          ? ["messenger", "gallery", "workspace", "stage"]
+          : role === "PARTNER"
+            ? ["messenger", "explorer", "gallery", "stage"]
+            : ["messenger", "stage", "gallery", "explorer"];
+    }
+  })();
+  const pool = candidates.includes(primary) ? candidates : [primary, ...candidates];
+  const picked = pickJiaVariation(pool.map((id) => ({ id })), recentlyUsed, random);
+  return picked && isJiaPresentationMode(picked.id) ? picked.id : primary;
+}
+
+/**
  * Counts distinct registered variation IDs for every required family.
  * An empty/missing family is incomplete; catalogue completion is never inferred
  * from the theoretical number of combinations.
