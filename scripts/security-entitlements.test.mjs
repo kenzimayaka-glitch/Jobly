@@ -293,3 +293,51 @@ test("CV export, paid CV payment and Career Journey evidence are throttled", () 
     assert.match(source, /requireIp: true/);
   }
 });
+
+
+test("admin CEO and Finance routes are role-gated, throttled and non-cacheable", () => {
+  const ceo = read("../app/api/admin/jia/ceo/route.ts");
+  const intelligence = read("../app/api/admin/jia/intelligence/route.ts");
+  const chat = read("../app/api/admin/jia/chat/route.ts");
+  const finance = read("../app/api/admin/events/manual-payments/route.ts");
+  const review = read("../app/api/admin/events/manual-payments/[submissionId]/review/route.ts");
+  assert.match(ceo, /String\(user\.role\)!==\"ADMIN\"/);
+  assert.match(ceo, /scope:"admin-jia-ceo-snapshot"/);
+  assert.match(ceo, /Cache-Control/);
+  assert.match(intelligence, /scope:"admin-jia-transversal-intelligence"/);
+  assert.match(intelligence, /Cache-Control/);
+  assert.match(chat, /scope:"admin-jia-ceo-chat"/);
+  assert.match(chat, /rateLimited/);
+  assert.match(chat, /message\.length>12000/);
+  assert.match(finance, /\["ADMIN","FINANCE"\]/);
+  assert.match(finance, /scope:"admin-event-manual-payment-list"/);
+  assert.match(finance, /Cache-Control/);
+  assert.match(review, /\["ADMIN","FINANCE"\]/);
+  assert.match(review, /scope:"admin-event-manual-payment-review"/);
+});
+
+test("Mobility administrative disbursement, program and provider actions are rate-limited and audited", () => {
+  const fundingPending = read("../app/api/mobility/admin/funding/pending/route.ts");
+  const fundingVerify = read("../app/api/mobility/admin/funding/verify/route.ts");
+  const programs = read("../app/api/mobility/admin/programs/route.ts");
+  const programVerify = read("../app/api/mobility/admin/programs/verify/route.ts");
+  const providers = read("../app/api/mobility/admin/providers/route.ts");
+  const providerVerify = read("../app/api/mobility/admin/providers/verify/route.ts");
+  const generatePass = read("../app/api/mobility/admin/generate-pass/route.ts");
+  assert.match(fundingPending, /scope: "mobility-admin-funding-pending"/);
+  assert.match(fundingVerify, /scope: "mobility-admin-funding-verify"/);
+  assert.match(fundingVerify, /MOBILITY_FUNDING_DISBURSEMENT_VERIFY_ATTEMPT/);
+  assert.match(fundingVerify, /from\("CEOAuditLog"\)\.insert/);
+  assert.match(programs, /scope: "mobility-admin-program-list"/);
+  assert.match(programVerify, /scope: "mobility-admin-program-verify"/);
+  assert.match(programVerify, /MOBILITY_PROGRAM_BUDGET_VERIFY_ATTEMPT/);
+  assert.match(providers, /scope: "mobility-admin-provider-list"/);
+  assert.match(providerVerify, /scope: "mobility-admin-provider-verify"/);
+  assert.match(providerVerify, /MOBILITY_PROVIDER_KYC_REVIEW_ATTEMPT/);
+  assert.match(generatePass, /scope:"mobility-admin-generate-pass"/);
+  assert.match(generatePass, /MOBILITY_PASS_MANUALLY_ISSUED/);
+  for (const source of [fundingPending,fundingVerify,programs,programVerify,providers,providerVerify,generatePass]) {
+    assert.match(source, /enforceApiRateLimit/);
+    assert.match(source, /requireIp:true|requireIp: true/);
+  }
+});
