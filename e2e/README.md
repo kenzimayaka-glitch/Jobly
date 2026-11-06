@@ -70,6 +70,16 @@ Avant le build et le navigateur, `e2e/lot0-preflight.mjs` exécute des contrôle
 
 Le contrôle n'effectue aucune création de compte, connexion interactive, écriture SQL, migration, envoi d'e-mail/SMS, opération Storage, exécution Edge Function ou appel de paiement. Il ne lit ni n'utilise aucun secret de JOBLY-PROD.
 
+### Résultats SQL en lecture seule — recontrôle du 6 novembre
+
+- `JOBLY-E2E` : 179 tables publiques, 179/179 avec RLS, 215 politiques.
+- Les 25 tables RLS sans politique explicite n'accordent aucun privilège direct à `anon` ou `authenticated` ; elles restent réservées au serveur.
+- Comparaison des noms de tables avec `JOBLY-PROD` : les 165 tables de Production sont présentes dans E2E ; aucune table Production n'est absente. E2E comporte 14 tables supplémentaires liées aux espaces Admin, aux conversations J'IA et à l'Analytics.
+- Comptes E2E : 1 utilisateur Auth et 1 ligne `User` avec rôle ADMIN ; `authUserId` relié, `AdminIdentity` active et 4 espaces Admin activés.
+- Profils métier : 0 profil Talent et 0 profil Recruteur. Aucun compte métier synthétique n'est donc prêt pour les scénarios authentifiés.
+- Entreprises : 17 ; offres de référence : 31 ; fonctions Edge déployées : 0.
+
+Ces vérifications n'ont exécuté que des requêtes `SELECT` sur JOBLY-E2E et JOBLY-PROD. Aucune donnée n'a été modifiée. Les deux environnements conservent des historiques de migrations différents ; la comparaison ci-dessus porte sur les objets du schéma, pas sur l'égalité des historiques de migrations.
 ### Blocages manuels restants
 
 Les secrets suivants doivent exister dans les secrets Actions du dépôt, avec des valeurs issues exclusivement de JOBLY-E2E :
