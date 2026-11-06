@@ -13,7 +13,6 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import java.io.File
 import java.security.MessageDigest
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 /**
@@ -43,8 +42,9 @@ class PaymentSmsReceiver : BroadcastReceiver() {
             PaymentSmsDeviceCredentials.encrypt(context, smsBody)
         }.getOrNull() ?: return
 
-        val queuedFile = File(queueDir, credentials.deviceId + "__" + UUID.randomUUID() + ".enc")
+        val queuedFile = File(queueDir, credentials.deviceId + "__" + fingerprint + ".enc")
         try {
+            if (!queuedFile.createNewFile()) return
             queuedFile.writeText(encryptedBody, Charsets.UTF_8)
         } catch (_: Exception) {
             queuedFile.delete()
