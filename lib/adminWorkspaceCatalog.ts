@@ -19,7 +19,7 @@ export const ADMIN_WORKSPACE_TEMPLATES: AdminWorkspaceTemplate[] = [
     label: "Support",
     title: "Support & accompagnement",
     description: "Outils de diagnostic et de reprise des parcours Jobly.",
-    boundary: "Le dépôt ne contient pas encore de file de tickets utilisateurs centralisée. Cet espace relie les outils de support réellement disponibles sans afficher de faux dossiers.",
+    boundary: "La file de tickets Jobly est opérationnelle : demandes authentifiées, affectation, priorités, réponses publiques et notes internes privées. Les outils Mobility et J’IA servent à l’escalade des dossiers.",
     lanes: [
       { title: "Dossiers opérationnels", subtitle: "Parcours et prestataires", cards: [
         {
@@ -62,7 +62,7 @@ export const ADMIN_WORKSPACE_TEMPLATES: AdminWorkspaceTemplate[] = [
     label: "Modération",
     title: "Modération & confiance",
     description: "Examiner les propositions Bon Plans en attente de décision.",
-    boundary: "La file connectée est celle de BonPlan PENDING_REVIEW. La modération Community est actuellement automatisée par J’IA ; aucun panneau humain distinct n'est déclaré ici.",
+    boundary: "Deux files réelles sont raccordées : BonPlan PENDING_REVIEW et les signalements Community. Les décisions de masquage, restauration, rejet et classement sont limitées au compte ADMIN maître et auditées.",
     lanes: [
       { title: "À examiner", subtitle: "Propositions en attente", cards: [] },
       { title: "Outils de contrôle", subtitle: "Contrôle des flux", cards: [
