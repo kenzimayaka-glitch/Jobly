@@ -33,7 +33,7 @@ function decodeSessionId(token: string): string | null {
 }
 
 export function getAuthSessionId(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "");
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   return token ? decodeSessionId(token) : null;
 }
 
@@ -47,7 +47,7 @@ function inferredDeviceLabel(userAgent: string) {
 }
 
 export async function getAuthUser(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "");
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) return null;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
