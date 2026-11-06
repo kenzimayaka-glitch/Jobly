@@ -83,6 +83,14 @@ export default function AdminPaymentSmsPage() {
       setMessage("Maximum 10 noms d’expéditeur exacts par profil.");
       return;
     }
+    const normalizedAllowlist = new Set(allowlist.map((value) => value.normalize("NFKC").trim().replace(/\s+/g, " ").toUpperCase()));
+    const senderAlreadyUsed = devices.some((item) =>
+      item.senderIds.some((sender) => normalizedAllowlist.has(sender.normalize("NFKC").trim().replace(/\s+/g, " ").toUpperCase()))
+    );
+    if (senderAlreadyUsed) {
+      setMessage("Cet expéditeur est déjà associé à un autre profil marchand sur ce téléphone. Vérifie les identifiants exacts pour éviter tout rapprochement ambigu.");
+      return;
+    }
     const normalizedProvider = provider;
     if (devices.some((item) => item.provider === normalizedProvider && item.merchantAccount.replace(/\D/g, "") === merchantAccount.replace(/\D/g, ""))) {
       setMessage("Ce compte marchand est déjà appairé dans Jobly.");
