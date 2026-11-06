@@ -39,7 +39,7 @@ function base64ToBytes(value: string) {
 async function deriveBackupKey(passphrase: string, salt: Uint8Array) {
   const material = await crypto.subtle.importKey("raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"]);
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: KDF_ITERATIONS, hash: "SHA-256" },
+    { name: "PBKDF2", salt: salt.buffer.slice(salt.byteOffset, salt.byteOffset + salt.byteLength) as ArrayBuffer, iterations: KDF_ITERATIONS, hash: "SHA-256" },
     material,
     { name: "AES-GCM", length: 256 },
     false,
@@ -180,7 +180,11 @@ export default function SettingsPage() {
       const salt = crypto.getRandomValues(new Uint8Array(16));
       const iv = crypto.getRandomValues(new Uint8Array(12));
       const key = await deriveBackupKey(passphrase, salt);
-      const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, archive);
+      const encrypted = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv: iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength) as ArrayBuffer },
+        key,
+        archive.buffer.slice(archive.byteOffset, archive.byteOffset + archive.byteLength) as ArrayBuffer,
+      );
       const envelope = {
         format: BACKUP_FORMAT,
         version: BACKUP_VERSION,
