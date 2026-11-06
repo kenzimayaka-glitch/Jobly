@@ -37,6 +37,8 @@ Branche : `feat/security-red-remediation-20261106` (non fusionnée tant que les 
 - Recherche d'entreprise : limiteur IP sur Google Places/Nominatim et plafonds de longueur des critères, pour contenir les appels API externes.
 - Administration : limiteurs séparés pour J'IA CEO, revue des paiements manuels, codes promo, registres et validations Mobility; les tentatives de confirmation de décaissement, activation budgétaire, revue KYC prestataire et émission manuelle de pass sont journalisées dans `CEOAuditLog` avant mutation.
 - Réponses des tableaux admin sensibles et des URLs signées : `Cache-Control: private, no-store` et variation sur Authorization.
+- Mobility prestataire : limiteurs sur demande/édition de profil, dépôt KYC, services, affectations et rapports; stockage KYC privé avec signature PDF/JPEG/PNG; exports CSV/XLSX et URLs KYC signées non-cacheables.
+- Mobility Talent/recruteur : limites sur création de dossier, candidatures programme, convention employeur, garantie recruteur et validation de subvention, tout en gardant le contrôle de propriété du dossier, la règle d'éligibilité 50 % et le rôle de l'acteur habilité.
 
 ## Contrôles externes toujours requis
 
