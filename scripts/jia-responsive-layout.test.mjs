@@ -61,3 +61,28 @@ test("mobile choices, status badges and business cards preserve readable wrappin
   assert.match(blocks, /min-h-11 min-w-0 cursor-pointer items-start/);
   assert.match(blocks, /flex flex-wrap items-start justify-between gap-2/);
 });
+
+
+test("Stage Spotlight is optional, non-modal and keeps the conversation log mounted", () => {
+  assert.ok(surface.includes("aria-expanded={spotlightOpen}"));
+  assert.ok(surface.includes('aria-controls="jia-spotlight-panel"'));
+  assert.ok(surface.includes('aria-label={spotlightOpen ? "Masquer le Spotlight J’IA" : "Afficher le Spotlight J’IA"}'));
+  assert.ok(surface.includes('layout === "stage" && spotlightOpen'));
+  assert.ok(surface.includes('data-jia-spotlight="active"'));
+  assert.ok(surface.includes("setSpotlightOpen(false)"));
+
+  const panelStart = surface.indexOf("<motion.aside");
+  const panelEnd = surface.indexOf("</motion.aside>", panelStart);
+  assert.ok(panelStart >= 0 && panelEnd > panelStart, "Spotlight panel must be present");
+  const panel = surface.slice(panelStart, panelEnd);
+  assert.ok(panel.includes('role="region"'));
+  assert.ok(panel.includes("relative z-10"));
+  assert.doesNotMatch(panel, /aria-modal|fixed inset/);
+  assert.ok(surface.indexOf('role="log"') > panelEnd, "conversation log remains mounted below Spotlight");
+
+  // The compact header avatar is removed while the larger Spotlight avatar is active.
+  assert.ok(surface.includes("{!spotlightOpen && ("));
+  assert.ok(surface.includes("<JIA3D speaking={speaking} appearanceId={JIA_AVATAR_APPEARANCES[variationIndex].id}/>"));
+  assert.ok(surface.includes('if (event.key !== "Escape") return;'));
+  assert.ok(surface.includes("if (spotlightOpen) {"));
+});

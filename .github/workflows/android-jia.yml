@@ -1,4 +1,4 @@
-name: Android J'IA WebView
+name: J'IA Android WebView
 
 on:
   pull_request:
@@ -108,5 +108,7 @@ jobs:
           disable-animations: true
           script: |
             adb devices -l
-            trap 'adb logcat -d -t 500 || true' EXIT
+            # Capture emulator logs, then stop Chromium/Android crash reporters
+            # that can keep the emulator-runner shutdown process alive on CI.
+            trap 'adb logcat -d -t 500 || true; pkill -TERM -x crashpad_handler || true; sleep 2; pkill -KILL -x crashpad_handler || true' EXIT
             timeout 12m gradle -p apps/android --no-daemon --console=plain -PjoblyBaseUrl=https://jobly.test :app:connectedDebugAndroidTest --stacktrace
