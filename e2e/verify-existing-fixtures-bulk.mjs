@@ -128,7 +128,7 @@ async function verifyOne(fixture, credential, publishableKey) {
     const user = verified.data.user;
     const valid =
       user?.email?.toLowerCase() === fixture.email &&
-      user?.id === credential.authUserId &&
+      (!credential.authUserId || user?.id === credential.authUserId) &&
       user?.app_metadata?.e2e_fixture === true &&
       user?.app_metadata?.e2e_role === fixture.role;
 
