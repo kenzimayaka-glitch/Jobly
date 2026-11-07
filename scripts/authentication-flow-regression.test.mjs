@@ -234,3 +234,23 @@ test("CV Studio persists and reloads free-text experience and education without 
   assert.ok(applicationCv.includes("Expérience déclarée/importée (texte CV non structuré)"));
   assert.ok(applicationCv.includes("Formation déclarée/importée (texte CV non structuré)"));
 });
+
+test("Talent Showcase plan and image quotas are enforced by the server with Promo-aware entitlements", () => {
+  const entitlement = read("lib/talentShowcaseEntitlements.ts");
+  const showcase = read("app/api/auth/talent-showcase/route.ts");
+  const pitch = read("app/api/auth/video-pitch/route.ts");
+  const images = read("app/api/auth/talent-showcase/image/route.ts");
+  const advertising = read("app/api/auth/talent-ad/route.ts");
+  assert.match(entitlement, /getActivePlanCode\(supabase, userId, "TALENT"\)/);
+  for (const route of [showcase, pitch, images, advertising]) {
+    assert.match(route, /getTalentShowcasePlan\(/);
+    assert.doesNotMatch(route, /from\(["']Subscription["']\)\.select\(["']plan/);
+  }
+  assert.match(images, /TALENT_SHOWCASE_LIMITS\[plan\]\.images/);
+  assert.match(images, /existingImages\.length >= limit/);
+  assert.match(images, /ALLOWED_TYPES/);
+  assert.match(images, /actionImages: nextImages/);
+  assert.match(showcase, /requestedImages\.length > limit/);
+  assert.match(showcase, /invalidAdditions\.length/);
+  assert.match(showcase, /storage\.from\("talent-showcase"\)\.remove\(removedPaths\)/);
+});
