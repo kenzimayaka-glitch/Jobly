@@ -22,7 +22,7 @@ test("routine Jobly searches and personal data stay inside Jobly instead of bein
 test("the authenticated conversational Brain forwards explicit Internet intent into the unified cognitive cycle", () => {
   const route = read("app/api/jia/brain/route.ts");
   const brain = read("lib/jia/brain.ts");
-  assert.match(route, /const useInternetBrain =assert.match(route, /const includeInternet\\s*=\\s*body\\?\\.includeInternet\\s*===\\s*true\\s*\\|\\|\\s*Boolean\\(explicitInternetQuery\\)\\s*\\|\\|\\s*shouldUseInternetBrain\\(message\\)/););
+  assert.match(route, /const useInternetBrain = shouldUseInternetBrain\(message\)/);
   assert.match(route, /includeInternet: useInternetBrain/);
   assert.match(route, /internetQuery: useInternetBrain \? message : undefined/);
   assert.match(brain, /return shouldUseInternetBrain\(message\)/);
@@ -32,7 +32,7 @@ test("the direct cognitive-cycle API also supports automatic explicit web intent
   const route = read("app/api/jia/cycle/route.ts");
   assert.match(route, /shouldUseInternetBrain\(message\)/);
   assert.match(route, /const explicitInternetQuery/);
-  assert.match(route, /const includeInternet = body\?\.includeInternet === true \|\| Boolean\(explicitInternetQuery\) \|\| shouldUseInternetBrain\(message\)/);
+  assert.match(route, /const includeInternet\s*=\s*body\?\.includeInternet\s*===\s*true\s*\|\|\s*Boolean\(explicitInternetQuery\)\s*\|\|\s*shouldUseInternetBrain\(message\)/);
 });
 
 test("external observations are ingested through the cognitive evidence path and Internet Brain can still be globally disabled", () => {
@@ -40,6 +40,6 @@ test("external observations are ingested through the cognitive evidence path and
   const policy = read("lib/jia/internet/policy.ts");
   assert.match(runtime, /observeInternet/);
   assert.match(runtime, /ingestExternalSignal\(/);
-  assert.match(policy, /JIA_INTERNET_ENABLED\\s*!==\\s*"false"/);
-  assert.match(policy, /mode\\s*!==\\s*"OFF"/);
+  assert.match(policy, /JIA_INTERNET_ENABLED\s*!==\s*"false"/);
+  assert.match(policy, /mode\s*!==\s*"OFF"/);
 });
