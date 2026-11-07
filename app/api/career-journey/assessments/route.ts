@@ -31,6 +31,7 @@ async function rollbackAssessmentAttempt(args: {
 export async function GET(request: NextRequest) {
   try {
     const ctx = await getJourneyReadOnly(request);
+    if (!ctx.journey) return NextResponse.json({ ok: true, assessments: [] });
     const { data, error } = await ctx.supabase.from("CareerCompetencyAssessment").select("*, CareerCompetencyAttempt(*)").eq("userId", ctx.user.id).eq("journeyId", ctx.journey.id).order("createdAt", { ascending: false });
     if (error) throw new Error(error.message);
     return NextResponse.json({ ok: true, assessments: data ?? [] });
