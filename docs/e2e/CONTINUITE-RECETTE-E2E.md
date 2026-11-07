@@ -184,6 +184,10 @@ Aucun lot ne doit être passé au vert par simple absence d'erreur dans une suit
 - rechercher si un fichier `.env.e2e.local`, `.env.local` ou `.env` contient une URL JOBLY-E2E et une clé privée correspondante, sans imprimer la clé ;
 - conserver l'information de disponibilité sous forme PRESENT/ABSENT seulement.
 
+### Étape A2 — vérification des anciens mots de passe (lecture seule)
+
+Le script `e2e/verify-existing-fixtures.mjs` est disponible sur la branche. Après synchronisation, exécuter `node e2e/verify-existing-fixtures.mjs`, puis ouvrir `artifacts/e2e/fixture-password-verification.json`. Il recherche `.e2e-fixtures.json` ou une sauvegarde reconnue, tente un vrai `signInWithPassword` pour chacun des trois rôles et valide la session avec `getUser`. Il n'utilise aucune clé privée, ne modifie aucun mot de passe, compte ou profil, et n'imprime aucun secret. Si aucun fichier d'identifiants n'est disponible, le résultat correct est `NON_TESTABLE` ; ne pas remplacer cela par un provisionnement complet. En présence de plusieurs sauvegardes, indiquer explicitement le chemin d'une seule au script.
+
 ### Étape B — tester les anciens identifiants avec l'opérateur
 
 Si les anciens identifiants sont récupérés depuis une source sûre :
@@ -237,7 +241,7 @@ Une fois les fixtures locales correctement restaurées, restaurer le runtime JOB
 
 ## 9. Point exact de reprise au moment de cette consolidation
 
-**À faire en premier :** attendre le retour de l'opérateur sur le test des trois anciens identifiants, ou sur l'existence d'une sauvegarde locale. Ne pas redemander une clé et ne pas relancer le runner avant ce retour.
+**À faire en premier :** synchroniser la branche, exécuter `node e2e/verify-existing-fixtures.mjs` et transmettre le rapport expurgé. Si le résultat est `NON_TESTABLE`, demander à l'opérateur de vérifier ses sauvegardes locales ; ne pas redemander une clé et ne pas relancer le runner.
 
 **État attendu du prochain échange :**
 - Talent : PASS / FAIL / NON TESTABLE.
