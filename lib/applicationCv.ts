@@ -77,10 +77,10 @@ export function buildTailoredCv(args: {
     relevantExperience.length ? relevantExperience.map((e) => {
       const dates = [dateLabel(e.startDate), dateLabel(e.endDate)].filter(Boolean).join(" – ");
       return `${e.title} — ${e.company}${dates ? ` (${dates})` : ""}\n${e.description || "Description non indiquée dans le profil."}`;
-    }).join("\n\n") : profile.experienceSummary?.trim() || "Aucune expérience renseignée dans le profil.",
+    }).join("\n\n") : profile.experienceSummary?.trim() ? `Expérience déclarée/importée (texte CV non structuré) :\n${profile.experienceSummary.trim()}` : "Aucune expérience renseignée dans le profil.",
     "",
     "FORMATION",
-    education.length ? education.map((e) => `${e.degree || "Formation"}${e.field ? ` — ${e.field}` : ""} — ${e.institution}`).join("\n") : profile.educationSummary?.trim() || "Aucune formation renseignée dans le profil.",
+    education.length ? education.map((e) => `${e.degree || "Formation"}${e.field ? ` — ${e.field}` : ""} — ${e.institution}`).join("\n") : profile.educationSummary?.trim() ? `Formation déclarée/importée (texte CV non structuré) :\n${profile.educationSummary.trim()}` : "Aucune formation renseignée dans le profil.",
     "",
     `CANDIDATURE CIBLÉE : ${jobTitle}`,
   ];
