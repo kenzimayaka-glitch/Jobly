@@ -466,6 +466,12 @@ function reportMarkdown(report) {
     "|---|---|---:|---|---|---:|---:|---|",
   ];
   for (const item of report.lots) {
+    const evidence = item.log ? "Journaux : " + item.log : null;
+    const limitation = item.detail ?? item.error ?? null;
+    const proof = [
+      evidence,
+      limitation ? "Limite : " + limitation : null,
+    ].filter(Boolean).join(" — ") || "—";
     lines.push(
       "| " + item.id +
       " | " + (item.severity ?? "P0") +
@@ -474,7 +480,7 @@ function reportMarkdown(report) {
       " | " + item.label +
       " | **" + item.status + "**" +
       " | " + (item.tests ?? 0) +
-      " | " + (item.log ?? item.detail ?? item.error ?? "—") + " |"
+      " | " + proof + " |"
     );
   }
   lines.push("", "## Anomalies regroupées par signature", "");
