@@ -45,9 +45,9 @@ export async function PUT(request: NextRequest) {
 
     if (Array.isArray(body.actionImages)) {
       const currentImages = Array.isArray(user.actionImages)
-        ? [...new Set(user.actionImages.filter((value: unknown): value is string => typeof value === "string" && value.trim()).map((value: string) => value.trim()))]
+        ? [...new Set(user.actionImages.filter((value: unknown): value is string => typeof value === "string" && Boolean(value.trim())).map((value: string) => value.trim()))]
         : [];
-      const requestedImages = [...new Set(body.actionImages.filter((value: unknown): value is string => typeof value === "string" && value.trim()).map((value: string) => value.trim()))];
+      const requestedImages = [...new Set(body.actionImages.filter((value: unknown): value is string => typeof value === "string" && Boolean(value.trim())).map((value: string) => value.trim()))];
       const additions = requestedImages.filter((url) => !currentImages.includes(url));
       const limit = plan === "FREE" ? 0 : TALENT_SHOWCASE_LIMITS[plan].images;
 
