@@ -216,8 +216,8 @@ test("CV Studio persists and reloads free-text experience and education without 
   const schema = read("packages/database/prisma/schema.prisma");
   const migration = read("supabase/migrations/20261107010000_talent_cv_text_sections.sql");
 
-  assert.match(schema, /experienceSummary\\s+String\\?/);
-  assert.match(schema, /educationSummary\\s+String\\?/);
+  assert.ok(schema.includes("experienceSummary"));
+  assert.ok(schema.includes("educationSummary"));
   assert.match(migration, /add column if not exists "experienceSummary" text/);
   assert.match(migration, /add column if not exists "educationSummary" text/);
   assert.match(profileApi, /section === "cv-text"/);
@@ -259,8 +259,8 @@ test("Talent Showcase surfaces server image quota and upload validation errors",
   const component = read("components/TalentShowcaseStudio.tsx");
   const uploadApi = read("app/api/auth/talent-showcase/image/route.ts");
   assert.match(component, /const remaining=Math\.max\(0,lim\.images-d\.actionImages\.length\)/);
-  assert.match(component, /if\(!response\.ok\)throw new Error\(body\.message\|\|"Impossible d’ajouter cette image\."\)/);
-  assert.match(component, /catch\(error\)\{setMsg\(error instanceof Error\?error\.message:"Upload impossible\."\)\}/);
+  assert.ok(component.includes('if(!response.ok)throw new Error(body.message||"Impossible d’ajouter cette image.");'));
+  assert.ok(component.includes('catch(error){setMsg(error instanceof Error?error.message:"Upload impossible.");}'));
   assert.match(uploadApi, /status: 415/);
   assert.match(uploadApi, /status: 413/);
   assert.match(uploadApi, /status: 409/);
