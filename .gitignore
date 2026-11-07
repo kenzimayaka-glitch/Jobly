@@ -45,3 +45,8 @@ artifacts/
 .DS_Store
 Thumbs.db
 *.log
+
+# Temporary E2E credential reset state (sensitive)
+.e2e-fixture-password-reset.pending.json
+.e2e-fixture-password-reset.pending.json.tmp-*
+.e2e-fixtures.json.tmp-*
