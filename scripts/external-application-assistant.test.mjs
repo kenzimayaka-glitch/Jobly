@@ -172,3 +172,16 @@ test("manual phone and external channels never enter the email bulk basket or Gm
   assert.ok(review.includes("Action manuelle nécessaire"));
   assert.ok(review.includes("Confirmer et envoyer la candidature"));
 });
+
+test("fresh recruiter offers remain visible even when application must continue on promoter site", () => {
+  const feed = read("app/api/jobs/route.ts");
+  const detail = read("app/api/jobs/[id]/route.ts");
+  const recruiterQuery = feed.match(/supabase\.from\("RecruiterJob"\)\.select\("\*"\)([^\n]*)/);
+  assert.ok(recruiterQuery, "Recruiter offers query must exist.");
+  assert.match(recruiterQuery[1], /\.eq\("status","published"\)/);
+  assert.doesNotMatch(recruiterQuery[1], /\.eq\("applicationReady",\s*true\)/);
+  assert.match(feed, /Listing visibility is independent from application readiness/);
+  assert.match(feed, /applicationReady:Boolean\(job\.applicationReady\)/);
+  assert.match(detail, /applicationTargetUrl|applicationUrl|sourceUrl/);
+  assert.match(detail, /Ouvrir l’annonce chez le promoteur|Voir chez le promoteur/);
+});
