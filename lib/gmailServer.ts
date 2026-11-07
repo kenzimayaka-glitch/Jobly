@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { adminClient, ensureUser, getAuthUser } from "./server-auth";
 import type { NextRequest } from "next/server";
+import { getActivePlanCode } from "./entitlements";
 
 function encryptionKey() {
   const root = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -32,9 +33,27 @@ export async function recruiterContext(req: NextRequest) {
   return { authUser, supabase, user };
 }
 
+const RECRUITER_GMAIL_PLANS = new Set(["PREMIUM", "PRO"]);
+
+export function hasRecruiterGmailEntitlement(plan: string): boolean {
+  return RECRUITER_GMAIL_PLANS.has(String(plan || "").toUpperCase());
+}
+
+async function assertRecruiterGmailEntitlement(context: { supabase: any; user: any }) {
+  const role = String(context.user.role || "").toUpperCase();
+  if (!["RECRUITER", "ADMIN"].includes(role)) {
+    throw Object.assign(new Error("La connexion Gmail est réservée aux comptes recruteur."), { status: 403 });
+  }
+  const plan = await getActivePlanCode(context.supabase, context.user.id, "RECRUITER");
+  if (!hasRecruiterGmailEntitlement(plan)) {
+    throw Object.assign(new Error("La connexion Gmail recruteur nécessite une formule Premium ou Pro active."), { status: 403 });
+  }
+}
+
 export async function saveGmailTokens(req: NextRequest, payload: { email: string; accessToken?: string | null; refreshToken?: string | null; scopes?: string[] }) {
   const context = await recruiterContext(req);
   if (!context) throw new Error("Session Jobly requise.");
+  await assertRecruiterGmailEntitlement(context);
   const now = new Date();
   const { supabase, user } = context;
   const record = {
@@ -61,6 +80,7 @@ function googleClientCredentials() {
 export async function getGmailAccessToken(req: NextRequest) {
   const context = await recruiterContext(req);
   if (!context) throw new Error("Session Jobly requise.");
+  await assertRecruiterGmailEntitlement(context);
   const { data: connection, error } = await context.supabase.from("RecruiterGmailConnection").select("*").eq("recruiterUserId", context.user.id).maybeSingle();
   if (error) throw new Error(error.message);
   if (!connection?.encryptedAccessToken) throw new Error("Gmail n'est pas connecté.");
