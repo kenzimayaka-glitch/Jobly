@@ -1,6 +1,6 @@
 "use client";
 
-import JIA from "./JIA/JIA";
+import JIA from "./jia-avatar/JIA";
 import type { JiaGesture } from "./WaterScene";
 import { useOutfit } from "@/lib/jia/outfit";
 
