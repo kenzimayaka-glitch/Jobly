@@ -284,3 +284,23 @@ test("Gmail candidate connection is restricted to Talent at authorization and ca
   assert.match(callback, /owner\.role \|\| ""\)\.toUpperCase\(\) !== "TALENT"/);
   assert.ok(callback.indexOf("owner.role") < callback.indexOf("exchangeCode(code, request)"));
 });
+
+test("CV share links expire after 30 days and only their Talent owner can revoke them", () => {
+  const api = read("app/api/cv-share/route.ts");
+  const publicJson = read("app/api/cv-share/[token]/route.ts");
+  const publicPdf = read("app/api/cv-share/[token]/pdf/route.ts");
+  const studio = read("app/talent/cvs/page.tsx");
+  assert.match(api, /30 \* 24 \* 60 \* 60 \* 1000/);
+  assert.match(api, /expiresAt,/);
+  assert.match(api, /\.eq\("userId", user\.id\)/);
+  assert.match(api, /\.is\("revokedAt", null\)/);
+  assert.match(api, /method/); // the owner-scoped PATCH route is implemented in this API file.
+  for (const route of [publicJson, publicPdf]) {
+    assert.match(route, /share\.revokedAt/);
+    assert.match(route, /share\.expiresAt/);
+    assert.match(route, /status: 404/);
+  }
+  assert.match(studio, /fetch\(["']\/api\/cv-share["']/);
+  assert.match(studio, /Révoquer/);
+  assert.match(studio, /Copier le lien/);
+});
