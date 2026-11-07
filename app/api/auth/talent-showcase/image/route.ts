@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     const limit = TALENT_SHOWCASE_LIMITS[plan].images;
     const existingImages = Array.isArray(user.actionImages)
-      ? [...new Set(user.actionImages.filter((value: unknown): value is string => typeof value === "string" && value.trim()).map((value: string) => value.trim()))]
+      ? [...new Set(user.actionImages.filter((value: unknown): value is string => typeof value === "string" && Boolean(value.trim())).map((value: string) => value.trim()))]
       : [];
     if (existingImages.length >= limit) {
       return NextResponse.json({ message: `Quota d’images atteint pour votre formule (${limit}).`, limit }, { status: 409 });
