@@ -15,6 +15,8 @@ const videoPitchRoute = read("app/api/auth/video-pitch/route.ts");
 const talentShowcaseImageRoute = read("app/api/auth/talent-showcase/image/route.ts");
 const talentAdRoute = read("app/api/auth/talent-ad/route.ts");
 const profilePhotoRoute = read("app/api/auth/profile-photo/route.ts");
+const originalCvRoute = read("app/api/talent/cv/original/route.ts");
+const cvImportRoute = read("app/api/talent/cv/import/route.ts");
 const recruiterJobs = read("app/api/recruiter/jobs/route.ts");
 const mobilityAgreement = read("app/api/mobility/recruiter/agreement/route.ts");
 const mobilityServer = read("lib/mobilityServer.ts");
@@ -169,4 +171,16 @@ test("signup completion and profile-photo upload reconcile legacy email-only acc
   );
   assert.match(profilePhotoRoute, /ensureUser\(supabase, authUser\)/);
   assert.doesNotMatch(profilePhotoRoute, /\.eq\("authUserId", authUser\.id\)/);
+});
+
+test("original CV storage and CV import reconcile legacy Auth accounts before lookup or upload", () => {
+  for (const route of [originalCvRoute, cvImportRoute]) {
+    assert.match(route, /getAuthUser\(/);
+    assert.match(route, /ensureUser\(/);
+    assert.match(route, /adminClient\(/);
+    assert.doesNotMatch(route, /createClient\(/);
+    assert.doesNotMatch(route, /\.eq\(["']authUserId["']/);
+  }
+  assert.match(originalCvRoute, /canonicalCvFileName\(user\)/);
+  assert.match(cvImportRoute, /canonicalCvFileName\(user\)/);
 });
