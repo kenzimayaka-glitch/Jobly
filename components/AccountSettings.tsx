@@ -95,7 +95,7 @@ export default function AccountSettings({ ecosystem, backHref, accent = "blue" }
 
   async function logout() {
     setMessage("Déconnexion…");
-    const { error } = await getSupabaseClient().auth.signOut();
+    const { error } = await getSupabaseClient().auth.signOut({ scope: "local" });
     if (error) { setMessage(error.message || "Déconnexion impossible."); return; }
     localStorage.removeItem("jobly:gmail-connection");
     router.replace("/");
