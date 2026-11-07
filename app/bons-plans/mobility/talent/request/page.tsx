@@ -27,8 +27,15 @@ export default function RequestPage() {
     let active = true;
     (async () => {
       try {
-        const response = await fetch("/api/matches/last-accepted");
-        const payload = response.ok ? await response.json() : null;
+        const session = await getSupabaseClient().auth.getSession();
+        const token = session.data.session?.access_token;
+        if (!token) throw new Error("Session Jobly requise. Reconnecte-toi pour vérifier ton offre acceptée.");
+        const response = await fetch("/api/matches/last-accepted", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.message || "Impossible de vérifier ton offre acceptée.");
         if (!active) return;
         const selected = payload?.application as ApplicationSummary | null;
         if (selected?.id) {
