@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { shouldUseInternetBrain } from "../lib/jia/internet/policy.ts";
+import { buildNextBestActions } from "../lib/jia/intelligence.ts";
 
 const read = (path) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 
@@ -40,6 +41,11 @@ test("external observations are ingested through the cognitive evidence path and
   const policy = read("lib/jia/internet/policy.ts");
   assert.match(runtime, /observeInternet/);
   assert.match(runtime, /ingestExternalSignal\(/);
+  assert.match(runtime, /type:"EXTERNAL_WEB_EVIDENCE"/);
+  assert.match(runtime, /sources:internetObservation\.sourcesUsed/);
+  const recommendations = buildNextBestActions([{ id: "internet-brain-evidence", type: "EXTERNAL_WEB_EVIDENCE", title: "Éléments externes vérifiés", detail: "Deux sources concordantes.", confidence: "HIGH" }]);
+  assert.equal(recommendations[0]?.actionType, "VERIFY");
+  assert.equal(recommendations[0]?.entityType, "EXTERNAL_SIGNAL");
   assert.match(policy, /JIA_INTERNET_ENABLED\s*!==\s*"false"/);
   assert.match(policy, /mode\s*!==\s*"OFF"/);
 });
