@@ -8,8 +8,15 @@ export async function POST(req: NextRequest) {
     const publicDiscoverable = Boolean(body?.publicDiscoverable);
     const sb = adminClient();
     const user = await ensureUser(sb, auth);
-    const { error } = await sb.from("Profile").update({ publicDiscoverable }).eq("userId", user.id);
-    if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+    if (String(user.role || "").toUpperCase() !== "TALENT") {
+      return NextResponse.json({ message: "Cette préférence est réservée aux comptes Talent." }, { status: 403 });
+    }
+    const { data: existing, error: lookupError } = await sb.from("Profile").select("id").eq("userId", user.id).maybeSingle();
+    if (lookupError) throw new Error(lookupError.message);
+    const payload: Record<string, unknown> = { userId: user.id, publicDiscoverable };
+    if (existing?.id) payload.id = existing.id;
+    const { error } = await sb.from("Profile").upsert(payload, { onConflict: "userId" });
+    if (error) throw new Error(error.message);
     return NextResponse.json({ ok: true, publicDiscoverable });
   } catch (e) {
     return NextResponse.json({ message: e instanceof Error ? e.message : "Impossible de modifier la visibilité." }, { status: 500 });
