@@ -63,3 +63,20 @@ test("Recruitment360 applications rejects an explicit recruitmentId outside the 
   assert.match(applications, /\.in\("role",\s*RECRUITMENT_READ_ROLES\)/);
   assert.match(applications, /return NextResponse\.json\(\{ message: "Accès refusé à ce recrutement\." \}, \{ status: 403 \}\)/);
 });
+
+test("Recruitment360 document uploads require ownership of the application recruitment", async () => {
+  const applications = await source("app/api/recruitment360/applications/route.ts");
+  const documentAction = applications.indexOf('if (body.action === "document")');
+  const applicationLookup = applications.indexOf('.from("Application")', documentAction);
+  const recruitmentLookup = applications.indexOf('.from("Recruitment360")', documentAction);
+  const actorRoleLookup = applications.indexOf('.from("RecruitmentRole")', documentAction);
+  const documentInsert = applications.indexOf('.from("RecruitmentApplicationDocument")', documentAction);
+  assert.ok(documentAction >= 0);
+  assert.ok(applicationLookup > documentAction);
+  assert.ok(recruitmentLookup > applicationLookup);
+  assert.ok(actorRoleLookup > recruitmentLookup);
+  assert.ok(documentInsert > actorRoleLookup, "A document must not be inserted before the actor's recruitment role is verified.");
+  assert.match(applications.slice(actorRoleLookup, documentInsert), /\.eq\("userId", user\.id\)/);
+  assert.match(applications.slice(actorRoleLookup, documentInsert), /\.in\("role", \["OWNER", "HR", "MANAGER", "DELEGATE"\]\)/);
+  assert.match(applications.slice(actorRoleLookup, documentInsert), /status: 403/);
+});
