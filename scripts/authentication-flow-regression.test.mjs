@@ -10,6 +10,10 @@ const completeSignup = read("app/api/auth/complete-signup/route.ts");
 const googleCallback = read("app/auth/callback/page.tsx");
 const identityStatus = read("app/api/auth/identity-status/route.ts");
 const recruiterProfile = read("app/api/recruiter/profile/route.ts");
+const recruiterJobs = read("app/api/recruiter/jobs/route.ts");
+const mobilityAgreement = read("app/api/mobility/recruiter/agreement/route.ts");
+const mobilityServer = read("lib/mobilityServer.ts");
+const serverAuth = read("lib/server-auth.ts");
 const onboarding = read("app/onboarding/page.tsx");
 
 test("existing username/password authentication is not blocked by new-password strength rules", () => {
@@ -111,14 +115,28 @@ test("recruiter subscription resolves RecruiterProfile by verified Supabase Auth
   assert.match(subscription, /resolveBillingProductType\(supabase, user, auth\.id/);
 });
 
-test("recruiter profile uses Auth UID and safely migrates its own legacy internal-ID row", () => {
-  assert.match(recruiterProfile, /async function ensureRecruiterProfile\([\s\S]*?authUserId: string,[\s\S]*?internalUserId: string/);
-  assert.match(recruiterProfile, /\.eq\("userId", authUserId\)/);
-  assert.match(recruiterProfile, /\.eq\("userId", internalUserId\)/);
-  assert.match(recruiterProfile, /\.update\(\{ userId: authUserId, updatedAt:/);
-  assert.match(recruiterProfile, /\.eq\("id", legacy\.id\)\s*\.eq\("userId", internalUserId\)/);
-  assert.equal((recruiterProfile.match(/ensureRecruiterProfile\(supabase, authUser\.id, user\.id\)/g) || []).length, 2);
+
+test("RecruiterProfile ownership is resolved by Auth UID and its own legacy User.id row is conditionally relinked", () => {
+  const resolver = serverAuth.slice(
+    serverAuth.indexOf("export async function getRecruiterProfileForAuthUser"),
+    serverAuth.indexOf("export async function ensureRecruiterProfileForAuthUser"),
+  );
+  assert.match(resolver, /\.eq\("userId", authUserId\)/);
+  assert.match(resolver, /\.eq\("userId", internalUserId\)/);
+  assert.match(resolver, /\.update\(\{ userId: authUserId, updatedAt:/);
+  assert.match(resolver, /\.eq\("id", legacy\.id\)\s*\.eq\("userId", internalUserId\)/);
+  assert.match(serverAuth, /getRecruiterProfileForAuthUser\(supabase, authUserId, internalUser\.id\)/);
+  assert.match(serverAuth, /export async function ensureRecruiterProfileForAuthUser/);
+});
+
+test("recruiter profile, offer creation and Mobility convention share Auth UID profile ownership", () => {
+  assert.equal((recruiterProfile.match(/ensureRecruiterProfileForAuthUser\(supabase, authUser\.id, user\.id\)/g) || []).length, 2);
   assert.match(recruiterProfile, /\.eq\("userId", authUser\.id\)/);
   assert.match(recruiterProfile, /from\("User"\)\.update\([\s\S]*?\.eq\("id", user\.id\)/);
-  assert.doesNotMatch(recruiterProfile, /ensureRecruiterProfile\(supabase, user\.id\)/);
-});;;
+  assert.match(recruiterJobs, /getRecruiterProfileForAuthUser\(supabase, authUserId, user\.id\)/);
+  assert.match(recruiterJobs, /getRecruiterProfileForAuthUser\(supabase, authUser\.id, user\.id\)/);
+  assert.match(recruiterJobs, /recruiterUserId: user\.id/);
+  assert.match(mobilityAgreement, /getRecruiterProfileForAuthUser\(db, auth\.id, user\.id\)/);
+  assert.match(mobilityAgreement, /recruiterUserId: user\.id/);
+  assert.match(mobilityServer, /return ensureCanonicalUser\(sb, au\)/);
+});
