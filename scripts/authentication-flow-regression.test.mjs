@@ -191,7 +191,7 @@ test("CV Studio loads current plan and download prices with the authenticated se
   assert.ok(effectStart >= 0, "CV Studio must load the current entitlement snapshot.");
   const effect = talentCvPage.slice(Math.max(0, effectStart - 500), effectStart + 700);
   assert.match(effect, /const token = await getAccessToken\(\)/);
-  assert.match(effect, /headers:\s*\{\s*Authorization:\s*`Bearer \\\${token}`\s*\}/);
+  assert.ok(effect.includes("Authorization: `Bearer ${token}`"));
   assert.match(talentCvPage, /if \(data\?\.subscription\?\.plan\) setPlan\(data\.subscription\.plan\)/);
   assert.match(talentCvPage, /cvAtsDownloadPriceXaf/);
   assert.match(talentCvPage, /cvOptimizedDownloadPriceXaf/);
