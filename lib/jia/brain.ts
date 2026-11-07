@@ -3,6 +3,7 @@ import { runAiOrchestrator } from "../ai/orchestrator";
 import { adminClient } from "../server-auth";
 import { actionForIntent, isFinancialRequest } from "./guard";
 import { observeInternet } from "./internet";
+import { shouldUseInternetBrain } from "./internet/policy";
 import { buildJiaContext } from "@/lib/jiaContext";
 
 export type JiaBrainInput = {
