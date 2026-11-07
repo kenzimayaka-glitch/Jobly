@@ -192,6 +192,19 @@ export default function CandidaturesPage() {
                         </p>
                       )}
 
+                      {["PREPARED", "USER_REVIEW"].includes(app.status) && (
+                        <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                          <p className="text-xs leading-5 text-jobly-blue">Ta candidature est prête. Relis le message et le CV avant de confirmer l’envoi.</p>
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/applications/review/${encodeURIComponent(app.id)}`)}
+                            className="mt-2 rounded-xl bg-jobly-blue px-4 py-2 text-xs font-extrabold text-white"
+                          >
+                            Relire et envoyer →
+                          </button>
+                        </div>
+                      )}
+
                       {app.status === "DISCOVERED" && (
                         <div>
                           <label className="mb-1 block text-xs font-bold text-navy">Lien vers ta preuve de candidature</label>
