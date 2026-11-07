@@ -3,6 +3,7 @@ import { ensureUser, getAuthUser, adminClient } from "@/lib/server-auth";
 import { getJiaAvailableEcosystems, isJiaEcosystem } from "@/lib/jia/access";
 import { runJiaBrain } from "@/lib/jia/brain";
 import { runUnifiedCognitiveCycle } from "@/lib/jia/runtime";
+import { shouldUseInternetBrain } from "@/lib/jia/internet/policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const action = typeof body?.action === "string" ? body.action : "";
     const message = typeof body?.message === "string" ? body.message : "";
+    const useInternetBrain = shouldUseInternetBrain(message);
     const requestedEcosystem = String(body?.ecosystem || "TALENT").toUpperCase();
     if (!isJiaEcosystem(requestedEcosystem)) {
       return NextResponse.json({ message: "Écosystème J’IA invalide." }, { status: 400 });
@@ -41,7 +43,8 @@ export async function POST(req: NextRequest) {
       path: typeof body?.path === "string" ? body.path : "",
       action,
       message,
-      includeInternet: false,
+      includeInternet: useInternetBrain,
+      internetQuery: useInternetBrain ? message : undefined,
     });
 
     // The legacy conversational Brain is scoped to Talent, Recruiter and Partner.
