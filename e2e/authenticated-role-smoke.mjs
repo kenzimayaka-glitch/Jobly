@@ -364,7 +364,12 @@ async function runCrossRoleApplicationLifecycle(fixtures) {
   } finally {
     if (recruiterJobId && recruiterToken && admin) {
       deletionAttempted = true;
-      const removed = await request(recruiterToken, "/api/recruiter/jobs/" + encodeURIComponent(recruiterJobId), "DELETE");
+      let removed;
+      try {
+        removed = await request(recruiterToken, "/api/recruiter/jobs/" + encodeURIComponent(recruiterJobId), "DELETE");
+      } catch (error) {
+        removed = { status: 0, payload: { message: error instanceof Error ? error.message : "Erreur réseau pendant le nettoyage API." } };
+      }
       const apiCleanupOk = removed.status === 200;
       record("RECRUITER", "CROSS-ROLE-APPLICATION-LIFECYCLE-CLEANUP-API", apiCleanupOk ? "PASS" : "FAIL", removed.status, apiCleanupOk
         ? "Suppression de l'offre synthétique via l'API Recruteur."
