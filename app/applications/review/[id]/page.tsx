@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { getSupabaseClient } from "@/lib/supabase";
 
 type Review = {
   application: { id: string; status: string; letterText: string | null; tailoredCvText: string | null };
@@ -10,6 +11,12 @@ type Review = {
   recipient: string | null;
   subject: string;
 };
+
+async function authHeaders() {
+  const { data } = await getSupabaseClient().auth.getSession();
+  if (!data.session?.access_token) throw new Error("Session Jobly requise. Reconnectez-vous pour relire ou envoyer cette candidature.");
+  return { Authorization: `Bearer ${data.session.access_token}` };
+}
 
 export default function ApplicationReviewPage() {
   const router = useRouter();
@@ -21,15 +28,23 @@ export default function ApplicationReviewPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/applications/" + encodeURIComponent(params.id) + "/submit")
-      .then(async r => {
+    void (async () => {
+      const headers = await authHeaders();
+      const response = await fetch("/api/applications/" + encodeURIComponent(params.id) + "/submit", {
+        headers,
+        cache: "no-store",
+      });
+      const r = response;
+      try {
         const body = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(body.message || "Impossible de charger la préparation.");
         return body as Review;
-      })
-      .then(body => { setData(body); setLetter(body.application.letterText || ""); })
-      .catch(e => setError(e instanceof Error ? e.message : "Impossible de charger la préparation."))
-      .finally(() => setLoading(false));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Impossible de charger la préparation.");
+      } finally {
+        setLoading(false);
+      }
+    })().catch(e => setError(e instanceof Error ? e.message : "Impossible de charger la préparation."));
   }, [params.id]);
 
   async function confirm() {
@@ -38,7 +53,7 @@ export default function ApplicationReviewPage() {
     try {
       const r = await fetch("/api/applications/" + encodeURIComponent(params.id) + "/submit", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify({ letterText: letter }),
       });
       const body = await r.json().catch(() => ({}));
