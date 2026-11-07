@@ -16,11 +16,20 @@ if (!key.startsWith("sb_publishable_")) {
   throw new Error("Clé publishable JOBLY-E2E absente.");
 }
 
+const sessionFile = await import("node:fs/promises").then(({ readFile }) =>
+  readFile(path.resolve(".e2e-admin-session.json"), "utf8").then(JSON.parse).catch(() => null)
+);
+const adminAccessToken = process.env.E2E_ADMIN_ACCESS_TOKEN ?? sessionFile?.access_token ?? "";
+if (!adminAccessToken) {
+  throw new Error("SESSION_ADMIN_E2E_REQUISE : aucun token Admin JOBLY-E2E n'est disponible dans E2E_ADMIN_ACCESS_TOKEN ou .e2e-admin-session.json.");
+}
+
 const runId = randomUUID();
 const response = await fetch(expectedUrl + "/functions/v1/e2e-fixture-provision", {
   method: "POST",
   headers: {
     apikey: key,
+    Authorization: "Bearer " + adminAccessToken,
     "Content-Type": "application/json",
     "x-e2e-run-id": runId,
   },
