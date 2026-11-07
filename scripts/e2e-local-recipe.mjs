@@ -668,22 +668,33 @@ async function main() {
         detail: playwright.reason,
         log: playwright.log,
       });
-    } else {
-      const port = await reserveLocalPort();
-      const fixtureRuntime = await readFileJson(path.join(ROOT, ".e2e-fixture-runtime.json"));
-      const runtimeKey = fixtureRuntime?.environment === "JOBLY-E2E" && fixtureRuntime?.projectRef === EXPECTED_REF
-        ? fixtureRuntime.serviceRoleKey
-        : "";
-      const server = await startNextServer(env, port, runtimeKey);
-      if (!server.ok) {
+    }
+
+    // Authenticated API journeys do not depend on Playwright being installable.
+    const port = await reserveLocalPort();
+    const fixtureRuntime = await readFileJson(path.join(ROOT, ".e2e-fixture-runtime.json"));
+    const runtimeKey = fixtureRuntime?.environment === "JOBLY-E2E" && fixtureRuntime?.projectRef === EXPECTED_REF
+      ? fixtureRuntime.serviceRoleKey
+      : "";
+    const server = await startNextServer(env, port, runtimeKey);
+    if (!server.ok) {
+      if (playwright.ok) {
         technicalChecks.push({
           label: "Playwright — navigateur/UI mobile/APIs",
           status: "FAIL",
           detail: server.reason,
           log: server.log,
         });
-      } else {
-        try {
+      }
+      technicalChecks.push({
+        label: "Parcours API authentifiés Talent/Recruteur/Partenaire",
+        status: "FAIL",
+        detail: server.reason,
+        log: server.log,
+      });
+    } else {
+      try {
+        if (playwright.ok) {
           const browser = await runProcess(
             "technical-browser-smoke",
             process.execPath,
@@ -709,54 +720,53 @@ async function main() {
             log: browser.log,
             detail: blocked > 0 ? blocked + " contrôles Auth restent BLOCKED ; voir le rapport navigateur." : "Smoke navigateur exécuté.",
           });
-
-          const authenticated = await runProcess(
-            "technical-authenticated-role-smoke",
-            process.execPath,
-            ["e2e/authenticated-role-smoke.mjs"],
-            {
-              env: { ...env, E2E_BASE_URL: server.baseURL },
-              timeoutMs: 240000,
-            },
-          );
-          const authenticatedReport = await readFileJson(path.join(ARTIFACTS, "authenticated-role-smoke.json"));
-          technicalChecks.push({
-            label: "Parcours API authentifiés Talent/Recruteur/Partenaire",
-            status: authenticatedReport?.status ?? (authenticated.exitCode === 0 ? "PARTIAL" : "FAIL"),
-            tests: authenticatedReport?.checks?.length ?? 0,
-            passed: authenticatedReport?.checks?.filter((item) => item.status === "PASS").length ?? 0,
-            log: authenticated.log,
-            detail: authenticatedReport?.summary ?? authenticated.spawnError ?? "Rapport des parcours authentifiés indisponible.",
-          });
-
-          for (const [role, lotId] of [["TALENT", "LOT-02"], ["RECRUITER", "LOT-03"], ["PARTNER", "LOT-06"]]) {
-            const lot = lots.find((item) => item.id === lotId);
-            const checks = authenticatedReport?.checks?.filter((item) => item.role === role) ?? [];
-            if (!lot) continue;
-            if (checks.length) {
-              lot.tests = Number(lot.tests ?? 0) + checks.length;
-              lot.passed = Number(lot.passed ?? 0) + checks.filter((item) => item.status === "PASS").length;
-              lot.failed = Number(lot.failed ?? 0) + checks.filter((item) => item.status === "FAIL").length;
-              lot.status = checks.some((item) => item.status === "FAIL") ? "FAIL" : "PARTIAL";
-              lot.log = [lot.log, authenticated.log].filter(Boolean).join(", ");
-              lot.detail = "Parcours API authentifié " + role + " : " +
-                checks.filter((item) => item.status === "PASS").length + "/" + checks.length +
-                " contrôles PASS. " + (lot.detail ?? "");
-            }
-          }
-
-          const lot03 = lots.find((item) => item.id === "LOT-03");
-          if (lot03 && !authenticatedReport?.checks?.some((item) => item.role === "RECRUITER")) {
-            lot03.status = fixtureProvisionStatus === "PASS" ? "FAIL" : "BLOCKED";
-            lot03.detail = "Parcours Recruteur authentifié non exécuté : provisionnement des fixtures indisponible.";
-          }
-        } finally {
-          await stopNextServer(server);
         }
+
+        const authenticated = await runProcess(
+          "technical-authenticated-role-smoke",
+          process.execPath,
+          ["e2e/authenticated-role-smoke.mjs"],
+          {
+            env: { ...env, E2E_BASE_URL: server.baseURL },
+            timeoutMs: 240000,
+          },
+        );
+        const authenticatedReport = await readFileJson(path.join(ARTIFACTS, "authenticated-role-smoke.json"));
+        technicalChecks.push({
+          label: "Parcours API authentifiés Talent/Recruteur/Partenaire",
+          status: authenticatedReport?.status ?? (authenticated.exitCode === 0 ? "PARTIAL" : "FAIL"),
+          tests: authenticatedReport?.checks?.length ?? 0,
+          passed: authenticatedReport?.checks?.filter((item) => item.status === "PASS").length ?? 0,
+          log: authenticated.log,
+          detail: authenticatedReport?.summary ?? authenticated.spawnError ?? "Rapport des parcours authentifiés indisponible.",
+        });
+
+        for (const [role, lotId] of [["TALENT", "LOT-02"], ["RECRUITER", "LOT-03"], ["PARTNER", "LOT-06"]]) {
+          const lot = lots.find((item) => item.id === lotId);
+          const checks = authenticatedReport?.checks?.filter((item) => item.role === role) ?? [];
+          if (!lot) continue;
+          if (checks.length) {
+            lot.tests = Number(lot.tests ?? 0) + checks.length;
+            lot.passed = Number(lot.passed ?? 0) + checks.filter((item) => item.status === "PASS").length;
+            lot.failed = Number(lot.failed ?? 0) + checks.filter((item) => item.status === "FAIL").length;
+            lot.status = checks.some((item) => item.status === "FAIL") ? "FAIL" : "PARTIAL";
+            lot.log = [lot.log, authenticated.log].filter(Boolean).join(", ");
+            lot.detail = "Parcours API authentifié " + role + " : " +
+              checks.filter((item) => item.status === "PASS").length + "/" + checks.length +
+              " contrôles PASS. " + (lot.detail ?? "");
+          }
+        }
+
+        const lot03 = lots.find((item) => item.id === "LOT-03");
+        if (lot03 && !authenticatedReport?.checks?.some((item) => item.role === "RECRUITER")) {
+          lot03.status = fixtureProvisionStatus === "PASS" ? "FAIL" : "BLOCKED";
+          lot03.detail = "Parcours Recruteur authentifié non exécuté : provisionnement des fixtures indisponible.";
+        }
+      } finally {
+        await stopNextServer(server);
       }
     }
   }
-
   const lot1 = lots.find((item) => item.id === "LOT-01");
   if (lot1) {
     const authStatus = technicalChecks.find((item) => item.label.startsWith("Session Auth"))?.status ?? "BLOCKED";
