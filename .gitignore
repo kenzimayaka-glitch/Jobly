@@ -33,6 +33,7 @@ apps/android/app/build/
 
 # Local tooling and test artifacts
 .e2e-fixtures.json
+.e2e-fixture-runtime.json
 .e2e-admin-session.json
 .vercel/
 .e2e-tools/
