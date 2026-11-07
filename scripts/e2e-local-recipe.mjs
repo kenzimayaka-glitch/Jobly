@@ -37,8 +37,11 @@ const catalog = [
     id: "LOT-02",
     stage: 1, severity: "P0", dependsOn: ["LOT-01"],
     label: "Talent, offres, recherche et candidatures",
-    files: ["scripts/external-application-assistant.test.mjs"],
-    gap: "Le profil Talent, la préparation d'une candidature sur offre Recruteur, sa visibilité côté candidat et le suivi d'une décision sont exercés ; CV complet, recherche/détail d'offre et parcours d'une candidature vers une offre externe restent à démontrer.",
+    files: [
+      "scripts/external-application-assistant.test.mjs",
+      "scripts/talent-cv-application-regression.test.mjs",
+    ],
+    gap: "Les contrats de régression CV (import PDF, session, sauvegarde privée, export, preuves Career Journey) et les états de candidature sont vérifiés statiquement ; le parcours runtime authentifié complet CV, recherche/détail d’offre et candidature de bout en bout reste à démontrer.",
   },
   {
     id: "LOT-03",
