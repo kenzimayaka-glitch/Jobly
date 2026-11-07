@@ -82,18 +82,50 @@ export default function TalentCVs() {
     void (async () => {
       const token = await getAccessToken();
       if (!token || cancelled) return;
-      const response = await fetch("/api/entitlements", {
-        cache: "no-store",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = response.ok ? await response.json().catch(() => null) : null;
-      if (!data || cancelled) return;
-      if (data?.subscription?.plan) setPlan(data.subscription.plan);
-      if (Number.isFinite(Number(data?.entitlements?.cvAtsDownloadPriceXaf))) {
-        setCvAtsPaymentAmount(Number(data.entitlements.cvAtsDownloadPriceXaf));
+      const headers = { Authorization: `Bearer ${token}` };
+      const [entitlementsResponse, profileResponse] = await Promise.all([
+        fetch("/api/entitlements", { cache: "no-store", headers }),
+        fetch("/api/profile", { cache: "no-store", headers }),
+      ]);
+      const entitlements = entitlementsResponse.ok ? await entitlementsResponse.json().catch(() => null) : null;
+      const profileData = profileResponse.ok ? await profileResponse.json().catch(() => null) : null;
+      if (cancelled) return;
+      if (entitlements?.subscription?.plan) setPlan(entitlements.subscription.plan);
+      if (Number.isFinite(Number(entitlements?.entitlements?.cvAtsDownloadPriceXaf))) {
+        setCvAtsPaymentAmount(Number(entitlements.entitlements.cvAtsDownloadPriceXaf));
       }
-      if (Number.isFinite(Number(data?.entitlements?.cvOptimizedDownloadPriceXaf))) {
-        setCvOptimizedPaymentAmount(Number(data.entitlements.cvOptimizedDownloadPriceXaf));
+      if (Number.isFinite(Number(entitlements?.entitlements?.cvOptimizedDownloadPriceXaf))) {
+        setCvOptimizedPaymentAmount(Number(entitlements.entitlements.cvOptimizedDownloadPriceXaf));
+      }
+      if (profileData) {
+        const profile = profileData.profile || {};
+        const user = profileData.user || {};
+        const structuredExperiences = (Array.isArray(profileData.experiences) ? profileData.experiences : [])
+          .map((item: any) => [
+            [item.title, item.company].filter(Boolean).join(" — "),
+            [item.startDate, item.endDate].filter(Boolean).join(" – "),
+            item.description,
+          ].filter(Boolean).join("\n"))
+          .filter(Boolean)
+          .join("\n\n");
+        const structuredEducation = (Array.isArray(profileData.education) ? profileData.education : [])
+          .map((item: any) => [
+            [item.degree, item.field, item.institution].filter(Boolean).join(" — "),
+            [item.startDate, item.endDate].filter(Boolean).join(" – "),
+          ].filter(Boolean).join("\n"))
+          .filter(Boolean)
+          .join("\n\n");
+        setCv((current) => ({
+          ...current,
+          fullName: current.fullName || user.displayName || [profile.firstName, profile.lastName].filter(Boolean).join(" "),
+          headline: current.headline || profile.headline || "",
+          email: current.email || user.email || "",
+          phone: current.phone || profile.phone || user.phone || "",
+          summary: current.summary || profile.summary || "",
+          skills: current.skills || (Array.isArray(profileData.skills) ? profileData.skills.map((item: any) => item.name).filter(Boolean).join(", ") : ""),
+          experience: current.experience || profile.experienceSummary || structuredExperiences,
+          education: current.education || profile.educationSummary || structuredEducation,
+        }));
       }
     })().catch(() => {});
     return () => { cancelled = true; };
@@ -172,6 +204,16 @@ export default function TalentCVs() {
         if (!profileRes.ok) throw new Error((await profileRes.json().catch(() => ({}))).message || "Le profil Jobly n’a pas pu être synchronisé.");
         const skillsRes = await fetch("/api/profile", { method: "PUT", headers, body: JSON.stringify({ section: "skills", skills: next.skills.split(",").map(name => ({ name: name.trim() })).filter(x => x.name) })});
         if (!skillsRes.ok) throw new Error("Les compétences n’ont pas pu être synchronisées.");
+        const cvTextRes = await fetch("/api/profile", {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({
+            section: "cv-text",
+            experienceSummary: next.experience,
+            educationSummary: next.education,
+          }),
+        });
+        if (!cvTextRes.ok) throw new Error((await cvTextRes.json().catch(() => ({}))).message || "Les sections expérience et formation n’ont pas pu être synchronisées.");
         if (originalFile) {
           const form = new FormData(); form.append("file", originalFile); if (originalMeta?.pages) form.append("pages", String(originalMeta.pages));
           const originalRes = await fetch("/api/talent/cv/original", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
