@@ -247,7 +247,7 @@ test("Talent Showcase plan and image quotas are enforced by the server with Prom
     assert.doesNotMatch(route, /from\(["']Subscription["']\)\.select\(["']plan/);
   }
   assert.match(images, /TALENT_SHOWCASE_LIMITS\[plan\]\.images/);
-  assert.match(images, /existingImages\.length >= limit/);
+  assert.match(images, /uniqueExistingImages\.length >= limit/);
   assert.match(images, /ALLOWED_TYPES/);
   assert.match(images, /actionImages: nextImages/);
   assert.match(advertising, /ALLOWED\.has\(f\.type\)/);
