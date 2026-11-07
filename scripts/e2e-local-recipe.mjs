@@ -291,6 +291,7 @@ async function executeLot(group, env) {
         failed: failedCount,
         log: logs.join(", "),
         error: testRun.spawnError ?? (testRun.timedOut ? "Timeout" : "Tests en échec"),
+        failureEvidence: testRun.output.split(/\\r?\\n/).filter((line) => /not ok |✖|AssertionError|TypeError|ReferenceError|Error:|ERR_/i.test(line)).slice(0, 25).map((line) => line.trim().slice(0, 300)),
         durationMs: Math.round(performance.now() - started),
       };
     }
@@ -474,6 +475,15 @@ function reportMarkdown(report) {
       " | " + (item.log ?? item.detail ?? item.error ?? "—") + " |"
     );
   }
+  lines.push("", "## Anomalies regroupées par signature", "");
+  if (report.anomalyGroups.length === 0) {
+    lines.push("Aucune anomalie FAIL détectée dans les suites de lots exécutées.");
+  } else {
+    lines.push("| Gravité | Signature | Lots concernés | Journaux |", "|---|---|---|---|");
+    for (const item of report.anomalyGroups) {
+      lines.push("| " + item.severity + " | " + item.fingerprint + " | " + item.lots.join(", ") + " | " + item.logs.join(", ") + " |");
+    }
+  }
   lines.push("", "## Contrôles techniques transverses", "", "| Contrôle | Statut | Log |", "|---|---:|---|");
   for (const check of report.technicalChecks) {
     lines.push("| " + check.label + " | **" + check.status + "** | " + (check.log ?? check.detail ?? "—") + " |");
@@ -519,6 +529,9 @@ async function main() {
   lots.push({
     id: "LOT-00",
     label: "Environnement et jeux de données",
+    severity: "P0",
+    stage: -1,
+    dependsOn: [],
     status: preflight.exitCode === 0 ? "PARTIAL" : "FAIL",
     tests: 1,
     passed: preflight.exitCode === 0 ? 1 : 0,
@@ -687,6 +700,24 @@ async function main() {
   const failedTechnical = technicalChecks.filter((item) => item.status === "FAIL").length;
   const blockedTechnical = technicalChecks.filter((item) => item.status === "BLOCKED").length;
   const partialTechnical = technicalChecks.filter((item) => item.status === "PARTIAL").length;
+  const anomalyIndex = new Map();
+  for (const item of lots.filter((lot) => lot.status === "FAIL")) {
+    const evidence = item.failureEvidence?.length ? item.failureEvidence : [item.error ?? "Échec sans signature extraite"];
+    for (const raw of evidence) {
+      const fingerprint = raw
+        .replace(/(?:[A-F0-9]{7,40})/gi, "<sha>")
+        .replace(/\\b\\d+\\b/g, "<n>")
+        .replace(/\\s+/g, " ")
+        .trim()
+        .slice(0, 240);
+      const key = fingerprint.toLowerCase();
+      const current = anomalyIndex.get(key) ?? { fingerprint, severity: item.severity ?? "P0", lots: [], logs: [] };
+      if (!current.lots.includes(item.id)) current.lots.push(item.id);
+      if (item.log && !current.logs.includes(item.log)) current.logs.push(item.log);
+      anomalyIndex.set(key, current);
+    }
+  }
+  const anomalyGroups = [...anomalyIndex.values()];
   const report = {
     schemaVersion: 2,
     startedAt,
@@ -704,6 +735,7 @@ async function main() {
     blockedLots,
     failedLots,
     technicalChecks,
+    anomalyGroups,
     status: failedLots > 0 || failedTechnical > 0
       ? "FAIL"
       : blockedLots > 0 || partialLots > 0 || blockedTechnical > 0 || partialTechnical > 0 || passedLots !== 11
