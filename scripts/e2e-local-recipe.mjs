@@ -31,21 +31,21 @@ const catalog = [
       "scripts/security-entitlements.test.mjs",
       "scripts/p2-pwned-passwords.test.mjs",
     ],
-    gap: "Le cycle Auth réel avec comptes Talent/Recruteur, OTP, Google et réinitialisation n'est pas démontré. Le compte Admin E2E n'a pas de mot de passe de recette disponible.",
+    gap: "Les connexions réelles et renouvellements de session Talent/Recruteur/Partenaire sont validés ; les parcours OTP, Google, réinitialisation du mot de passe et révocation multi-appareils restent à démontrer.",
   },
   {
     id: "LOT-02",
     stage: 1, severity: "P0", dependsOn: ["LOT-01"],
     label: "Talent, offres, recherche et candidatures",
     files: ["scripts/external-application-assistant.test.mjs"],
-    gap: "Les tests automatisés couvrent l'assistance à la candidature ; aucun compte Talent synthétique ni parcours authentifié profil/CV/recherche/suivi n'est provisionné dans JOBLY-E2E.",
+    gap: "Le compte Talent, les API profil/candidatures et la persistance du profil sont exercés ; les parcours CV, recherche/détail d'offre, préparation et suivi complet d'une candidature restent à démontrer.",
   },
   {
     id: "LOT-03",
     stage: 1, severity: "P0", dependsOn: ["LOT-01"],
     label: "Recruteur et Recruitment 360",
     files: ["scripts/recruiter-role-regression.test.mjs"],
-    gap: "Les contrôles de contrat des routes Recruiter sont exécutés ; le parcours authentifié API (profil, offres brouillon, candidatures et Recruitment 360) complète cette suite après le démarrage local de Next.js.",
+    gap: "Le profil Recruteur, les listes d'offres/candidatures, les lectures Recruitment 360 et le cycle CRUD d'un brouillon sont exercés ; le cycle complet de recrutement (candidature réelle synthétique, tests, entretiens, décisions et publication) reste à démontrer.",
   },
   {
     id: "LOT-04",
@@ -78,7 +78,7 @@ const catalog = [
     stage: 2, severity: "P1", dependsOn: ["LOT-02","LOT-03"],
     label: "Mobility et partenaires",
     files: ["scripts/mobility-p1.test.mjs"],
-    gap: "La suite métier Mobility passe au niveau automatisé ; le parcours authentifié Talent/partenaire, les justificatifs et le financement réel ne sont pas exécutés.",
+    gap: "Les API authentifiées du partenaire (profil, commissions et onboarding) sont exercées ; la demande Mobility côté Talent, l'éligibilité, les justificatifs, le financement et les actions partenaire de bout en bout restent à démontrer.",
   },
   {
     id: "LOT-07",
@@ -546,25 +546,62 @@ async function main() {
 
   let fixtureProvisionStatus = "BLOCKED";
   if (preflight.exitCode === 0 && !process.env.CI && !process.env.GITHUB_ACTIONS) {
-    console.log("[LOT 0] Provisionnement local sécurisé des comptes métier JOBLY-E2E");
-    const provision = await runProcess(
-      "lot-00-fixture-provision",
-      process.execPath,
-      ["e2e/provision-fixtures.mjs"],
-      { env, timeoutMs: 180000, stdin: "inherit", forwardOutput: true },
-    );
-    fixtureProvisionStatus = provision.exitCode === 0 ? "PASS" :
-      /E2E_SERVICE_ROLE_KEY_REQUIRED|saisie masquée|Saisie interrompue/.test(provision.output)
-        ? "BLOCKED"
-        : "FAIL";
-    technicalChecks.push({
-      label: "Provisionnement des comptes Talent/Recruteur/Partenaire",
-      status: fixtureProvisionStatus,
-      log: provision.log,
-      detail: fixtureProvisionStatus === "PASS"
-        ? "Comptes Auth confirmés et profils synthétiques créés sur JOBLY-E2E ; aucun message externe n'a été envoyé."
-        : "Provisionnement non terminé. Le détail est dans le journal ; aucun compte Production n'est utilisé.",
-    });
+    const existingFixtures = await readFileJson(path.join(ROOT, ".e2e-fixtures.json"));
+    const existingRuntime = await readFileJson(path.join(ROOT, ".e2e-fixture-runtime.json"));
+    const requiredFixtureRoles = [
+      { key: "talent", role: "TALENT" },
+      { key: "recruiter", role: "RECRUITER" },
+      { key: "partner", role: "PARTNER" },
+    ];
+    const reusableFixtures =
+      existingFixtures?.environment === "JOBLY-E2E" &&
+      existingFixtures?.projectRef === EXPECTED_REF &&
+      Array.isArray(existingFixtures.accounts) &&
+      requiredFixtureRoles.every(({ key, role }) =>
+        existingFixtures.accounts.some((account) =>
+          account.key === key &&
+          account.role === role &&
+          typeof account.email === "string" &&
+          account.email.length > 0 &&
+          typeof account.password === "string" &&
+          account.password.length > 0 &&
+          typeof account.authUserId === "string" &&
+          typeof account.userId === "string"
+        )
+      ) &&
+      existingRuntime?.environment === "JOBLY-E2E" &&
+      existingRuntime?.projectRef === EXPECTED_REF &&
+      typeof existingRuntime?.serviceRoleKey === "string" &&
+      existingRuntime.serviceRoleKey.length >= 20;
+
+    if (reusableFixtures) {
+      fixtureProvisionStatus = "PASS";
+      technicalChecks.push({
+        label: "Provisionnement des comptes Talent/Recruteur/Partenaire",
+        status: "PASS",
+        detail: "Réutilisation des trois fixtures JOBLY-E2E déjà provisionnées ; mots de passe inchangés, aucune rotation ni recréation.",
+      });
+    } else {
+      console.log("[LOT 0] Provisionnement local sécurisé des comptes métier JOBLY-E2E");
+      const provision = await runProcess(
+        "lot-00-fixture-provision",
+        process.execPath,
+        ["e2e/provision-fixtures.mjs"],
+        { env, timeoutMs: 180000, stdin: "inherit", forwardOutput: true },
+      );
+      fixtureProvisionStatus = provision.exitCode === 0 ? "PASS" :
+        /E2E_SERVICE_ROLE_KEY_REQUIRED|saisie masquée|Saisie interrompue/.test(provision.output)
+          ? "BLOCKED"
+          : "FAIL";
+      technicalChecks.push({
+        label: "Provisionnement des comptes Talent/Recruteur/Partenaire",
+        status: fixtureProvisionStatus,
+        log: provision.log,
+        detail: fixtureProvisionStatus === "PASS"
+          ? "Comptes Auth confirmés et profils synthétiques créés sur JOBLY-E2E ; aucun message externe n'a été envoyé."
+          : "Provisionnement non terminé. Le détail est dans le journal ; aucun compte Production n'est utilisé.",
+      });
+    }
   } else {
     technicalChecks.push({
       label: "Provisionnement des comptes Talent/Recruteur/Partenaire",
