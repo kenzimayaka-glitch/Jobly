@@ -13,6 +13,8 @@ on:
       - "components/**"
       - "lib/**"
       - "scripts/**"
+      - "supabase/migrations/**"
+      - ".github/workflows/jobly-security-core.yml"
       - "package.json"
       - "pnpm-lock.yaml"
 
