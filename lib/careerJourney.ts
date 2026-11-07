@@ -87,6 +87,50 @@ export async function getOrCreateJourney(request: NextRequest) {
   return { supabase, user, context, journey, goals: goals.data ?? [], missions: missions.data ?? [], recommendations: recommendations.data ?? [], scenarios: scenarios.data ?? [], reviews: reviews.data ?? [] };
 }
 
+/**
+ * Read the Career Journey without creating a domain record. A first page view
+ * must not create a Journey; POST actions call getOrCreateJourney explicitly.
+ */
+export async function getJourneyReadOnly(request: NextRequest) {
+  const authUser = await getAuthUser(request);
+  if (!authUser) throw Object.assign(new Error("Session requise."), { status: 401 });
+  const supabase = adminClient();
+  // Account identity reconciliation is handled centrally; no CareerJourney,
+  // goal, mission, review or assessment rows are created by this GET helper.
+  const user = await ensureUser(supabase, authUser);
+  const [context, journeyResult] = await Promise.all([
+    loadContext(supabase, user.id),
+    supabase.from("CareerJourney").select("*").eq("userId", user.id).maybeSingle(),
+  ]);
+  if (journeyResult.error) throw new Error(journeyResult.error.message);
+  const journey = journeyResult.data;
+  if (!journey) {
+    return {
+      supabase, user, context, journey: null,
+      goals: [], missions: [], recommendations: [], scenarios: [], reviews: [],
+    };
+  }
+
+  const [goals, missions, recommendations, scenarios, reviews] = await Promise.all([
+    supabase.from("CareerGoal").select("*").eq("journeyId", journey.id).order("priority"),
+    supabase.from("CareerMission").select("*").eq("journeyId", journey.id).order("createdAt", { ascending: false }),
+    supabase.from("CareerRecommendation").select("*").eq("journeyId", journey.id).order("createdAt", { ascending: false }).limit(10),
+    supabase.from("CareerPathScenario").select("*").eq("journeyId", journey.id).order("createdAt", { ascending: false }),
+    supabase.from("CareerReview").select("*").eq("journeyId", journey.id).order("periodEnd", { ascending: false }).limit(5),
+  ]);
+  for (const result of [goals, missions, recommendations, scenarios, reviews]) {
+    if (result.error) throw new Error(result.error.message);
+  }
+  return {
+    supabase, user, context, journey,
+    goals: goals.data ?? [],
+    missions: missions.data ?? [],
+    recommendations: recommendations.data ?? [],
+    scenarios: scenarios.data ?? [],
+    reviews: reviews.data ?? [],
+  };
+}
+
 export async function createRecommendation(supabase: any, userId: string, journeyId: string, input: {
   type: string; title: string; rationale: string; gap?: string | null; expectedOutcome?: string | null; goalId?: string | null; alternatives?: unknown; assumptions?: unknown; missingData?: unknown;
 }) {

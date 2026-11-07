@@ -24,7 +24,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       share: { token, jobTitle: share.jobTitleSnapshot, companyName: share.companyNameSnapshot },
       user: userRes.data, profile: profileRes.data ? { firstName: profileRes.data.firstName, lastName: profileRes.data.lastName, headline: profileRes.data.headline, summary: profileRes.data.summary, location: profileRes.data.location, targetRoles: profileRes.data.targetRoles, preferredSectors: profileRes.data.preferredSectors, targetCities: profileRes.data.targetCities, contractPreferences: profileRes.data.contractPreferences, remotePreference: profileRes.data.remotePreference } : null,
       experiences: expRes.data || [], skills: skillRes.data || [], education: eduRes.data || [],
-    });
+    }, { headers: { "Cache-Control": "no-store, private" } });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible de charger le CV." }, { status: 500 });
   }

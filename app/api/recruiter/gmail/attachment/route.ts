@@ -22,5 +22,5 @@ export async function GET(req: NextRequest) {
     const result = await response.json();
     if (!response.ok || !result.data) return NextResponse.json({ message: "Impossible de récupérer le CV Gmail." }, { status: response.status || 502 });
     return new NextResponse(b64urlToBuffer(result.data), { status: 200, headers: { "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="${String(application.sourceFilename || "CV.pdf").replace(/[^a-zA-Z0-9._-]/g, "_")}"`, "Cache-Control": "private, no-store" } });
-  } catch (error) { return NextResponse.json({ message: error instanceof Error ? error.message : "CV Gmail indisponible." }, { status: 500 }); }
+  } catch (error) { return NextResponse.json({ message: error instanceof Error ? error.message : "CV Gmail indisponible." }, { status: Number.isInteger((error as any)?.status) ? (error as any).status : 500 }); }
 }

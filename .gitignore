@@ -1,1 +1,52 @@
-.vercel
+# Dependencies
+node_modules/
+.pnp/
+.pnp.*
+
+# Next.js and build output
+.next/
+out/
+dist/
+build/
+coverage/
+
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Local credentials / signing material
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+local.properties
+
+# Android / Gradle output
+.gradle/
+apps/android/.gradle/
+apps/android/build/
+apps/android/app/build/
+
+# Local tooling and test artifacts
+.e2e-fixtures.json
+.e2e-fixture-runtime.json
+.e2e-admin-session.json
+.vercel/
+.e2e-tools/
+playwright-report/
+test-results/
+artifacts/
+
+# Editor / operating system files
+.DS_Store
+Thumbs.db
+*.log
+
+# Temporary E2E credential reset state (sensitive)
+.e2e-fixture-password-reset.pending.json
+.e2e-fixture-password-reset.pending.json.tmp-*
+.e2e-fixtures.json.tmp-*

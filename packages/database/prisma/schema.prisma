@@ -143,6 +143,7 @@ model User {
   country           String?
   privacyAcceptedAt DateTime?
   role            UserRole     @default(TALENT)
+  notificationsEnabled Boolean  @default(true)
   profilePhotoUrl String?
   pitchVideoUrl String?
   pitchVideoStoragePath String?
@@ -365,6 +366,9 @@ model Profile {
   country        String?
   headline       String?
   summary        String?
+  // Texte CV déclaré/importé conservé sans inventer d'expérience structurée ni de dates.
+  experienceSummary String?
+  educationSummary  String?
   location       String?
   targetRoles    String[] @default([])
   preferredSectors String[] @default([])

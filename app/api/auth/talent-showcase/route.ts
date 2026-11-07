@@ -1,9 +1,127 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import crypto from "node:crypto";
-function admin(){const u=process.env.NEXT_PUBLIC_SUPABASE_URL,k=process.env.SUPABASE_SERVICE_ROLE_KEY;if(!u||!k)throw new Error("Supabase serveur non configuré.");return createClient(u,k,{auth:{autoRefreshToken:false,persistSession:false}});}
-async function auth(req:NextRequest){const t=req.headers.get("authorization")?.replace(/^Bearer\\s+/i,"");if(!t)return null;const u=process.env.NEXT_PUBLIC_SUPABASE_URL,k=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;if(!u||!k)throw new Error("Supabase client non configuré.");const sb=createClient(u,k,{auth:{autoRefreshToken:false,persistSession:false}});return (await sb.auth.getUser(t)).data.user||null;}
-async function user(sb:any,au:any){const r=await sb.from("User").select("*").eq("authUserId",au.id).maybeSingle();if(r.error)throw new Error(r.error.message);if(r.data)return r.data;const x=await sb.from("User").insert({id:crypto.randomUUID(),authUserId:au.id,email:au.email??null,updatedAt:new Date().toISOString()}).select("*").single();if(x.error)throw new Error(x.error.message);return x.data;}
-async function plan(sb:any,id:string){const r=await sb.from("Subscription").select("plan,updatedAt").eq("userId",id).eq("status","ACTIVE").order("updatedAt",{ascending:false}).limit(1).maybeSingle();const p=String(r.data?.plan||"FREE").toUpperCase();return p==="PRO"?"PRO":p.indexOf("PREMIUM")===0?"PREMIUM":"FREE";}
-export async function GET(req:NextRequest){try{const au=await auth(req);if(!au)return NextResponse.json({message:"Session requise."},{status:401});const sb=admin(),u=await user(sb,au),p=await plan(sb,u.id),pr=await sb.from("Profile").select("publicDiscoverable").eq("userId",u.id).maybeSingle();if(pr.error)throw new Error(pr.error.message);return NextResponse.json({plan:p,publicDiscoverable:pr.data?.publicDiscoverable===true,actionImages:Array.isArray(u.actionImages)?u.actionImages:[],portfolioBusiness:u.portfolioBusiness||{text:"",url:""},executiveSummary:u.executiveSummary||"",advertisingVideoUrl:u.advertisingVideoUrl||null,pitchVideoUrl:u.pitchVideoUrl||null,pitchVideoDurationMs:u.pitchVideoDurationMs||null});}catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Impossible de charger la vitrine."},{status:500});}}
-export async function PUT(req:NextRequest){try{const au=await auth(req);if(!au)return NextResponse.json({message:"Session requise."},{status:401});const sb=admin(),u=await user(sb,au),b=await req.json(),update:any={updatedAt:new Date().toISOString()};if(Array.isArray(b.actionImages))update.actionImages=b.actionImages.filter((x:any)=>typeof x==="string").slice(0,6);if(b.portfolioBusiness&&typeof b.portfolioBusiness==="object")update.portfolioBusiness={text:String(b.portfolioBusiness.text||"").slice(0,5000),url:String(b.portfolioBusiness.url||"").slice(0,500)};if(typeof b.executiveSummary==="string")update.executiveSummary=b.executiveSummary.trim().slice(0,3000)||null;const x=await sb.from("User").update(update).eq("id",u.id);if(x.error)throw new Error(x.error.message);if(typeof b.publicDiscoverable==="boolean"){const p=await sb.from("Profile").select("id").eq("userId",u.id).maybeSingle();if(p.error)throw new Error(p.error.message);const payload:any={userId:u.id,publicDiscoverable:b.publicDiscoverable};if(p.data?.id)payload.id=p.data.id;const y=await sb.from("Profile").upsert(payload,{onConflict:"userId"});if(y.error)throw new Error(y.error.message);}return NextResponse.json({ok:true});}catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Impossible d'enregistrer la vitrine."},{status:500});}}
+import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
+import { getTalentShowcasePlan, TALENT_SHOWCASE_LIMITS } from "@/lib/talentShowcaseEntitlements";
+
+function cleanImageUrls(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const cleaned: string[] = [];
+  for (const item of value) {
+    if (typeof item === "string") {
+      const url = item.trim();
+      if (url) cleaned.push(url);
+    }
+  }
+  return [...new Set(cleaned)];
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+
+    const supabase = adminClient();
+    const user = await ensureUser(supabase, authUser);
+    const [plan, profile] = await Promise.all([
+      getTalentShowcasePlan(supabase, user.id),
+      supabase.from("Profile").select("publicDiscoverable").eq("userId", user.id).maybeSingle(),
+    ]);
+    if (profile.error) throw new Error(profile.error.message);
+
+    return NextResponse.json({
+      plan,
+      publicDiscoverable: profile.data?.publicDiscoverable === true,
+      actionImages: Array.isArray(user.actionImages) ? user.actionImages : [],
+      portfolioBusiness: user.portfolioBusiness || { text: "", url: "" },
+      executiveSummary: user.executiveSummary || "",
+      advertisingVideoUrl: user.advertisingVideoUrl || null,
+      pitchVideoUrl: user.pitchVideoUrl || null,
+      pitchVideoDurationMs: user.pitchVideoDurationMs || null,
+    });
+  } catch (error) {
+    return NextResponse.json({
+      message: error instanceof Error ? error.message : "Impossible de charger la vitrine.",
+    }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+
+    const supabase = adminClient();
+    const user = await ensureUser(supabase, authUser);
+    const plan = await getTalentShowcasePlan(supabase, user.id);
+    const body = await request.json();
+    const update: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+
+    if (Array.isArray(body.actionImages)) {
+      const currentImages = cleanImageUrls(user.actionImages);
+      const requestedImages = cleanImageUrls(body.actionImages);
+      const additions = requestedImages.filter((url) => !currentImages.includes(url));
+      const limit = plan === "FREE" ? 0 : TALENT_SHOWCASE_LIMITS[plan].images;
+
+      if (additions.length && (limit === 0 || requestedImages.length > limit)) {
+        return NextResponse.json({
+          message: plan === "FREE"
+            ? "Les images d’actions sont disponibles avec Pro ou Premium."
+            : `Quota d’images atteint pour votre formule (${limit}).`,
+          limit,
+        }, { status: 403 });
+      }
+
+      const publicPrefix = supabase.storage.from("talent-showcase").getPublicUrl(`${user.id}/`).data.publicUrl;
+      const invalidAdditions = additions.filter((url) => !url.startsWith(publicPrefix));
+      if (invalidAdditions.length) {
+        return NextResponse.json({ message: "Une image de la vitrine ne correspond pas à ce compte." }, { status: 403 });
+      }
+      update.actionImages = requestedImages;
+    }
+
+    if (body.portfolioBusiness && typeof body.portfolioBusiness === "object") {
+      update.portfolioBusiness = {
+        text: String(body.portfolioBusiness.text || "").slice(0, 5000),
+        url: String(body.portfolioBusiness.url || "").slice(0, 500),
+      };
+    }
+    if (typeof body.executiveSummary === "string") {
+      update.executiveSummary = body.executiveSummary.trim().slice(0, 3000) || null;
+    }
+
+    const saved = await supabase.from("User").update(update).eq("id", user.id);
+    if (saved.error) throw new Error(saved.error.message);
+
+    if (Array.isArray(body.actionImages)) {
+      const marker = "/storage/v1/object/public/talent-showcase/";
+      const removedPaths = (Array.isArray(user.actionImages) ? user.actionImages : [])
+        .filter((url: unknown): url is string => typeof url === "string" && !body.actionImages.includes(url))
+        .map((url: string) => {
+          const index = url.indexOf(marker);
+          return index < 0 ? null : url.slice(index + marker.length);
+        })
+        .filter((value: string | null): value is string => Boolean(value && value.startsWith(`${user.id}/`)));
+      if (removedPaths.length) {
+        const removed = await supabase.storage.from("talent-showcase").remove(removedPaths);
+        if (removed.error) {
+          // The profile update is authoritative; a failed object cleanup must not
+          // turn a successful save into a false failure.
+        }
+      }
+    }
+
+    if (typeof body.publicDiscoverable === "boolean") {
+      const existing = await supabase.from("Profile").select("id").eq("userId", user.id).maybeSingle();
+      if (existing.error) throw new Error(existing.error.message);
+      const payload: Record<string, unknown> = { userId: user.id, publicDiscoverable: body.publicDiscoverable };
+      if (existing.data?.id) payload.id = existing.data.id;
+      const updated = await supabase.from("Profile").upsert(payload, { onConflict: "userId" });
+      if (updated.error) throw new Error(updated.error.message);
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json({
+      message: error instanceof Error ? error.message : "Impossible d'enregistrer la vitrine.",
+    }, { status: 500 });
+  }
+}

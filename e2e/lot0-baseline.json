@@ -1,0 +1,59 @@
+{
+  "recordedAt": "2026-11-06",
+  "sourceCommit": "979f2ccfec9258bc30989af18433cf6adb1b4698",
+  "githubBranch": "e2e/recette",
+  "supabaseProject": "JOBLY-E2E",
+  "supabaseRef": "ofqqrryamslxoqkklraw",
+  "productionProjectRef": "mpoyaegtwtmhookdzqdy",
+  "productionTouched": false,
+  "projectStatus": "ACTIVE_HEALTHY",
+  "postgresVersion": "17.11.0.018",
+  "publicTables": 179,
+  "tablesWithRls": 179,
+  "policies": 215,
+  "rlsEnabledNoPolicyTables": 25,
+  "noPolicyTablesClientRolesHaveAnyDirectPrivilege": false,
+  "serviceRoleHasAccessToNoPolicyTables": true,
+  "authUsers": 1,
+  "confirmedUnbannedAuthUsers": 1,
+  "appUsers": 1,
+  "activeAdminIdentities": 1,
+  "enabledAdminWorkspaces": 4,
+  "jobs": 31,
+  "companies": 17,
+  "applications": 0,
+  "payments": 0,
+  "events": 0,
+  "storageBuckets": 7,
+  "storageObjects": 0,
+  "edgeFunctions": 0,
+  "cronSchemaPresent": false,
+  "securityAdvisor": {
+    "rlsEnabledNoPolicy": {
+      "count": 25,
+      "level": "INFO",
+      "verifiedServerOnly": true
+    },
+    "pgNetInPublic": {
+      "count": 1,
+      "level": "WARN",
+      "status": "EXPOSURE_REQUIRES_DATA_API_SCHEMA_CHECK"
+    },
+    "leakedPasswordProtection": {
+      "count": 1,
+      "level": "WARN",
+      "status": "PLAN_LIMIT_FREE_REQUIRES_PRO_OR_HIGHER"
+    }
+  },
+  "status": {
+    "lot0": "PARTIAL_PASS",
+    "authenticatedJourneys": "BLOCKED_EDGE_FUNCTIONS_AND_E2E_SECRETS_NOT_READY",
+    "productionE2E": "PROHIBITED"
+  },
+  "notes": [
+    "Baseline collected with read-only queries against JOBLY-E2E.",
+    "25 RLS-enabled tables without explicit policies have no direct anon/authenticated table privileges.",
+    "No real production personal data or Storage objects were copied.",
+    "Do not apply database migrations or deploy Edge Functions to JOBLY-PROD."
+  ]
+}

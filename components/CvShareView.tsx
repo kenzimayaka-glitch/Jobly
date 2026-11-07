@@ -23,7 +23,7 @@ export function CvShareView({ token }: { token:string }) {
   const [error,setError]=useState("");
   const [showRecruiter,setShowRecruiter]=useState(true);
 
-  useEffect(()=>{fetch("/api/cv-share/"+encodeURIComponent(token)).then(async r=>{const b=await r.json();if(!r.ok)throw new Error(b.message||"CV indisponible.");return b}).then(setData).catch(e=>setError(e.message||"CV indisponible."));},[token]);
+  useEffect(()=>{fetch("/api/cv-share/"+encodeURIComponent(token),{cache:"no-store"}).then(async r=>{const b=await r.json();if(!r.ok)throw new Error(b.message||"CV indisponible.");return b}).then(setData).catch(e=>setError(e.message||"CV indisponible."));},[token]);
 
   if(error) return <main className="min-h-[100dvh] grid place-items-center bg-[#F5F7FA] p-6"><div className="rounded-3xl bg-white p-8 text-center shadow-xl"><h1 className="text-xl font-black text-[#0B2447]">CV indisponible</h1><p className="mt-2 text-sm text-slate-500">{error}</p></div></main>;
   if(!data) return <main className="min-h-[100dvh] grid place-items-center bg-[#F5F7FA] font-black text-[#0B2447]">Chargement du CV…</main>;

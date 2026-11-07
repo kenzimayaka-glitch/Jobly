@@ -1,24 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, ensureUser, getAuthUser, newId } from "../../../../lib/server-auth";
-
-async function ensureRecruiterProfile(supabase: ReturnType<typeof adminClient>, userId: string) {
-  const { data: existing, error: lookupError } = await supabase
-    .from("RecruiterProfile")
-    .select("*")
-    .eq("userId", userId)
-    .maybeSingle();
-  if (lookupError) throw new Error(lookupError.message);
-  if (existing) return existing;
-
-  const now = new Date().toISOString();
-  const { data, error } = await supabase
-    .from("RecruiterProfile")
-    .insert({ id: newId(), userId, companyName: "Mon entreprise", updatedAt: now })
-    .select("*")
-    .single();
-  if (error) throw new Error(error.message);
-  return data;
-}
+import { adminClient, ensureUser, getAuthUser, ensureRecruiterProfileForAuthUser } from "../../../../lib/server-auth";
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,7 +7,7 @@ export async function GET(request: NextRequest) {
     if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
-    const profile = await ensureRecruiterProfile(supabase, user.id);
+    const profile = await ensureRecruiterProfileForAuthUser(supabase, authUser.id, user.id);
     return NextResponse.json({ profile: { ...profile, email: user.email || null, phone: user.phone || null } });
   } catch (error) {
     return NextResponse.json(
@@ -43,7 +24,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
-    await ensureRecruiterProfile(supabase, user.id);
+    await ensureRecruiterProfileForAuthUser(supabase, authUser.id, user.id);
 
     const companyName = String(body.companyName || "").trim();
     if (!companyName) {
@@ -61,7 +42,7 @@ export async function PUT(request: NextRequest) {
     const { data, error } = await supabase
       .from("RecruiterProfile")
       .update(payload)
-      .eq("userId", user.id)
+      .eq("userId", authUser.id)
       .select("*")
       .single();
     if (error) throw new Error(error.message);

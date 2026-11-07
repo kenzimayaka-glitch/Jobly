@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { adminClient, getAuthUser } from "../../../../lib/server-auth";
+import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
 
 // 15/09/2026 : seule l'unicité du username est exigée désormais — plus de
 // contrainte de format à la création du compte (elle rejetait encore un
@@ -25,8 +25,30 @@ export async function POST(request: NextRequest) {
     if (authUser.email?.toLowerCase() !== email) return NextResponse.json({ message: "L'adresse e-mail vérifiée ne correspond pas à l'inscription." }, { status: 400 });
 
     const supabase = adminClient();
-    const { data: existing, error: existingError } = await supabase.from("User").select("id").eq("authUserId", authUser.id).maybeSingle();
+    const { data: linkedUser, error: existingError } = await supabase
+      .from("User")
+      .select("id")
+      .eq("authUserId", authUser.id)
+      .maybeSingle();
     if (existingError) throw new Error(existingError.message);
+
+    let existing = linkedUser;
+    if (!existing) {
+      const { data: legacyUser, error: legacyError } = await supabase
+        .from("User")
+        .select("id,authUserId")
+        .ilike("email", email)
+        .maybeSingle();
+      if (legacyError) throw new Error(legacyError.message);
+      if (legacyUser?.authUserId && legacyUser.authUserId !== authUser.id) {
+        return NextResponse.json({ message: "Cette adresse e-mail est déjà associée à une autre identité JOBLY." }, { status: 409 });
+      }
+      if (legacyUser && !legacyUser.authUserId) {
+        const reconciled = await ensureUser(supabase, authUser);
+        existing = { id: reconciled.id };
+      }
+    }
+
     const { data: conflict, error: conflictError } = await supabase.from("User").select("id").ilike("username", username).maybeSingle();
     if (conflictError) throw new Error("Vérification de l'unicité du username impossible.");
     if (conflict && conflict.id !== existing?.id) {

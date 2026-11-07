@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateJourney } from "@/lib/careerJourney";
+import { getJourneyReadOnly } from "@/lib/careerJourney";
 import { getCareerJourneyEntitlements } from "@/lib/careerJourneyEntitlements";
 import { assessCareer } from "@/lib/careerEngine";
 
 export async function GET(request: NextRequest) {
   try {
-    const ctx = await getOrCreateJourney(request);
+    const ctx = await getJourneyReadOnly(request);
     const entitlements = await getCareerJourneyEntitlements(ctx.supabase, ctx.user.id);
     if (!entitlements.canCareerRadar) {
       return NextResponse.json({ message: "Career Radar est disponible à partir de Premium.", requiredPlan: "PREMIUM" }, { status: 403 });
@@ -15,10 +15,10 @@ export async function GET(request: NextRequest) {
       experiences: ctx.context.experiences,
       skills: ctx.context.skills,
       education: ctx.context.education,
-      targetRole: ctx.journey.targetRole ?? ctx.context.profile?.targetRoles?.[0] ?? null,
+      targetRole: ctx.journey?.targetRole ?? ctx.context.profile?.targetRoles?.[0] ?? null,
     });
 
-    const targetRole = ctx.journey.targetRole ?? ctx.context.profile?.targetRoles?.[0] ?? null;
+    const targetRole = ctx.journey?.targetRole ?? ctx.context.profile?.targetRoles?.[0] ?? null;
     const target = String(targetRole || "").toLowerCase();
 
     const { data: jobs, error } = await ctx.supabase

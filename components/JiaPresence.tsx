@@ -23,9 +23,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
-import type { JIAMove } from "./JIA/JIA";
+import type { JIAMove } from "./jia-avatar/JIA";
 import type { JiaGesture } from "./WaterScene";
-import { GESTURE_TO_MOVE } from "./JIA/gestureMap";
+import { GESTURE_TO_MOVE } from "./jia-avatar/gestureMap";
 import { GESTURES, type GestureId } from "@/lib/jia/gestures";
 import { commandIntent, extractWakeCommand, isFinancialRequest } from "@/lib/jia/guard";
 import { getSupabaseClient } from "../lib/supabase";

@@ -59,5 +59,5 @@ export async function POST(req: NextRequest) {
       imported++; items.push({ id: applicationId, jobTitle: job?.title || "À affecter", candidateName, candidateEmail: senderEmail, atsScore: score, source: "Gmail" });
     }
     return NextResponse.json({ ok: true, imported, skipped, scanned: (listed.messages || []).length, applications: items });
-  } catch (error) { return NextResponse.json({ message: error instanceof Error ? error.message : "Import Gmail impossible." }, { status: 500 }); }
+  } catch (error) { return NextResponse.json({ message: error instanceof Error ? error.message : "Import Gmail impossible." }, { status: Number.isInteger((error as any)?.status) ? (error as any).status : 500 }); }
 }

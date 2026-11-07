@@ -13,7 +13,7 @@ import TalentBackground from "../../components/TalentBackground";
 type Application = {
   id: string;
   source: "discovery" | "recruiter";
-  status: "DISCOVERED" | "SUBMITTED" | "ACKNOWLEDGED" | "INTERVIEW" | "OFFER" | "REJECTED";
+  status: "DISCOVERED" | "PREPARED" | "USER_REVIEW" | "SUBMITTING" | "SUBMITTED" | "ACKNOWLEDGED" | "INTERVIEW" | "OFFER" | "REJECTED" | "WITHDRAWN";
   statusLabel: string;
   statusSource: "CANDIDATE" | "RECRUITER";
   proofUrl: string | null;
@@ -24,15 +24,19 @@ type Application = {
   job: { title: string; location: string | null; contractType: string | null; remoteMode: string | null; companyName: string | null } | null;
 };
 
-type Counters = { envoyees: number; vues: number; entretien: number };
+type Counters = { total: number; brouillons: number; pretes: number; envoiEnCours: number; envoyees: number; vues: number; entretien: number };
 
 const STATUS_STYLE: Record<Application["status"], string> = {
   DISCOVERED: "bg-slate-100 text-jobly-gray",
+  PREPARED: "bg-blue-50 text-jobly-blue",
+  USER_REVIEW: "bg-blue-50 text-jobly-blue",
+  SUBMITTING: "bg-[#FFF8D9] text-amber-600",
   SUBMITTED: "bg-blue-50 text-jobly-blue",
   ACKNOWLEDGED: "bg-blue-50 text-jobly-blue",
   INTERVIEW: "bg-[#FFF8D9] text-amber-600",
   OFFER: "bg-blue-50 text-jobly-blue",
   REJECTED: "bg-red-50 text-red-500",
+  WITHDRAWN: "bg-slate-100 text-jobly-gray",
 };
 
 export default function CandidaturesPage() {
@@ -41,7 +45,7 @@ export default function CandidaturesPage() {
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [apps, setApps] = useState<Application[]>([]);
-  const [counters, setCounters] = useState<Counters>({ envoyees: 0, vues: 0, entretien: 0 });
+  const [counters, setCounters] = useState<Counters>({ total: 0, brouillons: 0, pretes: 0, envoiEnCours: 0, envoyees: 0, vues: 0, entretien: 0 });
   const [openId, setOpenId] = useState<string | null>(null);
   const [proofDraft, setProofDraft] = useState<Record<string, string>>({});
   const [interviewDraft, setInterviewDraft] = useState<Record<string, string>>({});
@@ -55,7 +59,7 @@ export default function CandidaturesPage() {
       const body = await res.json();
       if (!res.ok) throw new Error(body.message || "Candidatures indisponibles.");
       setApps(body.applications || []);
-      setCounters(body.counters || { envoyees: 0, vues: 0, entretien: 0 });
+      setCounters(body.counters || { total: 0, brouillons: 0, pretes: 0, envoiEnCours: 0, envoyees: 0, vues: 0, entretien: 0 });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur de chargement.");
     } finally {
@@ -113,10 +117,12 @@ export default function CandidaturesPage() {
 
         <div className="mx-auto w-full max-w-3xl px-5 py-5 sm:px-6">
           <h1 className="font-heading text-[26px] font-extrabold leading-tight tracking-[-0.02em] text-navy sm:text-[32px]">Mes candidatures</h1>
-          <p className="mt-1 text-sm text-jobly-gray">Suis l'avancement de tes candidatures envoyées sur JOBLY.</p>
+          <p className="mt-1 text-sm text-jobly-gray">Suis tes brouillons, candidatures prêtes et envois sur JOBLY.</p>
 
-          <section className="mt-5 grid grid-cols-3 gap-2.5">
+          <section className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
             {[
+              { icon: "📝", value: counters.brouillons, label: "Brouillons" },
+              { icon: "✉️", value: counters.pretes, label: "À envoyer" },
               { icon: "📤", value: counters.envoyees, label: "Envoyées" },
               { icon: "👀", value: counters.vues, label: "Vues" },
               { icon: "🎤", value: counters.entretien, label: "Entretien" },
@@ -184,6 +190,19 @@ export default function CandidaturesPage() {
                         <p className="rounded-xl bg-slate-50 px-3 py-2 text-[11px] text-jobly-gray">
                           Le statut de cette candidature a été fixé par le recruteur.
                         </p>
+                      )}
+
+                      {["PREPARED", "USER_REVIEW"].includes(app.status) && (
+                        <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                          <p className="text-xs leading-5 text-jobly-blue">Ta candidature est prête. Relis le message et le CV avant de confirmer l’envoi.</p>
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/applications/review/${encodeURIComponent(app.id)}`)}
+                            className="mt-2 rounded-xl bg-jobly-blue px-4 py-2 text-xs font-extrabold text-white"
+                          >
+                            Relire et envoyer →
+                          </button>
+                        </div>
                       )}
 
                       {app.status === "DISCOVERED" && (

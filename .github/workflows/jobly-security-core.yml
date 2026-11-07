@@ -71,3 +71,36 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/jobly-security-core-migration-smoke.sql
+      - name: Apply shared API rate-limit migration
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261107040000_api_rate_limit_windows.sql
+      - name: Verify API limiter atomic buckets and grants
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $verify$
+          DECLARE
+            first_call record;
+            second_call record;
+          BEGIN
+            SELECT * INTO first_call
+            FROM public.consume_api_rate_limit('ci-smoke', repeat('a', 64), 60, 1);
+            SELECT * INTO second_call
+            FROM public.consume_api_rate_limit('ci-smoke', repeat('a', 64), 60, 1);
+            IF NOT first_call.allowed OR second_call.allowed OR second_call.current_count <> 2 THEN
+              RAISE EXCEPTION 'API rate-limit RPC did not enforce an atomic request budget';
+            END IF;
+            IF has_table_privilege('anon', 'public.api_rate_limit_buckets', 'SELECT')
+              OR has_table_privilege('authenticated', 'public.api_rate_limit_buckets', 'SELECT') THEN
+              RAISE EXCEPTION 'Client roles must not read API rate-limit buckets';
+            END IF;
+            IF has_function_privilege('anon', 'public.consume_api_rate_limit(text,text,integer,integer)', 'EXECUTE')
+              OR has_function_privilege('authenticated', 'public.consume_api_rate_limit(text,text,integer,integer)', 'EXECUTE')
+              OR NOT has_function_privilege('service_role', 'public.consume_api_rate_limit(text,text,integer,integer)', 'EXECUTE') THEN
+              RAISE EXCEPTION 'API rate-limit RPC grants are incorrect';
+            END IF;
+          END;
+          $verify$;
+          SQL
