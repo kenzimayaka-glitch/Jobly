@@ -27,6 +27,7 @@ export default function NotificationsPage() {
   const [markingAll, setMarkingAll] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [notificationsDisabled, setNotificationsDisabled] = useState(false);
 
   const unreadCount = useMemo(
     () => notifications.filter((notification) => !notification.readAt).length,
@@ -42,6 +43,7 @@ export default function NotificationsPage() {
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(body.message || body.error || "Notifications indisponibles.");
     if (cancelled?.()) return;
+    setNotificationsDisabled(body.disabled === true);
     setNotifications(Array.isArray(body.notifications) ? body.notifications : []);
   }, []);
 
@@ -162,8 +164,8 @@ export default function NotificationsPage() {
           ) : notifications.length === 0 ? (
             <div className="mt-6 flex flex-col items-center gap-3 rounded-[24px] border border-slate-100 bg-white px-4 py-12 text-center shadow-[0_16px_50px_rgba(22,37,74,0.08)]">
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-canari-blue-soft text-xl text-canari-blue" aria-hidden="true">🔔</span>
-              <p className="font-heading text-base font-extrabold text-navy">Aucune notification pour l'instant</p>
-              <p className="max-w-xs text-sm text-jobly-gray">Tu seras prévenu ici dès qu'il y aura du nouveau sur tes candidatures, tes offres ou ton compte.</p>
+              <p className="font-heading text-base font-extrabold text-navy">{notificationsDisabled ? "Notifications désactivées" : "Aucune notification pour l'instant"}</p>
+              <p className="max-w-xs text-sm text-jobly-gray">{notificationsDisabled ? "Tu peux réactiver les notifications depuis Paramètres du compte." : "Tu seras prévenu ici dès qu'il y aura du nouveau sur tes candidatures, tes offres ou ton compte."}</p>
             </div>
           ) : (
             <div className="mt-6 space-y-3">
