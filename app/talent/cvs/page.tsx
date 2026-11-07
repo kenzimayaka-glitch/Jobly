@@ -78,11 +78,25 @@ export default function TalentCVs() {
 
   useEffect(() => {
     try { setCvs(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch {}
-    fetch("/api/entitlements", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(x => {
-      if (x?.subscription?.plan) setPlan(x.subscription.plan);
-      if (Number.isFinite(Number(x?.entitlements?.cvAtsDownloadPriceXaf))) setCvAtsPaymentAmount(Number(x.entitlements.cvAtsDownloadPriceXaf));
-      if (Number.isFinite(Number(x?.entitlements?.cvOptimizedDownloadPriceXaf))) setCvOptimizedPaymentAmount(Number(x.entitlements.cvOptimizedDownloadPriceXaf));
-    }).catch(() => {});
+    let cancelled = false;
+    void (async () => {
+      const token = await getAccessToken();
+      if (!token || cancelled) return;
+      const response = await fetch("/api/entitlements", {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = response.ok ? await response.json().catch(() => null) : null;
+      if (!data || cancelled) return;
+      if (data?.subscription?.plan) setPlan(data.subscription.plan);
+      if (Number.isFinite(Number(data?.entitlements?.cvAtsDownloadPriceXaf))) {
+        setCvAtsPaymentAmount(Number(data.entitlements.cvAtsDownloadPriceXaf));
+      }
+      if (Number.isFinite(Number(data?.entitlements?.cvOptimizedDownloadPriceXaf))) {
+        setCvOptimizedPaymentAmount(Number(data.entitlements.cvOptimizedDownloadPriceXaf));
+      }
+    })().catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   const ats = useMemo(() => score(cv), [cv]);
