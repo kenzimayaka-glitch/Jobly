@@ -195,6 +195,95 @@ export function newId() {
 }
 
 
+
+/**
+ * Resolve a recruiter's profile using the Supabase Auth UID required by RLS.
+ * Older application code may have stored User.id in RecruiterProfile.userId;
+ * only that exact row from the already authenticated internal User is eligible
+ * for a conditional relink. Existing profile content and id are preserved.
+ */
+export async function getRecruiterProfileForAuthUser(
+  supabase: ReturnType<typeof adminClient>,
+  authUserId: string,
+  internalUserId?: string | null,
+) {
+  const findByAuthUid = async () => {
+    const { data, error } = await supabase
+      .from("RecruiterProfile")
+      .select("*")
+      .eq("userId", authUserId)
+      .maybeSingle();
+    if (error) throw new Error("RECRUITER_PROFILE_LOOKUP_FAILED: " + error.message);
+    return data;
+  };
+
+  const current = await findByAuthUid();
+  if (current) return current;
+
+  if (
+    internalUserId &&
+    internalUserId !== authUserId &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(internalUserId)
+  ) {
+    const { data: legacy, error: legacyError } = await supabase
+      .from("RecruiterProfile")
+      .select("*")
+      .eq("userId", internalUserId)
+      .maybeSingle();
+    if (legacyError) throw new Error("RECRUITER_PROFILE_LEGACY_LOOKUP_FAILED: " + legacyError.message);
+
+    if (legacy) {
+      const { data: linked, error: linkError } = await supabase
+        .from("RecruiterProfile")
+        .update({ userId: authUserId, updatedAt: new Date().toISOString() })
+        .eq("id", legacy.id)
+        .eq("userId", internalUserId)
+        .select("*")
+        .maybeSingle();
+
+      if (linkError) {
+        const raced = await findByAuthUid();
+        if (raced) return raced;
+        throw new Error("RECRUITER_PROFILE_LINK_FAILED: " + linkError.message);
+      }
+      if (linked) return linked;
+
+      // Another request may have completed the same relink first.
+      const raced = await findByAuthUid();
+      if (raced) return raced;
+      throw new Error("RECRUITER_PROFILE_LINK_CONFLICT");
+    }
+  }
+
+  return null;
+}
+
+export async function ensureRecruiterProfileForAuthUser(
+  supabase: ReturnType<typeof adminClient>,
+  authUserId: string,
+  internalUserId: string,
+) {
+  const existing = await getRecruiterProfileForAuthUser(supabase, authUserId, internalUserId);
+  if (existing) return existing;
+
+  const { data, error } = await supabase
+    .from("RecruiterProfile")
+    .insert({
+      id: crypto.randomUUID(),
+      userId: authUserId,
+      companyName: "Mon entreprise",
+      updatedAt: new Date().toISOString(),
+    })
+    .select("*")
+    .single();
+  if (error) {
+    const raced = await getRecruiterProfileForAuthUser(supabase, authUserId, internalUserId);
+    if (raced) return raced;
+    throw new Error("RECRUITER_PROFILE_CREATE_FAILED: " + error.message);
+  }
+  return data;
+}
+
 export type BillingProductType = "TALENT" | "RECRUITER";
 
 /**
@@ -203,7 +292,7 @@ export type BillingProductType = "TALENT" | "RECRUITER";
   */
 export async function resolveBillingProductType(
   supabase: ReturnType<typeof adminClient>,
-  internalUser: { role?: string },
+  internalUser: { id?: string; role?: string },
   authUserId: string,
   requested?: unknown,
 ): Promise<BillingProductType> {
@@ -219,14 +308,8 @@ export async function resolveBillingProductType(
   // RecruiterProfile is owned by the Supabase Auth UID; billing rows remain
   // owned by the internal User.id.
   if (productType === "RECRUITER") {
-    const { data, error } = await supabase
-      .from("RecruiterProfile")
-      .select("id")
-      .eq("userId", authUserId)
-      .limit(1)
-      .maybeSingle();
-    if (error) throw new Error("RECRUITER_PROFILE_LOOKUP_FAILED: " + error.message);
-    if (!data) throw new Error("RECRUITER_PROFILE_REQUIRED");
+    const profile = await getRecruiterProfileForAuthUser(supabase, authUserId, internalUser.id);
+    if (!profile) throw new Error("RECRUITER_PROFILE_REQUIRED");
   }
 
   return productType;
