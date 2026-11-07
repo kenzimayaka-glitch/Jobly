@@ -138,6 +138,19 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    if (section === "cv-text") {
+      const cvTextPayload: Record<string, unknown> = { userId: user.id };
+      if (typeof body.experienceSummary === "string") cvTextPayload.experienceSummary = body.experienceSummary.trim().slice(0, 20000) || null;
+      if (typeof body.educationSummary === "string") cvTextPayload.educationSummary = body.educationSummary.trim().slice(0, 12000) || null;
+      if (Object.keys(cvTextPayload).length === 1) {
+        return NextResponse.json({ message: "Aucune section CV à enregistrer." }, { status: 400 });
+      }
+      const { data: existing } = await supabase.from("Profile").select("id").eq("userId", user.id).maybeSingle();
+      cvTextPayload.id = existing?.id ?? crypto.randomUUID();
+      const { error } = await supabase.from("Profile").upsert(cvTextPayload, { onConflict: "userId" });
+      if (error) throw new Error(error.message);
+    }
+
     return NextResponse.json({ ok: true, section });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible d'enregistrer le profil." }, { status: 500 });
