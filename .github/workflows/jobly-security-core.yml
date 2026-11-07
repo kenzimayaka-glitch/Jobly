@@ -80,7 +80,7 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jobly
         run: |
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
-          DO $
+          DO $verify$
           DECLARE
             first_call record;
             second_call record;
@@ -102,5 +102,5 @@ jobs:
               RAISE EXCEPTION 'API rate-limit RPC grants are incorrect';
             END IF;
           END;
-          $;
+          $verify$;
           SQL
