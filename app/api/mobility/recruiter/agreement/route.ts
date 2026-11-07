@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, authUser, ensureUser } from "../../../../../lib/mobilityServer";
+import { getRecruiterProfileForAuthUser } from "../../../../../lib/server-auth";
 
 const TERMS_VERSION = "JOBLY-MOBILITY-EMPLOYER-2026-11-05-v1";
 const TERMS = [
@@ -50,11 +51,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "La durée de remboursement doit être comprise entre 1 et 3 mois." }, { status: 400 });
     }
 
-    const { data: profile, error: profileError } = await db.from("RecruiterProfile")
-      .select("companyName")
-      .eq("userId", user.id)
-      .maybeSingle();
-    if (profileError) throw new Error(profileError.message);
+    const profile = await getRecruiterProfileForAuthUser(db, auth.id, user.id);
     const { data: jobs, error: jobsError } = await db.from("RecruiterJob")
       .select("companyName")
       .eq("recruiterUserId", user.id)
