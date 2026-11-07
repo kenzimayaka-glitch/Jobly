@@ -119,8 +119,10 @@ export default function CandidaturesPage() {
           <h1 className="font-heading text-[26px] font-extrabold leading-tight tracking-[-0.02em] text-navy sm:text-[32px]">Mes candidatures</h1>
           <p className="mt-1 text-sm text-jobly-gray">Suis tes brouillons, candidatures prêtes et envois sur JOBLY.</p>
 
-          <section className="mt-5 grid grid-cols-3 gap-2.5">
+          <section className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
             {[
+              { icon: "📝", value: counters.brouillons, label: "Brouillons" },
+              { icon: "✉️", value: counters.pretes, label: "À envoyer" },
               { icon: "📤", value: counters.envoyees, label: "Envoyées" },
               { icon: "👀", value: counters.vues, label: "Vues" },
               { icon: "🎤", value: counters.entretien, label: "Entretien" },
