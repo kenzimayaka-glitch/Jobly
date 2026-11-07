@@ -20,10 +20,14 @@ export async function POST(req: NextRequest) {
     }
 
     const limit = TALENT_SHOWCASE_LIMITS[plan].images;
-    const existingImages = Array.isArray(user.actionImages)
-      ? [...new Set(user.actionImages.filter((value: unknown): value is string => typeof value === "string" && Boolean(value.trim())).map((value: string) => value.trim()))]
-      : [];
-    if (existingImages.length >= limit) {
+    const existingImages: string[] = [];
+    if (Array.isArray(user.actionImages)) {
+      for (const value of user.actionImages) {
+        if (typeof value === "string" && value.trim()) existingImages.push(value.trim());
+      }
+    }
+    const uniqueExistingImages = [...new Set(existingImages)];
+    if (uniqueExistingImages.length >= limit) {
       return NextResponse.json({ message: `Quota d’images atteint pour votre formule (${limit}).`, limit }, { status: 409 });
     }
 
@@ -54,7 +58,7 @@ export async function POST(req: NextRequest) {
     if (uploaded.error) throw new Error(uploaded.error.message);
 
     const url = supabase.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
-    const nextImages = [...existingImages, url];
+    const nextImages = [...uniqueExistingImages, url];
     const saved = await supabase.from("User").update({
       actionImages: nextImages,
       updatedAt: new Date().toISOString(),
