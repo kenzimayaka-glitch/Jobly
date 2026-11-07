@@ -70,6 +70,7 @@ const catalog = [
       "scripts/jia-conversation-write-guard.test.mjs",
       "scripts/jia-experience-engine.test.mjs",
       "scripts/jia-extension-onboarding.test.mjs",
+      "scripts/jia-internet-brain.test.mjs",
       "scripts/jia-session-isolation-integration.test.mjs",
       "scripts/jia-variation-inventory.test.mjs",
       "scripts/jia-workspace.test.mjs",
