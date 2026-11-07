@@ -22,15 +22,27 @@ export async function runUnifiedCognitiveCycle(sb:SupabaseClient,input:JiaCycleI
  const ceo:NonNullable<JiaCycleInput["ceoSnapshot"]>|null =
   adminScope ? (input.ceoSnapshot ?? await buildCEOIntelligence(sb)) : null;
  let internetAvailable=Boolean((snapshot.self?.state as Record<string,unknown>|undefined)?.internetAvailable);
+ let internetObservation:Awaited<ReturnType<typeof observeInternet>>["observation"]|null=null;
  const failures:string[]=[];
  if(input.includeInternet&&input.internetQuery?.trim()){
   try{
    const signal=await observeInternet(input.internetQuery.trim(),{mode:"READ",maxQueries:3,maxSources:10});
+   internetObservation=signal.observation;
    internetAvailable=signal.observation.internetAvailable;
-   await ingestExternalSignal(input.userId,{query:signal.observation.query,facts:signal.observation.facts,confidence:signal.observation.confidence,status:signal.observation.status,supportingSources:signal.observation.supportingSources,contradictingSources:signal.observation.contradictingSources,context:signal.observation.context});
+   if(signal.observation.internetAvailable&&(signal.observation.sourcesUsed.length>0||signal.observation.facts.length>0)){
+    await ingestExternalSignal(input.userId,{query:signal.observation.query,facts:signal.observation.facts,confidence:signal.observation.confidence,status:signal.observation.status,supportingSources:signal.observation.supportingSources,contradictingSources:signal.observation.contradictingSources,context:signal.observation.context});
+   }else if(!signal.observation.internetAvailable){
+    failures.push("INTERNET_UNAVAILABLE");
+    await reflect({userId:input.userId,triggerType:"INTERNET_FAILURE",expectation:{query:input.internetQuery},result:{available:false,limitations:signal.observation.limitations},error:{message:"Internet Brain returned no available network evidence"},learning:{policy:"OFFLINE_FALLBACK"},nextStrategy:{useCachedVerifiedSignals:true}});
+   }
   }catch(error){internetAvailable=false; failures.push("INTERNET_UNAVAILABLE"); await reflect({userId:input.userId,triggerType:"INTERNET_FAILURE",expectation:{query:input.internetQuery},result:{available:false},error:{message:error instanceof Error?error.message:"unknown"},learning:{policy:"OFFLINE_FALLBACK"},nextStrategy:{useCachedVerifiedSignals:true}}); }
  }
  const signals:Signal[]=[];
+ if(internetObservation?.internetAvailable&&internetObservation.sourcesUsed.length>0){
+  const externalConfidence=internetObservation.confidence>=.75?"HIGH":internetObservation.confidence>=.45?"MEDIUM":"LOW";
+  const evidenceSummary=internetObservation.facts.slice(0,3).join(" · ")||("Sources externes consultées : "+internetObservation.sourcesUsed.length);
+  signals.push({id:"internet-brain-evidence",type:"EXTERNAL_WEB_EVIDENCE",title:"Éléments externes vérifiés",detail:evidenceSummary+" · statut "+internetObservation.status+" · fraîcheur "+internetObservation.freshness,confidence:externalConfidence});
+ }
  if(adminScope&&ceo){
    for(const alert of ceo.alerts)signals.push({id:"ceo-risk:"+alert.id,type:"CEO_RISK",title:alert.title,detail:alert.detail,confidence:alert.severity==="CRITICAL"?"HIGH":"MEDIUM"});
    for(const alert of ceo.joblyIntelligence360?.alerts??[])signals.push({id:"bi-alert:"+alert.id,type:"BI_ALERT",title:alert.title,detail:alert.detail,confidence:alert.severity.toLowerCase()==="critical"?"HIGH":"MEDIUM"});
@@ -69,9 +81,14 @@ export async function runUnifiedCognitiveCycle(sb:SupabaseClient,input:JiaCycleI
  const trace=await publishTraceEvent(sb,{userId:input.userId,type:"JIA_COGNITIVE_CYCLE",ecosystem,source:"JIA_RUNTIME",payload:{path:input.path??"",action:input.action??"",recommendationId:top?.id??null}},{
   stage:top?"RECOMMENDATION":"INSIGHT",title:"Cycle cognitif unifié",
   content:top?"Prochaine action proposée : "+top.title:"Cycle exécuté sans action proposée.",
-  confidence:top?.confidence??"MEDIUM",evidence:signals,metadata:{cycle:JIA_COGNITIVE_CYCLE,internetAvailable,failures,memoryCount:snapshot.memory.length,predictionCount:snapshot.predictions.length}
+  confidence:top?.confidence??"MEDIUM",evidence:signals,metadata:{cycle:JIA_COGNITIVE_CYCLE,internetAvailable,internetStatus:internetObservation?.status??null,internetSources:internetObservation?.sourcesUsed.length??0,failures,memoryCount:snapshot.memory.length,predictionCount:snapshot.predictions.length}
  });
  if(!adminScope) await buildCareerTwin(input.userId);
  const selfModel=await buildJiaSelfModel(sb,input.userId,{ecosystem,internetAvailable,currentGoal:top?.title??null,extraLimitations:failures});
- return{ok:true,cycle:JIA_COGNITIVE_CYCLE,context,recommendations,prediction,actionRun,selfModel,trace,ceo};
+ return{ok:true,cycle:JIA_COGNITIVE_CYCLE,context,recommendations,prediction,actionRun,selfModel,trace,ceo,internet:internetObservation?{
+  available:internetObservation.internetAvailable,status:internetObservation.status,confidence:internetObservation.confidence,
+  freshness:internetObservation.freshness,facts:internetObservation.facts.slice(0,5),
+  sources:internetObservation.sourcesUsed.slice(0,8).map(source=>({title:source.title,url:source.url,authority:source.authority,freshness:source.freshness})),
+  limitations:internetObservation.limitations
+ }:null};
 }
