@@ -254,3 +254,15 @@ test("Talent Showcase plan and image quotas are enforced by the server with Prom
   assert.match(showcase, /invalidAdditions\.length/);
   assert.match(showcase, /storage\.from\("talent-showcase"\)\.remove\(removedPaths\)/);
 });
+
+test("Talent Showcase surfaces server image quota and upload validation errors", () => {
+  const component = read("components/TalentShowcaseStudio.tsx");
+  const uploadApi = read("app/api/auth/talent-showcase/image/route.ts");
+  assert.match(component, /const remaining=Math\.max\(0,lim\.images-d\.actionImages\.length\)/);
+  assert.match(component, /if\(!response\.ok\)throw new Error\(body\.message\|\|"Impossible d’ajouter cette image\."\)/);
+  assert.match(component, /catch\(error\)\{setMsg\(error instanceof Error\?error\.message:"Upload impossible\."\)\}/);
+  assert.match(uploadApi, /status: 415/);
+  assert.match(uploadApi, /status: 413/);
+  assert.match(uploadApi, /status: 409/);
+  assert.match(uploadApi, /actionImages: nextImages/);
+});
