@@ -13,18 +13,115 @@ const EXPECTED_REF = "ofqqrryamslxoqkklraw";
 const EXPECTED_URL = "https://" + EXPECTED_REF + ".supabase.co";
 const PUBLISHABLE_KEY = "sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y";
 const PLAYWRIGHT_VERSION = "1.65.0";
+const GROUP_CONCURRENCY = 3;
+const FILE_CONCURRENCY = 2;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function makeIsolatedEnvironment() {
-  const env = { ...process.env };
+const catalog = [
+  {
+    id: "LOT-01",
+    label: "Auth, rôles, navigation et sécurité",
+    files: [
+      "scripts/authentication-flow-regression.test.mjs",
+      "scripts/jobly-security-core.test.mjs",
+      "scripts/security-entitlements.test.mjs",
+      "scripts/p2-pwned-passwords.test.mjs",
+    ],
+    gap: "Le cycle Auth réel avec comptes Talent/Recruteur, OTP, Google et réinitialisation n'est pas démontré. Le compte Admin E2E n'a pas de mot de passe de recette disponible.",
+  },
+  {
+    id: "LOT-02",
+    label: "Talent, offres, recherche et candidatures",
+    files: ["scripts/external-application-assistant.test.mjs"],
+    gap: "Les tests automatisés couvrent l'assistance à la candidature ; aucun compte Talent synthétique ni parcours authentifié profil/CV/recherche/suivi n'est provisionné dans JOBLY-E2E.",
+  },
+  {
+    id: "LOT-03",
+    label: "Recruteur et Recruitment 360",
+    files: [],
+    gap: "Aucune suite de test Recruiter dédiée et aucun profil Recruteur synthétique ne sont disponibles dans JOBLY-E2E.",
+  },
+  {
+    id: "LOT-04",
+    label: "Mission Afrique et qualité des offres",
+    files: [
+      "scripts/africa-p0.test.mjs",
+      "scripts/lib/supabase-batch-query.test.mjs",
+      "scripts/p2-jobly-offer-watermark.test.mjs",
+    ],
+    gap: "Les régressions de règles sont exécutées ; la collecte réelle multi-sources, la reprise d'ingestion et la persistance de bout en bout ne sont pas exercées par ces tests.",
+  },
+  {
+    id: "LOT-05",
+    label: "J'IA 360",
+    files: [
+      "scripts/jia-access.test.mjs",
+      "scripts/jia-conversation-write-guard.test.mjs",
+      "scripts/jia-experience-engine.test.mjs",
+      "scripts/jia-extension-onboarding.test.mjs",
+      "scripts/jia-session-isolation-integration.test.mjs",
+      "scripts/jia-variation-inventory.test.mjs",
+      "scripts/jia-workspace.test.mjs",
+    ],
+    gap: "Les tests couvrent le moteur et les garde-fous ; une session Talent réelle, les outils connectés et le parcours Internet Brain de bout en bout restent à démontrer.",
+  },
+  {
+    id: "LOT-06",
+    label: "Mobility et partenaires",
+    files: ["scripts/mobility-p1.test.mjs"],
+    gap: "La suite métier Mobility passe au niveau automatisé ; le parcours authentifié Talent/partenaire, les justificatifs et le financement réel ne sont pas exécutés.",
+  },
+  {
+    id: "LOT-07",
+    label: "Paiements, abonnements et Mobile Money",
+    files: [
+      "scripts/billing-lifecycle.test.mjs",
+      "scripts/payment-sms-ai.test.mjs",
+      "scripts/payment-sms-android.test.mjs",
+      "scripts/payment-sms-config.test.mjs",
+      "scripts/payment-sms-customer-share.test.mjs",
+      "scripts/payment-sms-devices.test.mjs",
+      "scripts/payment-sms-matching.test.mjs",
+      "scripts/payment-sms-parser.test.mjs",
+    ],
+    gap: "Le parsing, la configuration et le rapprochement sont testés hors transaction réelle ; aucun paiement opérateur ou SMS externe n'est envoyé.",
+  },
+  {
+    id: "LOT-08",
+    label: "Events, Community, Bons Plans et Campus",
+    files: [
+      "scripts/event-core-p1.test.mjs",
+      "scripts/p2-community-bons-plans-campus.test.mjs",
+      "scripts/company-logo-fallback.test.mjs",
+    ],
+    gap: "Les régressions automatisées sont couvertes ; publication réelle, inscriptions, interactions et modération avec comptes métier ne sont pas validées.",
+  },
+  {
+    id: "LOT-09",
+    label: "Career Journey, Admin 360 et BI",
+    files: [],
+    gates: ["scripts/career-os-gate.mjs"],
+    gap: "Le gate statique Career OS est exécuté ; aucun scénario runtime authentifié Admin 360/BI, export ou persistance Career Journey n'est disponible dans la recette actuelle.",
+  },
+  {
+    id: "LOT-10",
+    label: "PWA, Android et régression transverse",
+    files: [
+      "scripts/android-jia-bridge.test.mjs",
+      "scripts/offline-first.test.mjs",
+      "scripts/jia-responsive-layout.test.mjs",
+    ],
+    gates: ["scripts/check-pwa.mjs"],
+    gap: "Les contrôles statiques PWA et les tests mobile/offline sont exécutés ; installation PWA, synchronisation réelle et validation sur appareil Android physique restent à faire.",
+  },
+];
 
-  // Empty sensitive variables so Next.js cannot reload local Production values
-  // from .env files when this recipe starts its local test server.
+function isolatedEnvironment() {
+  const env = { ...process.env };
   const sensitive = /(SERVICE_ROLE|SUPABASE_SECRET|DATABASE_URL|DIRECT_URL|POSTGRES|RESEND|SMTP|SENDGRID|TWILIO|STRIPE_SECRET|PAYPAL_SECRET|MOBILE_MONEY_SECRET|ADMIN_PASSWORD|PRIVATE_KEY)/i;
   for (const key of Object.keys(env)) {
     if (sensitive.test(key)) env[key] = "";
   }
-
   Object.assign(env, {
     E2E_PROJECT_REF: EXPECTED_REF,
     E2E_BASE_URL: "http://127.0.0.1:3000",
@@ -38,10 +135,8 @@ function makeIsolatedEnvironment() {
     JOBLY_PUBLIC_URL: "http://127.0.0.1:3000",
     JOBLY_API_BASE_URL: "http://127.0.0.1:3000",
     NODE_ENV: "production",
-    E2E_BULK_CONCURRENCY: "3",
+    E2E_BULK_CONCURRENCY: String(GROUP_CONCURRENCY),
   });
-
-  // Explicitly prevent local dotenv files from supplying privileged values.
   for (const key of [
     "SUPABASE_SERVICE_ROLE_KEY",
     "SUPABASE_SERVICE_KEY",
@@ -55,11 +150,10 @@ function makeIsolatedEnvironment() {
     "STRIPE_SECRET_KEY",
     "TWILIO_AUTH_TOKEN",
   ]) env[key] = "";
-
   return env;
 }
 
-async function pathExists(target) {
+async function exists(target) {
   try {
     await access(target);
     return true;
@@ -77,7 +171,6 @@ async function runProcess(id, command, args, options = {}) {
   let output = "";
   let timedOut = false;
   let spawnError = null;
-
   const child = spawn(command, args, {
     cwd: ROOT,
     env: options.env ?? process.env,
@@ -85,7 +178,6 @@ async function runProcess(id, command, args, options = {}) {
     shell: options.shell ?? false,
     stdio: ["ignore", "pipe", "pipe"],
   });
-
   const collect = (chunk) => {
     const value = chunk.toString();
     output += value;
@@ -97,13 +189,11 @@ async function runProcess(id, command, args, options = {}) {
     spawnError = error.message;
     stream.write("\nRUNNER ERROR: " + error.message + "\n");
   });
-
   const timer = setTimeout(() => {
     timedOut = true;
     child.kill("SIGTERM");
     stream.write("\nTIMEOUT after " + timeoutMs + " ms\n");
   }, timeoutMs);
-
   return await new Promise((resolve) => {
     child.on("close", (code, signal) => {
       clearTimeout(timer);
@@ -120,16 +210,117 @@ async function runProcess(id, command, args, options = {}) {
   });
 }
 
-function phase(id, label, status, details = {}) {
-  return { id, label, status, ...details };
+function parseCount(output, label) {
+  const match = output.match(new RegExp("ℹ\\\\s+" + label + "\\\\s+(\\\\d+)|#\\\\s+" + label + "\\\\s+(\\\\d+)", "g"));
+  if (!match) return null;
+  let total = 0;
+  for (const line of match) {
+    const values = line.match(/(\d+)/g);
+    if (values?.length) total += Number(values[values.length - 1]);
+  }
+  return total;
 }
 
-async function readJson(file) {
-  try {
-    return JSON.parse(await readFile(file, "utf8"));
-  } catch {
-    return null;
+async function executeLot(group, env) {
+  console.log("[START] " + group.id + " — " + group.label);
+  const started = performance.now();
+  const missing = [];
+  for (const file of [...group.files, ...(group.gates ?? [])]) {
+    if (!(await exists(path.join(ROOT, file)))) missing.push(file);
   }
+  if (missing.length) {
+    return {
+      id: group.id,
+      label: group.label,
+      status: "FAIL",
+      testFiles: group.files,
+      error: "Fichiers manquants : " + missing.join(", "),
+      durationMs: Math.round(performance.now() - started),
+    };
+  }
+
+  if (group.files.length === 0 && (!group.gates || group.gates.length === 0)) {
+    return {
+      id: group.id,
+      label: group.label,
+      status: "BLOCKED",
+      testFiles: [],
+      passed: 0,
+      failed: 0,
+      detail: group.gap,
+      durationMs: 0,
+    };
+  }
+
+  const logs = [];
+  let testCount = 0;
+  let passedCount = 0;
+  let failedCount = 0;
+  if (group.files.length) {
+    const testRun = await runProcess(
+      group.id.toLowerCase() + "-tests",
+      process.execPath,
+      ["--experimental-strip-types", "--test", "--test-concurrency=" + FILE_CONCURRENCY, ...group.files],
+      { env, timeoutMs: 300000 },
+    );
+    logs.push(testRun.log);
+    testCount = parseCount(testRun.output, "tests") ?? 0;
+    passedCount = parseCount(testRun.output, "pass") ?? 0;
+    failedCount = parseCount(testRun.output, "fail") ?? (testRun.exitCode === 0 ? 0 : 1);
+    if (testRun.exitCode !== 0) {
+      return {
+        id: group.id,
+        label: group.label,
+        status: "FAIL",
+        testFiles: group.files,
+        tests: testCount,
+        passed: passedCount,
+        failed: failedCount,
+        log: logs.join(", "),
+        error: testRun.spawnError ?? (testRun.timedOut ? "Timeout" : "Tests en échec"),
+        durationMs: Math.round(performance.now() - started),
+      };
+    }
+  }
+
+  for (let index = 0; index < (group.gates ?? []).length; index += 1) {
+    const gate = group.gates[index];
+    const gateRun = await runProcess(
+      group.id.toLowerCase() + "-gate-" + (index + 1),
+      process.execPath,
+      [gate],
+      { env, timeoutMs: 90000 },
+    );
+    logs.push(gateRun.log);
+    if (gateRun.exitCode !== 0) {
+      return {
+        id: group.id,
+        label: group.label,
+        status: "FAIL",
+        testFiles: group.files,
+        tests: testCount,
+        passed: passedCount,
+        failed: 1,
+        log: logs.join(", "),
+        error: gateRun.spawnError ?? (gateRun.timedOut ? "Gate timeout" : "Gate en échec : " + gate),
+        durationMs: Math.round(performance.now() - started),
+      };
+    }
+  }
+
+  // A unit/static PASS cannot prove the authenticated business journey described by the catalogue.
+  return {
+    id: group.id,
+    label: group.label,
+    status: "PARTIAL",
+    testFiles: group.files,
+    tests: testCount,
+    passed: passedCount,
+    failed: 0,
+    log: logs.join(", ") || null,
+    detail: group.gap,
+    durationMs: Math.round(performance.now() - started),
+  };
 }
 
 async function reserveLocalPort() {
@@ -147,9 +338,7 @@ async function reserveLocalPort() {
 async function ensurePlaywright(env) {
   const modulePath = path.join(ROOT, ".e2e-tools", "node_modules", "playwright", "index.mjs");
   const cliPath = path.join(ROOT, ".e2e-tools", "node_modules", "playwright", "cli.js");
-
-  if (!(await pathExists(modulePath))) {
-    console.log("[SETUP] Installation de Playwright " + PLAYWRIGHT_VERSION);
+  if (!(await exists(modulePath))) {
     const npm = process.platform === "win32" ? "npm.cmd" : "npm";
     const install = await runProcess(
       "playwright-install",
@@ -157,11 +346,10 @@ async function ensurePlaywright(env) {
       ["install", "--prefix", ".e2e-tools", "--no-save", "--no-package-lock", "playwright@" + PLAYWRIGHT_VERSION],
       { env, timeoutMs: 240000, shell: process.platform === "win32" },
     );
-    if (install.exitCode !== 0 || !(await pathExists(modulePath))) {
+    if (install.exitCode !== 0 || !(await exists(modulePath))) {
       return { ok: false, reason: "Installation Playwright impossible.", log: install.log };
     }
   }
-
   const browserInstall = await runProcess(
     "playwright-chromium-install",
     process.execPath,
@@ -171,17 +359,15 @@ async function ensurePlaywright(env) {
   if (browserInstall.exitCode !== 0) {
     return { ok: false, reason: "Installation Chromium impossible.", log: browserInstall.log };
   }
-
   env.PLAYWRIGHT_MODULE_PATH = modulePath;
   return { ok: true, modulePath };
 }
 
 async function startNextServer(env, port) {
   const nextCli = path.join(ROOT, "node_modules", "next", "dist", "bin", "next");
-  if (!(await pathExists(nextCli))) {
-    return { ok: false, reason: "Next.js CLI absent : exécute pnpm install avant la recette." };
+  if (!(await exists(nextCli))) {
+    return { ok: false, reason: "Next.js CLI absent ; les dépendances locales ne sont pas installées." };
   }
-
   const logPath = path.join(LOGS, "next-server.log");
   const stream = createWriteStream(logPath, { encoding: "utf8" });
   const baseURL = "http://127.0.0.1:" + port;
@@ -198,7 +384,6 @@ async function startNextServer(env, port) {
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
   });
-
   child.stdout.on("data", (chunk) => stream.write(chunk));
   child.stderr.on("data", (chunk) => stream.write(chunk));
   let closed = false;
@@ -209,7 +394,6 @@ async function startNextServer(env, port) {
     exitCode = code;
     stream.end();
   });
-
   let ready = false;
   for (let attempt = 0; attempt < 60; attempt += 1) {
     if (closed) break;
@@ -220,11 +404,10 @@ async function startNextServer(env, port) {
         break;
       }
     } catch {
-      // The server is still starting.
+      // Wait for Next.js to listen.
     }
     await sleep(1000);
   }
-
   return {
     ok: ready,
     child,
@@ -251,18 +434,18 @@ async function stopNextServer(server) {
 
 function reportMarkdown(report) {
   const lines = [
-    "# Jobly — recette E2E locale consolidée",
+    "# Jobly — recette E2E par lots métier",
     "",
     "- Début : " + report.startedAt,
     "- Fin : " + report.completedAt,
-    "- Commit local : " + report.commit,
+    "- Commit : " + report.commit,
     "- Node.js : " + report.node,
     "- Environnement : JOBLY-E2E uniquement (" + EXPECTED_REF + ")",
-    "- Orchestration : 6 groupes bulk en parallèle, concurrence limitée à 3 groupes et 2 fichiers par groupe",
-    "- Bilan : **" + report.passedLots + "/11 PASS**, " + report.partialLots + " PARTIAL, " + report.blockedLots + " BLOCKED, " + report.failedLots + " FAIL",
+    "- Parallélisme : " + GROUP_CONCURRENCY + " lots ; maximum " + FILE_CONCURRENCY + " fichiers par lot",
     "- Statut global : **" + report.status + "**",
+    "- Lots : " + report.passedLots + " PASS ; " + report.partialLots + " PARTIAL ; " + report.blockedLots + " BLOCKED ; " + report.failedLots + " FAIL",
     "",
-    "| Lot | Contrôle | Statut | Tests | Détail / preuve |",
+    "| Lot | Périmètre du cahier | Statut | Tests exécutés | Preuve / limite |",
     "|---|---|---:|---:|---|",
   ];
   for (const item of report.lots) {
@@ -270,26 +453,32 @@ function reportMarkdown(report) {
       "| " + item.id +
       " | " + item.label +
       " | **" + item.status + "**" +
-      " | " + (item.tests ?? "—") +
-      " | " + (item.log ?? item.detail ?? "—") + " |"
+      " | " + (item.tests ?? 0) +
+      " | " + (item.log ?? item.detail ?? item.error ?? "—") + " |"
     );
+  }
+  lines.push("", "## Contrôles techniques transverses", "", "| Contrôle | Statut | Log |", "|---|---:|---|");
+  for (const check of report.technicalChecks) {
+    lines.push("| " + check.label + " | **" + check.status + "** | " + (check.log ?? check.detail ?? "—") + " |");
   }
   lines.push(
     "",
-    "## Garde-fous",
+    "## Sécurité et limites",
     "",
-    "- La connexion Supabase est forcée sur JOBLY-E2E ; les variables sensibles connues sont neutralisées pour les processus enfants.",
-    "- Aucun service_role, mot de passe Admin, compte de production, envoi email/SMS ou paiement réel n'est utilisé.",
-    "- Le smoke navigateur ne soumet pas les formulaires et ne crée pas de compte.",
-    "- BLOCKED et PARTIAL ne sont jamais comptés comme PASS.",
-    "- Les tests unitaires/régressions ne prouvent pas à eux seuls les parcours réels authentifiés Talent/Recruteur ni la persistance de bout en bout.",
+    "- Toutes les connexions sont forcées vers JOBLY-E2E ; les variables sensibles connues sont neutralisées pour les processus enfants.",
+    "- Aucun service_role, mot de passe Admin, compte JOBLY-PROD, envoi email/SMS ou paiement réel n'est utilisé.",
+    "- Aucun compte Talent ou Recruteur n'est créé automatiquement ; aucun mécanisme Auth Admin sûr n'est disponible dans la recette.",
+    "- Les PASS de tests unitaires ou statiques ne sont pas assimilés à une validation E2E authentifiée.",
+    "- Le Lot 3 reste BLOCKED tant qu'une suite Recruiter dédiée et un profil synthétique n'existent pas.",
+    "- Les statuts BLOCKED/PARTIAL restent visibles et empêchent le vert global.",
     "",
     "## Artefacts",
     "",
     "- Résumé : artifacts/e2e/local-recipe/summary.json et summary.md",
-    "- Régressions bulk : artifacts/e2e/bulk/summary.md et *.log",
+    "- Rapports de lot : artifacts/e2e/local-recipe/*.log",
+    "- Auth session : artifacts/e2e/auth-session-smoke.json",
     "- Browser smoke : artifacts/e2e/lot1-auth-ui-smoke.json et captures PNG",
-    "- Logs détaillés : artifacts/e2e/local-recipe/*.log",
+    "- Feedback unique : feedback-e2e-recette-complete.txt",
     "",
   );
   return lines.join("\n");
@@ -298,193 +487,200 @@ function reportMarkdown(report) {
 async function main() {
   await mkdir(LOGS, { recursive: true });
   await mkdir(ARTIFACTS, { recursive: true });
-  const env = makeIsolatedEnvironment();
-  const lots = [];
+  const env = isolatedEnvironment();
   const startedAt = new Date().toISOString();
+  const technicalChecks = [];
+  const lots = [];
 
-  console.log("[1/11] Préflight strict JOBLY-E2E");
+  console.log("[LOT 0] Préflight JOBLY-E2E en lecture seule");
   const preflight = await runProcess(
     "lot-00-preflight",
     process.execPath,
     ["e2e/lot0-preflight.mjs"],
     { env, timeoutMs: 45000 },
   );
-  lots.push(phase(
-    "LOT-00",
-    "Préflight Supabase JOBLY-E2E",
-    preflight.exitCode === 0 ? "PASS" : "FAIL",
-    { durationMs: preflight.durationMs, log: preflight.log, detail: preflight.spawnError ?? (preflight.timedOut ? "Timeout" : "Connexion E2E vérifiée en lecture seule") },
-  ));
+  lots.push({
+    id: "LOT-00",
+    label: "Environnement et jeux de données",
+    status: preflight.exitCode === 0 ? "PARTIAL" : "FAIL",
+    tests: 1,
+    passed: preflight.exitCode === 0 ? 1 : 0,
+    failed: preflight.exitCode === 0 ? 0 : 1,
+    log: preflight.log,
+    detail: preflight.exitCode === 0
+      ? "Préflight Auth JOBLY-E2E PASS ; le contrôle courant RLS/grants, Storage et provisionnement des comptes métier reste incomplet. Baseline historique : e2e/README.md."
+      : preflight.spawnError ?? "Préflight E2E en échec.",
+  });
 
-  console.log("[2-7/11] Six groupes de régressions en parallèle (maximum 3)");
-  const bulk = await runProcess(
-    "lot-02-to-07-bulk",
-    process.execPath,
-    ["scripts/e2e-bulk-runner.mjs"],
-    { env, timeoutMs: 300000 },
-  );
-  const bulkReport = await readJson(path.join(ARTIFACTS, "bulk", "summary.json"));
-  const bulkGroups = Array.isArray(bulkReport?.results) ? bulkReport.results : [];
-  for (let index = 0; index < 6; index += 1) {
-    const group = bulkGroups[index];
-    if (!group) {
-      lots.push(phase("BULK-" + (index + 1), "Groupe bulk " + (index + 1), "FAIL", {
-        detail: "Rapport du groupe absent ; code orchestrateur " + bulk.exitCode,
-        log: bulk.log,
-      }));
-      continue;
-    }
-    lots.push(phase(
-      "BULK-" + (index + 1),
-      group.label,
-      group.status === "PASS" ? "PASS" : "FAIL",
-      {
-        tests: group.tests,
-        passed: group.passed,
-        failed: group.failed,
-        durationMs: group.durationMs,
-        log: group.log,
-        detail: group.error ?? (group.status === "PASS" ? "Groupe réussi" : "Groupe en échec"),
-      },
-    ));
-  }
-
-  console.log("[8/11] Vérification du cycle Auth isolé");
-  if (preflight.exitCode !== 0) {
-    lots.push(phase("LOT-08", "Session Auth JOBLY-E2E", "BLOCKED", {
-      detail: "Préflight E2E non validé ; aucun appel Auth supplémentaire n'est lancé.",
-    }));
-  } else {
+  console.log("[LOT 1] Contrôle de session Auth isolée");
+  let authSession = null;
+  if (preflight.exitCode === 0) {
     const auth = await runProcess(
-      "lot-08-auth-session",
+      "lot-01-auth-session",
       process.execPath,
       ["e2e/auth-session-smoke.mjs"],
       { env, timeoutMs: 60000 },
     );
-    const authReport = await readJson(path.join(ARTIFACTS, "auth-session-smoke.json"));
-    const authStatus = authReport?.status ?? (auth.exitCode === 0 ? "PARTIAL" : "FAIL");
-    lots.push(phase(
-      "LOT-08",
-      "Session Auth JOBLY-E2E",
-      authStatus === "PASS" ? "PASS" : authStatus === "FAIL" || auth.exitCode !== 0 ? "FAIL" : authStatus === "BLOCKED" ? "BLOCKED" : "PARTIAL",
-      {
-        detail: authReport?.reason ?? authReport?.notes?.join(" ") ?? "Rapport Auth non disponible.",
-        log: auth.log,
-        evidence: "artifacts/e2e/auth-session-smoke.json",
-      },
-    ));
+    authSession = await readFile(path.join(ARTIFACTS, "auth-session-smoke.json"), "utf8").then(JSON.parse).catch(() => null);
+    technicalChecks.push({
+      label: "Session Auth (complément du Lot 1)",
+      status: authSession?.status ?? (auth.exitCode === 0 ? "PARTIAL" : "FAIL"),
+      log: auth.log,
+      detail: authSession?.reason ?? auth.spawnError ?? "Rapport Auth indisponible.",
+    });
+  } else {
+    technicalChecks.push({ label: "Session Auth (complément du Lot 1)", status: "BLOCKED", detail: "Préflight E2E non validé." });
   }
 
-  console.log("[9/11] Typecheck complet");
+  console.log("[LOTS 1 À 10] Exécution des suites disponibles, maximum 3 lots en parallèle");
+  const queue = [...catalog];
+  const lotResults = [];
+  const workers = Array.from({ length: Math.min(GROUP_CONCURRENCY, catalog.length) }, async () => {
+    while (queue.length) {
+      const group = queue.shift();
+      const result = await executeLot(group, env);
+      lotResults.push(result);
+      console.log("[" + result.status + "] " + result.id + " — " + result.label +
+        " ; " + (result.tests ?? 0) + " tests ; " + ((result.durationMs ?? 0) / 1000).toFixed(1) + " s");
+    }
+  });
+  await Promise.all(workers);
+  lotResults.sort((a, b) => catalog.findIndex((item) => item.id === a.id) - catalog.findIndex((item) => item.id === b.id));
+  lots.push(...lotResults);
+
+  console.log("[TECH] Typecheck");
   const typecheck = await runProcess(
-    "lot-09-typecheck",
+    "technical-typecheck",
     process.platform === "win32" ? "pnpm.cmd" : "pnpm",
     ["typecheck"],
     { env, timeoutMs: 240000, shell: process.platform === "win32" },
   );
-  lots.push(phase(
-    "LOT-09",
-    "TypeScript — pnpm typecheck",
-    typecheck.exitCode === 0 ? "PASS" : "FAIL",
-    { durationMs: typecheck.durationMs, log: typecheck.log, detail: typecheck.spawnError ?? (typecheck.timedOut ? "Timeout" : "tsc --noEmit") },
-  ));
+  technicalChecks.push({
+    label: "TypeScript — pnpm typecheck",
+    status: typecheck.exitCode === 0 ? "PASS" : "FAIL",
+    durationMs: typecheck.durationMs,
+    log: typecheck.log,
+    detail: typecheck.spawnError ?? (typecheck.timedOut ? "Timeout" : "tsc --noEmit"),
+  });
 
-  console.log("[10/11] Build Next.js de production");
+  console.log("[TECH] Build Next.js");
   const build = await runProcess(
-    "lot-10-build",
+    "technical-build",
     process.platform === "win32" ? "pnpm.cmd" : "pnpm",
     ["build"],
     { env, timeoutMs: 420000, shell: process.platform === "win32" },
   );
-  lots.push(phase(
-    "LOT-10",
-    "Build production — pnpm build",
-    build.exitCode === 0 ? "PASS" : "FAIL",
-    { durationMs: build.durationMs, log: build.log, detail: build.spawnError ?? (build.timedOut ? "Timeout" : "Next.js build") },
-  ));
+  technicalChecks.push({
+    label: "Build production — pnpm build",
+    status: build.exitCode === 0 ? "PASS" : "FAIL",
+    durationMs: build.durationMs,
+    log: build.log,
+    detail: build.spawnError ?? (build.timedOut ? "Timeout" : "Next.js build"),
+  });
 
-  console.log("[11/11] Smoke test navigateur sur le build local");
+  console.log("[TECH] Smoke navigateur, preuves UI et responsive");
+  let browserReport = null;
   if (preflight.exitCode !== 0 || build.exitCode !== 0) {
-    lots.push(phase("LOT-11", "UI/Auth/API protégées et responsive (Playwright)", "BLOCKED", {
-      detail: preflight.exitCode !== 0 ? "Préflight JOBLY-E2E non validé." : "Build Next.js en échec ; serveur non démarré.",
-    }));
+    technicalChecks.push({
+      label: "Playwright — navigateur/UI mobile/APIs",
+      status: "BLOCKED",
+      detail: preflight.exitCode !== 0 ? "Préflight E2E non validé." : "Build Next.js en échec.",
+    });
   } else {
     const playwright = await ensurePlaywright(env);
     if (!playwright.ok) {
-      lots.push(phase("LOT-11", "UI/Auth/API protégées et responsive (Playwright)", "BLOCKED", {
+      technicalChecks.push({
+        label: "Playwright — navigateur/UI mobile/APIs",
+        status: "BLOCKED",
         detail: playwright.reason,
         log: playwright.log,
-      }));
+      });
     } else {
       const port = await reserveLocalPort();
       const server = await startNextServer(env, port);
       if (!server.ok) {
-        lots.push(phase("LOT-11", "UI/Auth/API protégées et responsive (Playwright)", "FAIL", {
+        technicalChecks.push({
+          label: "Playwright — navigateur/UI mobile/APIs",
+          status: "FAIL",
           detail: server.reason,
           log: server.log,
-        }));
+        });
       } else {
-        const browserEnv = {
-          ...env,
-          E2E_BASE_URL: server.baseURL,
-          PLAYWRIGHT_MODULE_PATH: playwright.modulePath,
-        };
-        let browserResult;
         try {
-          browserResult = await runProcess(
-            "lot-11-browser-smoke",
+          const browser = await runProcess(
+            "technical-browser-smoke",
             process.execPath,
             ["e2e/browser-smoke.mjs"],
-            { env: browserEnv, timeoutMs: 180000 },
+            {
+              env: {
+                ...env,
+                E2E_BASE_URL: server.baseURL,
+                PLAYWRIGHT_MODULE_PATH: playwright.modulePath,
+              },
+              timeoutMs: 180000,
+            },
           );
-        } finally {
-          await stopNextServer(server);
-        }
-        const browserReport = await readJson(path.join(ARTIFACTS, "lot1-auth-ui-smoke.json"));
-        const blocked = Array.isArray(browserReport?.blocked) ? browserReport.blocked.length : 0;
-        const failures = Number(browserReport?.failed ?? (browserResult.exitCode === 0 ? 0 : 1));
-        const status = failures > 0 || browserResult.exitCode !== 0
-          ? "FAIL"
-          : blocked > 0
-            ? "PARTIAL"
-            : "PASS";
-        lots.push(phase(
-          "LOT-11",
-          "UI/Auth/API protégées et responsive (Playwright)",
-          status,
-          {
+          browserReport = await readFile(path.join(ARTIFACTS, "lot1-auth-ui-smoke.json"), "utf8").then(JSON.parse).catch(() => null);
+          const blocked = Array.isArray(browserReport?.blocked) ? browserReport.blocked.length : 0;
+          const failed = Number(browserReport?.failed ?? (browser.exitCode === 0 ? 0 : 1));
+          technicalChecks.push({
+            label: "Playwright — navigateur/UI mobile/APIs",
+            status: failed > 0 || browser.exitCode !== 0 ? "FAIL" : blocked > 0 ? "PARTIAL" : "PASS",
             tests: browserReport?.executed ?? null,
             passed: browserReport?.passed ?? null,
             blocked,
-            detail: blocked > 0 ? blocked + " contrôles Auth bloqués ; aucun compte Admin ou Talent injecté." : "Smoke navigateur exécuté.",
-            log: browserResult.log,
-            evidence: "artifacts/e2e/lot1-auth-ui-smoke.json + captures PNG",
-          },
-        ));
+            log: browser.log,
+            detail: blocked > 0 ? blocked + " contrôles Auth restent BLOCKED ; voir le rapport navigateur." : "Smoke navigateur exécuté.",
+          });
+        } finally {
+          await stopNextServer(server);
+        }
       }
     }
   }
 
-  const failedLots = lots.filter((item) => item.status === "FAIL").length;
-  const blockedLots = lots.filter((item) => item.status === "BLOCKED").length;
-  const partialLots = lots.filter((item) => item.status === "PARTIAL").length;
+  const lot1 = lots.find((item) => item.id === "LOT-01");
+  if (lot1) {
+    const authStatus = technicalChecks.find((item) => item.label.startsWith("Session Auth"))?.status ?? "BLOCKED";
+    const browserStatus = technicalChecks.find((item) => item.label.startsWith("Playwright"))?.status ?? "BLOCKED";
+    lot1.detail += " Session Auth : " + authStatus + ". Smoke UI : " + browserStatus + ".";
+    if (browserStatus === "FAIL") lot1.status = "FAIL";
+  }
+  const lot10 = lots.find((item) => item.id === "LOT-10");
+  if (lot10) {
+    const browserStatus = technicalChecks.find((item) => item.label.startsWith("Playwright"))?.status ?? "BLOCKED";
+    lot10.detail += " Contrôle responsive navigateur : " + browserStatus + ".";
+    if (browserStatus === "FAIL") lot10.status = "FAIL";
+  }
+
   const passedLots = lots.filter((item) => item.status === "PASS").length;
+  const partialLots = lots.filter((item) => item.status === "PARTIAL").length;
+  const blockedLots = lots.filter((item) => item.status === "BLOCKED").length;
+  const failedLots = lots.filter((item) => item.status === "FAIL").length;
+  const failedTechnical = technicalChecks.filter((item) => item.status === "FAIL").length;
+  const blockedTechnical = technicalChecks.filter((item) => item.status === "BLOCKED").length;
+  const partialTechnical = technicalChecks.filter((item) => item.status === "PARTIAL").length;
   const report = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     startedAt,
     completedAt: new Date().toISOString(),
     commit: process.env.GITHUB_SHA ?? "local",
     node: process.version,
     environment: "JOBLY-E2E",
     projectRef: EXPECTED_REF,
-    groupConcurrency: 3,
-    fileConcurrency: 2,
+    groupConcurrency: GROUP_CONCURRENCY,
+    fileConcurrency: FILE_CONCURRENCY,
     totalLots: lots.length,
     passedLots,
     partialLots,
     blockedLots,
     failedLots,
-    status: failedLots > 0 ? "FAIL" : blockedLots > 0 || partialLots > 0 || passedLots !== 11 ? "PARTIAL" : "PASS",
+    technicalChecks,
+    status: failedLots > 0 || failedTechnical > 0
+      ? "FAIL"
+      : blockedLots > 0 || partialLots > 0 || blockedTechnical > 0 || partialTechnical > 0 || passedLots !== 11
+        ? "PARTIAL"
+        : "PASS",
     lots,
   };
 
@@ -494,22 +690,32 @@ async function main() {
   await writeFile(path.join(ROOT, "feedback-e2e-recette-complete.txt"), markdown, "utf8");
 
   console.log("");
-  console.log("BILAN E2E : " + report.passedLots + "/11 PASS ; " + report.partialLots + " PARTIAL ; " + report.blockedLots + " BLOCKED ; " + report.failedLots + " FAIL.");
+  console.log("BILAN DES 11 LOTS : " + passedLots + " PASS ; " + partialLots + " PARTIAL ; " + blockedLots + " BLOCKED ; " + failedLots + " FAIL.");
+  console.log("CONTRÔLES TECHNIQUES : " + technicalChecks.map((item) => item.label + "=" + item.status).join(" | "));
   console.log("STATUT GLOBAL : " + report.status);
-  console.log("Rapport à ouvrir : feedback-e2e-recette-complete.txt");
-  console.log("Rapport JSON : artifacts/e2e/local-recipe/summary.json");
+  console.log("Rapport unique : feedback-e2e-recette-complete.txt");
 
   if (report.status !== "PASS") process.exitCode = 1;
 }
 
-main().catch(async (error) => {
-  const message = error instanceof Error ? error.stack ?? error.message : String(error);
-  console.error("[FATAL] " + message);
+async function readFileJson(file) {
+  return await readFile(file, "utf8").then(JSON.parse).catch(() => null);
+}
+
+async function mainSafe() {
   try {
-    await mkdir(LOGS, { recursive: true });
-    await writeFile(path.join(LOGS, "fatal.txt"), message + "\n", "utf8");
-  } catch {
-    // Preserve the original failure if local storage is unavailable.
+    await main();
+  } catch (error) {
+    const message = error instanceof Error ? error.stack ?? error.message : String(error);
+    console.error("[FATAL] " + message);
+    try {
+      await mkdir(LOGS, { recursive: true });
+      await writeFile(path.join(LOGS, "fatal.txt"), message + "\n", "utf8");
+    } catch {
+      // Preserve the original failure if local storage is unavailable.
+    }
+    process.exitCode = 1;
   }
-  process.exitCode = 1;
-});
+}
+
+mainSafe();
