@@ -366,3 +366,17 @@ test("private Talent profiles are excluded from recruiter discovery and profile 
   assert.match(recruiterProfile, /Profil public introuvable/);
   assert.match(recruiterProfile, /status:404/);
 });
+
+test("logout and remember-me expiry terminate only the current Supabase session", () => {
+  const sessionManager = read("lib/session-manager.ts");
+  const accountSettings = read("components/AccountSettings.tsx");
+  const supabaseClient = read("lib/supabase.ts");
+
+  assert.match(sessionManager, /auth\.signOut\(\{\s*scope:\s*"local"\s*\}\)/);
+  assert.match(accountSettings, /auth\.signOut\(\{\s*scope:\s*"local"\s*\}\)/);
+  assert.match(supabaseClient, /instance\.auth\.signOut\(\{\s*scope:\s*"local"\s*\}\)/);
+
+  assert.doesNotMatch(sessionManager, /auth\.signOut\(\s*\)/);
+  assert.doesNotMatch(accountSettings, /auth\.signOut\(\s*\)/);
+  assert.doesNotMatch(supabaseClient, /instance\.auth\.signOut\(\s*\)/);
+});
