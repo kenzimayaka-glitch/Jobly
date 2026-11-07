@@ -121,24 +121,28 @@ async function main() {
         await runCheck(item.role, "RECRUITMENT360-DECISIONS-LIST", () => request(token, "/api/recruitment360/decisions"));
 
         const draftTitle = "JOBLY E2E — brouillon " + runId;
-        const created = await runCheck(item.role, "RECRUITER-DRAFT-CREATE", () => request(token, "/api/recruiter/jobs", "POST", {
-          title: draftTitle,
-          description: "Offre synthétique de test automatisé. Aucune candidature externe ne sera envoyée.",
-          companyName: "Jobly E2E Test Company",
-          location: "Yaoundé, Cameroun",
-          countryCode: "CM",
-          distributionScope: "COUNTRY",
-          targetCountryCodes: ["CM"],
-          mode: "Hybride",
-          contract: "CDD",
-          salary: "0",
-          sector: "Technology",
-          tags: ["E2E", "TEST"],
-          status: "draft",
-        }), [201, 403]);
-        if (created?.status === 403) {
-          record(item.role, "RECRUITER-DRAFT-CREATE-ENTITLEMENT", "BLOCKED", 403, created.payload?.message || "Règle d'éligibilité métier : création de brouillon refusée.");
-        } else if (created?.status === 201 && created.payload?.job?.id) {
+        let created;
+        try {
+          created = await request(token, "/api/recruiter/jobs", "POST", {
+            title: draftTitle,
+            description: "Offre synthétique de test automatisé. Aucune candidature externe ne sera envoyée.",
+            companyName: "Jobly E2E Test Company",
+            location: "Yaoundé, Cameroun",
+            countryCode: "CM",
+            distributionScope: "COUNTRY",
+            targetCountryCodes: ["CM"],
+            mode: "Hybride",
+            contract: "CDD",
+            salary: "0",
+            sector: "Technology",
+            tags: ["E2E", "TEST"],
+            status: "draft",
+          });
+        } catch (error) {
+          record(item.role, "RECRUITER-DRAFT-CREATE", "FAIL", null, error instanceof Error ? error.message : String(error));
+        }
+        if (created?.status === 201 && created.payload?.job?.id) {
+          record(item.role, "RECRUITER-DRAFT-CREATE", "PASS", 201, "Offre brouillon synthétique créée.");
           const jobId = created.payload.job.id;
           try {
             await runCheck(item.role, "RECRUITER-DRAFT-DETAIL", () => request(token, "/api/recruiter/jobs/" + encodeURIComponent(jobId)));
@@ -148,6 +152,10 @@ async function main() {
           } finally {
             await runCheck(item.role, "RECRUITER-DRAFT-CLEANUP", () => request(token, "/api/recruiter/jobs/" + encodeURIComponent(jobId), "DELETE"));
           }
+        } else if (created?.status === 403) {
+          record(item.role, "RECRUITER-DRAFT-CREATE", "BLOCKED", 403, created.payload?.message || "Règle d'éligibilité métier : création de brouillon refusée.");
+        } else if (created && created.status !== 201) {
+          record(item.role, "RECRUITER-DRAFT-CREATE", "FAIL", created.status, created.payload?.message || JSON.stringify(created.payload));
         }
       }
 
