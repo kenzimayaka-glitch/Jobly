@@ -188,3 +188,23 @@ test("application-letter import is authenticated, size-limited and restricted to
   assert.match(handler, /status: 415/);
   assert.match(handler, /MAX_TEXT/);
 });
+
+test("CV Studio exposes original-file save and an actionable PDF download without bypassing plan or payment verification", () => {
+  const page = read("app/cv/page.tsx");
+  const exportRoute = read("app/api/talent/cv/export/route.ts");
+  const paymentRoute = read("app/api/talent/cv/payment/route.ts");
+  assert.match(page, /async function saveOriginalCv\(\)/);
+  assert.match(page, /fetch\("\/api\/talent\/cv\/original"/);
+  assert.match(page, /async function downloadCv\(/);
+  assert.match(page, /fetch\("\/api\/talent\/cv\/export"/);
+  assert.match(page, /URL\.createObjectURL\(pdf\)/);
+  assert.match(page, /link\.download = filename/);
+  assert.doesNotMatch(page, /<button type="button" disabled className="cursor-not-allowed rounded-xl bg-slate-200/);
+  assert.match(page, /fetch\("\/api\/talent\/cv\/payment"/);
+  assert.match(page, /Idempotency-Key/);
+  assert.match(page, /encodeURIComponent\(paymentId\) \+ "\/verify"/);
+  assert.match(exportRoute, /payment\.status !== "SUCCESSFUL"/);
+  assert.match(exportRoute, /payment\.feature !==/);
+  assert.match(paymentRoute, /CV_ATS_DOWNLOAD/);
+  assert.match(paymentRoute, /CV_OPTIMIZED_DOWNLOAD/);
+});
