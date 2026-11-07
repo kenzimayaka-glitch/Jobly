@@ -221,8 +221,8 @@ function CvStudioContent() {
     }
   }
 
-  async function downloadCv(paymentOverride: string | null = paymentId) {
-    if (downloadLoading) return;
+  async function downloadCv(paymentOverride: string | null = paymentId, allowExistingBusy = false) {
+    if (downloadLoading && !allowExistingBusy) return;
     setDownloadLoading(true);
     setMessage("");
     try {
@@ -303,7 +303,7 @@ function CvStudioContent() {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result?.message || "Impossible de lancer le paiement CV.");
       if (result?.included === true) {
-        await downloadCv(null);
+        await downloadCv(null, true);
         return;
       }
       const createdId = String(result?.payment?.id || "");
@@ -333,7 +333,7 @@ function CvStudioContent() {
       const status = String(result?.payment?.status || "");
       if (status === "SUCCESSFUL") {
         setMessage("Paiement confirmé. Préparation du CV…");
-        await downloadCv(paymentId);
+        await downloadCv(paymentId, true);
       } else if (status === "FAILED") {
         setPaymentId(null);
         setPaymentInstructions("");
