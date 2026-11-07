@@ -495,7 +495,7 @@ function reportMarkdown(report) {
     "## Sécurité et limites",
     "",
     "- Toutes les connexions sont forcées vers JOBLY-E2E ; les variables sensibles connues sont neutralisées pour les processus enfants.",
-    "- Aucun secret ni compte JOBLY-PROD n'est utilisé. La clé privée JOBLY-E2E est saisie localement sans écho (ou lue depuis un fichier .env strictement E2E), conservée dans un fichier local ignoré par Git et transmise uniquement au serveur Next.js local.",
+    "- Aucun secret ni compte de JOBLY-PROD n'est utilisé. La clé privée JOBLY-E2E est saisie localement sans écho (ou lue depuis un fichier .env strictement E2E), conservée dans un fichier local ignoré par Git et transmise uniquement au serveur Next.js local.",
     "- Les comptes Talent/Recruteur/Partenaire sont des fixtures synthétiques confirmées automatiquement dans JOBLY-E2E ; aucun e-mail, SMS ou paiement réel n'est envoyé.",
     "- Les PASS de tests unitaires ou statiques ne sont pas assimilés à une validation E2E authentifiée.",
     "- Le Lot 3 ne peut passer au vert qu'après les contrôles authentifiés du Recruteur, la preuve de persistance et la validation du nettoyage de l'offre brouillon.",
