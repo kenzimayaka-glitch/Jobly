@@ -106,7 +106,7 @@ export default function AccountSettings({ ecosystem, backHref, accent = "blue" }
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="font-heading text-lg font-extrabold">Apparence</h2>
-          <p className="mt-1 text-xs leading-5 opacity-75">Choisissez l’ambiance de Jobly sur tous vos appareils.</p>
+          <p className="mt-1 text-xs leading-5 opacity-75">Choisissez l’ambiance de Jobly sur cet appareil.</p>
         </div>
         <span className="jobly-appearance-mark" aria-hidden="true">✦</span>
       </div>
