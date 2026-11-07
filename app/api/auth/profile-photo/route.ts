@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, getAuthUser } from "../../../../lib/server-auth";
+import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
 import crypto from "node:crypto";
 
 export async function POST(request: NextRequest) {
@@ -22,8 +22,7 @@ export async function POST(request: NextRequest) {
       if (error && !error.message.toLowerCase().includes("already exists")) throw new Error(error.message);
     }
 
-    const { data: user } = await supabase.from("User").select("id,profilePhotoUrl").eq("authUserId", authUser.id).maybeSingle();
-    if (!user) return NextResponse.json({ message: "Profil JOBLY introuvable." }, { status: 404 });
+    const user = await ensureUser(supabase, authUser);
 
     let path: string;
     if (kind === "hero") {
