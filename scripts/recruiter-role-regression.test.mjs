@@ -51,3 +51,15 @@ test("Recruitment 360 : listes, rôles et RPC métier protégés", async () => {
   assert.match(decisions, /recruitment360_lot6_get_workspace/);
   assert.match(decisions, /recruitment360_lot6_finalize_decision/);
 });
+
+test("Recruitment360 applications rejects an explicit recruitmentId outside the actor's authorized roles", async () => {
+  const applications = await source("app/api/recruitment360/applications/route.ts");
+  const roleLookup = applications.indexOf('.from("RecruitmentRole")');
+  const authorizationGuard = applications.indexOf("if (requestedRecruitmentId && !accessibleIds.includes(requestedRecruitmentId))");
+  const recruitmentRead = applications.indexOf('.from("Recruitment360")');
+  assert.ok(roleLookup >= 0, "The actor's RecruitmentRole memberships must be loaded.");
+  assert.ok(authorizationGuard > roleLookup, "An explicit recruitmentId must be checked against the actor's roles.");
+  assert.ok(recruitmentRead > authorizationGuard, "No Recruitment360 or Application data may be read before authorization.");
+  assert.match(applications, /\.in\("role",\s*RECRUITMENT_READ_ROLES\)/);
+  assert.match(applications, /return NextResponse\.json\(\{ message: "Accès refusé à ce recrutement\." \}, \{ status: 403 \}\)/);
+});
