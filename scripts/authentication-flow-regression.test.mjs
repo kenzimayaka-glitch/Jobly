@@ -304,3 +304,28 @@ test("CV share links expire after 30 days and only their Talent owner can revoke
   assert.match(studio, /Révoquer/);
   assert.match(studio, /Copier le lien/);
 });
+
+test("CV share links have a 30-day lifetime, owner-only revocation and private no-store metadata", () => {
+  const createRoute = read("app/api/cv-share/route.ts");
+  const publicApi = read("app/api/cv-share/[token]/route.ts");
+  const pdfApi = read("app/api/cv-share/[token]/pdf/route.ts");
+  const sharePage = read("app/cv/share/[token]/page.tsx");
+  const shareView = read("components/CvShareView.tsx");
+  const migration = read("supabase/migrations/20261107020000_cv_share_default_expiration.sql");
+  assert.match(createRoute, /30 \* 24 \* 60 \* 60 \* 1000/);
+  assert.match(createRoute, /expiresAt,/);
+  assert.match(createRoute, /\.eq\("userId", user\.id\)/);
+  assert.match(createRoute, /\.is\("revokedAt", null\)/);
+  assert.match(createRoute, /\.update\(\{ revokedAt \}\)/);
+  assert.match(migration, /alter column "expiresAt" set default/);
+  assert.match(migration, /set "expiresAt" = "createdAt" \+ interval '30 days'/);
+  for (const route of [publicApi, pdfApi]) {
+    assert.match(route, /share\.revokedAt/);
+    assert.match(route, /share\.expiresAt/);
+    assert.match(route, /status:\s*404/);
+  }
+  assert.match(publicApi, /Cache-Control.*no-store/);
+  assert.ok(sharePage.includes("robots: { index: false, follow: false }"));
+  assert.match(sharePage, /data\.revokedAt/);
+  assert.match(shareView, /cache:"no-store"/);
+});
