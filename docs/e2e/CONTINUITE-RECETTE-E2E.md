@@ -134,6 +134,21 @@ Le rapport dit qu'aucune anomalie FAIL n'a été détectée dans les suites exé
 
 Ne pas tenter une connexion si le mot de passe correspondant n'est pas disponible depuis une source sûre. Ne pas réinitialiser et ne pas recréer les comptes sans autorisation explicite. Le test demandé à l'opérateur est un véritable `signInWithPassword` pour chaque rôle, puis vérification du rôle signé et fermeture de session, avec un rapport PASS/FAIL/NON TESTABLE sans secret ni jeton.
 
+### Résultat du contrôle des anciens identifiants — 7 novembre 2026, 12:53:43Z
+
+Le rapport `artifacts/e2e/fixture-password-verification.json` a été transmis par l'opérateur :
+- Statut : `NON_TESTABLE`.
+- Talent : `NON_TESTABLE`, identifiants locaux indisponibles.
+- Recruteur : `NON_TESTABLE`, identifiants locaux indisponibles.
+- Partenaire : `NON_TESTABLE`, identifiants locaux indisponibles.
+- Raison : le script n'a trouvé ni `.e2e-fixtures.json` ni sauvegarde reconnue dans le dossier racine du dépôt.
+- Aucun appel Supabase Auth n'a été effectué.
+- `serviceRoleUsed=false`, `passwordsChanged=false`, `accountsCreatedOrDeleted=false`, `profilesModified=false`.
+
+**Portée exacte :** le vérificateur recherche le fichier primaire et les copies dont le nom correspond à ses critères dans le dossier racine du dépôt. Il ne parcourt pas l'ensemble du disque, les répertoires de sauvegarde Windows, l'historique de fichiers, OneDrive ou d'éventuelles sauvegardes externes. Le résultat ne démontre donc pas qu'aucune copie de sauvegarde n'existe ailleurs.
+
+**Décision :** aucun mot de passe n'est déclaré invalide. Les anciens mots de passe restent `NON TESTABLE` faute de matériel local permettant de les essayer. Aucune réinitialisation n'est autorisée à ce stade.
+
 ## 5. Correctifs de garde-fou déjà poussés sur la branche
 
 La PR #266 est restée ouverte et en brouillon. SHA de tête vérifié lors de la consolidation : `13456d8cfd5e35aee0ab726e52068e3f4f8561a7`.
@@ -241,7 +256,7 @@ Une fois les fixtures locales correctement restaurées, restaurer le runtime JOB
 
 ## 9. Point exact de reprise au moment de cette consolidation
 
-**À faire en premier :** synchroniser la branche, exécuter `node e2e/verify-existing-fixtures.mjs` et transmettre le rapport expurgé. Si le résultat est `NON_TESTABLE`, demander à l'opérateur de vérifier ses sauvegardes locales ; ne pas redemander une clé et ne pas relancer le runner.
+**À faire en premier :** demander à l'opérateur de vérifier les sauvegardes de dossier (Windows Previous Versions/File History, outil de sauvegarde local ou copie externe) pour retrouver `.e2e-fixtures.json`. Le vérificateur n'a parcouru que la racine du dépôt et a retourné `NON_TESTABLE` pour les trois rôles sans appeler Auth. Ne pas redemander une clé et ne pas relancer le runner. Si aucune sauvegarde n'est retrouvée, présenter les preuves puis demander une autorisation explicite avant toute réinitialisation ciblée des mots de passe des comptes existants.
 
 **État attendu du prochain échange :**
 - Talent : PASS / FAIL / NON TESTABLE.
