@@ -111,11 +111,14 @@ test("recruiter subscription resolves RecruiterProfile by verified Supabase Auth
   assert.match(subscription, /resolveBillingProductType\(supabase, user, auth\.id/);
 });
 
-test("recruiter profile uses Auth UID while internal User updates keep User.id", () => {
-  assert.match(recruiterProfile, /async function ensureRecruiterProfile\(supabase: ReturnType<typeof adminClient>, authUserId: string\)/);
+test("recruiter profile uses Auth UID and safely migrates its own legacy internal-ID row", () => {
+  assert.match(recruiterProfile, /async function ensureRecruiterProfile\([\s\S]*?authUserId: string,[\s\S]*?internalUserId: string/);
   assert.match(recruiterProfile, /\.eq\("userId", authUserId\)/);
-  assert.match(recruiterProfile, /userId: authUserId/);
-  assert.equal((recruiterProfile.match(/ensureRecruiterProfile\(supabase, authUser\.id\)/g) || []).length, 2);
+  assert.match(recruiterProfile, /\.eq\("userId", internalUserId\)/);
+  assert.match(recruiterProfile, /\.update\(\{ userId: authUserId, updatedAt:/);
+  assert.match(recruiterProfile, /\.eq\("id", legacy\.id\)\s*\.eq\("userId", internalUserId\)/);
+  assert.equal((recruiterProfile.match(/ensureRecruiterProfile\(supabase, authUser\.id, user\.id\)/g) || []).length, 2);
+  assert.match(recruiterProfile, /\.eq\("userId", authUser\.id\)/);
   assert.match(recruiterProfile, /from\("User"\)\.update\([\s\S]*?\.eq\("id", user\.id\)/);
   assert.doesNotMatch(recruiterProfile, /ensureRecruiterProfile\(supabase, user\.id\)/);
-});;
+});;;
