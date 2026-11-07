@@ -13,10 +13,11 @@ const FILE_CONCURRENCY = 2;
 const groups = [
   {
     id: "identity-talent-recruiter",
-    label: "Identité, Talent et candidature externe",
+    label: "Identité, Talent, CV et candidature externe",
     files: [
       "scripts/authentication-flow-regression.test.mjs",
       "scripts/external-application-assistant.test.mjs",
+      "scripts/talent-cv-application-regression.test.mjs",
     ],
   },
   {
