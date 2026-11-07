@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser, newId } from "../../../../lib/server-auth";
+import { checkBulkApplicationLimit, checkWeeklyApplicationQuota } from "../../../../lib/entitlements";
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,8 +28,25 @@ export async function POST(request: NextRequest) {
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
     const body = await request.json().catch(() => ({}));
-    const offers = Array.isArray(body.offers) ? body.offers.slice(0, 20) : [];
+    const offers = Array.isArray(body.offers) ? body.offers : [];
     if (!offers.length) return NextResponse.json({ message: "Aucune offre sélectionnée." }, { status: 400 });
+    if (offers.length > 20) return NextResponse.json({ message: "Un lot ne peut pas dépasser 20 offres." }, { status: 400 });
+
+    const bulk = await checkBulkApplicationLimit(supabase, user.id, offers.length);
+    if (!bulk.allowed) {
+      return NextResponse.json(
+        { message: bulk.message || "La postulation groupée dépasse la limite de votre formule.", code: "BULK_QUOTA_EXCEEDED", limit: bulk.limit },
+        { status: 429 },
+      );
+    }
+    const weekly = await checkWeeklyApplicationQuota(supabase, user.id);
+    const remaining = weekly.unlimited ? Number.POSITIVE_INFINITY : Math.max(0, weekly.limit - weekly.used);
+    if (!weekly.allowed || offers.length > remaining) {
+      return NextResponse.json(
+        { message: weekly.message || "Le lot dépasse le quota hebdomadaire de candidatures restant.", code: "WEEKLY_APPLICATION_QUOTA_EXCEEDED", used: weekly.used, limit: weekly.limit, remaining },
+        { status: 429 },
+      );
+    }
 
     const batchId = newId();
     const { error: batchError } = await supabase.from("ApplicationBatch").insert({
