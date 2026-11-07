@@ -260,7 +260,12 @@ Une fois les fixtures locales correctement restaurées, restaurer le runtime JOB
 
 ## 9. Point exact de reprise au moment de cette consolidation
 
-**À faire en premier :** demander à l'opérateur s'il dispose des anciens mots de passe hors du fichier supprimé. S'ils sont connus, exécuter `node e2e/verify-existing-fixtures-bulk.mjs` depuis un CMD interactif ; les saisir uniquement à l'invite masquée. S'ils ne sont pas connus, vérifier les sauvegardes Windows/locales ; ne pas deviner les mots de passe. Ne pas redemander une clé et ne pas relancer le runner. Si aucune sauvegarde et aucun ancien mot de passe ne sont disponibles, présenter les preuves puis demander une autorisation explicite avant toute réinitialisation ciblée des comptes existants.
+**Décision utilisateur enregistrée :** l'utilisateur a autorisé la génération de nouveaux mots de passe pour les trois identités Auth fixtures EXISTANTES (Talent, Recruteur, Partenaire). Cette autorisation n'inclut ni la création/suppression des comptes, ni la modification des profils, ni l'accès à JOBLY-PROD.
+
+**Prochaine action opérateur :** synchroniser `e2e/recette`, puis exécuter `node e2e/reset-existing-fixture-passwords.mjs --confirm-reset-existing-e2e-passwords`. Le script demande la confirmation textuelle `RESET 3 JOBLY-E2E PASSWORDS`, exige une clé privée JOBLY-E2E, vérifie en lecture seule les trois comptes Auth, leurs rôles, les liaisons `public.User` et les profils, puis ne met à jour que leurs mots de passe. Il enregistre les nouveaux identifiants dans `.e2e-fixtures.json`, ignoré par Git, et un état de reprise sécurisé dans `.e2e-fixture-password-reset.pending.json` en cas d'interruption. Il vérifie ensuite les nouvelles connexions et génère `artifacts/e2e/fixture-password-reset.json`. Ne jamais joindre ni afficher les fichiers locaux sensibles.
+
+Après un rapport PASS, exécuter la recette complète `node scripts/e2e-local-recipe.mjs` et transmettre le rapport consolidé. Ne pas lancer avant que l'opérateur ait terminé le reset et confirmé son rapport.
+
 
 **État attendu du prochain échange :**
 - Talent : PASS / FAIL / NON TESTABLE.
@@ -269,6 +274,6 @@ Une fois les fixtures locales correctement restaurées, restaurer le runtime JOB
 - Sauvegarde de `.e2e-fixtures.json` : PRESENT / ABSENT.
 - Source locale d'une clé JOBLY-E2E : PRESENT / ABSENT (ne jamais révéler la valeur).
 
-**Décisions non prises :** aucune réinitialisation de mot de passe, aucune recréation de compte, aucune fusion PR, aucun déploiement.
+**Décisions :** réinitialisation ciblée des seuls mots de passe des trois comptes fixtures existants autorisée par l'utilisateur ; création/suppression de compte, modification de profil, fusion PR et déploiement non autorisés.
 
 Ce document est la référence de continuité jusqu'à sa prochaine mise à jour versionnée.
