@@ -2,6 +2,51 @@ import { NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
 
+export async function GET(request: NextRequest) {
+  try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+    const supabase = adminClient();
+    const user = await ensureUser(supabase, authUser);
+    const { data, error } = await supabase
+      .from("CVShare")
+      .select("id,token,source,jobTitleSnapshot,companyNameSnapshot,createdAt,expiresAt,revokedAt,viewCount,downloadCount")
+      .eq("userId", user.id)
+      .order("createdAt", { ascending: false })
+      .limit(30);
+    if (error) throw new Error(error.message);
+    return NextResponse.json({ shares: data || [] }, { headers: { "Cache-Control": "no-store, private" } });
+  } catch (error) {
+    return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible de charger les liens CV." }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+    const body = await request.json().catch(() => ({}));
+    const id = typeof body.id === "string" ? body.id.trim() : "";
+    if (!id) return NextResponse.json({ message: "Identifiant du partage requis." }, { status: 400 });
+    const supabase = adminClient();
+    const user = await ensureUser(supabase, authUser);
+    const revokedAt = new Date().toISOString();
+    const { data, error } = await supabase
+      .from("CVShare")
+      .update({ revokedAt })
+      .eq("id", id)
+      .eq("userId", user.id)
+      .is("revokedAt", null)
+      .select("id,revokedAt")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) return NextResponse.json({ message: "Partage introuvable ou déjà révoqué." }, { status: 404 });
+    return NextResponse.json({ ok: true, revokedAt });
+  } catch (error) {
+    return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible de révoquer ce partage." }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
@@ -28,8 +73,12 @@ export async function POST(request: NextRequest) {
     const candidateName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ").trim() || user.displayName || "Talent Jobly";
     const companyName = source === "recruiter" ? job?.companyName || null : job?.Company?.name || null;
     const token = nanoid(32);
+    const createdAt = new Date();
+    const expiresAt = new Date(createdAt.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
     const { error } = await supabase.from("CVShare").insert({
       token, userId: user.id, jobId, source,
+      createdAt: createdAt.toISOString(),
+      expiresAt,
       candidateNameSnapshot: candidateName,
       jobTitleSnapshot: job?.title || null,
       companyNameSnapshot: companyName,
