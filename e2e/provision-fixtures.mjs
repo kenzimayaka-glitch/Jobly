@@ -80,8 +80,8 @@ function assertKeyBelongsToE2E(key) {
   if (key.startsWith("eyJ")) {
     try {
       const payload = JSON.parse(Buffer.from(key.split(".")[1], "base64url").toString("utf8"));
-      if (payload.ref && payload.ref !== PROJECT_REF) {
-        throw new Error("La clé fournie appartient à un autre projet Supabase. Seul JOBLY-E2E est autorisé.");
+      if (payload.ref !== PROJECT_REF) {
+        throw new Error("La clé JWT fournie n'est pas associée à JOBLY-E2E. Seul JOBLY-E2E est autorisé.");
       }
     } catch (error) {
       if (error instanceof Error && error.message.includes("appartient")) throw error;
@@ -264,6 +264,7 @@ async function main() {
     throw new Error("Refus de provisionner : la configuration doit cibler exclusivement JOBLY-E2E.");
   }
   await unlink(FIXTURE_PATH).catch(() => undefined);
+  await unlink(RUNTIME_PATH).catch(() => undefined);
   let serviceRoleKey = await keyFromExistingE2EEnvFile();
   if (!serviceRoleKey) {
     serviceRoleKey = await readHiddenSecret(
