@@ -231,6 +231,6 @@ test("CV Studio persists and reloads free-text experience and education without 
   assert.match(applicationApi, /profileRes\.data\?\.educationSummary\?\.trim\(\)/);
   assert.match(applicationCv, /experienceSummary\?\.trim\(\)/);
   assert.match(applicationCv, /educationSummary\?\.trim\(\)/);
-  assert.match(applicationCv, /Expérience déclarée\\/importée \\(texte CV non structuré\\)/);
-  assert.match(applicationCv, /Formation déclarée\\/importée \\(texte CV non structuré\\)/);
+  assert.ok(applicationCv.includes("Expérience déclarée/importée (texte CV non structuré)"));
+  assert.ok(applicationCv.includes("Formation déclarée/importée (texte CV non structuré)"));
 });
