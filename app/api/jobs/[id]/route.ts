@@ -36,7 +36,6 @@ export async function GET(request: NextRequest, context: Context) {
       // An offer with an explicit deadline remains accessible as an archive
       // after two months, but is clearly marked EXPIRED.
       if (platformExpired && !data.deadline) {
-        await supabase.from("Job").update({ isActive: false, updatedAt: new Date().toISOString() }).eq("id", id);
         return NextResponse.json({ message: "Offre expirée." }, { status: 404 });
       }
       const company = Array.isArray(data.company) ? data.company[0] : data.company;
