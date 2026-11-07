@@ -611,7 +611,7 @@ async function main() {
         { env, timeoutMs: 180000, stdin: "inherit", forwardOutput: true },
       );
       fixtureProvisionStatus = provision.exitCode === 0 ? "PASS" :
-        /E2E_SERVICE_ROLE_KEY_REQUIRED|saisie masquée|Saisie interrompue/.test(provision.output)
+        /E2E_SERVICE_ROLE_KEY_REQUIRED|E2E_EXISTING_FIXTURE_PRESERVED|saisie masquée|Saisie interrompue/.test(provision.output)
           ? "BLOCKED"
           : "FAIL";
       technicalChecks.push({
@@ -620,7 +620,9 @@ async function main() {
         log: provision.log,
         detail: fixtureProvisionStatus === "PASS"
           ? "Comptes Auth confirmés et profils synthétiques créés sur JOBLY-E2E ; aucun message externe n'a été envoyé."
-          : "Provisionnement non terminé. Le détail est dans le journal ; aucun compte Production n'est utilisé.",
+          : /E2E_EXISTING_FIXTURE_PRESERVED/.test(provision.output)
+            ? "Comptes fixtures déjà présents : provisionnement complet arrêté sans modifier les mots de passe ni les profils. Restaurer les identifiants locaux ou autoriser une récupération ciblée."
+            : "Provisionnement non terminé. Le détail est dans le journal ; aucun compte Production n'est utilisé.",
       });
     }
   } else {
