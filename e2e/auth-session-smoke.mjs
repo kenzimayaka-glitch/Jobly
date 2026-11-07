@@ -36,7 +36,7 @@ async function fileExists(file) {
 
 try {
   if (!(await fileExists(fixturePath))) {
-    report.reason = "Aucun jeu de comptes métier E2E provisionné. Le provisionneur distant est désactivé et nécessite une session Admin JOBLY-E2E autorisée.";
+    report.reason = "Aucun jeu de comptes métier E2E provisionné. Le lanceur local doit exécuter e2e/provision-fixtures.mjs avant ce contrôle.";
     report.checks.push({
       id: "JOBLY-E2E-AUTH-FIXTURES-001",
       status: "BLOCKED",
@@ -105,10 +105,13 @@ try {
         assert.equal(ownUser.data.role, role);
         assert.equal(ownUser.data.email?.toLowerCase(), account.email.toLowerCase());
 
+        // Jobly's User.id is distinct from the Supabase Auth UID.
+        // Profile and Partner use the internal User.id; RecruiterProfile intentionally uses auth.uid().
         const profileTable = role === "TALENT" ? "Profile" : role === "RECRUITER" ? "RecruiterProfile" : "Partner";
+        const profileOwnerId = role === "RECRUITER" ? user.id : ownUser.data.id;
         const profile = await supabase.from(profileTable)
           .select("id,userId")
-          .eq("userId", user.id)
+          .eq("userId", profileOwnerId)
           .maybeSingle();
         assert.equal(profile.error, null, profile.error?.message);
         assert.ok(profile.data, profileTable + " row is missing.");
