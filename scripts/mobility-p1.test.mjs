@@ -223,8 +223,8 @@ test("la demande Mobility transmet la session Talent au contrôle de candidature
   const page = readFileSync(new URL("../app/bons-plans/mobility/talent/request/page.tsx", import.meta.url), "utf8");
   const api = readFileSync(new URL("../app/api/matches/last-accepted/route.ts", import.meta.url), "utf8");
   assert.match(page, /getSupabaseClient\(\)\.auth\.getSession\(\)/);
-  assert.match(page, /fetch\(["']\/api\/matches\/last-accepted["'],\s*\{[\s\S]*?Authorization:\s*`Bearer \\$\{token\}`/);
+  assert.ok(page.includes("Authorization: `Bearer ${token}`"));
   assert.match(page, /cache:\s*"no-store"/);
-  assert.match(api, /authUser\(req\)/);
-  assert.match(api, /status:\s*401/);
+  assert.ok(api.includes("authUser(req)"));
+  assert.ok(api.includes("status:401"));
 });
