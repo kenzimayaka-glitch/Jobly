@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { createWriteStream } from "node:fs";
 import net from "node:net";
 import path from "node:path";
@@ -44,8 +44,8 @@ const catalog = [
     id: "LOT-03",
     stage: 1, severity: "P0", dependsOn: ["LOT-01"],
     label: "Recruteur et Recruitment 360",
-    files: [],
-    gap: "Aucune suite de test Recruiter dédiée et aucun profil Recruteur synthétique ne sont disponibles dans JOBLY-E2E.",
+    files: ["scripts/recruiter-role-regression.test.mjs"],
+    gap: "Les contrôles de contrat des routes Recruiter sont exécutés ; le parcours authentifié API (profil, offres brouillon, candidatures et Recruitment 360) complète cette suite après le démarrage local de Next.js.",
   },
   {
     id: "LOT-04",
@@ -189,12 +189,13 @@ async function runProcess(id, command, args, options = {}) {
     env: options.env ?? process.env,
     windowsHide: true,
     shell: options.shell ?? false,
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: [options.stdin ?? "ignore", "pipe", "pipe"],
   });
   const collect = (chunk) => {
     const value = chunk.toString();
     output += value;
     stream.write(value);
+    if (options.forwardOutput) process.stdout.write(value);
   };
   child.stdout.on("data", collect);
   child.stderr.on("data", collect);
@@ -377,7 +378,7 @@ async function ensurePlaywright(env) {
   return { ok: true, modulePath };
 }
 
-async function startNextServer(env, port) {
+async function startNextServer(env, port, serviceRoleKey = "") {
   const nextCli = path.join(ROOT, "node_modules", "next", "dist", "bin", "next");
   if (!(await exists(nextCli))) {
     return { ok: false, reason: "Next.js CLI absent ; les dépendances locales ne sont pas installées." };
@@ -391,6 +392,7 @@ async function startNextServer(env, port) {
     NEXT_PUBLIC_JOBLY_PUBLIC_URL: baseURL,
     JOBLY_PUBLIC_URL: baseURL,
     JOBLY_API_BASE_URL: baseURL,
+    SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey,
   };
   const child = spawn(process.execPath, [nextCli, "start", "--hostname", "127.0.0.1", "--port", String(port)], {
     cwd: ROOT,
@@ -493,8 +495,8 @@ function reportMarkdown(report) {
     "## Sécurité et limites",
     "",
     "- Toutes les connexions sont forcées vers JOBLY-E2E ; les variables sensibles connues sont neutralisées pour les processus enfants.",
-    "- Aucun service_role, mot de passe Admin, compte JOBLY-PROD, envoi email/SMS ou paiement réel n'est utilisé.",
-    "- Aucun compte Talent ou Recruteur n'est créé automatiquement ; aucun mécanisme Auth Admin sûr n'est disponible dans la recette.",
+    "- Aucun secret ni compte JOBLY-PROD n'est utilisé. La clé privée JOBLY-E2E est saisie localement sans écho (ou lue depuis un fichier .env strictement E2E), conservée dans un fichier local ignoré par Git et transmise uniquement au serveur Next.js local.",
+    "- Les comptes Talent/Recruteur/Partenaire sont des fixtures synthétiques confirmées automatiquement dans JOBLY-E2E ; aucun e-mail, SMS ou paiement réel n'est envoyé.",
     "- Les PASS de tests unitaires ou statiques ne sont pas assimilés à une validation E2E authentifiée.",
     "- Le Lot 3 reste BLOCKED tant qu'une suite Recruiter dédiée et un profil synthétique n'existent pas.",
     "- Les statuts BLOCKED/PARTIAL restent visibles et empêchent le vert global.",
@@ -543,41 +545,33 @@ async function main() {
   });
 
   let fixtureProvisionStatus = "BLOCKED";
-  if (preflight.exitCode === 0) {
-    const hasAdminSession = Boolean(env.E2E_ADMIN_ACCESS_TOKEN) ||
-      await exists(path.join(ROOT, ".e2e-admin-session.json"));
-    if (hasAdminSession) {
-      console.log("[LOT 0] Provisionnement sécurisé des comptes métier E2E");
-      const provision = await runProcess(
-        "lot-00-fixture-provision",
-        process.execPath,
-        ["e2e/provision-fixtures.mjs"],
-        { env, timeoutMs: 90000 },
-      );
-      fixtureProvisionStatus = provision.exitCode === 0 ? "PASS" :
-        /HTTP 401|HTTP 403|HTTP 404|HTTP 410|SESSION_ADMIN_E2E_REQUISE|AUTHENTICATED_E2E_ADMIN_SESSION_REQUIRED/.test(provision.output)
-          ? "BLOCKED"
-          : "FAIL";
-      technicalChecks.push({
-        label: "Provisionnement des comptes Talent/Recruteur/Partenaire",
-        status: fixtureProvisionStatus,
-        log: provision.log,
-        detail: fixtureProvisionStatus === "PASS"
-          ? "Trois identités synthétiques E2E et leurs profils ont été provisionnés."
-          : "Provisionnement non disponible : vérifier la session Admin JOBLY-E2E et l'activation sécurisée de l'Edge Function.",
-      });
-    } else {
-      technicalChecks.push({
-        label: "Provisionnement des comptes Talent/Recruteur/Partenaire",
-        status: "BLOCKED",
-        detail: "Aucune session Admin JOBLY-E2E locale disponible ; aucune création anonyme n'est tentée. La version déployée de e2e-fixture-provision renvoie actuellement HTTP 410.",
-      });
-    }
+  if (preflight.exitCode === 0 && !process.env.CI && !process.env.GITHUB_ACTIONS) {
+    console.log("[LOT 0] Provisionnement local sécurisé des comptes métier JOBLY-E2E");
+    const provision = await runProcess(
+      "lot-00-fixture-provision",
+      process.execPath,
+      ["e2e/provision-fixtures.mjs"],
+      { env, timeoutMs: 180000, stdin: "inherit", forwardOutput: true },
+    );
+    fixtureProvisionStatus = provision.exitCode === 0 ? "PASS" :
+      /E2E_SERVICE_ROLE_KEY_REQUIRED|saisie masquée|Saisie interrompue/.test(provision.output)
+        ? "BLOCKED"
+        : "FAIL";
+    technicalChecks.push({
+      label: "Provisionnement des comptes Talent/Recruteur/Partenaire",
+      status: fixtureProvisionStatus,
+      log: provision.log,
+      detail: fixtureProvisionStatus === "PASS"
+        ? "Comptes Auth confirmés et profils synthétiques créés sur JOBLY-E2E ; aucun message externe n'a été envoyé."
+        : "Provisionnement non terminé. Le détail est dans le journal ; aucun compte Production n'est utilisé.",
+    });
   } else {
     technicalChecks.push({
       label: "Provisionnement des comptes Talent/Recruteur/Partenaire",
       status: "BLOCKED",
-      detail: "Préflight JOBLY-E2E non validé.",
+      detail: preflight.exitCode !== 0
+        ? "Préflight JOBLY-E2E non validé."
+        : "Le provisionnement Auth Admin est exécuté localement uniquement ; aucun secret privé n'est injecté dans GitHub Actions.",
     });
   }
 
@@ -647,7 +641,7 @@ async function main() {
     "technical-build",
     process.platform === "win32" ? "pnpm.cmd" : "pnpm",
     ["build"],
-    { env, timeoutMs: 420000, shell: process.platform === "win32" },
+    { env, timeoutMs: 900000, shell: process.platform === "win32" },
   );
   technicalChecks.push({
     label: "Build production — pnpm build",
@@ -676,7 +670,11 @@ async function main() {
       });
     } else {
       const port = await reserveLocalPort();
-      const server = await startNextServer(env, port);
+      const fixtureRuntime = await readFileJson(path.join(ROOT, ".e2e-fixture-runtime.json"));
+      const runtimeKey = fixtureRuntime?.environment === "JOBLY-E2E" && fixtureRuntime?.projectRef === EXPECTED_REF
+        ? fixtureRuntime.serviceRoleKey
+        : "";
+      const server = await startNextServer(env, port, runtimeKey);
       if (!server.ok) {
         technicalChecks.push({
           label: "Playwright — navigateur/UI mobile/APIs",
@@ -711,6 +709,47 @@ async function main() {
             log: browser.log,
             detail: blocked > 0 ? blocked + " contrôles Auth restent BLOCKED ; voir le rapport navigateur." : "Smoke navigateur exécuté.",
           });
+
+          const authenticated = await runProcess(
+            "technical-authenticated-role-smoke",
+            process.execPath,
+            ["e2e/authenticated-role-smoke.mjs"],
+            {
+              env: { ...env, E2E_BASE_URL: server.baseURL },
+              timeoutMs: 240000,
+            },
+          );
+          const authenticatedReport = await readFileJson(path.join(ARTIFACTS, "authenticated-role-smoke.json"));
+          technicalChecks.push({
+            label: "Parcours API authentifiés Talent/Recruteur/Partenaire",
+            status: authenticatedReport?.status ?? (authenticated.exitCode === 0 ? "PARTIAL" : "FAIL"),
+            tests: authenticatedReport?.checks?.length ?? 0,
+            passed: authenticatedReport?.checks?.filter((item) => item.status === "PASS").length ?? 0,
+            log: authenticated.log,
+            detail: authenticatedReport?.summary ?? authenticated.spawnError ?? "Rapport des parcours authentifiés indisponible.",
+          });
+
+          for (const [role, lotId] of [["TALENT", "LOT-02"], ["RECRUITER", "LOT-03"]]) {
+            const lot = lots.find((item) => item.id === lotId);
+            const checks = authenticatedReport?.checks?.filter((item) => item.role === role) ?? [];
+            if (!lot) continue;
+            if (checks.length) {
+              lot.tests = Number(lot.tests ?? 0) + checks.length;
+              lot.passed = Number(lot.passed ?? 0) + checks.filter((item) => item.status === "PASS").length;
+              lot.failed = Number(lot.failed ?? 0) + checks.filter((item) => item.status === "FAIL").length;
+              lot.status = checks.some((item) => item.status === "FAIL") ? "FAIL" : "PARTIAL";
+              lot.log = [lot.log, authenticated.log].filter(Boolean).join(", ");
+              lot.detail = "Parcours API authentifié " + role + " : " +
+                checks.filter((item) => item.status === "PASS").length + "/" + checks.length +
+                " contrôles PASS. " + (lot.detail ?? "");
+            }
+          }
+
+          const lot03 = lots.find((item) => item.id === "LOT-03");
+          if (lot03 && !authenticatedReport?.checks?.some((item) => item.role === "RECRUITER")) {
+            lot03.status = fixtureProvisionStatus === "PASS" ? "FAIL" : "BLOCKED";
+            lot03.detail = "Parcours Recruteur authentifié non exécuté : provisionnement des fixtures indisponible.";
+          }
         } finally {
           await stopNextServer(server);
         }
@@ -814,6 +853,8 @@ async function mainSafe() {
       // Preserve the original failure if local storage is unavailable.
     }
     process.exitCode = 1;
+  } finally {
+    await unlink(path.join(ROOT, ".e2e-fixture-runtime.json")).catch(() => undefined);
   }
 }
 
