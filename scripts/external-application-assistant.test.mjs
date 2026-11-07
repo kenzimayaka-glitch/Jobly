@@ -58,3 +58,14 @@ test("expired job detail GET is read-only and never mutates the Job row", () => 
   assert.match(getHandler, /return NextResponse\.json\(\{ message: "Offre expirée\." \}, \{ status: 404 \}\)/);
   assert.doesNotMatch(getHandler, /\.from\(["']Job["']\)\.update\(/);
 });
+
+test("offer detail favorites share the persisted localStorage list with the offers feed", () => {
+  const detail = read("app/jobs/[id]/page.tsx");
+  const feed = read("components/JoblyOfferFeed.tsx");
+  assert.match(detail, /const savedOfferKey = source && params\.id \? `\$\{source\}:\$\{params\.id\}` : null/);
+  assert.match(detail, /localStorage\.getItem\("jobly:jia:saved-offers"\)/);
+  assert.match(detail, /localStorage\.setItem\("jobly:jia:saved-offers"/);
+  assert.match(detail, /onClick=\{toggleSaved\}/);
+  assert.match(feed, /localStorage\.getItem\("jobly:jia:saved-offers"\)/);
+  assert.match(feed, /localStorage\.setItem\("jobly:jia:saved-offers"/);
+});
