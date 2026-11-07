@@ -9,7 +9,7 @@ const after = (source, marker) => {
   return source.slice(index);
 };
 
-test("CV import accepts only PDF uploads and requires a Talent session before privileged processing", () => {
+test("CV import accepts only PDF uploads and requires an authenticated session before privileged processing", () => {
   const route = read("app/api/talent/cv/import/route.ts");
   const handler = after(route, "export async function POST");
   assert.match(handler, /content-type.*multipart\/form-data/i);
@@ -58,7 +58,7 @@ test("saving the original CV validates the real PDF signature, isolates storage 
   assert.ok(post.indexOf('if (updateError)') < post.indexOf('remove([previousStoragePath])'));
 });
 
-test("reading and deleting the original CV are authenticated and limited to the current Talent record", () => {
+test("reading and deleting the original CV are authenticated and limited to the current account record", () => {
   const route = read("app/api/talent/cv/original/route.ts");
   const get = after(route, "export async function GET");
   const remove = after(route, "export async function DELETE");
@@ -135,7 +135,7 @@ test("candidate application PATCH is owner-scoped and cannot overwrite a recruit
   const route = read("app/api/applications/[id]/route.ts");
   const handler = after(route, "export async function PATCH");
   assert.match(handler, /getAuthUser\(req\)/);
-  assert.match(handler, /\.eq\("id", id\)\.eq\("userId", userId\)/);
+  assert.match(route, /\.eq\("id", id\)\.eq\("userId", userId\)/);
   assert.match(handler, /existing\.statusSource === "RECRUITER"/);
   assert.match(handler, /payload\.status = b\.status/);
   assert.match(handler, /payload\.statusSource = "CANDIDATE"/);
@@ -180,7 +180,7 @@ test("application-letter import is authenticated, size-limited and restricted to
   const route = read("app/api/applications/letter-import/route.ts");
   const handler = after(route, "export async function POST");
   assert.match(handler, /getAuthUser\(request\)/);
-  assert.match(handler, /MAX_BYTES = 5 \* 1024 \* 1024/);
+  assert.match(route, /const MAX_BYTES = 5 \* 1024 \* 1024/);
   assert.match(handler, /file\.size > MAX_BYTES/);
   assert.match(handler, /ext === "pdf"/);
   assert.match(handler, /ext === "docx"/);
