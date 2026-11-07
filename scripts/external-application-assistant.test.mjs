@@ -138,3 +138,20 @@ test("Gmail OAuth launch uses the authenticated candidate session before redirec
   assert.match(route, /format.*json/);
   assert.match(route, /NextResponse\.json\(\s*\{ url: authorizationUrl \}/);
 });
+
+test("Talent notifications are loaded from the authenticated API and marked read only for their owner", () => {
+  const page = read("app/notifications/page.tsx");
+  const route = read("app/api/notifications/route.ts");
+  assert.match(page, /fetch\(["']\/api\/notifications\?limit=50["']/);
+  assert.ok(page.includes("Authorization: `Bearer ${accessToken}`"));
+  assert.match(page, /method:\s*"PATCH"/);
+  assert.match(page, /body:\s*JSON\.stringify\(\{ id \}\)/);
+  assert.match(page, /body:\s*JSON\.stringify\(\{ all: true \}\)/);
+  assert.match(page, /notification\.title/);
+  assert.match(page, /notification\.body/);
+  assert.match(route, /ensureUser\(db, auth\)/);
+  assert.match(route, /\.eq\("userId", user\.id\)/);
+  assert.match(route, /\.is\("readAt", null\)/);
+  assert.match(route, /openedAt: readAt/);
+  assert.match(route, /NOTIFICATION_TARGET_REQUIRED/);
+});
