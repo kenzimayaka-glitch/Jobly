@@ -129,11 +129,17 @@ async function getOrCreateAuthUser(admin, fixture, password) {
     email: fixture.email,
     password,
     email_confirm: true,
-    app_metadata: metadata,
     user_metadata: userMetadata,
   });
   if (error || !data.user?.id) throw new Error("Création Auth du compte fixture impossible : " + (error?.message || "identité absente"));
-  return data.user.id;
+  const { data: secured, error: metadataError } = await admin.auth.admin.updateUserById(data.user.id, {
+    app_metadata: metadata,
+  });
+  if (metadataError || !secured.user?.id) {
+    await admin.auth.admin.deleteUser(data.user.id).catch(() => undefined);
+    throw new Error("Marquage sécurisé de la fixture impossible : " + (metadataError?.message || "identité absente"));
+  }
+  return secured.user.id;
 }
 
 async function upsertApplicationIdentity(admin, fixture, authUserId) {
