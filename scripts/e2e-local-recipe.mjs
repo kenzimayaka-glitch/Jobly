@@ -729,7 +729,7 @@ async function main() {
             detail: authenticatedReport?.summary ?? authenticated.spawnError ?? "Rapport des parcours authentifiés indisponible.",
           });
 
-          for (const [role, lotId] of [["TALENT", "LOT-02"], ["RECRUITER", "LOT-03"]]) {
+          for (const [role, lotId] of [["TALENT", "LOT-02"], ["RECRUITER", "LOT-03"], ["PARTNER", "LOT-06"]]) {
             const lot = lots.find((item) => item.id === lotId);
             const checks = authenticatedReport?.checks?.filter((item) => item.role === role) ?? [];
             if (!lot) continue;
