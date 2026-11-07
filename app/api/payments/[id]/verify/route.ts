@@ -29,20 +29,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (!["CREATED", "PENDING"].includes(String(payment.status))) return err("Ce paiement ne peut plus être modifié.", 409, "PAYMENT_NOT_OPEN");
       if (!payment.smsMerchantAccount) return err("Compte marchand manquant.", 409, "MERCHANT_ACCOUNT_MISSING");
 
-      let currentPayment = payment;
-      if (transactionId && String(payment.reportedTransactionId || "").toUpperCase() !== transactionId) {
-        // Optional customer-entered reference is only an additional matching signal.
-        // It never confirms payment without a trusted merchant receipt.
-        const now = new Date().toISOString();
-        const { data: updated, error: updateError } = await supabase.from("Payment")
-          .update({ reportedTransactionId: transactionId, updatedAt: now })
-          .eq("id", payment.id).eq("userId", user.id).in("status", ["CREATED", "PENDING"])
-          .select("*").maybeSingle();
-        if (updateError?.code === "23505") return err("Cette référence est déjà associée à une autre commande.", 409, "TRANSACTION_REFERENCE_ALREADY_USED");
-        if (updateError) throw new Error(updateError.message);
-        if (!updated) return err("La commande a changé. Actualisez son statut.", 409, "PAYMENT_STATE_CHANGED");
-        currentPayment = updated;
-      }
+      // A reference typed by the customer is an untrusted lookup hint only.
+      // Never persist it before a matching trusted merchant receipt exists:
+      // a typo would otherwise pin the order to a wrong reference and prevent
+      // the later automatic merchant-SMS matcher from finding the real receipt.
+      const currentPayment = payment;
 
       // Automatic ingestion normally matches and finalizes the payment before the
       // customer opens this endpoint. This path also supports an optional exact
