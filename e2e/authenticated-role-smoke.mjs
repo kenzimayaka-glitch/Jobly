@@ -192,7 +192,17 @@ async function runCrossRoleApplicationLifecycle(fixtures) {
     assert.ok(talentAccount?.email && talentAccount?.password, "Fixture Talent absente.");
     assert.ok(recruiterAccount?.email && recruiterAccount?.password, "Fixture Recruteur absente.");
 
-    const runtime = JSON.parse(await readFile(path.resolve(".e2e-fixture-runtime.json"), "utf8"));
+    let runtime;
+    try {
+      runtime = JSON.parse(await readFile(path.resolve(".e2e-fixture-runtime.json"), "utf8"));
+    } catch (error) {
+      if (error?.code === "ENOENT") {
+        record("TALENT", "CROSS-ROLE-APPLICATION-LIFECYCLE-ENVIRONMENT", "BLOCKED", null, "Clé privée de test absente : parcours croisé local uniquement, non exécuté en CI.");
+        record("RECRUITER", "CROSS-ROLE-APPLICATION-LIFECYCLE-ENVIRONMENT", "BLOCKED", null, "Clé privée de test absente : parcours croisé local uniquement, non exécuté en CI.");
+        return;
+      }
+      throw error;
+    }
     assert.equal(runtime.environment, "JOBLY-E2E", "Runtime non-E2E refusé.");
     assert.equal(runtime.projectRef, PROJECT_REF, "Projet runtime inattendu.");
     assert.ok(typeof runtime.serviceRoleKey === "string" && runtime.serviceRoleKey.length >= 20, "Clé privée JOBLY-E2E absente.");
@@ -390,6 +400,8 @@ async function runCrossRoleApplicationLifecycle(fixtures) {
     await recruiterClient?.auth.signOut({ scope: "local" }).catch(() => undefined);
   }
 }
+
+  await runCrossRoleApplicationLifecycle(fixtures);
 
   const failed = report.checks.some((check) => check.status === "FAIL");
   const blocked = report.checks.some((check) => check.status === "BLOCKED");
