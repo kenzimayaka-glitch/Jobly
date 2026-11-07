@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateJourney, sanitizeAssessmentAnswers } from "@/lib/careerJourney";
+import { getJourneyReadOnly, getOrCreateJourney, sanitizeAssessmentAnswers } from "@/lib/careerJourney";
 import { getCareerJourneyEntitlements } from "@/lib/careerJourneyEntitlements";
 
 const formats = new Set(["MCQ","CASE","ROLEPLAY","PRACTICAL","ORAL","PORTFOLIO"]);
@@ -30,7 +30,7 @@ async function rollbackAssessmentAttempt(args: {
 
 export async function GET(request: NextRequest) {
   try {
-    const ctx = await getOrCreateJourney(request);
+    const ctx = await getJourneyReadOnly(request);
     const { data, error } = await ctx.supabase.from("CareerCompetencyAssessment").select("*, CareerCompetencyAttempt(*)").eq("userId", ctx.user.id).eq("journeyId", ctx.journey.id).order("createdAt", { ascending: false });
     if (error) throw new Error(error.message);
     return NextResponse.json({ ok: true, assessments: data ?? [] });
