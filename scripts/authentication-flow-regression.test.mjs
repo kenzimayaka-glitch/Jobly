@@ -174,6 +174,18 @@ test("signup completion and profile-photo upload reconcile legacy email-only acc
   assert.doesNotMatch(profilePhotoRoute, /\.eq\("authUserId", authUser\.id\)/);
 });
 
+test("device-session limits are enforced after legacy email-only identity reconciliation", () => {
+  const authHelper = read("lib/server-auth.ts");
+  const handlerStart = authHelper.indexOf("export async function getAuthUser(");
+  const handlerEnd = authHelper.indexOf("export async function ensureUser(", handlerStart);
+  const handler = authHelper.slice(handlerStart, handlerEnd);
+  const reconcileIndex = handler.indexOf("ensureUser(service, data.user)");
+  const registerIndex = handler.indexOf('service.rpc("register_jobly_device_session"');
+  assert.ok(reconcileIndex >= 0 && registerIndex > reconcileIndex);
+  assert.match(handler, /if \(registrationError\) throw new Error\("Contrôle des appareils connectés indisponible\."/);
+  assert.match(handler, /allowed\?: boolean/);
+});
+
 test("original CV storage and CV import reconcile legacy Auth accounts before lookup or upload", () => {
   for (const route of [originalCvRoute, cvImportRoute]) {
     assert.match(route, /getAuthUser\(/);
