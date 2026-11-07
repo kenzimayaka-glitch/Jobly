@@ -92,3 +92,13 @@ test("application sent counter excludes drafts, prepared items, review items and
   assert.match(route, /case "SUBMITTED":return "Candidature envoyée"/);
   assert.match(route, /case "WITHDRAWN":return "Retirée"/);
 });
+
+test("application review loads and submits the candidate application with the authenticated session", () => {
+  const review = read("app/applications/review/[id]/page.tsx");
+  assert.match(review, /getSupabaseClient\(\)\.auth\.getSession\(\)/);
+  assert.ok(review.includes("Authorization: `Bearer ${data.session.access_token}`"));
+  assert.match(review, /headers,\s*cache:\s*"no-store"/);
+  assert.match(review, /"Content-Type":\s*"application\/json",\s*\.\.\.\(await authHeaders\(\)\)/);
+  assert.match(review, /setData\(body as Review\)/);
+  assert.match(review, /setLoading\(false\)/);
+});
