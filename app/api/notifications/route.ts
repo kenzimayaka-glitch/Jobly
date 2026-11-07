@@ -20,5 +20,30 @@ export async function GET(request: NextRequest) {
     .limit(limit);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ notifications: data || [], count: data?.length || 0 });
+  return NextResponse.json({ notifications: data || [], count: data?.length || 0, unreadCount: (data || []).filter((item) => !item.readAt).length });
+}
+
+export async function PATCH(request: NextRequest) {
+  const auth = await getAuthUser(request);
+  if (!auth) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+
+  const body = await request.json().catch(() => ({}));
+  const notificationId = typeof body.id === "string" ? body.id.trim() : "";
+  const markAll = body.all === true;
+  if (!notificationId && !markAll) {
+    return NextResponse.json({ error: "NOTIFICATION_TARGET_REQUIRED", message: "Indique la notification à marquer comme lue." }, { status: 400 });
+  }
+
+  const db = adminClient();
+  const user = await ensureUser(db, auth);
+  const readAt = new Date().toISOString();
+  let update = db.from("Notification")
+    .update({ readAt, openedAt: readAt })
+    .eq("userId", user.id)
+    .is("readAt", null);
+  if (notificationId) update = update.eq("id", notificationId);
+
+  const { data, error } = await update.select("id,readAt");
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true, updated: data?.length || 0, readAt });
 }
