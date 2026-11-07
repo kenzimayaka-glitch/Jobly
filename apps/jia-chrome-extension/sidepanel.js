@@ -6,6 +6,10 @@ const activationCopy=document.getElementById("activationCopy");
 const toggleButton=document.getElementById("toggle");
 const scanButton=document.getElementById("scan");
 const assistButton=document.getElementById("assist");
+let assistantEnabled=false;
+let currentContext=null;
+scanButton.disabled=true;
+assistButton.disabled=true;
 
 function send(message) {
   return new Promise((resolve,reject) => {
@@ -18,6 +22,7 @@ function send(message) {
 }
 
 function renderContext(context) {
+  currentContext=context;
   if(!context) {
     offerEl.textContent="Aucune offre Jobly liée. Ouvre d'abord une offre Jobly puis son lien vers le promoteur.";
     assistButton.disabled=true;
@@ -33,11 +38,15 @@ function renderContext(context) {
   link.target="_blank";link.rel="noopener noreferrer";
   link.textContent="Ouvrir le site du recruteur";
   offerEl.append(heading,byline,link);
-  assistButton.disabled=false;
+  assistButton.disabled=!assistantEnabled;
 }
 
 function renderInstallStatus(status) {
   const enabled=status?.enabled===true;
+  assistantEnabled=enabled;
+  scanButton.disabled=!enabled;
+  assistButton.disabled=!enabled||!currentContext;
+  if(!enabled) fieldsEl.replaceChildren();
   stateEl.textContent=enabled?"J'IA activée":"Extension installée · en pause";
   stateEl.style.background=enabled?"#dcfce7":"#fff4b8";
   stateEl.style.color=enabled?"#166534":"#725900";
@@ -76,6 +85,7 @@ toggleButton.addEventListener("click",async()=>{
 scanButton.addEventListener("click",async()=>{
   statusEl.textContent="";
   try {
+    if(!assistantEnabled) throw new Error("Active d’abord J’IA avant d’analyser un formulaire.");
     const [tab]=await chrome.tabs.query({active:true,currentWindow:true});
     if(!tab?.id||!tab.url)throw new Error("Aucun onglet actif.");
     const page=new URL(tab.url);
