@@ -117,7 +117,7 @@ test("application preparation is owner-scoped, requires a minimum CV profile and
   const get = after(route, "export async function GET");
   const post = after(route, "export async function POST");
   assert.match(get, /getAuthUser\(request\)/);
-  assert.match(get, /\.from\("Application"\)\.select\("\*"\)\.eq\("userId", user\.id\)/);
+  assert.match(get, /\.from\("Application"\)\.select\("\*"\)\.eq\("userId",user\.id\)/);
   assert.match(post, /getAuthUser\(request\)/);
   assert.match(post, /\.from\("Profile"\)[\s\S]*?\.eq\("userId",user\.id\)/);
   assert.match(post, /\.from\("Experience"\)[\s\S]*?\.eq\("userId",user\.id\)/);
