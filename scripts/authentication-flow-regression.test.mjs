@@ -329,3 +329,26 @@ test("CV share links have a 30-day lifetime, owner-only revocation and private n
   assert.match(sharePage, /data\.revokedAt/);
   assert.match(shareView, /cache:"no-store"/);
 });
+
+test("Account notification and Talent privacy preferences persist and control the notification center", () => {
+  const schema = read("packages/database/prisma/schema.prisma");
+  const migration = read("supabase/migrations/20261107030000_account_notification_preferences.sql");
+  const preferencesApi = read("app/api/account/preferences/route.ts");
+  const settings = read("components/AccountSettings.tsx");
+  const discoverability = read("app/api/talent/discoverability/route.ts");
+  const notifications = read("app/api/notifications/route.ts");
+  const inbox = read("app/notifications/page.tsx");
+  assert.ok(schema.includes("notificationsEnabled"));
+  assert.match(migration, /add column if not exists "notificationsEnabled" boolean not null default true/);
+  assert.match(preferencesApi, /notificationsEnabled: user\.notificationsEnabled !== false/);
+  assert.match(preferencesApi, /update\(\{ notificationsEnabled: body\.notificationsEnabled/);
+  assert.match(settings, /fetch\("\/api\/account\/preferences"/);
+  assert.match(settings, /method: "PUT"/);
+  assert.match(settings, /body: JSON\.stringify\(\{ notificationsEnabled: next \}\)/);
+  assert.match(settings, /fetch\("\/api\/talent\/discoverability"/);
+  assert.match(settings, /body: JSON\.stringify\(\{ publicDiscoverable: !nextPrivate \}\)/);
+  assert.match(discoverability, /\.upsert\(payload, \{ onConflict: "userId" \}\)/);
+  assert.match(notifications, /user\.notificationsEnabled === false/);
+  assert.match(notifications, /disabled: true/);
+  assert.match(inbox, /notificationsDisabled \? "Notifications désactivées"/);
+});
