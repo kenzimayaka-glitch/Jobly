@@ -334,6 +334,10 @@ export function JoblyOfferFeed() {
     if (applied.has(key)) { setError("Vous avez déjà postulé à cette offre : elle ne peut plus être ajoutée au panier."); return; }
     if (applicationReadyKeys.has(key)) { setError("Cette candidature est déjà préparée et attend votre validation : retrouvez-la dans l’onglet Candidatures."); return; }
     if (!job.applicationReady) { setError("Cette offre est consultable, mais aucune modalité de candidature n’est vérifiée. Consultez la source originale avant de postuler."); return; }
+    if (!applicationEmail(job) || externalApplicationTarget(job)) {
+      setError("Le panier groupé est réservé aux candidatures par e-mail. Pour une offre téléphone ou plateforme externe, utilisez son action manuelle.");
+      return;
+    }
     setBasket(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
