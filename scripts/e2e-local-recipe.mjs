@@ -211,7 +211,7 @@ async function runProcess(id, command, args, options = {}) {
 }
 
 function parseCount(output, label) {
-  const match = output.match(new RegExp("ℹ\\\\s+" + label + "\\\\s+(\\\\d+)|#\\\\s+" + label + "\\\\s+(\\\\d+)", "g"));
+  const match = output.match(new RegExp("ℹ\\s+" + label + "\\s+(\\d+)|#\\s+" + label + "\\s+(\\d+)", "g"));
   if (!match) return null;
   let total = 0;
   for (const line of match) {
