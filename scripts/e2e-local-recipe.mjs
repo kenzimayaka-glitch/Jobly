@@ -13,7 +13,10 @@ const EXPECTED_REF = "ofqqrryamslxoqkklraw";
 const EXPECTED_URL = "https://" + EXPECTED_REF + ".supabase.co";
 const PUBLISHABLE_KEY = "sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y";
 const PLAYWRIGHT_VERSION = "1.65.0";
-const GROUP_CONCURRENCY = 3;
+const configuredConcurrency = Number.parseInt(process.env.E2E_LOT_CONCURRENCY ?? "", 10);
+const GROUP_CONCURRENCY = Number.isFinite(configuredConcurrency)
+  ? Math.max(1, Math.min(6, configuredConcurrency))
+  : 5;
 const FILE_CONCURRENCY = 2;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -135,7 +138,7 @@ function isolatedEnvironment() {
     JOBLY_PUBLIC_URL: "http://127.0.0.1:3000",
     JOBLY_API_BASE_URL: "http://127.0.0.1:3000",
     NODE_ENV: "production",
-    E2E_BULK_CONCURRENCY: String(GROUP_CONCURRENCY),
+    E2E_LOT_CONCURRENCY: String(GROUP_CONCURRENCY),
   });
   for (const key of [
     "SUPABASE_SERVICE_ROLE_KEY",
@@ -444,6 +447,7 @@ function reportMarkdown(report) {
     "- Parallélisme : " + GROUP_CONCURRENCY + " lots ; maximum " + FILE_CONCURRENCY + " fichiers par lot",
     "- Statut global : **" + report.status + "**",
     "- Lots : " + report.passedLots + " PASS ; " + report.partialLots + " PARTIAL ; " + report.blockedLots + " BLOCKED ; " + report.failedLots + " FAIL",
+    "- Tests automatisés exécutés : " + report.totalTests,
     "",
     "| Lot | Périmètre du cahier | Statut | Tests exécutés | Preuve / limite |",
     "|---|---|---:|---:|---|",
@@ -671,6 +675,7 @@ async function main() {
     groupConcurrency: GROUP_CONCURRENCY,
     fileConcurrency: FILE_CONCURRENCY,
     totalLots: lots.length,
+    totalTests: lots.reduce((sum, item) => sum + Number(item.tests ?? 0), 0),
     passedLots,
     partialLots,
     blockedLots,
@@ -690,7 +695,7 @@ async function main() {
   await writeFile(path.join(ROOT, "feedback-e2e-recette-complete.txt"), markdown, "utf8");
 
   console.log("");
-  console.log("BILAN DES 11 LOTS : " + passedLots + " PASS ; " + partialLots + " PARTIAL ; " + blockedLots + " BLOCKED ; " + failedLots + " FAIL.");
+  console.log("BILAN DES 11 LOTS : " + passedLots + " PASS ; " + partialLots + " PARTIAL ; " + blockedLots + " BLOCKED ; " + failedLots + " FAIL ; " + report.totalTests + " tests automatisés.");
   console.log("CONTRÔLES TECHNIQUES : " + technicalChecks.map((item) => item.label + "=" + item.status).join(" | "));
   console.log("STATUT GLOBAL : " + report.status);
   console.log("Rapport unique : feedback-e2e-recette-complete.txt");
