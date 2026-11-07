@@ -203,7 +203,8 @@ export type BillingProductType = "TALENT" | "RECRUITER";
   */
 export async function resolveBillingProductType(
   supabase: ReturnType<typeof adminClient>,
-  internalUser: { id: string; role?: string },
+  internalUser: { role?: string },
+  authUserId: string,
   requested?: unknown,
 ): Promise<BillingProductType> {
   const requestedValue = String(requested || "").trim().toUpperCase();
@@ -215,11 +216,13 @@ export async function resolveBillingProductType(
     throw new Error("INVALID_PRODUCT_TYPE");
   }
 
+  // RecruiterProfile is owned by the Supabase Auth UID; billing rows remain
+  // owned by the internal User.id.
   if (productType === "RECRUITER") {
     const { data, error } = await supabase
       .from("RecruiterProfile")
       .select("id")
-      .eq("userId", internalUser.id)
+      .eq("userId", authUserId)
       .limit(1)
       .maybeSingle();
     if (error) throw new Error("RECRUITER_PROFILE_LOOKUP_FAILED: " + error.message);
