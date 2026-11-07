@@ -82,3 +82,11 @@ test("source ingestion is reachable only through explicit POST, never through GE
   assert.doesNotMatch(getHandler, /return POST\(request\)/);
   assert.match(feed, /\/api\/jobs\/ingest\/sources["'][^\n]*method:\s*"POST"/);
 });
+
+test("application sent counter excludes drafts, prepared items, review items and in-progress sends", () => {
+  const route = read("app/api/applications/route.ts");
+  assert.match(route, /envoyees:results\.filter\(a=>\["SUBMITTED","ACKNOWLEDGED","INTERVIEW","OFFER","REJECTED","WITHDRAWN"\]\.includes\(a\.status\)\)\.length/);
+  assert.doesNotMatch(route, /envoyees:results\.filter\(a=>a\.status!==["']DISCOVERED["']\)/);
+  assert.match(route, /case "USER_REVIEW":return "Prête à envoyer"/);
+  assert.match(route, /case "SUBMITTED":return "Candidature envoyée"/);
+});
