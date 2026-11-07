@@ -172,16 +172,29 @@ function CvStudioContent() {
   }
 
 
-  async function getAccessToken() {
+  async function authenticatedFetch(url: string, init: RequestInit = {}) {
     const supabase = getSupabaseClient();
     const current = await supabase.auth.getSession();
     let token = current.data.session?.access_token || null;
-    if (!token) {
+    const expiresAt = Number(current.data.session?.expires_at || 0);
+    if (!token || (expiresAt > 0 && expiresAt <= Date.now() / 1000 + 30)) {
       const refreshed = await supabase.auth.refreshSession();
       token = refreshed.data.session?.access_token || null;
     }
     if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
-    return token;
+
+    const send = (accessToken: string) => {
+      const headers = new Headers(init.headers);
+      headers.set("Authorization", "Bearer " + accessToken);
+      return fetch(url, { ...init, headers });
+    };
+    let response = await send(token);
+    if (response.status === 401) {
+      const refreshed = await supabase.auth.refreshSession();
+      const refreshedToken = refreshed.data.session?.access_token || null;
+      if (refreshedToken && refreshedToken !== token) response = await send(refreshedToken);
+    }
+    return response;
   }
 
   async function saveOriginalCv() {
@@ -192,12 +205,10 @@ function CvStudioContent() {
     setSavingOriginal(true);
     setMessage("");
     try {
-      const token = await getAccessToken();
       const body = new FormData();
       body.append("file", selectedFile);
-      const response = await fetch("/api/talent/cv/original", {
+      const response = await authenticatedFetch("/api/talent/cv/original", {
         method: "POST",
-        headers: { Authorization: "Bearer " + token },
         body,
       });
       const result = await response.json().catch(() => ({}));
@@ -215,17 +226,13 @@ function CvStudioContent() {
     setDownloadLoading(true);
     setMessage("");
     try {
-      const token = await getAccessToken();
       const feature = paymentOverride && paymentFeature
         ? paymentFeature
         : mode === "ats" ? "CV_ATS_DOWNLOAD" : "CV_OPTIMIZED_DOWNLOAD";
       const service = feature === "CV_ATS_DOWNLOAD" ? "ATS" : "OPTIMIZED";
-      const response = await fetch("/api/talent/cv/export", {
+      const response = await authenticatedFetch("/api/talent/cv/export", {
         method: "POST",
-        headers: {
-          Authorization: "Bearer " + token,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cv, service, ...(paymentOverride ? { paymentId: paymentOverride } : {}) }),
       });
 
@@ -276,11 +283,9 @@ function CvStudioContent() {
     setDownloadLoading(true);
     setMessage("");
     try {
-      const token = await getAccessToken();
-      const response = await fetch("/api/talent/cv/payment", {
+      const response = await authenticatedFetch("/api/talent/cv/payment", {
         method: "POST",
         headers: {
-          Authorization: "Bearer " + token,
           "Content-Type": "application/json",
           "Idempotency-Key": globalThis.crypto.randomUUID(),
         },
@@ -314,13 +319,9 @@ function CvStudioContent() {
     setDownloadLoading(true);
     setMessage("");
     try {
-      const token = await getAccessToken();
-      const response = await fetch("/api/payments/" + encodeURIComponent(paymentId) + "/verify", {
+      const response = await authenticatedFetch("/api/payments/" + encodeURIComponent(paymentId) + "/verify", {
         method: "POST",
-        headers: {
-          Authorization: "Bearer " + token,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: "{}",
       });
       const result = await response.json().catch(() => ({}));
