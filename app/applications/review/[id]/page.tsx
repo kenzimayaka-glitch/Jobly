@@ -28,23 +28,27 @@ export default function ApplicationReviewPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
-      const headers = await authHeaders();
-      const response = await fetch("/api/applications/" + encodeURIComponent(params.id) + "/submit", {
-        headers,
-        cache: "no-store",
-      });
-      const r = response;
       try {
-        const body = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(body.message || "Impossible de charger la préparation.");
-        return body as Review;
+        const headers = await authHeaders();
+        const response = await fetch("/api/applications/" + encodeURIComponent(params.id) + "/submit", {
+          headers,
+          cache: "no-store",
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.message || "Impossible de charger la préparation.");
+        if (!cancelled) {
+          setData(body as Review);
+          setLetter((body as Review).application.letterText || "");
+        }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Impossible de charger la préparation.");
+        if (!cancelled) setError(e instanceof Error ? e.message : "Impossible de charger la préparation.");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    })().catch(e => setError(e instanceof Error ? e.message : "Impossible de charger la préparation."));
+    })();
+    return () => { cancelled = true; };
   }, [params.id]);
 
   async function confirm() {
