@@ -250,6 +250,8 @@ test("Talent Showcase plan and image quotas are enforced by the server with Prom
   assert.match(images, /existingImages\.length >= limit/);
   assert.match(images, /ALLOWED_TYPES/);
   assert.match(images, /actionImages: nextImages/);
+  assert.match(advertising, /ALLOWED\.has\(f\.type\)/);
+  assert.match(advertising, /status:415/);
   assert.match(showcase, /requestedImages\.length > limit/);
   assert.match(showcase, /invalidAdditions\.length/);
   assert.match(showcase, /storage\.from\("talent-showcase"\)\.remove\(removedPaths\)/);
