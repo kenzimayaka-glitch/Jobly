@@ -50,13 +50,24 @@ try {
   });
 
   // JOBLY-E2E-AUTH-001 — public welcome screen renders without a session.
+  const homeStatsResponsePromise = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === "/api/public/home-stats",
+    { timeout: 15000 },
+  );
   const homeResponse = await page.goto(baseURL, { waitUntil: "domcontentloaded", timeout: 30000 });
   assert.ok(homeResponse && homeResponse.status() < 500, `Home route returned ${homeResponse?.status() ?? "no response"}`);
   await page.locator('img[alt="JOBLY — Your Career OS"]').waitFor({ state: "visible", timeout: 15000 });
+  const homeStatsResponse = await homeStatsResponsePromise;
+  assert.equal(homeStatsResponse.status(), 200, `Homepage stats API must return HTTP 200; got ${homeStatsResponse.status()}.`);
+  const homeStats = await homeStatsResponse.json();
+  assert.ok(Number.isFinite(homeStats.offersCount) && homeStats.offersCount >= 0, "Homepage offers count is invalid.");
+  assert.ok(Number.isFinite(homeStats.talentsCount) && homeStats.talentsCount >= 0, "Homepage talent count is invalid.");
+  assert.ok(typeof homeStats.updatedAt === "string" && Number.isFinite(Date.parse(homeStats.updatedAt)), "Homepage stats timestamp is invalid.");
   const pageText = await page.locator("body").innerText();
   assert.ok(pageText.trim().length > 80, "Public home screen is unexpectedly empty.");
   await page.screenshot({ path: path.join(evidenceDir, "auth-home-desktop.png"), fullPage: true });
   results.push({ id: "JOBLY-E2E-AUTH-001", status: "PASS", evidence: "auth-home-desktop.png" });
+  results.push({ id: "JOBLY-E2E-HOME-001", status: "PASS", evidence: `HTTP 200 · ${homeStats.offersCount} offres · ${homeStats.talentsCount} talents` });
 
   // JOBLY-E2E-AUTH-002 — the welcome login journey reaches the username/password form.
   const loginCta = page.locator(".jobly-public-home-cta > button").nth(1);
@@ -149,9 +160,6 @@ try {
     blocked: [
       { id: "JOBLY-E2E-AUTH-006", status: "BLOCKED", reason: "Aucun mécanisme Auth Admin isolé et éphémère n'est disponible dans les outils de recette ; aucun compte ni mot de passe n'a été créé ou injecté." },
       { id: "JOBLY-E2E-AUTH-007", status: "BLOCKED", reason: "Connexion réelle, renouvellement de session et déconnexion non exécutés ; le compte Admin existant n'a pas de mot de passe de recette disponible." },
-      ...(homeStatsUnavailable ? [
-        { id: "JOBLY-E2E-HOME-001", status: "BLOCKED", reason: "The public home-stats API returned a server error; provision the dedicated E2E server key and re-run the data-backed homepage check." },
-      ] : []),
     ],
     results,
     mobileDimensions: dimensions,
@@ -161,7 +169,7 @@ try {
       "The script does not submit signup, OTP, login, payment, application, email or external-provider requests.",
       "No service_role key, admin password, or Production credential is read or used.",
       "UI PASS does not prove server-side authentication or database persistence.",
-      ...(homeStatsUnavailable ? ["The home-stats endpoint returned HTTP 503 in this run; it is not counted as a passing backend check."] : []),
+      "Homepage statistics are served by a zero-argument aggregate RPC; public roles cannot read the underlying Job or Profile tables.",
     ],
   };
   await writeFile(path.join(evidenceDir, "lot1-auth-ui-smoke.json"), JSON.stringify(report, null, 2) + "\n");
