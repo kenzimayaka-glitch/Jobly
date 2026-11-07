@@ -1,6 +1,6 @@
 # Jobly — recette E2E globale
 
-**Statut :** Lot 0 partiellement validé. Aucun secret ni réglage manuel n'est demandé à l'utilisateur. Les contrôles d'environnement, de schéma, de RLS et de liaison Admin sont documentés ; les comptes métier et parcours Auth restent à éprouver.
+**Statut :** La recette locale bulk couvre désormais les sessions Auth réelles des trois rôles, les API Talent/Recruteur/Partenaire et un parcours croisé de candidature synthétique Talent → Recruteur. Le résultat global reste PARTIAL tant que les 11 lots et leurs parcours obligatoires ne sont pas tous validés. Une clé privée JOBLY-E2E peut être demandée localement en saisie masquée ; elle ne doit jamais être copiée dans le chat.
 
 ## Environnements autorisés
 
@@ -82,14 +82,15 @@ Le lanceur local `node scripts/e2e-local-recipe.mjs` prépare automatiquement tr
 
 - Le script recherche d'abord une clé privée dans un fichier local uniquement si l'URL déclarée dans ce même fichier est exactement celle de JOBLY-E2E.
 - Si aucune clé E2E n'est disponible, il demande une saisie masquée dans le terminal interactif. La clé ne doit jamais être copiée dans le chat.
-- La clé est conservée temporairement dans `.e2e-fixture-runtime.json`, ignoré par Git, puis supprimée à la fin du run. Elle n'est transmise qu'au serveur Next.js local pendant les contrôles API.
+- La clé est conservée temporairement dans `.e2e-fixture-runtime.json`, ignoré par Git, puis supprimée à la fin du run. Elle est utilisée uniquement en mémoire par le serveur Next.js local et le script de recette pour préparer/nettoyer des fixtures synthétiques JOBLY-E2E ; elle n'est jamais journalisée ni injectée dans le navigateur.
+- Si les trois comptes existent mais que le runtime privé a été supprimé par un run antérieur, le mode `--runtime-only` revalide Auth et `public.User`, puis restaure uniquement le fichier runtime. Il ne supprime ni ne recrée les comptes, ne change aucun mot de passe et ne réécrit aucun profil.
 - Les mots de passe aléatoires des trois comptes de test sont conservés dans `.e2e-fixtures.json`, également ignoré par Git ; ils ne sont pas imprimés dans les rapports.
 - Le script refuse une configuration de projet différente, une clé JWT dont le claim `ref` correspond à un autre projet, ou une adresse de fixture déjà utilisée par un compte non-fixture.
 - Les comptes Admin existants ne sont ni lus pour leurs mots de passe, ni modifiés. Aucun e-mail, SMS, paiement ou appel externe n'est envoyé.
 
 Le workflow GitHub Actions reste sans secret privé : il exécute les contrôles automatisés/statistiques et signale le provisionnement Auth Admin comme local-only. Le run local est la voie de recette authentifiée des trois rôles.
 
-Le préflight ne remplace pas la validation Auth. La recette authentifiée vérifie la connexion et le renouvellement de session, les profils avec leurs bonnes clés de propriété (ID interne Jobly pour Talent/Partner, UID Auth pour Recruiter), les API Talent/Partner et les API Recruteur. Le Recruteur crée un brouillon synthétique, le relit, le modifie puis le supprime ; aucune offre publique n'est publiée.
+Le préflight ne remplace pas la validation Auth. La recette authentifiée vérifie la connexion et le renouvellement de session, les profils avec leurs bonnes clés de propriété (ID interne Jobly pour Talent/Partner, UID Auth pour Recruiter), les API Talent/Partner et les API Recruteur. Le scénario croisé crée un brouillon synthétique puis une offre locale publiée par l'API Recruteur dans JOBLY-E2E, ajoute un canal EMAIL fictif en `.invalid`, prépare une candidature Talent sans soumission, vérifie sa réception côté Recruteur, fait évoluer son état vers INTERVIEW puis OFFER et teste la priorité de la décision Recruteur. L'offre et la candidature sont supprimées et leur absence est vérifiée en base. Aucun email, SMS, paiement ou appel de fournisseur n'est déclenché.
 
 **Critère de sortie Lot 0 :** préflight JOBLY-E2E PASS, trois comptes Auth confirmés, trois profils métier vérifiés, puis contrôles RLS/grants prouvés. Les parcours Talent/Recruteur ne sont comptés que si les appels authentifiés retournent des preuves persistées. Les autres modules conservent leurs statuts PARTIAL tant que leurs scénarios propres ne sont pas exécutés.
 ## Catalogue de recette
@@ -130,9 +131,9 @@ Le run 42295562370 a exécuté 5 contrôles d'interface : 5 PASS, 0 FAIL et 0 er
 
 Le workflow `.github/workflows/jobly-e2e-recipe.yml` construit le site dans GitHub Actions, démarre Next.js localement et lance Playwright en Chromium. Il ne déploie rien sur Vercel.
 
-Le script `browser-smoke.mjs` couvre uniquement le parcours public d'entrée et les écrans de connexion/inscription, sans envoyer de formulaire ni contacter un service externe. Ce premier smoke ne valide pas encore les flux authentifiés, les APIs métier ni la persistance en base.
+Le script `browser-smoke.mjs` couvre le parcours public d'entrée et les écrans de connexion/inscription, sans envoyer de formulaire ni contacter un service externe. Le script `authenticated-role-smoke.mjs` exerce séparément de vraies sessions Supabase Auth et les API métier Talent/Recruteur/Partenaire, avec un parcours croisé de candidature synthétique et un nettoyage vérifié en base.
 
-La suite authentifiée ne doit pas dépendre de secrets que l'utilisateur aurait à créer. Les comptes de test devront être provisionnés par un mécanisme interne limité à JOBLY-E2E, avec des identifiants éphémères et sans réutiliser les identités ou secrets de Production. Le workflow actuel ne consomme aucun secret privé.
+La suite authentifiée utilise un secret privé strictement JOBLY-E2E, saisi localement en mode masqué si aucun fichier d'environnement E2E local n'en contient. Les comptes de test restent synthétiques ; aucun secret, compte ou service de Production n'est utilisé. Le workflow GitHub Actions ne reçoit aucun secret privé et ne prétend pas valider les parcours authentifiés.
 
 ## Rapport et preuves
 
