@@ -2,6 +2,8 @@
 
 **Statut :** La recette locale bulk couvre désormais les sessions Auth réelles des trois rôles, les API Talent/Recruteur/Partenaire et un parcours croisé de candidature synthétique Talent → Recruteur. Le résultat global reste PARTIAL tant que les 11 lots et leurs parcours obligatoires ne sont pas tous validés. Une clé privée JOBLY-E2E peut être demandée localement en saisie masquée ; elle ne doit jamais être copiée dans le chat.
 
+**Document de continuité de référence :** [docs/e2e/CONTINUITE-RECETTE-E2E.md](../docs/e2e/CONTINUITE-RECETTE-E2E.md). Mettre à jour ce bilan après chaque recette significative ; ne pas reprendre à partir d'un ancien rapport isolé.
+
 ## Environnements autorisés
 
 | Élément | Valeur |
