@@ -155,3 +155,20 @@ test("Talent notifications are loaded from the authenticated API and marked read
   assert.match(route, /openedAt: readAt/);
   assert.match(route, /NOTIFICATION_TARGET_REQUIRED/);
 });
+
+test("manual phone and external channels never enter the email bulk basket or Gmail send path", () => {
+  const feed = read("components/JoblyOfferFeed.tsx");
+  const submit = read("app/api/applications/[id]/submit/route.ts");
+  const review = read("app/applications/review/[id]/page.tsx");
+  assert.ok(feed.includes("!applicationEmail(job) || externalApplicationTarget(job)"));
+  assert.ok(feed.includes("Le panier groupé est réservé aux candidatures par e-mail."));
+  const channelGuard = submit.indexOf('if (requestedChannel !== "EMAIL")');
+  const quotaCheck = submit.indexOf("const quota = await checkWeeklyApplicationQuota");
+  const claim = submit.indexOf('status: "SUBMITTING"');
+  assert.ok(channelGuard >= 0 && quotaCheck > channelGuard && claim > channelGuard);
+  assert.ok(review.includes('data?.channel?.toUpperCase() === "EMAIL"'));
+  assert.ok(review.includes('href={`tel:${data.phone.replace(/[^0-9+]/g, "")}`}'));
+  assert.ok(review.includes("data?.applicationTargetUrl"));
+  assert.ok(review.includes("Action manuelle nécessaire"));
+  assert.ok(review.includes("Confirmer et envoyer la candidature"));
+});
