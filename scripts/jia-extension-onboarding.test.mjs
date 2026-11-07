@@ -57,3 +57,13 @@ test("external form inspection remains opt-in and excludes sensitive values", ()
   assert.match(panel, /file/);
   assert.doesNotMatch(panel, /el\.value|\.value\s*\)/);
 });
+
+test("form inspection and J’IA form assistance stay locked until the user explicitly activates the extension", () => {
+  const panel = read("apps/jia-chrome-extension/sidepanel.js");
+  assert.match(panel, /let assistantEnabled=false/);
+  assert.match(panel, /scanButton\.disabled=true/);
+  assert.match(panel, /scanButton\.disabled=!enabled/);
+  assert.match(panel, /assistButton\.disabled=!enabled\|\|!currentContext/);
+  assert.match(panel, /if\(!assistantEnabled\) throw new Error/);
+  assert.match(panel, /if\(!enabled\) fieldsEl\.replaceChildren\(\)/);
+});
