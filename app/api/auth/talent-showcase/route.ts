@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
 import { getTalentShowcasePlan, TALENT_SHOWCASE_LIMITS } from "@/lib/talentShowcaseEntitlements";
 
+function cleanImageUrls(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const cleaned: string[] = [];
+  for (const item of value) {
+    if (typeof item === "string") {
+      const url = item.trim();
+      if (url) cleaned.push(url);
+    }
+  }
+  return [...new Set(cleaned)];
+}
+
 export async function GET(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
@@ -44,10 +56,8 @@ export async function PUT(request: NextRequest) {
     const update: Record<string, unknown> = { updatedAt: new Date().toISOString() };
 
     if (Array.isArray(body.actionImages)) {
-      const currentImages = Array.isArray(user.actionImages)
-        ? [...new Set(user.actionImages.filter((value: unknown): value is string => typeof value === "string" && Boolean(value.trim())).map((value: string) => value.trim()))]
-        : [];
-      const requestedImages = [...new Set(body.actionImages.filter((value: unknown): value is string => typeof value === "string" && Boolean(value.trim())).map((value: string) => value.trim()))];
+      const currentImages = cleanImageUrls(user.actionImages);
+      const requestedImages = cleanImageUrls(body.actionImages);
       const additions = requestedImages.filter((url) => !currentImages.includes(url));
       const limit = plan === "FREE" ? 0 : TALENT_SHOWCASE_LIMITS[plan].images;
 
