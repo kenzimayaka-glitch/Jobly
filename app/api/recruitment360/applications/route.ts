@@ -114,13 +114,42 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.action === "document") {
-      if (!body.applicationId || !body.kind || !body.url) {
+      const applicationId = typeof body.applicationId === "string" ? body.applicationId.trim() : "";
+      if (!applicationId || !body.kind || !body.url) {
         throw new Error("DOCUMENT_FIELDS_REQUIRED");
       }
+
+      const { data: application, error: applicationError } = await supabase
+        .from("Application")
+        .select("id,recruiterJobId")
+        .eq("id", applicationId)
+        .maybeSingle();
+      if (applicationError) throw new Error(applicationError.message);
+      if (!application) return NextResponse.json({ message: "Candidature introuvable." }, { status: 404 });
+
+      const { data: recruitment, error: recruitmentError } = await supabase
+        .from("Recruitment360")
+        .select("id")
+        .eq("recruiterJobId", application.recruiterJobId)
+        .maybeSingle();
+      if (recruitmentError) throw new Error(recruitmentError.message);
+      if (!recruitment) return NextResponse.json({ message: "Recrutement introuvable." }, { status: 404 });
+
+      const { data: actorRole, error: actorRoleError } = await supabase
+        .from("RecruitmentRole")
+        .select("id")
+        .eq("recruitmentId", recruitment.id)
+        .eq("userId", user.id)
+        .in("role", ["OWNER", "HR", "MANAGER", "DELEGATE"])
+        .limit(1)
+        .maybeSingle();
+      if (actorRoleError) throw new Error(actorRoleError.message);
+      if (!actorRole) return NextResponse.json({ message: "Accès refusé à ce recrutement." }, { status: 403 });
+
       const { data, error } = await supabase
         .from("RecruitmentApplicationDocument")
         .insert({
-          applicationId: body.applicationId,
+          applicationId,
           kind: body.kind,
           url: body.url,
           fileName: body.fileName ?? null,
