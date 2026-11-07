@@ -64,7 +64,7 @@ async function enforceRememberWindow(instance: SupabaseClient) {
     const until = Number(window.localStorage.getItem(REMEMBER_UNTIL_KEY) || 0);
     if (until && Date.now() > until) {
       setRememberMe(false);
-      await instance.auth.signOut();
+      await instance.auth.signOut({ scope: "local" });
     }
   } catch {}
 }
