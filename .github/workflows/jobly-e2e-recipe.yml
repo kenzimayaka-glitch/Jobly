@@ -1,6 +1,6 @@
 name: Jobly — Recette E2E isolée
 
-# Run manually or after targeted E2E/application/test changes; avoid unrelated PR CI noise.
+# Same 11-lot orchestrator for Windows local runs and CI.
 on:
   workflow_dispatch:
   push:
@@ -22,26 +22,22 @@ permissions:
   contents: read
 
 concurrency:
-  group: jobly-e2e-recipe-${{ github.event.pull_request.number || github.ref }}
+  group: jobly-e2e-recipe-\${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  browser-smoke:
-    name: Jobly — bulk regressions + isolated Auth browser smoke
+  full-recipe:
+    name: Jobly — recette complète en 11 lots
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
       E2E_PROJECT_REF: ofqqrryamslxoqkklraw
-      E2E_BASE_URL: http://127.0.0.1:3000
       NEXT_PUBLIC_SUPABASE_URL: https://ofqqrryamslxoqkklraw.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y
-      NEXT_PUBLIC_JOBLY_PUBLIC_URL: http://127.0.0.1:3000
-      JOBLY_PUBLIC_URL: http://127.0.0.1:3000
-      JOBLY_API_BASE_URL: http://127.0.0.1:3000
       NODE_ENV: production
       E2E_BULK_CONCURRENCY: "3"
     steps:
-      - name: Checkout exact PR commit
+      - name: Checkout exact recipe commit
         uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -65,7 +61,7 @@ jobs:
           npm install --prefix .e2e-tools --no-save --no-package-lock playwright@1.65.0
           ./.e2e-tools/node_modules/.bin/playwright install --with-deps chromium
 
-      - name: Assert the test environment is isolated
+      - name: Assert JOBLY-E2E configuration
         shell: bash
         run: |
           test "$E2E_PROJECT_REF" = "ofqqrryamslxoqkklraw"
@@ -76,47 +72,16 @@ jobs:
           fi
           mkdir -p artifacts/e2e
 
-      - name: Lot 0 — verify isolated E2E public connection (read-only)
-        run: node e2e/lot0-preflight.mjs
+      - name: Run complete 11-lot E2E recipe
+        run: node scripts/e2e-local-recipe.mjs
 
-      - name: Automated regression matrix — bounded parallel bulk execution
-        run: node scripts/e2e-bulk-runner.mjs
-
-      - name: Lot 1 — validate isolated Auth session lifecycle (no email/SMS)
-        run: node e2e/auth-session-smoke.mjs
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Build the local test application
-        run: pnpm build
-
-      - name: Start local Next.js server
-        shell: bash
-        run: |
-          pnpm exec next start --hostname 127.0.0.1 > artifacts/e2e/next-server.log 2>&1 &
-          echo $! > artifacts/e2e/next-server.pid
-          for attempt in $(seq 1 40); do
-            if curl --silent --fail http://127.0.0.1:3000/ >/dev/null; then
-              echo "Local Jobly server is ready."
-              exit 0
-            fi
-            sleep 3
-          done
-          echo "::error::Local Jobly server did not become ready."
-          tail -n 100 artifacts/e2e/next-server.log || true
-          exit 1
-
-      - name: Run browser recipe — auth UI only, no external writes
-        env:
-          PLAYWRIGHT_MODULE_PATH: ${{ github.workspace }}/.e2e-tools/node_modules/playwright/index.mjs
-        run: node e2e/browser-smoke.mjs
-
-      - name: Upload E2E bulk reports, screenshots and evidence
+      - name: Upload consolidated report, logs and evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: jobly-e2e-recipe-${{ github.run_id }}
-          path: artifacts/e2e/
+          name: jobly-e2e-recipe-\${{ github.run_id }}
+          path: |
+            artifacts/e2e/
+            feedback-e2e-recette-complete.txt
           if-no-files-found: warn
           retention-days: 14
