@@ -143,6 +143,7 @@ model User {
   country           String?
   privacyAcceptedAt DateTime?
   role            UserRole     @default(TALENT)
+  notificationsEnabled Boolean  @default(true)
   profilePhotoUrl String?
   pitchVideoUrl String?
   pitchVideoStoragePath String?
