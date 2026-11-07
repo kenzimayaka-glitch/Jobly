@@ -241,6 +241,21 @@ async function upsertApplicationIdentity(admin, fixture, authUserId) {
     if (write.error) throw write.error;
   }
 
+  // Verify the distinct Auth UID/internal User.id mapping and the role-specific profile.
+  const { data: verifiedUser, error: verifiedUserError } = await admin
+    .from("User").select("id,authUserId,email,role")
+    .eq("id", internalUserId).single();
+  if (verifiedUserError) throw verifiedUserError;
+  if (verifiedUser.authUserId !== authUserId || verifiedUser.email?.toLowerCase() !== fixture.email || verifiedUser.role !== fixture.role) {
+    throw new Error("Vérification de l'identité métier échouée pour " + fixture.key);
+  }
+  const profileTable = fixture.role === "TALENT" ? "Profile" : fixture.role === "RECRUITER" ? "RecruiterProfile" : "Partner";
+  const profileOwnerId = fixture.role === "RECRUITER" ? authUserId : internalUserId;
+  const { data: verifiedProfile, error: verifiedProfileError } = await admin
+    .from(profileTable).select("id,userId").eq("userId", profileOwnerId).maybeSingle();
+  if (verifiedProfileError) throw verifiedProfileError;
+  if (!verifiedProfile) throw new Error("Profil " + profileTable + " non persisté pour " + fixture.key);
+
   return internalUserId;
 }
 
