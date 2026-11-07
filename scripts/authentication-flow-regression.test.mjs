@@ -352,3 +352,12 @@ test("Account notification and Talent privacy preferences persist and control th
   assert.match(notifications, /disabled: true/);
   assert.match(inbox, /notificationsDisabled \? "Notifications désactivées"/);
 });
+
+test("private Talent profiles are excluded from recruiter discovery and profile detail", () => {
+  const recruiterList = read("app/api/recruiter/talents/route.ts");
+  const recruiterProfile = read("app/api/recruiter/talents/profile/route.ts");
+  assert.match(recruiterList, /\.eq\("publicDiscoverable",true\)/);
+  assert.match(recruiterProfile, /\.eq\("publicDiscoverable",true\)/);
+  assert.match(recruiterProfile, /Profil public introuvable/);
+  assert.match(recruiterProfile, /status:404/);
+});
