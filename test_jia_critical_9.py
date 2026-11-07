@@ -59,9 +59,9 @@ GATES = {
         "files": {
             "components/JiaPresence.tsx": ["JiaPresenceMark", "/api/jia/cycle", "jobly:jia-cognitive-cycle", "jobly:jia-external-signal"],
             "components/JiaPresenceMark.tsx": ["data-jia-presence-mark", "listening", "speaking"],
-            "components/JIA/JIA3D.tsx": ["jia-officielle.glb", "speaking", "morph", "gltf"],
-            "components/JIA/movements.ts": ["breath", "gesture"],
-            "components/JIA/gestureMap.ts": ["gesture"],
+            "components/jia-avatar/JIA3D.tsx": ["jia-officielle.glb", "speaking", "morph", "gltf"],
+            "components/jia-avatar/movements.ts": ["breath", "gesture"],
+            "components/jia-avatar/gestureMap.ts": ["gesture"],
         }
     },
     "08_e2e_cognitive_loop": {
