@@ -140,7 +140,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const profile = (offer.applicationProfile && typeof offer.applicationProfile === "object" ? offer.applicationProfile : {}) as Record<string, unknown>;
     const recipient = profileValue(profile, ["applicationEmail", "email", "recipientEmail", "recipient"]);
     const phone = profileValue(profile, ["applicationPhone", "phone", "recipientPhone"]);
-    const applicationTargetUrl = profileValue(profile, ["applicationUrl", "applyUrl", "url"]);
+    const rawTargetUrl = profileValue(profile, ["applicationUrl", "applyUrl", "url"]) || String(offer.sourceUrl || "");
+    let applicationTargetUrl: string | null = null;
+    try {
+      const parsed = new URL(rawTargetUrl);
+      if (parsed.protocol === "https:" || parsed.protocol === "http:") applicationTargetUrl = parsed.href;
+    } catch {
+      applicationTargetUrl = null;
+    }
     const company = application.jobId && offer.companyId ? ((await supabase.from("Company").select("name").eq("id", offer.companyId).maybeSingle()).data?.name || "l'entreprise") : (offer.companyName || "l'entreprise");
     const subject = profileValue(profile, ["subject", "emailSubject"]) || `Candidature — ${String(offer.title || "Offre Jobly")}`;
     return NextResponse.json({
