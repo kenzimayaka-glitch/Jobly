@@ -291,7 +291,7 @@ async function executeLot(group, env) {
         failed: failedCount,
         log: logs.join(", "),
         error: testRun.spawnError ?? (testRun.timedOut ? "Timeout" : "Tests en échec"),
-        failureEvidence: testRun.output.split(/\\r?\\n/).filter((line) => /not ok |✖|AssertionError|TypeError|ReferenceError|Error:|ERR_/i.test(line)).slice(0, 25).map((line) => line.trim().slice(0, 300)),
+        failureEvidence: testRun.output.split(/\r?\n/).filter((line) => /not ok |✖|AssertionError|TypeError|ReferenceError|Error:|ERR_/i.test(line)).slice(0, 25).map((line) => line.trim().slice(0, 300)),
         durationMs: Math.round(performance.now() - started),
       };
     }
@@ -706,8 +706,8 @@ async function main() {
     for (const raw of evidence) {
       const fingerprint = raw
         .replace(/(?:[A-F0-9]{7,40})/gi, "<sha>")
-        .replace(/\\b\\d+\\b/g, "<n>")
-        .replace(/\\s+/g, " ")
+        .replace(/\b\d+\b/g, "<n>")
+        .replace(/\s+/g, " ")
         .trim()
         .slice(0, 240);
       const key = fingerprint.toLowerCase();
