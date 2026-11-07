@@ -208,3 +208,27 @@ test("CV Studio loads current plan and download prices with the authenticated se
   assert.match(talentCvPage, /cvAtsDownloadPriceXaf/);
   assert.match(talentCvPage, /cvOptimizedDownloadPriceXaf/);
 });
+
+test("CV Studio persists and reloads free-text experience and education without fabricating structured records", () => {
+  const profileApi = read("app/api/profile/route.ts");
+  const applicationApi = read("app/api/applications/route.ts");
+  const applicationCv = read("lib/applicationCv.ts");
+  const schema = read("packages/database/prisma/schema.prisma");
+  const migration = read("supabase/migrations/20261107010000_talent_cv_text_sections.sql");
+
+  assert.match(schema, /experienceSummary String\?/);
+  assert.match(schema, /educationSummary String\?/);
+  assert.match(migration, /add column if not exists "experienceSummary" text/);
+  assert.match(migration, /add column if not exists "educationSummary" text/);
+  assert.match(profileApi, /section === "cv-text"/);
+  assert.match(profileApi, /cvTextPayload\.experienceSummary = body\.experienceSummary\.trim\(\)\.slice\(0, 20000\)/);
+  assert.match(profileApi, /cvTextPayload\.educationSummary = body\.educationSummary\.trim\(\)\.slice\(0, 12000\)/);
+  assert.ok(talentCvPage.includes('section: "cv-text"'));
+  assert.match(talentCvPage, /profile\.experienceSummary \|\| structuredExperiences/);
+  assert.match(talentCvPage, /profile\.educationSummary \|\| structuredEducation/);
+  assert.match(applicationApi, /experienceSummary,educationSummary/);
+  assert.match(applicationApi, /profileRes\.data\?\.experienceSummary\?\.trim\(\)/);
+  assert.match(applicationApi, /profileRes\.data\?\.educationSummary\?\.trim\(\)/);
+  assert.match(applicationCv, /experienceSummary\?\.trim\(\)/);
+  assert.match(applicationCv, /educationSummary\?\.trim\(\)/);
+});
