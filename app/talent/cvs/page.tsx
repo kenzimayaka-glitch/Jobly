@@ -9,6 +9,19 @@ import TalentBackground from "../../../components/TalentBackground";
 import { PremiumDiamond } from "../../../components/ui/PremiumDiamond";
 import JoblyToast from "../../../components/JoblyToast";
 
+type CVShareItem = {
+  id: string;
+  token: string;
+  source: string | null;
+  jobTitleSnapshot: string | null;
+  companyNameSnapshot: string | null;
+  createdAt: string;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  viewCount: number;
+  downloadCount: number;
+};
+
 type CV = {
   id: string; name: string; source: string; fullName: string; headline: string; email: string; phone: string;
   summary: string; skills: string; experience: string; education: string;
@@ -69,6 +82,9 @@ export default function TalentCVs() {
   const [cvPaymentMessage, setCvPaymentMessage] = useState("");
   const [previewVersion, setPreviewVersion] = useState<"jobly" | "ats" | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [shares, setShares] = useState<CVShareItem[]>([]);
+  const [sharesBusy, setSharesBusy] = useState(false);
+  const [sharesError, setSharesError] = useState("");
   const activeTemplate = CV_TEMPLATES.find(item => item.id === templateId) || CV_TEMPLATES[0];
   const selectTemplate = (id: string) => {
     const template = CV_TEMPLATES.find(item => item.id === id);
@@ -83,13 +99,16 @@ export default function TalentCVs() {
       const token = await getAccessToken();
       if (!token || cancelled) return;
       const headers = { Authorization: `Bearer ${token}` };
-      const [entitlementsResponse, profileResponse] = await Promise.all([
+      const [entitlementsResponse, profileResponse, sharesResponse] = await Promise.all([
         fetch("/api/entitlements", { cache: "no-store", headers }),
         fetch("/api/profile", { cache: "no-store", headers }),
+        fetch("/api/cv-share", { cache: "no-store", headers }),
       ]);
       const entitlements = entitlementsResponse.ok ? await entitlementsResponse.json().catch(() => null) : null;
       const profileData = profileResponse.ok ? await profileResponse.json().catch(() => null) : null;
+      const sharesData = sharesResponse.ok ? await sharesResponse.json().catch(() => null) : null;
       if (cancelled) return;
+      if (Array.isArray(sharesData?.shares)) setShares(sharesData.shares);
       if (entitlements?.subscription?.plan) setPlan(entitlements.subscription.plan);
       if (Number.isFinite(Number(entitlements?.entitlements?.cvAtsDownloadPriceXaf))) {
         setCvAtsPaymentAmount(Number(entitlements.entitlements.cvAtsDownloadPriceXaf));
@@ -160,6 +179,38 @@ export default function TalentCVs() {
       const refreshed = await supabase.auth.refreshSession();
       return refreshed.data.session?.access_token || null;
     } catch { return null; }
+  }
+
+  async function revokeShare(id: string) {
+    const token = await getAccessToken();
+    if (!token) { notify("Ta session Jobly n’est plus active.", "error"); return; }
+    setSharesBusy(true);
+    setSharesError("");
+    try {
+      const response = await fetch("/api/cv-share", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "Impossible de révoquer le lien CV.");
+      setShares((items) => items.map((item) => item.id === id ? { ...item, revokedAt: body.revokedAt || new Date().toISOString() } : item));
+      notify("Lien CV révoqué. Il n’est plus accessible.", "success");
+    } catch (error) {
+      setSharesError(error instanceof Error ? error.message : "Révocation impossible.");
+    } finally {
+      setSharesBusy(false);
+    }
+  }
+
+  async function copyShareLink(token: string) {
+    const url = `${window.location.origin}/cv/share/${encodeURIComponent(token)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      notify("Lien CV copié.", "success");
+    } catch {
+      notify(url, "info");
+    }
   }
 
   async function extractIntoFields() {
@@ -416,6 +467,59 @@ export default function TalentCVs() {
               </div></section>
           </aside>
         </div>
+
+        <section className="rounded-[24px] bg-white p-5 shadow-sm print:hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-black">Liens CV partagés</h2>
+              <p className="mt-1 text-xs text-jobly-gray">Chaque nouveau lien expire après 30 jours. Tu peux le copier ou le révoquer à tout moment.</p>
+            </div>
+            <button type="button" onClick={async () => {
+              const token = await getAccessToken();
+              if (!token) return;
+              setSharesBusy(true);
+              try {
+                const response = await fetch("/api/cv-share", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+                const body = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(body.message || "Impossible d’actualiser les liens.");
+                setShares(Array.isArray(body.shares) ? body.shares : []);
+              } catch (error) {
+                setSharesError(error instanceof Error ? error.message : "Chargement impossible.");
+              } finally { setSharesBusy(false); }
+            }} disabled={sharesBusy} className="rounded-full border border-slate-200 px-3 py-2 text-xs font-extrabold text-jobly-blue disabled:opacity-50">
+              {sharesBusy ? "Actualisation…" : "Actualiser"}
+            </button>
+          </div>
+          {sharesError && <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{sharesError}</p>}
+          {!shares.length ? (
+            <p className="mt-4 rounded-xl bg-slate-50 p-4 text-xs text-jobly-gray">Aucun lien de partage CV actif ou enregistré.</p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {shares.map((share) => {
+                const expired = Boolean(share.expiresAt && new Date(share.expiresAt).getTime() <= Date.now());
+                const active = !share.revokedAt && !expired;
+                return (
+                  <div key={share.id} className="rounded-2xl border border-slate-100 p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-extrabold">{share.jobTitleSnapshot || "CV professionnel"}{share.companyNameSnapshot ? ` · ${share.companyNameSnapshot}` : ""}</p>
+                        <p className="mt-1 text-[10px] text-jobly-gray">
+                          {active ? "Actif" : share.revokedAt ? "Révoqué" : "Expiré"} · {share.viewCount || 0} vue(s) · {share.downloadCount || 0} téléchargement(s)
+                        </p>
+                        <p className="mt-1 text-[10px] text-jobly-gray">Expire le {share.expiresAt ? new Date(share.expiresAt).toLocaleDateString("fr-FR") : "Non défini pour cet ancien lien"}</p>
+                      </div>
+                      {active && <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-black uppercase text-emerald-700">Actif</span>}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => void copyShareLink(share.token)} className="rounded-xl bg-jobly-blue px-3 py-2 text-[10px] font-extrabold text-white">Copier le lien</button>
+                      {active && <button type="button" onClick={() => void revokeShare(share.id)} disabled={sharesBusy} className="rounded-xl border border-red-200 px-3 py-2 text-[10px] font-extrabold text-red-600 disabled:opacity-50">Révoquer</button>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
         <section id="cv-print" className="mx-auto max-w-3xl rounded-[8px] bg-white p-8 shadow-sm print:mt-0 print:p-0 print:shadow-none">
           <h2 className="text-3xl font-black">{cv.fullName || "Nom complet"}</h2><p className="mt-1 text-lg font-bold text-jobly-blue">{cv.headline || "Titre professionnel"}</p><p className="mt-2 text-xs">{[cv.email, cv.phone].filter(Boolean).join(" · ")}</p><p className="mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{activeTemplate.name}</p>
