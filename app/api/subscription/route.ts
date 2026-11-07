@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
       productType = await resolveBillingProductType(
         supabase,
         user,
+        auth.id,
         request.nextUrl.searchParams.get("productType"),
       );
     } catch (productError) {
@@ -173,7 +174,7 @@ export async function POST(request: NextRequest) {
     const user = await ensureUser(supabase, auth);
     let productType: ProductType;
     try {
-      productType = await resolveBillingProductType(supabase, user, body.productType);
+      productType = await resolveBillingProductType(supabase, user, auth.id, body.productType);
     } catch (productError) {
       const message = productError instanceof Error ? productError.message : "INVALID_PRODUCT_TYPE";
       if (message === "RECRUITER_PROFILE_REQUIRED") return jsonError("Un profil recruteur doit être créé avant de souscrire à ses offres.", 403, message);
@@ -397,7 +398,7 @@ export async function DELETE(request: NextRequest) {
     const user = await ensureUser(supabase, auth);
     let productType: ProductType;
     try {
-      productType = await resolveBillingProductType(supabase, user, request.nextUrl.searchParams.get("productType"));
+      productType = await resolveBillingProductType(supabase, user, auth.id, request.nextUrl.searchParams.get("productType"));
     } catch (productError) {
       const message = productError instanceof Error ? productError.message : "INVALID_PRODUCT_TYPE";
       if (message === "RECRUITER_PROFILE_REQUIRED") return jsonError("Un profil recruteur doit être créé avant de gérer cet abonnement.", 403, message);
