@@ -25,9 +25,9 @@ concurrency:
 
 jobs:
   browser-smoke:
-    name: Auth entry — browser smoke on JOBLY-E2E
+    name: Jobly — bulk regressions + isolated Auth browser smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     env:
       E2E_PROJECT_REF: ofqqrryamslxoqkklraw
       E2E_BASE_URL: http://127.0.0.1:3000
@@ -37,6 +37,7 @@ jobs:
       JOBLY_PUBLIC_URL: http://127.0.0.1:3000
       JOBLY_API_BASE_URL: http://127.0.0.1:3000
       NODE_ENV: production
+      E2E_BULK_CONCURRENCY: "3"
     steps:
       - name: Checkout exact PR commit
         uses: actions/checkout@v4
@@ -76,6 +77,9 @@ jobs:
       - name: Lot 0 — verify isolated E2E public connection (read-only)
         run: node e2e/lot0-preflight.mjs
 
+      - name: Automated regression matrix — bounded parallel bulk execution
+        run: node scripts/e2e-bulk-runner.mjs
+
       - name: Lot 1 — validate isolated Auth session lifecycle (no email/SMS)
         run: node e2e/auth-session-smoke.mjs
 
@@ -106,11 +110,11 @@ jobs:
           PLAYWRIGHT_MODULE_PATH: ${{ github.workspace }}/.e2e-tools/node_modules/playwright/index.mjs
         run: node e2e/browser-smoke.mjs
 
-      - name: Upload screenshots and E2E evidence
+      - name: Upload E2E bulk reports, screenshots and evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: jobly-e2e-auth-ui-${{ github.run_id }}
+          name: jobly-e2e-recipe-${{ github.run_id }}
           path: artifacts/e2e/
           if-no-files-found: warn
           retention-days: 14
