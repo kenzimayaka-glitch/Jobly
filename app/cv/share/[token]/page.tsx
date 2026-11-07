@@ -7,13 +7,19 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
   const { token } = await params;
   const supabase = adminClient();
-  const { data } = await supabase.from("CVShare").select("candidateNameSnapshot,jobTitleSnapshot,companyNameSnapshot").eq("token",token).maybeSingle();
-  const name = data?.candidateNameSnapshot || "Talent Jobly";
-  const context = data?.companyNameSnapshot ? " — Candidature " + data.companyNameSnapshot : data?.jobTitleSnapshot ? " — " + data.jobTitleSnapshot : "";
+  const { data } = await supabase.from("CVShare")
+    .select("candidateNameSnapshot,jobTitleSnapshot,companyNameSnapshot,expiresAt,revokedAt")
+    .eq("token",token)
+    .maybeSingle();
+  const expired = Boolean(data?.expiresAt && new Date(data.expiresAt).getTime() <= Date.now());
+  const unavailable = !data || Boolean(data.revokedAt) || expired;
+  const name = unavailable ? "Partage indisponible" : data.candidateNameSnapshot || "Talent Jobly";
+  const context = unavailable ? "" : data.companyNameSnapshot ? " — Candidature " + data.companyNameSnapshot : data.jobTitleSnapshot ? " — " + data.jobTitleSnapshot : "";
   return {
-    title: "CV " + name + context,
-    description: "CV professionnel partagé via Jobly.",
-    openGraph: { title: "CV " + name + context, description: "Consultez ce CV professionnel sur Jobly.", type: "website" },
+    title: unavailable ? "CV Jobly indisponible" : "CV " + name + context,
+    description: unavailable ? "Ce lien de partage CV n’est plus disponible." : "CV professionnel partagé via Jobly.",
+    robots: { index: false, follow: false },
+    openGraph: { title: unavailable ? "CV Jobly indisponible" : "CV " + name + context, description: unavailable ? "Ce lien de partage CV n’est plus disponible." : "Consultez ce CV professionnel sur Jobly.", type: "website" },
   };
 }
 
