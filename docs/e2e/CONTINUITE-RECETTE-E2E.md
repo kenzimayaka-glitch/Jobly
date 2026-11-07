@@ -322,4 +322,25 @@ Commits de la branche `e2e/recette` :
 - `8bee9816` et `64d745cf` — tests de non-régression associés.
 
 **Validation locale :** non exécutée par l'agent. L'opérateur doit récupérer la branche puis lancer `node --experimental-strip-types --test scripts/recruiter-role-regression.test.mjs` et `pnpm typecheck`. Aucun test E2E n'est déclaré PASS sur la seule base de ces modifications de code. PR #266 reste ouverte et en brouillon ; pas de merge dans `main`, pas de déploiement.
+ 
+## Correctif Paiements — référence client non vérifiée
+
+Audit P0 Mobile Money : `POST /api/payments/[id]/verify` acceptait une référence de transaction saisie par le client et l'écrivait immédiatement dans `Payment.reportedTransactionId`, avant de vérifier qu'un reçu marchand de confiance existait pour cette référence.
+
+Risque : une faute de frappe ou une référence inventée pouvait associer définitivement une mauvaise référence à la commande. Le moteur de rapprochement traite ensuite une référence déjà renseignée et différente comme un conflit dur ; la vraie confirmation opérateur risquait donc de ne jamais rapprocher cette commande.
+
+Correction sur `e2e/recette` :
+- la référence saisie par le client reste un **indice de recherche non fiable** ;
+- elle sert uniquement à rechercher le reçu correspondant dans `PaymentSmsReceipt` ;
+- aucun champ `Payment` n'est modifié tant que le reçu marchand indépendant n'a pas été trouvé et contrôlé ;
+- la fonction SQL `finalize_payment_from_sms` reste responsable de l'association définitive à partir du reçu marchand validé ;
+- aucun droit ni abonnement n'est activé par la seule référence saisie par le client.
+
+Non-régression ajoutée dans `scripts/payment-sms-customer-share.test.mjs` : vérifie que le chemin SMS ne persiste pas `reportedTransactionId` à partir de la saisie non vérifiée.
+
+Commits :
+- `843e7077` — référence client non vérifiée en lecture seule.
+- `1c9dba04` — test de non-régression.
+
+Validation locale par l'opérateur requise ; aucune transaction réelle n'a été exécutée et aucun paiement n'a été modifié dans une base. 
 
