@@ -102,10 +102,10 @@ test("email linking preserves an already linked account and rejects a different 
   assert.match(implementation, /AUTH_USER_EMAIL_ALREADY_LINKED/);
 });
 
-test("recruiter billing resolves RecruiterProfile by internal User.id", () => {
+test("recruiter subscription resolves RecruiterProfile by verified Supabase Auth UID", () => {
   const serverAuth = read("lib/server-auth.ts");
   const subscription = read("app/api/subscription/route.ts");
-  assert.match(serverAuth, /internalUser: \{ id: string; role\?: string \}/);
-  assert.match(serverAuth, /\.eq\("userId", internalUser\.id\)/);
-  assert.doesNotMatch(subscription, /resolveBillingProductType\(supabase, user, auth\.id/);
+  assert.match(serverAuth, /authUserId: string/);
+  assert.match(serverAuth, /\.eq\("userId", authUserId\)/);
+  assert.match(subscription, /resolveBillingProductType\(supabase, user, auth\.id/);
 });
