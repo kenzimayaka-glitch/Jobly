@@ -268,3 +268,19 @@ test("Talent Showcase surfaces server image quota and upload validation errors",
   assert.match(uploadApi, /status: 409/);
   assert.match(uploadApi, /actionImages: nextImages/);
 });
+
+test("Gmail candidate connection is restricted to Talent at authorization and callback", () => {
+  const gmail = read("lib/candidateGmail.ts");
+  const connect = read("app/api/talent/gmail/connect/route.ts");
+  const status = read("app/api/talent/gmail/status/route.ts");
+  const callback = read("app/api/talent/gmail/callback/route.ts");
+  assert.match(gmail, /String\(user\.role \|\| ""\)\.toUpperCase\(\) !== "TALENT"/);
+  assert.match(gmail, /return null/);
+  for (const route of [connect, status]) {
+    assert.match(route, /candidateContext\(request\)/);
+  }
+  assert.match(callback, /\.from\("User"\)/);
+  assert.match(callback, /\.eq\("id", userId\)/);
+  assert.match(callback, /owner\.role \|\| ""\)\.toUpperCase\(\) !== "TALENT"/);
+  assert.ok(callback.indexOf("owner.role") < callback.indexOf("exchangeCode(code, request)"));
+});
