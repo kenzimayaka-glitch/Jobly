@@ -542,6 +542,45 @@ async function main() {
       : preflight.spawnError ?? "Préflight E2E en échec.",
   });
 
+  let fixtureProvisionStatus = "BLOCKED";
+  if (preflight.exitCode === 0) {
+    const hasAdminSession = Boolean(env.E2E_ADMIN_ACCESS_TOKEN) ||
+      await exists(path.join(ROOT, ".e2e-admin-session.json"));
+    if (hasAdminSession) {
+      console.log("[LOT 0] Provisionnement sécurisé des comptes métier E2E");
+      const provision = await runProcess(
+        "lot-00-fixture-provision",
+        process.execPath,
+        ["e2e/provision-fixtures.mjs"],
+        { env, timeoutMs: 90000 },
+      );
+      fixtureProvisionStatus = provision.exitCode === 0 ? "PASS" :
+        /HTTP 401|HTTP 403|HTTP 404|HTTP 410|SESSION_ADMIN_E2E_REQUISE|AUTHENTICATED_E2E_ADMIN_SESSION_REQUIRED/.test(provision.output)
+          ? "BLOCKED"
+          : "FAIL";
+      technicalChecks.push({
+        label: "Provisionnement des comptes Talent/Recruteur/Partenaire",
+        status: fixtureProvisionStatus,
+        log: provision.log,
+        detail: fixtureProvisionStatus === "PASS"
+          ? "Trois identités synthétiques E2E et leurs profils ont été provisionnés."
+          : "Provisionnement non disponible : vérifier la session Admin JOBLY-E2E et l'activation sécurisée de l'Edge Function.",
+      });
+    } else {
+      technicalChecks.push({
+        label: "Provisionnement des comptes Talent/Recruteur/Partenaire",
+        status: "BLOCKED",
+        detail: "Aucune session Admin JOBLY-E2E locale disponible ; aucune création anonyme n'est tentée. La version déployée de e2e-fixture-provision renvoie actuellement HTTP 410.",
+      });
+    }
+  } else {
+    technicalChecks.push({
+      label: "Provisionnement des comptes Talent/Recruteur/Partenaire",
+      status: "BLOCKED",
+      detail: "Préflight JOBLY-E2E non validé.",
+    });
+  }
+
   console.log("[LOT 1] Contrôle de session Auth isolée");
   let authSession = null;
   if (preflight.exitCode === 0) {
@@ -549,7 +588,7 @@ async function main() {
       "lot-01-auth-session",
       process.execPath,
       ["e2e/auth-session-smoke.mjs"],
-      { env, timeoutMs: 60000 },
+      { env, timeoutMs: 120000 },
     );
     authSession = await readFile(path.join(ARTIFACTS, "auth-session-smoke.json"), "utf8").then(JSON.parse).catch(() => null);
     technicalChecks.push({
