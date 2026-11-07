@@ -17,6 +17,7 @@ const talentAdRoute = read("app/api/auth/talent-ad/route.ts");
 const profilePhotoRoute = read("app/api/auth/profile-photo/route.ts");
 const originalCvRoute = read("app/api/talent/cv/original/route.ts");
 const cvImportRoute = read("app/api/talent/cv/import/route.ts");
+const talentCvPage = read("app/talent/cvs/page.tsx");
 const recruiterJobs = read("app/api/recruiter/jobs/route.ts");
 const mobilityAgreement = read("app/api/mobility/recruiter/agreement/route.ts");
 const mobilityServer = read("lib/mobilityServer.ts");
@@ -183,4 +184,15 @@ test("original CV storage and CV import reconcile legacy Auth accounts before lo
   }
   assert.match(originalCvRoute, /canonicalCvFileName\(user\)/);
   assert.match(cvImportRoute, /canonicalCvFileName\(user\)/);
+});
+
+test("CV Studio loads current plan and download prices with the authenticated session", () => {
+  const effectStart = talentCvPage.indexOf('fetch("/api/entitlements"');
+  assert.ok(effectStart >= 0, "CV Studio must load the current entitlement snapshot.");
+  const effect = talentCvPage.slice(Math.max(0, effectStart - 500), effectStart + 700);
+  assert.match(effect, /const token = await getAccessToken\(\)/);
+  assert.match(effect, /headers:\s*\{\s*Authorization:\s*`Bearer \\\${token}`\s*\}/);
+  assert.match(talentCvPage, /if \(data\?\.subscription\?\.plan\) setPlan\(data\.subscription\.plan\)/);
+  assert.match(talentCvPage, /cvAtsDownloadPriceXaf/);
+  assert.match(talentCvPage, /cvOptimizedDownloadPriceXaf/);
 });
