@@ -8,6 +8,7 @@ export default function CandidateGmailPage() {
   const [connected, setConnected] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   async function loadStatus(t: string) {
@@ -36,6 +37,33 @@ export default function CandidateGmailPage() {
       }
     });
   }, []);
+
+  async function connect() {
+    if (!token || connecting) {
+      if (!token) setMessage("Session Jobly requise.");
+      return;
+    }
+    setConnecting(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/talent/gmail/connect?format=json", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || typeof body.url !== "string") {
+        throw new Error(body.message || "Impossible de démarrer la connexion Gmail.");
+      }
+      const authorizationUrl = new URL(body.url);
+      if (authorizationUrl.origin !== "https://accounts.google.com") {
+        throw new Error("URL Google OAuth invalide.");
+      }
+      window.location.assign(authorizationUrl.href);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Connexion Gmail impossible.");
+      setConnecting(false);
+    }
+  }
 
   async function disconnect() {
     if (!token) return;
@@ -71,9 +99,9 @@ export default function CandidateGmailPage() {
             <button type="button" onClick={disconnect} className="w-full rounded-2xl border border-slate-200 py-3 text-sm font-extrabold text-navy">Déconnecter Gmail</button>
           </div>
         ) : (
-          <a href="/api/talent/gmail/connect" className="mt-6 block rounded-2xl bg-jobly-blue px-5 py-3 text-center text-sm font-extrabold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)]">
-            Connecter mon Gmail →
-          </a>
+          <button type="button" onClick={() => void connect()} disabled={connecting || !token} className="mt-6 block w-full rounded-2xl bg-jobly-blue px-5 py-3 text-center text-sm font-extrabold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] disabled:opacity-50">
+            {connecting ? "Ouverture de Google…" : "Connecter mon Gmail →"}
+          </button>
         )}
 
         {message && <p className="mt-4 rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-jobly-gray">{message}</p>}
