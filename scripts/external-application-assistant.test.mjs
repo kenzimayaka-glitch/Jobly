@@ -91,6 +91,13 @@ test("application sent counter excludes drafts, prepared items, review items and
   assert.match(route, /case "SUBMITTING":return "Envoi en cours"/);
   assert.match(route, /case "SUBMITTED":return "Candidature envoyée"/);
   assert.match(route, /case "WITHDRAWN":return "Retirée"/);
+  assert.match(route, /total:results\.length/);
+  assert.match(route, /brouillons:results\.filter\(a=>a\.status==="DISCOVERED"\)\.length/);
+  assert.match(route, /pretes:results\.filter\(a=>\["PREPARED","USER_REVIEW"\]\.includes\(a\.status\)\)\.length/);
+  const dashboard = read("app/dashboard/page.tsx");
+  assert.match(dashboard, /applicationsCount = applications\?\.counters\?\.total/);
+  assert.match(dashboard, /applicationsReadyCount = applications\?\.counters\?\.pretes/);
+  assert.match(dashboard, /applicationsCount \+ " candidatures · " \+ applicationsReadyCount \+ " prêtes"/);
 });
 
 test("application review loads and submits the candidate application with the authenticated session", () => {
