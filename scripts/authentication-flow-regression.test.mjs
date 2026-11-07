@@ -204,7 +204,7 @@ test("CV Studio loads current plan and download prices with the authenticated se
   const effect = talentCvPage.slice(Math.max(0, effectStart - 500), effectStart + 700);
   assert.match(effect, /const token = await getAccessToken\(\)/);
   assert.ok(effect.includes("Authorization: `Bearer ${token}`"));
-  assert.match(talentCvPage, /if \(data\?\.subscription\?\.plan\) setPlan\(data\.subscription\.plan\)/);
+  assert.match(talentCvPage, /if \(entitlements\?\.subscription\?\.plan\) setPlan\(entitlements\.subscription\.plan\)/);
   assert.match(talentCvPage, /cvAtsDownloadPriceXaf/);
   assert.match(talentCvPage, /cvOptimizedDownloadPriceXaf/);
 });
@@ -216,8 +216,8 @@ test("CV Studio persists and reloads free-text experience and education without 
   const schema = read("packages/database/prisma/schema.prisma");
   const migration = read("supabase/migrations/20261107010000_talent_cv_text_sections.sql");
 
-  assert.match(schema, /experienceSummary String\?/);
-  assert.match(schema, /educationSummary String\?/);
+  assert.match(schema, /experienceSummary\\s+String\\?/);
+  assert.match(schema, /educationSummary\\s+String\\?/);
   assert.match(migration, /add column if not exists "experienceSummary" text/);
   assert.match(migration, /add column if not exists "educationSummary" text/);
   assert.match(profileApi, /section === "cv-text"/);
