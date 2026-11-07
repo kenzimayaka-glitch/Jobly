@@ -76,15 +76,22 @@ Le préflight ne prétend pas vérifier l'identité ADMIN, les profils métier o
 - Entreprises : 17 ; offres de référence : 31 ; fonctions Edge déployées : 0.
 
 Ces vérifications n'ont exécuté que des requêtes `SELECT` sur JOBLY-E2E et JOBLY-PROD. Aucune donnée n'a été modifiée. Les deux environnements conservent des historiques de migrations différents ; la comparaison ci-dessus porte sur les objets du schéma, pas sur l'égalité des historiques de migrations.
-### Suppression de la configuration manuelle
+### Provisionnement local sécurisé et recette bulk
 
-Aucune action de configuration n'est demandée à l'utilisateur. Le workflow ne dépend plus de secrets GitHub `E2E_*` :
-- l'URL, la référence et la clé publishable (publique par conception) de JOBLY-E2E sont vérifiées directement par le préflight ;
-- aucun `service_role`, mot de passe ADMIN ou jeton privé n'est injecté dans GitHub Actions ;
-- l'identité Admin, son rattachement, son activation et ses quatre espaces ont été vérifiés séparément par requêtes SQL en lecture seule ; le préflight CI ne les recontrôle pas.
+Le lanceur local `node scripts/e2e-local-recipe.mjs` prépare automatiquement trois identités synthétiques : Talent, Recruteur et Partenaire. Il utilise le client Auth Admin uniquement depuis Node.js sur le poste de recette, avec l'URL Supabase codée en garde-fou vers `https://ofqqrryamslxoqkklraw.supabase.co`.
 
-Le préflight CI ne prétend pas valider une connexion interactive ADMIN. Les parcours Auth et les comptes métier synthétiques restent BLOQUÉS : le connecteur disponible ne fournit pas d'opération Auth Admin permettant de créer un utilisateur E2E avec mot de passe sans secret privé. Aucune insertion directe dans le schéma interne `auth` n'est tentée. Le smoke UI reste utile, mais ne vaut pas recette Auth.
-**Critère de sortie Lot 0 :** le préflight doit terminer avec `PASS`, puis les comptes synthétiques requis et les contrôles RLS/grants doivent être prouvés. En attendant, Lot 0 reste BLOQUÉ et le Lot 1 n'est pas déclaré commencé.
+- Le script recherche d'abord une clé privée dans un fichier local uniquement si l'URL déclarée dans ce même fichier est exactement celle de JOBLY-E2E.
+- Si aucune clé E2E n'est disponible, il demande une saisie masquée dans le terminal interactif. La clé ne doit jamais être copiée dans le chat.
+- La clé est conservée temporairement dans `.e2e-fixture-runtime.json`, ignoré par Git, puis supprimée à la fin du run. Elle n'est transmise qu'au serveur Next.js local pendant les contrôles API.
+- Les mots de passe aléatoires des trois comptes de test sont conservés dans `.e2e-fixtures.json`, également ignoré par Git ; ils ne sont pas imprimés dans les rapports.
+- Le script refuse une configuration de projet différente, une clé JWT dont le claim `ref` correspond à un autre projet, ou une adresse de fixture déjà utilisée par un compte non-fixture.
+- Les comptes Admin existants ne sont ni lus pour leurs mots de passe, ni modifiés. Aucun e-mail, SMS, paiement ou appel externe n'est envoyé.
+
+Le workflow GitHub Actions reste sans secret privé : il exécute les contrôles automatisés/statistiques et signale le provisionnement Auth Admin comme local-only. Le run local est la voie de recette authentifiée des trois rôles.
+
+Le préflight ne remplace pas la validation Auth. La recette authentifiée vérifie la connexion et le renouvellement de session, les profils avec leurs bonnes clés de propriété (ID interne Jobly pour Talent/Partner, UID Auth pour Recruiter), les API Talent/Partner et les API Recruteur. Le Recruteur crée un brouillon synthétique, le relit, le modifie puis le supprime ; aucune offre publique n'est publiée.
+
+**Critère de sortie Lot 0 :** préflight JOBLY-E2E PASS, trois comptes Auth confirmés, trois profils métier vérifiés, puis contrôles RLS/grants prouvés. Les parcours Talent/Recruteur ne sont comptés que si les appels authentifiés retournent des preuves persistées. Les autres modules conservent leurs statuts PARTIAL tant que leurs scénarios propres ne sont pas exécutés.
 ## Catalogue de recette
 
 Chaque test reçoit un identifiant stable, son rôle, ses préconditions, ses étapes, ses résultats attendus, une preuve et un statut. Statuts autorisés : `PASS`, `FAIL`, `BLOCKED`, `NOT RUN`. Sévérité : `P0`, `P1`, `P2`, `P3`.
