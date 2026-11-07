@@ -9,6 +9,7 @@ const loginRoute = read("app/api/auth/username/login/route.ts");
 const completeSignup = read("app/api/auth/complete-signup/route.ts");
 const googleCallback = read("app/auth/callback/page.tsx");
 const identityStatus = read("app/api/auth/identity-status/route.ts");
+const recruiterProfile = read("app/api/recruiter/profile/route.ts");
 const onboarding = read("app/onboarding/page.tsx");
 
 test("existing username/password authentication is not blocked by new-password strength rules", () => {
@@ -108,4 +109,13 @@ test("recruiter subscription resolves RecruiterProfile by verified Supabase Auth
   assert.match(serverAuth, /authUserId: string/);
   assert.match(serverAuth, /\.eq\("userId", authUserId\)/);
   assert.match(subscription, /resolveBillingProductType\(supabase, user, auth\.id/);
+});
+
+test("recruiter profile uses Auth UID while internal User updates keep User.id", () => {
+  assert.match(recruiterProfile, /async function ensureRecruiterProfile\\(supabase: ReturnType<typeof adminClient>, authUserId: string\\)/);
+  assert.match(recruiterProfile, /\\.eq\\("userId", authUserId\\)/);
+  assert.match(recruiterProfile, /userId: authUserId/);
+  assert.equal((recruiterProfile.match(/ensureRecruiterProfile\\(supabase, authUser\\.id\\)/g) || []).length, 2);
+  assert.match(recruiterProfile, /from\\("User"\\)\\.update\\([\\s\\S]*?\\.eq\\("id", user\\.id\\)/);
+  assert.doesNotMatch(recruiterProfile, /ensureRecruiterProfile\\(supabase, user\\.id\\)/);
 });
