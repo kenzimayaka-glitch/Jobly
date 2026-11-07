@@ -177,12 +177,12 @@ test("fresh recruiter offers remain visible even when application must continue 
   const feed = read("app/api/jobs/route.ts");
   const detailApi = read("app/api/jobs/[id]/route.ts");
   const detailPage = read("app/jobs/[id]/page.tsx");
-  const recruiterQuery = feed.match(/supabase\\.from\\("RecruiterJob"\\)\\.select\\("\*"\\)([^\\n]*)/);
+  const recruiterQuery = feed.match(/supabase\.from\("RecruiterJob"\)\.select\("\*"\)([^\n]*)/);
   assert.ok(recruiterQuery, "Recruiter offers query must exist.");
-  assert.match(recruiterQuery[1], /\\.eq\\("status","published"\\)/);
-  assert.doesNotMatch(recruiterQuery[1], /\\.eq\\("applicationReady",\\s*true\\)/);
+  assert.match(recruiterQuery[1], /\.eq\("status","published"\)/);
+  assert.doesNotMatch(recruiterQuery[1], /\.eq\("applicationReady",\s*true\)/);
   assert.match(feed, /Listing visibility is independent from application readiness/);
-  assert.match(feed, /applicationReady:Boolean\\(job\\.applicationReady\\)/);
+  assert.match(feed, /applicationReady:Boolean\(job\.applicationReady\)/);
   assert.match(detailApi, /sourceUrl/);
   assert.match(detailApi, /applicationProfile/);
   assert.match(detailPage, /Ouvrir l’annonce chez le promoteur|Voir chez le promoteur/);
