@@ -23,6 +23,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const catalog = [
   {
     id: "LOT-01",
+    stage: 0, severity: "P0", dependsOn: ["LOT-00"],
     label: "Auth, rôles, navigation et sécurité",
     files: [
       "scripts/authentication-flow-regression.test.mjs",
@@ -34,18 +35,21 @@ const catalog = [
   },
   {
     id: "LOT-02",
+    stage: 1, severity: "P0", dependsOn: ["LOT-01"],
     label: "Talent, offres, recherche et candidatures",
     files: ["scripts/external-application-assistant.test.mjs"],
     gap: "Les tests automatisés couvrent l'assistance à la candidature ; aucun compte Talent synthétique ni parcours authentifié profil/CV/recherche/suivi n'est provisionné dans JOBLY-E2E.",
   },
   {
     id: "LOT-03",
+    stage: 1, severity: "P0", dependsOn: ["LOT-01"],
     label: "Recruteur et Recruitment 360",
     files: [],
     gap: "Aucune suite de test Recruiter dédiée et aucun profil Recruteur synthétique ne sont disponibles dans JOBLY-E2E.",
   },
   {
     id: "LOT-04",
+    stage: 1, severity: "P1", dependsOn: ["LOT-00"],
     label: "Mission Afrique et qualité des offres",
     files: [
       "scripts/africa-p0.test.mjs",
@@ -56,6 +60,7 @@ const catalog = [
   },
   {
     id: "LOT-05",
+    stage: 1, severity: "P1", dependsOn: ["LOT-01"],
     label: "J'IA 360",
     files: [
       "scripts/jia-access.test.mjs",
@@ -70,12 +75,14 @@ const catalog = [
   },
   {
     id: "LOT-06",
+    stage: 2, severity: "P1", dependsOn: ["LOT-02","LOT-03"],
     label: "Mobility et partenaires",
     files: ["scripts/mobility-p1.test.mjs"],
     gap: "La suite métier Mobility passe au niveau automatisé ; le parcours authentifié Talent/partenaire, les justificatifs et le financement réel ne sont pas exécutés.",
   },
   {
     id: "LOT-07",
+    stage: 2, severity: "P0", dependsOn: ["LOT-02","LOT-03"],
     label: "Paiements, abonnements et Mobile Money",
     files: [
       "scripts/billing-lifecycle.test.mjs",
@@ -91,6 +98,7 @@ const catalog = [
   },
   {
     id: "LOT-08",
+    stage: 1, severity: "P2", dependsOn: ["LOT-01"],
     label: "Events, Community, Bons Plans et Campus",
     files: [
       "scripts/event-core-p1.test.mjs",
@@ -101,6 +109,7 @@ const catalog = [
   },
   {
     id: "LOT-09",
+    stage: 2, severity: "P1", dependsOn: ["LOT-01","LOT-02"],
     label: "Career Journey, Admin 360 et BI",
     files: [],
     gates: ["scripts/career-os-gate.mjs"],
@@ -108,6 +117,7 @@ const catalog = [
   },
   {
     id: "LOT-10",
+    stage: 3, severity: "P1", dependsOn: ["LOT-01","LOT-02","LOT-03","LOT-04","LOT-05","LOT-06","LOT-07","LOT-08","LOT-09"],
     label: "PWA, Android et régression transverse",
     files: [
       "scripts/android-jia-bridge.test.mjs",
@@ -449,12 +459,15 @@ function reportMarkdown(report) {
     "- Lots : " + report.passedLots + " PASS ; " + report.partialLots + " PARTIAL ; " + report.blockedLots + " BLOCKED ; " + report.failedLots + " FAIL",
     "- Tests automatisés exécutés : " + report.totalTests,
     "",
-    "| Lot | Périmètre du cahier | Statut | Tests exécutés | Preuve / limite |",
-    "|---|---|---:|---:|---|",
+    "| Lot | Gravité | Phase | Dépendances | Périmètre du cahier | Statut | Tests exécutés | Preuve / limite |",
+    "|---|---|---:|---|---|---:|---:|---|",
   ];
   for (const item of report.lots) {
     lines.push(
       "| " + item.id +
+      " | " + (item.severity ?? "P0") +
+      " | " + (item.stage === undefined ? "—" : item.stage) +
+      " | " + (item.dependsOn?.join(", ") ?? "—") +
       " | " + item.label +
       " | **" + item.status + "**" +
       " | " + (item.tests ?? 0) +
@@ -536,19 +549,29 @@ async function main() {
     technicalChecks.push({ label: "Session Auth (complément du Lot 1)", status: "BLOCKED", detail: "Préflight E2E non validé." });
   }
 
-  console.log("[LOTS 1 À 10] Exécution des suites disponibles, maximum 3 lots en parallèle");
-  const queue = [...catalog];
   const lotResults = [];
-  const workers = Array.from({ length: Math.min(GROUP_CONCURRENCY, catalog.length) }, async () => {
-    while (queue.length) {
-      const group = queue.shift();
-      const result = await executeLot(group, env);
-      lotResults.push(result);
-      console.log("[" + result.status + "] " + result.id + " — " + result.label +
-        " ; " + (result.tests ?? 0) + " tests ; " + ((result.durationMs ?? 0) / 1000).toFixed(1) + " s");
-    }
-  });
-  await Promise.all(workers);
+  async function runStage(stage, label) {
+    const queue = catalog.filter((group) => group.stage === stage);
+    if (!queue.length) return;
+    console.log("[PHASE " + stage + "] " + label + " — " + queue.length + " lot(s), maximum " + GROUP_CONCURRENCY + " en parallèle");
+    const workers = Array.from({ length: Math.min(GROUP_CONCURRENCY, queue.length) }, async () => {
+      while (queue.length) {
+        const group = queue.shift();
+        const result = await executeLot(group, env);
+        lotResults.push({ ...result, stage: group.stage, severity: group.severity, dependsOn: group.dependsOn });
+        console.log("[" + result.status + "] " + result.id + " — " + result.label +
+          " ; " + (result.tests ?? 0) + " tests ; " + ((result.durationMs ?? 0) / 1000).toFixed(1) + " s");
+      }
+    });
+    await Promise.all(workers);
+  }
+
+  // Dependency order: Auth first, core modules next, dependent modules after,
+  // and transversal PWA/mobile regression last.
+  await runStage(0, "Socle Auth et sécurité");
+  await runStage(1, "Parcours cœur indépendants");
+  await runStage(2, "Parcours dépendants Talent/Recruteur");
+  await runStage(3, "Régression transversale finale");
   lotResults.sort((a, b) => catalog.findIndex((item) => item.id === a.id) - catalog.findIndex((item) => item.id === b.id));
   lots.push(...lotResults);
 
