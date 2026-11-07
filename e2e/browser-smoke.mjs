@@ -110,6 +110,29 @@ try {
   await mobile.screenshot({ path: path.join(evidenceDir, "auth-home-mobile.png"), fullPage: true });
   results.push({ id: "JOBLY-E2E-AUTH-005", status: "PASS", evidence: "auth-home-mobile.png" });
 
+  // JOBLY-E2E-AUTH-008..013 — protected Talent APIs deny anonymous visitors.
+  // This checks the authorization boundary only; it never uses a real account token.
+  const protectedApiChecks = [
+    { id: "JOBLY-E2E-AUTH-008", path: "/api/profile" },
+    { id: "JOBLY-E2E-AUTH-009", path: "/api/jobs" },
+    { id: "JOBLY-E2E-AUTH-010", path: "/api/applications" },
+    { id: "JOBLY-E2E-AUTH-011", path: "/api/talent/ai-bonus" },
+    { id: "JOBLY-E2E-AUTH-012", path: "/api/talent/cv/original" },
+    { id: "JOBLY-E2E-AUTH-013", path: "/api/career-journey" },
+  ];
+  for (const endpoint of protectedApiChecks) {
+    const response = await page.evaluate(async (url) => {
+      const result = await fetch(url, { method: "GET", credentials: "include", cache: "no-store" });
+      return { status: result.status };
+    }, endpoint.path);
+    assert.equal(
+      response.status,
+      401,
+      `Protected endpoint ${endpoint.path} must reject an anonymous visitor with HTTP 401; got ${response.status}.`,
+    );
+    results.push({ id: endpoint.id, status: "PASS", evidence: endpoint.path + " → HTTP 401" });
+  }
+
   assert.deepEqual(pageErrors, [], "Uncaught browser errors occurred during the auth UI journey.");
 
   const homeStatsUnavailable = homeStatsResponses.some((status) => status >= 500);
