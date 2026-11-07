@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { randomBytes, randomUUID } from "node:crypto";
-import { chmod, readFile, unlink, writeFile } from "node:fs/promises";
+import { chmod, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const PROJECT_REF = "ofqqrryamslxoqkklraw";
@@ -115,14 +115,12 @@ async function getOrCreateAuthUser(admin, fixture, password) {
   };
 
   if (existing) {
-    const { data, error } = await admin.auth.admin.updateUserById(existing.id, {
-      password,
-      email_confirm: true,
-      app_metadata: { ...existing.app_metadata, ...metadata },
-      user_metadata: { ...existing.user_metadata, ...userMetadata },
-    });
-    if (error || !data.user?.id) throw new Error("Mise à jour du compte fixture impossible : " + (error?.message || "identité absente"));
-    return data.user.id;
+    throw new Error(
+      "E2E_EXISTING_FIXTURE_PRESERVED: un compte fixture existe déjà. " +
+      "Le provisionnement complet refuse de changer son mot de passe. " +
+      "Utilisez --runtime-only si le fichier local des fixtures est intact ; " +
+      "sinon, une récupération ciblée explicitement autorisée est nécessaire."
+    );
   }
 
   const { data, error } = await admin.auth.admin.createUser({
@@ -339,8 +337,9 @@ async function main() {
     await restoreRuntimeOnly();
     return;
   }
-  await unlink(FIXTURE_PATH).catch(() => undefined);
-  await unlink(RUNTIME_PATH).catch(() => undefined);
+  // Never delete local fixture/runtime files before validating the E2E key.
+  // The full provisioner is creation-only: existing remote identities must be
+  // recovered through --runtime-only or an explicitly authorized reset path.
   let serviceRoleKey = await keyFromExistingE2EEnvFile();
   if (!serviceRoleKey) {
     serviceRoleKey = await readHiddenSecret(
@@ -352,8 +351,27 @@ async function main() {
   const admin = createClient(PROJECT_URL, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   });
-  const { error: authCheckError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1 });
+  const { data: listedUsers, error: authCheckError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   if (authCheckError) throw new Error("La clé n'est pas autorisée sur JOBLY-E2E : " + authCheckError.message);
+
+  const existingFixtureIdentities = FIXTURES.flatMap((fixture) => {
+    const user = listedUsers.users.find((candidate) =>
+      candidate.email && candidate.email.toLowerCase() === fixture.email.toLowerCase()
+    );
+    if (!user) return [];
+    if (user.app_metadata?.e2e_fixture !== true || user.app_metadata?.e2e_role !== fixture.role) {
+      throw new Error("E2E_FIXTURE_EMAIL_COLLISION: adresse de fixture occupée par une identité non-fixture ; aucun compte n'a été modifié.");
+    }
+    return [{ role: fixture.role, authUserId: user.id }];
+  });
+  if (existingFixtureIdentities.length > 0) {
+    throw new Error(
+      "E2E_EXISTING_FIXTURE_PRESERVED: " + existingFixtureIdentities.length +
+      " identité(s) fixture existent déjà dans JOBLY-E2E. Aucun mot de passe, compte ou profil n'a été modifié. " +
+      "Le provisionnement complet est interdit dans ce cas ; utilisez --runtime-only avec les fixtures locales intactes " +
+      "ou une procédure de récupération explicitement autorisée."
+    );
+  }
 
   await writeFile(RUNTIME_PATH, JSON.stringify({
     environment: "JOBLY-E2E",
