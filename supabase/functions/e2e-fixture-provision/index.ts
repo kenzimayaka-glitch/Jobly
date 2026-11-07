@@ -247,8 +247,10 @@ Deno.serve(async (req: Request) => {
   }
 
   const publishableKey = readPublishableKey();
-  if (!publishableKey || req.headers.get("apikey") !== publishableKey) {
-    return json({ error: "E2E_PUBLISHABLE_KEY_REQUIRED" }, 401);
+  const authorization = req.headers.get("authorization") ?? "";
+  const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+  if (!publishableKey || !token) {
+    return json({ error: "AUTHENTICATED_E2E_ADMIN_SESSION_REQUIRED" }, 401);
   }
 
   const runId = req.headers.get("x-e2e-run-id") ?? "";
@@ -264,10 +266,38 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const forwardedFor = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-      || req.headers.get("cf-connecting-ip")
-      || "unknown";
-    const identityHash = await sha256("e2e-fixture-provision:" + forwardedFor);
+    const userClient = createClient(PROJECT_URL, publishableKey, {
+      global: { headers: { Authorization: authorization } },
+      auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+    });
+    const { data: authData, error: authError } = await userClient.auth.getUser(token);
+    if (authError || !authData.user) {
+      return json({ error: "E2E_ADMIN_SESSION_INVALID" }, 401);
+    }
+
+    const { data: applicationUser, error: applicationUserError } = await admin
+      .from("User")
+      .select("id,authUserId,role")
+      .eq("authUserId", authData.user.id)
+      .eq("role", "ADMIN")
+      .maybeSingle();
+    if (applicationUserError) throw applicationUserError;
+    if (!applicationUser || applicationUser.id !== applicationUser.authUserId) {
+      return json({ error: "E2E_ADMIN_ROLE_REQUIRED" }, 403);
+    }
+
+    const { data: adminIdentity, error: adminIdentityError } = await admin
+      .from("AdminIdentity")
+      .select("id,active")
+      .eq("authUserId", authData.user.id)
+      .eq("active", true)
+      .maybeSingle();
+    if (adminIdentityError) throw adminIdentityError;
+    if (!adminIdentity) {
+      return json({ error: "ACTIVE_E2E_ADMIN_IDENTITY_REQUIRED" }, 403);
+    }
+
+    const identityHash = await sha256("e2e-fixture-provision:" + authData.user.id);
     const { data: rateLimit, error: rateLimitError } = await admin.rpc("consume_api_rate_limit", {
       p_scope: "e2e-fixture-provision",
       p_identity_hash: identityHash,
