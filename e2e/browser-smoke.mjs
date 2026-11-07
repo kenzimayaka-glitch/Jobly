@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -147,6 +147,64 @@ try {
   assert.deepEqual(pageErrors, [], "Uncaught browser errors occurred during the auth UI journey.");
 
   const homeStatsUnavailable = homeStatsResponses.some((status) => status >= 500);
+
+  // AUTH-006/007 are covered by the separate, real Supabase Auth lifecycle smoke.
+  // Reconcile only a recent, complete PASS report from this exact JOBLY-E2E project.
+  let authLifecycleEvidence = {
+    status: "BLOCKED",
+    sourceReport: "auth-session-smoke.json",
+    reason: "Rapport Auth séparé absent, incomplet ou périmé.",
+  };
+  try {
+    const authReport = JSON.parse(await readFile(path.join(evidenceDir, "auth-session-smoke.json"), "utf8"));
+    const ageMs = Date.now() - Date.parse(authReport.createdAt);
+    const expectedRoles = ["TALENT", "RECRUITER", "PARTNER"];
+    const accountsValid =
+      Array.isArray(authReport.accounts) &&
+      authReport.accounts.length === expectedRoles.length &&
+      expectedRoles.every((role) => authReport.accounts.some((account) => account.role === role && account.status === "PASS"));
+    const checksValid =
+      Array.isArray(authReport.checks) &&
+      authReport.checks.length === 12 &&
+      authReport.checks.every((check) => check.status === "PASS");
+    const fresh = Number.isFinite(ageMs) && ageMs >= -300000 && ageMs <= 6 * 60 * 60 * 1000;
+    const valid =
+      authReport.status === "PASS" &&
+      authReport.environment === "JOBLY-E2E" &&
+      authReport.projectRef === expectedProjectRef &&
+      authReport.externalMessagesSent === false &&
+      accountsValid &&
+      checksValid &&
+      fresh;
+
+    authLifecycleEvidence = {
+      status: valid ? "PASS" : "BLOCKED",
+      sourceReport: "auth-session-smoke.json",
+      createdAt: authReport.createdAt ?? null,
+      checksPassed: Array.isArray(authReport.checks)
+        ? authReport.checks.filter((check) => check.status === "PASS").length
+        : 0,
+      accounts: accountsValid ? expectedRoles : [],
+      ageMinutes: Number.isFinite(ageMs) ? Math.round(ageMs / 60000) : null,
+      reason: valid ? null : "Le rapport Auth ne satisfait pas les critères de fraîcheur, de projet ou de complétude (12/12 et 3 rôles).",
+    };
+
+    if (valid) {
+      results.push({
+        id: "JOBLY-E2E-AUTH-006",
+        status: "PASS",
+        evidence: "auth-session-smoke.json · 3 comptes synthétiques JOBLY-E2E confirmés",
+      });
+      results.push({
+        id: "JOBLY-E2E-AUTH-007",
+        status: "PASS",
+        evidence: "auth-session-smoke.json · 3 connexions, vérifications de jeton et renouvellements de session",
+      });
+    }
+  } catch {
+    authLifecycleEvidence.reason = "Impossible de lire artifacts/e2e/auth-session-smoke.json.";
+  }
+
   const report = {
     createdAt: new Date().toISOString(),
     runId: process.env.GITHUB_RUN_ID || "local",
@@ -155,20 +213,21 @@ try {
     projectRef: expectedProjectRef,
     baseURL,
     executed: results.length,
-    passed: results.length,
-    failed: 0,
-    blocked: [
-      { id: "JOBLY-E2E-AUTH-006", status: "BLOCKED", reason: "Aucun mécanisme Auth Admin isolé et éphémère n'est disponible dans les outils de recette ; aucun compte ni mot de passe n'a été créé ou injecté." },
-      { id: "JOBLY-E2E-AUTH-007", status: "BLOCKED", reason: "Connexion réelle, renouvellement de session et déconnexion non exécutés ; le compte Admin existant n'a pas de mot de passe de recette disponible." },
+    passed: results.filter((result) => result.status === "PASS").length,
+    failed: results.filter((result) => result.status === "FAIL").length,
+    blocked: authLifecycleEvidence.status === "PASS" ? [] : [
+      { id: "JOBLY-E2E-AUTH-006", status: "BLOCKED", reason: authLifecycleEvidence.reason },
+      { id: "JOBLY-E2E-AUTH-007", status: "BLOCKED", reason: authLifecycleEvidence.reason },
     ],
+    authLifecycleEvidence,
     results,
     mobileDimensions: dimensions,
     pageErrors,
     homeStatsResponses,
     limitations: [
-      "The script does not submit signup, OTP, login, payment, application, email or external-provider requests.",
+      "The script does not submit signup, OTP, payment, application, email or external-provider requests.",
       "No service_role key, admin password, or Production credential is read or used.",
-      "UI PASS does not prove server-side authentication or database persistence.",
+      "AUTH-006/007 are PASS only when a recent 12/12 authenticated-role session report for JOBLY-E2E is present; otherwise they remain BLOCKED.",
       "Homepage statistics are served by a zero-argument aggregate RPC; public roles cannot read the underlying Job or Profile tables.",
     ],
   };
