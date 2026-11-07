@@ -1,11 +1,11 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateJourney, updateMission } from "@/lib/careerJourney";
+import { getJourneyReadOnly, getOrCreateJourney, updateMission } from "@/lib/careerJourney";
 import { getCareerJourneyEntitlements } from "@/lib/careerJourneyEntitlements";
 
 export async function GET(request: NextRequest) {
   try {
-    const ctx = await getOrCreateJourney(request);
+    const ctx = await getJourneyReadOnly(request);
     return NextResponse.json({ ok: true, missions: ctx.missions });
   } catch (error: any) {
     return NextResponse.json({ message: error?.message ?? "Impossible de charger les missions." }, { status: error?.status ?? 500 });
