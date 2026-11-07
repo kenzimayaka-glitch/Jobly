@@ -126,3 +126,15 @@ test("candidate applications page recognizes every lifecycle state returned by t
   assert.match(review, /router\.push\("\/candidatures\/gmail"\)/);
   assert.match(review, /Connecter ou gérer Gmail/);
 });
+
+test("Gmail OAuth launch uses the authenticated candidate session before redirecting to Google", () => {
+  const page = read("app/candidatures/gmail/page.tsx");
+  const route = read("app/api/talent/gmail/connect/route.ts");
+  assert.match(page, /fetch\(["']\/api\/talent\/gmail\/connect\?format=json["']/);
+  assert.ok(page.includes("Authorization: `Bearer ${token}`"));
+  assert.match(page, /window\.location\.assign\(authorizationUrl\.href\)/);
+  assert.match(page, /authorizationUrl\.origin !== "https:\/\/accounts\.google\.com"/);
+  assert.doesNotMatch(page, /href=["']\/api\/talent\/gmail\/connect["']/);
+  assert.match(route, /format.*json/);
+  assert.match(route, /NextResponse\.json\(\s*\{ url: authorizationUrl \}/);
+});
