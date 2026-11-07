@@ -19,6 +19,9 @@ const FIXTURES = [
   { key: "partner", role: "PARTNER", email: "jobly-e2e-partner@jobly.test", username: "jobly_e2e_partner" },
 ];
 
+let serviceRoleUsed = false;
+let changedRoles = [];
+
 function makePassword() {
   return "JlyE2E!" + randomBytes(36).toString("base64url") + "aA9!";
 }
@@ -184,8 +187,9 @@ async function main() {
     status: "BLOCKED",
     operation: "RESET_PASSWORDS_OF_EXISTING_FIXTURES_ONLY",
     targets: FIXTURES.map(({ role }) => role),
-    serviceRoleUsed: false,
-    passwordsChanged: false,
+    serviceRoleUsed,
+    passwordsChanged: changedRoles.length > 0,
+    changedRoles,
     accountsCreatedOrDeleted: false,
     profilesModified: false,
     credentialsPrinted: false,
@@ -229,6 +233,7 @@ async function main() {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   });
   const verified = await listAndValidateExistingAccounts(admin);
+  serviceRoleUsed = true;
   report.serviceRoleUsed = true;
 
   if (pending) {
@@ -271,6 +276,9 @@ async function main() {
     }
     item.resetStatus = "UPDATED";
     item.updatedAt = new Date().toISOString();
+    changedRoles = pending.accounts.filter((account) => account.resetStatus === "UPDATED").map((account) => account.role);
+    report.passwordsChanged = changedRoles.length > 0;
+    report.changedRoles = changedRoles;
     await writeJsonAtomic(PENDING_PATH, pending);
   }
 
@@ -358,7 +366,10 @@ main().catch(async (error) => {
           : error instanceof Error
             ? error.message.replace(/sb_secret_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9._-]+/g, "[secret masqué]")
             : "Erreur inconnue, détails masqués.",
-    checks: FIXTURES.map(({ role }) => ({ role, status: "NOT_CONFIRMED" })),
+    checks: FIXTURES.map(({ role }) => ({
+      role,
+      status: changedRoles.includes(role) ? "PASSWORD_UPDATED" : "NOT_UPDATED",
+    })),
   };
   await mkdir(path.dirname(REPORT_PATH), { recursive: true }).catch(() => undefined);
   await writeJsonAtomic(REPORT_PATH, report).catch(() => undefined);
