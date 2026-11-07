@@ -502,6 +502,8 @@ model Application {
   viewedAt       DateTime?         // horodatage de la première ouverture par un recruteur (statut "Vu")
   interviewAt    DateTime?         // date d'entretien renseignée manuellement
   statusSource   String   @default("CANDIDATE") // "CANDIDATE" | "RECRUITER" — qui a fixé le statut final en cas de conflit
+  officialListingConsent Boolean @default(false) // Consentement explicite du candidat pour les listes officielles
+  officialListingDisplayName String? // Nom d’affichage corrigé, sans remplacer l’identité réelle
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -513,6 +515,7 @@ model Application {
   // publiée par un recruteur JOBLY (recruiterJobId) — jamais les deux, jamais aucune.
   @@unique([userId, jobId])
   @@unique([userId, recruiterJobId])
+  @@index([recruiterJobId, officialListingConsent])
 }
 
 model Subscription {
