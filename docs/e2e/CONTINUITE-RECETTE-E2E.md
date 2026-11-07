@@ -203,6 +203,10 @@ Aucun lot ne doit être passé au vert par simple absence d'erreur dans une suit
 
 Le script `e2e/verify-existing-fixtures.mjs` est disponible sur la branche. Après synchronisation, exécuter `node e2e/verify-existing-fixtures.mjs`, puis ouvrir `artifacts/e2e/fixture-password-verification.json`. Il recherche `.e2e-fixtures.json` ou une sauvegarde reconnue, tente un vrai `signInWithPassword` pour chacun des trois rôles et valide la session avec `getUser`. Il n'utilise aucune clé privée, ne modifie aucun mot de passe, compte ou profil, et n'imprime aucun secret. Si aucun fichier d'identifiants n'est disponible, le résultat correct est `NON_TESTABLE` ; ne pas remplacer cela par un provisionnement complet. En présence de plusieurs sauvegardes, indiquer explicitement le chemin d'une seule au script.
 
+### Étape A3 — vérification bulk par Node.js, trois rôles en parallèle
+
+Le script `e2e/verify-existing-fixtures-bulk.mjs` prépare trois connexions Auth réelles simultanées. Il utilise d'abord `.e2e-fixtures.json` ou une sauvegarde reconnue. Si aucune n'existe, il demande à l'opérateur les anciens mots de passe Talent, Recruteur et Partenaire dans des champs terminal masqués, puis démarre les trois connexions en parallèle. Chaque session est validée par `getUser`, avec contrôle de l'adresse, de `app_metadata.e2e_fixture` et du rôle signé. Une seule tentative est réalisée par rôle. Aucun mot de passe n'est imprimé ni sauvegardé ; aucune clé privée, réinitialisation, création/suppression de compte ou modification de profil n'est utilisée. Commande : `node e2e/verify-existing-fixtures-bulk.mjs`. Rapport : `artifacts/e2e/fixture-password-verification-bulk.json`. N'exécuter que si l'opérateur connaît les anciens mots de passe ; ne jamais les deviner.
+
 ### Étape B — tester les anciens identifiants avec l'opérateur
 
 Si les anciens identifiants sont récupérés depuis une source sûre :
@@ -256,7 +260,7 @@ Une fois les fixtures locales correctement restaurées, restaurer le runtime JOB
 
 ## 9. Point exact de reprise au moment de cette consolidation
 
-**À faire en premier :** demander à l'opérateur de vérifier les sauvegardes de dossier (Windows Previous Versions/File History, outil de sauvegarde local ou copie externe) pour retrouver `.e2e-fixtures.json`. Le vérificateur n'a parcouru que la racine du dépôt et a retourné `NON_TESTABLE` pour les trois rôles sans appeler Auth. Ne pas redemander une clé et ne pas relancer le runner. Si aucune sauvegarde n'est retrouvée, présenter les preuves puis demander une autorisation explicite avant toute réinitialisation ciblée des mots de passe des comptes existants.
+**À faire en premier :** demander à l'opérateur s'il dispose des anciens mots de passe hors du fichier supprimé. S'ils sont connus, exécuter `node e2e/verify-existing-fixtures-bulk.mjs` depuis un CMD interactif ; les saisir uniquement à l'invite masquée. S'ils ne sont pas connus, vérifier les sauvegardes Windows/locales ; ne pas deviner les mots de passe. Ne pas redemander une clé et ne pas relancer le runner. Si aucune sauvegarde et aucun ancien mot de passe ne sont disponibles, présenter les preuves puis demander une autorisation explicite avant toute réinitialisation ciblée des comptes existants.
 
 **État attendu du prochain échange :**
 - Talent : PASS / FAIL / NON TESTABLE.
