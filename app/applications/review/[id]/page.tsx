@@ -91,7 +91,12 @@ export default function ApplicationReviewPage() {
         </details>
         {error && <p className="mt-4 rounded-2xl bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>}
         <p className="mt-4 text-[11px] leading-5 text-slate-500">J’IA prépare. Vous relisez et décidez avant l’envoi. Pour une candidature email, Jobly enverra ensuite le message et le CV via votre connexion Gmail.</p>
-        <button disabled={sending} onClick={() => void confirm()} className="mt-5 w-full rounded-full bg-[#FFE135] px-5 py-3.5 text-sm font-black text-[#2E3F4F] disabled:opacity-50">{sending ? "Envoi en cours…" : "Confirmer et envoyer la candidature"}</button>
+        {data?.channel?.toUpperCase() === "EMAIL" && (
+          <button type="button" onClick={() => router.push("/candidatures/gmail")} className="mt-4 w-full rounded-full border border-slate-200 px-5 py-3 text-xs font-extrabold text-[#22448B]">
+            Connecter ou gérer Gmail
+          </button>
+        )}
+        <button disabled={sending} onClick={() => void confirm()} className="mt-3 w-full rounded-full bg-[#FFE135] px-5 py-3.5 text-sm font-black text-[#2E3F4F] disabled:opacity-50">{sending ? "Envoi en cours…" : "Confirmer et envoyer la candidature"}</button>
       </section>
     </div>
   </main>;
