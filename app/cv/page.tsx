@@ -243,6 +243,10 @@ function CvStudioContent() {
           setPaymentAmount(Number(result.priceXaf) || 0);
           setPaymentId(null);
           setPaymentInstructions("");
+        } else if (result?.error === "CV_ACCESS_EXPIRED") {
+          setPaymentFeature(feature);
+          setPaymentId(null);
+          setPaymentInstructions("");
         }
         throw new Error(result?.message || "Un paiement ou un droit d’accès est requis pour télécharger ce CV.");
       }
@@ -331,6 +335,8 @@ function CvStudioContent() {
         setMessage("Paiement confirmé. Préparation du CV…");
         await downloadCv(paymentId);
       } else if (status === "FAILED") {
+        setPaymentId(null);
+        setPaymentInstructions("");
         throw new Error("Le paiement a échoué. Tu peux relancer une demande depuis le téléchargement.");
       } else {
         setMessage(result?.message || "Paiement en attente de confirmation opérateur. Réessaie la vérification après validation sur ton téléphone.");
