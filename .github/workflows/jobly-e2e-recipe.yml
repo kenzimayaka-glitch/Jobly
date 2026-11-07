@@ -1,6 +1,6 @@
 name: Jobly — Recette E2E isolée
 
-# Manual only: avoid spending CI minutes on every PR update during Lot 0.
+# Run manually or after targeted E2E/application/test changes; avoid unrelated PR CI noise.
 on:
   workflow_dispatch:
   push:
@@ -12,6 +12,7 @@ on:
       - "app/**"
       - "components/**"
       - "lib/**"
+      - "scripts/**"
       - "package.json"
       - "pnpm-lock.yaml"
 
