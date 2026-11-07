@@ -10,6 +10,11 @@ const completeSignup = read("app/api/auth/complete-signup/route.ts");
 const googleCallback = read("app/auth/callback/page.tsx");
 const identityStatus = read("app/api/auth/identity-status/route.ts");
 const recruiterProfile = read("app/api/recruiter/profile/route.ts");
+const talentShowcaseRoute = read("app/api/auth/talent-showcase/route.ts");
+const videoPitchRoute = read("app/api/auth/video-pitch/route.ts");
+const talentShowcaseImageRoute = read("app/api/auth/talent-showcase/image/route.ts");
+const talentAdRoute = read("app/api/auth/talent-ad/route.ts");
+const profilePhotoRoute = read("app/api/auth/profile-photo/route.ts");
 const recruiterJobs = read("app/api/recruiter/jobs/route.ts");
 const mobilityAgreement = read("app/api/mobility/recruiter/agreement/route.ts");
 const mobilityServer = read("lib/mobilityServer.ts");
@@ -139,4 +144,29 @@ test("recruiter profile, offer creation and Mobility convention share Auth UID p
   assert.match(mobilityAgreement, /getRecruiterProfileForAuthUser\(db, auth\.id, user\.id\)/);
   assert.match(mobilityAgreement, /recruiterUserId: user\.id/);
   assert.match(mobilityServer, /return ensureCanonicalUser\(sb, au\)/);
+});
+
+
+test("Talent showcase, Pitch, image and advertising APIs use canonical Auth identity resolution", () => {
+  for (const route of [talentShowcaseRoute, videoPitchRoute, talentShowcaseImageRoute, talentAdRoute]) {
+    assert.match(route, /getAuthUser\(/);
+    assert.match(route, /ensureUser\(/);
+    assert.match(route, /adminClient\(/);
+    assert.doesNotMatch(route, /function admin\(|async function auth\(|async function user\(/);
+    assert.doesNotMatch(route, /\.from\(["']User["']\)\.insert\(/);
+  }
+});
+
+test("signup completion and profile-photo upload reconcile legacy email-only accounts", () => {
+  const completeSignup = read("app/api/auth/complete-signup/route.ts");
+  assert.match(completeSignup, /import \{ adminClient, ensureUser, getAuthUser \}/);
+  assert.match(completeSignup, /\.ilike\("email", email\)/);
+  assert.match(completeSignup, /legacyUser\.authUserId/);
+  assert.match(completeSignup, /ensureUser\(supabase, authUser\)/);
+  assert.ok(
+    completeSignup.indexOf("ensureUser(supabase, authUser)") < completeSignup.indexOf('.insert({ id: crypto.randomUUID(), ...payload'),
+    "Legacy identity reconciliation must happen before the new User insert.",
+  );
+  assert.match(profilePhotoRoute, /ensureUser\(supabase, authUser\)/);
+  assert.doesNotMatch(profilePhotoRoute, /\.eq\("authUserId", authUser\.id\)/);
 });
