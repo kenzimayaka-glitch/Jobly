@@ -48,3 +48,13 @@ test("desktop extension requests origin permission and reads labels only", () =>
   assert.match(panel,/JOBLY_OPEN_JIA_ASSIST/);
   assert.doesNotMatch(panel,/el\.value|\.value\s*\)/);
 });
+
+test("expired job detail GET is read-only and never mutates the Job row", () => {
+  const route = read("app/api/jobs/[id]/route.ts");
+  const getIndex = route.indexOf("export async function GET");
+  assert.ok(getIndex >= 0, "Job detail GET handler is missing.");
+  const getHandler = route.slice(getIndex);
+  assert.match(getHandler, /if \(platformExpired && !data\.deadline\)/);
+  assert.match(getHandler, /return NextResponse\.json\(\{ message: "Offre expirée\." \}, \{ status: 404 \}\)/);
+  assert.doesNotMatch(getHandler, /\.from\(["']Job["']\)\.update\(/);
+});
