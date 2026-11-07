@@ -9,6 +9,8 @@ const FIXTURES = [
     role: "TALENT",
     firstName: "Amina",
     lastName: "E2E Talent",
+    username: "jobly_e2e_talent",
+    phone: "+237600000101",
     displayName: "Amina E2E Talent",
     headline: "Profil de test automatisé Jobly",
   },
@@ -18,6 +20,8 @@ const FIXTURES = [
     role: "RECRUITER",
     firstName: "David",
     lastName: "E2E Recruiter",
+    username: "jobly_e2e_recruiter",
+    phone: "+237600000102",
     displayName: "David E2E Recruiter",
     companyName: "Jobly E2E Test Company",
   },
@@ -27,6 +31,8 @@ const FIXTURES = [
     role: "PARTNER",
     firstName: "Mireille",
     lastName: "E2E Partner",
+    username: "jobly_e2e_partner",
+    phone: "+237600000103",
     displayName: "Mireille E2E Partner",
   },
 ] as const;
@@ -155,14 +161,14 @@ async function getOrCreateAuthUser(
 async function upsertApplicationIdentity(
   admin: ReturnType<typeof makeAdminClient>,
   fixture: typeof FIXTURES[number],
-  userId: string,
+  authUserId: string,
 ) {
-  const { data: byId, error: byIdError } = await admin
+  const { data: byAuthId, error: byAuthIdError } = await admin
     .from("User")
     .select("id,authUserId,email,role")
-    .eq("id", userId)
+    .eq("authUserId", authUserId)
     .maybeSingle();
-  if (byIdError) throw byIdError;
+  if (byAuthIdError) throw byAuthIdError;
 
   const { data: byEmail, error: byEmailError } = await admin
     .from("User")
@@ -171,36 +177,58 @@ async function upsertApplicationIdentity(
     .maybeSingle();
   if (byEmailError) throw byEmailError;
 
-  const existing = byId ?? byEmail;
+  if (byAuthId && byEmail && byAuthId.id !== byEmail.id) {
+    throw new Error("E2E_FIXTURE_USER_LINK_CONFLICT:" + fixture.key);
+  }
+  const existing = byAuthId ?? byEmail;
   if (existing && (
-    existing.id !== userId ||
-    existing.authUserId !== userId ||
+    (existing.authUserId && existing.authUserId !== authUserId) ||
     existing.email?.toLowerCase() !== fixture.email ||
     existing.role !== fixture.role
   )) {
     throw new Error("E2E_FIXTURE_PUBLIC_USER_CONFLICT:" + fixture.key);
   }
 
+  // Jobly keeps a distinct internal User.id. authUserId is the Supabase Auth UID.
+  const internalUserId = existing?.id ?? crypto.randomUUID();
+  const now = new Date().toISOString();
   const userRow = {
-    id: userId,
-    authUserId: userId,
+    id: internalUserId,
+    authUserId,
     email: fixture.email,
+    phone: fixture.phone,
     role: fixture.role,
     displayName: fixture.displayName,
+    username: fixture.username,
     firstName: fixture.firstName,
     lastName: fixture.lastName,
-    country: "Cameroon",
+    country: "CM",
+    privacyAcceptedAt: now,
+    aiWelcomeCredits: fixture.role === "TALENT" ? 30 : 0,
+    aiWelcomeGrantedAt: fixture.role === "TALENT" ? now : null,
+    updatedAt: now,
   };
-  const { error: userError } = await admin.from("User").upsert(userRow, { onConflict: "id" });
-  if (userError) throw userError;
+  if (existing) {
+    const { error } = await admin.from("User").update(userRow).eq("id", internalUserId);
+    if (error) throw error;
+  } else {
+    const { error } = await admin.from("User").insert(userRow);
+    if (error) throw error;
+  }
 
   if (fixture.role === "TALENT") {
-    const { error } = await admin.from("Profile").upsert({
-      id: userId,
-      userId,
+    const { data: existingProfile, error: profileLookupError } = await admin
+      .from("Profile")
+      .select("id")
+      .eq("userId", internalUserId)
+      .maybeSingle();
+    if (profileLookupError) throw profileLookupError;
+    const profileRow = {
+      userId: internalUserId,
       firstName: fixture.firstName,
       lastName: fixture.lastName,
-      country: "Cameroon",
+      phone: fixture.phone,
+      country: "CM",
       headline: fixture.headline,
       targetRoles: ["Product Manager", "Business Analyst"],
       preferredSectors: ["Technology", "Services"],
@@ -208,33 +236,58 @@ async function upsertApplicationIdentity(
       contractPreferences: ["CDI", "CDD", "Stage"],
       remotePreference: "INDIFFERENT",
       publicDiscoverable: false,
-    }, { onConflict: "userId" });
-    if (error) throw error;
+    };
+    const profileWrite = existingProfile
+      ? await admin.from("Profile").update(profileRow).eq("id", existingProfile.id)
+      : await admin.from("Profile").insert({ id: crypto.randomUUID(), ...profileRow });
+    if (profileWrite.error) throw profileWrite.error;
   }
 
   if (fixture.role === "RECRUITER") {
-    const { error } = await admin.from("RecruiterProfile").upsert({
-      userId,
+    // RecruiterProfile is intentionally keyed by the Supabase Auth UID, not User.id.
+    const { data: existingRecruiterProfile, error: recruiterLookupError } = await admin
+      .from("RecruiterProfile")
+      .select("id")
+      .eq("userId", authUserId)
+      .maybeSingle();
+    if (recruiterLookupError) throw recruiterLookupError;
+    const recruiterRow = {
+      userId: authUserId,
       companyName: fixture.companyName,
       sector: "Technology",
       website: "https://jobly-e2e.test",
       location: "Yaoundé, Cameroon",
       verified: false,
-    }, { onConflict: "userId" });
-    if (error) throw error;
+      updatedAt: now,
+    };
+    const recruiterWrite = existingRecruiterProfile
+      ? await admin.from("RecruiterProfile").update(recruiterRow).eq("id", existingRecruiterProfile.id)
+      : await admin.from("RecruiterProfile").insert({ id: crypto.randomUUID(), ...recruiterRow });
+    if (recruiterWrite.error) throw recruiterWrite.error;
   }
 
   if (fixture.role === "PARTNER") {
-    const { error } = await admin.from("Partner").upsert({
-      userId,
-      referralCode: "E2E-" + userId.replaceAll("-", "").slice(0, 12).toUpperCase(),
+    const { data: existingPartner, error: partnerLookupError } = await admin
+      .from("Partner")
+      .select("id")
+      .eq("userId", internalUserId)
+      .maybeSingle();
+    if (partnerLookupError) throw partnerLookupError;
+    const partnerRow = {
+      userId: internalUserId,
+      referralCode: "E2E-" + internalUserId.replaceAll("-", "").slice(0, 12).toUpperCase(),
       partnerType: "BRAND_AMBASSADOR",
       kycStatus: "PENDING",
       locationText: "Yaoundé, Cameroon",
       locationConsent: false,
-    }, { onConflict: "userId" });
-    if (error) throw error;
+    };
+    const partnerWrite = existingPartner
+      ? await admin.from("Partner").update(partnerRow).eq("id", existingPartner.id)
+      : await admin.from("Partner").insert({ id: crypto.randomUUID(), ...partnerRow });
+    if (partnerWrite.error) throw partnerWrite.error;
   }
+
+  return internalUserId;
 }
 
 Deno.serve(async (req: Request) => {
@@ -282,7 +335,7 @@ Deno.serve(async (req: Request) => {
       .eq("role", "ADMIN")
       .maybeSingle();
     if (applicationUserError) throw applicationUserError;
-    if (!applicationUser || applicationUser.id !== applicationUser.authUserId) {
+    if (!applicationUser) {
       return json({ error: "E2E_ADMIN_ROLE_REQUIRED" }, 403);
     }
 
@@ -317,7 +370,7 @@ Deno.serve(async (req: Request) => {
       const password = newPassword();
       const identity = await getOrCreateAuthUser(admin, fixture, password);
       try {
-        await upsertApplicationIdentity(admin, fixture, identity.userId);
+        const internalUserId = await upsertApplicationIdentity(admin, fixture, identity.userId);
       } catch (error) {
         if (identity.created) {
           await admin.auth.admin.deleteUser(identity.userId);
@@ -330,6 +383,7 @@ Deno.serve(async (req: Request) => {
         email: fixture.email,
         password,
         authUserId: identity.userId,
+        userId: internalUserId,
       });
     }
 
