@@ -74,9 +74,9 @@ test("source ingestion is reachable only through explicit POST, never through GE
   const route = read("app/api/jobs/ingest/sources/route.ts");
   const feed = read("components/JoblyOfferFeed.tsx");
   const getStart = route.indexOf("export async function GET");
-  const postStart = route.indexOf("export async function POST", getStart);
-  assert.ok(getStart >= 0 && postStart > getStart, "Both ingestion methods must be explicit.");
-  const getHandler = route.slice(getStart, postStart);
+  assert.ok(getStart >= 0 && route.includes("export async function POST"), "Both ingestion methods must be explicit.");
+  const nextHandler = route.indexOf("\\nexport async function ", getStart + 1);
+  const getHandler = route.slice(getStart, nextHandler < 0 ? route.length : nextHandler);
   assert.match(getHandler, /status:\s*405/);
   assert.match(getHandler, /Allow:\s*"POST"/);
   assert.doesNotMatch(getHandler, /return POST\(request\)/);
