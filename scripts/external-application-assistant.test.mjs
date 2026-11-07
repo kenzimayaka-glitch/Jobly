@@ -120,4 +120,9 @@ test("candidate applications page recognizes every lifecycle state returned by t
   assert.match(page, /value: counters\.brouillons, label: "Brouillons"/);
   assert.match(page, /value: counters\.pretes, label: "À envoyer"/);
   assert.match(page, /grid-cols-2 gap-2\.5 sm:grid-cols-3 lg:grid-cols-5/);
+  assert.match(page, /router\.push\(\`\/applications\/review\/\$\{encodeURIComponent\(app\.id\)\}\`\)/);
+  assert.match(page, /Relire et envoyer/);
+  const review = read("app/applications/review/[id]/page.tsx");
+  assert.match(review, /router\.push\("\/candidatures\/gmail"\)/);
+  assert.match(review, /Connecter ou gérer Gmail/);
 });
