@@ -498,7 +498,7 @@ function reportMarkdown(report) {
     "- Aucun secret ni compte JOBLY-PROD n'est utilisé. La clé privée JOBLY-E2E est saisie localement sans écho (ou lue depuis un fichier .env strictement E2E), conservée dans un fichier local ignoré par Git et transmise uniquement au serveur Next.js local.",
     "- Les comptes Talent/Recruteur/Partenaire sont des fixtures synthétiques confirmées automatiquement dans JOBLY-E2E ; aucun e-mail, SMS ou paiement réel n'est envoyé.",
     "- Les PASS de tests unitaires ou statiques ne sont pas assimilés à une validation E2E authentifiée.",
-    "- Le Lot 3 reste BLOCKED tant qu'une suite Recruiter dédiée et un profil synthétique n'existent pas.",
+    "- Le Lot 3 ne peut passer au vert qu'après les contrôles authentifiés du Recruteur, la preuve de persistance et la validation du nettoyage de l'offre brouillon.",
     "- Les statuts BLOCKED/PARTIAL restent visibles et empêchent le vert global.",
     "",
     "## Artefacts",
