@@ -38,14 +38,14 @@ const catalog = [
     stage: 1, severity: "P0", dependsOn: ["LOT-01"],
     label: "Talent, offres, recherche et candidatures",
     files: ["scripts/external-application-assistant.test.mjs"],
-    gap: "Le compte Talent, les API profil/candidatures et la persistance du profil sont exercés ; les parcours CV, recherche/détail d'offre, préparation et suivi complet d'une candidature restent à démontrer.",
+    gap: "Le profil Talent, la préparation d'une candidature sur offre Recruteur, sa visibilité côté candidat et le suivi d'une décision sont exercés ; CV complet, recherche/détail d'offre et parcours d'une candidature vers une offre externe restent à démontrer.",
   },
   {
     id: "LOT-03",
     stage: 1, severity: "P0", dependsOn: ["LOT-01"],
     label: "Recruteur et Recruitment 360",
     files: ["scripts/recruiter-role-regression.test.mjs"],
-    gap: "Le profil Recruteur, les listes d'offres/candidatures, les lectures Recruitment 360 et le cycle CRUD d'un brouillon sont exercés ; le cycle complet de recrutement (candidature réelle synthétique, tests, entretiens, décisions et publication) reste à démontrer.",
+    gap: "Le profil Recruteur, le CRUD brouillon, la publication locale E2E, la réception d'une candidature, l'entretien et la décision finale sont exercés ; tests, shortlist Recruitment 360, exports et diffusion avec plans/marchés restent à démontrer.",
   },
   {
     id: "LOT-04",
@@ -495,7 +495,7 @@ function reportMarkdown(report) {
     "## Sécurité et limites",
     "",
     "- Toutes les connexions sont forcées vers JOBLY-E2E ; les variables sensibles connues sont neutralisées pour les processus enfants.",
-    "- Aucun secret ni compte de JOBLY-PROD n'est utilisé. La clé privée JOBLY-E2E est saisie localement sans écho (ou lue depuis un fichier .env strictement E2E), conservée dans un fichier local ignoré par Git et transmise uniquement au serveur Next.js local.",
+    "- Aucun secret ni compte de JOBLY-PROD n'est utilisé. La clé privée JOBLY-E2E est saisie localement sans écho (ou lue depuis un fichier .env strictement E2E), conservée dans un fichier local ignoré par Git et utilisée uniquement en mémoire par le serveur Next local et le script de recette pour préparer/nettoyer des fixtures synthétiques JOBLY-E2E ; elle n'est jamais journalisée ni injectée dans le navigateur.",
     "- Les comptes Talent/Recruteur/Partenaire sont des fixtures synthétiques confirmées automatiquement dans JOBLY-E2E ; aucun e-mail, SMS ou paiement réel n'est envoyé.",
     "- Les PASS de tests unitaires ou statiques ne sont pas assimilés à une validation E2E authentifiée.",
     "- Le Lot 3 ne peut passer au vert qu'après les contrôles authentifiés du Recruteur, la preuve de persistance et la validation du nettoyage de l'offre brouillon.",
@@ -553,7 +553,7 @@ async function main() {
       { key: "recruiter", role: "RECRUITER" },
       { key: "partner", role: "PARTNER" },
     ];
-    const reusableFixtures =
+    const reusableFixtureAccounts =
       existingFixtures?.environment === "JOBLY-E2E" &&
       existingFixtures?.projectRef === EXPECTED_REF &&
       Array.isArray(existingFixtures.accounts) &&
@@ -568,18 +568,39 @@ async function main() {
           typeof account.authUserId === "string" &&
           typeof account.userId === "string"
         )
-      ) &&
+      );
+    const reusableRuntime =
       existingRuntime?.environment === "JOBLY-E2E" &&
       existingRuntime?.projectRef === EXPECTED_REF &&
       typeof existingRuntime?.serviceRoleKey === "string" &&
       existingRuntime.serviceRoleKey.length >= 20;
 
-    if (reusableFixtures) {
+    if (reusableFixtureAccounts && reusableRuntime) {
       fixtureProvisionStatus = "PASS";
       technicalChecks.push({
         label: "Provisionnement des comptes Talent/Recruteur/Partenaire",
         status: "PASS",
         detail: "Réutilisation des trois fixtures JOBLY-E2E déjà provisionnées ; mots de passe inchangés, aucune rotation ni recréation.",
+      });
+    } else if (reusableFixtureAccounts) {
+      console.log("[LOT 0] Restauration du runtime privé JOBLY-E2E sans recréer les comptes");
+      const restore = await runProcess(
+        "lot-00-fixture-runtime-restore",
+        process.execPath,
+        ["e2e/provision-fixtures.mjs", "--runtime-only"],
+        { env, timeoutMs: 120000, stdin: "inherit", forwardOutput: true },
+      );
+      fixtureProvisionStatus = restore.exitCode === 0 ? "PASS" :
+        /E2E_SERVICE_ROLE_KEY_REQUIRED|saisie masquée|Saisie interrompue/.test(restore.output)
+          ? "BLOCKED"
+          : "FAIL";
+      technicalChecks.push({
+        label: "Provisionnement des comptes Talent/Recruteur/Partenaire",
+        status: fixtureProvisionStatus,
+        log: restore.log,
+        detail: fixtureProvisionStatus === "PASS"
+          ? "Les trois comptes existants ont été revalidés ; runtime JOBLY-E2E restauré sans rotation, recréation ni modification de profil."
+          : "Runtime privé non restauré. Les comptes existants n'ont pas été modifiés ; voir le journal.",
       });
     } else {
       console.log("[LOT 0] Provisionnement local sécurisé des comptes métier JOBLY-E2E");
