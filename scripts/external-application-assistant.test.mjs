@@ -109,3 +109,12 @@ test("application review loads and submits the candidate application with the au
   assert.match(review, /setData\(body as Review\)/);
   assert.match(review, /setLoading\(false\)/);
 });
+
+test("candidate applications page recognizes every lifecycle state returned by the API", () => {
+  const page = read("app/candidatures/page.tsx");
+  for (const state of ["DISCOVERED","PREPARED","USER_REVIEW","SUBMITTING","SUBMITTED","ACKNOWLEDGED","INTERVIEW","OFFER","REJECTED","WITHDRAWN"]) {
+    assert.ok(page.includes(state), `Candidate page is missing the ${state} lifecycle state.`);
+  }
+  assert.match(page, /type Counters = \{ total: number; brouillons: number; pretes: number; envoiEnCours: number; envoyees: number;/);
+  assert.match(page, /Suis tes brouillons, candidatures prêtes et envois sur JOBLY/);
+});
