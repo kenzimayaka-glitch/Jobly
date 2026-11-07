@@ -21,16 +21,10 @@ async function discoverFixtureFile() {
   const explicit = process.argv[2];
   if (explicit) return path.resolve(ROOT, explicit);
 
-  const primary = path.join(ROOT, ".e2e-fixtures.json");
-  try {
-    await stat(primary);
-    return primary;
-  } catch {}
-
   const names = await readdir(ROOT).catch(() => []);
   const candidates = names.filter((name) =>
-    name.startsWith(".e2e-fixtures") &&
-    /(?:backup|bak|old|copy|save)/i.test(name)
+    name === ".e2e-fixtures.json" ||
+    (name.startsWith(".e2e-fixtures") && /(?:backup|bak|old|copy|save)/i.test(name))
   );
   const valid = [];
   for (const name of candidates) {
@@ -42,11 +36,7 @@ async function discoverFixtureFile() {
     } catch {}
   }
   if (valid.length === 1) return valid[0];
-  if (valid.length > 1) {
-    const error = new Error("MULTIPLE_FIXTURE_BACKUPS");
-    error.candidateCount = valid.length;
-    throw error;
-  }
+  if (valid.length > 1) throw new Error("MULTIPLE_FIXTURE_BACKUPS");
   return null;
 }
 
@@ -99,15 +89,21 @@ async function verifyAccount(fixture, account, publishableKey) {
       return safeResult(fixture.role, "NON_TESTABLE", "Erreur de service ou de réseau pendant la connexion Auth.");
     }
 
-    const user = result.data.user;
+    const accessToken = result.data.session?.access_token;
+    if (!accessToken) {
+      return safeResult(fixture.role, "FAIL", "Supabase Auth n'a pas retourné de session utilisable.");
+    }
+    const verified = await client.auth.getUser(accessToken);
+    if (verified.error) {
+      return safeResult(fixture.role, "NON_TESTABLE", "La session a été ouverte, mais sa vérification serveur a échoué.");
+    }
+    const user = verified.data.user;
     const valid = user?.id === account.authUserId &&
       user?.app_metadata?.e2e_fixture === true &&
       user?.app_metadata?.e2e_role === fixture.role;
 
-    await client.auth.signOut({ scope: "local" }).catch(() => undefined);
-
     return valid
-      ? safeResult(fixture.role, "PASS", "Connexion réelle et identité/ rôle fixture confirmés.")
+      ? safeResult(fixture.role, "PASS", "Connexion réelle, session vérifiée côté serveur et identité/rôle fixture confirmés.")
       : safeResult(fixture.role, "FAIL", "Connexion obtenue, mais UID ou rôle signé différent de la fixture attendue.");
   } catch {
     return safeResult(fixture.role, "NON_TESTABLE", "Erreur technique pendant le contrôle Auth.");
@@ -162,8 +158,10 @@ async function main() {
         : "PARTIAL";
     report.reason = "Contrôle Auth réel effectué sans réinitialisation ni modification des profils.";
     return report;
-  } catch {
-    report.reason = "Contrôle non exécuté : erreur de lecture ou de configuration locale.";
+  } catch (error) {
+    report.reason = error?.message === "MULTIPLE_FIXTURE_BACKUPS"
+      ? "Plusieurs sauvegardes JOBLY-E2E valides existent. Relancer en indiquant explicitement le chemin d'une seule sauvegarde."
+      : "Contrôle non exécuté : erreur de lecture ou de configuration locale.";
     return report;
   }
 }
