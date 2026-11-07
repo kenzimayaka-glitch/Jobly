@@ -173,6 +173,224 @@ async function main() {
     }
   }
 
+
+async function runCrossRoleApplicationLifecycle(fixtures) {
+  const talentAccount = fixtures.accounts?.find((item) => item.key === "talent" && item.role === "TALENT");
+  const recruiterAccount = fixtures.accounts?.find((item) => item.key === "recruiter" && item.role === "RECRUITER");
+  let talentClient = null;
+  let recruiterClient = null;
+  let admin = null;
+  let talentToken = null;
+  let recruiterToken = null;
+  let talentInternalUserId = null;
+  let recruiterInternalUserId = null;
+  let recruiterJobId = null;
+  let applicationId = null;
+  let deletionAttempted = false;
+
+  try {
+    assert.ok(talentAccount?.email && talentAccount?.password, "Fixture Talent absente.");
+    assert.ok(recruiterAccount?.email && recruiterAccount?.password, "Fixture Recruteur absente.");
+
+    const runtime = JSON.parse(await readFile(path.resolve(".e2e-fixture-runtime.json"), "utf8"));
+    assert.equal(runtime.environment, "JOBLY-E2E", "Runtime non-E2E refusé.");
+    assert.equal(runtime.projectRef, PROJECT_REF, "Projet runtime inattendu.");
+    assert.ok(typeof runtime.serviceRoleKey === "string" && runtime.serviceRoleKey.length >= 20, "Clé privée JOBLY-E2E absente.");
+
+    admin = createClient(SUPABASE_URL, runtime.serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+    });
+    talentClient = createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+    });
+    recruiterClient = createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+    });
+
+    const [talentLogin, recruiterLogin] = await Promise.all([
+      talentClient.auth.signInWithPassword({ email: talentAccount.email, password: talentAccount.password }),
+      recruiterClient.auth.signInWithPassword({ email: recruiterAccount.email, password: recruiterAccount.password }),
+    ]);
+    assert.equal(talentLogin.error, null, talentLogin.error?.message);
+    assert.equal(recruiterLogin.error, null, recruiterLogin.error?.message);
+    assert.equal(talentLogin.data.user?.app_metadata?.e2e_fixture, true);
+    assert.equal(talentLogin.data.user?.app_metadata?.e2e_role, "TALENT");
+    assert.equal(recruiterLogin.data.user?.app_metadata?.e2e_fixture, true);
+    assert.equal(recruiterLogin.data.user?.app_metadata?.e2e_role, "RECRUITER");
+    talentToken = talentLogin.data.session?.access_token ?? null;
+    recruiterToken = recruiterLogin.data.session?.access_token ?? null;
+    assert.ok(talentToken && recruiterToken, "Sessions Talent/Recruteur incomplètes.");
+
+    const [talentUser, recruiterUser] = await Promise.all([
+      admin.from("User").select("id").eq("authUserId", talentLogin.data.user.id).maybeSingle(),
+      admin.from("User").select("id").eq("authUserId", recruiterLogin.data.user.id).maybeSingle(),
+    ]);
+    if (talentUser.error) throw new Error(talentUser.error.message);
+    if (recruiterUser.error) throw new Error(recruiterUser.error.message);
+    assert.ok(talentUser.data?.id && recruiterUser.data?.id, "Correspondance Auth/User interne introuvable.");
+    talentInternalUserId = talentUser.data.id;
+    recruiterInternalUserId = recruiterUser.data.id;
+
+    const title = "JOBLY E2E — parcours Talent-Recruteur " + runId;
+    const created = await request(recruiterToken, "/api/recruiter/jobs", "POST", {
+      title,
+      description: "Offre synthétique réservée à la recette JOBLY-E2E. Aucun contact réel. Aucun envoi externe.",
+      companyName: "Entreprise fictive JOBLY-E2E",
+      location: "Yaoundé, Cameroun",
+      countryCode: "CM",
+      distributionScope: "LOCAL",
+      targetCountryCodes: [],
+      mode: "Hybride",
+      contract: "CDD",
+      salary: "0",
+      sector: "Technology",
+      tags: ["E2E", "TEST"],
+      status: "published",
+    });
+    if (created.status !== 201 || !created.payload?.job?.id) {
+      record("RECRUITER", "CROSS-ROLE-APPLICATION-LIFECYCLE-OFFER-CREATE", "FAIL", created.status, created.payload?.message || "Création de l'offre synthétique publiée refusée.");
+      return;
+    }
+    recruiterJobId = created.payload.job.id;
+    record("RECRUITER", "CROSS-ROLE-APPLICATION-LIFECYCLE-OFFER-CREATE", "PASS", 201, "Offre locale synthétique créée via l'API Recruteur.");
+
+    // L'API de création ne propose pas de champ contact. On renseigne donc
+    // uniquement le canal E2E fictif directement sur l'offre créée par ce run.
+    const seededContact = await admin.from("RecruiterJob")
+      .update({
+        applicationProfile: {
+          channel: "EMAIL",
+          applicationEmail: "jobly-e2e-inbox@example.invalid",
+        },
+      })
+      .eq("id", recruiterJobId)
+      .eq("recruiterUserId", recruiterInternalUserId)
+      .select("id,status,applicationReady,applicationProfile")
+      .single();
+    if (seededContact.error) throw new Error(seededContact.error.message);
+    const ready = seededContact.data?.status === "published" &&
+      seededContact.data?.applicationReady === true &&
+      seededContact.data?.applicationProfile?.channel === "EMAIL" &&
+      seededContact.data?.applicationProfile?.applicationEmail === "jobly-e2e-inbox@example.invalid";
+    record("RECRUITER", "CROSS-ROLE-APPLICATION-LIFECYCLE-OFFER-CONTACT", ready ? "PASS" : "FAIL", 200, ready
+      ? "Canal EMAIL fictif et applicationReady confirmés sur l'offre E2E."
+      : "L'offre E2E n'est pas prête à recevoir une candidature.");
+
+    if (!ready) return;
+
+    const profile = await request(talentToken, "/api/profile");
+    const hasProfile = profile.status === 200 && Boolean(profile.payload?.profile?.summary || profile.payload?.profile?.headline);
+    record("TALENT", "CROSS-ROLE-APPLICATION-LIFECYCLE-PROFILE", hasProfile ? "PASS" : "FAIL", profile.status, hasProfile
+      ? "Profil professionnel Talent disponible pour préparer la candidature."
+      : "Le profil Talent ne contient pas de résumé ou de titre professionnel exploitable.");
+    if (!hasProfile) return;
+
+    const prepared = await request(talentToken, "/api/applications", "POST", {
+      source: "recruiter",
+      jobId: recruiterJobId,
+      letterText: "Candidature fictive créée pour la recette automatisée JOBLY-E2E. Ne pas envoyer.",
+      locale: "fr",
+    });
+    if (prepared.status !== 200 || !prepared.payload?.application?.id) {
+      const blocked = prepared.status === 429;
+      record("TALENT", "CROSS-ROLE-APPLICATION-LIFECYCLE-PREPARE", blocked ? "BLOCKED" : "FAIL", prepared.status, prepared.payload?.message || "Préparation de candidature non conforme.");
+      return;
+    }
+    applicationId = prepared.payload.application.id;
+    const initialStatus = prepared.payload.application.status === "USER_REVIEW";
+    record("TALENT", "CROSS-ROLE-APPLICATION-LIFECYCLE-PREPARE", initialStatus ? "PASS" : "FAIL", prepared.status, initialStatus
+      ? "Candidature préparée ; statut USER_REVIEW ; aucun envoi déclenché."
+      : "La candidature n'est pas restée en attente de validation du candidat.");
+
+    const talentList = await request(talentToken, "/api/applications");
+    const talentVisible = talentList.status === 200 &&
+      talentList.payload?.applications?.some((item) => item.id === applicationId && item.recruiterJobId === recruiterJobId);
+    record("TALENT", "CROSS-ROLE-APPLICATION-LIFECYCLE-TALENT-READ", talentVisible ? "PASS" : "FAIL", talentList.status, talentVisible
+      ? "La candidature est visible dans l'espace Talent avec la bonne offre."
+      : "La candidature préparée n'est pas retrouvée dans l'espace Talent.");
+
+    const recruiterInbox = await request(recruiterToken, "/api/recruiter/applications?markViewed=0");
+    const received = recruiterInbox.status === 200 &&
+      recruiterInbox.payload?.applications?.some((item) => item.id === applicationId && item.recruiterJobId === recruiterJobId);
+    record("RECRUITER", "CROSS-ROLE-APPLICATION-LIFECYCLE-INBOX", received ? "PASS" : "FAIL", recruiterInbox.status, received
+      ? "La même candidature apparaît dans la boîte de réception du Recruteur."
+      : "La candidature Talent n'apparaît pas dans la boîte de réception du propriétaire de l'offre.");
+
+    const interviewAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const interview = await request(recruiterToken, "/api/recruiter/applications/" + encodeURIComponent(applicationId), "PATCH", { interviewAt });
+    const interviewOk = interview.status === 200 &&
+      interview.payload?.application?.status === "INTERVIEW" &&
+      interview.payload?.application?.statusSource === "RECRUITER";
+    record("RECRUITER", "CROSS-ROLE-APPLICATION-LIFECYCLE-INTERVIEW", interviewOk ? "PASS" : "FAIL", interview.status, interviewOk
+      ? "Le Recruteur fait évoluer la candidature vers INTERVIEW et enregistre la date."
+      : interview.payload?.message || "Transition vers entretien non confirmée.");
+
+    const decision = await request(recruiterToken, "/api/recruiter/applications/" + encodeURIComponent(applicationId), "PATCH", { status: "OFFER" });
+    const decisionOk = decision.status === 200 &&
+      decision.payload?.application?.status === "OFFER" &&
+      decision.payload?.application?.statusSource === "RECRUITER";
+    record("RECRUITER", "CROSS-ROLE-APPLICATION-LIFECYCLE-DECISION", decisionOk ? "PASS" : "FAIL", decision.status, decisionOk
+      ? "La décision recruteur OFFER est persistée avec statusSource=RECRUITER."
+      : decision.payload?.message || "Décision finale du Recruteur non confirmée.");
+
+    const candidateConflict = await request(talentToken, "/api/applications/" + encodeURIComponent(applicationId), "PATCH", { status: "REJECTED" });
+    const conflictOk = candidateConflict.status === 200 &&
+      candidateConflict.payload?.application?.status === "OFFER" &&
+      candidateConflict.payload?.application?.statusSource === "RECRUITER";
+    record("TALENT", "CROSS-ROLE-APPLICATION-LIFECYCLE-DECISION-GUARD", conflictOk ? "PASS" : "FAIL", candidateConflict.status, conflictOk
+      ? "La tentative de modification Talent ne remplace pas la décision finale du Recruteur."
+      : "La règle de priorité de la décision Recruteur n'a pas été respectée.");
+
+    const finalTalentList = await request(talentToken, "/api/applications");
+    const finalApplication = finalTalentList.payload?.applications?.find((item) => item.id === applicationId);
+    const finalVisible = finalTalentList.status === 200 &&
+      finalApplication?.status === "OFFER" &&
+      finalApplication?.statusSource === "RECRUITER";
+    record("TALENT", "CROSS-ROLE-APPLICATION-LIFECYCLE-FINAL-STATE", finalVisible ? "PASS" : "FAIL", finalTalentList.status, finalVisible
+      ? "L'espace Talent reflète la décision finale OFFER prise côté Recruteur."
+      : "La décision finale n'est pas reflétée dans l'espace Talent.");
+  } catch (error) {
+    record("TALENT", "CROSS-ROLE-APPLICATION-LIFECYCLE-RUNTIME", "FAIL", null, error instanceof Error ? error.message : String(error));
+  } finally {
+    if (recruiterJobId && recruiterToken && admin) {
+      deletionAttempted = true;
+      const removed = await request(recruiterToken, "/api/recruiter/jobs/" + encodeURIComponent(recruiterJobId), "DELETE");
+      const apiCleanupOk = removed.status === 200;
+      record("RECRUITER", "CROSS-ROLE-APPLICATION-LIFECYCLE-CLEANUP-API", apiCleanupOk ? "PASS" : "FAIL", removed.status, apiCleanupOk
+        ? "Suppression de l'offre synthétique via l'API Recruteur."
+        : removed.payload?.message || "La suppression API de l'offre synthétique a échoué.");
+
+      if (!apiCleanupOk) {
+        if (applicationId && talentInternalUserId) {
+          await admin.from("Application")
+            .delete()
+            .eq("id", applicationId)
+            .eq("userId", talentInternalUserId)
+            .eq("recruiterJobId", recruiterJobId);
+        }
+        await admin.from("RecruiterJob")
+          .delete()
+          .eq("id", recruiterJobId)
+          .eq("recruiterUserId", recruiterInternalUserId);
+      }
+
+      const [jobCheck, applicationCheck] = await Promise.all([
+        admin.from("RecruiterJob").select("id", { count: "exact", head: true }).eq("id", recruiterJobId),
+        admin.from("Application").select("id", { count: "exact", head: true }).eq("recruiterJobId", recruiterJobId),
+      ]);
+      const cleanupOk = !jobCheck.error && !applicationCheck.error && jobCheck.count === 0 && applicationCheck.count === 0;
+      record("RECRUITER", "CROSS-ROLE-APPLICATION-LIFECYCLE-CLEANUP-DB", cleanupOk ? "PASS" : "FAIL", 200, cleanupOk
+        ? "Vérification DB : offre et candidature synthétiques supprimées."
+        : "Des données synthétiques subsistent après le nettoyage.");
+    } else if (recruiterJobId && !deletionAttempted) {
+      record("RECRUITER", "CROSS-ROLE-APPLICATION-LIFECYCLE-CLEANUP-DB", "BLOCKED", null, "Le nettoyage automatique n'a pas pu démarrer ; vérifier manuellement le rapport E2E.");
+    }
+
+    await talentClient?.auth.signOut({ scope: "local" }).catch(() => undefined);
+    await recruiterClient?.auth.signOut({ scope: "local" }).catch(() => undefined);
+  }
+}
+
   const failed = report.checks.some((check) => check.status === "FAIL");
   const blocked = report.checks.some((check) => check.status === "BLOCKED");
   report.status = failed ? "FAIL" : blocked ? "PARTIAL" : report.checks.length >= 15 ? "PASS" : "PARTIAL";
