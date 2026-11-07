@@ -259,9 +259,85 @@ async function upsertApplicationIdentity(admin, fixture, authUserId) {
   return internalUserId;
 }
 
+
+async function restoreRuntimeOnly() {
+  const existing = JSON.parse(await readFile(FIXTURE_PATH, "utf8"));
+  if (existing.environment !== "JOBLY-E2E" || existing.projectRef !== PROJECT_REF || !Array.isArray(existing.accounts)) {
+    throw new Error("Fixtures existantes absentes ou non JOBLY-E2E : restauration sans rotation refusée.");
+  }
+
+  for (const fixture of FIXTURES) {
+    const account = existing.accounts.find((item) => item.key === fixture.key && item.role === fixture.role);
+    if (!account?.email || !account?.password || !account?.authUserId || !account?.userId) {
+      throw new Error("Fixture locale incomplète pour " + fixture.role + " : aucune modification effectuée.");
+    }
+  }
+
+  let serviceRoleKey = await keyFromExistingE2EEnvFile();
+  if (!serviceRoleKey) {
+    serviceRoleKey = await readHiddenSecret(
+      "Clé service_role / secret de JOBLY-E2E (restauration runtime uniquement, saisie masquée) : "
+    );
+  }
+  assertKeyBelongsToE2E(serviceRoleKey);
+
+  const admin = createClient(PROJECT_URL, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+  });
+  const { data: listed, error: authError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (authError) throw new Error("Vérification Auth Admin JOBLY-E2E impossible : " + authError.message);
+
+  for (const fixture of FIXTURES) {
+    const account = existing.accounts.find((item) => item.key === fixture.key && item.role === fixture.role);
+    const authUser = listed.users.find((user) => user.id === account.authUserId);
+    if (!authUser ||
+      authUser.email?.toLowerCase() !== account.email.toLowerCase() ||
+      authUser.app_metadata?.e2e_fixture !== true ||
+      authUser.app_metadata?.e2e_role !== fixture.role) {
+      throw new Error("Identité Auth fixture non confirmée pour " + fixture.role + " ; aucun compte n'a été modifié.");
+    }
+
+    const { data: appUser, error: userError } = await admin
+      .from("User")
+      .select("id,authUserId,email,role")
+      .eq("id", account.userId)
+      .maybeSingle();
+    if (userError) throw new Error("Vérification public.User impossible : " + userError.message);
+    if (!appUser ||
+      appUser.authUserId !== account.authUserId ||
+      appUser.email?.toLowerCase() !== account.email.toLowerCase() ||
+      appUser.role !== fixture.role) {
+      throw new Error("Liaison Auth/User fixture non confirmée pour " + fixture.role + " ; aucun compte n'a été modifié.");
+    }
+  }
+
+  await writeFile(RUNTIME_PATH, JSON.stringify({
+    environment: "JOBLY-E2E",
+    projectRef: PROJECT_REF,
+    serviceRoleKey,
+    createdAt: new Date().toISOString(),
+  }) + "\n", { encoding: "utf8", mode: 0o600 });
+  if (process.platform !== "win32") await chmod(RUNTIME_PATH, 0o600);
+
+  console.log(JSON.stringify({
+    status: "PASS",
+    gate: "JOBLY-E2E-FIXTURE-RUNTIME-RESTORE",
+    environment: "JOBLY-E2E",
+    accounts: FIXTURES.map((fixture) => ({ key: fixture.key, role: fixture.role })),
+    accountPasswordsChanged: false,
+    accountsRecreated: false,
+    externalActions: false,
+    privateKeyStoredLocallyOnlyForCurrentRun: true,
+  }, null, 2));
+}
+
 async function main() {
   if (process.env.E2E_PROJECT_REF !== PROJECT_REF || process.env.NEXT_PUBLIC_SUPABASE_URL !== PROJECT_URL) {
     throw new Error("Refus de provisionner : la configuration doit cibler exclusivement JOBLY-E2E.");
+  }
+  if (process.argv.includes("--runtime-only")) {
+    await restoreRuntimeOnly();
+    return;
   }
   await unlink(FIXTURE_PATH).catch(() => undefined);
   await unlink(RUNTIME_PATH).catch(() => undefined);
