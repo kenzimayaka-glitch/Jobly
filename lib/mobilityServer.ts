@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import crypto from "node:crypto";
 import { ensureUser as ensureCanonicalUser } from "./server-auth";
 
 export function adminClient() {
