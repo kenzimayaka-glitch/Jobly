@@ -10,6 +10,11 @@ export async function GET(request: NextRequest) {
 
   const db = adminClient();
   const user = await ensureUser(db, auth);
+  if (user.notificationsEnabled === false) {
+    return NextResponse.json({ notifications: [], count: 0, unreadCount: 0, disabled: true }, {
+      headers: { "Cache-Control": "no-store, private" },
+    });
+  }
   const limit = Math.min(Math.max(Number(request.nextUrl.searchParams.get("limit") || 30), 1), 50);
 
   const { data, error } = await db
@@ -20,7 +25,7 @@ export async function GET(request: NextRequest) {
     .limit(limit);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ notifications: data || [], count: data?.length || 0, unreadCount: (data || []).filter((item) => !item.readAt).length });
+  return NextResponse.json({ notifications: data || [], count: data?.length || 0, unreadCount: (data || []).filter((item) => !item.readAt).length, disabled: false }, { headers: { "Cache-Control": "no-store, private" } });
 }
 
 export async function PATCH(request: NextRequest) {
