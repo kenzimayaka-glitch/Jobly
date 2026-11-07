@@ -294,7 +294,12 @@ test("CV share links expire after 30 days and only their Talent owner can revoke
   assert.match(api, /expiresAt,/);
   assert.match(api, /\.eq\("userId", user\.id\)/);
   assert.match(api, /\.is\("revokedAt", null\)/);
-  assert.match(api, /method/); // the owner-scoped PATCH route is implemented in this API file.
+  const revokeStart = api.indexOf("export async function PATCH");
+  const createStart = api.indexOf("export async function POST");
+  assert.ok(revokeStart >= 0 && createStart > revokeStart, "CV share revocation must use a PATCH handler before the POST handler.");
+  const revokeRoute = api.slice(revokeStart, createStart);
+  assert.match(revokeRoute, /\.eq\("userId", user\.id\)/);
+  assert.match(revokeRoute, /\.is\("revokedAt", null\)/);
   for (const route of [publicJson, publicPdf]) {
     assert.match(route, /share\.revokedAt/);
     assert.match(route, /share\.expiresAt/);
