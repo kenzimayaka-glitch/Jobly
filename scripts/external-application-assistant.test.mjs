@@ -117,4 +117,7 @@ test("candidate applications page recognizes every lifecycle state returned by t
   }
   assert.match(page, /type Counters = \{ total: number; brouillons: number; pretes: number; envoiEnCours: number; envoyees: number;/);
   assert.match(page, /Suis tes brouillons, candidatures prêtes et envois sur JOBLY/);
+  assert.match(page, /value: counters\.brouillons, label: "Brouillons"/);
+  assert.match(page, /value: counters\.pretes, label: "À envoyer"/);
+  assert.match(page, /grid-cols-2 gap-2\.5 sm:grid-cols-3 lg:grid-cols-5/);
 });
