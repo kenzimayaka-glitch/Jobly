@@ -116,8 +116,11 @@ scanButton.addEventListener("click",async()=>{
     const fields=result?.[0]?.result||[];
     fieldsEl.replaceChildren();
     for(const field of fields){const item=document.createElement("li");item.textContent=(field.required?"* ":"")+field.label+" ["+field.type+"]";fieldsEl.append(item);}
-    await send({type:"JOBLY_SAVE_FORM_FIELDS",fields,pageUrl:tab.url});
-    statusEl.textContent=fields.length+" champ(s) repéré(s). Aucune valeur saisie n'a été lue.";
+    const inspectedUrl = new URL(tab.url);
+    inspectedUrl.search = "";
+    inspectedUrl.hash = "";
+    await send({type:"JOBLY_SAVE_FORM_FIELDS",fields,pageUrl:inspectedUrl.toString()});
+    statusEl.textContent=fields.length+" champ(s) repéré(s). Les paramètres privés de l'URL et les valeurs saisies ne sont pas conservés.";
   } catch(error) {statusEl.textContent=error instanceof Error?error.message:"Analyse impossible sur cette page.";}
 });
 
