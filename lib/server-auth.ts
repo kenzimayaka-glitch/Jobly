@@ -59,12 +59,10 @@ export async function getAuthUser(request: NextRequest) {
   const sessionId = decodeSessionId(token);
   if (sessionId) {
     const service = adminClient();
-    const { data: internalUser, error: userError } = await service
-      .from("User")
-      .select("id")
-      .eq("authUserId", data.user.id)
-      .maybeSingle();
-    if (userError) throw new Error("Vérification du compte Jobly impossible.");
+    // Reconcile legacy email-only accounts before registering the device. Otherwise
+    // a first authenticated request can skip the device limit because the RPC only
+    // recognizes a User row already linked to this Auth UID.
+    const internalUser = await ensureUser(service, data.user);
     if (internalUser?.id) {
       const requestedDeviceId = request.headers.get("x-jobly-device-id")?.trim() || `legacy-${sessionId}`;
       const deviceId = /^[A-Za-z0-9:_-]{1,160}$/.test(requestedDeviceId) ? requestedDeviceId : `legacy-${sessionId}`;
