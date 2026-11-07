@@ -5,12 +5,10 @@ import crypto from "node:crypto";
 /**
  * Shared server-side auth helpers for JOBLY API routes.
  *
- * Mirrors the pattern already proven in app/api/profile/route.ts: every
- * internal table (Profile, Experience, Skill, Education — and now
- * RecruiterProfile/RecruiterJob/Partner/Commission) is owned by the internal
- * "User".id, never by the raw Supabase auth uid directly. This is what lets
- * one JOBLY account carry a Talent profile, a Recruiter profile and a Partner
- * profile at the same time without collision.
+ * Internal business records such as Profile, Experience, Skill, Education,
+ * RecruiterJob, Partner, Commission and billing rows use the internal
+ * "User".id. RecruiterProfile is the deliberate exception: its owner is the
+ * verified Supabase Auth UID, matching its database RLS policy.
  */
 
 export function adminClient() {
