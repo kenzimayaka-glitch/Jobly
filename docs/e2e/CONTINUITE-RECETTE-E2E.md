@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.111 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.112 — 8 novembre 2026
 >
 > **Dernière correction de code Storage LOT-00 :** `f3753f7370007647a5e4bf99c130c69437d0c921` ; runner épinglé `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 : **PASS — clôturé** pour son périmètre environnement, identité, RLS/grants, Storage et correspondances des fixtures. La connexion réelle par mot de passe des fixtures reste NON TESTABLE faute de manifeste local de mots de passe et devient un prérequis explicite de LOT-01 Auth ; aucun mot de passe n'est réinitialisé. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
+> **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 : **PASS — clôturé** pour son périmètre environnement, identité, RLS/grants, Storage et correspondances des fixtures. Le manifeste local `.e2e-fixtures.json` a été retrouvé par l'opérateur à `C:\Users\ASUS\Jobly\.e2e-fixtures.json` ; les trois connexions Auth réelles constituent le premier test de LOT-01 et restent en attente de l'exécution du vérificateur sécurisé, sans réinitialisation de mot de passe. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.111  
+**Version :** 2.112  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -173,6 +173,27 @@ Les critères du LOT-00 pour le préflight environnement/jeux de données sont m
 **Limite explicitement transférée à LOT-01 — Auth :** le manifeste local `.e2e-fixtures.json` et les anciens mots de passe ne sont pas disponibles. Il n'y a donc aucune preuve actuelle de `signInWithPassword` pour Talent, Recruteur et Partenaire. Ces connexions restent `NON_TESTABLE`, et non FAIL. Elles seront le premier scénario de LOT-01 après récupération des identifiants depuis une sauvegarde sûre. Ne pas réinitialiser les mots de passe, ne pas recréer les comptes et ne pas exécuter de provisionneur pour contourner cette limite.
 
 Aucun lot métier LOT-01 à LOT-10 n'est déclaré PASS par cette clôture. La recette globale reste en cours. Garde-fous inchangés : `main` SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, PR #266/#267 non fusionnées, JOBLY-PROD interdit, aucun déploiement et aucune fixture modifiée.
+
+### 93.20 Manifeste de fixtures retrouvé — prêt pour le premier test LOT-01 Auth
+
+Le 8 novembre 2026, l'opérateur a indiqué le chemin local du manifeste de fixtures :
+`C:\Users\ASUS\Jobly\.e2e-fixtures.json`.
+
+Ce chemin est maintenant la source explicitement fournie pour le test Auth. **Le contenu du fichier n'a pas été partagé** : ses mots de passe restent locaux et ne doivent pas être copiés dans le chat, un rapport ou Git.
+
+Le vérificateur distant contrôlé est `e2e/verify-existing-fixtures.mjs`, blob `82e9931b1d16f5250666fd374b432b1558f1ea51`. Il accepte le chemin du manifeste comme premier argument, valide qu'il cible exclusivement JOBLY-E2E et contient les trois comptes attendus, puis tente `signInWithPassword` pour Talent, Recruteur et Partenaire, vérifie chaque session côté serveur avec `getUser`, et ferme chaque session locale. Il utilise seulement la clé publishable JOBLY-E2E ; aucune clé service_role, création de compte, mise à jour de profil ou réinitialisation de mot de passe n'est effectuée.
+
+**Statut à cette étape :** chemin de manifeste signalé par l'opérateur ; contenu pas encore validé par le script ; connexions Auth non encore exécutées. Aucun PASS Auth ne doit être annoncé avant le rapport `artifacts/e2e/fixture-password-verification.json`.
+
+Commande de reprise recommandée depuis CMD, sans synchroniser le clone de 167 commits :
+```cmd
+cd /d C:\Users\ASUS\Jobly
+git fetch origin
+git show origin/e2e/recette:e2e/verify-existing-fixtures.mjs > e2e\verify-existing-fixtures.current.mjs
+node e2e\verify-existing-fixtures.current.mjs "C:\Users\ASUS\Jobly\.e2e-fixtures.json"
+notepad artifacts\e2e\fixture-password-verification.json
+```
+Si `git fetch` ou `git show` échoue, arrêter là ; ne pas lancer une ancienne copie locale. Cette commande ne fait ni `pull`, ni `merge`, ni modification Auth. Elle crée une copie de travail distincte du vérificateur et écrit seulement son rapport.
 
 ### 93.19 Confirmation finale de clôture — LOT-00 totalement vert
 
