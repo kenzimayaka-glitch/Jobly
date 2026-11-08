@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.102 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.103 — 8 novembre 2026
 >
 > **Dernier commit de correction LOT-00 :** `cdc4399d452f3341895b5d56efb5204080d3faa9` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 conserve uniquement le préflight environnement/fixtures et les contrôles read-only de base (identité, RLS/grants, Storage, correspondances des fixtures), hors OpenAPI. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.102  
+**Version :** 2.103  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -154,6 +154,29 @@ Conséquence pour la suite :
 - Regrouper la reprise en une seule intervention opérationnelle utile : récupérer uniquement la branche distante de recette nécessaire, installer le lanceur depuis l'objet GitHub vérifié en préservant toute copie locale préexistante, contrôler son empreinte une fois, puis lancer le processus LOT-00 et ouvrir ses deux rapports. Arrêter immédiatement si une étape échoue ; ne pas enchaîner avec des vérifications redondantes.
 - Ne jamais synchroniser les 167 commits du clone local, ni modifier les autres fichiers non suivis. Ne pas exécuter le reset/provisionneur de fixtures. Les secrets restent strictement locaux.
 - Après la tentative, l'analyse doit porter sur le rapport réel et résoudre directement le blocage constaté. LOT-00 reste PARTIAL tant que les cinq buckets et leurs smoke tests réels ne sont pas validés.
+
+### 93.9 Diagnostic credential — cause précise trouvée, action opérateur unique
+
+Rapport de diagnostic transmis : `checkedAt=2026-11-08T22:02:18.294Z`, répertoire `C:\Users\ASUS\Jobly`.
+
+Résultat :
+- `.env` : absent.
+- `.env.local` : absent.
+- Variables privées recherchées (`SUPABASE_E2E_SECRET_KEY`, `SUPABASE_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SERVICE_KEY`) : aucune affectation et aucune valeur effective.
+- Variables publishable/anon dans les fichiers/processus : aucune valeur ; le diagnostic dispose toutefois de la clé publishable JOBLY-E2E connue depuis la configuration de recette (`anonPublicKeyAvailableForAnonymousReadCheck=true`).
+- `keySelected=false`, `acceptedFormat=false` ; projet/role JWT non vérifiables faute de clé sélectionnée.
+- Le rapport n'inclut aucun secret.
+
+**Cause établie :** la clé administrative privée JOBLY-E2E n'est pas configurée localement après redémarrage. La clé publishable disponible pour le test anonyme ne remplace pas une clé secrète. Le runner s'arrête au diagnostic d'identifiants avant l'application des paramètres Storage. Aucun changement bucket ni écriture d'objet Storage n'est effectué par cette tentative.
+
+**Action opérateur suivante — une seule intervention :**
+1. Depuis `C:\Users\ASUS\Jobly`, ouvrir le fichier local à créer avec `notepad .env.local`.
+2. Récupérer la clé **Secret key** du projet Supabase JOBLY-E2E `ofqqrryamslxoqkklraw` (et exclusivement ce projet), puis enregistrer localement une seule ligne :
+   `SUPABASE_SECRET_KEY=sb_secret_…`
+   Si le tableau de clés ne fournit qu'une ancienne clé JWT, utiliser plutôt `SUPABASE_SERVICE_ROLE_KEY=...` uniquement si elle appartient bien à JOBLY-E2E. Ne jamais utiliser la clé publishable/anon comme clé administrative. Ne jamais coller la valeur du secret dans le chat, un rapport ou Git.
+3. Enregistrer `.env.local`, puis relancer une fois `scripts\e2e\run-lot00-storage-hardening.cmd`. Ouvrir les rapports `feedback-lot00-storage-credential-diagnostic.txt` et `feedback-lot00-storage-apply-20261108.txt`. Le lanceur contrôle le projet avant l'appel Storage.
+
+Ne pas effectuer de recherche supplémentaire sur les chemins, ne pas recréer le dépôt et ne pas synchroniser les 167 commits. Préserver tous les fichiers locaux. Si la clé privée E2E n'est pas disponible dans le tableau API Keys, arrêter et signaler ce fait ; ne pas la remplacer par une clé JOBLY-PROD.
 
 ### 93.4 Limites de l'intervention et statut Storage
 
