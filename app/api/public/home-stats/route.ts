@@ -179,10 +179,20 @@ export async function GET() {
     const errorCode =
       error && typeof error === "object" && "code" in error && typeof (error as { code?: unknown }).code === "string"
         ? (error as { code: string }).code
-        : error instanceof Error
-          ? error.name
-          : "UNKNOWN";
-    console.error("[public-home-stats] request failed", { stage, errorCode });
+        : "UNKNOWN";
+    const errorName = error instanceof Error ? error.name : typeof error;
+    const rawMessage =
+      error instanceof Error
+        ? error.message
+        : error && typeof error === "object" && "message" in error
+          ? String((error as { message: unknown }).message)
+          : "Non-error throwable";
+    const safeMessage = rawMessage
+      .replace(/https?:\\/\\/[^\\s"'\x60]+/gi, "[url redacted]")
+      .replace(/\\bBearer\\s+[^\\s]+/gi, "Bearer [redacted]")
+      .replace(/\\beyJ[a-zA-Z0-9._-]+/g, "[token redacted]")
+      .slice(0, 180);
+    console.error("[public-home-stats] request failed", { stage, errorCode, errorName, safeMessage });
     return NextResponse.json(
       { message: "Les statistiques publiques sont momentanément indisponibles." },
       { status: 503, headers: { "Cache-Control": "no-store" } },
