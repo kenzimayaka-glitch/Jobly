@@ -1735,7 +1735,7 @@ La V5 du §31 demeure suspendue et ne doit pas être relancée telle quelle. Une
 ### 34.3 Commande CMD remise à l'opérateur
 
 ```bat
-cd /d C:\\Users\\ASUS\\Jobly
+cd /d C:\Users\ASUS\Jobly
 if exist feedback-lot00-net-schema-exposure-v6-20261108.txt (
   echo Rapport V6 deja present : conservation, aucune nouvelle execution.
 ) else (
