@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.51 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.52 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -2854,3 +2854,42 @@ Décision :
 - Aucun accès JOBLY-PROD, aucune mutation Supabase/fixture, aucun changement de `main), aucun déploiement.
 - PR #266 reste ouverte, brouillon et non fusionnée.
 - Document source avant cette mise à jour : V2.50, blob SHA `af8ea3eafa44f189feddc24c3703cf89b11ec357`, branche `e2e/recette`.
+
+
+---
+
+## 54. Résultat opérateur — sentinelle presse-papiers initiale PASS — V2.52 — 8 novembre 2026
+
+### 54.1 Résultat reçu
+
+~~~text
+runtime=PowerShell 5.1.19041.4522
+baseline_verified=True
+error=NONE
+~~~
+
+### 54.2 Conclusion exacte
+
+- PowerShell 5.1 a écrit la sentinelle non secrète `JOBLY-CLIPBOARD-BASELINE-20261108` et a relu exactement la même chaîne.
+- Le contrôle de départ du presse-papiers est **PASS**.
+- Cela prouve que PowerShell peut écrire et relire le presse-papiers Windows dans cette session.
+- Cela ne prouve pas encore que le bouton Copier du Dashboard Supabase copie le contenu attendu, ni que le JWT est valide ou accepté par le serveur.
+
+### 54.3 Prochaine action unique
+
+1. Dans le Dashboard Supabase, vérifier le projet JOBLY-E2E `ofqqrryamslxoqkklraw), puis la ligne Legacy API Keys `service_role) avec badge `secret`.
+2. Cliquer une seule fois sur l'icône Copier de cette ligne.
+3. Ne pas coller le secret dans un message, un terminal, un fichier ou un champ.
+4. Exécuter immédiatement la commande de classification du §45.3 étape B. Elle ne consigne que les indicateurs booléens et le GATE, puis remplace le presse-papiers par une sentinelle non secrète.
+5. Ouvrir le rapport avec la commande Notepad prévue et ne transmettre que les lignes non sensibles.
+
+Le résultat déterminant attendu à cette étape est `PASS_CLIPBOARD_JWT_METADATA). Tout autre GATE reste bloqué et devra être diagnostiqué sans transmettre le contenu du presse-papiers.
+
+### 54.4 Garde-fous et état
+
+- Aucun secret n'a été lu par l'assistant, affiché ou transmis ; le rapport communiqué ne contient que la version PowerShell, un booléen et un code d'erreur.
+- Aucun GET OpenAPI n'a été exécuté ; aucune validation de signature JWT ou d'acceptation serveur n'a eu lieu.
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- JOBLY-PROD hors périmètre ; aucune mutation Supabase/fixture ; aucun changement de `main) ; aucun déploiement.
+- PR #266 reste ouverte, brouillon et non fusionnée.
+- Document source avant cette mise à jour : V2.51, blob SHA `5e9b6ffb08cea3244d1f5bbb65fc82b2f29a571a`, branche `e2e/recette`.
