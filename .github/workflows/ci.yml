@@ -224,3 +224,6 @@ jobs:
 
       - name: Production build
         run: pnpm build
+
+      - name: LOT-00 HTTP runtime smoke — protected upload and recruiter routes
+        run: node scripts/e2e/lot00-http-runtime-smoke.mjs
