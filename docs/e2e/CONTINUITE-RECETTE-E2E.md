@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.34 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.35 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -15,7 +15,7 @@
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le dernier rapport V4 confirme un arrêt au contrôle local du format de la clé (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avant toute requête HTTP ; `results=[]`. L'exposition de `net` reste donc indéterminée. La V5 qui invite à coller `service_role` est SUSPENDUE ; ne pas la réexécuter. À la demande de l'opérateur, une V6 distincte est transmise au §34 pour deux GET OpenAPI sur JOBLY-E2E, avec invite masquée, uniquement à l'aide de la clé historique `service_role` JOBLY-E2E si elle est Active et confirmée comme telle. La V6 a été exécutée par l'opérateur le 8 novembre 2026, mais s'est arrêtée au contrôle local de format (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avec `results=[]` ; aucun GET n'a été exécuté et elle ne constitue pas un PASS. L'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`, `sb_secret_…` ou une clé de production. La V5 reste suspendue ; la V6 du §34 est la seule commande de retest retransmise à la demande de l'opérateur. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.34  
+**Version :** 2.35  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1949,3 +1949,37 @@ L'opérateur peut vérifier lui-même, dans le Dashboard JOBLY-E2E, si le troisi
 
 - Déclaration opérateur : `ey`.
 - Document source avant cette mise à jour : V2.33, blob SHA `c5257d9eb998c20863072e25f751b36c3cfe7fa3`, branche `e2e/recette`.
+
+
+---
+
+## 39. Réponse « ok » — préfixe JWT toujours non confirmé — V2.35 — 8 novembre 2026
+
+### 39.1 Retour opérateur
+
+Après demande de confirmer si le troisième caractère de la valeur masquée est `J`, l'opérateur répond uniquement « ok ».
+
+### 39.2 Limite de l'information reçue
+
+Cette réponse accuse réception de la consigne, mais ne confirme pas explicitement le résultat du contrôle local. Le préfixe complet `eyJ` reste donc **NON CONFIRMÉ**. Aucun caractère supplémentaire de la clé ne doit être demandé ou communiqué.
+
+### 39.3 Prochaine étape
+
+Demander une réponse non ambiguë après vérification locale : `PREFIX_OK` si les trois premiers caractères sont `eyJ`, sinon `PREFIX_NO`. Ne pas relancer la V6 avant cette confirmation. Ne jamais transmettre la clé ou un extrait plus long.
+
+### 39.4 État LOT-00
+
+- Ligne Legacy `service_role` : confirmée visuellement au §37.
+- Préfixe complet `eyJ` : **NON CONFIRMÉ**.
+- Rapport V6 : `KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`, `results=[]`.
+- GET OpenAPI `public` et `net` : **NON EXÉCUTÉS**.
+- Exposition effective de `net` : **NON DÉTERMINÉE**.
+- LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- Aucun accès JOBLY-PROD ; aucune fixture, donnée, permission ou configuration Supabase modifiée.
+- `main` inchangée ; PR #266 ouverte, brouillon et non fusionnée ; aucun déploiement.
+
+### 39.5 Preuves
+
+- Réponse opérateur : « ok ».
+- Demande précédente : confirmer localement le troisième caractère sans partager la valeur.
+- Document source avant cette mise à jour : V2.34, blob SHA `5ebe225a8d84426766168e40c2a27074fc266f83`, branche `e2e/recette`.
