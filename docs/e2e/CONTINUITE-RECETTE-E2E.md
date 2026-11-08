@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.132 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.133 — 9 novembre 2026
 >
 > **Dernière preuve LOT-01 :** smoke API authentifié PASS 40/40 (rapport opérateur du 8 novembre 2026 à 23:48:30.438Z), sur le code runner `5b39cdea1b5810f2d9fe49fc8111ac3897d8c1df` et smoke `73aee328bc2f11ff15628cac13a7d3bd932f8e1e` ; nettoyage API + base PASS, aucune action externe.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial **3/3 PASS** et cycle de session **12/12 PASS** (§96 et §99). Préparation du test API par rôle : le préflight opérateur du 8 novembre 2026 à 22:34:39 a confirmé URL/ref JOBLY-E2E et fixtures complètes, mais l'ancien code serveur ne lisait que `SUPABASE_SERVICE_ROLE_KEY`, alors que `.env.local` contient la clé moderne `SUPABASE_SECRET_KEY`; le clone local était en retard et aucun runtime privé n'existait. Correctif `adminClient()` maintenant compatible avec la secret key Supabase côté serveur ; le smoke API utilise cette clé locale sans `.e2e-fixture-runtime.json`. Un runner `e2e/run-authenticated-role-recipe.mjs` exécute le build et le smoke sur un worktree détaché propre de `origin/e2e/recette`, lit `.env.local` et `.e2e-fixtures.json` depuis le dépôt source, ne les copie pas et ne les imprime pas. Le parcours croisé crée des données temporaires JOBLY-E2E et vérifie leur nettoyage. Première tentative : build PASS, serveur local BLOCKED (§102). Smoke API exécuté le 8 novembre à 23:03:19 : 36/40 PASS, 3 FAIL et 1 BLOCKED ; les trois rôles sont exécutés, les mutations synthétiques du parcours croisé sont nettoyées (API + vérification DB), externalActions=false. Analyse : les deux feeds échouent sur les garde-fous anti-abus du flux (clé serveur moderne non reconnue et IP loopback absente du client HTTP de recette) ; /api/recruiter/talents échoue car son limiteur n'accepte que la variable legacy SUPABASE_SERVICE_ROLE_KEY. Correctifs ciblés et tests ajoutés au §103 ; leur première exécution s'est arrêtée sur une erreur de résolution Node de next/server depuis le test TypeScript direct. Le point d'entrée du helper a été corrigé en next/server.js (§104), puis le rapport opérateur a confirmé pnpm test:security-core 11/11 PASS, 0 FAIL (Node 26.13.0 ; avertissements MODULE_TYPELESS_PACKAGE_JSON non bloquants). La tentative du 8 novembre à 23:28:52Z puis celle à 23:35:34Z sont toutes deux BLOCKED avant build, serveur et smoke, sans modification distante. Le rapport de 23:35 établit que `.env.local` est chargé et contient les clés publishable/serveur, mais aucune variable d'URL reconnue. Le §105 avait unifié le parseur sans résoudre cette absence ; le §106 supprime la dépendance à l'URL dans `.env.local` en la dérivant du manifeste de fixtures après validation stricte du projectRef, puis vérifie la clé serveur sur le seul endpoint racine PostgREST E2E. Le rapport API authentifié du 8 novembre à 23:48:30.438Z établit maintenant PASS 40/40, 0 BLOCKED, 0 FAIL, les trois rôles exécutés, les deux contrôles de nettoyage PASS et externalActions=false (§107). Le parcours croisé Talent→Recruteur→INTERVIEW→OFFER et le refus d'écrasement par Talent sont validés. Le résumé global du runner (build/localServer) n'a pas encore été transmis séparément ; l'opérateur a signalé ne pas parvenir à lancer la commande Notepad CMD. Une récupération sans commande via l'Explorateur Windows est donnée au §108. Ce sous-périmètre API est acquis, mais LOT-01 global et LOT-02/03 ne sont pas déclarés clôturés par ce seul smoke. main reste hors périmètre.
+> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial **3/3 PASS** et cycle de session **12/12 PASS** (§96 et §99). Préparation du test API par rôle : le préflight opérateur du 8 novembre 2026 à 22:34:39 a confirmé URL/ref JOBLY-E2E et fixtures complètes, mais l'ancien code serveur ne lisait que `SUPABASE_SERVICE_ROLE_KEY`, alors que `.env.local` contient la clé moderne `SUPABASE_SECRET_KEY`; le clone local était en retard et aucun runtime privé n'existait. Correctif `adminClient()` maintenant compatible avec la secret key Supabase côté serveur ; le smoke API utilise cette clé locale sans `.e2e-fixture-runtime.json`. Un runner `e2e/run-authenticated-role-recipe.mjs` exécute le build et le smoke sur un worktree détaché propre de `origin/e2e/recette`, lit `.env.local` et `.e2e-fixtures.json` depuis le dépôt source, ne les copie pas et ne les imprime pas. Le parcours croisé crée des données temporaires JOBLY-E2E et vérifie leur nettoyage. Première tentative : build PASS, serveur local BLOCKED (§102). Smoke API exécuté le 8 novembre à 23:03:19 : 36/40 PASS, 3 FAIL et 1 BLOCKED ; les trois rôles sont exécutés, les mutations synthétiques du parcours croisé sont nettoyées (API + vérification DB), externalActions=false. Analyse : les deux feeds échouent sur les garde-fous anti-abus du flux (clé serveur moderne non reconnue et IP loopback absente du client HTTP de recette) ; /api/recruiter/talents échoue car son limiteur n'accepte que la variable legacy SUPABASE_SERVICE_ROLE_KEY. Correctifs ciblés et tests ajoutés au §103 ; leur première exécution s'est arrêtée sur une erreur de résolution Node de next/server depuis le test TypeScript direct. Le point d'entrée du helper a été corrigé en next/server.js (§104), puis le rapport opérateur a confirmé pnpm test:security-core 11/11 PASS, 0 FAIL (Node 26.13.0 ; avertissements MODULE_TYPELESS_PACKAGE_JSON non bloquants). Les tentatives de configuration initiales du 8 novembre sont résolues par les §§105–106. Le smoke API authentifié a donné PASS 40/40 (§107). Le résumé global du runner reçu ensuite confirme également `status=PASS`, `build=PASS`, `localServer=PASS`, `authenticatedRoleSmoke=PASS`, 40/40 contrôles et tous les nettoyages PASS (§109). L'URL a été dérivée du manifeste E2E validé ; la clé serveur a été vérifiée sur PostgREST JOBLY-E2E (HTTP 200). `remoteDataMayBeModified=true` indique que la fenêtre d'exécution des tests d'écriture a été ouverte, mais les trois contrôles de nettoyage du résumé sont PASS et le smoke détaillé confirme l'absence des données synthétiques ; `externalActions=false`. Le rapport global porte `createdAt=23:39:07Z`, alors que le rapport API détaillé porte `createdAt=23:48:30Z` ; ces horodatages ne permettent pas d'affirmer qu'ils proviennent du même lancement, bien que les résultats et les contrôles concordent. Le sous-périmètre runner + API est donc PASS sur la base des deux rapports opérateur ; LOT-01 global et LOT-02/03 restent soumis à leurs autres critères UI/métier. main reste hors périmètre.
 
-**Version :** 2.132  
+**Version :** 2.133  
 **Date de consolidation :** 9 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -25,29 +25,65 @@
 
 ---
 
-## 108. Récupération du résumé global du runner — méthode sans CMD
+## 109. LOT-01 — résumé global du runner authentifié : PASS
 
-**Mise à jour : 9 novembre 2026. Statut : RAPPORT LOCAL NON ENCORE TRANSMIS ; récupération simplifiée indiquée.**
+**Rapport opérateur reçu : `createdAt=2026-11-08T23:39:07.147Z`. Statut global transmis : PASS.**
 
-L'opérateur a indiqué ne pas parvenir à lancer la commande CMD destinée à ouvrir `authenticated-role-runner-summary.json`. Aucune erreur d'exécution précise n'a été fournie ; il ne faut donc pas supposer que le fichier est absent ou que le runner a échoué.
+### 109.1 Environnement et configuration — PASS
 
-Le smoke API `authenticated-role-smoke.json` reste **PASS 40/40** (§107). Seul le rapport de synthèse global manque pour consigner les statuts explicites du build, du serveur local et du runner complet.
+- `environment=JOBLY-E2E`, `projectRef=ofqqrryamslxoqkklraw`.
+- Source locale : `.env.local` ; l'URL n'y est pas définie et a été dérivée du manifeste E2E validé.
+- `supabaseUrlDerivedFromFixture=true`, `supabaseUrlMatchesE2E=true`, `fixtureProjectRefMatchesE2E=true`.
+- Clé publishable présente ; clé serveur de type `sb_secret`.
+- Probe PostgREST sur le projet exact : HTTP 200 ; `serverKeyVerifiedForE2E=true`.
+- Aucun secret imprimé.
 
-### Méthode recommandée — Explorateur Windows
+### 109.2 Build et serveur local — PASS
 
-1. Appuyer sur `Windows + E`.
-2. Cliquer dans la barre d'adresse de l'Explorateur.
-3. Coller le chemin :
-   `C:\Users\ASUS\Jobly-e2e-recette-v3\artifacts\e2e`
-4. Appuyer sur Entrée.
-5. Ouvrir `authenticated-role-runner-summary.json` par double-clic.
-6. Transmettre le contenu du fichier, sans transmettre de fichier .env, clé ou manifeste de fixtures.
+- Build Next.js : **PASS**.
+- Serveur local : **PASS**.
+- Sonde de disponibilité : HTTP 401 attendu sur `/api/profile`, reçu à la quatrième tentative ; aucune erreur réseau ; processus serveur encore actif à la vérification.
+- Base URL locale : `http://127.0.0.1:3217`.
 
-Si le dossier s'ouvre mais que le fichier n'est pas présent, transmettre uniquement une capture de la fenêtre montrant la liste des fichiers ; ne relancer aucun test pour le moment.
+### 109.3 Smoke API et nettoyage — PASS
 
-**Aucune nouvelle exécution, mutation distante, modification de fixture, fusion, ni déploiement n'est demandé dans cette étape.** La prochaine progression est uniquement la récupération du rapport résumé, puis la sélection des parcours UI/métier restants sans rejouer les 40 contrôles API déjà PASS.
+- `authenticatedRoleSmoke=PASS`.
+- 40 contrôles : 40 PASS, 0 BLOCKED, 0 FAIL.
+- TALENT, RECRUITER et PARTNER : tous `EXECUTED`.
+- Nettoyages : `RECRUITER-DRAFT-CLEANUP`, `CROSS-ROLE-APPLICATION-LIFECYCLE-CLEANUP-API` et `CROSS-ROLE-APPLICATION-LIFECYCLE-CLEANUP-DB` : **3/3 PASS**.
+- `cleanup.allPass=true`, `externalActions=false`.
+
+### 109.4 Lecture de `remoteDataMayBeModified`
+
+Le rapport donne `remoteDataMayBeModified=true`. Ce champ signifie que le runner a franchi la frontière où les scénarios authentifiés peuvent effectuer des mutations synthétiques sur JOBLY-E2E ; il ne signifie pas que des données sont restées en place. Les trois contrôles de nettoyage passent, et le rapport détaillé §107 confirme que l'offre et la candidature synthétiques sont absentes de la base après le test. Aucun email, SMS ou action externe n'a été déclenché.
+
+### 109.5 Réconciliation des horodatages et limite de traçabilité
+
+Deux rapports opérateur sont désormais disponibles :
+- rapport de synthèse global : `2026-11-08T23:39:07.147Z` ;
+- rapport détaillé smoke API : `2026-11-08T23:48:30.438Z` (§107).
+
+Le rapport global porte un horodatage antérieur au rapport détaillé. Les deux résultats sont cohérents (40/40, mêmes rôles et mêmes identifiants de nettoyage), mais aucun runId commun n'est fourni ; ils sont donc consignés comme deux preuves opérateur concordantes, sans affirmer qu'ils proviennent du même processus. Cela n'invalide pas leurs résultats individuels.
+
+### 109.6 Conclusion et prochaine étape
+
+**Acquis :** configuration E2E, vérification de la clé serveur, build Next.js, démarrage du serveur local et smoke API authentifié : **PASS**. Le nettoyage des données synthétiques est également PASS.
+
+**Non acquis par ces rapports :** clôture globale de LOT-01 (parcours UI/navigation et autres critères de sa matrice), clôture de LOT-02 Talent et LOT-03 Recruitment360, ainsi que les autres lots. Ne pas rejouer les 40 contrôles API déjà verts en l'absence de modification ou de régression.
+
+**Prochaine progression :** reprendre la matrice UI et métier à partir des critères non couverts, en commençant par Talent et Recruitment360 ; sélectionner les scénarios manquants et les exécuter seuls. Garder JOBLY-E2E uniquement. Aucun accès JOBLY-PROD, aucun changement de `main`, aucune fusion et aucun déploiement.
+
+**Conclusion §109 :** le sous-périmètre runner + API authentifiée est **PASS**. La recette E2E globale demeure en cours.
 
 ---
+
+## 108. Récupération du résumé global du runner — terminée
+
+**Mise à jour : 9 novembre 2026. Statut : RAPPORT REÇU ; ne pas relancer le runner.**
+
+L'opérateur a transmis `artifacts/e2e/authenticated-role-runner-summary.json` directement dans la conversation. L'étape de récupération sans CMD est donc close.
+
+Le résultat du runner est consigné au §109. Aucun nouveau contrôle manuel ou test de répétition n'est requis pour le sous-périmètre déjà vert.
 
 ## 107. LOT-01 — smoke API authentifié des trois rôles et cycle croisé : PASS 40/40
 
@@ -1393,8 +1429,11 @@ Le workflow a terminé avec une conclusion `failure` parce que le bilan de recet
 Les statuts à conserver sont ceux de la dernière exécution locale communiquée (section 3.3). Le précédent rapport à 301 tests et le rapport récent à 277 tests sont deux exécutions distinctes ; leurs nombres de tests ne doivent pas être additionnés ni comparés comme s'il s'agissait d'un seul run.
 
 État des preuves actualisé au 9 novembre 2026 :
-- LOT-01 : sessions Auth trois rôles 12/12 PASS (§99) ; smoke API authentifié par rôle 40/40 PASS (§107), aucun échec/blocage, nettoyage API + DB PASS.
-- Le test ciblé couvre aussi les principaux accès Talent/Recruteur/Partenaire et le cycle croisé candidature/entretien/décision. Cela ne clôt pas à lui seul tout le lot Auth/navigation/sécurité, ni l'ensemble des lots Talent et Recruitment360 ; les critères globaux restent à vérifier à l'échelle de leur matrice.
+- LOT-01 — sessions Auth trois rôles : 12/12 PASS (§99).
+- LOT-01 — runner API authentifié : build PASS, serveur local PASS, smoke API PASS 40/40, 0 BLOCKED, 0 FAIL ; probe serveur HTTP 401 attendu ; clé serveur vérifiée JOBLY-E2E HTTP 200 ; 3/3 contrôles de nettoyage PASS (§109).
+- LOT-01 — cycle API croisé Talent/Recruteur : offre temporaire, candidature USER_REVIEW, entretien, décision OFFER, protection de la décision et suppression API/DB PASS (§107).
+- Les parcours UI/navigation et la matrice globale Auth/sécurité ne sont pas couverts intégralement par ces rapports ; LOT-01 global n'est donc pas encore déclaré clôturé.
+- LOT-02/03 : le cycle API ciblé est prouvé, mais les parcours UI/métier et scénarios non inclus dans le smoke restent à compléter.
 
 Priorités de reprise :
 - **P0 — LOT-00 :** conserver les preuves de clôture et ne pas rejouer les migrations/contrôles déjà PASS sans nouvelle anomalie.
