@@ -1,7 +1,19 @@
 # Jobly — Référence de continuité de la recette E2E
 
-**Version :** 1.0  
-**Date de consolidation :** 7 novembre 2026  
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.5 — 8 novembre 2026
+>
+> **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
+> **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
+> **Environnement :** JOBLY-E2E uniquement. Aucun test runtime ni accès JOBLY-PROD n'a été effectué pendant la correction distante.
+>
+> **Important — instructions historiques neutralisées :** les instructions plus anciennes de ce document qui autorisaient ou demandaient une réinitialisation des mots de passe, une recréation de fixtures ou l'exécution de `e2e/reset-existing-fixture-passwords.mjs` sont obsolètes et ne doivent pas être suivies. Le script local `e2e/reset-existing-fixture-passwords.mjs` reste à préserver et ne doit pas être exécuté. Aucune fixture partagée ne doit être modifiée sans nouvelle autorisation explicite et spécifique.
+>
+> **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse Jobly, le mettre à jour dans cette branche et donner comme preuve le commit GitHub ainsi que le chemin du fichier. Ne pas passer par la Bibliothèque/Word pour cette continuité.
+>
+> **État E2E-001 :** le code a été corrigé directement sur GitHub. Le smoke Talent ne fait plus de `PUT /api/profile`; la zone read-only couvre tout le bloc Talent ; le test statique de non-mutation a été ajouté et intégré au LOT-01. **Validation statique locale encore à exécuter** après synchronisation du poste opérateur. Aucun PASS de test n'est encore revendiqué.
+
+**Version :** 2.5  
+**Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
 **PR de référence :** [#266](https://github.com/kenzimayaka-glitch/Jobly/pull/266) — ouverte, brouillon  
@@ -463,3 +475,84 @@ Nouveau groupe du runner `scripts/e2e-bulk-runner.mjs` :
 3. Examiner `artifacts/e2e/authenticated-role-smoke.json` et `artifacts/e2e/local-recipe/summary.md`.
 
 Garde-fous inchangés : JOBLY-E2E uniquement ; aucune écriture sur JOBLY-PROD ; aucune modification des profils ou comptes fixtures existants ; PR #266 conservée en brouillon ; aucun merge dans `main` et aucun déploiement.
+
+---
+
+## 13. Mise à jour V2.5 — correctif E2E-001 commité — 8 novembre 2026
+
+### 13.1 Incident de transfert du script local
+
+L'opérateur a tenté d'exécuter `apply-e2e001-readonly-fix.mjs` depuis `C:\Users\ASUS\Downloads`, puis depuis `C:\Users\ASUS\Jobly`. Les deux tentatives ont retourné `MODULE_NOT_FOUND`. Cela signifie que le script n'était pas présent à ces chemins et qu'il n'a pas été exécuté. Aucun fichier du dépôt local n'a été modifié par ces deux tentatives. **Ne plus demander à l'opérateur de relancer ce script absent.**
+
+Pour éliminer cette dépendance au transfert de fichier, le correctif a été commité directement sur la branche GitHub `e2e/recette`.
+
+### 13.2 Commits du correctif distant
+
+| Commit | Fichier | Modification |
+|---|---|---|
+| `7bcc2a07a4ee3f9de44bb8e9c28eda5ec9043537` | `e2e/authenticated-role-smoke.mjs` | Suppression de la requête Talent `PUT /api/profile`, des contrôles de persistance associés et placement des marqueurs read-only autour de toute la séquence Talent. |
+| `14dd444d1e7a9916abc778ab4503595181bbe829` | `scripts/e2e-authenticated-runtime-regression.test.mjs` | Ajout d'un sixième test qui examine tout le bloc Talent jusqu'au bloc Recruteur et interdit les méthodes HTTP mutatrices ainsi que les méthodes Supabase `insert/upsert/update/delete`. |
+| `8385b60400bbaf9cedfcb4aa01073b733533f6c2` | `scripts/e2e-local-recipe.mjs` | Inclusion du test `e2e-authenticated-runtime-regression.test.mjs` dans le catalogue du LOT-01. |
+
+### 13.3 Vérifications du contenu commité
+
+Lecture des trois fichiers depuis GitHub au HEAD `8385b60400bbaf9cedfcb4aa01073b733533f6c2` :
+
+- Smoke Talent : 505 lignes ; aucun appel `request(token, "/api/profile", "PUT")`, aucun identifiant `TALENT-PROFILE-WRITE` ou `TALENT-PROFILE-PERSIST`.
+- Marqueur `E2E-READONLY-TALENT-START` placé avant `TALENT-PROFILE-READ) ; marqueur END présent à la fin du bloc Talent.
+- Test statique : sixième test présent ; il inspecte la frontière entre `if (item.role === "TALENT")` et `if (item.role === "RECRUITER")`.
+- Runner 11 lots : le fichier de régression est listé dans LOT-01.
+- Aucun changement de branche `main), aucune fusion PR, aucun déploiement et aucune requête vers Supabase n'ont été effectués dans cette séquence.
+
+**Limite de preuve :** la relecture distante prouve que le code est commité et que les protections sont présentes. Elle ne prouve pas encore que le test Node.js passe sur le poste Windows. Le statut E2E-001 reste donc **CORRECTIF COMMITÉ — TEST STATIQUE LOCAL EN ATTENTE**, et non PASS.
+
+### 13.4 Prochaine action locale — synchroniser sans écraser les modifications existantes
+
+Le dernier diagnostic opérateur (12:09:34) indiquait que les trois fichiers cibles étaient propres, mais que `e2e/reset-existing-fixture-passwords.mjs` était modifié et que plusieurs rapports et fichiers inhabituels étaient non suivis. Ces changements doivent être préservés.
+
+Commande opérateur dans CMD :
+
+```bat
+cd /d C:\Users\ASUS\Jobly
+git pull --ff-only origin e2e/recette > feedback-e2e001-sync.txt 2>&1
+(
+  echo ==== HEAD APRES SYNCHRONISATION ====
+  git rev-parse HEAD
+  echo ==== ETAT A PRESERVER ====
+  git status --short
+) >> feedback-e2e001-sync.txt 2>&1
+notepad feedback-e2e001-sync.txt
+```
+
+Attendu : HEAD `8385b60400bbaf9cedfcb4aa01073b733533f6c2` ou un SHA descendant explicitement vérifié sur la branche `e2e/recette). Si le pull est refusé à cause d'un conflit ou d'un état local, **ne pas lancer reset, stash, clean ou suppression** ; transmettre le rapport et traiter le conflit en préservant tous les changements.
+
+### 13.5 Test ciblé — seulement après synchronisation vérifiée
+
+Lorsque le rapport de synchronisation confirme que les fichiers modifiés sont bien présents et que le HEAD est le bon :
+
+```bat
+cd /d C:\Users\ASUS\Jobly
+node --test scripts/e2e-authenticated-runtime-regression.test.mjs > feedback-e2e001-static-test.txt 2>&1
+notepad feedback-e2e001-static-test.txt
+```
+
+Résultat attendu : les six tests statiques PASS. Si un test échoue, ne pas lancer le smoke runtime Talent ni le runner bulk ; examiner le rapport, corriger puis retester.
+
+### 13.6 Suite après le PASS statique
+
+1. Refaire un audit LOT-00 strictement en lecture seule sur JOBLY-E2E : identité du projet, RLS, grants, Storage/buckets/policies, présence/mapping des fixtures ; ne pas muter de données.
+2. Si LOT-00 et E2E-001 sont conformes, exécuter le smoke runtime authentifié en mode read-only, une seule fois et séquentiellement pour les fixtures partagées.
+3. Examiner les réponses individuelles Talent : profil GET, applications GET, flux local/Afrique, détail offre, CV original et Career Journey. Un détail d'offre sans offre exploitable reste BLOCKED ; aucune conversion artificielle en PASS.
+4. Seulement après preuves de stabilité et d'isolation, relancer la recette bulk avec `E2E_LOT_CONCURRENCY=2). Garder les scénarios utilisant les mêmes fixtures et objets séquentiels.
+5. Ne pas déclarer les lots PASS tant que tous les scénarios métier obligatoires ne sont pas testés et que les preuves d'accès, persistance et nettoyage ne sont pas jointes.
+
+### 13.7 État de continuité après cette mise à jour
+
+- E2E-001 : correctif commité sur `e2e/recette) ; test statique local en attente.
+- Smoke Auth Talent : ne pas exécuter avant PASS statique et audit LOT-00.
+- Campagne bulk locale : ne pas relancer avant fermeture des prérequis.
+- JOBLY-E2E : aucune opération runtime effectuée par les commits documentaires/code.
+- JOBLY-PROD : interdit, aucun accès.
+- PR #266 : ouverte, brouillon, non fusionnée.
+- `main) : inchangée.
+- Fixtures partagées : aucune modification par cette correction.
