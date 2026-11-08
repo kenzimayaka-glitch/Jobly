@@ -154,27 +154,45 @@ try {
   assert.ok(await exists(path.join(ROOT, "node_modules", "next", "package.json")), "Dépendances manquantes : exécutez pnpm install --frozen-lockfile --ignore-scripts dans le worktree.");
   assert.ok(await exists(NEXT_CLI), "Binaire Next.js absent du worktree ; réinstallez les dépendances avec le lockfile.");
 
+  // The fixture manifest is the project's local identity anchor. It contains
+  // no API key; accept it only when both environment and projectRef match this
+  // runner's fixed JOBLY-E2E target.
+  const fixturePath = path.join(SOURCE_ROOT, ".e2e-fixtures.json");
+  const fixtures = JSON.parse(await readFile(fixturePath, "utf8"));
+  assert.equal(fixtures.environment, "JOBLY-E2E", "Manifeste de fixtures non JOBLY-E2E refusé.");
+  assert.equal(fixtures.projectRef, PROJECT_REF, "Le projectRef des fixtures ne correspond pas à JOBLY-E2E.");
+
   const { env: mergedConfig, files: configFilesLoaded } = await loadSourceEnvironment(SOURCE_ROOT);
   const configuredUrl = mergedConfig.NEXT_PUBLIC_SUPABASE_URL || mergedConfig.SUPABASE_URL || "";
-  const publishableKey = mergedConfig.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y";
+  const urlWasDerivedFromFixture = configuredUrl === "";
+  // A missing URL can be reconstructed deterministically from the verified
+  // fixture projectRef. A conflicting explicit URL must never be overridden.
+  const effectiveUrl = urlWasDerivedFromFixture
+    ? "https://" + fixtures.projectRef + ".supabase.co"
+    : configuredUrl;
+  const publishableKey = mergedConfig.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || mergedConfig.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y";
   const privateKey = mergedConfig.SUPABASE_SECRET_KEY || mergedConfig.SUPABASE_SERVICE_ROLE_KEY || "";
   let configuredProjectRef = "missing-or-invalid";
   try {
-    const host = new URL(configuredUrl).hostname;
+    const host = new URL(effectiveUrl).hostname;
     configuredProjectRef = host.endsWith(".supabase.co") ? host.slice(0, -".supabase.co".length) : "non-supabase";
   } catch {}
   summary.configDiagnostics = {
     sourceFiles: configFilesLoaded,
-    supabaseUrlPresent: Boolean(configuredUrl),
-    supabaseUrlMatchesE2E: configuredUrl === SUPABASE_URL,
+    supabaseUrlConfiguredInEnv: Boolean(configuredUrl),
+    supabaseUrlDerivedFromFixture: urlWasDerivedFromFixture,
+    supabaseUrlMatchesE2E: effectiveUrl === SUPABASE_URL,
+    fixtureProjectRefMatchesE2E: fixtures.projectRef === PROJECT_REF,
     configuredProjectRef,
-    publishableKeyPresent: publishableKey.startsWith("sb_publishable_"),
+    publishableKeyPresent: publishableKey.startsWith("sb_publishable_") || publishableKey.startsWith("eyJ"),
     serverKeyType: privateKey.startsWith("sb_secret_") ? "sb_secret" : privateKey.startsWith("eyJ") ? "legacy_jwt" : "missing",
+    serverKeyVerifiedForE2E: false,
+    serverKeyProbeStatus: null,
   };
-  if (configuredUrl !== SUPABASE_URL) {
-    throw new Error("Configuration JOBLY-E2E non reconnue après chargement officiel Next.js ; voir configDiagnostics (aucune URL ni clé n'est imprimée).");
+  if (effectiveUrl !== SUPABASE_URL) {
+    throw new Error("Une URL Supabase explicite contredit le projet JOBLY-E2E ; arrêt sécurisé avant build.");
   }
-  assert.ok(publishableKey.startsWith("sb_publishable_"), "Clé publishable JOBLY-E2E absente.");
+  assert.ok(publishableKey.startsWith("sb_publishable_") || publishableKey.startsWith("eyJ"), "Clé publishable JOBLY-E2E absente.");
   assert.ok(privateKey.startsWith("sb_secret_") || privateKey.startsWith("eyJ"), "Clé serveur JOBLY-E2E absente.");
   if (privateKey.startsWith("eyJ")) {
     const claims = JSON.parse(Buffer.from(privateKey.split(".")[1] || "", "base64url").toString("utf8"));
@@ -182,10 +200,25 @@ try {
     assert.equal(claims.role, "service_role", "La clé JWT n'a pas le rôle service_role.");
   }
 
-  const fixturePath = path.join(SOURCE_ROOT, ".e2e-fixtures.json");
-  const fixtures = JSON.parse(await readFile(fixturePath, "utf8"));
-  assert.equal(fixtures.environment, "JOBLY-E2E");
-  assert.equal(fixtures.projectRef, PROJECT_REF);
+  // Read-only PostgREST OpenAPI root probe. Supabase accepts modern sb_secret
+  // keys and legacy service_role keys in the apikey header. No table is read,
+  // and the response body is discarded immediately.
+  const keyProbe = await fetch(SUPABASE_URL + "/rest/v1/", {
+    method: "GET",
+    headers: { apikey: privateKey, Accept: "application/openapi+json" },
+    signal: AbortSignal.timeout(12000),
+    cache: "no-store",
+  });
+  summary.configDiagnostics.serverKeyProbeStatus = keyProbe.status;
+  await keyProbe.body?.cancel().catch(() => undefined);
+  if (!keyProbe.ok) {
+    throw new Error("La clé serveur locale n'est pas valide pour JOBLY-E2E (probe API lecture seule, HTTP " + keyProbe.status + ").");
+  }
+  summary.configDiagnostics.serverKeyVerifiedForE2E = true;
+
+  // Expose only the verified project URL to the child build/server process.
+  mergedConfig.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
+  mergedConfig.SUPABASE_URL = SUPABASE_URL;
   const expected = [["talent", "TALENT"], ["recruiter", "RECRUITER"], ["partner", "PARTNER"]];
   assert.ok(Array.isArray(fixtures.accounts) && expected.every(([key, role]) => {
     const account = fixtures.accounts.find((item) => item?.key === key && item?.role === role);
@@ -196,6 +229,7 @@ try {
     ...mergedConfig,
     E2E_PROJECT_REF: PROJECT_REF,
     NEXT_PUBLIC_SUPABASE_URL: SUPABASE_URL,
+    SUPABASE_URL: SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey,
     E2E_BASE_URL: BASE_URL,
     E2E_FIXTURE_PATH: fixturePath,
