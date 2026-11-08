@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isEligibleSubscription } from "../../../../lib/billingLifecycleCore";
 import { enforceApiRateLimit } from "../../../../lib/apiRateLimit";
 import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
+import { isProfilePhotoPublic } from "../../../../lib/profilePhotoStorage";
 
 export async function GET(req: NextRequest) {
   try {
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest) {
     const nowIso = now.toISOString();
     const [usersResult, experiencesResult, skillsResult, subscriptionsResult, promosResult] = await Promise.all([
       sb.from("User")
-        .select("id,displayName,profilePhotoUrl,executiveSummary,portfolioBusiness,advertisingVideoUrl,advertisingVideoDurationMs,pitchVideoUrl,pitchVideoDurationMs")
+        .select("id,displayName,profilePhotoUrl,profilePhotoStoragePath,profilePhotoVisibility,profilePhotoConsentAt,executiveSummary,portfolioBusiness,advertisingVideoUrl,advertisingVideoDurationMs,pitchVideoUrl,pitchVideoDurationMs")
         .in("id", ids),
       sb.from("Experience").select("userId,title,company,startDate,endDate").in("userId", ids),
       sb.from("Skill").select("userId,name,level").in("userId", ids),
@@ -108,7 +109,7 @@ export async function GET(req: NextRequest) {
         headline: profile.headline || "Profil professionnel",
         summary: profile.summary || user.executiveSummary || "",
         location: profile.location || null,
-        photoUrl: user.profilePhotoUrl || null,
+        photoUrl: isProfilePhotoPublic(user) ? (user.profilePhotoUrl || null) : null,
         plan,
         topSkills: (skills.get(profile.userId) || []).slice(0, 6),
         experiences: (experiences.get(profile.userId) || []).slice(0, 6),
