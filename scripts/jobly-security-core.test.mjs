@@ -44,6 +44,38 @@ test("successful DB buckets include hashed account and IP keys", async () => {
   }
 });
 
+test("modern Supabase secret key is accepted by the server rate-limit guard", async () => {
+  const calls = [];
+  const client = { async rpc(name, args) { calls.push({ name, args }); return { data: [{ allowed: true, remaining: 8, retry_after_seconds: 10 }], error: null }; } };
+  const previous = {
+    jobly: process.env.JOBLY_RATE_LIMIT_SECRET,
+    modern: process.env.SUPABASE_SECRET_KEY,
+    legacy: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  };
+  delete process.env.JOBLY_RATE_LIMIT_SECRET;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_SECRET_KEY = "sb_secret_e2e_test_key_for_rate_limiting_only_123456";
+  try {
+    const result = await enforceApiRateLimit(request({ "x-vercel-forwarded-for": "203.0.113.12" }), client, {
+      scope: "job-feed", identity: "user:e2e-fixture",
+      accountWindows: [{ limit: 12, windowSeconds: 60 }],
+      ipWindows: [{ limit: 90, windowSeconds: 60 }], requireIp: true,
+    });
+    assert.equal(result, null);
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].name, "consume_jobly_rate_limit");
+    assert.match(calls[0].args.p_key_hash, /^[0-9a-f]{64}$/);
+    assert.equal(calls[0].args.p_key_hash.includes("e2e-fixture"), false);
+  } finally {
+    if (previous.jobly === undefined) delete process.env.JOBLY_RATE_LIMIT_SECRET;
+    else process.env.JOBLY_RATE_LIMIT_SECRET = previous.jobly;
+    if (previous.modern === undefined) delete process.env.SUPABASE_SECRET_KEY;
+    else process.env.SUPABASE_SECRET_KEY = previous.modern;
+    if (previous.legacy === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = previous.legacy;
+  }
+});
+
 test("exhausted bucket responds 429 and Retry-After", async () => {
   const client = { async rpc() { return { data: [{ allowed: false, remaining: 0, retry_after_seconds: 23 }], error: null }; } };
   const previous = process.env.JOBLY_RATE_LIMIT_SECRET;
