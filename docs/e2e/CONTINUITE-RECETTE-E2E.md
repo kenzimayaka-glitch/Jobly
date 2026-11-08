@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.27 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.28 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -15,7 +15,7 @@
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le dernier rapport V4 confirme un arrêt au contrôle local du format de la clé (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avant toute requête HTTP ; `results=[]`. L'exposition de `net` reste donc indéterminée. L'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`. Sélectionner `service_role` uniquement si cette entrée est dans **Legacy API Keys** et que la valeur JWT commence par `eyJ`; utiliser alors le test masqué GET-only du §23.3. Si la valeur commence par `sb_secret_`, ce n'est pas la legacy JWT et il faut arrêter ce script. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.27  
+**Version :** 2.28  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1630,3 +1630,41 @@ Le script valide localement le préfixe JWT et les claims `role=service_role` et
 ### 31.7 Correction de transmission avant exécution
 
 Avant l'envoi à l'opérateur, le bloc CMD a été réémis dans le document avec les échappements JavaScript exacts (`\r`, `\n`, `\u0003`, `\u007f`) afin que le script Node.js traite correctement les retours à la ligne et les touches d'annulation/suppression. Le prompt `SAISIE MASQUEE` est affiché avant l'activation du mode brut. Cette correction documentaire ne constitue pas une exécution du script et ne change aucun statut de test.
+
+
+---
+
+## 32. Suspension de la commande V5 avant saisie de la clé — V2.28 — 8 novembre 2026
+
+### 32.1 Retour opérateur et clarification
+
+L'opérateur signale que la commande V5 affiche une demande de coller la valeur de la clé historique `service_role`. C'est bien le comportement prévu par le code transmis au §31.3 : le script attend une saisie masquée dans le terminal local, puis utilise la valeur comme header `apikey` pour deux requêtes GET OpenAPI sur JOBLY-E2E.
+
+Cette saisie n'a pas été effectuée selon le retour reçu à cette étape. Aucun élément ne permet d'affirmer que la clé a été fournie ou qu'une requête HTTP a été envoyée.
+
+### 32.2 Décision de sécurité
+
+**Suspendre la commande V5. Ne pas coller la clé et interrompre l'invite par Ctrl+C.**
+
+La clé `service_role` est un secret privilégié. Le fait que la saisie soit masquée ne réduit pas les privilèges qu'obtient le processus qui la reçoit. La procédure V5 ne doit donc pas être poursuivie sur la seule base de l'instruction précédente. Réévaluer une méthode de vérification à privilèges minimaux avant toute nouvelle exécution.
+
+Ne jamais transmettre cette clé dans le chat, un rapport, Git ou un autre canal. Ne pas utiliser une clé alternative, ne pas réactiver/régénérer/rotater de clé et ne modifier aucune configuration Supabase.
+
+### 32.3 État exact du LOT-00
+
+- Rapport V4 : le contrôle local a retourné `KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`, `results=[]` ; aucune requête HTTP n'a été atteinte lors de cette exécution.
+- Commande V5 : transmise avec une invite de saisie masquée, mais **suspendue avant saisie** à la demande de clarification opérateur.
+- GET OpenAPI `public` : **NON CONFIRMÉ / aucun résultat reçu**.
+- GET OpenAPI `net` : **NON CONFIRMÉ / aucun résultat reçu**.
+- Exposition du schéma `net` : **NON DÉTERMINÉE**.
+- LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- Aucun smoke Auth/runtime, navigateur, parcours croisé ou bulk n'est autorisé avant fermeture du LOT-00.
+- Aucun accès JOBLY-PROD, aucune mutation de fixture, donnée, permission ou configuration Supabase.
+- `main` inchangée ; PR #266 reste ouverte en brouillon et non fusionnée ; aucun déploiement.
+
+### 32.4 Preuve et correction documentaire
+
+- Déclaration opérateur : « Il me demande de coller la valeur de la clé service role historique ».
+- Code de commande transmis au §31.3 : invite masquée suivie de l'utilisation de la valeur dans le header `apikey`.
+- Décision communiquée : ne pas saisir la clé et interrompre la commande.
+- Cette section prévaut sur toute instruction antérieure du §31 qui demanderait de coller la clé pour exécuter V5. Le §31 est conservé pour traçabilité, mais sa commande est **SUSPENDUE — NE PAS EXÉCUTER**.
