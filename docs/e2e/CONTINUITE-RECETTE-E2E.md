@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.105 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.106 — 8 novembre 2026
 >
 > **Dernier commit de correction LOT-00 :** `cdc4399d452f3341895b5d56efb5204080d3faa9` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 conserve uniquement le préflight environnement/fixtures et les contrôles read-only de base (identité, RLS/grants, Storage, correspondances des fixtures), hors OpenAPI. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.105  
+**Version :** 2.106  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -205,6 +205,62 @@ Procédure :
 6. Ne pas transmettre le fichier ni sa valeur secrète. Une fois enregistré, relancer le lanceur une seule fois.
 
 Tant que le titre reste « Sans titre » et que l'enregistrement n'a pas été confirmé, le fichier `.env.local` n'existe pas encore. Aucun secret n'est supposé enregistré et Storage reste non appliqué.
+
+### 93.12 Échec réel du premier apply — rollback confirmé et cause trouvée
+
+Rapports opérateur du 8 novembre 2026 vers 22:07 UTC :
+- Diagnostic credential : `.env.local` existe ; `SUPABASE_SECRET_KEY` est non vide et disponible ; format `sb_secret_` accepté. Le secret n'est jamais recopié dans le rapport.
+- Intégrité runner : blobs des trois scripts contrôlés conformes ; `node --check` = PASS.
+- Exécution Storage : `status=FAIL`, erreur `Configuration Storage non conforme après updateBucket : recruitment-listings`.
+- `talent-cvs` avait été appliqué et relu conforme avant l'erreur.
+- `recruitment-listings` avait été envoyé à updateBucket mais le contrôle de relecture a déclaré un écart.
+- Rollback reporté PASS pour `recruitment-listings` et `talent-cvs`.
+- Aucun test de smoke d'accès n'a démarré ; aucune photo legacy migrée ; aucun nouveau bucket créé selon le rapport.
+
+Une lecture SQL read-only effectuée immédiatement après le rapport sur JOBLY-E2E confirme l'état antérieur restauré :
+- `talent-cvs`, `recruitment-listings` et `mobility-documents` : privés, limites/MIME nulles ;
+- `jobly-events` : public, limite 10 MiB et allowlist historique `image/*, video/*, application/pdf` ;
+- `profile-photos-private` : absent.
+Les `updated_at` des quatre buckets existants restent au 6 novembre 2026. Aucun réglage partiel issu de la tentative ne demeure dans ces buckets.
+
+**Cause exacte du faux échec :** le script passait à `updateBucket` deux entrées équivalentes pour HTML : `text/html` et `text/html; charset=utf-8`. Le serveur Supabase Storage normalise les types MIME en conservant seulement `type/subtype` et en dédupliquant les valeurs. La liste persistée contient donc un seul `text/html`, tandis que le vérificateur Jobly comparait les tableaux bruts avec la même longueur et le même ordre. L'API Storage pouvait avoir appliqué les réglages demandés, mais notre comparaison déclarait à tort un écart parce qu'elle attendait cinq entrées au lieu de quatre.
+Références d'implémentation Supabase relues :
+- `src/storage/storage.ts` appelle `normalizeAllowedMimeTypes` lors de `updateBucket` : https://github.com/supabase/storage/blob/master/src/storage/storage.ts
+- La normalisation retire les paramètres MIME et stocke des valeurs uniques : https://github.com/supabase/storage/blob/master/src/storage/validators/mime-type.ts
+- Référence API officielle `updateBucket` : https://supabase.com/docs/reference/javascript/file-buckets-updatebucket
+
+### 93.13 Correctif du vérificateur publié sur e2e/recette
+
+Deux fichiers distants corrigés, vérifiés à nouveau sur GitHub :
+- `scripts/e2e/lot00-storage-bucket-hardening.mjs` : blob `4521e64aed66cfb6ce93d1372b1a1b62f29cd84f` ; commit `f3753f7370007647a5e4bf99c130c69437d0c921`.
+- `scripts/e2e/run-lot00-storage-hardening.cmd` : blob `208534506d1e647467329bcdd6e7deffc660b17e` ; commit `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e`.
+
+Correctif :
+- canonicalise les listes MIME en retirant les paramètres, en mettant en minuscules, en dédupliquant et en triant avant comparaison ;
+- garde le contrôle strict de visibilité, de taille et des allowlists effectives ;
+- en cas de divergence future, écrit désormais les valeurs réellement relues (`actual`) et attendues (`expected`) dans le rapport avant de sortir en FAIL.
+- le lanceur épingle le nouveau blob du script Storage, de sorte qu'une ancienne copie n'est plus acceptée.
+
+**État du correctif :** code mis à jour sur `e2e/recette` et cohérence du hash épinglé confirmée par lecture GitHub. L'exécution Node locale après ce correctif et l'application Storage restent à faire.
+
+### 93.14 Prochaine action unique — appliquer la correction, sans diagnostic supplémentaire
+
+La clé `.env.local` est maintenant présente et le premier diagnostic l'a reconnue. Ne pas la modifier, ne pas la communiquer, ne pas exécuter d'autre préflight et ne pas synchroniser les 167 commits en retard.
+
+Dans CMD, depuis `C:\Users\ASUS\Jobly`, récupérer uniquement le nouveau lanceur sur le remote (pas de pull/merge), puis l'exécuter. Le lanceur récupère lui-même le script corrigé, vérifie les hashes et la syntaxe, puis applique les réglages à JOBLY-E2E :
+```cmd
+cd /d C:\Users\ASUS\Jobly
+copy /Y scripts\e2e\run-lot00-storage-hardening.cmd scripts\e2e\run-lot00-storage-hardening.before-mime-fix.cmd
+git fetch origin
+git show origin/e2e/recette:scripts/e2e/run-lot00-storage-hardening.cmd > scripts\e2e\run-lot00-storage-hardening.cmd
+if errorlevel 1 (echo ECHEC_RECUPERATION_LANCEUR & goto :eof)
+call scripts\e2e\run-lot00-storage-hardening.cmd
+notepad feedback-lot00-storage-credential-diagnostic.txt
+notepad feedback-lot00-storage-apply-20261108.txt
+```
+Ce remplacement ne touche pas la branche locale, ne fusionne aucun commit et sauvegarde le lanceur actuel. Le runner opère uniquement sur `ofqqrryamslxoqkklraw`. Après l'exécution, juger le résultat sur le rapport Storage complet ; aucun nouveau lancement à l'aveugle.
+
+LOT-00 reste **PARTIAL** jusqu'au PASS des cinq configurations, des opérations upload/lecture signée/refus anonyme/nettoyage, et du traitement des photos legacy. JOBLY-PROD, `main`, les fixtures et les déploiements restent hors périmètre.
 
 ### 93.4 Limites de l'intervention et statut Storage
 
