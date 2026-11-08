@@ -38,7 +38,7 @@ Le smoke API `authenticated-role-smoke.json` reste **PASS 40/40** (§107). Seul 
 1. Appuyer sur `Windows + E`.
 2. Cliquer dans la barre d'adresse de l'Explorateur.
 3. Coller le chemin :
-   `C:\\Users\\ASUS\\Jobly-e2e-recette-v3\\artifacts\\e2e`
+   `C:\Users\ASUS\Jobly-e2e-recette-v3\artifacts\e2e`
 4. Appuyer sur Entrée.
 5. Ouvrir `authenticated-role-runner-summary.json` par double-clic.
 6. Transmettre le contenu du fichier, sans transmettre de fichier .env, clé ou manifeste de fixtures.
