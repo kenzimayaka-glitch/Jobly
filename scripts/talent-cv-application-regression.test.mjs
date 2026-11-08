@@ -12,7 +12,9 @@ const after = (source, marker) => {
 test("CV import accepts only PDF uploads and requires an authenticated session before privileged processing", () => {
   const route = read("app/api/talent/cv/import/route.ts");
   const handler = after(route, "export async function POST");
-  assert.match(handler, /content-type.*multipart\/form-data/i);
+  assert.match(handler, /const contentType = request\.headers\.get\("content-type"\) \|\| ""/);
+  assert.match(handler, /contentType\.includes\("multipart\/form-data"\)/);
+  assert.ok(handler.indexOf("multipart/form-data") < handler.indexOf("request.formData()"));
   assert.match(handler, /file\.type !== "application\/pdf".*file\.name\.toLowerCase\(\)\.endsWith\("\.pdf"\)/s);
   assert.match(handler, /const authUser = await getAuthUser\(request\)/);
   assert.match(handler, /if \(!authUser\)/);
@@ -51,7 +53,7 @@ test("saving the original CV validates the real PDF signature, isolates storage 
   assert.match(post, /getAuthUser\(request\)/);
   assert.match(post, /bytes\.length > 3 \* 1024 \* 1024/);
   assert.match(post, /bytes\.subarray\(0, 5\)\.toString\("ascii"\) !== "%PDF-"/);
-  assert.match(post, /const storagePath = `${auth\.id}\/\$\{crypto\.randomUUID\(\)\}\.pdf`/);
+  assert.match(post, /const storagePath = `\$\{auth\.id\}\/\$\{crypto\.randomUUID\(\)\}\.pdf`/);
   assert.match(post, /upload\(storagePath, bytes, \{ contentType: "application\/pdf", upsert: false \}\)/);
   assert.match(post, /\.update\(\{[\s\S]*?cvOriginalStoragePath: storagePath[\s\S]*?\}\)\.eq\("id", user\.id\)/);
   assert.ok(post.indexOf('if (updateError)') < post.indexOf('remove([storagePath])'));
