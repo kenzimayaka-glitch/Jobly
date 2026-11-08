@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.123 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.124 — 8 novembre 2026
 >
 > **Dernière correction de code Storage LOT-00 :** `f3753f7370007647a5e4bf99c130c69437d0c921` ; runner épinglé `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial **3/3 PASS** et cycle de session **12/12 PASS** (§96 et §99). Préparation du test API par rôle : le préflight opérateur du 8 novembre 2026 à 22:34:39 a confirmé URL/ref JOBLY-E2E et fixtures complètes, mais l'ancien code serveur ne lisait que `SUPABASE_SERVICE_ROLE_KEY`, alors que `.env.local` contient la clé moderne `SUPABASE_SECRET_KEY`; le clone local était en retard et aucun runtime privé n'existait. Correctif `adminClient()` maintenant compatible avec la secret key Supabase côté serveur ; le smoke API utilise cette clé locale sans `.e2e-fixture-runtime.json`. Un runner `e2e/run-authenticated-role-recipe.mjs` exécute le build et le smoke sur un worktree détaché propre de `origin/e2e/recette`, lit `.env.local` et `.e2e-fixtures.json` depuis le dépôt source, ne les copie pas et ne les imprime pas. Le parcours croisé crée des données temporaires JOBLY-E2E et vérifie leur nettoyage. Aucun test API exécuté à ce stade ; aucun changement de donnée distante dans le préflight initial. `main` reste hors périmètre.
 
-**Version :** 2.123  
+**Version :** 2.124  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -145,7 +145,7 @@ Le préflight `e2e/authenticated-role-preflight-safe.mjs` a également été mis
 
 ### 101.4 Runner local isolé
 
-Nouveau lanceur : `e2e/run-authenticated-role-recipe.mjs`. Commits : `2cadd79c92241a1c7d305633177e6c4645b34ef1`, `a1218f3b67dc68d1e5dc674974d653f3b672043f` (traçabilité des mutations/nettoyages), `14cae46928f7e972269e7d3c6654caab441a48dd` (fallback public E2E). Blob actuel : `a570cc3246b07370b30350452f25cc25abe1ec28`.
+Nouveau lanceur : `e2e/run-authenticated-role-recipe.mjs`. Commits : `2cadd79c92241a1c7d305633177e6c4645b34ef1`, `a1218f3b67dc68d1e5dc674974d653f3b672043f` (traçabilité des mutations/nettoyages), `14cae46928f7e972269e7d3c6654caab441a48dd` (fallback public E2E), `69fc1f4f2f48df347d456efee2e1372d0f3456b1` (exécution du binaire Node sans shell Windows). Blob actuel : `6ea51e675b7fd1fc3ed30ce9a30617ae581d8941`.
 
 Fonctionnement :
 - exige un worktree détaché propre dont `HEAD` est exactement égal à `origin/e2e/recette` ; refuse le clone local modifié ou un serveur déjà présent sur le port 3217 ;
