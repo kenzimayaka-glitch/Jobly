@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.76 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.77 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3976,3 +3976,37 @@ Le contrôle ne doit donc pas être présenté comme PASS global LOT-00 ni PASS 
 ### 78.5 Référence
 
 Mise à jour V2.76 sur `e2e/recette`. Source avant cette entrée : blob SHA `4060b1ab0533cec0783343a4f8ba3d9148997557`. Le code métier/runner n'a pas été modifié ; seul le rapport opérateur et le statut du préflight sont ajoutés.
+
+
+---
+
+## 79. Clarification métier — sens des buckets publics et recommandation — V2.77 — 8 novembre 2026
+
+### 79.1 Signification expliquée à l'opérateur
+
+Un bucket Supabase Storage public permet à toute personne connaissant l'URL exacte d'un fichier de le consulter sans se connecter à Jobly. Ce réglage ne donne pas automatiquement le droit d'uploader, remplacer ou supprimer les fichiers : ces opérations restent soumises aux politiques Storage/RLS.
+
+Les deux buckets concernés par l'audit sont :
+- `jobly-events` : médias des événements ;
+- `profile-photos` : photos de profil.
+
+L'audit initial du 8 novembre a constaté zéro objet Storage à cet instant. Il n'a donc pas exposé de fichier existant lors de cet audit.
+
+### 79.2 Recommandation de politique produit
+
+- `jobly-events` : conserver public pour les médias associés à des événements réellement publics/publiés, sous réserve de politiques d'écriture strictes.
+- `profile-photos` : public uniquement pour les photos de profil que l'utilisateur choisit d'afficher publiquement. Les photos destinées à des contextes restreints ou les documents personnels doivent être stockés dans un bucket privé et servis via autorisation ou URL signée.
+- CV, justificatifs, preuves de paiement et documents de recrutement ne doivent pas être stockés dans ces buckets publics ; les buckets privés déjà inventoriés restent le modèle à utiliser pour ces contenus.
+
+Cette recommandation est une règle d'intention produit à confirmer dans l'architecture actuelle. Elle n'est pas une preuve que le code applique déjà cette séparation.
+
+### 79.3 Statut
+
+- Aucun paramètre de bucket n'a été modifié.
+- Aucune policy Storage/RLS n'a été modifiée.
+- L'intention métier des deux buckets reste à confirmer ; LOT-00 reste PARTIAL sur ce point et sur la matrice de moindre privilège.
+- OpenAPI reste LOT-11 final après LOT-10.
+
+### 79.4 Référence
+
+Clarification documentaire V2.77 sur `e2e/recette`. Source avant cette entrée : blob SHA `2a754994267b754742b226bf1848be541ba42a34`.
