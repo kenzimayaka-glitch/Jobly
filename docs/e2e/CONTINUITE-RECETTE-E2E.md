@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.17 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.18 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -15,7 +15,7 @@
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le contrôle Data API du schéma net n'a pas encore reçu de réponse HTTP exploitable ; l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`. Sélectionner `service_role` uniquement si cette entrée est dans **Legacy API Keys** et que la valeur JWT commence par `eyJ`; utiliser alors le test masqué GET-only du §23.3. Si la valeur commence par `sb_secret_`, ce n'est pas la legacy JWT et il faut arrêter ce script. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.17  
+**Version :** 2.18  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1143,7 +1143,7 @@ Synthèse du script : `GATE=BLOCKED_REVIEW_REQUIRED`.
 - Endpoint immuable : `https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/` ; aucune URL de production.
 - Méthode : GET uniquement ; deux lectures séquentielles avec `Accept-Profile: public`, puis `Accept-Profile: net`.
 - Clé admise : clé secrète du projet JOBLY-E2E (`sb_secret_...`) ou ancienne clé `service_role` du même projet. Ne jamais employer `anon`, `sb_publishable_...` ou une clé de JOBLY-PROD.
-- La clé est saisie dans la console masquée (aucun écho), utilisée uniquement dans le header `apikey` pour `sb_secret_...`. Pour l'ancienne clé `service_role` JWT, le script ajoute aussi `Authorization: Bearer` afin de conserver le contexte de rôle.
+- Cette description appartient à la tentative V2.15, désormais historique. Pour la clé legacy `service_role`, appliquer exclusivement le comportement vérifié du §23.3 : header `apikey` seul, sans `Authorization: Bearer`.
 - La clé n'est ni affichée, ni écrite dans un fichier, rapport ou journal ; seul son type est enregistré.
 - Une clé `sb_secret_...` / `service_role` contourne RLS. Le code est donc volontairement borné à la racine OpenAPI et n'effectue aucune requête de table, aucun RPC, aucun appel Storage, aucun `net.http_*` et aucune écriture.
 - Si aucune clé d'administration JOBLY-E2E n'est disponible, ne pas créer ni faire tourner une clé pour ce test. Signaler `NON_TESTABLE_KEY_UNAVAILABLE` ; ne pas utiliser un secret de production.
@@ -1153,20 +1153,9 @@ Références Supabase consultées le 8 novembre 2026 :
 - https://supabase.com/docs/guides/getting-started/api-keys — distingue publishable et secret, indique que le secret contourne RLS et doit rester côté serveur ;
 - https://supabase.com/docs/guides/self-hosting/self-hosted-envoy — décrit la séparation entre racine OpenAPI et routes Data API.
 
-### 22.3 Commande Node.js locale corrigée — CMD Windows
+### 22.3 Procédure V2.15 — historique retiré du protocole actif
 
-**Procédure V2.15 obsolète — ne pas exécuter.** Elle mélangeait deux formats de clés. Le seul test actif est §23.3 : il accepte seulement un JWT legacy `service_role` (`eyJ…`) dont le payload confirme le rôle `service_role` et le projet `ofqqrryamslxoqkklraw`, puis envoie uniquement `apikey`.
-
-Depuis le Node.js Command Prompt / CMD :
-
-```bat
-cd /d C:\Users\ASUS\Jobly
-if exist feedback-lot00-net-schema-exposure-v2.txt echo Rapport deja present : conservation, aucune nouvelle execution.
-if not exist feedback-lot00-net-schema-exposure-v2.txt node -e "const fs=require('node:fs'),input=process.stdin,out=process.stdout,report='feedback-lot00-net-schema-exposure-v2.txt';if(fs.existsSync(report)){console.log('REPORT_EXISTS_PRESERVED');process.exit(3)}if(!input.isTTY||typeof input.setRawMode!=='function'){console.log('TTY_REQUIRED');process.exit(2)}let key='';out.write('Cle secrete JOBLY-E2E sb_secret_... ou ancienne service_role, saisie masquee : ');input.setRawMode(true);input.resume();input.on('data',b=>{for(const ch of b.toString('utf8')){if(ch==='\u0003'){input.setRawMode(false);input.pause();key='';out.write('\nCANCELLED\n');process.exit(2)}if(ch==='\r'||ch==='\n'){input.setRawMode(false);input.pause();out.write('\n');const entered=key.trim();key='';run(entered);return}if(ch==='\u007f'||ch==='\b')key=key.slice(0,-1);else if(ch>=' ')key+=ch}});function save(rows,gate,error=''){const lines=['node='+process.version,'project_ref=ofqqrryamslxoqkklraw','credential_type='+kind,'results='+JSON.stringify(rows),'GATE='+gate];if(error)lines.push('error='+error);fs.writeFileSync(report,lines.join('\r\n')+'\r\n',{flag:'wx'});for(const line of lines)out.write(line+'\n');out.write('REPORT='+report+'\n')}let kind='unknown';async function run(k){const rows=[];try{if(k.startsWith('sb_secret_'))kind='sb_secret';else if(k.startsWith('eyJ')){const p=JSON.parse(Buffer.from(k.split('.')[1]||'','base64url').toString('utf8'));if(p.role!=='service_role')throw Error('LEGACY_KEY_ROLE_INVALID');kind='legacy_service_role'}else throw Error('KEY_TYPE_INVALID');for(const schema of ['public','net']){const h={apikey:k,Accept:'application/openapi+json','Accept-Profile':schema};if(kind==='legacy_service_role')h.Authorization='Bearer '+k;const r=await fetch('https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/',{method:'GET',headers:h,signal:AbortSignal.timeout(20000)});const raw=await r.text();let j={};try{j=JSON.parse(raw)}catch{}rows.push({schema,status:r.status,apiSchemaAccepted:r.ok,openapi:!!(j.openapi||j.swagger),code:j.code??null,message:typeof j.message==='string'?j.message.slice(0,160):null})}const pub=rows.find(x=>x.schema==='public'),net=rows.find(x=>x.schema==='net');const pass=!!(pub&&pub.status===200&&pub.openapi&&net&&net.status===406&&net.code==='PGRST106');save(rows,pass?'PASS_NET_NOT_EXPOSED':'BLOCKED_REVIEW_REQUIRED')}catch(e){save(rows,'BLOCKED_REVIEW_REQUIRED',e.name+': '+e.message)}finally{k=''}}
-notepad feedback-lot00-net-schema-exposure-v2.txt
-```
-
-Le terminal doit afficher la demande de clé sans écho. Entrer la clé `sb_secret_...` du projet `ofqqrryamslxoqkklraw`, ou son ancienne `service_role` si le projet utilise encore cette clé. Ne pas me l'envoyer. Si la saisie masquée n'est pas prise en charge ou si aucune clé E2E n'est disponible, arrêter ; ne pas saisir la clé dans la ligne de commande, ne pas la mettre dans un fichier et ne pas utiliser une clé de production.
+L'ancienne commande de cette section est retirée du protocole actif pour éviter toute confusion entre les clés `sb_secret_…` et `service_role` JWT. Ne pas l'exécuter ni la recopier. Le seul test actif est la procédure Node.js legacy `service_role` du §23.3 : elle accepte uniquement un JWT commençant par `eyJ`, vérifie que son payload contient le rôle `service_role` et le projet `ofqqrryamslxoqkklraw`, puis envoie uniquement le header `apikey`.
 
 ### 22.4 Critère du résultat
 
