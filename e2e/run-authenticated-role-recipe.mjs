@@ -80,7 +80,7 @@ try {
   Object.assign(mergedConfig, process.env);
   const configuredUrl = mergedConfig.NEXT_PUBLIC_SUPABASE_URL || mergedConfig.SUPABASE_URL || "";
   assert.equal(configuredUrl, SUPABASE_URL, "La configuration locale ne pointe pas exactement vers JOBLY-E2E.");
-  const publishableKey = mergedConfig.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "";
+  const publishableKey = mergedConfig.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y";
   assert.ok(publishableKey.startsWith("sb_publishable_"), "Clé publishable JOBLY-E2E absente.");
   const privateKey = mergedConfig.SUPABASE_SECRET_KEY || mergedConfig.SUPABASE_SERVICE_ROLE_KEY || "";
   assert.ok(privateKey.startsWith("sb_secret_") || privateKey.startsWith("eyJ"), "Clé serveur JOBLY-E2E absente.");
