@@ -163,7 +163,12 @@ export default function JoblyVitrine() {
       if (active) setAccessToken(accessToken);
       try {
         const response = await fetch("/api/public/site-context", { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
-        const context = response.ok ? await response.json() as Audience : null;
+        if (!response.ok) {
+          if (response.status === 401 && active) setAccessToken(null);
+          if (active) setAudience({ accountKey: null, role: null });
+          return;
+        }
+        const context = await response.json() as Audience;
         if (active) setAudience({
           accountKey: typeof context?.accountKey === "string" ? context.accountKey : null,
           role: typeof context?.role === "string" ? context.role : null,
