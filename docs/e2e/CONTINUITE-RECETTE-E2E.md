@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.10 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.11 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -14,7 +14,7 @@
 >
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le contrôle Data API du schéma net n'a pas encore été retourné, l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette n'est pas suffisamment documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 
-**Version :** 2.10  
+**Version :** 2.11  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1003,3 +1003,22 @@ Après le contrôle GET LOT-00 demandé au §16.7 et sans démarrer le runner gl
 3. tests responsive/PWA et navigation anonyme, séparés des parcours Talent connectés.
 
 Ces recettes ne doivent pas être qualifiées de PASS tant qu'une exécution et un rapport daté, rattachés au SHA exact, ne sont pas disponibles.
+
+
+### 19.7 Smoke navigateur anonyme — inspection du code, non exécuté
+
+Fichier examiné : e2e/browser-smoke.mjs, blob 87d7acbadce230d5b343ee6025e246e0016408d2.
+
+Le script prévoit des contrôles réalisables sans session utilisateur :
+- page d'accueil publique et réponse GET /api/public/home-stats ;
+- affichage du formulaire de connexion et des boutons Google ;
+- navigation vers le formulaire d'inscription, sans soumission ;
+- affichage/masquage du mot de passe ;
+- page d'accueil mobile à 390 px, sans débordement horizontal ni chevauchement ;
+- six GET anonymes qui doivent répondre HTTP 401 : /api/profile, /api/jobs, /api/applications, /api/talent/ai-bonus, /api/talent/cv/original et /api/career-journey.
+
+Préconditions techniques : serveur local accessible via E2E_BASE_URL (par défaut localhost:3000), ref exact JOBLY-E2E ofqqrryamslxoqkklraw, URL et clé publishable JOBLY-E2E, Playwright installé. Le script écrit des captures et un rapport local dans artifacts/e2e. Il ne soumet aucun formulaire, OTP, paiement, candidature, e-mail ou demande externe.
+
+**Réserve de preuve :** le script lit aussi artifacts/e2e/auth-session-smoke.json. Si ce fichier existe et satisfait les critères de fraîcheur et de complétude, il peut marquer AUTH-006/007 PASS à partir de cette preuve antérieure. Ce mécanisme ne réalise pas lui-même une authentification, mais il mélange le résultat du smoke anonyme à un rapport Auth préexistant. Pour obtenir un rapport strictement anonyme, il faut ajouter un mode explicite qui désactive la lecture et l'importation de cette preuve Auth, sans supprimer, renommer ni écraser les artefacts locaux existants.
+
+**Décision de sécurité :** le script n'a pas été lancé. Malgré l'absence de compte nécessaire pour les contrôles publics, il réalise des appels runtime à JOBLY-E2E. Le verrou LOT-00 interdit encore tout smoke runtime avant fermeture du gate. Après LOT-00 PASS et séparation explicite de la preuve Auth, ce smoke pourra être exécuté comme recette navigateur anonyme isolée.
