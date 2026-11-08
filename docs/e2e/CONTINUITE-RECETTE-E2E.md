@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.46 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.47 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -2591,3 +2591,57 @@ Interprétation :
 - LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED** ; GET OpenAPI `public` et `net` non exécutés.
 - PR #266 reste la branche de continuité E2E ; cette mise à jour documentaire ne fusionne pas la PR.
 - Document source avant cette mise à jour : V2.45, blob SHA `77c4218ccf49239f278c4330da9f5edf09570d27`, branche `e2e/recette`.
+
+
+---
+
+## 49. Priorisation — recette presse-papiers différable, tests code-only autorisés — V2.47 — 8 novembre 2026
+
+### 49.1 Décision de priorité
+
+Le test canari de message du §48.2 est **OPTIONNEL et DIFFÉRABLE**. Il vérifie seulement le copier-coller générique dans un champ de message ; il ne valide ni le bouton du Dashboard Supabase, ni la clé, ni l'API, ni une fonctionnalité Jobly. Il ne doit pas retarder les recettes autonomes. Il peut être ignoré si le diagnostic du presse-papiers n'est plus nécessaire.
+
+Ne jamais remplacer le canari fictif par un vrai mot de passe, une clé, un JWT ou un jeton. Aucun secret ne doit être collé dans un message, même non envoyé.
+
+Le verrou **LOT-00 reste en revanche un prérequis obligatoire à toute recette runtime qui appelle JOBLY-E2E**. Jusqu'à sa fermeture selon les critères des §§17.4 et 19.5, restent suspendus : smoke navigateur qui appelle les API JOBLY-E2E, authentification réelle, parcours Talent/Recruteur/Partenaire, parcours croisé, exécution du runner E2E complet et toute écriture runtime. Le test canari ne ferme pas LOT-00.
+
+### 49.2 Recette code-only exécutable maintenant
+
+Le groupe `authenticated-runtime-contracts` du fichier `scripts/e2e-bulk-runner.mjs` sélectionne uniquement `scripts/e2e-authenticated-runtime-regression.test.mjs`.
+
+Inspection du code au moment de cette mise à jour :
+- le fichier de test contient **6 tests Node.js** ;
+- il lit uniquement le texte de `e2e/authenticated-role-smoke.mjs` ;
+- il vérifie la présence des contrôles Talent et Recruteur, les limites GET/lecture seule, l'absence d'écriture du profil Talent et l'absence d'insertion de document ;
+- il n'exécute pas le smoke authentifié, n'appelle pas Supabase, ne lit aucune fixture et ne modifie aucun compte ou profil.
+
+Cette recette de non-régression statique peut donc être exécutée immédiatement, indépendamment de LOT-00. Son PASS valide uniquement les assertions de structure du code ; il n'autorise aucun runtime et ne prouve pas le comportement réel des API.
+
+### 49.3 Commande opérateur isolée
+
+Depuis CMD Windows, après synchronisation locale de la branche `e2e/recette` au commit documentaire courant et vérification que le répertoire est bien le dépôt Jobly :
+
+~~~bat
+cd /d C:\Users\ASUS\Jobly
+node --experimental-strip-types scripts/e2e-bulk-runner.mjs --groups authenticated-runtime-contracts
+notepad artifacts\e2e\bulk\summary.md
+notepad artifacts\e2e\bulk\authenticated-runtime-contracts.log
+~~~
+
+Le runner crée `artifacts/e2e/bulk/summary.md`, `summary.json` et le journal du groupe. Transmettre les résultats non sensibles, en indiquant le SHA réellement exécuté. Ne pas lancer le runner global de 7 groupes par déduction de cette seule autorisation.
+
+### 49.4 Ordre de reprise retenu
+
+1. **Maintenant :** exécuter uniquement le groupe code-only `authenticated-runtime-contracts` ci-dessus et analyser son rapport.
+2. **En parallèle, sans runtime :** poursuivre les revues de code et tests locaux explicitement isolés, après vérification de leur absence d'appels réseau, d'Auth, de mutations ou de dépendances à des fixtures.
+3. **À reprendre ensuite :** LOT-00, par la procédure de sentinelle §45.2 puis classification §45.3 ; le canari de message §48.2 reste facultatif et peut être sauté.
+4. **Seulement après fermeture documentée de LOT-00 :** reprendre les recettes navigateur/API/authentifiées et les parcours métier runtime.
+
+### 49.5 Statut et garde-fous
+
+- Test canari de message : **DIFFÉRÉ / NON BLOQUANT**.
+- Groupe `authenticated-runtime-contracts` : **EXÉCUTABLE, NON ENCORE EXÉCUTÉ dans le cadre de cette mise à jour**.
+- LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED** ; aucun GET OpenAPI `public` ou `net` n'est enregistré.
+- Aucun runtime JOBLY-E2E n'a été lancé par cette mise à jour ; aucun accès JOBLY-PROD, aucune mutation de fixture ou de données, aucun changement de `main), aucun déploiement.
+- PR #266 demeure ouverte, en brouillon et non fusionnée.
+- Document source avant cette mise à jour : V2.46, blob SHA `6df71ed163b5fd95d69ba70f9157317c46804fcc`, branche `e2e/recette`.
