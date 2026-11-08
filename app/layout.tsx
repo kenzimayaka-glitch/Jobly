@@ -7,6 +7,7 @@ import JiaPresence from "../components/JiaPresence";
 import JiaTorchEffect from "../components/JiaTorchEffect";
 import { ThemeProvider } from "../components/ThemeProvider";
 import ScreenProtection from "../components/ScreenProtection";
+import JoblyLiveWins from "../components/JoblyLiveWins";
 import { LanguageProvider } from "../lib/i18n";
 
 export const viewport: Viewport = {
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <JiaPresence />
             <JiaTorchEffect />
             <ScreenProtection />
+            <JoblyLiveWins />
             {children}
           </LanguageProvider>
         </ThemeProvider>

@@ -169,6 +169,9 @@ jobs:
       - name: Authentication and Google account selection regression tests
         run: pnpm test:auth
 
+      - name: Jobly Live Wins scheduling and eligibility regression tests
+        run: pnpm test:jobly-live-wins
+
       - name: P2 Jobly offer watermark regression tests
         run: pnpm test:p2-offer-watermark
 
