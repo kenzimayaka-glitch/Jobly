@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.70 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.72 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3670,3 +3670,60 @@ Or la commande du §72.2 produit obligatoirement les champs `failure_class` et `
 ### 73.3 Référence
 
 Document mis à jour en V2.71 sur `e2e/recette`. Source avant mise à jour : blob SHA 9275c8bcd8c645324dad69d13e5772d2fd2fa136.
+
+
+---
+
+## 74. LOT-00 — CLI lancée, code retour 1, diagnostic CLI masqué — 8 novembre 2026
+
+### 74.1 Sortie opérateur reçue
+
+```text
+runtime=PowerShell 5.1.19041.4522
+project_ref=ofqqrryamslxoqkklraw
+supabase_cli_version=3.0.0
+env_SUPABASE_ACCESS_TOKEN_present=False
+cli_command_exit_code=1
+cli_json_parsed=False
+legacy_service_role_count=0
+jwt_three_segments=False
+jwt_algorithm=UNKNOWN
+jwt_role_service_role=False
+jwt_project_ref_match=False
+jwt_signature_verified=False
+public_http_status=NOT_RUN
+public_openapi_valid=False
+public_openapi_path_count=0
+public_postgrest_code=NONE
+net_http_status=NOT_RUN
+net_openapi_valid=False
+net_openapi_path_count=0
+net_postgrest_code=NONE
+failure_class=NONE
+GATE=BLOCKED_CLI_NONZERO_EXIT
+```
+
+### 74.2 Interprétation strictement établie
+
+- Contrairement aux rapports antérieurs avec `cli_command_exit_code=NOT_RUN`, cette exécution prouve que le processus CLI a été lancé et qu'il a renvoyé le code de sortie `1`.
+- `cli_json_parsed=False` signifie que la sortie CLI n'a pas été transformée en JSON exploitable. `legacy_service_role_count=0` est donc une valeur par défaut du contrôle et **ne prouve pas** que la clé Legacy est absente ou masquée.
+- `failure_class=NONE` est cohérent avec un code de sortie non nul sans exception PowerShell attrapée ; ce champ n'explique pas l'erreur CLI.
+- La commande redirigeait `stderr` vers `$null`. Le message d'erreur déterminant n'a donc pas été conservé. Les éléments reçus ne permettent pas de distinguer une absence de session CLI, un problème d'autorisation/projet, un problème réseau ou une erreur interne du CLI.
+- Les appels HTTP OpenAPI n'ont pas commencé : `public_http_status=NOT_RUN` et `net_http_status=NOT_RUN`. Aucun verdict sur les schémas `public` ou `net` n'est possible.
+
+### 74.3 État de recette et verrou sur le jeton
+
+- Gate courant : **`BLOCKED_CLI_NONZERO_EXIT`**.
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED** ; aucun PASS OpenAPI n'est acquis.
+- Cette tentative était la commande CLI bornée autorisée pour l'utilisation ponctuelle du PAT local full-access. Ne pas relancer automatiquement la commande avec ce PAT, ni lancer `--reveal`, `projects list`, une commande de mutation ou un contrôle global.
+- L'opérateur avait indiqué vouloir révoquer ce PAT après le contrôle ponctuel. La révocation du PAT dans Supabase Access Tokens est à effectuer après cette tentative, sauf nouvelle autorisation explicite et distincte pour un diagnostic supplémentaire.
+- Aucune clé, aucun JWT, aucun token ni message d'erreur potentiellement sensible n'a été inscrit dans le rapport.
+- JOBLY-PROD n'a pas été consulté. Aucune écriture Supabase, mutation de fixture, authentification runtime, modification de `main`, fusion ou déploiement n'a été effectué. PR #266 reste ouverte, brouillon et non fusionnée.
+
+### 74.4 Suite nécessaire — sans nouvelle tentative implicite
+
+La cause du code retour 1 ne peut être déterminée qu'avec une nouvelle exécution diagnostique qui conserve `stderr` en mémoire, le classe en catégorie non sensible puis détruit le texte brut sans l'écrire dans un fichier ou l'afficher. Comme le contrôle ponctuel avec PAT full-access a déjà été tenté et que sa révocation était prévue, cette nouvelle exécution exige une **nouvelle autorisation explicite**. Aucun nouvel appel CLI n'est lancé par cette mise à jour documentaire.
+
+### 74.5 Référence
+
+Mise à jour V2.72 sur la branche `e2e/recette`. Source avant cette entrée : blob SHA `74c4900b15ea35c9be68fa3910cdaaf6919251cb`. Le présent ajout enregistre le résultat opérateur sans prétendre à un diagnostic de la cause CLI.
