@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.23 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.24 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -12,10 +12,10 @@
 >
 > **Verrou de reprise V2.8 :** les sections 7, 9, 10, 11, 12 et 13.7 contiennent des états ou consignes historiques ; elles ne constituent plus des instructions opératoires. En particulier, l'autorisation de reset citée au §9 n'est plus active : ne pas exécuter e2e/reset-existing-fixture-passwords.mjs, les scripts de vérification Auth des anciennes fixtures, le provisionneur, ni scripts/e2e-local-recipe.mjs/le runner bulk. Aucune connexion Auth, mutation de fixture, restauration de mot de passe ou relance globale n'est autorisée par ce document. Le seul prochain contrôle permis est le GET OpenAPI décrit au §16.7, suivi de son analyse.
 >
-> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le dernier retour opérateur après retransmission du contrôle V4 est `GATE=BLOCKED_REVIEW_REQUIRED`, sans détails `results`/HTTP/`error` fournis. L'exposition du schéma `net` reste donc indéterminée ; l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
+> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : après la retransmission V4, l'opérateur indique que la commande ne lui a pas demandé la clé ; l'exécution effective, le prompt TTY et les résultats HTTP ne sont donc pas établis. Le retour `GATE=BLOCKED_REVIEW_REQUIRED` seul ne permet aucune conclusion sur l'exposition de `net`. L'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`. Sélectionner `service_role` uniquement si cette entrée est dans **Legacy API Keys** et que la valeur JWT commence par `eyJ`; utiliser alors le test masqué GET-only du §23.3. Si la valeur commence par `sb_secret_`, ce n'est pas la legacy JWT et il faut arrêter ce script. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.23  
+**Version :** 2.24  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1466,4 +1466,49 @@ Aucune nouvelle tentative de clé ni nouvelle requête n'est demandée avant lec
 - Procédure V4 précédemment transmise : §27.3 ; rapport attendu : `feedback-lot00-net-schema-exposure-v4.txt`.
 - Document V2.22 relu avant cette mise à jour : blob SHA `76d8a7e8994b7263b71a42531bf5031ce7df977a` ; branche `e2e/recette`.
 - Aucune preuve HTTP ni détail diagnostique supplémentaire reçu à ce stade.
+---
+
+## 29. Commande V4 sans demande de clé — diagnostic d'exécution — V2.24 — 8 novembre 2026
+
+### 29.1 Retour opérateur
+
+L'opérateur précise que, lors de l'utilisation de la commande LOT-00 V4 (§27.3), le terminal ne lui a pas demandé de saisir la clé `service_role`.
+
+Le seul retour de gate communiqué précédemment est `GATE=BLOCKED_REVIEW_REQUIRED` (§28.1). Le contenu complet du rapport V4 et les lignes CMD affichées avant l'ouverture de Notepad ne sont pas disponibles.
+
+### 29.2 Causes possibles dans le bloc CMD, sans diagnostic définitif
+
+Le comportement dépend de deux gardes explicites du bloc :
+- Si `feedback-lot00-net-schema-exposure-v4.txt` existe déjà, `if exist` affiche le message de conservation puis `if not exist` saute entièrement `node -e` : aucune invite de clé n'apparaît et Notepad ouvre le rapport déjà présent.
+- Si le processus Node.js n'a pas un terminal TTY avec `setRawMode`, le script affiche `TTY_REQUIRED` et quitte avant l'invite de saisie.
+- Si le bloc n'a pas été exécuté intégralement dans CMD (copie partielle, condition non atteinte ou autre commande), aucune conclusion ne peut être tirée sans la sortie console.
+
+Ces causes sont des possibilités déduites du code de la commande, pas des faits constatés. Le message `GATE=BLOCKED_REVIEW_REQUIRED` à lui seul ne permet pas de savoir laquelle s'est produite.
+
+### 29.3 Prochaine vérification — sans nouvelle tentative
+
+Ne pas relancer le script et ne pas ressaisir de clé pour l'instant. Demander uniquement à l'opérateur de recopier les lignes visibles dans la fenêtre CMD **avant l'ouverture de Notepad**. Les indices à rechercher sont :
+- `Rapport v4 deja present : conservation, aucune nouvelle execution.`
+- `TTY_REQUIRED`.
+- `REPORT=feedback-lot00-net-schema-exposure-v4.txt` et le résumé `GATE=...` émis par le script.
+
+Le nom du fichier ouvert par Notepad peut aussi être confirmé sans partager son contenu secret. Ne jamais transmettre de clé, en-tête `apikey`, variable d'environnement ou jeton. Si le rapport V4 existe, le conserver sans le supprimer ni l'écraser.
+
+### 29.4 Statut et périmètre
+
+- Exécution effective du `node -e` V4 : **NON CONFIRMÉE**.
+- Invite masquée : **NON AFFICHÉE selon le retour opérateur**.
+- Cause de l'absence d'invite : **À DÉTERMINER**.
+- Statut HTTP `public` et `net` : **NON DISPONIBLE**.
+- LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED** ; exposition de `net` **NON DÉTERMINÉE**.
+- Aucun nouveau test, appel HTTP, appel Auth, SQL, RPC ou Storage exécuté par l'assistant ; aucune fixture, donnée, permission ou configuration modifiée.
+- Aucun smoke runtime, navigateur, parcours croisé ou bulk ; JOBLY-PROD interdit.
+- `main` inchangée ; PR #266 ouverte en brouillon et non fusionnée ; aucun déploiement.
+
+### 29.5 Preuves
+
+- Déclaration opérateur dans la conversation : « Il ne m'as pas demandé la clé ».
+- Commande analysée : §27.3, avec protections `if exist` / `if not exist` et contrôle `input.isTTY` / `setRawMode`.
+- Document source avant cette mise à jour : blob SHA `eb642b3fc8ef5819fea16f618c94e3a2548567fa` sur la branche `e2e/recette`.
+- PR #266 avant écriture : state `open`, draft `true`, merged `false`, HEAD `2827789b05bccfd7e35f893c05183915531365f1`, base `main`.
 
