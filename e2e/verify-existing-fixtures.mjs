@@ -6,6 +6,9 @@ import { createClient } from "@supabase/supabase-js";
 const ROOT = process.cwd();
 const PROJECT_REF = "ofqqrryamslxoqkklraw";
 const PROJECT_URL = "https://" + PROJECT_REF + ".supabase.co";
+// Publishable key (public client key) pinned to JOBLY-E2E so this verifier
+// does not depend on a potentially stale local copy of provision-fixtures.mjs.
+const PUBLISHABLE_KEY = "sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y";
 const FIXTURES = [
   { key: "talent", role: "TALENT", email: "jobly-e2e-talent@jobly.test" },
   { key: "recruiter", role: "RECRUITER", email: "jobly-e2e-recruiter@jobly.test" },
@@ -54,17 +57,6 @@ function validateFixtureDocument(document) {
     assert.ok(typeof account.password === "string" && account.password.length >= 8, "Mot de passe local indisponible.");
     assert.ok(typeof account.authUserId === "string" && account.authUserId.length > 0, "UID Auth local indisponible.");
   }
-}
-
-async function readPublishableKey() {
-  const provisionPath = path.join(ROOT, "e2e", "provision-fixtures.mjs");
-  const source = await readFile(provisionPath, "utf8");
-  const urlMatch = source.match(/const PROJECT_URL = "([^"]+)";/);
-  const keyMatch = source.match(/const PUBLISHABLE_KEY = "(sb_publishable_[^"]+)";/);
-  if (urlMatch?.[1] !== PROJECT_URL || !keyMatch?.[1]) {
-    throw new Error("La clé publishable publique E2E n'a pas pu être vérifiée dans le script.");
-  }
-  return keyMatch[1];
 }
 
 async function verifyAccount(fixture, account, publishableKey) {
@@ -123,7 +115,8 @@ async function main() {
     passwordsChanged: false,
     accountsCreatedOrDeleted: false,
     profilesModified: false,
-    checks: FIXTURES.map((fixture) => safeResult(fixture.role, "NON_TESTABLE", "Identifiants locaux non disponibles.")),
+    stage: "fixture_discovery",
+    checks: FIXTURES.map((fixture) => safeResult(fixture.role, "NON_TESTABLE", "Contrôle non commencé : préflight non franchi.")),
   };
 
   try {
@@ -144,13 +137,16 @@ async function main() {
       return report;
     }
 
-    const publishableKey = await readPublishableKey();
+    report.stage = "auth_configuration";
+    const publishableKey = PUBLISHABLE_KEY;
+    report.stage = "auth_verification";
     const results = [];
     for (const fixture of FIXTURES) {
       const account = document.accounts.find((item) => item.key === fixture.key && item.role === fixture.role);
       results.push(await verifyAccount(fixture, account, publishableKey));
     }
     report.checks = results;
+    report.stage = "completed";
     report.status = results.every((item) => item.status === "PASS")
       ? "PASS"
       : results.some((item) => item.status === "FAIL")
@@ -161,7 +157,9 @@ async function main() {
   } catch (error) {
     report.reason = error?.message === "MULTIPLE_FIXTURE_BACKUPS"
       ? "Plusieurs sauvegardes JOBLY-E2E valides existent. Relancer en indiquant explicitement le chemin d'une seule sauvegarde."
-      : "Contrôle non exécuté : erreur de lecture ou de configuration locale.";
+      : report.stage === "auth_configuration"
+        ? "Configuration du client public JOBLY-E2E indisponible ; aucun secret privé n'a été utilisé."
+        : "Contrôle interrompu avant la fin ; aucun secret privé ni changement de compte n'a été utilisé.";
     return report;
   }
 }
