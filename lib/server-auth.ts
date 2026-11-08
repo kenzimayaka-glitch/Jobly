@@ -12,10 +12,14 @@ import crypto from "node:crypto";
  */
 
 export function adminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  // Supabase's modern server-only secret key replaces the legacy service_role key.
+  // Never prefix either privileged key with NEXT_PUBLIC_ or expose it to a client.
+  const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Supabase serveur non configuré.");
-  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+  return createClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+  });
 }
 
 function decodeSessionId(token: string): string | null {
