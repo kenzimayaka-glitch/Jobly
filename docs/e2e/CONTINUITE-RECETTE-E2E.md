@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.20 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.21 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -15,7 +15,7 @@
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le contrôle Data API du schéma net n'a pas encore reçu de réponse HTTP exploitable ; l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`. Sélectionner `service_role` uniquement si cette entrée est dans **Legacy API Keys** et que la valeur JWT commence par `eyJ`; utiliser alors le test masqué GET-only du §23.3. Si la valeur commence par `sb_secret_`, ce n'est pas la legacy JWT et il faut arrêter ce script. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.20  
+**Version :** 2.21  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1316,3 +1316,56 @@ Si les deux conditions sont confirmées, utiliser exclusivement la commande exac
 - PR #266 relue avant écriture : ouverte, brouillon, non fusionnée ; HEAD `9803dcb0a8281a799366b915d8a0430c3c7ea686`, base `main`.
 - Dashboard à consulter : https://supabase.com/dashboard/project/ofqqrryamslxoqkklraw/settings/api-keys
 - Aucun statut de clé ni valeur secrète n'a été inspecté par l'assistant.
+---
+
+## 26. Résultat de contrôle `KEY_TYPE_INVALID` — V2.21 — 8 novembre 2026
+
+### 26.1 Rapport opérateur reçu
+
+L'opérateur a transmis le résultat non sensible suivant :
+
+```text
+node=v26.13.0
+project_ref=ofqqrryamslxoqkklraw
+credential_type=unknown
+results=[]
+GATE=BLOCKED_REVIEW_REQUIRED
+error=Error: KEY_TYPE_INVALID
+```
+
+### 26.2 Comparaison avec la procédure de référence §23.3
+
+Ce résultat ne correspond pas à la commande exacte conservée au §23.3 :
+- le §23.3 écrit la valeur fixe `credential_type=legacy_service_role` dans tout rapport qu'il génère ; il ne peut donc pas produire `credential_type=unknown` ;
+- pour un format ne commençant pas par `eyJ`, il émet `KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`, et non `KEY_TYPE_INVALID` ;
+- si le payload JWT ne confirme pas le rôle `service_role` et le projet `ofqqrryamslxoqkklraw`, il émet `KEY_PROJECT_OR_ROLE_MISMATCH`.
+
+**Conclusion limitée :** le rapport transmis provient d'une commande, d'un script ou d'une version différente de la procédure documentée au §23.3, ou a été transformé avant transmission. La commande effectivement lancée n'est pas encore identifiée. `results=[]` signifie que le rapport ne contient aucune réponse HTTP exploitable pour les profils `public` et `net` ; il ne démontre ni l'acceptation ni le refus de la clé par PostgREST et ne permet aucune conclusion sur l'exposition du schéma `net`.
+
+### 26.3 Décision de sécurité et prochaine vérification
+
+- Aucun nouvel essai de clé ne doit être lancé à ce stade.
+- Ne pas essayer une clé `anon`, une clé `sb_secret_…`, une clé JOBLY-PROD, une autre clé ou un autre endpoint.
+- Ne pas activer, réactiver, régénérer ou créer une clé.
+- Ne pas demander ni transmettre la valeur de la clé.
+- Identifier d'abord la commande exacte exécutée et son origine : demander à l'opérateur de copier uniquement la ligne CMD ou le nom/chemin du script utilisé, en excluant toute valeur secrète. Comparer ensuite cette commande à la commande de référence §23.3 avant de décider de la suite.
+- Même si la ligne `service_role` se trouve dans **Legacy API Keys**, son état **Active** et le format JWT `eyJ…` ne sont pas encore confirmés par une preuve distincte dans la conversation.
+
+### 26.4 Effet sur les gates et périmètre
+
+- LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED**, inchangé.
+- Contrôle OpenAPI `public` : **AUCUN STATUT HTTP EXPLOITABLE** dans le rapport reçu.
+- Contrôle OpenAPI `net` : **AUCUN STATUT HTTP EXPLOITABLE** dans le rapport reçu.
+- Exposition du schéma PostgreSQL `net` : **NON DÉTERMINÉE**.
+- Aucune preuve que la clé fournie soit active, legacy JWT, rattachée au rôle attendu ou acceptée par l'API.
+- Aucun smoke runtime Auth/Talent/Recruteur, aucun navigateur, aucun parcours croisé et aucun bulk ne sont autorisés avant fermeture de LOT-00.
+- Aucun accès JOBLY-PROD ; aucune fixture, donnée, permission, configuration Supabase ou code applicatif modifié dans ce tour.
+- `main` non modifiée ; PR #266 reste ouverte, en brouillon et non fusionnée ; aucun déploiement.
+
+### 26.5 Sources et preuves
+
+- Rapport opérateur reçu dans la conversation : bloc de sortie reproduit au §26.1.
+- Procédure de référence comparée : §23.3 de ce document.
+- Document source avant cette mise à jour : blob SHA `228ad6ca36df76e928435a99fe51c758064a6192` sur `e2e/recette`.
+- PR #266 vérifiée avant cette mise à jour : state `open`, draft `true`, merged `false`, HEAD `d74b6d2a61f9a7cb6baab67adc2726b81a19dc39`, base `main`.
+- Aucune valeur de clé n'a été reçue, lue ou enregistrée.
