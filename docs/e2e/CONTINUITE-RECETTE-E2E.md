@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.29 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.30 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -15,7 +15,7 @@
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le dernier rapport V4 confirme un arrêt au contrôle local du format de la clé (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avant toute requête HTTP ; `results=[]`. L'exposition de `net` reste donc indéterminée. La commande V5 qui invite à coller `service_role` est SUSPENDUE : ne pas l'exécuter ni saisir cette clé dans ce script. Le prochain contrôle sans secret est la lecture de `Project Settings > Data API > Exposed schemas` dans le Dashboard JOBLY-E2E ; noter si `net` figure dans la liste, sans cliquer sur Save. Cette lecture établit la configuration affichée, mais une configuration PostgREST manuelle par `ALTER ROLE authenticator SET pgrst.db_schemas` peut remplacer le réglage du Dashboard et doit être prise en compte avant de conclure. L'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`. Ne pas coller `service_role` dans le script V5 du §31 : cette procédure est suspendue au §32 et remplacée, pour la prochaine étape, par une lecture sans secret des **Exposed schemas** du Dashboard. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.29  
+**Version :** 2.30  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1710,3 +1710,65 @@ Procédure opérateur :
 - Supabase Knowledge Base, `PGRST002 / schema cache` : `https://supabase.com/kb/troubleshooting/postgrest-error-pgrst002-could-not-query-the-database-for-the-schema-cache-c396e9`, consulté le 8 novembre 2026 ; un override `ALTER ROLE authenticator SET pgrst.db_schemas` fait que Dashboard n'est plus l'interface gestionnaire du réglage.
 - Aucun secret reçu, lu, copié, transmis ou écrit ; aucune requête vers JOBLY-E2E effectuée par l'assistant dans ce tour ; aucun accès JOBLY-PROD, aucune modification Supabase ou des fixtures.
 - `main` inchangée ; PR #266 maintenue ouverte en brouillon et non fusionnée ; aucun déploiement.
+
+
+---
+
+## 34. Refus du contrôle Dashboard seul et nouvelle commande de retest V6 — V2.30 — 8 novembre 2026
+
+### 34.1 Décision opérateur
+
+Après proposition d'un contrôle manuel du Dashboard, l'opérateur répond « non » et réitère sa demande de disposer d'une commande de retest. Interprétation opérationnelle : il souhaite poursuivre le contrôle depuis le Node.js Command Prompt, plutôt que relever manuellement la liste Exposed schemas.
+
+La V5 du §31 demeure suspendue et ne doit pas être relancée telle quelle. Une nouvelle commande V6, avec un nom de rapport inédit, est transmise à la demande explicite de l'opérateur. Elle est conditionnée à l'utilisation exclusive de la clé historique `service_role` de JOBLY-E2E, si celle-ci est active et correspond bien au projet et au rôle attendus.
+
+### 34.2 Contrôles de sécurité de la V6
+
+- La saisie est masquée dans le terminal local ; la valeur n'est pas écrite dans le rapport ni affichée.
+- Le script exige le préfixe JWT historique `eyJ`, puis contrôle les claims `role=service_role` et `ref=ofqqrryamslxoqkklraw`.
+- En cas de format/claims non conformes, aucun appel HTTP n'est émis.
+- Si les validations passent, le script exécute exactement deux requêtes GET au endpoint racine REST de JOBLY-E2E : `Accept-Profile: public`, puis `Accept-Profile: net`, avec le header `apikey` uniquement.
+- Il n'effectue aucun appel Authorization Bearer, Auth, table, SQL, RPC, Storage, `net.http_*` ou aucune écriture.
+- Le rapport local neuf est `feedback-lot00-net-schema-exposure-v6-20261108.txt` ; il est protégé contre l'écrasement et ouvert dans Notepad après l'exécution.
+- N'utiliser aucune clé provenant de JOBLY-PROD, aucun autre type de clé et ne jamais transmettre la clé dans le chat. Si la ligne historique n'est pas confirmée Active ou si l'opérateur n'est pas certain qu'il s'agit du secret JOBLY-E2E, arrêter sans saisie.
+
+### 34.3 Commande CMD remise à l'opérateur
+
+```bat
+cd /d C:\\Users\\ASUS\\Jobly
+if exist feedback-lot00-net-schema-exposure-v6-20261108.txt (
+  echo Rapport V6 deja present : conservation, aucune nouvelle execution.
+) else (
+  node -e "const fs=require('node:fs'),input=process.stdin,out=process.stdout,report='feedback-lot00-net-schema-exposure-v6-20261108.txt';function save(rows,gate,error=''){const lines=['node='+process.version,'project_ref=ofqqrryamslxoqkklraw','credential_type=legacy_service_role','results='+JSON.stringify(rows),'GATE='+gate];if(error)lines.push('error='+error);fs.writeFileSync(report,lines.join('\\r\\n')+'\\r\\n',{flag:'wx'});for(const line of lines)out.write(line+'\\n');out.write('REPORT='+report+'\\n')}if(!input.isTTY||typeof input.setRawMode!=='function'){out.write('TTY_REQUIRED - ouvrir Node.js Command Prompt.\\n');save([],'BLOCKED_REVIEW_REQUIRED','TTY_REQUIRED');process.exit(2)}let key='';out.write('\\nSAISIE MASQUEE : colle la cle service_role historique ACTIVE de JOBLY-E2E, puis appuie sur Entree. Aucun caractere ne sera affiche : ');input.setRawMode(true);input.resume();input.on('data',b=>{for(const ch of b.toString('utf8')){if(ch==='\\u0003'){input.setRawMode(false);input.pause();key='';out.write('\\nCANCELLED\\n');save([],'BLOCKED_REVIEW_REQUIRED','CANCELLED');process.exit(2)}if(ch==='\\r'||ch==='\\n'){input.setRawMode(false);input.pause();out.write('\\n');const k=key.trim();key='';if(!k){save([],'BLOCKED_REVIEW_REQUIRED','KEY_EMPTY');return}run(k);return}if(ch==='\\u007f'||ch==='\\b')key=key.slice(0,-1);else if(ch>=' ')key+=ch}});async function run(k){const rows=[];try{if(!k.startsWith('eyJ'))throw Error('KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT');const p=JSON.parse(Buffer.from(k.split('.')[1]||'','base64url').toString('utf8'));if(p.role!=='service_role'||p.ref!=='ofqqrryamslxoqkklraw')throw Error('KEY_PROJECT_OR_ROLE_MISMATCH');for(const schema of ['public','net']){const r=await fetch('https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/',{method:'GET',headers:{apikey:k,Accept:'application/openapi+json','Accept-Profile':schema},signal:AbortSignal.timeout(20000)});const raw=await r.text();let j={};try{j=JSON.parse(raw)}catch{}rows.push({schema,status:r.status,apiSchemaAccepted:r.ok,openapi:!!(j.openapi||j.swagger),code:j.code??null,message:typeof j.message==='string'?j.message.slice(0,160):null})}const pub=rows.find(x=>x.schema==='public'),net=rows.find(x=>x.schema==='net'),pass=!!(pub&&pub.status===200&&pub.openapi&&net&&net.status===406&&net.code==='PGRST106');save(rows,pass?'PASS_NET_NOT_EXPOSED':'BLOCKED_REVIEW_REQUIRED')}catch(e){save(rows,'BLOCKED_REVIEW_REQUIRED',e.name+': '+e.message)}finally{k=''}}"
+)
+if exist feedback-lot00-net-schema-exposure-v6-20261108.txt notepad feedback-lot00-net-schema-exposure-v6-20261108.txt
+```
+
+Après lancement, le terminal doit afficher `SAISIE MASQUEE`. L'opérateur colle la valeur uniquement dans le terminal local puis appuie sur Entrée ; aucun caractère ne doit apparaître. Si `TTY_REQUIRED` s'affiche, ne pas saisir la clé. Le raccourci `Ctrl+C` annule la saisie.
+
+**Commande Notepad correspondante :**
+```bat
+notepad feedback-lot00-net-schema-exposure-v6-20261108.txt
+```
+
+### 34.4 Lecture et statut
+
+- Seule la paire `public: HTTP 200 avec OpenAPI` et `net: HTTP 406 / PGRST106` donne `PASS_NET_NOT_EXPOSED`.
+- Toute autre réponse reste `BLOCKED_REVIEW_REQUIRED`.
+- Transmettre seulement `results`, `GATE`, `error` et `REPORT`, jamais la clé ou un header.
+- Tant qu'un rapport V6 valide n'est pas reçu et examiné, LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED** et aucun smoke runtime, navigateur, parcours croisé ou bulk n'est autorisé.
+
+### 34.5 État à la transmission
+
+- V6 : **TRANSMISE, NON EXÉCUTÉE** par l'assistant ; aucun résultat n'est anticipé.
+- V5 : reste suspendue, conservée pour traçabilité.
+- Aucun GET OpenAPI, aucune connexion Auth ou autre requête JOBLY-E2E effectuée par l'assistant dans ce tour.
+- Aucun accès JOBLY-PROD ; aucune fixture, donnée, permission ou configuration Supabase modifiée.
+- `main` inchangée ; PR #266 ouverte, en brouillon et non fusionnée ; aucun déploiement.
+
+### 34.6 Preuves
+
+- Réponse opérateur au contrôle Dashboard-only : « non » ; il demande à nouveau la commande de retest.
+- Document source avant édition : V2.29, blob SHA `cfaf33aa38a525a4d7b99396ac05002a1124f1c1`, branche `e2e/recette`.
+- Procédure V5 suspendue au §32 ; nouveau rapport V6 distinct de V3/V4/V5.
+- Aucun secret reçu, lu ou enregistré par l'assistant.
