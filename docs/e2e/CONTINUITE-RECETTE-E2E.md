@@ -1,10 +1,10 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.96 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.97 — 8 novembre 2026
 >
-> **Dernier commit de correction LOT-00 :** `83304fcbfbc6a3d2950298ec13db929fb9b064cf` sur `e2e/recette`.
-> **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
-> **Environnement :** JOBLY-E2E uniquement pour les migrations et lectures SQL. Aucun test applicatif runtime ni accès JOBLY-PROD. Un aperçu Netlify automatique a été signalé par l'intégration GitHub de la PR #266 ; aucun déploiement de production ni action Vercel n'a été demandé.
+> **Dernier commit de correction LOT-00 :** `cdc4399d452f3341895b5d56efb5204080d3faa9` sur `e2e/recette`.
+> **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
+> **Environnement :** JOBLY-E2E uniquement pour les migrations, lectures SQL et contrôles Storage ; aucun accès JOBLY-PROD et aucun déploiement. Les tests HTTP CI tournent sur un serveur Next.js de build local au runner avec configuration Supabase fictive, jamais sur le site de production.
 >
 > **Important — instructions historiques neutralisées :** les instructions plus anciennes de ce document qui autorisaient ou demandaient une réinitialisation des mots de passe, une recréation de fixtures ou l'exécution de `e2e/reset-existing-fixture-passwords.mjs` sont obsolètes et ne doivent pas être suivies. Le script local `e2e/reset-existing-fixture-passwords.mjs` reste à préserver et ne doit pas être exécuté. Aucune fixture partagée ne doit être modifiée sans nouvelle autorisation explicite et spécifique.
 >
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 conserve uniquement le préflight environnement/fixtures et les contrôles read-only de base (identité, RLS/grants, Storage, correspondances des fixtures), hors OpenAPI. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.84  
+**Version :** 2.97  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -23,6 +23,64 @@
 
 > Ce document est le point de reprise de référence. Il sépare les preuves effectivement obtenues, les scénarios présents dans le code mais non validés, les blocages locaux et les actions qui nécessitent l'accord de l'utilisateur. Il doit être mis à jour à chaque nouvelle exécution significative.
 
+---
+
+## 92. LOT-00 — tests applicatifs et HTTP verts, hardening Storage en attente d'une clé privée locale
+
+**État à retenir au 8 novembre 2026 : PARTIAL.** Les corrections applicatives et leurs contrôles CI sont désormais verts ; la configuration effective des buckets sur JOBLY-E2E n'a toujours pas été appliquée, car les tentatives locales communiquées précédemment ont signalé l'absence d'une clé privée dans le processus/fichier local.
+
+### 92.1 Correctifs applicatifs et CI — preuves positives
+
+Branche de recette synchronisée au commit `cdc4399d452f3341895b5d56efb5204080d3faa9`. Les corrections comprennent :
+- la protection contre un profil CV partagé absent (réponse 404 au lieu de déréférencer une valeur nulle) ;
+- le garde de type sur les événements servis à l'écosystème, corrigeant l'échec TypeScript du pipeline ;
+- le runner Storage et son diagnostic : chargement natif de `.env` / `.env.local`, repli si une variable de processus est définie mais vide, alias de clés privées modernes et legacy, aucune valeur de secret dans les rapports ;
+- une clé publishable JOBLY-E2E déjà déclarée dans le workflow de recette, utilisée uniquement pour le test de lecture anonyme ; elle n'est pas une clé administrative ;
+- un helper de smoke Storage réel : un objet temporaire unique est envoyé dans chaque bucket privé, son lien signé est relu, l'URL publique anonyme est testée avec la clé publishable, puis l'objet temporaire est supprimé dans `finally`. Le rapport n'enregistre ni clé ni URL signée.
+
+CI du commit `cdc4399d452f3341895b5d56efb5204080d3faa9` :
+- Jobly CI — Typecheck & Build : **SUCCESS** — run [42511382151](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42511382151).
+- Jobly Security Core — isolated migration tests : **SUCCESS** — run [42511382166](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42511382166).
+- Verify Africa source registry : **SUCCESS** — run [42511382223](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42511382223).
+- Les tests contractuels et unitaires LOT-00 sont PASS dans le workflow ; TypeScript et build Next.js sont PASS.
+- Smoke HTTP sur le serveur Next.js de production-build du runner : **3/3 PASS** — upload photo Talent sans session = 401 ; upload média événement sans session = 401 ; liste Talent Recruteur sans session = 401. Le log confirme `LOT00_HTTP_RUNTIME=PASS; checks=3; environment=local-build-only`.
+
+Ces tests HTTP vérifient le démarrage du vrai serveur de build et les gardes d'authentification. Ils n'authentifient pas un compte Talent/Recruteur, n'écrivent pas dans Supabase, et ne constituent donc pas le test d'accès Storage en direct.
+
+### 92.2 Lecture Storage JOBLY-E2E — état distant inchangé
+
+Lecture SQL exclusivement read-only de `storage.buckets` jointe à `storage.objects`, projet `ofqqrryamslxoqkklraw`, après les dernières corrections :
+| Bucket | Public | Limite | MIME | Objets |
+|---|---:|---:|---|---:|
+| `talent-cvs` | non | non configurée | non configuré | 0 |
+| `recruitment-listings` | non | non configurée | non configuré | 0 |
+| `mobility-documents` | non | non configurée | non configuré | 0 |
+| `jobly-events` | **oui — non conforme** | 10 MiB | image/*, video/*, PDF | 0 |
+| `profile-photos-private` | absent | — | — | — |
+| `profile-photos` (public avec consentement) | oui | 5 MB | image/* | 0 |
+
+Aucune ligne de `storage.buckets` n'a été modifiée par SQL. Aucune écriture Storage n'a été effectuée pendant cette lecture.
+
+### 92.3 Runner d'application et blocage restant
+
+Les fichiers contrôlés par hash dans le runner Windows :
+- `scripts/e2e/lot00-storage-bucket-hardening.mjs` — blob `5bf79cd06db9ae466d6ffce9a2833be12a8823fd` ;
+- `scripts/e2e/lot00-storage-credential-diagnostic.mjs` — blob `f100bf22f423a813e0f20f8a65c9025314b095b8` ;
+- `scripts/e2e/lot00-storage-access-smoke.mjs` — blob `68e14ba5b1efbf84ee3970a36bb070cc3b4dc558` ;
+- `scripts/e2e/run-lot00-storage-hardening.cmd` — blob `8672167fc66c639f433d5d0296847dd5f200d315`.
+
+Le runner diagnostique maintenant les alias `SUPABASE_E2E_SECRET_KEY`, `SUPABASE_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SERVICE_KEY`. Il ne peut pas inventer ni récupérer une clé service/secret depuis une clé publishable. Les deux tentatives opérateur précédentes se sont terminées sur `Clé privée JOBLY-E2E absente du fichier local`. Le dernier runner est prêt mais n'a pas encore été exécuté avec le diagnostic étendu et le test Storage réel.
+
+**Action opérateur unique restante :** exécuter le runner depuis `C:\Users\ASUS\Jobly`. Si aucune clé privée n'est trouvée, ajouter localement dans `.env.local` une clé privée JOBLY-E2E issue du tableau API Keys de ce projet, sous `SUPABASE_SECRET_KEY` ou `SUPABASE_SERVICE_ROLE_KEY`, sans la transmettre ni la commiter, puis relancer. Le runner utilise déjà la clé publique JOBLY-E2E connue ; aucune autre clé publique n'est à renseigner.
+
+Résultat requis pour fermer ce point : cinq buckets configurés et relus conformes ; pour chacun, `upload=PASS`, `signedRead=PASS`, `anonymousPublicRead=DENIED`, `cleanup=PASS) ; migration photos legacy conforme ; `status=PASS`, `exit_code=0). Si un nettoyage échoue, conserver le rapport FAIL et traiter l'objet signalé avant clôture.
+
+### 92.4 Garde-fous et conclusion
+
+`main` demeure au SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`. PR #266 est ouverte/brouillon/non fusionnée et pointe vers ce chantier ; PR #267 reste ouverte/brouillon/non fusionnée. Le workflow de recette complète des 11 lots reste `workflow_dispatch` uniquement afin de ne pas toucher aux fixtures partagées par un simple push. Aucun déploiement Vercel/production et aucun accès JOBLY-PROD.
+
+**Conclusion :** les contrôles de code et HTTP sont corrigés et PASS. Le paramétrage Storage distant et le smoke authentifié sur les cinq buckets restent BLOQUÉS par l'absence de clé privée locale. LOT-00 reste **PARTIAL**, pas PASS, tant que le rapport Storage réel n'est pas vert.
+ 
 ---
 
 ## 1. Résumé de pilotage
