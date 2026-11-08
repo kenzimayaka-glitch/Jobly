@@ -7,6 +7,11 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const ROOT = process.cwd();
 const SOURCE_ROOT = process.argv[2] ? path.resolve(process.argv[2]) : "";
+const RUN_MODE = process.argv[3] || "api";
+const PLAYWRIGHT_VERSION = "1.65.0";
+if (!["api", "--browser-only"].includes(RUN_MODE)) {
+  throw new Error("Mode invalide. Utiliser api (défaut) ou --browser-only.");
+}
 const PROJECT_REF = "ofqqrryamslxoqkklraw";
 const SUPABASE_URL = "https://" + PROJECT_REF + ".supabase.co";
 const PORT = "3217";
@@ -79,10 +84,33 @@ function runGit(args) {
 }
 function runCommand(command, args, env) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd: ROOT, env, stdio: "inherit", shell: process.platform === "win32" && command === "pnpm", windowsHide: true });
+    const child = spawn(command, args, { cwd: ROOT, env, stdio: "inherit", shell: process.platform === "win32" && (command === "pnpm" || command === "npm.cmd"), windowsHide: true });
     child.once("error", reject);
     child.once("close", (code) => resolve(code ?? 1));
   });
+}
+
+async function ensurePlaywright(env) {
+  const modulePath = path.join(ROOT, ".e2e-tools", "node_modules", "playwright", "index.mjs");
+  const cliPath = path.join(ROOT, ".e2e-tools", "node_modules", "playwright", "cli.js");
+  if (!(await exists(modulePath))) {
+    const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+    const installCode = await runCommand(npm, [
+      "install", "--prefix", ".e2e-tools", "--no-save", "--no-package-lock",
+      "playwright@" + PLAYWRIGHT_VERSION,
+    ], env);
+    if (installCode !== 0 || !(await exists(modulePath))) {
+      throw new Error("Installation isolée de Playwright impossible ; aucun smoke navigateur lancé.");
+    }
+  }
+  if (!(await exists(cliPath))) {
+    throw new Error("CLI Playwright absent après installation ; smoke navigateur non lancé.");
+  }
+  const browserCode = await runCommand(process.execPath, [cliPath, "install", "chromium"], env);
+  if (browserCode !== 0) {
+    throw new Error("Installation/vérification de Chromium Playwright impossible.");
+  }
+  return modulePath;
 }
 function stopServer(child) {
   if (!child?.pid) return;
@@ -134,12 +162,16 @@ async function waitForServer(child) {
 
 const summary = {
   createdAt: new Date().toISOString(),
+  mode: RUN_MODE === "--browser-only" ? "browser-only" : "api",
   environment: "JOBLY-E2E",
   projectRef: PROJECT_REF,
   status: "BLOCKED",
   build: "NOT_RUN",
   localServer: "NOT_RUN",
   authenticatedRoleSmoke: "NOT_RUN",
+  browserSmoke: "NOT_RUN",
+  browserChecks: null,
+  browserAuthEvidence: null,
   secretsPrinted: false,
   remoteDataMayBeModified: false,
   localServerProbe: null,
@@ -231,8 +263,14 @@ try {
     NEXT_PUBLIC_SUPABASE_URL: SUPABASE_URL,
     SUPABASE_URL: SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: publishableKey,
+    SUPABASE_PUBLISHABLE_KEY: publishableKey,
+    SUPABASE_ANON_KEY: publishableKey,
     E2E_BASE_URL: BASE_URL,
     E2E_FIXTURE_PATH: fixturePath,
+    NEXT_PUBLIC_JOBLY_PUBLIC_URL: BASE_URL,
+    JOBLY_PUBLIC_URL: BASE_URL,
+    JOBLY_API_BASE_URL: BASE_URL,
     NODE_ENV: "production",
   };
   if (privateKey.startsWith("sb_secret_")) env.SUPABASE_SECRET_KEY = privateKey;
@@ -264,32 +302,77 @@ try {
   }
   summary.localServer = "PASS";
 
-  console.log("Exécution des parcours API authentifiés Talent / Recruteur / Partenaire…");
-  summary.remoteDataMayBeModified = true;
-  const testCode = await runCommand(process.execPath, ["e2e/authenticated-role-smoke.mjs"], env);
-  const reportPath = path.join(ROOT, "artifacts", "e2e", "authenticated-role-smoke.json");
-  if (await exists(reportPath)) {
-    const report = JSON.parse(await readFile(reportPath, "utf8"));
-    summary.authenticatedRoleSmoke = report.status || "UNKNOWN";
-    summary.checks = {
-      total: report.checks?.length || 0,
-      passed: report.checks?.filter((x) => x.status === "PASS").length || 0,
-      blocked: report.checks?.filter((x) => x.status === "BLOCKED").length || 0,
-      failed: report.checks?.filter((x) => x.status === "FAIL").length || 0,
+  if (RUN_MODE === "--browser-only") {
+    console.log("Mode browser-only : aucun parcours API authentifié ni aucune écriture métier ne seront exécutés.");
+    const playwrightModulePath = await ensurePlaywright(env);
+    const authReportCandidates = [
+      path.join(SOURCE_ROOT, "artifacts", "e2e", "auth-session-smoke.json"),
+      path.join(ROOT, "artifacts", "e2e", "auth-session-smoke.json"),
+    ];
+    const authReportPath = (await Promise.all(authReportCandidates.map(async (candidate) => ({
+      candidate, present: await exists(candidate),
+    })))).find((item) => item.present)?.candidate;
+    const browserEnv = {
+      ...env,
+      E2E_BASE_URL: BASE_URL,
+      PLAYWRIGHT_MODULE_PATH: playwrightModulePath,
+      ...(authReportPath ? { E2E_AUTH_SESSION_REPORT_PATH: authReportPath } : {}),
     };
-    summary.roles = report.roles || {};
-    summary.externalActions = report.externalActions;
-    const cleanupChecks = (report.checks || []).filter((x) => /CLEANUP/.test(x.id || ""));
-    summary.cleanup = { checks: cleanupChecks.map((x) => ({ id: x.id, status: x.status })), allPass: cleanupChecks.length > 0 && cleanupChecks.every((x) => x.status === "PASS") };
-    summary.summary = report.summary || null;
-  } else {
-    throw new Error("Le rapport du smoke API n’a pas été généré.");
-  }
-  summary.status = summary.authenticatedRoleSmoke === "PASS" && testCode === 0
-    ? "PASS"
-    : summary.authenticatedRoleSmoke === "FAIL" || testCode !== 0
+    const browserCode = await runCommand(process.execPath, ["e2e/browser-smoke.mjs"], browserEnv);
+    const browserReportPath = path.join(ROOT, "artifacts", "e2e", "lot1-auth-ui-smoke.json");
+    if (!(await exists(browserReportPath))) {
+      throw new Error("Le rapport Playwright lot1-auth-ui-smoke.json n’a pas été généré.");
+    }
+    const browserReport = JSON.parse(await readFile(browserReportPath, "utf8"));
+    const failed = Number(browserReport.failed || 0);
+    const blocked = Array.isArray(browserReport.blocked) ? browserReport.blocked.length : 0;
+    const passed = Number(browserReport.passed || 0);
+    summary.browserChecks = {
+      executed: Number(browserReport.executed || 0),
+      passed,
+      failed,
+      blocked,
+    };
+    summary.browserAuthEvidence = browserReport.authLifecycleEvidence || null;
+    summary.browserSmoke = failed > 0 || browserCode !== 0
       ? "FAIL"
-      : "PARTIAL";
+      : blocked > 0 || passed !== 14
+        ? "PARTIAL"
+        : "PASS";
+    summary.remoteDataMayBeModified = false;
+    summary.status = summary.browserSmoke === "PASS"
+      ? "PASS"
+      : summary.browserSmoke === "FAIL"
+        ? "FAIL"
+        : "PARTIAL";
+  } else {
+    console.log("Exécution des parcours API authentifiés Talent / Recruteur / Partenaire…");
+    summary.remoteDataMayBeModified = true;
+    const testCode = await runCommand(process.execPath, ["e2e/authenticated-role-smoke.mjs"], env);
+    const reportPath = path.join(ROOT, "artifacts", "e2e", "authenticated-role-smoke.json");
+    if (await exists(reportPath)) {
+      const report = JSON.parse(await readFile(reportPath, "utf8"));
+      summary.authenticatedRoleSmoke = report.status || "UNKNOWN";
+      summary.checks = {
+        total: report.checks?.length || 0,
+        passed: report.checks?.filter((x) => x.status === "PASS").length || 0,
+        blocked: report.checks?.filter((x) => x.status === "BLOCKED").length || 0,
+        failed: report.checks?.filter((x) => x.status === "FAIL").length || 0,
+      };
+      summary.roles = report.roles || {};
+      summary.externalActions = report.externalActions;
+      const cleanupChecks = (report.checks || []).filter((x) => /CLEANUP/.test(x.id || ""));
+      summary.cleanup = { checks: cleanupChecks.map((x) => ({ id: x.id, status: x.status })), allPass: cleanupChecks.length > 0 && cleanupChecks.every((x) => x.status === "PASS") };
+      summary.summary = report.summary || null;
+    } else {
+      throw new Error("Le rapport du smoke API n’a pas été généré.");
+    }
+    summary.status = summary.authenticatedRoleSmoke === "PASS" && testCode === 0
+      ? "PASS"
+      : summary.authenticatedRoleSmoke === "FAIL" || testCode !== 0
+        ? "FAIL"
+        : "PARTIAL";
+  }
 } catch (error) {
   summary.status = "BLOCKED";
   summary.reason = error instanceof Error ? error.message : "Erreur locale non détaillée.";
@@ -300,5 +383,6 @@ try {
 }
 console.log(JSON.stringify(summary, null, 2));
 console.log("Rapport de synthèse : artifacts/e2e/authenticated-role-runner-summary.json");
-console.log("Rapport API : artifacts/e2e/authenticated-role-smoke.json");
+if (RUN_MODE === "--browser-only") console.log("Rapport navigateur : artifacts/e2e/lot1-auth-ui-smoke.json");
+else console.log("Rapport API : artifacts/e2e/authenticated-role-smoke.json");
 if (summary.status !== "PASS") process.exitCode = summary.status === "FAIL" ? 1 : 2;
