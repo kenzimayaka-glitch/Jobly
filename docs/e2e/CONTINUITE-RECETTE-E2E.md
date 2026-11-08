@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.31 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.32 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -15,7 +15,7 @@
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le dernier rapport V4 confirme un arrêt au contrôle local du format de la clé (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avant toute requête HTTP ; `results=[]`. L'exposition de `net` reste donc indéterminée. La V5 qui invite à coller `service_role` est SUSPENDUE ; ne pas la réexécuter. À la demande de l'opérateur, une V6 distincte est transmise au §34 pour deux GET OpenAPI sur JOBLY-E2E, avec invite masquée, uniquement à l'aide de la clé historique `service_role` JOBLY-E2E si elle est Active et confirmée comme telle. La V6 a été exécutée par l'opérateur le 8 novembre 2026, mais s'est arrêtée au contrôle local de format (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avec `results=[]` ; aucun GET n'a été exécuté et elle ne constitue pas un PASS. L'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`, `sb_secret_…` ou une clé de production. La V5 reste suspendue ; la V6 du §34 est la seule commande de retest retransmise à la demande de l'opérateur. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.31  
+**Version :** 2.32  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1831,3 +1831,38 @@ La capture ne justifie pas de changer le script ni d'élargir les autorisations.
 - Rapport V6 local : `feedback-lot00-net-schema-exposure-v6-20261108.txt`, contenu non secret visible dans la capture.
 - Document source avant cette mise à jour : V2.30, blob SHA `62af041ff871f191fe4416d05ce37469868a5f76`, branche `e2e/recette`.
 - Aucune valeur de clé, aucun en-tête `apikey` et aucun jeton n'ont été reçus.
+
+
+---
+
+## 36. Clarification opérateur sur la clé copiée après l'erreur V6 — V2.32 — 8 novembre 2026
+
+### 36.1 Déclaration reçue
+
+L'opérateur indique : « j'ai copier celle de service role anon ». La formulation ne permet pas de déterminer de manière certaine s'il confirme avoir cliqué sur Copier en face de `service_role`, s'il parle de la ligne `anon`, ou s'il désigne les deux clés.
+
+### 36.2 État technique inchangé
+
+- Le rapport V6 reçu en capture reste : `results=[]`, `GATE=BLOCKED_REVIEW_REQUIRED`, `KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`.
+- Le script a reçu une chaîne vide ou une chaîne qui ne commence pas par `eyJ`; il s'est arrêté avant validation des claims et avant toute requête HTTP.
+- Les clés Legacy `anon` et `service_role` sont distinctes. La sélection de `anon` ne satisferait pas le contrôle de rôle même si son format JWT commençait également par `eyJ`.
+- La capture confirme le bouton de désactivation des clés Legacy, mais ne montre pas quelle ligne a été copiée ni la valeur utilisée.
+
+### 36.3 Prochaine clarification
+
+Demander uniquement quelle ligne a été copiée : `service_role` ou `anon`. Ne pas demander la valeur, un extrait, une capture montrant le secret, ni un copier-coller de la clé. Ne pas relancer V6 avant cette clarification. Aucun changement de clé, réactivation, rotation ou modification Supabase n'est autorisé.
+
+### 36.4 Statut
+
+- LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- GET OpenAPI `public` et `net` : **NON EXÉCUTÉS**.
+- Exposition de `net` : **NON DÉTERMINÉE**.
+- Aucun accès JOBLY-PROD ; aucune fixture, donnée, permission ou configuration Supabase modifiée.
+- `main` inchangée ; PR #266 ouverte, en brouillon et non fusionnée ; aucun déploiement.
+- Aucun secret reçu par l'assistant.
+
+### 36.5 Preuves
+
+- Déclaration opérateur : « j'ai copier celle de service role anon ».
+- Rapport V6 présenté dans la capture utilisateur et analysé au §35.1.
+- Document source avant cette mise à jour : V2.31, blob SHA `3ba90a1a914ba7a5f2fffafa5d99c3b96c3db9c9`, branche `e2e/recette`.
