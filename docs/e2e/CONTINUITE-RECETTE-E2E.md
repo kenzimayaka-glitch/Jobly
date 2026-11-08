@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.42 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.43 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -15,7 +15,7 @@
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : V6 et V7 ont échoué avant HTTP ; V7 n'a détecté aucun marqueur de collage. Le Dashboard montre à l'opérateur la ligne Legacy `service_role` et la valeur révélée commence par `eyJ`. Le contrôle PowerShell §42 avait lu un contenu non vide sans ce préfixe. Le contrôle de classification §43.5 retourne maintenant `clipboard_text_present=True`, `clipboard_kind=OTHER_TEXT`, `clipboard_prefix_eyJ=False`, `clipboard_prefix_sb_secret=False`, `clipboard_equals_ui_label=False`, `clipboard_length_bucket=GE1000`, avec `read_error=NONE`. Il a aussi confirmé `clipboard_overwrite_verified=True` et `overwrite_error=NONE`. Le presse-papiers contenait donc un texte long, mais pas la clé attendue ; le contenu exact n'a pas été affiché ni enregistré. Cette preuve ne permet pas encore d'affirmer que le bouton Copier du Dashboard a échoué, car aucun marqueur témoin n'avait été installé avant le clic : un contenu ancien ou copié depuis un autre élément reste possible. La prochaine étape est le test différentiel §45 : poser et vérifier une sentinelle avant le clic, cliquer ensuite sur Copier dans la ligne Legacy `service_role`, puis classifier le contenu immédiatement après. Aucun GET OpenAPI n'a été obtenu. La V7 ne doit pas être relancée. L'intention des deux buckets publics doit être confirmée et la revue ciblée des grants/policies documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. Les échecs V6/V7 se sont produits avant HTTP et ne démontrent pas que Supabase refuse la clé Legacy. L'opérateur confirme la ligne Legacy `service_role` et le préfixe `eyJ` de la valeur révélée. Le rapport §43.5 a lu `OTHER_TEXT` non vide (`GE1000`), pas `eyJ` ni `sb_secret_`, et a vérifié le remplacement du presse-papiers par une sentinelle. Comme aucune sentinelle de départ n'avait été posée avant le clic sur Copier, l'origine de cet autre texte reste indéterminée. Le prochain contrôle est le test différentiel §45. Ne pas relancer V5/V6/V7 et ne pas utiliser `anon`, `sb_secret_…` ni une clé de production. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.42  
+**Version :** 2.43  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -2439,3 +2439,58 @@ notepad feedback-lot00-clipboard-after-copy-20261108.txt
 - Rapport opérateur du §43.5, reproduit au §45.1.
 - Les conclusions sont limitées aux booléens/étiquettes et à la sentinelle de relecture effectivement rapportés.
 - Document source avant cette mise à jour : V2.41, blob SHA b568b52051f181880629f46e08af1157999e6e50, branche e2e/recette.
+
+
+---
+
+## 46. Résultat confirmé du contrôle de classification presse-papiers — V2.43 — 8 novembre 2026
+
+### 46.1 Résultat opérateur
+
+Le rapport transmis après exécution du contrôle §43.5 indique :
+
+~~~text
+runtime=PowerShell 5.1.19041.4522
+project_ref=ofqqrryamslxoqkklraw
+clipboard_text_present=True
+clipboard_kind=OTHER_TEXT
+clipboard_prefix_eyJ=False
+clipboard_prefix_sb_secret=False
+clipboard_equals_ui_label=False
+clipboard_length_bucket=GE1000
+jwt_three_segments=False
+payload_json_valid=False
+role_service_role=False
+project_ref_match=False
+clipboard_overwrite_verified=True
+read_error=NONE
+overwrite_error=NONE
+GATE=BLOCKED_CLIPBOARD_COPY_OR_FORMAT
+~~~
+
+### 46.2 Conclusions strictement établies
+
+- PowerShell a lu du texte non vide, classé OTHER_TEXT, de longueur supérieure ou égale à 1 000 caractères.
+- Ce texte ne correspond ni au préfixe d'une clé Legacy JWT (eyJ), ni au préfixe d'une clé moderne (sb_secret_), ni au libellé service_role/anon.
+- La lecture n'a signalé aucune erreur.
+- Le remplacement par la sentinelle non secrète et sa relecture ont réussi ; le contenu antérieur a donc été remplacé.
+- Le contenu exact n'a pas été affiché, transmis ou enregistré.
+
+Ces éléments confirment que le presse-papiers ne contenait pas la clé Legacy attendue au moment du contrôle. Ils ne prouvent toujours pas que le bouton Copier du Dashboard est en panne : aucun état sentinelle vérifié n'avait été posé juste avant le clic. Un contenu ancien ou une copie provenant d'un autre élément reste compatible avec les faits.
+
+### 46.3 Prochaine action unique
+
+Exécuter le test différentiel en deux temps déjà documenté au §45 :
+1. Installer la sentinelle et vérifier `baseline_verified=True`.
+2. Seulement après ce PASS, cliquer une fois sur Copier dans la ligne Legacy `service_role` du projet JOBLY-E2E, puis exécuter immédiatement le contrôle après-copie du §45.3.
+
+Ne pas relancer V5/V6/V7, ne pas coller la clé dans un terminal ou un message et ne pas tenter de requête HTTP avant que le contrôle local confirme le format et les claims attendus. Aucun secret n'est demandé.
+
+### 46.4 État et périmètre
+
+- LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- GET OpenAPI `public` et `net` : non exécutés.
+- Aucun appel HTTP, aucune validation de signature JWT, aucune mutation Supabase/fixture.
+- JOBLY-PROD non consulté ; `main` inchangée ; PR #266 reste ouverte, brouillon et non fusionnée ; aucun déploiement.
+- Source : rapport opérateur transmis dans la conversation ; valeurs non secrètes uniquement.
+- Document source : V2.42, branche `e2e/recette`, blob SHA `07927cbd8bc8c8dafe2e88453d380277cc20b145`.
