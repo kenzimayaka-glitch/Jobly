@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.99 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.100 — 8 novembre 2026
 >
 > **Dernier commit de correction LOT-00 :** `cdc4399d452f3341895b5d56efb5204080d3faa9` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 conserve uniquement le préflight environnement/fixtures et les contrôles read-only de base (identité, RLS/grants, Storage, correspondances des fixtures), hors OpenAPI. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.99  
+**Version :** 2.100  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -93,6 +93,43 @@ Cette information explique plausiblement l'état de la console : un redémarrage
 Ces commandes sont des contrôles de contexte uniquement. Ne pas faire `pull`, `switch`, `reset`, `stash` ou `clean`. Si Git réclame une authentification, ne saisir aucun secret dans le chat ; traiter la demande sur le poste local seulement. Ne lancer aucun script Storage lors de cette reprise de session.
 
 Le diagnostic du fichier local ne reprend qu'après confirmation du répertoire du dépôt et de son remote. Ensuite seulement, effectuer le préflight read-only des chemins défini au §93.3 et le remplacement atomique si tous les prérequis sont présents.
+
+### 93.6 Reprise de session confirmée — dépôt retrouvé, Node.js à contrôler
+
+Après redémarrage de Windows, l'opérateur a rouvert CMD et transmis le rapport `feedback-lot00-session-recovery.txt`. Les éléments suivants sont maintenant établis :
+
+- Dossier courant : `C:\Users\ASUS\Jobly`.
+- Racine Git : `C:/Users/ASUS/Jobly`.
+- Remote fetch/push : `https://github.com/kenzimayaka-glitch/Jobly.git`.
+- Branche locale : `e2e/recette`.
+- État de synchronisation indiqué par Git : `e2e/recette...origin/e2e/recette [behind 167]`.
+- Le répertoire de travail est fortement modifié : le script `e2e/reset-existing-fixture-passwords.mjs` apparaît modifié ; de nombreux rapports sont non suivis ; `scripts/e2e/` et `supabase/.temp/` apparaissent non suivis.
+
+**Interprétation :** la session CMD est rétablie et le clone Git est retrouvé. La mention `behind 167` ne justifie aucune synchronisation automatique. Les modifications et fichiers locaux doivent être préservés. Ne pas exécuter `git pull`, `switch`, `reset`, `stash`, `clean`, ni le reset/provisionneur de fixtures. Ne pas supprimer ou écraser `scripts/e2e/` avant inventaire.
+
+**Node.js : statut non encore vérifié après redémarrage.** Le fait d'être dans CMD ne signifie pas que Node.js est absent : CMD est le shell Windows depuis lequel l'exécutable `node` est appelé. Le dernier environnement documenté indiquait Node.js v26.13.0, mais cette version n'a pas été revalidée dans la nouvelle session.
+
+Contrôle read-only à exécuter depuis `C:\Users\ASUS\Jobly` :
+```cmd
+(
+echo === NODE.JS ===
+where node 2^>^&1
+node --version 2^>^&1
+echo.
+echo === NPM ===
+where npm 2^>^&1
+npm --version 2^>^&1
+echo.
+echo === PNPM ===
+where pnpm 2^>^&1
+pnpm --version 2^>^&1
+) > feedback-lot00-node-preflight-20261108.txt 2>&1
+notepad feedback-lot00-node-preflight-20261108.txt
+```
+
+Ce contrôle ne modifie ni les dépendances ni les fichiers du projet. Si `node` est « introuvable », distinguer une absence réelle d'installation d'un PATH non chargé ; ne pas installer, réinstaller ou modifier PATH avant d'avoir lu le rapport et vérifié l'installation existante.
+
+À ce stade, le clone et le remote sont confirmés, mais Node.js, le lanceur local et Storage ne sont pas validés. Le préflight Node doit précéder tout lancement de script.
 
 ### 93.4 Limites de l'intervention et statut Storage
 
