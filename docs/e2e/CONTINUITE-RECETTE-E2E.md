@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.56 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.57 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3060,3 +3060,52 @@ Aucune recherche de secret sur le disque, aucun dump d'environnement, aucun affi
 - Aucun changement de `main`, aucune fusion et aucun déploiement.
 - PR #266 reste ouverte, en brouillon et non fusionnée.
 - Document source avant cette mise à jour : V2.55, blob SHA c8b5977caa546cdf1a5b56daddfbbd91246087b0, branche `e2e/recette`.
+
+
+---
+
+## 59. Voie alternative CLI pour LOT-00 — V2.57 — 8 novembre 2026
+
+### 59.1 Découverte vérifiée
+
+La documentation Supabase actuelle présente une voie officielle hors Dashboard pour lister les clés d'un projet avec la CLI :
+
+`supabase projects api-keys --project-ref <project-ref>`
+
+La documentation distingue bien les clés Legacy `anon`/`service_role` (JWT) des nouvelles clés `sb_publishable_...`/`sb_secret_...`. Le chemin CLI permet d'éviter le bouton Copier du navigateur. Sources consultées le 8 novembre 2026 :
+- https://supabase.com/docs/guides/getting-started/api-keys
+- https://supabase.com/docs/reference/cli/supabase-projects-api-keys
+
+### 59.2 Vérifications non destructives via le connecteur Supabase
+
+Pour le seul projet autorisé `JOBLY-E2E` / `ofqqrryamslxoqkklraw` :
+- `get_project` retourne `ACTIVE_HEALTHY`, région `eu-west-1`.
+- `get_publishable_keys` retourne la clé Legacy `anon` avec `disabled=false), ainsi que la clé `default` de type publishable avec `disabled=false`.
+- Cette réponse ne contient pas la clé `service_role` et ne prouve pas à elle seule son état ; elle ne permet donc pas de clore LOT-00.
+- Aucun endpoint de lecture sécurisée de la clé `service_role` n'est exposé dans les outils Supabase connectés à cette session.
+
+### 59.3 Plan de substitution au presse-papiers
+
+- Suspendre définitivement les essais de copie Dashboard (§58).
+- Vérifier localement la présence de la CLI Supabase et l'existence d'une session Management API déjà authentifiée. Le contrôle préliminaire utilise uniquement `supabase --version` et `supabase projects list`, sans afficher ni enregistrer de clé.
+- Si la CLI est présente et authentifiée, utiliser ensuite `supabase projects api-keys --project-ref ofqqrryamslxoqkklraw` depuis un processus local qui capture sa sortie uniquement en mémoire, sélectionne la clé Legacy dont les claims JWT sont `role=service_role` et `ref=ofqqrryamslxoqkklraw), puis exécute exclusivement les GET OpenAPI prévus au §16.7.
+- La valeur ne doit jamais être imprimée, copiée dans le presse-papiers, écrite dans un fichier, ajoutée à une commande, ou transmise à l'assistant. Seuls les statuts HTTP, codes PostgREST et indicateurs de validation sont conservés.
+- Si la CLI n'est pas installée ou si aucune session authentifiée n'existe, arrêter le chemin CLI et décider ensuite de l'installation/authentification locale ; ne pas demander de PAT ou de clé dans le chat.
+- Ne pas utiliser `--reveal` pour tenter d'exposer une nouvelle clé `sb_secret_...` : le gate actuel vise explicitement la clé Legacy `service_role`.
+
+### 59.4 État et interdictions
+
+- La voie CLI est **identifiée, mais non encore exécutée sur le poste Windows de l'opérateur**.
+- Le prochain contrôle demandé est uniquement le préflight non secret ci-dessous ; aucun GET OpenAPI n'est lancé par ce préflight.
+
+~~~bat
+cd /d C:\Users\ASUS\Jobly
+powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';$report='feedback-lot00-cli-preflight-20261108.txt';$available=$false;$version='NOT_FOUND';$auth='NOT_CHECKED';$e2e=$false;$cliCommand=$false;$exitCode='NOT_RUN';$failure='NONE';try{$null=Get-Command supabase -ErrorAction Stop;$available=$true;$v=@(& supabase --version 2>&1);if($LASTEXITCODE -eq 0){$version=($v -join ' ').Trim()};$h=@(& supabase projects api-keys --help 2>&1);$helpText=($h | ForEach-Object {[string]$_}) -join ' ';$cliCommand=($helpText -match 'api-keys') -and ($helpText -match 'project-ref');$p=@(& supabase projects list 2>&1);$exitCode=[string]$LASTEXITCODE;$projectText=($p | ForEach-Object {[string]$_}) -join ' ';if($exitCode -eq '0'){$auth='CLI_AUTH_OK';$e2e=($projectText -match 'ofqqrryamslxoqkklraw')}else{$auth='CLI_AUTH_REQUIRED_OR_API_ERROR'};$v=$null;$h=$null;$helpText=$null;$p=$null;$projectText=$null}catch{$failure='CLI_NOT_FOUND_OR_PREFLIGHT_ERROR'};$lines=@('runtime=PowerShell '+$PSVersionTable.PSVersion.ToString(),'supabase_cli_available='+$available,'supabase_cli_version='+$version,'api_keys_command_project_ref_supported='+$cliCommand,'management_api_auth='+$auth,'jobly_e2e_visible='+$e2e,'projects_list_exit_code='+$exitCode,'failure='+$failure);Set-Content -Path $report -Value $lines -Encoding ASCII;$lines"
+notepad feedback-lot00-cli-preflight-20261108.txt
+~~~
+
+- LOT-00 demeure **PARTIAL / BLOCKED_REVIEW_REQUIRED** jusqu'aux réponses OpenAPI réelles et aux autres preuves de sécurité du lot.
+- JOBLY-PROD hors périmètre ; aucune clé, fixture, mot de passe, permission ou donnée n'y a été utilisée/modifiée.
+- Aucun changement de `main`, aucune fusion, aucun déploiement.
+- PR #266 reste ouverte, brouillon et non fusionnée.
+- Document source avant cette mise à jour : V2.56, blob SHA `d48e06078af5f0591908c283a74973fa3a30625c`, branche `e2e/recette`.
