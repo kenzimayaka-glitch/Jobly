@@ -9,6 +9,7 @@ const PROJECT_REF = "ofqqrryamslxoqkklraw";
 const SUPABASE_URL = "https://" + PROJECT_REF + ".supabase.co";
 const PORT = "3217";
 const BASE_URL = "http://127.0.0.1:" + PORT;
+const NEXT_CLI = path.join(ROOT, "node_modules", "next", "dist", "bin", "next");
 const REPORT_PATH = path.join(ROOT, "artifacts", "e2e", "authenticated-role-runner-summary.json");
 
 async function exists(file) { try { await access(file); return true; } catch { return false; } }
@@ -42,15 +43,44 @@ function stopServer(child) {
     child.kill("SIGTERM");
   }
 }
-async function waitForServer() {
-  for (let attempt = 0; attempt < 45; attempt += 1) {
+async function waitForServer(child) {
+  let lastHttpStatus = null;
+  let lastNetworkError = null;
+  let processErrorCode = null;
+  child.once("error", (error) => { processErrorCode = error?.code || "SPAWN_ERROR"; });
+  for (let attempt = 1; attempt <= 45; attempt += 1) {
+    if (processErrorCode || child.exitCode !== null || child.signalCode !== null) {
+      return {
+        ready: false, attempts: attempt, lastHttpStatus, lastNetworkError,
+        processExitCode: child.exitCode, processSignal: child.signalCode, processErrorCode,
+      };
+    }
     try {
       const response = await fetch(BASE_URL + "/api/profile", { signal: AbortSignal.timeout(2500), cache: "no-store" });
-      if (response.status === 401) return true;
-    } catch {}
+      lastHttpStatus = response.status;
+      if (response.status === 401) {
+        await response.body?.cancel().catch(() => undefined);
+        return {
+          ready: true, attempts: attempt, lastHttpStatus, lastNetworkError: null,
+          processExitCode: child.exitCode, processSignal: child.signalCode, processErrorCode,
+        };
+      }
+      await response.body?.cancel().catch(() => undefined);
+      if (response.status !== 502 && response.status !== 503 && response.status !== 504) {
+        return {
+          ready: false, attempts: attempt, lastHttpStatus, lastNetworkError: null,
+          processExitCode: child.exitCode, processSignal: child.signalCode, processErrorCode,
+        };
+      }
+    } catch (error) {
+      lastNetworkError = error instanceof Error ? error.name : "NETWORK_ERROR";
+    }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
-  return false;
+  return {
+    ready: false, attempts: 45, lastHttpStatus, lastNetworkError,
+    processExitCode: child.exitCode, processSignal: child.signalCode, processErrorCode,
+  };
 }
 
 const summary = {
@@ -63,6 +93,7 @@ const summary = {
   authenticatedRoleSmoke: "NOT_RUN",
   secretsPrinted: false,
   remoteDataMayBeModified: false,
+  localServerProbe: null,
 };
 let server = null;
 try {
@@ -71,6 +102,7 @@ try {
   assert.equal(runGit(["rev-parse", "HEAD"]), runGit(["rev-parse", "origin/e2e/recette"]), "Le worktree ne correspond pas exactement à origin/e2e/recette. Faites git fetch origin puis recréez un worktree propre.");
   assert.equal(runGit(["status", "--porcelain"]), "", "Le worktree doit être propre avant la recette.");
   assert.ok(await exists(path.join(ROOT, "node_modules", "next", "package.json")), "Dépendances manquantes : exécutez pnpm install --frozen-lockfile --ignore-scripts dans le worktree.");
+  assert.ok(await exists(NEXT_CLI), "Binaire Next.js absent du worktree ; réinstallez les dépendances avec le lockfile.");
 
   const mergedConfig = {};
   for (const file of [".env", ".env.local", ".env.e2e.local"]) {
@@ -122,9 +154,20 @@ try {
   if (buildCode !== 0) throw new Error("Le build Next.js a échoué ; serveur et recette non lancés.");
 
   console.log("Démarrage du serveur local isolé sur " + BASE_URL + "…");
-  server = spawn("pnpm", ["start", "--", "--hostname", "127.0.0.1", "--port", PORT], { cwd: ROOT, env, stdio: "ignore", shell: process.platform === "win32", windowsHide: true });
-  const ready = await waitForServer();
-  if (!ready) throw new Error("Le serveur local n’a pas répondu HTTP 401 à /api/profile dans le délai prévu ; test API non lancé.");
+  server = spawn(process.execPath, [NEXT_CLI, "start", "--hostname", "127.0.0.1", "--port", PORT], { cwd: ROOT, env, stdio: "ignore", windowsHide: true });
+  const probe = await waitForServer(server);
+  summary.localServerProbe = { expectedHttpStatus: 401, ...probe };
+  if (!probe.ready) {
+    summary.localServer = "BLOCKED";
+    const detail = probe.lastHttpStatus !== null
+      ? "HTTP " + probe.lastHttpStatus + " reçu au lieu de 401"
+      : probe.processExitCode !== null
+        ? "processus Next arrêté avec le code " + probe.processExitCode
+        : probe.processErrorCode
+          ? "démarrage Next impossible (" + probe.processErrorCode + ")"
+          : "aucune réponse HTTP reçue après 45 tentatives";
+    throw new Error("Serveur Next local indisponible : " + detail + " ; test API non lancé.");
+  }
   summary.localServer = "PASS";
 
   console.log("Exécution des parcours API authentifiés Talent / Recruteur / Partenaire…");
