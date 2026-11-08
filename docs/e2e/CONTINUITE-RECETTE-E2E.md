@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.73 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.74 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -10,10 +10,8 @@
 >
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
-> **Verrou de reprise V2.8 :** les sections 7, 9, 10, 11, 12 et 13.7 contiennent des états ou consignes historiques ; elles ne constituent plus des instructions opératoires. En particulier, l'autorisation de reset citée au §9 n'est plus active : ne pas exécuter e2e/reset-existing-fixture-passwords.mjs, les scripts de vérification Auth des anciennes fixtures, le provisionneur, ni scripts/e2e-local-recipe.mjs/le runner bulk. Aucune connexion Auth, mutation de fixture, restauration de mot de passe ou relance globale n'est autorisée par ce document. Le seul prochain contrôle permis est le GET OpenAPI décrit au §16.7, suivi de son analyse.
->
-> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : V6 et V7 ont échoué avant HTTP ; V7 n'a détecté aucun marqueur de collage. Le Dashboard montre à l'opérateur la ligne Legacy `service_role` et la valeur révélée commence par `eyJ`. Le contrôle PowerShell §42 avait lu un contenu non vide sans ce préfixe. Le contrôle de classification §43.5 retourne maintenant `clipboard_text_present=True`, `clipboard_kind=OTHER_TEXT`, `clipboard_prefix_eyJ=False`, `clipboard_prefix_sb_secret=False`, `clipboard_equals_ui_label=False`, `clipboard_length_bucket=GE1000`, avec `read_error=NONE`. Il a aussi confirmé `clipboard_overwrite_verified=True` et `overwrite_error=NONE`. Le presse-papiers contenait donc un texte long, mais pas la clé attendue ; le contenu exact n'a pas été affiché ni enregistré. Cette preuve ne permet pas encore d'affirmer que le bouton Copier du Dashboard a échoué, car aucun marqueur témoin n'avait été installé avant le clic : un contenu ancien ou copié depuis un autre élément reste possible. La prochaine étape est le test différentiel §45 : poser et vérifier une sentinelle avant le clic, cliquer ensuite sur Copier dans la ligne Legacy `service_role`, puis classifier le contenu immédiatement après. Aucun GET OpenAPI n'a été obtenu. La V7 ne doit pas être relancée. L'intention des deux buckets publics doit être confirmée et la revue ciblée des grants/policies documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
-> **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. Les échecs V6/V7 se sont produits avant HTTP et ne démontrent pas que Supabase refuse la clé Legacy. L'opérateur confirme la ligne Legacy `service_role` et le préfixe `eyJ` de la valeur révélée. Le rapport §43.5 a lu `OTHER_TEXT` non vide (`GE1000`), pas `eyJ` ni `sb_secret_`, et a vérifié le remplacement du presse-papiers par une sentinelle. Comme aucune sentinelle de départ n'avait été posée avant le clic sur Copier, l'origine de cet autre texte reste indéterminée. Le prochain contrôle est le test différentiel §45. Ne pas relancer V5/V6/V7 et ne pas utiliser `anon`, `sb_secret_…` ni une clé de production. Aucun secret dans le chat, les rapports ou Git.
+> **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
+> **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 conserve uniquement le préflight environnement/fixtures et les contrôles read-only de base (identité, RLS/grants, Storage, correspondances des fixtures), hors OpenAPI. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
 **Version :** 2.55  
 **Date de consolidation :** 8 novembre 2026  
@@ -771,7 +769,7 @@ La présence de ces privilèges ne suffit pas à prouver que le schéma net est 
 
 ### 16.6 Statut LOT-00
 
-**LOT-00 = PARTIAL, non clos.**
+**LOT-00 = PARTIAL, non clos.** Le contrôle OpenAPI est retiré de son périmètre et reporté au LOT-11 final.
 
 Contrôles satisfaits :
 - identité projet JOBLY-E2E et disponibilité confirmées ;
@@ -780,12 +778,15 @@ Contrôles satisfaits :
 - présence et correspondance des 3 fixtures métier E2E confirmées ;
 - inventaire des buckets et policies Storage établi.
 
-Points à fermer avant le PASS LOT-00 :
-1. Confirmer par GET OpenAPI PostgREST que le schéma net n'est pas exposé aux clients ; aucun appel RPC ou fonction net.http_*.
-2. Valider que les deux buckets publics jobly-events et profile-photos sont intentionnels.
-3. Documenter le plan de moindre privilège des grants table/storage, sans modifier les droits dans le cadre de cette recette.
+Points à fermer avant le PASS LOT-00 (hors OpenAPI) :
+1. Valider que les deux buckets publics jobly-events et profile-photos sont intentionnels.
+2. Documenter le plan de moindre privilège des grants table/storage, sans modifier les droits dans le cadre de cette recette.
 
-### 16.7 Contrôle OpenAPI GET — méthode initiale invalidée le 8 novembre 2026
+Le GET OpenAPI `public`/ `net` n'est plus un critère de sortie de LOT-00. Il est réservé au LOT-11 final (§76).
+
+### 16.7 Historique du contrôle OpenAPI GET — méthode initiale invalidée le 8 novembre 2026 — reporté au LOT-11
+
+**Note de séquencement V2.74 : cette section conserve les tentatives historiques ; elle ne constitue plus une étape opératoire de LOT-00 et ne bloque plus les lots précédents. Le contrôle est différé au LOT-11 final.**
 
 La commande initiale utilisait la clé publishable `sb_publishable_...` à la racine exacte `/rest/v1/`. Le rapport opérateur `feedback-lot00-net-schema-exposure.txt` a retourné :
 
@@ -801,19 +802,17 @@ Références Supabase : la racine OpenAPI peut exiger une clé d'administration 
 
 Après le test corrigé, analyser séparément le résultat `public` et le résultat `net`. Tout 401/403, erreur réseau, réponse ambiguë ou schéma `net` accepté maintient le blocage. Aucun grant, rôle, schéma ou policy ne doit être modifié à partir d'un simple échec d'authentification.
 
-### 16.8 État courant
+### 16.8 État courant après reclassement
 
 - E2E-001 : **PASS statique local — 6/6**.
-- LOT-00 : **PARTIAL — les GET avec la clé publishable ont été rejetés en 401 ; la tentative `sb_secret_…` est signalée rejetée ; l'opérateur voit les entrées `anon` public et `service_role` secret. La seule procédure restante est le test legacy `service_role` masqué du §23.3 ; décision Storage et matrice grants/policies toujours en attente**.
-- Smoke runtime Talent/Recruteur : **suspendu jusqu'à LOT-00 PASS**.
-- Recette bulk 11 lots : **suspendue**.
+- LOT-00 : **PARTIAL — éléments non-OpenAPI encore à fermer : décision sur les buckets publics, matrice grants/policies et prérequis environnement/fixtures applicables**.
+- LOT-01 à LOT-10 : à conduire selon leurs dépendances métier et les prérequis Auth/fixtures ; l'absence de résultat OpenAPI ne les bloque plus.
+- LOT-11 OpenAPI final : **À FAIRE EN DERNIER**, après LOT-10 et réconciliation.
+- Recettes runtime/bulk : restent conditionnées à la disponibilité réelle des fixtures, de la session Auth et à l'isolation JOBLY-E2E ; le déplacement d'OpenAPI ne lève pas ces conditions.
 - JOBLY-PROD : aucune requête SQL, aucune écriture.
 - Fixtures partagées : inchangées.
 - PR #266 : ouverte, brouillon, non fusionnée.
 - main : inchangée ; aucun merge ni déploiement.
-
-
----
 
 ## 17. Audit de continuité et de reprise — V2.8 — 8 novembre 2026
 
@@ -853,21 +852,22 @@ La commande du §16.7 reste un GET seulement et peut être exécutée sans synch
 - net accepté : LOT-00 reste BLOCKED sur l'exposition du schéma ; aucune correction automatique.
 - 401/403, erreur réseau, réponse non JSON, ou résultat différent : BLOCKED/ambigu ; ne rien modifier et faire analyser le rapport.
 
-### 17.4 Critères de fermeture LOT-00 — version clarifiée
+### 17.4 Critères de fermeture LOT-00 — hors OpenAPI
 
 LOT-00 ne pourra être déclaré PASS que lorsque les preuves suivantes seront regroupées et relues :
 
 1. **Identité** : endpoint et project ref correspondent exactement à JOBLY-E2E ofqqrryamslxoqkklraw.
-2. **Exposition API** : public est accessible selon le contrat attendu et net n'est pas exposé (PGRST106 sur le profil net).
-3. **Storage** : décision explicite que jobly-events et profile-photos doivent être publics ; les buckets privés et les accès attendus sont documentés.
-4. **Moindre privilège** : matrice limitée aux tables/routines/objets Storage utilisés par la recette, avec rôle, privilèges directs, RLS, policies applicables et opérations nécessaires. Les écarts doivent être classés et faire l'objet d'un plan approuvé. Aucun grant, policy, bucket ou schéma ne sera modifié dans le cadre de la recette sans autorisation séparée.
-5. **Fixtures et runtime** : correspondance des trois fixtures déjà établie en lecture seule ; disponibilité du moyen local d'authentification/runtime JOBLY-E2E à confirmer séparément, sans réinitialiser les mots de passe et sans exposer le secret.
+2. **Storage** : décision explicite que jobly-events et profile-photos doivent être publics ; les buckets privés et les accès attendus sont documentés.
+3. **Moindre privilège** : matrice limitée aux tables/routines/objets Storage utilisés par la recette, avec rôle, privilèges directs, RLS, policies applicables et opérations nécessaires. Les écarts doivent être classés et faire l'objet d'un plan approuvé. Aucun grant, policy, bucket ou schéma ne sera modifié dans le cadre de la recette sans autorisation séparée.
+4. **Fixtures et runtime** : correspondance des trois fixtures déjà établie en lecture seule ; disponibilité du moyen local d'authentification/runtime JOBLY-E2E à confirmer séparément, sans réinitialiser les mots de passe et sans exposer le secret.
 
-L'activation RLS sur 180/180 tables est un bon indicateur de couverture technique, mais ne remplace pas les points 2 à 5 et ne suffit pas à certifier les policies de toutes les tables.
+L'OpenAPI public/net est exclu de ces critères et sera traité au LOT-11 final (§76). L'activation RLS sur 180/180 tables est un bon indicateur de couverture technique, mais ne remplace pas les points 2 à 4 et ne suffit pas à certifier les policies de toutes les tables.
 
-### 17.5 Séquence de reprise autorisée — une seule action à la fois
+### 17.5 Séquence de reprise autorisée — HISTORIQUE, remplacée par §76
 
-**Action autorisée maintenant :** si la clé affichée dans la ligne `service_role` sous **Legacy API Keys** commence bien par `eyJ`, exécuter exclusivement le contrôle GET OpenAPI du §23.3, puis transmettre uniquement le rapport non sensible `feedback-lot00-net-schema-exposure-v3.txt`. Ne jamais utiliser la clé `anon`.
+**Cette procédure décrivait l'ancien ordre. Elle est supplantée par la décision V2.74 §76 : ne pas exécuter OpenAPI avant la fin des lots précédents.**
+
+**Action autorisée à l'époque :** si la clé affichée dans la ligne `service_role` sous **Legacy API Keys** commence bien par `eyJ`, exécuter exclusivement le contrôle GET OpenAPI du §23.3, puis transmettre uniquement le rapport non sensible `feedback-lot00-net-schema-exposure-v3.txt`. Ne jamais utiliser la clé `anon`.
 
 **Ne pas lancer avant analyse de ce résultat et fermeture LOT-00 :**
 - tout smoke Auth/runtime Talent ou Recruteur ;
@@ -2630,9 +2630,11 @@ notepad artifacts\e2e\bulk\authenticated-runtime-contracts.log
 
 Le runner crée `artifacts/e2e/bulk/summary.md`, `summary.json` et le journal du groupe. Transmettre les résultats non sensibles, en indiquant le SHA réellement exécuté. Ne pas lancer le runner global de 7 groupes par déduction de cette seule autorisation.
 
-### 49.4 Ordre de reprise retenu
+### 49.4 Ordre de reprise retenu — HISTORIQUE, remplacé par §76
 
-1. **Maintenant :** exécuter uniquement le groupe code-only `authenticated-runtime-contracts` ci-dessus et analyser son rapport.
+**Ordre historique conservé pour traçabilité ; l'ordre opératoire actuel est celui du §76. OpenAPI est le LOT-11 final, jamais un gate amont.**
+
+1. **À l'époque :** exécuter uniquement le groupe code-only `authenticated-runtime-contracts` ci-dessus et analyser son rapport.
 2. **En parallèle, sans runtime :** poursuivre les revues de code et tests locaux explicitement isolés, après vérification de leur absence d'appels réseau, d'Auth, de mutations ou de dépendances à des fixtures.
 3. **À reprendre ensuite :** LOT-00, par la procédure de sentinelle §45.2 puis classification §45.3 ; le canari de message §48.2 reste facultatif et peut être sauté.
 4. **Seulement après fermeture documentée de LOT-00 :** reprendre les recettes navigateur/API/authentifiées et les parcours métier runtime.
@@ -2715,7 +2717,7 @@ Ce PASS ne constitue pas une exécution de `e2e/authenticated-role-smoke.mjs). I
 
 Les six groupes de régression de `scripts/e2e-bulk-runner.mjs` ne dépendent pas du gate LOT-00 : leur périmètre est constitué de tests Node.js unitaires ou statiques. Ils n'exécutent ni smoke Auth/runtime, ni appel réseau réel à Supabase, ni ingestion, ni paiement, ni écriture dans une fixture.
 
-LOT-00 reste obligatoire pour les scénarios qui appellent réellement JOBLY-E2E : Auth, API, navigateur connecté, lecture runtime, parcours métier et écritures de test. Il ne bloque pas ces six groupes locaux.
+Les contrôles non-OpenAPI du préflight LOT-00 (identité projet, disponibilité des fixtures, isolation et éléments de sécurité read-only applicables) restent requis pour les scénarios runtime concernés. **Le GET OpenAPI n'est pas requis à l'entrée** : il est réservé au LOT-11 final après LOT-10.
 
 ### 51.2 Inventaire des groupes et volumes de tests inspectés
 
@@ -3735,7 +3737,7 @@ Mise à jour V2.72 sur la branche `e2e/recette`. Source avant cette entrée : bl
 
 ### 75.1 Pourquoi ce contrôle a été ajouté
 
-Le GET OpenAPI sur `/rest/v1/` est un contrôle préalable de la surface d'exposition de la Data API Supabase (PostgREST), avant d'engager les tests runtime E2E. Le document décrit les ressources REST générées à partir des schémas exposés : tables, vues, fonctions et méthodes disponibles.
+Le GET OpenAPI sur `/rest/v1/` est un contrôle final de la surface d'exposition de la Data API Supabase (PostgREST), après les recettes fonctionnelles et la réconciliation finale. Il ne conditionne plus l'engagement des tests runtime E2E. Le document décrit les ressources REST générées à partir des schémas exposés : tables, vues, fonctions et méthodes disponibles.
 
 Le gate conçu pour LOT-00 demandait :
 - `Accept-Profile: public` : HTTP 200 avec un document OpenAPI valide, afin de confirmer que le schéma applicatif attendu est servi par la Data API ;
@@ -3759,15 +3761,73 @@ Supabase a annoncé en février 2026 la suppression de l'accès au document Open
 
 Supabase documente également le Management API `GET /v1/projects/{ref}/database/openapi`, protégé par le scope de lecture de base de données `database:read`. Cette voie est à évaluer si le contrôle OpenAPI est conservé ; elle évite de déduire qu'une clé `service_role` doit nécessairement être extraite localement pour cette inspection.
 
-### 75.4 Décision et garde-fous
+### 75.4 Décision et garde-fous — reclassement en LOT-11 final
 
-- Le gate LOT-00 reste, à cet instant, **PARTIAL / BLOCKED_REVIEW_REQUIRED**, car les deux réponses HTTP attendues n'ont toujours pas été mesurées.
-- Il est néanmoins établi que le blocage OpenAPI est un blocage du contrôle de surface d'exposition, non un échec démontré de l'API applicative ni des fonctionnalités Jobly.
-- Aucune nouvelle commande CLI utilisant le PAT full-access n'est autorisée implicitement. La tentative ponctuelle précédente a retourné le code 1 et son stderr a été perdu. Le PAT doit être révoqué comme prévu par l'opérateur.
-- Avant de maintenir ce contrôle comme verrou absolu pour la suite de la recette, il faut décider de l'une de ces voies : inspection de l'exposition par Management API avec un accès strictement limité à `database:read`, contrôle SQL read-only de la configuration et des privilèges complété par un test HTTP non destructif, ou reclassement formel de l'inspection OpenAPI comme contrôle de sécurité distinct. Aucun de ces contrôles alternatifs n'a encore été exécuté ni déclaré PASS.
+- Le contrôle OpenAPI est reclassé **LOT-11 — audit final**, à exécuter après LOT-10 et après la réconciliation des preuves ; il n'est plus un verrou absolu des parcours précédents.
+- Le dernier essai CLI a retourné le code 1 et son `stderr` a été perdu. Aucune nouvelle commande CLI avec le PAT full-access n'est autorisée implicitement ; l'opérateur doit révoquer ce PAT comme prévu.
+- Pour le LOT-11, privilégier une lecture via Management API avec scope strict `database:read` ou un autre accès read-only approuvé. Ne pas réutiliser le PAT full-access ni extraire `service_role` par défaut. Aucun contrôle alternatif n'a encore été exécuté ou déclaré PASS.
 - Ne pas confondre l'absence de document OpenAPI avec l'indisponibilité des endpoints REST ordinaires.
 - Aucune action JOBLY-PROD, aucune écriture Supabase, aucune mutation de fixture, aucune modification `main`, aucune fusion et aucun déploiement. PR #266 reste ouverte, brouillon et non fusionnée.
 
 ### 75.5 Référence
 
 Mise à jour V2.73 sur `e2e/recette`. Source avant cette entrée : blob SHA `4a0ca9a44416398c2f2fc1a76827a99dc42155ac`. Cette entrée documente la finalité et les limites du contrôle ; elle ne modifie pas le gate technique en statut PASS.
+
+
+---
+
+## 76. Décision de séquencement — OpenAPI déplacé au dernier LOT-11 — V2.74 — 8 novembre 2026
+
+### 76.1 Décision
+
+À la demande de l'opérateur, le contrôle d'exposition Data API/OpenAPI `public` et `net` est retiré du LOT-00 et devient **LOT-11 — CONTRÔLE FINAL**, à exécuter seulement après LOT-10.
+
+Ce changement est un reclassement d'ordre et de dépendance. Il ne transforme pas le résultat actuel en PASS et ne supprime pas le contrôle : il le reporte à la fin de la campagne.
+
+### 76.2 Séquence cible
+
+| Ordre | Lot | Périmètre | Dépendance / règle |
+|---:|---|---|---|
+| 0 | LOT-00 | Préflight environnement, identification JOBLY-E2E, RLS/grants ciblés, Storage, fixtures et isolation — hors OpenAPI | Prérequis de sécurité et de disponibilité des parcours runtime concernés |
+| 1 | LOT-01 | Auth, rôles, navigation et sécurité | Après les prérequis non-OpenAPI de LOT-00 |
+| 2 | LOT-02 | Talent, offres, recherche et candidatures | Après LOT-01 |
+| 3 | LOT-03 | Recruteur et Recruitment 360 | Après LOT-01 |
+| 4 | LOT-04 | Mission Afrique et qualité des offres | Après les contrôles non-OpenAPI de LOT-00 |
+| 5 | LOT-05 | J'IA 360 | Après LOT-01 |
+| 6 | LOT-06 | Mobility et partenaires | Après LOT-02 et LOT-03 |
+| 7 | LOT-07 | Paiements, abonnements et Mobile Money | Après LOT-02 et LOT-03 |
+| 8 | LOT-08 | Events, Community, Bons Plans et Campus | Après LOT-01 |
+| 9 | LOT-09 | Career Journey, Admin 360 et BI | Après LOT-01 et LOT-02 |
+| 10 | LOT-10 | PWA, Android et régression transverse | Après LOT-01 à LOT-09 selon le graphe du runner |
+| 11 | **LOT-11 — OpenAPI final** | Inspection Data API/PostgREST : `public=200` avec OpenAPI valide, puis `net=406/PGRST106` attendu | **Après LOT-10**, réconciliation des résultats et nettoyage de la campagne |
+
+Le tableau de synthèse de l'exécution historique §3.3 n'est pas réécrit : il représente le run réellement communiqué à cette date. LOT-11 est un lot de fin de recette nouvellement planifié, non exécuté et absent des anciens comptages.
+
+### 76.3 Effet sur les blocages
+
+- Le contrôle OpenAPI n'est plus un critère d'entrée ni une dépendance des LOT-01 à LOT-10.
+- L'échec CLI `BLOCKED_CLI_NONZERO_EXIT` n'empêche donc plus à lui seul la poursuite des autres lots.
+- LOT-00 conserve ses contrôles propres hors OpenAPI : identité/projet, disponibilité et correspondance des fixtures, isolation, audit RLS/grants/Storage et décisions de moindre privilège nécessaires à la sécurité des parcours runtime. Le reclassement OpenAPI ne lève aucun de ces prérequis.
+- Les recettes runtime restent conditionnées aux prérequis de session Auth, à l'intégrité des fixtures partagées, à l'isolation JOBLY-E2E et aux contraintes de lecture/écriture documentées par chaque lot. Le déplacement d'OpenAPI ne donne aucune autorisation de reset, provisionnement ou mutation.
+- Les six groupes locaux code-only déjà PASS ne sont pas relancés.
+- Le runner `scripts/e2e-local-recipe.mjs` a été inspecté : son LOT-00 est un préflight environnement/fixtures et son catalogue porte les lots LOT-01 à LOT-10 ; il ne contient pas l'appel OpenAPI. Aucun code runner n'est changé par cette décision. LOT-11 est un contrôle final documentaire/manuellement piloté, non déclenché automatiquement par le runner actuel.
+
+### 76.4 Méthode retenue pour le LOT-11
+
+1. Attendre la fin de LOT-10 et la réconciliation des rapports/artefacts, sans relancer les tests déjà verts.
+2. Révoquer le PAT Supabase full-access utilisé lors de la tentative précédente, comme prévu par l'opérateur. Ne pas le réutiliser pour LOT-11.
+3. Préférer un accès read-only limité à `database:read` pour consulter le document via le Management API, ou une autre méthode explicitement approuvée et limitée aux seules lectures de métadonnées.
+4. Vérifier les deux profils attendus, sans appeler de fonction `net.http_*`, sans lire les données métier et sans modifier grants, schémas, policies, buckets ou clés.
+5. Si l'accès read-only approprié n'est pas disponible à la fin, déclarer LOT-11 BLOCKED avec preuve de l'obstacle ; ne pas contourner par un PAT full-access ni par extraction de la clé `service_role`.
+
+### 76.5 Statut après reclassement
+
+- LOT-00 : PARTIAL sur ses seuls éléments non-OpenAPI encore à fermer ; son périmètre ne comprend plus le GET OpenAPI.
+- LOT-01 à LOT-10 : séquencés selon leurs dépendances et les prérequis runtime propres ; aucune dépendance OpenAPI.
+- LOT-11 : **À FAIRE EN DERNIER — NON EXÉCUTÉ**.
+- Le résultat `BLOCKED_CLI_NONZERO_EXIT` est conservé comme historique de tentative antérieure et n'est pas un FAIL du service Data API.
+- JOBLY-PROD reste hors périmètre ; aucune mutation de fixture non autorisée, aucun changement `main`, aucune fusion et aucun déploiement. PR #266 reste ouverte, brouillon et non fusionnée.
+
+### 76.6 Référence
+
+Décision enregistrée en V2.74 sur `e2e/recette`. Source avant cette mise à jour : blob SHA `1bf9cde875353a3db200e04518c80c515caa2341`. Aucun code d'application ni runner n'a été modifié dans cette mise à jour ; seule la référence de recette et l'ordre des lots sont ajustés.
