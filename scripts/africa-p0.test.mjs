@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolveEffectivePublicationDate } from "../supabase/functions/_shared/job-freshness.ts";
+import { AFRICA_COUNTRY_CODES, resolveAfricaCountryCode } from "../lib/countries/africa.ts";
 const NOW="2026-11-02T12:00:00.000Z";
 test("real source date remains fresh within two calendar months",()=>{
  const r=resolveEffectivePublicationDate({sourcePublishedAt:"2026-09-20T12:00:00.000Z",firstHarvestAt:"2026-11-01T12:00:00.000Z",createdAt:"2026-11-01T12:00:00.000Z",deadline:null,now:NOW});
@@ -63,4 +64,23 @@ test("scheduled production harvest is restricted to the approved first 20 source
 test("future publication dates are rejected instead of becoming fresh offers",()=>{
  const r=resolveEffectivePublicationDate({sourcePublishedAt:"2026-11-03T12:00:00.000Z",firstHarvestAt:null,createdAt:"2026-11-01T12:00:00.000Z",deadline:null,now:NOW});
  assert.equal(r.visible,false);assert.equal(r.publishedInFuture,true);assert.equal(r.rejectionCode,"PUBLICATION_DATE_IN_FUTURE");
+});
+
+
+test("homepage offer and talent counters share the canonical 54-country Africa catalogue", () => {
+  const route = readFileSync(new URL("../app/api/public/home-stats/route.ts", import.meta.url), "utf8");
+  const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+
+  assert.equal(AFRICA_COUNTRY_CODES.length, 54);
+  assert.equal(resolveAfricaCountryCode("EH"), null);
+  assert.equal(resolveAfricaCountryCode("Cameroon"), "CM");
+  assert.match(route, /AFRICA_COUNTRY_CODES, resolveAfricaCountryCode/);
+  assert.doesNotMatch(route, /"EH"/);
+  assert.match(route, /\.in\("countryCode", \[\.\.\.AFRICA_COUNTRY_CODES\]\)/);
+  assert.match(route, /select\("id,country,User!inner\(role,country\)"\)/);
+  assert.match(route, /fetchAfricanTalentCount\(supabase\)/);
+  assert.match(route, /\.range\(offset, offset \+ PAGE_SIZE - 1\)/);
+  assert.match(page, /Talents partout en Afrique\./);
+  assert.match(page, /PUBLIC_HOME_OFFERS_BASE = 75_000/);
+  assert.match(page, /PUBLIC_HOME_TALENTS_BASE = 415_000/);
 });

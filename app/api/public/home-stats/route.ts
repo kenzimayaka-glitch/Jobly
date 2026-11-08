@@ -1,21 +1,13 @@
 import { NextResponse } from "next/server";
 import { adminClient } from "../../../../lib/server-auth";
 import { resolveEffectivePublicationDate } from "../../../../supabase/functions/_shared/job-freshness";
+import { AFRICA_COUNTRY_CODES, resolveAfricaCountryCode } from "../../../../lib/countries/africa";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 1000;
 const CAPTURE_ID_BATCH_SIZE = 200;
-const AFRICAN_COUNTRY_CODES = [
-  "AO", "BF", "BI", "BJ", "BW", "CD", "CF", "CG", "CI", "CM", "CV",
-  "DJ", "DZ", "EG", "ER", "ET", "GA", "GH", "GM", "GN", "GQ", "GW",
-  "KE", "KM", "LR", "LS", "LY", "MA", "MG", "ML", "MR", "MU", "MW",
-  "MZ", "NA", "NE", "NG", "RW", "SC", "SD", "SL", "SN", "SO", "SS",
-  "ST", "SZ", "TD", "TG", "TN", "TZ", "UG", "ZA", "ZM", "ZW",
-  "EH",
-] as const;
-
 type DiscoveryOffer = {
   id: string;
   sourcePublishedAt: string | null;
@@ -31,6 +23,41 @@ type RecruiterOffer = {
   createdAt: string;
 };
 
+type TalentProfileCountry = {
+  id: string;
+  country: string | null;
+  User: Array<{ role: string; country: string | null }> | null;
+};
+
+async function fetchAfricanTalentCount(
+  supabase: ReturnType<typeof adminClient>,
+): Promise<number> {
+  let count = 0;
+
+  // Paginate explicitly: the Data API's default row cap must not silently
+  // undercount a public headline metric as Jobly grows.
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("Profile")
+      .select("id,country,User!inner(role,country)")
+      .eq("User.role", "TALENT")
+      .order("id", { ascending: true })
+      .range(offset, offset + PAGE_SIZE - 1);
+
+    if (error) throw error;
+
+    const page = (data ?? []) as TalentProfileCountry[];
+    count += page.filter((profile) =>
+      resolveAfricaCountryCode(profile.country) !== null ||
+      Boolean(profile.User?.some((user) => resolveAfricaCountryCode(user.country) !== null))
+    ).length;
+
+    if (page.length < PAGE_SIZE) break;
+  }
+
+  return count;
+}
+
 async function fetchAllActiveDiscoveryOffers(
   supabase: ReturnType<typeof adminClient>,
 ): Promise<DiscoveryOffer[]> {
@@ -41,7 +68,7 @@ async function fetchAllActiveDiscoveryOffers(
       .from("Job")
       .select("id,sourcePublishedAt,createdAt,deadline,opportunityType")
       .eq("isActive", true)
-      .in("countryCode", [...AFRICAN_COUNTRY_CODES])
+      .in("countryCode", [...AFRICA_COUNTRY_CODES])
       .range(offset, offset + PAGE_SIZE - 1);
 
     if (error) throw error;
@@ -105,7 +132,7 @@ async function fetchPublishedRecruiterOffers(
       .select("id,createdAt")
       .eq("status", "published")
       .eq("applicationReady", true)
-      .in("countryCode", [...AFRICAN_COUNTRY_CODES])
+      .in("countryCode", [...AFRICA_COUNTRY_CODES])
       .gte("createdAt", twoMonthsAgo)
       .range(offset, offset + PAGE_SIZE - 1);
 
@@ -125,13 +152,11 @@ export async function GET() {
     const now = new Date();
     const nowIso = now.toISOString();
 
-    const [discoveryOffers, recruiterOffers, talentProfiles] = await Promise.all([
+    const [discoveryOffers, recruiterOffers, africanTalentCount] = await Promise.all([
       fetchAllActiveDiscoveryOffers(supabase),
       fetchPublishedRecruiterOffers(supabase, now),
-      supabase.from("Profile").select("id, User!inner(role)", { count: "exact", head: true }).eq("User.role", "TALENT"),
+      fetchAfricanTalentCount(supabase),
     ]);
-
-    if (talentProfiles.error) throw talentProfiles.error;
 
     const firstHarvestByJob = await fetchFirstHarvestDates(supabase, discoveryOffers);
 
@@ -161,7 +186,7 @@ export async function GET() {
       {
         // Count only visible, fresh offers located in African countries.
         offersCount: visibleDiscoveryOffers + visibleRecruiterOffers,
-        talentsCount: talentProfiles.count ?? 0,
+        talentsCount: africanTalentCount,
         updatedAt: nowIso,
       },
       {
