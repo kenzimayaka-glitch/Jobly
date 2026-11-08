@@ -28,7 +28,7 @@ function record(role, id, status, httpStatus, detail) {
 
 function parseEnvFile(content) {
   const values = {};
-  for (const line of content.split(/\\r?\\n/)) {
+  for (const line of content.split(/\r?\n/)) {
     const match = line.match(/^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*(.*)\\s*$/);
     if (!match) continue;
     let value = match[2].trim();
