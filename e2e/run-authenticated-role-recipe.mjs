@@ -62,7 +62,7 @@ const summary = {
   localServer: "NOT_RUN",
   authenticatedRoleSmoke: "NOT_RUN",
   secretsPrinted: false,
-  remoteDataModified: false,
+  remoteDataMayBeModified: false,
 };
 let server = null;
 try {
@@ -128,6 +128,7 @@ try {
   summary.localServer = "PASS";
 
   console.log("Exécution des parcours API authentifiés Talent / Recruteur / Partenaire…");
+  summary.remoteDataMayBeModified = true;
   const testCode = await runCommand(process.execPath, ["e2e/authenticated-role-smoke.mjs"], env);
   const reportPath = path.join(ROOT, "artifacts", "e2e", "authenticated-role-smoke.json");
   if (await exists(reportPath)) {
@@ -141,6 +142,8 @@ try {
     };
     summary.roles = report.roles || {};
     summary.externalActions = report.externalActions;
+    const cleanupChecks = (report.checks || []).filter((x) => /CLEANUP/.test(x.id || ""));
+    summary.cleanup = { checks: cleanupChecks.map((x) => ({ id: x.id, status: x.status })), allPass: cleanupChecks.length > 0 && cleanupChecks.every((x) => x.status === "PASS") };
     summary.summary = report.summary || null;
   } else {
     throw new Error("Le rapport du smoke API n’a pas été généré.");
