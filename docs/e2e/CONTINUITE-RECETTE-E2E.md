@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.40 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.41 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -15,7 +15,7 @@
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le rapport V6 s'est arrêté avant toute requête HTTP (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`, `results=[]`). L'opérateur confirme que la ligne Legacy `service_role` sélectionnée commence bien par `eyJ`. L'audit du code V6 a identifié un défaut possible avec le marqueur de collage `[200~`, reproduit en simulation. La V7 corrige ce cas et journalise des indicateurs non secrets ; son exécution retourne toutefois paste_start_marker_detected=false, paste_end_marker_detected=false, normalized_prefix_ok=false, results=[] et KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT. Le marqueur n'est donc pas observé dans le run V7 et l'hypothèse `[200~` ne suffit pas à expliquer le blocage actuel. Aucun GET OpenAPI n'a été obtenu. Le contrôle §42 a lu un texte non vide ne commençant pas par eyJ ; le détail du texte n'a pas été consigné. Le nettoyage du presse-papiers n'a pas été confirmé. La cause la plus probable est que le bouton Copier n'a pas placé la valeur service_role attendue dans le presse-papiers système, ou qu'un autre format/contenu y est resté. Le contrôle §43 classifiera uniquement le type de contenu par indicateurs booléens/étiquette générique et remplacera le presse-papiers par un texte inoffensif vérifié. La V7 ne doit pas être relancée. L'intention des deux buckets publics doit être confirmée et la revue ciblée des grants/policies documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. Le rejet V6 est intervenu avant HTTP et ne démontre pas que la clé Supabase est refusée. L'opérateur a confirmé la ligne Legacy `service_role` et le préfixe `eyJ`. Ne pas utiliser `anon`, `sb_secret_…` ou une clé de production. La V5, la V6 et la V7 sont conservées pour historique ; le résultat du §42 est un contenu presse-papiers non conforme et nettoyage non confirmé. Le prochain contrôle est la classification du presse-papiers et son remplacement vérifié par une sentinelle inoffensive au §43. Ne pas relancer V7. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.40  
+**Version :** 2.41  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -2285,7 +2285,7 @@ cd /d C:\Users\ASUS\Jobly
 if exist feedback-lot00-clipboard-classification-20261108.txt (
   echo Rapport de classification presse-papiers deja present : conservation.
 ) else (
-  powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';$report='feedback-lot00-clipboard-classification-20261108.txt';$k=$null;$parts=$null;$b64=$null;$payload=$null;$decoded=$null;$readError='NONE';$overwriteError='NONE';$hasText=$false;$prefix=$false;$modern=$false;$label=$false;$three=$false;$json=$false;$role=$false;$ref=$false;$kind='UNKNOWN';$bucket='UNKNOWN';$overwritten=$false;try{$k=Get-Clipboard -Raw;$hasText=(-not [string]::IsNullOrWhiteSpace([string]$k));if(-not $hasText){$kind='EMPTY';$bucket='ZERO'}else{$k=([string]$k).Trim();$prefix=$k.StartsWith('eyJ');$modern=$k.StartsWith('sb_secret_');$label=($k -eq 'service_role' -or $k -eq 'anon');if($k.Length -lt 100){$bucket='LT100'}elseif($k.Length -lt 1000){$bucket='100_TO_999'}else{$bucket='GE1000'};if($prefix){$kind='LEGACY_JWT_CANDIDATE';$parts=$k.Split([char]'.');$three=($parts.Length -eq 3);if($three){$b64=$parts[1].Replace('-','+').Replace('_','/');while(($b64.Length % 4) -ne 0){$b64+='='};$decoded=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64));$payload=ConvertFrom-Json -InputObject $decoded -ErrorAction Stop;$json=$true;$role=($payload.role -eq 'service_role');$ref=($payload.ref -eq 'ofqqrryamslxoqkklraw')}}elseif($modern){$kind='MODERN_SECRET_KEY'}elseif($label){$kind='UI_LABEL_TEXT'}else{$kind='OTHER_TEXT'}}}catch{$readError='CLIPBOARD_READ_OR_PARSE_ERROR'}finally{$k=$null;$parts=$null;$b64=$null;$payload=$null;$decoded=$null;try{Set-Clipboard -Value 'JOBLY-CLIPBOARD-OVERWRITTEN' -ErrorAction Stop;$check=Get-Clipboard -Raw;$overwritten=([string]$check -eq 'JOBLY-CLIPBOARD-OVERWRITTEN');$check=$null;if(-not $overwritten){$overwriteError='SENTINEL_READBACK_MISMATCH'}}catch{$overwriteError='CLIPBOARD_OVERWRITE_FAILED'}};$pass=($prefix -and $three -and $json -and $role -and $ref);$lines=@('runtime=PowerShell '+$PSVersionTable.PSVersion.ToString(),'project_ref=ofqqrryamslxoqkklraw','clipboard_text_present='+$hasText,'clipboard_kind='+$kind,'clipboard_prefix_eyJ='+$prefix,'clipboard_prefix_sb_secret='+$modern,'clipboard_equals_ui_label='+$label,'clipboard_length_bucket='+$bucket,'jwt_three_segments='+$three,'payload_json_valid='+$json,'role_service_role='+$role,'project_ref_match='+$ref,'clipboard_overwrite_verified='+$overwritten,'read_error='+$readError,'overwrite_error='+$overwriteError,'GATE='+(if($pass){'PASS_CLIPBOARD_JWT_METADATA'}else{'BLOCKED_CLIPBOARD_COPY_OR_FORMAT'}));Set-Content -Path $report -Value $lines -Encoding ASCII;$lines"
+  powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';$report='feedback-lot00-clipboard-classification-20261108.txt';$k=$null;$parts=$null;$b64=$null;$payload=$null;$decoded=$null;$readError='NONE';$overwriteError='NONE';$hasText=$false;$prefix=$false;$modern=$false;$label=$false;$three=$false;$json=$false;$role=$false;$ref=$false;$kind='UNKNOWN';$bucket='UNKNOWN';$overwritten=$false;try{$k=Get-Clipboard -Raw;$hasText=(-not [string]::IsNullOrWhiteSpace([string]$k));if(-not $hasText){$kind='EMPTY';$bucket='ZERO'}else{$k=([string]$k).Trim();$prefix=$k.StartsWith('eyJ');$modern=$k.StartsWith('sb_secret_');$label=($k -eq 'service_role' -or $k -eq 'anon');if($k.Length -lt 100){$bucket='LT100'}elseif($k.Length -lt 1000){$bucket='100_TO_999'}else{$bucket='GE1000'};if($prefix){$kind='LEGACY_JWT_CANDIDATE';$parts=$k.Split([char]'.');$three=($parts.Length -eq 3);if($three){$b64=$parts[1].Replace('-','+').Replace('_','/');while(($b64.Length % 4) -ne 0){$b64+='='};$decoded=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64));$payload=ConvertFrom-Json -InputObject $decoded -ErrorAction Stop;$json=$true;$role=($payload.role -eq 'service_role');$ref=($payload.ref -eq 'ofqqrryamslxoqkklraw')}}elseif($modern){$kind='MODERN_SECRET_KEY'}elseif($label){$kind='UI_LABEL_TEXT'}else{$kind='OTHER_TEXT'}}}catch{$readError='CLIPBOARD_READ_OR_PARSE_ERROR'}finally{$k=$null;$parts=$null;$b64=$null;$payload=$null;$decoded=$null;try{Set-Clipboard -Value 'JOBLY-CLIPBOARD-OVERWRITTEN' -ErrorAction Stop;$check=Get-Clipboard -Raw;$overwritten=([string]$check -eq 'JOBLY-CLIPBOARD-OVERWRITTEN');$check=$null;if(-not $overwritten){$overwriteError='SENTINEL_READBACK_MISMATCH'}}catch{$overwriteError='CLIPBOARD_OVERWRITE_FAILED'}};$pass=($prefix -and $three -and $json -and $role -and $ref);$lines=@('runtime=PowerShell '+$PSVersionTable.PSVersion.ToString(),'project_ref=ofqqrryamslxoqkklraw','clipboard_text_present='+$hasText,'clipboard_kind='+$kind,'clipboard_prefix_eyJ='+$prefix,'clipboard_prefix_sb_secret='+$modern,'clipboard_equals_ui_label='+$label,'clipboard_length_bucket='+$bucket,'jwt_three_segments='+$three,'payload_json_valid='+$json,'role_service_role='+$role,'project_ref_match='+$ref,'clipboard_overwrite_verified='+$overwritten,'read_error='+$readError,'overwrite_error='+$overwriteError;$gate=if($pass){'PASS_CLIPBOARD_JWT_METADATA'}else{'BLOCKED_CLIPBOARD_COPY_OR_FORMAT'};$lines=@('runtime=PowerShell '+$PSVersionTable.PSVersion.ToString(),'project_ref=ofqqrryamslxoqkklraw','clipboard_text_present='+$hasText,'clipboard_kind='+$kind,'clipboard_prefix_eyJ='+$prefix,'clipboard_prefix_sb_secret='+$modern,'clipboard_equals_ui_label='+$label,'clipboard_length_bucket='+$bucket,'jwt_three_segments='+$three,'payload_json_valid='+$json,'role_service_role='+$role,'project_ref_match='+$ref,'clipboard_overwrite_verified='+$overwritten,'read_error='+$readError,'overwrite_error='+$overwriteError,'GATE='+$gate);Set-Content -Path $report -Value $lines -Encoding ASCII;$lines"
 )
 if exist feedback-lot00-clipboard-classification-20261108.txt notepad feedback-lot00-clipboard-classification-20261108.txt
 ```
@@ -2323,3 +2323,30 @@ notepad feedback-lot00-clipboard-classification-20261108.txt
 - Microsoft Learn Get-Clipboard PowerShell 5.1 : `https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-clipboard?view=powershell-5.1`, `-Raw` récupère le contenu complet du presse-papiers.
 - Microsoft Learn Set-Clipboard PowerShell 5.1 : `https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/set-clipboard?view=powershell-5.1`, le cmdlet définit/remplace l'entrée du presse-papiers.
 - Document source avant cette mise à jour : V2.39, blob SHA `7f7b0ab65d32b998bba466c37a3dddfb594cf65f`, branche `e2e/recette`.
+
+
+---
+
+## 44. Correctif syntaxique du rapport PowerShell de classification — V2.41 — 8 novembre 2026
+
+### 44.1 Revue avant exécution
+
+Une revue statique de la commande du §43.5 a identifié une construction PowerShell incorrecte : `if(...)` était placé directement à l'intérieur d'une concaténation de chaîne `'GATE='+(if(...))`. PowerShell traite `if` comme une instruction ; il faut d'abord lui affecter le résultat dans une variable, puis construire la ligne du rapport.
+
+### 44.2 Correction
+
+La commande du §43.5 est remplacée dans le présent document par la forme corrigée :
+- `$gate=if($pass){...}else{...}`
+- `'GATE='+$gate` dans le tableau de lignes.
+
+Aucun autre comportement n'est modifié : lecture presse-papiers, classification sans divulgation, parsing local conditionnel, remplacement du presse-papiers par une sentinelle non secrète et vérification de relecture.
+
+### 44.3 État
+
+- Commande PowerShell relue statiquement et construction `if` corrigée.
+- Aucun script PowerShell n'a été exécuté par l'assistant ; aucune valeur de presse-papiers lue.
+- Le contrôle opérateur du §43.5 reste **À EXÉCUTER** ; aucun résultat anticipé.
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED** ; aucun GET OpenAPI n'a eu lieu.
+- Aucun accès JOBLY-PROD, aucune mutation Supabase ou fixture.
+- `main` inchangée ; PR #266 ouverte, brouillon et non fusionnée ; aucun déploiement.
+- Document source avant cette correction : V2.40, blob SHA `6fbc062d14a21a3f6ae5e70b5bc502e76c1378fc`.
