@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.47 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.48 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -2645,3 +2645,63 @@ Le runner crée `artifacts/e2e/bulk/summary.md`, `summary.json` et le journal du
 - Aucun runtime JOBLY-E2E n'a été lancé par cette mise à jour ; aucun accès JOBLY-PROD, aucune mutation de fixture ou de données, aucun changement de `main), aucun déploiement.
 - PR #266 demeure ouverte, en brouillon et non fusionnée.
 - Document source avant cette mise à jour : V2.46, blob SHA `6df71ed163b5fd95d69ba70f9157317c46804fcc`, branche `e2e/recette`.
+
+
+---
+
+## 50. Résultat opérateur — authenticated-runtime-contracts — V2.48 — 8 novembre 2026
+
+### 50.1 Rapport transmis
+
+Rapport bulk communiqué par l'opérateur :
+
+~~~text
+Date UTC : 2026-11-08T14:15:12.550Z
+Commit : e92feb8abc1a2491cab7dd81e834080b80982681
+Node.js : v26.13.0
+Groupes exécutés en parallèle : 3
+Groupes sélectionnés : authenticated-runtime-contracts
+Fichiers de test : 1
+Résultat : 1/1 groupes réussis
+
+Groupe : Contrats runtime authentifiés Talent, CV et Recruitment 360
+Statut : PASS
+Tests : 6
+Réussis : 6
+Échoués : 0
+Durée : 0.4 s
+Journal : artifacts/e2e/bulk/authenticated-runtime-contracts.log
+~~~
+
+### 50.2 Rattachement au code vérifié
+
+Vérifications GitHub effectuées lors de l'enregistrement :
+- Le commit exécuté `e92feb8abc1a2491cab7dd81e834080b80982681` existe ; son parent direct est `8385b60400bbaf9cedfcb4aa01073b733533f6c2`.
+- Le commit exécuté ne modifie que `docs/e2e/CONTINUITE-RECETTE-E2E.md), sans changement de fichier de code.
+- La tête distante de `e2e/recette) est `625d686b11ebc136695494f278b98f606929204f`. La comparaison GitHub depuis le commit exécuté indique 47 commits d'avance, 0 en retard ; l'ensemble des fichiers modifiés sur cette plage se limite au document de continuité.
+- La définition du groupe dans `scripts/e2e-bulk-runner.mjs` ne sélectionne qu'un fichier : `scripts/e2e-authenticated-runtime-regression.test.mjs`. Ce fichier contient 6 tests Node.js qui inspectent statiquement le contenu de `e2e/authenticated-role-smoke.mjs`.
+
+Le résultat transmis est donc rattaché au même état de code E2E-001 que celui présent à la tête distante actuelle, les commits ultérieurs vérifiés étant documentaires uniquement. Le rapport a été fourni par l'opérateur ; le journal local lui-même n'a pas été reçu ni inspecté indépendamment.
+
+### 50.3 Portée du PASS
+
+Le PASS démontre que les six assertions statiques du groupe ont réussi. Elles contrôlent notamment :
+- la présence des scénarios de lecture Talent (flux local/Afrique, détail d'offre, CV original et Career Journey) ;
+- la sélection du détail d'offre à partir du flux authentifié ;
+- l'absence d'écriture dans le bloc Talent en lecture seule ;
+- la protection de l'URL signée du CV contre sa journalisation ;
+- les réponses attendues 403 sur un identifiant de recrutement non détenu et 404 pour une cible documentaire inexistante ;
+- l'absence d'insertion de document dans le contrôle négatif.
+
+Ce PASS ne constitue pas une exécution de `e2e/authenticated-role-smoke.mjs). Il ne prouve aucune réponse API runtime, aucune connexion Auth, aucune lecture réelle du flux JOBLY-E2E, aucune sécurité complète RLS/Storage, ni aucun parcours Talent/Recruteur en navigateur. Il n'autorise pas la recette globale ni un runner runtime.
+
+### 50.4 Décision de reprise
+
+- Groupe `authenticated-runtime-contracts` : **PASS — 6/6, 0 échec**.
+- Recette statique code-only : résultat enregistré.
+- Canari de message §48 : reste différable et non bloquant.
+- LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED** ; les GET OpenAPI `public` et `net), la décision sur les buckets publics et la matrice ciblée grants/policies restent à établir selon les critères du §17.4.
+- Tant que LOT-00 n'est pas fermé, ne pas exécuter le smoke Auth/runtime, les parcours Talent/Recruteur, le smoke navigateur qui appelle JOBLY-E2E, le parcours croisé, ni le runner E2E complet.
+- Aucun accès JOBLY-PROD, aucune mutation de fixture ou de données, aucun changement de `main), aucun déploiement.
+- PR #266 reste ouverte, brouillon et non fusionnée.
+- Document source avant cette mise à jour : V2.47, blob SHA `08c7a37a53eb28089b3ddd5fee2c88d6f0f6128a`, branche `e2e/recette`.
