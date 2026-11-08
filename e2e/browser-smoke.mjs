@@ -28,6 +28,9 @@ const modulePath = process.env.PLAYWRIGHT_MODULE_PATH
   || path.resolve(".e2e-tools/node_modules/playwright/index.mjs");
 const { chromium } = await import(pathToFileURL(path.resolve(modulePath)).href);
 const evidenceDir = path.resolve("artifacts/e2e");
+const authSessionReportPath = process.env.E2E_AUTH_SESSION_REPORT_PATH
+  ? path.resolve(process.env.E2E_AUTH_SESSION_REPORT_PATH)
+  : path.join(evidenceDir, "auth-session-smoke.json");
 await mkdir(evidenceDir, { recursive: true });
 
 const results = [];
@@ -152,11 +155,11 @@ try {
   // Reconcile only a recent, complete PASS report from this exact JOBLY-E2E project.
   let authLifecycleEvidence = {
     status: "BLOCKED",
-    sourceReport: "auth-session-smoke.json",
+    sourceReport: path.basename(authSessionReportPath),
     reason: "Rapport Auth séparé absent, incomplet ou périmé.",
   };
   try {
-    const authReport = JSON.parse(await readFile(path.join(evidenceDir, "auth-session-smoke.json"), "utf8"));
+    const authReport = JSON.parse(await readFile(authSessionReportPath, "utf8"));
     const ageMs = Date.now() - Date.parse(authReport.createdAt);
     const expectedRoles = ["TALENT", "RECRUITER", "PARTNER"];
     const accountsValid =
