@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.53 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.54 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -2946,7 +2946,7 @@ Ne pas répéter immédiatement le clic dans la même condition sans vérifier s
 2. Confirmer visuellement que la ligne est celle nommée `service_role` avec le badge `secret` ; ne pas utiliser l'onglet des nouvelles clés, le bouton de révélation seul, le JWT Signing Secret, ou un bouton Copier associé à un autre champ.
 3. Si la valeur est masquée, le bouton Copier doit être celui associé à la valeur de la ligne `service_role`, pas celui du nom de ligne ou d'un panneau voisin.
 4. Avant tout nouvel essai, installer à nouveau la sentinelle et exiger `baseline_verified=True).
-5. Pour le nouvel essai, utiliser une classification enrichie qui ne révèle aucun contenu, mais ajoute seulement : longueur par tranche, égalité exacte avec les libellés statiques `service_role`/`anon`/`secret`, indicateurs « ressemble à du JSON/HTML/texte masqué », format JWT, claims role/ref et GATE. Le rapport ne doit jamais afficher, hacher ou sauvegarder la valeur.
+5. Pour le nouvel essai, reposer d'abord la sentinelle puis utiliser la commande enrichie du §56.1. Elle ne révèle aucun contenu ; elle ajoute seulement longueur par tranche, égalité avec quelques libellés statiques, indicateurs de forme, format JWT, claims role/ref et GATE. Le rapport ne doit jamais afficher, hacher ou sauvegarder la valeur.
 
 Si le Dashboard confirme visuellement la bonne ligne mais que le résultat reste `OTHER_TEXT), interrompre les tentatives répétées et tester une seule fois dans un navigateur à jour différent, avec la même procédure de sentinelle.
 
@@ -2960,3 +2960,35 @@ Si le Dashboard confirme visuellement la bonne ligne mais que le résultat reste
 - LOT-00 demeure **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
 - PR #266 reste ouverte, brouillon et non fusionnée.
 - Document source avant cette mise à jour : V2.52, blob SHA `93167da9abdd64ab72f9ada43a580e5801c1b4f7`, branche `e2e/recette`.
+
+
+---
+
+## 56. Commande de classification enrichie du presse-papiers — V2.54 — 8 novembre 2026
+
+### 56.1 Utilisation
+
+À n'utiliser qu'après avoir vérifié de nouveau la sentinelle de départ avec l'étape A du §45.3, puis après un clic unique sur le bouton Copier associé à la valeur de la ligne Legacy service_role du projet JOBLY-E2E. Aucun collage manuel. Le contenu exact n'est jamais affiché ni écrit dans un fichier ; le script remplace le presse-papiers par une sentinelle avant de terminer.
+
+Commande CMD :
+
+~~~bat
+cd /d C:\Users\ASUS\Jobly
+powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';$report='feedback-lot00-clipboard-after-copy-detail-20261108.txt';$baseline='JOBLY-CLIPBOARD-BASELINE-20261108';$k=$null;$parts=$null;$b64=$null;$payload=$null;$decoded=$null;$kind='UNKNOWN';$prefix=$false;$modern=$false;$three=$false;$json=$false;$role=$false;$ref=$false;$hasText=$false;$lengthBucket='UNKNOWN';$labelService=$false;$labelAnon=$false;$labelSecret=$false;$labelCopy=$false;$masked=$false;$looksJson=$false;$looksHtml=$false;$whitespace=$false;$readError='NONE';$overwriteError='NONE';$overwritten=$false;try{$k=Get-Clipboard -Raw;$hasText=(-not [string]::IsNullOrWhiteSpace([string]$k));if(-not $hasText){$kind='EMPTY_AFTER_COPY'}else{$k=([string]$k).Trim();if($k.Length -le 32){$lengthBucket='LE32'}elseif($k.Length -le 256){$lengthBucket='LE256'}elseif($k.Length -le 1000){$lengthBucket='LE1000'}else{$lengthBucket='GT1000'};$labelService=($k -ieq 'service_role');$labelAnon=($k -ieq 'anon');$labelSecret=($k -ieq 'secret');$labelCopy=($k -match '^(copy|copied|copy key|copied to clipboard)$');$masked=($k -match '^[*xX.]{4,}$');$looksJson=($k.StartsWith('{') -or $k.StartsWith('['));$looksHtml=$k.StartsWith('<');$whitespace=($k -match '\s');$prefix=$k.StartsWith('eyJ');$modern=$k.StartsWith('sb_secret_');$parts=$k.Split([char]'.');$three=($parts.Length -eq 3);if($k -eq $baseline){$kind='BASELINE_UNCHANGED'}elseif($prefix){$kind='LEGACY_JWT_CANDIDATE';if($three){$b64=$parts[1].Replace('-','+').Replace('_','/');while(($b64.Length % 4) -ne 0){$b64+='='};$decoded=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64));$payload=ConvertFrom-Json -InputObject $decoded -ErrorAction Stop;$json=$true;$role=($payload.role -eq 'service_role');$ref=($payload.ref -eq 'ofqqrryamslxoqkklraw')}}elseif($modern){$kind='MODERN_SECRET_KEY'}elseif($labelService -or $labelAnon -or $labelSecret -or $labelCopy){$kind='UI_LABEL'}elseif($masked){$kind='MASKED_PLACEHOLDER'}elseif($looksJson){$kind='JSON_TEXT'}elseif($looksHtml){$kind='HTML_TEXT'}else{$kind='OTHER_TEXT'}}}catch{$readError='CLIPBOARD_READ_OR_PARSE_ERROR'}finally{$k=$null;$parts=$null;$b64=$null;$payload=$null;$decoded=$null;try{Set-Clipboard -Value 'JOBLY-CLIPBOARD-AFTER-CHECK' -ErrorAction Stop;$q=Get-Clipboard -Raw;$overwritten=([string]$q -eq 'JOBLY-CLIPBOARD-AFTER-CHECK');$q=$null;if(-not $overwritten){$overwriteError='SENTINEL_READBACK_MISMATCH'}}catch{$overwriteError='CLIPBOARD_OVERWRITE_FAILED'}};$pass=($kind -eq 'LEGACY_JWT_CANDIDATE' -and $three -and $json -and $role -and $ref);$gate=if($pass){'PASS_CLIPBOARD_JWT_METADATA'}elseif($kind -eq 'BASELINE_UNCHANGED'){'BLOCKED_COPY_NOT_OBSERVED'}elseif($kind -eq 'OTHER_TEXT' -or $kind -eq 'UI_LABEL' -or $kind -eq 'MASKED_PLACEHOLDER' -or $kind -eq 'JSON_TEXT' -or $kind -eq 'HTML_TEXT' -or $kind -eq 'MODERN_SECRET_KEY' -or $kind -eq 'EMPTY_AFTER_COPY'){'BLOCKED_COPY_CONTENT_NOT_EXPECTED'}else{'BLOCKED_CLIPBOARD_READ_OR_PARSE'};$lines=@('runtime=PowerShell '+$PSVersionTable.PSVersion.ToString(),'project_ref=ofqqrryamslxoqkklraw','clipboard_text_present='+$hasText,'clipboard_kind='+$kind,'clipboard_length_bucket='+$lengthBucket,'clipboard_equals_service_role_label='+$labelService,'clipboard_equals_anon_label='+$labelAnon,'clipboard_equals_secret_label='+$labelSecret,'clipboard_equals_copy_label='+$labelCopy,'clipboard_looks_masked='+$masked,'clipboard_looks_like_json='+$looksJson,'clipboard_looks_like_html='+$looksHtml,'clipboard_contains_whitespace='+$whitespace,'clipboard_prefix_eyJ='+$prefix,'clipboard_prefix_sb_secret='+$modern,'jwt_three_segments='+$three,'payload_json_valid='+$json,'role_service_role='+$role,'project_ref_match='+$ref,'clipboard_overwrite_verified='+$overwritten,'read_error='+$readError,'overwrite_error='+$overwriteError,'GATE='+$gate);Set-Content -Path $report -Value $lines -Encoding ASCII;$lines"
+notepad feedback-lot00-clipboard-after-copy-detail-20261108.txt
+~~~
+
+### 56.2 Interprétation
+
+- UI_LABEL + LE32 : le texte copié est probablement un libellé court, pas une clé ; vérifier l'icône précise.
+- MASKED_PLACEHOLDER : le presse-papiers contient un masque de valeur ; le bouton copier n'a pas fourni la clé révélée.
+- JSON_TEXT ou HTML_TEXT : le navigateur a copié un bloc de structure/markup plutôt que la valeur brute ; arrêter et tester une seule fois avec un autre navigateur si la bonne icône est confirmée.
+- OTHER_TEXT : le contenu est non reconnu ; les indicateurs de longueur et de forme aideront à choisir le prochain contrôle sans le révéler.
+- LEGACY_JWT_CANDIDATE sans claims attendus : ne pas poursuivre vers HTTP.
+- PASS_CLIPBOARD_JWT_METADATA : format et claims locaux attendus seulement ; la signature et l'acceptation par le serveur ne sont pas validées.
+
+### 56.3 Garde-fous
+
+Aucun GET OpenAPI avant PASS. Ne pas copier ou transmettre le contenu par une autre méthode. Aucun changement de clé, permission, fixture, production ou déploiement. LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED jusqu'aux preuves HTTP et aux contrôles de sécurité restants.
+
+Document source avant cette mise à jour : V2.53, blob SHA 37ae675855214e2df7b2211316e3bff69e751f37, branche e2e/recette.
