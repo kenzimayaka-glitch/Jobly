@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.101 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.102 — 8 novembre 2026
 >
 > **Dernier commit de correction LOT-00 :** `cdc4399d452f3341895b5d56efb5204080d3faa9` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 conserve uniquement le préflight environnement/fixtures et les contrôles read-only de base (identité, RLS/grants, Storage, correspondances des fixtures), hors OpenAPI. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.101  
+**Version :** 2.102  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -143,6 +143,17 @@ Résultats vérifiés depuis `C:\Users\ASUS\Jobly` :
 **Conclusion :** le redémarrage n'a pas supprimé Node.js ni pnpm du poste. CMD retrouve les trois outils ; aucun téléchargement, réinstallation ou changement de PATH n'est nécessaire. Le préflight runtime est PASS.
 
 **Prochain contrôle autorisé :** inventaire read-only du chemin `scripts\e2e\run-lot00-storage-hardening.cmd`, du dossier `scripts\e2e`, de `%TEMP%` et des références Git distantes ; calculer le hash local si le fichier existe. Ne créer/écraser aucun fichier pendant cet inventaire. Préserver les fichiers non suivis déjà signalés et ne pas synchroniser les 167 commits en retard. Aucun script Storage ne doit encore être lancé.
+
+### 93.8 Consigne opérateur — actions utiles, pas de boucles de vérification
+
+L'opérateur demande explicitement de ne retenir que des actions qui font avancer le chantier, et d'éviter les séries répétitives de contrôles intermédiaires.
+
+Conséquence pour la suite :
+- Les prérequis déjà prouvés ne doivent pas être redemandés : CMD est rétabli, le dépôt `C:\Users\ASUS\Jobly` et le remote GitHub sont confirmés, Node.js `v26.13.0`, npm `11.20.0` et pnpm `10.28.0` fonctionnent.
+- Ne pas refaire un diagnostic général de l'environnement ni demander à l'opérateur de recopier le contenu des scripts.
+- Regrouper la reprise en une seule intervention opérationnelle utile : récupérer uniquement la branche distante de recette nécessaire, installer le lanceur depuis l'objet GitHub vérifié en préservant toute copie locale préexistante, contrôler son empreinte une fois, puis lancer le processus LOT-00 et ouvrir ses deux rapports. Arrêter immédiatement si une étape échoue ; ne pas enchaîner avec des vérifications redondantes.
+- Ne jamais synchroniser les 167 commits du clone local, ni modifier les autres fichiers non suivis. Ne pas exécuter le reset/provisionneur de fixtures. Les secrets restent strictement locaux.
+- Après la tentative, l'analyse doit porter sur le rapport réel et résoudre directement le blocage constaté. LOT-00 reste PARTIAL tant que les cinq buckets et leurs smoke tests réels ne sont pas validés.
 
 ### 93.4 Limites de l'intervention et statut Storage
 
