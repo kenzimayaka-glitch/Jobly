@@ -77,3 +77,12 @@ test("storage hardening includes private event and private profile-photo buckets
   assert.match(source, /SUPABASE_E2E_SECRET_KEY/);
   assert.doesNotMatch(source, /console\.log\(key\)|console\.log\(.*secretKey/);
 });
+
+test("all recruiter and CV-share surfaces hide photos without consent", async () => {
+  const applications = await read("app/api/recruiter/applications/route.ts");
+  const discovery = await read("app/api/recruiter/discover/[token]/route.ts");
+  const cvShare = await read("app/api/cv-share/[token]/route.ts");
+  assert.match(applications, /isProfilePhotoPublic/);
+  assert.match(discovery, /isProfilePhotoPublic/);
+  assert.match(cvShare, /isProfilePhotoPublic/);
+});
