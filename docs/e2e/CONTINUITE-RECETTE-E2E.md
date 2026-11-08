@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.67 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.68 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3529,3 +3529,29 @@ Le rapport `feedback-lot00-openapi-readonly-20261108.txt` ne contient que les co
 - LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED** jusqu'à réception et analyse du rapport.
 - `main` inchangée ; PR #266 ouverte, brouillon, non fusionnée.
 - Document source avant cette mise à jour : V2.66, blob SHA 41623285363f1267fe3f7109f91fcd9dcda20a6b, branche `e2e/recette`.
+
+---
+
+## 70. Envoi direct des commandes de recette — état d'exécution — V2.68 — 8 novembre 2026
+
+### 70.1 Commandes à exécuter maintenant
+
+L'opérateur demande l'envoi direct des commandes de recette. Réponse opératoire :
+
+1. Les commandes bulk déjà PASS (302 tests historiques couverts, 66/66 Identity revalidés, 6/6 authenticated-runtime-contracts) ne doivent pas être répétées. Aucun nouvel appel bulk n'est nécessaire.
+2. Le seul contrôle exécutable maintenant pour débloquer les scénarios runtime est la commande LOT-00 exacte du §69.2. Elle doit être transmise directement à l'opérateur, pas seulement un lien vers le document.
+3. Ne pas lancer `scripts/e2e-local-recipe.mjs`, les recettes Auth/runtime, navigateur connecté ou bulk global tant que LOT-00 ne remplit pas ses critères de sortie et que les prérequis/fixtures n'ont pas été vérifiés. Le runner global ne permet pas de sélectionner un seul lot et pourrait atteindre des étapes de restauration runtime ; il demeure bloqué par les règles de reprise historiques et les protections fixtures.
+4. À réception du rapport LOT-00 : analyser les deux profils ; si le gate est conforme, planifier le parcours Auth / Talent / Recruteur en séquence, avec preuve d'exécution et de nettoyage. Si le gate ne l'est pas, corriger seulement le blocage observé.
+
+### 70.2 Commandes d'ouverture du résultat
+
+Le §69.2 crée `feedback-lot00-openapi-readonly-20261108.txt` et termine déjà par le Notepad associé. Ne pas exécuter le Notepad avant la création du fichier.
+
+### 70.3 État
+
+- Aucun nouveau test local ou runtime n'a été lancé par cette mise à jour documentaire.
+- Groupes bulk locaux déjà couverts : aucune relance demandée.
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED** jusqu'au rapport OpenAPI.
+- JOBLY-PROD hors périmètre ; aucun accès, aucune mutation, aucun changement de `main`, aucune fusion ni déploiement.
+- PR #266 reste ouverte, brouillon, non fusionnée.
+- Document source avant cette mise à jour : V2.67, blob SHA e296f4c524941eba41845d69939eabd70cc58c6d, branche `e2e/recette`.
