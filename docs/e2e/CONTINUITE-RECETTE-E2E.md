@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.19 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.20 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -15,7 +15,7 @@
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le contrôle Data API du schéma net n'a pas encore reçu de réponse HTTP exploitable ; l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`. Sélectionner `service_role` uniquement si cette entrée est dans **Legacy API Keys** et que la valeur JWT commence par `eyJ`; utiliser alors le test masqué GET-only du §23.3. Si la valeur commence par `sb_secret_`, ce n'est pas la legacy JWT et il faut arrêter ce script. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.19  
+**Version :** 2.20  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1276,3 +1276,43 @@ La réponse opérateur reçue est uniquement « Oui ». Elle ne sélectionne auc
 - Aucun test runtime, browser smoke ou bulk exécuté.
 - Aucun changement de code applicatif ; seule cette documentation de continuité est mise à jour.
 - `main` non modifiée ; PR #266 reste ouverte en brouillon ; aucun merge ni déploiement.
+---
+
+## 25. Confirmation de l'onglet Legacy API Keys — V2.20 — 8 novembre 2026
+
+### 25.1 Nouvelle confirmation opérateur
+
+L'opérateur confirme explicitement que la ligne `service_role` apparaît dans l'onglet **Legacy API Keys** du Dashboard Supabase JOBLY-E2E.
+
+Cette réponse confirme l'emplacement legacy, mais ne confirme pas encore :
+- que la ligne est active ;
+- que la valeur commence par `eyJ` (format JWT attendu par le script §23.3).
+
+Aucune valeur de clé n'a été demandée ni communiquée.
+
+### 25.2 Prochaine vérification autorisée
+
+Demander à l'opérateur de vérifier uniquement dans le Dashboard, sans copier la clé :
+- état affiché de la ligne `service_role` : active ;
+- premiers caractères de format : `eyJ`.
+
+Si les deux conditions sont confirmées, utiliser exclusivement la commande exacte du §23.3, dans le CMD local, avec saisie masquée. Immédiatement après la commande d'exécution, conserver la commande `notepad feedback-lot00-net-schema-exposure-v3.txt` pour ouvrir le rapport. Ne pas exécuter si la clé est inactive, absente ou ne commence pas par `eyJ` ; ne pas réactiver, régénérer ou créer une clé.
+
+### 25.3 Effet sur les validations et périmètre
+
+- Emplacement de la clé : **CONFIRMÉ — Legacy API Keys** (déclaration explicite de l'opérateur).
+- État actif : **À CONFIRMER**.
+- Format JWT `eyJ` : **À CONFIRMER**.
+- GET OpenAPI `public` puis `net` : **NON EXÉCUTÉ** à ce tour.
+- LOT-00 : **PARTIAL**, sans changement de statut.
+- Aucun secret saisi, lu, transmis ou stocké ; aucun appel HTTP Supabase/Auth/SQL/RPC/Storage dans ce tour.
+- Aucune fixture, donnée, permission ou configuration Supabase modifiée ; aucun test runtime/browser/bulk exécuté.
+- `main` inchangée ; PR #266 ouverte en brouillon et non fusionnée ; aucun merge ni déploiement.
+
+### 25.4 Preuves de référence
+
+- Réponse opérateur dans la conversation : « legacy api keys ».
+- Document source relu avant écriture : V2.19, blob SHA `2c342894d059f29615dd49e42c628560d3cb7a16`.
+- PR #266 relue avant écriture : ouverte, brouillon, non fusionnée ; HEAD `9803dcb0a8281a799366b915d8a0430c3c7ea686`, base `main`.
+- Dashboard à consulter : https://supabase.com/dashboard/project/ofqqrryamslxoqkklraw/settings/api-keys
+- Aucun statut de clé ni valeur secrète n'a été inspecté par l'assistant.
