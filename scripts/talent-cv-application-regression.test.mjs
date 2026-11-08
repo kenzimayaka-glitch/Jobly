@@ -193,7 +193,9 @@ test("CV Studio exposes original-file save and an actionable PDF download withou
   const page = read("app/cv/page.tsx");
   const exportRoute = read("app/api/talent/cv/export/route.ts");
   const paymentRoute = read("app/api/talent/cv/payment/route.ts");
-  assert.match(page, /async function authenticatedFetch\(/);\n  assert.match(page, /if \(response.status === 401\)/);\n  assert.match(page, /async function saveOriginalCv\(\)/);
+  assert.match(page, /async function authenticatedFetch\(/);
+  assert.match(page, /if \(response.status === 401\)/);
+  assert.match(page, /async function saveOriginalCv\(\)/);
   assert.match(page, /authenticatedFetch\("\/api\/talent\/cv\/original"/);
   assert.match(page, /async function downloadCv\(/);
   assert.match(page, /downloadCv\(paymentOverride: string \| null = paymentId, allowExistingBusy = false\)/);
