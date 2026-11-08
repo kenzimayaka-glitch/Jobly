@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     if (!metadata?.width || !metadata.height) {
       return NextResponse.json({ message: "Le fichier image est illisible ou invalide." }, { status: 400 });
     }
-    const imageFormat = getProfilePhotoFormat(metadata.format);
+    const imageFormat = getProfilePhotoFormat(metadata.format, metadata.compression);
     if (!imageFormat || file.type.toLowerCase() !== imageFormat.mimeType) {
       return NextResponse.json({ message: "Format image non pris en charge ou type MIME incohérent." }, { status: 400 });
     }
