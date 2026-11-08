@@ -15,6 +15,10 @@ export default function AccountSettings({ ecosystem, backHref, accent = "blue" }
   const [notificationsBusy, setNotificationsBusy] = useState(false);
   const [privateProfile, setPrivateProfile] = useState(false);
   const [privacyBusy, setPrivacyBusy] = useState(false);
+  const [photoPublic, setPhotoPublic] = useState(false);
+  const [photoHasImage, setPhotoHasImage] = useState(false);
+  const [photoConsentChecked, setPhotoConsentChecked] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [aiBonus, setAiBonus] = useState<{granted:number; remaining:number} | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -30,6 +34,12 @@ export default function AccountSettings({ ecosystem, backHref, accent = "blue" }
         if (ecosystem === "TALENT") setPrivateProfile(preferences.publicDiscoverable !== true);
       }
       if (ecosystem === "TALENT") {
+        const photoResponse = await fetch("/api/auth/profile-photo/visibility", { headers, cache: "no-store" });
+        const photo = photoResponse.ok ? await photoResponse.json().catch(() => null) : null;
+        if (!cancelled && photo) {
+          setPhotoHasImage(photo.hasPhoto === true);
+          setPhotoPublic(photo.visibility === "PUBLIC" && photo.publicConsentRecorded === true);
+        }
         const response = await fetch("/api/talent/ai-bonus", { headers, cache: "no-store" });
         const body = await response.json().catch(() => null);
         if (!cancelled && response.ok) setAiBonus(body);
@@ -91,6 +101,36 @@ export default function AccountSettings({ ecosystem, backHref, accent = "blue" }
     }
   }
 
+  async function togglePhotoVisibility() {
+    if (photoBusy || ecosystem !== "TALENT" || !photoHasImage) return;
+    const visibility = photoPublic ? "PRIVATE" : "PUBLIC";
+    if (visibility === "PUBLIC" && !photoConsentChecked) {
+      setMessage("Confirmez votre autorisation explicite avant de rendre la photo visible.");
+      return;
+    }
+    setPhotoBusy(true);
+    setMessage("");
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/auth/profile-photo/visibility", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ visibility, explicitConsent: visibility === "PUBLIC" }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "Impossible de modifier la visibilité de la photo.");
+      setPhotoPublic(visibility === "PUBLIC");
+      setPhotoConsentChecked(false);
+      setMessage(visibility === "PUBLIC"
+        ? "Votre photo est maintenant visible publiquement. Vous pouvez retirer ce consentement à tout moment."
+        : "Votre photo est redevenue privée.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Impossible de modifier la visibilité de la photo.");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
   const bg = accent === "yellow" ? "bg-[#FFE135] text-navy" : "bg-jobly-blue text-white";
 
   async function logout() {
@@ -135,7 +175,18 @@ export default function AccountSettings({ ecosystem, backHref, accent = "blue" }
       <h2 className="font-heading text-lg font-extrabold">Préférences</h2>
       <label className="mt-4 flex items-center justify-between gap-4 text-sm font-bold"><span>Notifications Jobly</span><button type="button" role="switch" aria-checked={notifications} disabled={notificationsBusy} onClick={() => void toggleNotifications()} className={`h-7 w-12 rounded-full p-1 ${notifications ? "bg-jobly-blue" : "bg-slate-200"} disabled:opacity-50`}><span className={`block h-5 w-5 rounded-full bg-white transition-transform ${notifications ? "translate-x-5" : ""}`}/></button></label>
       {ecosystem === "TALENT" && <label className="mt-4 flex items-center justify-between gap-4 text-sm font-bold"><span>Profil privé</span><button type="button" role="switch" aria-checked={privateProfile} disabled={privacyBusy} onClick={() => void togglePrivacy()} className={`h-7 w-12 rounded-full p-1 ${privateProfile ? "bg-jobly-blue" : "bg-slate-200"} disabled:opacity-50`}><span className={`block h-5 w-5 rounded-full bg-white transition-transform ${privateProfile ? "translate-x-5" : ""}`}/></button></label>}
-      <p className="mt-3 text-[11px] leading-5 text-jobly-gray">Les notifications sont conservées pendant la désactivation. Le profil privé le retire de la découverte recruteur.</p>
+      {ecosystem === "TALENT" && photoHasImage && <div className="mt-5 rounded-2xl border border-slate-200 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div><p className="text-sm font-bold">Visibilité de ma photo</p><p className="mt-1 text-[11px] text-jobly-gray">{photoPublic ? "Photo publique avec consentement enregistré." : "Photo privée : visible uniquement dans votre espace connecté."}</p></div>
+          <span className={`rounded-full px-3 py-1 text-[10px] font-black ${photoPublic ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{photoPublic ? "PUBLIQUE" : "PRIVÉE"}</span>
+        </div>
+        {!photoPublic && <label className="mt-3 flex items-start gap-2 text-[11px] leading-5 text-jobly-gray">
+          <input type="checkbox" checked={photoConsentChecked} onChange={(event) => setPhotoConsentChecked(event.target.checked)} className="mt-1"/>
+          <span>J’autorise expressément Jobly à afficher ma photo de profil aux recruteurs et aux visiteurs de mon profil public. Je peux retirer cette autorisation à tout moment.</span>
+        </label>}
+        <button type="button" onClick={() => void togglePhotoVisibility()} disabled={photoBusy || (!photoPublic && !photoConsentChecked)} className="mt-3 w-full rounded-xl bg-jobly-blue px-4 py-3 text-xs font-black text-white disabled:opacity-40">{photoBusy ? "Enregistrement…" : photoPublic ? "Retirer mon consentement et rendre la photo privée" : "Autoriser la publication de ma photo"}</button>
+      </div>}
+      <p className="mt-3 text-[11px] leading-5 text-jobly-gray">Les notifications sont conservées pendant la désactivation. Le profil privé le retire de la découverte recruteur. La visibilité de la photo est un choix indépendant.</p>
     </section>
     {ecosystem === "TALENT" && aiBonus && <section className="rounded-[24px] border border-[#DCE5F1] bg-white p-5 shadow-sm"><div className="flex items-center justify-between gap-4"><div><h2 className="font-heading text-lg font-extrabold">Crédits J’IA</h2><p className="mt-1 text-xs text-jobly-gray">Bonus de bienvenue à usage unique.</p></div><div className="rounded-full bg-[#FFF7C7] px-4 py-2 text-sm font-black text-navy">{aiBonus.remaining} / {aiBonus.granted}</div></div><p className="mt-3 text-xs leading-5 text-jobly-gray">Les crédits consommés correspondent aux actions J’IA. Le bonus de bienvenue n’est pas un abonnement et ne se renouvelle pas.</p></section>}
     <JiaPreferences ecosystem={ecosystem} />
