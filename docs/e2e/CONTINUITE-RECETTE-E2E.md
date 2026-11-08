@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.114 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.115 — 8 novembre 2026
 >
 > **Dernière correction de code Storage LOT-00 :** `f3753f7370007647a5e4bf99c130c69437d0c921` ; runner épinglé `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 : **PASS — clôturé** pour son périmètre environnement, identité, RLS/grants, Storage et correspondances des fixtures. Pour LOT-01 Auth, le diagnostic local sans secret confirme que le manifeste `.e2e-fixtures.json` est lisible, JSON valide, rattaché au projet JOBLY-E2E attendu et contient les trois comptes complets (TALENT/RECRUITER/PARTNER : entrée trouvée, mot de passe de longueur exploitable, authUserId présent). Le premier vérificateur avait une dépendance à la copie locale de `e2e/provision-fixtures.mjs` pour récupérer la clé publique ; cette dépendance a été supprimée au commit `5e7ea03f867d98257e1f79252de12fbcf7176bdf`. Le test de connexion Auth réel reste à exécuter avec le vérificateur corrigé. Aucun credential n'a été imprimé, aucun service role utilisé, aucun mot de passe changé, aucun compte créé/supprimé et aucun profil modifié. Ne pas réinitialiser les mots de passe.
+> **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 : **PASS — clôturé** pour son périmètre environnement, identité, RLS/grants, Storage et correspondances des fixtures. LOT-01 Auth : le manifeste `.e2e-fixtures.json` a été vérifié localement sans révéler de secrets et le vérificateur corrigé a confirmé les connexions réelles TALENT, RECRUITER et PARTNER : **3/3 PASS**, sessions confirmées côté serveur, UID et rôles fixture signés concordants. Rapport du 8 novembre 2026 à 22:27:12 UTC, `stage=completed`, `status=PASS`. Aucun credential imprimé, aucun service role utilisé, aucun mot de passe changé, aucun compte créé/supprimé et aucun profil modifié. Cette preuve clôt le smoke de connexion Auth des trois fixtures mais ne vaut pas validation de tous les parcours du LOT-01. Ne pas réinitialiser les mots de passe.
 
-**Version :** 2.114  
+**Version :** 2.115  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -25,6 +25,24 @@
 
 ---
 
+## 96. LOT-01 — smoke Auth des trois fixtures existantes : PASS 3/3
+
+**Exécution locale rapportée : 8 novembre 2026 à 22:27:12.088 UTC. Statut : PASS — vérification de connexion/session/identité des trois fixtures.**
+
+Rapport `artifacts/e2e/fixture-password-verification.json` communiqué par l'opérateur :
+- environnement : `JOBLY-E2E` ; projet : `ofqqrryamslxoqkklraw` ; `stage=completed` ; `status=PASS` ;
+- TALENT : `PASS` — connexion réelle, session vérifiée côté serveur, UID et rôle fixture confirmés ;
+- RECRUITER : `PASS` — mêmes contrôles confirmés ;
+- PARTNER : `PASS` — mêmes contrôles confirmés ;
+- résultat : **3/3 PASS**.
+
+Garde-fous explicitement confirmés dans le rapport : `credentialsPrinted=false`, `serviceRoleUsed=false`, `passwordsChanged=false`, `accountsCreatedOrDeleted=false`, `profilesModified=false`. Aucun mot de passe ni credential n'a été transmis dans le rapport.
+
+Cette preuve valide le smoke de connexion et l'identité Auth des trois comptes fixtures existants. Elle ne suffit pas à elle seule à déclarer l'ensemble de LOT-01 terminé : les parcours fonctionnels par rôle, les autorisations sur les API et les scénarios de session/navigation restent à exécuter selon la matrice de recette. Aucun reset, provisionnement ou changement de profil n'est requis pour ce résultat.
+
+**État après cette exécution :** LOT-00 reste PASS clôturé ; smoke Auth LOT-01 = **PASS 3/3** ; LOT-01 global reste en cours. `main` reste à `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangée ; PR #266 et #267 restent ouvertes en brouillon, non fusionnées. Aucun accès JOBLY-PROD, merge ni déploiement.
+
+---
 ## 95. LOT-01 — correction du vérificateur Auth après diagnostic local du manifeste
 
 **Mise à jour : 8 novembre 2026. Statut : CORRECTIF DU VÉRIFICATEUR COMMIS ; test Auth réel à exécuter.**
