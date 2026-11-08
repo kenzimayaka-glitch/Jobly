@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.91 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.92 — 8 novembre 2026
 >
-> **Dernier commit de correction LOT-00 :** `3b7152c3f0c1b1ec7df4bd5536579e6e2d6e1941` sur `e2e/recette`.
+> **Dernier commit de correction LOT-00 :** `706aae66bc37bfb19c24036c5dcaf885647439bb` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations et lectures SQL. Aucun test applicatif runtime ni accès JOBLY-PROD. Un aperçu Netlify automatique a été signalé par l'intégration GitHub de la PR #266 ; aucun déploiement de production ni action Vercel n'a été demandé.
 >
@@ -4623,6 +4623,54 @@ Le gap catalogue de LOT-01 mentionne encore les parcours réels OTP, Google OAut
 Ne pas lancer `scripts/e2e-local-recipe.mjs` pour contourner ces manques : son chemin d'exécution peut démarrer le serveur et les parcours authentifiés, et il ne doit pas restaurer automatiquement des fixtures. Ne pas exécuter les scripts de provisionnement, reset de mot de passe ou restauration de fixture. Le dépôt local étant 100 commits behind avec des changements non commités, ne pas faire de `pull`, `reset`, `stash` ou `clean` en l'état.
 
 Statut LOT-01 : **PARTIAL / BLOCKED PAR LE MOTEUR DE STATUT ET PAR LES PREUVES RUNTIME MANQUANTES**. Aucun correctif du runner n'a été appliqué pendant cette analyse. JOBLY-PROD, `main`, les PR et les déploiements restent inchangés.
+
+
+
+## 90. LOT-00 — lanceur Windows sécurisé et réconciliation finale du code
+
+### 90.1 Lanceur opérateur ajouté
+
+Fichier : scripts/e2e/run-lot00-storage-hardening.cmd  
+Blob : a7f79fe63d42a838f262393002344d234beee301
+
+Le lanceur :
+- exécute uniquement git fetch (pas de pull, switch, reset, stash ou clean) ;
+- récupère uniquement le script Storage depuis origin/e2e/recette ;
+- vérifie son blob Git exact 53420b691095d9042777cd8773b2fb42163a4d13 ;
+- exécute node --check et s'arrête à la moindre erreur ;
+- fixe E2E_PROJECT_REF et NEXT_PUBLIC_SUPABASE_URL à JOBLY-E2E ;
+- lance le script Storage avec le flag explicite d'application ;
+- écrit feedback-lot00-storage-apply-20261108.txt et l'ouvre dans Notepad ;
+- ne lit/affiche aucune clé et ne modifie pas les autres fichiers locaux, hors script ciblé.
+
+La copie locale existante du script est sauvegardée dans le dossier temporaire Windows avant remplacement. Le lanceur peut être récupéré individuellement, sans synchroniser 100 commits.
+
+### 90.2 Ajustement événementiel
+
+Le lien signé du média d'un événement publié a une validité de sept jours ; il est régénéré lors des lectures API ultérieures. Le test de contrat statique couvre cette durée. La source reste un stockage privé ; aucun lien public permanent n'est construit pour le staging.
+
+### 90.3 État synchronisé au 8 novembre 2026
+
+- Branche e2e/recette : 706aae66bc37bfb19c24036c5dcaf885647439bb.
+- main : 979f2ccfec9258bc30989af18433cf6adb1b4698, inchangée.
+- PR #266 : OPEN, draft=true, merged=false, base main.
+- PR #267 : OPEN, draft=true, merged=false, base main.
+- Migration SQL de confidentialité : appliquée sur JOBLY-E2E, version 20261108173912, contraintes revérifiées.
+- Vérifications statiques distantes : 21/21.
+- Test node --test, TypeScript, build Next.js, parcours navigateur et Storage runtime : toujours non exécutés.
+- Script Storage cinq cibles : toujours NON EXÉCUTÉ ; les métadonnées de bucket lues avant exécution conservent les anciennes configurations.
+- LOT-00 reste PARTIAL. Aucun déploiement de production, aucun merge et aucun accès JOBLY-PROD.
+
+### 90.4 Commande de reprise locale
+
+Dans CMD, récupérer le lanceur individuel puis le lancer :
+
+git fetch origin
+git show origin/e2e/recette:scripts/e2e/run-lot00-storage-hardening.cmd > scripts\e2e\run-lot00-storage-hardening.cmd
+scripts\e2e\run-lot00-storage-hardening.cmd
+notepad feedback-lot00-storage-apply-20261108.txt
+
+Ne pas lancer le script Storage directement avec une ancienne version de la copie locale. Le lanceur contrôle lui-même le hash et la syntaxe avant l'application.
 
 
 ## 89. LOT-00 — correction confidentialité photos et médias, migration E2E et nouvelle recette Storage
