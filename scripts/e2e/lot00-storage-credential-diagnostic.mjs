@@ -88,7 +88,7 @@ for (const name of [...names, ...anonNames]) {
 
 const effectiveValue = (name) => {
   if (!effective[name]?.effectiveValueAvailable) return "";
-  return typeof process.env[name] !== "undefined"
+  return process.env[name]
     ? process.env[name]
     : (fileValues.get(name) ?? "");
 };

@@ -369,6 +369,7 @@ async function main() {
     report.status = "PASS";
   } catch (error) {
     report.status = "FAIL";
+    if (error && Array.isArray(error.results)) report.storageAccessSmoke = error.results;
     report.error = error instanceof Error ? error.message : String(error);
     for (const snapshot of snapshots.filter((item) => item.updated && !item.created && item.id !== "jobly-events").reverse()) {
       try {

@@ -3,7 +3,7 @@ setlocal EnableExtensions
 
 cd /d "%~dp0\..\.."
 set "LOG=feedback-lot00-storage-apply-20261108.txt"
-set "EXPECTED_BLOB=76980b517e963781256c700c9307814b25205432"
+set "EXPECTED_BLOB=e768984dfc38c220f0a048261e8bbc58a8912e2f"
 set "SCRIPT=scripts\e2e\lot00-storage-bucket-hardening.mjs"
 set "GIT_PATH=scripts/e2e/lot00-storage-bucket-hardening.mjs"
 set "CREDENTIAL_LOG=feedback-lot00-storage-credential-diagnostic.txt"
