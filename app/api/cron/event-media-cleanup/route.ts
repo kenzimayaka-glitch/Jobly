@@ -26,7 +26,10 @@ async function listAll(db: ReturnType<typeof adminClient>) {
         else paths.add(row.mediaStoragePath);
       }
       const legacyPath = eventStoragePathFromPublicUrl(row.mediaUrl);
-      if (legacyPath && row.status === "PUBLISHED") paths.add(legacyPath);
+      const ageMs = row.createdAt ? now - Date.parse(row.createdAt) : 0;
+      const pendingPaymentStillValid = row.status === "PENDING_PAYMENT" && ageMs <= 7 * 24 * 60 * 60 * 1000;
+      const draftStillValid = row.status === "DRAFT" && ageMs <= MAX_AGE_MS;
+      if (legacyPath && (row.status === "PUBLISHED" || pendingPaymentStillValid || draftStillValid)) paths.add(legacyPath);
     }
     if (!data || data.length < 1000) break;
   }
@@ -67,38 +70,40 @@ export async function GET(request: NextRequest) {
       removed.push(...expiredStoragePaths);
     }
     const cutoff = Date.now() - MAX_AGE_MS;
-    const { data: folders, error: foldersError } = await bucket.list("", { limit: PAGE_SIZE, offset: 0 });
-    if (foldersError) throw new Error(foldersError.message);
-
     const retained: string[] = [];
     let scanned = 0;
 
-    for (const folder of folders ?? []) {
-      if (folder.id !== null) continue;
-      for (let offset = 0; ; offset += PAGE_SIZE) {
-        const { data: files, error } = await bucket.list(folder.name, {
-          limit: PAGE_SIZE,
-          offset,
-          sortBy: { column: "created_at", order: "asc" },
-        });
-        if (error) throw new Error("Lecture Storage impossible : " + error.message);
-        for (const file of files ?? []) {
-          if (file.id === null) continue;
-          scanned += 1;
-          const path = folder.name + "/" + file.name;
-          if (referenced.has(path)) continue;
-          const createdAt = file.created_at || file.updated_at || null;
-          const createdAtMs = createdAt ? Date.parse(createdAt) : NaN;
-          if (!Number.isFinite(createdAtMs) || createdAtMs > cutoff) {
-            retained.push(path);
-            continue;
+    for (let rootOffset = 0; ; rootOffset += PAGE_SIZE) {
+      const { data: folders, error: foldersError } = await bucket.list("", { limit: PAGE_SIZE, offset: rootOffset });
+      if (foldersError) throw new Error(foldersError.message);
+      for (const folder of folders ?? []) {
+        if (folder.id !== null) continue;
+        for (let offset = 0; ; offset += PAGE_SIZE) {
+          const { data: files, error } = await bucket.list(folder.name, {
+            limit: PAGE_SIZE,
+            offset,
+            sortBy: { column: "created_at", order: "asc" },
+          });
+          if (error) throw new Error("Lecture Storage impossible : " + error.message);
+          for (const file of files ?? []) {
+            if (file.id === null) continue;
+            scanned += 1;
+            const path = folder.name + "/" + file.name;
+            if (referenced.has(path)) continue;
+            const createdAt = file.created_at || file.updated_at || null;
+            const createdAtMs = createdAt ? Date.parse(createdAt) : NaN;
+            if (!Number.isFinite(createdAtMs) || createdAtMs > cutoff) {
+              retained.push(path);
+              continue;
+            }
+            const { error: removeError } = await bucket.remove([path]);
+            if (removeError) throw new Error("Nettoyage impossible pour " + path + " : " + removeError.message);
+            removed.push(path);
           }
-          const { error: removeError } = await bucket.remove([path]);
-          if (removeError) throw new Error("Nettoyage impossible pour " + path + " : " + removeError.message);
-          removed.push(path);
+          if (!files || files.length < PAGE_SIZE) break;
         }
-        if (!files || files.length < PAGE_SIZE) break;
       }
+      if (!folders || folders.length < PAGE_SIZE) break;
     }
 
     return NextResponse.json({
