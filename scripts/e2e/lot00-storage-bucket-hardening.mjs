@@ -14,11 +14,13 @@ function parseEnvValue(raw) {
   const value = raw.trim();
   if (!value) return "";
   const quote = value[0];
-  if (quote === "'" || quote === '"' || quote === "`") {
+  if (quote === "'" || quote === '"' || quote === "\`") {
     const end = value.lastIndexOf(quote);
     if (end > 0) {
       const inner = value.slice(1, end);
-      return quote === '"' ? inner.replace(/\\n/g, "\n").replace(/\\r/g, "\r").replace(/\\"/g, '"').replace(/\\\\/g, "\\") : inner;
+      return quote === '"'
+        ? inner.replace(/\\n/g, "\n").replace(/\\r/g, "\r").replace(/\\"/g, '"').replace(/\\\\/g, "\\")
+        : inner;
     }
   }
   return value.replace(/\s+#.*$/, "").trim();
@@ -28,9 +30,9 @@ function loadLocalEnvFiles() {
   const values = new Map();
   for (const file of [".env", ".env.local"]) {
     if (!existsSync(file)) continue;
-    const source = readFileSync(file, "utf8").replace(/^\\uFEFF/, "");
-    for (const line of source.split(/\\r?\\n/)) {
-      const match = line.match(/^\\s*(?:export\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*(.*)$/);
+    const source = readFileSync(file, "utf8").replace(/^\uFEFF/, "");
+    for (const line of source.split(/\r?\n/)) {
+      const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
       if (!match) continue;
       values.set(match[1], parseEnvValue(match[2]));
     }
