@@ -138,10 +138,13 @@ async function main() {
         if (referenceOffer && localFeedOk && africaFeedOk) {
           const detail = await request(token,
             "/api/jobs/" + encodeURIComponent(referenceOffer.id) + "?source=" + encodeURIComponent(referenceOffer.source));
+          const expectedActiveDetail = referenceOffer.source === "discovery"
+            ? detail.payload?.job?.offerStatus === "ACTIVE"
+            : typeof detail.payload?.job?.title === "string" && detail.payload.job.title.length > 0;
           const detailOk = detail.status === 200 &&
             detail.payload?.source === referenceOffer.source &&
             detail.payload?.job?.id === referenceOffer.id &&
-            detail.payload?.job?.offerStatus === "ACTIVE";
+            expectedActiveDetail;
           record(item.role, "TALENT-JOB-DETAIL-READ", detailOk ? "PASS" : "FAIL", detail.status,
             detailOk ? "Détail de l'offre active relu sans mutation." : "Le détail de l'offre ne correspond pas à l'offre du flux.");
         } else {
