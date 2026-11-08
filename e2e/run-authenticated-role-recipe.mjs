@@ -109,7 +109,11 @@ try {
     const full = path.join(SOURCE_ROOT, file);
     if (await exists(full)) Object.assign(mergedConfig, parseEnv(await readFile(full, "utf8")));
   }
-  Object.assign(mergedConfig, process.env);
+  // Ignore empty inherited variables: Windows shells/IDE launchers may export
+  // blank Supabase URL values that would otherwise erase the valid .env.local value.
+  for (const [key, value] of Object.entries(process.env)) {
+    if (typeof value === "string" && value.trim() !== "") mergedConfig[key] = value;
+  }
   const configuredUrl = mergedConfig.NEXT_PUBLIC_SUPABASE_URL || mergedConfig.SUPABASE_URL || "";
   assert.equal(configuredUrl, SUPABASE_URL, "La configuration locale ne pointe pas exactement vers JOBLY-E2E.");
   const publishableKey = mergedConfig.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y";
