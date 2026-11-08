@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.35 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.36 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -15,7 +15,7 @@
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le dernier rapport V4 confirme un arrêt au contrôle local du format de la clé (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avant toute requête HTTP ; `results=[]`. L'exposition de `net` reste donc indéterminée. La V5 qui invite à coller `service_role` est SUSPENDUE ; ne pas la réexécuter. À la demande de l'opérateur, une V6 distincte est transmise au §34 pour deux GET OpenAPI sur JOBLY-E2E, avec invite masquée, uniquement à l'aide de la clé historique `service_role` JOBLY-E2E si elle est Active et confirmée comme telle. La V6 a été exécutée par l'opérateur le 8 novembre 2026, mais s'est arrêtée au contrôle local de format (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avec `results=[]` ; aucun GET n'a été exécuté et elle ne constitue pas un PASS. L'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`, `sb_secret_…` ou une clé de production. La V5 reste suspendue ; la V6 du §34 est la seule commande de retest retransmise à la demande de l'opérateur. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.35  
+**Version :** 2.36  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1928,18 +1928,18 @@ Ne jamais transmettre les caractères suivants, le JWT, une capture révélant l
 
 ### 38.2 Interprétation
 
-- Deux caractères seulement ont été communiqués ; cela ne permet pas de confirmer le préfixe JWT historique complet `eyJ`.
+- Le préfixe complet `eyJ` est désormais confirmé par l'opérateur.
 - Le script V6 vérifie précisément `startsWith('eyJ')`; le rapport antérieur indique qu'il a reçu une chaîne vide ou ne commençant pas par cette séquence.
 - Aucune conclusion ne peut être tirée du seul préfixe partiel `ey`. Il ne faut pas demander à l'opérateur de communiquer d'autres caractères de la clé.
 
 ### 38.3 Étape suivante
 
-L'opérateur peut vérifier lui-même, dans le Dashboard JOBLY-E2E, si le troisième caractère est exactement `J), sans communiquer la valeur ni aucun autre caractère. Il répond uniquement `PREFIX_OK` si les trois caractères sont `eyJ`, ou `PREFIX_NO` dans le cas contraire. Ne pas relancer le script avant cette clarification, ne pas copier la valeur dans le chat et ne pas modifier ni régénérer la clé.
+L'opérateur peut vérifier lui-même, dans le Dashboard JOBLY-E2E, si le troisième caractère est exactement `J`, sans communiquer la valeur ni aucun autre caractère. Il répond uniquement `PREFIX_OK` si les trois caractères sont `eyJ`, ou `PREFIX_NO` dans le cas contraire. Ne pas relancer le script avant cette clarification, ne pas copier la valeur dans le chat et ne pas modifier ni régénérer la clé.
 
 ### 38.4 Statut
 
 - Ligne Legacy `service_role` : confirmée visuellement au §37.
-- Préfixe complet : **NON CONFIRMÉ** ; seuls les deux caractères `ey` ont été communiqués.
+- Préfixe complet `eyJ` : **CONFIRMÉ PAR L'OPÉRATEUR**.
 - GET OpenAPI `public` et `net` : **NON EXÉCUTÉS**.
 - LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
 - Aucun secret complet reçu ; aucun accès JOBLY-PROD, aucune modification de fixture, donnée, permission ou configuration Supabase.
@@ -1961,7 +1961,7 @@ Après demande de confirmer si le troisième caractère de la valeur masquée es
 
 ### 39.2 Limite de l'information reçue
 
-Cette réponse accuse réception de la consigne, mais ne confirme pas explicitement le résultat du contrôle local. Le préfixe complet `eyJ` reste donc **NON CONFIRMÉ**. Aucun caractère supplémentaire de la clé ne doit être demandé ou communiqué.
+Cette réponse accuse réception de la consigne, mais ne confirme pas explicitement le résultat du contrôle local. Le préfixe complet `eyJ` est confirmé ; le désaccord porte sur la chaîne capturée par le programme, pas sur le préfixe visible dans le Dashboard. Aucun caractère supplémentaire de la clé ne doit être demandé ou communiqué.
 
 ### 39.3 Prochaine étape
 
@@ -1970,7 +1970,7 @@ Demander une réponse non ambiguë après vérification locale : `PREFIX_OK` si 
 ### 39.4 État LOT-00
 
 - Ligne Legacy `service_role` : confirmée visuellement au §37.
-- Préfixe complet `eyJ` : **NON CONFIRMÉ**.
+- Préfixe complet `eyJ` : **CONFIRMÉ PAR L'OPÉRATEUR**.
 - Rapport V6 : `KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`, `results=[]`.
 - GET OpenAPI `public` et `net` : **NON EXÉCUTÉS**.
 - Exposition effective de `net` : **NON DÉTERMINÉE**.
@@ -1983,3 +1983,94 @@ Demander une réponse non ambiguë après vérification locale : `PREFIX_OK` si 
 - Réponse opérateur : « ok ».
 - Demande précédente : confirmer localement le troisième caractère sans partager la valeur.
 - Document source avant cette mise à jour : V2.34, blob SHA `5ebe225a8d84426766168e40c2a27074fc266f83`, branche `e2e/recette`.
+
+
+---
+
+## 40. Audit contradictoire du rejet V6 et correction du parseur de saisie — V2.36 — 8 novembre 2026
+
+### 40.1 Faits désormais établis
+
+- L'opérateur confirme avoir sélectionné la ligne **service_role** dans **API Keys (Legacy)** (§37).
+- L'opérateur confirme maintenant que la valeur révélée commence bien par `eyJ`.
+- La capture V6 établit que l'invite masquée s'est affichée et que le rapport indique `KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT` avec `results=[]`.
+- Le V6 vérifie d'abord `if(!k)` et émet `KEY_EMPTY` en cas de saisie vide ; il appelle ensuite `run(k)`, dont le test `!k.startsWith('eyJ')` émet `KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`. Puisque c'est cette dernière erreur qui apparaît, la chaîne capturée était **non vide** et ne commençait pas par `eyJ` après `.trim()`. Le diagnostic précédent « chaîne vide ou mauvais préfixe » était trop large : la branche vide est exclue pour ce rapport précis.
+- Le précontrôle a arrêté l'exécution avant décodage des claims `role`/`ref` et avant les requêtes HTTP. Le rôle, le projet, la signature et l'acceptation serveur n'ont donc pas été testés.
+
+### 40.2 Contradiction logique
+
+Si la valeur du champ Legacy service_role commence par `eyJ`, mais que `k.startsWith('eyJ')` est faux, le contenu transmis à `run(k)` n'est pas identique au début visible dans le Dashboard. Le problème se situe donc avant le contrôle JWT : copie presse-papiers, transport terminal ou traitement du buffer d'entrée. Le rapport V6 ne journalise aucun indicateur permettant de distinguer ces causes.
+
+### 40.3 Défaut précis trouvé dans le parseur V6
+
+Le V6 construit la chaîne ainsi :
+
+```js
+if (ch === '\\u007f' || ch === '\\b') key = key.slice(0, -1);
+else if (ch >= ' ') key += ch;
+```
+
+Cette logique ignore tous les caractères de contrôle séparément. Sur un terminal qui encadre un collage par le marqueur bracketed-paste `ESC[200~`, le caractère ESC (code 27) est ignoré car il est inférieur à l'espace, tandis que les caractères imprimables `[200~` sont ajoutés à `key`. La chaîne obtenue commence alors par `[200~eyJ...` et déclenche exactement `KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`, même si le secret sous-jacent commence correctement par `eyJ`.
+
+**Reproduction synthétique effectuée hors de JOBLY, sans secret réel :** la logique de capture V6 appliquée à `ESC[200~eyJTEST.eyJTEST.eyJTESTESC[201~` donne un préfixe capturé `[200~` et échoue au contrôle `eyJ`. Un parseur qui conserve puis enlève le marqueur complet retrouve `eyJ`. C'est un mécanisme reproduisant exactement l'erreur. Il n'est pas démontré que ce marqueur a été envoyé lors du collage réel de l'opérateur ; il s'agit de l'hypothèse principale vérifiable.
+
+La documentation Node décrit le mode raw comme un mode où les caractères sont livrés individuellement, sans écho et avec le traitement spécial du terminal désactivé. Un cas documenté dans Windows Terminal montre que les séquences d'échappement de collage peuvent arriver sous forme de touches Win32 (ESC, `[`, chiffres, `~`) en mode d'entrée Win32 ; cela rend le mécanisme crédible sur un terminal Windows, sans établir qu'il s'est produit ici.
+
+### 40.4 Autres hypothèses encore ouvertes
+
+1. Le terminal a injecté un marqueur de collage, dont le résidu imprimable précède le JWT — hypothèse principale, car elle reproduit exactement le rejet avec le code V6.
+2. Le presse-papiers contenait un texte différent de la valeur révélée (ancien contenu, mauvaise action Copier, sélection incomplète).
+3. Le buffer d'entrée a été modifié ou tronqué par le terminal avant la validation.
+
+La capture V6 ne comporte ni longueur, ni indicateur de marqueur de collage, ni indicateur de préfixe normalisé. Elle ne permet donc pas de départager ces hypothèses. Il serait incorrect de conclure que la clé service_role est invalide ou expirée.
+
+### 40.5 Correction proposée — commande V7
+
+La V7 conserve le caractère ESC pendant la collecte, puis retire explicitement les marqueurs de collage complets `ESC[200~` et `ESC[201~`. Elle reconnaît aussi les variantes où le terminal a supprimé le caractère ESC mais laissé `[200~` ou `[201~`. Elle écrit uniquement des booléens de diagnostic (`paste_start_marker_detected`, `paste_end_marker_detected`, `normalized_prefix_ok`) dans le rapport. Aucune partie de la clé n'est journalisée.
+
+- Le rapport est nouveau : `feedback-lot00-net-schema-exposure-v7-20261108.txt`.
+- Le V7 conserve les contrôles `role=service_role` et `ref=ofqqrryamslxoqkklraw`.
+- Il n'effectue que les deux GET OpenAPI JOBLY-E2E `public` et `net`, uniquement après validation locale du préfixe et des claims.
+- Le critère PASS reste exactement : `public=200` avec OpenAPI et `net=406/PGRST106`.
+- Aucune clé alternative, aucune écriture, aucun Auth, SQL, RPC, Storage, `net.http_*` ou accès JOBLY-PROD.
+
+### 40.6 Commande CMD V7 transmise
+
+```bat
+cd /d C:\Users\ASUS\Jobly
+if exist feedback-lot00-net-schema-exposure-v7-20261108.txt (
+  echo Rapport V7 deja present : conservation, aucune nouvelle execution.
+) else (
+  node -e "const fs=require('node:fs'),input=process.stdin,out=process.stdout,report='feedback-lot00-net-schema-exposure-v7-20261108.txt';function save(rows,gate,error='',meta={}){const lines=['node='+process.version,'project_ref=ofqqrryamslxoqkklraw','expected_credential_type=legacy_service_role','paste_start_marker_detected='+Boolean(meta.pasteStart),'paste_end_marker_detected='+Boolean(meta.pasteEnd),'normalized_prefix_ok='+Boolean(meta.prefixOk),'results='+JSON.stringify(rows),'GATE='+gate];if(error)lines.push('error='+error);fs.writeFileSync(report,lines.join('\r\n')+'\r\n',{flag:'wx'});for(const line of lines)out.write(line+'\n');out.write('REPORT='+report+'\n')}if(!input.isTTY||typeof input.setRawMode!=='function'){out.write('TTY_REQUIRED - ouvrir Node.js Command Prompt.\n');save([],'BLOCKED_REVIEW_REQUIRED','TTY_REQUIRED');process.exit(2)}let key='';out.write('\nSAISIE MASQUEE V7 : colle la cle service_role historique JOBLY-E2E puis appuie sur Entree. Aucun caractere ne sera affiche : ');input.setRawMode(true);input.resume();input.on('data',b=>{for(const ch of b.toString('utf8')){if(ch==='\u0003'){input.setRawMode(false);input.pause();key='';out.write('\nCANCELLED\n');save([],'BLOCKED_REVIEW_REQUIRED','CANCELLED');return}if(ch==='\r'||ch==='\n'){input.setRawMode(false);input.pause();out.write('\n');let raw=key;key='';raw=raw.replace(/^\uFEFF/,'').trim();const pasteStart=/^(?:\u001b)?\[200~/.test(raw);const pasteEnd=/(?:\u001b)?\[201~$/.test(raw);let normalized=raw.replace(/^(?:\u001b)?\[200~/,'').replace(/(?:\u001b)?\[201~$/,'').trim();const meta={pasteStart,pasteEnd,prefixOk:normalized.startsWith('eyJ')};if(!normalized){save([],'BLOCKED_REVIEW_REQUIRED','KEY_EMPTY',meta);raw='';normalized='';return}run(normalized,meta);raw='';normalized='';return}if(ch==='\u007f'||ch==='\b')key=key.slice(0,-1);else if(ch==='\u001b'||ch>=' ')key+=ch}});async function run(k,meta){const rows=[];try{if(!k.startsWith('eyJ'))throw Error('KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT');const payload=JSON.parse(Buffer.from(k.split('.')[1]||'','base64url').toString('utf8'));if(payload.role!=='service_role'||payload.ref!=='ofqqrryamslxoqkklraw')throw Error('KEY_PROJECT_OR_ROLE_MISMATCH');for(const schema of ['public','net']){const r=await fetch('https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/',{method:'GET',headers:{apikey:k,Accept:'application/openapi+json','Accept-Profile':schema},signal:AbortSignal.timeout(20000)});const raw=await r.text();let j={};try{j=JSON.parse(raw)}catch{}rows.push({schema,status:r.status,apiSchemaAccepted:r.ok,openapi:!!(j.openapi||j.swagger),code:j.code??null,message:typeof j.message==='string'?j.message.slice(0,160):null})}const pub=rows.find(x=>x.schema==='public'),net=rows.find(x=>x.schema==='net'),pass=!!(pub&&pub.status===200&&pub.openapi&&net&&net.status===406&&net.code==='PGRST106');save(rows,pass?'PASS_NET_NOT_EXPOSED':'BLOCKED_REVIEW_REQUIRED','',meta)}catch(e){save(rows,'BLOCKED_REVIEW_REQUIRED',e.name+': '+e.message,meta)}finally{k=''}}"
+)
+if exist feedback-lot00-net-schema-exposure-v7-20261108.txt notepad feedback-lot00-net-schema-exposure-v7-20261108.txt
+```
+
+**Commande Notepad correspondante :**
+```bat
+notepad feedback-lot00-net-schema-exposure-v7-20261108.txt
+```
+
+Le terminal doit afficher `SAISIE MASQUEE V7`. La clé est saisie uniquement dans le terminal local. Transmettre le rapport non secret uniquement. Si V7 retourne encore `KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`, le champ `paste_start_marker_detected` et `normalized_prefix_ok` permettra de savoir si le marqueur explique le problème. Si `normalized_prefix_ok=true` mais que les claims échouent, le résultat sera `KEY_PROJECT_OR_ROLE_MISMATCH`, distinct du problème actuel.
+
+### 40.7 Statut et limites
+
+- Préfixe affiché dans le Dashboard : `eyJ` **confirmé par l'opérateur**.
+- V6 : **échoué au parseur local avant décodage claims et avant réseau**.
+- Hypothèse principale : résidu du marqueur de collage `[200~` causé par le filtrage du caractère ESC dans le V6 ; **reproduction synthétique PASS, cause réelle locale pas encore observée**.
+- V7 : **transmise, non exécutée** par l'assistant.
+- LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- GET OpenAPI `public` et `net` : toujours **NON EXÉCUTÉS** à ce stade.
+- Aucun secret reçu ni stocké par l'assistant ; aucun appel JOBLY-PROD ; aucune mutation Supabase ou fixture.
+- `main` inchangée ; PR #266 ouverte, brouillon et non fusionnée ; aucun déploiement.
+
+### 40.8 Sources et preuves
+
+- Code V6 de référence au §34.3 : branche collecte `else if(ch>=' ') key+=ch`, précontrôle `startsWith('eyJ')`, branche `KEY_EMPTY` séparée.
+- Reproduction Node.js locale synthétique : séquence de collage avec marqueurs et valeur factice, sans secret réel ni appel réseau ; le parseur V6 reproduit le rejet et le parseur V7 restaure le préfixe.
+- Supabase JWT Claims Reference : `https://supabase.com/docs/guides/auth/jwt-fields` ; le JWT service_role inclut les claims `role=service_role` et `ref`.
+- Supabase API Keys : `https://supabase.com/docs/guides/getting-started/api-keys` ; `service_role` est une clé legacy de format JWT à privilèges élevés.
+- Node.js TTY : `https://nodejs.org/api/tty.html` ; décrit le mode raw et son traitement caractère par caractère sans écho.
+- Microsoft Windows Terminal issue #17656 : `https://github.com/microsoft/terminal/issues/17656` ; décrit le passage de séquences d'échappement de collage sous forme de touches en entrée Win32.
+- Rapport V6 transmis en capture : §35.1 ; préfixe confirmé ensuite par l'opérateur : déclaration « je confirme » après demande de vérifier `eyJ`.
+- Document source avant cette mise à jour : V2.35, blob SHA `5453278abae577170907691dd84094caa5791eb3`, branche `e2e/recette`.
