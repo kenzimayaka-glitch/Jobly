@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.82 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.83 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -4172,6 +4172,7 @@ Corrections sur la branche :
 3. Un PNG Hero source peut atteindre 10 MiB à l'entrée, mais le serveur vérifie son vrai format, impose la transparence, redimensionne/optimise le PNG, puis refuse le stockage si le résultat excède 5 000 000 octets.
 4. Le serveur vérifie les octets avec Sharp, limite les dimensions décodées, rejette les formats non supportés ou un MIME déclaré incohérent et choisit l'extension à partir du format réel, non du nom fourni par le navigateur.
 5. Si l'écriture de `User.profilePhotoUrl` échoue après un upload, le nouveau fichier est supprimé pour éviter un orphelin.
+6. Le format AVIF est reconnu à partir des métadonnées HEIF lorsque le codec est `av1`; le codec `hevc` (HEIC) est refusé plutôt que traité à tort comme AVIF.
 
 **Limite non résolue dans cette PR : confidentialité des photos.** Le bucket `profile-photos` demeure public et le champ `User.profilePhotoUrl` reste une URL publique. La bascule « privé par défaut, publication explicite » n'est pas appliquée : elle nécessite un champ de visibilité persistant, un contrôle visible dans le parcours utilisateur et l'adaptation de tous les lecteurs (profil Talent, Hero, recruteur et vues publiques), avec une stratégie de migration des URLs déjà enregistrées. Changer uniquement le bucket casserait les photos existantes. Aucune migration de schéma ni modification de bucket n'a été exécutée.
 
@@ -4187,6 +4188,11 @@ Corrections sur la branche :
 2. Le compteur de talents filtre désormais les profils dont le pays de profil ou, à défaut, le pays du compte User se résout dans le catalogue africain.
 3. Le comptage parcourt les profils par pages de 1 000, au lieu de dépendre d'un `count` susceptible de ne refléter qu'une page ou la limite API.
 4. Les bases frontend existantes **+75 000 offres** et **+415 000 talents** sont conservées. Le texte « Talents partout en Afrique » reste cohérent avec le nouveau comptage dynamique géographique.
+
+**Cohérence texte/visibilité de la vitrine Talent :**
+- `components/TalentShowcaseStudio.tsx` n'affiche plus « Profil public accessible à tous les recruteurs » lorsque `publicDiscoverable` est désactivé.
+- Le sous-titre et l'indicateur (visible / non listé) suivent désormais le réglage `publicDiscoverable`, qui reste indépendant du plan FREE/PRO/PREMIUM.
+- Les API `/api/recruiter/talents` et `/api/recruiter/talents/profile` filtrent déjà les profils sur `publicDiscoverable=true` ; un test vérifie désormais la cohérence entre ces règles serveur et le texte de l'interface.
 
 **Point de réconciliation LOT-11 :** l'audit précédent avait aussi relevé une fonction SQL publique `get_public_home_stats()`. Le code actuel de `app/api/public/home-stats/route.ts` calcule les statistiques directement via les tables et ne l'appelle pas. Il faudra confirmer au LOT-11 si cette fonction SQL est toujours exposée et si elle conserve une logique divergente ; ne pas considérer sa cohérence corrigée sur la seule base de la correction de la route.
 
@@ -4222,16 +4228,20 @@ Sur le commit `fe00d435116ab0aad577825a4ecbc42d206a8ed7` :
 - les migrations isolées de sécurité sont **PASS** ;
 - le typecheck a échoué sur deux erreurs ciblées dans `home-stats/route.ts` : relation PostgREST `User` typée en tableau et ancienne constante pays encore référencée.
 
-Ces deux erreurs ont été corrigées sur le commit suivant `2e16e9d5721e977c51a713f5fe90636e293b0c8e`. Pour ce commit :
+Ces deux erreurs ont été corrigées sur le commit suivant `2e16e9d5721e977c51a713f5fe90636e293b0c8e`. Une passe complémentaire a ensuite corrigé le libellé de visibilité Talent et la détection AVIF ; le HEAD final contrôlé est `a8bd044a5abb416b90ef236499e814cb84b02753`. Pour ce HEAD :
 - Mission Afrique P0 : **PASS** ;
 - Event Core P1 : **PASS** ;
 - contrôle du registre des sources : **PASS** ;
 - typecheck : **PASS** ;
 - build de production : **PASS** ;
 - tests de migrations isolées : **PASS** ;
-- run CI principal terminé avec succès : [42497839381](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42497839381) ;
-- migrations isolées : [42497839440](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42497839440) ;
-- registre des sources : [42497839435](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42497839435).
+- run CI push complet : [42498449394](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42498449394) ;
+- run CI PR complet (typecheck + build) : [42498455404](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42498455404) ;
+- vérification du pipeline d'offres : [42498455345](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42498455345) ;
+- migrations isolées Security Core : [42498455576](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42498455576) ;
+- registre des sources : [42498455373](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42498455373) ;
+- gates J’IA Architecture, Cognitive Core, Internet Brain, Hard Mode et Master : **PASS** ;
+- validation de préparation harvest : **PASS** ; le crawl réel est **SKIPPED** sur pull request conformément à sa garde d'exécution.
 
 La branche de correction a donc passé les contrôles automatisés enregistrés ci-dessus. La recette fonctionnelle runtime des trois rôles reste distincte et n'est pas déduite du build CI.
 
@@ -4241,14 +4251,14 @@ La branche de correction a donc passé les contrôles automatisés enregistrés 
 - LOT-01 smoke Auth (3 comptes × sign-in/getUser/refresh/signOut) : résultat opérateur toujours attendu ; ne pas le présumer PASS.
 - Continuer les LOT-01 à LOT-10 selon leurs dépendances, sans relancer les groupes déjà PASS si leur code n'a pas changé.
 - LOT-11 reste le dernier lot : OpenAPI `public=200 valid`, `net=406/PGRST106`, puis réconciliation des findings sécurité et de l'éventuelle fonction SQL historique.
-- Corrections isolées sur `fix/audit-profile-country-event-guards-20261108`, commit validé par CI : `2e16e9d5721e977c51a713f5fe90636e293b0c8e`.
+- Corrections isolées sur `fix/audit-profile-country-event-guards-20261108`, HEAD validé par CI : `a8bd044a5abb416b90ef236499e814cb84b02753`.
 - PR **#267** : [ouverte, brouillon, non fusionnée](https://github.com/kenzimayaka-glitch/Jobly/pull/267), base `main`, head `fix/audit-profile-country-event-guards-20261108`.
 - PR **#266** : reste ouverte, brouillon, non fusionnée.
 - `main` reste sur `979f2ccfec9258bc30989af18433cf6adb1b4698` ; aucune de ces corrections n'y est intégrée.
 
 Aucune modification Supabase/Storage, aucun accès JOBLY-PROD, aucune migration appliquée, aucune fusion et aucun déploiement de production ne sont effectués par cette mise à jour.
 
-**Exception de traçabilité — aperçu PR automatique :** après ouverture de PR #267, le statut externe `netlify/thriving-cannoli-c23611/deploy-preview` a été signalé et l'URL `https://deploy-preview-267--thriving-cannoli-c23611.netlify.app` a été publiée. Les checks Netlify de règles et de pages ont ensuite affiché `neutral`. Cet aperçu semble déclenché par l'intégration Netlify déjà rattachée au dépôt ; il n'a pas été lancé manuellement ici et ne vise pas la production. Cela contredit la préférence projet « Vercel, pas Netlify ». Aucune modification de l'intégration n'a été faite ; il faudra la désactiver ou la remplacer avant les prochaines PR si Vercel doit être l'unique fournisseur d'aperçu.
+**Exception de traçabilité — aperçu PR automatique :** après ouverture de PR #267 et mise à jour de son HEAD, le statut externe `netlify/thriving-cannoli-c23611/deploy-preview` a été signalé et l'URL `https://deploy-preview-267--thriving-cannoli-c23611.netlify.app` a été publiée (aperçu Netlify `6af09ec2efbaa7c73fd6dd36`). Les checks Netlify de règles et de pages ont affiché `neutral`. Cet aperçu semble déclenché par l'intégration Netlify déjà rattachée au dépôt ; il n'a pas été lancé manuellement ici et ne vise pas la production. Cela contredit la préférence projet « Vercel, pas Netlify ». Aucune modification de l'intégration n'a été faite ; il faudra la désactiver ou la remplacer avant les prochaines PR si Vercel doit être l'unique fournisseur d'aperçu.
 
 **Seconde exécution CI déclenchée par l'ouverture de PR #267 :** les deux runs sont maintenant terminés **PASS** :
 - CI Typecheck & Build : [42498056605](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42498056605) — typecheck et build de production PASS ;
