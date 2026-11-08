@@ -562,7 +562,7 @@ export default function Home() {
     };
 
     void refreshStats();
-    const interval = window.setInterval(() => void refreshStats(), 60_000);
+    const interval = window.setInterval(() => void refreshStats(), 20_000);
 
     return () => {
       active = false;
