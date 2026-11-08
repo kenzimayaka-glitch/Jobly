@@ -6,9 +6,11 @@ La vitrine publique est disponible sur `/vitrine`. La route `/` reste l'entrée 
 
 ## Compteurs synchronisés avec l'application
 
-Le site et l'écran d'accueil de l'application consomment la même route : `GET /api/public/home-stats`. Les champs affichés sont `talentsCount` (profils rattachés à un compte TALENT) et `offersCount` (offres d'emploi africaines visibles et à jour selon la règle de fraîcheur partagée). Aucune formule de calcul propre au site n'est utilisée.
+Pour un visiteur non connecté, `GET /api/public/home-stats` fournit `talentsCount` (profils rattachés à un compte TALENT) et `offersCount` (offres africaines visibles et à jour selon la règle de fraîcheur partagée).
 
-Le site et l'accueil de l'application actualisent les compteurs toutes les 20 secondes. L'API autorise une mise en cache CDN courte de 10 secondes pour limiter les requêtes identiques sans créer deux chiffres différents. En cas d'indisponibilité, l'interface conserve la dernière valeur vérifiée ou affiche un tiret si aucune valeur n'a encore été chargée ; elle ne bascule jamais sur des chiffres marketing.
+Pour un visiteur connecté, la vitrine récupère également `GET /api/jobs?limit=1&page=1&scope=africa` avec la session Supabase déjà ouverte. Le compteur d'offres affiché reprend alors directement `totalAvailable`, le total calculé par le même flux serveur que l'écran Talent > Offres. Il inclut les offres issues de `Job` et les offres recruteur publiées, puis applique les règles réelles de visibilité, de fraîcheur et de marché Afrique (dont l'exclusion du pays de résidence dans cette vue). Le navigateur ne recalcule pas le total et n'utilise pas une deuxième formule métier. Les nouvelles offres sont donc prises en compte dès qu'elles deviennent visibles dans ce flux.
+
+Les compteurs sont rafraîchis à l'ouverture et au retour sur l'onglet, puis toutes les trois minutes. La route publique autorise une mise en cache CDN courte de 10 secondes ; le flux authentifié est interrogé sans cache. En cas d'indisponibilité, l'interface conserve la dernière valeur vérifiée ou affiche un tiret si aucune valeur n'a encore été chargée ; elle ne bascule jamais sur des chiffres marketing.
 
 ## Jobly Success Moments
 
