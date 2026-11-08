@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     const nowIso = now.toISOString();
     const [usersResult, experiencesResult, skillsResult, subscriptionsResult, promosResult] = await Promise.all([
       sb.from("User")
-        .select("id,displayName,profilePhotoUrl,profilePhotoStoragePath,profilePhotoVisibility,profilePhotoConsentAt,executiveSummary,portfolioBusiness,advertisingVideoUrl,advertisingVideoDurationMs,pitchVideoUrl,pitchVideoDurationMs")
+        .select("id,displayName,profilePhotoUrl,profilePhotoVisibility,profilePhotoConsentAt,executiveSummary,portfolioBusiness,advertisingVideoUrl,advertisingVideoDurationMs,pitchVideoUrl,pitchVideoDurationMs")
         .in("id", ids),
       sb.from("Experience").select("userId,title,company,startDate,endDate").in("userId", ids),
       sb.from("Skill").select("userId,name,level").in("userId", ids),
