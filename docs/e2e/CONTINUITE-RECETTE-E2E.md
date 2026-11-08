@@ -4274,8 +4274,8 @@ Mise à jour V2.82 sur `e2e/recette`. Source précédente : blob SHA `095d7e376f
 
 - La référence de continuité a été relue sur `e2e/recette`.
 - PR [#266](https://github.com/kenzimayaka-glitch/Jobly/pull/266) : **ouverte, brouillon, non fusionnée**, base `main`, head `e2e/recette`.
-- HEAD de PR #266 après le correctif du smoke Auth : `1ae164849bd7f0b52986d2af080e8b8771e3422c`.
-- `main) reste sur `979f2ccfec9258bc30989af18433cf6adb1b4698`.
+- Commit du correctif du smoke Auth : `1ae164849bd7f0b52986d2af080e8b8771e3422c`.
+- `main` reste sur `979f2ccfec9258bc30989af18433cf6adb1b4698`.
 - Le dernier résultat local Auth annoncé dans ce document n'a pas été remplacé par un nouveau rapport ; aucun nouveau fichier `feedback-lot01-auth-session-20261108.txt` n'a été transmis dans cette reprise.
 - **LOT-01 / Auth reste NOT RUN pour cette nouvelle passe / résultat attendu.** Le smoke public Auth préflight (§78) est PASS, mais ce préflight ne remplace pas la connexion réelle des trois fixtures.
 
