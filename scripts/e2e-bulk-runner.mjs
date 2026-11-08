@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { createWriteStream } from "node:fs";
 import path from "node:path";
@@ -86,6 +86,18 @@ function readConcurrency() {
   const parsed = Number.parseInt(process.env.E2E_BULK_CONCURRENCY ?? "", 10);
   if (!Number.isFinite(parsed)) return DEFAULT_GROUP_CONCURRENCY;
   return Math.max(1, Math.min(6, parsed));
+}
+
+function readLocalCommit() {
+  try {
+    return execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: ROOT,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim() || null;
+  } catch {
+    return null;
+  }
 }
 
 function parseCount(log, label) {
@@ -255,7 +267,7 @@ async function main() {
     schemaVersion: 1,
     startedAt,
     completedAt: new Date().toISOString(),
-    commit: process.env.GITHUB_SHA ?? null,
+    commit: process.env.GITHUB_SHA ?? readLocalCommit(),
     node: process.version,
     groupConcurrency: concurrency,
     fileConcurrency: FILE_CONCURRENCY,
