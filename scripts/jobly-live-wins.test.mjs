@@ -11,7 +11,7 @@ import {
   pickLiveWinsDelayMs,
   LIVE_WINS_DAILY_CAP,
 } from "../lib/jobly-live-wins-schedule.ts";
-import { isEligibleLiveWin, LIVE_WINS_LOOKBACK_MS } from "../lib/live-wins-eligibility.ts";
+import { getLiveWinsMessages, pickLiveWinsMessage } from "../lib/jobly-live-wins-messages.ts";
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -71,24 +71,23 @@ test("the daily cap defers the next event to the following local day", () => {
   assert.equal(isWithinLiveWinsWindow(tomorrow), true);
 });
 
-const validCandidate = {
-  id: "application-1",
-  userId: "talent-2",
-  status: "OFFER",
-  statusSource: "RECRUITER",
-  updatedAt: new Date(NOW - HOUR).toISOString(),
-  recruiterJob: { recruiterUserId: "recruiter-2" },
-};
+test("Live Wins selects messages randomly from the Talent and Recruiter message banks", () => {
+  const talentMessages = getLiveWinsMessages("TALENT");
+  const recruiterMessages = getLiveWinsMessages("RECRUITER");
+  assert.ok(talentMessages.length >= 8);
+  assert.ok(recruiterMessages.length >= 8);
+  assert.equal(pickLiveWinsMessage("TALENT", () => 0), talentMessages[0]);
+  assert.equal(pickLiveWinsMessage("TALENT", () => 0.999999), talentMessages[talentMessages.length - 1]);
+  assert.equal(pickLiveWinsMessage("RECRUITER", () => 0), recruiterMessages[0]);
+  assert.equal(pickLiveWinsMessage("RECRUITER", () => 0.999999), recruiterMessages[recruiterMessages.length - 1]);
+});
 
-test("only a recent recruiter-confirmed offer between other users is eligible", () => {
-  assert.equal(isEligibleLiveWin(validCandidate, "viewer-1", NOW), true);
-  assert.equal(isEligibleLiveWin({ ...validCandidate, userId: "viewer-1" }, "viewer-1", NOW), false);
-  assert.equal(isEligibleLiveWin({ ...validCandidate, recruiterJob: { recruiterUserId: "viewer-1" } }, "viewer-1", NOW), false);
-  assert.equal(isEligibleLiveWin({ ...validCandidate, status: "INTERVIEW" }, "viewer-1", NOW), false);
-  assert.equal(isEligibleLiveWin({ ...validCandidate, statusSource: "CANDIDATE" }, "viewer-1", NOW), false);
-  assert.equal(isEligibleLiveWin({ ...validCandidate, updatedAt: new Date(NOW - LIVE_WINS_LOOKBACK_MS - 1).toISOString() }, "viewer-1", NOW), false);
-  assert.equal(isEligibleLiveWin({ ...validCandidate, updatedAt: new Date(NOW + 1000).toISOString() }, "viewer-1", NOW), false);
-  assert.equal(isEligibleLiveWin({ ...validCandidate, recruiterJob: null }, "viewer-1", NOW), false);
+test("each request can produce a new Live Wins message without looking up a real application", () => {
+  const route = readFileSync(new URL("../app/api/live-wins/route.ts", import.meta.url), "utf8");
+  assert.match(route, /pickLiveWinsMessage\(liveWinsRole\)/);
+  assert.match(route, /randomUUID\(\)/);
+  assert.doesNotMatch(route, /\.from\(["']Application["']\)/);
+  assert.doesNotMatch(route, /statusSource|recruiterJob|updatedAt/);
 });
 
 test("API endpoint is authenticated, private and excludes the current candidate and recruiter", () => {

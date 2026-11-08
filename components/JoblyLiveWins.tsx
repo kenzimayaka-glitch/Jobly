@@ -11,7 +11,7 @@ import {
   nextLiveWinsOnFollowingDay,
 } from "@/lib/jobly-live-wins-schedule";
 
-type LiveWinsEvent = { eventKey: string; occurredAt: number };
+type LiveWinsEvent = { eventKey: string; occurredAt: number; message: string };
 type LiveWinsToast = { title: string; message: string };
 type StoredSchedule = {
   version: 1;
@@ -219,30 +219,20 @@ export default function JoblyLiveWins() {
 
         const payload = await response.json() as { role?: string; events?: LiveWinsEvent[] };
         const role = String(payload.role || "").toUpperCase();
-        const seen = new Set(state.seenEventKeys);
-        const candidates = Array.isArray(payload.events)
-          ? payload.events.filter((event) =>
-              typeof event?.eventKey === "string" &&
-              Number.isFinite(event.occurredAt) &&
-              !seen.has(event.eventKey)
-            )
-          : [];
+        const event = Array.isArray(payload.events) ? payload.events[0] : null;
+        const validEvent = Boolean(
+          event &&
+          typeof event.eventKey === "string" &&
+          typeof event.message === "string" &&
+          event.message.trim().length > 0 &&
+          Number.isFinite(event.occurredAt)
+        );
 
         if ((role === "TALENT" || role === "RECRUITER") &&
-            candidates.length > 0 && document.visibilityState === "visible") {
-          const event = candidates[Math.floor(Math.random() * candidates.length)];
-          const isFresh = Date.now() - event.occurredAt <= 24 * 60 * 60 * 1000;
-          const message = role === "TALENT"
-            ? isFresh
-              ? "1 talent vient de recevoir une proposition d’embauche grâce à Jobly."
-              : "1 talent a récemment reçu une proposition d’embauche grâce à Jobly."
-            : isFresh
-              ? "1 recruteur vient de faire une proposition d’embauche à un talent grâce à Jobly."
-              : "1 recruteur a récemment fait une proposition d’embauche à un talent grâce à Jobly.";
-
-          setToast({ title: "Une réussite Jobly", message });
+            validEvent && document.visibilityState === "visible") {
+          setToast({ title: "Jobly Live Wins", message: event!.message });
           state.shownToday += 1;
-          state.seenEventKeys = [...state.seenEventKeys, event.eventKey].slice(-MAX_SEEN_EVENTS);
+          state.seenEventKeys = [...state.seenEventKeys, event!.eventKey].slice(-MAX_SEEN_EVENTS);
         }
 
         const completedAt = Date.now();
