@@ -188,10 +188,7 @@ Le vérificateur distant contrôlé est `e2e/verify-existing-fixtures.mjs`, blob
 Commande de reprise recommandée depuis CMD, sans synchroniser le clone de 167 commits :
 ```cmd
 cd /d C:\Users\ASUS\Jobly
-git fetch origin
-git show origin/e2e/recette:e2e/verify-existing-fixtures.mjs > e2e\verify-existing-fixtures.current.mjs
-node e2e\verify-existing-fixtures.current.mjs "C:\Users\ASUS\Jobly\.e2e-fixtures.json"
-notepad artifacts\e2e\fixture-password-verification.json
+git fetch origin && git show origin/e2e/recette:e2e/verify-existing-fixtures.mjs > e2e\verify-existing-fixtures.current.mjs && node e2e\verify-existing-fixtures.current.mjs "C:\Users\ASUS\Jobly\.e2e-fixtures.json" && notepad artifacts\e2e\fixture-password-verification.json
 ```
 Si `git fetch` ou `git show` échoue, arrêter là ; ne pas lancer une ancienne copie locale. Cette commande ne fait ni `pull`, ni `merge`, ni modification Auth. Elle crée une copie de travail distincte du vérificateur et écrit seulement son rapport.
 
