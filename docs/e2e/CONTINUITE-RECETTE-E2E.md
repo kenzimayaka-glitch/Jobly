@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.54 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.55 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -15,7 +15,7 @@
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : V6 et V7 ont échoué avant HTTP ; V7 n'a détecté aucun marqueur de collage. Le Dashboard montre à l'opérateur la ligne Legacy `service_role` et la valeur révélée commence par `eyJ`. Le contrôle PowerShell §42 avait lu un contenu non vide sans ce préfixe. Le contrôle de classification §43.5 retourne maintenant `clipboard_text_present=True`, `clipboard_kind=OTHER_TEXT`, `clipboard_prefix_eyJ=False`, `clipboard_prefix_sb_secret=False`, `clipboard_equals_ui_label=False`, `clipboard_length_bucket=GE1000`, avec `read_error=NONE`. Il a aussi confirmé `clipboard_overwrite_verified=True` et `overwrite_error=NONE`. Le presse-papiers contenait donc un texte long, mais pas la clé attendue ; le contenu exact n'a pas été affiché ni enregistré. Cette preuve ne permet pas encore d'affirmer que le bouton Copier du Dashboard a échoué, car aucun marqueur témoin n'avait été installé avant le clic : un contenu ancien ou copié depuis un autre élément reste possible. La prochaine étape est le test différentiel §45 : poser et vérifier une sentinelle avant le clic, cliquer ensuite sur Copier dans la ligne Legacy `service_role`, puis classifier le contenu immédiatement après. Aucun GET OpenAPI n'a été obtenu. La V7 ne doit pas être relancée. L'intention des deux buckets publics doit être confirmée et la revue ciblée des grants/policies documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. Les échecs V6/V7 se sont produits avant HTTP et ne démontrent pas que Supabase refuse la clé Legacy. L'opérateur confirme la ligne Legacy `service_role` et le préfixe `eyJ` de la valeur révélée. Le rapport §43.5 a lu `OTHER_TEXT` non vide (`GE1000`), pas `eyJ` ni `sb_secret_`, et a vérifié le remplacement du presse-papiers par une sentinelle. Comme aucune sentinelle de départ n'avait été posée avant le clic sur Copier, l'origine de cet autre texte reste indéterminée. Le prochain contrôle est le test différentiel §45. Ne pas relancer V5/V6/V7 et ne pas utiliser `anon`, `sb_secret_…` ni une clé de production. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.44  
+**Version :** 2.55  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -2992,3 +2992,38 @@ notepad feedback-lot00-clipboard-after-copy-detail-20261108.txt
 Aucun GET OpenAPI avant PASS. Ne pas copier ou transmettre le contenu par une autre méthode. Aucun changement de clé, permission, fixture, production ou déploiement. LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED jusqu'aux preuves HTTP et aux contrôles de sécurité restants.
 
 Document source avant cette mise à jour : V2.53, blob SHA 37ae675855214e2df7b2211316e3bff69e751f37, branche e2e/recette.
+
+
+---
+
+## 57. Nouvelle tentative contrôlée de classification du presse-papiers — V2.55 — 8 novembre 2026
+
+### 57.1 Motif
+
+Le résultat précédent (§55) était `OTHER_TEXT` après une baseline qui avait réussi (§54). Il établit que le presse-papiers a changé, mais pas que le bouton a copié la clé Legacy. Le classificateur détaillé du §56 est donc retenu pour un nouvel essai unique, après contrôle visuel de la cible du bouton.
+
+### 57.2 Séquence opérateur à répéter
+
+1. Ouvrir explicitement le projet JOBLY-E2E `ofqqrryamslxoqkklraw` dans Supabase.
+2. Ouvrir **Project Settings → API Keys → Legacy API Keys**.
+3. Identifier la ligne `service_role` portant le badge `secret`. Ne pas confondre l'icône Copier de la valeur avec Copier le nom, Révéler, une autre clé ou le JWT Signing Secret.
+4. Exécuter l'étape A de §45.3 pour réinstaller et vérifier la sentinelle. Continuer uniquement si `baseline_verified=True`.
+5. Cliquer une seule fois sur l'icône Copier attachée à la valeur de cette ligne.
+6. Immédiatement exécuter la commande détaillée du §56.1, puis ouvrir son rapport avec Notepad.
+7. Communiquer uniquement les lignes non sensibles du rapport.
+
+### 57.3 Décision selon le résultat
+
+- `PASS_CLIPBOARD_JWT_METADATA` : la forme JWT et les claims locaux `role=service_role` / `ref=ofqqrryamslxoqkklraw` sont établis. Cela ne valide pas la signature ni l'acceptation serveur ; le GET OpenAPI contrôlé pourra alors être préparé.
+- `BASELINE_UNCHANGED` ou `UI_LABEL` : le bouton n'a pas fourni le secret attendu ; vérifier la cible exacte du bouton. Ne pas continuer vers HTTP.
+- `OTHER_TEXT`, `JSON_TEXT`, `HTML_TEXT`, `MASKED_PLACEHOLDER` ou erreur : ne pas multiplier les clics dans le même navigateur. Si la ligne et le bouton sont visuellement confirmés, effectuer au maximum un essai dans un autre navigateur à jour, en recommençant par la sentinelle.
+- Aucun contenu du presse-papiers ne doit être affiché, collé dans une conversation, copié dans un fichier ou envoyé à l'assistant.
+
+### 57.4 État et garde-fous
+
+- Cette section décrit une procédure à exécuter ; aucun nouveau résultat de presse-papiers n'est déclaré ici.
+- Aucun GET OpenAPI n'a été exécuté à ce stade ; aucune signature JWT ni acceptation serveur n'est validée.
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- JOBLY-PROD hors périmètre ; aucune mutation Supabase/fixture ; aucun accès à une clé de production ; aucun changement de `main) ; aucun déploiement.
+- PR #266 reste ouverte, brouillon et non fusionnée.
+- Document source avant cette mise à jour : V2.54, blob SHA `44551e84248808579fd2e011e48924943896f675`, branche `e2e/recette`.
