@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.88 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.89 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -4565,3 +4565,61 @@ Décision de sécurité : ne pas lancer `git pull`, `git switch`, `git reset` ou
 Procédure de reprise à faible impact : extraire uniquement le script vérifié depuis l'objet Git déjà récupéré `origin/e2e/recette` avec `git show`, dans le chemin manquant du dépôt local ; vérifier le hash Git de ce fichier contre le blob distant `06ff209b99a1f276f53f0007e7919eaf7cd82851` ; faire un contrôle de syntaxe Node ; puis exécuter le script avec le drapeau explicite après vérification. Cette méthode ne met pas à jour la branche locale et ne touche pas aux autres fichiers.
 
 Statut reste : **SQL / RLS / privilèges PASS ; Storage NOT RUN ; LOT-00 PARTIAL**. Aucun changement de `main`, aucune fusion PR #266/#267, aucun déploiement, aucun accès JOBLY-PROD.
+
+
+## 87. LOT-01 — analyse du vrai blocage et défaut de statut du runner
+
+Analyse de la branche distante `e2e/recette` effectuée après le retour opérateur du diagnostic Git local.
+
+### 87.1 Fichiers relus à distance
+
+| Fichier | Blob SHA | Constat |
+|---|---|---|
+| `scripts/e2e-local-recipe.mjs` | `6bd5918a3fdaed76d73e086318f4cb528adfbe78` | Catalogue, exécution des lots et agrégation des statuts |
+| `e2e/auth-session-smoke.mjs` | `86568783a7a0f9023553dfdbf53af736cea4cc12` | 12 contrôles Auth réels, 4 par rôle |
+| `e2e/browser-smoke.mjs` | `87d7acbadce230d5b343ee6025e246e0016408d2` | Parcours UI public, mobile, APIs anonymes et preuve Auth |
+| `scripts/e2e-authenticated-runtime-regression.test.mjs` | `ad7aa1f4ac537c4741c67c274838428fa29d9891` | 6 assertions statiques de sécurité runtime |
+| `scripts/authentication-flow-regression.test.mjs` | `8048875be0291cfa2986e18acb0e6babe5b30b3d` | Contrats d'authentification statiques |
+| `scripts/jobly-security-core.test.mjs` | `16091b19842d87a535061e5bf0c427777443a964` | Sécurité du cœur, anti-abus, worker PWA et contrat pg_net |
+| `scripts/security-entitlements.test.mjs` | `a8a1d8c924455589ab8be95451a5c9f4c998b4c1` | Contrats de quotas et autorisations |
+| `scripts/p2-pwned-passwords.test.mjs` | `fd92e9b2bac627fa130e9526cc99a22c43417c23` | Tests du contrôle HIBP personnalisé |
+
+### 87.2 Défaut bloquant certain — LOT-01 ne peut pas être déclaré PASS par le runner actuel
+
+Le catalogue LOT-01 contient les cinq fichiers de tests ci-dessus, mais ne déclare aucun tableau `gates`.
+
+Dans `executeLot()`, après succès des tests et des éventuels gates, le chemin sans gate retourne explicitement `status: "PARTIAL"` (commentaire : un PASS unitaire/statique ne prouve pas le parcours authentifié). Plus loin, l'agrégateur LOT-01 ajoute l'état du smoke Auth et du navigateur ; il ne fait que dégrader le lot en `FAIL` lorsque le navigateur échoue. Il ne contient aucune condition qui promeut le lot en `PASS`, même lorsque Auth et UI sont PASS.
+
+**Conséquence : le moteur de recette actuel rend LOT-01 structurellement incapable de devenir vert.** Ce défaut doit être corrigé dans le code du runner : définir des critères/gates explicites et n'émettre PASS que lorsque les suites statiques, le smoke Auth 12/12, le smoke UI sans contrôle bloqué et les scénarios runtime retenus sont effectivement PASS. Ne pas simplement changer la valeur PARTIAL en PASS par défaut.
+
+### 87.3 Preuves runtime manquantes — état constaté dans la continuité
+
+- Le préflight public Auth §78 est PASS, mais il teste uniquement la joignabilité de `/auth/v1/settings`, pas les connexions des comptes.
+- Le smoke `e2e/auth-session-smoke.mjs` exige `.e2e-fixtures.json` avec les trois identifiants JOBLY-E2E (Talent, Recruteur, Partenaire). Il réalise 4 contrôles par rôle : sign-in réel, vérification `getUser`, rôle signé `app_metadata`, renouvellement/rotation de session ; il ferme ensuite la session locale. Une absence de fixture donne BLOCKED sans création/restauration/reset.
+- Aucun nouveau rapport `feedback-lot01-auth-session-20261108.txt` n'a été reçu depuis le correctif fail-closed §82.2. La continuité avait déjà signalé l'absence locale de `.e2e-fixtures.json` ; aucun résultat plus récent ne prouve que le fichier d'identifiants existe à nouveau. Ne pas le présumer.
+- Le smoke navigateur compte AUTH-006/007 PASS uniquement si un rapport Auth récent (moins de 6 heures), complet (12/12), sur le ref exact JOBLY-E2E, avec les trois rôles PASS est présent. Sans ce rapport, deux contrôles restent BLOCKED.
+- Le smoke navigateur couvre la page d'accueil, l'accès au formulaire de connexion, l'affichage/masquage du mot de passe, la navigation vers inscription, l'absence de débordement mobile et six refus HTTP 401 d'API protégées pour un visiteur anonyme. Son propre code dit explicitement qu'il ne soumet pas l'inscription, OTP, paiement, candidature, email ou requête fournisseur externe.
+
+### 87.4 Couverture métier restant à décider/compléter
+
+Le gap catalogue de LOT-01 mentionne encore les parcours réels OTP, Google OAuth, réinitialisation du mot de passe et révocation multi-appareils. Les fichiers existants en vérifient une partie de manière statique (présence de contrôles et contrats dans le code), mais le smoke navigateur n'exécute pas les parcours fournisseur/OTP. Pour un LOT-01 réellement vert au sens complet, ces scénarios doivent être exécutés sur JOBLY-E2E avec des méthodes contrôlées, ou être explicitement délimités/acceptés comme hors périmètre de ce jalon. Les tests statiques ne sont pas une preuve de parcours runtime.
+
+### 87.5 Causes à ne pas confondre
+
+1. **Défaut du runner :** cause certaine et bloquante pour le statut PASS, même si les tests passent.
+2. **Preuve Auth runtime absente :** 12/12 non démontrés par un nouveau rapport ; configuration d'identifiants locale requise.
+3. **Preuve UI/Auth récente :** AUTH-006/007 dépendent du rapport 12/12 récent ; le smoke UI complet reste à produire.
+4. **Parcours OTP/Google/reset/révocation :** couverture runtime non démontrée si ces scénarios restent des critères d'acceptation.
+5. L'Advisor Supabase signale la protection native contre les mots de passe compromis désactivée sur le plan Free ; le contrôle HIBP personnalisé a ses tests dédiés. C'est une limitation/acceptation de configuration à documenter, pas une raison de simuler un PASS Auth.
+
+### 87.6 Plan de correction LOT-01 — sans lancer le runner global
+
+1. Corriger le mécanisme de statut du runner pour LOT-01, avec critères PASS explicites et preuve reportée par contrôle.
+2. Ajouter/compléter les scénarios runtime OTP, Google OAuth, reset et révocation multi-appareils si retenus au périmètre de sortie.
+3. Rétablir un moyen sûr et local de fournir les identifiants des trois fixtures existantes (sans les poster ici, sans réinitialisation ni provisionnement).
+4. Exécuter d'abord le smoke Auth isolé, puis le smoke UI ciblé sur le même rapport frais.
+5. Exécuter les validations additionnelles et le LOT-01 ciblé ; vérifier le détail et le code de sortie avant de déclarer PASS.
+
+Ne pas lancer `scripts/e2e-local-recipe.mjs` pour contourner ces manques : son chemin d'exécution peut démarrer le serveur et les parcours authentifiés, et il ne doit pas restaurer automatiquement des fixtures. Ne pas exécuter les scripts de provisionnement, reset de mot de passe ou restauration de fixture. Le dépôt local étant 100 commits behind avec des changements non commités, ne pas faire de `pull`, `reset`, `stash` ou `clean` en l'état.
+
+Statut LOT-01 : **PARTIAL / BLOCKED PAR LE MOTEUR DE STATUT ET PAR LES PREUVES RUNTIME MANQUANTES**. Aucun correctif du runner n'a été appliqué pendant cette analyse. JOBLY-PROD, `main`, les PR et les déploiements restent inchangés.
