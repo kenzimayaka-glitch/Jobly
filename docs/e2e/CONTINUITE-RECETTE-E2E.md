@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.93 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.94 — 8 novembre 2026
 >
 > **Dernier commit de correction LOT-00 :** `83304fcbfbc6a3d2950298ec13db929fb9b064cf` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -4632,7 +4632,7 @@ Statut LOT-01 : **PARTIAL / BLOCKED PAR LE MOTEUR DE STATUT ET PAR LES PREUVES R
 ### 91.1 Rapport opérateur du 8 novembre 2026
 
 Le lanceur précédent a bien récupéré le fichier attendu :
-- empreinte locale = empreinte attendue : 53420b691095d9042777cd8773b2fb42163a4d13 ;
+- empreinte locale = empreinte attendue : 6e5de2afc4b31ec8668403500912e7488631fc10 ;
 - node --check : PASS ;
 - exécution : BLOCKED avant tout appel Supabase, car Node ne résout pas le package @next/env importé par un script autonome depuis scripts/e2e.
 
@@ -4671,17 +4671,47 @@ Si Node signale ensuite que @supabase/supabase-js est introuvable, arrêter et t
 
 La tentative initiale s'est arrêtée à l'import de module. Le script corrigé n'a pas été exécuté au moment de cette mise à jour ; aucun bucket n'est déclaré PASS. LOT-00 reste PARTIAL. main, JOBLY-PROD, les PR et les déploiements restent inchangés.
 
+## 91. LOT-00 — tentative Storage bloquée par l'absence de clé privée locale (8 novembre 2026)
+
+### 91.1 Résultat vérifié
+
+Rapport opérateur transmis :
+- expected_blob : `6e5de2afc4b31ec8668403500912e7488631fc10` ;
+- local_blob : `6e5de2afc4b31ec8668403500912e7488631fc10` ;
+- `syntax_check=PASS` ;
+- environnement ciblé : `JOBLY-E2E`, projet `ofqqrryamslxoqkklraw` ;
+- résultat du script : `status=BLOCKED`, motif : « Clé privée JOBLY-E2E absente du fichier local. » ;
+- `credentials=not included`.
+
+Le fichier local correspond donc exactement au script de la branche et sa syntaxe est valide. Le programme s'arrête sur l'assertion de présence de la clé, avant `createClient`, `storage.getBucket`, toute mise à jour/création de bucket et toute migration de photo. Cette tentative n'a envoyé aucune requête Supabase/Storage et n'a effectué aucune mutation distante.
+
+### 91.2 Variables acceptées par le script
+
+Le script accepte une seule des deux formes suivantes, dans la configuration locale non committée à la racine du dépôt :
+- `SUPABASE_E2E_SECRET_KEY` pour une clé secrète Supabase au format `sb_secret_…` ;
+- `SUPABASE_SERVICE_ROLE_KEY` pour un JWT service_role dont les claims doivent confirmer le projet `ofqqrryamslxoqkklraw` et le rôle `service_role`.
+
+Le chargeur lit `.env`, puis `.env.local` (qui remplace les valeurs du premier fichier). Une variable déjà définie dans l'environnement du processus conserve la priorité sur ces fichiers. Les noms/valeurs de secrets ne doivent jamais être affichés, committés, ni copiés dans le chat ou le rapport.
+
+### 91.3 Action opérateur restante
+
+1. Ajouter localement dans `.env.local` une seule des variables acceptées ci-dessus avec une clé autorisée pour JOBLY-E2E ; ne pas partager la valeur.
+2. Relancer `scripts\\e2e\\run-lot00-storage-hardening.cmd`. Le lanceur refait le fetch individuel, le contrôle du blob et `node --check` avant l'application.
+3. Vérifier le rapport `feedback-lot00-storage-apply-20261108.txt` : il faut `status=PASS`, `exit_code=0` et les cinq cibles vérifiées après relecture. En cas de nouveau blocage, ne transmettre que le rapport expurgé des secrets.
+
+LOT-00 reste **PARTIAL / BLOCKED sur l'étape Storage**. Aucun PASS Storage, aucun test applicatif runtime et aucune clôture LOT-00 ne sont autorisés à ce stade. Gardes-fous inchangés : JOBLY-PROD hors périmètre, `main` inchangée, PR #266/#267 ouvertes en brouillon et non fusionnées, aucun déploiement.
+
 ## 90. LOT-00 — lanceur Windows sécurisé et réconciliation finale du code
 
 ### 90.1 Lanceur opérateur ajouté
 
 Fichier : scripts/e2e/run-lot00-storage-hardening.cmd  
-Blob : a7f79fe63d42a838f262393002344d234beee301
+Blob : d7478e1793021483e586ebf29e247dd994c9629a
 
 Le lanceur :
 - exécute uniquement git fetch (pas de pull, switch, reset, stash ou clean) ;
 - récupère uniquement le script Storage depuis origin/e2e/recette ;
-- vérifie son blob Git exact 53420b691095d9042777cd8773b2fb42163a4d13 ;
+- vérifie son blob Git exact 6e5de2afc4b31ec8668403500912e7488631fc10 ;
 - exécute node --check et s'arrête à la moindre erreur ;
 - fixe E2E_PROJECT_REF et NEXT_PUBLIC_SUPABASE_URL à JOBLY-E2E ;
 - lance le script Storage avec le flag explicite d'application ;
@@ -4696,14 +4726,14 @@ Le lien signé du média d'un événement publié a une validité de sept jours 
 
 ### 90.3 État synchronisé au 8 novembre 2026
 
-- Branche e2e/recette : 706aae66bc37bfb19c24036c5dcaf885647439bb.
+- Branche e2e/recette avant cette entrée : 383ab0d92c6eb2e8e2d029fc0269087684564709.
 - main : 979f2ccfec9258bc30989af18433cf6adb1b4698, inchangée.
 - PR #266 : OPEN, draft=true, merged=false, base main.
 - PR #267 : OPEN, draft=true, merged=false, base main.
 - Migration SQL de confidentialité : appliquée sur JOBLY-E2E, version 20261108173912, contraintes revérifiées.
 - Vérifications statiques distantes : 21/21.
 - Test node --test, TypeScript, build Next.js, parcours navigateur et Storage runtime : toujours non exécutés.
-- Script Storage cinq cibles : toujours NON EXÉCUTÉ ; les métadonnées de bucket lues avant exécution conservent les anciennes configurations.
+- Script Storage cinq cibles : tentative d'exécution le 8 novembre 2026, bloquée avant tout appel Supabase faute de clé privée locale ; aucune configuration Storage n'a été modifiée. Les dernières métadonnées lues avant cette tentative restent la dernière preuve disponible.
 - LOT-00 reste PARTIAL. Aucun déploiement de production, aucun merge et aucun accès JOBLY-PROD.
 
 ### 90.4 Commande de reprise locale
@@ -4770,7 +4800,7 @@ Correctifs commis :
 
 ### 89.5 Nouveau script de configuration Storage — exécution encore requise
 
-Le script scripts/e2e/lot00-storage-bucket-hardening.mjs a été étendu. Blob actuel : 53420b691095d9042777cd8773b2fb42163a4d13.
+Le script scripts/e2e/lot00-storage-bucket-hardening.mjs a été étendu. Blob actuel : 6e5de2afc4b31ec8668403500912e7488631fc10.
 
 Cibles :
 - talent-cvs : privé, 3 MiB, PDF ;
@@ -4779,7 +4809,7 @@ Cibles :
 - jobly-events : privé, 10 MiB, JPEG/PNG/WebP/GIF/PDF/MP4 ;
 - profile-photos-private : créé s'il manque, privé, 5 MiB, JPEG/PNG/WebP/GIF.
 
-Le bucket public profile-photos reste public uniquement pour les objets explicitement consentis. Le script comporte les garde-fous de ref/URL/clé E2E, les snapshots, la relecture des métadonnées, la migration des photos legacy et le nettoyage des photos publiques orphelines. En cas d'échec, le bucket jobly-events reste privé par sécurité ; les buckets créés par cette recette ne sont pas supprimés automatiquement.
+Le bucket public profile-photos reste public uniquement pour les objets explicitement consentis. Le script comporte les garde-fous de ref/URL/clé E2E, les snapshots, la relecture des métadonnées, la migration des photos legacy et le nettoyage des photos publiques orphelines. La syntaxe Node est vérifiée avant toute exécution. En cas d'échec après démarrage des opérations, le bucket jobly-events reste privé par sécurité ; les buckets créés par cette recette ne sont pas supprimés automatiquement.
 
 **État à ce jour : script non exécuté.** Les métadonnées lues juste avant cette mise à jour montrent toujours :
 - jobly-events public ;
@@ -4797,7 +4827,7 @@ Donc aucun PASS Storage ne peut être annoncé avant l'exécution via l'API Stor
 ### 89.7 Actions restantes et statut
 
 1. Récupérer le script mis à jour par fichier individuel après git fetch origin, sans faire de pull et sans modifier les nombreux changements locaux non commités.
-2. Vérifier le hash 53420b691095d9042777cd8773b2fb42163a4d13 et la syntaxe Node ; exécuter le script uniquement avec E2E_PROJECT_REF=ofqqrryamslxoqkklraw, URL https://ofqqrryamslxoqkklraw.supabase.co et la clé E2E déjà présente localement. Ne jamais envoyer la clé dans le chat.
+2. Vérifier le hash 6e5de2afc4b31ec8668403500912e7488631fc10 et la syntaxe Node ; exécuter le script uniquement avec E2E_PROJECT_REF=ofqqrryamslxoqkklraw, URL https://ofqqrryamslxoqkklraw.supabase.co et la clé E2E déjà présente localement. Ne jamais envoyer la clé dans le chat.
 3. Vérifier Storage via API après application : cinq cibles PASS, bucket privé des événements, création et confidentialité du bucket privé photo, migration/absence d'objets photo publics sans consentement.
 4. Exécuter node --test scripts/e2e/lot00-private-media-contract.test.mjs dans une copie source correspondant à e2e/recette, puis typecheck/build.
 5. Exécuter les parcours runtime E2E : upload privé photo, photo privée signée pour le propriétaire, refus public sans consentement, publication explicite, retrait du consentement, refus d'accès direct au staging événementiel, lecture signée après publication et nettoyage des dépôts expirés.
