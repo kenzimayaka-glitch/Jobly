@@ -264,6 +264,7 @@ try {
     SUPABASE_URL: SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: publishableKey,
+    GITHUB_SHA: runGit(["rev-parse", "HEAD"]),
     SUPABASE_PUBLISHABLE_KEY: publishableKey,
     SUPABASE_ANON_KEY: publishableKey,
     E2E_BASE_URL: BASE_URL,
@@ -306,8 +307,8 @@ try {
     console.log("Mode browser-only : aucun parcours API authentifié ni aucune écriture métier ne seront exécutés.");
     const playwrightModulePath = await ensurePlaywright(env);
     const authReportCandidates = [
-      path.join(SOURCE_ROOT, "artifacts", "e2e", "auth-session-smoke.json"),
       path.join(ROOT, "artifacts", "e2e", "auth-session-smoke.json"),
+      path.join(SOURCE_ROOT, "artifacts", "e2e", "auth-session-smoke.json"),
     ];
     const authReportPath = (await Promise.all(authReportCandidates.map(async (candidate) => ({
       candidate, present: await exists(candidate),
