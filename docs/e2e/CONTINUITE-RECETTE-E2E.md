@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.109 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.110 — 8 novembre 2026
 >
 > **Dernière correction de code Storage LOT-00 :** `f3753f7370007647a5e4bf99c130c69437d0c921` ; runner épinglé `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 : **PASS — clôturé** pour son périmètre environnement, identité, RLS/grants, Storage et correspondances des fixtures. La connexion réelle par mot de passe des fixtures reste NON TESTABLE faute de manifeste local de mots de passe et devient un prérequis explicite de LOT-01 Auth ; aucun mot de passe n'est réinitialisé. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.109  
+**Version :** 2.110  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -136,6 +136,24 @@ Détail des correspondances :
 Les trois identités ont un e-mail confirmé, ne sont pas actuellement bannies et ne sont pas supprimées. Les métadonnées Auth contiennent les marqueurs de fixture E2E et de rôle attendus. Les identifiants sont pseudonymisés dans les rapports de travail ; aucune adresse e-mail ni donnée personnelle n'est nécessaire à cette preuve.
 
 **Résultat : correspondance structurelle des fixtures PASS 3/3.** Aucun compte ni profil n'a été créé, modifié ou supprimé.
+
+### 93.18 Requête finale de cohérence des fixtures — PASS
+
+Une requête read-only finale a été exécutée le 8 novembre 2026 directement sur JOBLY-E2E, en filtrant les identités dont `auth.users.raw_app_meta_data.e2e_fixture = 'true'`, puis en comptant les profils associés via `public."User"."authUserId"`.
+
+Résultat agrégé retourné par Supabase :
+```json
+{
+  "fixture_auth_count": 3,
+  "exactly_one_profile": 3,
+  "missing_profile": 0,
+  "duplicate_profiles": 0,
+  "role_and_link_match": 3,
+  "invalid_expected_role": 0
+}
+```
+
+Cette requête confirme sans exposer les identités complètes que les trois fixtures déclarées existent, ont chacune un et un seul profil, que le rôle réel correspond au rôle E2E attendu et que le lien `authUserId` est présent. Aucune écriture n'a été exécutée.
 
 ### 93.17 Clôture effective LOT-00 — PASS
 
