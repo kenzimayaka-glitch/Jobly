@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.104 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.105 — 8 novembre 2026
 >
 > **Dernier commit de correction LOT-00 :** `cdc4399d452f3341895b5d56efb5204080d3faa9` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 conserve uniquement le préflight environnement/fixtures et les contrôles read-only de base (identité, RLS/grants, Storage, correspondances des fixtures), hors OpenAPI. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.104  
+**Version :** 2.105  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -191,6 +191,20 @@ Action requise, sans nouveau diagnostic :
 5. Une fois le fichier sauvegardé, lancer le runner une seule fois et examiner le rapport d'application réel. Ne pas demander à l'opérateur de transmettre le contenu de `.env.local`.
 
 La création d'un fichier vide n'a produit aucune clé et ne permet pas encore de poursuivre l'application Storage. Tant que la clé n'est pas renseignée et enregistrée, LOT-00 reste PARTIAL / BLOCKED sur Storage.
+
+### 93.11 Fenêtre Notepad « Sans titre » — enregistrement du vrai nom requis
+
+L'opérateur indique que la fenêtre Notepad ouverte par `notepad .env.local` affiche « Sans titre ». Cela signifie que le nouveau document est encore non enregistré ; cela ne signifie pas que le chemin du dépôt est erroné.
+
+Procédure :
+1. Dans le document vierge, saisir la ligne de clé privée JOBLY-E2E (clé réelle, jamais la valeur d'exemple).
+2. Faire `Ctrl+Shift+S` pour ouvrir « Enregistrer sous ».
+3. Naviguer vers `C:\Users\ASUS\Jobly`.
+4. Choisir le type `Tous les fichiers (*.*)` si le dialogue le propose.
+5. Entrer le nom exact `.env.local` (sans ajouter `.txt`) puis enregistrer.
+6. Ne pas transmettre le fichier ni sa valeur secrète. Une fois enregistré, relancer le lanceur une seule fois.
+
+Tant que le titre reste « Sans titre » et que l'enregistrement n'a pas été confirmé, le fichier `.env.local` n'existe pas encore. Aucun secret n'est supposé enregistré et Storage reste non appliqué.
 
 ### 93.4 Limites de l'intervention et statut Storage
 
