@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.58 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.59 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3159,3 +3159,70 @@ notepad feedback-lot00-npx-preflight-20261108.txt
 - JOBLY-PROD hors périmètre ; aucune mutation Supabase/fixture ; aucune modification de clé, `main), fusion ou déploiement.
 - PR #266 reste ouverte, brouillon et non fusionnée.
 - Document source avant cette mise à jour : V2.57, blob SHA `b6b63b918582fcd9378e3a94f06d0fb7fee81ff5`, branche `e2e/recette`.
+
+
+---
+
+## 61. Préflight CLI v3 corrigé et authentification PAT à portée minimale — V2.59 — 8 novembre 2026
+
+### 61.1 Résultat opérateur reçu
+
+```text
+runtime=PowerShell 5.1.19041.4522
+npx_available=True
+supabase_cli_version=3.0.0
+version_exit_code=0
+api_keys_help_exit_code=0
+api_keys_flag_project_ref=False
+api_keys_flag_remote=True
+management_api_auth=NOT_CHECKED
+jobly_e2e_visible=False
+projects_list_exit_code=NOT_RUN
+failure=NPX_NOT_FOUND_OR_PREFLIGHT_ERROR
+```
+
+Conclusions :
+- `npx` peut lancer Supabase CLI `3.0.0).
+- Pour cette version, le préflight a trouvé `--remote` et non `--project-ref`. Le ciblage correct documenté de la commande est `--remote=<project-ref>`.
+- Le script s'est arrêté avant `projects list` et n'a donc pas établi l'état d'authentification. Ne pas diagnostiquer une absence de session à partir de `management_api_auth=NOT_CHECKED`.
+- La prochaine commande ne doit plus lister tous les projets du compte. Elle devra cibler directement JOBLY-E2E par son ref explicite.
+
+### 61.2 Permissions minimales documentées
+
+La documentation Supabase indique que la lecture des clés API d'un projet requiert les permissions **API Keys — Read** et **API Key Secrets — Read**. Un jeton personnel peut être limité à un seul projet. Les droits d'écriture ne sont pas nécessaires pour lire les clés. Sources vérifiées le 8 novembre 2026 :
+- https://supabase.com/docs/guides/platform/personal-access-tokens
+- https://supabase.com/docs/reference/api/v1-get-project-api-key
+- https://supabase.com/docs/guides/getting-started/api-keys
+
+Créer, si aucun jeton approprié n'existe déjà, un Personal Access Token (PAT) scoped exclusivement au projet JOBLY-E2E avec ces deux permissions de lecture seulement. Ne pas créer un PAT Legacy/full-access et ne pas accorder d'écriture. Ne jamais transmettre le PAT à l'assistant.
+
+### 61.3 Action locale unique — authentifier Supabase CLI
+
+Dans CMD :
+```bat
+cd /d C:\Users\ASUS\Jobly
+npx.cmd --yes supabase@3.0.0 login
+```
+
+Au prompt interactif du CLI, saisir directement dans le terminal le PAT scoped créé dans le Dashboard Supabase, sans le placer dans la commande, une variable shell, un fichier, un rapport ou cette conversation. Attendre le message de succès du CLI. Supabase indique que le CLI conserve ce jeton dans le stockage natif sécurisé quand disponible et utilise un fichier local en repli si ce stockage ne l'est pas ; ne pas ouvrir ou partager ce fichier.
+
+Cette commande n'effectue aucune modification sur le projet Supabase. Elle authentifie uniquement la CLI locale.
+
+### 61.4 Étape suivante après succès de login
+
+Utiliser exclusivement :
+`npx.cmd --yes supabase@3.0.0 projects api-keys --remote=ofqqrryamslxoqkklraw`
+
+Cette commande doit être appelée depuis un processus local capturant sa sortie en mémoire ; ne jamais afficher, copier, écrire ou journaliser la réponse contenant les clés. Extraire localement uniquement la Legacy `service_role) du projet E2E, vérifier le format/claims, puis effectuer les GET OpenAPI read-only prescrits au §16.7. Si l'authentification ou les scopes sont insuffisants, ne pas élargir le jeton sans revoir précisément les permissions requises.
+
+### 61.5 Garde-fous et état
+
+- Le préflight précédent n'a prouvé ni réussite ni échec de l'authentification CLI.
+- Aucun appel `projects list` n'est à répéter ; ne pas énumérer les projets du compte.
+- Aucun appel de lecture de clé ni HTTP OpenAPI n'a encore été exécuté par cette voie.
+- Aucun secret/API key/PAT n'a été transmis à l'assistant, imprimé ou ajouté au dépôt.
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- JOBLY-PROD hors périmètre ; aucun accès ni interrogation de ce projet.
+- Aucune mutation Supabase/fixture, aucun changement de `main), aucune fusion et aucun déploiement.
+- PR #266 reste ouverte, brouillon et non fusionnée.
+- Document source avant cette mise à jour : V2.58, blob SHA `85e107006657fb1acfa767bdca7c1b8306eabae1`, branche `e2e/recette`.
