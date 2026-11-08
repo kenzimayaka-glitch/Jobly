@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.50 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.51 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -2819,3 +2819,38 @@ Les six groupes locaux sont donc tous couverts par une preuve PASS ; il n'est pa
 - Aucun accès JOBLY-PROD, aucune mutation Supabase/fixture, aucun changement de `main), aucun déploiement.
 - PR #266 reste ouverte, brouillon, non fusionnée.
 - Document source avant cette mise à jour : V2.49, blob SHA `8ac9cdf0e73b0a81044d3015c868c77752dd82dc`, branche `e2e/recette`.
+
+
+---
+
+## 53. Reprise ciblée LOT-00 après clôture des groupes bulk locaux — V2.51 — 8 novembre 2026
+
+### 53.1 Décision de reprise
+
+À la suite des PASS consignés aux §§50 et 52, l'opérateur valide l'arrêt des relances bulk locales redondantes et la reprise ciblée de LOT-00. Le test canari du champ de message §48 reste différé et n'est pas un prérequis.
+
+### 53.2 Prochaine action opérateur — établir la sentinelle de départ
+
+Exécuter uniquement l'étape A du §45.3 pour poser et relire la sentinelle locale. Commande CMD :
+
+~~~bat
+cd /d C:\Users\ASUS\Jobly
+powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';$report='feedback-lot00-clipboard-baseline-20261108.txt';$s='JOBLY-CLIPBOARD-BASELINE-20261108';$ok=$false;$err='NONE';try{Set-Clipboard -Value $s -ErrorAction Stop;$r=Get-Clipboard -Raw;$ok=([string]$r -eq $s);$r=$null;if(-not $ok){$err='BASELINE_READBACK_MISMATCH'}}catch{$err='BASELINE_SET_OR_READ_FAILED'};$lines=@('runtime=PowerShell '+$PSVersionTable.PSVersion.ToString(),'baseline_verified='+$ok,'error='+$err);Set-Content -Path $report -Value $lines -Encoding ASCII;$lines"
+notepad feedback-lot00-clipboard-baseline-20261108.txt
+~~~
+
+Décision :
+- Si `baseline_verified=True` : la sentinelle est bien installée. L'étape suivante peut être le clic unique sur Copier de la ligne Legacy `service_role` du projet JOBLY-E2E, immédiatement suivi du classificateur après-copie §45.3 étape B.
+- Si `baseline_verified=False` ou erreur : arrêter avant le clic Supabase ; transmettre uniquement le contenu non sensible du rapport pour diagnostic.
+
+### 53.3 Interdictions et état
+
+- Ne jamais coller le mot de passe, la clé, un JWT ou un jeton dans un message, terminal, fichier, rapport ou conversation.
+- Ne pas envoyer de secret ni d'extrait de secret à l'assistant.
+- Le canari de message §48 est différé.
+- Ne pas modifier/régénérer/révoquer de clé, ni changer les permissions, ni appeler `net.http_*`.
+- Aucun GET OpenAPI avant `PASS_CLIPBOARD_JWT_METADATA`.
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED** ; aucun GET OpenAPI `public`/ `net` n'est établi.
+- Aucun accès JOBLY-PROD, aucune mutation Supabase/fixture, aucun changement de `main), aucun déploiement.
+- PR #266 reste ouverte, brouillon et non fusionnée.
+- Document source avant cette mise à jour : V2.50, blob SHA `af8ea3eafa44f189feddc24c3703cf89b11ec357`, branche `e2e/recette`.
