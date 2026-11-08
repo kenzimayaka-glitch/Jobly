@@ -36,11 +36,11 @@ async function fileExists(file) {
 
 try {
   if (!(await fileExists(fixturePath))) {
-    report.reason = "Aucun jeu de comptes métier E2E provisionné. Le lanceur local doit exécuter e2e/provision-fixtures.mjs avant ce contrôle.";
+    report.reason = "Aucun jeu de fixtures E2E local disponible. Contrôle bloqué : ne pas créer, restaurer ou réinitialiser de compte pour contourner ce blocage.";
     report.checks.push({
       id: "JOBLY-E2E-AUTH-FIXTURES-001",
       status: "BLOCKED",
-      detail: "Comptes Talent/Recruteur/Partenaire non disponibles ; aucune création anonyme ni aucun envoi d'email/SMS n'est tenté.",
+      detail: "Comptes Talent/Recruteur/Partenaire locaux absents ; aucun compte n'est créé/restauré et aucun e-mail/SMS n'est envoyé.",
     });
   } else {
     const fixtures = JSON.parse(await readFile(fixturePath, "utf8"));
@@ -144,4 +144,4 @@ console.log(JSON.stringify({
   ...report,
   credentials: "not included",
 }, null, 2));
-if (report.status === "FAIL") process.exitCode = 1;
+if (report.status !== "PASS") process.exitCode = 1;
