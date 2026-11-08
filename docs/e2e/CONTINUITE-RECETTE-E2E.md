@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.69 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.70 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3607,3 +3607,40 @@ Aucune modification de la clé, du PAT, des droits, de Supabase ou du code local
 - JOBLY-PROD hors périmètre ; aucun accès ni mutation ; aucun changement `main`, aucune fusion ni aucun déploiement.
 - PR #266 reste ouverte, brouillon et non fusionnée.
 - Document source avant cette mise à jour : V2.68, blob SHA 6e9d4a4357e6157b08347650c1cebea188e4f178, branche `e2e/recette`.
+
+---
+
+## 72. Reprise LOT-00 après exception PowerShell — commande corrigée — V2.70 — 8 novembre 2026
+
+### 72.1 Correction technique
+
+Le résultat §71 montrait `cli_command_exit_code=NOT_RUN`, ce qui indique une exception PowerShell avant la capture du code retour natif. Cause probable : traitement du stderr d'un programme natif par Windows PowerShell 5.1 lorsque `$ErrorActionPreference='Stop'` et `2>$null` sont combinés. La commande ci-dessous passe temporairement à `Continue` seulement pendant l'appel npx, restaure immédiatement la préférence, puis capture le code retour. Le catch ne journalise que le type d'exception, pas son message.
+
+### 72.2 Commande unique corrigée
+
+Cette commande refait la séquence complète sans préflight additionnel : Management API GET de la liste des clés pour le seul ref JOBLY-E2E, sélection de la Legacy `service_role`, vérification locale des claims, puis GET OpenAPI `public` et `net`. Elle ne fait pas usage de `--reveal` ni de `projects list`.
+
+~~~bat
+cd /d C:\Users\ASUS\Jobly
+powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';$report='feedback-lot00-openapi-readonly-20261108.txt';$envTokenPresent=(-not [string]::IsNullOrWhiteSpace($env:SUPABASE_ACCESS_TOKEN));$cliExit='NOT_RUN';$legacyCount=0;$jsonParsed=$false;$jwtThree=$false;$jwtAlg='UNKNOWN';$roleMatch=$false;$refMatch=$false;$pubHttp='NOT_RUN';$pubOpenApi=$false;$pubPaths=0;$pubPgrst='NONE';$netHttp='NOT_RUN';$netOpenApi=$false;$netPaths=0;$netPgrst='NONE';$gate='BLOCKED_NOT_STARTED';$key=$null;$cliText=$null;$cliOut=$null;$rows=$null;$selected=$null;$parts=$null;$head64=$null;$body64=$null;$headText=$null;$bodyText=$null;$jwtHeader=$null;$jwtClaims=$null;$pub=$null;$net=$null;$failure='NONE';function Invoke-OpenApi([string]$profile,[string]$secretKey){$status='NO_HTTP';$code='NONE';$valid=$false;$count=0;$response=$null;$reader=$null;$body=$null;$spec=$null;$err=$null;$request=$null;try{$request=[System.Net.HttpWebRequest]::Create('https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/');$request.Method='GET';$request.Accept='application/openapi+json';$request.UserAgent='JoblyE2E-LOT00-Readonly/1.0';$request.Headers['apikey']=$secretKey;$request.Headers['Authorization']='Bearer '+$secretKey;$request.Headers['Accept-Profile']=$profile;$request.Timeout=30000;$request.ReadWriteTimeout=30000;try{$response=$request.GetResponse()}catch [System.Net.WebException]{$response=$_.Exception.Response};if($null -ne $response){$status=[string][int]$response.StatusCode;$reader=New-Object System.IO.StreamReader($response.GetResponseStream());$body=$reader.ReadToEnd();if($status -eq '200'){try{$spec=ConvertFrom-Json -InputObject $body -ErrorAction Stop;$valid=($null -ne $spec.openapi) -or ($null -ne $spec.swagger);if($null -ne $spec.paths){$count=$spec.paths.PSObject.Properties.Count}}catch{$valid=$false}}else{try{$err=ConvertFrom-Json -InputObject $body -ErrorAction Stop;if($null -ne $err.code){$code=[string]$err.code}}catch{}}}else{$status='NETWORK_ERROR'}}catch{$status='REQUEST_ERROR'}finally{if($null -ne $reader){$reader.Dispose()};if($null -ne $response){$response.Close()};$request=$null;$body=$null;$spec=$null;$err=$null};return [pscustomobject]@{http=$status;openapi=$valid;paths=$count;pgrst=$code}};try{if($envTokenPresent){$gate='BLOCKED_ENV_TOKEN_OVERRIDE'}else{$npx=(Get-Command npx.cmd -ErrorAction Stop).Source;$savedNativePreference=$ErrorActionPreference;try{$ErrorActionPreference='Continue';$cliOut=@(& $npx --yes supabase@3.0.0 projects api-keys --remote=ofqqrryamslxoqkklraw --output json 2>$null);$cliExit=[string]$LASTEXITCODE}finally{$ErrorActionPreference=$savedNativePreference};if($cliExit -ne '0'){$gate='BLOCKED_CLI_NONZERO_EXIT'}else{$cliText=($cliOut | ForEach-Object {[string]$_}) -join ([Environment]::NewLine);$cliOut=$null;$root=ConvertFrom-Json -InputObject $cliText -ErrorAction Stop;$jsonParsed=$true;if($root -is [array]){$rows=@($root)}elseif($null -ne $root.keys){$rows=@($root.keys)}else{$rows=@()};$selected=@($rows | Where-Object {$_.name -eq 'service_role' -and $_.type -eq 'legacy'});$legacyCount=$selected.Count;if($legacyCount -ne 1){$gate='BLOCKED_LEGACY_SERVICE_ROLE_NOT_UNIQUE'}else{$key=[string]$selected[0].api_key;if([string]::IsNullOrWhiteSpace($key)){$gate='BLOCKED_LEGACY_SERVICE_ROLE_REDACTED'}else{$parts=$key.Split([char]'.');$jwtThree=($parts.Length -eq 3);if($jwtThree){$head64=$parts[0].Replace('-','+').Replace('_','/');$body64=$parts[1].Replace('-','+').Replace('_','/');while(($head64.Length % 4) -ne 0){$head64+='='};while(($body64.Length % 4) -ne 0){$body64+='='};$headText=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($head64));$bodyText=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($body64));$jwtHeader=ConvertFrom-Json -InputObject $headText -ErrorAction Stop;$jwtClaims=ConvertFrom-Json -InputObject $bodyText -ErrorAction Stop;$jwtAlg=[string]$jwtHeader.alg;$roleMatch=($jwtClaims.role -eq 'service_role');$refMatch=($jwtClaims.ref -eq 'ofqqrryamslxoqkklraw')};if($jwtThree -and $jwtAlg -eq 'HS256' -and $roleMatch -and $refMatch){$pub=Invoke-OpenApi -profile 'public' -secretKey $key;$pubHttp=[string]$pub.http;$pubOpenApi=[bool]$pub.openapi;$pubPaths=[int]$pub.paths;$pubPgrst=[string]$pub.pgrst;$net=Invoke-OpenApi -profile 'net' -secretKey $key;$netHttp=[string]$net.http;$netOpenApi=[bool]$net.openapi;$netPaths=[int]$net.paths;$netPgrst=[string]$net.pgrst;if($pubHttp -eq '200' -and $pubOpenApi -and $netHttp -eq '406' -and $netPgrst -eq 'PGRST106'){$gate='PASS_NET_NOT_EXPOSED'}elseif($netHttp -eq '200' -and $netOpenApi){$gate='BLOCKED_NET_EXPOSED'}else{$gate='BLOCKED_HTTP_OR_OPENAPI_RESULT'}}else{$gate='BLOCKED_JWT_CLAIMS_MISMATCH'}}}}}}catch{$failure=$_.Exception.GetType().Name;if($cliExit -eq 'NOT_RUN'){$gate='BLOCKED_POWERSHELL_BEFORE_CLI_EXIT'}else{$gate='BLOCKED_CHECK_EXCEPTION'}}finally{$key=$null;$cliText=$null;$cliOut=$null;$rows=$null;$selected=$null;$parts=$null;$head64=$null;$body64=$null;$headText=$null;$bodyText=$null;$jwtHeader=$null;$jwtClaims=$null;$pub=$null;$net=$null;$root=$null};$lines=@('runtime=PowerShell '+$PSVersionTable.PSVersion.ToString(),'project_ref=ofqqrryamslxoqkklraw','supabase_cli_version=3.0.0','env_SUPABASE_ACCESS_TOKEN_present='+$envTokenPresent,'cli_command_exit_code='+$cliExit,'cli_json_parsed='+$jsonParsed,'legacy_service_role_count='+$legacyCount,'jwt_three_segments='+$jwtThree,'jwt_algorithm='+$jwtAlg,'jwt_role_service_role='+$roleMatch,'jwt_project_ref_match='+$refMatch,'jwt_signature_verified=False','public_http_status='+$pubHttp,'public_openapi_valid='+$pubOpenApi,'public_openapi_path_count='+$pubPaths,'public_postgrest_code='+$pubPgrst,'net_http_status='+$netHttp,'net_openapi_valid='+$netOpenApi,'net_openapi_path_count='+$netPaths,'net_postgrest_code='+$netPgrst,'failure_class='+$failure,'GATE='+$gate);Set-Content -Path $report -Value $lines -Encoding ASCII;$lines"
+notepad feedback-lot00-openapi-readonly-20261108.txt
+~~~
+
+### 72.3 Interprétation
+
+- `PASS_NET_NOT_EXPOSED` : `public=200` avec OpenAPI valide et `net=406 / PGRST106`.
+- `BLOCKED_CLI_NONZERO_EXIT` : le CLI a réellement retourné un code non nul ; aucun appel OpenAPI n'a été effectué.
+- `BLOCKED_POWERSHELL_BEFORE_CLI_EXIT` : exception avant la capture du code retour ; `failure_class` précise uniquement la classe .NET/PowerShell, sans contenu sensible.
+- `BLOCKED_LEGACY_SERVICE_ROLE_REDACTED` ou `BLOCKED_LEGACY_SERVICE_ROLE_NOT_UNIQUE` : pas de fallback `--reveal` automatique.
+- Tous les autres gates restent à analyser sans mutation.
+
+Le rapport final est `feedback-lot00-openapi-readonly-20261108.txt`; le script ouvre Notepad après écriture. Il n'y a pas de second fichier ni de collecte manuelle de clé.
+
+### 72.4 État
+
+- Le résultat précédent n'est ni un rejet du PAT ni un rejet de la clé ; aucun code HTTP n'a été reçu.
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED** jusqu'à ce nouveau rapport.
+- Aucun accès JOBLY-PROD, aucune écriture, aucune opération Auth, aucune mutation de fixture, aucune modification `main`, aucune fusion ni déploiement.
+- PAT full-access utilisé seulement pour le contrôle ponctuel autorisé ; le révoquer ensuite dans Supabase Access Tokens.
+- PR #266 reste ouverte, brouillon, non fusionnée.
+- Document source avant cette mise à jour : V2.69, blob SHA f6d4931ae995683b7773a780a489411742c933de, branche `e2e/recette`.
