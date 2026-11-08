@@ -1,4 +1,4 @@
-export const JOBLY_EVENTS_BUCKET = process.env.JOBLY_EVENTS_BUCKET || "jobly-events";
+export const JOBLY_EVENTS_BUCKET = "jobly-events";
 
 export function eventStoragePathFromPublicUrl(value: unknown): string | null {
   if (typeof value !== "string" || !value) return null;
