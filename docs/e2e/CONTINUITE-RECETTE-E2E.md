@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.60 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.61 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3270,3 +3270,19 @@ Pour éviter d'inscrire le PAT dans l'historique de commandes ou dans la liste d
 - PR #266 reste ouverte, brouillon et non fusionnée.
 - Cette section corrige et remplace toute indication antérieure qui aurait fait utiliser le flux navigateur non scoped supabase login seul.
 - Document source avant cette mise à jour : V2.59, blob SHA 91d2abef8cce8127975a0e8c9adf327250636a3e, branche e2e/recette.
+
+---
+
+## 63. Connexion Supabase signalée — contexte à préciser — V2.61 — 8 novembre 2026
+
+L'opérateur indique « Je me suis logged ». Le canal de connexion n'est pas précisé : Dashboard web ou CLI via `supabase login`. Aucune hypothèse ne doit être faite sur l'état de la session, la nature ou la portée d'un éventuel PAT.
+
+Prochaine question unique : confirmer si la connexion a été faite dans le Dashboard Supabase web ou dans CMD avec `npx.cmd --yes supabase@3.0.0 login`.
+
+Si la connexion est le Dashboard web : poursuivre la création d'un PAT scoped uniquement JOBLY-E2E avec API Keys Read et API Key Secrets Read, sans permission d'écriture. Si la commande CLI login a été exécutée : ne pas lancer de commande d'accès aux clés avant d'avoir établi la portée du jeton ; un flux login navigateur sans PAT fourni peut accorder un accès complet au compte.
+
+Aucun PAT n'a été demandé dans le chat, affiché ou enregistré. Aucun appel CLI authentifié, aucune lecture de clé, aucun GET OpenAPI et aucune modification Supabase n'ont été réalisés sur la base de ce seul message.
+
+LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED**. JOBLY-PROD hors périmètre ; aucun changement `main`, aucune fusion ni déploiement. PR #266 reste ouverte, brouillon et non fusionnée.
+
+Document source avant cette mise à jour : V2.60, blob SHA 641f828835483ca54ad9955dd7e7e0c886eef04b, branche `e2e/recette`.
