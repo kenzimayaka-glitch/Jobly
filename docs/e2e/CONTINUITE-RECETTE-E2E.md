@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.36 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.37 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -12,10 +12,10 @@
 >
 > **Verrou de reprise V2.8 :** les sections 7, 9, 10, 11, 12 et 13.7 contiennent des états ou consignes historiques ; elles ne constituent plus des instructions opératoires. En particulier, l'autorisation de reset citée au §9 n'est plus active : ne pas exécuter e2e/reset-existing-fixture-passwords.mjs, les scripts de vérification Auth des anciennes fixtures, le provisionneur, ni scripts/e2e-local-recipe.mjs/le runner bulk. Aucune connexion Auth, mutation de fixture, restauration de mot de passe ou relance globale n'est autorisée par ce document. Le seul prochain contrôle permis est le GET OpenAPI décrit au §16.7, suivi de son analyse.
 >
-> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le rapport V6 s'est arrêté avant toute requête HTTP (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`, `results=[]`). L'opérateur confirme que la ligne Legacy `service_role` sélectionnée commence bien par `eyJ`. L'audit du code V6 montre un défaut possible dans le traitement des marqueurs de collage du terminal : le caractère ESC peut être filtré alors que le suffixe imprimable `[200~` est conservé, ce qui reproduit exactement le rejet. La V7 au §40 corrige ce parseur et journalise uniquement des indicateurs non secrets. La V7 n'a pas encore été exécutée ; aucun GET OpenAPI n'a donc été obtenu et l'exposition de `net` reste indéterminée. L'intention des deux buckets publics doit être confirmée et la revue ciblée des grants/policies documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
+> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le rapport V6 s'est arrêté avant toute requête HTTP (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`, `results=[]`). L'opérateur confirme que la ligne Legacy `service_role` sélectionnée commence bien par `eyJ`. L'audit du code V6 montre un défaut possible dans le traitement des marqueurs de collage du terminal : le caractère ESC peut être filtré alors que le suffixe imprimable `[200~` est conservé, ce qui reproduit exactement le rejet. La V7 au §40 corrige ce parseur et journalise uniquement des indicateurs non secrets. La V7 a été exécutée mais retourne paste_start_marker_detected=false, paste_end_marker_detected=false, normalized_prefix_ok=false, results=[] et KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT. Aucun GET OpenAPI n'a donc été obtenu. Le marqueur [200~ n'est pas observé ; le transport de saisie brut reste à isoler avec un texte factice. L'intention des deux buckets publics doit être confirmée et la revue ciblée des grants/policies documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. Le rejet V6 est intervenu avant HTTP et ne démontre pas que la clé Supabase est refusée. L'opérateur a confirmé la ligne Legacy `service_role` et le préfixe `eyJ`. Ne pas utiliser `anon`, `sb_secret_…` ou une clé de production. La V5 et la V6 sont conservées pour historique ; la V7 corrigée du §40 est la prochaine commande de retest. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.36  
+**Version :** 2.37  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -2057,8 +2057,8 @@ Le terminal doit afficher `SAISIE MASQUEE V7`. La clé est saisie uniquement dan
 
 - Préfixe affiché dans le Dashboard : `eyJ` **confirmé par l'opérateur**.
 - V6 : **échoué au parseur local avant décodage claims et avant réseau**.
-- Hypothèse principale : résidu du marqueur de collage `[200~` causé par le filtrage du caractère ESC dans le V6 ; **reproduction synthétique PASS, cause réelle locale pas encore observée**.
-- V7 : **transmise, non exécutée** par l'assistant.
+- La simulation [200~ reproduit l'erreur V6, mais la V7 n'a observé aucun marqueur de collage. Cette hypothèse n'explique donc pas à elle seule le résultat V7 ; cause réelle locale encore inconnue.
+- V7 : **exécutée par l'opérateur, rejetée avant HTTP**.
 - LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
 - GET OpenAPI `public` et `net` : toujours **NON EXÉCUTÉS** à ce stade.
 - Aucun secret reçu ni stocké par l'assistant ; aucun appel JOBLY-PROD ; aucune mutation Supabase ou fixture.
@@ -2074,3 +2074,81 @@ Le terminal doit afficher `SAISIE MASQUEE V7`. La clé est saisie uniquement dan
 - Microsoft Windows Terminal issue #17656 : `https://github.com/microsoft/terminal/issues/17656` ; décrit le passage de séquences d'échappement de collage sous forme de touches en entrée Win32.
 - Rapport V6 transmis en capture : §35.1 ; préfixe confirmé ensuite par l'opérateur : déclaration « je confirme » après demande de vérifier `eyJ`.
 - Document source avant cette mise à jour : V2.35, blob SHA `5453278abae577170907691dd84094caa5791eb3`, branche `e2e/recette`.
+
+---
+
+## 41. Résultat V7 sans marqueur de collage et isolation du presse-papiers — V2.37 — 8 novembre 2026
+
+### 41.1 Résultat non secret transmis
+
+L'opérateur transmet le rapport : node=v26.13.0 ; project_ref=ofqqrryamslxoqkklraw ; expected_credential_type=legacy_service_role ; paste_start_marker_detected=false ; paste_end_marker_detected=false ; normalized_prefix_ok=false ; results=[] ; GATE=BLOCKED_REVIEW_REQUIRED ; error=KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT.
+
+### 41.2 Ce que ce rapport prouve
+
+- La V7 s'est exécutée et le contrôle TTY a été franchi.
+- Aucun marqueur de collage reconnu n'a été présent au début ou à la fin de la chaîne reçue.
+- Après normalisation, la chaîne capturée ne commence toujours pas par eyJ.
+- Les deux requêtes OpenAPI n'ont pas démarré ; results=[].
+- Le problème est toujours avant le réseau et avant le décodage des claims JWT.
+- L'hypothèse [200~ n'est pas confirmée pour ce run V7.
+- Le rapport ne révèle pas la valeur saisie, la longueur capturée ni le premier caractère ; la cause exacte reste inconnue.
+
+### 41.3 Raisonnement par contradiction révisé
+
+L'opérateur confirme que la valeur révélée dans la ligne Legacy service_role commence par eyJ. V7 confirme qu'après collecte et normalisation, la chaîne capturée ne commence pas par eyJ, sans marqueur de collage détecté.
+
+Ces constats situent le défaut dans le parcours local : champ révélé dans le Dashboard ; action Copier / presse-papiers Windows ; transmission du presse-papiers au terminal en mode raw ; accumulation des événements par process.stdin ; normalisation et validation startsWith('eyJ'). Supabase, les claims role/ref et le Data API ne sont pas encore atteints.
+
+### 41.4 Test discriminant sans secret
+
+Avant une nouvelle méthode de saisie de clé, tester le transport terminal avec une chaîne factice placée automatiquement dans le presse-papiers avec la commande Windows clip. Le test utilise le même setRawMode(true) et le même traitement de buffer ; la seule donnée saisie est JOBLY-CLIP-TEST-7A91.
+
+- sentinel_exact_match=true : le terminal sait coller un texte factice dans ce mode ; il faudra ensuite isoler le contenu du presse-papiers au moment du collage de la clé, sans jamais le journaliser.
+- sentinel_exact_match=false : le chemin clipboard/TTY raw est en cause ; abandonner ce mode de saisie de clé.
+- Le test ne lit aucune clé ni variable d'environnement, ne contacte pas Supabase et n'écrit aucune donnée applicative.
+- Le rapport ne contient que des booléens, une longueur non sensible et un statut PASS/BLOCKED.
+
+### 41.5 Commande CMD du test factice
+
+```bat
+cd /d C:\Users\ASUS\Jobly
+if exist feedback-lot00-input-transport-probe-20261108.txt (
+  echo Rapport du test presse-papiers deja present : conservation.
+) else (
+  echo JOBLY-CLIP-TEST-7A91|clip
+  node -e "const fs=require('node:fs'),input=process.stdin,out=process.stdout,report='feedback-lot00-input-transport-probe-20261108.txt',expected='JOBLY-CLIP-TEST-7A91';function save(r){fs.writeFileSync(report,['node='+process.version,'probe=clipboard_raw_tty','paste_start_marker_detected='+r.start,'paste_end_marker_detected='+r.end,'input_length='+r.length,'sentinel_exact_match='+r.match,'GATE='+(r.match?'PASS_CLIPBOARD_RAW_INPUT':'BLOCKED_INPUT_TRANSPORT')].join('\r\n')+'\r\n',{flag:'wx'});out.write('paste_start_marker_detected='+r.start+'\n paste_end_marker_detected='+r.end+'\n input_length='+r.length+'\n sentinel_exact_match='+r.match+'\n GATE='+(r.match?'PASS_CLIPBOARD_RAW_INPUT':'BLOCKED_INPUT_TRANSPORT')+'\n REPORT='+report+'\n')}if(!input.isTTY||typeof input.setRawMode!=='function'){save({start:false,end:false,length:0,match:false});process.exit(2)}let raw='';out.write('\nTEST SANS SECRET : le texte factice est deja dans le presse-papiers. Appuie sur Ctrl+V (ou clic droit), puis Entree : ');input.setRawMode(true);input.resume();input.on('data',b=>{for(const ch of b.toString('utf8')){if(ch==='\u0003'){input.setRawMode(false);input.pause();raw='';save({start:false,end:false,length:0,match:false});return}if(ch==='\r'||ch==='\n'){input.setRawMode(false);input.pause();const t=raw.replace(/^\uFEFF/,'').trim(),start=/^(?:\u001b)?\[200~/.test(t),end=/(?:\u001b)?\[201~$/.test(t),n=t.replace(/^(?:\u001b)?\[200~/,'').replace(/(?:\u001b)?\[201~$/,'').trim();save({start,end,length:n.length,match:n===expected});raw='';return}if(ch==='\u007f'||ch==='\b')raw=raw.slice(0,-1);else if(ch==='\u001b'||ch>=' ')raw+=ch}})"
+)
+if exist feedback-lot00-input-transport-probe-20261108.txt notepad feedback-lot00-input-transport-probe-20261108.txt
+```
+
+Commande Notepad correspondante :
+```bat
+notepad feedback-lot00-input-transport-probe-20261108.txt
+```
+
+Le test place d'abord le texte factice dans le presse-papiers. À l'invite, appuyer sur Ctrl+V (ou utiliser le geste de collage disponible), puis Entrée. Ne saisir aucune clé.
+
+### 41.6 Résultat attendu
+
+- PASS_CLIPBOARD_RAW_INPUT : texte factice collé exactement.
+- BLOCKED_INPUT_TRANSPORT : texte non reçu intact ; abandonner le lecteur Node raw et utiliser une méthode sécurisée compatible Windows avant toute nouvelle tentative de clé.
+
+### 41.7 Statut LOT-00
+
+- V6 : précontrôle local en échec ; aucun HTTP.
+- V7 : précontrôle local en échec, sans marqueurs de collage détectés ; aucun HTTP.
+- Préfixe eyJ affiché dans Dashboard : confirmé par l'opérateur.
+- Préfixe reçu par le parseur V7 : non conforme.
+- GET OpenAPI public et net : NON EXÉCUTÉS.
+- LOT-00 : PARTIAL / BLOCKED_REVIEW_REQUIRED.
+- Aucun secret reçu par l'assistant ; aucun accès JOBLY-PROD ; aucune mutation Supabase, fixture ou permission.
+- main inchangée ; PR #266 ouverte, brouillon et non fusionnée ; aucun déploiement.
+
+### 41.8 Sources et preuves
+
+- Rapport V7 transmis par l'opérateur.
+- Code V7 enregistré au §40.6.
+- Node.js TTY : https://nodejs.org/api/tty.html ; le mode raw désactive l'écho et le traitement spécial des caractères et délivre l'entrée caractère par caractère.
+- Microsoft Terminal Clipboard.cpp : https://github.com/microsoft/terminal/blob/main/src/interactivity/win32/Clipboard.cpp ; le texte du presse-papiers est converti en événements d'entrée et peut être encadré par des marqueurs bracketed-paste.
+- Microsoft Terminal issue #17656 : https://github.com/microsoft/terminal/issues/17656 ; décrit la représentation de marqueurs bracketed-paste en événements Win32.
+- Document source avant cette mise à jour : V2.36, blob SHA ec80c4fc146468b3e0a989fed7b62338ddfbbd93, branche e2e/recette.
