@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.68 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.69 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3555,3 +3555,55 @@ Le §69.2 crée `feedback-lot00-openapi-readonly-20261108.txt` et termine déjà
 - JOBLY-PROD hors périmètre ; aucun accès, aucune mutation, aucun changement de `main`, aucune fusion ni déploiement.
 - PR #266 reste ouverte, brouillon, non fusionnée.
 - Document source avant cette mise à jour : V2.67, blob SHA e296f4c524941eba41845d69939eabd70cc58c6d, branche `e2e/recette`.
+
+---
+
+## 71. Échec PowerShell avant retour CLI — correction native stderr — V2.69 — 8 novembre 2026
+
+### 71.1 Rapport opérateur
+
+```text
+runtime=PowerShell 5.1.19041.4522
+project_ref=ofqqrryamslxoqkklraw
+supabase_cli_version=3.0.0
+env_SUPABASE_ACCESS_TOKEN_present=False
+cli_command_exit_code=NOT_RUN
+legacy_service_role_count=0
+jwt_three_segments=False
+jwt_algorithm=UNKNOWN
+jwt_role_service_role=False
+jwt_project_ref_match=False
+jwt_signature_verified=False
+public_http_status=NOT_RUN
+public_openapi_valid=False
+public_openapi_path_count=0
+public_postgrest_code=NONE
+net_http_status=NOT_RUN
+net_openapi_valid=False
+net_openapi_path_count=0
+net_postgrest_code=NONE
+failure=CHECK_COMMAND_FAILED
+GATE=BLOCKED_CLI_JSON_OR_INTERNAL_ERROR
+```
+
+### 71.2 Analyse exacte
+
+- `env_SUPABASE_ACCESS_TOKEN_present=False` : aucun override d'environnement détecté ; le script était censé utiliser le credential local du CLI.
+- `cli_command_exit_code=NOT_RUN` : la variable n'a pas été assignée après l'appel natif. Cela ne prouve ni un refus d'authentification, ni un refus Management API, ni une clé absente.
+- `failure=CHECK_COMMAND_FAILED` : le catch générique a masqué la classe d'exception ; aucun diagnostic CLI n'a été capturé.
+- Cause plausible, non encore prouvée : Windows PowerShell 5.1 traite certaines lignes stderr d'un programme natif comme des erreurs PowerShell. Avec `$ErrorActionPreference='Stop'` et `2>$null`, un avertissement/erreur stderr de npx peut interrompre l'affectation avant la lecture de `$LASTEXITCODE`.
+
+### 71.3 Correction
+
+La commande de reprise doit abaisser temporairement `$ErrorActionPreference` à `Continue` uniquement pendant l'appel natif `npx.cmd`, puis restaurer `Stop` immédiatement après. Capturer `$LASTEXITCODE` sans afficher stdout. Capturer uniquement la classe d'exception (pas son message) en cas d'erreur inattendue. L'appel CLI conserve strictement les mêmes paramètres : version 3.0.0, projet E2E explicite, `--output json`, sans `--reveal` et sans `projects list`.
+
+Aucune modification de la clé, du PAT, des droits, de Supabase ou du code local n'est requise pour cette correction.
+
+### 71.4 État
+
+- La commande CLI n'a pas fourni de code retour ; aucun résultat OpenAPI n'a été obtenu.
+- Aucun élément ne permet de déclarer que Supabase a rejeté le PAT ou la clé `service_role`.
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- JOBLY-PROD hors périmètre ; aucun accès ni mutation ; aucun changement `main`, aucune fusion ni aucun déploiement.
+- PR #266 reste ouverte, brouillon et non fusionnée.
+- Document source avant cette mise à jour : V2.68, blob SHA 6e9d4a4357e6157b08347650c1cebea188e4f178, branche `e2e/recette`.
