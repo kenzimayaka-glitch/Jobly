@@ -70,6 +70,9 @@ async function request(token, route, method = "GET", body = undefined) {
     headers: {
       Authorization: "Bearer " + token,
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      // The smoke runs against a loopback Next server, not a reverse proxy.
+      // Supply its actual client address so production-mode IP guards can run.
+      "x-real-ip": "127.0.0.1",
       "Cache-Control": "no-store",
     },
     body: body === undefined ? undefined : JSON.stringify(body),
