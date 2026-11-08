@@ -7,13 +7,30 @@
 const baseUrl = new URL(process.env.JOBLY_VITRINE_BASE_URL || "http://localhost:3000");
 const failures = [];
 const passed = [];
+let previewCookie = "";
+let previewAccessPrimed = false;
+
+async function primePreviewAccess() {
+  if (previewAccessPrimed || !baseUrl.searchParams.has("_vercel_share")) return;
+  previewAccessPrimed = true;
+  const response = await fetch(baseUrl, { method: "GET", redirect: "manual" });
+  const setCookie = response.headers.get("set-cookie") || "";
+  previewCookie = setCookie.split(";")[0];
+  if (response.status !== 307 || !previewCookie.startsWith("_vercel_jwt=")) {
+    throw new Error("Impossible d'initialiser le lien de partage Preview Vercel.");
+  }
+}
+
 async function request(path) {
-  const target = new URL(path, baseUrl);
-  // Preserve Vercel's temporary share parameter on each same-origin test request.
-  for (const [key, value] of baseUrl.searchParams) target.searchParams.set(key, value);
+  await primePreviewAccess();
+  const target = new URL(path, baseUrl.origin);
+  const headers = {
+    Accept: path.endsWith(".webp") ? "image/webp,*/*" : "application/json,text/html,*/*",
+  };
+  if (previewCookie) headers.Cookie = previewCookie;
   return fetch(target, {
     method: "GET",
-    headers: { Accept: path.endsWith(".webp") ? "image/webp,*/*" : "application/json,text/html,*/*" },
+    headers,
     signal: AbortSignal.timeout(20_000),
     redirect: "follow",
   });

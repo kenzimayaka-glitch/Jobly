@@ -24,7 +24,7 @@ Le script `scripts/jobly-vitrine-smoke.mjs` vérifie :
 5. `/api/public/success-moments` renvoie une liste d'événements valide, avec seulement `id` et `occurredAt`.
 6. `/api/public/site-context` ne révèle aucun identifiant ni rôle à un visiteur anonyme.
 
-Commande depuis la racine du dépôt : coller le lien de partage Vercel complet (y compris le paramètre `_vercel_share`) dans la variable. Le script propage ce paramètre à toutes les requêtes.
+Commande depuis la racine du dépôt : coller le lien de partage Vercel complet (y compris le paramètre `_vercel_share`) dans la variable. Le script ouvre d'abord ce lien, récupère le cookie temporaire Vercel en mémoire, puis l'utilise pour les requêtes de contrôle. Le cookie n'est ni écrit sur disque ni ajouté au rapport.
 ```powershell
 $env:JOBLY_VITRINE_BASE_URL = "COLLER ICI LE LIEN DE PARTAGE VERCEL COMPLET"
 node scripts/jobly-vitrine-smoke.mjs
