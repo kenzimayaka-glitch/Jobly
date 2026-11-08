@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.11 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.12 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -14,7 +14,7 @@
 >
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le contrôle Data API du schéma net n'a pas encore été retourné, l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette n'est pas suffisamment documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 
-**Version :** 2.11  
+**Version :** 2.12  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1022,3 +1022,71 @@ Préconditions techniques : serveur local accessible via E2E_BASE_URL (par défa
 **Réserve de preuve :** le script lit aussi artifacts/e2e/auth-session-smoke.json. Si ce fichier existe et satisfait les critères de fraîcheur et de complétude, il peut marquer AUTH-006/007 PASS à partir de cette preuve antérieure. Ce mécanisme ne réalise pas lui-même une authentification, mais il mélange le résultat du smoke anonyme à un rapport Auth préexistant. Pour obtenir un rapport strictement anonyme, il faut ajouter un mode explicite qui désactive la lecture et l'importation de cette preuve Auth, sans supprimer, renommer ni écraser les artefacts locaux existants.
 
 **Décision de sécurité :** le script n'a pas été lancé. Malgré l'absence de compte nécessaire pour les contrôles publics, il réalise des appels runtime à JOBLY-E2E. Le verrou LOT-00 interdit encore tout smoke runtime avant fermeture du gate. Après LOT-00 PASS et séparation explicite de la preuve Auth, ce smoke pourra être exécuté comme recette navigateur anonyme isolée.
+
+
+---
+
+## 20. Premier lot — contrôles statiques publics et anonymes — 8 novembre 2026
+
+### 20.1 Objectif et base de code
+
+Premier sous-lot du plan §19.6 : tests de logique UI/API publique et vérifications statiques de pages utilisables sans compte. Aucun test de session Auth ni aucune écriture JOBLY-E2E n'est autorisé dans ce sous-lot.
+
+- HEAD PR avant cet ajout : 635f5fbb8483ceefa63fec832ed84acaccec0a91.
+- SHA de code de référence : 8385b60400bbaf9cedfcb4aa01073b733533f6c2.
+- Comparaison entre ces deux SHAs : 8 commits d'avance, un seul fichier modifié (docs/e2e/CONTINUITE-RECETTE-E2E.md) ; aucune différence de code applicatif ou de test.
+- PR #266 : ouverte, brouillon, non fusionnée.
+
+### 20.2 Résultats CI du sous-lot statique — PASS 40/40
+
+Les journaux des workflows PR rattachés au code ci-dessus montrent les exécutions suivantes :
+
+| Fichier / groupe | Tests | Résultat | Contrôles |
+|---|---:|---:|---|
+| scripts/company-logo-fallback.test.mjs | 3 | 3 PASS / 0 FAIL | Initiales de logo, valeur de repli et SVG assaini/déterministe. |
+| scripts/p2-jobly-offer-watermark.test.mjs | 3 | 3 PASS / 0 FAIL | Filigrane décoratif, absence d'interception des interactions et rendu feed/détail. |
+| scripts/external-application-assistant.test.mjs + scripts/jia-extension-onboarding.test.mjs | 24 | 24 PASS / 0 FAIL | Offres sans canal direct, accès au site promoteur, détail GET sans mutation, ingestion strictement POST, relais J’IA et permissions de l'extension. Les tests inspectent le code ; ils ne soumettent pas de candidature et n'ouvrent pas de session Auth. |
+| scripts/offline-first.test.mjs | 10 | 10 PASS / 0 FAIL | Visiteur public sans session, cache service worker, confidentialité, chiffrement et liaison des sauvegardes à un compte ; tests unitaires/statistiques, sans vraie session. |
+| **Total du sous-lot reproductible** | **40** | **40 PASS / 0 FAIL** | Exécution CI, sans compte Auth, sans lecture/écriture de fixture et sans accès Supabase runtime. |
+
+Preuves :
+- Jobly CI run 42478108383 : company-logo-fallback 3/3, p2-offer-watermark 3/3, offline-first 10/10 ; typecheck et build également PASS.
+- Verify offer pipeline run 42478108380 : groupe external-application-assistant + jia-extension-onboarding PASS 24/24 ; typecheck, build et J’IA Watch également PASS.
+- https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42478108383
+- https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42478108380
+
+**Important :** le total 40 additionne les quatre groupes disjoints du tableau, et non les autres suites présentes dans ces workflows. Les deux workflows ont terminé avec la conclusion SUCCESS. Les tests ont été exécutés par GitHub Actions ; aucune exécution CMD locale nouvelle n'est revendiquée.
+
+### 20.3 Revue ciblée de la page publique et de ses routes
+
+Lecture statique des fichiers de la branche :
+
+- app/page.tsx : l'écran initial est welcome. Il charge les compteurs depuis GET /api/public/home-stats. Les appels Auth visibles dans le composant sont cantonnés aux parcours de connexion, d'inscription et de restauration d'un état non public ; l'écran welcome n'a pas besoin d'une session.
+- app/api/public/home-stats/route.ts : handler GET qui utilise le client publishable et le RPC d'agrégats get_public_home_stats. Le contrat limite les données exposées aux compteurs agrégés ; aucune opération INSERT/UPDATE/DELETE/UPSERT n'a été relevée dans ce handler.
+- app/api/jobs/route.ts : le flux Talent GET /api/jobs reste protégé par getAuthUser et répond 401 sans session. Il ne faut pas le confondre avec un flux d'offres public.
+- app/api/jobs/[id]/route.ts : le handler GET de détail effectue des lectures de l'offre et ne présente pas de garde getAuthUser dans son code actuel ; les contrôles statiques du test external-application vérifient notamment la gestion des offres expirées sans mutation de la ligne Job.
+
+Limite : cette relecture de code n'est pas une preuve HTTP de disponibilité réelle, de statut 200/401, de contenu affiché ni de rendu mobile. Aucun appel runtime au projet JOBLY-E2E n'a été lancé.
+
+### 20.4 Commande CMD de reproduction locale du sous-lot 40 tests
+
+La commande ci-dessous exécute uniquement les cinq fichiers du tableau (le groupe externe contient deux fichiers). Elle ne lance ni le runner E2E, ni le navigateur, ni Supabase, ni Auth. Elle ne modifie aucune fixture. Elle produit un seul rapport local :
+
+```bat
+cd /d C:\Users\ASUS\Jobly
+node --experimental-strip-types --test scripts/company-logo-fallback.test.mjs scripts/p2-jobly-offer-watermark.test.mjs scripts/external-application-assistant.test.mjs scripts/jia-extension-onboarding.test.mjs scripts/offline-first.test.mjs > feedback-lot1-public-static.txt 2>&1
+notepad feedback-lot1-public-static.txt
+```
+
+Le dernier HEAD local communiqué e92feb8abc1a2491cab7dd81e834080b80982681 contient déjà le code de référence ; les commits distants ultérieurs vérifiés jusqu'au HEAD indiqué en §20.1 ne changent que le document de continuité. Aucun pull n'est nécessaire pour ces fichiers de test.
+
+### 20.5 Statut et étape suivante
+
+- Sous-lot statique public/anonyme : **PASS CI — 40/40**.
+- Page d'accueil publique : revue statique du code effectuée ; rendu navigateur réel non exécuté.
+- Détail public d'offre : contrats statiques couverts ; aucune réponse HTTP runtime vérifiée.
+- Smoke navigateur anonyme complet : **NON EXÉCUTÉ**, car le script actuel peut importer un ancien rapport Auth et le verrou LOT-00 interdit encore les appels runtime JOBLY-E2E.
+- LOT-00 : **PARTIAL**.
+- Aucun accès JOBLY-PROD, aucune fixture touchée, aucune authentification, aucune écriture, aucun merge ni déploiement.
+
+Après retour éventuel du rapport local, comparer le résultat avec les 40 PASS CI sans additionner les mêmes tests deux fois. Le prochain contrôle navigateur anonyme ne sera engagé qu'après fermeture de LOT-00 et séparation effective des preuves Auth antérieures.
