@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.115 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.116 — 8 novembre 2026
 >
 > **Dernière correction de code Storage LOT-00 :** `f3753f7370007647a5e4bf99c130c69437d0c921` ; runner épinglé `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 : **PASS — clôturé** pour son périmètre environnement, identité, RLS/grants, Storage et correspondances des fixtures. LOT-01 Auth : le manifeste `.e2e-fixtures.json` a été vérifié localement sans révéler de secrets et le vérificateur corrigé a confirmé les connexions réelles TALENT, RECRUITER et PARTNER : **3/3 PASS**, sessions confirmées côté serveur, UID et rôles fixture signés concordants. Rapport du 8 novembre 2026 à 22:27:12 UTC, `stage=completed`, `status=PASS`. Aucun credential imprimé, aucun service role utilisé, aucun mot de passe changé, aucun compte créé/supprimé et aucun profil modifié. Cette preuve clôt le smoke de connexion Auth des trois fixtures mais ne vaut pas validation de tous les parcours du LOT-01. Ne pas réinitialiser les mots de passe.
+> **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial des connexions TALENT/RECRUITER/PARTNER **3/3 PASS** avec vérification serveur de l'UID et du rôle. Le scénario complémentaire `e2e/auth-session-smoke.mjs` est identifié comme prochaine exécution : cycle réel connexion, vérification access token, contrôle du rôle signé et renouvellement de session, 12 contrôles attendus. Son code est non destructif et utilise uniquement la clé publique publishable JOBLY-E2E ; rapport attendu `artifacts/e2e/auth-session-smoke.json`. Ce second scénario n'a pas encore été exécuté. Aucun credential imprimé, aucun service role utilisé, aucun mot de passe changé, aucun compte créé/supprimé et aucun profil modifié à ce stade. `main` et JOBLY-PROD restent hors périmètre ; ne pas réinitialiser les fixtures.
 
-**Version :** 2.115  
+**Version :** 2.116  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -25,6 +25,41 @@
 
 ---
 
+## 97. LOT-01 — cycle de session Auth par rôle : prochaine exécution
+
+**Mise à jour : 8 novembre 2026. Statut : NOT RUN — script identifié et relu, exécution locale demandée.**
+
+Après le smoke initial de connexion 3/3 (§96), le prochain test autonome est `e2e/auth-session-smoke.mjs`.
+
+Référence du script :
+- Blob : `86568783a7a0f9023553dfdbf53af736cea4cc12`.
+- URL : https://github.com/kenzimayaka-glitch/Jobly/blob/e2e/recette/e2e/auth-session-smoke.mjs
+
+Pour chacun des rôles TALENT, RECRUITER et PARTNER, le script exécute quatre contrôles :
+1. Connexion réelle via `signInWithPassword` ;
+2. Vérification serveur du jeton via `getUser` ;
+3. Vérification des claims `app_metadata.e2e_fixture` et `app_metadata.e2e_role` signés par Supabase ;
+4. Renouvellement de session via `refreshSession`, avec validation de l'identité et du nouvel access token.
+
+Critère : 12/12 contrôles PASS, trois comptes de rôle PASS, `environment=JOBLY-E2E`, `projectRef=ofqqrryamslxoqkklraw` et `externalMessagesSent=false`. Le script ferme la session locale de chaque client. Il utilise la clé publique publishable seulement ; aucune clé service/secret. Il ne crée, ne supprime ni ne modifie aucun compte, mot de passe ou profil. Aucun email/SMS externe n'est envoyé.
+
+### Commande CMD — récupération épinglée, syntaxe, test et rapport
+
+```cmd
+cd /d C:\Users\ASUS\Jobly
+git fetch origin && git show origin/e2e/recette:e2e/auth-session-smoke.mjs > e2e\auth-session-smoke.current.mjs && node --check e2e\auth-session-smoke.current.mjs
+set "E2E_PROJECT_REF=ofqqrryamslxoqkklraw"
+set "NEXT_PUBLIC_SUPABASE_URL=https://ofqqrryamslxoqkklraw.supabase.co"
+set "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y"
+node e2e\auth-session-smoke.current.mjs
+notepad artifacts\e2e\auth-session-smoke.json
+```
+
+La clé configurée dans la commande est une clé publique `sb_publishable_`, non un secret. Ne jamais remplacer cette valeur par `SUPABASE_SECRET_KEY` ou `service_role`. Si la récupération ou `node --check` échoue, arrêter et ne pas lancer le test. Transmettre uniquement `artifacts/e2e/auth-session-smoke.json`.
+
+**État après préparation :** le smoke initial Auth (§96) reste PASS 3/3 ; le cycle de session 12 contrôles reste NOT RUN jusqu'à réception du rapport. Aucun merge, aucun push sur `main`, aucun accès JOBLY-PROD et aucun déploiement.
+
+---
 ## 96. LOT-01 — smoke Auth des trois fixtures existantes : PASS 3/3
 
 **Exécution locale rapportée : 8 novembre 2026 à 22:27:12.088 UTC. Statut : PASS — vérification de connexion/session/identité des trois fixtures.**
