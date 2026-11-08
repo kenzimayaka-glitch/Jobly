@@ -49,7 +49,7 @@ function parseRpcRow(data: unknown): RpcRow | null {
 
 export async function enforceApiRateLimit(request: Request, client: RpcClient, policy: ApiRateLimitPolicy): Promise<Response | null> {
   if (!/^[a-z0-9:_-]{1,100}$/i.test(policy.scope)) return json(503, { code: "ANTI_ABUSE_UNAVAILABLE", message: "Protection temporairement indisponible." });
-  const secret = process.env.JOBLY_RATE_LIMIT_SECRET?.trim() || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || "";
+  const secret = process.env.JOBLY_RATE_LIMIT_SECRET?.trim() || process.env.SUPABASE_SECRET_KEY?.trim() || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || "";
   if (secret.length < 32) return json(503, { code: "ANTI_ABUSE_UNAVAILABLE", message: "Protection temporairement indisponible." });
 
   const buckets: Array<{ scope: string; subject: string; limit: number; windowSeconds: number }> = [];
