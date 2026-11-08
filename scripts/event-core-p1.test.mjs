@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { getEventPricing, validateEventMedia } from "../lib/events.ts";
 import { EVENT_MANUAL_PAYMENT_METHODS, isEventManualPaymentMethod } from "../lib/eventManualPayments.ts";
 import { inspectEventMedia, readMp4DurationSeconds } from "../lib/eventMedia.ts";
@@ -66,4 +67,34 @@ test("event media storage paths are restricted to the authenticated owner", () =
   assert.equal(isOwnedEventMediaPath(owner + "/folder/cccccccc-cccc-4ccc-8ccc-cccccccccccc.mp4", owner), false);
   assert.equal(isOwnedEventMediaPath(owner + "/cccccccc-cccc-4ccc-8ccc-cccccccccccc.exe", owner), false);
   assert.equal(isOwnedEventMediaPath(owner + "\\\\file.png", owner), false);
+});
+
+
+test("profile photo API verifies real image bytes and never exceeds the public bucket cap", () => {
+  const source = readFileSync(new URL("../app/api/auth/profile-photo/route.ts", import.meta.url), "utf8");
+  assert.match(source, /sharp\(inputBytes, \{ limitInputPixels: 40_000_000 \}\)\.metadata\(\)/);
+  assert.match(source, /metadata\.hasAlpha/);
+  assert.match(source, /bytes\.byteLength > PROFILE_PHOTO_BUCKET_MAX_BYTES/);
+  assert.match(source, /fileSizeLimit: PROFILE_PHOTO_BUCKET_MAX_BYTES/);
+  assert.match(source, /remove\(\[path\]\)/);
+});
+
+test("event media upload is tied to an owned file and failed unlinked files can be cleaned", () => {
+  const uploadRoute = readFileSync(new URL("../app/api/events/media/route.ts", import.meta.url), "utf8");
+  const eventRoute = readFileSync(new URL("../app/api/events/route.ts", import.meta.url), "utf8");
+  const createPage = readFileSync(new URL("../app/events/create/page.tsx", import.meta.url), "utf8");
+
+  assert.match(uploadRoute, /export async function DELETE/);
+  assert.match(uploadRoute, /isOwnedEventMediaPath\(path,auth\.id\)/);
+  assert.match(uploadRoute, /\.eq\("mediaUrl",publicUrl\)/);
+  assert.match(uploadRoute, /\.remove\(\[path\]\)/);
+  assert.match(eventRoute, /isOwnedEventMediaPath\(mediaStoragePath,auth\.id\)/);
+  assert.match(eventRoute, /download\(mediaStoragePath\)/);
+  assert.match(eventRoute, /inspectEventMedia\(storedBytes,mediaMimeType\)/);
+  assert.match(eventRoute, /EVENT_MEDIA_METADATA_MISMATCH/);
+  assert.match(eventRoute, /eventId:id/);
+  assert.match(createPage, /mediaStoragePath:uploadedPath/);
+  assert.match(createPage, /mediaMimeType:mimeType/);
+  assert.match(createPage, /method:"DELETE"/);
+  assert.match(createPage, /cleanup\?\.status!==409/);
 });
