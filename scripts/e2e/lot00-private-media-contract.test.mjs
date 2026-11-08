@@ -96,3 +96,11 @@ test("database schema defaults profile photos to private and requires timestampe
   assert.match(hardening, /cleanupLegacyPublicPhotos/);
   assert.match(hardening, /retainedWithConsent/);
 });
+
+test("Storage runner loads local env files without requiring Next runtime packages", async () => {
+  const source = await read("scripts/e2e/lot00-storage-bucket-hardening.mjs");
+  assert.doesNotMatch(source, /from ["']@next\/env["']/);
+  assert.match(source, /function loadLocalEnvFiles\(\)/);
+  assert.match(source, /readFileSync\(file, "utf8"\)/);
+  assert.match(source, /source\.split\(/);
+});
