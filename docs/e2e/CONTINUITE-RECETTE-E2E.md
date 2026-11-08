@@ -69,7 +69,7 @@ La prochaine intervention doit être divisée en deux étapes strictes :
    
    Si le dépôt ou le dossier cible manque, ne pas rediriger la sortie vers ce chemin et ne pas supposer que le chemin Windows indiqué est le bon. Faire d'abord identifier le chemin réellement ouvert dans l'Explorateur/CMD.
 
-2. **Écriture atomique seulement après préflight PASS** : extraire l'objet Git distant vers un fichier temporaire dans un dossier dont l'existence a été vérifiée ; calculer le hash du temporaire ; vérifier qu'il vaut exactement `8672167fc66c639f433d5d0296847dd5f200d315) ; remplacer ensuite la destination dans le dépôt confirmé ; recalculer et comparer le hash final. En cas d'échec à une étape, arrêter sans lancer le script Storage.
+2. **Écriture atomique seulement après préflight PASS** : extraire l'objet Git distant vers un fichier temporaire dans un dossier dont l'existence a été vérifiée ; calculer le hash du temporaire ; vérifier qu'il vaut exactement `8672167fc66c639f433d5d0296847dd5f200d315` ; remplacer ensuite la destination dans le dépôt confirmé ; recalculer et comparer le hash final. En cas d'échec à une étape, arrêter sans lancer le script Storage.
 
 La preuve de réussite attendue est constituée des trois valeurs complètes et identiques : hash de l'objet distant, hash du fichier temporaire extrait et hash du fichier local final. Un message « fichier trouvé » ou une copie du contenu dans le chat ne remplace pas ces contrôles.
 
