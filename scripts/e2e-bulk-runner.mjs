@@ -71,6 +71,11 @@ const allGroups = [
     ],
   },
   {
+    id: "authenticated-runtime-contracts",
+    label: "Contrats runtime authentifiés Talent, CV et Recruitment 360",
+    files: ["scripts/e2e-authenticated-runtime-regression.test.mjs"],
+  },
+  {
     id: "security-offline",
     label: "Sécurité, droits, mots de passe et mode hors ligne",
     files: [
