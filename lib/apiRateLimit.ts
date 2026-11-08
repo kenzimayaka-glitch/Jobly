@@ -34,7 +34,8 @@ export async function enforceApiRateLimit(
     );
   }
 
-  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Use the configured server-only secret key, with legacy service_role fallback.
+  const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!secret) {
     return NextResponse.json(
       { message: "Le contrôle de sécurité est temporairement indisponible." },
