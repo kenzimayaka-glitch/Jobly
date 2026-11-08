@@ -17,7 +17,7 @@ function parseEnv(content) {
     const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
     if (!match) continue;
     let value = match[2].trim();
-    if ((value.startsWith("\\\"") && value.endsWith("\\\"")) || (value.startsWith("\\'") && value.endsWith("\\'"))) value = value.slice(1, -1);
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
     result[match[1]] = value;
   }
   return result;
@@ -41,7 +41,7 @@ Object.assign(config, process.env);
 const configuredUrl = config.NEXT_PUBLIC_SUPABASE_URL || config.SUPABASE_URL || "";
 let urlMatches = false;
 try { urlMatches = new URL(configuredUrl).hostname === PROJECT_REF + ".supabase.co"; } catch {}
-const projectRefMatches = (config.E2E_PROJECT_REF || PROJECT_REF) === PROJECT_REF;
+const projectRefMatches = config.E2E_PROJECT_REF === PROJECT_REF;
 const serviceRoleKeyPresent = typeof config.SUPABASE_SERVICE_ROLE_KEY === "string" && config.SUPABASE_SERVICE_ROLE_KEY.length >= 20;
 const secretKeyPresent = typeof config.SUPABASE_SECRET_KEY === "string" && config.SUPABASE_SECRET_KEY.length >= 20;
 
@@ -113,11 +113,11 @@ const report = {
   notes: [
     "Diagnostic local uniquement : aucune requête Supabase/API ni mutation distante.",
     "Le code lib/server-auth.ts attend SUPABASE_SERVICE_ROLE_KEY ; SUPABASE_SECRET_KEY seul ne suffit pas à configurer adminClient().",
-    "Le diagnostic ne restaure ni ne crée .e2e-fixture-runtime.json et n affiche aucune clé, mot de passe, adresse ou UID.",
+    "Le diagnostic ne restaure ni ne crée .e2e-fixture-runtime.json et n’affiche aucune clé, mot de passe, adresse ou UID.",
   ],
 };
 await mkdir(path.dirname(REPORT_PATH), { recursive: true });
-await writeFile(REPORT_PATH, JSON.stringify(report, null, 2) + "\\n", { encoding: "utf8", mode: 0o600 });
+await writeFile(REPORT_PATH, JSON.stringify(report, null, 2) + "\n", { encoding: "utf8", mode: 0o600 });
 console.log(JSON.stringify(report, null, 2));
 console.log("Rapport : artifacts/e2e/authenticated-role-preflight-safe.json");
 assert.equal(report.projectRef, PROJECT_REF);
