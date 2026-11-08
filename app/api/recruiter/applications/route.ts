@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
+import { isProfilePhotoPublic } from "../../../../lib/profilePhotoStorage";
 
 // GET /api/recruiter/applications — espace Recruiter existant (spec 12.2).
 //
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
     if (userIds.length) {
       const { data: users, error: usersError } = await supabase
         .from("User")
-        .select("id,firstName,lastName,displayName,email,profilePhotoUrl,pitchVideoUrl,pitchVideoDurationMs")
+        .select("id,firstName,lastName,displayName,email,profilePhotoUrl,profilePhotoVisibility,profilePhotoConsentAt,pitchVideoUrl,pitchVideoDurationMs")
         .in("id", userIds);
       if (usersError) throw new Error(usersError.message);
       for (const u of users || []) usersById.set(u.id, u);
@@ -84,7 +85,7 @@ export async function GET(req: NextRequest) {
         || [usersById.get(a.userId)?.firstName, usersById.get(a.userId)?.lastName].filter(Boolean).join(" ")
         || "Candidat",
       candidateEmail: usersById.get(a.userId)?.email || "",
-      profilePhotoUrl: usersById.get(a.userId)?.profilePhotoUrl || null,
+      profilePhotoUrl: isProfilePhotoPublic(usersById.get(a.userId)) ? (usersById.get(a.userId)?.profilePhotoUrl || null) : null,
       pitchVideoUrl: usersById.get(a.userId)?.pitchVideoUrl || null,
       pitchVideoDurationMs: usersById.get(a.userId)?.pitchVideoDurationMs || null,
       cvUrl: a.cvUrl || null,
