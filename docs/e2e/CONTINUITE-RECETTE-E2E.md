@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.94 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.95 — 8 novembre 2026
 >
 > **Dernier commit de correction LOT-00 :** `83304fcbfbc6a3d2950298ec13db929fb9b064cf` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -4670,6 +4670,22 @@ Si Node signale ensuite que @supabase/supabase-js est introuvable, arrêter et t
 ### 91.4 Statut inchangé en attente d'une nouvelle preuve
 
 La tentative initiale s'est arrêtée à l'import de module. Le script corrigé n'a pas été exécuté au moment de cette mise à jour ; aucun bucket n'est déclaré PASS. LOT-00 reste PARTIAL. main, JOBLY-PROD, les PR et les déploiements restent inchangés.
+
+## 92. LOT-00 — seconde tentative Storage bloquée, diagnostic local requis (8 novembre 2026)
+
+La seconde exécution du lanceur Windows a de nouveau confirmé :
+- blob attendu et local : `6e5de2afc4b31ec8668403500912e7488631fc10` ;
+- récupération Git distante jusqu'au commit documentaire `ef34fe7` ;
+- `syntax_check=PASS` ;
+- environnement affiché : JOBLY-E2E / `ofqqrryamslxoqkklraw` ;
+- statut script : `BLOCKED` ;
+- erreur inchangée : « Clé privée JOBLY-E2E absente du fichier local. ».
+
+Cette répétition ne prouve pas que la clé a été ajoutée et mal validée : du point de vue du processus Node, ni `SUPABASE_E2E_SECRET_KEY` ni `SUPABASE_SERVICE_ROLE_KEY` n'est défini après lecture de `.env` et `.env.local`. La nouvelle tentative est donc encore arrêtée avant `createClient` et avant toute requête Storage. Aucune mutation distante n'a eu lieu.
+
+Diagnostic opérateur à exécuter avant une nouvelle tentative : vérifier uniquement les booléens de présence des deux noms de variables dans les variables de processus et dans les fichiers racine `.env` / `.env.local`, sans afficher les valeurs. Vérifier également le chemin du dépôt où le lanceur est exécuté. Si les deux booléens de fichier sont faux, ajouter la variable attendue dans `C:\\Users\\ASUS\\Jobly\\.env.local` (racine, pas dans un sous-dossier) et enregistrer le fichier. Si la variable est présente dans le fichier mais non chargée, vérifier le nom exact, le signe égal et l'absence d'espaces autour du nom ; ne jamais utiliser la clé publique `NEXT_PUBLIC_SUPABASE_ANON_KEY` comme secret de service.
+
+LOT-00 reste **PARTIAL / BLOCKED** sur le hardening Storage. Ne pas relancer le script jusqu'à ce que le diagnostic confirme la présence d'au moins une des deux variables acceptées. Aucun secret ne doit être imprimé ou transmis.
 
 ## 91. LOT-00 — tentative Storage bloquée par l'absence de clé privée locale (8 novembre 2026)
 
