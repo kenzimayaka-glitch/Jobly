@@ -49,7 +49,9 @@ export async function POST(request: NextRequest) {
     const { data: source, error: downloadError } = await supabase.storage.from(sourceBucket).download(storagePath);
     if (downloadError || !source) return fail("Photo introuvable dans le stockage actuel. Une migration de la photo est nécessaire.", 409);
 
-    let targetPath = storagePath;
+    const targetPath = storagePath;
+    const heroPath = storagePath + ".hero.png";
+    let heroCopied = false;
     if (sourceBucket !== targetBucket) {
       const bytes = new Uint8Array(await source.arrayBuffer());
       const contentType = source.type || "image/jpeg";
@@ -59,6 +61,20 @@ export async function POST(request: NextRequest) {
         cacheControl: "3600",
       });
       if (uploadError) throw new Error(uploadError.message);
+
+      const { data: sourceHero } = await supabase.storage.from(sourceBucket).download(heroPath);
+      if (sourceHero) {
+        const { error: heroUploadError } = await supabase.storage.from(targetBucket).upload(
+          heroPath,
+          new Uint8Array(await sourceHero.arrayBuffer()),
+          { contentType: "image/png", upsert: false, cacheControl: "3600" },
+        );
+        if (heroUploadError) {
+          await supabase.storage.from(targetBucket).remove([targetPath]);
+          throw new Error(heroUploadError.message);
+        }
+        heroCopied = true;
+      }
     }
 
     const now = new Date().toISOString();
@@ -74,12 +90,14 @@ export async function POST(request: NextRequest) {
     }).eq("id", user.id);
 
     if (updateError) {
-      if (sourceBucket !== targetBucket) await supabase.storage.from(targetBucket).remove([targetPath]);
+      if (sourceBucket !== targetBucket) {
+        await supabase.storage.from(targetBucket).remove(heroCopied ? [targetPath, heroPath] : [targetPath]);
+      }
       throw new Error(updateError.message);
     }
 
     if (sourceBucket !== targetBucket) {
-      await supabase.storage.from(sourceBucket).remove([storagePath, `${storagePath}.hero.png`]);
+      await supabase.storage.from(sourceBucket).remove([storagePath, heroPath]);
     }
 
     return NextResponse.json({ ok: true, visibility, publicConsentRecorded: visibility === "PUBLIC" });
