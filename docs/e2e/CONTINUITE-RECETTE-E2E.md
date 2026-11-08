@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.21 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.22 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -15,7 +15,7 @@
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le contrôle Data API du schéma net n'a pas encore reçu de réponse HTTP exploitable ; l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`. Sélectionner `service_role` uniquement si cette entrée est dans **Legacy API Keys** et que la valeur JWT commence par `eyJ`; utiliser alors le test masqué GET-only du §23.3. Si la valeur commence par `sb_secret_`, ce n'est pas la legacy JWT et il faut arrêter ce script. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.21  
+**Version :** 2.22  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1369,3 +1369,57 @@ Ce résultat ne correspond pas à la commande exacte conservée au §23.3 :
 - Document source avant cette mise à jour : blob SHA `228ad6ca36df76e928435a99fe51c758064a6192` sur `e2e/recette`.
 - PR #266 vérifiée avant cette mise à jour : state `open`, draft `true`, merged `false`, HEAD `d74b6d2a61f9a7cb6baab67adc2726b81a19dc39`, base `main`.
 - Aucune valeur de clé n'a été reçue, lue ou enregistrée.
+---
+
+## 27. Retransmission contrôlée de la commande LOT-00 — V2.22 — 8 novembre 2026
+
+### 27.1 Demande opérateur et décision
+
+Après le rapport `KEY_TYPE_INVALID` (§26), l'opérateur demande explicitement la retransmission de la commande LOT-00 pour la réessayer.
+
+La commande de référence reste celle du §23.3. Une copie strictement identique de la logique est retransmise avec un nouveau nom de rapport `feedback-lot00-net-schema-exposure-v4.txt` afin de préserver le rapport `v3` et toute sortie antérieure. Le contrôle reste limité au JWT legacy JOBLY-E2E prévalidé et à deux requêtes GET OpenAPI, schémas `public` puis `net`, sur l'URL `/rest/v1/` du projet `ofqqrryamslxoqkklraw`.
+
+### 27.2 Précondition obligatoire
+
+Avant exécution, l'opérateur doit vérifier dans le Dashboard que la ligne `service_role` sous **Legacy API Keys** est marquée **Active** et que son format de valeur commence par `eyJ`. Ne jamais transmettre la valeur. Si l'une des deux conditions manque, ne pas exécuter ; ne pas réactiver, recréer ou régénérer de clé.
+
+Le script contrôle en plus localement le préfixe JWT, le claim `role=service_role` et le claim `ref=ofqqrryamslxoqkklraw`. En cas d'échec de ces validations, aucune requête HTTP n'est envoyée. En cas de validation réussie, seules deux requêtes GET à la racine OpenAPI sont faites, avec le header `apikey` uniquement ; aucun Authorization Bearer, table, RPC, Storage, `net.http_*` ou écriture.
+
+### 27.3 Commande CMD retransmise
+
+Le bloc CMD complet transmis à l'opérateur utilise le rapport `feedback-lot00-net-schema-exposure-v4.txt`, ouvre ce rapport avec Notepad immédiatement après l'exécution et refuse d'écraser un rapport v4 déjà présent.
+
+```bat
+cd /d C:\Users\ASUS\Jobly
+if exist feedback-lot00-net-schema-exposure-v4.txt echo Rapport v4 deja present : conservation, aucune nouvelle execution.
+if not exist feedback-lot00-net-schema-exposure-v4.txt node -e "const fs=require('node:fs'),input=process.stdin,out=process.stdout,report='feedback-lot00-net-schema-exposure-v4.txt';if(fs.existsSync(report)){console.log('REPORT_EXISTS_PRESERVED');process.exit(3)}if(!input.isTTY||typeof input.setRawMode!=='function'){console.log('TTY_REQUIRED');process.exit(2)}let key='';out.write('Ancienne cle service_role JOBLY-E2E (masquee) : ');input.setRawMode(true);input.resume();input.on('data',b=>{for(const ch of b.toString('utf8')){if(ch==='\u0003'){input.setRawMode(false);input.pause();key='';out.write('\nCANCELLED\n');process.exit(2)}if(ch==='\r'||ch==='\n'){input.setRawMode(false);input.pause();out.write('\n');const k=key.trim();key='';run(k);return}if(ch==='\u007f'||ch==='\b')key=key.slice(0,-1);else if(ch>=' ')key+=ch}});function save(rows,gate,error=''){const lines=['node='+process.version,'project_ref=ofqqrryamslxoqkklraw','credential_type=legacy_service_role','results='+JSON.stringify(rows),'GATE='+gate];if(error)lines.push('error='+error);fs.writeFileSync(report,lines.join('\r\n')+'\r\n',{flag:'wx'});for(const line of lines)out.write(line+'\n');out.write('REPORT='+report+'\n')}async function run(k){const rows=[];try{if(!k.startsWith('eyJ'))throw Error('KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT');const p=JSON.parse(Buffer.from(k.split('.')[1]||'','base64url').toString('utf8'));if(p.role!=='service_role'||p.ref!=='ofqqrryamslxoqkklraw')throw Error('KEY_PROJECT_OR_ROLE_MISMATCH');for(const schema of ['public','net']){const r=await fetch('https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/',{method:'GET',headers:{apikey:k,Accept:'application/openapi+json','Accept-Profile':schema},signal:AbortSignal.timeout(20000)});const raw=await r.text();let j={};try{j=JSON.parse(raw)}catch{}rows.push({schema,status:r.status,apiSchemaAccepted:r.ok,openapi:!!(j.openapi||j.swagger),code:j.code??null,message:typeof j.message==='string'?j.message.slice(0,160):null})}const pub=rows.find(x=>x.schema==='public'),net=rows.find(x=>x.schema==='net');const pass=!!(pub&&pub.status===200&&pub.openapi&&net&&net.status===406&&net.code==='PGRST106');save(rows,pass?'PASS_NET_NOT_EXPOSED':'BLOCKED_REVIEW_REQUIRED')}catch(e){save(rows,'BLOCKED_REVIEW_REQUIRED',e.name+': '+e.message)}finally{k=''}}
+notepad feedback-lot00-net-schema-exposure-v4.txt
+```
+
+### 27.4 Interprétation du résultat
+
+- `public` : HTTP 200 avec document OpenAPI attendu.
+- `net` : HTTP 406 et code PostgREST `PGRST106`.
+- Seule la combinaison des deux donne `GATE=PASS_NET_NOT_EXPOSED` pour le sous-contrôle d'exposition du schéma.
+- Tout autre résultat reste `BLOCKED_REVIEW_REQUIRED` ; ne pas changer les grants, schémas, rôles, policies ou configuration à partir de ce seul résultat.
+- Si `feedback-lot00-net-schema-exposure-v4.txt` existe déjà, la commande le préserve et n'exécute pas un second run avec ce nom. Ne pas supprimer ni écraser un rapport existant.
+
+### 27.5 État à cet instant
+
+- Rapport précédent : `credential_type=unknown`, `results=[]`, `GATE=BLOCKED_REVIEW_REQUIRED`, `KEY_TYPE_INVALID` (§26.1). Il ne contient aucun statut HTTP.
+- Commande exacte qui a produit le précédent rapport : **NON IDENTIFIÉE**.
+- Emplacement `service_role` : confirmé par l'opérateur sous Legacy API Keys.
+- État Active et préfixe `eyJ` : **non confirmés à ce jour dans la conversation** ; préconditions à vérifier avant utilisation.
+- Commande V4 : **retransmise, non exécutée par l'assistant** ; aucun résultat de test n'est encore revendiqué.
+- LOT-00 : **PARTIAL** ; exposition `net` indéterminée.
+- Smoke runtime, navigateur, parcours croisé et bulk : suspendus jusqu'à fermeture LOT-00.
+- Aucun appel HTTP Supabase, Auth, SQL, RPC ou Storage dans cette mise à jour ; aucune fixture, donnée, permission ou configuration modifiée ; JOBLY-PROD interdit.
+- `main` inchangée ; PR #266 ouverte, en brouillon et non fusionnée ; aucun déploiement.
+
+### 27.6 Preuves GitHub et sources
+
+- Source documentaire relue avant édition : V2.21, blob SHA `e8a2e7212ea2b04e85bd8fa7f9660b4e193f1399`.
+- PR #266 relue avant édition : state `open`, draft `true`, merged `false`, HEAD `77919abb0e63e91de3da9a1119bf9921d449781d`, base `main`.
+- Procédure logique de référence : §23.3 du présent document.
+- Nouveau nom de rapport local réservé : `feedback-lot00-net-schema-exposure-v4.txt`.
+
