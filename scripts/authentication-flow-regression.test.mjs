@@ -18,6 +18,7 @@ const profilePhotoRoute = read("app/api/auth/profile-photo/route.ts");
 const originalCvRoute = read("app/api/talent/cv/original/route.ts");
 const cvImportRoute = read("app/api/talent/cv/import/route.ts");
 const talentCvPage = read("app/talent/cvs/page.tsx");
+const cvStudioPage = read("app/cv/page.tsx");
 const recruiterJobs = read("app/api/recruiter/jobs/route.ts");
 const mobilityAgreement = read("app/api/mobility/recruiter/agreement/route.ts");
 const mobilityServer = read("lib/mobilityServer.ts");
@@ -199,15 +200,15 @@ test("original CV storage and CV import reconcile legacy Auth accounts before lo
 });
 
 test("CV Studio loads current plan and download prices with an authenticated, refreshed session", () => {
-  const effectStart = talentCvPage.indexOf('authenticatedFetch("/api/entitlements"');
+  const effectStart = cvStudioPage.indexOf('authenticatedFetch("/api/entitlements"');
   assert.ok(effectStart >= 0, "CV Studio must load the current entitlement snapshot.");
-  const effect = talentCvPage.slice(Math.max(0, effectStart - 700), effectStart + 900);
+  const effect = cvStudioPage.slice(Math.max(0, effectStart - 700), effectStart + 900);
   assert.match(effect, /const response = await authenticatedFetch\("\/api\/entitlements"/);
-  assert.match(talentCvPage, /const headers = new Headers\(init\.headers\)/);
-  assert.match(talentCvPage, /headers\.set\("Authorization", "Bearer " \+ accessToken\)/);
-  assert.match(talentCvPage, /if \(result\?\.subscription\?\.plan\) setPlan\(String\(result\.subscription\.plan\)\)/);
-  assert.match(talentCvPage, /setCvAtsDownloadPriceXaf\(Number\.isFinite\(Number\(entitlements\.cvAtsDownloadPriceXaf\)\)/);
-  assert.match(talentCvPage, /setCvOptimizedDownloadPriceXaf\(Number\.isFinite\(Number\(entitlements\.cvOptimizedDownloadPriceXaf\)\)/);
+  assert.match(cvStudioPage, /const headers = new Headers\(init\.headers\)/);
+  assert.match(cvStudioPage, /headers\.set\("Authorization", "Bearer " \+ accessToken\)/);
+  assert.match(cvStudioPage, /if \(result\?\.subscription\?\.plan\) setPlan\(String\(result\.subscription\.plan\)\)/);
+  assert.match(cvStudioPage, /setCvAtsDownloadPriceXaf\(Number\.isFinite\(Number\(entitlements\.cvAtsDownloadPriceXaf\)\)/);
+  assert.match(cvStudioPage, /setCvOptimizedDownloadPriceXaf\(Number\.isFinite\(Number\(entitlements\.cvOptimizedDownloadPriceXaf\)\)/);
   assert.match(read("app/api/entitlements/route.ts"), /productType/);
 });
 
