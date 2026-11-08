@@ -11,6 +11,18 @@ import { exposePublishedEventMedia, JOBLY_EVENTS_BUCKET } from "../../../lib/eve
 export const dynamic = "force-dynamic";
 const fail=(message:string,status=400,code="EVENT_ERROR")=>NextResponse.json({error:code,message},{status});
 
+type EventLike = Parameters<typeof scoreEventForProfile>[0];
+
+function isEventLike(value: unknown): value is EventLike {
+  if (!value || typeof value !== "object") return false;
+  const event = value as Record<string, unknown>;
+  return typeof event.id === "string"
+    && typeof event.title === "string"
+    && typeof event.description === "string"
+    && typeof event.domain === "string"
+    && typeof event.startAt === "string";
+}
+
 export async function GET(request:NextRequest){
   try{
     const sb=adminClient(),now=new Date().toISOString();
@@ -19,7 +31,7 @@ export async function GET(request:NextRequest){
     const {data:featured,error:fe}=await sb.from("EventFeaturedCampaign").select("eventId,startAt,endAt,slot,status").eq("status","ACTIVE").lte("startAt",now).gte("endAt",now).order("slot",{ascending:true}).limit(6);
     if(fe)throw new Error(fe.message);
     const ids=(featured??[]).map(x=>x.eventId);
-    const allEvents=await Promise.all((events??[]).map((event)=>exposePublishedEventMedia(sb,event)));
+    const allEvents=(await Promise.all((events??[]).map((event)=>exposePublishedEventMedia(sb,event)))).filter(isEventLike);
 
     const auth=await getAuthUser(request);
     let recommended: Array<{event:any;score:number|null}>=allEvents.slice(0,12).map(e=>({event:e,score:null}));

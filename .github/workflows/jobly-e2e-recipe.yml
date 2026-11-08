@@ -1,22 +1,9 @@
 name: Jobly — Recette E2E isolée
 
 # Same 11-lot orchestrator for Windows local runs and CI.
+# Manual only: run the shared-fixture recipe after the operator preflight is approved.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - e2e/recette
-    paths:
-      - "e2e/**"
-      - ".github/workflows/jobly-e2e-recipe.yml"
-      - "app/**"
-      - "components/**"
-      - "lib/**"
-      - "scripts/**"
-      - "supabase/migrations/**"
-      - ".github/workflows/jobly-security-core.yml"
-      - "package.json"
-      - "pnpm-lock.yaml"
 
 permissions:
   contents: read

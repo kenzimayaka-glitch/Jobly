@@ -19,6 +19,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       supabase.from("Education").select("*").eq("userId", share.userId).order("startDate", { ascending: false }),
     ]);
     for (const r of [userRes, profileRes, expRes, skillRes, eduRes]) if (r.error) throw new Error(r.error.message);
+    if (!userRes.data) {
+      return NextResponse.json({ message: "Ce partage CV n'est plus disponible." }, { status: 404 });
+    }
     await supabase.from("CVShare").update({ viewCount: (share.viewCount || 0) + 1 }).eq("id", share.id);
 
     return NextResponse.json({

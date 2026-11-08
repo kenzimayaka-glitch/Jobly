@@ -2,7 +2,9 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
-const names = ["SUPABASE_E2E_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"];
+const secretNames = ["SUPABASE_E2E_SECRET_KEY", "SUPABASE_SECRET_KEY"];
+const serviceNames = ["SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY"];
+const names = [...secretNames, ...serviceNames];
 const anonName = "NEXT_PUBLIC_SUPABASE_ANON_KEY";
 const reportPath = path.resolve("feedback-lot00-storage-credential-diagnostic.txt");
 
@@ -84,16 +86,14 @@ for (const name of names) {
   };
 }
 
-const secretKey = effective.SUPABASE_E2E_SECRET_KEY.effectiveValueAvailable
-  ? (typeof process.env.SUPABASE_E2E_SECRET_KEY !== "undefined"
-      ? process.env.SUPABASE_E2E_SECRET_KEY
-      : (fileValues.get("SUPABASE_E2E_SECRET_KEY") ?? ""))
-  : "";
-const serviceRoleKey = effective.SUPABASE_SERVICE_ROLE_KEY.effectiveValueAvailable
-  ? (typeof process.env.SUPABASE_SERVICE_ROLE_KEY !== "undefined"
-      ? process.env.SUPABASE_SERVICE_ROLE_KEY
-      : (fileValues.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""))
-  : "";
+const effectiveValue = (name) => {
+  if (!effective[name]?.effectiveValueAvailable) return "";
+  return typeof process.env[name] !== "undefined"
+    ? process.env[name]
+    : (fileValues.get(name) ?? "");
+};
+const secretKey = secretNames.map(effectiveValue).find(Boolean) ?? "";
+const serviceRoleKey = serviceNames.map(effectiveValue).find(Boolean) ?? "";
 const selectedKey = secretKey || serviceRoleKey;
 let keyValidation = { keySelected: Boolean(selectedKey), acceptedFormat: false, jwtShapeValid: null, projectMatches: null, serviceRole: null };
 if (selectedKey.startsWith("eyJ")) {

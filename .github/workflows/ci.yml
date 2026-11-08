@@ -161,6 +161,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: LOT-00 private media contract and isolated runtime-unit tests
+        run: node --experimental-strip-types --test scripts/e2e/lot00-private-media-contract.test.mjs scripts/e2e/lot00-private-media-runtime.test.mjs
+
       - name: P2 Community, Bons Plans and Campus gate
         run: pnpm test:p2-ecosystem
 

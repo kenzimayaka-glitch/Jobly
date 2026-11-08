@@ -256,8 +256,8 @@ async function main() {
   loadLocalEnvFiles();
   const projectRef = process.env.E2E_PROJECT_REF || "";
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-  const legacyKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-  const secretKey = process.env.SUPABASE_E2E_SECRET_KEY || "";
+  const secretKey = process.env.SUPABASE_E2E_SECRET_KEY || process.env.SUPABASE_SECRET_KEY || "";
+  const legacyKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || "";
   const key = secretKey || legacyKey;
 
   assert.equal(projectRef, EXPECTED_REF, "E2E_PROJECT_REF doit cibler JOBLY-E2E.");
@@ -271,7 +271,7 @@ async function main() {
     assert.equal(claims.ref, EXPECTED_REF, "La clé JWT ne correspond pas au projet JOBLY-E2E.");
     assert.equal(claims.role, "service_role", "Le JWT fourni n'est pas service_role.");
   } else {
-    assert.ok(secretKey.startsWith("sb_secret_"), "Une clé sb_secret_ doit être fournie explicitement via SUPABASE_E2E_SECRET_KEY.");
+    assert.ok(key.startsWith("sb_secret_"), "Une clé privée sb_secret_ ou un JWT service_role JOBLY-E2E est requis.");
   }
 
   const report = {
