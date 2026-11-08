@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.55 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.56 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3027,3 +3027,36 @@ Le résultat précédent (§55) était `OTHER_TEXT` après une baseline qui avai
 - JOBLY-PROD hors périmètre ; aucune mutation Supabase/fixture ; aucun accès à une clé de production ; aucun changement de `main) ; aucun déploiement.
 - PR #266 reste ouverte, brouillon et non fusionnée.
 - Document source avant cette mise à jour : V2.54, blob SHA `44551e84248808579fd2e011e48924943896f675`, branche `e2e/recette`.
+
+
+---
+
+## 58. Pause des essais presse-papiers répétitifs — V2.56 — 8 novembre 2026
+
+### 58.1 Décision opératoire
+
+Après plusieurs tentatives de classification qui n'ont pas établi le contenu attendu du presse-papiers, l'opérateur signale une fatigue/frustration légitime. **Les essais répétés dans le même navigateur sont suspendus.** Ne pas lui redemander immédiatement de répéter les étapes §45, §56 ou §57.
+
+### 58.2 Faits conservés
+
+- La baseline Windows/PowerShell a été vérifiée : `baseline_verified=True`.
+- Après le clic Copier, le classificateur simple a retourné `OTHER_TEXT`, puis `GATE=BLOCKED_COPY_CONTENT_NOT_EXPECTED`.
+- Aucun secret n'a été communiqué ni enregistré.
+- Aucun appel OpenAPI n'a été exécuté ; aucune preuve d'acceptation ou de rejet serveur n'existe.
+- L'origine de `OTHER_TEXT` reste indéterminée ; ne pas l'attribuer avec certitude à Supabase, au navigateur ou à PowerShell.
+
+### 58.3 Changement de stratégie requis
+
+La prochaine reprise ne doit pas répéter le même geste. Préparer une méthode alternative qui évite de transmettre ou d'afficher le secret : vérifier d'abord les possibilités locales déjà authentifiées, par exemple la présence d'une session Supabase CLI ou d'une configuration locale JOBLY-E2E, sans afficher les valeurs secrètes, sans modifier les clés et sans lancer d'appel HTTP avant validation des prérequis. Si aucune méthode sûre n'est disponible, reporter le contrôle credential et poursuivre uniquement les recettes code-only non redondantes.
+
+Aucune recherche de secret sur le disque, aucun dump d'environnement, aucun affichage de variable secrète, aucune transmission dans le chat, aucun appel `net.http_*`, aucun accès JOBLY-PROD.
+
+### 58.4 État
+
+- LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- Le test presse-papiers est **PAUSED**, pas PASS ni FAIL.
+- Aucun GET OpenAPI `public`/`net` n'a été exécuté.
+- Aucun compte, fixture, mot de passe, permission ou clé n'a été modifié.
+- Aucun changement de `main`, aucune fusion et aucun déploiement.
+- PR #266 reste ouverte, en brouillon et non fusionnée.
+- Document source avant cette mise à jour : V2.55, blob SHA c8b5977caa546cdf1a5b56daddfbbd91246087b0, branche `e2e/recette`.
