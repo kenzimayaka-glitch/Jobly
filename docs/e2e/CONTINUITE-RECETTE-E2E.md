@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.84 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.85 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -4322,3 +4322,111 @@ Après réception et vérification d'un LOT-01 Auth PASS :
 - ne pas relancer les tests déjà PASS si le code concerné n'a pas changé.
 
 Aucun accès JOBLY-PROD, aucune mutation SQL directe, aucune migration, aucune modification Storage, aucune fusion et aucun déploiement n'ont été effectués pendant cette reprise. PR #266 reste en brouillon ; PR #267 reste distincte et en brouillon.
+
+
+## 83. LOT-00 — ré-audit de sécurité et de stockage en lecture seule
+
+### 83.1 Périmètre et méthode
+
+Audit exécuté le 8 novembre 2026 sur le seul projet Supabase **JOBLY-E2E** (`ofqqrryamslxoqkklraw`), état projet `ACTIVE_HEALTHY`, PostgreSQL 17.11. Les opérations ont été limitées à des lectures de catalogue, des contrôles de privilèges effectifs, des comptages Storage et aux Supabase Security/Health Advisors. **Aucun SQL DDL/DML, aucune migration, aucun changement de privilège ou de bucket n'a été exécuté. JOBLY-PROD n'a pas été consulté.**
+
+Références de documentation Supabase consultées : RLS et contrôle d'accès, accès des buckets publics/privés, limites de fichiers par bucket et bonnes pratiques des fonctions `SECURITY DEFINER`.
+
+### 83.2 Socle RLS — éléments PASS
+
+- Tables du schéma `public` : **180/180 avec RLS activé**, aucune table publique avec RLS désactivé.
+- Politiques `public` : **215**, réparties sur **154 tables**.
+- Les **26 tables** signalées par l'Advisor `rls_enabled_no_policy` sont des tables internes sans politique ; le contrôle croisé confirme **zéro privilège effectif `anon` ou `authenticated`** sur ces tables. Elles restent fermées aux rôles clients et ne doivent pas recevoir de politiques permissives uniquement pour faire disparaître l'INFO Advisor.
+- Vue `public.jia_memory_unified` : option `security_invoker=true`, aucun privilège `SELECT` pour `anon` ou `authenticated`, lecture serveur seule dans la matrice observée.
+- Séquences du schéma `public` : aucun privilège effectif `USAGE`, `SELECT` ou `UPDATE` pour `anon` ou `authenticated` sur les séquences existantes.
+- L'accès de lecture anonyme actuellement réellement autorisé par la combinaison GRANT + RLS est limité aux données publiées/actives de `BonPlan`, `BonPlanComment` et `Institution`. Les autres politiques de lecture de type `public`/`anon` observées ne sont pas utilisables par `anon` lorsqu'un GRANT de table manque, ou ont une condition propriétaire / `false`.
+
+Ces résultats valident la présence de RLS et l'absence d'accès client sur les tables sans politique. Ils ne valident pas encore le principe de moindre privilège des ACL.
+
+### 83.3 Matrice des privilèges — BLOCKER de fermeture
+
+État effectif observé :
+
+- `anon` : privilèges directs de table `SELECT/INSERT/UPDATE/DELETE` ainsi que `TRUNCATE/REFERENCES/TRIGGER` sur **23 tables** : `ApplicationBatch`, `ApplicationBatchItem`, `BonPlan`, `BonPlanComment`, `CVShare`, `CandidateFile`, `CareerCompetencyAssessment`, `CareerCompetencyAttempt`, `CareerEvidence`, `CareerGoal`, `CareerJourney`, `CareerMission`, `CareerMissionUpdate`, `CareerPathScenario`, `CareerPortfolioItem`, `CareerRecommendation`, `CareerReview`, `Institution`, `JiaWatchRun`, `JiaWatchSnapshot`, `JiaWatchSubscription`, `RecruiterProfile`, `jia_preferences`.
+- `authenticated` : `SELECT` sur 55 relations, `INSERT` sur 24, `UPDATE` et `DELETE` sur 23. Il détient aussi des privilèges `TRUNCATE/REFERENCES/TRIGGER` sur 23 relations.
+- Le fait qu'un rôle ait un GRANT SQL ne suffit pas à prouver qu'il peut voir ou modifier des lignes : RLS continue d'appliquer ses prédicats. Aucun succès d'écriture anonyme n'a été démontré pendant cet audit. En revanche, les privilèges inutiles restent trop larges et compliquent la garantie de moindre privilège.
+
+**Défaut plus important pour les objets futurs :** les privilèges par défaut du schéma `public`, pour les propriétaires `postgres` et `supabase_admin`, accordent actuellement :
+- `ALL` sur les nouvelles tables à `anon`, `authenticated` et `service_role` ;
+- `EXECUTE` sur les nouvelles fonctions aux mêmes rôles ;
+- des privilèges de lecture/écriture/usage sur les nouvelles séquences aux mêmes rôles.
+
+Les séquences existantes sont actuellement protégées, mais les ACL par défaut peuvent réintroduire des droits excessifs lors de prochaines migrations. Une simple révocation sur les 23 tables actuelles ne suffirait donc pas.
+
+**Correction requise avant PASS :** définir les privilèges par défaut minimaux pour les deux propriétaires, puis réconcilier les GRANT explicites par objet avec les usages réellement nécessaires aux appels PostgREST et Storage. Ne pas retirer en bloc les droits `authenticated` sur les 55 relations : une matrice route/API → relation → opération doit préserver les parcours Talent, Recruteur, Partenaire, Recruitment360 et les modules actifs. Les droits `anon` de lecture des trois surfaces publiques doivent être les seuls droits clients anonymes conservés lorsque le code les nécessite. `TRUNCATE`, `TRIGGER` et `REFERENCES` ne doivent pas être accordés aux rôles de navigateur.
+
+### 83.4 Fonctions RPC publiques — deux sujets différents
+
+Cinq fonctions du schéma `public` sont exécutables par au moins un rôle client :
+
+1. `get_public_home_stats()` : `SECURITY DEFINER`, exécutable par `anon` et `authenticated`. Elle appartient à `postgres`, utilise un `search_path` vide et retourne uniquement trois agrégats, sans champs personnels. Son code SQL est néanmoins ancien et diverge des règles actuelles : il contient 55 codes pays avec `EH` et compte tous les profils Talent sans filtre géographique. La route actuelle `app/api/public/home-stats/route.ts` calcule les statistiques via `adminClient`, et ne démontre pas l'usage de ce RPC. **Action avant révocation :** rechercher toutes les références au RPC dans le code et vérifier les clients historiques ; s'il n'a pas de consommateur autorisé, retirer l'exécution des rôles clients et `PUBLIC`. Sinon, synchroniser ses règles pays/compteurs et réduire son exposition avec une conception de privilèges explicite.
+2. `recruitment360_lot10_execute_batch(...)` : `SECURITY INVOKER`, exécutable par `anon` et `authenticated`. Le corps refuse l'absence de `auth.uid()` et valide l'appartenance au recrutement ainsi que le rôle recruteur. Le GRANT `anon` est donc redondant ; conserver le parcours authentifié, après vérification du consommateur.
+3. `recruitment360_lot11_set_listing_consent(...)` : `SECURITY INVOKER`, accessible à `authenticated` seulement ; contrôle que la candidature appartient à `auth.uid()`. Droit cohérent avec son usage candidat et à conserver.
+4. `set_applications_updated_at()` et `set_profiles_updated_at()` : fonctions de déclencheur, non destinées à être des endpoints RPC client ; leurs privilèges `EXECUTE` hérités des ACL par défaut doivent être retirés aux rôles clients tout en préservant les exécutions par les triggers.
+
+Les Advisors WARN sur le RPC `get_public_home_stats()` sont donc réels du point de vue de l'exposition `SECURITY DEFINER`, même si sa sortie actuellement observée est limitée à des agrégats.
+
+### 83.5 Storage — configuration observée et limites métier
+
+Comptage effectué : **7 buckets, 0 objet dans chacun** sur JOBLY-E2E.
+
+| Bucket | Accès | Plafond | MIME |
+|---|---|---:|---|
+| `jobly-events` | public | 10 MiB | image/*, video/*, application/pdf |
+| `profile-photos` | public | 5 000 000 octets | image/* |
+| `jobly-payment-proofs` | privé | 10 MiB | JPEG, PNG, WebP, GIF, PDF |
+| `mobility-provider-documents` | privé | 10 MiB | PDF, JPEG, PNG |
+| `mobility-documents` | privé | non défini | non défini |
+| `recruitment-listings` | privé | non défini | non défini |
+| `talent-cvs` | privé | non défini | non défini |
+
+`storage.objects` porte quatre politiques limitées au dossier propre de l'utilisateur dans `talent-cvs` (SELECT/INSERT/UPDATE/DELETE). Les autres uploads identifiés utilisent des clients serveur privilégiés.
+
+Contrôles applicatifs rapprochés :
+- `app/api/talent/cv/original/route.ts` vérifie la session, le préfixe réel `%PDF-`, la taille maximale de 3 MiB et produit un lien signé de 60 secondes. Le bucket privé `talent-cvs` devrait recevoir une limite Storage de 3 MiB et un MIME `application/pdf` pour ajouter une défense en profondeur.
+- `app/api/mobility/partner/kyc-document/route.ts` contrôle 10 MiB et PDF/JPEG/PNG ; cela correspond à `mobility-provider-documents`. Le MIME déclaré par le navigateur n'est toutefois pas une preuve de signature du fichier ; une validation d'octets reste à vérifier/renforcer.
+- Les routes de stockage de `mobility-documents` et `recruitment-listings` doivent être inventoriées complètement avant de fixer leurs plafonds et allowlists ; ne pas choisir des limites au hasard.
+- `profile-photos` et `jobly-events` sont publics conformément à l'intention validée par l'opérateur, mais toute URL d'objet dans ces buckets est lisible publiquement. La visibilité volontaire de chaque photo n'est pas encore matérialisée par un consentement explicite et les médias d'événements peuvent être accessibles avant publication. Le staging privé / la promotion contrôlée des médias d'événements reste à concevoir ; aucune modification de bucket n'a été effectuée.
+
+**Conséquence :** la configuration des buckets privés CV/KYC est globalement correcte, mais les limites manquantes et le cycle de confidentialité des médias publics empêchent de considérer le contrôle Storage comme complètement clos.
+
+### 83.6 pg_net — risque conditionnel réservé au LOT-11
+
+- Extension `pg_net` : version **0.20.4**, enregistrée dans le schéma `public` (WARN Advisor `extension_in_public`).
+- Le schéma `net` accorde `USAGE` à `anon` et `authenticated` ; 12 fonctions `net` ont aussi un droit `EXECUTE` effectif pour ces rôles.
+- Le trigger d'événement `issue_pg_net_access` est activé et la fonction Supabase `extensions.grant_pg_net_access()` accorde à nouveau `USAGE` sur `net` lorsque l'extension est installée/mise à jour. Une révocation isolée sans stratégie compatible risque d'être annulée par le mécanisme Supabase.
+- L'exposition effective de `net` par PostgREST/OpenAPI n'a pas été prouvée : `current_setting('pgrst.db_schemas', true)` renvoie NULL, ce qui ne permet pas de conclure sur les schémas exposés.
+- Aucun `net.http_*` n'a été invoqué. Le contrôle OpenAPI `public=200 valid` / `net=406/PGRST106` reste volontairement réservé au **LOT-11**, après LOT-10, conformément à l'ordre validé.
+
+### 83.7 Advisors et contrainte du forfait
+
+Sécurité Advisor :
+- INFO `rls_enabled_no_policy` : 26 tables internes fermées aux clients ; non bloquant une fois leur absence de GRANT démontrée.
+- WARN `extension_in_public` : `pg_net`.
+- WARN `anon_security_definer_function_executable` et `authenticated_security_definer_function_executable` : `get_public_home_stats()`.
+- WARN `auth_leaked_password_protection` : protection HaveIBeenPwned inactive.
+
+Health Advisor : aucun finding.
+
+L'organisation Supabase de JOBLY-E2E est sur le **forfait Free**. La documentation Supabase indique que la détection des mots de passe compromis via HaveIBeenPwned est disponible sur Pro et supérieur. Cette alerte doit être suivie comme **limitation de forfait / risque accepté**, non comme une correction de code possible dans ce lot.
+
+### 83.8 Décision de recette — LOT-00 toujours PARTIAL
+
+**PASS démontrés :** projet E2E actif et identifié ; 180/180 tables publiques avec RLS ; 26 tables internes sans politique sans privilège client ; vue J'IA en `security_invoker` non lisible par les rôles clients ; lecture anonyme effective limitée aux trois surfaces publiques ; aucune séquence publique accessible aux rôles clients ; sept buckets vides ; buckets CV/KYC privés.
+
+**À corriger ou à accepter explicitement avant clôture :**
+1. réduire les GRANT excessifs existants et corriger les ACL par défaut pour `postgres` et `supabase_admin`, après établissement de la matrice minimale des usages clients ;
+2. réconcilier les cinq RPC exposés et fermer les fonctions trigger côté API ; retirer ou mettre à jour `get_public_home_stats()` selon les consommateurs réels ;
+3. poser des restrictions Storage au niveau bucket, au minimum CV 3 MiB / PDF, puis inventaire précis des deux buckets `mobility-documents` et `recruitment-listings` ;
+4. finaliser la décision de confidentialité déjà prise sur photos et médias d'événements : consentement explicite photo, staging privé puis promotion/publication des médias ; ces adaptations touchent les lecteurs, routes et cycle de publication ;
+5. LOT-11 restera responsable de la vérification OpenAPI et de la réconciliation `pg_net` ; ne pas anticiper ce test dans LOT-00 ;
+6. consigner la protection des mots de passe compromis comme exception de forfait Free, à réévaluer en cas de passage à Pro.
+
+**Aucune correction SQL/Storage n'a été appliquée pendant cet audit.** Une migration de moindre privilège doit être préparée après inventaire des consommateurs, relue, puis appliquée à JOBLY-E2E uniquement avec validation et tests de régression. Ne jamais appliquer cette proposition à JOBLY-PROD dans le cadre de la présente recette.
+
+Mise à jour V2.85 sur `e2e/recette`. Source précédente : blob SHA `a6bd2dce5d6e75e190eb2eed0b43d92c27d4c2cf`. PR #266 reste ouverte, brouillon et non fusionnée ; PR #267 reste distincte, ouverte et brouillon. `main` reste inchangée sur `979f2ccfec9258bc30989af18433cf6adb1b4698`.
