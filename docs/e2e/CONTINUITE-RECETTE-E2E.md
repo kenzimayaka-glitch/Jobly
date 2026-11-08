@@ -1,10 +1,10 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.90 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.91 — 8 novembre 2026
 >
-> **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
+> **Dernier commit de correction LOT-00 :** `3b7152c3f0c1b1ec7df4bd5536579e6e2d6e1941` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
-> **Environnement :** JOBLY-E2E uniquement. Aucun test runtime ni accès JOBLY-PROD n'a été effectué pendant la correction distante.
+> **Environnement :** JOBLY-E2E uniquement pour les migrations et lectures SQL. Aucun test applicatif runtime ni accès JOBLY-PROD. Un aperçu Netlify automatique a été signalé par l'intégration GitHub de la PR #266 ; aucun déploiement de production ni action Vercel n'a été demandé.
 >
 > **Important — instructions historiques neutralisées :** les instructions plus anciennes de ce document qui autorisaient ou demandaient une réinitialisation des mots de passe, une recréation de fixtures ou l'exécution de `e2e/reset-existing-fixture-passwords.mjs` sont obsolètes et ne doivent pas être suivies. Le script local `e2e/reset-existing-fixture-passwords.mjs` reste à préserver et ne doit pas être exécuté. Aucune fixture partagée ne doit être modifiée sans nouvelle autorisation explicite et spécifique.
 >
@@ -4623,6 +4623,96 @@ Le gap catalogue de LOT-01 mentionne encore les parcours réels OTP, Google OAut
 Ne pas lancer `scripts/e2e-local-recipe.mjs` pour contourner ces manques : son chemin d'exécution peut démarrer le serveur et les parcours authentifiés, et il ne doit pas restaurer automatiquement des fixtures. Ne pas exécuter les scripts de provisionnement, reset de mot de passe ou restauration de fixture. Le dépôt local étant 100 commits behind avec des changements non commités, ne pas faire de `pull`, `reset`, `stash` ou `clean` en l'état.
 
 Statut LOT-01 : **PARTIAL / BLOCKED PAR LE MOTEUR DE STATUT ET PAR LES PREUVES RUNTIME MANQUANTES**. Aucun correctif du runner n'a été appliqué pendant cette analyse. JOBLY-PROD, `main`, les PR et les déploiements restent inchangés.
+
+
+## 89. LOT-00 — correction confidentialité photos et médias, migration E2E et nouvelle recette Storage
+
+### 89.1 Migration de schéma appliquée sur JOBLY-E2E
+
+Migration additive appliquée avec succès sur le projet ofqqrryamslxoqkklraw :
+- nom : lot00_private_media_consent ;
+- version Supabase enregistrée : 20261108173912 ;
+- source Git : supabase/migrations/20261108190000_lot00_private_media_consent.sql ;
+- ajoute à User : profilePhotoStoragePath, profilePhotoVisibility (défaut PRIVATE), profilePhotoConsentAt ;
+- ajoute à Event : mediaStoragePath ;
+- contraintes vérifiées : visibilité limitée à PRIVATE/PUBLIC, publication PUBLIC impossible sans horodatage de consentement.
+
+État des données E2E après migration :
+- 4 comptes ont le défaut PRIVATE ;
+- 0 URL photo déjà enregistrée ;
+- 0 consentement public déjà enregistré ;
+- la table Event ne contient actuellement aucun événement.
+La migration est appliquée et vérifiée ; ne pas la rejouer sans besoin.
+
+### 89.2 Audit Storage direct effectué
+
+Résultats read-only sur JOBLY-E2E :
+- RLS activé sur storage.objects ;
+- zéro objet dans les six buckets métier contrôlés (jobly-events, profile-photos, profile-photos-private, talent-cvs, recruitment-listings, mobility-documents) ;
+- aucune policy storage.objects d'upload/lecture pour les buckets profil et événement ; les seules policies trouvées sur storage.objects concernent l'accès personnel à talent-cvs ;
+- les grants SQL globaux sur storage.objects ne suffisent pas à ouvrir l'accès sans policy RLS ; toutefois un bucket public permet la lecture publique de ses objets existants. Le bucket événementiel est encore public avant application du script, mais il est vide à ce contrôle.
+
+### 89.3 Confidentialité des photos — correctifs commis sur e2e/recette
+
+Correctifs de code enregistrés :
+- lib/profilePhotoStorage.ts : résolution d'URL propre au propriétaire, URL signée pour photo privée, URL publique seulement si visibilité PUBLIC et consentement enregistré ;
+- app/api/auth/profile-photo/route.ts : upload privé par défaut, formats contrôlés, limite alignée à 5 MiB ; une publication initiale nécessite un consentement explicite ;
+- app/api/auth/profile-photo/visibility/route.ts : écran d'état/contrôle de visibilité, passage public/privé, copie du visuel Hero et suppression de l'ancien objet après mise à jour ;
+- components/AccountSettings.tsx : choix explicite, libellé de consentement et possibilité de retrait ;
+- app/api/profile/route.ts : URL privée signée pour le propriétaire ;
+- lecteurs Recruteur et partage CV corrigés : app/api/recruiter/talents/route.ts, app/api/recruiter/talents/profile/route.ts, app/api/recruiter/applications/route.ts, app/api/recruiter/discover/[token]/route.ts, app/api/cv-share/[token]/route.ts. Aucune de ces surfaces ne doit révéler une photo sans consentement ; les chemins internes Storage ne sont pas renvoyés aux consommateurs.
+
+Le nouveau script Storage migre les anciennes photos dont le consentement public n'est pas prouvé vers profile-photos-private, retire les anciennes URLs publiques, préserve seulement les objets explicitement consentis et supprime les images publiques orphelines non référencées.
+
+### 89.4 Médias événementiels — cycle privé et publication
+
+Correctifs commis :
+- jobly-events devient un bucket privé ; l'upload renvoie un chemin privé et non une URL publique ;
+- app/api/events/media/route.ts refuse l'upload si le bucket n'est pas privé ;
+- app/api/events/route.ts vérifie que le chemin appartient à l'UID authentifié, vérifie l'objet et l'enregistre sur l'événement ;
+- app/api/events/[id]/route.ts et la liste publique n'émettent un lien signé que pour les événements PUBLISHED ;
+- lib/eventStorage.ts épingle l'application au bucket canonique jobly-events ;
+- app/api/cron/event-media-cleanup/route.ts ajoute un nettoyage protégé par CRON_SECRET : dépôts orphelins de plus de 24 h, brouillons de plus de 24 h et paiements en attente de plus de 7 jours ; les médias liés à un événement publié ou à un paiement encore valide sont conservés ;
+- le cron quotidien est déclaré dans vercel.json. Aucun déploiement ni activation de cron en production n'a été effectué.
+
+### 89.5 Nouveau script de configuration Storage — exécution encore requise
+
+Le script scripts/e2e/lot00-storage-bucket-hardening.mjs a été étendu. Blob actuel : 53420b691095d9042777cd8773b2fb42163a4d13.
+
+Cibles :
+- talent-cvs : privé, 3 MiB, PDF ;
+- recruitment-listings : privé, 50 MiB, PDF, XLSX, HTML, HTML UTF-8 et JPEG ;
+- mobility-documents : privé, 10 MiB, PDF/JPEG/PNG/WebP ;
+- jobly-events : privé, 10 MiB, JPEG/PNG/WebP/GIF/PDF/MP4 ;
+- profile-photos-private : créé s'il manque, privé, 5 MiB, JPEG/PNG/WebP/GIF.
+
+Le bucket public profile-photos reste public uniquement pour les objets explicitement consentis. Le script comporte les garde-fous de ref/URL/clé E2E, les snapshots, la relecture des métadonnées, la migration des photos legacy et le nettoyage des photos publiques orphelines. En cas d'échec, le bucket jobly-events reste privé par sécurité ; les buckets créés par cette recette ne sont pas supprimés automatiquement.
+
+**État à ce jour : script non exécuté.** Les métadonnées lues juste avant cette mise à jour montrent toujours :
+- jobly-events public ;
+- talent-cvs, recruitment-listings, mobility-documents privés mais sans limites/MIME conformes ;
+- profile-photos-private absent.
+Donc aucun PASS Storage ne peut être annoncé avant l'exécution via l'API Storage et la relecture.
+
+### 89.6 Tests et preuves
+
+- 21 vérifications statiques de présence des protections, réalisées sur les sources de la branche : 21/21.
+- Nouveau test automatisé ajouté : scripts/e2e/lot00-private-media-contract.test.mjs (10 scénarios de contrat, dont lecteurs Recruteur/CV et protection événementielle). Ce test Node n'a pas encore été exécuté dans une copie de travail propre.
+- Aucun build Next.js, aucun parcours navigateur photo, aucun upload événementiel et aucun test d'accès Storage anonyme/authentifié n'ont encore été exécutés après ces corrections.
+- Le statut GitHub du commit de code indique un aperçu Netlify PR #266 en succès ; ce n'est ni le build de recette validé, ni une mise en production. L'aperçu n'est pas utilisé comme cible de test.
+
+### 89.7 Actions restantes et statut
+
+1. Récupérer le script mis à jour par fichier individuel après git fetch origin, sans faire de pull et sans modifier les nombreux changements locaux non commités.
+2. Vérifier le hash 53420b691095d9042777cd8773b2fb42163a4d13 et la syntaxe Node ; exécuter le script uniquement avec E2E_PROJECT_REF=ofqqrryamslxoqkklraw, URL https://ofqqrryamslxoqkklraw.supabase.co et la clé E2E déjà présente localement. Ne jamais envoyer la clé dans le chat.
+3. Vérifier Storage via API après application : cinq cibles PASS, bucket privé des événements, création et confidentialité du bucket privé photo, migration/absence d'objets photo publics sans consentement.
+4. Exécuter node --test scripts/e2e/lot00-private-media-contract.test.mjs dans une copie source correspondant à e2e/recette, puis typecheck/build.
+5. Exécuter les parcours runtime E2E : upload privé photo, photo privée signée pour le propriétaire, refus public sans consentement, publication explicite, retrait du consentement, refus d'accès direct au staging événementiel, lecture signée après publication et nettoyage des dépôts expirés.
+6. Effectuer la relecture finale read-only (RLS/ACL/RPC/buckets/policies/objets) et joindre les preuves horodatées.
+
+LOT-00 reste **PARTIAL**. La matrice SQL initiale et la migration additive de confidentialité sont appliquées ; les protections de code sont présentes sur e2e/recette, mais les buckets n'ont pas encore été configurés et aucun test applicatif runtime n'a été réalisé.
+
+Garde-fous : dépôt local toujours en retard et avec modifications non commitées ; ne pas faire pull, reset, stash, clean, ne pas réinitialiser/provisionner les fixtures. main reste 979f2ccfec9258bc30989af18433cf6adb1b4698. PR #266 reste ouverte brouillon, non fusionnée ; PR #267 reste ouverte brouillon, non fusionnée. Aucun accès JOBLY-PROD, aucune fusion et aucun déploiement de production.
 
 ## 88. LOT-00 — recette complète de clôture, périmètre réel et blocages Storage métier
 
