@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.110 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.111 — 8 novembre 2026
 >
 > **Dernière correction de code Storage LOT-00 :** `f3753f7370007647a5e4bf99c130c69437d0c921` ; runner épinglé `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 : **PASS — clôturé** pour son périmètre environnement, identité, RLS/grants, Storage et correspondances des fixtures. La connexion réelle par mot de passe des fixtures reste NON TESTABLE faute de manifeste local de mots de passe et devient un prérequis explicite de LOT-01 Auth ; aucun mot de passe n'est réinitialisé. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.110  
+**Version :** 2.111  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -174,15 +174,22 @@ Les critères du LOT-00 pour le préflight environnement/jeux de données sont m
 
 Aucun lot métier LOT-01 à LOT-10 n'est déclaré PASS par cette clôture. La recette globale reste en cours. Garde-fous inchangés : `main` SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, PR #266/#267 non fusionnées, JOBLY-PROD interdit, aucun déploiement et aucune fixture modifiée.
 
-### 93.4 Limites de l'intervention et statut Storage
+### 93.19 Confirmation finale de clôture — LOT-00 totalement vert
 
-Cette tentative de réparation de fichier n'a pas lancé le lanceur, le diagnostic de clé, ni `lot00-storage-bucket-hardening.mjs`. Elle n'a effectué aucune requête ni mutation Supabase/Storage. Aucune configuration des buckets n'est donc réputée modifiée.
+À la suite de la question de l'opérateur (« le LOT-00 est-il totalement vert ? »), l'état a été clarifié puis confirmé : **oui, LOT-00 est entièrement PASS et CLOS pour l'ensemble des critères qui lui sont attribués dans cette recette**.
 
-La dernière preuve distante Storage reste la lecture read-only consignée au §92.2 : `jobly-events` public, trois buckets privés sans limites/MIME configurés, `profile-photos-private` absent, et aucun objet dans les buckets listés à cette lecture. Cette photographie doit être relue après une éventuelle application ; elle ne doit pas être présentée comme un état revérifié à 22:54.
+Le sous-lot Storage est PASS sur cinq buckets avec cinq smoke tests complets ; le préflight d'environnement et les contrôles de sécurité sont PASS ; les trois fixtures Auth existantes correspondent chacune à un profil métier unique et au rôle attendu.
 
-LOT-00 demeure **PARTIAL / BLOCKED sur Storage**. Pas de PASS du lanceur local, pas de PASS Storage et pas de clôture LOT-00.
+La connexion interactive `signInWithPassword` avec les anciens mots de passe n'est pas un critère laissé en échec dans LOT-00 : elle constitue le premier scénario fonctionnel du LOT-01 — Auth. Elle reste `NON_TESTABLE` tant que le manifeste sécurisé `.e2e-fixtures.json` ou une sauvegarde valide n'est pas retrouvé. Aucun mot de passe ne doit être réinitialisé et aucun compte ne doit être recréé pour maintenir artificiellement un PASS.
 
-Garde-fous inchangés : JOBLY-E2E uniquement (`ofqqrryamslxoqkklraw`) ; JOBLY-PROD interdit ; `main` inchangée ; PR #266 et #267 ouvertes en brouillon, non fusionnées ; aucun déploiement ; aucune réinitialisation ou modification de fixtures ; aucun secret dans le chat, les rapports ou Git.
+**État maître à retenir : LOT-00 = 100 % PASS / CLOS. LOT-01 = prochain lot à traiter. Recette globale = EN COURS.**
+
+
+### 93.4 Limites de la première tentative — historique supersédé
+
+Cette entrée décrit uniquement la tentative initiale de réparation du lanceur : aucun appel Supabase/Storage n'avait alors été effectué. Son statut BLOCKED était exact au moment de cette première tentative, mais il est désormais **historique et remplacé** par les preuves ultérieures des §§93.15 à 93.18. Ne pas reprendre cette conclusion comme état courant.
+
+Garde-fous toujours en vigueur : JOBLY-E2E uniquement (`ofqqrryamslxoqkklraw`) ; JOBLY-PROD interdit ; `main` inchangée ; PR #266 et #267 ouvertes en brouillon, non fusionnées ; aucun déploiement ; aucune réinitialisation ou modification de fixtures ; aucun secret dans le chat, les rapports ou Git.
 
 ### 93.5 Précision opérateur — redémarrage Windows et session CMD perdue
 
@@ -340,37 +347,21 @@ Références d'implémentation Supabase relues :
 - La normalisation retire les paramètres MIME et stocke des valeurs uniques : https://github.com/supabase/storage/blob/master/src/storage/validators/mime-type.ts
 - Référence API officielle `updateBucket` : https://supabase.com/docs/reference/javascript/file-buckets-updatebucket
 
-### 93.13 Correctif du vérificateur publié sur e2e/recette
+### 93.13 Correctif du vérificateur publié et exécuté — PASS
 
-Deux fichiers distants corrigés, vérifiés à nouveau sur GitHub :
+Deux fichiers corrigés sur `e2e/recette` :
 - `scripts/e2e/lot00-storage-bucket-hardening.mjs` : blob `4521e64aed66cfb6ce93d1372b1a1b62f29cd84f` ; commit `f3753f7370007647a5e4bf99c130c69437d0c921`.
 - `scripts/e2e/run-lot00-storage-hardening.cmd` : blob `208534506d1e647467329bcdd6e7deffc660b17e` ; commit `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e`.
 
-Correctif :
-- canonicalise les listes MIME en retirant les paramètres, en mettant en minuscules, en dédupliquant et en triant avant comparaison ;
-- garde le contrôle strict de visibilité, de taille et des allowlists effectives ;
-- en cas de divergence future, écrit désormais les valeurs réellement relues (`actual`) et attendues (`expected`) dans le rapport avant de sortir en FAIL.
-- le lanceur épingle le nouveau blob du script Storage, de sorte qu'une ancienne copie n'est plus acceptée.
+Le correctif compare les listes MIME après retrait des paramètres, mise en minuscules, déduplication et tri. Il conserve les contrôles stricts de visibilité et de taille et consigne les valeurs réellement relues en cas d'écart. Le runner épingle le nouveau blob.
 
-**État du correctif :** code mis à jour sur `e2e/recette` et cohérence du hash épinglé confirmée par lecture GitHub. L'exécution Node locale après ce correctif et l'application Storage restent à faire.
+**Résultat ultérieur :** le lanceur corrigé a été exécuté le 8 novembre à 22:12 UTC avec hashes et syntaxe PASS ; les cinq buckets et les cinq smoke tests ont réussi (§93.15). Cette étape n'est donc plus à exécuter.
 
-### 93.14 Prochaine action unique — appliquer la correction, sans diagnostic supplémentaire
+### 93.14 Plan d'application — exécuté, ne pas rejouer
 
-La clé `.env.local` est maintenant présente et le premier diagnostic l'a reconnue. Ne pas la modifier, ne pas la communiquer, ne pas exécuter d'autre préflight et ne pas synchroniser les 167 commits en retard.
+Le plan consistant à récupérer le lanceur corrigé puis à l'exécuter depuis `C:\Users\ASUS\Jobly` a été réalisé. Le rapport final `feedback-lot00-storage-apply-20261108.txt` a retourné `status=PASS`, sans rollback. Les résultats applicatifs et la relecture SQL indépendante sont détaillés au §93.15.
 
-Dans CMD, depuis `C:\Users\ASUS\Jobly`, récupérer uniquement le nouveau lanceur sur le remote (pas de pull/merge), puis l'exécuter. Le lanceur récupère lui-même le script corrigé, vérifie les hashes et la syntaxe, puis applique les réglages à JOBLY-E2E :
-```cmd
-cd /d C:\Users\ASUS\Jobly
-if exist scripts\e2e\run-lot00-storage-hardening.cmd if not exist scripts\e2e\run-lot00-storage-hardening.before-mime-fix.cmd copy /Y scripts\e2e\run-lot00-storage-hardening.cmd scripts\e2e\run-lot00-storage-hardening.before-mime-fix.cmd
-git fetch origin
-git show origin/e2e/recette:scripts/e2e/run-lot00-storage-hardening.cmd > scripts\e2e\run-lot00-storage-hardening.cmd
-if errorlevel 1 (echo ECHEC_RECUPERATION_LANCEUR - ARRET) else (call scripts\e2e\run-lot00-storage-hardening.cmd)
-notepad feedback-lot00-storage-credential-diagnostic.txt
-notepad feedback-lot00-storage-apply-20261108.txt
-```
-Ce remplacement ne touche pas la branche locale, ne fusionne aucun commit et sauvegarde le lanceur actuel. Le runner opère uniquement sur `ofqqrryamslxoqkklraw`. Après l'exécution, juger le résultat sur le rapport Storage complet ; aucun nouveau lancement à l'aveugle.
-
-LOT-00 reste **PARTIAL** jusqu'au PASS des cinq configurations, des opérations upload/lecture signée/refus anonyme/nettoyage, et du traitement des photos legacy. JOBLY-PROD, `main`, les fixtures et les déploiements restent hors périmètre.
+**Instruction actuelle :** ne pas relancer ce plan et ne pas refaire les diagnostics du lanceur, de Node.js ou de la clé E2E. Le sous-lot Storage est clos.
 
 
 ---
