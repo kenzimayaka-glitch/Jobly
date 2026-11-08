@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.117 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.118 — 8 novembre 2026
 >
 > **Dernière correction de code Storage LOT-00 :** `f3753f7370007647a5e4bf99c130c69437d0c921` ; runner épinglé `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial des connexions TALENT/RECRUITER/PARTNER **3/3 PASS** avec vérification serveur de l'UID et du rôle. Le scénario complémentaire `e2e/auth-session-smoke.mjs` est identifié comme prochaine exécution : cycle réel connexion, vérification access token, contrôle du rôle signé et renouvellement de session, 12 contrôles attendus. Son code est non destructif et utilise uniquement la clé publique publishable JOBLY-E2E ; rapport attendu `artifacts/e2e/auth-session-smoke.json`. Ce second scénario n'a pas encore été exécuté. Aucun credential imprimé, aucun service role utilisé, aucun mot de passe changé, aucun compte créé/supprimé et aucun profil modifié à ce stade. `main` et JOBLY-PROD restent hors périmètre ; ne pas réinitialiser les fixtures.
 
-**Version :** 2.117  
+**Version :** 2.118  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -48,7 +48,6 @@ Critère : 12/12 contrôles PASS, trois comptes de rôle PASS, `environment=JOBL
 ```cmd
 cd /d C:\Users\ASUS\Jobly
 git fetch origin && git show origin/e2e/recette:e2e/auth-session-smoke.mjs > e2e\auth-session-smoke.current.mjs && node --check e2e\auth-session-smoke.current.mjs && set "E2E_PROJECT_REF=ofqqrryamslxoqkklraw" && set "NEXT_PUBLIC_SUPABASE_URL=https://ofqqrryamslxoqkklraw.supabase.co" && set "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y" && node e2e\auth-session-smoke.current.mjs
-node e2e\auth-session-smoke.current.mjs
 notepad artifacts\e2e\auth-session-smoke.json
 ```
 
