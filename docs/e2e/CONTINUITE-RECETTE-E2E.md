@@ -644,7 +644,9 @@ Ce résultat n'est PAS :
 
 Aucun PASS runtime, aucun PASS LOT-00 et aucun PASS global n'est déduit de cette exécution. Aucun appel Supabase, aucune modification de fixture et aucune mutation métier ne sont rapportés pour ce test ciblé.
 
-### 15.3 Audit LOT-00 initial — résultat détaillé au §16
+### 15.3 Audit LOT-00 initial — HISTORIQUE, ordre OpenAPI remplacé par §76
+
+**Note V2.74 : les consignes de séquencement qui suivent décrivent l'état historique de l'audit initial. L'OpenAPI n'est plus un préalable runtime ; il est déplacé en LOT-11 final (§76).**
 
 L'audit initial en lecture seule sur JOBLY-E2E est désormais exécuté et consigné au §16. Le statut reste PARTIAL : l'exposition du schéma PostgreSQL net sur la Data API n'est pas encore confirmée, et les grants clients larges doivent être traités comme un point de moindre privilège. Aucune modification de base n'est autorisée pour fermer ces points sans revue dédiée.
 
@@ -661,7 +663,7 @@ La dernière vérification requise est le contrôle GET du catalogue OpenAPI Pos
 
 Après réception du rapport LOT-00, réconcilier les résultats avec le code et les prérequis avant de décider du premier smoke runtime read-only.
 
-### 15.4 État de continuité courant
+### 15.4 État de continuité au moment de l'audit — HISTORIQUE, remplacé par §76
 
 - E2E-001 : **PASS statique local — 6/6, 0 échec**.
 - LOT-00 : **PARTIAL — audit SQL en lecture seule réalisé ; exposition Data API du schéma net à confirmer**.
@@ -841,7 +843,9 @@ Audit effectué sur le contenu GitHub de docs/e2e/CONTINUITE-RECETTE-E2E.md, bra
 | MOYENNE | Le dernier HEAD local connu est e92feb8, alors que la PR est au HEAD 06152a7. | Les fichiers documentaires locaux ne reflètent pas les trois commits distants. | La comparaison confirme que ces trois commits ne changent que le document. Pas de pull nécessaire pour exécuter le GET autonome du §16.7 ; synchroniser la branche avant toute nouvelle édition/commande dépendant de fichiers versionnés. |
 | FAIBLE | Plusieurs sous-sections historiques ont des statuts « en attente » conservés après que les tests ont été exécutés ; quelques parenthèses/points parasites rendaient certains noms de fichiers ou SHA moins lisibles. | Ambiguïté lors de la reprise et mauvaise lecture des statuts. | Ajout de marqueurs historiques et correction des coquilles ciblées ; conserver les anciennes preuves sans les réinterpréter. |
 
-### 17.3 Validation de la méthode du contrôle OpenAPI §16.7
+### 17.3 Validation historique de la méthode OpenAPI §16.7 — à exécuter au LOT-11 final uniquement
+
+**Note de séquencement V2.74 : cette analyse documente la méthode technique, mais ne donne aucune instruction d'exécution immédiate. Le GET est différé au LOT-11 final (§76), après LOT-10.**
 
 La méthode est cohérente avec PostgREST : pour GET/HEAD, Accept-Profile sélectionne le schéma ; un schéma absent de la liste exposée est refusé avec PGRST106. PostgREST indique également que la sélection de schéma s'applique à OpenAPI. Références :
 - https://docs.postgrest.org/en/latest/references/api/schemas.html
@@ -881,11 +885,11 @@ Après réception du GET corrigé, analyser les codes HTTP et le code PostgREST,
 
 **Mise à jour V2.13 :** une tentative identique depuis l'environnement Node.js isolé de l'agent a échoué avant réponse HTTP (`fetch failed`, Node.js v22.16.0). Elle ne remplace pas le contrôle opérateur ; voir §21. Aucun résultat HTTP n'a été obtenu et LOT-00 reste PARTIAL.
 
-### 17.6 État de reprise faisant foi après l'audit
+### 17.6 État de reprise à la date de l'audit — HISTORIQUE, remplacé par §76
 
 - E2E-001 : **PASS STATIQUE LOCAL — 6/6, 0 échec**.
-- LOT-00 : **PARTIAL** ; GET net, validation de l'intention des deux buckets publics et matrice grants/policies ciblée encore requis.
-- Smoke runtime authentifié : **NON AUTORISÉ à ce stade**.
+- LOT-00 : **PARTIAL à cette date** ; les exigences OpenAPI mentionnées dans ce bilan sont historiques et désormais reportées au LOT-11 par §76. Les contrôles non-OpenAPI (Storage et matrice grants/policies) restent dans LOT-00.
+- Smoke runtime authentifié : **NON AUTORISÉ à cette date** ; les conditions opératoires actuelles sont celles de §76 et des prérequis non-OpenAPI applicables.
 - Runner bulk / recette 11 lots : **SUSPENDU**.
 - Fixtures partagées / mots de passe / profils : **aucune modification autorisée par ce document**.
 - JOBLY-E2E : seul environnement autorisé, mais aucun nouvel appel runtime avant fermeture du gate.
@@ -3660,13 +3664,13 @@ La sortie communiquée après le §72 reprend exactement les indicateurs de l'an
 
 Or la commande du §72.2 produit obligatoirement les champs `failure_class` et `GATE` de la nouvelle nomenclature (`BLOCKED_POWERSHELL_BEFORE_CLI_EXIT`, `BLOCKED_CLI_NONZERO_EXIT`, etc.). La sortie reçue ne permet donc pas d'établir que cette commande corrigée a été exécutée. Elle peut provenir d'une ancienne exécution ou du contenu non actualisé du fichier de rapport ; les éléments disponibles ne permettent pas de trancher.
 
-### 73.2 Conséquence de recette
+### 73.2 Conséquence de recette — état historique, séquencement remplacé par §76
 
 - Ce résultat ne prouve ni échec d'authentification CLI, ni rejet du PAT, ni rejet de la clé Supabase.
 - Aucun appel HTTP OpenAPI n'est confirmé ; les statuts public/net restent non mesurés dans cette sortie.
 - LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
 - Ne pas répéter les préflights, les tests du presse-papiers ou les groupes de tests locaux déjà verts.
-- La seule reprise autorisée pour LOT-00 est l'exécution exacte de la commande unique §72.2, puis lecture de sa nouvelle sortie intégrale. Ne pas relancer l'ancienne commande §69 ni recopier un ancien rapport.
+- Cette consigne de reprise immédiate est historique et annulée par §76 : le contrôle OpenAPI est maintenant LOT-11, à la fin. Ne pas relancer la commande §72.2 ni l'ancienne commande §69 uniquement pour débloquer les lots précédents.
 - Aucune action sur JOBLY-PROD, aucune mutation, aucun changement de `main`, aucune fusion et aucun déploiement. PR #266 demeure ouverte, brouillon et non fusionnée.
 
 ### 73.3 Référence
