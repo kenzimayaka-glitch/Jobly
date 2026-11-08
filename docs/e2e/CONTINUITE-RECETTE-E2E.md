@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.98 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.99 — 8 novembre 2026
 >
 > **Dernier commit de correction LOT-00 :** `cdc4399d452f3341895b5d56efb5204080d3faa9` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 conserve uniquement le préflight environnement/fixtures et les contrôles read-only de base (identité, RLS/grants, Storage, correspondances des fixtures), hors OpenAPI. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.98  
+**Version :** 2.99  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -72,6 +72,27 @@ La prochaine intervention doit être divisée en deux étapes strictes :
 2. **Écriture atomique seulement après préflight PASS** : extraire l'objet Git distant vers un fichier temporaire dans un dossier dont l'existence a été vérifiée ; calculer le hash du temporaire ; vérifier qu'il vaut exactement `8672167fc66c639f433d5d0296847dd5f200d315` ; remplacer ensuite la destination dans le dépôt confirmé ; recalculer et comparer le hash final. En cas d'échec à une étape, arrêter sans lancer le script Storage.
 
 La preuve de réussite attendue est constituée des trois valeurs complètes et identiques : hash de l'objet distant, hash du fichier temporaire extrait et hash du fichier local final. Un message « fichier trouvé » ou une copie du contenu dans le chat ne remplace pas ces contrôles.
+
+### 93.5 Précision opérateur — redémarrage Windows et session CMD perdue
+
+Après l'inscription du §93, l'opérateur a précisé que l'ordinateur avait redémarré et que la session CMD n'était plus positionnée/ouverte sur le dépôt Jobly.
+
+Cette information explique plausiblement l'état de la console : un redémarrage ferme la fenêtre CMD et réinitialise son répertoire courant. Cela ne démontre ni la suppression du clone local, ni la disparition du fichier source distant, ni une défaillance de l'authentification GitHub. La cause exacte du message Windows « Impossible de trouver le fichier » n'est toujours pas démontrée ; ne pas la requalifier comme suppression du lanceur.
+
+**Reprise locale après redémarrage — navigation seulement, sans écriture :**
+
+1. Ouvrir une nouvelle fenêtre CMD.
+2. Se repositionner dans le clone local connu :
+   `cd /d C:\Users\ASUS\Jobly`
+3. Vérifier que l'invite commence par `C:\Users\ASUS\Jobly>`. Si CMD affiche « chemin d'accès introuvable », arrêter et ne pas créer un nouveau dépôt ni exécuter le lanceur ; le chemin réel du clone doit d'abord être retrouvé.
+4. Une fois dans le répertoire, vérifier le dépôt et le remote :
+   `git rev-parse --show-toplevel`
+   `git remote -v`
+   `git status --short --branch`
+
+Ces commandes sont des contrôles de contexte uniquement. Ne pas faire `pull`, `switch`, `reset`, `stash` ou `clean`. Si Git réclame une authentification, ne saisir aucun secret dans le chat ; traiter la demande sur le poste local seulement. Ne lancer aucun script Storage lors de cette reprise de session.
+
+Le diagnostic du fichier local ne reprend qu'après confirmation du répertoire du dépôt et de son remote. Ensuite seulement, effectuer le préflight read-only des chemins défini au §93.3 et le remplacement atomique si tous les prérequis sont présents.
 
 ### 93.4 Limites de l'intervention et statut Storage
 
