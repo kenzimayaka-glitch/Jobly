@@ -1,0 +1,79 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+const read = (path) => readFile(new URL("../../" + path, import.meta.url), "utf8");
+
+test("photo uploads are private by default and publication requires explicit consent", async () => {
+  const source = await read("app/api/auth/profile-photo/route.ts");
+  assert.match(source, /getAuthUser\(request\)/);
+  assert.match(source, /form\.get\("visibility"\) === "PUBLIC"/);
+  assert.match(source, /form\.get\("publicPhotoConsent"\) !== "true"/);
+  assert.match(source, /PRIVATE_PROFILE_PHOTO_BUCKET/);
+  assert.match(source, /profilePhotoVisibility: visibility/);
+  assert.match(source, /profilePhotoConsentAt: visibility === "PUBLIC" \? now : null/);
+});
+
+test("own profile photos are signed while recruiter reads require recorded consent", async () => {
+  const owner = await read("app/api/profile/route.ts");
+  const listing = await read("app/api/recruiter/talents/route.ts");
+  const detail = await read("app/api/recruiter/talents/profile/route.ts");
+  const helper = await read("lib/profilePhotoStorage.ts");
+  assert.match(owner, /resolveOwnProfilePhotoUrls/);
+  assert.match(helper, /createSignedUrl\(path, expiresIn\)/);
+  assert.match(listing, /isProfilePhotoPublic\(user\)/);
+  assert.match(detail, /isProfilePhotoPublic\(u\.data\)/);
+});
+
+test("changing photo visibility requires explicit consent and moves the photo plus Hero", async () => {
+  const source = await read("app/api/auth/profile-photo/visibility/route.ts");
+  assert.match(source, /body\?\.explicitConsent !== true/);
+  assert.match(source, /sourceBucket !== targetBucket/);
+  assert.match(source, /sourceHero/);
+  assert.match(source, /profilePhotoConsentAt: visibility === "PUBLIC" \? now : null/);
+});
+
+test("event uploads land in a private bucket and return a storage path, never a public URL", async () => {
+  const source = await read("app/api/events/media/route.ts");
+  assert.match(source, /getBucket\(bucket\)/);
+  assert.match(source, /bucketConfig\.public/);
+  assert.match(source, /storagePath:path/);
+  assert.doesNotMatch(source, /getPublicUrl/);
+});
+
+test("event media is only signed by the published-event read routes", async () => {
+  const list = await read("app/api/events/route.ts");
+  const detail = await read("app/api/events/[id]/route.ts");
+  const helper = await read("lib/eventStorage.ts");
+  assert.match(list, /eq\("status","PUBLISHED"\)/);
+  assert.match(list, /exposePublishedEventMedia/);
+  assert.match(detail, /eq\("status","PUBLISHED"\)/);
+  assert.match(detail, /exposePublishedEventMedia/);
+  assert.match(helper, /createSignedUrl\(storagePath, 60 \* 60\)/);
+});
+
+test("event media ownership is checked and stored on the event row", async () => {
+  const source = await read("app/api/events/route.ts");
+  assert.match(source, /mediaStoragePath\.startsWith\(auth\.id\s*\+\s*"\/"\)/);
+  assert.match(source, /storage\.from\(JOBLY_EVENTS_BUCKET\)\.download\(mediaStoragePath\)/);
+  assert.match(source, /mediaType,mediaUrl,mediaStoragePath,mediaSizeBytes/);
+});
+
+test("abandoned event files are cleaned by a CRON_SECRET-protected job without exposing private media", async () => {
+  const source = await read("app/api/cron/event-media-cleanup/route.ts");
+  const config = await read("vercel.json");
+  assert.match(source, /CRON_SECRET/);
+  assert.match(source, /config\.public/);
+  assert.match(source, /MAX_AGE_MS = 24 \* 60 \* 60 \* 1000/);
+  assert.match(source, /bucket\.remove/);
+  assert.match(config, /\/api\/cron\/event-media-cleanup/);
+});
+
+test("storage hardening includes private event and private profile-photo buckets", async () => {
+  const source = await read("scripts/e2e/lot00-storage-bucket-hardening.mjs");
+  assert.match(source, /id: "jobly-events"[\s\S]*?public: false/);
+  assert.match(source, /id: "profile-photos-private"[\s\S]*?public: false/);
+  assert.match(source, /EXPECTED_REF = "ofqqrryamslxoqkklraw"/);
+  assert.match(source, /SUPABASE_E2E_SECRET_KEY/);
+  assert.doesNotMatch(source, /console\.log\(key\)|console\.log\(.*secretKey/);
+});
