@@ -110,6 +110,64 @@ async function main() {
           }
         }
         await runCheck(item.role, "TALENT-APPLICATIONS-READ", () => request(token, "/api/applications"));
+
+        // E2E-READONLY-TALENT-START — aucun changement du profil ou des données Talent.
+        const localFeed = await request(token, "/api/jobs?scope=local&limit=10");
+        const localFeedOk = localFeed.status === 200 &&
+          Array.isArray(localFeed.payload?.jobs) &&
+          Number.isFinite(localFeed.payload?.totalAvailable) &&
+          localFeed.payload.totalAvailable >= localFeed.payload.jobs.length &&
+          localFeed.payload?.market?.scope === "local";
+        record(item.role, "TALENT-JOBS-FEED-READ", localFeedOk ? "PASS" : "FAIL", localFeed.status,
+          localFeedOk ? "Flux local authentifié : structure et compteurs cohérents." : "Le flux local ne respecte pas son contrat de lecture.");
+
+        const africaFeed = await request(token, "/api/jobs?scope=africa&limit=10");
+        const africaFeedOk = africaFeed.status === 200 &&
+          Array.isArray(africaFeed.payload?.jobs) &&
+          Number.isFinite(africaFeed.payload?.totalAvailable) &&
+          africaFeed.payload.totalAvailable >= africaFeed.payload.jobs.length &&
+          africaFeed.payload?.market?.scope === "africa";
+        record(item.role, "TALENT-AFRICA-FEED-READ", africaFeedOk ? "PASS" : "FAIL", africaFeed.status,
+          africaFeedOk ? "Flux Afrique authentifié : structure et compteurs cohérents." : "Le flux Afrique ne respecte pas son contrat de lecture.");
+
+        const referenceOffer = (localFeed.payload?.jobs || []).find((job) =>
+          typeof job?.id === "string" && ["discovery", "recruiter"].includes(job.source)
+        ) || (africaFeed.payload?.jobs || []).find((job) =>
+          typeof job?.id === "string" && ["discovery", "recruiter"].includes(job.source)
+        );
+        if (referenceOffer && localFeedOk && africaFeedOk) {
+          const detail = await request(token,
+            "/api/jobs/" + encodeURIComponent(referenceOffer.id) + "?source=" + encodeURIComponent(referenceOffer.source));
+          const detailOk = detail.status === 200 &&
+            detail.payload?.source === referenceOffer.source &&
+            detail.payload?.job?.id === referenceOffer.id &&
+            detail.payload?.job?.offerStatus === "ACTIVE";
+          record(item.role, "TALENT-JOB-DETAIL-READ", detailOk ? "PASS" : "FAIL", detail.status,
+            detailOk ? "Détail de l'offre active relu sans mutation." : "Le détail de l'offre ne correspond pas à l'offre du flux.");
+        } else {
+          record(item.role, "TALENT-JOB-DETAIL-READ", "BLOCKED", null,
+            "Aucune offre active exploitable dans les flux local/Afrique pour ce run.");
+        }
+
+        const originalCv = await request(token, "/api/talent/cv/original");
+        const originalCvOk = originalCv.status === 404
+          ? originalCv.payload?.error === "CV_NOT_FOUND"
+          : originalCv.status === 200 && originalCv.payload?.ok === true &&
+            originalCv.payload?.expiresIn === 60 && typeof originalCv.payload?.url === "string";
+        record(item.role, "TALENT-CV-ORIGINAL-READ", originalCvOk ? "PASS" : "FAIL", originalCv.status,
+          originalCvOk
+            ? originalCv.status === 200 ? "Lien privé de 60 secondes généré ; contenu du CV non téléchargé." : "Aucun CV original enregistré ; absence retournée proprement."
+            : "Lecture du CV original : réponse ou portée de propriété invalide.");
+
+        const careerJourney = await request(token, "/api/career-journey");
+        const careerJourneyOk = careerJourney.status === 200 &&
+          careerJourney.payload?.ok === true &&
+          Array.isArray(careerJourney.payload?.evidence) &&
+          Array.isArray(careerJourney.payload?.portfolio);
+        record(item.role, "TALENT-CAREER-JOURNEY-READ", careerJourneyOk ? "PASS" : "FAIL", careerJourney.status,
+          careerJourneyOk ? "Career Journey chargé en lecture seule, sans création d'état." : "Lecture Career Journey non conforme.");
+
+        // E2E-READONLY-TALENT-END
       }
 
       if (item.role === "RECRUITER") {
@@ -119,6 +177,32 @@ async function main() {
         await runCheck(item.role, "RECRUITER-TALENTS-LIST", () => request(token, "/api/recruiter/talents"));
         await runCheck(item.role, "RECRUITMENT360-APPLICATIONS-LIST", () => request(token, "/api/recruitment360/applications"));
         await runCheck(item.role, "RECRUITMENT360-DECISIONS-LIST", () => request(token, "/api/recruitment360/decisions"));
+
+        // E2E-READONLY-RECRUITER-START — refus attendus, aucune ligne insérée.
+        const unownedRecruitment = await request(token,
+          "/api/recruitment360/applications?recruitmentId=00000000-0000-4000-8000-000000000001");
+        const unownedRecruitmentOk = unownedRecruitment.status === 403;
+        record(item.role, "RECRUITMENT360-DENY-UNOWNED-ID", unownedRecruitmentOk ? "PASS" : "FAIL",
+          unownedRecruitment.status,
+          unownedRecruitmentOk ? "Un recruitmentId non détenu est refusé avant lecture des candidatures." : "Un recrutement non détenu n'a pas été refusé.");
+
+        const missingApplicationDocument = await request(token, "/api/recruitment360/applications", "POST", {
+          action: "document",
+          applicationId: "00000000-0000-4000-8000-000000000002",
+          kind: "E2E_TEST",
+          url: "https://example.invalid/e2e-document-placeholder.pdf",
+          fileName: "e2e-placeholder.pdf",
+          mimeType: "application/pdf",
+          fileSize: 128,
+        });
+        const missingApplicationDocumentOk = missingApplicationDocument.status === 404;
+        record(item.role, "RECRUITMENT360-DOCUMENT-MISSING-APPLICATION",
+          missingApplicationDocumentOk ? "PASS" : "FAIL", missingApplicationDocument.status,
+          missingApplicationDocumentOk
+            ? "Application inexistante refusée avant toute insertion du document."
+            : "La création de document n'a pas été arrêtée pour une candidature inexistante.");
+
+        // E2E-READONLY-RECRUITER-END
 
         const draftTitle = "JOBLY E2E — brouillon " + runId;
         let created;
