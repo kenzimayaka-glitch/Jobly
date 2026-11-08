@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { getEventPricing, validateEventMedia } from "../lib/events.ts";
 import { EVENT_MANUAL_PAYMENT_METHODS, isEventManualPaymentMethod } from "../lib/eventManualPayments.ts";
 import { inspectEventMedia, readMp4DurationSeconds } from "../lib/eventMedia.ts";
+import { isOwnedEventMediaPath } from "../lib/eventMediaOwnership.ts";
+import { getProfilePhotoFormat, PROFILE_HERO_MAX_INPUT_BYTES, PROFILE_PHOTO_BUCKET_MAX_BYTES, PROFILE_PHOTO_MAX_INPUT_BYTES } from "../lib/profilePhoto.ts";
 
 test("Event Core pricing matches all published duration tiers", () => {
   assert.deepEqual(getEventPricing(1), { durationDays: 1, pricePerDay: 2000, total: 2000 });
@@ -41,4 +43,27 @@ test("Event payment accepts only manual bank and mobile-money channels", () => {
   assert.equal(isEventManualPaymentMethod("ICLAN"), false);
   assert.equal(isEventManualPaymentMethod("MOCK"), false);
   assert.equal(isEventManualPaymentMethod(null), false);
+});
+
+
+test("profile photo limits match the exact Storage bucket cap", () => {
+  assert.equal(PROFILE_PHOTO_BUCKET_MAX_BYTES, 5_000_000);
+  assert.equal(PROFILE_PHOTO_MAX_INPUT_BYTES, PROFILE_PHOTO_BUCKET_MAX_BYTES);
+  assert.equal(PROFILE_HERO_MAX_INPUT_BYTES, 10 * 1024 * 1024);
+  assert.deepEqual(getProfilePhotoFormat("png"), { mimeType: "image/png", extension: "png" });
+  assert.deepEqual(getProfilePhotoFormat("jpeg"), { mimeType: "image/jpeg", extension: "jpg" });
+  assert.equal(getProfilePhotoFormat("svg"), null);
+});
+
+test("event media storage paths are restricted to the authenticated owner", () => {
+  const owner = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const other = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const valid = owner + "/cccccccc-cccc-4ccc-8ccc-cccccccccccc.mp4";
+
+  assert.equal(isOwnedEventMediaPath(valid, owner), true);
+  assert.equal(isOwnedEventMediaPath(other + "/cccccccc-cccc-4ccc-8ccc-cccccccccccc.mp4", owner), false);
+  assert.equal(isOwnedEventMediaPath(owner + "/../private.png", owner), false);
+  assert.equal(isOwnedEventMediaPath(owner + "/folder/cccccccc-cccc-4ccc-8ccc-cccccccccccc.mp4", owner), false);
+  assert.equal(isOwnedEventMediaPath(owner + "/cccccccc-cccc-4ccc-8ccc-cccccccccccc.exe", owner), false);
+  assert.equal(isOwnedEventMediaPath(owner + "\\\\file.png", owner), false);
 });
