@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.24 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.25 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -12,10 +12,10 @@
 >
 > **Verrou de reprise V2.8 :** les sections 7, 9, 10, 11, 12 et 13.7 contiennent des états ou consignes historiques ; elles ne constituent plus des instructions opératoires. En particulier, l'autorisation de reset citée au §9 n'est plus active : ne pas exécuter e2e/reset-existing-fixture-passwords.mjs, les scripts de vérification Auth des anciennes fixtures, le provisionneur, ni scripts/e2e-local-recipe.mjs/le runner bulk. Aucune connexion Auth, mutation de fixture, restauration de mot de passe ou relance globale n'est autorisée par ce document. Le seul prochain contrôle permis est le GET OpenAPI décrit au §16.7, suivi de son analyse.
 >
-> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : après la retransmission V4, l'opérateur indique que la commande ne lui a pas demandé la clé ; l'exécution effective, le prompt TTY et les résultats HTTP ne sont donc pas établis. Le retour `GATE=BLOCKED_REVIEW_REQUIRED` seul ne permet aucune conclusion sur l'exposition de `net`. L'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
+> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le dernier rapport V4 confirme un arrêt au contrôle local du format de la clé (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avant toute requête HTTP ; `results=[]`. L'exposition de `net` reste donc indéterminée. L'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`. Sélectionner `service_role` uniquement si cette entrée est dans **Legacy API Keys** et que la valeur JWT commence par `eyJ`; utiliser alors le test masqué GET-only du §23.3. Si la valeur commence par `sb_secret_`, ce n'est pas la legacy JWT et il faut arrêter ce script. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.24  
+**Version :** 2.25  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1512,3 +1512,59 @@ Le nom du fichier ouvert par Notepad peut aussi être confirmé sans partager so
 - Document source avant cette mise à jour : blob SHA `eb642b3fc8ef5819fea16f618c94e3a2548567fa` sur la branche `e2e/recette`.
 - PR #266 avant écriture : state `open`, draft `true`, merged `false`, HEAD `2827789b05bccfd7e35f893c05183915531365f1`, base `main`.
 
+---
+
+## 30. Résultat de la validation de format de la clé V4 — V2.25 — 8 novembre 2026
+
+### 30.1 Rapport opérateur reçu
+
+L'opérateur transmet le rapport suivant après la commande LOT-00 V4 (§27.3) :
+
+```text
+node=v26.13.0
+project_ref=ofqqrryamslxoqkklraw
+credential_type=legacy_service_role
+results=[]
+GATE=BLOCKED_REVIEW_REQUIRED
+error=Error: KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT
+```
+
+### 30.2 Interprétation exacte du contrôle
+
+Ce résultat correspond au contrôle explicite du script §27.3 :
+
+- Le champ `credential_type=legacy_service_role` est une valeur fixe écrite par le script ; il ne prouve pas, à lui seul, que la valeur saisie est une clé valide de ce rôle.
+- Le script arrête l'exécution si la chaîne reçue ne commence pas par `eyJ`, en émettant exactement `KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`.
+- Le rapport `results=[]` confirme qu'aucune réponse HTTP n'a été ajoutée aux résultats.
+- Le script n'a donc pas atteint les deux GET OpenAPI prévus pour les profils `public` puis `net`.
+
+La cause technique immédiate est établie : la valeur reçue par le précontrôle était vide ou ne commençait pas par le préfixe JWT attendu `eyJ`. Le rapport ne permet pas de distinguer ces deux cas et ne permet pas d'inférer l'état Active de la clé dans le Dashboard.
+
+### 30.3 Décision et prochaine étape sûre
+
+- Ne pas effectuer un nouvel essai avec une autre clé ou un autre type de clé.
+- Ne pas utiliser `anon`, `sb_secret_…`, une clé JOBLY-PROD ou une valeur provenant d'un autre projet.
+- Ne pas activer, réactiver, régénérer ou créer une clé.
+- Ne jamais demander à l'opérateur de copier ou transmettre la valeur de la clé dans le chat, un rapport ou Git.
+- Avant toute autre commande, l'opérateur peut seulement consulter le Dashboard JOBLY-E2E, sans copier la valeur, pour vérifier si la ligne `service_role` historique est indiquée comme **Active** et si le format est celui d'un JWT historique. Si le Dashboard ne permet pas de confirmer ces deux éléments sans exposer la clé, arrêter le contrôle et conserver le statut bloqué.
+- Aucun autre endpoint, appel API, requête SQL/RPC/Storage ou changement de permissions n'est justifié par ce rapport.
+
+### 30.4 Effet sur les gates et périmètre
+
+- LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- GET OpenAPI `public` : **NON EXÉCUTÉ**.
+- GET OpenAPI `net` : **NON EXÉCUTÉ**.
+- Exposition du schéma PostgreSQL `net` : **NON DÉTERMINÉE**.
+- L'étape de contrôle de format s'est exécutée ; les requêtes HTTP ne se sont pas exécutées.
+- Aucun smoke runtime Auth/Talent/Recruteur, aucun navigateur, aucun parcours croisé et aucun bulk ne sont autorisés avant fermeture de LOT-00.
+- Aucun accès JOBLY-PROD ; aucune fixture, donnée, permission ou configuration Supabase modifiée.
+- Le retour est une preuve textuelle transmise par l'opérateur ; aucun appel Supabase n'a été effectué par l'assistant.
+- `main` inchangée ; PR #266 reste ouverte, en brouillon et non fusionnée ; aucun déploiement.
+
+### 30.5 Preuves
+
+- Rapport non secret fourni par l'opérateur dans la conversation (§30.1).
+- Signature de l'erreur comparée au contrôle `if (!k.startsWith('eyJ')) throw Error('KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT')` du §27.3.
+- Document source avant cette mise à jour : V2.24, blob SHA `b57d8c57861026198e4f1ceae42dd3afa2670462`, branche `e2e/recette`.
+- PR #266 vérifiée avant écriture : state `open`, draft `true`, merged `false`, HEAD `fb46608e64a0e5a522828739897fe98201523e63`, base `main`.
+- Aucune valeur de clé n'a été reçue, lue ou enregistrée par l'assistant.
