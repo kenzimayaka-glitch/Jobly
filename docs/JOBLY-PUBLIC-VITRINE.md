@@ -31,3 +31,7 @@ Les faux témoignages de la maquette ont été retirés. La section reste prête
 ## Validation et mise en production
 
 Aucun schéma Supabase n'est modifié par cette intégration et aucun déploiement n'est effectué automatiquement. La PR doit passer les contrôles CI/build du dépôt, puis être relue et validée avant fusion et mise en production.
+
+## Photographies de la vitrine
+
+Les six photos fournies pour cette intégration sont intégrées localement dans `public/images/jobly-vitrine/` au format WebP optimisé. Répartition : `hero-community.webp` en arrière-plan du hero ; `talent-learning.webp`, `recruiter-focus.webp` et `partner-network.webp` comme illustrations des cartes Talent, Recruteur et Partenaire ; `community-celebration.webp` en arrière-plan de la section Impact ; `career-friends.webp` en arrière-plan de la section Réseau. Les images d'arrière-plan sont décoratives, avec des overlays pour préserver le contraste du texte. Les images des cartes ont des textes alternatifs bilingues et un chargement différé. Aucune photo n'est utilisée comme faux témoignage ou comme preuve d'une embauche.
