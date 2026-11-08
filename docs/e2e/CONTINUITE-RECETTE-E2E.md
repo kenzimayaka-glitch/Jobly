@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.79 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.80 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -4224,10 +4224,14 @@ Ces deux erreurs ont été corrigées sur le commit suivant `2e16e9d5721e977c51a
 - Mission Afrique P0 : **PASS** ;
 - Event Core P1 : **PASS** ;
 - contrôle du registre des sources : **PASS** ;
-- typecheck/build complet : **EN COURS lors de la rédaction de V2.79** (run CI [42497839381](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42497839381)) ;
-- tests de migrations isolées : **EN COURS lors de la rédaction de V2.79** (run CI [42497839440](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42497839440)).
+- typecheck : **PASS** ;
+- build de production : **PASS** ;
+- tests de migrations isolées : **PASS** ;
+- run CI principal terminé avec succès : [42497839381](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42497839381) ;
+- migrations isolées : [42497839440](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42497839440) ;
+- registre des sources : [42497839435](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42497839435).
 
-Ne pas marquer la branche complète PASS tant que le typecheck et le build ne sont pas terminés avec succès.
+La branche de correction a donc passé les contrôles automatisés enregistrés ci-dessus. La recette fonctionnelle runtime des trois rôles reste distincte et n'est pas déduite du build CI.
 
 ### 81.6 État de recette et ordre de reprise
 
@@ -4235,8 +4239,11 @@ Ne pas marquer la branche complète PASS tant que le typecheck et le build ne so
 - LOT-01 smoke Auth (3 comptes × sign-in/getUser/refresh/signOut) : résultat opérateur toujours attendu ; ne pas le présumer PASS.
 - Continuer les LOT-01 à LOT-10 selon leurs dépendances, sans relancer les groupes déjà PASS si leur code n'a pas changé.
 - LOT-11 reste le dernier lot : OpenAPI `public=200 valid`, `net=406/PGRST106`, puis réconciliation des findings sécurité et de l'éventuelle fonction SQL historique.
-- La branche de correction ci-dessus reste séparée de `e2e/recette` jusqu'à validation du code et de ses contrôles CI.
+- Corrections isolées sur `fix/audit-profile-country-event-guards-20261108`, commit validé par CI : `2e16e9d5721e977c51a713f5fe90636e293b0c8e`.
+- PR **#267** : [ouverte, brouillon, non fusionnée](https://github.com/kenzimayaka-glitch/Jobly/pull/267), base `main`, head `fix/audit-profile-country-event-guards-20261108`.
+- PR **#266** : reste ouverte, brouillon, non fusionnée.
+- `main` reste sur `979f2ccfec9258bc30989af18433cf6adb1b4698` ; aucune de ces corrections n'y est intégrée.
 
-Aucune modification Supabase, aucun accès JOBLY-PROD, aucune migration appliquée, aucune fusion sur `main` et aucun déploiement ne sont effectués par cette mise à jour. PR #266 reste ouverte, brouillon et non fusionnée.
+Aucune modification Supabase/Storage, aucun accès JOBLY-PROD, aucune migration appliquée, aucune fusion et aucun déploiement ne sont effectués par cette mise à jour.
 
-Mise à jour V2.79 sur `e2e/recette`. Source précédente : blob SHA `f3a04cf18f48143f065ea914b7ba0ccb05e2a0fe`.
+Mise à jour V2.80 sur `e2e/recette`. Source précédente : blob SHA `5649489b6ab3a3c5140f60c635e4be84aa44fa1b`.
