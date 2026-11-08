@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.92 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.93 — 8 novembre 2026
 >
-> **Dernier commit de correction LOT-00 :** `706aae66bc37bfb19c24036c5dcaf885647439bb` sur `e2e/recette`.
+> **Dernier commit de correction LOT-00 :** `83304fcbfbc6a3d2950298ec13db929fb9b064cf` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations et lectures SQL. Aucun test applicatif runtime ni accès JOBLY-PROD. Un aperçu Netlify automatique a été signalé par l'intégration GitHub de la PR #266 ; aucun déploiement de production ni action Vercel n'a été demandé.
 >
@@ -4625,6 +4625,51 @@ Ne pas lancer `scripts/e2e-local-recipe.mjs` pour contourner ces manques : son c
 Statut LOT-01 : **PARTIAL / BLOCKED PAR LE MOTEUR DE STATUT ET PAR LES PREUVES RUNTIME MANQUANTES**. Aucun correctif du runner n'a été appliqué pendant cette analyse. JOBLY-PROD, `main`, les PR et les déploiements restent inchangés.
 
 
+
+
+## 91. LOT-00 — diagnostic du blocage @next/env et correction du runner autonome
+
+### 91.1 Rapport opérateur du 8 novembre 2026
+
+Le lanceur précédent a bien récupéré le fichier attendu :
+- empreinte locale = empreinte attendue : 53420b691095d9042777cd8773b2fb42163a4d13 ;
+- node --check : PASS ;
+- exécution : BLOCKED avant tout appel Supabase, car Node ne résout pas le package @next/env importé par un script autonome depuis scripts/e2e.
+
+Le script n'a pas atteint la création du client Supabase ni la phase d'application. Aucune modification de bucket n'a donc été déclenchée par cette tentative. Le statut Storage reste inchangé : NON APPLIQUÉ.
+
+### 91.2 Correction faite sur e2e/recette
+
+Le script scripts/e2e/lot00-storage-bucket-hardening.mjs n'importe plus @next/env. Il charge lui-même .env puis .env.local avec les API natives Node (fs), tout en conservant les variables déjà injectées dans le processus ; le fichier .env.local prévaut sur .env pour les clés non injectées par l'environnement.
+
+- Nouveau blob du script : 6e5de2afc4b31ec8668403500912e7488631fc10.
+- Dépendance restante : @supabase/supabase-js, qui est une dépendance directe déclarée dans package.json. Elle est distincte du package @next/env qui causait le blocage.
+- Le parseur prend en charge les lignes KEY=VALUE, les préfixes export, valeurs simples/entre guillemets et les fins de ligne Windows/Unix ; les secrets ne sont ni écrits ni affichés.
+
+Le lanceur scripts/e2e/run-lot00-storage-hardening.cmd a été actualisé :
+- nouveau blob : d7478e1793021483e586ebf29e247dd994c9629a ;
+- empreinte attendue du script corrigé : 6e5de2afc4b31ec8668403500912e7488631fc10 ;
+- conserve fetch sans pull, contrôle hash, node --check, cible JOBLY-E2E fixe et ouverture Notepad du rapport.
+
+Un test de contrat vérifie désormais que le script autonome ne réintroduit pas l'import @next/env. Son contenu est sur la branche ; il n'a pas encore été exécuté localement.
+
+### 91.3 Reprise opérateur — remplacer uniquement le lanceur puis exécuter
+
+Dans CMD :
+
+cd /d C:\Users\ASUS\Jobly
+git fetch origin
+git show origin/e2e/recette:scripts/e2e/run-lot00-storage-hardening.cmd > scripts\e2e\run-lot00-storage-hardening.cmd
+scripts\e2e\run-lot00-storage-hardening.cmd
+notepad feedback-lot00-storage-apply-20261108.txt
+
+Ce lanceur va récupérer lui-même le nouveau script, vérifier son hash 6e5de2afc4b31ec8668403500912e7488631fc10 et sa syntaxe, puis l'exécuter. Aucun pull/switch/reset/stash/clean n'est lancé. Il ne touche pas les autres fichiers locaux, hormis le script Storage explicitement ciblé.
+
+Si Node signale ensuite que @supabase/supabase-js est introuvable, arrêter et transmettre le rapport : ne pas lancer une installation globale ou un pnpm install sur cette copie locale modifiée sans diagnostic préalable. Ne jamais coller de clé/secrets dans la conversation.
+
+### 91.4 Statut inchangé en attente d'une nouvelle preuve
+
+La tentative initiale s'est arrêtée à l'import de module. Le script corrigé n'a pas été exécuté au moment de cette mise à jour ; aucun bucket n'est déclaré PASS. LOT-00 reste PARTIAL. main, JOBLY-PROD, les PR et les déploiements restent inchangés.
 
 ## 90. LOT-00 — lanceur Windows sécurisé et réconciliation finale du code
 
