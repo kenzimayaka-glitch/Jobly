@@ -42,7 +42,8 @@ node scripts/jobly-vitrine-smoke.mjs
 | VIT-06 | Cliquer sur les liens de navigation | Les ancres ouvrent la bonne section |
 | VIT-07 | Tester sur un écran mobile | Menu, cartes, compteurs et CTA restent utilisables |
 | VIT-08 | Faire défiler la page | Les animations ne bloquent pas la navigation |
-| VIT-09 | Visiteur non connecté, attendre deux rafraîchissements | Les valeurs proviennent de `/api/public/home-stats` et se mettent à jour toutes les trois minutes |
+| VIT-09 | Visiteur non connecté, attendre deux rafraîchissements | Les valeurs proviennent de `/api/public/home-stats` et se mettent à jour toutes les 20 secondes |
+| VIT-17 | Compte connecté, observer le rythme d'actualisation | Le flux Offres authentifié est rafraîchi toutes les trois minutes, sans dépasser sa limite de débit |
 | VIT-15 | Compte Talent connecté, comparer `/vitrine` et `/jobs` en vue Afrique | Le compteur Offres de la vitrine est égal à `totalAvailable` du flux `/api/jobs?scope=africa` |
 | VIT-16 | Compte connecté, vérifier les nouvelles offres après rafraîchissement | Toute offre nouvellement visible dans le flux Offres entre dans `totalAvailable` et dans la vitrine |
 | VIT-10 | Visiteur non connecté | Aucun identifiant de compte n'est exposé |
