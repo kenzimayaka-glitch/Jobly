@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
 import { getEventDomain, getEventPricing, estimateEventAudience, validateEventMedia, EVENT_MAX_DAYS } from "../../../lib/events";
+import { inspectEventMedia } from "../../../lib/eventMedia";
+import { isOwnedEventMediaPath } from "../../../lib/eventMediaOwnership";
 import { buildEventEcosystemConnections, scoreEventForProfile } from "../../../lib/eventEcosystem";
 import { estimateAndDistributeEvent } from "../../../lib/eventDistribution";
 import { discoverEventPartners } from "../../../lib/eventPartnerDiscovery";
@@ -116,7 +118,44 @@ export async function POST(request:NextRequest){
       ? body.audience.filter((value:unknown):value is string=>typeof value==="string"&&value.trim().length>0&&value.trim().length<=80).slice(0,8).map((value:string)=>value.trim())
       : [];
 
+    const mediaStoragePath=body.mediaStoragePath==null?null:String(body.mediaStoragePath);
+    const mediaMimeType=body.mediaMimeType==null?null:String(body.mediaMimeType).trim().toLowerCase();
+    const hasUploadedMedia=Boolean(mediaStoragePath||mediaMimeType||mediaType);
     const sb=adminClient();
+
+    if(hasUploadedMedia){
+      if(!mediaStoragePath||!mediaMimeType||!mediaType||!mediaUrl){
+        return fail("Le média téléversé doit conserver son chemin et ses métadonnées serveur.",422,"EVENT_MEDIA_METADATA_REQUIRED");
+      }
+      if(!isOwnedEventMediaPath(mediaStoragePath,auth.id)){
+        return fail("Ce média n'appartient pas à votre session.",403,"EVENT_MEDIA_NOT_OWNED");
+      }
+      const bucket=process.env.JOBLY_EVENTS_BUCKET;
+      if(!bucket)return fail("JOBLY_EVENTS_BUCKET n'est pas configuré.",503,"EVENT_MEDIA_STORAGE_UNAVAILABLE");
+      const expectedPublicUrl=sb.storage.from(bucket).getPublicUrl(mediaStoragePath).data.publicUrl;
+      if(mediaUrl!==expectedPublicUrl){
+        return fail("L'URL du média ne correspond pas au fichier téléversé.",422,"EVENT_MEDIA_URL_MISMATCH");
+      }
+
+      const {data:storedMedia,error:downloadError}=await sb.storage.from(bucket).download(mediaStoragePath);
+      if(downloadError||!storedMedia){
+        return fail("Le média téléversé est introuvable ou inaccessible.",422,"EVENT_MEDIA_NOT_FOUND");
+      }
+      const storedBytes=new Uint8Array(await storedMedia.arrayBuffer());
+      const inspected=inspectEventMedia(storedBytes,mediaMimeType);
+      if(!inspected.ok){
+        return fail(inspected.error,422,"EVENT_MEDIA_CONTENT_INVALID");
+      }
+      if(
+        inspected.type!==mediaType ||
+        storedBytes.byteLength!==mediaSizeBytes ||
+        (inspected.type==="VIDEO" && inspected.durationSeconds!==mediaDurationSeconds) ||
+        (inspected.type!=="VIDEO" && mediaDurationSeconds!==null)
+      ){
+        return fail("Les métadonnées du média ne correspondent pas au fichier stocké.",422,"EVENT_MEDIA_METADATA_MISMATCH");
+      }
+    }
+
     const user=await ensureUser(sb,auth);
     const now=new Date().toISOString();
     const {data:entitlement,error:entitlementError}=await sb.from("EventEntitlement")
@@ -157,7 +196,7 @@ export async function POST(request:NextRequest){
     });
     if(paymentError){
       await sb.from("Event").update({status:"DRAFT",updatedAt:new Date().toISOString()}).eq("id",id);
-      return fail("Le paiement n'a pas pu être préparé. L'événement est revenu en brouillon.",503,"PAYMENT_RECORD_FAILED");
+      return NextResponse.json({error:"PAYMENT_RECORD_FAILED",message:"Le paiement n'a pas pu être préparé. L'événement est revenu en brouillon.",eventId:id},{status:503});
     }
 
     const {error:eventPaymentError}=await sb.from("EventPayment").insert({
@@ -169,7 +208,7 @@ export async function POST(request:NextRequest){
         sb.from("Payment").update({status:"FAILED",failureReason:"EVENT_PAYMENT_LINK_FAILED",updatedAt:failedAt}).eq("id",paymentId),
         sb.from("Event").update({status:"DRAFT",updatedAt:failedAt}).eq("id",id)
       ]);
-      return fail("Le paiement n'a pas pu être associé à l'événement. L'événement est revenu en brouillon.",503,"EVENT_PAYMENT_LINK_FAILED");
+      return NextResponse.json({error:"EVENT_PAYMENT_LINK_FAILED",message:"Le paiement n'a pas pu être associé à l'événement. L'événement est revenu en brouillon.",eventId:id},{status:503});
     }
 
     return NextResponse.json({
