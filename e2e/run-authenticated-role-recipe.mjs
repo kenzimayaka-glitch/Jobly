@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 
+const require = createRequire(import.meta.url);
 const ROOT = process.cwd();
 const SOURCE_ROOT = process.argv[2] ? path.resolve(process.argv[2]) : "";
 const PROJECT_REF = "ofqqrryamslxoqkklraw";
@@ -13,17 +15,63 @@ const NEXT_CLI = path.join(ROOT, "node_modules", "next", "dist", "bin", "next");
 const REPORT_PATH = path.join(ROOT, "artifacts", "e2e", "authenticated-role-runner-summary.json");
 
 async function exists(file) { try { await access(file); return true; } catch { return false; } }
-function parseEnv(content) {
-  const values = {};
-  for (const line of content.split(/\r?\n/)) {
-    const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
-    if (!match) continue;
-    let value = match[2].trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
-    // Empty entries in later dotenv files must not erase an earlier valid value.
-    if (value !== "") values[match[1]] = value;
+
+async function loadSourceEnvironment(sourceRoot) {
+  // Do not let inherited Windows/IDE values (including blank values) shadow
+  // the project's own E2E environment. Values are reloaded from source files.
+  const managedKeys = [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "SUPABASE_SECRET_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+  ];
+  for (const key of managedKeys) delete process.env[key];
+  process.env.NODE_ENV = "production";
+
+  // Resolve @next/env from Next.js itself so no extra dependency or lockfile
+  // change is needed. This is the same dotenv loader used by the Next runtime.
+  const nextPackagePath = require.resolve("next/package.json");
+  const nextRequire = createRequire(nextPackagePath);
+  const nextEnvPath = nextRequire.resolve("@next/env");
+  const nextEnvRequire = createRequire(nextEnvPath);
+  const { loadEnvConfig } = nextRequire("@next/env");
+  const dotenv = nextEnvRequire("dotenv");
+  const loaded = loadEnvConfig(sourceRoot, false, { info() {}, error() {} }, true);
+
+  // Prefer the first non-empty value in Next's documented file precedence.
+  // An empty key in a higher-priority file must not hide a valid .env.local value.
+  const fileValues = {};
+  const sourceFiles = [];
+  for (const file of loaded.loadedEnvFiles || []) {
+    sourceFiles.push(path.basename(file.path));
+    const parsed = file.env && Object.keys(file.env).length
+      ? file.env
+      : dotenv.parse(file.contents || "");
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === "string" && value.trim() !== "" && !Object.prototype.hasOwnProperty.call(fileValues, key)) {
+        fileValues[key] = value;
+      }
+    }
   }
-  return values;
+
+  // Preserve the existing optional E2E override file, parsed by the same
+  // dotenv implementation rather than a hand-written regular expression.
+  const e2eEnvPath = path.join(sourceRoot, ".env.e2e.local");
+  if (await exists(e2eEnvPath)) {
+    const parsed = dotenv.parse(await readFile(e2eEnvPath, "utf8"));
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === "string" && value.trim() !== "") fileValues[key] = value;
+    }
+    sourceFiles.push(".env.e2e.local");
+  }
+
+  const env = { ...loaded.combinedEnv, ...fileValues };
+  for (const key of managedKeys) {
+    if (Object.prototype.hasOwnProperty.call(fileValues, key)) process.env[key] = fileValues[key];
+  }
+  return { env, files: [...new Set(sourceFiles)] };
 }
 function runGit(args) {
   const result = spawnSync("git", args, { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
@@ -95,6 +143,7 @@ const summary = {
   secretsPrinted: false,
   remoteDataMayBeModified: false,
   localServerProbe: null,
+  configDiagnostics: null,
 };
 let server = null;
 try {
@@ -105,21 +154,27 @@ try {
   assert.ok(await exists(path.join(ROOT, "node_modules", "next", "package.json")), "Dépendances manquantes : exécutez pnpm install --frozen-lockfile --ignore-scripts dans le worktree.");
   assert.ok(await exists(NEXT_CLI), "Binaire Next.js absent du worktree ; réinstallez les dépendances avec le lockfile.");
 
-  const mergedConfig = {};
-  for (const file of [".env", ".env.local", ".env.e2e.local"]) {
-    const full = path.join(SOURCE_ROOT, file);
-    if (await exists(full)) Object.assign(mergedConfig, parseEnv(await readFile(full, "utf8")));
-  }
-  // Ignore empty inherited variables: Windows shells/IDE launchers may export
-  // blank Supabase URL values that would otherwise erase the valid .env.local value.
-  for (const [key, value] of Object.entries(process.env)) {
-    if (typeof value === "string" && value.trim() !== "") mergedConfig[key] = value;
-  }
+  const { env: mergedConfig, files: configFilesLoaded } = await loadSourceEnvironment(SOURCE_ROOT);
   const configuredUrl = mergedConfig.NEXT_PUBLIC_SUPABASE_URL || mergedConfig.SUPABASE_URL || "";
-  assert.equal(configuredUrl, SUPABASE_URL, "La configuration locale ne pointe pas exactement vers JOBLY-E2E.");
   const publishableKey = mergedConfig.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y";
-  assert.ok(publishableKey.startsWith("sb_publishable_"), "Clé publishable JOBLY-E2E absente.");
   const privateKey = mergedConfig.SUPABASE_SECRET_KEY || mergedConfig.SUPABASE_SERVICE_ROLE_KEY || "";
+  let configuredProjectRef = "missing-or-invalid";
+  try {
+    const host = new URL(configuredUrl).hostname;
+    configuredProjectRef = host.endsWith(".supabase.co") ? host.slice(0, -".supabase.co".length) : "non-supabase";
+  } catch {}
+  summary.configDiagnostics = {
+    sourceFiles: configFilesLoaded,
+    supabaseUrlPresent: Boolean(configuredUrl),
+    supabaseUrlMatchesE2E: configuredUrl === SUPABASE_URL,
+    configuredProjectRef,
+    publishableKeyPresent: publishableKey.startsWith("sb_publishable_"),
+    serverKeyType: privateKey.startsWith("sb_secret_") ? "sb_secret" : privateKey.startsWith("eyJ") ? "legacy_jwt" : "missing",
+  };
+  if (configuredUrl !== SUPABASE_URL) {
+    throw new Error("Configuration JOBLY-E2E non reconnue après chargement officiel Next.js ; voir configDiagnostics (aucune URL ni clé n'est imprimée).");
+  }
+  assert.ok(publishableKey.startsWith("sb_publishable_"), "Clé publishable JOBLY-E2E absente.");
   assert.ok(privateKey.startsWith("sb_secret_") || privateKey.startsWith("eyJ"), "Clé serveur JOBLY-E2E absente.");
   if (privateKey.startsWith("eyJ")) {
     const claims = JSON.parse(Buffer.from(privateKey.split(".")[1] || "", "base64url").toString("utf8"));
