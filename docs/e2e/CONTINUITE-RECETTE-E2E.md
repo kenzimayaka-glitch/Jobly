@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.14 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.15 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -13,9 +13,9 @@
 > **Verrou de reprise V2.8 :** les sections 7, 9, 10, 11, 12 et 13.7 contiennent des états ou consignes historiques ; elles ne constituent plus des instructions opératoires. En particulier, l'autorisation de reset citée au §9 n'est plus active : ne pas exécuter e2e/reset-existing-fixture-passwords.mjs, les scripts de vérification Auth des anciennes fixtures, le provisionneur, ni scripts/e2e-local-recipe.mjs/le runner bulk. Aucune connexion Auth, mutation de fixture, restauration de mot de passe ou relance globale n'est autorisée par ce document. Le seul prochain contrôle permis est le GET OpenAPI décrit au §16.7, suivi de son analyse.
 >
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le contrôle Data API du schéma net n'a pas encore reçu de réponse HTTP exploitable ; l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
-> **Tentative Node.js V2.13 :** le GET OpenAPI a été lancé depuis l'environnement isolé de l'agent (Node.js v22.16.0), mais `fetch failed` est survenu avant toute réponse HTTP. Ce résultat est un blocage réseau de cet environnement d'exécution, pas une preuve de panne Supabase et pas un résultat sur l'exposition du schéma. L'action attendue reste l'exécution locale CMD/Node.js décrite au §21.3.
+> **LOT-00 — dernier résultat opérateur :** les deux GET OpenAPI `public` et `net` avec la clé publishable ont retourné HTTP 401, message `Secret API key required`. La racine `/rest/v1/` exige ici une clé d'administration pour le catalogue OpenAPI ; ces réponses ne renseignent pas sur l'exposition de `net`. La procédure précédente était donc inadaptée. Utiliser exclusivement la procédure corrigée à saisie masquée du §22.3 ; aucun secret ne doit être copié dans le chat, les rapports ou Git.
 
-**Version :** 2.14  
+**Version :** 2.15  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -785,29 +785,26 @@ Points à fermer avant le PASS LOT-00 :
 2. Valider que les deux buckets publics jobly-events et profile-photos sont intentionnels.
 3. Documenter le plan de moindre privilège des grants table/storage, sans modifier les droits dans le cadre de cette recette.
 
-### 16.7 Contrôle opérateur suivant — GET uniquement
+### 16.7 Contrôle OpenAPI GET — méthode initiale invalidée le 8 novembre 2026
 
-Le préflight e2e/lot0-preflight.mjs ne vérifie que la clé publique, l'URL/ref du projet et le GET Auth settings. Il ne remplace pas l'audit SQL ci-dessus ni le contrôle d'exposition PostgREST. Ne pas lancer scripts/e2e-local-recipe.mjs : ce runner peut restaurer ou provisionner les fixtures, lancer Auth, smoke runtime, lots bulk, typecheck et build.
+La commande initiale utilisait la clé publishable `sb_publishable_...` à la racine exacte `/rest/v1/`. Le rapport opérateur `feedback-lot00-net-schema-exposure.txt` a retourné :
 
-Dans CMD, exécuter le contrôle OpenAPI suivant. Il émet exclusivement deux requêtes GET sur JOBLY-E2E, une pour public et une pour net. Il n'appelle aucune fonction métier et n'écrit aucune ligne :
+- `public` : HTTP 401, `apiSchemaAccepted=false`, `openapi=false`, message `Secret API key required` ;
+- `net` : HTTP 401, `apiSchemaAccepted=false`, `openapi=false`, même message ;
+- synthèse : `GATE=BLOCKED_REVIEW_REQUIRED`.
 
-```bat
-cd /d C:\Users\ASUS\Jobly
-node -e "const run=async()=>{const url='https://ofqqrryamslxoqkklraw.supabase.co';const key='sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y';for(const schema of ['public','net']){const r=await fetch(url+'/rest/v1/',{method:'GET',headers:{apikey:key,Authorization:'Bearer '+key,Accept:'application/openapi+json','Accept-Profile':schema}});const raw=await r.text();let body={};try{body=JSON.parse(raw)}catch{};console.log(JSON.stringify({schema,status:r.status,apiSchemaAccepted:r.ok,code:body.code??null,message:body.message??null}));}};run().catch(e=>{console.error('LOT00_SCHEMA_CHECK_ERROR:',e.message);process.exitCode=1;});" > feedback-lot00-net-schema-exposure.txt 2>&1
-notepad feedback-lot00-net-schema-exposure.txt
-```
+**Interprétation :** les deux requêtes ont été rejetées au contrôle de clé avant la négociation des profils PostgREST. Ce résultat ne prouve ni que `net` est exposé, ni qu'il est masqué. La procédure utilisant la clé publishable à cette racine est invalidée et ne doit pas être répétée.
 
-Interprétation :
-- public accepté et net refusé avec erreur de schéma non exposé (par exemple PGRST106) : la barrière d'exposition de net est satisfaite.
-- net accepté : LOT-00 reste BLOCKED sur ce point ; aucune correction automatique. Il faudra examiner la configuration Data API et retirer net des schémas exposés ou restreindre ses EXECUTE via une migration dédiée après revue.
-- Réponse réseau/authentification ou résultat ambigu : BLOCKED, ne rien modifier et transmettre le rapport.
+Pour la racine OpenAPI, utiliser la procédure corrigée au §22.3 : une clé secrète de JOBLY-E2E (`sb_secret_...`) ou l'ancienne clé `service_role`, saisie localement et masquée. La requête reste strictement GET, sur l'unique endpoint `/rest/v1/`, pour lire le catalogue de schémas ; aucun objet métier, table, fonction RPC ou endpoint `net.http_*` n'est appelé. La clé secrète contourne RLS : son usage est donc limité à ces deux lectures de métadonnées et elle ne doit jamais être copiée dans le rapport, les logs, le chat ou Git.
 
-Après ce contrôle, réconcilier les buckets publics et les grants, puis seulement statuer sur LOT-00. Aucun smoke runtime, bulk, changement de fixtures, merge ou déploiement avant clôture.
+Références Supabase : la racine OpenAPI peut exiger une clé d'administration ; les clés `sb_secret_...` sont privilégiées et doivent rester côté opérateur. Voir https://supabase.com/docs/guides/self-hosting/self-hosted-auth-keys#verifying-the-setup et https://supabase.com/docs/guides/getting-started/api-keys.
+
+Après le test corrigé, analyser séparément le résultat `public` et le résultat `net`. Tout 401/403, erreur réseau, réponse ambiguë ou schéma `net` accepté maintient le blocage. Aucun grant, rôle, schéma ou policy ne doit être modifié à partir d'un simple échec d'authentification.
 
 ### 16.8 État courant
 
 - E2E-001 : **PASS statique local — 6/6**.
-- LOT-00 : **PARTIAL — SQL read-only effectué ; vérification API net et revue des points de moindre privilège en attente**.
+- LOT-00 : **PARTIAL — le GET OpenAPI précédent a été rejeté en 401 avec la clé publishable ; nouvelle méthode secret-key GET-only documentée au §22 ; décision Storage et matrice grants/policies toujours en attente**.
 - Smoke runtime Talent/Recruteur : **suspendu jusqu'à LOT-00 PASS**.
 - Recette bulk 11 lots : **suspendue**.
 - JOBLY-PROD : aucune requête SQL, aucune écriture.
@@ -870,7 +867,7 @@ L'activation RLS sur 180/180 tables est un bon indicateur de couverture techniqu
 
 ### 17.5 Séquence de reprise autorisée — une seule action à la fois
 
-**Action autorisée maintenant :** exécuter exclusivement le contrôle GET OpenAPI déjà décrit au §16.7, puis transmettre le contenu de feedback-lot00-net-schema-exposure.txt.
+**Action autorisée maintenant :** exécuter exclusivement le contrôle GET OpenAPI corrigé du §22.3 avec une clé d'administration JOBLY-E2E saisie localement et masquée, puis transmettre uniquement le rapport non sensible `feedback-lot00-net-schema-exposure-v2.txt`.
 
 **Ne pas lancer avant analyse de ce résultat et fermeture LOT-00 :**
 - tout smoke Auth/runtime Talent ou Recruteur ;
@@ -880,7 +877,7 @@ L'activation RLS sur 180/180 tables est un bon indicateur de couverture techniqu
 - toute commande SQL DDL/DML ou modification de grants/policies/buckets ;
 - tout accès JOBLY-PROD, merge PR #266, modification de main ou déploiement.
 
-Après réception du GET, analyser les codes HTTP et le code PostgREST, puis choisir uniquement le prochain contrôle read-only nécessaire. Ne pas enchaîner automatiquement les opérations.
+Après réception du GET corrigé, analyser les codes HTTP et le code PostgREST, puis choisir uniquement le prochain contrôle read-only nécessaire. Ne pas enchaîner automatiquement les opérations.
 
 **Mise à jour V2.13 :** une tentative identique depuis l'environnement Node.js isolé de l'agent a échoué avant réponse HTTP (`fetch failed`, Node.js v22.16.0). Elle ne remplace pas le contrôle opérateur ; voir §21. Aucun résultat HTTP n'a été obtenu et LOT-00 reste PARTIAL.
 
@@ -1114,7 +1111,7 @@ Le document maître V2.12 a été relu intégralement avant cette reprise (1 093
 
 **Classification : BLOCKED_ENVIRONMENT / NON CONCLUANT. LOT-00 reste PARTIAL.** Ne pas compter cette tentative comme PASS ni comme FAIL du service Supabase.
 
-### 21.3 Contrôle à exécuter depuis Node.js local — CMD Windows
+### 21.3 Commande précédente V2.14 — OBSOLÈTE, ne pas relancer
 
 Le poste opérateur est déjà connu : `C:\Users\ASUS\Jobly`, Node.js `v26.13.0`. La commande ci-dessous reste strictement limitée aux GET OpenAPI. Elle contrôle également les conditions attendues et écrit un rapport sans afficher la clé. La clé `sb_publishable_...` est la clé publishable JOBLY-E2E documentée au §16.7, et non une clé privée.
 
@@ -1139,3 +1136,70 @@ Tout autre résultat — `fetch failed`, délai dépassé, erreur 401/403, `publ
 Même si le contrôle Node.js retourne `PASS_NET_NOT_EXPOSED`, LOT-00 ne sera pas automatiquement PASS. Il restera à obtenir la décision métier explicite sur la visibilité publique de `jobly-events` et `profile-photos`, puis à compléter la matrice ciblée des grants directs, RLS/policies et opérations nécessaires sur les tables, routines et objets Storage effectivement utilisés par les recettes. Aucun droit, bucket, schéma ou policy ne sera modifié dans cette recette.
 
 En attente du rapport Node.js local : LOT-00 **PARTIAL** ; smoke runtime Auth, smoke navigateur JOBLY-E2E et bulk toujours suspendus ; fixtures inchangées ; JOBLY-PROD interdit ; PR #266 en brouillon ; aucun merge ou déploiement.
+
+---
+
+## 22. LOT-00 — correction de l'authentification OpenAPI — V2.15 — 8 novembre 2026
+
+### 22.1 Rapport opérateur reçu
+
+Fichier transmis : `feedback-lot00-net-schema-exposure.txt` ; Node.js `v26.13.0`.
+
+| Profil | HTTP | `apiSchemaAccepted` | `openapi` | Message |
+|---|---:|---:|---:|---|
+| `public` | 401 | false | false | `Secret API key required` |
+| `net` | 401 | false | false | `Secret API key required` |
+
+Synthèse du script : `GATE=BLOCKED_REVIEW_REQUIRED`.
+
+**Diagnostic :** cette racine OpenAPI exige une clé d'administration. La clé publishable était adaptée aux appels ordinaires d'une application cliente, mais pas à la consultation de ce catalogue sur cet endpoint. Les deux 401 sont donc des refus d'accès au document OpenAPI ; ils ne disent rien sur la présence ou l'absence du schéma `net`. Il n'y a aucune preuve que le projet ou la clé publishable soient globalement en panne.
+
+### 22.2 Règles de sécurité du correctif
+
+- Endpoint immuable : `https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/` ; aucune URL de production.
+- Méthode : GET uniquement ; deux lectures séquentielles avec `Accept-Profile: public`, puis `Accept-Profile: net`.
+- Clé admise : clé secrète du projet JOBLY-E2E (`sb_secret_...`) ou ancienne clé `service_role` du même projet. Ne jamais employer `anon`, `sb_publishable_...` ou une clé de JOBLY-PROD.
+- La clé est saisie dans la console masquée (aucun écho), utilisée uniquement dans le header `apikey` pour `sb_secret_...`. Pour l'ancienne clé `service_role` JWT, le script ajoute aussi `Authorization: Bearer` afin de conserver le contexte de rôle.
+- La clé n'est ni affichée, ni écrite dans un fichier, rapport ou journal ; seul son type est enregistré.
+- Une clé `sb_secret_...` / `service_role` contourne RLS. Le code est donc volontairement borné à la racine OpenAPI et n'effectue aucune requête de table, aucun RPC, aucun appel Storage, aucun `net.http_*` et aucune écriture.
+- Si aucune clé d'administration JOBLY-E2E n'est disponible, ne pas créer ni faire tourner une clé pour ce test. Signaler `NON_TESTABLE_KEY_UNAVAILABLE` ; ne pas utiliser un secret de production.
+
+Références Supabase consultées le 8 novembre 2026 :
+- https://supabase.com/docs/guides/self-hosting/self-hosted-auth-keys#verifying-the-setup — la racine OpenAPI `/rest/v1/` est réservée à une clé d'administration ;
+- https://supabase.com/docs/guides/getting-started/api-keys — distingue publishable et secret, indique que le secret contourne RLS et doit rester côté serveur ;
+- https://supabase.com/docs/guides/self-hosting/self-hosted-envoy — décrit la séparation entre racine OpenAPI et routes Data API.
+
+### 22.3 Commande Node.js locale corrigée — CMD Windows
+
+La commande demande une clé d'administration JOBLY-E2E dans le terminal sans afficher les caractères saisis. Elle n'écrase jamais un rapport précédent : elle crée `feedback-lot00-net-schema-exposure-v2.txt` seulement s'il n'existe pas. Ne pas rediriger la sortie CMD vers un fichier, car la saisie doit rester interactive.
+
+Depuis le Node.js Command Prompt / CMD :
+
+```bat
+cd /d C:\Users\ASUS\Jobly
+if exist feedback-lot00-net-schema-exposure-v2.txt echo Rapport deja present : conservation, aucune nouvelle execution.
+if not exist feedback-lot00-net-schema-exposure-v2.txt node -e "const fs=require('node:fs'),input=process.stdin,out=process.stdout,report='feedback-lot00-net-schema-exposure-v2.txt';if(fs.existsSync(report)){console.log('REPORT_EXISTS_PRESERVED');process.exit(3)}if(!input.isTTY||typeof input.setRawMode!=='function'){console.log('TTY_REQUIRED');process.exit(2)}let key='';out.write('Cle secrete JOBLY-E2E sb_secret_... ou ancienne service_role, saisie masquee : ');input.setRawMode(true);input.resume();input.on('data',b=>{for(const ch of b.toString('utf8')){if(ch==='\u0003'){input.setRawMode(false);input.pause();key='';out.write('\nCANCELLED\n');process.exit(2)}if(ch==='\r'||ch==='\n'){input.setRawMode(false);input.pause();out.write('\n');const entered=key.trim();key='';run(entered);return}if(ch==='\u007f'||ch==='\b')key=key.slice(0,-1);else if(ch>=' ')key+=ch}});function save(rows,gate,error=''){const lines=['node='+process.version,'project_ref=ofqqrryamslxoqkklraw','credential_type='+kind,'results='+JSON.stringify(rows),'GATE='+gate];if(error)lines.push('error='+error);fs.writeFileSync(report,lines.join('\r\n')+'\r\n',{flag:'wx'});for(const line of lines)out.write(line+'\n');out.write('REPORT='+report+'\n')}let kind='unknown';async function run(k){const rows=[];try{if(k.startsWith('sb_secret_'))kind='sb_secret';else if(k.startsWith('eyJ')){const p=JSON.parse(Buffer.from(k.split('.')[1]||'','base64url').toString('utf8'));if(p.role!=='service_role')throw Error('LEGACY_KEY_ROLE_INVALID');kind='legacy_service_role'}else throw Error('KEY_TYPE_INVALID');for(const schema of ['public','net']){const h={apikey:k,Accept:'application/openapi+json','Accept-Profile':schema};if(kind==='legacy_service_role')h.Authorization='Bearer '+k;const r=await fetch('https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/',{method:'GET',headers:h,signal:AbortSignal.timeout(20000)});const raw=await r.text();let j={};try{j=JSON.parse(raw)}catch{}rows.push({schema,status:r.status,apiSchemaAccepted:r.ok,openapi:!!(j.openapi||j.swagger),code:j.code??null,message:typeof j.message==='string'?j.message.slice(0,160):null})}const pub=rows.find(x=>x.schema==='public'),net=rows.find(x=>x.schema==='net');const pass=!!(pub&&pub.status===200&&pub.openapi&&net&&net.status===406&&net.code==='PGRST106');save(rows,pass?'PASS_NET_NOT_EXPOSED':'BLOCKED_REVIEW_REQUIRED')}catch(e){save(rows,'BLOCKED_REVIEW_REQUIRED',e.name+': '+e.message)}finally{k=''}}
+notepad feedback-lot00-net-schema-exposure-v2.txt
+```
+
+Le terminal doit afficher la demande de clé sans écho. Entrer la clé `sb_secret_...` du projet `ofqqrryamslxoqkklraw`, ou son ancienne `service_role` si le projet utilise encore cette clé. Ne pas me l'envoyer. Si la saisie masquée n'est pas prise en charge ou si aucune clé E2E n'est disponible, arrêter ; ne pas saisir la clé dans la ligne de commande, ne pas la mettre dans un fichier et ne pas utiliser une clé de production.
+
+### 22.4 Critère du résultat
+
+| Profil | Résultat attendu |
+|---|---|
+| `public` | HTTP 200 et document OpenAPI (`openapi=true`) |
+| `net` | HTTP 406 et code PostgREST `PGRST106` |
+| Synthèse | `GATE=PASS_NET_NOT_EXPOSED` |
+
+Tout autre résultat reste `BLOCKED_REVIEW_REQUIRED`. HTTP 401 avec clé `sb_secret` signifie clé incorrecte, désactivée ou appartenant à un autre projet ; HTTP 200 sur `net` signifie que le schéma est exposé et exige une revue de sécurité. Aucune correction de grants ou Data API settings automatique.
+
+### 22.5 Statut de reprise
+
+- Résultat précédent avec publishable : **401 / NON CONCLUANT** pour `public` et `net`.
+- Contrôle OpenAPI corrigé avec clé d'administration locale : **à exécuter**.
+- LOT-00 : **PARTIAL**.
+- Décision sur les buckets publics et matrice grants/RLS/policies ciblée : toujours en attente.
+- Smoke runtime Auth / navigateur JOBLY-E2E / bulk 11 lots : **suspendus**.
+- Fixtures : inchangées ; aucun Auth, aucune écriture ; JOBLY-PROD interdit.
+- PR #266 : ouverte, brouillon, non fusionnée ; `main` inchangée ; aucun déploiement.
