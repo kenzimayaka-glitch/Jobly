@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.63 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.64 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3368,3 +3368,40 @@ La préférence de sécurité reste de créer un PAT scoped au seul projet JOBLY
 - JOBLY-PROD hors périmètre ; aucune mutation, aucune modification `main`, aucune fusion ni déploiement.
 - PR #266 reste ouverte, brouillon et non fusionnée.
 - Document source avant cette mise à jour : V2.62, blob SHA 281499a84a1a7cd844922b51f12c2e977cfb6cf1, branche `e2e/recette`.
+
+---
+
+## 66. Séquence unique CLI → claims → GET OpenAPI — V2.64 — 8 novembre 2026
+
+### 66.1 Décision de moindre exposition
+
+La CLI v3 `projects api-keys` peut retourner les clés Legacy sous forme JWT, tandis que la valeur des nouvelles clés `sb_secret_...` est redacted par défaut ; `--reveal` provoque la révélation des clés secrètes. Pour éviter d'exposer toutes les nouvelles clés secrètes du projet, ne pas utiliser `--reveal` dans cette recette. Appeler uniquement `projects api-keys --remote=<JOBLY-E2E> --output json`, capturer stdout en mémoire et sélectionner le seul enregistrement `name=service_role`.
+
+Source technique CLI v3.0.0 : `apps/cli/src/commands/projects/api-keys/SIDE_EFFECTS.md` dans https://github.com/supabase/cli/tree/v3.0.0 ; documentation utilisateur : https://supabase.com/docs/guides/getting-started/api-keys ; issue qui documente la distinction Legacy vs nouvelles clés : https://github.com/supabase/cli/issues/4775.
+
+### 66.2 Séquence autorisée
+
+1. Vérifier que `SUPABASE_ACCESS_TOKEN` n'est pas défini dans l'environnement du processus. Si défini, arrêter sans afficher sa valeur. Le CLI utilisera alors le token déjà enregistré lors de la connexion locale.
+2. Exécuter seulement `npx.cmd --yes supabase@3.0.0 --output json projects api-keys --remote=ofqqrryamslxoqkklraw` ; aucun `projects list`, `link`, `db`, `secrets`, `--reveal` ou autre commande.
+3. Capturer toute la sortie stdout dans une variable en mémoire, jamais à l'écran ni dans un fichier. Exiger un unique enregistrement `service_role` avec `api_key` non vide.
+4. Vérifier localement sans afficher le JWT : trois segments, en-tête `alg=HS256`, claims `role=service_role` et `ref=ofqqrryamslxoqkklraw`. Cette étape ne vérifie pas la signature cryptographique.
+5. Si les claims concordent, envoyer deux GET, et seulement deux, vers `https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/`, avec `apikey`, `Authorization: Bearer`, `Accept: application/openapi+json` et `Accept-Profile` successivement `public` puis `net`.
+6. Conserver dans le rapport uniquement code HTTP, code PostgREST, présence OpenAPI et nombre de chemins ; ne jamais écrire le corps de la spec, le PAT, la clé ou les en-têtes.
+7. Effacer les références PowerShell aux chaînes sensibles avant de terminer. La mémoire du processus est de courte durée ; cette opération ne constitue pas une garantie matérielle d'effacement mémoire.
+
+### 66.3 Critères
+
+- `public` HTTP 200 et document OpenAPI valide, puis `net` HTTP 406 avec `PGRST106` : `PASS_NET_NOT_EXPOSED`.
+- `net` HTTP 200 avec OpenAPI : `BLOCKED_NET_EXPOSED`; aucun changement de schéma/grant sans autorisation distincte.
+- Si la clé Legacy `service_role` n'est pas fournie sans `--reveal`, arrêter avec `BLOCKED_SERVICE_ROLE_VALUE_REDACTED`. Ne pas lancer `--reveal` automatiquement : cette option peut révéler d'autres clés secrètes. Demander une décision supplémentaire ou préférer un PAT scoped adapté.
+- Toute erreur CLI, JWT/claims non conformes, erreur HTTP, résultat autre que les deux attendus : `BLOCKED_REVIEW_REQUIRED`; aucun retry automatique.
+
+### 66.4 Limites
+
+Le PAT issu du flux navigateur demeure full-access ; `--remote` limite la cible de cette commande, pas les permissions du PAT. Le script est une contention procédurale, pas une restriction IAM. Il n'effectue aucune écriture, aucun RPC métier, aucun appel `net.http_*`, aucun accès Auth, aucune migration et aucun accès JOBLY-PROD.
+
+Aucun appel CLI `projects api-keys` ni GET OpenAPI n'a encore été exécuté au moment de l'ajout de cette section.
+
+LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED**. Après le contrôle OpenAPI, la décision sur les buckets publics et la revue ciblée des privilèges restent à clôturer. `main` inchangée ; aucune fusion ni aucun déploiement ; PR #266 reste ouverte, brouillon, non fusionnée.
+
+Document source avant cette mise à jour : V2.63, blob SHA 496e8659ace78b223476eb9106ff5b10c9276b4b, branche `e2e/recette`.
