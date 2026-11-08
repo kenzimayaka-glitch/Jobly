@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.78 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.79 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -4144,3 +4144,99 @@ Ne pas exécuter `scripts/e2e-local-recipe.mjs`, `e2e/provision-fixtures.mjs` ou
 Le smoke Auth est proposé comme étape ciblée ; il n'a pas été exécuté par l'assistant. Aucun test déjà PASS n'est relancé. JOBLY-PROD reste interdit ; aucune écriture ou configuration Supabase n'a été effectuée ; aucun changement `main`, aucune fusion et aucun déploiement. PR #266 reste ouverte, brouillon et non fusionnée.
 
 Mise à jour V2.78 sur `e2e/recette`. Source avant cette entrée : blob SHA `4844589ff2693b27ea4144ff897bcbcd5f8c2a2a`. Les constats DB proviennent exclusivement de requêtes de catalogue read-only JOBLY-E2E ; les écarts de code sont reliés aux blobs GitHub cités dans cette section.
+
+
+## 81. Corrections approuvées — photos, compteur Afrique et médias d'événements
+
+### 81.1 Décision métier de l'opérateur
+
+Le 8 novembre 2026, l'opérateur a validé les recommandations relatives à :
+- la cohérence du stockage des photos de profil et des visuels Hero ;
+- l'alignement des pays et du compteur de talents de la page d'accueil ;
+- le contrôle des fichiers médias et leur rattachement aux événements.
+
+Les corrections de code sont isolées sur la branche `fix/audit-profile-country-event-guards-20261108`, issue de `main`. Elles ne sont pas fusionnées et ne modifient pas `main`.
+
+**Dernier commit source connu au moment de cette mise à jour :** `2e16e9d5721e977c51a713f5fe90636e293b0c8e`.
+
+### 81.2 Photos de profil et Hero — correction du plafond et validation des octets
+
+Code concerné :
+- `lib/profilePhoto.ts`
+- `app/api/auth/profile-photo/route.ts`
+- `scripts/event-core-p1.test.mjs`
+
+Corrections sur la branche :
+1. Le plafond de stockage est centralisé à **5 000 000 octets**, identique à la limite effective du bucket `profile-photos`.
+2. Une photo standard ne peut plus dépasser cette limite.
+3. Un PNG Hero source peut atteindre 10 MiB à l'entrée, mais le serveur vérifie son vrai format, impose la transparence, redimensionne/optimise le PNG, puis refuse le stockage si le résultat excède 5 000 000 octets.
+4. Le serveur vérifie les octets avec Sharp, limite les dimensions décodées, rejette les formats non supportés ou un MIME déclaré incohérent et choisit l'extension à partir du format réel, non du nom fourni par le navigateur.
+5. Si l'écriture de `User.profilePhotoUrl` échoue après un upload, le nouveau fichier est supprimé pour éviter un orphelin.
+
+**Limite non résolue dans cette PR : confidentialité des photos.** Le bucket `profile-photos` demeure public et le champ `User.profilePhotoUrl` reste une URL publique. La bascule « privé par défaut, publication explicite » n'est pas appliquée : elle nécessite un champ de visibilité persistant, un contrôle visible dans le parcours utilisateur et l'adaptation de tous les lecteurs (profil Talent, Hero, recruteur et vues publiques), avec une stratégie de migration des URLs déjà enregistrées. Changer uniquement le bucket casserait les photos existantes. Aucune migration de schéma ni modification de bucket n'a été exécutée.
+
+### 81.3 Pays et compteur de la page d'accueil
+
+Code concerné :
+- `app/api/public/home-stats/route.ts`
+- `scripts/africa-p0.test.mjs`
+- référence canonique : `lib/countries/africa.ts`
+
+Corrections sur la branche :
+1. La liste locale de 55 codes a été supprimée. La route réutilise `AFRICA_COUNTRY_CODES`, le catalogue partagé de **54 pays**, et le résolveur `resolveAfricaCountryCode`. `EH` n'est donc plus compté comme pays de ce catalogue produit.
+2. Le compteur de talents filtre désormais les profils dont le pays de profil ou, à défaut, le pays du compte User se résout dans le catalogue africain.
+3. Le comptage parcourt les profils par pages de 1 000, au lieu de dépendre d'un `count` susceptible de ne refléter qu'une page ou la limite API.
+4. Les bases frontend existantes **+75 000 offres** et **+415 000 talents** sont conservées. Le texte « Talents partout en Afrique » reste cohérent avec le nouveau comptage dynamique géographique.
+
+**Point de réconciliation LOT-11 :** l'audit précédent avait aussi relevé une fonction SQL publique `get_public_home_stats()`. Le code actuel de `app/api/public/home-stats/route.ts` calcule les statistiques directement via les tables et ne l'appelle pas. Il faudra confirmer au LOT-11 si cette fonction SQL est toujours exposée et si elle conserve une logique divergente ; ne pas considérer sa cohérence corrigée sur la seule base de la correction de la route.
+
+### 81.4 Médias d'événements — intégrité, propriété et nettoyage
+
+Code concerné :
+- `lib/eventMediaOwnership.ts`
+- `app/api/events/media/route.ts`
+- `app/api/events/route.ts`
+- `app/events/create/page.tsx`
+- `scripts/event-core-p1.test.mjs`
+
+Corrections sur la branche :
+1. Le chemin de stockage est accepté uniquement sous la forme `<Auth UID>/<UUID>.<extension autorisée>`. Les chemins imbriqués, traversants, d'un autre utilisateur ou portant une extension non supportée sont refusés.
+2. Le formulaire transmet au serveur le chemin et le MIME reçus de l'upload, en plus du type, de la taille et de la durée.
+3. Avant création de l'événement, le serveur vérifie la propriété du chemin, reconstruit l'URL publique attendue, télécharge le fichier du bucket côté serveur, réinspecte sa signature et compare le type, la taille réelle et la durée vidéo avec les métadonnées soumises.
+4. Un endpoint DELETE authentifié permet de nettoyer un upload qui n'a pas été rattaché. Il refuse de supprimer le fichier si une ligne `Event` référence déjà son URL.
+5. Le formulaire tente le nettoyage après un échec ou une perte de réponse ; le contrôle serveur protège un média associé à un événement, y compris un événement encore en brouillon.
+6. Les réponses en échec après insertion de l'événement renvoient désormais `eventId`, afin de distinguer un événement existant en brouillon d'un échec survenu avant son enregistrement.
+
+**Limites non résolues :**
+- Le bucket `jobly-events` demeure public. Un média téléversé est donc potentiellement accessible par son URL avant publication et reste accessible par URL s'il est associé à un événement `DRAFT` ou `PENDING_PAYMENT`. La règle stricte « public uniquement après publication » nécessite un espace de staging privé puis une promotion contrôlée à la publication/paiement, ainsi qu'une stratégie de lecture publique. Ce chantier implique une configuration Storage et le cycle de publication/paiement ; aucune configuration Storage ou donnée Supabase n'a été modifiée ici.
+- Aucun quota durable par utilisateur ni rate limit d'upload n'est ajouté dans cette PR. Un compteur mémoire local ne serait pas une protection fiable en environnement serverless ; il faut une réservation/limite persistante ou un mécanisme serveur compatible avec Storage.
+- L'URL média externe saisie manuellement demeure un parcours existant distinct : la validation de signature et de propriété ajoutée ici s'applique aux fichiers téléversés dans le bucket, pas à un média hébergé sur un domaine tiers.
+
+### 81.5 Vérifications automatiques et état CI
+
+Sur le commit `fe00d435116ab0aad577825a4ecbc42d206a8ed7` :
+- les tests Mission Afrique P0 sont **PASS** ;
+- les tests Event Core P1 sont **PASS** ;
+- les migrations isolées de sécurité sont **PASS** ;
+- le typecheck a échoué sur deux erreurs ciblées dans `home-stats/route.ts` : relation PostgREST `User` typée en tableau et ancienne constante pays encore référencée.
+
+Ces deux erreurs ont été corrigées sur le commit suivant `2e16e9d5721e977c51a713f5fe90636e293b0c8e`. Pour ce commit :
+- Mission Afrique P0 : **PASS** ;
+- Event Core P1 : **PASS** ;
+- contrôle du registre des sources : **PASS** ;
+- typecheck/build complet : **EN COURS lors de la rédaction de V2.79** (run CI [42497839381](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42497839381)) ;
+- tests de migrations isolées : **EN COURS lors de la rédaction de V2.79** (run CI [42497839440](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42497839440)).
+
+Ne pas marquer la branche complète PASS tant que le typecheck et le build ne sont pas terminés avec succès.
+
+### 81.6 État de recette et ordre de reprise
+
+- LOT-00 demeure **PARTIAL** ; le préflight public Auth reste PASS (§78).
+- LOT-01 smoke Auth (3 comptes × sign-in/getUser/refresh/signOut) : résultat opérateur toujours attendu ; ne pas le présumer PASS.
+- Continuer les LOT-01 à LOT-10 selon leurs dépendances, sans relancer les groupes déjà PASS si leur code n'a pas changé.
+- LOT-11 reste le dernier lot : OpenAPI `public=200 valid`, `net=406/PGRST106`, puis réconciliation des findings sécurité et de l'éventuelle fonction SQL historique.
+- La branche de correction ci-dessus reste séparée de `e2e/recette` jusqu'à validation du code et de ses contrôles CI.
+
+Aucune modification Supabase, aucun accès JOBLY-PROD, aucune migration appliquée, aucune fusion sur `main` et aucun déploiement ne sont effectués par cette mise à jour. PR #266 reste ouverte, brouillon et non fusionnée.
+
+Mise à jour V2.79 sur `e2e/recette`. Source précédente : blob SHA `f3a04cf18f48143f065ea914b7ba0ccb05e2a0fe`.
