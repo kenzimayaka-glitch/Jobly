@@ -78,6 +78,9 @@ function CvStudioContent() {
   const [paymentMethod, setPaymentMethod] = useState<"MTN MoMo" | "Orange Money">("MTN MoMo");
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [paymentInstructions, setPaymentInstructions] = useState("");
+  const [plan, setPlan] = useState("FREE");
+  const [cvAtsDownloadPriceXaf, setCvAtsDownloadPriceXaf] = useState<number | null>(null);
+  const [cvOptimizedDownloadPriceXaf, setCvOptimizedDownloadPriceXaf] = useState<number | null>(null);
   const searchParams = useSearchParams();
   const adaptMode = searchParams.get("mode") === "adapt";
   const adaptJobId = searchParams.get("jobId");
@@ -106,6 +109,27 @@ function CvStudioContent() {
       .then(job => setAdaptJob(job))
       .catch(() => setAdaptJob(null));
   }, [adaptMode, adaptJobId, adaptSource]);
+
+  useEffect(() => {
+    let active = true;
+    const loadEntitlements = async () => {
+      try {
+        const response = await authenticatedFetch("/api/entitlements", { cache: "no-store" });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result?.message || "Droits CV indisponibles.");
+        if (!active) return;
+        const entitlements = result?.entitlements || {};
+        if (result?.subscription?.plan) setPlan(String(result.subscription.plan));
+        setCvAtsDownloadPriceXaf(Number.isFinite(Number(entitlements.cvAtsDownloadPriceXaf)) ? Number(entitlements.cvAtsDownloadPriceXaf) : 0);
+        setCvOptimizedDownloadPriceXaf(Number.isFinite(Number(entitlements.cvOptimizedDownloadPriceXaf)) ? Number(entitlements.cvOptimizedDownloadPriceXaf) : 0);
+      } catch (error) {
+        if (!active) return;
+        setMessage(error instanceof Error ? error.message : "Droits CV indisponibles.");
+      }
+    };
+    void loadEntitlements();
+    return () => { active = false; };
+  }, []);
 
   function selectCv(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -484,7 +508,7 @@ function CvStudioContent() {
               </article>
             )}
             <div className="mx-auto mt-5 flex max-w-[760px] flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between">
-              <div><div className="font-extrabold">{mode === 'simple' ? 'CV Simple' : 'CV ATS'}</div><div className="text-xs text-slate-500">Téléchargement selon les droits de ton plan ou après confirmation du paiement.</div></div>
+              <div><div className="font-extrabold">{mode === 'simple' ? 'CV Simple' : 'CV ATS'}</div><div className="text-xs text-slate-500">Formule {plan} · ATS : {cvAtsDownloadPriceXaf === null ? "…" : cvAtsDownloadPriceXaf.toLocaleString("fr-FR") + " FCFA"} · CV optimisé : {cvOptimizedDownloadPriceXaf === null ? "…" : cvOptimizedDownloadPriceXaf.toLocaleString("fr-FR") + " FCFA"}. Téléchargement selon tes droits ou après confirmation du paiement.</div></div>
               <button type="button" onClick={() => void downloadCv()} disabled={downloadLoading} className="rounded-xl bg-[#FFD60A] px-4 py-3 font-black text-[#17212B] disabled:cursor-wait disabled:opacity-60"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />{downloadLoading ? "Préparation…" : "Télécharger le PDF"}</span></button>
             </div>
             {paymentFeature && (
