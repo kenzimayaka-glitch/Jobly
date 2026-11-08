@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.6 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.7 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -10,9 +10,9 @@
 >
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse Jobly, le mettre à jour dans cette branche et donner comme preuve le commit GitHub ainsi que le chemin du fichier. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
-> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail et portée au §15). Le correctif Talent est présent et couvert par le LOT-01. Ce PASS ne vaut pas validation du smoke runtime ni de la recette globale. Prochaine barrière : LOT-00 en lecture seule sur JOBLY-E2E.
+> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent et couvert par le LOT-01. Le premier audit LOT-00 en lecture seule est consigné au §16 ; **LOT-00 reste PARTIAL** tant que l'exposition Data API du schéma net et le durcissement des privilèges clients ne sont pas clos. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 
-**Version :** 2.6  
+**Version :** 2.7  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -628,9 +628,11 @@ Ce résultat n'est PAS :
 
 Aucun PASS runtime, aucun PASS LOT-00 et aucun PASS global n'est déduit de cette exécution. Aucun appel Supabase, aucune modification de fixture et aucune mutation métier ne sont rapportés pour ce test ciblé.
 
-### 15.3 Suite autorisée — LOT-00 strictement en lecture seule
+### 15.3 Audit LOT-00 initial — résultat détaillé au §16
 
-Prochaine étape : compléter l'audit LOT-00 sur le projet JOBLY-E2E ofqqrryamslxoqkklraw, sans aucun accès à JOBLY-PROD. Le rapport doit couvrir et prouver :
+L'audit initial en lecture seule sur JOBLY-E2E est désormais exécuté et consigné au §16. Le statut reste PARTIAL : l'exposition du schéma PostgreSQL net sur la Data API n'est pas encore confirmée, et les grants clients larges doivent être traités comme un point de moindre privilège. Aucune modification de base n'est autorisée pour fermer ces points sans revue dédiée.
+
+La dernière vérification requise est le contrôle GET du catalogue OpenAPI PostgREST avec les profils public puis net. Le rapport doit confirmer si net fait partie des schémas exposés, sans appeler aucune fonction net.http_*.
 
 1. **Identité de l'environnement** : URL/projet ciblé et confirmation que le ref est exactement ofqqrryamslxoqkklraw.
 2. **RLS** : état RLS des tables concernées par les parcours de recette et présence/absence des politiques applicables.
@@ -646,12 +648,151 @@ Après réception du rapport LOT-00, réconcilier les résultats avec le code et
 ### 15.4 État de continuité courant
 
 - E2E-001 : **PASS statique local — 6/6, 0 échec**.
-- LOT-00 : **à réaliser — lecture seule**.
+- LOT-00 : **PARTIAL — audit SQL en lecture seule réalisé ; exposition Data API du schéma net à confirmer**.
 - Smoke runtime Talent/Recruteur : **en attente du LOT-00**.
 - Recette bulk 11 lots : **suspendue**.
 - JOBLY-E2E : aucune mutation associée au test statique.
 - JOBLY-PROD : interdit, aucun accès.
 - Fixtures partagées : aucune modification.
 - Branche : e2e/recette.
+- PR #266 : ouverte, brouillon, non fusionnée.
+- main : inchangée ; aucun merge ni déploiement.
+
+---
+
+## 16. LOT-00 — audit SQL en lecture seule — 8 novembre 2026
+
+### 16.1 Identification du projet et méthode
+
+Audit réalisé via les outils de lecture de projet et de requête SQL, avec le project_id exact ofqqrryamslxoqkklraw.
+
+- Projet : JOBLY-E2E.
+- URL : https://ofqqrryamslxoqkklraw.supabase.co
+- État : ACTIVE_HEALTHY.
+- Région : eu-west-1.
+- PostgreSQL : 17.11.0.018.
+- Toutes les requêtes SQL de cette section ont été exécutées sur JOBLY-E2E et sont des SELECT / lectures de catalogues.
+- Aucune migration, aucun DDL, aucun DML, aucun changement Auth, aucun changement Storage et aucune lecture de secret ou de contenu de fichier.
+- Aucune requête SQL n'a été exécutée contre JOBLY-PROD.
+
+### 16.2 Tables publiques, RLS, politiques et grants
+
+Résultat du contrôle de catalogue :
+
+| Contrôle | Résultat |
+|---|---:|
+| Tables publiques | 180 |
+| Tables avec RLS | 180/180 |
+| Tables sans RLS | 0 |
+| Tables avec FORCE RLS | 0 |
+| Politiques RLS publiques | 215 |
+| Tables avec RLS mais sans policy | 26 |
+| Tables sans policy ayant un privilège direct anon/authenticated | 0 |
+
+Les 26 tables sans policy sont donc fermées aux rôles clients par absence de privilège direct, tout en restant accessibles au rôle serveur lorsque nécessaire. Le signal Advisor correspondant est INFO, pas une preuve d'exposition de lignes.
+
+Privilèges effectifs relevés au niveau table :
+
+- anon : privilèges sur 23 tables ; les quatre opérations SELECT/INSERT/UPDATE/DELETE sont accordées à ces tables au niveau SQL.
+- authenticated : privilèges sur 55 tables ; SELECT sur 55, INSERT sur 24, UPDATE sur 23 et DELETE sur 23.
+- service_role : SELECT sur les 180 tables publiques.
+
+Les grants clients sont plus larges que le strict minimum sur plusieurs tables. Les politiques RLS relevées sur les tables vérifiées ajoutent des contrôles par propriétaire (auth.uid() ou lien via User.authUserId) ; les lectures publiques identifiées sont limitées aux données actives/publiées pour Institution, BonPlan et ses commentaires. Les politiques core inspectées comprennent User, Profile, RecruiterProfile, Partner, Application, CandidateFile, CVShare, Career Journey, JiaWatch et RecruitmentApplicationDocument.
+
+**Conclusion grants/RLS :** aucune table sans policy n'est directement accordée aux rôles clients et aucune table publique n'est dépourvue de RLS. Les grants étendus sur des tables protégées par RLS restent toutefois un point de moindre privilège à documenter et réduire dans un chantier dédié ; aucune réduction n'est appliquée pendant la recette.
+
+### 16.3 Storage
+
+- 7 buckets détectés ; 0 objet dans Storage.
+- Buckets publics : jobly-events et profile-photos.
+- Buckets privés : jobly-payment-proofs, mobility-documents, mobility-provider-documents, recruitment-listings et talent-cvs.
+- RLS activé sur storage.buckets et storage.objects.
+- 4 policies sur storage.objects, toutes limitées au bucket talent-cvs, au rôle authenticated, avec chemin de dossier fondé sur auth.uid() pour SELECT/INSERT/UPDATE/DELETE.
+- Les rôles anon et authenticated ont des privilèges SQL SELECT/INSERT/UPDATE/DELETE sur storage.objects, mais RLS s'applique. Aucune policy anon n'a été trouvée ; aucune policy utilisateur n'a été trouvée pour les buckets privés hors talent-cvs. Le comportement attendu est donc le refus par défaut pour ces buckets privés.
+- Les deux buckets publics n'ont actuellement aucun objet ; l'accès public à leurs futurs objets découlera de leur configuration publique.
+
+**Point de contrôle restant :** confirmer que le statut public de jobly-events et profile-photos correspond à l'intention produit et conserver les documents privés hors accès client direct sans policy spécifique.
+
+### 16.4 Fixtures et correspondances Auth
+
+Comptages agrégés uniquement ; aucun e-mail, mot de passe, jeton ni identifiant personnel n'a été extrait dans le rapport.
+
+| Contrôle | Résultat |
+|---|---:|
+| Utilisateurs Auth | 4 |
+| Lignes public.User | 4 |
+| Liens User.authUserId → auth.users | 4/4 |
+| Identités marquées e2e_fixture | 3 |
+| Fixtures TALENT / RECRUITER / PARTNER | 1 / 1 / 1 |
+| Mismatch entre e2e_role et public.User.role | 0 |
+| Comptes Auth confirmés | 4 |
+| Comptes non bannis | 4 |
+| Profil Talent lié | 1 |
+| Profil Recruteur lié | 1 |
+| Profil Partenaire lié | 1 |
+
+Répartition public.User : ADMIN 1, TALENT 1, RECRUITER 1, PARTNER 1. Le lien Partner est établi via public.User.id ; le lien RecruiterProfile via public.User.authUserId. Aucune écriture ou modification de fixture.
+
+### 16.5 Advisor et fonctions privilégiées
+
+Advisor sécurité JOBLY-E2E :
+
+- 26 avis INFO rls_enabled_no_policy, cohérents avec le catalogue : aucun privilège direct client sur ces 26 tables.
+- 1 avertissement extension_in_public : extension pg_net version 0.20.4 installée avec son namespace d'extension public.
+- 1 avertissement anon_security_definer_function_executable et 1 avertissement authenticated : public.get_public_home_stats() est un SECURITY DEFINER exécutable par anon et authenticated.
+- 1 avertissement auth_leaked_password_protection : protection des mots de passe compromis désactivée (limitation de forfait déjà identifiée).
+
+La fonction public.get_public_home_stats() a été lue sans exécution. Elle ne prend aucun argument et retourne uniquement offersCount, talentsCount et updatedAt. Son search_path est vide et ses relations sont qualifiées en public. L'exposition publique de ces seuls agrégats paraît cohérente avec son nom et son usage de statistiques d'accueil ; ce n'est pas une exposition de données personnelles détectée dans son corps actuel.
+
+Pour pg_net, les fonctions HTTP sont situées dans le schéma PostgreSQL net. Les contrôles SQL indiquent :
+- USAGE du schéma net accordé à anon et authenticated ;
+- CREATE non accordé à ces rôles ;
+- EXECUTE accordé à anon et authenticated sur les fonctions net.http_get, net.http_post, net.http_delete et fonctions auxiliaires.
+
+La présence de ces privilèges ne suffit pas à prouver que le schéma net est exposé par PostgREST. Le paramètre PostgREST exposé n'a pas pu être lu depuis la session SQL. **Ne jamais appeler net.http_* pendant cette vérification.**
+
+### 16.6 Statut LOT-00
+
+**LOT-00 = PARTIAL, non clos.**
+
+Contrôles satisfaits :
+- identité projet JOBLY-E2E et disponibilité confirmées ;
+- RLS activé sur 180/180 tables publiques ;
+- absence de privilèges clients directs sur les 26 tables RLS sans policy ;
+- présence et correspondance des 3 fixtures métier E2E confirmées ;
+- inventaire des buckets et policies Storage établi.
+
+Points à fermer avant le PASS LOT-00 :
+1. Confirmer par GET OpenAPI PostgREST que le schéma net n'est pas exposé aux clients ; aucun appel RPC ou fonction net.http_*.
+2. Valider que les deux buckets publics jobly-events et profile-photos sont intentionnels.
+3. Documenter le plan de moindre privilège des grants table/storage, sans modifier les droits dans le cadre de cette recette.
+
+### 16.7 Contrôle opérateur suivant — GET uniquement
+
+Le préflight e2e/lot0-preflight.mjs ne vérifie que la clé publique, l'URL/ref du projet et le GET Auth settings. Il ne remplace pas l'audit SQL ci-dessus ni le contrôle d'exposition PostgREST. Ne pas lancer scripts/e2e-local-recipe.mjs : ce runner peut restaurer ou provisionner les fixtures, lancer Auth, smoke runtime, lots bulk, typecheck et build.
+
+Dans CMD, exécuter le contrôle OpenAPI suivant. Il émet exclusivement deux requêtes GET sur JOBLY-E2E, une pour public et une pour net. Il n'appelle aucune fonction métier et n'écrit aucune ligne :
+
+```bat
+cd /d C:\Users\ASUS\Jobly
+node -e "const run=async()=>{const url='https://ofqqrryamslxoqkklraw.supabase.co';const key='sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y';for(const schema of ['public','net']){const r=await fetch(url+'/rest/v1/',{method:'GET',headers:{apikey:key,Authorization:'Bearer '+key,Accept:'application/openapi+json','Accept-Profile':schema}});const raw=await r.text();let body={};try{body=JSON.parse(raw)}catch{};console.log(JSON.stringify({schema,status:r.status,apiSchemaAccepted:r.ok,code:body.code??null,message:body.message??null}));}};run().catch(e=>{console.error('LOT00_SCHEMA_CHECK_ERROR:',e.message);process.exitCode=1;});" > feedback-lot00-net-schema-exposure.txt 2>&1
+notepad feedback-lot00-net-schema-exposure.txt
+```
+
+Interprétation :
+- public accepté et net refusé avec erreur de schéma non exposé (par exemple PGRST106) : la barrière d'exposition de net est satisfaite.
+- net accepté : LOT-00 reste BLOCKED sur ce point ; aucune correction automatique. Il faudra examiner la configuration Data API et retirer net des schémas exposés ou restreindre ses EXECUTE via une migration dédiée après revue.
+- Réponse réseau/authentification ou résultat ambigu : BLOCKED, ne rien modifier et transmettre le rapport.
+
+Après ce contrôle, réconcilier les buckets publics et les grants, puis seulement statuer sur LOT-00. Aucun smoke runtime, bulk, changement de fixtures, merge ou déploiement avant clôture.
+
+### 16.8 État courant
+
+- E2E-001 : **PASS statique local — 6/6**.
+- LOT-00 : **PARTIAL — SQL read-only effectué ; vérification API net et revue des points de moindre privilège en attente**.
+- Smoke runtime Talent/Recruteur : **suspendu jusqu'à LOT-00 PASS**.
+- Recette bulk 11 lots : **suspendue**.
+- JOBLY-PROD : aucune requête SQL, aucune écriture.
+- Fixtures partagées : inchangées.
 - PR #266 : ouverte, brouillon, non fusionnée.
 - main : inchangée ; aucun merge ni déploiement.
