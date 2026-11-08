@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.81 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.82 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -4250,6 +4250,9 @@ Aucune modification Supabase/Storage, aucun accès JOBLY-PROD, aucune migration 
 
 **Exception de traçabilité — aperçu PR automatique :** après ouverture de PR #267, le statut externe `netlify/thriving-cannoli-c23611/deploy-preview` a été signalé et l'URL `https://deploy-preview-267--thriving-cannoli-c23611.netlify.app` a été publiée. Les checks Netlify de règles et de pages ont ensuite affiché `neutral`. Cet aperçu semble déclenché par l'intégration Netlify déjà rattachée au dépôt ; il n'a pas été lancé manuellement ici et ne vise pas la production. Cela contredit la préférence projet « Vercel, pas Netlify ». Aucune modification de l'intégration n'a été faite ; il faudra la désactiver ou la remplacer avant les prochaines PR si Vercel doit être l'unique fournisseur d'aperçu.
 
-**Seconde exécution CI déclenchée par l'ouverture de PR #267 :** run `42498056605` (CI Typecheck & Build) et `42498056596` (Verify offer pipeline) étaient encore `in_progress` au dernier contrôle ; le typecheck était déjà PASS, le build et la vérification du pipeline d'offres restaient en cours. Le premier run push `42497839381` reste entièrement PASS. Ne pas présenter les contrôles PR comme terminés avant clôture de ces deux runs.
+**Seconde exécution CI déclenchée par l'ouverture de PR #267 :** les deux runs sont maintenant terminés **PASS** :
+- CI Typecheck & Build : [42498056605](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42498056605) — typecheck et build de production PASS ;
+- Verify offer pipeline : [42498056596](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42498056596) — PASS.
+Les autres checks Actions de la PR observés (registre, Security Core, migrations isolées, gates J’IA et validation harvest) sont PASS ; le crawl en mode PR est SKIPPED comme prévu. Le premier run push [42497839381](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42497839381) reste entièrement PASS.
 
-Mise à jour V2.81 sur `e2e/recette`. Source précédente : blob SHA `2f0a844f9ff1bb61b92998ea62caf9bf06dda9a5`.
+Mise à jour V2.82 sur `e2e/recette`. Source précédente : blob SHA `095d7e376f0b2e176f9dbd26a2429043103c339b`.
