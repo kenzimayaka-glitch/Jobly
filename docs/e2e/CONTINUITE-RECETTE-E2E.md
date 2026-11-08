@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.120 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.121 — 8 novembre 2026
 >
 > **Dernière correction de code Storage LOT-00 :** `f3753f7370007647a5e4bf99c130c69437d0c921` ; runner épinglé `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke de connexion initial **3/3 PASS** (§96) et cycle de session **12/12 PASS** (§99), avec connexion, vérification du jeton, rôle signé et renouvellement de session validés pour TALENT, RECRUITER et PARTNER. Le rapport `auth-session-smoke.json` du 8 novembre 2026 à 22:30:34 UTC confirme `status=PASS`, `environment=JOBLY-E2E`, le projet `ofqqrryamslxoqkklraw` et `externalMessagesSent=false`. Aucun credential n'a été imprimé dans ce rapport et aucun message externe envoyé. LOT-01 global reste en cours : les parcours fonctionnels et contrôles d'autorisations API par rôle sont encore à valider. `main` et JOBLY-PROD restent hors périmètre ; ne pas réinitialiser les fixtures.
+> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke de connexion initial **3/3 PASS** (§96) et cycle de session/renouvellement **12/12 PASS** (§99), couvrant TALENT, RECRUITER et PARTNER. Le rapport du 8 novembre 2026 à 22:30:34 UTC confirme `status=PASS`, `environment=JOBLY-E2E`, projet `ofqqrryamslxoqkklraw` et `externalMessagesSent=false`. Audit statique préalable du prochain scénario `e2e/authenticated-role-smoke.mjs` : contrôles API par rôle, refus d'accès non autorisé et scénario synthétique Talent→Recruteur ; il réalise également des créations/mises à jour/suppressions de données temporaires JOBLY-E2E et nécessite que l'API locale ait `SUPABASE_SERVICE_ROLE_KEY`. Le parcours croisé peut lire `.e2e-fixture-runtime.json` pour un service role E2E ; ne pas reconstituer/restaurer ce runtime ni provisionner les fixtures. Le script n'a pas encore été exécuté. LOT-01 global reste en cours. `main` et JOBLY-PROD restent hors périmètre.
 
-**Version :** 2.120  
+**Version :** 2.121  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -60,9 +60,38 @@ Les douze identifiants de contrôle `JOBLY-E2E-AUTH-{TALENT,RECRUITER,PARTNER}-{
 
 ---
 
+## 100. LOT-01 — audit de sûreté du scénario API authentifié par rôle
+
+**Mise à jour : 8 novembre 2026. Statut : AUDIT STATIQUE EFFECTUÉ ; exécution non lancée.**
+
+Script relu sur `e2e/recette` : `e2e/authenticated-role-smoke.mjs`, blob `4fc2fd7a16ca7d28a4f685e380c9b067ba08908d`. Ce scénario constitue la prochaine couverture du LOT-01 après le PASS du cycle Auth §99.
+
+### Couverture prévue
+- TALENT : lecture du profil, candidatures, flux local/Afrique, détail d'offre active, CV original et Career Journey.
+- RECRUITER : lecture du profil, offres, candidatures, talents et Recruitment360 ; test d'un identifiant de recrutement non détenu (403 attendu) et d'un document associé à une candidature inexistante (404 attendu).
+- PARTNER : lecture du profil, commissions et onboarding ambassadeur.
+- Parcours synthétique Talent → Recruteur : création d'une offre locale publiée fictive, préparation d'une candidature `USER_REVIEW` sans envoi externe, contrôle de visibilité côté Talent/Recruteur, transition INTERVIEW puis OFFER, tentative de conflit Talent et vérification que la décision Recruteur reste prioritaire.
+
+### Mutations contrôlées et prérequis
+- Le scénario Recruteur crée un brouillon via API, le relit/modifie puis tente de le supprimer via API dans un `finally`.
+- Le parcours croisé crée une offre publiée E2E, renseigne uniquement un contact `example.invalid`, prépare une candidature synthétique non envoyée, teste les transitions et nettoie l'offre/candidature. Si la suppression API échoue, le script prévoit une suppression de repli strictement filtrée sur les IDs et propriétaires du run, via l'admin JOBLY-E2E, puis vérifie l'absence des lignes.
+- La route `/api/applications` confirme dans le code que la candidature préparée reste `USER_REVIEW`; le message/email n'est pas envoyé. Le test fournit `letterText`, ce qui force `skipAi` et évite l'appel au fournisseur IA.
+- Le script du parcours croisé lit `.e2e-fixture-runtime.json` et utilise sa clé privée uniquement en mémoire pour le ciblage/nettoyage de données JOBLY-E2E. Si le fichier runtime manque, ce sous-parcours est `BLOCKED` sans créer l'offre publiée ni la candidature ; les contrôles API individuels peuvent néanmoins s'exécuter.
+- Les routes Next.js utilisent `lib/server-auth.ts::adminClient()`, qui attend actuellement `SUPABASE_SERVICE_ROLE_KEY`. La présence de `SUPABASE_SECRET_KEY` seule ne prouve pas que le serveur local a cette variable attendue. Ne pas copier ou restaurer automatiquement une clé/runtime pour contourner ce prérequis.
+
+### Garde-fous pour la reprise
+- Exécution locale seulement avec le code exact de `e2e/recette` et un serveur Next.js construit/démarré depuis cette même source ; la copie habituelle étant en retard et très modifiée, ne pas lancer le scénario depuis une source locale non synchronisée.
+- Avant tout démarrage, vérifier sans révéler de valeur : URL/ref JOBLY-E2E, disponibilité locale de `SUPABASE_SERVICE_ROLE_KEY`, présence éventuelle d'un runtime déjà existant et son projet déclaré. Ne jamais afficher la valeur d'une clé ni copier le runtime depuis un autre contexte.
+- Ne pas lancer `scripts/e2e-local-recipe.mjs`, le provisionneur ni le reset de mots de passe. Ne pas déclencher le workflow complet des 11 lots pour n'exécuter que ce scénario.
+- En l'état, aucun test API de rôle n'est déclaré PASS ; aucune donnée E2E n'a été créée par cet audit statique.
+
+**Résultat :** script approprié identifié, mais exécution différée jusqu'au préflight de configuration/serveur afin d'éviter d'exécuter un ancien build ou de déclencher des mutations sur une configuration incomplète.
+
+---
+
 ## 98. Point de reprise — LOT-01 Auth après demande de poursuite
 
-**Mise à jour : 8 novembre 2026. Statut inchangé : smoke Auth initial PASS 3/3 ; cycle de session complémentaire NOT RUN.**
+**État actualisé au §99 : smoke Auth initial PASS 3/3 ; cycle de session complémentaire PASS 12/12.**
 
 À la demande de poursuivre la recette, la matrice E2E a été relue sur `e2e/recette`. Le prochain scénario exécutable reste `e2e/auth-session-smoke.mjs` (§97), déjà présent dans la branche et relu par blob Git `86568783a7a0f9023553dfdbf53af736cea4cc12`.
 
@@ -70,13 +99,13 @@ La commande CMD a été vérifiée et communiquée pour récupérer le script in
 
 ### État à reprendre
 - Smoke de connexion initial (`fixture-password-verification.json`) : **PASS 3/3** (§96).
-- Cycle de session Auth (`auth-session-smoke.json`) : **NOT RUN**, 12 contrôles attendus (§97).
+- Cycle de session Auth (`auth-session-smoke.json`) : **PASS 12/12** (§99).
 - LOT-01 global : **EN COURS**, non clôturé.
 - LOT-00 : **PASS / CLOS**.
 - `main` : `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangée ; PR #266/#267 toujours en brouillon et non fusionnées selon le dernier état documenté.
 - Aucun accès JOBLY-PROD, aucun merge, aucun déploiement, aucun reset/provisionnement de fixture.
 
-**Prochaine preuve requise :** transmettre uniquement le rapport `artifacts/e2e/auth-session-smoke.json` généré après l'exécution locale. Ne pas transmettre `.e2e-fixtures.json`, les mots de passe, les clés ou les tokens.
+**Preuve obtenue :** le rapport `artifacts/e2e/auth-session-smoke.json` reçu le 8 novembre 2026 à 22:30:34 UTC valide 12/12 contrôles (§99). Ne pas transmettre `.e2e-fixtures.json`, les mots de passe, les clés ou les tokens.
 
 ---
 ## 97. LOT-01 — cycle de session Auth par rôle : prochaine exécution
