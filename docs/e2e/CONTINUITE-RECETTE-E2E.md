@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.85 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.86 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -4430,3 +4430,105 @@ L'organisation Supabase de JOBLY-E2E est sur le **forfait Free**. La documentati
 **Aucune correction SQL/Storage n'a été appliquée pendant cet audit.** Une migration de moindre privilège doit être préparée après inventaire des consommateurs, relue, puis appliquée à JOBLY-E2E uniquement avec validation et tests de régression. Ne jamais appliquer cette proposition à JOBLY-PROD dans le cadre de la présente recette.
 
 Mise à jour V2.85 sur `e2e/recette`. Source précédente : blob SHA `a6bd2dce5d6e75e190eb2eed0b43d92c27d4c2cf`. PR #266 reste ouverte, brouillon et non fusionnée ; PR #267 reste distincte, ouverte et brouillon. `main` reste inchangée sur `979f2ccfec9258bc30989af18433cf6adb1b4698`.
+
+
+## 84. LOT-00 — correction des privilèges SQL appliquée, Storage en attente d'API
+
+### 84.1 Migration SQL réellement appliquée sur JOBLY-E2E
+
+Le 8 novembre 2026, l'outil Supabase a confirmé l'application réussie de la migration :
+
+- Version distante : `20261108165510`
+- Nom : `jobly_e2e_lot00_least_privilege_public_api`
+- Fichier de continuité : `supabase/migrations/20261108165510_jobly_e2e_lot00_least_privilege_public_api.sql`
+- Aucun accès à JOBLY-PROD et aucun déploiement.
+
+La migration réalise uniquement des changements de privilèges :
+1. Pour les futurs objets créés par le rôle `postgres` dans `public`, retrait des privilèges par défaut de table, séquence et fonction pour `anon` et `authenticated`. Les privilèges `service_role` sont conservés.
+2. Révocation des droits directs de `anon` sur les tables publiques ; seuls `SELECT` sur `BonPlan`, `BonPlanComment` et `Institution` sont accordés à nouveau.
+3. Retrait de `TRUNCATE`, `REFERENCES` et `TRIGGER` à `authenticated`, sans retirer ses droits applicatifs `SELECT/INSERT/UPDATE/DELETE` existants.
+4. Révocation des privilèges de séquence des rôles clients et de l'exécution anonyme des fonctions du schéma public.
+5. Fermeture de `get_public_home_stats()` aux rôles clients et du RPC `recruitment360_lot10_execute_batch` à `PUBLIC`/`anon`, tout en conservant les deux fonctions nécessaires aux parcours authentifiés : batch Recruitment360 et consentement de publication officielle.
+6. Retrait de l'exécution client des deux fonctions de déclencheur `set_applications_updated_at()` et `set_profiles_updated_at()`.
+
+### 84.2 Vérifications post-migration — PASS
+
+Résultats des requêtes de catalogue exécutées après application :
+
+| Contrôle | Avant | Après |
+|---|---:|---:|
+| Tables publiques avec RLS | 180/180 | **180/180** |
+| GRANT de lecture `anon` | 23 tables | **3 tables** |
+| GRANT d'insertion `anon` | 23 tables | **0** |
+| GRANT de mise à jour `anon` | 23 tables | **0** |
+| GRANT de suppression `anon` | 23 tables | **0** |
+| `authenticated` — SELECT | 55 | **55** |
+| `authenticated` — INSERT | 24 | **24** |
+| `authenticated` — UPDATE | 23 | **23** |
+| `authenticated` — DELETE | 23 | **23** |
+| `authenticated` — TRUNCATE / REFERENCES / TRIGGER | 23 | **0 / 0 / 0** |
+| Tables RLS sans policy et accessibles au client | 0 | **0** |
+
+- Les trois seules relations disposant d'un GRANT de lecture anonyme sont `BonPlan`, `BonPlanComment` et `Institution`. Aucune d'elles n'a conservé de GRANT d'écriture.
+- Une transaction de lecture avec `SET LOCAL ROLE anon` s'est exécutée ; les trois SELECT ont retourné zéro ligne dans ce jeu E2E (aucune donnée correspondante n'y était présente). La transaction a été annulée ensuite.
+- Les 181 objets actuellement présents dans `public` (tables, vues et autres relations inspectées) appartiennent au rôle `postgres`. Les ACL par défaut de `postgres` ne mentionnent plus `anon` ni `authenticated` pour tables, fonctions ou séquences. Les droits de `service_role` restent présents.
+- Les fonctions publiques exécutables après correction par `authenticated` sont limitées à `recruitment360_lot10_execute_batch` et `recruitment360_lot11_set_listing_consent`. Aucune fonction du schéma `public` inspectée ne reste exécutable par `anon`.
+- `get_public_home_stats()` n'est plus exécutable par `anon` ou `authenticated`. La route active `app/api/public/home-stats/route.ts` utilise `adminClient` et ne l'appelle pas ; aucun appel à ce RPC n'a été trouvé dans les logs E2E des dernières 24 heures.
+- Security Advisor : les deux WARN `anon_security_definer_function_executable` et `authenticated_security_definer_function_executable` ont disparu. Restent INFO `rls_enabled_no_policy` (26 tables internes sans accès client) et WARN `extension_in_public` (`pg_net`) / `auth_leaked_password_protection` (limitation du forfait Free). Health Advisor : aucun finding.
+
+### 84.3 Paramètres de Storage — script sécurisé préparé, non exécuté
+
+La documentation Supabase actuelle demande d'utiliser l'API Storage pour les modifications des buckets et de traiter les tables du schéma `storage` comme des tables système en lecture seule. Aucun `UPDATE storage.buckets` n'a donc été exécuté par SQL.
+
+Le script local `scripts/e2e/lot00-storage-bucket-hardening.mjs` a été créé sur `e2e/recette`. Il :
+- charge les variables locales avec `@next/env` ;
+- refuse toute URL/projet autre que `https://ofqqrryamslxoqkklraw.supabase.co` ;
+- accepte une ancienne clé JWT `service_role` seulement après vérification de son claim `ref`, ou une clé `sb_secret_` fournie sous le nom explicite `SUPABASE_E2E_SECRET_KEY` ;
+- n'imprime et ne sauvegarde aucune clé ;
+- met à jour les buckets via `admin.storage.updateBucket`, relit chaque bucket, compare les limites et tente une restauration des réglages précédents si une mise à jour échoue.
+
+Configuration à appliquer :
+
+| Bucket | Confidentialité | Limite | MIME autorisés |
+|---|---|---:|---|
+| `talent-cvs` | privé | 3 MiB | PDF |
+| `recruitment-listings` | privé | 50 MiB | PDF, XLSX, HTML, HTML UTF-8, JPEG |
+| `mobility-documents` | privé | 10 MiB | PDF, JPEG, PNG, WebP |
+
+Le bucket `mobility-documents` est actuellement vide et aucune route d'upload correspondante n'a été trouvée dans l'inventaire des API actives ; la configuration est une allowlist prudente pour ce bucket réservé. Elle devra être révisée si un futur parcours nécessite d'autres types de documents.
+
+Les buckets `jobly-events`, `profile-photos`, `jobly-payment-proofs` et `mobility-provider-documents` restent inchangés : leurs réglages actuels concordent avec les contrôles et décisions consignés plus haut. Les buckets concernés par le script ne contiennent actuellement aucun objet.
+
+### 84.4 Dépendance code pour les exports HTML
+
+Le validateur MIME de Supabase Storage compare le type déclaré au type autorisé. Le code d'export Recruitment360 déclarait `text/html; charset=utf-8`, tandis que la configuration canonique attend `text/html`. La branche de correction PR #267 utilise désormais `text/html` ; le HTML conserve son encodage dans `<meta charset="utf-8">`. Le script accepte encore les deux formes pendant la transition.
+
+- Commit PR #267 : `b4c6f625d432a4550dcfcb42cb50df8cf7a8cc2c`.
+- PR #267 reste ouverte, brouillon, non fusionnée.
+- Aucun déploiement de cette correction n'a été effectué.
+
+### 84.5 Commande opérateur — appliquer et vérifier les trois buckets sur JOBLY-E2E
+
+La clé privée doit déjà être présente dans `.env.local` ou `.env`. Ne pas la copier dans le chat. Pour une clé moderne `sb_secret_`, utiliser localement le nom `SUPABASE_E2E_SECRET_KEY`; le script refuse une clé qui ne peut pas être rattachée explicitement à JOBLY-E2E.
+
+```cmd
+cd /d C:\Users\ASUS\Jobly
+set "E2E_PROJECT_REF=ofqqrryamslxoqkklraw"
+set "NEXT_PUBLIC_SUPABASE_URL=https://ofqqrryamslxoqkklraw.supabase.co"
+node scripts/e2e/lot00-storage-bucket-hardening.mjs --apply-lot00-e2e-storage-hardening > feedback-lot00-storage-20261108.txt 2>&1
+set "RECIPE_EXIT=%ERRORLEVEL%"
+echo exit_code=%RECIPE_EXIT%>>feedback-lot00-storage-20261108.txt
+notepad feedback-lot00-storage-20261108.txt
+```
+
+Résultat attendu : trois buckets en `PASS`, `status=PASS`, `exit_code=0`. Si le script renvoie `BLOCKED` ou `FAIL`, ne pas essayer de contourner la garde ; transmettre le rapport expurgé. Ne jamais fournir la clé privée.
+
+### 84.6 Statut révisé
+
+- **SQL / matrice des privilèges : PASS.**
+- **RLS / tables internes : PASS.**
+- **RPC clients / fonctions de déclencheur : PASS.**
+- **Storage — restrictions par bucket : NOT RUN**, en attente de l'exécution locale du script via l'API Storage.
+- **LOT-00 global : PARTIAL**, jusqu'à la vérification positive/négative de ces trois configurations Storage. Le contrôle OpenAPI et l'exposition éventuelle de `net` restent réservés au LOT-11.
+
+Mise à jour V2.86 sur `e2e/recette`. Les deux PR restent ouvertes en brouillon et non fusionnées. `main` reste inchangée sur `979f2ccfec9258bc30989af18433cf6adb1b4698`. Aucun accès JOBLY-PROD, aucune modification de Storage ou aucun déploiement de production n'ont été effectués.
