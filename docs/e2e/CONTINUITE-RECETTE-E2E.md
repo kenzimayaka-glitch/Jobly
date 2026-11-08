@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.61 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.62 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3286,3 +3286,44 @@ Aucun PAT n'a été demandé dans le chat, affiché ou enregistré. Aucun appel 
 LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED**. JOBLY-PROD hors périmètre ; aucun changement `main`, aucune fusion ni déploiement. PR #266 reste ouverte, brouillon et non fusionnée.
 
 Document source avant cette mise à jour : V2.60, blob SHA 641f828835483ca54ad9955dd7e7e0c886eef04b, branche `e2e/recette`.
+
+---
+
+## 64. Connexion CLI par flux navigateur — PAT full-access détecté — V2.62 — 8 novembre 2026
+
+### 64.1 Déclaration opérateur
+
+L'opérateur confirme avoir exécuté `npx.cmd --yes supabase@3.0.0 login`, avoir été redirigé vers le navigateur, reçu un jeton via le flux Supabase et terminé la connexion dans CMD.
+
+### 64.2 Portée du jeton
+
+La documentation Supabase mise à jour le 2 novembre 2026 précise explicitement que le flux navigateur de `supabase login` crée actuellement un PAT avec accès complet au compte. Il ne s'agit donc pas du PAT scoped minimal recherché pour LOT-00. Le CLI l'a enregistré localement ; aucune valeur n'a été transmise à l'assistant.
+
+Sources officielles vérifiées le 8 novembre 2026 :
+- https://supabase.com/docs/guides/platform/personal-access-tokens
+- https://supabase.com/changelog/scoped-personal-access-tokens-ga
+- https://supabase.com/docs/reference/cli/introduction
+
+### 64.3 Décision de sécurité
+
+- Ne pas utiliser le PAT issu du flux navigateur pour récupérer les clés du projet.
+- Ne pas transmettre, afficher ou journaliser ce PAT.
+- Créer dans Dashboard → Account preferences → Access Tokens un PAT **scoped** limité au seul projet JOBLY-E2E (`ofqqrryamslxoqkklraw`) et aux permissions **API Keys — Read** + **API Key Secrets — Read**, sans permission Write.
+- Une fois le PAT scoped créé et son usage local vérifié, révoquer/supprimer le PAT full-access créé par le flux navigateur, en identifiant exactement ce jeton dans la liste des tokens. Ne pas supprimer un autre PAT existant.
+- Injecter le PAT scoped uniquement dans l'environnement mémoire du processus PowerShell/CLI qui effectue le contrôle ciblé ; ne pas le passer en argument de commande, ne pas l'ajouter à un fichier ni au dépôt.
+- La variable d'environnement locale doit être supprimée en `finally` après l'exécution. Ne pas modifier le token stocké par défaut si le PAT scoped temporaire via environnement suffit.
+
+### 64.4 Permissions de lecture des clés
+
+La table des permissions Supabase associe **API Keys — Read** à la lecture de la liste et des métadonnées des clés, et **API Key Secrets — Read** à la révélation de leur valeur. La lecture ciblée de la Legacy `service_role` nécessite les deux droits read-only. Aucun droit d'écriture n'est requis.
+Source : https://supabase.com/docs/guides/platform/personal-access-tokens
+
+### 64.5 État
+
+- Authentification CLI : flux navigateur terminé localement, mais PAT stocké considéré full-access par la documentation ; il n'est pas approuvé pour l'opération de lecture de clé.
+- PAT scoped : non encore créé.
+- Aucune clé API lue via CLI ; aucun GET OpenAPI effectué.
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- JOBLY-PROD hors périmètre ; aucune mutation Supabase/fixture ; aucun changement de clé API, `main`, aucune fusion et aucun déploiement.
+- PR #266 reste ouverte, brouillon et non fusionnée.
+- Document source avant cette mise à jour : V2.61, blob SHA 69d4862bfbf08cacad7c6e10dfe69b611256c742, branche `e2e/recette`.
