@@ -66,11 +66,14 @@ const bodySignature = (move) => ({
 });
 const bodyGroupsBySignature = new Map();
 for (const [key, move] of entries) {
+  const name = key.replace(/^\d+_/, "");
+  // The neutral idle/focus pose is a baseline, not a produced body gesture.
+  if (name === "idle" || name === "focus") continue;
   const body = bodySignature(move);
   if (!Object.values(body).some(Boolean)) continue;
   const signature = JSON.stringify(stable(body));
   if (!bodyGroupsBySignature.has(signature)) bodyGroupsBySignature.set(signature, []);
-  bodyGroupsBySignature.get(signature).push(key.replace(/^\d+_/, ""));
+  bodyGroupsBySignature.get(signature).push(name);
 }
 const bodyShapes = [...bodyGroupsBySignature.keys()];
 const uniqueGestureNames = unique(clipPaths.map((path) => path.split("/").pop().replace(/\.webm$/i, "").replace(/--\d+$/, "")));
@@ -184,8 +187,9 @@ test("conversation keeps its adaptive layout while using a non-physical presence
   }
 });
 
-test("all 50 body gesture variations resolve to real clip or rig movement assets", () => {
+test("all 50 body gesture variations resolve to real clip or rig movement assets, excluding the neutral idle baseline", () => {
   assert.equal(bodyGestureCatalog.length, 50);
+  assert.equal(bodyGestureCatalog.some((item) => item.id === "rig:idle" || item.id === "rig:focus"), false);
   assert.equal(uniqueGestureNames.length, 39);
   assert.equal(rigOnlyBodyNames.length, 11);
   for (const item of bodyGestureCatalog) {
