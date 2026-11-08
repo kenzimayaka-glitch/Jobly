@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.57 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.58 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3109,3 +3109,53 @@ notepad feedback-lot00-cli-preflight-20261108.txt
 - Aucun changement de `main`, aucune fusion, aucun déploiement.
 - PR #266 reste ouverte, brouillon et non fusionnée.
 - Document source avant cette mise à jour : V2.56, blob SHA `d48e06078af5f0591908c283a74973fa3a30625c`, branche `e2e/recette`.
+
+
+---
+
+## 60. CLI globale absente — préflight sans installation globale — V2.58 — 8 novembre 2026
+
+### 60.1 Résultat opérateur
+
+Le préflight PowerShell 5.1 communiqué retourne :
+```text
+supabase_cli_available=False
+supabase_cli_version=NOT_FOUND
+api_keys_command_project_ref_supported=False
+management_api_auth=NOT_CHECKED
+jobly_e2e_visible=False
+projects_list_exit_code=NOT_RUN
+failure=CLI_NOT_FOUND_OR_PREFLIGHT_ERROR
+```
+
+Conclusion : aucune CLI `supabase` globale n'est détectée. L'authentification CLI n'a donc pas encore été testée. Ce résultat ne dit rien sur la présence d'une session Management API locale par une autre voie.
+
+### 60.2 Méthode sans installation globale ni modification du dépôt
+
+La documentation Supabase à jour (guide Windows/Node mis à jour le 2 novembre 2026) accepte l'exécution du CLI par `npx supabase`, avec Node.js 20 ou supérieur. Le poste est rapporté sous Node.js 26.13.0. Utiliser `npx --yes supabase@latest` permet au préflight de charger le CLI dans le cache npm plutôt que d'ajouter une dépendance au `package.json` du dépôt ou de l'installer globalement.
+
+Références :
+- https://supabase.com/docs/guides/local-development/cli/getting-started?access-method=analytics&platform=windows&queryGroups=access-method&queryGroups=platform
+- https://supabase.com/docs/reference/cli/introduction
+
+### 60.3 Prochaine commande autorisée — préflight npx uniquement
+
+Elle vérifie le binaire npx, télécharge/charge le CLI dans le cache npm si nécessaire, lit sa version et l'aide de `projects api-keys), puis tente `projects list`. Elle ne récupère aucune API key et ne fait aucune requête à PostgREST.
+
+~~~bat
+cd /d C:\Users\ASUS\Jobly
+powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';$report='feedback-lot00-npx-preflight-20261108.txt';$available=$false;$version='NOT_FOUND';$helpFlagProjectRef=$false;$helpFlagRemote=$false;$auth='NOT_CHECKED';$e2e=$false;$versionExit='NOT_RUN';$helpExit='NOT_RUN';$projectsExit='NOT_RUN';$failure='NONE';try{$npx=Get-Command npx.cmd -ErrorAction Stop;$available=$true;$v=@(& $npx.Source --yes supabase@latest --version 2>&1);$versionExit=[string]$LASTEXITCODE;if($versionExit -eq '0'){$version=($v -join ' ').Trim()};$h=@(& $npx.Source --yes supabase@latest projects api-keys --help 2>&1);$helpExit=[string]$LASTEXITCODE;$ht=($h | ForEach-Object {[string]$_}) -join ' ';$helpFlagProjectRef=($ht -match '--project-ref');$helpFlagRemote=($ht -match '--remote');$p=@(& $npx.Source --yes supabase@latest projects list 2>&1);$projectsExit=[string]$LASTEXITCODE;$pt=($p | ForEach-Object {[string]$_}) -join ' ';if($projectsExit -eq '0'){$auth='CLI_AUTH_OK';$e2e=($pt -match 'ofqqrryamslxoqkklraw')}else{$auth='CLI_AUTH_REQUIRED_OR_API_ERROR'};$v=$null;$h=$null;$ht=$null;$p=$null;$pt=$null}catch{$failure='NPX_NOT_FOUND_OR_PREFLIGHT_ERROR'};$lines=@('runtime=PowerShell '+$PSVersionTable.PSVersion.ToString(),'npx_available='+$available,'supabase_cli_version='+$version,'version_exit_code='+$versionExit,'api_keys_help_exit_code='+$helpExit,'api_keys_flag_project_ref='+$helpFlagProjectRef,'api_keys_flag_remote='+$helpFlagRemote,'management_api_auth='+$auth,'jobly_e2e_visible='+$e2e,'projects_list_exit_code='+$projectsExit,'failure='+$failure);Set-Content -Path $report -Value $lines -Encoding ASCII;$lines"
+notepad feedback-lot00-npx-preflight-20261108.txt
+~~~
+
+### 60.4 Garde-fous
+
+- Aucun token PAT demandé ou transmis dans la conversation.
+- Aucun API key n'est récupéré ou affiché par ce préflight.
+- Aucun fichier de dépendance du dépôt n'est modifié ; le paquet CLI n'est utilisé que depuis le cache npm via `npx`.
+- Aucune commande `projects api-keys` sans `--help) ; aucun GET OpenAPI à ce stade.
+- Si la CLI indique une authentification manquante, la prochaine étape sera une authentification interactive locale officielle, puis un nouveau contrôle de visibilité du seul projet E2E.
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- JOBLY-PROD hors périmètre ; aucune mutation Supabase/fixture ; aucune modification de clé, `main), fusion ou déploiement.
+- PR #266 reste ouverte, brouillon et non fusionnée.
+- Document source avant cette mise à jour : V2.57, blob SHA `b6b63b918582fcd9378e3a94f06d0fb7fee81ff5`, branche `e2e/recette`.
