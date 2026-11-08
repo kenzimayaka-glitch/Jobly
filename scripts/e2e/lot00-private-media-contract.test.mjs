@@ -116,3 +116,15 @@ test("Storage runner accepts current Supabase private-key aliases without disclo
   assert.match(diagnostic, /acceptedFormat: selectedKey\.startsWith\("sb_secret_"\)/);
   assert.match(diagnostic, /credentials: "not included"/);
 });
+
+
+test("Storage hardening applies a real signed-read and anonymous-denial smoke with guaranteed cleanup", async () => {
+  const hardening = await read("scripts/e2e/lot00-storage-bucket-hardening.mjs");
+  const smoke = await read("scripts/e2e/lot00-storage-access-smoke.mjs");
+  assert.match(hardening, /verifyPrivateStorageAccess\(\{ admin, supabaseUrl: url, anonKey \}\)/);
+  assert.match(hardening, /storageAccessSmoke: \[\]/);
+  assert.match(smoke, /bucket\.createSignedUrl/);
+  assert.match(smoke, /anonymousPublicRead/);
+  assert.match(smoke, /finally/);
+  assert.match(smoke, /bucket\.remove\(\[objectPath\]\)/);
+});

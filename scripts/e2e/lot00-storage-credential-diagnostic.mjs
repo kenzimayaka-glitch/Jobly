@@ -5,7 +5,7 @@ import process from "node:process";
 const secretNames = ["SUPABASE_E2E_SECRET_KEY", "SUPABASE_SECRET_KEY"];
 const serviceNames = ["SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY"];
 const names = [...secretNames, ...serviceNames];
-const anonName = "NEXT_PUBLIC_SUPABASE_ANON_KEY";
+const anonNames = ["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_ANON_KEY"];
 const reportPath = path.resolve("feedback-lot00-storage-credential-diagnostic.txt");
 
 function parseEnvValue(raw) {
@@ -46,7 +46,7 @@ for (const filename of [".env", ".env.local"]) {
   const fullPath = path.join(root, filename);
   const exists = existsSync(fullPath);
   const found = {};
-  const allNames = [...names, anonName];
+  const allNames = [...names, ...anonNames];
   const counts = Object.fromEntries(allNames.map((name) => [name, 0]));
   const parsedInThisFile = new Map();
   if (exists) {
@@ -73,11 +73,11 @@ for (const filename of [".env", ".env.local"]) {
 // Match the storage script's precedence: .env.local over .env; an already
 // defined process variable (even an empty string) takes precedence over files.
 const effective = {};
-for (const name of names) {
+for (const name of [...names, ...anonNames]) {
   const processDefined = typeof process.env[name] !== "undefined";
   const processNonEmpty = Boolean(process.env[name]);
   const fileValue = fileValues.get(name) ?? "";
-  const value = processDefined ? process.env[name] : fileValue;
+  const value = processDefined && process.env[name] ? process.env[name] : fileValue;
   effective[name] = {
     processVariableDefined: processDefined,
     processVariableNonEmpty: processNonEmpty,
@@ -113,8 +113,11 @@ if (selectedKey.startsWith("eyJ")) {
   };
 }
 
-const anonFileValue = fileValues.get(anonName) ?? "";
-const anonKeyPresent = Boolean(process.env[anonName]) || Boolean(anonFileValue);
+const anonValue = anonNames.map((name) => {
+  if (typeof process.env[name] !== "undefined" && process.env[name]) return process.env[name];
+  return fileValues.get(name) ?? "";
+}).find(Boolean) ?? "";
+const anonKeyPresent = Boolean(anonValue);
 
 const report = {
   checkedAt: new Date().toISOString(),
@@ -123,7 +126,7 @@ const report = {
   expectedDirectoryMatches: path.resolve(root).toLowerCase() === path.resolve("C:\\Users\\ASUS\\Jobly").toLowerCase(),
   files: fileResults,
   effectiveVariables: effective,
-  anonKeyPresentButNotAcceptedAsPrivateCredential: anonKeyPresent,
+  anonPublicKeyAvailableForAnonymousReadCheck: anonKeyPresent,
   keyValidation,
   credentials: "not included",
 };

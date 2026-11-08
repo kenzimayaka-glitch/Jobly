@@ -4,6 +4,7 @@ import path from "node:path";
 import process from "node:process";
 import { existsSync, readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { verifyPrivateStorageAccess } from "./lot00-storage-access-smoke.mjs";
 
 const EXPECTED_REF = "ofqqrryamslxoqkklraw";
 const APPLY_FLAG = "--apply-lot00-e2e-storage-hardening";
@@ -38,7 +39,7 @@ function loadLocalEnvFiles() {
     }
   }
   for (const [name, value] of values) {
-    if (typeof process.env[name] === "undefined") process.env[name] = value;
+    if (typeof process.env[name] === "undefined" || !String(process.env[name] ?? "").trim()) process.env[name] = value;
   }
 }
 
@@ -259,10 +260,16 @@ async function main() {
   const secretKey = process.env.SUPABASE_E2E_SECRET_KEY || process.env.SUPABASE_SECRET_KEY || "";
   const legacyKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || "";
   const key = secretKey || legacyKey;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+    || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    || process.env.SUPABASE_PUBLISHABLE_KEY
+    || process.env.SUPABASE_ANON_KEY
+    || "";
 
   assert.equal(projectRef, EXPECTED_REF, "E2E_PROJECT_REF doit cibler JOBLY-E2E.");
   assert.equal(new URL(url).hostname, EXPECTED_REF + ".supabase.co", "Refus de tout projet Supabase hors JOBLY-E2E.");
   assert.ok(key, "Clé privée JOBLY-E2E absente du fichier local.");
+  assert.ok(anonKey, "Clé publique JOBLY-E2E absente du fichier local ; elle est requise pour vérifier le refus anonyme.");
 
   if (key.startsWith("eyJ")) {
     const parts = key.split(".");
@@ -283,6 +290,7 @@ async function main() {
     createdBuckets: [],
     rollback: [],
     legacyPhotos: { migrated: [], retainedPublicWithConsent: [] },
+    storageAccessSmoke: [],
     credentials: "not included",
   };
   const admin = createClient(url, key, {
@@ -355,6 +363,7 @@ async function main() {
       report.buckets[index].status = "PASS";
     }
 
+    report.storageAccessSmoke = await verifyPrivateStorageAccess({ admin, supabaseUrl: url, anonKey });
     await migrateLegacyPhotos(admin, report);
     await cleanupLegacyPublicPhotos(admin, report);
     report.status = "PASS";

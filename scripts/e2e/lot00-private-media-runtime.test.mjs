@@ -153,3 +153,78 @@ test("legacy event public URL parser accepts only the canonical event bucket", (
     null,
   );
 });
+
+
+import { verifyPrivateStorageAccess, PRIVATE_STORAGE_SMOKE_TARGETS } from "./lot00-storage-access-smoke.mjs";
+
+test("real Storage access smoke checks every private bucket and always removes its temporary object", async () => {
+  const objects = new Map();
+  const requests = [];
+  const admin = {
+    storage: {
+      from(bucket) {
+        return {
+          async upload(path, bytes, options) {
+            objects.set(bucket + "/" + path, { bytes, options });
+            requests.push({ method: "upload", bucket });
+            return { error: null };
+          },
+          async createSignedUrl(path) {
+            requests.push({ method: "signed-url", bucket });
+            return { data: { signedUrl: "https://signed.invalid/" + bucket + "/" + path + "?token=not-logged" }, error: null };
+          },
+          async remove(paths) {
+            for (const path of paths) objects.delete(bucket + "/" + path);
+            requests.push({ method: "remove", bucket });
+            return { error: null };
+          },
+        };
+      },
+    },
+  };
+  const fetchImpl = async (url) => String(url).startsWith("https://signed.invalid/")
+    ? { ok: true, status: 200 }
+    : { ok: false, status: 404 };
+
+  const results = await verifyPrivateStorageAccess({
+    admin,
+    supabaseUrl: "https://ofqqrryamslxoqkklraw.supabase.co",
+    anonKey: "sb_publishable_e2e_test",
+    fetchImpl,
+  });
+
+  assert.equal(results.length, PRIVATE_STORAGE_SMOKE_TARGETS.length);
+  assert.equal(results.every((x) => x.status === "PASS" && x.upload === "PASS" && x.signedRead === "PASS" && x.anonymousPublicRead === "DENIED" && x.cleanup === "PASS"), true);
+  assert.equal(objects.size, 0);
+  assert.equal(requests.filter((x) => x.method === "upload").length, 5);
+  assert.equal(requests.filter((x) => x.method === "remove").length, 5);
+});
+
+test("private Storage smoke refuses anonymous readability and still cleans the test object", async () => {
+  const objects = new Set();
+  const admin = {
+    storage: {
+      from(bucket) {
+        return {
+          async upload(path) { objects.add(bucket + "/" + path); return { error: null }; },
+          async createSignedUrl(path) { return { data: { signedUrl: "https://signed.invalid/" + path }, error: null }; },
+          async remove(paths) { for (const path of paths) objects.delete(bucket + "/" + path); return { error: null }; },
+        };
+      },
+    },
+  };
+  const fetchImpl = async (url) => String(url).startsWith("https://signed.invalid/")
+    ? { ok: true, status: 200 }
+    : { ok: true, status: 200 };
+
+  await assert.rejects(
+    () => verifyPrivateStorageAccess({
+      admin,
+      supabaseUrl: "https://ofqqrryamslxoqkklraw.supabase.co",
+      anonKey: "sb_publishable_e2e_test",
+      fetchImpl,
+    }),
+    /Storage access smoke failed/,
+  );
+  assert.equal(objects.size, 0);
+});

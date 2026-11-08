@@ -9,13 +9,17 @@ set "GIT_PATH=scripts/e2e/lot00-storage-bucket-hardening.mjs"
 set "CREDENTIAL_LOG=feedback-lot00-storage-credential-diagnostic.txt"
 set "CREDENTIAL_SCRIPT=scripts\e2e\lot00-storage-credential-diagnostic.mjs"
 set "CREDENTIAL_GIT_PATH=scripts/e2e/lot00-storage-credential-diagnostic.mjs"
-set "EXPECTED_CREDENTIAL_BLOB=8cfd25835065573096e7adb7f58c5865024d6826"
+set "EXPECTED_CREDENTIAL_BLOB=f5c7f3d838756d0b51ef90e42fdc969dfd280362"
+set "HELPER=scripts\e2e\lot00-storage-access-smoke.mjs"
+set "HELPER_GIT_PATH=scripts/e2e/lot00-storage-access-smoke.mjs"
+set "EXPECTED_HELPER_BLOB=68e14ba5b1efbf84ee3970a36bb070cc3b4dc558"
 
 > "%LOG%" echo LOT-00 Storage hardening - JOBLY-E2E only
 echo expected_blob=%EXPECTED_BLOB%>>"%LOG%"
 
 if exist "%SCRIPT%" copy /Y "%SCRIPT%" "%TEMP%\lot00-storage-bucket-hardening-before-20261108.mjs" >nul 2>&1
 if exist "%CREDENTIAL_SCRIPT%" copy /Y "%CREDENTIAL_SCRIPT%" "%TEMP%\lot00-storage-credential-diagnostic-before-20261108.mjs" >nul 2>&1
+if exist "%HELPER%" copy /Y "%HELPER%" "%TEMP%\lot00-storage-access-smoke-before-20261108.mjs" >nul 2>&1
 
 git fetch origin >>"%LOG%" 2>&1
 if errorlevel 1 goto fail
@@ -33,15 +37,22 @@ for /f "tokens=*" %%H in ('git hash-object "%CREDENTIAL_SCRIPT%"') do set "LOCAL
 echo credential_diagnostic_blob=%LOCAL_CREDENTIAL_BLOB%>>"%LOG%"
 if /I not "%LOCAL_CREDENTIAL_BLOB%"=="%EXPECTED_CREDENTIAL_BLOB%" goto fail
 
+git show origin/e2e/recette:%HELPER_GIT_PATH% > "%HELPER%" 2>>"%LOG%"
+if errorlevel 1 goto fail
+for /f "tokens=*" %%H in ('git hash-object "%HELPER%"') do set "LOCAL_HELPER_BLOB=%%H"
+echo storage_access_helper_blob=%LOCAL_HELPER_BLOB%>>"%LOG%"
+if /I not "%LOCAL_HELPER_BLOB%"=="%EXPECTED_HELPER_BLOB%" goto fail
+
 node --check "%SCRIPT%" >>"%LOG%" 2>&1
 if errorlevel 1 goto fail
 node --check "%CREDENTIAL_SCRIPT%" >>"%LOG%" 2>&1
+if errorlevel 1 goto fail
+node --check "%HELPER%" >>"%LOG%" 2>&1
 if errorlevel 1 goto fail
 echo syntax_check=PASS>>"%LOG%"
 
 node "%CREDENTIAL_SCRIPT%" >>"%LOG%" 2>&1
 if errorlevel 1 goto fail
-notepad "%CREDENTIAL_LOG%"
 
 set "E2E_PROJECT_REF=ofqqrryamslxoqkklraw"
 set "NEXT_PUBLIC_SUPABASE_URL=https://ofqqrryamslxoqkklraw.supabase.co"
