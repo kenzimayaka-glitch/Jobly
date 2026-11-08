@@ -21,7 +21,7 @@ test("CV import accepts only PDF uploads and requires an authenticated session b
   assert.ok(handler.indexOf("getAuthUser(request)") < handler.indexOf("adminClient()"));
   assert.ok(handler.indexOf("getAuthUser(request)") < handler.indexOf('import("pdf-parse")'));
   assert.match(handler, /const maxBytes = plan === "FREE" \? FREE_MAX_BYTES : PAID_MAX_BYTES/);
-  assert.match(handler, /return NextResponse\.json\(\{ error: "PDF_TOO_LARGE"/);
+  assert.match(handler, /return NextResponse\.json\(\{\s*error: "PDF_TOO_LARGE"/);
 });
 
 test("CV import keeps extraction preview separate from saving the original and preserves deterministic extraction when AI quota is exhausted", () => {
