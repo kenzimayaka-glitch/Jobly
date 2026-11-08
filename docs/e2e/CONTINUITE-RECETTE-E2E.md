@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.80 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.81 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -4204,11 +4204,13 @@ Corrections sur la branche :
 2. Le formulaire transmet au serveur le chemin et le MIME reçus de l'upload, en plus du type, de la taille et de la durée.
 3. Avant création de l'événement, le serveur vérifie la propriété du chemin, reconstruit l'URL publique attendue, télécharge le fichier du bucket côté serveur, réinspecte sa signature et compare le type, la taille réelle et la durée vidéo avec les métadonnées soumises.
 4. Un endpoint DELETE authentifié permet de nettoyer un upload qui n'a pas été rattaché. Il refuse de supprimer le fichier si une ligne `Event` référence déjà son URL.
-5. Le formulaire tente le nettoyage après un échec ou une perte de réponse ; le contrôle serveur protège un média associé à un événement, y compris un événement encore en brouillon.
-6. Les réponses en échec après insertion de l'événement renvoient désormais `eventId`, afin de distinguer un événement existant en brouillon d'un échec survenu avant son enregistrement.
+5. Si l'upload a renvoyé son chemin au navigateur puis que la création de l'événement échoue, le formulaire appelle DELETE avec le même jeton de session. Le contrôle serveur protège un média déjà associé à un événement, y compris un événement encore en brouillon.
+6. Les réponses en échec après insertion de l'événement renvoient désormais `eventId`, afin que le navigateur ne tente pas de supprimer le média d'un événement conservé en brouillon.
+7. Limite de nettoyage : si le stockage réussit mais que la réponse HTTP de l'upload est perdue avant que le navigateur reçoive le chemin, le navigateur ne peut pas appeler DELETE. Aucun balayage planifié des objets orphelins n'est encore installé.
 
 **Limites non résolues :**
 - Le bucket `jobly-events` demeure public. Un média téléversé est donc potentiellement accessible par son URL avant publication et reste accessible par URL s'il est associé à un événement `DRAFT` ou `PENDING_PAYMENT`. La règle stricte « public uniquement après publication » nécessite un espace de staging privé puis une promotion contrôlée à la publication/paiement, ainsi qu'une stratégie de lecture publique. Ce chantier implique une configuration Storage et le cycle de publication/paiement ; aucune configuration Storage ou donnée Supabase n'a été modifiée ici.
+- Le POST `/api/events/media` est encore protégé uniquement par l'authentification : il n'est pas rattaché à un brouillon d'événement ni à une autorisation d'entitlement/paiement. Il peut donc déposer un média public sans qu'un événement soit finalisé. Le parcours payant existant ne peut pas être bloqué par un simple contrôle d'entitlement ; il faut d'abord créer une réservation de brouillon côté serveur, puis lier l'upload à cette réservation.
 - Aucun quota durable par utilisateur ni rate limit d'upload n'est ajouté dans cette PR. Un compteur mémoire local ne serait pas une protection fiable en environnement serverless ; il faut une réservation/limite persistante ou un mécanisme serveur compatible avec Storage.
 - L'URL média externe saisie manuellement demeure un parcours existant distinct : la validation de signature et de propriété ajoutée ici s'applique aux fichiers téléversés dans le bucket, pas à un média hébergé sur un domaine tiers.
 
@@ -4246,6 +4248,8 @@ La branche de correction a donc passé les contrôles automatisés enregistrés 
 
 Aucune modification Supabase/Storage, aucun accès JOBLY-PROD, aucune migration appliquée, aucune fusion et aucun déploiement de production ne sont effectués par cette mise à jour.
 
-**Exception de traçabilité — aperçu PR automatique :** après ouverture de PR #267, le statut externe `netlify/thriving-cannoli-c23611/deploy-preview` a été signalé `success` avec l'URL `https://deploy-preview-267--thriving-cannoli-c23611.netlify.app`. Il s'agit d'un aperçu de PR déclenché apparemment par l'intégration Netlify déjà rattachée au dépôt, et non d'une action de déploiement lancée manuellement ici. Cela contredit la préférence projet « Vercel, pas Netlify ». Aucune modification de l'intégration n'a été faite ; il faudra la désactiver ou la remplacer avant les prochaines PR si Vercel doit être l'unique fournisseur d'aperçu.
+**Exception de traçabilité — aperçu PR automatique :** après ouverture de PR #267, le statut externe `netlify/thriving-cannoli-c23611/deploy-preview` a été signalé et l'URL `https://deploy-preview-267--thriving-cannoli-c23611.netlify.app` a été publiée. Les checks Netlify de règles et de pages ont ensuite affiché `neutral`. Cet aperçu semble déclenché par l'intégration Netlify déjà rattachée au dépôt ; il n'a pas été lancé manuellement ici et ne vise pas la production. Cela contredit la préférence projet « Vercel, pas Netlify ». Aucune modification de l'intégration n'a été faite ; il faudra la désactiver ou la remplacer avant les prochaines PR si Vercel doit être l'unique fournisseur d'aperçu.
 
-Mise à jour V2.80 sur `e2e/recette`. Source précédente : blob SHA `5649489b6ab3a3c5140f60c635e4be84aa44fa1b`.
+**Seconde exécution CI déclenchée par l'ouverture de PR #267 :** run `42498056605` (CI Typecheck & Build) et `42498056596` (Verify offer pipeline) étaient encore `in_progress` au dernier contrôle ; le typecheck était déjà PASS, le build et la vérification du pipeline d'offres restaient en cours. Le premier run push `42497839381` reste entièrement PASS. Ne pas présenter les contrôles PR comme terminés avant clôture de ces deux runs.
+
+Mise à jour V2.81 sur `e2e/recette`. Source précédente : blob SHA `2f0a844f9ff1bb61b92998ea62caf9bf06dda9a5`.
