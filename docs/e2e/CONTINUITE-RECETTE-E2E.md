@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.49 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.50 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -2759,10 +2759,63 @@ Le runner écrit uniquement les rapports du groupe dans `artifacts/e2e/bulk`. Tr
 ### 51.5 Statut et limites
 
 - Six groupes historiques : **302/302 PASS précédemment enregistré** ; cinq groupes inchangés, preuve conservée.
-- `identity-talent-recruiter` : **à relancer**, 66 tests, suite contenant le fichier modifié.
+- `identity-talent-recruiter` : **PASS — 66/66**, preuve fraîche reçue au §52 sur le commit `e92feb8abc1a2491cab7dd81e834080b80982681`.
 - `authenticated-runtime-contracts` : **PASS 6/6**, cf. §50.
 - Les recettes code-only n'établissent pas la disponibilité des API, la validité des fixtures, l'authentification réelle, les permissions runtime ni les parcours utilisateur.
 - LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED** ; les recettes runtime demeurent suspendues.
 - Aucun accès JOBLY-PROD, aucune mutation Supabase/fixture, aucun changement de `main), aucun déploiement.
 - PR #266 reste ouverte, brouillon, non fusionnée.
 - Document source avant cette mise à jour : V2.48, blob SHA `5c504ec11128ae45f1aa1ed25f686f3ea8cccdfe`, branche `e2e/recette`.
+
+
+---
+
+## 52. Résultat opérateur — identity-talent-recruiter — V2.50 — 8 novembre 2026
+
+### 52.1 Rapport reçu
+
+~~~text
+Date UTC : 2026-11-08T14:20:15.634Z
+Commit : e92feb8abc1a2491cab7dd81e834080b80982681
+Node.js : v26.13.0
+Groupes exécutés en parallèle : 3
+Groupe sélectionné : identity-talent-recruiter
+Fichiers de test : 4
+Résultat : 1/1 groupe réussi
+
+Tests : 66
+Réussis : 66
+Échoués : 0
+Durée : 0.9 s
+Journal : artifacts/e2e/bulk/identity-talent-recruiter.log
+~~~
+
+### 52.2 Vérification du SHA et de la définition du groupe
+
+- Le commit `e92feb8abc1a2491cab7dd81e834080b80982681` existe sur GitHub ; son parent direct est `8385b60400bbaf9cedfcb4aa01073b733533f6c2`.
+- Le commit exécuté n'apporte qu'une modification documentaire. Il ne modifie aucun fichier de test ou code applicatif.
+- Le runner `scripts/e2e-bulk-runner.mjs` à ce commit définit `identity-talent-recruiter` avec les quatre fichiers suivants : `scripts/authentication-flow-regression.test.mjs`, `scripts/external-application-assistant.test.mjs`, `scripts/talent-cv-application-regression.test.mjs` et `scripts/recruiter-role-regression.test.mjs`.
+- La comparaison GitHub entre `e92feb8...` et la tête distante actuelle de `e2e/recette` (`52443728249c05748a96cfda4be980d74e9ba70b)) indique 49 commits d'avance, aucun en retard ; les commits ultérieurs n'ont modifié que `docs/e2e/CONTINUITE-RECETTE-E2E.md`.
+- Le commit de campagne historique `60a40dbc60bb8d3a7b069e96291a0a375a01911e` vers `e92feb8...` montrait que le seul fichier de test de ces six groupes modifié était `scripts/talent-cv-application-regression.test.mjs), précisément réexécuté dans le présent groupe. Les cinq autres groupes gardent leur preuve antérieure, sous réserve du périmètre de code comparé au §51.3.
+
+Le rapport opérateur est cohérent avec la définition du groupe et la version de code. Le journal local n'a pas été transmis et n'a donc pas fait l'objet d'une inspection indépendante.
+
+### 52.3 Bilan actualisé des six groupes locaux
+
+- Les six groupes historiques totalisent 302 tests dans leur définition.
+- Les cinq groupes restés inchangés conservent les PASS précédents (236 tests).
+- Le groupe `identity-talent-recruiter` est désormais revalidé : 66/66 PASS.
+- Le groupe supplémentaire `authenticated-runtime-contracts` a aussi son PASS propre : 6/6, cf. §50.
+
+Les six groupes locaux sont donc tous couverts par une preuve PASS ; il n'est pas nécessaire de les relancer à nouveau uniquement pour contourner ou attendre LOT-00. Les résultats proviennent de plusieurs exécutions et ne doivent pas être présentés comme un seul run bulk simultané.
+
+### 52.4 Portée et suite
+
+- Recettes code-only bulk : les six groupes historiques sont **PASS couverts** ; le groupe additionnel `authenticated-runtime-contracts` est **PASS 6/6**.
+- Ces résultats ne prouvent pas l'authentification réelle, les réponses HTTP de JOBLY-E2E, l'accès aux données, les politiques RLS/Storage en runtime, ni les parcours métier en navigateur.
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED** ; il bloque toujours les recettes runtime.
+- Les recettes locales supplémentaires ne doivent être lancées que si elles couvrent un code ou un risque non déjà testé ; éviter les relances redondantes.
+- Prochaine frontière de validation métier : terminer LOT-00 avec preuves read-only, puis reprendre Auth/runtime, smoke navigateur et parcours E2E.
+- Aucun accès JOBLY-PROD, aucune mutation Supabase/fixture, aucun changement de `main), aucun déploiement.
+- PR #266 reste ouverte, brouillon, non fusionnée.
+- Document source avant cette mise à jour : V2.49, blob SHA `8ac9cdf0e73b0a81044d3015c868c77752dd82dc`, branche `e2e/recette`.
