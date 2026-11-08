@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.64 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.65 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3405,3 +3405,34 @@ Aucun appel CLI `projects api-keys` ni GET OpenAPI n'a encore été exécuté au
 LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED**. Après le contrôle OpenAPI, la décision sur les buckets publics et la revue ciblée des privilèges restent à clôturer. `main` inchangée ; aucune fusion ni aucun déploiement ; PR #266 reste ouverte, brouillon, non fusionnée.
 
 Document source avant cette mise à jour : V2.63, blob SHA 496e8659ace78b223476eb9106ff5b10c9276b4b, branche `e2e/recette`.
+
+---
+
+## 67. Réduction des handoffs opérateur — raison de la commande locale — V2.65 — 8 novembre 2026
+
+### 67.1 Réponse au point de l'opérateur
+
+L'opérateur demande pourquoi multiplier les commandes si Supabase CLI peut réaliser le contrôle. Décision : supprimer les prétests et handoffs intermédiaires désormais redondants. Ne demander qu'une seule exécution locale complète pour le contrôle OpenAPI LOT-00 lorsque le CLI est authentifié.
+
+### 67.2 Limite réelle de l'environnement assistant
+
+La session Supabase CLI authentifiée est stockée localement sur le poste Windows de l'opérateur. Les outils connectés Supabase de cette session permettent des opérations de gestion et d'inspection ciblées (état projet, clés publishable, SQL, tables, migrations, advisors), mais aucun outil exposé ne permet de lire la valeur Legacy `service_role` du projet. L'assistant ne dispose pas d'un shell distant sur le CMD local, ni d'un accès au fichier/keyring local de la CLI. Il ne peut donc pas exécuter à distance la commande CLI déjà authentifiée.
+
+Cette frontière est la seule raison du dernier handoff local ; ce n'est pas une nécessité de répéter des diagnostics. La commande doit faire le travail utile en une fois, sans exposer PAT ou API key.
+
+### 67.3 Règle opératoire mise à jour
+
+- Ne plus demander `supabase projects list`, préflight CLI séparé, test du presse-papiers ou collecte d'informations déjà établies.
+- Pour LOT-00, conserver une seule exécution locale contrôlée : récupération en mémoire de la Legacy `service_role` sans `--reveal` pour les nouvelles clés, validation locale des claims, puis deux GET OpenAPI en lecture seule si les claims correspondent.
+- Si le CLI ne renvoie pas de valeur non redacted pour Legacy `service_role`, arrêt net et demande d'une décision précise ; pas de `--reveal` automatique.
+- Pendant ce temps, l'assistant doit avancer directement avec les outils connectés sur les contrôles réellement accessibles, sans demander à l'opérateur de les refaire.
+- Aucune opération autre que GET pour le contrôle OpenAPI ; aucun accès JOBLY-PROD, aucun changement de clés, droits, fixtures, `main`, merge ou déploiement.
+
+### 67.4 État
+
+- Supabase CLI 3.0.0 lancé via npx et login navigateur effectué localement par l'opérateur.
+- PAT stocké localement issu du flux navigateur considéré full-access ; utilisation uniquement opérationnelle et ponctuelle telle que §65-66, avec révocation après le contrôle. Aucun PAT ou API key communiqué à l'assistant.
+- Aucun GET OpenAPI exécuté à ce stade.
+- LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- PR #266 reste ouverte, brouillon, non fusionnée ; `main` inchangée ; aucun déploiement.
+- Document source avant cette mise à jour : V2.64, blob SHA f20b3ae830303e8c2de3b2e24ab8079a0c113b76, branche `e2e/recette`.
