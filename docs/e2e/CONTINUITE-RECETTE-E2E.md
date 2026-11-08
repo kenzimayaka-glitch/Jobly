@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.59 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.60 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3226,3 +3226,47 @@ Cette commande doit être appelée depuis un processus local capturant sa sortie
 - Aucune mutation Supabase/fixture, aucun changement de `main), aucune fusion et aucun déploiement.
 - PR #266 reste ouverte, brouillon et non fusionnée.
 - Document source avant cette mise à jour : V2.58, blob SHA `85e107006657fb1acfa767bdca7c1b8306eabae1`, branche `e2e/recette`.
+
+---
+
+## 62. Identification et création du PAT Supabase scoped — V2.60 — 8 novembre 2026
+
+### 62.1 Nature du jeton
+
+Le jeton demandé est un **Personal Access Token (PAT) Supabase**, qui authentifie la CLI à la Management API. Il est créé par le titulaire du compte depuis **Account preferences → Access Tokens** dans le Dashboard. Il n'est pas fourni/généré par l'assistant et ne correspond ni au mot de passe, ni à la clé API service_role, ni à anon.
+
+Les PAT scoped créés depuis le Dashboard commencent par sbp_fc. La valeur n'est affichée qu'au moment de la création ; elle ne doit jamais être communiquée à l'assistant.
+
+Source officielle vérifiée le 8 novembre 2026 :
+- https://supabase.com/docs/guides/platform/personal-access-tokens
+
+### 62.2 Configuration à sélectionner
+
+Créer un PAT scoped avec :
+- Ressource / projet : uniquement JOBLY-E2E, ref ofqqrryamslxoqkklraw.
+- Permission **API Keys** : **Read**.
+- Permission **API Key Secrets** : **Read**.
+- Toute permission Write : désactivée.
+- Aucun autre projet ou organisation supplémentaire.
+- Expiration courte/appropriée au diagnostic.
+
+Ces deux permissions en lecture sont celles indiquées par Supabase pour les endpoints GET des clés de projet ; la combinaison est requise pour lire les valeurs des API keys. Ne pas sélectionner « Create legacy token », « Legacy », ou un jeton à accès complet.
+
+### 62.3 Correction de la commande d'authentification précédente
+
+La commande supabase login sans argument démarre le flux navigateur et crée un PAT disposant de l'accès complet au compte. **Ne pas utiliser ce flux** pour ce diagnostic à privilège minimal. La documentation supporte deux moyens pour un PAT scoped :
+- SUPABASE_ACCESS_TOKEN dans l'environnement du processus CLI ;
+- supabase login --token.
+
+Pour éviter d'inscrire le PAT dans l'historique de commandes ou dans la liste des arguments du processus, la prochaine procédure devra demander le PAT via saisie masquée locale, le placer uniquement dans l'environnement mémoire du processus courant, exécuter la commande ciblant uniquement le projet E2E, puis effacer la variable. Ne pas stocker le PAT dans un fichier ou dans le dépôt.
+
+### 62.4 État
+
+- Aucun PAT n'a été créé ou reçu par l'assistant.
+- Aucun jeton n'a été saisi ou envoyé dans le chat.
+- Aucun appel CLI authentifié, aucune lecture de clé et aucun GET OpenAPI n'a été exécuté.
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- JOBLY-PROD hors périmètre ; aucune mutation Supabase, fixture, clé, permission, main, fusion ou déploiement.
+- PR #266 reste ouverte, brouillon et non fusionnée.
+- Cette section corrige et remplace toute indication antérieure qui aurait fait utiliser le flux navigateur non scoped supabase login seul.
+- Document source avant cette mise à jour : V2.59, blob SHA 91d2abef8cce8127975a0e8c9adf327250636a3e, branche e2e/recette.
