@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.83 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.84 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 conserve uniquement le préflight environnement/fixtures et les contrôles read-only de base (identité, RLS/grants, Storage, correspondances des fixtures), hors OpenAPI. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.55  
+**Version :** 2.84  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -4266,3 +4266,59 @@ Aucune modification Supabase/Storage, aucun accès JOBLY-PROD, aucune migration 
 Les autres checks Actions de la PR observés (registre, Security Core, migrations isolées, gates J’IA et validation harvest) sont PASS ; le crawl en mode PR est SKIPPED comme prévu. Le premier run push [42497839381](https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42497839381) reste entièrement PASS.
 
 Mise à jour V2.82 sur `e2e/recette`. Source précédente : blob SHA `095d7e376f0b2e176f9dbd26a2429043103c339b`.
+
+
+## 82. Reprise de recette — sécurisation du smoke Auth et prochaine exécution
+
+### 82.1 État vérifié au 8 novembre 2026
+
+- La référence de continuité a été relue sur `e2e/recette`.
+- PR [#266](https://github.com/kenzimayaka-glitch/Jobly/pull/266) : **ouverte, brouillon, non fusionnée**, base `main`, head `e2e/recette`.
+- HEAD de PR #266 après le correctif du smoke Auth : `1ae164849bd7f0b52986d2af080e8b8771e3422c`.
+- `main) reste sur `979f2ccfec9258bc30989af18433cf6adb1b4698`.
+- Le dernier résultat local Auth annoncé dans ce document n'a pas été remplacé par un nouveau rapport ; aucun nouveau fichier `feedback-lot01-auth-session-20261108.txt` n'a été transmis dans cette reprise.
+- **LOT-01 / Auth reste NOT RUN pour cette nouvelle passe / résultat attendu.** Le smoke public Auth préflight (§78) est PASS, mais ce préflight ne remplace pas la connexion réelle des trois fixtures.
+
+### 82.2 Correctif fail-closed du smoke Auth
+
+Fichier modifié : `e2e/auth-session-smoke.mjs`.
+
+Avant ce correctif, lorsque `.e2e-fixtures.json` était absent, le rapport disait `BLOCKED` mais le script pouvait quitter avec le code 0 ; son message suggérait aussi à tort de lancer `e2e/provision-fixtures.mjs`, alors que tout provisionnement/rétablissement de comptes est désormais interdit sans autorisation spécifique.
+
+Correctifs commités sur `e2e/recette` :
+1. Le cas « fixtures locales absentes » indique clairement que le contrôle est bloqué et qu'aucun compte ne doit être créé, restauré ou réinitialisé pour contourner le blocage.
+2. Le code de sortie est désormais non nul pour **tout statut autre que PASS**. Un rapport BLOCKED ou PARTIAL ne peut donc plus être interprété comme une réussite par un appelant CMD/CI.
+3. Les gardes existantes restent en place : référence et URL strictes JOBLY-E2E, clé publishable seulement, environnement/ref des fixtures vérifiés, rôles signés `e2e_role`, aucune clé privée, aucun Auth Admin, aucune création de compte ou donnée métier.
+4. Le test ouvre une session Supabase Auth pour chaque compte, valide `getUser`, vérifie le rôle signé, teste `refreshSession`, puis ferme la session locale. Il s'agit d'une activité Auth réelle et transitoire ; ce n'est pas un test sans effet sur les sessions Auth.
+5. Le rapport JSON expurgé est écrit dans `artifacts/e2e/auth-session-smoke.json`.
+
+**Preuve Git :** commit `1ae164849bd7f0b52986d2af080e8b8771e3422c`, blob `e2e/auth-session-smoke.mjs` = `86568783a7a0f9023553dfdbf53af736cea4cc12`. Le patch du script a été vérifié sur le contenu avant l'écriture distante ; le test runtime n'a pas encore été exécuté sur le poste opérateur.
+
+### 82.3 Prochaine action opérateur — LOT-01 Auth (12 contrôles attendus)
+
+Commande CMD unique :
+
+```bat
+cd /d C:\Users\ASUS\Jobly
+set "E2E_PROJECT_REF=ofqqrryamslxoqkklraw"
+set "NEXT_PUBLIC_SUPABASE_URL=https://ofqqrryamslxoqkklraw.supabase.co"
+set "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y"
+node e2e/auth-session-smoke.mjs > feedback-lot01-auth-session-20261108.txt 2>&1
+set "RECIPE_EXIT=%ERRORLEVEL%"
+echo exit_code=%RECIPE_EXIT%>>feedback-lot01-auth-session-20261108.txt
+notepad feedback-lot01-auth-session-20261108.txt
+```
+
+Résultat attendu pour PASS : **12 contrôles PASS**, soit 4 par rôle (TALENT, RECRUITER, PARTNER), aucun FAIL/BLOCKED, `status=PASS` et `exit_code=0`.
+
+Si le résultat est BLOCKED, PARTIAL, FAIL ou si `exit_code` est non nul : arrêter la séquence et transmettre uniquement le rapport expurgé. **Ne pas lancer** de provisionnement, de restauration, de reset de mot de passe ou le runner bulk pour contourner ce résultat.
+
+### 82.4 Suite conditionnelle — pas encore autorisée par les résultats
+
+Après réception et vérification d'un LOT-01 Auth PASS :
+- examiner les prérequis et effets du script `e2e/authenticated-role-smoke.mjs` avant son exécution ; ce script consulte les API des trois rôles et réalise aussi des mutations synthétiques contrôlées (création/mise à jour/suppression d'un brouillon Recruteur), donc il ne doit pas être qualifié de lecture seule ;
+- confirmer que le serveur local écoute sur `127.0.0.1:3000` et que toutes ses variables ciblent exclusivement JOBLY-E2E ;
+- exécuter ensuite le smoke API ciblé, lire le rapport, puis planifier le parcours croisé Talent → Recruteur avec preuves de persistance et nettoyage ;
+- ne pas relancer les tests déjà PASS si le code concerné n'a pas changé.
+
+Aucun accès JOBLY-PROD, aucune mutation SQL directe, aucune migration, aucune modification Storage, aucune fusion et aucun déploiement n'ont été effectués pendant cette reprise. PR #266 reste en brouillon ; PR #267 reste distincte et en brouillon.
