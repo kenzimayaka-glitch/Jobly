@@ -3,6 +3,7 @@ import path from "node:path";
 import process from "node:process";
 
 const names = ["SUPABASE_E2E_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"];
+const anonName = "NEXT_PUBLIC_SUPABASE_ANON_KEY";
 const reportPath = path.resolve("feedback-lot00-storage-credential-diagnostic.txt");
 
 function parseEnvValue(raw) {
@@ -43,18 +44,22 @@ for (const filename of [".env", ".env.local"]) {
   const fullPath = path.join(root, filename);
   const exists = existsSync(fullPath);
   const found = {};
-  const counts = Object.fromEntries(names.map((name) => [name, 0]));
+  const allNames = [...names, anonName];
+  const counts = Object.fromEntries(allNames.map((name) => [name, 0]));
+  const parsedInThisFile = new Map();
   if (exists) {
     const source = readFileSync(fullPath, "utf8").replace(/^\uFEFF/, "");
     for (const line of source.split(/\r?\n/)) {
       const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
-      if (!match || !names.includes(match[1])) continue;
+      if (!match || !allNames.includes(match[1])) continue;
       counts[match[1]] += 1;
-      fileValues.set(match[1], parseEnvValue(match[2]));
+      const parsed = parseEnvValue(match[2]);
+      parsedInThisFile.set(match[1], parsed);
+      fileValues.set(match[1], parsed);
     }
   }
-  for (const name of names) {
-    const value = fileValues.get(name);
+  for (const name of allNames) {
+    const value = parsedInThisFile.get(name);
     found[name] = {
       assignmentCount: counts[name],
       parsedNonEmpty: typeof value === "string" && value.length > 0,
@@ -108,8 +113,8 @@ if (selectedKey.startsWith("eyJ")) {
   };
 }
 
-const anonKeyPresent = Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) ||
-  [...fileValues.entries()].some(([name, value]) => name === "NEXT_PUBLIC_SUPABASE_ANON_KEY" && Boolean(value));
+const anonFileValue = fileValues.get(anonName) ?? "";
+const anonKeyPresent = Boolean(process.env[anonName]) || Boolean(anonFileValue);
 
 const report = {
   checkedAt: new Date().toISOString(),
