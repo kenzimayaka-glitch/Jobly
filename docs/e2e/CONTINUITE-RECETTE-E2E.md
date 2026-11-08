@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.87 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.88 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -4550,3 +4550,18 @@ Statut inchangé :
 - **Storage : NOT RUN** (incident de synchronisation locale).
 - **LOT-00 global : PARTIAL**.
 - `main` n'est pas modifiée ; PR #266 et #267 restent ouvertes en brouillon ; aucun déploiement n'a été effectué.
+
+
+## 86. Diagnostic Git local après l'incident MODULE_NOT_FOUND
+
+Le rapport opérateur confirme :
+- branche active locale : `e2e/recette` ;
+- suivi distant après `git fetch origin` : `origin/e2e/recette` est 100 commits en avance sur la copie locale ;
+- le fichier distant `scripts/e2e/lot00-storage-bucket-hardening.mjs` est confirmé présent (`SCRIPT_PRESENT`) ;
+- changements locaux à préserver : modification de `e2e/reset-existing-fixture-passwords.mjs`, nombreux rapports/diagnostics non suivis, fichiers temporaires Supabase et artefacts TypeScript.
+
+Décision de sécurité : ne pas lancer `git pull`, `git switch`, `git reset` ou `git stash` dans ce dépôt local tant que son état n'a pas été sauvegardé/revu. Ne pas restaurer ni exécuter `e2e/reset-existing-fixture-passwords.mjs`.
+
+Procédure de reprise à faible impact : extraire uniquement le script vérifié depuis l'objet Git déjà récupéré `origin/e2e/recette` avec `git show`, dans le chemin manquant du dépôt local ; vérifier le hash Git de ce fichier contre le blob distant `06ff209b99a1f276f53f0007e7919eaf7cd82851` ; faire un contrôle de syntaxe Node ; puis exécuter le script avec le drapeau explicite après vérification. Cette méthode ne met pas à jour la branche locale et ne touche pas aux autres fichiers.
+
+Statut reste : **SQL / RLS / privilèges PASS ; Storage NOT RUN ; LOT-00 PARTIAL**. Aucun changement de `main`, aucune fusion PR #266/#267, aucun déploiement, aucun accès JOBLY-PROD.
