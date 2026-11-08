@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server.js";
 
 type RateWindow = { windowSeconds: number; maxRequests: number };
 type RateLimitOptions = {
