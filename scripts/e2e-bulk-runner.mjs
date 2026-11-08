@@ -10,7 +10,7 @@ const ARTIFACTS = path.join(ROOT, "artifacts", "e2e", "bulk");
 const DEFAULT_GROUP_CONCURRENCY = 3;
 const FILE_CONCURRENCY = 2;
 
-const groups = [
+const allGroups = [
   {
     id: "identity-talent-recruiter",
     label: "Auth, Talent, CV, Recruteur 360 et candidature externe",
@@ -81,6 +81,23 @@ const groups = [
     ],
   },
 ];
+
+function selectGroups() {
+  const index = process.argv.indexOf("--groups");
+  if (index < 0) return allGroups;
+  const raw = String(process.argv[index + 1] || "");
+  const requested = new Set(raw.split(",").map((value) => value.trim()).filter(Boolean));
+  const known = new Set(allGroups.map((group) => group.id));
+  const unknown = [...requested].filter((id) => !known.has(id));
+  if (unknown.length) throw new Error("Groupes bulk inconnus : " + unknown.join(", "));
+  const selected = allGroups.filter((group) => requested.has(group.id));
+  if (!selected.length) {
+    throw new Error("Aucun groupe sélectionné. Utilise --groups <id1,id2> ou omets l'option pour tout exécuter.");
+  }
+  return selected;
+}
+
+const groups = selectGroups();
 
 function readConcurrency() {
   const parsed = Number.parseInt(process.env.E2E_BULK_CONCURRENCY ?? "", 10);
@@ -212,6 +229,7 @@ function markdownReport(report) {
     "- Commit : " + (report.commit ?? "non communiqué"),
     "- Node.js : " + report.node,
     "- Groupes exécutés en parallèle : " + report.groupConcurrency,
+    "- Groupes sélectionnés : " + (report.selectedGroups || []).join(", "),
     "- Fichiers de test : " + report.testFileCount,
     "- Résultat : **" + report.passedGroups + "/" + report.totalGroups + " groupes réussis**",
     "",
@@ -274,6 +292,7 @@ async function main() {
     totalGroups: groups.length,
     passedGroups: results.filter((result) => result.status === "PASS").length,
     failedGroups: results.filter((result) => result.status !== "PASS").length,
+    selectedGroups: groups.map((group) => group.id),
     testFileCount: groups.reduce((sum, group) => sum + group.files.length, 0),
     results,
   };
