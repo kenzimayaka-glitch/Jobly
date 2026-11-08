@@ -206,28 +206,31 @@ async function main() {
 
   try {
     for (const item of desired) {
-      let current = await admin.storage.getBucket(item.id);
-      let created = false;
-      if ((current.error || !current.data) && item.createIfMissing && process.argv.includes(APPLY_FLAG)) {
-        const creation = await admin.storage.createBucket(item.id, item.options);
-        if (creation.error && !/already exists/i.test(creation.error.message)) {
-          throw new Error("Création du bucket " + item.id + " impossible : " + creation.error.message);
-        }
-        current = await admin.storage.getBucket(item.id);
-        created = !current.error && Boolean(current.data);
-        if (created) report.createdBuckets.push(item.id);
-      }
-      if (current.error || !current.data) {
+      const current = await admin.storage.getBucket(item.id);
+      const missing = current.error || !current.data;
+      if (missing && !item.createIfMissing) {
         throw new Error("Bucket introuvable ou non lisible : " + item.id + " — " + (current.error?.message || "sans détail"));
       }
+      if (missing && item.createIfMissing) {
+        snapshots.push({ id: item.id, previous: null, updated: false, created: false, needsCreate: true });
+        report.buckets.push({
+          id: item.id,
+          reason: item.reason,
+          before: null,
+          target: item.options,
+          created: false,
+          status: "CREATE_PENDING",
+        });
+        continue;
+      }
       const previous = normalizeBucket(current.data);
-      snapshots.push({ id: item.id, previous, updated: false, created });
+      snapshots.push({ id: item.id, previous, updated: false, created: false, needsCreate: false });
       report.buckets.push({
         id: item.id,
         reason: item.reason,
         before: previous,
         target: item.options,
-        created,
+        created: false,
         status: "PENDING",
       });
     }
@@ -243,6 +246,17 @@ async function main() {
     for (let index = 0; index < desired.length; index += 1) {
       const item = desired[index];
       const snapshot = snapshots[index];
+      if (snapshot.needsCreate) {
+        const creation = await admin.storage.createBucket(item.id, item.options);
+        if (creation.error && !/already exists/i.test(creation.error.message)) {
+          throw new Error("Création du bucket " + item.id + " impossible : " + creation.error.message);
+        }
+        const fresh = await admin.storage.getBucket(item.id);
+        if (fresh.error || !fresh.data) throw new Error("Le bucket privé n'a pas pu être créé : " + item.id);
+        snapshot.created = !creation.error;
+        if (snapshot.created) report.createdBuckets.push(item.id);
+        report.buckets[index].created = snapshot.created;
+      }
       const update = await admin.storage.updateBucket(item.id, item.options);
       if (update.error) throw new Error("Échec Storage updateBucket " + item.id + " : " + update.error.message);
 
@@ -260,7 +274,7 @@ async function main() {
   } catch (error) {
     report.status = "FAIL";
     report.error = error instanceof Error ? error.message : String(error);
-    for (const snapshot of snapshots.filter((item) => item.updated && !item.created).reverse()) {
+    for (const snapshot of snapshots.filter((item) => item.updated && !item.created && item.id !== "jobly-events").reverse()) {
       try {
         const restored = await admin.storage.updateBucket(snapshot.id, {
           public: snapshot.previous.public,
@@ -280,6 +294,12 @@ async function main() {
         });
       }
     }
+    const eventSnapshot = snapshots.find((item) => item.id === "jobly-events" && item.updated);
+    if (eventSnapshot) report.rollback.push({
+      id: "jobly-events",
+      status: "RETAINED_PRIVATE_SAFETY",
+      detail: "Le bucket événementiel reste privé même si une vérification ultérieure échoue.",
+    });
     for (const snapshot of snapshots.filter((item) => item.created)) {
       report.rollback.push({
         id: snapshot.id,
