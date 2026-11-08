@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.38 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.39 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -12,10 +12,10 @@
 >
 > **Verrou de reprise V2.8 :** les sections 7, 9, 10, 11, 12 et 13.7 contiennent des états ou consignes historiques ; elles ne constituent plus des instructions opératoires. En particulier, l'autorisation de reset citée au §9 n'est plus active : ne pas exécuter e2e/reset-existing-fixture-passwords.mjs, les scripts de vérification Auth des anciennes fixtures, le provisionneur, ni scripts/e2e-local-recipe.mjs/le runner bulk. Aucune connexion Auth, mutation de fixture, restauration de mot de passe ou relance globale n'est autorisée par ce document. Le seul prochain contrôle permis est le GET OpenAPI décrit au §16.7, suivi de son analyse.
 >
-> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le rapport V6 s'est arrêté avant toute requête HTTP (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`, `results=[]`). L'opérateur confirme que la ligne Legacy `service_role` sélectionnée commence bien par `eyJ`. L'audit du code V6 a identifié un défaut possible avec le marqueur de collage `[200~`, reproduit en simulation. La V7 corrige ce cas et journalise des indicateurs non secrets ; son exécution retourne toutefois paste_start_marker_detected=false, paste_end_marker_detected=false, normalized_prefix_ok=false, results=[] et KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT. Le marqueur n'est donc pas observé dans le run V7 et l'hypothèse `[200~` ne suffit pas à expliquer le blocage actuel. Aucun GET OpenAPI n'a été obtenu. Le prochain contrôle discriminant, sans secret, est le test de transport presse-papiers/TTY avec sentinelle factice décrit au §41. L'intention des deux buckets publics doit être confirmée et la revue ciblée des grants/policies documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
-> **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. Le rejet V6 est intervenu avant HTTP et ne démontre pas que la clé Supabase est refusée. L'opérateur a confirmé la ligne Legacy `service_role` et le préfixe `eyJ`. Ne pas utiliser `anon`, `sb_secret_…` ou une clé de production. La V5, la V6 et la V7 sont conservées pour historique ; la prochaine vérification est le test factice de transport presse-papiers/TTY du §41. Ne pas relancer V7 avec la clé avant ce contrôle. Aucun secret dans le chat, les rapports ou Git.
+> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le rapport V6 s'est arrêté avant toute requête HTTP (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`, `results=[]`). L'opérateur confirme que la ligne Legacy `service_role` sélectionnée commence bien par `eyJ`. L'audit du code V6 a identifié un défaut possible avec le marqueur de collage `[200~`, reproduit en simulation. La V7 corrige ce cas et journalise des indicateurs non secrets ; son exécution retourne toutefois paste_start_marker_detected=false, paste_end_marker_detected=false, normalized_prefix_ok=false, results=[] et KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT. Le marqueur n'est donc pas observé dans le run V7 et l'hypothèse `[200~` ne suffit pas à expliquer le blocage actuel. Aucun GET OpenAPI n'a été obtenu. Le prochain contrôle discriminant est la lecture directe du presse-papiers Windows via PowerShell, sans TTY raw et sans afficher la clé, décrite au §42. La V7 ne doit pas être relancée avant ce contrôle. L'intention des deux buckets publics doit être confirmée et la revue ciblée des grants/policies documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
+> **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. Le rejet V6 est intervenu avant HTTP et ne démontre pas que la clé Supabase est refusée. L'opérateur a confirmé la ligne Legacy `service_role` et le préfixe `eyJ`. Ne pas utiliser `anon`, `sb_secret_…` ou une clé de production. La V5, la V6 et la V7 sont conservées pour historique ; la prochaine vérification est le contrôle de métadonnées du presse-papiers PowerShell du §42. Ne pas relancer V7 avec la clé. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.38  
+**Version :** 2.39  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -2152,3 +2152,71 @@ Le test place d'abord le texte factice dans le presse-papiers. À l'invite, appu
 - Microsoft Terminal Clipboard.cpp : https://github.com/microsoft/terminal/blob/main/src/interactivity/win32/Clipboard.cpp ; le texte du presse-papiers est converti en événements d'entrée et peut être encadré par des marqueurs bracketed-paste.
 - Microsoft Terminal issue #17656 : https://github.com/microsoft/terminal/issues/17656 ; décrit la représentation de marqueurs bracketed-paste en événements Win32.
 - Document source avant cette mise à jour : V2.36, blob SHA ec80c4fc146468b3e0a989fed7b62338ddfbbd93, branche e2e/recette.
+
+---
+
+## 42. Contrôle direct du presse-papiers Windows — sans TTY raw — V2.39 — 8 novembre 2026
+
+### 42.1 Motif
+
+V7 a reçu normalized_prefix_ok=false et aucun marqueur de collage. Le préfixe visible dans le Dashboard est confirmé par l'opérateur comme eyJ. Pour départager la copie de la clé du transport clavier/TTY, cette étape lit directement le presse-papiers Windows avec PowerShell Get-Clipboard -Raw. La saisie Node.js en mode raw est ainsi complètement contournée.
+
+Microsoft documente que Get-Clipboard récupère le contenu du presse-papiers, et que -Raw retourne le texte complet en une seule chaîne : https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-clipboard?view=powershell-5.1.
+
+### 42.2 Ce que le contrôle vérifie
+
+- présence d'un contenu presse-papiers non vide ;
+- préfixe JWT eyJ ;
+- trois segments JWT ;
+- décodage JSON du payload ;
+- claims role=service_role et ref=ofqqrryamslxoqkklraw.
+
+Le rapport ne contient que des booléens, un statut et une erreur générique. Il ne contient ni clé, ni fragment, ni longueur de la clé, ni payload. Le script efface le presse-papiers après lecture. Aucun appel réseau, aucune requête Supabase, aucune authentification et aucune écriture n'est exécuté dans cette étape.
+
+Cette vérification locale des claims ne valide pas la signature cryptographique du JWT et ne prouve pas son acceptation serveur. Elle permet uniquement de vérifier si la valeur copiée est bien formée et porte les identifiants attendus.
+
+### 42.3 Commande CMD
+
+Copier d'abord, avec le bouton Copier, la valeur de la ligne service_role dans Legacy API Keys du projet JOBLY-E2E. Ne pas la révéler à l'écran. Puis coller et exécuter le bloc CMD ci-dessous ; il lira directement le presse-papiers, sans demander de coller la clé dans le terminal.
+
+```bat
+cd /d C:\Users\ASUS\Jobly
+if exist feedback-lot00-clipboard-jwt-check-20261108.txt (
+  echo Rapport du controle presse-papiers deja present : conservation.
+) else (
+  powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';$report='feedback-lot00-clipboard-jwt-check-20261108.txt';$k=$null;$parts=$null;$b64=$null;$payload=$null;$pt=$null;$prefix=$false;$three=$false;$json=$false;$role=$false;$ref=$false;$err='';$cleared=$false;try{$k=Get-Clipboard -Raw;if([string]::IsNullOrWhiteSpace($k)){$err='CLIPBOARD_EMPTY'}else{$k=$k.Trim();$prefix=$k.StartsWith('eyJ');if($prefix){$parts=$k.Split([char]'.');$three=($parts.Length -eq 3);if($three){$b64=$parts[1].Replace('-','+').Replace('_','/');if(($b64.Length % 4) -eq 1){$err='JWT_BASE64URL_INVALID'}else{while(($b64.Length % 4) -ne 0){$b64+='='};$pt=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64));$payload=ConvertFrom-Json -InputObject $pt -ErrorAction Stop;$json=$true;$role=($payload.role -eq 'service_role');$ref=($payload.ref -eq 'ofqqrryamslxoqkklraw')}}else{$err='JWT_SEGMENT_COUNT_INVALID'}}else{$err='KEY_PREFIX_INVALID'}}}catch{$err='CLIPBOARD_READ_OR_JWT_PARSE_ERROR'}finally{$k=$null;$parts=$null;$b64=$null;$payload=$null;$pt=$null;try{Set-Clipboard -Value '';$cleared=$true}catch{}};$gate=if($prefix -and $three -and $json -and $role -and $ref){'PASS_CLIPBOARD_JWT_METADATA'}else{'BLOCKED_CLIPBOARD_COPY_OR_FORMAT'};$runtime='PowerShell '+$PSVersionTable.PSVersion.ToString();$lines=@('runtime='+$runtime,'project_ref=ofqqrryamslxoqkklraw','clipboard_prefix_eyJ='+$prefix,'jwt_three_segments='+$three,'payload_json_valid='+$json,'role_service_role='+$role,'project_ref_match='+$ref,'clipboard_cleared='+$cleared,'GATE='+$gate,'error='+$err);Set-Content -Path $report -Value $lines -Encoding ASCII;$lines"
+)
+if exist feedback-lot00-clipboard-jwt-check-20261108.txt notepad feedback-lot00-clipboard-jwt-check-20261108.txt
+```
+
+**Commande Notepad correspondante :**
+```bat
+notepad feedback-lot00-clipboard-jwt-check-20261108.txt
+```
+
+### 42.4 Lecture des résultats
+
+- PASS_CLIPBOARD_JWT_METADATA : le presse-papiers contient une valeur JWT structurée avec role et ref attendus ; cela démontre que la copie est correcte et que les rejets précédents proviennent du chemin de saisie brut Node.js.
+- BLOCKED_CLIPBOARD_COPY_OR_FORMAT : au moins un contrôle local échoue ; le message error et les booléens indiquent l'étape, sans révéler la valeur.
+- clipboard_cleared=true : la tentative de nettoyage du presse-papiers a réussi.
+- clipboard_cleared=false : nettoyer manuellement le presse-papiers Windows après le contrôle.
+
+Après ce contrôle seulement, si les métadonnées sont correctes, la méthode suivante sera d'exécuter les deux GET OpenAPI depuis PowerShell en lisant directement le presse-papiers, toujours sans echo ni stockage du secret. Aucun endpoint ne doit être appelé avant validation de ce rapport local.
+
+### 42.5 Statut LOT-00
+
+- V6 : rejet local avant HTTP.
+- V7 : rejet local avant HTTP ; marqueurs de collage non détectés ; normalized_prefix_ok=false.
+- Préfixe révélé dans le Dashboard : eyJ confirmé par l'opérateur.
+- Contrôle presse-papiers PowerShell : transmis, non exécuté.
+- GET OpenAPI public et net : NON EXÉCUTÉS.
+- LOT-00 : PARTIAL / BLOCKED_REVIEW_REQUIRED.
+- Aucune clé reçue par l'assistant ; aucun accès JOBLY-PROD ; aucune mutation Supabase, fixture ou permission.
+- main inchangée ; PR #266 ouverte en brouillon et non fusionnée ; aucun déploiement.
+
+### 42.6 Preuves et références
+
+- Rapport V7 opérateur, reproduit au §41.1.
+- Supabase JWT Claims Reference : https://supabase.com/docs/guides/auth/jwt-fields ; décrit role et ref comme claims des clés anon/service_role.
+- Microsoft Learn Get-Clipboard : https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-clipboard?view=powershell-5.1 ; décrit l'accès au presse-papiers et le paramètre Raw.
+- Document source avant cette mise à jour : V2.38, blob SHA dcdd5b1b2bc1de050207d908ef7c04472d6c8f22, branche e2e/recette.
