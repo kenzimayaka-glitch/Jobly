@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.33 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.34 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -15,7 +15,7 @@
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le dernier rapport V4 confirme un arrêt au contrôle local du format de la clé (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avant toute requête HTTP ; `results=[]`. L'exposition de `net` reste donc indéterminée. La V5 qui invite à coller `service_role` est SUSPENDUE ; ne pas la réexécuter. À la demande de l'opérateur, une V6 distincte est transmise au §34 pour deux GET OpenAPI sur JOBLY-E2E, avec invite masquée, uniquement à l'aide de la clé historique `service_role` JOBLY-E2E si elle est Active et confirmée comme telle. La V6 a été exécutée par l'opérateur le 8 novembre 2026, mais s'est arrêtée au contrôle local de format (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avec `results=[]` ; aucun GET n'a été exécuté et elle ne constitue pas un PASS. L'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`, `sb_secret_…` ou une clé de production. La V5 reste suspendue ; la V6 du §34 est la seule commande de retest retransmise à la demande de l'opérateur. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.33  
+**Version :** 2.34  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1916,3 +1916,36 @@ Ne jamais transmettre les caractères suivants, le JWT, une capture révélant l
 - Rapport V6 reproduit au §35.1.
 - Document source avant cette mise à jour : V2.32, blob SHA `750fd141b3eef92a0e9f12de97f9e763e3e9c07c`, branche `e2e/recette`.
 - Aucune valeur de clé ni aucun préfixe n'ont été reçus à cette étape.
+
+
+---
+
+## 38. Préfixe partiel communiqué — V2.34 — 8 novembre 2026
+
+### 38.1 Retour opérateur
+
+À la demande de vérifier localement les trois premiers caractères de la valeur, l'opérateur répond uniquement `ey`.
+
+### 38.2 Interprétation
+
+- Deux caractères seulement ont été communiqués ; cela ne permet pas de confirmer le préfixe JWT historique complet `eyJ`.
+- Le script V6 vérifie précisément `startsWith('eyJ')`; le rapport antérieur indique qu'il a reçu une chaîne vide ou ne commençant pas par cette séquence.
+- Aucune conclusion ne peut être tirée du seul préfixe partiel `ey`. Il ne faut pas demander à l'opérateur de communiquer d'autres caractères de la clé.
+
+### 38.3 Étape suivante
+
+L'opérateur peut vérifier lui-même, dans le Dashboard JOBLY-E2E, si le troisième caractère est exactement `J), sans communiquer la valeur ni aucun autre caractère. Il répond uniquement `PREFIX_OK` si les trois caractères sont `eyJ`, ou `PREFIX_NO` dans le cas contraire. Ne pas relancer le script avant cette clarification, ne pas copier la valeur dans le chat et ne pas modifier ni régénérer la clé.
+
+### 38.4 Statut
+
+- Ligne Legacy `service_role` : confirmée visuellement au §37.
+- Préfixe complet : **NON CONFIRMÉ** ; seuls les deux caractères `ey` ont été communiqués.
+- GET OpenAPI `public` et `net` : **NON EXÉCUTÉS**.
+- LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- Aucun secret complet reçu ; aucun accès JOBLY-PROD, aucune modification de fixture, donnée, permission ou configuration Supabase.
+- `main` inchangée ; PR #266 ouverte, brouillon et non fusionnée ; aucun déploiement.
+
+### 38.5 Preuves
+
+- Déclaration opérateur : `ey`.
+- Document source avant cette mise à jour : V2.33, blob SHA `c5257d9eb998c20863072e25f751b36c3cfe7fa3`, branche `e2e/recette`.
