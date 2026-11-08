@@ -26,31 +26,10 @@ function record(role, id, status, httpStatus, detail) {
   report.checks.push({ role, id, status, httpStatus: httpStatus ?? null, detail: String(detail || "").slice(0, 240) });
 }
 
-function parseEnvFile(content) {
-  const values = {};
-  for (const line of content.split(/\r?\n/)) {
-    const match = line.match(/^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*(.*)\\s*$/);
-    if (!match) continue;
-    let value = match[2].trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
-    values[match[1]] = value;
-  }
-  return values;
-}
-
-async function readE2EAdminKey() {
-  const direct = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-  if (direct.length >= 20) return direct;
-  for (const file of [".env.e2e.local", ".env.local", ".env"]) {
-    let content;
-    try { content = await readFile(path.resolve(file), "utf8"); } catch { continue; }
-    const values = parseEnvFile(content);
-    const configuredUrl = values.NEXT_PUBLIC_SUPABASE_URL || values.SUPABASE_URL || "";
-    if (configuredUrl !== SUPABASE_URL) continue;
-    const key = values.SUPABASE_SECRET_KEY || values.SUPABASE_SERVICE_ROLE_KEY || "";
-    if (key.length >= 20) return key;
-  }
-  return "";
+function readE2EAdminKey() {
+  const configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
+  if (configuredUrl !== SUPABASE_URL) return "";
+  return process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 }
 
 function assertE2EAdminKey(key) {
@@ -302,7 +281,7 @@ async function runCrossRoleApplicationLifecycle(fixtures) {
     assert.ok(talentAccount?.email && talentAccount?.password, "Fixture Talent absente.");
     assert.ok(recruiterAccount?.email && recruiterAccount?.password, "Fixture Recruteur absente.");
 
-    const adminKey = await readE2EAdminKey();
+    const adminKey = readE2EAdminKey();
     if (!adminKey) {
       record("TALENT", "CROSS-ROLE-APPLICATION-LIFECYCLE-ENVIRONMENT", "BLOCKED", null, "Clé privée serveur JOBLY-E2E absente de l'environnement local ; aucun parcours croisé ni aucune mutation créés.");
       record("RECRUITER", "CROSS-ROLE-APPLICATION-LIFECYCLE-ENVIRONMENT", "BLOCKED", null, "Clé privée serveur JOBLY-E2E absente de l'environnement local ; aucun parcours croisé ni aucune mutation créés.");
