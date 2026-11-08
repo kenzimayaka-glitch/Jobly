@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.45 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.46 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -2536,7 +2536,7 @@ Le contrôle V2.43 a lu OTHER_TEXT (GE1000), et non une clé. La correction doit
 
 ---
 
-## 48. Test différentiel par message témoin — V2.45 — 8 novembre 2026
+## 48. Test différentiel par message témoin — V2.46 — 8 novembre 2026
 
 ### 48.1 But et limite de sécurité
 
@@ -2554,9 +2554,9 @@ Un brouillon de message peut être synchronisé ou autosauvegardé. Le secret r�
 6. Ne pas envoyer le message. Fermer le brouillon et le supprimer/abandonner si l'application le conserve.
 
 Résultats à rapporter, sans capture contenant d'autres données :
-- `MESSAGE_CANARY_MATCH=True) si les deux chaînes sont identiques.
-- `MESSAGE_CANARY_MATCH=False) si le collage échoue ou diffère.
-- `MESSAGE_CANARY_TEST_NOT_RUN) si le champ ne permet pas un brouillon sûr.
+- `MESSAGE_CANARY_MATCH=True` si les deux chaînes sont identiques.
+- `MESSAGE_CANARY_MATCH=False` si le collage échoue ou diffère.
+- `MESSAGE_CANARY_TEST_NOT_RUN` si le champ ne permet pas un brouillon sûr.
 
 Ce test établit uniquement que le copier-coller générique fonctionne dans ce champ. Il ne prouve pas que le bouton Copier de Supabase fonctionne.
 
@@ -2566,28 +2566,28 @@ Si et seulement si le canari de message correspond :
 
 1. Revenir au Dashboard du projet JOBLY-E2E `ofqqrryamslxoqkklraw`, onglet Legacy API Keys.
 2. Exécuter le préparateur de sentinelle du §45.2 et exiger `baseline_verified=True`.
-3. Cliquer une seule fois sur Copier dans la ligne `service_role).
+3. Cliquer une seule fois sur Copier dans la ligne `service_role`.
 4. Ne coller la valeur nulle part. Exécuter immédiatement le classificateur local du §45.3, qui lit uniquement les métadonnées nécessaires puis remplace le presse-papiers par une sentinelle.
 5. Ne transmettre que les lignes de classification non sensibles et le GATE.
 
 Interprétation :
 - Canari message faux : problème de copie/collage générique ou de champ ; ne pas poursuivre avec le secret.
-- Canari vrai + `BASELINE_UNCHANGED) : le clic Supabase n'a pas remplacé la sentinelle ; recharger le Dashboard, puis un seul nouvel essai contrôlé.
-- Canari vrai + `OTHER_TEXT) : le transfert du bouton a changé le presse-papiers mais pas vers le JWT attendu ; revalider le projet et la ligne sélectionnée.
-- Canari vrai + `PASS_CLIPBOARD_JWT_METADATA) : format et claims locaux attendus ; ce n'est pas encore une validation de signature ni une preuve d'acceptation serveur.
+- Canari vrai + `BASELINE_UNCHANGED` : le clic Supabase n'a pas remplacé la sentinelle ; recharger le Dashboard, puis un seul nouvel essai contrôlé.
+- Canari vrai + `OTHER_TEXT` : le transfert du bouton a changé le presse-papiers mais pas vers le JWT attendu ; revalider le projet et la ligne sélectionnée.
+- Canari vrai + `PASS_CLIPBOARD_JWT_METADATA` : format et claims locaux attendus ; ce n'est pas encore une validation de signature ni une preuve d'acceptation serveur.
 
 ### 48.4 Interdictions inchangées
 
 - Ne jamais coller un vrai mot de passe ou une clé dans un message, même non envoyé, un e-mail, un chat, un document ou un terminal.
 - Ne jamais envoyer le secret à l'assistant, même pour le vérifier ; ne pas en transmettre de préfixe, suffixe ou extrait.
-- Ne pas modifier, régénérer ou révoquer les clés ; ne pas toucher aux permissions ; ne pas exécuter `net.http_*).
+- Ne pas modifier, régénérer ou révoquer les clés ; ne pas toucher aux permissions ; ne pas exécuter `net.http_*`..
 - Aucun GET OpenAPI avant `PASS_CLIPBOARD_JWT_METADATA).
-- JOBLY-PROD reste strictement hors périmètre ; aucun changement de `main), aucun déploiement.
+- JOBLY-PROD reste strictement hors périmètre ; aucun changement de `main`, aucun déploiement.
 
 ### 48.5 État après préparation de la recette
 
 - La procédure est préparée mais pas encore exécutée ; aucun résultat canari n'est revendiqué.
-- Le dernier résultat disponible reste celui du §46 : `OTHER_TEXT`, longueur `GE1000), remplacement sentinelle vérifié.
+- Le dernier résultat disponible reste celui du §46 : `OTHER_TEXT`, longueur `GE1000`, remplacement sentinelle vérifié.
 - LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED** ; GET OpenAPI `public` et `net` non exécutés.
 - PR #266 reste la branche de continuité E2E ; cette mise à jour documentaire ne fusionne pas la PR.
-- Document source avant cette mise à jour : V2.44, blob SHA `4d8ef882bdac91823244e984c62fed03ebd5e1df`, branche `e2e/recette`.
+- Document source avant cette mise à jour : V2.45, blob SHA `77c4218ccf49239f278c4330da9f5edf09570d27`, branche `e2e/recette`.
