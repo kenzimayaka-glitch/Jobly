@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.7 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.8 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -10,9 +10,11 @@
 >
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse Jobly, le mettre à jour dans cette branche et donner comme preuve le commit GitHub ainsi que le chemin du fichier. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
-> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent et couvert par le LOT-01. Le premier audit LOT-00 en lecture seule est consigné au §16 ; **LOT-00 reste PARTIAL** tant que l'exposition Data API du schéma net et le durcissement des privilèges clients ne sont pas clos. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
+> **Verrou de reprise V2.8 :** les sections 7, 9, 10, 11, 12 et 13.7 contiennent des états ou consignes historiques ; elles ne constituent plus des instructions opératoires. En particulier, l'autorisation de reset citée au §9 n'est plus active : ne pas exécuter e2e/reset-existing-fixture-passwords.mjs, les scripts de vérification Auth des anciennes fixtures, le provisionneur, ni scripts/e2e-local-recipe.mjs/le runner bulk. Aucune connexion Auth, mutation de fixture, restauration de mot de passe ou relance globale n'est autorisée par ce document. Le seul prochain contrôle permis est le GET OpenAPI décrit au §16.7, suivi de son analyse.
+>
+> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le contrôle Data API du schéma net n'a pas encore été retourné, l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette n'est pas suffisamment documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 
-**Version :** 2.7  
+**Version :** 2.8  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -202,7 +204,10 @@ Priorités de reprise :
 
 Aucun lot ne doit être passé au vert par simple absence d'erreur dans une suite partielle.
 
-## 7. Plan de reprise ordonné
+## 7. Plan de reprise ordonné — HISTORIQUE, NE PAS EXÉCUTER
+
+> Cette séquence décrit un ancien plan de récupération des fixtures. Elle est conservée pour la traçabilité, mais elle est remplacée par les verrous V2.8 et les sections 15 à 17. Ne pas exécuter les scripts verify-existing-fixtures, verify-existing-fixtures-bulk, le provisionneur, la restauration runtime ou la recette complète à partir de cette section.
+
 
 ### Étape A — état local, sans toucher aux comptes
 
@@ -270,7 +275,10 @@ Une fois les fixtures locales correctement restaurées, restaurer le runtime JOB
 
 ---
 
-## 9. Point exact de reprise au moment de cette consolidation
+## 9. Point exact de reprise — HISTORIQUE OBSOLÈTE, NE PAS EXÉCUTER
+
+> **Alerte critique :** la phrase d'autorisation de génération de nouveaux mots de passe ci-dessous est un enregistrement historique, pas une autorisation actuelle. La commande node e2e/reset-existing-fixture-passwords.mjs --confirm-reset-existing-e2e-passwords est interdite dans la reprise actuelle. Ne pas l'exécuter, ne pas demander la clé privée et ne pas recréer ni réinitialiser les fixtures. Le script local modifié reste à préserver.
+
 
 **Décision utilisateur enregistrée :** l'utilisateur a autorisé la génération de nouveaux mots de passe pour les trois identités Auth fixtures EXISTANTES (Talent, Recruteur, Partenaire). Cette autorisation n'inclut ni la création/suppression des comptes, ni la modification des profils, ni l'accès à JOBLY-PROD.
 
@@ -293,7 +301,10 @@ Ce document est la référence de continuité jusqu'à sa prochaine mise à jour
 
 ---
 
-## 10. Recette bulk après récupération des fixtures — 7 novembre 2026
+## 10. Recette bulk après récupération des fixtures — HISTORIQUE, NE PAS RELANCER — 7 novembre 2026
+
+> Cette exécution et sa prochaine action sont des faits historiques. La consigne de relancer node scripts/e2e-local-recipe.mjs est annulée par le verrou V2.8 et le LOT-00 PARTIAL. Ne pas relancer le bulk.
+
 
 Rapport opérateur : exécution locale du 7 novembre, 16:37:42.949Z–16:43:39.422Z, Node.js v26.13.0, JOBLY-E2E uniquement, 5 lots en parallèle, 2 fichiers par lot.
 
@@ -318,7 +329,7 @@ Rapport opérateur : exécution locale du 7 novembre, 16:37:42.949Z–16:43:39.4
 2. Relancer une seule fois `node scripts/e2e-local-recipe.mjs`.
 3. Fournir `artifacts/e2e/local-recipe/summary.md` et `artifacts/e2e/authenticated-role-smoke.json`.
 4. Critère ciblé : le scénario croisé doit obtenir PASS à `CROSS-ROLE-APPLICATION-LIFECYCLE-PREPARE`, puis poursuivre la lecture Talent, réception Recruteur, transition INTERVIEW/OFFER, garde de décision et nettoyage.
-5. Aucun merge vers `main), aucun déploiement, aucun accès JOBLY-PROD.
+5. Aucun merge vers `main`, aucun déploiement, aucun accès JOBLY-PROD.
 
 ## Correctif de sécurité Recruitment 360 — 7 novembre 2026
 
@@ -376,7 +387,10 @@ Commits :
 
 Validation locale par Node.js requise ; aucune session utilisateur réelle n'a été révoquée pendant la correction. PR #266 reste en brouillon ; aucun merge ou déploiement.
 
-## 11. Recette E2E complète après récupération des fixtures — 8 novembre 2026
+## 11. Recette E2E complète après récupération des fixtures — ÉTAT HISTORIQUE — 8 novembre 2026
+
+> Ce rapport reste une preuve historique d'une exécution antérieure. Ses priorités de reprise ne remplacent pas le statut courant des §§15 à 17.
+
 
 **SHA exact confirmé par l'opérateur :** `f33b0e3564189a8766fe1f357a8fe711368b9653`. Ce SHA correspond au HEAD de la branche `e2e/recette` et à celui de la PR #266 au moment du contrôle GitHub. Le rapport local qui indiquait `Commit: local` est donc désormais rattaché à ce commit par confirmation explicite de l'opérateur.
 
@@ -430,7 +444,10 @@ Les deux exécutions bulk précédentes ne doivent pas être additionnées aux 3
 
 JOBLY-E2E seulement. Ne pas écrire dans JOBLY-PROD. Ne pas fusionner la PR #266, ne pas toucher à `main`, ne pas déployer. Ne pas modifier les profils ni les comptes fixtures existants hors autorisation spécifique. Aucun paiement réel, SMS, e-mail ou candidature externe.
 
-## 12. Extension de la recette runtime authentifiée — 8 novembre 2026
+## 12. Extension de la recette runtime authentifiée — ÉTAT PRÉPARATOIRE HISTORIQUE — 8 novembre 2026
+
+> Les statuts « préparés mais pas encore exécutés » de cette section sont remplacés pour E2E-001 par le résultat du §15. Les ajouts de code y sont décrits comme contexte, pas comme preuve runtime.
+
 
 Après confirmation du SHA de la recette précédente, de nouveaux contrôles ont été ajoutés sur `e2e/recette` pour couvrir des angles encore absents du rapport authentifié. Ces contrôles sont **préparés dans le code mais pas encore exécutés par l'opérateur**.
 
@@ -499,10 +516,10 @@ Pour éliminer cette dépendance au transfert de fichier, le correctif a été c
 Lecture des trois fichiers depuis GitHub au HEAD `8385b60400bbaf9cedfcb4aa01073b733533f6c2` :
 
 - Smoke Talent : 505 lignes ; aucun appel `request(token, "/api/profile", "PUT")`, aucun identifiant `TALENT-PROFILE-WRITE` ou `TALENT-PROFILE-PERSIST`.
-- Marqueur `E2E-READONLY-TALENT-START` placé avant `TALENT-PROFILE-READ) ; marqueur END présent à la fin du bloc Talent.
+- Marqueur `E2E-READONLY-TALENT-START` placé avant `TALENT-PROFILE-READ` ; marqueur END présent à la fin du bloc Talent.
 - Test statique : sixième test présent ; il inspecte la frontière entre `if (item.role === "TALENT")` et `if (item.role === "RECRUITER")`.
 - Runner 11 lots : le fichier de régression est listé dans LOT-01.
-- Aucun changement de branche `main), aucune fusion PR, aucun déploiement et aucune requête vers Supabase n'ont été effectués dans cette séquence.
+- Aucun changement de branche `main`, aucune fusion PR, aucun déploiement et aucune requête vers Supabase n'ont été effectués dans cette séquence.
 
 **Limite de preuve :** la relecture distante prouve que le code est commité et que les protections sont présentes. Elle ne prouve pas encore que le test Node.js passe sur le poste Windows. Le statut E2E-001 reste donc **CORRECTIF COMMITÉ — TEST STATIQUE LOCAL EN ATTENTE**, et non PASS.
 
@@ -524,7 +541,7 @@ git pull --ff-only origin e2e/recette > feedback-e2e001-sync.txt 2>&1
 notepad feedback-e2e001-sync.txt
 ```
 
-Attendu : HEAD `8385b60400bbaf9cedfcb4aa01073b733533f6c2` ou un SHA descendant explicitement vérifié sur la branche `e2e/recette). Si le pull est refusé à cause d'un conflit ou d'un état local, **ne pas lancer reset, stash, clean ou suppression** ; transmettre le rapport et traiter le conflit en préservant tous les changements.
+Attendu : HEAD `8385b60400bbaf9cedfcb4aa01073b733533f6c2` ou un SHA descendant explicitement vérifié sur la branche `e2e/recette`. Si le pull est refusé à cause d'un conflit ou d'un état local, **ne pas lancer reset, stash, clean ou suppression** ; transmettre le rapport et traiter le conflit en préservant tous les changements.
 
 ### 13.5 Test ciblé — seulement après synchronisation vérifiée
 
@@ -543,18 +560,18 @@ Résultat attendu : les six tests statiques PASS. Si un test échoue, ne pas lan
 1. Refaire un audit LOT-00 strictement en lecture seule sur JOBLY-E2E : identité du projet, RLS, grants, Storage/buckets/policies, présence/mapping des fixtures ; ne pas muter de données.
 2. Si LOT-00 et E2E-001 sont conformes, exécuter le smoke runtime authentifié en mode read-only, une seule fois et séquentiellement pour les fixtures partagées.
 3. Examiner les réponses individuelles Talent : profil GET, applications GET, flux local/Afrique, détail offre, CV original et Career Journey. Un détail d'offre sans offre exploitable reste BLOCKED ; aucune conversion artificielle en PASS.
-4. Seulement après preuves de stabilité et d'isolation, relancer la recette bulk avec `E2E_LOT_CONCURRENCY=2). Garder les scénarios utilisant les mêmes fixtures et objets séquentiels.
+4. Seulement après preuves de stabilité et d'isolation, relancer la recette bulk avec `E2E_LOT_CONCURRENCY=2`. Garder les scénarios utilisant les mêmes fixtures et objets séquentiels.
 5. Ne pas déclarer les lots PASS tant que tous les scénarios métier obligatoires ne sont pas testés et que les preuves d'accès, persistance et nettoyage ne sont pas jointes.
 
-### 13.7 État de continuité après cette mise à jour
+### 13.7 État de continuité après cette mise à jour — HISTORIQUE, REMPLACÉ PAR §§15–17
 
-- E2E-001 : correctif commité sur `e2e/recette) ; test statique local en attente.
+- E2E-001 : correctif commité sur `e2e/recette` ; test statique local en attente.
 - Smoke Auth Talent : ne pas exécuter avant PASS statique et audit LOT-00.
 - Campagne bulk locale : ne pas relancer avant fermeture des prérequis.
 - JOBLY-E2E : aucune opération runtime effectuée par les commits documentaires/code.
 - JOBLY-PROD : interdit, aucun accès.
 - PR #266 : ouverte, brouillon, non fusionnée.
-- `main) : inchangée.
+- `main` : inchangée.
 - Fixtures partagées : aucune modification par cette correction.
 
 ---
@@ -575,7 +592,7 @@ Sortie CMD communiquée par l'opérateur après `git pull --ff-only origin e2e/r
 
 Le rapport `git status --short` transmis indique :
 
-- Modifié : `e2e/reset-existing-fixture-passwords.mjs). Ce fichier est hors périmètre du correctif E2E-001 ; ne pas l'exécuter, le restaurer, le remplacer, le stager ou le supprimer.
+- Modifié : `e2e/reset-existing-fixture-passwords.mjs`. Ce fichier est hors périmètre du correctif E2E-001 ; ne pas l'exécuter, le restaurer, le remplacer, le stager ou le supprimer.
 - Non suivis : fichiers de diagnostics, rapports bulk, rapports de recette, `tsconfig.tsbuildinfo`, `typecheck-latest.txt` et entrées inhabituelles affichées par Git (`({`, `)`, `0`, `account.role)`, `item.role`, `item.status`, `role)`, `undefined)`, `{`). Tous restent à préserver.
 - Les trois fichiers cibles sont arrivés par fast-forward. Le rapport fourni ne présente aucune erreur de merge.
 
@@ -796,3 +813,83 @@ Après ce contrôle, réconcilier les buckets publics et les grants, puis seulem
 - Fixtures partagées : inchangées.
 - PR #266 : ouverte, brouillon, non fusionnée.
 - main : inchangée ; aucun merge ni déploiement.
+
+
+---
+
+## 17. Audit de continuité et de reprise — V2.8 — 8 novembre 2026
+
+### 17.1 Périmètre et références vérifiées
+
+Audit effectué sur le contenu GitHub de docs/e2e/CONTINUITE-RECETTE-E2E.md, branche e2e/recette.
+
+- Blob du document audité avant cet audit : 12bdb974d3e442dc6c5908ad49025cb8a7216094.
+- HEAD de la PR #266 au contrôle : 06152a7347cdb3399d36352462cab73e81ae2061.
+- PR #266 : ouverte, brouillon, non fusionnée.
+- Comparaison du HEAD local communiqué e92feb8abc1a2491cab7dd81e834080b80982681 avec le HEAD distant : 3 commits d'avance côté distant, tous limités à docs/e2e/CONTINUITE-RECETTE-E2E.md, aucune différence de code dans cette comparaison.
+- Le résultat opérateur du test statique 6/6 reste donc rattaché au même code que celui comparé sur la branche distante. En revanche, le document local est en retard et doit être synchronisé avant toute prochaine modification documentaire locale.
+- Le résultat E2E-001 est PASS STATIQUE LOCAL ; il ne prouve ni authentification runtime, ni lecture réelle d'API, ni recette globale.
+
+### 17.2 Défauts documentaires détectés et traitement
+
+| Gravité | Défaut | Risque | Traitement V2.8 |
+|---|---|---|---|
+| CRITIQUE | Le §9 conserve une autorisation historique de réinitialisation des trois mots de passe et une commande exécutable. | Un nouvel opérateur pourrait croire que cette autorisation est encore valable et modifier des fixtures partagées. | Le §9 est explicitement marqué historique et interdit d'exécution ; le verrou est répété en tête du document. |
+| ÉLEVÉE | Les §§7 et 10 contiennent des instructions d'Auth, de restauration ou de relance complète/bulk qui précèdent les garde-fous actuels. | Connexion Auth, provisionnement ou runner pouvant toucher les fixtures avant la fermeture de LOT-00. | Ces séquences sont marquées historiques ; les scripts cités ne sont pas autorisés par la reprise V2.8. |
+| ÉLEVÉE | Le §13.7 indique encore que le test statique E2E-001 est en attente. | Deux statuts incompatibles dans le même document. | Le statut est explicitement subordonné aux §§15 à 17 ; le résultat courant est celui du §15 : 6/6 PASS. |
+| ÉLEVÉE | Le critère de sortie LOT-00 mélange exposition net, statut des buckets publics et durcissement des grants sans distinguer preuve minimale et remédiation. | Risque de déclarer LOT-00 vert sur un contrôle partiel ou, inversement, d'appliquer des changements de privilèges hors périmètre. | Le LOT-00 reste PARTIAL. Il faut une preuve GET net, une décision sur les buckets publics et une matrice documentée des grants/policies pertinents. Aucune modification SQL n'est permise dans cette recette. |
+| MOYENNE | Le constat RLS 180/180 est présenté à côté de grants clients larges ; les policies n'ont été décrites que pour les tables inspectées, pas démontrées exhaustivement pour les 180 tables. | Confondre activation RLS et validation de la qualité de toutes les policies. | Ne pas conclure à une sécurité complète. La revue doit couvrir les tables/routines effectivement accessibles aux rôles clients dans le périmètre E2E et rapprocher privilèges, policies et opérations métier. |
+| MOYENNE | Les deux buckets publics sont identifiés mais leur intention produit n'est pas attestée. | Une visibilité publique par configuration pourrait être involontaire, même si les buckets sont actuellement vides. | Maintenir le point ouvert ; demander une décision métier explicite avant de les traiter comme conformes. |
+| MOYENNE | Le contrôle OpenAPI §16.7 ne valide que l'exposition Data API du schéma demandé ; il ne valide ni toutes les policies RLS, ni les grants de chaque table, ni les droits Storage. | Surinterpréter un 406 PGRST106 comme une certification complète de sécurité. | Le résultat net ne ferme que ce point précis ; il doit être combiné avec les deux autres contrôles LOT-00. |
+| MOYENNE | Le dernier HEAD local connu est e92feb8, alors que la PR est au HEAD 06152a7. | Les fichiers documentaires locaux ne reflètent pas les trois commits distants. | La comparaison confirme que ces trois commits ne changent que le document. Pas de pull nécessaire pour exécuter le GET autonome du §16.7 ; synchroniser la branche avant toute nouvelle édition/commande dépendant de fichiers versionnés. |
+| FAIBLE | Plusieurs sous-sections historiques ont des statuts « en attente » conservés après que les tests ont été exécutés ; quelques parenthèses/points parasites rendaient certains noms de fichiers ou SHA moins lisibles. | Ambiguïté lors de la reprise et mauvaise lecture des statuts. | Ajout de marqueurs historiques et correction des coquilles ciblées ; conserver les anciennes preuves sans les réinterpréter. |
+
+### 17.3 Validation de la méthode du contrôle OpenAPI §16.7
+
+La méthode est cohérente avec PostgREST : pour GET/HEAD, Accept-Profile sélectionne le schéma ; un schéma absent de la liste exposée est refusé avec PGRST106. PostgREST indique également que la sélection de schéma s'applique à OpenAPI. Références :
+- https://docs.postgrest.org/en/latest/references/api/schemas.html
+- https://supabase.com/docs/guides/api/using-custom-schemas
+
+La commande du §16.7 reste un GET seulement et peut être exécutée sans synchroniser le dépôt, car elle ne dépend d'aucun fichier du code local. Interprétation à conserver :
+- public accepté (réponse HTTP réussie) et net refusé avec PGRST106 : preuve que net n'est pas dans les schémas exposés par cette Data API à cet instant ; ce résultat ne prouve rien sur les autres contrôles.
+- net accepté : LOT-00 reste BLOCKED sur l'exposition du schéma ; aucune correction automatique.
+- 401/403, erreur réseau, réponse non JSON, ou résultat différent : BLOCKED/ambigu ; ne rien modifier et faire analyser le rapport.
+
+### 17.4 Critères de fermeture LOT-00 — version clarifiée
+
+LOT-00 ne pourra être déclaré PASS que lorsque les preuves suivantes seront regroupées et relues :
+
+1. **Identité** : endpoint et project ref correspondent exactement à JOBLY-E2E ofqqrryamslxoqkklraw.
+2. **Exposition API** : public est accessible selon le contrat attendu et net n'est pas exposé (PGRST106 sur le profil net).
+3. **Storage** : décision explicite que jobly-events et profile-photos doivent être publics ; les buckets privés et les accès attendus sont documentés.
+4. **Moindre privilège** : matrice limitée aux tables/routines/objets Storage utilisés par la recette, avec rôle, privilèges directs, RLS, policies applicables et opérations nécessaires. Les écarts doivent être classés et faire l'objet d'un plan approuvé. Aucun grant, policy, bucket ou schéma ne sera modifié dans le cadre de la recette sans autorisation séparée.
+5. **Fixtures et runtime** : correspondance des trois fixtures déjà établie en lecture seule ; disponibilité du moyen local d'authentification/runtime JOBLY-E2E à confirmer séparément, sans réinitialiser les mots de passe et sans exposer le secret.
+
+L'activation RLS sur 180/180 tables est un bon indicateur de couverture technique, mais ne remplace pas les points 2 à 5 et ne suffit pas à certifier les policies de toutes les tables.
+
+### 17.5 Séquence de reprise autorisée — une seule action à la fois
+
+**Action autorisée maintenant :** exécuter exclusivement le contrôle GET OpenAPI déjà décrit au §16.7, puis transmettre le contenu de feedback-lot00-net-schema-exposure.txt.
+
+**Ne pas lancer avant analyse de ce résultat et fermeture LOT-00 :**
+- tout smoke Auth/runtime Talent ou Recruteur ;
+- le parcours croisé Talent → Recruteur ;
+- le runner scripts/e2e-local-recipe.mjs ou tout bulk ;
+- les scripts de vérification, provisionnement, restauration ou reset des fixtures ;
+- toute commande SQL DDL/DML ou modification de grants/policies/buckets ;
+- tout accès JOBLY-PROD, merge PR #266, modification de main ou déploiement.
+
+Après réception du GET, analyser les codes HTTP et le code PostgREST, puis choisir uniquement le prochain contrôle read-only nécessaire. Ne pas enchaîner automatiquement les opérations.
+
+### 17.6 État de reprise faisant foi après l'audit
+
+- E2E-001 : **PASS STATIQUE LOCAL — 6/6, 0 échec**.
+- LOT-00 : **PARTIAL** ; GET net, validation de l'intention des deux buckets publics et matrice grants/policies ciblée encore requis.
+- Smoke runtime authentifié : **NON AUTORISÉ à ce stade**.
+- Runner bulk / recette 11 lots : **SUSPENDU**.
+- Fixtures partagées / mots de passe / profils : **aucune modification autorisée par ce document**.
+- JOBLY-E2E : seul environnement autorisé, mais aucun nouvel appel runtime avant fermeture du gate.
+- JOBLY-PROD : interdit.
+- Branche : e2e/recette.
+- PR #266 : **ouverte, brouillon, non fusionnée**.
+- main : aucun merge ; aucun déploiement.
