@@ -98,3 +98,17 @@ test("event media upload is tied to an owned file and failed unlinked files can 
   assert.match(createPage, /method:"DELETE"/);
   assert.match(createPage, /cleanup\?\.status!==409/);
 });
+
+
+test("Talent Showcase recruiter visibility copy follows the saved discoverability flag", () => {
+  const studio = readFileSync(new URL("../components/TalentShowcaseStudio.tsx", import.meta.url), "utf8");
+  const recruiterList = readFileSync(new URL("../app/api/recruiter/talents/route.ts", import.meta.url), "utf8");
+  const recruiterProfile = readFileSync(new URL("../app/api/recruiter/talents/profile/route.ts", import.meta.url), "utf8");
+
+  assert.match(studio, /d\.publicDiscoverable \?/);
+  assert.match(studio, /Non listé/);
+  assert.match(studio, /Visibilité dans la recherche recruteur/);
+  assert.doesNotMatch(studio, /Profil public accessible à tous les recruteurs/);
+  assert.match(recruiterList, /\.eq\("publicDiscoverable",true\)/);
+  assert.match(recruiterProfile, /\.eq\("publicDiscoverable",true\)/);
+});
