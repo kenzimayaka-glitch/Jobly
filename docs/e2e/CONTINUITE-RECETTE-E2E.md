@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.16 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.17 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -13,9 +13,9 @@
 > **Verrou de reprise V2.8 :** les sections 7, 9, 10, 11, 12 et 13.7 contiennent des états ou consignes historiques ; elles ne constituent plus des instructions opératoires. En particulier, l'autorisation de reset citée au §9 n'est plus active : ne pas exécuter e2e/reset-existing-fixture-passwords.mjs, les scripts de vérification Auth des anciennes fixtures, le provisionneur, ni scripts/e2e-local-recipe.mjs/le runner bulk. Aucune connexion Auth, mutation de fixture, restauration de mot de passe ou relance globale n'est autorisée par ce document. Le seul prochain contrôle permis est le GET OpenAPI décrit au §16.7, suivi de son analyse.
 >
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le contrôle Data API du schéma net n'a pas encore reçu de réponse HTTP exploitable ; l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
-> **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. Ne pas multiplier les essais avec `sb_secret`; vérifier si l'ancienne clé `service_role` est encore active dans l'onglet Legacy API Keys et utiliser uniquement le test masqué GET-only du §23.3. Aucun secret dans le chat, les rapports ou Git.
+> **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`. Sélectionner `service_role` uniquement si cette entrée est dans **Legacy API Keys** et que la valeur JWT commence par `eyJ`; utiliser alors le test masqué GET-only du §23.3. Si la valeur commence par `sb_secret_`, ce n'est pas la legacy JWT et il faut arrêter ce script. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.16  
+**Version :** 2.17  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -650,7 +650,7 @@ Aucun PASS runtime, aucun PASS LOT-00 et aucun PASS global n'est déduit de cett
 
 L'audit initial en lecture seule sur JOBLY-E2E est désormais exécuté et consigné au §16. Le statut reste PARTIAL : l'exposition du schéma PostgreSQL net sur la Data API n'est pas encore confirmée, et les grants clients larges doivent être traités comme un point de moindre privilège. Aucune modification de base n'est autorisée pour fermer ces points sans revue dédiée.
 
-La dernière vérification requise est le contrôle GET du catalogue OpenAPI PostgREST avec les profils public puis net. Le rapport doit confirmer si net fait partie des schémas exposés, sans appeler aucune fonction net.http_*.
+La dernière vérification requise est le contrôle GET du catalogue OpenAPI PostgREST avec les profils public puis net via la clé legacy `service_role` du projet E2E, saisie masquée et prévalidée par le script du §23.3. Le rapport doit confirmer si net fait partie des schémas exposés, sans appeler aucune fonction net.http_*.
 
 1. **Identité de l'environnement** : URL/projet ciblé et confirmation que le ref est exactement ofqqrryamslxoqkklraw.
 2. **RLS** : état RLS des tables concernées par les parcours de recette et présence/absence des politiques applicables.
@@ -804,7 +804,7 @@ Après le test corrigé, analyser séparément le résultat `public` et le résu
 ### 16.8 État courant
 
 - E2E-001 : **PASS statique local — 6/6**.
-- LOT-00 : **PARTIAL — le GET OpenAPI précédent a été rejeté en 401 avec la clé publishable ; nouvelle méthode secret-key GET-only documentée au §22 ; décision Storage et matrice grants/policies toujours en attente**.
+- LOT-00 : **PARTIAL — les GET avec la clé publishable ont été rejetés en 401 ; la tentative `sb_secret_…` est signalée rejetée ; l'opérateur voit les entrées `anon` public et `service_role` secret. La seule procédure restante est le test legacy `service_role` masqué du §23.3 ; décision Storage et matrice grants/policies toujours en attente**.
 - Smoke runtime Talent/Recruteur : **suspendu jusqu'à LOT-00 PASS**.
 - Recette bulk 11 lots : **suspendue**.
 - JOBLY-PROD : aucune requête SQL, aucune écriture.
@@ -867,7 +867,7 @@ L'activation RLS sur 180/180 tables est un bon indicateur de couverture techniqu
 
 ### 17.5 Séquence de reprise autorisée — une seule action à la fois
 
-**Action autorisée maintenant :** exécuter exclusivement le contrôle GET OpenAPI corrigé du §22.3 avec une clé d'administration JOBLY-E2E saisie localement et masquée, puis transmettre uniquement le rapport non sensible `feedback-lot00-net-schema-exposure-v2.txt`.
+**Action autorisée maintenant :** si la clé affichée dans la ligne `service_role` sous **Legacy API Keys** commence bien par `eyJ`, exécuter exclusivement le contrôle GET OpenAPI du §23.3, puis transmettre uniquement le rapport non sensible `feedback-lot00-net-schema-exposure-v3.txt`. Ne jamais utiliser la clé `anon`.
 
 **Ne pas lancer avant analyse de ce résultat et fermeture LOT-00 :**
 - tout smoke Auth/runtime Talent ou Recruteur ;
@@ -1155,7 +1155,7 @@ Références Supabase consultées le 8 novembre 2026 :
 
 ### 22.3 Commande Node.js locale corrigée — CMD Windows
 
-Cette tentative avec `sb_secret_…` n'est pas considérée comme validée : l'opérateur signale que la clé est rejetée, sans résultat HTTP détaillé. Ne pas multiplier les essais avec cette clé ; le test de repli de la clé legacy `service_role` est décrit au §23.3.
+**Procédure V2.15 obsolète — ne pas exécuter.** Elle mélangeait deux formats de clés. Le seul test actif est §23.3 : il accepte seulement un JWT legacy `service_role` (`eyJ…`) dont le payload confirme le rôle `service_role` et le projet `ofqqrryamslxoqkklraw`, puis envoie uniquement `apikey`.
 
 Depuis le Node.js Command Prompt / CMD :
 
@@ -1195,7 +1195,7 @@ Tout autre résultat reste `BLOCKED_REVIEW_REQUIRED`. HTTP 401 avec clé `sb_sec
 
 ### 23.1 Fait nouveau et limites
 
-L'opérateur signale que la clé secrète moderne `sb_secret_…` proposée au §22 est rejetée elle aussi. Aucun contenu de rapport, statut HTTP ni message exact de ce second rejet n'a été transmis ; il est donc impossible de conclure si la clé est désactivée, mal copiée, rattachée à un autre projet ou refusée pour une autre raison.
+L'opérateur indique voir dans le Dashboard les entrées `anon` public et `service_role` secret. Il s'agit des noms legacy si elles apparaissent sous **Legacy API Keys** ; la valeur `service_role` doit alors être un JWT commençant par `eyJ`. L'opérateur avait auparavant signalé le rejet de la clé moderne `sb_secret_…`, sans transmettre le statut HTTP ou le message exact. La présence visuelle de la ligne `service_role` ne confirme pas à elle seule son activation ; le script validera son rôle/projet avant tout appel, puis la réponse API indiquera si elle est acceptée.
 
 Contrôle Supabase Management API effectué en lecture seule : le projet `ofqqrryamslxoqkklraw` correspond bien à `JOBLY-E2E` et son état est `ACTIVE_HEALTHY`. Les clés publiques du projet sont enregistrées ; l'outil de gestion disponible ne permet pas de récupérer ni de vérifier la valeur ou l'état de la clé secrète.
 
@@ -1203,8 +1203,8 @@ Contrôle Supabase Management API effectué en lecture seule : le projet `ofqqrr
 
 URL directe : https://supabase.com/dashboard/project/ofqqrryamslxoqkklraw/settings/api-keys
 
-Dans **Legacy API Keys**, repérer la ligne `service_role` et vérifier son état sans partager la valeur :
-- si `service_role` est **active**, elle peut être utilisée pour le contrôle OpenAPI limité au GET de métadonnées ; sa valeur JWT commence habituellement par `eyJ` ;
+Dans **Legacy API Keys**, l'opérateur confirme maintenant voir les deux entrées `anon` public et `service_role` secret. Repérer la ligne `service_role` et vérifier son état sans partager la valeur :
+- si `service_role` est **active** et que sa valeur commence par `eyJ`, elle peut être utilisée pour le contrôle OpenAPI limité au GET de métadonnées ;
 - si `service_role` est absente ou désactivée, ne pas la réactiver, ne pas la régénérer et ne pas créer une autre clé pour ce diagnostic ; retourner `LEGACY_SERVICE_ROLE_UNAVAILABLE`.
 
 Supabase indique que les clés legacy `anon` et `service_role` continuent de fonctionner en parallèle des nouvelles clés tant qu'elles ne sont pas explicitement désactivées. La racine OpenAPI accepte une clé d'administration ; son exemple legacy place `service_role` uniquement dans le header `apikey`.
@@ -1236,7 +1236,7 @@ Ne pas effectuer un troisième essai avec une autre clé. Transmettre uniquement
 - Projet `JOBLY-E2E` : `ACTIVE_HEALTHY` confirmé par Supabase Management API.
 - Clé publishable : refusée sur la racine OpenAPI (401 attendu pour ce type de clé).
 - Clé moderne `sb_secret_…` : rejet signalé par l'opérateur ; preuve HTTP exacte non fournie.
-- Ancienne `service_role` : disponibilité à vérifier ; ne pas réactiver/régénérer.
+- Ancienne `service_role` : entrée visible dans le Dashboard selon l'opérateur ; confirmer son activation et utiliser seulement le JWT `eyJ…` prévalidé par le §23.3 ; ne pas réactiver/régénérer.
 - LOT-00 : **PARTIAL** ; aucune preuve d'exposition ou de non-exposition de `net` obtenue.
 - Buckets publics et matrice ciblée grants/RLS/policies : toujours à compléter.
 - Aucun smoke runtime/Auth, aucun bulk, aucune fixture modifiée, aucun accès JOBLY-PROD, aucun merge/déploiement.
