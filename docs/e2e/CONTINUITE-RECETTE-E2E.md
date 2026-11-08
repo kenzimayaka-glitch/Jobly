@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.12 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.13 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -12,9 +12,10 @@
 >
 > **Verrou de reprise V2.8 :** les sections 7, 9, 10, 11, 12 et 13.7 contiennent des états ou consignes historiques ; elles ne constituent plus des instructions opératoires. En particulier, l'autorisation de reset citée au §9 n'est plus active : ne pas exécuter e2e/reset-existing-fixture-passwords.mjs, les scripts de vérification Auth des anciennes fixtures, le provisionneur, ni scripts/e2e-local-recipe.mjs/le runner bulk. Aucune connexion Auth, mutation de fixture, restauration de mot de passe ou relance globale n'est autorisée par ce document. Le seul prochain contrôle permis est le GET OpenAPI décrit au §16.7, suivi de son analyse.
 >
-> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le contrôle Data API du schéma net n'a pas encore été retourné, l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette n'est pas suffisamment documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
+> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le contrôle Data API du schéma net n'a pas encore reçu de réponse HTTP exploitable ; l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
+> **Tentative Node.js V2.13 :** le GET OpenAPI a été lancé depuis l'environnement isolé de l'agent (Node.js v22.16.0), mais `fetch failed` est survenu avant toute réponse HTTP. Ce résultat est un blocage réseau de cet environnement d'exécution, pas une preuve de panne Supabase et pas un résultat sur l'exposition du schéma. L'action attendue reste l'exécution locale CMD/Node.js décrite au §21.3.
 
-**Version :** 2.12  
+**Version :** 2.13  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -881,6 +882,8 @@ L'activation RLS sur 180/180 tables est un bon indicateur de couverture techniqu
 
 Après réception du GET, analyser les codes HTTP et le code PostgREST, puis choisir uniquement le prochain contrôle read-only nécessaire. Ne pas enchaîner automatiquement les opérations.
 
+**Mise à jour V2.13 :** une tentative identique depuis l'environnement Node.js isolé de l'agent a échoué avant réponse HTTP (`fetch failed`, Node.js v22.16.0). Elle ne remplace pas le contrôle opérateur ; voir §21. Aucun résultat HTTP n'a été obtenu et LOT-00 reste PARTIAL.
+
 ### 17.6 État de reprise faisant foi après l'audit
 
 - E2E-001 : **PASS STATIQUE LOCAL — 6/6, 0 échec**.
@@ -1090,3 +1093,49 @@ Le dernier HEAD local communiqué e92feb8abc1a2491cab7dd81e834080b80982681 conti
 - Aucun accès JOBLY-PROD, aucune fixture touchée, aucune authentification, aucune écriture, aucun merge ni déploiement.
 
 Après retour éventuel du rapport local, comparer le résultat avec les 40 PASS CI sans additionner les mêmes tests deux fois. Le prochain contrôle navigateur anonyme ne sera engagé qu'après fermeture de LOT-00 et séparation effective des preuves Auth antérieures.
+
+---
+
+## 21. LOT-00 — contrôle OpenAPI en Node.js — V2.13 — 8 novembre 2026
+
+### 21.1 Relecture et limites d’autorisation
+
+Le document maître V2.12 a été relu intégralement avant cette reprise (1 093 lignes). Le contrôle autorisé reste celui du §16.7 : deux requêtes HTTP GET sur `https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/`, avec les profils `public` puis `net`. Aucun endpoint Auth, RPC métier, SQL, `net.http_*`, mutation ou script de fixtures n’entre dans ce contrôle.
+
+État GitHub revalidé avant cette mise à jour : PR #266 ouverte, en brouillon, non fusionnée ; HEAD `75e802a9e85b3571eecfc44939744ef3a26d07eb`. Aucun merge ni déploiement.
+
+### 21.2 Tentative Node.js dans l’environnement d’exécution de l’agent
+
+- Runtime disponible dans cet environnement : Node.js `v22.16.0` (différent du poste Windows opérateur, Node.js `v26.13.0`).
+- Tentative : deux GET séquentiels vers l’URL Data API JOBLY-E2E, en utilisant la clé publishable déjà référencée au §16.7 ; aucun secret `service_role`.
+- Résultat : `LOT00_SCHEMA_CHECK_ERROR: fetch failed` avant réception du premier statut HTTP.
+- Aucun code HTTP, code PostgREST ou document OpenAPI n’a donc été reçu. Cette erreur ne permet pas de conclure que l’API JOBLY-E2E est indisponible ou que `net` est exposé ; la sortie réseau de cet environnement isolé peut bloquer la requête.
+- Aucun appel Auth, aucune requête SQL, aucun RPC métier, aucune écriture, aucune modification de fixture et aucun accès à JOBLY-PROD.
+
+**Classification : BLOCKED_ENVIRONMENT / NON CONCLUANT. LOT-00 reste PARTIAL.** Ne pas compter cette tentative comme PASS ni comme FAIL du service Supabase.
+
+### 21.3 Contrôle à exécuter depuis Node.js local — CMD Windows
+
+Le poste opérateur est déjà connu : `C:\Users\ASUS\Jobly`, Node.js `v26.13.0`. La commande ci-dessous reste strictement limitée aux GET OpenAPI. Elle contrôle également les conditions attendues et écrit un rapport sans afficher la clé. La clé `sb_publishable_...` est la clé publishable JOBLY-E2E documentée au §16.7, et non une clé privée.
+
+```bat
+cd /d C:\Users\ASUS\Jobly
+if exist feedback-lot00-net-schema-exposure.txt echo Rapport existant conserve : ne pas l'ecraser ; ouvrir et transmettre le rapport existant.
+if not exist feedback-lot00-net-schema-exposure.txt node -e "const run=async()=>{const url='https://ofqqrryamslxoqkklraw.supabase.co';const key='sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y';let failed=false;console.log('node='+process.version);for(const schema of ['public','net']){const r=await fetch(url+'/rest/v1/',{method:'GET',headers:{apikey:key,Authorization:'Bearer '+key,Accept:'application/openapi+json','Accept-Profile':schema},signal:AbortSignal.timeout(20000)});const raw=await r.text();let body={};try{body=JSON.parse(raw)}catch{};const out={schema,status:r.status,apiSchemaAccepted:r.ok,openapi:!!(body.openapi||body.swagger),code:body.code??null,message:body.message??null};console.log(JSON.stringify(out));if(schema==='public'){if(!r.ok||!(body.openapi||body.swagger))failed=true;}else if(r.ok||body.code!=='PGRST106')failed=true;}console.log('GATE='+(!failed?'PASS_NET_NOT_EXPOSED':'BLOCKED_REVIEW_REQUIRED'));if(failed)process.exitCode=2;};run().catch(e=>{console.error('LOT00_SCHEMA_CHECK_ERROR:'+e.message);process.exitCode=2;});" > feedback-lot00-net-schema-exposure.txt 2>&1
+notepad feedback-lot00-net-schema-exposure.txt
+```
+
+Le premier `if exist` protège un éventuel rapport précédent : il n’est jamais écrasé. Si le rapport existe déjà, l’ouvrir et transmettre son contenu avant toute nouvelle tentative ; ne pas le supprimer ni le remplacer.
+
+Résultat attendu pour fermer uniquement le point d’exposition `net` :
+- Profil `public` : HTTP réussi (`200`), `apiSchemaAccepted=true` et `openapi=true`.
+- Profil `net` : HTTP `406`, `apiSchemaAccepted=false`, `code=PGRST106`.
+- Synthèse : `GATE=PASS_NET_NOT_EXPOSED`.
+
+Tout autre résultat — `fetch failed`, délai dépassé, erreur 401/403, `public` refusé, `net` accepté, code inattendu ou réponse non JSON — reste `BLOCKED_REVIEW_REQUIRED`. Ne pas tenter de corriger les grants ou la configuration à partir de ce seul résultat.
+
+### 21.4 Contrôles LOT-00 qui resteront ouverts après le GET
+
+Même si le contrôle Node.js retourne `PASS_NET_NOT_EXPOSED`, LOT-00 ne sera pas automatiquement PASS. Il restera à obtenir la décision métier explicite sur la visibilité publique de `jobly-events` et `profile-photos`, puis à compléter la matrice ciblée des grants directs, RLS/policies et opérations nécessaires sur les tables, routines et objets Storage effectivement utilisés par les recettes. Aucun droit, bucket, schéma ou policy ne sera modifié dans cette recette.
+
+En attente du rapport Node.js local : LOT-00 **PARTIAL** ; smoke runtime Auth, smoke navigateur JOBLY-E2E et bulk toujours suspendus ; fixtures inchangées ; JOBLY-PROD interdit ; PR #266 en brouillon ; aucun merge ou déploiement.
