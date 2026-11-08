@@ -9,7 +9,7 @@
 
 - Page publique et navigation responsive.
 - Six photos locales WebP : hero, trois cartes de parcours, section Impact et section Réseau.
-- Compteurs Talents / Offres consommant la même API que l'application.
+- Compteurs Talents / Offres synchronisés avec les routes publiques et le flux authentifié Talent > Offres.
 - Notifications de succès basées exclusivement sur les transitions réelles vers `HIRED`, validées par un rôle recruteur autorisé.
 - Accès anonyme, absence de fuite d'identifiants dans les payloads publics.
 - Conservation de la route `/` comme entrée existante de l'application.
@@ -42,7 +42,9 @@ node scripts/jobly-vitrine-smoke.mjs
 | VIT-06 | Cliquer sur les liens de navigation | Les ancres ouvrent la bonne section |
 | VIT-07 | Tester sur un écran mobile | Menu, cartes, compteurs et CTA restent utilisables |
 | VIT-08 | Faire défiler la page | Les animations ne bloquent pas la navigation |
-| VIT-09 | Attendre deux rafraîchissements de compteurs | Les valeurs proviennent de l'API commune et se mettent à jour |
+| VIT-09 | Visiteur non connecté, attendre deux rafraîchissements | Les valeurs proviennent de `/api/public/home-stats` et se mettent à jour toutes les trois minutes |
+| VIT-15 | Compte Talent connecté, comparer `/vitrine` et `/jobs` en vue Afrique | Le compteur Offres de la vitrine est égal à `totalAvailable` du flux `/api/jobs?scope=africa` |
+| VIT-16 | Compte connecté, vérifier les nouvelles offres après rafraîchissement | Toute offre nouvellement visible dans le flux Offres entre dans `totalAvailable` et dans la vitrine |
 | VIT-10 | Visiteur non connecté | Aucun identifiant de compte n'est exposé |
 | VIT-11 | Vérifier les Success Moments | Aucune notification sans événement HIRED admissible |
 | VIT-12 | Après interaction, avec événement admissible | Son discret et notification de 3 secondes, entre 10 h et 20 h Africa/Douala |
@@ -52,10 +54,15 @@ node scripts/jobly-vitrine-smoke.mjs
 ## Critères de validation
 
 - Aucun chiffre de repli marketing en cas d'indisponibilité de l'API.
+- Pour un compte connecté, le total affiché est strictement celui renvoyé par le flux `/api/jobs` en vue Afrique ; le compteur public non connecté reste celui de l'agrégat africain.
 - Aucune notification fictive ou auto-déclarée comme recrutement confirmé.
 - Aucune donnée personnelle dans les événements publics.
 - Les images doivent être servies depuis `/images/jobly-vitrine/`, sans URL temporaire.
 - Aucune modification de schéma Supabase n'est requise par cette vitrine.
+
+## Correctif de synchronisation du compteur
+
+Le commit `a857b879059ca927d7e3e58f7bae62099578099b` fait reprendre aux visiteurs connectés le `totalAvailable` retourné par l'API de l'écran Offres en vue Afrique. Les tests VIT-15 et VIT-16 sont ajoutés à la recette, mais restent à exécuter sur le nouveau Preview avec un compte Talent autorisé.
 
 ## Résultat du contrôle Preview (8 novembre 2026)
 
