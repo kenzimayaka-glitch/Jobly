@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.126 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.127 — 8 novembre 2026
 >
 > **Dernière correction de code Storage LOT-00 :** `f3753f7370007647a5e4bf99c130c69437d0c921` ; runner épinglé `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial **3/3 PASS** et cycle de session **12/12 PASS** (§96 et §99). Préparation du test API par rôle : le préflight opérateur du 8 novembre 2026 à 22:34:39 a confirmé URL/ref JOBLY-E2E et fixtures complètes, mais l'ancien code serveur ne lisait que `SUPABASE_SERVICE_ROLE_KEY`, alors que `.env.local` contient la clé moderne `SUPABASE_SECRET_KEY`; le clone local était en retard et aucun runtime privé n'existait. Correctif `adminClient()` maintenant compatible avec la secret key Supabase côté serveur ; le smoke API utilise cette clé locale sans `.e2e-fixture-runtime.json`. Un runner `e2e/run-authenticated-role-recipe.mjs` exécute le build et le smoke sur un worktree détaché propre de `origin/e2e/recette`, lit `.env.local` et `.e2e-fixtures.json` depuis le dépôt source, ne les copie pas et ne les imprime pas. Le parcours croisé crée des données temporaires JOBLY-E2E et vérifie leur nettoyage. Première tentative : build PASS, serveur local BLOCKED (§102). Smoke API exécuté le 8 novembre à 23:03:19 : 36/40 PASS, 3 FAIL et 1 BLOCKED ; les trois rôles sont exécutés, les mutations synthétiques du parcours croisé sont nettoyées (API + vérification DB), externalActions=false. Analyse : les deux feeds échouent sur les garde-fous anti-abus du flux (clé serveur moderne non reconnue et IP loopback absente du client HTTP de recette) ; /api/recruiter/talents échoue car son limiteur n'accepte que la variable legacy SUPABASE_SERVICE_ROLE_KEY. Correctifs ciblés et tests ajoutés au §103 ; nouvelle recette requise avant tout PASS global. main reste hors périmètre.
+> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial **3/3 PASS** et cycle de session **12/12 PASS** (§96 et §99). Préparation du test API par rôle : le préflight opérateur du 8 novembre 2026 à 22:34:39 a confirmé URL/ref JOBLY-E2E et fixtures complètes, mais l'ancien code serveur ne lisait que `SUPABASE_SERVICE_ROLE_KEY`, alors que `.env.local` contient la clé moderne `SUPABASE_SECRET_KEY`; le clone local était en retard et aucun runtime privé n'existait. Correctif `adminClient()` maintenant compatible avec la secret key Supabase côté serveur ; le smoke API utilise cette clé locale sans `.e2e-fixture-runtime.json`. Un runner `e2e/run-authenticated-role-recipe.mjs` exécute le build et le smoke sur un worktree détaché propre de `origin/e2e/recette`, lit `.env.local` et `.e2e-fixtures.json` depuis le dépôt source, ne les copie pas et ne les imprime pas. Le parcours croisé crée des données temporaires JOBLY-E2E et vérifie leur nettoyage. Première tentative : build PASS, serveur local BLOCKED (§102). Smoke API exécuté le 8 novembre à 23:03:19 : 36/40 PASS, 3 FAIL et 1 BLOCKED ; les trois rôles sont exécutés, les mutations synthétiques du parcours croisé sont nettoyées (API + vérification DB), externalActions=false. Analyse : les deux feeds échouent sur les garde-fous anti-abus du flux (clé serveur moderne non reconnue et IP loopback absente du client HTTP de recette) ; /api/recruiter/talents échoue car son limiteur n'accepte que la variable legacy SUPABASE_SERVICE_ROLE_KEY. Correctifs ciblés et tests ajoutés au §103 ; leur première exécution s'est arrêtée sur une erreur de résolution Node de next/server depuis le test TypeScript direct. Le point d'entrée du helper a été corrigé en next/server.js (§104) ; nouvelle exécution requise avant tout PASS global. main reste hors périmètre.
 
-**Version :** 2.126  
+**Version :** 2.127  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -345,6 +345,87 @@ Ne pas supprimer ou écraser un dossier existant. S'il existe déjà, choisir un
 Transmettre les deux rapports Notepad. Critères pour le prochain passage : tests ciblés exécutés avec code retour 0 ; les trois contrôles auparavant en 503 reviennent à 200 ; le détail offre est évalué indépendamment si un feed contient une offre active ; les checks CLEANUP restent PASS ; externalActions=false.
 
 **État à ce stade :** les trois défauts de configuration/harnais identifiés sont corrigés dans le code, mais aucune nouvelle exécution n'a encore validé les correctifs. LOT-01 reste EN COURS ; aucun merge sur main, aucun accès JOBLY-PROD et aucun déploiement.
+
+---
+
+## 104. LOT-01 — correction de la résolution Node 26 du test du limiteur Recruteur
+
+**Mise à jour : 8 novembre 2026. Statut : correctif du module commis ; nouvelle exécution du test ciblé requise.**
+
+### 104.1 Rapport opérateur — pnpm test:security-core
+
+Dans le worktree isolé C:\Users\ASUS\Jobly-e2e-recette-v3, le test combiné a renvoyé :
+- 10 contrôles PASS sur le fichier scripts/jobly-security-core.test.mjs ;
+- le fichier scripts/api-rate-limit-secret-key.test.mjs a échoué au chargement, avant l'exécution de son scénario ;
+- erreur exacte : ERR_MODULE_NOT_FOUND, résolution de next/server depuis lib/apiRateLimit.ts, Node.js a suggéré next/server.js ;
+- Node v26.13.0 ; avertissement MODULE_TYPELESS_PACKAGE_JSON non fatal ;
+- aucun scénario du serveur API n'a été lancé par cette commande ; aucune mutation Supabase liée à ce test unitaire.
+
+Ne pas ajouter "type": "module" dans le package.json racine : ce changement global de mode de module est inutile pour corriger cet import et risquerait de modifier le comportement de chargement de la configuration/build Next.
+
+### 104.2 Correction du point d'entrée
+
+Dans Next.js 15.5.25, le fichier packages/next/server.js exporte NextResponse et NextRequest via son point d'entrée serveur CommonJS, avec exports nommés compatibles avec l'import ESM Node. Le test direct Node peut donc cibler le fichier .js explicite.
+
+Fichier : lib/apiRateLimit.ts
+Commit : f7ff6b6402a8db475d23fc33bd1782786646f614
+Blob : 44e4b70458fee878a775da27f5907ab8614254d0
+Changement : from "next/server" devient from "next/server.js" ; aucune modification fonctionnelle du limiteur.
+
+### 104.3 Reconnexion CMD et reprise dans le worktree v3 existant
+
+Ouvrir une nouvelle fenêtre CMD avec Windows + R, saisir cmd, puis Entrée. Ne pas recréer le worktree v3, ne pas supprimer le dossier et ne pas réinstaller les dépendances tant que le contrôle ne le demande pas.
+
+Exécuter :
+
+~~~cmd
+cd /d C:\Users\ASUS\Jobly
+git fetch origin
+if errorlevel 1 goto :stop
+powershell -NoProfile -Command "$s = git -C 'C:\Users\ASUS\Jobly-e2e-recette-v3' status --porcelain; if ($s) { Write-Output $s; exit 2 }"
+if errorlevel 1 goto :worktree_dirty
+git -C C:\Users\ASUS\Jobly-e2e-recette-v3 checkout --detach origin/e2e/recette
+if errorlevel 1 goto :stop
+cd /d C:\Users\ASUS\Jobly-e2e-recette-v3
+if errorlevel 1 goto :stop
+pnpm test:security-core > artifacts\e2e\security-core-rate-limit-tests.txt 2>&1
+set "UNIT_EXIT=%ERRORLEVEL%"
+notepad artifacts\e2e\security-core-rate-limit-tests.txt
+if not "%UNIT_EXIT%"=="0" goto :unit_failed
+node --check e2e\authenticated-role-smoke.mjs
+if errorlevel 1 goto :stop
+node --check e2e\run-authenticated-role-recipe.mjs
+if errorlevel 1 goto :stop
+node e2e\run-authenticated-role-recipe.mjs C:\Users\ASUS\Jobly
+set "RUN_EXIT=%ERRORLEVEL%"
+notepad artifacts\e2e\authenticated-role-runner-summary.json
+notepad artifacts\e2e\authenticated-role-smoke.json
+echo.
+echo Recette terminee. UNIT_EXIT=%UNIT_EXIT% RUN_EXIT=%RUN_EXIT%
+pause
+goto :eof
+
+:unit_failed
+echo Les tests unitaires echouent encore. Aucun smoke API n'a ete lance.
+echo UNIT_EXIT=%UNIT_EXIT%
+pause
+goto :eof
+
+:worktree_dirty
+echo Le worktree v3 contient des modifications ; rien n'a ete ecrase.
+echo Envoyer le resultat de git status pour choisir une reprise sans perte.
+pause
+goto :eof
+
+:stop
+echo Une commande de preflight a echoue. Arret sans reset ni suppression.
+pause
+goto :eof
+~~~
+
+Le garde status --porcelain empêche le checkout si le worktree v3 contient des modifications. En cas d'état non propre, aucune tentative de nettoyage automatique ne doit être faite. Le log des tests unitaires reste accessible dans artifacts\e2e\security-core-rate-limit-tests.txt ; les deux rapports du runner sont ouverts séparément avec Notepad. La fenêtre reste ouverte grâce à pause.
+
+**Statut courant :** 36/40 reste le résultat de la précédente exécution API ; le correctif de résolution Node vient d'être commis et n'est pas encore validé par exécution. N'annoncer aucun PASS nouveau avant réception du log unitaire et des rapports API.
 
 ---
 
