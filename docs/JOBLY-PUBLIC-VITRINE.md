@@ -24,7 +24,7 @@ Les messages varient selon le rôle du compte : Talent (« un talent vient de d�
 
 ## Authentification et confidentialité
 
-La vitrine lit la session Supabase déjà ouverte dans le navigateur. Elle transmet le jeton au serveur uniquement pour obtenir un contexte limité : rôle (`TALENT`/`RECRUITER`) et clé de compte hachée. Le jeton n'est jamais envoyé à l'interface statique ou à un tiers.
+La vitrine lit la session Supabase déjà ouverte dans le navigateur. Le jeton est transmis uniquement aux routes serveur de même origine : `/api/public/site-context` pour le rôle et la clé de compte hachée, puis `/api/jobs` pour obtenir le total authentifié du flux Offres. Il n'est ni écrit dans le DOM, ni stocké par la vitrine, ni transmis à un tiers ; les routes ne renvoient jamais le jeton.
 
 ## Témoignages
 
