@@ -138,7 +138,10 @@ export default function JoblyVitrine() {
           cache: "no-store",
           headers: { Accept: "application/json", Authorization: `Bearer ${sessionToken}` },
         });
-        if (!feedResponse.ok) throw new Error("talent feed unavailable");
+        if (!feedResponse.ok) {
+          if (feedResponse.status === 401) setAccessToken(null);
+          throw new Error("talent feed unavailable");
+        }
         const feedPayload = await feedResponse.json() as { totalAvailable?: unknown };
         if (!Number.isSafeInteger(feedPayload.totalAvailable) || (feedPayload.totalAvailable as number) < 0) {
           throw new Error("invalid talent feed total");
