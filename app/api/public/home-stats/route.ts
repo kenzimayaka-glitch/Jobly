@@ -188,9 +188,13 @@ export async function GET() {
           ? String((error as { message: unknown }).message)
           : "Non-error throwable";
     const safeMessage = rawMessage
-      .replace(/https?:\\/\\/[^\\s"'\x60]+/gi, "[url redacted]")
-      .replace(/\\bBearer\\s+[^\\s]+/gi, "Bearer [redacted]")
-      .replace(/\\beyJ[a-zA-Z0-9._-]+/g, "[token redacted]")
+      .split(" ")
+      .map((part) =>
+        part.startsWith("http") ? "[url redacted]" :
+        part === "Bearer" ? "[bearer redacted]" :
+        part.startsWith("eyJ") ? "[token redacted]" : part
+      )
+      .join(" ")
       .slice(0, 180);
     console.error("[public-home-stats] request failed", { stage, errorCode, errorName, safeMessage });
     return NextResponse.json(
