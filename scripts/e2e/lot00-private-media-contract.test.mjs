@@ -104,3 +104,15 @@ test("Storage runner loads local env files without requiring Next runtime packag
   assert.match(source, /readFileSync\(file, "utf8"\)/);
   assert.match(source, /source\.split\(/);
 });
+
+
+test("Storage runner accepts current Supabase private-key aliases without disclosing values", async () => {
+  const runner = await read("scripts/e2e/lot00-storage-bucket-hardening.mjs");
+  const diagnostic = await read("scripts/e2e/lot00-storage-credential-diagnostic.mjs");
+  assert.match(runner, /process\.env\.SUPABASE_SECRET_KEY/);
+  assert.match(runner, /process\.env\.SUPABASE_SERVICE_KEY/);
+  assert.match(diagnostic, /SUPABASE_SECRET_KEY/);
+  assert.match(diagnostic, /SUPABASE_SERVICE_KEY/);
+  assert.match(diagnostic, /acceptedFormat: selectedKey\.startsWith\("sb_secret_"\)/);
+  assert.match(diagnostic, /credentials: "not included"/);
+});

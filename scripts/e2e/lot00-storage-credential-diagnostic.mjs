@@ -106,7 +106,7 @@ if (selectedKey.startsWith("eyJ")) {
 } else if (selectedKey) {
   keyValidation = {
     keySelected: true,
-    acceptedFormat: secretKey.startsWith("sb_secret_"),
+    acceptedFormat: selectedKey.startsWith("sb_secret_"),
     jwtShapeValid: null,
     projectMatches: null,
     serviceRole: null,
