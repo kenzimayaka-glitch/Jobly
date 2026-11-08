@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.112 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.113 — 8 novembre 2026
 >
 > **Dernière correction de code Storage LOT-00 :** `f3753f7370007647a5e4bf99c130c69437d0c921` ; runner épinglé `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 : **PASS — clôturé** pour son périmètre environnement, identité, RLS/grants, Storage et correspondances des fixtures. Le manifeste local `.e2e-fixtures.json` a été retrouvé par l'opérateur à `C:\Users\ASUS\Jobly\.e2e-fixtures.json` ; les trois connexions Auth réelles constituent le premier test de LOT-01 et restent en attente de l'exécution du vérificateur sécurisé, sans réinitialisation de mot de passe. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
+> **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 : **PASS — clôturé** pour son périmètre environnement, identité, RLS/grants, Storage et correspondances des fixtures. Le manifeste `.e2e-fixtures.json` a été localisé à `C:\Users\ASUS\Jobly\.e2e-fixtures.json`, mais le premier rapport du vérificateur Auth daté du 8 novembre 2026 à 22:22:39 UTC est `NON_TESTABLE` (TALENT/RECRUITER/PARTNER : identifiants locaux non disponibles ; contrôle non exécuté). Aucun credential n'a été imprimé, aucun service role utilisé, aucun mot de passe changé, aucun compte créé/supprimé et aucun profil modifié. LOT-01 Auth reste bloqué jusqu'à vérification locale sûre du format et de la lisibilité du manifeste ; ne pas réinitialiser les mots de passe.
 
-**Version :** 2.112  
+**Version :** 2.113  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -25,6 +25,23 @@
 
 ---
 
+## 94. LOT-01 — vérificateur de fixtures Auth non testable : diagnostic local sans secret requis
+
+**Mise à jour : 8 novembre 2026, rapport reçu à 22:22:39 UTC. Statut : NON_TESTABLE — aucun test de connexion Auth n'a été exécuté.**
+
+Le rapport `artifacts/e2e/fixture-password-verification.json` confirme :
+- environnement `JOBLY-E2E`, projet `ofqqrryamslxoqkklraw` ;
+- TALENT, RECRUITER et PARTNER restent tous `NON_TESTABLE`, avec la raison `Identifiants locaux non disponibles` ;
+- raison générale : `Contrôle non exécuté : erreur de lecture ou de configuration locale` ;
+- `credentialsPrinted=false`, `serviceRoleUsed=false`, `passwordsChanged=false`, `accountsCreatedOrDeleted=false`, `profilesModified=false`.
+
+Interprétation : ce résultat n'est **ni un PASS ni un FAIL de mot de passe**. Aucun refus d'authentification Supabase n'a été observé ; les identifiants n'ont pas atteint le test de connexion. Aucune fixture ni aucun profil n'a été modifié.
+
+Le script `e2e/verify-existing-fixtures.mjs` attend un manifeste JSON contenant `environment`, `projectRef` et un tableau `accounts` avec, pour chaque rôle, `key`, `role`, `email`, `password` et `authUserId`. Cette structure doit être contrôlée localement sans imprimer les valeurs secrètes. Prochaine étape : produire uniquement les indicateurs booléens de lisibilité/JSON/champs attendus avec un diagnostic local ; ensuite seulement relancer le vérificateur sécurisé si les indicateurs sont conformes.
+
+Garde-fous inchangés : ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas lancer le provisionneur, ne pas modifier les mots de passe ou les comptes, ne pas partager le contenu du manifeste ni aucune clé. `main`, JOBLY-PROD et les déploiements restent hors périmètre.
+
+---
 ## 93. LOT-00 — lanceur Storage local introuvable : diagnostic de chemin requis, aucune application
 
 **Mise à jour : 8 novembre 2026, 22:54 (Africa/Douala). Statut : BLOCKED — résolution du chemin local non établie.**
