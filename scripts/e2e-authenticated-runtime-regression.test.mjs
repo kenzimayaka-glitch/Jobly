@@ -65,3 +65,20 @@ test("Recruitment360 runtime smoke verifies non-owned scope and missing document
   assert.match(block, /example\.invalid/);
   assert.doesNotMatch(block, /\.from\(["']RecruitmentApplicationDocument["']\)\.insert/);
 });
+
+test("Talent role block is read-only from entry through the Recruiter boundary", () => {
+  const roleStart = smoke.indexOf('if (item.role === "TALENT") {');
+  const recruiterStart = smoke.indexOf('if (item.role === "RECRUITER") {', roleStart);
+  assert.ok(roleStart >= 0 && recruiterStart > roleStart, "Talent role block boundaries must remain explicit.");
+  const roleBlock = smoke.slice(roleStart, recruiterStart);
+  const marker = roleBlock.indexOf("// E2E-READONLY-TALENT-START");
+  const profileRead = roleBlock.indexOf('"TALENT-PROFILE-READ"');
+  assert.ok(marker >= 0 && profileRead > marker, "Read-only marker must precede the first Talent API request.");
+  assert.ok(roleBlock.includes("// E2E-READONLY-TALENT-END"), "Talent read-only block must have an end marker.");
+  assert.doesNotMatch(roleBlock, /TALENT-PROFILE-WRITE|TALENT-PROFILE-PERSIST/,
+    "Shared Talent profile must never be written by this smoke.");
+  assert.doesNotMatch(roleBlock, /["'](?:POST|PUT|PATCH|DELETE)["']/,
+    "Talent role block must not issue mutating HTTP methods.");
+  assert.doesNotMatch(roleBlock, /\.(?:insert|upsert|update|delete)\s*\(/,
+    "Talent role block must not call mutating Supabase methods.");
+});
