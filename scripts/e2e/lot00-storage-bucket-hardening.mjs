@@ -29,6 +29,7 @@ const desired = [
         "application/pdf",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "text/html",
+        "text/html; charset=utf-8",
         "image/jpeg",
       ],
     },
