@@ -90,16 +90,16 @@ test("each request can produce a new Live Wins message without looking up a real
   assert.doesNotMatch(route, /statusSource|recruiterJob|updatedAt/);
 });
 
-test("API endpoint is authenticated, private and excludes the current candidate and recruiter", () => {
+test("API endpoint authenticates the viewer and serves random Live Wins copy without querying applications", () => {
   const route = readFileSync(new URL("../app/api/live-wins/route.ts", import.meta.url), "utf8");
   assert.match(route, /getAuthUser\(request\)/);
   assert.match(route, /ensureUser\(db, auth\)/);
-  assert.match(route, /\.eq\("status", "OFFER"\)/);
-  assert.match(route, /\.eq\("statusSource", "RECRUITER"\)/);
-  assert.match(route, /\.neq\("userId", user\.id\)/);
-  assert.match(route, /\.neq\("recruiterJob\.recruiterUserId", user\.id\)/);
+  assert.match(route, /pickLiveWinsMessage\(liveWinsRole\)/);
+  assert.match(route, /randomUUID\(\)/);
   assert.match(route, /private, no-store/);
-  assert.doesNotMatch(route, /\.select\([^)]*(?:email|displayName|phone|profilePhotoUrl)/);
+  assert.doesNotMatch(route, /\.from\(["']Application["']\)/);
+  assert.doesNotMatch(route, /statusSource|recruiterJob|updatedAt/);
+  assert.doesNotMatch(route, /email|displayName|phone|profilePhotoUrl/);
 });
 
 test("the global overlay and toast keep audio opt-in to social notifications", () => {
