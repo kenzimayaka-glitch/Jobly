@@ -123,7 +123,7 @@ export async function POST(request:NextRequest){
     const sb=adminClient();
     const user=await ensureUser(sb,auth);
     if(mediaStoragePath){
-      if(!mediaStoragePath.startsWith(user.id+"/"))return fail("Ce média ne vous appartient pas.",403,"EVENT_MEDIA_FORBIDDEN");
+      if(!mediaStoragePath.startsWith(auth.id+"/"))return fail("Ce média ne vous appartient pas.",403,"EVENT_MEDIA_FORBIDDEN");
       const {data:storedMedia,error:storedMediaError}=await sb.storage.from(JOBLY_EVENTS_BUCKET).download(mediaStoragePath);
       if(storedMediaError||!storedMedia)return fail("Le fichier média privé est introuvable.",422,"EVENT_MEDIA_NOT_FOUND");
       if(storedMedia.size<=0||storedMedia.size!==mediaSizeBytes)return fail("Le fichier média ne correspond pas à sa taille déclarée.",422,"EVENT_MEDIA_SIZE_MISMATCH");
