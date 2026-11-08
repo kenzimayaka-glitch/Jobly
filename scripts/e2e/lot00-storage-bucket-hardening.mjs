@@ -2,13 +2,43 @@ import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-import { loadEnvConfig } from "@next/env";
+import { existsSync, readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 
 const EXPECTED_REF = "ofqqrryamslxoqkklraw";
 const APPLY_FLAG = "--apply-lot00-e2e-storage-hardening";
 const REPORT_PATH = path.resolve("artifacts/e2e/lot00-storage-bucket-hardening.json");
 const LOG_PATH = path.resolve("feedback-lot00-storage-20261108.txt");
+
+function parseEnvValue(raw) {
+  const value = raw.trim();
+  if (!value) return "";
+  const quote = value[0];
+  if (quote === "'" || quote === '"' || quote === "`") {
+    const end = value.lastIndexOf(quote);
+    if (end > 0) {
+      const inner = value.slice(1, end);
+      return quote === '"' ? inner.replace(/\\n/g, "\n").replace(/\\r/g, "\r").replace(/\\"/g, '"').replace(/\\\\/g, "\\") : inner;
+    }
+  }
+  return value.replace(/\s+#.*$/, "").trim();
+}
+
+function loadLocalEnvFiles() {
+  const values = new Map();
+  for (const file of [".env", ".env.local"]) {
+    if (!existsSync(file)) continue;
+    const source = readFileSync(file, "utf8").replace(/^\\uFEFF/, "");
+    for (const line of source.split(/\\r?\\n/)) {
+      const match = line.match(/^\\s*(?:export\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*(.*)$/);
+      if (!match) continue;
+      values.set(match[1], parseEnvValue(match[2]));
+    }
+  }
+  for (const [name, value] of values) {
+    if (typeof process.env[name] === "undefined") process.env[name] = value;
+  }
+}
 
 const imageMimes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const eventMimes = [...imageMimes, "application/pdf", "video/mp4"];
@@ -221,7 +251,7 @@ async function cleanupLegacyPublicPhotos(admin, report) {
 }
 
 async function main() {
-  loadEnvConfig(process.cwd());
+  loadLocalEnvFiles();
   const projectRef = process.env.E2E_PROJECT_REF || "";
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const legacyKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
