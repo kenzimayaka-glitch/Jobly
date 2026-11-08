@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.52 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.53 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -2893,3 +2893,70 @@ Le résultat déterminant attendu à cette étape est `PASS_CLIPBOARD_JWT_METADA
 - JOBLY-PROD hors périmètre ; aucune mutation Supabase/fixture ; aucun changement de `main) ; aucun déploiement.
 - PR #266 reste ouverte, brouillon et non fusionnée.
 - Document source avant cette mise à jour : V2.51, blob SHA `5e9b6ffb08cea3244d1f5bbb65fc82b2f29a571a`, branche `e2e/recette`.
+
+
+---
+
+## 55. Résultat opérateur — clic Copier remplace la sentinelle par OTHER_TEXT — V2.53 — 8 novembre 2026
+
+### 55.1 Résultat communiqué
+
+~~~text
+runtime=PowerShell 5.1.19041.4522
+project_ref=ofqqrryamslxoqkklraw
+clipboard_text_present=True
+clipboard_kind=OTHER_TEXT
+clipboard_prefix_eyJ=False
+clipboard_prefix_sb_secret=False
+jwt_three_segments=False
+payload_json_valid=False
+role_service_role=False
+project_ref_match=False
+clipboard_overwrite_verified=True
+read_error=NONE
+overwrite_error=NONE
+GATE=BLOCKED_COPY_CONTENT_NOT_EXPECTED
+~~~
+
+### 55.2 Rapprochement avec la sentinelle initiale
+
+Le contrôle précédent §54 avait établi `baseline_verified=True` avec la sentinelle `JOBLY-CLIPBOARD-BASELINE-20261108`. Le résultat ci-dessus est celui transmis après le clic sur Copier et le classificateur §45.3 étape B.
+
+Conclusions limitées aux preuves :
+- Le presse-papiers était non vide au contrôle après-clic.
+- Son contenu n'était plus égal à la sentinelle initiale ; il a donc changé entre le dépôt de la sentinelle et la lecture après-clic.
+- Le contenu n'a pas le préfixe d'un JWT Legacy (`eyJ`) ni celui d'une clé moderne (`sb_secret_`).
+- Il ne contient pas un JWT à trois segments reconnu, et les claims `role=service_role` / `ref=ofqqrryamslxoqkklraw` ne sont pas établis.
+- La lecture n'a pas échoué. Le remplacement ultérieur par la sentinelle de contrôle a réussi.
+
+On peut donc confirmer que le presse-papiers a été modifié après la baseline, mais pas que le bouton ait copié la clé. Le contenu exact, sa longueur et sa nature ne sont pas connus, car le classificateur ne les a pas consignés. Ne pas conclure que Supabase a rejeté la clé : aucune requête HTTP n'a eu lieu.
+
+### 55.3 Contexte technique Supabase
+
+La documentation Supabase consultée le 8 novembre 2026 indique que les clés Legacy `anon` et `service_role` sont des JWT, tandis que les nouvelles clés secret sont des chaînes opaques `sb_secret_...`. Les deux familles de clés peuvent coexister jusqu'à désactivation explicite des anciennes clés. Références :
+- https://supabase.com/docs/guides/getting-started/api-keys
+- https://supabase.com/docs/guides/getting-started/migrating-to-new-api-keys
+
+Le gate actuellement préparé vise explicitement la ligne Legacy `service_role` du projet JOBLY-E2E ; il ne faut pas substituer une autre valeur ni migrer les variables du projet dans cette étape de diagnostic.
+
+### 55.4 Prochaine vérification ciblée
+
+Ne pas répéter immédiatement le clic dans la même condition sans vérifier sa cible :
+1. Retourner à **Project Settings → API Keys → Legacy API Keys** du projet `ofqqrryamslxoqkklraw`.
+2. Confirmer visuellement que la ligne est celle nommée `service_role` avec le badge `secret` ; ne pas utiliser l'onglet des nouvelles clés, le bouton de révélation seul, le JWT Signing Secret, ou un bouton Copier associé à un autre champ.
+3. Si la valeur est masquée, le bouton Copier doit être celui associé à la valeur de la ligne `service_role`, pas celui du nom de ligne ou d'un panneau voisin.
+4. Avant tout nouvel essai, installer à nouveau la sentinelle et exiger `baseline_verified=True).
+5. Pour le nouvel essai, utiliser une classification enrichie qui ne révèle aucun contenu, mais ajoute seulement : longueur par tranche, égalité exacte avec les libellés statiques `service_role`/`anon`/`secret`, indicateurs « ressemble à du JSON/HTML/texte masqué », format JWT, claims role/ref et GATE. Le rapport ne doit jamais afficher, hacher ou sauvegarder la valeur.
+
+Si le Dashboard confirme visuellement la bonne ligne mais que le résultat reste `OTHER_TEXT), interrompre les tentatives répétées et tester une seule fois dans un navigateur à jour différent, avec la même procédure de sentinelle.
+
+### 55.5 État et garde-fous
+
+- Clic Copier : **CONTENU MODIFIÉ, MAIS VALEUR ATTENDUE NON PROUVÉE**.
+- `PASS_CLIPBOARD_JWT_METADATA) : non obtenu.
+- GET OpenAPI `public` et `net) : non exécutés.
+- Signature JWT et acceptation par le serveur : non testées.
+- Aucun secret n'a été communiqué à l'assistant ; aucune mutation Supabase/fixture ; aucun accès JOBLY-PROD ; aucun changement de `main) ; aucun déploiement.
+- LOT-00 demeure **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- PR #266 reste ouverte, brouillon et non fusionnée.
+- Document source avant cette mise à jour : V2.52, blob SHA `93167da9abdd64ab72f9ada43a580e5801c1b4f7`, branche `e2e/recette`.
