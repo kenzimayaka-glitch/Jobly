@@ -556,3 +556,48 @@ Résultat attendu : les six tests statiques PASS. Si un test échoue, ne pas lan
 - PR #266 : ouverte, brouillon, non fusionnée.
 - `main) : inchangée.
 - Fixtures partagées : aucune modification par cette correction.
+
+---
+
+## 14. Résultat de synchronisation locale et prochaine recette — 8 novembre 2026
+
+### 14.1 Synchronisation opérateur confirmée
+
+Sortie CMD communiquée par l'opérateur après `git pull --ff-only origin e2e/recette` :
+
+- Ancien HEAD local : `546672d`.
+- Fast-forward effectué depuis `546672d` vers `e92feb8`.
+- Nouveau HEAD local confirmé : `e92feb8abc1a2491cab7dd81e834080b80982681`.
+- Quatre fichiers mis à jour par Git : ce document de continuité, le smoke Talent, le test de régression authentifié et le runner 11 lots.
+- Aucun conflit, aucun reset, aucun stash et aucune suppression ne figurent dans le résultat transmis.
+
+### 14.2 État local à préserver après la synchronisation
+
+Le rapport `git status --short` transmis indique :
+
+- Modifié : `e2e/reset-existing-fixture-passwords.mjs). Ce fichier est hors périmètre du correctif E2E-001 ; ne pas l'exécuter, le restaurer, le remplacer, le stager ou le supprimer.
+- Non suivis : fichiers de diagnostics, rapports bulk, rapports de recette, `tsconfig.tsbuildinfo`, `typecheck-latest.txt` et entrées inhabituelles affichées par Git (`({`, `)`, `0`, `account.role)`, `item.role`, `item.status`, `role)`, `undefined)`, `{`). Tous restent à préserver.
+- Les trois fichiers cibles sont arrivés par fast-forward. Le rapport fourni ne présente aucune erreur de merge.
+
+### 14.3 Prochaine action — test statique E2E-001
+
+Sur le poste Windows déjà synchronisé, exécuter uniquement :
+
+```bat
+cd /d C:\Users\ASUS\Jobly
+node --test scripts/e2e-authenticated-runtime-regression.test.mjs > feedback-e2e001-static-test.txt 2>&1
+notepad feedback-e2e001-static-test.txt
+```
+
+Ce test lit les fichiers du dépôt et vérifie les contrats de non-mutation. Il ne lance pas le smoke authentifié, ne contacte pas Supabase, ne change aucune fixture et n'a aucun effet métier. Résultat attendu : 6 tests statiques PASS. Le résultat doit être retourné intégralement avant toute suite.
+
+Si un test échoue, le smoke runtime et le bulk restent interdits jusqu'à analyse et correction. Si les six tests passent, l'étape suivante sera le contrôle LOT-00 en lecture seule (ref projet, RLS, grants, Storage/buckets/policies, présence et liaison des fixtures) avant toute exécution du smoke Talent.
+
+### 14.4 Point de reprise après synchronisation
+
+- Branche locale : `e2e/recette).
+- HEAD local confirmé par le rapport opérateur : `e92feb8abc1a2491cab7dd81e834080b80982681`.
+- E2E-001 : correctif présent localement et sur GitHub ; validation statique locale en attente.
+- Aucun test de recette n'a été exécuté dans cette étape de synchronisation.
+- Aucun accès ou appel JOBLY-E2E ; aucun accès JOBLY-PROD.
+- Aucune fixture modifiée ; aucun commit local, push, merge ou déploiement rapporté.
