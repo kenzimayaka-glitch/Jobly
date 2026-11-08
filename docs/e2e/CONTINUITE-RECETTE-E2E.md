@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.108 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.109 — 8 novembre 2026
 >
-> **Dernier commit de correction Storage LOT-00 :** `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e` sur `e2e/recette` (script MIME : `f3753f7370007647a5e4bf99c130c69437d0c921`).
+> **Dernière correction de code Storage LOT-00 :** `f3753f7370007647a5e4bf99c130c69437d0c921` ; runner épinglé `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations, lectures SQL et contrôles Storage ; aucun accès JOBLY-PROD et aucun déploiement. Les tests HTTP CI tournent sur un serveur Next.js de build local au runner avec configuration Supabase fictive, jamais sur le site de production.
 >
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 : identité/RLS/grants et **configuration Storage + smoke d'accès 5/5 PASS**, avec relecture SQL distante conforme ; restent le préflight final environnement/fixtures et les correspondances des fixtures, hors OpenAPI. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
+> **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 : **PASS — clôturé** pour son périmètre environnement, identité, RLS/grants, Storage et correspondances des fixtures. La connexion réelle par mot de passe des fixtures reste NON TESTABLE faute de manifeste local de mots de passe et devient un prérequis explicite de LOT-01 Auth ; aucun mot de passe n'est réinitialisé. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.108  
+**Version :** 2.109  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -113,6 +113,48 @@ Cette relecture distante confirme que la configuration est persistée et que les
 **Conclusion du sous-lot Storage : PASS**, avec preuve applicative et relecture distante. **LOT-00 global reste PARTIAL** tant que le préflight final des fixtures/environnement et les correspondances des fixtures ne sont pas clôturés. Aucun lancement de la recette 11 lots n'est autorisé par cette réussite Storage seule.
 
 Garde-fous : JOBLY-E2E uniquement ; aucune mutation JOBLY-PROD ; `main` demeure `979f2ccfec9258bc30989af18433cf6adb1b4698` ; PR #266/#267 ouvertes en brouillon et non fusionnées ; aucun déploiement ; aucune fixture réinitialisée.
+
+### 93.16 Correspondance des fixtures JOBLY-E2E — contrôle SQL final PASS
+
+Contrôle read-only direct effectué sur le projet `ofqqrryamslxoqkklraw`, en utilisant les marqueurs `auth.users.raw_app_meta_data.e2e_fixture = 'true'` et la relation `public."User"."authUserId"`.
+
+Résultat agrégé :
+| Contrôle | Résultat |
+|---|---:|
+| Identités Auth E2E | 3 |
+| Identités avec exactement un profil | 3/3 |
+| Profils manquants | 0 |
+| Profils en doublon | 0 |
+| Liaison `authUserId` et rôle métier conformes | 3/3 |
+| Rôles attendus invalides | 0 |
+
+Détail des correspondances :
+- Talent : un profil `TALENT`, lié à l'identité Auth correspondante.
+- Recruteur : un profil `RECRUITER`, lié à l'identité Auth correspondante.
+- Partenaire : un profil `PARTNER`, lié à l'identité Auth correspondante.
+
+Les trois identités ont un e-mail confirmé, ne sont pas actuellement bannies et ne sont pas supprimées. Les métadonnées Auth contiennent les marqueurs de fixture E2E et de rôle attendus. Les identifiants sont pseudonymisés dans les rapports de travail ; aucune adresse e-mail ni donnée personnelle n'est nécessaire à cette preuve.
+
+**Résultat : correspondance structurelle des fixtures PASS 3/3.** Aucun compte ni profil n'a été créé, modifié ou supprimé.
+
+### 93.17 Clôture effective LOT-00 — PASS
+
+Les critères du LOT-00 pour le préflight environnement/jeux de données sont maintenant satisfaits par des preuves concrètes :
+
+| Domaine | Preuve | Statut |
+|---|---|---|
+| Projet et contexte local | Projet JOBLY-E2E exact ; dépôt et remote confirmés | PASS |
+| Runtime local | Node 26.13.0, npm 11.20.0, pnpm 10.28.0 | PASS |
+| Accès administratif au projet de test | `.env.local` lu par le runner ; clé privée acceptée ; opération Storage effectuée sur le ref E2E exact | PASS |
+| Sécurité SQL/RLS/ACL/RPC | Matrice 180/180 tables avec RLS et contrôles de moindre privilège déjà appliqués et revérifiés (preuves §§88 et 92) | PASS |
+| Storage | 5/5 buckets configurés ; tests upload, lecture signée, refus anonyme et cleanup 5/5 ; relecture SQL indépendante conforme (§93.15) | PASS |
+| Correspondances Auth ↔ profils | 3/3 fixtures avec un profil unique et rôle métier concordant (§93.16) | PASS |
+
+**Décision : LOT-00 = PASS / CLOS** pour son périmètre : environnement, identité projet, sécurité de base, Storage et cohérence structurelle des données de test.
+
+**Limite explicitement transférée à LOT-01 — Auth :** le manifeste local `.e2e-fixtures.json` et les anciens mots de passe ne sont pas disponibles. Il n'y a donc aucune preuve actuelle de `signInWithPassword` pour Talent, Recruteur et Partenaire. Ces connexions restent `NON_TESTABLE`, et non FAIL. Elles seront le premier scénario de LOT-01 après récupération des identifiants depuis une sauvegarde sûre. Ne pas réinitialiser les mots de passe, ne pas recréer les comptes et ne pas exécuter de provisionneur pour contourner cette limite.
+
+Aucun lot métier LOT-01 à LOT-10 n'est déclaré PASS par cette clôture. La recette globale reste en cours. Garde-fous inchangés : `main` SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, PR #266/#267 non fusionnées, JOBLY-PROD interdit, aucun déploiement et aucune fixture modifiée.
 
 ### 93.4 Limites de l'intervention et statut Storage
 
