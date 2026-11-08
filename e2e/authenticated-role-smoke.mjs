@@ -7,7 +7,7 @@ const PROJECT_REF = "ofqqrryamslxoqkklraw";
 const SUPABASE_URL = "https://" + PROJECT_REF + ".supabase.co";
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "";
 const BASE_URL = process.env.E2E_BASE_URL || "http://127.0.0.1:3000";
-const FIXTURE_PATH = path.resolve(".e2e-fixtures.json");
+const FIXTURE_PATH = path.resolve(process.env.E2E_FIXTURE_PATH || ".e2e-fixtures.json");
 const REPORT_PATH = path.resolve("artifacts/e2e/authenticated-role-smoke.json");
 const runId = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14);
 
@@ -24,6 +24,44 @@ const report = {
 
 function record(role, id, status, httpStatus, detail) {
   report.checks.push({ role, id, status, httpStatus: httpStatus ?? null, detail: String(detail || "").slice(0, 240) });
+}
+
+function parseEnvFile(content) {
+  const values = {};
+  for (const line of content.split(/\\r?\\n/)) {
+    const match = line.match(/^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*(.*)\\s*$/);
+    if (!match) continue;
+    let value = match[2].trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
+    values[match[1]] = value;
+  }
+  return values;
+}
+
+async function readE2EAdminKey() {
+  const direct = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  if (direct.length >= 20) return direct;
+  for (const file of [".env.e2e.local", ".env.local", ".env"]) {
+    let content;
+    try { content = await readFile(path.resolve(file), "utf8"); } catch { continue; }
+    const values = parseEnvFile(content);
+    const configuredUrl = values.NEXT_PUBLIC_SUPABASE_URL || values.SUPABASE_URL || "";
+    if (configuredUrl !== SUPABASE_URL) continue;
+    const key = values.SUPABASE_SECRET_KEY || values.SUPABASE_SERVICE_ROLE_KEY || "";
+    if (key.length >= 20) return key;
+  }
+  return "";
+}
+
+function assertE2EAdminKey(key) {
+  assert.ok(key.startsWith("sb_secret_") || key.startsWith("eyJ"), "Une clé serveur JOBLY-E2E est requise.");
+  if (key.startsWith("eyJ")) {
+    let claims;
+    try { claims = JSON.parse(Buffer.from(key.split(".")[1] || "", "base64url").toString("utf8")); }
+    catch { throw new Error("La clé serveur JWT ne peut pas être vérifiée."); }
+    assert.equal(claims.ref, PROJECT_REF, "Clé serveur liée à un autre projet Supabase refusée.");
+    assert.equal(claims.role, "service_role", "Clé JWT sans rôle service_role refusée.");
+  }
 }
 
 async function request(token, route, method = "GET", body = undefined) {
@@ -261,22 +299,15 @@ async function runCrossRoleApplicationLifecycle(fixtures) {
     assert.ok(talentAccount?.email && talentAccount?.password, "Fixture Talent absente.");
     assert.ok(recruiterAccount?.email && recruiterAccount?.password, "Fixture Recruteur absente.");
 
-    let runtime;
-    try {
-      runtime = JSON.parse(await readFile(path.resolve(".e2e-fixture-runtime.json"), "utf8"));
-    } catch (error) {
-      if (error?.code === "ENOENT") {
-        record("TALENT", "CROSS-ROLE-APPLICATION-LIFECYCLE-ENVIRONMENT", "BLOCKED", null, "Clé privée de test absente : parcours croisé local uniquement, non exécuté en CI.");
-        record("RECRUITER", "CROSS-ROLE-APPLICATION-LIFECYCLE-ENVIRONMENT", "BLOCKED", null, "Clé privée de test absente : parcours croisé local uniquement, non exécuté en CI.");
-        return;
-      }
-      throw error;
+    const adminKey = await readE2EAdminKey();
+    if (!adminKey) {
+      record("TALENT", "CROSS-ROLE-APPLICATION-LIFECYCLE-ENVIRONMENT", "BLOCKED", null, "Clé privée serveur JOBLY-E2E absente de l'environnement local ; aucun parcours croisé ni aucune mutation créés.");
+      record("RECRUITER", "CROSS-ROLE-APPLICATION-LIFECYCLE-ENVIRONMENT", "BLOCKED", null, "Clé privée serveur JOBLY-E2E absente de l'environnement local ; aucun parcours croisé ni aucune mutation créés.");
+      return;
     }
-    assert.equal(runtime.environment, "JOBLY-E2E", "Runtime non-E2E refusé.");
-    assert.equal(runtime.projectRef, PROJECT_REF, "Projet runtime inattendu.");
-    assert.ok(typeof runtime.serviceRoleKey === "string" && runtime.serviceRoleKey.length >= 20, "Clé privée JOBLY-E2E absente.");
+    assertE2EAdminKey(adminKey);
 
-    admin = createClient(SUPABASE_URL, runtime.serviceRoleKey, {
+    admin = createClient(SUPABASE_URL, adminKey, {
       auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
     });
     talentClient = createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
