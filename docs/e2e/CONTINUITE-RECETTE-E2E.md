@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.97 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.98 — 8 novembre 2026
 >
 > **Dernier commit de correction LOT-00 :** `cdc4399d452f3341895b5d56efb5204080d3faa9` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 conserve uniquement le préflight environnement/fixtures et les contrôles read-only de base (identité, RLS/grants, Storage, correspondances des fixtures), hors OpenAPI. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.97  
+**Version :** 2.98  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -22,6 +22,66 @@
 **Environnement interdit :** JOBLY-PROD, ses données, ses clés, ses comptes et ses déploiements.
 
 > Ce document est le point de reprise de référence. Il sépare les preuves effectivement obtenues, les scénarios présents dans le code mais non validés, les blocages locaux et les actions qui nécessitent l'accord de l'utilisateur. Il doit être mis à jour à chaque nouvelle exécution significative.
+
+---
+
+## 93. LOT-00 — lanceur Storage local introuvable : diagnostic de chemin requis, aucune application
+
+**Mise à jour : 8 novembre 2026, 22:54 (Africa/Douala). Statut : BLOCKED — résolution du chemin local non établie.**
+
+Cette entrée remplace les instructions de réparation locale précédentes lorsqu'elles supposent que le chemin du dépôt, le dossier temporaire ou le dossier cible existent nécessairement. Ne pas répéter la procédure PowerShell précédente à l'identique.
+
+### 93.1 Référence distante vérifiée — preuve GitHub
+
+Le fichier source est bien présent sur la branche `e2e/recette` du dépôt `kenzimayaka-glitch/Jobly` :
+
+- Chemin : `scripts/e2e/run-lot00-storage-hardening.cmd`.
+- Blob Git officiel lu directement via GitHub : `8672167fc66c639f433d5d0296847dd5f200d315`.
+- URL : https://github.com/kenzimayaka-glitch/Jobly/blob/e2e/recette/scripts/e2e/run-lot00-storage-hardening.cmd
+- Le contenu distant correspond au lanceur décrit au §92.3 : il récupère les scripts depuis `origin/e2e/recette`, vérifie leurs blobs, vérifie leur syntaxe Node, puis seulement ensuite peut lancer l'application explicitement limitée à JOBLY-E2E.
+
+Blobs des trois fichiers que ce lanceur vérifie :
+- `lot00-storage-bucket-hardening.mjs` : `5bf79cd06db9ae466d6ffce9a2833be12a8823fd`.
+- `lot00-storage-credential-diagnostic.mjs` : `f100bf22f423a813e0f20f8a65c9025314b095b8`.
+- `lot00-storage-access-smoke.mjs` : `68e14ba5b1efbf84ee3970a36bb070cc3b4dc558`.
+
+La présence du lanceur sur GitHub est donc établie. Cela ne prouve pas que le clone local se trouve à `C:\Users\ASUS\Jobly`, que `scripts\e2e` existe dans ce clone, ni que le fichier a été écrit sur le poste Windows.
+
+### 93.2 Résultats locaux effectivement communiqués
+
+- L'opérateur a communiqué une empreinte locale tronquée commençant par `546290...`. Elle n'est pas exploitable pour une comparaison exacte avec le blob Git officiel.
+- Après la procédure de réparation PowerShell proposée, l'opérateur a signalé : **« Impossible de trouver le fichier »**.
+- Le chemin exact cité par Windows, la commande précise qui a échoué et la sortie complète n'ont pas été transmis. Il est donc impossible d'affirmer si l'échec concerne le dossier du dépôt, le dossier `scripts\e2e`, le répertoire temporaire, le fichier source Git ou le fichier destination.
+- La procédure PowerShell précédente utilisait une redirection de sortie via `cmd.exe` et `%TEMP%`, sans établir séparément l'existence de tous les chemins avant l'écriture. Cette procédure n'est pas validée et ne doit pas être considérée comme une réparation réussie.
+
+**Conclusion locale :** le lanceur n'est pas confirmé comme installé ou remplacé sur le poste. Aucun nouveau hash local complet n'est disponible. Le fichier n'est donc pas déclaré PASS.
+
+### 93.3 Méthode de reprise corrigée — diagnostic avant toute écriture
+
+La prochaine intervention doit être divisée en deux étapes strictes :
+
+1. **Préflight read-only des chemins**, sans créer ni remplacer aucun fichier. Vérifier et afficher séparément :
+   - existence de `C:\Users\ASUS\Jobly` ;
+   - présence de `.git` et résultat de `git -C ... rev-parse --show-toplevel` ;
+   - existence de `scripts\e2e` ;
+   - existence et utilisabilité du répertoire désigné par `%TEMP%` ;
+   - présence de l'objet Git distant `origin/e2e/recette:scripts/e2e/run-lot00-storage-hardening.cmd` et hash calculé depuis cet objet.
+   
+   Si le dépôt ou le dossier cible manque, ne pas rediriger la sortie vers ce chemin et ne pas supposer que le chemin Windows indiqué est le bon. Faire d'abord identifier le chemin réellement ouvert dans l'Explorateur/CMD.
+
+2. **Écriture atomique seulement après préflight PASS** : extraire l'objet Git distant vers un fichier temporaire dans un dossier dont l'existence a été vérifiée ; calculer le hash du temporaire ; vérifier qu'il vaut exactement `8672167fc66c639f433d5d0296847dd5f200d315) ; remplacer ensuite la destination dans le dépôt confirmé ; recalculer et comparer le hash final. En cas d'échec à une étape, arrêter sans lancer le script Storage.
+
+La preuve de réussite attendue est constituée des trois valeurs complètes et identiques : hash de l'objet distant, hash du fichier temporaire extrait et hash du fichier local final. Un message « fichier trouvé » ou une copie du contenu dans le chat ne remplace pas ces contrôles.
+
+### 93.4 Limites de l'intervention et statut Storage
+
+Cette tentative de réparation de fichier n'a pas lancé le lanceur, le diagnostic de clé, ni `lot00-storage-bucket-hardening.mjs`. Elle n'a effectué aucune requête ni mutation Supabase/Storage. Aucune configuration des buckets n'est donc réputée modifiée.
+
+La dernière preuve distante Storage reste la lecture read-only consignée au §92.2 : `jobly-events` public, trois buckets privés sans limites/MIME configurés, `profile-photos-private` absent, et aucun objet dans les buckets listés à cette lecture. Cette photographie doit être relue après une éventuelle application ; elle ne doit pas être présentée comme un état revérifié à 22:54.
+
+LOT-00 demeure **PARTIAL / BLOCKED sur Storage**. Pas de PASS du lanceur local, pas de PASS Storage et pas de clôture LOT-00.
+
+Garde-fous inchangés : JOBLY-E2E uniquement (`ofqqrryamslxoqkklraw`) ; JOBLY-PROD interdit ; `main` inchangée ; PR #266 et #267 ouvertes en brouillon, non fusionnées ; aucun déploiement ; aucune réinitialisation ou modification de fixtures ; aucun secret dans le chat, les rapports ou Git.
 
 ---
 
