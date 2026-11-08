@@ -198,15 +198,17 @@ test("original CV storage and CV import reconcile legacy Auth accounts before lo
   assert.match(cvImportRoute, /canonicalCvFileName\(user\)/);
 });
 
-test("CV Studio loads current plan and download prices with the authenticated session", () => {
-  const effectStart = talentCvPage.indexOf('fetch("/api/entitlements"');
+test("CV Studio loads current plan and download prices with an authenticated, refreshed session", () => {
+  const effectStart = talentCvPage.indexOf('authenticatedFetch("/api/entitlements"');
   assert.ok(effectStart >= 0, "CV Studio must load the current entitlement snapshot.");
-  const effect = talentCvPage.slice(Math.max(0, effectStart - 500), effectStart + 700);
-  assert.match(effect, /const token = await getAccessToken\(\)/);
-  assert.ok(effect.includes("Authorization: `Bearer ${token}`"));
-  assert.match(talentCvPage, /if \(entitlements\?\.subscription\?\.plan\) setPlan\(entitlements\.subscription\.plan\)/);
-  assert.match(talentCvPage, /cvAtsDownloadPriceXaf/);
-  assert.match(talentCvPage, /cvOptimizedDownloadPriceXaf/);
+  const effect = talentCvPage.slice(Math.max(0, effectStart - 700), effectStart + 900);
+  assert.match(effect, /const response = await authenticatedFetch\("\/api\/entitlements"/);
+  assert.match(talentCvPage, /const headers = new Headers\(init\.headers\)/);
+  assert.match(talentCvPage, /headers\.set\("Authorization", "Bearer " \+ accessToken\)/);
+  assert.match(talentCvPage, /if \(result\?\.subscription\?\.plan\) setPlan\(String\(result\.subscription\.plan\)\)/);
+  assert.match(talentCvPage, /setCvAtsDownloadPriceXaf\(Number\.isFinite\(Number\(entitlements\.cvAtsDownloadPriceXaf\)\)/);
+  assert.match(talentCvPage, /setCvOptimizedDownloadPriceXaf\(Number\.isFinite\(Number\(entitlements\.cvOptimizedDownloadPriceXaf\)\)/);
+  assert.match(read("app/api/entitlements/route.ts"), /productType/);
 });
 
 test("CV Studio persists and reloads free-text experience and education without fabricating structured records", () => {
