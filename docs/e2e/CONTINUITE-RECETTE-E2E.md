@@ -3644,3 +3644,29 @@ Le rapport final est `feedback-lot00-openapi-readonly-20261108.txt`; le script o
 - PAT full-access utilisé seulement pour le contrôle ponctuel autorisé ; le révoquer ensuite dans Supabase Access Tokens.
 - PR #266 reste ouverte, brouillon, non fusionnée.
 - Document source avant cette mise à jour : V2.69, blob SHA f6d4931ae995683b7773a780a489411742c933de, branche `e2e/recette`.
+
+---
+
+## 73. Rapport retransmis sans les marqueurs V2.70 — commande corrigée non démontrée — 8 novembre 2026
+
+### 73.1 Constat sur la sortie fournie
+
+La sortie communiquée après le §72 reprend exactement les indicateurs de l'ancien rapport :
+- `failure=CHECK_COMMAND_FAILED`
+- `GATE=BLOCKED_CLI_JSON_OR_INTERNAL_ERROR`
+- absence de `cli_json_parsed`, `failure_class` et des gates introduits au §72.2.
+
+Or la commande du §72.2 produit obligatoirement les champs `failure_class` et `GATE` de la nouvelle nomenclature (`BLOCKED_POWERSHELL_BEFORE_CLI_EXIT`, `BLOCKED_CLI_NONZERO_EXIT`, etc.). La sortie reçue ne permet donc pas d'établir que cette commande corrigée a été exécutée. Elle peut provenir d'une ancienne exécution ou du contenu non actualisé du fichier de rapport ; les éléments disponibles ne permettent pas de trancher.
+
+### 73.2 Conséquence de recette
+
+- Ce résultat ne prouve ni échec d'authentification CLI, ni rejet du PAT, ni rejet de la clé Supabase.
+- Aucun appel HTTP OpenAPI n'est confirmé ; les statuts public/net restent non mesurés dans cette sortie.
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- Ne pas répéter les préflights, les tests du presse-papiers ou les groupes de tests locaux déjà verts.
+- La seule reprise autorisée pour LOT-00 est l'exécution exacte de la commande unique §72.2, puis lecture de sa nouvelle sortie intégrale. Ne pas relancer l'ancienne commande §69 ni recopier un ancien rapport.
+- Aucune action sur JOBLY-PROD, aucune mutation, aucun changement de `main`, aucune fusion et aucun déploiement. PR #266 demeure ouverte, brouillon et non fusionnée.
+
+### 73.3 Référence
+
+Document mis à jour en V2.71 sur `e2e/recette`. Source avant mise à jour : blob SHA 9275c8bcd8c645324dad69d13e5772d2fd2fa136.
