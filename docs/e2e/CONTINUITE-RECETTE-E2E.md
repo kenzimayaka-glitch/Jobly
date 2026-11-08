@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.100 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.101 — 8 novembre 2026
 >
 > **Dernier commit de correction LOT-00 :** `cdc4399d452f3341895b5d56efb5204080d3faa9` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 conserve uniquement le préflight environnement/fixtures et les contrôles read-only de base (identité, RLS/grants, Storage, correspondances des fixtures), hors OpenAPI. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.100  
+**Version :** 2.101  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -130,6 +130,19 @@ notepad feedback-lot00-node-preflight-20261108.txt
 Ce contrôle ne modifie ni les dépendances ni les fichiers du projet. Si `node` est « introuvable », distinguer une absence réelle d'installation d'un PATH non chargé ; ne pas installer, réinstaller ou modifier PATH avant d'avoir lu le rapport et vérifié l'installation existante.
 
 À ce stade, le clone et le remote sont confirmés, mais Node.js, le lanceur local et Storage ne sont pas validés. Le préflight Node doit précéder tout lancement de script.
+
+### 93.7 Préflight Node.js après redémarrage — PASS
+
+Rapport opérateur reçu : `feedback-lot00-node-preflight-20261108.txt`.
+
+Résultats vérifiés depuis `C:\Users\ASUS\Jobly` :
+- Node.js : trouvé à `C:\Program Files\nodejs\node.exe`, version `v26.13.0`.
+- npm : trouvé à `C:\Program Files\nodejs\npm` et `npm.cmd`, version `11.20.0`.
+- pnpm : trouvé à `C:\Users\ASUS\AppData\Roaming\npm\pnpm` et `pnpm.cmd`, version `10.28.0`.
+
+**Conclusion :** le redémarrage n'a pas supprimé Node.js ni pnpm du poste. CMD retrouve les trois outils ; aucun téléchargement, réinstallation ou changement de PATH n'est nécessaire. Le préflight runtime est PASS.
+
+**Prochain contrôle autorisé :** inventaire read-only du chemin `scripts\e2e\run-lot00-storage-hardening.cmd`, du dossier `scripts\e2e`, de `%TEMP%` et des références Git distantes ; calculer le hash local si le fichier existe. Ne créer/écraser aucun fichier pendant cet inventaire. Préserver les fichiers non suivis déjà signalés et ne pas synchroniser les 167 commits en retard. Aucun script Storage ne doit encore être lancé.
 
 ### 93.4 Limites de l'intervention et statut Storage
 
