@@ -10,6 +10,8 @@ const PHOTO_FORMATS: Record<string, { mimeType: string; extension: string }> = {
   avif: { mimeType: "image/avif", extension: "avif" },
 };
 
-export function getProfilePhotoFormat(format: string | undefined) {
+export function getProfilePhotoFormat(format: string | undefined, compression?: string) {
+  // Sharp identifies the HEIF container separately from the AV1 codec used by AVIF.
+  if (format === "heif") return compression === "av1" ? PHOTO_FORMATS.avif : null;
   return format ? PHOTO_FORMATS[format] ?? null : null;
 }
