@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.26 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.27 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -15,7 +15,7 @@
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le dernier rapport V4 confirme un arrêt au contrôle local du format de la clé (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avant toute requête HTTP ; `results=[]`. L'exposition de `net` reste donc indéterminée. L'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`. Sélectionner `service_role` uniquement si cette entrée est dans **Legacy API Keys** et que la valeur JWT commence par `eyJ`; utiliser alors le test masqué GET-only du §23.3. Si la valeur commence par `sb_secret_`, ce n'est pas la legacy JWT et il faut arrêter ce script. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.26  
+**Version :** 2.27  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1585,12 +1585,14 @@ Pour éviter toute collision avec les rapports V3 et V4, la commande ci-dessous 
 
 ### 31.3 Bloc CMD transmis
 
+Le bloc a été corrigé et vérifié pour conserver les séquences d'échappement nécessaires à Node.js (`\r`, `\n`, `\u0003`) après le passage par CMD. Le prompt de saisie apparaît explicitement avant le passage en mode masqué.
+
 ```bat
 cd /d C:\Users\ASUS\Jobly
 if exist feedback-lot00-net-schema-exposure-v5-20261108-b.txt (
   echo Rapport V5 deja present : conservation, aucune nouvelle execution.
 ) else (
-  node -e "const fs=require('node:fs'),input=process.stdin,out=process.stdout,report='feedback-lot00-net-schema-exposure-v5-20261108-b.txt';if(fs.existsSync(report)){console.log('REPORT_EXISTS_PRESERVED');process.exit(3)}function save(rows,gate,error=''){const lines=['node='+process.version,'project_ref=ofqqrryamslxoqkklraw','credential_type=legacy_service_role','results='+JSON.stringify(rows),'GATE='+gate];if(error)lines.push('error='+error);fs.writeFileSync(report,lines.join('\\r\\n')+'\\r\\n',{flag:'wx'});for(const line of lines)out.write(line+'\\n');out.write('REPORT='+report+'\\n')}if(!input.isTTY||typeof input.setRawMode!=='function'){out.write('TTY_REQUIRED - ouvrir Node.js Command Prompt puis coller la commande complete.\\n');save([],'BLOCKED_REVIEW_REQUIRED','TTY_REQUIRED');process.exit(2)}let key='';out.write('\\nSAISIE MASQUEE : colle maintenant la valeur complete de la cle service_role historique JOBLY-E2E, puis appuie sur Entree. Aucun caractere ne sera affiche : ');input.setRawMode(true);input.resume();input.on('data',b=>{for(const ch of b.toString('utf8')){if(ch==='\\u0003'){input.setRawMode(false);input.pause();key='';out.write('\\nCANCELLED\\n');save([],'BLOCKED_REVIEW_REQUIRED','CANCELLED');process.exit(2)}if(ch==='\\r'||ch==='\\n'){input.setRawMode(false);input.pause();out.write('\\n');const k=key.trim();key='';if(!k){save([],'BLOCKED_REVIEW_REQUIRED','KEY_EMPTY');return}run(k);return}if(ch==='\\u007f'||ch==='\\b')key=key.slice(0,-1);else if(ch>=' ')key+=ch}});async function run(k){const rows=[];try{if(!k.startsWith('eyJ'))throw Error('KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT');const p=JSON.parse(Buffer.from(k.split('.')[1]||'','base64url').toString('utf8'));if(p.role!=='service_role'||p.ref!=='ofqqrryamslxoqkklraw')throw Error('KEY_PROJECT_OR_ROLE_MISMATCH');for(const schema of ['public','net']){const r=await fetch('https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/',{method:'GET',headers:{apikey:k,Accept:'application/openapi+json','Accept-Profile':schema},signal:AbortSignal.timeout(20000)});const raw=await r.text();let j={};try{j=JSON.parse(raw)}catch{}rows.push({schema,status:r.status,apiSchemaAccepted:r.ok,openapi:!!(j.openapi||j.swagger),code:j.code??null,message:typeof j.message==='string'?j.message.slice(0,160):null})}const pub=rows.find(x=>x.schema==='public'),net=rows.find(x=>x.schema==='net'),pass=!!(pub&&pub.status===200&&pub.openapi&&net&&net.status===406&&net.code==='PGRST106');save(rows,pass?'PASS_NET_NOT_EXPOSED':'BLOCKED_REVIEW_REQUIRED')}catch(e){save(rows,'BLOCKED_REVIEW_REQUIRED',e.name+': '+e.message)}finally{k=''}}"
+  node -e "const fs=require('node:fs'),input=process.stdin,out=process.stdout,report='feedback-lot00-net-schema-exposure-v5-20261108-b.txt';if(fs.existsSync(report)){console.log('REPORT_EXISTS_PRESERVED');process.exit(3)}function save(rows,gate,error=''){const lines=['node='+process.version,'project_ref=ofqqrryamslxoqkklraw','credential_type=legacy_service_role','results='+JSON.stringify(rows),'GATE='+gate];if(error)lines.push('error='+error);fs.writeFileSync(report,lines.join('\r\n')+'\r\n',{flag:'wx'});for(const line of lines)out.write(line+'\n');out.write('REPORT='+report+'\n')}if(!input.isTTY||typeof input.setRawMode!=='function'){out.write('TTY_REQUIRED - ouvrir Node.js Command Prompt puis coller la commande complete.\n');save([],'BLOCKED_REVIEW_REQUIRED','TTY_REQUIRED');process.exit(2)}let key='';out.write('\nSAISIE MASQUEE : colle maintenant la valeur complete de la cle service_role historique JOBLY-E2E, puis appuie sur Entree. Aucun caractere ne sera affiche : ');input.setRawMode(true);input.resume();input.on('data',b=>{for(const ch of b.toString('utf8')){if(ch==='\u0003'){input.setRawMode(false);input.pause();key='';out.write('\nCANCELLED\n');save([],'BLOCKED_REVIEW_REQUIRED','CANCELLED');process.exit(2)}if(ch==='\r'||ch==='\n'){input.setRawMode(false);input.pause();out.write('\n');const k=key.trim();key='';if(!k){save([],'BLOCKED_REVIEW_REQUIRED','KEY_EMPTY');return}run(k);return}if(ch==='\u007f'||ch==='\b')key=key.slice(0,-1);else if(ch>=' ')key+=ch}});async function run(k){const rows=[];try{if(!k.startsWith('eyJ'))throw Error('KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT');const p=JSON.parse(Buffer.from(k.split('.')[1]||'','base64url').toString('utf8'));if(p.role!=='service_role'||p.ref!=='ofqqrryamslxoqkklraw')throw Error('KEY_PROJECT_OR_ROLE_MISMATCH');for(const schema of ['public','net']){const r=await fetch('https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/',{method:'GET',headers:{apikey:k,Accept:'application/openapi+json','Accept-Profile':schema},signal:AbortSignal.timeout(20000)});const raw=await r.text();let j={};try{j=JSON.parse(raw)}catch{}rows.push({schema,status:r.status,apiSchemaAccepted:r.ok,openapi:!!(j.openapi||j.swagger),code:j.code??null,message:typeof j.message==='string'?j.message.slice(0,160):null})}const pub=rows.find(x=>x.schema==='public'),net=rows.find(x=>x.schema==='net'),pass=!!(pub&&pub.status===200&&pub.openapi&&net&&net.status===406&&net.code==='PGRST106');save(rows,pass?'PASS_NET_NOT_EXPOSED':'BLOCKED_REVIEW_REQUIRED')}catch(e){save(rows,'BLOCKED_REVIEW_REQUIRED',e.name+': '+e.message)}finally{k=''}}"
 )
 if exist feedback-lot00-net-schema-exposure-v5-20261108-b.txt notepad feedback-lot00-net-schema-exposure-v5-20261108-b.txt
 ```
@@ -1609,7 +1611,7 @@ Le script valide localement le préfixe JWT et les claims `role=service_role` et
 
 ### 31.5 État et limites après transmission
 
-- Commande V5 : **TRANSMISE, NON EXÉCUTÉE** par l'assistant ; aucun résultat n'est anticipé.
+- Commande V5 corrigée : **PRÊTE À ÊTRE TESTÉE, NON EXÉCUTÉE** par l'assistant ; aucun résultat n'est anticipé.
 - Invite de saisie de la clé : prévue explicitement après le contrôle TTY ; sa visibilité devra être confirmée par l'opérateur.
 - LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED** jusqu'à réception et examen du rapport.
 - Aucun GET OpenAPI n'a été effectué par l'assistant ; exposition de `net` toujours **NON DÉTERMINÉE**.
@@ -1623,3 +1625,8 @@ Le script valide localement le préfixe JWT et les claims `role=service_role` et
 - Procédure de référence comparée : §23.3 ; nouveau rapport réservé : `feedback-lot00-net-schema-exposure-v5-20261108-b.txt`.
 - Document source avant cette mise à jour : V2.25, blob SHA `1bff7a776d12c599eddabd154915e61d1ade8679`, branche `e2e/recette`.
 - Aucun secret reçu, lu ou enregistré par l'assistant.
+
+
+### 31.7 Correction de transmission avant exécution
+
+Avant l'envoi à l'opérateur, le bloc CMD a été réémis dans le document avec les échappements JavaScript exacts (`\r`, `\n`, `\u0003`, `\u007f`) afin que le script Node.js traite correctement les retours à la ligne et les touches d'annulation/suppression. Le prompt `SAISIE MASQUEE` est affiché avant l'activation du mode brut. Cette correction documentaire ne constitue pas une exécution du script et ne change aucun statut de test.
