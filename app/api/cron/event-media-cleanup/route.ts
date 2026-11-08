@@ -60,11 +60,16 @@ export async function GET(request: NextRequest) {
       if (unlinkError) throw new Error("Désassociation d'un média expiré impossible : " + unlinkError.message);
       expiredStoragePaths.add(expired.path);
     }
+    const removed: string[] = [];
+    if (expiredStoragePaths.size) {
+      const { error: expiredRemoveError } = await bucket.remove([...expiredStoragePaths]);
+      if (expiredRemoveError) throw new Error("Suppression des médias d'événements expirés impossible : " + expiredRemoveError.message);
+      removed.push(...expiredStoragePaths);
+    }
     const cutoff = Date.now() - MAX_AGE_MS;
     const { data: folders, error: foldersError } = await bucket.list("", { limit: PAGE_SIZE, offset: 0 });
     if (foldersError) throw new Error(foldersError.message);
 
-    const removed: string[] = [];
     const retained: string[] = [];
     let scanned = 0;
 
