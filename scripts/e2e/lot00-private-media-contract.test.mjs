@@ -49,7 +49,7 @@ test("event media is only signed by the published-event read routes", async () =
   assert.match(list, /exposePublishedEventMedia/);
   assert.match(detail, /eq\("status","PUBLISHED"\)/);
   assert.match(detail, /exposePublishedEventMedia/);
-  assert.match(helper, /createSignedUrl\(storagePath, 60 \* 60\)/);
+  assert.match(helper, /createSignedUrl\(storagePath, 60 \* 60 \* 24 \* 7\)/);
 });
 
 test("event media ownership is checked and stored on the event row", async () => {
