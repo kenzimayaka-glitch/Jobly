@@ -22,24 +22,32 @@ export async function POST(request: NextRequest) {
     }
 
     const inputBytes = new Uint8Array(await file.arrayBuffer());
-    const metadata = await sharp(inputBytes, { limitInputPixels: 40_000_000 }).metadata();
+    const metadata = await sharp(inputBytes, { limitInputPixels: 40_000_000 }).metadata().catch(() => null);
+    if (!metadata?.width || !metadata.height) {
+      return NextResponse.json({ message: "Le fichier image est illisible ou invalide." }, { status: 400 });
+    }
     const imageFormat = getProfilePhotoFormat(metadata.format);
     if (!imageFormat || file.type.toLowerCase() !== imageFormat.mimeType) {
       return NextResponse.json({ message: "Format image non pris en charge ou type MIME incohérent." }, { status: 400 });
     }
-    if (kind === "hero" && imageFormat.mimeType !== "image/png") {
-      return NextResponse.json({ message: "Le visuel Hero doit être un PNG transparent." }, { status: 400 });
+    if (kind === "hero" && (imageFormat.mimeType !== "image/png" || !metadata.hasAlpha)) {
+      return NextResponse.json({ message: "Le visuel Hero doit être un PNG avec transparence." }, { status: 400 });
     }
 
     // The bucket is limited to exactly 5,000,000 bytes. Hero PNGs are normalized
     // before upload so the API can accept a larger source without exceeding storage.
-    const bytes = kind === "hero"
-      ? new Uint8Array(await sharp(inputBytes, { limitInputPixels: 40_000_000 })
+    let bytes = inputBytes;
+    if (kind === "hero") {
+      try {
+        bytes = new Uint8Array(await sharp(inputBytes, { limitInputPixels: 40_000_000 })
           .rotate()
           .resize({ width: 2400, height: 2400, fit: "inside", withoutEnlargement: true })
           .png({ compressionLevel: 9, adaptiveFiltering: true, palette: true })
-          .toBuffer())
-      : inputBytes;
+          .toBuffer());
+      } catch {
+        return NextResponse.json({ message: "Le visuel Hero n'a pas pu être optimisé." }, { status: 400 });
+      }
+    }
     if (bytes.byteLength > PROFILE_PHOTO_BUCKET_MAX_BYTES) {
       return NextResponse.json({ message: "L’image optimisée dépasse la limite de stockage de 5 Mo." }, { status: 413 });
     }
@@ -82,7 +90,10 @@ export async function POST(request: NextRequest) {
 
     if (kind === "profile") {
       const { error: updateError } = await supabase.from("User").update({ profilePhotoUrl: publicData.publicUrl, updatedAt: new Date().toISOString() }).eq("id", user.id);
-      if (updateError) throw new Error(updateError.message);
+      if (updateError) {
+        await supabase.storage.from(bucket).remove([path]).catch(() => null);
+        throw new Error(updateError.message);
+      }
       const heroUrl = supabase.storage.from(bucket).getPublicUrl(`${path}.hero.png`).data.publicUrl;
       return NextResponse.json({ ok: true, url: publicData.publicUrl, heroUrl });
     }
