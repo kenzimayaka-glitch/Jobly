@@ -26,7 +26,7 @@ type RecruiterOffer = {
 type TalentProfileCountry = {
   id: string;
   country: string | null;
-  User: { role: string; country: string | null } | null;
+  User: Array<{ role: string; country: string | null }> | null;
 };
 
 async function fetchAfricanTalentCount(
@@ -49,7 +49,7 @@ async function fetchAfricanTalentCount(
     const page = (data ?? []) as TalentProfileCountry[];
     count += page.filter((profile) =>
       resolveAfricaCountryCode(profile.country) !== null ||
-      resolveAfricaCountryCode(profile.User?.country) !== null
+      Boolean(profile.User?.some((user) => resolveAfricaCountryCode(user.country) !== null))
     ).length;
 
     if (page.length < PAGE_SIZE) break;
@@ -132,7 +132,7 @@ async function fetchPublishedRecruiterOffers(
       .select("id,createdAt")
       .eq("status", "published")
       .eq("applicationReady", true)
-      .in("countryCode", [...AFRICAN_COUNTRY_CODES])
+      .in("countryCode", [...AFRICA_COUNTRY_CODES])
       .gte("createdAt", twoMonthsAgo)
       .range(offset, offset + PAGE_SIZE - 1);
 
