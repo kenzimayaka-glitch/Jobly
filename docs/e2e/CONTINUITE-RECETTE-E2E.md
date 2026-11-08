@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.9 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.10 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -14,7 +14,7 @@
 >
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le contrôle Data API du schéma net n'a pas encore été retourné, l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette n'est pas suffisamment documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 
-**Version :** 2.9  
+**Version :** 2.10  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -921,3 +921,85 @@ Jusqu'à réception et analyse de ce rapport :
 - runner bulk / recette 11 lots : **SUSPENDU** ;
 - fixtures partagées : inchangées et à préserver ;
 - JOBLY-PROD : interdit.
+
+
+---
+
+## 19. Recettes sans comptes authentifiés — résultats CI — 8 novembre 2026
+
+### 19.1 Périmètre et rattachement de code
+
+Contrôle des exécutions GitHub Actions associées à la PR #266, branche `e2e/recette`, HEAD `5aff245361c053337328bd98e7ca8727400e52e7`.
+
+Comparaison entre le commit code E2E-001 `8385b60400bbaf9cedfcb4aa01073b733533f6c2` et ce HEAD :
+- 6 commits d'avance ;
+- un seul fichier modifié : `docs/e2e/CONTINUITE-RECETTE-E2E.md` ;
+- aucun changement de code applicatif ou de tests entre ces deux références.
+
+Les exécutions ci-dessous valident donc le code présent au SHA `8385b604...`, avec uniquement des ajouts documentaires ensuite. PR #266 reste ouverte, en brouillon et non fusionnée.
+
+### 19.2 Recettes sans authentification confirmées PASS
+
+| Domaine | Workflow / run | Résultat | Portée |
+|---|---|---|---|
+| CI générale | Jobly CI — run `42478108383` | PASS | Tests de régression, typecheck et build terminés avec succès. |
+| Admin 360 / BI | Jobly CI — job isolé PostgreSQL | PASS | Création d'un PostgreSQL temporaire, migrations Admin 360 et BI, vérification RLS, grants, singleton racine et backfill BI. Aucun compte JOBLY-E2E. |
+| Conversations J'IA | Jobly CI — job isolé PostgreSQL | PASS | Migration de conversation canonique, privilèges, RLS, contraintes et idempotence sur PostgreSQL temporaire. |
+| Security Core | run `42478108345` | PASS | Migrations Security Core et verrouillage pg_net appliqués et vérifiés sur PostgreSQL local éphémère ; contrôle du rate limiter atomique et des grants. Aucun accès au projet Supabase JOBLY-E2E. |
+| Registre Afrique | run `42478108363` | PASS | 51 tests Deno passés, 0 échec ; audit du registre et des états d'activation. |
+| Fraîcheur / contact Afrique | run `42478108412` | PASS | 16 tests passés, 0 échec ; type-check des fonctions de récolte et test des bornes de fraîcheur sur deux mois. Le job `shadow-crawl` a été SKIPPED parce que l'événement était `pull_request` : aucune collecte réelle ni ingestion n'a été exécutée par ce workflow. |
+| Confidentialité Android | run `42478108415` — job `privacy-tests` | PASS | 16 tests Node.js passés, 0 échec. |
+| Build Android | run `42478108415` — job `android-debug-build` | PASS | Compilation de l'APK debug et dépôt de l'artefact réussis ; ce n'est pas encore le résultat du smoke sur émulateur. |
+| Pipeline des offres / normalisation / J'IA | run `42478108380` | PASS | Tests de batch d'identifiants Supabase, normalisation Gemini, parcours source-only et handoff J'IA, typecheck, build et smoke J'IA Watch réussis. Le smoke J'IA Watch affiche 4/4 chemins de décision et atténuation des contradictions. |
+| Auth UI — régression de code | Jobly CI — étape du run `42478108383` | PASS | Tests de régression du code d'authentification et du choix de compte Google ; ce sont des tests automatisés de code/UI, pas des connexions réelles avec les fixtures Talent/Recruteur/Partenaire. |
+
+Liens des workflows :
+- https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42478108383
+- https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42478108345
+- https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42478108363
+- https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42478108412
+- https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42478108415
+- https://github.com/kenzimayaka-glitch/Jobly/actions/runs/42478108380
+
+### 19.3 Vérifications encore en cours ou non couvertes
+
+- Android J'IA WebView, run `42478108415` : les jobs privacy-tests et android-debug-build sont PASS ; le job `android-emulator-smoke` était encore `in_progress` au dernier contrôle. Ne pas déclarer le smoke émulateur PASS avant la conclusion finale du job.
+- Les contrôles de build et tests unitaires de la CI ne remplacent pas les parcours de navigation publique sur un navigateur réel.
+- Aucun smoke navigateur public autonome n'est enregistré comme nouvelle exécution dans cette section.
+- Aucun test runtime nécessitant une session Auth n'a été exécuté par les runs listés ci-dessus.
+- Aucun compte fixture, profil, mot de passe ou session n'a été modifié par ces workflows.
+- Le workflow E2E complet 11 lots n'a pas été exécuté par cette démarche.
+
+### 19.4 Portée et limites des PASS
+
+Les PASS du présent chapitre prouvent l'exécution des tests unitaires, statiques, de compilation et des migrations sur des bases PostgreSQL éphémères explicitement utilisées par les workflows.
+
+Ils ne prouvent pas :
+- l'authentification réelle des comptes Talent, Recruteur ou Partenaire ;
+- les permissions effectives sur les tables du projet JOBLY-E2E en production de test ;
+- la visibilité réelle des offres via les API JOBLY-E2E ;
+- la sécurité globale de toutes les policies RLS et de tous les buckets Storage ;
+- la persistance ou le nettoyage de parcours métier dans JOBLY-E2E ;
+- la recette globale des 11 lots.
+
+Les tests Security Core sur PostgreSQL isolé ne constituent pas une application de migration à JOBLY-E2E. Ils ne ferment pas non plus le point d'exposition du schéma `net` relevé au §16.
+
+### 19.5 État de reprise après les recettes sans compte
+
+- Recettes CI sans comptes : plusieurs groupes **PASS**, détaillés ci-dessus.
+- E2E-001 : **PASS STATIQUE LOCAL — 6/6** ; la retransmission précédente reste un doublon, cf. §18.
+- LOT-00 : **PARTIAL**, toujours en attente du GET OpenAPI `public/net`, de la confirmation métier des deux buckets publics et de la matrice grants/policies ciblée.
+- Smoke runtime authentifié Talent/Recruteur : **NON AUTORISÉ** tant que LOT-00 n'est pas clos.
+- Parcours croisé Talent → Recruteur : **SUSPENDU**.
+- Runner bulk / recette globale 11 lots : **SUSPENDU**.
+- JOBLY-PROD : interdit ; aucun accès ni écriture.
+- PR #266 : ouverte, brouillon, non fusionnée ; aucun merge dans `main`, aucun déploiement.
+
+### 19.6 Prochaines recettes non authentifiées envisageables
+
+Après le contrôle GET LOT-00 demandé au §16.7 et sans démarrer le runner global, les prochaines recettes isolables sont :
+1. tests statiques de routes publiques et de pages anonymes, après vérification de leur code pour garantir l'absence d'appel à Auth ou d'écriture ;
+2. audit de rendu public du flux d'offres et de la page détail avec un serveur local et données de démonstration non persistées ;
+3. tests responsive/PWA et navigation anonyme, séparés des parcours Talent connectés.
+
+Ces recettes ne doivent pas être qualifiées de PASS tant qu'une exécution et un rapport daté, rattachés au SHA exact, ne sont pas disponibles.
