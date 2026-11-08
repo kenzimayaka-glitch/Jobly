@@ -30,6 +30,7 @@ const catalog = [
       "scripts/jobly-security-core.test.mjs",
       "scripts/security-entitlements.test.mjs",
       "scripts/p2-pwned-passwords.test.mjs",
+      "scripts/e2e-authenticated-runtime-regression.test.mjs",
     ],
     gap: "Les connexions réelles et renouvellements de session Talent/Recruteur/Partenaire sont validés ; les parcours OTP, Google, réinitialisation du mot de passe et révocation multi-appareils restent à démontrer.",
   },
