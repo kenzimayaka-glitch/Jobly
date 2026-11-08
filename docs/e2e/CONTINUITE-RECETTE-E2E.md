@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.107 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.108 — 8 novembre 2026
 >
-> **Dernier commit de correction LOT-00 :** `cdc4399d452f3341895b5d56efb5204080d3faa9` sur `e2e/recette`.
+> **Dernier commit de correction Storage LOT-00 :** `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e` sur `e2e/recette` (script MIME : `f3753f7370007647a5e4bf99c130c69437d0c921`).
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations, lectures SQL et contrôles Storage ; aucun accès JOBLY-PROD et aucun déploiement. Les tests HTTP CI tournent sur un serveur Next.js de build local au runner avec configuration Supabase fictive, jamais sur le site de production.
 >
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 conserve uniquement le préflight environnement/fixtures et les contrôles read-only de base (identité, RLS/grants, Storage, correspondances des fixtures), hors OpenAPI. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
+> **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 : identité/RLS/grants et **configuration Storage + smoke d'accès 5/5 PASS**, avec relecture SQL distante conforme ; restent le préflight final environnement/fixtures et les correspondances des fixtures, hors OpenAPI. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.107  
+**Version :** 2.108  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -72,6 +72,47 @@ La prochaine intervention doit être divisée en deux étapes strictes :
 2. **Écriture atomique seulement après préflight PASS** : extraire l'objet Git distant vers un fichier temporaire dans un dossier dont l'existence a été vérifiée ; calculer le hash du temporaire ; vérifier qu'il vaut exactement `8672167fc66c639f433d5d0296847dd5f200d315` ; remplacer ensuite la destination dans le dépôt confirmé ; recalculer et comparer le hash final. En cas d'échec à une étape, arrêter sans lancer le script Storage.
 
 La preuve de réussite attendue est constituée des trois valeurs complètes et identiques : hash de l'objet distant, hash du fichier temporaire extrait et hash du fichier local final. Un message « fichier trouvé » ou une copie du contenu dans le chat ne remplace pas ces contrôles.
+
+### 93.15 Configuration Storage JOBLY-E2E appliquée et vérifiée — PASS
+
+**Exécution réelle : 8 novembre 2026, 22:12:15 UTC.** Le rapport opérateur contient `status=PASS`, projet `ofqqrryamslxoqkklraw`, et les trois contrôles de hash/syntaxe PASS avant application :
+- script Storage corrigé : `4521e64aed66cfb6ce93d1372b1a1b62f29cd84f` ;
+- diagnostic credentials : `f100bf22f423a813e0f20f8a65c9025314b095b8` ;
+- helper d'accès : `68e14ba5b1efbf84ee3970a36bb070cc3b4dc558`.
+
+Le diagnostic confirme que `.env.local` fournit une valeur non vide pour `SUPABASE_SECRET_KEY`. Aucun secret n'est reproduit dans le rapport ou cette référence.
+
+**Cinq buckets : configuration PASS, API Storage relue après application :**
+
+| Bucket | Visibilité | Limite | MIME effectifs |
+|---|---|---:|---|
+| `talent-cvs` | privé | 3 MiB | PDF |
+| `recruitment-listings` | privé | 50 MiB | PDF, XLSX, HTML, JPEG |
+| `mobility-documents` | privé | 10 MiB | PDF, JPEG, PNG, WebP |
+| `jobly-events` | privé | 10 MiB | JPEG, PNG, WebP, GIF, PDF, MP4 |
+| `profile-photos-private` | privé, créé lors de cette exécution | 5 MiB | JPEG, PNG, WebP, GIF |
+
+Le type HTML est stocké une seule fois comme `text/html`, conformément à la normalisation MIME de Supabase. Aucun doublon `text/html; charset=utf-8` n'est attendu dans les métadonnées persistées.
+
+**Smoke d'accès réel : 5/5 PASS.** Pour chacun des cinq buckets :
+- upload temporaire : PASS ;
+- relecture via URL signée : PASS (HTTP 200) ;
+- lecture anonyme via URL publique : refusée (HTTP 400) ;
+- suppression de l'objet de test : PASS.
+
+Le rapport donne `storageAccessSmoke=5/5 PASS`, `rollback=[]`, `status=PASS`. Il ne signale aucune photo legacy migrée, aucune photo publique explicitement consentie retenue par cette opération, et aucun objet orphelin supprimé.
+
+**Vérification indépendante immédiate par SQL read-only sur JOBLY-E2E**, jointe à `storage.objects` :
+- les cinq buckets existent ;
+- les cinq sont privés ;
+- leurs plafonds et allowlists correspondent aux cibles ci-dessus ;
+- `object_count=0` pour chacun après le cleanup des objets de test.
+
+Cette relecture distante confirme que la configuration est persistée et que les uploads temporaires ont été nettoyés. Elle n'a modifié aucune donnée. Le bucket historique `profile-photos` public n'a pas été basculé par cette opération ; sa politique de consentement et ses objets restent régis par les travaux de confidentialité photo consignés au §89.
+
+**Conclusion du sous-lot Storage : PASS**, avec preuve applicative et relecture distante. **LOT-00 global reste PARTIAL** tant que le préflight final des fixtures/environnement et les correspondances des fixtures ne sont pas clôturés. Aucun lancement de la recette 11 lots n'est autorisé par cette réussite Storage seule.
+
+Garde-fous : JOBLY-E2E uniquement ; aucune mutation JOBLY-PROD ; `main` demeure `979f2ccfec9258bc30989af18433cf6adb1b4698` ; PR #266/#267 ouvertes en brouillon et non fusionnées ; aucun déploiement ; aucune fixture réinitialisée.
 
 ### 93.4 Limites de l'intervention et statut Storage
 
