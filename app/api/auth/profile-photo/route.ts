@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, getAuthUser } from "../../../../lib/server-auth";
 import crypto from "node:crypto";
+import sharp from "sharp";
+import { getProfilePhotoFormat, PROFILE_HERO_MAX_INPUT_BYTES, PROFILE_PHOTO_BUCKET_MAX_BYTES, PROFILE_PHOTO_MAX_INPUT_BYTES } from "../../../../lib/profilePhoto";
+
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,15 +14,46 @@ export async function POST(request: NextRequest) {
     const kind = form.get("kind") === "hero" ? "hero" : "profile";
     const file = form.get("photo");
     if (!(file instanceof File)) return NextResponse.json({ message: "Photo manquante." }, { status: 400 });
-    if (!file.type.startsWith("image/")) return NextResponse.json({ message: "Le fichier doit être une image." }, { status: 400 });
-    if (kind === "hero" && file.type !== "image/png") return NextResponse.json({ message: "Le visuel Hero doit être un PNG transparent." }, { status: 400 });
-    if (file.size > (kind === "hero" ? 10 : 5) * 1024 * 1024) return NextResponse.json({ message: kind === "hero" ? "Le visuel Hero est trop volumineux." : "La photo doit faire au maximum 5 Mo." }, { status: 400 });
+    const maxInputBytes = kind === "hero" ? PROFILE_HERO_MAX_INPUT_BYTES : PROFILE_PHOTO_MAX_INPUT_BYTES;
+    if (file.size <= 0 || file.size > maxInputBytes) {
+      return NextResponse.json({
+        message: kind === "hero" ? "Le visuel Hero source dépasse 10 Mo." : "La photo doit faire au maximum 5 Mo.",
+      }, { status: 400 });
+    }
+
+    const inputBytes = new Uint8Array(await file.arrayBuffer());
+    const metadata = await sharp(inputBytes, { limitInputPixels: 40_000_000 }).metadata();
+    const imageFormat = getProfilePhotoFormat(metadata.format);
+    if (!imageFormat || file.type.toLowerCase() !== imageFormat.mimeType) {
+      return NextResponse.json({ message: "Format image non pris en charge ou type MIME incohérent." }, { status: 400 });
+    }
+    if (kind === "hero" && imageFormat.mimeType !== "image/png") {
+      return NextResponse.json({ message: "Le visuel Hero doit être un PNG transparent." }, { status: 400 });
+    }
+
+    // The bucket is limited to exactly 5,000,000 bytes. Hero PNGs are normalized
+    // before upload so the API can accept a larger source without exceeding storage.
+    const bytes = kind === "hero"
+      ? new Uint8Array(await sharp(inputBytes, { limitInputPixels: 40_000_000 })
+          .rotate()
+          .resize({ width: 2400, height: 2400, fit: "inside", withoutEnlargement: true })
+          .png({ compressionLevel: 9, adaptiveFiltering: true, palette: true })
+          .toBuffer())
+      : inputBytes;
+    if (bytes.byteLength > PROFILE_PHOTO_BUCKET_MAX_BYTES) {
+      return NextResponse.json({ message: "L’image optimisée dépasse la limite de stockage de 5 Mo." }, { status: 413 });
+    }
 
     const supabase = adminClient();
     const bucket = "profile-photos";
-    const { data: buckets } = await supabase.storage.listBuckets();
+    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+    if (bucketsError) throw new Error(bucketsError.message);
     if (!buckets?.some((b) => b.name === bucket)) {
-      const { error } = await supabase.storage.createBucket(bucket, { public: true, fileSizeLimit: "5MB", allowedMimeTypes: ["image/*"] });
+      const { error } = await supabase.storage.createBucket(bucket, {
+        public: true,
+        fileSizeLimit: PROFILE_PHOTO_BUCKET_MAX_BYTES,
+        allowedMimeTypes: ["image/*"],
+      });
       if (error && !error.message.toLowerCase().includes("already exists")) throw new Error(error.message);
     }
 
@@ -35,11 +70,13 @@ export async function POST(request: NextRequest) {
       if (!sourcePath || !sourcePath.startsWith(`${authUser.id}/`)) return NextResponse.json({ message: "Photo source invalide." }, { status: 403 });
       path = `${sourcePath}.hero.png`;
     } else {
-      const extension = file.name.split(".").pop()?.replace(/[^a-z0-9]/gi, "") || "jpg";
-      path = `${authUser.id}/${crypto.randomUUID()}.${extension}`;
+      path = `${authUser.id}/${crypto.randomUUID()}.${imageFormat.extension}`;
     }
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, bytes, { contentType: file.type, upsert: false, cacheControl: "31536000" });
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, bytes, {
+      contentType: imageFormat.mimeType,
+      upsert: false,
+      cacheControl: "31536000",
+    });
     if (uploadError && !(kind === "hero" && /already exists|duplicate/i.test(uploadError.message))) throw new Error(uploadError.message);
     const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(path);
 
