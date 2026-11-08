@@ -3820,7 +3820,7 @@ Le tableau de synthèse de l'exécution historique §3.3 n'est pas réécrit : i
 
 1. Attendre la fin de LOT-10 et la réconciliation des rapports/artefacts, sans relancer les tests déjà verts.
 2. Révoquer le PAT Supabase full-access utilisé lors de la tentative précédente, comme prévu par l'opérateur. Ne pas le réutiliser pour LOT-11.
-3. Préférer un accès read-only limité à `database:read` pour consulter le document via le Management API, ou une autre méthode explicitement approuvée et limitée aux seules lectures de métadonnées.
+3. Préférer le Management API `GET /v1/projects/{ref}/database/openapi` avec le scope OAuth `database:read` ; pour un fine-grained PAT, la permission requise est `database_read`. L'accès doit être limité au seul projet JOBLY-E2E et aux lectures de métadonnées. Éviter tout PAT classique/full-access.
 4. Vérifier les deux profils attendus, sans appeler de fonction `net.http_*`, sans lire les données métier et sans modifier grants, schémas, policies, buckets ou clés.
 5. Si l'accès read-only approprié n'est pas disponible à la fin, déclarer LOT-11 BLOCKED avec preuve de l'obstacle ; ne pas contourner par un PAT full-access ni par extraction de la clé `service_role`.
 
