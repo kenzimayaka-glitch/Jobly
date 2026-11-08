@@ -99,12 +99,12 @@ export default function TalentCVs() {
       const token = await getAccessToken();
       if (!token || cancelled) return;
       const headers = { Authorization: `Bearer ${token}` };
-      const [entitlementsResponse, profileResponse, sharesResponse] = await Promise.all([
-        fetch("/api/entitlements", { cache: "no-store", headers }),
+      const response = await authenticatedFetch("/api/entitlements", { cache: "no-store" });
+      const entitlements = response.ok ? await response.json().catch(() => null) : null;
+      const [profileResponse, sharesResponse] = await Promise.all([
         fetch("/api/profile", { cache: "no-store", headers }),
         fetch("/api/cv-share", { cache: "no-store", headers }),
       ]);
-      const entitlements = entitlementsResponse.ok ? await entitlementsResponse.json().catch(() => null) : null;
       const profileData = profileResponse.ok ? await profileResponse.json().catch(() => null) : null;
       const sharesData = sharesResponse.ok ? await sharesResponse.json().catch(() => null) : null;
       if (cancelled) return;
@@ -179,6 +179,31 @@ export default function TalentCVs() {
       const refreshed = await supabase.auth.refreshSession();
       return refreshed.data.session?.access_token || null;
     } catch { return null; }
+  }
+
+  async function authenticatedFetch(url: string, init: RequestInit = {}) {
+    const supabase = getSupabaseClient();
+    const current = await supabase.auth.getSession();
+    let token = current.data.session?.access_token || null;
+    const expiresAt = Number(current.data.session?.expires_at || 0);
+    if (!token || (expiresAt > 0 && expiresAt <= Date.now() / 1000 + 30)) {
+      const refreshed = await supabase.auth.refreshSession();
+      token = refreshed.data.session?.access_token || null;
+    }
+    if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
+
+    const send = (accessToken: string) => {
+      const headers = new Headers(init.headers);
+      headers.set("Authorization", "Bearer " + accessToken);
+      return fetch(url, { ...init, headers });
+    };
+    let response = await send(token);
+    if (response.status === 401) {
+      const refreshed = await supabase.auth.refreshSession();
+      const refreshedToken = refreshed.data.session?.access_token || null;
+      if (refreshedToken && refreshedToken !== token) response = await send(refreshedToken);
+    }
+    return response;
   }
 
   async function revokeShare(id: string) {
