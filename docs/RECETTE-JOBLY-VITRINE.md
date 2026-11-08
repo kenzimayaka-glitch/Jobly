@@ -2,7 +2,7 @@
 
 **Objet :** `/vitrine`, compteurs dynamiques et Jobly Success Moments
 **Branche testée :** `feat/public-vitrine-live-stats-success-moments`
-**Commit de référence :** `73d86bd17fea59c5d5bc638f48956c201b0fe8ff`
+**Commit Preview validé :** `90b61817016aa7c1d0b379ea2cd6f87a6214f5e4`
 **Environnement :** Vercel Preview uniquement — pas de mise en production.
 
 ## Périmètre
@@ -24,9 +24,9 @@ Le script `scripts/jobly-vitrine-smoke.mjs` vérifie :
 5. `/api/public/success-moments` renvoie une liste d'événements valide, avec seulement `id` et `occurredAt`.
 6. `/api/public/site-context` ne révèle aucun identifiant ni rôle à un visiteur anonyme.
 
-Commande depuis la racine du dépôt :
+Commande depuis la racine du dépôt : coller le lien de partage Vercel complet (y compris le paramètre `_vercel_share`) dans la variable. Le script propage ce paramètre à toutes les requêtes.
 ```powershell
-$env:JOBLY_VITRINE_BASE_URL = "https://URL-PREVIEW"
+$env:JOBLY_VITRINE_BASE_URL = "COLLER ICI LE LIEN DE PARTAGE VERCEL COMPLET"
 node scripts/jobly-vitrine-smoke.mjs
 ```
 
@@ -57,15 +57,18 @@ node scripts/jobly-vitrine-smoke.mjs
 - Les images doivent être servies depuis `/images/jobly-vitrine/`, sans URL temporaire.
 - Aucune modification de schéma Supabase n'est requise par cette vitrine.
 
-## Résultat initial du contrôle Preview
+## Résultat du contrôle Preview (8 novembre 2026)
 
 - Build Next.js : PASS.
 - TypeScript : PASS.
 - `/vitrine` : HTTP 200.
-- Les six images : HTTP 200.
-- `/api/public/success-moments` : HTTP 200 ; liste vide au moment du contrôle, donc aucune notification ne doit apparaître.
+- `/` : entrée de l'application conservée.
+- Les six images WebP : HTTP 200.
+- `/api/public/home-stats` : HTTP 200 ; **2 415 offres et 3 talents** au moment du contrôle.
+- `/api/public/success-moments` : HTTP 200 ; 0 événement admissible. Aucune notification ne doit donc apparaître.
 - `/api/public/site-context` sans authentification : HTTP 200 ; `accountKey=null`, `role=null`.
-- `/api/public/home-stats` : HTTP 503 sur le premier Preview. **Recette bloquée sur ce point** ; il doit répondre HTTP 200 avec les compteurs vérifiés avant de déclarer la vitrine intégralement validée.
+- Le contrôle automatisé direct sans jeton Vercel a répondu HTTP 401 (protection Preview) ; le script transmet désormais le paramètre de partage à toutes les routes.
+- Un premier appel aux compteurs avait répondu 503 ; l'appel de contrôle suivant a répondu 200 avec les valeurs ci-dessus. La réponse 503 n'est pas reproduite au contrôle final.
 
 ## Limites de cette recette
 

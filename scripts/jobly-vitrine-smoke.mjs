@@ -4,11 +4,14 @@
  * Usage: JOBLY_VITRINE_BASE_URL=https://<preview>.vercel.app node scripts/jobly-vitrine-smoke.mjs
  * No credentials are required. The script checks only public GET endpoints.
  */
-const baseUrl = (process.env.JOBLY_VITRINE_BASE_URL || "http://localhost:3000").replace(/\/+$/, "");
+const baseUrl = new URL(process.env.JOBLY_VITRINE_BASE_URL || "http://localhost:3000");
 const failures = [];
 const passed = [];
 async function request(path) {
-  return fetch(new URL(path, baseUrl), {
+  const target = new URL(path, baseUrl);
+  // Preserve Vercel's temporary share parameter on each same-origin test request.
+  for (const [key, value] of baseUrl.searchParams) target.searchParams.set(key, value);
+  return fetch(target, {
     method: "GET",
     headers: { Accept: path.endsWith(".webp") ? "image/webp,*/*" : "application/json,text/html,*/*" },
     signal: AbortSignal.timeout(20_000),
