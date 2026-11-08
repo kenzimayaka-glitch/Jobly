@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.89 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.90 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -4623,3 +4623,67 @@ Le gap catalogue de LOT-01 mentionne encore les parcours réels OTP, Google OAut
 Ne pas lancer `scripts/e2e-local-recipe.mjs` pour contourner ces manques : son chemin d'exécution peut démarrer le serveur et les parcours authentifiés, et il ne doit pas restaurer automatiquement des fixtures. Ne pas exécuter les scripts de provisionnement, reset de mot de passe ou restauration de fixture. Le dépôt local étant 100 commits behind avec des changements non commités, ne pas faire de `pull`, `reset`, `stash` ou `clean` en l'état.
 
 Statut LOT-01 : **PARTIAL / BLOCKED PAR LE MOTEUR DE STATUT ET PAR LES PREUVES RUNTIME MANQUANTES**. Aucun correctif du runner n'a été appliqué pendant cette analyse. JOBLY-PROD, `main`, les PR et les déploiements restent inchangés.
+
+## 88. LOT-00 — recette complète de clôture, périmètre réel et blocages Storage métier
+
+Cette entrée réconcilie le §84.6 (qui décrivait le dernier réglage technique restant à appliquer) avec les risques applicatifs identifiés aux §§79–81 et 83.5. Le script de trois buckets n'est pas, à lui seul, une preuve suffisante pour clore tout le contrôle Storage si les règles de confidentialité publiques restent non appliquées.
+
+### 88.1 Déjà acquis — ne pas rejouer
+
+- Identité du projet JOBLY-E2E ofqqrryamslxoqkklraw et préflight Auth public : PASS.
+- Matrice SQL moindre privilège : migration distante 20261108165510 appliquée ; 180/180 RLS ; anon réduit à SELECT sur BonPlan, BonPlanComment, Institution ; privilèges applicatifs authenticated conservés ; TRUNCATE/REFERENCES/TRIGGER client retirés ; RPC et fonctions de trigger réconciliés.
+- Vérifications post-migration SQL : PASS, aucun objet public sans RLS, zéro accès client effectif sur les 26 tables internes sans policies.
+- RLS / ACL / RPC ne doivent pas être réappliqués via une autre migration sans audit d'écart ; les changements sont déjà actifs sur JOBLY-E2E.
+
+### 88.2 Étape opérateur restante — plafonds et allowlists des buckets privés
+
+Copier uniquement le script distant scripts/e2e/lot00-storage-bucket-hardening.mjs depuis le ref déjà fetché origin/e2e/recette dans la copie locale, sans synchroniser les 100 commits et sans modifier les autres fichiers non commités.
+
+Blob attendu : 06ff209b99a1f276f53f0007e7919eaf7cd82851.
+
+Contrôles requis avant exécution :
+- le hash obtenu par git hash-object doit être exactement égal au blob attendu ;
+- node --check doit retourner 0 ;
+- ne pas poursuivre si le fichier/hachage/syntaxe diffère.
+
+Application via l'API Storage officielle, projet strictement limité à JOBLY-E2E, avec secret déjà présent localement et jamais copié dans le chat :
+- talent-cvs : privé, 3 MiB, PDF ;
+- recruitment-listings : privé, 50 MiB, PDF, XLSX, HTML, HTML UTF-8, JPEG ;
+- mobility-documents : privé, 10 MiB, PDF, JPEG, PNG, WebP.
+
+Le script capture les réglages précédents, applique chaque cible, relit et compare les métadonnées ; il tente une restauration des buckets déjà modifiés en cas d'erreur. Résultat attendu : 3 buckets PASS, status=PASS, exit_code=0. Cette étape n'altère ni les buckets publics ni les objets.
+
+### 88.3 Risque photo publique — correction code obligatoire avant PASS Storage complet
+
+La règle produit acceptée au §79.2 est : profile-photos public uniquement pour les photos que l'utilisateur choisit explicitement de rendre publiques. Or la route app/api/auth/profile-photo/route.ts place les photos dans le bucket public et retourne toujours une URL publique ; aucun état persistant de visibilité/consentement n'est appliqué. Le fait d'être connecté n'est pas un consentement de publication.
+
+Le correctif sur la branche comporte déjà validation des octets, limites de taille, optimisation et nettoyage d'upload orphelin, mais ne résout pas cette confidentialité. Il faut, dans la branche de recette :
+1. ajouter un état de visibilité/consentement persistant avec défaut privé et horodatage/traçabilité ;
+2. collecter un choix explicite et compréhensible côté Talent ;
+3. adapter tous les lecteurs (profil Talent, Hero, Recruteur, vues publiques) pour servir les photos privées avec une autorisation ou URL signée et n'exposer une URL publique que si le consentement existe ;
+4. définir une migration sûre des URLs déjà persistées ; ne pas basculer seulement le bucket en privé, ce qui casserait les lecteurs publics actuels ;
+5. ajouter les tests par défaut privé, consentement explicite, retrait du consentement, refus d'accès anonyme et absence d'URL publique pour photo privée.
+
+### 88.4 Médias d'événements — cycle staging/publication obligatoire avant PASS Storage complet
+
+La règle produit acceptée est : média jobly-events public seulement quand l'événement est publié et destiné au public. Le bucket public rend un objet lisible par URL dès son dépôt. La route app/api/events/media/route.ts vérifie actuellement la session et les octets, mais n'attache pas l'upload à une réservation/brouillon/entitlement. Les médias de brouillons ou les médias orphelins peuvent donc être lisibles publiquement avant publication.
+
+Correctif requis :
+1. créer un espace de staging privé et un identifiant de réservation de brouillon côté serveur avec propriétaire, entitlement/paiement et expiration ;
+2. autoriser l'upload uniquement pour cette réservation et vérifier le propriétaire à chaque opération ;
+3. à la publication effective (et après le paiement exigé lorsque applicable), promouvoir côté serveur vers jobly-events public ;
+4. empêcher toute lecture publique du staging, et nettoyer les uploads non utilisés/expirés avec un mécanisme durable ;
+5. ajouter les tests anonymes avant publication (refus), après publication (lecture publique), utilisateur tiers (refus), réservation expirée, upload orphelin et parcours paiement requis.
+Les médias externes saisis par URL doivent rester une voie distincte, explicitement validée.
+
+### 88.5 Ordre final de clôture LOT-00
+
+1. Exécuter et obtenir PASS de l'application des trois restrictions bucket §88.2.
+2. Implémenter les corrections confidentialité photo §88.3 et média événement §88.4 sur la branche de recette ; ajouter les tests unitaires et API/Storage nécessaires.
+3. Appliquer uniquement les migrations nécessaires à JOBLY-E2E après revue des consommateurs et des effets, puis vérifier les routes et les lecteurs par rôle.
+4. Faire un contrôle final read-only sur JOBLY-E2E : ref/URL, RLS 180/180, ACL post-migration, RPC, sept buckets (privacy/publicité comprise), policies Storage et absence d'objets/URLs privés exposés ; joindre les rapports horodatés.
+5. Réconcilier les exceptions documentées : HIBP désactivé comme limitation du forfait Free ; pg_net/OpenAPI réservé au LOT-11 final.
+
+LOT-00 reste PARTIAL jusqu'à clôture des étapes 1 à 4, ou décision d'acceptation de risque explicitement documentée et approuvée sur les sujets photo/médias. La simple réussite du script de trois buckets ne doit pas être présentée comme PASS LOT-00 intégral.
+
+Garde-fous inchangés : dépôt local en retard de 100 commits et avec des modifications non commitées ; ne pas utiliser pull/reset/stash/clean. Ne jamais exécuter le provisionneur ou le reset fixture. JOBLY-PROD, main, PR #266/#267, merge et déploiement restent hors périmètre.
