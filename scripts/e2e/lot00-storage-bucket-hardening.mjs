@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { loadEnvConfig } from "@next/env";
 import { createClient } from "@supabase/supabase-js";
 
 const EXPECTED_REF = "ofqqrryamslxoqkklraw";
@@ -68,19 +69,6 @@ function matches(actual, expected) {
     sameArray(actual.allowedMimeTypes, expected.allowedMimeTypes);
 }
 
-async function loadLocalEnvironment() {
-  if (typeof process.loadEnvFile !== "function") {
-    throw new Error("Node.js doit prendre en charge process.loadEnvFile (Node 22 recommandé).");
-  }
-  for (const file of [".env.local", ".env"]) {
-    try {
-      process.loadEnvFile(file);
-    } catch (error) {
-      if (error && error.code !== "ENOENT") throw error;
-    }
-  }
-}
-
 async function writeReport(report) {
   await mkdir(path.dirname(REPORT_PATH), { recursive: true });
   await writeFile(REPORT_PATH, JSON.stringify(report, null, 2) + "\n", "utf8");
@@ -89,7 +77,7 @@ async function writeReport(report) {
 }
 
 async function main() {
-  await loadLocalEnvironment();
+  loadEnvConfig(process.cwd());
 
   const projectRef = process.env.E2E_PROJECT_REF || "";
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
