@@ -3733,7 +3733,7 @@ Mise à jour V2.72 sur la branche `e2e/recette`. Source avant cette entrée : bl
 
 ---
 
-## 75. Rôle réel du contrôle OpenAPI dans LOT-00 — portée, limites et proportionnalité — 8 novembre 2026
+## 75. Rôle réel du contrôle OpenAPI reclassé en LOT-11 final — portée et limites — 8 novembre 2026
 
 ### 75.1 Pourquoi ce contrôle a été ajouté
 
