@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.65 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.66 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3436,3 +3436,53 @@ Cette frontière est la seule raison du dernier handoff local ; ce n'est pas une
 - LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
 - PR #266 reste ouverte, brouillon, non fusionnée ; `main` inchangée ; aucun déploiement.
 - Document source avant cette mise à jour : V2.64, blob SHA f20b3ae830303e8c2de3b2e24ab8079a0c113b76, branche `e2e/recette`.
+
+---
+
+## 68. Correction technique du chemin CLI et commande finale unique — V2.66 — 8 novembre 2026
+
+### 68.1 Vérification directe du code Supabase CLI v3.0.0
+
+Inspection des fichiers sources officiels taggés `v3.0.0` : `apps/cli/src/commands/projects/api-keys/api-keys.handler.ts`, `apps/cli/src/command-internal/get-api-keys.ts` et fixtures E2E enregistrées.
+
+Constats :
+- La réponse `GET /v1/projects/{ref}/api-keys` sans `reveal=true` peut contenir la Legacy `service_role` avec son JWT (`id=service_role`, `type=legacy`, `api_key` non nul). Les fixtures `default.response.json` de la CLI v3 le montrent explicitement.
+- Les nouvelles clés de type `secret` (`sb_secret_...`) sont redacted par défaut (`api_key=null`) ; `--reveal` ajoute `reveal=true` et dévoile les valeurs de type secret.
+- Le contrôle LOT-00 vise la clé Legacy `service_role` et ne doit donc pas utiliser `--reveal`.
+- Pour obtenir un JSON stable, la forme du CLI est `supabase projects api-keys --remote=<ref> --output json` (le flag output est placé après la sous-commande).
+
+Sources :
+- https://github.com/supabase/cli/blob/v3.0.0/apps/cli/src/commands/projects/api-keys/api-keys.handler.ts
+- https://github.com/supabase/cli/blob/v3.0.0/apps/cli/src/command-internal/get-api-keys.ts
+- https://github.com/supabase/cli/blob/v3.0.0/apps/cli/src/commands/projects/api-keys/SIDE_EFFECTS.md
+- https://github.com/supabase/cli/blob/v3.0.0/apps/cli-e2e/fixtures/recorded/GET_v1_projects_replayfixtureprojref_api_keys/default.response.json
+
+Cette inspection corrige toute ambiguïté antérieure : **la clé Legacy `service_role` doit être disponible sans `--reveal`** dans le scénario CLI v3 attendu. Si elle ne l'est pas dans ce projet réel, le script s'arrête.
+
+### 68.2 Contrôle SQL read-only supplémentaire
+
+Une requête SELECT unique sur JOBLY-E2E a consulté `current_setting('pgrst.db_schemas', true)`, `current_setting('pgrst.db_extra_search_path', true)` et les paramètres `pgrst.db_schemas` attachés aux rôles/bases via `pg_db_role_setting`.
+
+Résultat : `session_db_schemas=null`, `session_extra_search_path=null`, `role_db_schemas=[]`, `database_db_schemas=[]`. Ce résultat demeure **NON CONCLUANT** : la configuration effective peut provenir de l'environnement du service PostgREST et n'être pas exposée dans ces paramètres PostgreSQL. Il ne prouve ni l'exposition ni la non-exposition de `net`. Aucune modification n'a eu lieu.
+
+### 68.3 Règle d'exécution finale
+
+Ne plus demander de préflight intermédiaire. L'unique handoff opérateur restant est la commande finale locale qui :
+- utilise la session CLI locale déjà connectée ;
+- appelle uniquement `projects api-keys` sur `ofqqrryamslxoqkklraw`, sans `--reveal` et sans `projects list` ;
+- capture stdout en mémoire, sélectionne `name=service_role` et vérifie localement les claims `role` et `ref` ;
+- exécute ensuite les deux GET OpenAPI `public` et `net` si et seulement si les claims correspondent ;
+- écrit un rapport exclusivement constitué de résultats non sensibles et remplace toutes les références locales explicites à la clé par null avant la fin du script.
+
+Cette commande locale est nécessaire uniquement parce que la session CLI et son stockage de credentials sont sur le poste Windows de l'opérateur, sans shell distant accessible à l'assistant. Les contrôles exposés par le connecteur Supabase sont exécutés directement par l'assistant et ne sont pas redemandés à l'opérateur.
+
+### 68.4 État
+
+- Aucune requête de lecture de clés via la CLI n'a encore eu lieu.
+- Aucun GET OpenAPI n'a encore eu lieu.
+- LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- Le résultat SQL sur les paramètres PGRST reste inconclusif.
+- PAT CLI issu du flux navigateur : full-access ; usage admis uniquement pour cette opération ciblée en lecture seule, puis révocation après le contrôle. Ce bornage est procédural et ne modifie pas les permissions réelles du PAT.
+- JOBLY-PROD hors périmètre ; aucun DML/DDL, aucune mutation fixture, aucun changement `main`, aucune fusion ni déploiement.
+- PR #266 reste ouverte, brouillon, non fusionnée.
+- Document source avant cette mise à jour : V2.65, blob SHA fa25092885c7fe7512614f3adbca9cc35c3d5426, branche `e2e/recette`.
