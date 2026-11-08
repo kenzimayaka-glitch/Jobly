@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.28 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.29 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -12,10 +12,10 @@
 >
 > **Verrou de reprise V2.8 :** les sections 7, 9, 10, 11, 12 et 13.7 contiennent des états ou consignes historiques ; elles ne constituent plus des instructions opératoires. En particulier, l'autorisation de reset citée au §9 n'est plus active : ne pas exécuter e2e/reset-existing-fixture-passwords.mjs, les scripts de vérification Auth des anciennes fixtures, le provisionneur, ni scripts/e2e-local-recipe.mjs/le runner bulk. Aucune connexion Auth, mutation de fixture, restauration de mot de passe ou relance globale n'est autorisée par ce document. Le seul prochain contrôle permis est le GET OpenAPI décrit au §16.7, suivi de son analyse.
 >
-> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le dernier rapport V4 confirme un arrêt au contrôle local du format de la clé (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avant toute requête HTTP ; `results=[]`. L'exposition de `net` reste donc indéterminée. L'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
-> **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`. Sélectionner `service_role` uniquement si cette entrée est dans **Legacy API Keys** et que la valeur JWT commence par `eyJ`; utiliser alors le test masqué GET-only du §23.3. Si la valeur commence par `sb_secret_`, ce n'est pas la legacy JWT et il faut arrêter ce script. Aucun secret dans le chat, les rapports ou Git.
+> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le dernier rapport V4 confirme un arrêt au contrôle local du format de la clé (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avant toute requête HTTP ; `results=[]`. L'exposition de `net` reste donc indéterminée. La commande V5 qui invite à coller `service_role` est SUSPENDUE : ne pas l'exécuter ni saisir cette clé dans ce script. Le prochain contrôle sans secret est la lecture de `Project Settings > Data API > Exposed schemas` dans le Dashboard JOBLY-E2E ; noter si `net` figure dans la liste, sans cliquer sur Save. Cette lecture établit la configuration affichée, mais une configuration PostgREST manuelle par `ALTER ROLE authenticator SET pgrst.db_schemas` peut remplacer le réglage du Dashboard et doit être prise en compte avant de conclure. L'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
+> **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`. Ne pas coller `service_role` dans le script V5 du §31 : cette procédure est suspendue au §32 et remplacée, pour la prochaine étape, par une lecture sans secret des **Exposed schemas** du Dashboard. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.28  
+**Version :** 2.29  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1668,3 +1668,45 @@ Ne jamais transmettre cette clé dans le chat, un rapport, Git ou un autre canal
 - Code de commande transmis au §31.3 : invite masquée suivie de l'utilisation de la valeur dans le header `apikey`.
 - Décision communiquée : ne pas saisir la clé et interrompre la commande.
 - Cette section prévaut sur toute instruction antérieure du §31 qui demanderait de coller la clé pour exécuter V5. Le §31 est conservé pour traçabilité, mais sa commande est **SUSPENDUE — NE PAS EXÉCUTER**.
+
+
+---
+
+## 33. Nouvelle demande de retest et méthode de contrôle sans secret — V2.29 — 8 novembre 2026
+
+### 33.1 Demande opérateur
+
+L'opérateur demande de renvoyer la commande pour retester LOT-00. La commande V5 du §31 attend une clé historique `service_role` privilégiée et a été suspendue au §32 avant toute saisie. Cette suspension reste active : aucune invite de saisie de cette clé ne doit être relancée.
+
+### 33.2 Contrôle sans clé recommandé
+
+La documentation officielle Supabase indique que les schémas exposés se consultent dans les réglages API du projet : Dashboard JOBLY-E2E, `Project Settings > Data API > Exposed schemas` (route Dashboard documentée : `/dashboard/project/_/settings/api`). La documentation « Using Custom Schemas » précise qu'un schéma doit être ajouté à cette liste pour être exposé au Data API.
+
+Procédure opérateur :
+1. Ouvrir le projet Supabase JOBLY-E2E uniquement, ref `ofqqrryamslxoqkklraw`.
+2. Ouvrir `Project Settings > Data API` puis consulter `Exposed schemas`.
+3. Lire la liste sans la modifier et sans cliquer sur Save.
+4. Communiquer uniquement si `net` figure dans la liste, et éventuellement la liste des noms de schémas non sensibles.
+5. Ne pas ouvrir ni consulter JOBLY-PROD ; ne saisir aucune clé API.
+
+**Limite de cette méthode :** la liste Dashboard établit la configuration visible dans le panneau. La documentation Supabase signale qu'un réglage manuel tel que `ALTER ROLE authenticator SET pgrst.db_schemas` empêche le Dashboard de gérer cette configuration ; si un tel override existe, il faut le documenter séparément avant de conclure que la configuration effective correspond à la liste UI.
+
+### 33.3 Décision sur la commande
+
+- Aucune nouvelle commande CMD avec `service_role` n'est transmise dans cette étape.
+- Ne pas exécuter la commande V5 du §31 ; elle reste suspendue.
+- Ne pas remplacer la clé par `anon`, publishable, `sb_secret_…` ou une clé JOBLY-PROD.
+- Ne pas effectuer de requête Auth, SQL, RPC, Storage, de table, ni aucun changement de schéma/grant/configuration.
+- La prochaine donnée attendue est la présence/absence de `net` dans la liste Dashboard Exposed schemas.
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED** jusqu'à revue du réglage affiché et de tout éventuel override PostgREST.
+- Aucun GET OpenAPI, aucun test runtime, aucun navigateur et aucun bulk n'est attesté par cette mise à jour.
+
+### 33.4 Sources et preuves
+
+- Demande opérateur : « Renvoi la commande pour retester. »
+- Document source avant édition : V2.28, blob SHA `b1d337e8d1aa4e661ebcc32f4061d118fd18e275`, branche `e2e/recette`.
+- Supabase Docs, `Using Custom Schemas` : `https://supabase.com/docs/guides/api/using-custom-schemas`, consulté le 8 novembre 2026 ; étapes d'ajout à `API settings > Exposed schemas`.
+- Supabase Docs, `API Keys` : `https://supabase.com/docs/guides/getting-started/api-keys`, consulté le 8 novembre 2026 ; `service_role` est l'ancienne clé élevée qui correspond au rôle privilégié, la clé secret actuelle donne accès complet et bypass RLS.
+- Supabase Knowledge Base, `PGRST002 / schema cache` : `https://supabase.com/kb/troubleshooting/postgrest-error-pgrst002-could-not-query-the-database-for-the-schema-cache-c396e9`, consulté le 8 novembre 2026 ; un override `ALTER ROLE authenticator SET pgrst.db_schemas` fait que Dashboard n'est plus l'interface gestionnaire du réglage.
+- Aucun secret reçu, lu, copié, transmis ou écrit ; aucune requête vers JOBLY-E2E effectuée par l'assistant dans ce tour ; aucun accès JOBLY-PROD, aucune modification Supabase ou des fixtures.
+- `main` inchangée ; PR #266 maintenue ouverte en brouillon et non fusionnée ; aucun déploiement.
