@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.121 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.122 — 8 novembre 2026
 >
 > **Dernière correction de code Storage LOT-00 :** `f3753f7370007647a5e4bf99c130c69437d0c921` ; runner épinglé `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke de connexion initial **3/3 PASS** (§96) et cycle de session/renouvellement **12/12 PASS** (§99), couvrant TALENT, RECRUITER et PARTNER. Le rapport du 8 novembre 2026 à 22:30:34 UTC confirme `status=PASS`, `environment=JOBLY-E2E`, projet `ofqqrryamslxoqkklraw` et `externalMessagesSent=false`. Audit statique préalable du prochain scénario `e2e/authenticated-role-smoke.mjs` : contrôles API par rôle, refus d'accès non autorisé et scénario synthétique Talent→Recruteur ; il réalise également des créations/mises à jour/suppressions de données temporaires JOBLY-E2E et nécessite que l'API locale ait `SUPABASE_SERVICE_ROLE_KEY`. Le parcours croisé peut lire `.e2e-fixture-runtime.json` pour un service role E2E ; ne pas reconstituer/restaurer ce runtime ni provisionner les fixtures. Le script n'a pas encore été exécuté. LOT-01 global reste en cours. `main` et JOBLY-PROD restent hors périmètre.
 
-**Version :** 2.121  
+**Version :** 2.122  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -78,6 +78,25 @@ Script relu sur `e2e/recette` : `e2e/authenticated-role-smoke.mjs`, blob `4fc2fd
 - La route `/api/applications` confirme dans le code que la candidature préparée reste `USER_REVIEW`; le message/email n'est pas envoyé. Le test fournit `letterText`, ce qui force `skipAi` et évite l'appel au fournisseur IA.
 - Le script du parcours croisé lit `.e2e-fixture-runtime.json` et utilise sa clé privée uniquement en mémoire pour le ciblage/nettoyage de données JOBLY-E2E. Si le fichier runtime manque, ce sous-parcours est `BLOCKED` sans créer l'offre publiée ni la candidature ; les contrôles API individuels peuvent néanmoins s'exécuter.
 - Les routes Next.js utilisent `lib/server-auth.ts::adminClient()`, qui attend actuellement `SUPABASE_SERVICE_ROLE_KEY`. La présence de `SUPABASE_SECRET_KEY` seule ne prouve pas que le serveur local a cette variable attendue. Ne pas copier ou restaurer automatiquement une clé/runtime pour contourner ce prérequis.
+
+### Préflight local sans secret ajouté
+
+Un diagnostic strictement local a été ajouté pour ne pas démarrer l'API avec une configuration incomplète :
+- fichier : `e2e/authenticated-role-preflight-safe.mjs` ;
+- commit : `4840f28485ee3662ef52ffbb1ba58b5722571abc` ;
+- blob : `18a576b18ae946615b89c69bb2904c4f8ec5badb`.
+
+Ce diagnostic contrôle la configuration E2E, la présence du nom de variable `SUPABASE_SERVICE_ROLE_KEY` attendu par le serveur, la présence/structure du manifeste local, l'existence éventuelle du runtime, l'égalité entre `HEAD` local et `origin/e2e/recette` ainsi que la dépendance Next.js. Il n'affiche aucune valeur de secret, aucun mot de passe, email ou UID ; il n'effectue aucun appel réseau et aucune mutation distante. Il n'invente ni ne restaure `.e2e-fixture-runtime.json`.
+
+Commande CMD :
+
+```cmd
+cd /d C:\Users\ASUS\Jobly
+git fetch origin && git show origin/e2e/recette:e2e/authenticated-role-preflight-safe.mjs > e2e\authenticated-role-preflight-safe.current.mjs && node --check e2e\authenticated-role-preflight-safe.current.mjs && set "E2E_PROJECT_REF=ofqqrryamslxoqkklraw" && node e2e\authenticated-role-preflight-safe.current.mjs
+notepad artifacts\e2e\authenticated-role-preflight-safe.json
+```
+
+Envoyer uniquement `artifacts/e2e/authenticated-role-preflight-safe.json`. Selon ce rapport, soit préparer un worktree propre sur le commit exact `e2e/recette`, soit vérifier la configuration du serveur avant d'exécuter le scénario API. Ne pas lancer `authenticated-role-smoke.mjs` tant que `readiness.roleApiServer` n'est pas `READY_TO_PREPARE`.
 
 ### Garde-fous pour la reprise
 - Exécution locale seulement avec le code exact de `e2e/recette` et un serveur Next.js construit/démarré depuis cette même source ; la copie habituelle étant en retard et très modifiée, ne pas lancer le scénario depuis une source locale non synchronisée.
