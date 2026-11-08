@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.8 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.9 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -14,7 +14,7 @@
 >
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le contrôle Data API du schéma net n'a pas encore été retourné, l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette n'est pas suffisamment documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 
-**Version :** 2.8  
+**Version :** 2.9  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -893,3 +893,31 @@ Après réception du GET, analyser les codes HTTP et le code PostgREST, puis cho
 - Branche : e2e/recette.
 - PR #266 : **ouverte, brouillon, non fusionnée**.
 - main : aucun merge ; aucun déploiement.
+
+
+---
+
+## 18. Retransmission du résultat E2E-001 — 8 novembre 2026
+
+L'opérateur a retransmis le même extrait de sortie Node.js que celui déjà enregistré au §15.1. La comparaison des six intitulés, des compteurs et de la durée est identique :
+
+- 6 tests ; 6 PASS ; 0 FAIL.
+- 0 cancelled, 0 skipped, 0 todo.
+- Durée affichée : 254.0035 ms.
+- Les six tests couvrent les contrats statiques Talent local/Afrique, sélection de détail depuis un flux authentifié, lecture CV, Career Journey GET-only, refus négatifs Recruitment360 sans écriture, et lecture seule du bloc Talent.
+
+**Traitement :** retransmission reconnue comme doublon de la preuve du §15.1 ; aucune nouvelle exécution distincte n'est établie et aucun nouveau statut n'est attribué. E2E-001 reste PASS STATIQUE LOCAL — 6/6.
+
+**Important : ce contenu ne correspond pas au rapport LOT-00 demandé.** Il ne contient ni code HTTP pour le GET OpenAPI du profil `public`, ni code HTTP/code PostgREST pour le profil `net`. Il ne permet donc pas de fermer, de faire avancer ou de requalifier LOT-00.
+
+### 18.1 Prochaine preuve attendue
+
+Le seul contrôle restant autorisé à ce stade demeure la commande GET uniquement décrite au §16.7. Le fichier attendu est `feedback-lot00-net-schema-exposure.txt`, qui doit contenir les deux résultats (schéma `public` et schéma `net`), avec statut HTTP et code/message PostgREST si disponible.
+
+Jusqu'à réception et analyse de ce rapport :
+- LOT-00 : **PARTIAL** ;
+- smoke runtime Auth : **NON AUTORISÉ** ;
+- parcours croisé : **SUSPENDU** ;
+- runner bulk / recette 11 lots : **SUSPENDU** ;
+- fixtures partagées : inchangées et à préserver ;
+- JOBLY-PROD : interdit.
