@@ -10,14 +10,13 @@ const APPLY_FLAG = "--apply-lot00-e2e-storage-hardening";
 const REPORT_PATH = path.resolve("artifacts/e2e/lot00-storage-bucket-hardening.json");
 const LOG_PATH = path.resolve("feedback-lot00-storage-20261108.txt");
 
+const imageMimes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const eventMimes = [...imageMimes, "application/pdf", "video/mp4"];
+
 const desired = [
   {
     id: "talent-cvs",
-    options: {
-      public: false,
-      fileSizeLimit: 3 * 1024 * 1024,
-      allowedMimeTypes: ["application/pdf"],
-    },
+    options: { public: false, fileSizeLimit: 3 * 1024 * 1024, allowedMimeTypes: ["application/pdf"] },
     reason: "CV originaux : PDF uniquement, maximum 3 MiB, téléchargements signés.",
   },
   {
@@ -40,14 +39,28 @@ const desired = [
     options: {
       public: false,
       fileSizeLimit: 10 * 1024 * 1024,
-      allowedMimeTypes: [
-        "application/pdf",
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-      ],
+      allowedMimeTypes: ["application/pdf", "image/jpeg", "image/png", "image/webp"],
     },
-    reason: "Bucket mobilité privé réservé aux documents PDF et images courants ; aucune route active d'upload n'a été trouvée dans l'inventaire actuel.",
+    reason: "Documents mobilité privés, maximum 10 MiB.",
+  },
+  {
+    id: "jobly-events",
+    options: {
+      public: false,
+      fileSizeLimit: 10 * 1024 * 1024,
+      allowedMimeTypes: eventMimes,
+    },
+    reason: "Staging et médias événementiels privés ; l'API délivre un lien signé uniquement après publication.",
+  },
+  {
+    id: "profile-photos-private",
+    createIfMissing: true,
+    options: {
+      public: false,
+      fileSizeLimit: 5 * 1024 * 1024,
+      allowedMimeTypes: imageMimes,
+    },
+    reason: "Stockage privé par défaut des photos Talent sans consentement public.",
   },
 ];
 
@@ -70,16 +83,91 @@ function matches(actual, expected) {
     sameArray(actual.allowedMimeTypes, expected.allowedMimeTypes);
 }
 
+function profilePathFromPublicUrl(value) {
+  if (typeof value !== "string") return null;
+  const marker = "/storage/v1/object/public/profile-photos/";
+  const index = value.indexOf(marker);
+  if (index < 0) return null;
+  const raw = value.slice(index + marker.length).split("?")[0];
+  if (!raw || raw.includes("..")) return null;
+  try { return decodeURIComponent(raw); } catch { return raw; }
+}
+
 async function writeReport(report) {
   await mkdir(path.dirname(REPORT_PATH), { recursive: true });
-  await writeFile(REPORT_PATH, JSON.stringify(report, null, 2) + "\n", "utf8");
-  await writeFile(LOG_PATH, JSON.stringify({ ...report, credentials: "not included" }, null, 2) + "\n", "utf8");
-  process.stdout.write(JSON.stringify({ ...report, credentials: "not included" }, null, 2) + "\n");
+  const safe = { ...report, credentials: "not included" };
+  await writeFile(REPORT_PATH, JSON.stringify(safe, null, 2) + "\n", "utf8");
+  await writeFile(LOG_PATH, JSON.stringify(safe, null, 2) + "\n", "utf8");
+  process.stdout.write(JSON.stringify(safe, null, 2) + "\n");
+}
+
+async function migrateLegacyPhotos(admin, report) {
+  const migrated = [];
+  const skippedPublicWithConsent = [];
+  const pageSize = 200;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data: rows, error } = await admin.from("User")
+      .select("id,profilePhotoUrl,profilePhotoStoragePath,profilePhotoVisibility,profilePhotoConsentAt")
+      .not("profilePhotoUrl", "is", null)
+      .order("id", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw new Error("Lecture des anciennes photos impossible : " + error.message);
+    if (!rows?.length) break;
+
+    for (const user of rows) {
+      const path = profilePathFromPublicUrl(user.profilePhotoUrl);
+      if (!path) {
+        throw new Error("Photo existante non migrable automatiquement pour le compte " + user.id + " : URL Storage inconnue.");
+      }
+      if (user.profilePhotoVisibility === "PUBLIC" && user.profilePhotoConsentAt) {
+        skippedPublicWithConsent.push(user.id);
+        continue;
+      }
+
+      const { data: source, error: downloadError } = await admin.storage.from("profile-photos").download(path);
+      if (downloadError || !source) {
+        throw new Error("Téléchargement de la photo legacy impossible pour le compte " + user.id + ".");
+      }
+      const bytes = new Uint8Array(await source.arrayBuffer());
+      const contentType = source.type || "image/jpeg";
+      const destination = admin.storage.from("profile-photos-private");
+      const { error: uploadError } = await destination.upload(path, bytes, {
+        contentType, upsert: true, cacheControl: "3600",
+      });
+      if (uploadError) throw new Error("Copie privée impossible pour le compte " + user.id + " : " + uploadError.message);
+
+      let heroCopied = false;
+      const heroPath = path + ".hero.png";
+      const { data: hero } = await admin.storage.from("profile-photos").download(heroPath);
+      if (hero) {
+        const { error: heroError } = await destination.upload(heroPath, new Uint8Array(await hero.arrayBuffer()), {
+          contentType: "image/png", upsert: true, cacheControl: "3600",
+        });
+        if (heroError) throw new Error("Copie du visuel Hero impossible pour le compte " + user.id + " : " + heroError.message);
+        heroCopied = true;
+      }
+
+      const { error: updateError } = await admin.from("User").update({
+        profilePhotoUrl: null,
+        profilePhotoStoragePath: path,
+        profilePhotoVisibility: "PRIVATE",
+        profilePhotoConsentAt: null,
+        updatedAt: new Date().toISOString(),
+      }).eq("id", user.id);
+      if (updateError) throw new Error("Mise à jour de confidentialité impossible pour le compte " + user.id + " : " + updateError.message);
+
+      const removePaths = heroCopied ? [path, heroPath] : [path];
+      const { error: removeError } = await admin.storage.from("profile-photos").remove(removePaths);
+      if (removeError) throw new Error("Suppression de l'ancienne photo publique impossible pour le compte " + user.id + " : " + removeError.message);
+      migrated.push({ userId: user.id, photo: "PRIVATE", heroCopied });
+    }
+    if (rows.length < pageSize) break;
+  }
+  report.legacyPhotos = { migrated, retainedPublicWithConsent: skippedPublicWithConsent };
 }
 
 async function main() {
   loadEnvConfig(process.cwd());
-
   const projectRef = process.env.E2E_PROJECT_REF || "";
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const legacyKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -97,10 +185,7 @@ async function main() {
     assert.equal(claims.ref, EXPECTED_REF, "La clé JWT ne correspond pas au projet JOBLY-E2E.");
     assert.equal(claims.role, "service_role", "Le JWT fourni n'est pas service_role.");
   } else {
-    assert.ok(
-      secretKey.startsWith("sb_secret_"),
-      "Une clé sb_secret_ doit être fournie explicitement via SUPABASE_E2E_SECRET_KEY.",
-    );
+    assert.ok(secretKey.startsWith("sb_secret_"), "Une clé sb_secret_ doit être fournie explicitement via SUPABASE_E2E_SECRET_KEY.");
   }
 
   const report = {
@@ -109,10 +194,11 @@ async function main() {
     projectRef: EXPECTED_REF,
     status: "RUNNING",
     buckets: [],
+    createdBuckets: [],
     rollback: [],
+    legacyPhotos: { migrated: [], retainedPublicWithConsent: [] },
     credentials: "not included",
   };
-
   const admin = createClient(url, key, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   });
@@ -120,17 +206,28 @@ async function main() {
 
   try {
     for (const item of desired) {
-      const current = await admin.storage.getBucket(item.id);
+      let current = await admin.storage.getBucket(item.id);
+      let created = false;
+      if ((current.error || !current.data) && item.createIfMissing && process.argv.includes(APPLY_FLAG)) {
+        const creation = await admin.storage.createBucket(item.id, item.options);
+        if (creation.error && !/already exists/i.test(creation.error.message)) {
+          throw new Error("Création du bucket " + item.id + " impossible : " + creation.error.message);
+        }
+        current = await admin.storage.getBucket(item.id);
+        created = !current.error && Boolean(current.data);
+        if (created) report.createdBuckets.push(item.id);
+      }
       if (current.error || !current.data) {
         throw new Error("Bucket introuvable ou non lisible : " + item.id + " — " + (current.error?.message || "sans détail"));
       }
       const previous = normalizeBucket(current.data);
-      snapshots.push({ id: item.id, previous, updated: false });
+      snapshots.push({ id: item.id, previous, updated: false, created });
       report.buckets.push({
         id: item.id,
         reason: item.reason,
         before: previous,
         target: item.options,
+        created,
         status: "PENDING",
       });
     }
@@ -151,22 +248,19 @@ async function main() {
 
       snapshot.updated = true;
       const verified = await admin.storage.getBucket(item.id);
-      if (verified.error || !verified.data) {
-        throw new Error("Impossible de relire le bucket après modification : " + item.id);
-      }
+      if (verified.error || !verified.data) throw new Error("Impossible de relire le bucket après modification : " + item.id);
       const actual = normalizeBucket(verified.data);
-      if (!matches(actual, item.options)) {
-        throw new Error("Configuration Storage non conforme après updateBucket : " + item.id);
-      }
+      if (!matches(actual, item.options)) throw new Error("Configuration Storage non conforme après updateBucket : " + item.id);
       report.buckets[index].after = actual;
       report.buckets[index].status = "PASS";
     }
 
+    await migrateLegacyPhotos(admin, report);
     report.status = "PASS";
   } catch (error) {
     report.status = "FAIL";
     report.error = error instanceof Error ? error.message : String(error);
-    for (const snapshot of snapshots.filter((item) => item.updated).reverse()) {
+    for (const snapshot of snapshots.filter((item) => item.updated && !item.created).reverse()) {
       try {
         const restored = await admin.storage.updateBucket(snapshot.id, {
           public: snapshot.previous.public,
@@ -185,6 +279,13 @@ async function main() {
           detail: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
         });
       }
+    }
+    for (const snapshot of snapshots.filter((item) => item.created)) {
+      report.rollback.push({
+        id: snapshot.id,
+        status: "RETAINED_PRIVATE",
+        detail: "Bucket créé par la recette conservé privé ; aucune suppression automatique de données.",
+      });
     }
   }
 
