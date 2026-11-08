@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.77 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.78 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3992,21 +3992,155 @@ Les deux buckets concernés par l'audit sont :
 
 L'audit initial du 8 novembre a constaté zéro objet Storage à cet instant. Il n'a donc pas exposé de fichier existant lors de cet audit.
 
-### 79.2 Recommandation de politique produit
+### 79.2 Règle métier retenue par l'opérateur
 
-- `jobly-events` : conserver public pour les médias associés à des événements réellement publics/publiés, sous réserve de politiques d'écriture strictes.
-- `profile-photos` : public uniquement pour les photos de profil que l'utilisateur choisit d'afficher publiquement. Les photos destinées à des contextes restreints ou les documents personnels doivent être stockés dans un bucket privé et servis via autorisation ou URL signée.
-- CV, justificatifs, preuves de paiement et documents de recrutement ne doivent pas être stockés dans ces buckets publics ; les buckets privés déjà inventoriés restent le modèle à utiliser pour ces contenus.
+- `jobly-events` : bucket public pour les médias associés à des événements publiés et destinés au public.
+- `profile-photos` : bucket public uniquement pour les photos que l'utilisateur accepte d'afficher publiquement. Les visuels réservés à un contexte authentifié et les documents personnels doivent rester privés et être servis via autorisation ou URL signée.
+- CV, justificatifs, preuves de paiement, KYC et documents de recrutement ne doivent jamais être placés dans ces deux buckets publics.
 
-Cette recommandation est une règle d'intention produit à confirmer dans l'architecture actuelle. Elle n'est pas une preuve que le code applique déjà cette séparation.
+L'opérateur a accepté cette orientation le 8 novembre 2026. Cette décision fixe l'intention métier ; elle ne prouve pas que chaque écran ou route l'applique déjà.
 
 ### 79.3 Statut
 
 - Aucun paramètre de bucket n'a été modifié.
 - Aucune policy Storage/RLS n'a été modifiée.
-- L'intention métier des deux buckets reste à confirmer ; LOT-00 reste PARTIAL sur ce point et sur la matrice de moindre privilège.
+- Intention métier validée ; conformité de l'implémentation à auditer (notamment consentement/visibilité effective des photos de profil).
+- LOT-00 reste PARTIAL sur les contrôles de moindre privilège.
 - OpenAPI reste LOT-11 final après LOT-10.
 
 ### 79.4 Référence
 
 Clarification documentaire V2.77 sur `e2e/recette`. Source avant cette entrée : blob SHA `2a754994267b754742b226bf1848be541ba42a34`.
+
+
+---
+
+## 80. Revue finale transversale JOBLY-E2E — Storage, grants/RLS, pg_net et compteurs Afrique — V2.78 — 8 novembre 2026
+
+### 80.1 Périmètre et méthode
+
+- Environnement : JOBLY-E2E uniquement, project ref `ofqqrryamslxoqkklraw`.
+- Base : requêtes SQL de catalogues et de métadonnées en lecture seule (SELECT uniquement). Aucun contenu de CV, document, profil ou candidature n'a été consulté.
+- Code : relecture GitHub des routes Storage, du catalogue pays, du RPC public et de la page d'accueil sur `e2e/recette`, avec rapprochement du code de profil-photo/media présent au commit opérateur `e92feb8abc1a2491cab7dd81e834080b80982681`.
+- Aucun test déjà PASS n'a été relancé. Aucun DDL, DML, changement de configuration, mutation Storage/Auth, changement `main`, fusion ou déploiement.
+
+### 80.2 Décision métier Storage et cohérence du code
+
+L'intention produit a été validée au §79.2 :
+- événements publiés : médias publics ;
+- photos de profil : publiques seulement lorsqu'elles sont destinées à l'affichage public ;
+- CV, KYC, preuves de paiement et documents de recrutement : privés.
+
+**État technique des buckets lu dans JOBLY-E2E :**
+
+| Bucket | Public | Limite configurée | Types autorisés configurés |
+|---|---:|---:|---|
+| `jobly-events` | oui | 10 485 760 octets | image, vidéo, PDF |
+| `profile-photos` | oui | 5 000 000 octets | `image/*` |
+| `jobly-payment-proofs` | non | 10 485 760 octets | JPEG, PNG, WebP, GIF, PDF |
+| `mobility-provider-documents` | non | 10 485 760 octets | PDF, JPEG, PNG |
+| `mobility-documents` | non | aucune limite | aucune allowlist |
+| `recruitment-listings` | non | aucune limite | aucune allowlist |
+| `talent-cvs` | non | aucune limite | aucune allowlist |
+
+**Incohérence confirmée — photo de profil / Hero :**
+
+- `app/api/auth/profile-photo/route.ts` accepte une photo standard jusqu'à `5 * 1024 * 1024` octets (5 MiB) et un visuel Hero PNG jusqu'à `10 * 1024 * 1024` octets (10 MiB).
+- Le bucket actuellement configuré s'arrête à 5 000 000 octets ; il est donc plus petit que le plafond de la route, et deux fois plus petit que le plafond Hero.
+- Conséquence : une photo/Hero peut passer la validation applicative puis être refusée par Storage. La limite standard présente également un écart entre 5 MiB et 5 000 000 octets.
+- Recommandation : définir une constante commune en octets et choisir explicitement le contrat : soit porter le bucket à 10 MiB pour le Hero tout en gardant une limite applicative standard de 5 MiB, soit ramener aussi le Hero à la limite bucket. Faire respecter la même valeur dans le contrôle serveur, le bucket et le formulaire UI. Ajouter des tests de frontière `limit-1`, `limit`, `limit+1`.
+
+**Incohérence de confidentialité à traiter :**
+
+- La route photo écrit dans `profile-photos` public et retourne systématiquement une URL publique ; aucune option de visibilité/consentement n'apparaît dans cette route.
+- La règle acceptée au §79 demande que seules les photos prévues pour l'affichage public soient placées dans ce bucket. Il faut donc vérifier le formulaire et le modèle de profil : consentement explicite, état de visibilité persistant, et stockage privé/signé lorsque la photo n'est pas destinée au public. Ne pas considérer un simple profil authentifié comme un consentement à la diffusion publique.
+- La route `app/api/events/media/route.ts` valide la signature réelle des fichiers (image/PDF/MP4), la taille 10 MiB et la durée vidéo 30 secondes, ce qui est cohérent avec `jobly-events`. En revanche, le handler ne vérifie que la session Auth avant l'upload ; la création d'événement, elle, vérifie ensuite `EventEntitlement`. Recommandation : lier le dépôt à un brouillon/organisateur autorisé ou appliquer un quota/rate limit par utilisateur, puis nettoyer les médias orphelins si aucun événement n'est créé.
+- Les trois buckets privés `mobility-documents`, `recruitment-listings` et `talent-cvs` n'ont pas de limite/type au niveau Storage. Certaines routes font leurs propres contrôles ; recommander des garde-fous bucket-level alignés sur les contrats de chaque module, après inventaire complet des chemins d'upload. Ne pas changer les réglages sans migration et tests de compatibilité.
+
+### 80.3 RLS, grants et moindre privilège
+
+Constats actuels du catalogue JOBLY-E2E :
+- 180/180 tables publiques ont RLS activé.
+- 215 policies couvrent 154 tables publiques.
+- 26 tables ont RLS sans policy ; aucune de ces 26 tables n'a de privilège effectif `anon` ou `authenticated` (elles restent donc fermées à ces rôles dans le modèle constaté).
+- `anon` possède néanmoins des privilèges effectifs SELECT/INSERT/UPDATE/DELETE sur 23 relations publiques. Seules 3 relations ont une policy applicable à `anon`/PUBLIC : `Institution`, `BonPlan` et `BonPlanComment`, avec des policies de lecture seule. Les 20 autres n'ont pas de policy applicable à `anon` ; RLS empêche donc l'accès aux lignes dans la configuration auditée.
+- `authenticated` dispose de privilèges effectifs sur 55 relations publiques : SELECT sur 55, INSERT sur 24, UPDATE sur 23, DELETE sur 23. La correspondance complète entre ces privilèges et les opérations réellement nécessaires par module reste à établir.
+
+**Interprétation :** aucune fuite de lignes par `anon` n'est démontrée par ce seul audit ; RLS bloque les 20 tables sans policy anon. En revanche, les grants restent beaucoup plus larges que nécessaire et risquent de devenir une exposition si une policy est ajoutée ou élargie par la suite.
+
+**Plan recommandé, sans exécution :**
+1. `anon` : retirer les privilèges d'écriture sur les relations publiques ; conserver uniquement le SELECT des objets explicitement destinés à la lecture publique (`Institution`, `BonPlan`, `BonPlanComment`) après validation des colonnes et filtres.
+2. `authenticated` : établir une matrice par module/action (SELECT/INSERT/UPDATE/DELETE) et ne garder que les opérations réellement utilisées par Talent, Recruteur, Career Journey, J'IA, Mobility, Events et Paiements.
+3. Les tables RLS sans policy : garder sans privilège client tant qu'aucun parcours n'en justifie l'accès ; créer une policy propriétaire/admin seulement avec cas de test métier identifié.
+4. Appliquer les réductions dans une migration séparée, avec tests de non-régression par rôle et preuve de refus inter-comptes. Aucun GRANT/REVOKE n'est exécuté dans cette recette.
+
+### 80.4 Point de vigilance pg_net — exposition conditionnelle à confirmer au LOT-11
+
+- Les rôles `anon` et `authenticated` ont actuellement USAGE sur le schéma `net`.
+- Les deux rôles ont EXECUTE sur les 12 fonctions pg_net relevées, dont `net.http_get`, `net.http_post` et `net.http_delete`; ils disposent aussi de privilèges de lecture/insertion sur les tables de file/réponse.
+- Le catalogue montre une fonction événementielle Supabase `extensions.grant_pg_net_access()` qui accorde ces accès aux rôles clients lors de l'installation/gestion de pg_net. Le retrait manuel isolé des droits pourrait donc ne pas tenir face à une opération ultérieure de l'extension.
+- **La disponibilité de `net` à travers PostgREST n'a pas été établie.** Aucun appel `net.http_*` n'a été exécuté. Le point est donc un risque potentiel de capacité réseau sortante si le schéma est exposé, pas une preuve qu'un endpoint est actuellement accessible.
+- Recommandation P0 de sécurité : au LOT-11 final, vérifier l'exposition réelle ; si `net` est accessible, traiter son retrait des schémas exposés et l'isolement des EXECUTE/USAGE par une migration compatible avec le mécanisme Supabase pg_net. Ne pas désactiver ni altérer le trigger Supabase sans plan de compatibilité.
+
+### 80.5 Statistiques publiques, cohérence pays et texte de la page d'accueil
+
+Rapprochement du code :
+- `lib/countries/africa.ts` contient le catalogue produit canonique de **54 pays** et exclut explicitement `EH` (Sahara occidental).
+- La fonction SQL `public.get_public_home_stats()` contient une liste de **55 codes** : elle ajoute `EH`, absent du catalogue canonique.
+- Le frontend de `app/page.tsx` ajoute toujours la base `75 000` au compteur d'offres et `415 000` au compteur talents. Ce mécanisme correspond bien aux deux bases prévues ; elles ne sont pas à supprimer par défaut.
+- Le compteur `talentsCount` du RPC compte tous les profils dont le rôle est TALENT, sans filtre géographique, alors que le sous-texte affiche « Talents partout en Afrique ».
+
+**Recommandations métier/texte :**
+1. Synchroniser la liste SQL sur les 54 codes canoniques et ajouter un test qui compare automatiquement la liste SQL au catalogue TypeScript ; ne pas maintenir deux listes divergentes.
+2. Pour `talentsCount`, soit filtrer par pays parmi les 54 pays si la promesse est géographique, soit remplacer le texte par « Talents inscrits sur Jobly » / « Talents on Jobly » si le compteur reste mondial/non filtré.
+3. Conserver les bases +75 000 offres et +415 000 talents en les affichant de façon cohérente avec la fraîcheur de la donnée ; si la source dynamique est indisponible, conserver l'état actuel qui masque le compteur plutôt que d'inventer un total.
+4. `get_public_home_stats()` est une fonction `SECURITY DEFINER` exécutée par `anon` et `authenticated`, mais sa définition lue ne retourne que trois agrégats, n'accepte aucun argument et fixe `search_path` vide avec relations qualifiées. Recommandation : garder cette exception publique explicitement documentée et couverte par un test qui interdit tout champ personnel ou résultat détaillé.
+
+### 80.6 Advisor sécurité et priorités de revue
+
+Advisor JOBLY-E2E relu le 8 novembre :
+- 26 INFO `rls_enabled_no_policy`, cohérents avec les 26 tables sans policy et sans privilèges clients ;
+- 1 WARN extension `pg_net` installée dans `public` ;
+- 1 WARN `SECURITY DEFINER` public `get_public_home_stats()` accessible aux rôles anon/authenticated (contrat agrégé décrit au §80.5) ;
+- 1 WARN protection contre les mots de passe compromis désactivée.
+
+Recommandation Auth : activer la protection des mots de passe compromis si le plan Supabase le permet, puis le vérifier dans LOT-01 ; conserver les tests de connexion héritée et de politique de nouveau mot de passe déjà verts.
+
+### 80.7 Conclusion de recette
+
+- Préflight public Auth JOBLY-E2E : **PASS** au §78.
+- LOT-00 global : **PARTIAL** ; audit read-only consolidé, intention des buckets acceptée, mais matrice moindre privilège à faire approuver/appliquer dans un chantier distinct et point pg_net conditionnel à fermer au LOT-11.
+- Anomalies concrètes à corriger dans le code avant validation finale : plafond photo/Hero incohérent avec le bucket ; visibilité publique des photos non conditionnée de façon explicite ; catalogue de pays SQL différent du catalogue canonique ; compteur talents non géographiquement filtré alors que son texte le suggère.
+- Aucun de ces réglages ou correctifs n'a été appliqué dans cette mise à jour.
+
+### 80.8 Prochaine étape contrôlée — smoke Auth LOT-01 isolé
+
+Le script `e2e/auth-session-smoke.mjs` a été inspecté au commit opérateur `e92feb8abc1a2491cab7dd81e834080b80982681` (blob SHA `d1b6015597335198d1fa83dd8f6d7e3ab288164b`). Il :
+- lit uniquement le fichier local `.e2e-fixtures.json` ;
+- vérifie les 3 rôles TALENT, RECRUITER et PARTNER ;
+- réalise sign-in, getUser, refreshSession et signOut avec portée `local` ;
+- ne crée ni ne modifie les comptes/profils métier, ne change aucun mot de passe, n'envoie aucun email/SMS et n'appelle aucun endpoint métier ;
+- écrit `artifacts/e2e/auth-session-smoke.json` sans inclure de credentials.
+
+Il est donc possible de le lancer séparément comme test ciblé de session, sans lancer le runner global ou le provisionneur. Le résultat attendu est 12 checks (4 par rôle), avec 3 comptes PASS. Un jeu de fixtures absent/incomplet doit donner BLOCKED/FAIL et ne doit pas déclencher de restauration automatique.
+
+Commande CMD à exécuter seule ; elle crée aussi le rapport texte et ouvre Notepad :
+
+```bat
+cd /d C:\Users\ASUS\Jobly
+set "E2E_PROJECT_REF=ofqqrryamslxoqkklraw"
+set "NEXT_PUBLIC_SUPABASE_URL=https://ofqqrryamslxoqkklraw.supabase.co"
+set "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y"
+node e2e/auth-session-smoke.mjs > feedback-lot01-auth-session-20261108.txt 2>&1
+set "RECIPE_EXIT=%ERRORLEVEL%"
+echo exit_code=%RECIPE_EXIT%>>feedback-lot01-auth-session-20261108.txt
+notepad feedback-lot01-auth-session-20261108.txt
+```
+
+Ne pas exécuter `scripts/e2e-local-recipe.mjs`, `e2e/provision-fixtures.mjs` ou `e2e/reset-existing-fixture-passwords.mjs` à la suite de ce smoke. Transmettre uniquement le rapport non sensible.
+
+### 80.9 Garde-fous et référence
+
+Le smoke Auth est proposé comme étape ciblée ; il n'a pas été exécuté par l'assistant. Aucun test déjà PASS n'est relancé. JOBLY-PROD reste interdit ; aucune écriture ou configuration Supabase n'a été effectuée ; aucun changement `main`, aucune fusion et aucun déploiement. PR #266 reste ouverte, brouillon et non fusionnée.
+
+Mise à jour V2.78 sur `e2e/recette`. Source avant cette entrée : blob SHA `4844589ff2693b27ea4144ff897bcbcd5f8c2a2a`. Les constats DB proviennent exclusivement de requêtes de catalogue read-only JOBLY-E2E ; les écarts de code sont reliés aux blobs GitHub cités dans cette section.
