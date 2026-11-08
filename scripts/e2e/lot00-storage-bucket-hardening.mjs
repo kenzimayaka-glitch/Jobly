@@ -166,6 +166,60 @@ async function migrateLegacyPhotos(admin, report) {
   report.legacyPhotos = { migrated, retainedPublicWithConsent: skippedPublicWithConsent };
 }
 
+async function cleanupLegacyPublicPhotos(admin, report) {
+  const retainedPaths = new Set();
+  for (let offset = 0; ; offset += 500) {
+    const { data: users, error } = await admin.from("User")
+      .select("profilePhotoUrl,profilePhotoVisibility,profilePhotoConsentAt")
+      .not("profilePhotoUrl", "is", null)
+      .range(offset, offset + 499);
+    if (error) throw new Error("Lecture des consentements photo impossible : " + error.message);
+    for (const user of users ?? []) {
+      if (user.profilePhotoVisibility === "PUBLIC" && user.profilePhotoConsentAt) {
+        const photoPath = profilePathFromPublicUrl(user.profilePhotoUrl);
+        if (photoPath) {
+          retainedPaths.add(photoPath);
+          retainedPaths.add(photoPath + ".hero.png");
+        }
+      }
+    }
+    if (!users || users.length < 500) break;
+  }
+
+  const bucket = admin.storage.from("profile-photos");
+  const removed = [];
+  const retained = [];
+  for (let rootOffset = 0; ; rootOffset += 500) {
+    const { data: folders, error: folderError } = await bucket.list("", { limit: 500, offset: rootOffset });
+    if (folderError) throw new Error("Lecture du bucket public de photos impossible : " + folderError.message);
+    for (const folder of folders ?? []) {
+      if (folder.id !== null) continue;
+      for (let offset = 0; ; offset += 500) {
+        const { data: files, error } = await bucket.list(folder.name, { limit: 500, offset });
+        if (error) throw new Error("Lecture des anciennes photos publiques impossible : " + error.message);
+        const toRemove = [];
+        for (const file of files ?? []) {
+          if (file.id === null) continue;
+          const objectPath = folder.name + "/" + file.name;
+          if (retainedPaths.has(objectPath)) {
+            retained.push(objectPath);
+            continue;
+          }
+          toRemove.push(objectPath);
+        }
+        if (toRemove.length) {
+          const { error: removeError } = await bucket.remove(toRemove);
+          if (removeError) throw new Error("Suppression d'une photo publique sans consentement impossible : " + removeError.message);
+          removed.push(...toRemove);
+        }
+        if (!files || files.length < 500) break;
+      }
+    }
+    if (!folders || folders.length < 500) break;
+  }
+  report.publicPhotoCleanup = { removed, retainedWithConsent: retained };
+}
+
 async function main() {
   loadEnvConfig(process.cwd());
   const projectRef = process.env.E2E_PROJECT_REF || "";
@@ -270,6 +324,7 @@ async function main() {
     }
 
     await migrateLegacyPhotos(admin, report);
+    await cleanupLegacyPublicPhotos(admin, report);
     report.status = "PASS";
   } catch (error) {
     report.status = "FAIL";
