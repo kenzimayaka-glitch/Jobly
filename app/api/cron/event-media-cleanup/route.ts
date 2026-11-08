@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient } from "@/lib/server-auth";
-import { JOBLY_EVENTS_BUCKET } from "@/lib/eventStorage";
+import { JOBLY_EVENTS_BUCKET, eventStoragePathFromPublicUrl } from "@/lib/eventStorage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,12 +12,13 @@ async function listAll(db: ReturnType<typeof adminClient>) {
   const paths = new Set<string>();
   for (let offset = 0; ; offset += 1000) {
     const { data, error } = await db.from("Event")
-      .select("mediaStoragePath")
-      .not("mediaStoragePath", "is", null)
+      .select("mediaStoragePath,mediaUrl")
       .range(offset, offset + 999);
     if (error) throw new Error("Lecture des médias liés aux événements impossible : " + error.message);
     for (const row of data ?? []) {
       if (typeof row.mediaStoragePath === "string") paths.add(row.mediaStoragePath);
+      const legacyPath = eventStoragePathFromPublicUrl(row.mediaUrl);
+      if (legacyPath) paths.add(legacyPath);
     }
     if (!data || data.length < 1000) break;
   }
