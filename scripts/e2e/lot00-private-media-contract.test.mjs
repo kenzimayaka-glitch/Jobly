@@ -128,3 +128,10 @@ test("Storage hardening applies a real signed-read and anonymous-denial smoke wi
   assert.match(smoke, /finally/);
   assert.match(smoke, /bucket\.remove\(\[objectPath\]\)/);
 });
+
+
+test("Storage access smoke can use the known non-secret JOBLY-E2E publishable key when no local alias is set", async () => {
+  const hardening = await read("scripts/e2e/lot00-storage-bucket-hardening.mjs");
+  assert.match(hardening, /sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y/);
+  assert.match(hardening, /NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/);
+});

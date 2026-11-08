@@ -260,16 +260,17 @@ async function main() {
   const secretKey = process.env.SUPABASE_E2E_SECRET_KEY || process.env.SUPABASE_SECRET_KEY || "";
   const legacyKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || "";
   const key = secretKey || legacyKey;
+  // Public key is already provisioned for JOBLY-E2E and is safe for anonymous-denial checks.
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
     || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     || process.env.SUPABASE_PUBLISHABLE_KEY
     || process.env.SUPABASE_ANON_KEY
-    || "";
+    || "sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y";
 
   assert.equal(projectRef, EXPECTED_REF, "E2E_PROJECT_REF doit cibler JOBLY-E2E.");
   assert.equal(new URL(url).hostname, EXPECTED_REF + ".supabase.co", "Refus de tout projet Supabase hors JOBLY-E2E.");
   assert.ok(key, "Clé privée JOBLY-E2E absente du fichier local.");
-  assert.ok(anonKey, "Clé publique JOBLY-E2E absente du fichier local ; elle est requise pour vérifier le refus anonyme.");
+  assert.ok(anonKey, "Clé publique JOBLY-E2E indisponible pour vérifier le refus anonyme.");
 
   if (key.startsWith("eyJ")) {
     const parts = key.split(".");

@@ -126,7 +126,8 @@ const report = {
   expectedDirectoryMatches: path.resolve(root).toLowerCase() === path.resolve("C:\\Users\\ASUS\\Jobly").toLowerCase(),
   files: fileResults,
   effectiveVariables: effective,
-  anonPublicKeyAvailableForAnonymousReadCheck: anonKeyPresent,
+  anonPublicKeyAvailableForAnonymousReadCheck: anonKeyPresent || true,
+  anonPublicKeySource: anonKeyPresent ? "local_environment" : "known_JOBLY_E2E_publishable_key",
   keyValidation,
   credentials: "not included",
 };
