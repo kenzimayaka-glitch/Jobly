@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.62 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.63 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3327,3 +3327,44 @@ Source : https://supabase.com/docs/guides/platform/personal-access-tokens
 - JOBLY-PROD hors périmètre ; aucune mutation Supabase/fixture ; aucun changement de clé API, `main`, aucune fusion et aucun déploiement.
 - PR #266 reste ouverte, brouillon et non fusionnée.
 - Document source avant cette mise à jour : V2.61, blob SHA 69d4862bfbf08cacad7c6e10dfe69b611256c742, branche `e2e/recette`.
+
+---
+
+## 65. Utilisation éventuellement bornée du PAT full-access pour un contrôle ponctuel — V2.63 — 8 novembre 2026
+
+### 65.1 Question de l'opérateur
+
+L'opérateur demande si la session CLI issue du flux navigateur peut être contrainte à ne travailler que sur la recette. Réponse : oui au niveau procédural (allowlist de projet, d'endpoint et de méthode HTTP), mais non au niveau des droits intrinsèques du PAT.
+
+### 65.2 Fait de sécurité vérifié
+
+Le PAT créé par le flux navigateur `supabase login` porte l'accès complet au compte. L'option CLI `--remote=<project-ref>` sélectionne le projet pour une commande donnée mais ne réduit pas le périmètre ni les droits du PAT stocké. Toute automatisation locale peut être bornée à des opérations GET et à JOBLY-E2E, mais le jeton reste techniquement capable d'autres opérations si une autre commande l'utilise.
+
+Source officielle : https://supabase.com/docs/guides/platform/personal-access-tokens — mise à jour le 2 novembre 2026.
+
+### 65.3 Garde-fous possibles pour un usage unique
+
+Si l'opérateur choisit explicitement la voie ponctuelle avec le PAT actuel, l'exécution doit être un wrapper local fixe qui :
+- cible exclusivement le projet `ofqqrryamslxoqkklraw` ;
+- n'appelle que l'opération de lecture de clés nécessaire au diagnostic ;
+- sélectionne en mémoire uniquement la Legacy `service_role` attendue ;
+- vérifie localement les claims du projet E2E et le rôle ;
+- envoie uniquement deux GET au endpoint PostgREST OpenAPI `public` puis `net` ;
+- ne contient aucun chemin d'écriture, aucun autre projet, aucune commande générique reçue en paramètre ;
+- ne journalise ni PAT, ni API key, ni header ; seuls les statuts HTTP et indicateurs non sensibles sont consignés ;
+- retire les variables sensibles de l'environnement du processus à la fin.
+
+Ces garde-fous limitent le comportement du wrapper et constituent une restriction opérationnelle, **pas une restriction cryptographique ou IAM du PAT**.
+
+### 65.4 Préférence
+
+La préférence de sécurité reste de créer un PAT scoped au seul projet JOBLY-E2E avec API Keys Read + API Key Secrets Read, sans droits d'écriture. La voie full-access peut être envisagée pour un seul contrôle read-only si l'opérateur l'autorise explicitement, sur un poste qu'il contrôle, puis le PAT full-access devra être révoqué après le contrôle. Ne jamais employer ce PAT pour une autre action Jobly.
+
+### 65.5 État
+
+- Aucun nouvel usage du PAT full-access n'a été exécuté sur la base de cette question.
+- Aucun appel API Keys ou OpenAPI n'a été fait via la session CLI.
+- LOT-00 demeure **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- JOBLY-PROD hors périmètre ; aucune mutation, aucune modification `main`, aucune fusion ni déploiement.
+- PR #266 reste ouverte, brouillon et non fusionnée.
+- Document source avant cette mise à jour : V2.62, blob SHA 281499a84a1a7cd844922b51f12c2e977cfb6cf1, branche `e2e/recette`.
