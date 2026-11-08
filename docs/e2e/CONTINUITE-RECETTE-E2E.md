@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.95 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.96 — 8 novembre 2026
 >
 > **Dernier commit de correction LOT-00 :** `83304fcbfbc6a3d2950298ec13db929fb9b064cf` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -4670,6 +4670,31 @@ Si Node signale ensuite que @supabase/supabase-js est introuvable, arrêter et t
 ### 91.4 Statut inchangé en attente d'une nouvelle preuve
 
 La tentative initiale s'est arrêtée à l'import de module. Le script corrigé n'a pas été exécuté au moment de cette mise à jour ; aucun bucket n'est déclaré PASS. LOT-00 reste PARTIAL. main, JOBLY-PROD, les PR et les déploiements restent inchangés.
+
+## 93. LOT-00 — diagnostic local des variables privées, sans exposition des secrets
+
+Après la seconde répétition du blocage, un diagnostic Node autonome a été ajouté : `scripts/e2e/lot00-storage-credential-diagnostic.mjs`, blob `227bda429d09d7984c0c05763f65ff78f7b5d962`.
+
+Ce diagnostic :
+- ne fait aucun appel réseau et ne modifie ni Supabase ni les fichiers d'environnement ;
+- reprend le parseur et la priorité du script Storage : `.env`, puis `.env.local`, avec priorité aux variables du processus déjà définies ;
+- indique seulement le répertoire courant, l'existence des fichiers, le nombre d'affectations des deux variables acceptées, la présence d'une valeur parsée, le masquage éventuel par une variable de processus vide, et la validation de forme/ref/role d'un JWT service_role ;
+- n'imprime, n'écrit et ne transmet aucune valeur de clé ;
+- génère `feedback-lot00-storage-credential-diagnostic.txt`.
+
+Commande de diagnostic, à exécuter seule avant tout nouveau lancement du hardening :
+
+```cmd
+cd /d C:\Users\ASUS\Jobly
+git fetch origin
+git show origin/e2e/recette:scripts/e2e/lot00-storage-credential-diagnostic.mjs > scripts\e2e\lot00-storage-credential-diagnostic.mjs
+node scripts\e2e\lot00-storage-credential-diagnostic.mjs
+notepad feedback-lot00-storage-credential-diagnostic.txt
+```
+
+Ne pas relancer `run-lot00-storage-hardening.cmd` tant que ce diagnostic ne confirme pas `keyValidation.keySelected=true` et `keyValidation.acceptedFormat=true`. Pour une clé JWT, les indicateurs `projectMatches` et `serviceRole` doivent également être `true`. Si la variable est absente, corriger uniquement `.env.local` localement. Si une variable de processus est définie mais vide, elle empêche actuellement le chargeur du script Storage de reprendre la valeur du fichier ; fermer le terminal puis ouvrir un nouveau CMD après correction, ou retirer la variable vide du processus.
+
+Le diagnostic ne change pas le statut : LOT-00 demeure **PARTIAL / BLOCKED**, jusqu'à application vérifiée des cinq buckets puis tests runtime.
 
 ## 92. LOT-00 — seconde tentative Storage bloquée, diagnostic local requis (8 novembre 2026)
 
