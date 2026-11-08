@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.106 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.107 — 8 novembre 2026
 >
 > **Dernier commit de correction LOT-00 :** `cdc4399d452f3341895b5d56efb5204080d3faa9` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 conserve uniquement le préflight environnement/fixtures et les contrôles read-only de base (identité, RLS/grants, Storage, correspondances des fixtures), hors OpenAPI. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.106  
+**Version :** 2.107  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -72,6 +72,16 @@ La prochaine intervention doit être divisée en deux étapes strictes :
 2. **Écriture atomique seulement après préflight PASS** : extraire l'objet Git distant vers un fichier temporaire dans un dossier dont l'existence a été vérifiée ; calculer le hash du temporaire ; vérifier qu'il vaut exactement `8672167fc66c639f433d5d0296847dd5f200d315` ; remplacer ensuite la destination dans le dépôt confirmé ; recalculer et comparer le hash final. En cas d'échec à une étape, arrêter sans lancer le script Storage.
 
 La preuve de réussite attendue est constituée des trois valeurs complètes et identiques : hash de l'objet distant, hash du fichier temporaire extrait et hash du fichier local final. Un message « fichier trouvé » ou une copie du contenu dans le chat ne remplace pas ces contrôles.
+
+### 93.4 Limites de l'intervention et statut Storage
+
+Cette tentative de réparation de fichier n'a pas lancé le lanceur, le diagnostic de clé, ni `lot00-storage-bucket-hardening.mjs`. Elle n'a effectué aucune requête ni mutation Supabase/Storage. Aucune configuration des buckets n'est donc réputée modifiée.
+
+La dernière preuve distante Storage reste la lecture read-only consignée au §92.2 : `jobly-events` public, trois buckets privés sans limites/MIME configurés, `profile-photos-private` absent, et aucun objet dans les buckets listés à cette lecture. Cette photographie doit être relue après une éventuelle application ; elle ne doit pas être présentée comme un état revérifié à 22:54.
+
+LOT-00 demeure **PARTIAL / BLOCKED sur Storage**. Pas de PASS du lanceur local, pas de PASS Storage et pas de clôture LOT-00.
+
+Garde-fous inchangés : JOBLY-E2E uniquement (`ofqqrryamslxoqkklraw`) ; JOBLY-PROD interdit ; `main` inchangée ; PR #266 et #267 ouvertes en brouillon, non fusionnées ; aucun déploiement ; aucune réinitialisation ou modification de fixtures ; aucun secret dans le chat, les rapports ou Git.
 
 ### 93.5 Précision opérateur — redémarrage Windows et session CMD perdue
 
@@ -261,15 +271,6 @@ Ce remplacement ne touche pas la branche locale, ne fusionne aucun commit et sau
 
 LOT-00 reste **PARTIAL** jusqu'au PASS des cinq configurations, des opérations upload/lecture signée/refus anonyme/nettoyage, et du traitement des photos legacy. JOBLY-PROD, `main`, les fixtures et les déploiements restent hors périmètre.
 
-### 93.4 Limites de l'intervention et statut Storage
-
-Cette tentative de réparation de fichier n'a pas lancé le lanceur, le diagnostic de clé, ni `lot00-storage-bucket-hardening.mjs`. Elle n'a effectué aucune requête ni mutation Supabase/Storage. Aucune configuration des buckets n'est donc réputée modifiée.
-
-La dernière preuve distante Storage reste la lecture read-only consignée au §92.2 : `jobly-events` public, trois buckets privés sans limites/MIME configurés, `profile-photos-private` absent, et aucun objet dans les buckets listés à cette lecture. Cette photographie doit être relue après une éventuelle application ; elle ne doit pas être présentée comme un état revérifié à 22:54.
-
-LOT-00 demeure **PARTIAL / BLOCKED sur Storage**. Pas de PASS du lanceur local, pas de PASS Storage et pas de clôture LOT-00.
-
-Garde-fous inchangés : JOBLY-E2E uniquement (`ofqqrryamslxoqkklraw`) ; JOBLY-PROD interdit ; `main` inchangée ; PR #266 et #267 ouvertes en brouillon, non fusionnées ; aucun déploiement ; aucune réinitialisation ou modification de fixtures ; aucun secret dans le chat, les rapports ou Git.
 
 ---
 
