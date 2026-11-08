@@ -1097,7 +1097,7 @@ Après retour éventuel du rapport local, comparer le résultat avec les 40 PASS
 
 ### 21.1 Relecture et limites d’autorisation
 
-Le document maître V2.12 a été relu intégralement avant cette reprise (1 093 lignes). Le contrôle autorisé reste celui du §16.7 : deux requêtes HTTP GET sur `https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/`, avec les profils `public` puis `net`. Aucun endpoint Auth, RPC métier, SQL, `net.http_*`, mutation ou script de fixtures n’entre dans ce contrôle.
+Le document maître V2.12 a été relu intégralement avant cette reprise (1 093 lignes). Le contrôle autorisé reste limité à deux requêtes HTTP GET sur `https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/`, avec les profils `public` puis `net`. Après le 401 provoqué par la clé publishable, la méthode correcte est celle du §22.3. Aucun endpoint Auth, RPC métier, SQL, `net.http_*`, mutation ou script de fixtures n’entre dans ce contrôle.
 
 État GitHub revalidé avant cette mise à jour : PR #266 ouverte, en brouillon, non fusionnée ; HEAD `75e802a9e85b3571eecfc44939744ef3a26d07eb`. Aucun merge ni déploiement.
 
@@ -1111,25 +1111,9 @@ Le document maître V2.12 a été relu intégralement avant cette reprise (1 093
 
 **Classification : BLOCKED_ENVIRONMENT / NON CONCLUANT. LOT-00 reste PARTIAL.** Ne pas compter cette tentative comme PASS ni comme FAIL du service Supabase.
 
-### 21.3 Commande précédente V2.14 — OBSOLÈTE, ne pas relancer
+### 21.3 Procédure précédente V2.14 — retirée du protocole actif
 
-Le poste opérateur est déjà connu : `C:\Users\ASUS\Jobly`, Node.js `v26.13.0`. La commande ci-dessous reste strictement limitée aux GET OpenAPI. Elle contrôle également les conditions attendues et écrit un rapport sans afficher la clé. La clé `sb_publishable_...` est la clé publishable JOBLY-E2E documentée au §16.7, et non une clé privée.
-
-```bat
-cd /d C:\Users\ASUS\Jobly
-if exist feedback-lot00-net-schema-exposure.txt echo Rapport existant conserve : ne pas l'ecraser ; ouvrir et transmettre le rapport existant.
-if not exist feedback-lot00-net-schema-exposure.txt node -e "const run=async()=>{const url='https://ofqqrryamslxoqkklraw.supabase.co';const key='sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y';let failed=false;console.log('node='+process.version);for(const schema of ['public','net']){const r=await fetch(url+'/rest/v1/',{method:'GET',headers:{apikey:key,Authorization:'Bearer '+key,Accept:'application/openapi+json','Accept-Profile':schema},signal:AbortSignal.timeout(20000)});const raw=await r.text();let body={};try{body=JSON.parse(raw)}catch{};const out={schema,status:r.status,apiSchemaAccepted:r.ok,openapi:!!(body.openapi||body.swagger),code:body.code??null,message:body.message??null};console.log(JSON.stringify(out));if(schema==='public'){if(!r.ok||!(body.openapi||body.swagger))failed=true;}else if(r.status!==406||body.code!=='PGRST106')failed=true;}console.log('GATE='+(!failed?'PASS_NET_NOT_EXPOSED':'BLOCKED_REVIEW_REQUIRED'));if(failed)process.exitCode=2;};run().catch(e=>{console.error('LOT00_SCHEMA_CHECK_ERROR:'+e.message);process.exitCode=2;});" > feedback-lot00-net-schema-exposure.txt 2>&1
-notepad feedback-lot00-net-schema-exposure.txt
-```
-
-Le premier `if exist` protège un éventuel rapport précédent : il n’est jamais écrasé. Si le rapport existe déjà, l’ouvrir et transmettre son contenu avant toute nouvelle tentative ; ne pas le supprimer ni le remplacer.
-
-Résultat attendu pour fermer uniquement le point d’exposition `net` :
-- Profil `public` : HTTP réussi (`200`), `apiSchemaAccepted=true` et `openapi=true`.
-- Profil `net` : HTTP `406`, `apiSchemaAccepted=false`, `code=PGRST106` ; la commande impose les deux conditions, et non seulement un refus quelconque.
-- Synthèse : `GATE=PASS_NET_NOT_EXPOSED`.
-
-Tout autre résultat — `fetch failed`, délai dépassé, erreur 401/403, `public` refusé, `net` accepté, code inattendu ou réponse non JSON — reste `BLOCKED_REVIEW_REQUIRED`. Ne pas tenter de corriger les grants ou la configuration à partir de ce seul résultat.
+La commande utilisant la clé publishable a été conservée dans l'historique Git mais supprimée de cette section opérationnelle après le retour HTTP 401 `Secret API key required`. Ne pas la recopier ni la relancer. La procédure valide à présent est celle du §22.3, avec clé d'administration JOBLY-E2E saisie masquée et GET limité à la racine OpenAPI.
 
 ### 21.4 Contrôles LOT-00 qui resteront ouverts après le GET
 
