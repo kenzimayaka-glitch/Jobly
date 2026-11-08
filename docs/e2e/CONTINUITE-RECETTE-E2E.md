@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.86 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.87 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -4532,3 +4532,21 @@ Résultat attendu : trois buckets en `PASS`, `status=PASS`, `exit_code=0`. Si le
 - **LOT-00 global : PARTIAL**, jusqu'à la vérification positive/négative de ces trois configurations Storage. Le contrôle OpenAPI et l'exposition éventuelle de `net` restent réservés au LOT-11.
 
 Mise à jour V2.86 sur `e2e/recette`. Les deux PR restent ouvertes en brouillon et non fusionnées. `main` reste inchangée sur `979f2ccfec9258bc30989af18433cf6adb1b4698`. Aucun accès JOBLY-PROD, aucune modification de Storage ou aucun déploiement de production n'ont été effectués.
+
+
+## 85. Incident opérateur — script Storage absent de la copie locale
+
+Le 8 novembre 2026, l'exécution locale de `node scripts/e2e/lot00-storage-bucket-hardening.mjs --apply-lot00-e2e-storage-hardening` a échoué avant le démarrage du script avec `MODULE_NOT_FOUND` : le chemin `C:\\Users\\ASUS\\Jobly\\scripts\\e2e\\lot00-storage-bucket-hardening.mjs` n'existait pas dans la copie de travail utilisée.
+
+Vérification distante effectuée immédiatement : le fichier existe bien sur GitHub, branche `e2e/recette`, avec le blob `06ff209b99a1f276f53f0007e7919eaf7cd82851` :
+https://github.com/kenzimayaka-glitch/Jobly/blob/e2e/recette/scripts/e2e/lot00-storage-bucket-hardening.mjs
+
+Diagnostic : désynchronisation de la copie locale (branche/fichiers non récupérés), et non erreur d'authentification Supabase, de validation de bucket ou d'exécution du script. Le script n'a pas démarré ; aucune requête Storage d'écriture n'a été envoyée ; les trois buckets n'ont pas été modifiés par cette tentative.
+
+Procédure de reprise : dans le dépôt local, récupérer les références distantes, basculer sur `e2e/recette`, mettre la branche à jour en fast-forward, vérifier la présence du script, puis seulement relancer la commande d'application documentée au §84.5. Si le dépôt local contient des changements non commités, ne pas les écraser : arrêter avant le changement de branche et transmettre `git status --short --branch`.
+
+Statut inchangé :
+- **SQL / RLS / privilèges : PASS**.
+- **Storage : NOT RUN** (incident de synchronisation locale).
+- **LOT-00 global : PARTIAL**.
+- `main` n'est pas modifiée ; PR #266 et #267 restent ouvertes en brouillon ; aucun déploiement n'a été effectué.
