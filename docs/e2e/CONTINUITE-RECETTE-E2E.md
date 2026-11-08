@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.30 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.31 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -12,10 +12,10 @@
 >
 > **Verrou de reprise V2.8 :** les sections 7, 9, 10, 11, 12 et 13.7 contiennent des états ou consignes historiques ; elles ne constituent plus des instructions opératoires. En particulier, l'autorisation de reset citée au §9 n'est plus active : ne pas exécuter e2e/reset-existing-fixture-passwords.mjs, les scripts de vérification Auth des anciennes fixtures, le provisionneur, ni scripts/e2e-local-recipe.mjs/le runner bulk. Aucune connexion Auth, mutation de fixture, restauration de mot de passe ou relance globale n'est autorisée par ce document. Le seul prochain contrôle permis est le GET OpenAPI décrit au §16.7, suivi de son analyse.
 >
-> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le dernier rapport V4 confirme un arrêt au contrôle local du format de la clé (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avant toute requête HTTP ; `results=[]`. L'exposition de `net` reste donc indéterminée. La V5 qui invite à coller `service_role` est SUSPENDUE ; ne pas la réexécuter. À la demande de l'opérateur, une V6 distincte est transmise au §34 pour deux GET OpenAPI sur JOBLY-E2E, avec invite masquée, uniquement à l'aide de la clé historique `service_role` JOBLY-E2E si elle est Active et confirmée comme telle. La V6 n'est pas encore exécutée et ne constitue pas un PASS. L'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
+> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL / BLOCKED_REVIEW_REQUIRED** : le dernier rapport V4 confirme un arrêt au contrôle local du format de la clé (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avant toute requête HTTP ; `results=[]`. L'exposition de `net` reste donc indéterminée. La V5 qui invite à coller `service_role` est SUSPENDUE ; ne pas la réexécuter. À la demande de l'opérateur, une V6 distincte est transmise au §34 pour deux GET OpenAPI sur JOBLY-E2E, avec invite masquée, uniquement à l'aide de la clé historique `service_role` JOBLY-E2E si elle est Active et confirmée comme telle. La V6 a été exécutée par l'opérateur le 8 novembre 2026, mais s'est arrêtée au contrôle local de format (`KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`), avec `results=[]` ; aucun GET n'a été exécuté et elle ne constitue pas un PASS. L'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`, `sb_secret_…` ou une clé de production. La V5 reste suspendue ; la V6 du §34 est la seule commande de retest retransmise à la demande de l'opérateur. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.30  
+**Version :** 2.31  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1772,3 +1772,62 @@ notepad feedback-lot00-net-schema-exposure-v6-20261108.txt
 - Document source avant édition : V2.29, blob SHA `cfaf33aa38a525a4d7b99396ac05002a1124f1c1`, branche `e2e/recette`.
 - Procédure V5 suspendue au §32 ; nouveau rapport V6 distinct de V3/V4/V5.
 - Aucun secret reçu, lu ou enregistré par l'assistant.
+
+
+---
+
+## 35. Résultat de la commande V6 et analyse de la capture opérateur — V2.31 — 8 novembre 2026
+
+### 35.1 Preuve reçue
+
+L'opérateur transmet une capture du Node.js Command Prompt ouvert sur le Dashboard du projet JOBLY-E2E. Le terminal affiche :
+
+```text
+SAISIE MASQUEE : colle la cle service_role historique ACTIVE de JOBLY-E2E, puis appuie sur Entree.
+node=v26.13.0
+project_ref=ofqqrryamslxoqkklraw
+credential_type=legacy_service_role
+results=[]
+GATE=BLOCKED_REVIEW_REQUIRED
+error=Error: KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT
+REPORT=feedback-lot00-net-schema-exposure-v6-20261108.txt
+```
+
+La capture montre également que l'onglet du Dashboard ouvert est **API Keys (Legacy)** et que le bouton visible est **Disable legacy API keys**. Cela indique que les clés JWT historiques sont activées globalement dans ce projet. La capture ne permet pas de lire ni de certifier la valeur de la clé copiée, ni d'établir son préfixe, son rôle ou son projet.
+
+### 35.2 Interprétation exacte
+
+- L'invite de saisie masquée s'est bien affichée ; le script V6 a donc franchi le contrôle TTY.
+- Le script a reçu une chaîne qui ne commence pas par `eyJ` (ou une chaîne vide après traitement). Le contrôle `KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT` l'a rejetée avant toute requête réseau.
+- `results=[]` confirme qu'aucun statut HTTP n'a été obtenu.
+- Les GET OpenAPI pour `public` et `net` n'ont pas été exécutés.
+- `credential_type=legacy_service_role` est une étiquette constante du rapport et ne certifie pas la valeur saisie.
+- La présence du bouton **Disable legacy API keys** confirme l'activation globale des clés historiques, mais pas que la valeur effectivement collée est la clé JWT `service_role` attendue.
+
+### 35.3 Prochaine action — aucune nouvelle saisie à l'aveugle
+
+Ne pas relancer V6 immédiatement avec la même valeur. Ne pas transmettre la clé au chat, à Notepad, à un rapport ou à Git. Ne pas utiliser `anon`, `sb_secret_…`, une clé d'un autre projet ou une clé JOBLY-PROD. Ne pas désactiver, réactiver, recréer ou faire tourner les clés.
+
+Avant une nouvelle tentative, l'opérateur doit seulement confirmer visuellement, dans l'onglet **API Keys (Legacy)** du projet **JOBLY-E2E**, qu'il a sélectionné la ligne `service_role` et copié sa valeur JWT historique, et non une valeur de l'onglet API Keys moderne ou un autre champ. Si l'interface ne permet pas d'identifier le bon type sans exposer le secret, ne pas poursuivre.
+
+La capture ne justifie pas de changer le script ni d'élargir les autorisations. Une seule tentative ultérieure ne serait envisageable qu'après confirmation locale du bon champ ; aucun secret ne doit être partagé.
+
+### 35.4 État LOT-00
+
+- Invite masquée V6 : **AFFICHÉE**.
+- Précontrôle de format : **BLOCKED** — `KEY_FORMAT_INVALID_EXPECTED_LEGACY_JWT`.
+- GET OpenAPI `public` : **NON EXÉCUTÉ**.
+- GET OpenAPI `net` : **NON EXÉCUTÉ**.
+- Exposition de `net` : **NON DÉTERMINÉE**.
+- LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- Aucun runtime Auth, navigateur, parcours croisé ou bulk ne peut reprendre avant la clôture du LOT-00.
+- Aucun accès JOBLY-PROD ; aucune fixture, donnée, permission ou configuration Supabase modifiée.
+- Aucune valeur de secret n'a été visible ni communiquée à l'assistant ; aucune requête Supabase n'a été effectuée par l'assistant dans ce tour.
+- `main` inchangée ; PR #266 ouverte, en brouillon et non fusionnée ; aucun déploiement.
+
+### 35.5 Preuves et traçabilité
+
+- Capture utilisateur reçue le 8 novembre 2026 : invite masquée visible, rapport V6 et erreur de format reproduits au §35.1 ; onglet **API Keys (Legacy)** et bouton **Disable legacy API keys** visibles.
+- Rapport V6 local : `feedback-lot00-net-schema-exposure-v6-20261108.txt`, contenu non secret visible dans la capture.
+- Document source avant cette mise à jour : V2.30, blob SHA `62af041ff871f191fe4416d05ce37469868a5f76`, branche `e2e/recette`.
+- Aucune valeur de clé, aucun en-tête `apikey` et aucun jeton n'ont été reçus.
