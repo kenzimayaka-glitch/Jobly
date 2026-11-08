@@ -250,11 +250,10 @@ La clé `.env.local` est maintenant présente et le premier diagnostic l'a recon
 Dans CMD, depuis `C:\Users\ASUS\Jobly`, récupérer uniquement le nouveau lanceur sur le remote (pas de pull/merge), puis l'exécuter. Le lanceur récupère lui-même le script corrigé, vérifie les hashes et la syntaxe, puis applique les réglages à JOBLY-E2E :
 ```cmd
 cd /d C:\Users\ASUS\Jobly
-copy /Y scripts\e2e\run-lot00-storage-hardening.cmd scripts\e2e\run-lot00-storage-hardening.before-mime-fix.cmd
+if exist scripts\e2e\run-lot00-storage-hardening.cmd if not exist scripts\e2e\run-lot00-storage-hardening.before-mime-fix.cmd copy /Y scripts\e2e\run-lot00-storage-hardening.cmd scripts\e2e\run-lot00-storage-hardening.before-mime-fix.cmd
 git fetch origin
 git show origin/e2e/recette:scripts/e2e/run-lot00-storage-hardening.cmd > scripts\e2e\run-lot00-storage-hardening.cmd
-if errorlevel 1 (echo ECHEC_RECUPERATION_LANCEUR & goto :eof)
-call scripts\e2e\run-lot00-storage-hardening.cmd
+if errorlevel 1 (echo ECHEC_RECUPERATION_LANCEUR - ARRET) else (call scripts\e2e\run-lot00-storage-hardening.cmd)
 notepad feedback-lot00-storage-credential-diagnostic.txt
 notepad feedback-lot00-storage-apply-20261108.txt
 ```
