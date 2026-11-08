@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.66 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.67 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3486,3 +3486,46 @@ Cette commande locale est nécessaire uniquement parce que la session CLI et son
 - JOBLY-PROD hors périmètre ; aucun DML/DDL, aucune mutation fixture, aucun changement `main`, aucune fusion ni déploiement.
 - PR #266 reste ouverte, brouillon, non fusionnée.
 - Document source avant cette mise à jour : V2.65, blob SHA fa25092885c7fe7512614f3adbca9cc35c3d5426, branche `e2e/recette`.
+
+---
+
+## 69. Commande finale locale LOT-00 — une seule exécution — V2.67 — 8 novembre 2026
+
+### 69.1 Preuves sources exactes
+
+La fixture enregistrée de Supabase CLI v3.0.0 `GET_v1_projects_replayfixtureprojref_api_keys/default.response.json` comprend une entrée `name=service_role`, `id=service_role`, `type=legacy`, `api_key=__JWT__` sans option reveal. La même réponse contient séparément une entrée `type=secret` dont la valeur est opaque. Cela confirme qu'on peut sélectionner l'ancienne clé Legacy sans révéler la clé moderne `sb_secret`.
+
+Source : https://raw.githubusercontent.com/supabase/cli/v3.0.0/apps/cli-e2e/fixtures/recorded/GET_v1_projects_replayfixtureprojref_api_keys/default.response.json
+
+Le CLI v3 permet `--remote=<ref>` et `--output json`. Le PAT full-access, issu de `supabase login` navigateur, demeure local. L'opérateur a explicitement autorisé une utilisation ponctuelle strictement bornée à cette recette en lecture seule.
+
+### 69.2 Commande unique à exécuter dans CMD
+
+Le script ci-dessous exécute la récupération locale, valide le format/les claims, puis les deux GET OpenAPI. Il n'utilise pas `--reveal`, n'utilise pas `projects list`, et n'émet aucun secret. Il bloque si `SUPABASE_ACCESS_TOKEN` est défini dans l'environnement, afin de forcer l'utilisation du login CLI local déjà établi. Aucun préflight supplémentaire n'est nécessaire.
+
+~~~bat
+cd /d C:\Users\ASUS\Jobly
+powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop';$report='feedback-lot00-openapi-readonly-20261108.txt';$envTokenPresent=(-not [string]::IsNullOrWhiteSpace($env:SUPABASE_ACCESS_TOKEN));$cliExit='NOT_RUN';$legacyCount=0;$jwtThree=$false;$jwtAlg='UNKNOWN';$roleMatch=$false;$refMatch=$false;$pubHttp='NOT_RUN';$pubOpenApi=$false;$pubPaths=0;$pubPgrst='NONE';$netHttp='NOT_RUN';$netOpenApi=$false;$netPaths=0;$netPgrst='NONE';$gate='BLOCKED_NOT_STARTED';$key=$null;$cliText=$null;$cliLines=$null;$rows=$null;$selected=$null;$parts=$null;$head64=$null;$body64=$null;$headText=$null;$bodyText=$null;$jwtHeader=$null;$jwtClaims=$null;$pub=$null;$net=$null;$failure='NONE';function Invoke-OpenApi([string]$profile,[string]$secretKey){$status='NO_HTTP';$code='NONE';$valid=$false;$count=0;$response=$null;$reader=$null;$body=$null;$spec=$null;$err=$null;$request=$null;try{$request=[System.Net.HttpWebRequest]::Create('https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/');$request.Method='GET';$request.Accept='application/openapi+json';$request.UserAgent='JoblyE2E-LOT00-Readonly/1.0';$request.Headers['apikey']=$secretKey;$request.Headers['Authorization']='Bearer '+$secretKey;$request.Headers['Accept-Profile']=$profile;$request.Timeout=30000;$request.ReadWriteTimeout=30000;try{$response=$request.GetResponse()}catch [System.Net.WebException]{$response=$_.Exception.Response};if($null -ne $response){$status=[string][int]$response.StatusCode;$reader=New-Object System.IO.StreamReader($response.GetResponseStream());$body=$reader.ReadToEnd();if($status -eq '200'){try{$spec=ConvertFrom-Json -InputObject $body -ErrorAction Stop;$valid=($null -ne $spec.openapi) -or ($null -ne $spec.swagger);if($null -ne $spec.paths){$count=$spec.paths.PSObject.Properties.Count}}catch{$valid=$false}}else{try{$err=ConvertFrom-Json -InputObject $body -ErrorAction Stop;if($null -ne $err.code){$code=[string]$err.code}}catch{}}}else{$status='NETWORK_ERROR'}}catch{$status='REQUEST_ERROR'}finally{if($null -ne $reader){$reader.Dispose()};if($null -ne $response){$response.Close()};$request=$null;$body=$null;$spec=$null;$err=$null};return [pscustomobject]@{http=$status;openapi=$valid;paths=$count;pgrst=$code}};try{if($envTokenPresent){$gate='BLOCKED_ENV_TOKEN_OVERRIDE'}else{$npx=(Get-Command npx.cmd -ErrorAction Stop).Source;$cliLines=@(& $npx --yes supabase@3.0.0 projects api-keys --remote=ofqqrryamslxoqkklraw --output json 2>$null);$cliExit=[string]$LASTEXITCODE;$cliText=($cliLines | ForEach-Object {[string]$_}) -join ([Environment]::NewLine);$cliLines=$null;if($cliExit -ne '0'){$gate='BLOCKED_CLI_AUTH_OR_API_ERROR'}else{$rows=@(ConvertFrom-Json -InputObject $cliText -ErrorAction Stop);$selected=@($rows | Where-Object {$_.name -eq 'service_role' -and $_.type -eq 'legacy'});$legacyCount=$selected.Count;if($legacyCount -ne 1){$gate='BLOCKED_LEGACY_SERVICE_ROLE_NOT_UNIQUE'}else{$key=[string]$selected[0].api_key;if([string]::IsNullOrWhiteSpace($key)){$gate='BLOCKED_LEGACY_SERVICE_ROLE_REDACTED'}else{$parts=$key.Split([char]'.');$jwtThree=($parts.Length -eq 3);if($jwtThree){$head64=$parts[0].Replace('-','+').Replace('_','/');$body64=$parts[1].Replace('-','+').Replace('_','/');while(($head64.Length % 4) -ne 0){$head64+='='};while(($body64.Length % 4) -ne 0){$body64+='='};$headText=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($head64));$bodyText=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($body64));$jwtHeader=ConvertFrom-Json -InputObject $headText -ErrorAction Stop;$jwtClaims=ConvertFrom-Json -InputObject $bodyText -ErrorAction Stop;$jwtAlg=[string]$jwtHeader.alg;$roleMatch=($jwtClaims.role -eq 'service_role');$refMatch=($jwtClaims.ref -eq 'ofqqrryamslxoqkklraw')};if($jwtThree -and $jwtAlg -eq 'HS256' -and $roleMatch -and $refMatch){$pub=Invoke-OpenApi -profile 'public' -secretKey $key;$pubHttp=[string]$pub.http;$pubOpenApi=[bool]$pub.openapi;$pubPaths=[int]$pub.paths;$pubPgrst=[string]$pub.pgrst;$net=Invoke-OpenApi -profile 'net' -secretKey $key;$netHttp=[string]$net.http;$netOpenApi=[bool]$net.openapi;$netPaths=[int]$net.paths;$netPgrst=[string]$net.pgrst;if($pubHttp -eq '200' -and $pubOpenApi -and $netHttp -eq '406' -and $netPgrst -eq 'PGRST106'){$gate='PASS_NET_NOT_EXPOSED'}elseif($netHttp -eq '200' -and $netOpenApi){$gate='BLOCKED_NET_EXPOSED'}else{$gate='BLOCKED_HTTP_OR_OPENAPI_RESULT'}}else{$gate='BLOCKED_JWT_CLAIMS_MISMATCH'}}}}}}catch{$gate='BLOCKED_CLI_JSON_OR_INTERNAL_ERROR';$failure='CHECK_COMMAND_FAILED'}finally{$key=$null;$cliText=$null;$cliLines=$null;$rows=$null;$selected=$null;$parts=$null;$head64=$null;$body64=$null;$headText=$null;$bodyText=$null;$jwtHeader=$null;$jwtClaims=$null;$pub=$null;$net=$null};$lines=@('runtime=PowerShell '+$PSVersionTable.PSVersion.ToString(),'project_ref=ofqqrryamslxoqkklraw','supabase_cli_version=3.0.0','env_SUPABASE_ACCESS_TOKEN_present='+$envTokenPresent,'cli_command_exit_code='+$cliExit,'legacy_service_role_count='+$legacyCount,'jwt_three_segments='+$jwtThree,'jwt_algorithm='+$jwtAlg,'jwt_role_service_role='+$roleMatch,'jwt_project_ref_match='+$refMatch,'jwt_signature_verified=False','public_http_status='+$pubHttp,'public_openapi_valid='+$pubOpenApi,'public_openapi_path_count='+$pubPaths,'public_postgrest_code='+$pubPgrst,'net_http_status='+$netHttp,'net_openapi_valid='+$netOpenApi,'net_openapi_path_count='+$netPaths,'net_postgrest_code='+$netPgrst,'failure='+$failure,'GATE='+$gate);Set-Content -Path $report -Value $lines -Encoding ASCII;$lines"
+notepad feedback-lot00-openapi-readonly-20261108.txt
+~~~
+
+### 69.3 Sortie attendue et interprétation
+
+Le rapport `feedback-lot00-openapi-readonly-20261108.txt` ne contient que les codes HTTP, les indicateurs JWT non secrets, le code PostgREST, le nombre de chemins OpenAPI et le GATE. L'ouvrir avec la commande Notepad fournie après l'exécution.
+
+- `PASS_NET_NOT_EXPOSED` exige `public_http_status=200`, `public_openapi_valid=True`, `net_http_status=406` et `net_postgrest_code=PGRST106`.
+- `BLOCKED_NET_EXPOSED` si le profil net reçoit HTTP 200 et OpenAPI valide.
+- Toute autre valeur maintient `BLOCKED_REVIEW_REQUIRED`; aucune modification du schéma ou des droits n'est automatique.
+
+### 69.4 Garde-fous
+
+- Appel Management API en GET limité à `api-keys` pour le ref E2E explicitement fourni ; appel PostgREST en deux GET seulement.
+- Aucun `--reveal` ; aucune nouvelle clé `sb_secret` révélée ; aucun `projects list`.
+- Pour le Data API, la clé JWT Legacy est envoyée dans `apikey` et `Authorization: Bearer`, car c'est un JWT HS256.
+- Aucun accès JOBLY-PROD, aucun DML/DDL/RPC métier/`net.http_*`, aucune opération Auth, aucune mutation fixture, aucune fusion, aucun déploiement.
+- Le script annule ses références locales à la clé et aux objets de sortie avant de terminer ; cela ne garantit pas l'effacement physique des chaînes en mémoire du runtime.
+- Le PAT full-access demeure full-access au compte ; les restrictions sont procédurales. Le révoquer dans Dashboard → Access Tokens après le contrôle, en identifiant exactement le PAT créé par le login navigateur, sans révoquer un autre jeton.
+
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED** jusqu'à réception et analyse du rapport.
+- `main` inchangée ; PR #266 ouverte, brouillon, non fusionnée.
+- Document source avant cette mise à jour : V2.66, blob SHA 41623285363f1267fe3f7109f91fcd9dcda20a6b, branche `e2e/recette`.
