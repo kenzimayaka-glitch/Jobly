@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.122 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.123 — 8 novembre 2026
 >
 > **Dernière correction de code Storage LOT-00 :** `f3753f7370007647a5e4bf99c130c69437d0c921` ; runner épinglé `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke de connexion initial **3/3 PASS** (§96) et cycle de session/renouvellement **12/12 PASS** (§99), couvrant TALENT, RECRUITER et PARTNER. Le rapport du 8 novembre 2026 à 22:30:34 UTC confirme `status=PASS`, `environment=JOBLY-E2E`, projet `ofqqrryamslxoqkklraw` et `externalMessagesSent=false`. Audit statique préalable du prochain scénario `e2e/authenticated-role-smoke.mjs` : contrôles API par rôle, refus d'accès non autorisé et scénario synthétique Talent→Recruteur ; il réalise également des créations/mises à jour/suppressions de données temporaires JOBLY-E2E et nécessite que l'API locale ait `SUPABASE_SERVICE_ROLE_KEY`. Le parcours croisé peut lire `.e2e-fixture-runtime.json` pour un service role E2E ; ne pas reconstituer/restaurer ce runtime ni provisionner les fixtures. Le script n'a pas encore été exécuté. LOT-01 global reste en cours. `main` et JOBLY-PROD restent hors périmètre.
+> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial **3/3 PASS** et cycle de session **12/12 PASS** (§96 et §99). Préparation du test API par rôle : le préflight opérateur du 8 novembre 2026 à 22:34:39 a confirmé URL/ref JOBLY-E2E et fixtures complètes, mais l'ancien code serveur ne lisait que `SUPABASE_SERVICE_ROLE_KEY`, alors que `.env.local` contient la clé moderne `SUPABASE_SECRET_KEY`; le clone local était en retard et aucun runtime privé n'existait. Correctif `adminClient()` maintenant compatible avec la secret key Supabase côté serveur ; le smoke API utilise cette clé locale sans `.e2e-fixture-runtime.json`. Un runner `e2e/run-authenticated-role-recipe.mjs` exécute le build et le smoke sur un worktree détaché propre de `origin/e2e/recette`, lit `.env.local` et `.e2e-fixtures.json` depuis le dépôt source, ne les copie pas et ne les imprime pas. Le parcours croisé crée des données temporaires JOBLY-E2E et vérifie leur nettoyage. Aucun test API exécuté à ce stade ; aucun changement de donnée distante dans le préflight initial. `main` reste hors périmètre.
 
-**Version :** 2.122  
+**Version :** 2.123  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -76,8 +76,8 @@ Script relu sur `e2e/recette` : `e2e/authenticated-role-smoke.mjs`, blob `4fc2fd
 - Le scénario Recruteur crée un brouillon via API, le relit/modifie puis tente de le supprimer via API dans un `finally`.
 - Le parcours croisé crée une offre publiée E2E, renseigne uniquement un contact `example.invalid`, prépare une candidature synthétique non envoyée, teste les transitions et nettoie l'offre/candidature. Si la suppression API échoue, le script prévoit une suppression de repli strictement filtrée sur les IDs et propriétaires du run, via l'admin JOBLY-E2E, puis vérifie l'absence des lignes.
 - La route `/api/applications` confirme dans le code que la candidature préparée reste `USER_REVIEW`; le message/email n'est pas envoyé. Le test fournit `letterText`, ce qui force `skipAi` et évite l'appel au fournisseur IA.
-- Le script du parcours croisé lit `.e2e-fixture-runtime.json` et utilise sa clé privée uniquement en mémoire pour le ciblage/nettoyage de données JOBLY-E2E. Si le fichier runtime manque, ce sous-parcours est `BLOCKED` sans créer l'offre publiée ni la candidature ; les contrôles API individuels peuvent néanmoins s'exécuter.
-- Les routes Next.js utilisent `lib/server-auth.ts::adminClient()`, qui attend actuellement `SUPABASE_SERVICE_ROLE_KEY`. La présence de `SUPABASE_SECRET_KEY` seule ne prouve pas que le serveur local a cette variable attendue. Ne pas copier ou restaurer automatiquement une clé/runtime pour contourner ce prérequis.
+- À la date de l'audit initial, le script lisait `.e2e-fixture-runtime.json`. Cette dépendance a été supprimée au §101 : la clé serveur JOBLY-E2E est désormais lue depuis l'environnement local, et aucun runtime privé séparé n'est requis.
+- L'audit initial avait constaté que `lib/server-auth.ts::adminClient()` ne lisait que `SUPABASE_SERVICE_ROLE_KEY`. Ce défaut est corrigé au §101 : le client accepte désormais `SUPABASE_SECRET_KEY` de façon serveur-only, avec fallback legacy.
 
 ### Préflight local sans secret ajouté
 
@@ -104,7 +104,88 @@ Envoyer uniquement `artifacts/e2e/authenticated-role-preflight-safe.json`. Selon
 - Ne pas lancer `scripts/e2e-local-recipe.mjs`, le provisionneur ni le reset de mots de passe. Ne pas déclencher le workflow complet des 11 lots pour n'exécuter que ce scénario.
 - En l'état, aucun test API de rôle n'est déclaré PASS ; aucune donnée E2E n'a été créée par cet audit statique.
 
-**Résultat :** script approprié identifié, mais exécution différée jusqu'au préflight de configuration/serveur afin d'éviter d'exécuter un ancien build ou de déclencher des mutations sur une configuration incomplète.
+**Résultat au moment de l'audit :** script non exécuté. Les correctifs de configuration et le runner isolé sont consignés au §101 ; l'exécution reste en attente du worktree propre.
+
+---
+
+## 101. LOT-01 — correction du préflight API : clé serveur moderne et worktree isolé
+
+**Mise à jour : 8 novembre 2026. Statut : CORRECTIFS COMMIS ; recette API non encore exécutée.**
+
+### 101.1 Rapport de préflight local reçu
+
+Rapport `artifacts/e2e/authenticated-role-preflight-safe.json` daté du 8 novembre 2026 à 22:34:39.380 :
+- URL Supabase et projet : conformes à JOBLY-E2E (`ofqqrryamslxoqkklraw`) ;
+- `.env.local` présent ; la clé `SUPABASE_SECRET_KEY` existe, mais `SUPABASE_SERVICE_ROLE_KEY` est absente ;
+- manifeste `.e2e-fixtures.json` présent et structure des trois rôles valide ;
+- `.e2e-fixture-runtime.json` absent ;
+- branche locale `e2e/recette`, HEAD local `e92feb8abc1a2491cab7dd81e834080b80982681`, distant à cette date `5391f2ca6e68b0f1130e6293c4ef2aebc9947fc6` ;
+- `node_modules/next` présent ;
+- aucune requête réseau, mutation distante, modification de compte ou de profil ; aucun secret imprimé.
+
+### 101.2 Correction du client serveur Supabase
+
+Documentation Supabase consultée : les clés `sb_secret_…` sont la nouvelle clé serveur élevée destinée à remplacer `service_role`, et doivent rester exclusivement dans les composants backend. `lib/server-auth.ts::adminClient()` accepte désormais `SUPABASE_SECRET_KEY` en priorité, avec compatibilité descendante `SUPABASE_SERVICE_ROLE_KEY`. La clé n'est jamais préfixée `NEXT_PUBLIC_` ni exposée au client.
+
+Fichier : `lib/server-auth.ts`  
+Commit : `b773b8924749a11b5ce97e91b89247e7ae8d680b`  
+Blob : `a2b4e84d7cec2fc47e3bb14943e1c1a78c58cc8f`
+
+### 101.3 Correction du test API authentifié
+
+`e2e/authenticated-role-smoke.mjs` :
+- accepte un chemin explicite `E2E_FIXTURE_PATH`, pour lire le manifeste local d'origine sans en copier le contenu dans le worktree ;
+- lit `SUPABASE_SECRET_KEY` ou l'ancienne `SUPABASE_SERVICE_ROLE_KEY` depuis l'environnement, avec secours de lecture `.env.e2e.local` / `.env.local` / `.env` uniquement lorsque leur URL correspond exactement au projet E2E ;
+- vérifie le format `sb_secret_` ou, pour l'ancien JWT, le `ref` et le rôle `service_role` ;
+- ne dépend plus du fichier `.e2e-fixture-runtime.json` ; aucun provisionnement ou reset requis.
+
+Commits successifs : `d18f8417b592b666fd8b2d4349589f3cd107a432`, puis correctif du parseur `34b08496e744aaaf93795ef7911d851ffb665e3f`. Blob actuel : `7d85bb578d564b0385c4c8f7ac1fea637306d67d`.
+
+Le préflight `e2e/authenticated-role-preflight-safe.mjs` a également été mis à jour : une secret key `sb_secret_` est désormais reconnue comme clé serveur valide et l'absence de `.e2e-fixture-runtime.json` ne bloque plus le parcours croisé. Blob : `8cb6304551451228d37ab52cb5179aba31fd1f5c`.
+
+### 101.4 Runner local isolé
+
+Nouveau lanceur : `e2e/run-authenticated-role-recipe.mjs`. Commits : `2cadd79c92241a1c7d305633177e6c4645b34ef1`, `a1218f3b67dc68d1e5dc674974d653f3b672043f` (traçabilité des mutations/nettoyages), `14cae46928f7e972269e7d3c6654caab441a48dd` (fallback public E2E). Blob actuel : `a570cc3246b07370b30350452f25cc25abe1ec28`.
+
+Fonctionnement :
+- exige un worktree détaché propre dont `HEAD` est exactement égal à `origin/e2e/recette` ; refuse le clone local modifié ou un serveur déjà présent sur le port 3217 ;
+- lit les variables de `.env.local` et les fixtures depuis le chemin source fourni, sans copier ces fichiers vers le worktree et sans imprimer les valeurs ;
+- vérifie strictement l'URL E2E, la publishable key et le format de la clé serveur ;
+- exécute `pnpm build`, démarre Next sur `127.0.0.1:3217`, attend le HTTP 401 attendu de `/api/profile` sans session, puis lance le smoke API ;
+- arrête le serveur dans le bloc `finally` ; produit un résumé sans secrets, et expose les statuts de nettoyage du smoke.
+
+Le parcours API peut insérer temporairement des offres/candidatures synthétiques dans JOBLY-E2E ; les routes et le script tentent leur suppression et vérifient ensuite l'absence des enregistrements. `externalActions=false` : aucun email/SMS ni envoi de candidature réel n'est prévu ; la candidature reste en `USER_REVIEW`. Le rapport de recette devra confirmer les contrôles de nettoyage. Une interruption brutale peut toutefois nécessiter une vérification du résiduel JOBLY-E2E avant toute relance.
+
+### 101.5 Exécution opérateur
+
+Ne pas utiliser `pull`, `switch`, `reset`, `stash` ou `clean` dans le dépôt local existant. Depuis CMD :
+
+```cmd
+cd /d C:\Users\ASUS\Jobly
+git fetch origin
+if errorlevel 1 exit /b 1
+if exist "C:\Users\ASUS\Jobly-e2e-recette\" (
+  echo Le dossier C:\Users\ASUS\Jobly-e2e-recette existe deja ; choisir un autre dossier sans le supprimer.
+  exit /b 1
+)
+git worktree add --detach C:\Users\ASUS\Jobly-e2e-recette origin/e2e/recette
+if errorlevel 1 exit /b 1
+cd /d C:\Users\ASUS\Jobly-e2e-recette
+if errorlevel 1 exit /b 1
+pnpm install --frozen-lockfile --ignore-scripts
+if errorlevel 1 exit /b 1
+node --check e2e\authenticated-role-smoke.mjs
+if errorlevel 1 exit /b 1
+node --check e2e\run-authenticated-role-recipe.mjs
+if errorlevel 1 exit /b 1
+node e2e\run-authenticated-role-recipe.mjs C:\Users\ASUS\Jobly
+notepad artifacts\e2e\authenticated-role-runner-summary.json
+notepad artifacts\e2e\authenticated-role-smoke.json
+```
+
+Résultats attendus : résumé `artifacts/e2e/authenticated-role-runner-summary.json` et rapport détaillé `artifacts/e2e/authenticated-role-smoke.json`. Transmettre uniquement ces deux rapports. Ne jamais copier le contenu de `.env.local`, `.e2e-fixtures.json`, une clé ou un token dans le chat. Le worktree distinct reste en place jusqu'à revue des résultats ; ne pas le supprimer automatiquement.
+
+**État après correctifs :** aucun test API n'a encore été exécuté. Smoke Auth 3/3 (§96) et cycle de session 12/12 (§99) restent PASS. LOT-01 global reste EN COURS. `main` reste `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangée ; PR #266/#267 non fusionnées ; aucun accès JOBLY-PROD ni déploiement.
 
 ---
 
