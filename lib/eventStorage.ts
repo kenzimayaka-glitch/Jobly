@@ -28,7 +28,7 @@ export async function exposePublishedEventMedia(supabase: any, event: Record<str
 
   const { data, error } = await supabase.storage
     .from(JOBLY_EVENTS_BUCKET)
-    .createSignedUrl(storagePath, 60 * 60);
+    .createSignedUrl(storagePath, 60 * 60 * 24 * 7);
 
   return {
     ...publicEvent,
