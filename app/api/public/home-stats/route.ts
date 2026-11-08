@@ -120,11 +120,14 @@ async function fetchPublishedRecruiterOffers(
 }
 
 export async function GET() {
+  let stage = "initialize";
   try {
+    stage = "admin_client";
     const supabase = adminClient();
     const now = new Date();
     const nowIso = now.toISOString();
 
+    stage = "discovery_recruiter_profile_queries";
     const [discoveryOffers, recruiterOffers, talentProfiles] = await Promise.all([
       fetchAllActiveDiscoveryOffers(supabase),
       fetchPublishedRecruiterOffers(supabase, now),
@@ -133,6 +136,7 @@ export async function GET() {
 
     if (talentProfiles.error) throw talentProfiles.error;
 
+    stage = "first_harvest_dates";
     const firstHarvestByJob = await fetchFirstHarvestDates(supabase, discoveryOffers);
 
     const visibleDiscoveryOffers = discoveryOffers.filter((offer) => {
@@ -157,6 +161,7 @@ export async function GET() {
       }).visible,
     ).length;
 
+    stage = "response";
     return NextResponse.json(
       {
         // Count only visible, fresh offers located in African countries.
@@ -170,7 +175,14 @@ export async function GET() {
         },
       },
     );
-  } catch {
+  } catch (error) {
+    const errorCode =
+      error && typeof error === "object" && "code" in error && typeof (error as { code?: unknown }).code === "string"
+        ? (error as { code: string }).code
+        : error instanceof Error
+          ? error.name
+          : "UNKNOWN";
+    console.error("[public-home-stats] request failed", { stage, errorCode });
     return NextResponse.json(
       { message: "Les statistiques publiques sont momentanément indisponibles." },
       { status: 503, headers: { "Cache-Control": "no-store" } },
