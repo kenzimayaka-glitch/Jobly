@@ -401,7 +401,7 @@ export async function POST(request: NextRequest) {
     } else if (format === "WEB") {
       const html = renderWebHtml(data);
       bodyBuffer = Buffer.from(html, "utf8");
-      contentType = "text/html";
+      contentType = "text/html; charset=utf-8";
       metadata = { ...metadata, dynamicPublicPage: data.publicUrl, noIndex: true, iframeCode: `<iframe src="${data.publicUrl}" loading="lazy" style="width:100%;min-height:720px;border:0" title="Listing officiel Jobly"></iframe>` };
     } else {
       const requested = body.size === "640" ? { width: 640, height: 1280 } : body.size === "2160" ? { width: 2160, height: 4320 } : { width: 4320, height: 8640 };
