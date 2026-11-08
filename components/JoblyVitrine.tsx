@@ -110,6 +110,7 @@ export default function JoblyVitrine() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [stats, setStats] = useState<HomeStats | null>(null);
   const [statsUnavailable, setStatsUnavailable] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [audience, setAudience] = useState<Audience>({ accountKey: null, role: null });
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -118,7 +119,7 @@ export default function JoblyVitrine() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nextCopy = copy[lang];
 
-  const refreshStats = useCallback(async () => {
+  const refreshStats = useCallback(async (sessionToken: string | null) => {
     try {
       const response = await fetch("/api/public/home-stats", { cache: "no-store", headers: { Accept: "application/json" } });
       if (!response.ok) throw new Error("stats unavailable");
@@ -127,7 +128,25 @@ export default function JoblyVitrine() {
           !Number.isSafeInteger(payload.offersCount) || (payload.offersCount ?? -1) < 0 || typeof payload.updatedAt !== "string") {
         throw new Error("invalid stats payload");
       }
-      setStats(payload as HomeStats);
+
+      // A signed-in visitor gets the exact total returned by the Talent offer
+      // feed in its pan-African view. This reuses the same server-side filters,
+      // freshness rules and recruiter-offer inclusion as /jobs.
+      let offersCount = payload.offersCount as number;
+      if (sessionToken) {
+        const feedResponse = await fetch("/api/jobs?limit=1&page=1&scope=africa", {
+          cache: "no-store",
+          headers: { Accept: "application/json", Authorization: `Bearer ${sessionToken}` },
+        });
+        if (!feedResponse.ok) throw new Error("talent feed unavailable");
+        const feedPayload = await feedResponse.json() as { totalAvailable?: unknown };
+        if (!Number.isSafeInteger(feedPayload.totalAvailable) || (feedPayload.totalAvailable as number) < 0) {
+          throw new Error("invalid talent feed total");
+        }
+        offersCount = feedPayload.totalAvailable as number;
+      }
+
+      setStats({ ...(payload as HomeStats), offersCount });
       setStatsUnavailable(false);
     } catch {
       setStatsUnavailable(true);
@@ -140,7 +159,8 @@ export default function JoblyVitrine() {
     let supabase: ReturnType<typeof getSupabaseClient> | null = null;
     let subscription: { unsubscribe: () => void } | null = null;
     const resolveContext = async (accessToken?: string | null) => {
-      if (!accessToken) { if (active) setAudience({ accountKey: null, role: null }); return; }
+      if (!accessToken) { if (active) { setAccessToken(null); setAudience({ accountKey: null, role: null }); } return; }
+      if (active) setAccessToken(accessToken);
       try {
         const response = await fetch("/api/public/site-context", { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
         const context = response.ok ? await response.json() as Audience : null;
@@ -177,12 +197,14 @@ export default function JoblyVitrine() {
   }, [reduceMotion]);
 
   useEffect(() => {
-    void refreshStats();
-    const interval = window.setInterval(() => { if (document.visibilityState === "visible") void refreshStats(); }, 20_000);
-    const onVisible = () => { if (document.visibilityState === "visible") void refreshStats(); };
+    void refreshStats(accessToken);
+    // The authenticated feed has a stricter rate limit than the public counter;
+    // refresh every three minutes and immediately when the tab becomes visible.
+    const interval = window.setInterval(() => { if (document.visibilityState === "visible") void refreshStats(accessToken); }, 180_000);
+    const onVisible = () => { if (document.visibilityState === "visible") void refreshStats(accessToken); };
     document.addEventListener("visibilitychange", onVisible);
     return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); };
-  }, [refreshStats]);
+  }, [accessToken, refreshStats]);
 
   useEffect(() => {
     try { setSoundEnabled(localStorage.getItem("jobly:success-moments:sound") !== "0"); } catch { /* Default on. */ }
