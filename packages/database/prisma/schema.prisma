@@ -145,6 +145,9 @@ model User {
   role            UserRole     @default(TALENT)
   notificationsEnabled Boolean  @default(true)
   profilePhotoUrl String?
+  profilePhotoStoragePath String?
+  profilePhotoVisibility String @default("PRIVATE")
+  profilePhotoConsentAt DateTime?
   pitchVideoUrl String?
   pitchVideoStoragePath String?
   pitchVideoDurationMs Int?
@@ -1197,6 +1200,7 @@ model Event {
   audience String[] @default([])
   mediaType String?
   mediaUrl String?
+  mediaStoragePath String?
   mediaSizeBytes Int?
   mediaDurationSeconds Float?
   status String @default("DRAFT")
