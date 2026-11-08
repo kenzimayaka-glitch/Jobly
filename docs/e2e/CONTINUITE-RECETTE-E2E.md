@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.48 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.49 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -2705,3 +2705,64 @@ Ce PASS ne constitue pas une exécution de `e2e/authenticated-role-smoke.mjs). I
 - Aucun accès JOBLY-PROD, aucune mutation de fixture ou de données, aucun changement de `main), aucun déploiement.
 - PR #266 reste ouverte, brouillon et non fusionnée.
 - Document source avant cette mise à jour : V2.47, blob SHA `08c7a37a53eb28089b3ddd5fee2c88d6f0f6128a`, branche `e2e/recette`.
+
+
+---
+
+## 51. Cartographie des six groupes bulk locaux et relance minimale — V2.49 — 8 novembre 2026
+
+### 51.1 Conclusion
+
+Les six groupes de régression de `scripts/e2e-bulk-runner.mjs` ne dépendent pas du gate LOT-00 : leur périmètre est constitué de tests Node.js unitaires ou statiques. Ils n'exécutent ni smoke Auth/runtime, ni appel réseau réel à Supabase, ni ingestion, ni paiement, ni écriture dans une fixture.
+
+LOT-00 reste obligatoire pour les scénarios qui appellent réellement JOBLY-E2E : Auth, API, navigateur connecté, lecture runtime, parcours métier et écritures de test. Il ne bloque pas ces six groupes locaux.
+
+### 51.2 Inventaire des groupes et volumes de tests inspectés
+
+| Groupe | Fichiers | Tests dans les fichiers | Nature contrôlée |
+|---|---:|---:|---|
+| `identity-talent-recruiter` | 4 | 66 | Auth, assistant candidature externe, CV/Talent, rôles Recruteur ; assertions de code et de contrats |
+| `africa-mobility` | 3 | 38 | Fraîcheur des offres, règles Mobility et segmentation des requêtes batch avec fonction de chargement simulée |
+| `jia-360-android` | 10 | 71 | Fonctions J'IA, règles de conversation, isolation et inventaire d'interface ; assertions locales |
+| `events-billing-ecosystem` | 5 | 30 | Règles Events, éligibilité billing, communauté, logos et watermark ; sans appel fournisseur |
+| `mobile-money` | 7 | 66 | Parsing SMS, matching, configuration, partage client et assertions Android ; données et fonctions de test simulées |
+| `security-offline` | 4 | 31 | Rate limiting, droits, offline et vérification HIBP avec `fetchImpl` simulé |
+| **Total** | **33** | **302** | **Code-only / local** |
+
+Le groupe `authenticated-runtime-contracts` est distinct : son fichier unique contient 6 tests et a désormais un résultat opérateur **PASS 6/6**, enregistré au §50.
+
+### 51.3 Différentiel de code depuis la campagne 302/302
+
+La campagne antérieure de six groupes, enregistrée au §11, totalise 302/302. Le commit historique communiqué pour la campagne est `60a40dbc60bb8d3a7b069e96291a0a375a01911e).
+
+Comparaison GitHub entre ce commit et `e92feb8abc1a2491cab7dd81e834080b80982681) :
+- 11 commits d'avance, aucun commit en retard ;
+- parmi les six groupes historiques, le seul fichier de test existant modifié est `scripts/talent-cv-application-regression.test.mjs`, qui appartient à `identity-talent-recruiter` (une insertion et une suppression dans ce fichier) ;
+- `scripts/e2e-bulk-runner.mjs` ajoute le groupe `authenticated-runtime-contracts`, sans remplacer les définitions des six groupes historiques ;
+- les autres changements portent sur `e2e/authenticated-role-smoke.mjs), `scripts/e2e-local-recipe.mjs), le nouveau test `scripts/e2e-authenticated-runtime-regression.test.mjs` et le document de continuité ; ils ne modifient pas les cinq autres suites bulk.
+
+Conséquence : les cinq groupes `africa-mobility`, `jia-360-android`, `events-billing-ecosystem`, `mobile-money` et `security-offline` conservent leur preuve précédente, leurs fichiers de test n'ayant pas changé dans le différentiel contrôlé. Il n'est pas nécessaire de les relancer uniquement pour débloquer LOT-00. Le groupe `identity-talent-recruiter` doit être relancé pour rafraîchir sa preuve sur la version modifiée du test CV.
+
+### 51.4 Commande minimale à exécuter maintenant
+
+Depuis CMD Windows, dans le dépôt Jobly et sur la branche locale `e2e/recette) :
+
+~~~bat
+cd /d C:\Users\ASUS\Jobly
+node --experimental-strip-types scripts/e2e-bulk-runner.mjs --groups identity-talent-recruiter
+notepad artifacts\e2e\bulk\summary.md
+notepad artifacts\e2e\bulk\identity-talent-recruiter.log
+~~~
+
+Le runner écrit uniquement les rapports du groupe dans `artifacts/e2e/bulk`. Transmettre le SHA local effectivement testé ainsi que les lignes du rapport ; ne pas lancer le runner E2E global.
+
+### 51.5 Statut et limites
+
+- Six groupes historiques : **302/302 PASS précédemment enregistré** ; cinq groupes inchangés, preuve conservée.
+- `identity-talent-recruiter` : **à relancer**, 66 tests, suite contenant le fichier modifié.
+- `authenticated-runtime-contracts` : **PASS 6/6**, cf. §50.
+- Les recettes code-only n'établissent pas la disponibilité des API, la validité des fixtures, l'authentification réelle, les permissions runtime ni les parcours utilisateur.
+- LOT-00 : **PARTIAL / BLOCKED_REVIEW_REQUIRED** ; les recettes runtime demeurent suspendues.
+- Aucun accès JOBLY-PROD, aucune mutation Supabase/fixture, aucun changement de `main), aucun déploiement.
+- PR #266 reste ouverte, brouillon, non fusionnée.
+- Document source avant cette mise à jour : V2.48, blob SHA `5c504ec11128ae45f1aa1ed25f686f3ea8cccdfe`, branche `e2e/recette`.
