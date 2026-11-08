@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.74 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.75 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3835,3 +3835,65 @@ Le tableau de synthèse de l'exécution historique §3.3 n'est pas réécrit : i
 ### 76.6 Référence
 
 Décision enregistrée en V2.74 sur `e2e/recette`. Source avant cette mise à jour : blob SHA `1bf9cde875353a3db200e04518c80c515caa2341`. Aucun code d'application ni runner n'a été modifié dans cette mise à jour ; seule la référence de recette et l'ordre des lots sont ajustés.
+
+
+
+---
+
+## 77. Prochaine commande opérateur — préflight LOT-00 non-OpenAPI, autonome et read-only — V2.75 — 8 novembre 2026
+
+### 77.1 Périmètre vérifié dans le code
+
+Le fichier `e2e/lot0-preflight.mjs` (blob source vérifié : `94349566afd2d743e36befd1ad5fe8d646fdd0a4`) :
+- compare `E2E_PROJECT_REF`, `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` à la configuration exacte JOBLY-E2E ;
+- effectue une seule requête HTTP GET vers `/auth/v1/settings` ;
+- lit seulement quelques paramètres Auth non sensibles ;
+- ne crée ni compte, ni session, ni fixture, n'effectue aucun INSERT/UPDATE/DELETE, ne restaure aucun secret et ne lance pas OpenAPI.
+
+Cette commande peut donc être exécutée séparément du runner global. Elle ne doit pas être confondue avec `scripts/e2e-local-recipe.mjs`, qui possède un chemin de restauration/provisionnement de fixtures et reste verrouillé tant que ce chemin n'a pas été revu et autorisé.
+
+### 77.2 Commande CMD Windows retenue
+
+Le rapport non sensible est `feedback-lot00-preflight-20261108.txt`. La commande ouvre Notepad immédiatement après son écriture.
+
+```bat
+cd /d C:\Users\ASUS\Jobly
+if not exist e2e\lot0-preflight.mjs (
+  echo ERROR=E2E_LOT0_PREFLIGHT_SCRIPT_NOT_FOUND>feedback-lot00-preflight-20261108.txt
+  notepad feedback-lot00-preflight-20261108.txt
+  exit /b 2
+)
+(
+  echo node_version:
+  node --version
+  echo branch:
+  git branch --show-current
+  echo commit:
+  git rev-parse HEAD
+  echo --- LOT-00 PREFLIGHT ---
+) > feedback-lot00-preflight-20261108.txt 2>&1
+set "E2E_PROJECT_REF=ofqqrryamslxoqkklraw"
+set "NEXT_PUBLIC_SUPABASE_URL=https://ofqqrryamslxoqkklraw.supabase.co"
+set "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y"
+node e2e/lot0-preflight.mjs >> feedback-lot00-preflight-20261108.txt 2>&1
+set "RECIPE_EXIT=%ERRORLEVEL%"
+echo exit_code=%RECIPE_EXIT%>>feedback-lot00-preflight-20261108.txt
+notepad feedback-lot00-preflight-20261108.txt
+```
+
+### 77.3 Résultat attendu et conduite
+
+- `status=PASS` et `exit_code=0` : seule la joignabilité de l'API Auth publique JOBLY-E2E et la cohérence de ses paramètres sont confirmées. Cela ne vaut ni PASS global LOT-00 ni PASS d'une session utilisateur.
+- Toute erreur ou code non nul : consigner exactement le rapport et analyser l'obstacle ; ne pas lancer le runner global en contournement.
+- Ne pas transmettre de clé privée, mot de passe, PAT, JWT ou autre secret. La clé `sb_publishable` est publique et le script ne l'imprime pas.
+- Après ce préflight, les points LOT-00 encore ouverts (décision sur les buckets publics, matrice ciblée grants/policies et revue de disponibilité/isolation des fixtures) restent à traiter séparément en lecture seule.
+- Aucun lancement automatique de `scripts/e2e-local-recipe.mjs`, d'Auth utilisateur, de navigateur connecté ou de bulk n'est autorisé par cette commande.
+- Le LOT-11 OpenAPI demeure reporté à la fin, après LOT-10 (§76).
+
+### 77.4 Statut et garde-fous
+
+La commande est fournie et documentée, mais **NON EXÉCUTÉE par l'assistant**. Son rapport reste attendu de l'opérateur. Aucun test déjà PASS n'est relancé ; aucun accès JOBLY-PROD, aucune écriture Supabase, aucune mutation de fixture, aucun changement de `main`, aucune fusion et aucun déploiement. PR #266 reste ouverte, brouillon et non fusionnée.
+
+### 77.5 Référence
+
+Mise à jour V2.75 sur `e2e/recette`. Source avant ajout : blob SHA `4fa5c98f41333e605228aac8bf00f3b6a422a75d`. Code source contrôlé dans `e2e/lot0-preflight.mjs`, sans modification du runner.
