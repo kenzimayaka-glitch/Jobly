@@ -203,9 +203,10 @@ export default function JoblyVitrine() {
 
   useEffect(() => {
     void refreshStats(accessToken);
-    // The authenticated feed has a stricter rate limit than the public counter;
-    // refresh every three minutes and immediately when the tab becomes visible.
-    const interval = window.setInterval(() => { if (document.visibilityState === "visible") void refreshStats(accessToken); }, 180_000);
+    // Keep the anonymous public counter fresh; the authenticated offer feed
+    // has a stricter rate limit, so poll it less frequently.
+    const refreshEvery = accessToken ? 180_000 : 20_000;
+    const interval = window.setInterval(() => { if (document.visibilityState === "visible") void refreshStats(accessToken); }, refreshEvery);
     const onVisible = () => { if (document.visibilityState === "visible") void refreshStats(accessToken); };
     document.addEventListener("visibilitychange", onVisible);
     return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); };
