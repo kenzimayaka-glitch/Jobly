@@ -20,7 +20,8 @@ function parseEnv(content) {
     if (!match) continue;
     let value = match[2].trim();
     if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
-    values[match[1]] = value;
+    // Empty entries in later dotenv files must not erase an earlier valid value.
+    if (value !== "") values[match[1]] = value;
   }
   return values;
 }
