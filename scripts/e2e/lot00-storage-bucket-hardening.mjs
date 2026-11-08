@@ -105,9 +105,20 @@ function normalizeBucket(bucket) {
   };
 }
 
+function canonicalMimeTypes(value) {
+  if (!Array.isArray(value)) return value;
+  // Supabase strips MIME parameters (for example "; charset=utf-8")
+  // and deduplicates allowed MIME types before persisting bucket config.
+  return [...new Set(value.map((mime) =>
+    String(mime).split(";", 1)[0].trim().toLowerCase()
+  ))].sort();
+}
+
 function sameArray(a, b) {
-  if (!Array.isArray(a) || !Array.isArray(b)) return false;
-  return a.length === b.length && a.every((value, index) => value === b[index]);
+  const left = canonicalMimeTypes(a);
+  const right = canonicalMimeTypes(b);
+  if (!Array.isArray(left) || !Array.isArray(right)) return left === right;
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function matches(actual, expected) {
@@ -359,8 +370,15 @@ async function main() {
       const verified = await admin.storage.getBucket(item.id);
       if (verified.error || !verified.data) throw new Error("Impossible de relire le bucket après modification : " + item.id);
       const actual = normalizeBucket(verified.data);
-      if (!matches(actual, item.options)) throw new Error("Configuration Storage non conforme après updateBucket : " + item.id);
+      // Preserve the exact API read-back in the report even when comparison fails.
       report.buckets[index].after = actual;
+      if (!matches(actual, item.options)) {
+        throw new Error(
+          "Configuration Storage non conforme après updateBucket : " + item.id +
+          " ; actual=" + JSON.stringify(actual) +
+          " ; expected=" + JSON.stringify(item.options)
+        );
+      }
       report.buckets[index].status = "PASS";
     }
 
