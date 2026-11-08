@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.22 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.23 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -12,10 +12,10 @@
 >
 > **Verrou de reprise V2.8 :** les sections 7, 9, 10, 11, 12 et 13.7 contiennent des états ou consignes historiques ; elles ne constituent plus des instructions opératoires. En particulier, l'autorisation de reset citée au §9 n'est plus active : ne pas exécuter e2e/reset-existing-fixture-passwords.mjs, les scripts de vérification Auth des anciennes fixtures, le provisionneur, ni scripts/e2e-local-recipe.mjs/le runner bulk. Aucune connexion Auth, mutation de fixture, restauration de mot de passe ou relance globale n'est autorisée par ce document. Le seul prochain contrôle permis est le GET OpenAPI décrit au §16.7, suivi de son analyse.
 >
-> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le contrôle Data API du schéma net n'a pas encore reçu de réponse HTTP exploitable ; l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
+> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le dernier retour opérateur après retransmission du contrôle V4 est `GATE=BLOCKED_REVIEW_REQUIRED`, sans détails `results`/HTTP/`error` fournis. L'exposition du schéma `net` reste donc indéterminée ; l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`. Sélectionner `service_role` uniquement si cette entrée est dans **Legacy API Keys** et que la valeur JWT commence par `eyJ`; utiliser alors le test masqué GET-only du §23.3. Si la valeur commence par `sb_secret_`, ce n'est pas la legacy JWT et il faut arrêter ce script. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.22  
+**Version :** 2.23  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1422,4 +1422,48 @@ notepad feedback-lot00-net-schema-exposure-v4.txt
 - PR #266 relue avant édition : state `open`, draft `true`, merged `false`, HEAD `77919abb0e63e91de3da9a1119bf9921d449781d`, base `main`.
 - Procédure logique de référence : §23.3 du présent document.
 - Nouveau nom de rapport local réservé : `feedback-lot00-net-schema-exposure-v4.txt`.
+---
+
+## 28. Retour opérateur après commande LOT-00 V4 — V2.23 — 8 novembre 2026
+
+### 28.1 Résultat communiqué
+
+Après retransmission de la procédure CMD du §27.3, l'opérateur communique uniquement :
+
+```text
+GATE=BLOCKED_REVIEW_REQUIRED
+```
+
+Ce retour confirme que le gate n'a pas atteint son critère PASS. Il ne constitue toutefois pas le rapport complet `feedback-lot00-net-schema-exposure-v4.txt` et ne fournit ni `credential_type`, ni contenu de `results`, ni détail `error`, ni statut HTTP par profil.
+
+### 28.2 Conclusion permise et limites
+
+- LOT-00 reste **PARTIAL / BLOCKED_REVIEW_REQUIRED**.
+- Il est impossible de déterminer si le script s'est arrêté avant les requêtes (format/claims de clé ou TTY), si la requête `public` a échoué, si la requête `net` a échoué, ou si la réponse a été différente du critère attendu.
+- Aucun statut HTTP pour `public` ou `net` n'est attesté dans ce retour.
+- L'exposition du schéma PostgreSQL `net` reste **NON DÉTERMINÉE**.
+- Ne pas conclure que la clé est invalide, désactivée, acceptée ou rejetée sur la seule base du gate global.
+
+### 28.3 Prochaine information nécessaire
+
+Demander le contenu non secret du rapport V4, ou à défaut les seules lignes suivantes copiées telles quelles : `credential_type=...`, `results=...`, `error=...` si présente, et `GATE=...`. Si `results` contient des réponses HTTP, conserver pour chaque profil `schema`, `status`, `code` et `message`. Ne jamais communiquer la valeur de clé, un header `apikey`, un token ou un contenu d'environnement.
+
+Aucune nouvelle tentative de clé ni nouvelle requête n'est demandée avant lecture de ces détails. Ne pas supprimer ni écraser le rapport V4. La commande exacte est conservée au §27.3 ; si le résultat provient d'une autre commande ou d'un autre fichier, préciser son nom sans joindre de secret.
+
+### 28.4 Effet sur le périmètre E2E
+
+- Le contrôle `public` : **NON QUALIFIÉ — absence de détail HTTP**.
+- Le contrôle `net` : **NON QUALIFIÉ — absence de détail HTTP**.
+- Le gate OpenAPI : **BLOCKED_REVIEW_REQUIRED** selon le message opérateur.
+- Aucun smoke runtime Auth/Talent/Recruteur, aucun navigateur, aucun parcours croisé et aucun bulk ne sont autorisés avant fermeture de LOT-00.
+- Aucun accès JOBLY-PROD ; aucune fixture, donnée, permission, configuration Supabase ou code applicatif modifié dans ce tour.
+- Aucune requête HTTP Supabase n'a été effectuée par l'assistant ; le résultat est une déclaration opérateur, non une observation directe.
+- `main` inchangée ; PR #266 ouverte, en brouillon et non fusionnée ; aucun déploiement.
+
+### 28.5 Preuves de référence
+
+- Retour opérateur reçu dans la conversation : `GATE=BLOCKED_REVIEW_REQUIRED`.
+- Procédure V4 précédemment transmise : §27.3 ; rapport attendu : `feedback-lot00-net-schema-exposure-v4.txt`.
+- Document V2.22 relu avant cette mise à jour : blob SHA `76d8a7e8994b7263b71a42531bf5031ce7df977a` ; branche `e2e/recette`.
+- Aucune preuve HTTP ni détail diagnostique supplémentaire reçu à ce stade.
 
