@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.5 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.6 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -10,9 +10,9 @@
 >
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse Jobly, le mettre à jour dans cette branche et donner comme preuve le commit GitHub ainsi que le chemin du fichier. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
-> **État E2E-001 :** le code a été corrigé directement sur GitHub. Le smoke Talent ne fait plus de `PUT /api/profile`; la zone read-only couvre tout le bloc Talent ; le test statique de non-mutation a été ajouté et intégré au LOT-01. **Validation statique locale encore à exécuter** après synchronisation du poste opérateur. Aucun PASS de test n'est encore revendiqué.
+> **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail et portée au §15). Le correctif Talent est présent et couvert par le LOT-01. Ce PASS ne vaut pas validation du smoke runtime ni de la recette globale. Prochaine barrière : LOT-00 en lecture seule sur JOBLY-E2E.
 
-**Version :** 2.5  
+**Version :** 2.6  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -579,25 +579,79 @@ Le rapport `git status --short` transmis indique :
 - Non suivis : fichiers de diagnostics, rapports bulk, rapports de recette, `tsconfig.tsbuildinfo`, `typecheck-latest.txt` et entrées inhabituelles affichées par Git (`({`, `)`, `0`, `account.role)`, `item.role`, `item.status`, `role)`, `undefined)`, `{`). Tous restent à préserver.
 - Les trois fichiers cibles sont arrivés par fast-forward. Le rapport fourni ne présente aucune erreur de merge.
 
-### 14.3 Prochaine action — test statique E2E-001
+### 14.3 Action initialement prévue — test statique E2E-001 (exécutée, résultat enregistré au §15)
 
-Sur le poste Windows déjà synchronisé, exécuter uniquement :
+La commande prévue a été exécutée sur le poste Windows synchronisé. Le résultat intégral a ensuite été transmis : 6 tests PASS, 0 FAIL. La portée exacte et les noms des six contrôles sont consignés au §15. Cette exécution statique ne lance pas le smoke authentifié, ne contacte pas Supabase et ne change aucune fixture.
 
-```bat
-cd /d C:\Users\ASUS\Jobly
-node --test scripts/e2e-authenticated-runtime-regression.test.mjs > feedback-e2e001-static-test.txt 2>&1
-notepad feedback-e2e001-static-test.txt
-```
+La condition de passage statique est donc satisfaite. Le contrôle LOT-00 en lecture seule (identité du projet, RLS, grants, Storage/buckets/policies, présence et liaison des fixtures) est maintenant le prochain prérequis. Le smoke runtime Talent et le bulk restent interdits avant fermeture de LOT-00.
 
-Ce test lit les fichiers du dépôt et vérifie les contrats de non-mutation. Il ne lance pas le smoke authentifié, ne contacte pas Supabase, ne change aucune fixture et n'a aucun effet métier. Résultat attendu : 6 tests statiques PASS. Le résultat doit être retourné intégralement avant toute suite.
+### 14.4 Point de reprise après synchronisation (état avant le test statique)
 
-Si un test échoue, le smoke runtime et le bulk restent interdits jusqu'à analyse et correction. Si les six tests passent, l'étape suivante sera le contrôle LOT-00 en lecture seule (ref projet, RLS, grants, Storage/buckets/policies, présence et liaison des fixtures) avant toute exécution du smoke Talent.
-
-### 14.4 Point de reprise après synchronisation
-
-- Branche locale : `e2e/recette).
-- HEAD local confirmé par le rapport opérateur : `e92feb8abc1a2491cab7dd81e834080b80982681`.
-- E2E-001 : correctif présent localement et sur GitHub ; validation statique locale en attente.
-- Aucun test de recette n'a été exécuté dans cette étape de synchronisation.
-- Aucun accès ou appel JOBLY-E2E ; aucun accès JOBLY-PROD.
+- Branche locale : e2e/recette.
+- HEAD local confirmé par le rapport opérateur : e92feb8abc1a2491cab7dd81e834080b80982681.
+- À cet instant historique, E2E-001 attendait encore sa validation statique ; ce statut est remplacé par le résultat du §15.
+- Aucun accès ou appel JOBLY-E2E n'avait été effectué pendant la synchronisation ; aucun accès JOBLY-PROD.
 - Aucune fixture modifiée ; aucun commit local, push, merge ou déploiement rapporté.
+
+
+---
+
+## 15. PASS statique local E2E-001 — preuve opérateur — 8 novembre 2026
+
+### 15.1 Résultat reçu
+
+L'opérateur a exécuté le test ciblé scripts/e2e-authenticated-runtime-regression.test.mjs après synchronisation de la branche. Sortie transmise :
+
+| Contrôle | Résultat |
+|---|---:|
+| Talent runtime smoke couvre les flux local et Afrique sans mutation | PASS |
+| Talent offer detail is selected only from an authenticated feed result | PASS |
+| CV original read accepts only a valid signed-link response or explicit no-CV state | PASS |
+| Career Journey runtime smoke uses GET only | PASS |
+| Recruitment360 runtime smoke verifies non-owned scope and missing document target without writes | PASS |
+| Talent role block is read-only from entry through the Recruiter boundary | PASS |
+| **Total** | **6 PASS / 0 FAIL** |
+
+Synthèse Node.js : tests 6, suites 0, pass 6, fail 0, cancelled 0, skipped 0, todo 0, durée 254.0035 ms.
+
+**Gate statique E2E-001 franchi : PASS.**
+
+### 15.2 Portée exacte et limites
+
+Ce résultat valide les six tests automatisés du fichier de régression ciblé. Il confirme notamment que le bloc Talent est protégé en lecture seule sur toute sa portée, depuis son entrée jusqu'à la frontière du bloc Recruteur, et que les contrats statiques des smoke Talent, CV, Career Journey et Recruitment360 sont présents.
+
+Ce résultat n'est PAS :
+- un run du smoke runtime authentifié contre l'API JOBLY-E2E ;
+- une preuve de session Auth ou de disponibilité des fixtures ;
+- une preuve de lecture effective des flux/données en base ;
+- une validation complète du LOT-01, des 11 lots ou de la recette globale.
+
+Aucun PASS runtime, aucun PASS LOT-00 et aucun PASS global n'est déduit de cette exécution. Aucun appel Supabase, aucune modification de fixture et aucune mutation métier ne sont rapportés pour ce test ciblé.
+
+### 15.3 Suite autorisée — LOT-00 strictement en lecture seule
+
+Prochaine étape : compléter l'audit LOT-00 sur le projet JOBLY-E2E ofqqrryamslxoqkklraw, sans aucun accès à JOBLY-PROD. Le rapport doit couvrir et prouver :
+
+1. **Identité de l'environnement** : URL/projet ciblé et confirmation que le ref est exactement ofqqrryamslxoqkklraw.
+2. **RLS** : état RLS des tables concernées par les parcours de recette et présence/absence des politiques applicables.
+3. **Grants et privilèges** : privilèges directs des rôles concernés, sans accorder ni révoquer de droits.
+4. **Storage** : inventaire des buckets, visibilité, policies et accès attendus ; ne pas télécharger ni remplacer un CV ou document fixture.
+5. **Fixtures** : présence des trois identités déjà connues et correspondance identité/role, uniquement en lecture ; ne jamais lire ni modifier de mot de passe, session, jeton ou secret.
+6. **Traçabilité** : conserver les requêtes de diagnostic, le nombre de lignes et les résultats PASS/PARTIAL/BLOCKED ; masquer toute donnée personnelle ou valeur secrète dans le rapport.
+
+**Interdictions maintenues :** aucun INSERT/UPDATE/DELETE/UPSERT, aucune modification de schéma/policy/grant/bucket, aucun changement de compte ou profil fixture, aucun provisionnement ou reset. Ne pas exécuter e2e/reset-existing-fixture-passwords.mjs. Ne pas lancer le smoke runtime, le parcours croisé ou le bulk avant fermeture et analyse du LOT-00.
+
+Après réception du rapport LOT-00, réconcilier les résultats avec le code et les prérequis avant de décider du premier smoke runtime read-only.
+
+### 15.4 État de continuité courant
+
+- E2E-001 : **PASS statique local — 6/6, 0 échec**.
+- LOT-00 : **à réaliser — lecture seule**.
+- Smoke runtime Talent/Recruteur : **en attente du LOT-00**.
+- Recette bulk 11 lots : **suspendue**.
+- JOBLY-E2E : aucune mutation associée au test statique.
+- JOBLY-PROD : interdit, aucun accès.
+- Fixtures partagées : aucune modification.
+- Branche : e2e/recette.
+- PR #266 : ouverte, brouillon, non fusionnée.
+- main : inchangée ; aucun merge ni déploiement.
