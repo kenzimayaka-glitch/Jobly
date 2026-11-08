@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.72 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.73 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3727,3 +3727,47 @@ La cause du code retour 1 ne peut être déterminée qu'avec une nouvelle exécu
 ### 74.5 Référence
 
 Mise à jour V2.72 sur la branche `e2e/recette`. Source avant cette entrée : blob SHA `74c4900b15ea35c9be68fa3910cdaaf6919251cb`. Le présent ajout enregistre le résultat opérateur sans prétendre à un diagnostic de la cause CLI.
+
+
+---
+
+## 75. Rôle réel du contrôle OpenAPI dans LOT-00 — portée, limites et proportionnalité — 8 novembre 2026
+
+### 75.1 Pourquoi ce contrôle a été ajouté
+
+Le GET OpenAPI sur `/rest/v1/` est un contrôle préalable de la surface d'exposition de la Data API Supabase (PostgREST), avant d'engager les tests runtime E2E. Le document décrit les ressources REST générées à partir des schémas exposés : tables, vues, fonctions et méthodes disponibles.
+
+Le gate conçu pour LOT-00 demandait :
+- `Accept-Profile: public` : HTTP 200 avec un document OpenAPI valide, afin de confirmer que le schéma applicatif attendu est servi par la Data API ;
+- `Accept-Profile: net` : HTTP 406 avec `PGRST106`, afin de confirmer que le schéma interne `net` n'est pas exposé par PostgREST.
+
+### 75.2 Ce que ce test démontre — et ne démontre pas
+
+Ce contrôle renseigne sur l'exposition des schémas via la Data API et sur les ressources décrites par PostgREST pour le rôle d'accès utilisé.
+
+Il ne constitue **pas** une recette fonctionnelle Jobly et ne valide pas :
+- les parcours Talent, Recruteur, J'IA, Mobility, Paiements ou Events ;
+- les politiques RLS et leur comportement pour chaque utilisateur authentifié ;
+- la sécurité de chaque ligne ou donnée métier ;
+- les Edge Functions, les traitements asynchrones ou les intégrations externes.
+
+Il ne faut donc pas le présenter comme une preuve globale de sécurité ou comme un prérequis intrinsèque à toute exécution de tests E2E. C'est un garde-fou ciblé sur l'exposition de la Data API.
+
+### 75.3 Contexte Supabase sur l'accès au document
+
+Supabase a annoncé en février 2026 la suppression de l'accès au document OpenAPI au moyen de la clé `anon`, changement déployé à partir du 11 mars 2026. Les réponses `401 Secret API key required` obtenues précédemment avec la clé publishable/anon sont donc cohérentes avec cette restriction et ne signifient pas que les requêtes REST ordinaires vers les ressources autorisées sont en panne.
+
+Supabase documente également le Management API `GET /v1/projects/{ref}/database/openapi`, protégé par le scope de lecture de base de données `database:read`. Cette voie est à évaluer si le contrôle OpenAPI est conservé ; elle évite de déduire qu'une clé `service_role` doit nécessairement être extraite localement pour cette inspection.
+
+### 75.4 Décision et garde-fous
+
+- Le gate LOT-00 reste, à cet instant, **PARTIAL / BLOCKED_REVIEW_REQUIRED**, car les deux réponses HTTP attendues n'ont toujours pas été mesurées.
+- Il est néanmoins établi que le blocage OpenAPI est un blocage du contrôle de surface d'exposition, non un échec démontré de l'API applicative ni des fonctionnalités Jobly.
+- Aucune nouvelle commande CLI utilisant le PAT full-access n'est autorisée implicitement. La tentative ponctuelle précédente a retourné le code 1 et son stderr a été perdu. Le PAT doit être révoqué comme prévu par l'opérateur.
+- Avant de maintenir ce contrôle comme verrou absolu pour la suite de la recette, il faut décider de l'une de ces voies : inspection de l'exposition par Management API avec un accès strictement limité à `database:read`, contrôle SQL read-only de la configuration et des privilèges complété par un test HTTP non destructif, ou reclassement formel de l'inspection OpenAPI comme contrôle de sécurité distinct. Aucun de ces contrôles alternatifs n'a encore été exécuté ni déclaré PASS.
+- Ne pas confondre l'absence de document OpenAPI avec l'indisponibilité des endpoints REST ordinaires.
+- Aucune action JOBLY-PROD, aucune écriture Supabase, aucune mutation de fixture, aucune modification `main`, aucune fusion et aucun déploiement. PR #266 reste ouverte, brouillon et non fusionnée.
+
+### 75.5 Référence
+
+Mise à jour V2.73 sur `e2e/recette`. Source avant cette entrée : blob SHA `4a0ca9a44416398c2f2fc1a76827a99dc42155ac`. Cette entrée documente la finalité et les limites du contrôle ; elle ne modifie pas le gate technique en statut PASS.
