@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.18 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.19 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -8,14 +8,14 @@
 >
 > **Important — instructions historiques neutralisées :** les instructions plus anciennes de ce document qui autorisaient ou demandaient une réinitialisation des mots de passe, une recréation de fixtures ou l'exécution de `e2e/reset-existing-fixture-passwords.mjs` sont obsolètes et ne doivent pas être suivies. Le script local `e2e/reset-existing-fixture-passwords.mjs` reste à préserver et ne doit pas être exécuté. Aucune fixture partagée ne doit être modifiée sans nouvelle autorisation explicite et spécifique.
 >
-> **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse Jobly, le mettre à jour dans cette branche et donner comme preuve le commit GitHub ainsi que le chemin du fichier. Ne pas passer par la Bibliothèque/Word pour cette continuité.
+> **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Verrou de reprise V2.8 :** les sections 7, 9, 10, 11, 12 et 13.7 contiennent des états ou consignes historiques ; elles ne constituent plus des instructions opératoires. En particulier, l'autorisation de reset citée au §9 n'est plus active : ne pas exécuter e2e/reset-existing-fixture-passwords.mjs, les scripts de vérification Auth des anciennes fixtures, le provisionneur, ni scripts/e2e-local-recipe.mjs/le runner bulk. Aucune connexion Auth, mutation de fixture, restauration de mot de passe ou relance globale n'est autorisée par ce document. Le seul prochain contrôle permis est le GET OpenAPI décrit au §16.7, suivi de son analyse.
 >
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le contrôle Data API du schéma net n'a pas encore reçu de réponse HTTP exploitable ; l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **LOT-00 — état clé OpenAPI :** les GET avec clé publishable ont retourné HTTP 401 `Secret API key required`. L'opérateur signale ensuite que la clé secrète moderne (`sb_secret_…`) est elle aussi rejetée, sans avoir encore transmis son statut HTTP/message exact. Le projet JOBLY-E2E est confirmé `ACTIVE_HEALTHY`. L'opérateur confirme voir dans le Dashboard les entrées `anon` public et `service_role` secret. Ne pas utiliser `anon`. Sélectionner `service_role` uniquement si cette entrée est dans **Legacy API Keys** et que la valeur JWT commence par `eyJ`; utiliser alors le test masqué GET-only du §23.3. Si la valeur commence par `sb_secret_`, ce n'est pas la legacy JWT et il faut arrêter ce script. Aucun secret dans le chat, les rapports ou Git.
 
-**Version :** 2.18  
+**Version :** 2.19  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1229,3 +1229,50 @@ Ne pas effectuer un troisième essai avec une autre clé. Transmettre uniquement
 - LOT-00 : **PARTIAL** ; aucune preuve d'exposition ou de non-exposition de `net` obtenue.
 - Buckets publics et matrice ciblée grants/RLS/policies : toujours à compléter.
 - Aucun smoke runtime/Auth, aucun bulk, aucune fixture modifiée, aucun accès JOBLY-PROD, aucun merge/déploiement.
+---
+
+## 24. Gouvernance de continuité et clarification LOT-00 — V2.19 — 8 novembre 2026
+
+### 24.1 Directive de mise à jour systématique
+
+L'opérateur demande que l'assistant mette lui-même à jour le présent document à chaque réponse dans le chantier de recette E2E, avec des preuves.
+
+Règle opérationnelle :
+- Chaque réponse consacrée à ce chantier donne lieu, dans le même tour, à une mise à jour du document sur la branche `e2e/recette`.
+- La mise à jour consigne uniquement les nouveaux faits réellement établis, les décisions, les commandes ou vérifications demandées, les résultats effectivement reçus, les limites et les blocages.
+- Chaque résultat doit être accompagné de sa preuve traçable (rapport, exécution CI, fichier, commit, réponse HTTP ou source exacte). Une action non réalisée est explicitement marquée comme non réalisée.
+- En l'absence de nouvelle preuve technique, l'entrée précise qu'aucun nouveau test ni appel runtime n'a été effectué ; elle ne change pas artificiellement les statuts des lots.
+- Chaque réponse fournit comme preuve de mise à jour le SHA du commit GitHub, la branche et le chemin exact du document.
+- Cette obligation ne lève aucun garde-fou : aucune fixture, donnée, clé, politique, production, fusion ni déploiement ne peut être touché sans l'autorisation spécifique déjà exigée.
+
+### 24.2 État du document et de la PR revalidé avant cette mise à jour
+
+Lecture intégrale du fichier distant sur `e2e/recette` avant écriture :
+- Chemin : `docs/e2e/CONTINUITE-RECETTE-E2E.md`.
+- État source : version V2.18, 1 232 lignes, 102 869 caractères.
+- Blob SHA source : `9d802c1ec8b707067c39019c3b331e674c8cd8a1`.
+- PR #266 : ouverte, brouillon, non fusionnée ; base `main`, branche source `e2e/recette`.
+- HEAD de la PR vérifié : `0aa7970255ffda89fd71412e68f5a1c82f4e126d`.
+- Source de vérification PR : https://github.com/kenzimayaka-glitch/Jobly/pull/266
+- Source du document : https://github.com/kenzimayaka-glitch/Jobly/blob/e2e/recette/docs/e2e/CONTINUITE-RECETTE-E2E.md
+
+### 24.3 Réponse reçue sur l'emplacement de la clé legacy
+
+La question posée était de choisir explicitement entre :
+- **Legacy API Keys** : ligne `service_role` legacy, valeur JWT attendue commençant par `eyJ` ;
+- **Secret keys** : clé moderne commençant par `sb_secret_`.
+
+La réponse opérateur reçue est uniquement « Oui ». Elle ne sélectionne aucun des deux onglets. Elle ne constitue donc pas une preuve que la ligne `service_role` est dans **Legacy API Keys**, ni que son état est actif.
+
+**Blocage inchangé :** demander uniquement le nom de l'onglet où apparaît la ligne, sans jamais demander ni accepter la valeur de la clé. Tant que l'onglet n'est pas identifié, ne pas lancer le script §23.3 et ne faire aucun appel HTTP supplémentaire avec une clé.
+
+### 24.4 Effet de ce tour sur les validations
+
+- LOT-00 : **PARTIAL**, sans changement.
+- Contrôle OpenAPI `public`/`net` avec la clé legacy : **NON EXÉCUTÉ** dans ce tour.
+- Aucun secret saisi, lu, transmis ou utilisé.
+- Aucun appel HTTP Supabase, Auth, SQL, RPC ou Storage effectué dans ce tour.
+- Aucune fixture, donnée, permission ou configuration Supabase modifiée.
+- Aucun test runtime, browser smoke ou bulk exécuté.
+- Aucun changement de code applicatif ; seule cette documentation de continuité est mise à jour.
+- `main` non modifiée ; PR #266 reste ouverte en brouillon ; aucun merge ni déploiement.
