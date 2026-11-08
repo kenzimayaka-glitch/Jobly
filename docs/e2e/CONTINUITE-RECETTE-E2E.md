@@ -4244,6 +4244,8 @@ La branche de correction a donc passé les contrôles automatisés enregistrés 
 - PR **#266** : reste ouverte, brouillon, non fusionnée.
 - `main` reste sur `979f2ccfec9258bc30989af18433cf6adb1b4698` ; aucune de ces corrections n'y est intégrée.
 
-Aucune modification Supabase/Storage, aucun accès JOBLY-PROD, aucune migration appliquée, aucune fusion et aucun déploiement ne sont effectués par cette mise à jour.
+Aucune modification Supabase/Storage, aucun accès JOBLY-PROD, aucune migration appliquée, aucune fusion et aucun déploiement de production ne sont effectués par cette mise à jour.
+
+**Exception de traçabilité — aperçu PR automatique :** après ouverture de PR #267, le statut externe `netlify/thriving-cannoli-c23611/deploy-preview` a été signalé `success` avec l'URL `https://deploy-preview-267--thriving-cannoli-c23611.netlify.app`. Il s'agit d'un aperçu de PR déclenché apparemment par l'intégration Netlify déjà rattachée au dépôt, et non d'une action de déploiement lancée manuellement ici. Cela contredit la préférence projet « Vercel, pas Netlify ». Aucune modification de l'intégration n'a été faite ; il faudra la désactiver ou la remplacer avant les prochaines PR si Vercel doit être l'unique fournisseur d'aperçu.
 
 Mise à jour V2.80 sur `e2e/recette`. Source précédente : blob SHA `5649489b6ab3a3c5140f60c635e4be84aa44fa1b`.
