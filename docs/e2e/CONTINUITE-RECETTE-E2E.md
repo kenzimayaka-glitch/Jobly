@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.13 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.14 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -15,7 +15,7 @@
 > **État E2E-001 : PASS STATIQUE LOCAL — 6/6 tests, 0 échec** (résultat opérateur reçu le 8 novembre 2026 ; détail au §15). Le correctif Talent est présent dans le code de la branche et le test statique a réussi sur le poste local. **LOT-00 reste PARTIAL** : le contrôle Data API du schéma net n'a pas encore reçu de réponse HTTP exploitable ; l'intention des deux buckets publics doit être confirmée et la revue des grants/policies des tables concernées par la recette doit être documentée. Aucun smoke runtime ni bulk n'est autorisé à ce stade.
 > **Tentative Node.js V2.13 :** le GET OpenAPI a été lancé depuis l'environnement isolé de l'agent (Node.js v22.16.0), mais `fetch failed` est survenu avant toute réponse HTTP. Ce résultat est un blocage réseau de cet environnement d'exécution, pas une preuve de panne Supabase et pas un résultat sur l'exposition du schéma. L'action attendue reste l'exécution locale CMD/Node.js décrite au §21.3.
 
-**Version :** 2.13  
+**Version :** 2.14  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -1121,7 +1121,7 @@ Le poste opérateur est déjà connu : `C:\Users\ASUS\Jobly`, Node.js `v26.13.0`
 ```bat
 cd /d C:\Users\ASUS\Jobly
 if exist feedback-lot00-net-schema-exposure.txt echo Rapport existant conserve : ne pas l'ecraser ; ouvrir et transmettre le rapport existant.
-if not exist feedback-lot00-net-schema-exposure.txt node -e "const run=async()=>{const url='https://ofqqrryamslxoqkklraw.supabase.co';const key='sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y';let failed=false;console.log('node='+process.version);for(const schema of ['public','net']){const r=await fetch(url+'/rest/v1/',{method:'GET',headers:{apikey:key,Authorization:'Bearer '+key,Accept:'application/openapi+json','Accept-Profile':schema},signal:AbortSignal.timeout(20000)});const raw=await r.text();let body={};try{body=JSON.parse(raw)}catch{};const out={schema,status:r.status,apiSchemaAccepted:r.ok,openapi:!!(body.openapi||body.swagger),code:body.code??null,message:body.message??null};console.log(JSON.stringify(out));if(schema==='public'){if(!r.ok||!(body.openapi||body.swagger))failed=true;}else if(r.ok||body.code!=='PGRST106')failed=true;}console.log('GATE='+(!failed?'PASS_NET_NOT_EXPOSED':'BLOCKED_REVIEW_REQUIRED'));if(failed)process.exitCode=2;};run().catch(e=>{console.error('LOT00_SCHEMA_CHECK_ERROR:'+e.message);process.exitCode=2;});" > feedback-lot00-net-schema-exposure.txt 2>&1
+if not exist feedback-lot00-net-schema-exposure.txt node -e "const run=async()=>{const url='https://ofqqrryamslxoqkklraw.supabase.co';const key='sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y';let failed=false;console.log('node='+process.version);for(const schema of ['public','net']){const r=await fetch(url+'/rest/v1/',{method:'GET',headers:{apikey:key,Authorization:'Bearer '+key,Accept:'application/openapi+json','Accept-Profile':schema},signal:AbortSignal.timeout(20000)});const raw=await r.text();let body={};try{body=JSON.parse(raw)}catch{};const out={schema,status:r.status,apiSchemaAccepted:r.ok,openapi:!!(body.openapi||body.swagger),code:body.code??null,message:body.message??null};console.log(JSON.stringify(out));if(schema==='public'){if(!r.ok||!(body.openapi||body.swagger))failed=true;}else if(r.status!==406||body.code!=='PGRST106')failed=true;}console.log('GATE='+(!failed?'PASS_NET_NOT_EXPOSED':'BLOCKED_REVIEW_REQUIRED'));if(failed)process.exitCode=2;};run().catch(e=>{console.error('LOT00_SCHEMA_CHECK_ERROR:'+e.message);process.exitCode=2;});" > feedback-lot00-net-schema-exposure.txt 2>&1
 notepad feedback-lot00-net-schema-exposure.txt
 ```
 
@@ -1129,7 +1129,7 @@ Le premier `if exist` protège un éventuel rapport précédent : il n’est jam
 
 Résultat attendu pour fermer uniquement le point d’exposition `net` :
 - Profil `public` : HTTP réussi (`200`), `apiSchemaAccepted=true` et `openapi=true`.
-- Profil `net` : HTTP `406`, `apiSchemaAccepted=false`, `code=PGRST106`.
+- Profil `net` : HTTP `406`, `apiSchemaAccepted=false`, `code=PGRST106` ; la commande impose les deux conditions, et non seulement un refus quelconque.
 - Synthèse : `GATE=PASS_NET_NOT_EXPOSED`.
 
 Tout autre résultat — `fetch failed`, délai dépassé, erreur 401/403, `public` refusé, `net` accepté, code inattendu ou réponse non JSON — reste `BLOCKED_REVIEW_REQUIRED`. Ne pas tenter de corriger les grants ou la configuration à partir de ce seul résultat.
