@@ -34,8 +34,8 @@ export async function POST(request: NextRequest) {
     const kind = form.get("kind") === "hero" ? "hero" : "profile";
     const file = form.get("photo");
     if (!(file instanceof File)) return error("Photo manquante.");
-    if (file.size <= 0 || file.size > (kind === "hero" ? 10 : 5) * 1024 * 1024) {
-      return error(kind === "hero" ? "Le visuel Hero est trop volumineux." : "La photo doit faire au maximum 5 Mo.", 422);
+    if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
+      return error(kind === "hero" ? "Le visuel Hero doit faire au maximum 5 Mo." : "La photo doit faire au maximum 5 Mo.", 422);
     }
 
     const bytes = new Uint8Array(await file.arrayBuffer());
