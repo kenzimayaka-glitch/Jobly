@@ -107,10 +107,11 @@ test("the global overlay and toast keep audio opt-in to social notifications", (
   const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
   const toast = readFileSync(new URL("../components/JoblyToast.tsx", import.meta.url), "utf8");
   const liveWins = readFileSync(new URL("../components/JoblyLiveWins.tsx", import.meta.url), "utf8");
+  const schedule = readFileSync(new URL("../lib/jobly-live-wins-schedule.ts", import.meta.url), "utf8");
   assert.match(layout, /<JoblyLiveWins\s*\/>/);
   assert.match(liveWins, /duration=\{2500\}/);
   assert.match(liveWins, /sound="pop"/);
-  assert.match(liveWins, /Africa\/Douala/);
+  assert.match(schedule, /Africa\/Douala/);
   assert.match(toast, /new window\.AudioContext\(\)/);
   assert.match(toast, /oscillator\.stop\(now \+ 0\.2\)/);
   assert.match(toast, /onToggleSound/);
