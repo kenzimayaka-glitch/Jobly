@@ -86,3 +86,13 @@ test("all recruiter and CV-share surfaces hide photos without consent", async ()
   assert.match(discovery, /isProfilePhotoPublic/);
   assert.match(cvShare, /isProfilePhotoPublic/);
 });
+
+test("database schema defaults profile photos to private and requires timestamped public consent", async () => {
+  const migration = await read("supabase/migrations/20261108190000_lot00_private_media_consent.sql");
+  const hardening = await read("scripts/e2e/lot00-storage-bucket-hardening.mjs");
+  assert.match(migration, /profilePhotoVisibility" TEXT NOT NULL DEFAULT 'PRIVATE'/);
+  assert.match(migration, /profilePhotoVisibility" <> 'PUBLIC' OR "profilePhotoConsentAt" IS NOT NULL/);
+  assert.match(migration, /mediaStoragePath/);
+  assert.match(hardening, /cleanupLegacyPublicPhotos/);
+  assert.match(hardening, /retainedWithConsent/);
+});
