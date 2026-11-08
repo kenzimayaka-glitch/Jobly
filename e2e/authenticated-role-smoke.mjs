@@ -90,28 +90,10 @@ async function main() {
       record(item.role, item.role + "-AUTH-GET-USER", "PASS", 200, "Jeton vérifié par Supabase Auth.");
 
       if (item.role === "TALENT") {
+        // E2E-READONLY-TALENT-START — toutes les vérifications Talent sont strictement en lecture seule.
         const profile = await runCheck(item.role, "TALENT-PROFILE-READ", () => request(token, "/api/profile"));
-        if (profile?.status === 200 && profile.payload?.profile) {
-          const summary = "Profil synthétique JOBLY-E2E — run " + runId;
-          const update = await runCheck(item.role, "TALENT-PROFILE-WRITE", () => request(token, "/api/profile", "PUT", {
-            section: "profil",
-            headline: "Candidat de recette automatisée",
-            summary,
-            location: "Yaoundé, Cameroun",
-            phone: account.phone || "+237600000101",
-          }));
-          if (update?.status === 200) {
-            const reread = await runCheck(item.role, "TALENT-PROFILE-PERSIST", () => request(token, "/api/profile"));
-            if (reread?.status === 200 && reread.payload?.profile?.summary !== summary) {
-              record(item.role, "TALENT-PROFILE-PERSIST-CONTENT", "FAIL", 200, "Le résumé synthétique n'a pas été retrouvé après écriture.");
-            } else if (reread?.status === 200) {
-              record(item.role, "TALENT-PROFILE-PERSIST-CONTENT", "PASS", 200, "La modification du profil a été relue.");
-            }
-          }
-        }
         await runCheck(item.role, "TALENT-APPLICATIONS-READ", () => request(token, "/api/applications"));
 
-        // E2E-READONLY-TALENT-START — aucun changement du profil ou des données Talent.
         const localFeed = await request(token, "/api/jobs?scope=local&limit=10");
         const localFeedOk = localFeed.status === 200 &&
           Array.isArray(localFeed.payload?.jobs) &&
