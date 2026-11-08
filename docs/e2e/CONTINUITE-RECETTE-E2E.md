@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.103 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.104 — 8 novembre 2026
 >
 > **Dernier commit de correction LOT-00 :** `cdc4399d452f3341895b5d56efb5204080d3faa9` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 conserve son PASS statique local 6/6. LOT-00 conserve uniquement le préflight environnement/fixtures et les contrôles read-only de base (identité, RLS/grants, Storage, correspondances des fixtures), hors OpenAPI. Les lots métier LOT-01 à LOT-10 suivent leurs dépendances propres. Le contrôle OpenAPI `public`/`net` est déplacé en **LOT-11, dernier lot**, après LOT-10 et la réconciliation de la campagne ; son absence de résultat ne bloque plus l'entrée dans les lots précédents.
 
-**Version :** 2.103  
+**Version :** 2.104  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -177,6 +177,20 @@ Résultat :
 3. Enregistrer `.env.local`, puis relancer une fois `scripts\e2e\run-lot00-storage-hardening.cmd`. Ouvrir les rapports `feedback-lot00-storage-credential-diagnostic.txt` et `feedback-lot00-storage-apply-20261108.txt`. Le lanceur contrôle le projet avant l'appel Storage.
 
 Ne pas effectuer de recherche supplémentaire sur les chemins, ne pas recréer le dépôt et ne pas synchroniser les 167 commits. Préserver tous les fichiers locaux. Si la clé privée E2E n'est pas disponible dans le tableau API Keys, arrêter et signaler ce fait ; ne pas la remplacer par une clé JOBLY-PROD.
+
+### 93.10 Création de `.env.local` — fichier vide attendu, secret encore à saisir
+
+Après la commande `notepad .env.local`, l'opérateur indique que le Bloc-notes est vide. Ce résultat est normal : le fichier n'existait pas et Notepad vient d'ouvrir un nouveau fichier vierge. Cela ne constitue pas une erreur d'ouverture.
+
+Action requise, sans nouveau diagnostic :
+1. Dans ce Bloc-notes vide, saisir une seule ligne en remplaçant la valeur d'exemple par la vraie clé **Secret key** du projet JOBLY-E2E `ofqqrryamslxoqkklraw` :
+   `SUPABASE_SECRET_KEY=sb_secret_...`
+2. Ne pas saisir les trois points littéralement ; coller la valeur intégrale de la clé après le signe `=`. Ne pas ajouter de guillemets ni d'espaces.
+3. Enregistrer avec `Ctrl+S`, garder le nom `.env.local` et le dossier `C:\Users\ASUS\Jobly`. Vérifier au besoin que le Bloc-notes n'a pas ajouté `.txt` au nom.
+4. Ne pas copier la clé dans le chat, un rapport ou Git.
+5. Une fois le fichier sauvegardé, lancer le runner une seule fois et examiner le rapport d'application réel. Ne pas demander à l'opérateur de transmettre le contenu de `.env.local`.
+
+La création d'un fichier vide n'a produit aucune clé et ne permet pas encore de poursuivre l'application Storage. Tant que la clé n'est pas renseignée et enregistrée, LOT-00 reste PARTIAL / BLOCKED sur Storage.
 
 ### 93.4 Limites de l'intervention et statut Storage
 
