@@ -43,7 +43,8 @@ let urlMatches = false;
 try { urlMatches = new URL(configuredUrl).hostname === PROJECT_REF + ".supabase.co"; } catch {}
 const projectRefMatches = config.E2E_PROJECT_REF === PROJECT_REF;
 const serviceRoleKeyPresent = typeof config.SUPABASE_SERVICE_ROLE_KEY === "string" && config.SUPABASE_SERVICE_ROLE_KEY.length >= 20;
-const secretKeyPresent = typeof config.SUPABASE_SECRET_KEY === "string" && config.SUPABASE_SECRET_KEY.length >= 20;
+const secretKeyPresent = typeof config.SUPABASE_SECRET_KEY === "string" && config.SUPABASE_SECRET_KEY.startsWith("sb_secret_");
+const privilegedServerKeyPresent = serviceRoleKeyPresent || secretKeyPresent;
 
 let runtimeFilePresent = await exists(path.join(ROOT, ".e2e-fixture-runtime.json"));
 let runtimeJsonValid = false;
@@ -89,8 +90,9 @@ const report = {
   configFilesFound: configFiles,
   supabaseUrlMatchesE2E: urlMatches,
   projectRefMatchesE2E: projectRefMatches,
-  serviceRoleKeyConfiguredForNextServer: serviceRoleKeyPresent,
-  secretKeyPresentButNotAcceptedByCurrentAdminClient: secretKeyPresent && !serviceRoleKeyPresent,
+  privilegedServerKeyConfiguredForNextServer: privilegedServerKeyPresent,
+  legacyServiceRoleKeyPresent: serviceRoleKeyPresent,
+  modernSecretKeyAcceptedByServerCode: secretKeyPresent,
   fixtureFilePresent: fixtureFilePresent,
   fixturesValid: fixturesValid,
   runtimeFilePresent: runtimeFilePresent,
@@ -103,8 +105,8 @@ const report = {
   localSourceMatchesRecipe: localSourceMatchesRecipe,
   nextDependencyPresent: appDependencyPresent,
   readiness: {
-    roleApiServer: urlMatches && projectRefMatches && serviceRoleKeyPresent && fixtureFilePresent && fixturesValid && localSourceMatchesRecipe && appDependencyPresent ? "READY_TO_PREPARE" : "BLOCKED",
-    crossRoleApplicationLifecycle: urlMatches && projectRefMatches && serviceRoleKeyPresent && fixtureFilePresent && fixturesValid && localSourceMatchesRecipe && appDependencyPresent && runtimeFilePresent && runtimeJsonValid && runtimeProjectMatches && runtimeServiceRoleKeyPresent ? "READY_TO_PREPARE" : "BLOCKED",
+    roleApiServer: urlMatches && projectRefMatches && privilegedServerKeyPresent && fixtureFilePresent && fixturesValid && localSourceMatchesRecipe && appDependencyPresent ? "READY_TO_PREPARE" : "BLOCKED",
+    crossRoleApplicationLifecycle: urlMatches && projectRefMatches && privilegedServerKeyPresent && fixtureFilePresent && fixturesValid && localSourceMatchesRecipe && appDependencyPresent ? "READY_TO_PREPARE" : "BLOCKED",
   },
   secretsPrinted: false,
   networkCallsMade: false,
@@ -112,8 +114,8 @@ const report = {
   accountsOrProfilesModified: false,
   notes: [
     "Diagnostic local uniquement : aucune requête Supabase/API ni mutation distante.",
-    "Le code lib/server-auth.ts attend SUPABASE_SERVICE_ROLE_KEY ; SUPABASE_SECRET_KEY seul ne suffit pas à configurer adminClient().",
-    "Le diagnostic ne restaure ni ne crée .e2e-fixture-runtime.json et n’affiche aucune clé, mot de passe, adresse ou UID.",
+    "lib/server-auth.ts accepte désormais SUPABASE_SECRET_KEY (sb_secret_) ou SUPABASE_SERVICE_ROLE_KEY (legacy), côté serveur uniquement.",
+    "Le parcours croisé utilise maintenant la clé serveur JOBLY-E2E issue de l’environnement local ; .e2e-fixture-runtime.json n’est plus un prérequis.",
   ],
 };
 await mkdir(path.dirname(REPORT_PATH), { recursive: true });
