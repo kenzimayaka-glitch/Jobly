@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.124 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.125 — 8 novembre 2026
 >
 > **Dernière correction de code Storage LOT-00 :** `f3753f7370007647a5e4bf99c130c69437d0c921` ; runner épinglé `3dfcd140a22c9ee10fcbc5cb9acd53749a62dd9e` sur `e2e/recette`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial **3/3 PASS** et cycle de session **12/12 PASS** (§96 et §99). Préparation du test API par rôle : le préflight opérateur du 8 novembre 2026 à 22:34:39 a confirmé URL/ref JOBLY-E2E et fixtures complètes, mais l'ancien code serveur ne lisait que `SUPABASE_SERVICE_ROLE_KEY`, alors que `.env.local` contient la clé moderne `SUPABASE_SECRET_KEY`; le clone local était en retard et aucun runtime privé n'existait. Correctif `adminClient()` maintenant compatible avec la secret key Supabase côté serveur ; le smoke API utilise cette clé locale sans `.e2e-fixture-runtime.json`. Un runner `e2e/run-authenticated-role-recipe.mjs` exécute le build et le smoke sur un worktree détaché propre de `origin/e2e/recette`, lit `.env.local` et `.e2e-fixtures.json` depuis le dépôt source, ne les copie pas et ne les imprime pas. Le parcours croisé crée des données temporaires JOBLY-E2E et vérifie leur nettoyage. Aucun test API exécuté à ce stade ; aucun changement de donnée distante dans le préflight initial. `main` reste hors périmètre.
+> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial **3/3 PASS** et cycle de session **12/12 PASS** (§96 et §99). Préparation du test API par rôle : le préflight opérateur du 8 novembre 2026 à 22:34:39 a confirmé URL/ref JOBLY-E2E et fixtures complètes, mais l'ancien code serveur ne lisait que `SUPABASE_SERVICE_ROLE_KEY`, alors que `.env.local` contient la clé moderne `SUPABASE_SECRET_KEY`; le clone local était en retard et aucun runtime privé n'existait. Correctif `adminClient()` maintenant compatible avec la secret key Supabase côté serveur ; le smoke API utilise cette clé locale sans `.e2e-fixture-runtime.json`. Un runner `e2e/run-authenticated-role-recipe.mjs` exécute le build et le smoke sur un worktree détaché propre de `origin/e2e/recette`, lit `.env.local` et `.e2e-fixtures.json` depuis le dépôt source, ne les copie pas et ne les imprime pas. Le parcours croisé crée des données temporaires JOBLY-E2E et vérifie leur nettoyage. Première tentative du 8 novembre à 22:42:02 : build PASS, mais démarrage/contrôle du serveur local BLOCKED ; le smoke API n'a pas été lancé et `remoteDataMayBeModified=false`. Correctif du runner commis ensuite (§102) pour démarrer directement le binaire Next et tracer la cause d'un éventuel nouvel échec. `main` reste hors périmètre.
 
-**Version :** 2.124  
+**Version :** 2.125  
 **Date de consolidation :** 8 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -145,13 +145,13 @@ Le préflight `e2e/authenticated-role-preflight-safe.mjs` a également été mis
 
 ### 101.4 Runner local isolé
 
-Nouveau lanceur : `e2e/run-authenticated-role-recipe.mjs`. Commits : `2cadd79c92241a1c7d305633177e6c4645b34ef1`, `a1218f3b67dc68d1e5dc674974d653f3b672043f` (traçabilité des mutations/nettoyages), `14cae46928f7e972269e7d3c6654caab441a48dd` (fallback public E2E), `69fc1f4f2f48df347d456efee2e1372d0f3456b1` (exécution du binaire Node sans shell Windows). Blob actuel : `6ea51e675b7fd1fc3ed30ce9a30617ae581d8941`.
+Nouveau lanceur : `e2e/run-authenticated-role-recipe.mjs`. Commits : `2cadd79c92241a1c7d305633177e6c4645b34ef1`, `a1218f3b67dc68d1e5dc674974d653f3b672043f` (traçabilité des mutations/nettoyages), `14cae46928f7e972269e7d3c6654caab441a48dd` (fallback public E2E), `69fc1f4f2f48df347d456efee2e1372d0f3456b1` (exécution du binaire Node sans shell Windows), `d6231753439fec4c4fbcb9ea934cef55207d58da` (démarrage direct de Next et diagnostic du serveur). Blob actuel : `dc9e36cdd66793bc419002887bd1ab06094ee676`.
 
 Fonctionnement :
 - exige un worktree détaché propre dont `HEAD` est exactement égal à `origin/e2e/recette` ; refuse le clone local modifié ou un serveur déjà présent sur le port 3217 ;
 - lit les variables de `.env.local` et les fixtures depuis le chemin source fourni, sans copier ces fichiers vers le worktree et sans imprimer les valeurs ;
 - vérifie strictement l'URL E2E, la publishable key et le format de la clé serveur ;
-- exécute `pnpm build`, démarre Next sur `127.0.0.1:3217`, attend le HTTP 401 attendu de `/api/profile` sans session, puis lance le smoke API ;
+- exécute `pnpm build`, puis démarre directement `node_modules/next/dist/bin/next` via `process.execPath` sur `127.0.0.1:3217` (sans passer par `pnpm start`, `shell` ou séparateur d'arguments), attend le HTTP 401 attendu de `/api/profile` sans session, puis lance le smoke API ;
 - arrête le serveur dans le bloc `finally` ; produit un résumé sans secrets, et expose les statuts de nettoyage du smoke.
 
 Le parcours API peut insérer temporairement des offres/candidatures synthétiques dans JOBLY-E2E ; les routes et le script tentent leur suppression et vérifient ensuite l'absence des enregistrements. `externalActions=false` : aucun email/SMS ni envoi de candidature réel n'est prévu ; la candidature reste en `USER_REVIEW`. Le rapport de recette devra confirmer les contrôles de nettoyage. Une interruption brutale peut toutefois nécessiter une vérification du résiduel JOBLY-E2E avant toute relance.
@@ -185,9 +185,66 @@ notepad artifacts\e2e\authenticated-role-smoke.json
 
 Résultats attendus : résumé `artifacts/e2e/authenticated-role-runner-summary.json` et rapport détaillé `artifacts/e2e/authenticated-role-smoke.json`. Transmettre uniquement ces deux rapports. Ne jamais copier le contenu de `.env.local`, `.e2e-fixtures.json`, une clé ou un token dans le chat. Le worktree distinct reste en place jusqu'à revue des résultats ; ne pas le supprimer automatiquement.
 
-**État après correctifs :** aucun test API n'a encore été exécuté. Smoke Auth 3/3 (§96) et cycle de session 12/12 (§99) restent PASS. LOT-01 global reste EN COURS. `main` reste `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangée ; PR #266/#267 non fusionnées ; aucun accès JOBLY-PROD ni déploiement.
+**État après correctifs :** la première tentative API s'est arrêtée avant le smoke (serveur local non confirmé) ; aucun test API n'a encore été exécuté. Smoke Auth 3/3 (§96) et cycle de session 12/12 (§99) restent PASS. LOT-01 global reste EN COURS. main reste 979f2ccfec9258bc30989af18433cf6adb1b4698, inchangée ; PR #266/#267 non fusionnées ; aucun accès JOBLY-PROD ni déploiement.
 
 ---
+
+## 102. LOT-01 — diagnostic et correction du démarrage du serveur local
+
+**Mise à jour : 8 novembre 2026. Statut : CORRECTIF RUNNER COMMIS ; nouvelle exécution opérateur requise.**
+
+### 102.1 Rapport reçu — 22:42:02.526 UTC
+
+Rapport artifacts/e2e/authenticated-role-runner-summary.json :
+- environment=JOBLY-E2E, projectRef=ofqqrryamslxoqkklraw ;
+- build=PASS ;
+- localServer=NOT_RUN, authenticatedRoleSmoke=NOT_RUN ;
+- status=BLOCKED ; motif : le serveur local n'a pas répondu HTTP 401 à /api/profile dans le délai ;
+- secretsPrinted=false et remoteDataMayBeModified=false.
+
+**Interprétation vérifiable :** le build a terminé, mais le runner n'a pas validé le serveur HTTP. Ce résumé ne permet pas de dire si Next a quitté, si le port n'a pas écouté ou si une réponse HTTP autre que 401 a été reçue. Il ne justifie pas de conclure à un défaut de la route métier. Le smoke authentifié n'a pas été lancé ; aucune donnée distante n'a été modifiée par cette tentative.
+
+### 102.2 Correction du runner
+
+Fichier : e2e/run-authenticated-role-recipe.mjs  
+Commit : d6231753439fec4c4fbcb9ea934cef55207d58da  
+Blob : dc9e36cdd66793bc419002887bd1ab06094ee676
+
+- Le serveur est désormais démarré directement avec process.execPath et le binaire node_modules/next/dist/bin/next, options explicites start --hostname 127.0.0.1 --port 3217. Le lancement ne passe plus par pnpm start -- ... ni par un shell Windows.
+- Le probe HTTP journalise uniquement le statut reçu, le nombre de tentatives, la classe d'erreur réseau éventuelle et l'état/code de sortie du processus ; aucun corps de réponse n'est stocké.
+- Une réponse HTTP inattendue (autre que 401) bloque immédiatement avant le smoke. Un processus arrêté ou un échec de spawn est diagnostiqué explicitement.
+- remoteDataMayBeModified reste false jusqu'au lancement effectif du smoke API. Aucune clé ou fixture n'est affichée ou copiée.
+
+### 102.3 Nouvelle exécution isolée
+
+La première copie de travail C:\Users\ASUS\Jobly-e2e-recette et le dépôt local ne sont pas modifiés ni supprimés. Créer un second worktree distinct afin d'utiliser exactement le nouveau commit distant :
+
+~~~cmd
+cd /d C:\Users\ASUS\Jobly
+git fetch origin
+if errorlevel 1 exit /b 1
+if exist "C:\Users\ASUS\Jobly-e2e-recette-v2\" (
+  echo Le dossier C:\Users\ASUS\Jobly-e2e-recette-v2 existe deja ; choisir un autre nom sans le supprimer.
+  exit /b 1
+)
+git worktree add --detach C:\Users\ASUS\Jobly-e2e-recette-v2 origin/e2e/recette
+if errorlevel 1 exit /b 1
+cd /d C:\Users\ASUS\Jobly-e2e-recette-v2
+if errorlevel 1 exit /b 1
+pnpm install --frozen-lockfile --ignore-scripts
+if errorlevel 1 exit /b 1
+node --check e2e\authenticated-role-smoke.mjs
+if errorlevel 1 exit /b 1
+node --check e2e\run-authenticated-role-recipe.mjs
+if errorlevel 1 exit /b 1
+node e2e\run-authenticated-role-recipe.mjs C:\Users\ASUS\Jobly
+notepad artifacts\e2e\authenticated-role-runner-summary.json
+notepad artifacts\e2e\authenticated-role-smoke.json
+~~~
+
+Si le worktree -v2 existe déjà, ne pas le supprimer ni l'écraser : choisir un nouveau suffixe. Ne pas exécuter de pull, reset, stash ou clean dans le dépôt de travail existant. Après exécution, transmettre les deux rapports expurgés. Si le résumé reste BLOCKED, ses nouveaux champs localServerProbe permettront d'isoler le problème sans relancer de mutations métier.
+
+**État actuel :** correctif poussé sur e2e/recette ; build PASS de l'ancienne tentative conservé comme preuve, mais aucun PASS du serveur ni des API n'est acquis. LOT-01 reste EN COURS. main, JOBLY-PROD et les déploiements restent hors périmètre.
 
 ## 98. Point de reprise — LOT-01 Auth après demande de poursuite
 
