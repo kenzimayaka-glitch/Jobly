@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient } from "@/lib/server-auth";
 import { calculateExplainableMatch } from "@/lib/opportunityAggregator";
+import { isProfilePhotoPublic } from "@/lib/profilePhotoStorage";
 
 function years(rows:any[]){const starts=rows.map(x=>new Date(x.startDate).getTime()).filter(Number.isFinite);if(!starts.length)return 0;return Math.max(0,Math.floor((Date.now()-Math.min(...starts))/(1000*60*60*24*365)));}
 
@@ -18,12 +19,12 @@ export async function GET(_request:NextRequest,{params}:{params:Promise<{token:s
   const {data:profiles}=await db.from("Profile").select("userId,firstName,lastName,headline,summary,location,targetRoles,preferredSectors,targetCities,contractPreferences,remotePreference,publicDiscoverable").eq("publicDiscoverable",true).neq("userId",share.userId).limit(250);
   const ids=(profiles||[]).map((p:any)=>p.userId);
   const [users,experiences,skills]=await Promise.all([
-   ids.length?db.from("User").select("id,firstName,lastName,displayName,profilePhotoUrl").in("id",ids):Promise.resolve({data:[] as any[],error:null}),
+   ids.length?db.from("User").select("id,firstName,lastName,displayName,profilePhotoUrl,profilePhotoVisibility,profilePhotoConsentAt").in("id",ids):Promise.resolve({data:[] as any[],error:null}),
    ids.length?db.from("Experience").select("userId,startDate").in("userId",ids):Promise.resolve({data:[] as any[],error:null}),
    ids.length?db.from("Skill").select("userId,name").in("userId",ids):Promise.resolve({data:[] as any[],error:null})
   ]);
   const userBy=new Map((users.data||[]).map((u:any)=>[u.id,u]));const expBy=new Map<string,any[]>();for(const x of experiences.data||[]){const a=expBy.get(x.userId)||[];a.push(x);expBy.set(x.userId,a);}const skillBy=new Map<string,string[]>();for(const x of skills.data||[]){const a=skillBy.get(x.userId)||[];a.push(x.name);skillBy.set(x.userId,a);}
-  const talents=(profiles||[]).map((p:any)=>{const u=userBy.get(p.userId)||{};const e=expBy.get(p.userId)||[];const score=calculateExplainableMatch({targetRoles:p.targetRoles,targetCities:p.targetCities,contractPreferences:p.contractPreferences,remotePreference:p.remotePreference,preferredSectors:p.preferredSectors,skills:skillBy.get(p.userId)||[],experienceYears:years(e)},job);return{id:p.userId,name:[p.firstName,p.lastName].filter(Boolean).join(" ")||u.displayName||"Talent Jobly",headline:p.headline||"Profil professionnel",location:p.location||"",profilePhotoUrl:u.profilePhotoUrl||null,skills:(skillBy.get(p.userId)||[]).slice(0,6),experienceYears:years(e),matchPercent:score};}).sort((a,b)=>b.matchPercent-a.matchPercent).slice(0,12);
+  const talents=(profiles||[]).map((p:any)=>{const u=userBy.get(p.userId)||{};const e=expBy.get(p.userId)||[];const score=calculateExplainableMatch({targetRoles:p.targetRoles,targetCities:p.targetCities,contractPreferences:p.contractPreferences,remotePreference:p.remotePreference,preferredSectors:p.preferredSectors,skills:skillBy.get(p.userId)||[],experienceYears:years(e)},job);return{id:p.userId,name:[p.firstName,p.lastName].filter(Boolean).join(" ")||u.displayName||"Talent Jobly",headline:p.headline||"Profil professionnel",location:p.location||"",profilePhotoUrl:isProfilePhotoPublic(u)?(u.profilePhotoUrl||null):null,skills:(skillBy.get(p.userId)||[]).slice(0,6),experienceYears:years(e),matchPercent:score};}).sort((a,b)=>b.matchPercent-a.matchPercent).slice(0,12);
   return NextResponse.json({share:{jobTitle:share.jobTitleSnapshot,companyName:share.companyNameSnapshot},job,talents});
  }catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Impossible de charger les talents."},{status:500});}
 }
