@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.129 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.130 — 9 novembre 2026
 >
-> **Dernière correction LOT-01 configuration E2E :** runner `fddbecc05c6d1e3b025a3ff7bef21cd6c181d3af` ; smoke `73aee328bc2f11ff15628cac13a7d3bd932f8e1e` ; référence de continuité mise à jour dans le commit suivant sur `e2e/recette`.
+> **Dernière correction LOT-01 configuration E2E :** runner `5b39cdea1b5810f2d9fe49fc8111ac3897d8c1df` (URL dérivée du manifeste vérifié + validation clé serveur par endpoint PostgREST en lecture seule) ; smoke `73aee328bc2f11ff15628cac13a7d3bd932f8e1e`.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations, lectures SQL et contrôles Storage ; aucun accès JOBLY-PROD et aucun déploiement. Les tests HTTP CI tournent sur un serveur Next.js de build local au runner avec configuration Supabase fictive, jamais sur le site de production.
 >
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial **3/3 PASS** et cycle de session **12/12 PASS** (§96 et §99). Préparation du test API par rôle : le préflight opérateur du 8 novembre 2026 à 22:34:39 a confirmé URL/ref JOBLY-E2E et fixtures complètes, mais l'ancien code serveur ne lisait que `SUPABASE_SERVICE_ROLE_KEY`, alors que `.env.local` contient la clé moderne `SUPABASE_SECRET_KEY`; le clone local était en retard et aucun runtime privé n'existait. Correctif `adminClient()` maintenant compatible avec la secret key Supabase côté serveur ; le smoke API utilise cette clé locale sans `.e2e-fixture-runtime.json`. Un runner `e2e/run-authenticated-role-recipe.mjs` exécute le build et le smoke sur un worktree détaché propre de `origin/e2e/recette`, lit `.env.local` et `.e2e-fixtures.json` depuis le dépôt source, ne les copie pas et ne les imprime pas. Le parcours croisé crée des données temporaires JOBLY-E2E et vérifie leur nettoyage. Première tentative : build PASS, serveur local BLOCKED (§102). Smoke API exécuté le 8 novembre à 23:03:19 : 36/40 PASS, 3 FAIL et 1 BLOCKED ; les trois rôles sont exécutés, les mutations synthétiques du parcours croisé sont nettoyées (API + vérification DB), externalActions=false. Analyse : les deux feeds échouent sur les garde-fous anti-abus du flux (clé serveur moderne non reconnue et IP loopback absente du client HTTP de recette) ; /api/recruiter/talents échoue car son limiteur n'accepte que la variable legacy SUPABASE_SERVICE_ROLE_KEY. Correctifs ciblés et tests ajoutés au §103 ; leur première exécution s'est arrêtée sur une erreur de résolution Node de next/server depuis le test TypeScript direct. Le point d'entrée du helper a été corrigé en next/server.js (§104), puis le rapport opérateur a confirmé pnpm test:security-core 11/11 PASS, 0 FAIL (Node 26.13.0 ; avertissements MODULE_TYPELESS_PACKAGE_JSON non bloquants). La tentative du 8 novembre à 23:28:52Z reste BLOCKED avant build, serveur et smoke, sans modification distante. Le blocage de configuration est traité par le §105 : chargement unifié via le chargeur officiel Next.js et diagnostic sûr intégré au résumé. La prochaine exécution utile est désormais le runner complet une seule fois sur le worktree v3 propre ; aucun nouveau préflight manuel ni reset de fixture. Le smoke API après correctifs reste à exécuter et aucun PASS nouveau n'est revendiqué. main reste hors périmètre.
+> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial **3/3 PASS** et cycle de session **12/12 PASS** (§96 et §99). Préparation du test API par rôle : le préflight opérateur du 8 novembre 2026 à 22:34:39 a confirmé URL/ref JOBLY-E2E et fixtures complètes, mais l'ancien code serveur ne lisait que `SUPABASE_SERVICE_ROLE_KEY`, alors que `.env.local` contient la clé moderne `SUPABASE_SECRET_KEY`; le clone local était en retard et aucun runtime privé n'existait. Correctif `adminClient()` maintenant compatible avec la secret key Supabase côté serveur ; le smoke API utilise cette clé locale sans `.e2e-fixture-runtime.json`. Un runner `e2e/run-authenticated-role-recipe.mjs` exécute le build et le smoke sur un worktree détaché propre de `origin/e2e/recette`, lit `.env.local` et `.e2e-fixtures.json` depuis le dépôt source, ne les copie pas et ne les imprime pas. Le parcours croisé crée des données temporaires JOBLY-E2E et vérifie leur nettoyage. Première tentative : build PASS, serveur local BLOCKED (§102). Smoke API exécuté le 8 novembre à 23:03:19 : 36/40 PASS, 3 FAIL et 1 BLOCKED ; les trois rôles sont exécutés, les mutations synthétiques du parcours croisé sont nettoyées (API + vérification DB), externalActions=false. Analyse : les deux feeds échouent sur les garde-fous anti-abus du flux (clé serveur moderne non reconnue et IP loopback absente du client HTTP de recette) ; /api/recruiter/talents échoue car son limiteur n'accepte que la variable legacy SUPABASE_SERVICE_ROLE_KEY. Correctifs ciblés et tests ajoutés au §103 ; leur première exécution s'est arrêtée sur une erreur de résolution Node de next/server depuis le test TypeScript direct. Le point d'entrée du helper a été corrigé en next/server.js (§104), puis le rapport opérateur a confirmé pnpm test:security-core 11/11 PASS, 0 FAIL (Node 26.13.0 ; avertissements MODULE_TYPELESS_PACKAGE_JSON non bloquants). La tentative du 8 novembre à 23:28:52Z puis celle à 23:35:34Z sont toutes deux BLOCKED avant build, serveur et smoke, sans modification distante. Le rapport de 23:35 établit que `.env.local` est chargé et contient les clés publishable/serveur, mais aucune variable d'URL reconnue. Le §105 avait unifié le parseur sans résoudre cette absence ; le §106 supprime la dépendance à l'URL dans `.env.local` en la dérivant du manifeste de fixtures après validation stricte du projectRef, puis vérifie la clé serveur sur le seul endpoint racine PostgREST E2E. Prochaine étape : exécution complète du runner sur le worktree v3 propre ; aucun nouveau préflight manuel ni reset de fixture. Le smoke API après correctifs reste à exécuter et aucun PASS nouveau n'est revendiqué. main reste hors périmètre.
 
-**Version :** 2.129  
+**Version :** 2.130  
 **Date de consolidation :** 9 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -22,6 +22,67 @@
 **Environnement interdit :** JOBLY-PROD, ses données, ses clés, ses comptes et ses déploiements.
 
 > Ce document est le point de reprise de référence. Il sépare les preuves effectivement obtenues, les scénarios présents dans le code mais non validés, les blocages locaux et les actions qui nécessitent l'accord de l'utilisateur. Il doit être mis à jour à chaque nouvelle exécution significative.
+
+---
+
+## 106. LOT-01 — URL E2E absente des variables locales : résolution par identité du manifeste
+
+**Mise à jour : 9 novembre 2026. Statut : CORRECTIF RUNNER COMMIS SUR `e2e/recette` ; exécution intégrée encore requise.**
+
+### 106.1 Nouveau rapport opérateur — 8 novembre 2026 à 23:35:34.200Z
+
+Résumé reçu :
+- `environment=JOBLY-E2E`, `projectRef=ofqqrryamslxoqkklraw` ;
+- `status=BLOCKED`, `build=NOT_RUN`, `localServer=NOT_RUN`, `authenticatedRoleSmoke=NOT_RUN` ;
+- `configDiagnostics.sourceFiles=[".env.local"]` ;
+- `supabaseUrlPresent=false`, `supabaseUrlMatchesE2E=false`, `configuredProjectRef="missing-or-invalid"` ;
+- clé publishable reconnue ; type de clé serveur `sb_secret` ;
+- `remoteDataMayBeModified=false`, `secretsPrinted=false`.
+
+Cette preuve distingue la cause du §105 : le parseur n'est plus le problème principal. Next.js charge bien `.env.local`, mais aucune des variables `NEXT_PUBLIC_SUPABASE_URL` ou `SUPABASE_URL` n'est définie dans cet environnement. Le runner s'arrêtait donc sur une URL absente avant le build. Pas de requête Auth, pas de test API et aucune donnée distante touchée.
+
+### 106.2 Décision de résolution — source d'identité = manifeste E2E
+
+Il n'est pas nécessaire de demander à l'opérateur de modifier son fichier local ou de recopier une URL déjà déterminée par le projet. Le manifeste `.e2e-fixtures.json` contient les champs d'identité `environment` et `projectRef`, et le runner utilise déjà ce même manifeste pour sélectionner les trois fixtures.
+
+Le runner charge donc et valide le manifeste **avant** de construire l'environnement :
+- `environment` doit être exactement `JOBLY-E2E` ;
+- `projectRef` doit être exactement `ofqqrryamslxoqkklraw` ;
+- en absence d'URL dans les variables locales, l'URL est dérivée sous la forme `https://{projectRef}.supabase.co` ;
+- si une URL est explicitement présente mais différente de JOBLY-E2E, le runner refuse de la remplacer et s'arrête avant le build.
+
+Cette règle est fail-closed : elle ne transforme jamais une URL explicite d'un autre projet en URL E2E ; elle ne complète que l'absence, à partir d'une identité de fixture elle-même strictement validée.
+
+### 106.3 Vérification de la clé serveur contre le projet
+
+Le seul préfixe `sb_secret_` indique le type de clé, pas à lui seul le projet auquel elle appartient. Avant le build, le runner envoie maintenant une requête GET lecture seule vers `https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/`, avec la clé en header `apikey` et `Accept: application/openapi+json`. Le corps de réponse est immédiatement annulé ; aucune table métier, aucun compte Auth ni aucune ligne utilisateur n'est interrogé.
+
+Un HTTP succès confirme que la clé serveur est acceptée par le PostgREST du projet E2E exact. Un refus/une erreur réseau arrête le runner avant build et avant toute mutation. Cette forme d'usage du header `apikey` pour les clés secrètes est conforme à la documentation Supabase : [API keys — test d'une clé secrète sur le point d'entrée REST](https://supabase.com/docs/guides/self-hosting/self-hosted-auth-keys) ; [Migrating to publishable and secret API keys](https://supabase.com/docs/guides/getting-started/migrating-to-new-api-keys).
+
+Le résumé ajoute :
+- `supabaseUrlConfiguredInEnv` et `supabaseUrlDerivedFromFixture` ;
+- `fixtureProjectRefMatchesE2E` ;
+- `serverKeyVerifiedForE2E` et `serverKeyProbeStatus`.
+
+Aucune valeur de clé ni aucun corps OpenAPI n'est inscrit dans le rapport.
+
+### 106.4 Correctif commis
+
+Fichier : `e2e/run-authenticated-role-recipe.mjs`  
+Commit : `5b39cdea1b5810f2d9fe49fc8111ac3897d8c1df`
+
+Le smoke `e2e/authenticated-role-smoke.mjs` reste au commit `73aee328bc2f11ff15628cac13a7d3bd932f8e1e` : il utilise uniquement la configuration vérifiée et injectée par le runner. Le chargeur commun `@next/env` du §105 est conservé.
+
+### 106.5 Statut et prochaine exécution utile
+
+- Le rapport 23:35:34 ne déclenche ni build ni serveur ; il n'est pas un échec des API métier.
+- Le commit corrige le runner, mais n'est pas encore exécuté localement ; ne pas annoncer BUILD PASS, API PASS ou LOT-01 PASS.
+- JOBLY-PROD, `main`, merge et déploiement restent hors périmètre.
+- Aucune fixture n'est recréée, aucun mot de passe n'est changé et aucun runtime privé n'est demandé.
+
+La prochaine exécution doit être faite directement avec le runner complet depuis le worktree v3 propre, après récupération de `origin/e2e/recette`. Aucun contrôle manuel supplémentaire de l'URL dans `.env.local` n'est requis. Le rapport de synthèse déterminera si le blocage est définitivement levé ou si la clé serveur échoue au probe E2E ; dans ce dernier cas, le blocage sera alors précisément identifié comme clé locale liée à un autre projet ou rejetée par JOBLY-E2E.
+
+**Conclusion §106 :** la configuration ne dépend plus de la présence d'une URL dans `.env.local`. L'identité du projet vient du manifeste de fixtures vérifié et la clé serveur est contrôlée contre le point REST du projet correspondant, avant tout build et toute écriture.
 
 ---
 
