@@ -29,7 +29,7 @@ function runGit(args) {
 }
 function runCommand(command, args, env) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd: ROOT, env, stdio: "inherit", shell: process.platform === "win32", windowsHide: true });
+    const child = spawn(command, args, { cwd: ROOT, env, stdio: "inherit", shell: process.platform === "win32" && command === "pnpm", windowsHide: true });
     child.once("error", reject);
     child.once("close", (code) => resolve(code ?? 1));
   });
