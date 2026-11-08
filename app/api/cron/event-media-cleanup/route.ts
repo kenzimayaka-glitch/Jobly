@@ -10,19 +10,27 @@ const PAGE_SIZE = 500;
 
 async function listAll(db: ReturnType<typeof adminClient>) {
   const paths = new Set<string>();
+  const expiredPaths: Array<{ id: string; path: string }> = [];
+  const now = Date.now();
   for (let offset = 0; ; offset += 1000) {
     const { data, error } = await db.from("Event")
-      .select("mediaStoragePath,mediaUrl")
+      .select("id,status,createdAt,mediaStoragePath,mediaUrl")
       .range(offset, offset + 999);
     if (error) throw new Error("Lecture des médias liés aux événements impossible : " + error.message);
     for (const row of data ?? []) {
-      if (typeof row.mediaStoragePath === "string") paths.add(row.mediaStoragePath);
+      if (typeof row.mediaStoragePath === "string") {
+        const ageMs = row.createdAt ? now - Date.parse(row.createdAt) : 0;
+        const staleDraft = row.status === "DRAFT" && ageMs > MAX_AGE_MS;
+        const stalePayment = row.status === "PENDING_PAYMENT" && ageMs > 7 * 24 * 60 * 60 * 1000;
+        if (staleDraft || stalePayment) expiredPaths.push({ id: row.id, path: row.mediaStoragePath });
+        else paths.add(row.mediaStoragePath);
+      }
       const legacyPath = eventStoragePathFromPublicUrl(row.mediaUrl);
-      if (legacyPath) paths.add(legacyPath);
+      if (legacyPath && row.status === "PUBLISHED") paths.add(legacyPath);
     }
     if (!data || data.length < 1000) break;
   }
-  return paths;
+  return { paths, expiredPaths };
 }
 
 export async function GET(request: NextRequest) {
@@ -39,7 +47,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Le bucket événementiel doit rester privé." }, { status: 503 });
     }
 
-    const referenced = await listAll(db);
+    const { paths: referenced, expiredPaths } = await listAll(db);
+    const expiredStoragePaths = new Set<string>();
+    for (const expired of expiredPaths) {
+      const { error: unlinkError } = await db.from("Event").update({
+        mediaStoragePath: null,
+        mediaType: null,
+        mediaSizeBytes: null,
+        mediaDurationSeconds: null,
+        updatedAt: new Date().toISOString(),
+      }).eq("id", expired.id).eq("mediaStoragePath", expired.path);
+      if (unlinkError) throw new Error("Désassociation d'un média expiré impossible : " + unlinkError.message);
+      expiredStoragePaths.add(expired.path);
+    }
     const cutoff = Date.now() - MAX_AGE_MS;
     const { data: folders, error: foldersError } = await bucket.list("", { limit: PAGE_SIZE, offset: 0 });
     if (foldersError) throw new Error(foldersError.message);
@@ -82,6 +102,7 @@ export async function GET(request: NextRequest) {
       maxAgeHours: 24,
       scanned,
       removedCount: removed.length,
+      expiredEventLinksCleared: expiredStoragePaths.size,
       retainedCount: retained.length,
       removed,
     });
