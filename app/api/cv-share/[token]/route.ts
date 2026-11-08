@@ -23,7 +23,15 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
     return NextResponse.json({
       share: { token, jobTitle: share.jobTitleSnapshot, companyName: share.companyNameSnapshot },
-      user: { ...userRes.data, profilePhotoUrl: isProfilePhotoPublic(userRes.data) ? userRes.data.profilePhotoUrl : null }, profile: profileRes.data ? { firstName: profileRes.data.firstName, lastName: profileRes.data.lastName, headline: profileRes.data.headline, summary: profileRes.data.summary, location: profileRes.data.location, targetRoles: profileRes.data.targetRoles, preferredSectors: profileRes.data.preferredSectors, targetCities: profileRes.data.targetCities, contractPreferences: profileRes.data.contractPreferences, remotePreference: profileRes.data.remotePreference } : null,
+      user: {
+        id: userRes.data.id,
+        displayName: userRes.data.displayName,
+        firstName: userRes.data.firstName,
+        lastName: userRes.data.lastName,
+        profilePhotoUrl: isProfilePhotoPublic(userRes.data) ? userRes.data.profilePhotoUrl : null,
+        englishLevel: userRes.data.englishLevel,
+        licences: userRes.data.licences,
+      }, profile: profileRes.data ? { firstName: profileRes.data.firstName, lastName: profileRes.data.lastName, headline: profileRes.data.headline, summary: profileRes.data.summary, location: profileRes.data.location, targetRoles: profileRes.data.targetRoles, preferredSectors: profileRes.data.preferredSectors, targetCities: profileRes.data.targetCities, contractPreferences: profileRes.data.contractPreferences, remotePreference: profileRes.data.remotePreference } : null,
       experiences: expRes.data || [], skills: skillRes.data || [], education: eduRes.data || [],
     }, { headers: { "Cache-Control": "no-store, private" } });
   } catch (error) {
