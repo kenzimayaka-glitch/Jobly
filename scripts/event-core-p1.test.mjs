@@ -54,6 +54,8 @@ test("profile photo limits match the exact Storage bucket cap", () => {
   assert.deepEqual(getProfilePhotoFormat("png"), { mimeType: "image/png", extension: "png" });
   assert.deepEqual(getProfilePhotoFormat("jpeg"), { mimeType: "image/jpeg", extension: "jpg" });
   assert.equal(getProfilePhotoFormat("svg"), null);
+  assert.deepEqual(getProfilePhotoFormat("heif", "av1"), { mimeType: "image/avif", extension: "avif" });
+  assert.equal(getProfilePhotoFormat("heif", "hevc"), null);
 });
 
 test("event media storage paths are restricted to the authenticated owner", () => {
