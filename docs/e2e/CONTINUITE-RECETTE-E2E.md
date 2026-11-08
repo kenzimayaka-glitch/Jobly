@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.75 — 8 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.76 — 8 novembre 2026
 >
 > **Dernier code E2E-001 commité :** `8385b60400bbaf9cedfcb4aa01073b733533f6c2` sur `e2e/recette`.
 > **`main` :** inchangée dans le cadre de cette correction. **PR #266 :** reste ouverte, brouillon et non fusionnée.
@@ -3892,8 +3892,87 @@ notepad feedback-lot00-preflight-20261108.txt
 
 ### 77.4 Statut et garde-fous
 
-La commande est fournie et documentée, mais **NON EXÉCUTÉE par l'assistant**. Son rapport reste attendu de l'opérateur. Aucun test déjà PASS n'est relancé ; aucun accès JOBLY-PROD, aucune écriture Supabase, aucune mutation de fixture, aucun changement de `main`, aucune fusion et aucun déploiement. PR #266 reste ouverte, brouillon et non fusionnée.
+La commande a été exécutée par l'opérateur ; son résultat PASS est enregistré au §78. Le préflight n'a pas été exécuté par l'assistant. Aucun test déjà PASS n'est relancé ; aucun accès JOBLY-PROD, aucune écriture Supabase, aucune mutation de fixture, aucun changement de `main`, aucune fusion et aucun déploiement. PR #266 reste ouverte, brouillon et non fusionnée.
 
 ### 77.5 Référence
 
 Mise à jour V2.75 sur `e2e/recette`. Source avant ajout : blob SHA `4fa5c98f41333e605228aac8bf00f3b6a422a75d`. Code source contrôlé dans `e2e/lot0-preflight.mjs`, sans modification du runner.
+
+
+
+---
+
+## 78. Résultat opérateur — préflight LOT-00 non-OpenAPI — PASS connectivité Auth publique — V2.76 — 8 novembre 2026
+
+### 78.1 Rapport reçu
+
+Résultat transmis par l'opérateur :
+
+```text
+node_version: v26.13.0
+branch: e2e/recette
+commit: e92feb8abc1a2491cab7dd81e834080b80982681
+--- LOT-00 PREFLIGHT ---
+{
+  "status": "PASS",
+  "gate": "LOT-0-E2E-PUBLIC-CONNECTION",
+  "projectRef": "ofqqrryamslxoqkklraw",
+  "authSettings": {
+    "disableSignup": false,
+    "mailerAutoconfirm": false,
+    "phoneAutoconfirm": false
+  },
+  "checks": [
+    "URL Supabase strictement limitée à JOBLY-E2E",
+    "Clé publishable vérifiée sans secret serveur",
+    "API Auth JOBLY-E2E joignable",
+    "Aucune écriture, création de compte ou opération Auth effectuée"
+  ]
+}
+```
+
+Le champ final `exit_code=` annoncé dans le bloc de commande n'apparaît pas dans le texte recopié ; le statut PASS JSON émis par le script est néanmoins présent et exploitable. Ne pas reconstituer un code de sortie qui n'a pas été transmis.
+
+### 78.2 Rapprochement avec le code exécuté
+
+Le fichier `e2e/lot0-preflight.mjs` relu au commit opérateur `e92feb8abc1a2491cab7dd81e834080b80982681` a le blob SHA `94349566afd2d743e36befd1ad5fe8d646fdd0a4`, identique à celui audité pour préparer la commande §77.
+
+Ce script :
+- vérifie les trois paramètres d'environnement contre le ref exact JOBLY-E2E ;
+- effectue un seul GET vers `/auth/v1/settings` ;
+- exige une réponse HTTP de succès (2xx) et un objet JSON ;
+- n'effectue ni création de compte, ni connexion utilisateur, ni écriture ou mutation métier.
+
+Le PASS reçu est donc correctement rattaché au script attendu, même si le commit local `e92feb8` est antérieur aux commits documentaires les plus récents de la PR.
+
+### 78.3 Interprétation exacte
+
+**PASS acquis :**
+- endpoint Auth public JOBLY-E2E joignable avec la clé publishable ;
+- paramètres d'environnement ciblant le projet E2E exact ;
+- réponse Settings JSON exploitable.
+
+**Paramètres retournés :**
+- `disableSignup=false` : les inscriptions ne sont pas globalement désactivées ;
+- `mailerAutoconfirm=false` et `phoneAutoconfirm=false` : le préflight n'établit aucune auto-confirmation générale par email ou téléphone.
+
+**Non démontré :**
+- connexion réelle des fixtures Talent, Recruteur et Partenaire ;
+- vérification/renouvellement d'une session Auth ;
+- appels API métier authentifiés, RLS en situation utilisateur ou parcours navigateur ;
+- fermeture complète des points Storage et moindre privilège de LOT-00.
+
+Le contrôle ne doit donc pas être présenté comme PASS global LOT-00 ni PASS LOT-01.
+
+### 78.4 Statut et prochaine frontière
+
+- Préflight `LOT-0-E2E-PUBLIC-CONNECTION` : **PASS**.
+- LOT-00 global : **PARTIAL** ; restent à traiter hors OpenAPI : décision explicite sur l'intention publique des buckets `jobly-events` et `profile-photos`, ainsi que plan documenté de moindre privilège des grants table/Storage.
+- LOT-01 Auth runtime : pas encore testé par ce préflight. Le script `e2e/auth-session-smoke.mjs` a été inspecté : il lit `.e2e-fixtures.json`, tente une authentification par mot de passe pour les trois fixtures, vérifie access token et refresh, puis ferme la session locale. Il ne doit être lancé qu'après revue des prérequis Auth/fixtures et autorisation de la séquence runtime correspondante.
+- Aucun runner global, aucun provisionnement/restauration/reset fixture et aucune recette OpenAPI n'ont été lancés par ce résultat.
+- LOT-11 OpenAPI reste **À FAIRE EN DERNIER**, après LOT-10.
+- JOBLY-PROD hors périmètre ; aucune écriture Supabase, aucune mutation de fixture, aucun changement de `main`, aucune fusion et aucun déploiement. PR #266 reste ouverte, brouillon et non fusionnée.
+
+### 78.5 Référence
+
+Mise à jour V2.76 sur `e2e/recette`. Source avant cette entrée : blob SHA `4060b1ab0533cec0783343a4f8ba3d9148997557`. Le code métier/runner n'a pas été modifié ; seul le rapport opérateur et le statut du préflight sont ajoutés.
