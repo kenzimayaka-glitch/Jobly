@@ -65,7 +65,7 @@ const report = {
   externalActions: false,
   remoteBusinessDataMayBeModified: false,
   remoteAuthDeviceStateMayBeModified: true,
-  logoutMethod: "isolated browser auth-storage teardown; no account data changed",
+  logoutMethod: "isolated browser auth-storage teardown; no business profile data changed",
   limitations: [
     "The real username/password form is submitted for the three existing synthetic JOBLY-E2E fixtures.",
     "Authenticated route checks are GET-only. No offer, application, CV, payment, preference, profile or KYC mutation is performed.",
