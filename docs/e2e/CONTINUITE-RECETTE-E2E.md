@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.175 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.176 — 9 novembre 2026
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.171 — 9 novembre 2026
 >
-> **Dernières preuves LOT-01 :** Régression Auth opérateur : 30/30 PASS (SHA `a8b1b8e...`). Préflight de clé JOBLY-E2E : PASS, `.env.local`, `sb_secret`, HTTP 200 en GET read-only. Retest Auth avancée sur SHA `102f2072e6df2f4ae1b6faed195ca0c46623777a` : build PASS, serveur local PASS, OTP PASS (4 contrôles), récupération PASS (3), Google FAIL (les deux premières assertions passent mais l'interception de la navigation externe échoue), multi-appareils BLOCKED sur trois appareils actifs préexistants, aucune mutation de session préexistante constatée. Diagnostic Playwright : `route.fulfill(302)` ne permet pas une seconde interception de la redirection ; le précédent champ `externalActions=false` ne prouve donc pas que la requête Google a été bloquée. Correctif de sécurité commité sur `e2e/recette` : réponse HTML locale 200 avec `window.location.replace`, Service Workers bloqués, garde réseau contexte qui intercepte/aborte la navigation Google. Commits `0fc97768` et `b9ff33f7`. **Aucun runtime post-correctif n'est encore exécuté. LOT-01 reste PARTIAL / NON CLOS.**
+> **Dernières preuves LOT-01 :** Retest runtime Auth avancée sur `e2e/recette`, rapport runner `2026-11-09T11:08:51.100Z`, projet JOBLY-E2E `ofqqrryamslxoqkklraw`, commit testé `1bfcfddb95a334f23d87b306e4c63143354bc1e4` : build PASS, serveur local PASS ; OTP 4/4 PASS ; Google 4/4 PASS, avec `accounts.google.com/o/oauth2/v2/auth` intercepté comme navigation document (`isNavigationRequest=true`) ; récupération 3/3 PASS. Aucun pageError, aucune requête Supabase inattendue, aucun secret/token imprimé, aucune action externe ; données métier et état des appareils distants non modifiés, `preexistingDeviceRowsUnchanged=true`. Multi-appareils reste BLOCKED : 3 appareils actifs préexistants, aucune session de test créée (`cleanup=NOT_REQUIRED`). Le code de sortie 2 correspond au statut PARTIAL prévu par le runner lorsque le scénario est bloqué. **LOT-01 reste PARTIAL / NON CLOS uniquement à cause du périmètre multi-appareils non validé.**
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations, lectures SQL et contrôles Storage ; aucun accès JOBLY-PROD et aucun déploiement. Les tests HTTP CI tournent sur un serveur Next.js de build local au runner avec configuration Supabase fictive, jamais sur le site de production.
 >
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 PASS statique 6/6 ; LOT-00 PASS clos. LOT-01 : Auth de base 12/12, API 40/40, UI publique 14/14, UI authentifiée 29/29, régression Auth locale 30/30 acquis. Le préflight JOBLY-E2E est validé (clé `sb_secret` HTTP 200). Dernier runtime : build/serveur PASS, OTP PASS, récupération PASS, Google FAIL par défaut de simulation de redirection, multi-appareils BLOCKED à cause de 3 sessions préexistantes. Le code Google est corrigé sur `e2e/recette` via réponse HTML locale 200 et garde réseau, sans 3xx synthétique. Synchroniser le worktree vers la nouvelle tête et rejouer Auth 30/30, TypeScript et `--auth-advanced-only`. Ne pas supprimer/révoquer les appareils existants ni lancer le runner global.
+> **État courant et ordre des lots :** E2E-001 PASS statique 6/6 ; LOT-00 PASS clos. LOT-01 : Auth de base 12/12, API 40/40, UI publique 14/14, UI authentifiée 29/29, régression Auth 30/30 acquis. Dernier runtime Auth avancée : build/serveur PASS ; OTP 4/4, Google 4/4, récupération 3/3 PASS. Le garde réseau a intercepté la navigation Google réelle avant réseau. Seul le multi-appareils reste BLOCKED sur 3 appareils actifs préexistants ; aucune session ni donnée n'a été modifiée. Pour clôturer : fixture distincte explicitement autorisée avec au plus un appareil actif préexistant, ou décision écrite de périmètre excluant ce contrôle. Ne pas révoquer les appareils existants.
 
-**Version :** 2.175
+**Version :** 2.176
 **Date de consolidation :** 9 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -7836,3 +7836,64 @@ Le préflight précédent a trouvé trois appareils actifs préexistants. Tant q
 À cette mise à jour, OTP et récupération ont une preuve PASS runtime sur le SHA `102f2072...`; Google reste FAIL sur l'ancien mécanisme ; le nouveau correctif Google n'a pas été exécuté. Le build du runner sur ce SHA était PASS. La commande combinée opérateur a continué jusqu'au runner après TypeScript, mais aucun journal TypeScript dédié n'a été fourni ; la preuve TypeScript doit donc être rattachée au nouveau SHA lors du retest. **LOT-01 : PARTIAL / NON CLOS.**
 
 Protections inchangées : JOBLY-E2E uniquement ; aucune lecture/écriture JOBLY-PROD, aucun merge sur main, aucun déploiement, aucun reset de compte, aucune suppression de session préexistante.
+---
+
+## 145. Retest runtime Auth avancée — OTP, Google et récupération PASS ; multi-appareils BLOCKED
+
+**Mise à jour : 9 novembre 2026 — version 2.176.** Cette section constitue la dernière preuve opérateur pour le périmètre Auth avancée et met à jour le verdict des §§140–144.
+
+### 145.1 Identification du run
+
+- Rapport runner : `createdAt=2026-11-09T11:08:51.100Z`.
+- Exécution Auth navigateur : `2026-11-09T11:12:37.740Z` à `2026-11-09T11:12:48.588Z`.
+- Commit déclaré par le rapport navigateur : `1bfcfddb95a334f23d87b306e4c63143354bc1e4`.
+- Environnement : JOBLY-E2E, projectRef `ofqqrryamslxoqkklraw`.
+- URL locale : `http://127.0.0.1:3217`.
+- Runner : `--auth-advanced-only`.
+- Statut global : **PARTIAL**, processExitCode `2` (code de sortie prévu lorsque le résultat est PARTIAL/BLOCKED, pas une erreur de démarrage).
+
+### 145.2 Résultats confirmés
+
+| Porte | Résultat | Détail |
+|---|---|---|
+| Build Next.js | **PASS** | `build=PASS` |
+| Serveur local | **PASS** | prêt en 4 tentatives ; HTTP 401 attendu sur `/api/profile` anonyme |
+| OTP email simulé | **PASS 4/4** | demande interceptée, code invalide visible, renvoi intercepté, aucun endpoint Supabase inattendu |
+| Google OAuth simulé | **PASS 4/4** | authorize GET, `provider=google`, `prompt=select_account`, navigation externe Google interceptée avant réseau, aucun endpoint Supabase inattendu |
+| Récupération simulée | **PASS 3/3** | demande interceptée, confirmation visible, callback token invalide/expiré correctement refusé |
+| Multi-appareils | **BLOCKED** | trois appareils actifs préexistants ; deux places libres non garanties ; arrêt avant création de sessions |
+
+### 145.3 Preuves de sécurité et d'absence d'effets de bord
+
+- `pageErrors=0`.
+- `blockedExternalRequests=5` : quatre demandes de feuilles de style Google Fonts bloquées et une navigation `https://accounts.google.com/o/oauth2/v2/auth` bloquée, méthode GET, resourceType `document`, `isNavigationRequest=true`.
+- `unexpectedSupabaseRequests=[]`.
+- `credentialsPrinted=false`, `tokensPrinted=false`.
+- `externalActions=false`.
+- `remoteBusinessDataMayBeModified=false`, `remoteAuthDeviceStateMayBeModified=false`, `remoteDataMayBeModified=false`.
+- `preexistingDeviceRowsUnchanged=true`.
+- Le scénario multi-appareils a terminé avec `cleanup=NOT_REQUIRED` ; aucune session temporaire n'a été créée, aucune session préexistante n'a été révoquée.
+
+Le test Google est une simulation navigateur isolée : authorize est intercepté, le HTML de réponse reste local et la tentative de navigation vers Google est bloquée par la route Playwright avant accès réseau. Ce résultat ne représente pas un test de consentement Google réel ni la délivrabilité d'une authentification chez le fournisseur.
+
+### 145.4 Interprétation du code de sortie
+
+Le process runner a retourné `exitCode=2` avec rapport présent et frais. Le code 2 correspond au statut PARTIAL lorsque le scénario avancé n'est pas entièrement PASS, ici parce que `MULTI_DEVICE_REVOCATION` est BLOCKED. Ce n'est pas un échec du build, du serveur, d'OTP, de Google ou de récupération.
+
+### 145.5 Seul point encore nécessaire pour clôturer LOT-01
+
+Trois appareils actifs préexistants sont recensés dans la fixture Talent. Cette protection doit rester en place. Deux chemins seulement peuvent compléter ce contrôle :
+
+1. Utiliser une fixture Talent distincte, explicitement autorisée pour l'E2E, avec au plus un appareil actif préexistant ; le scénario pourra créer A/B, révoquer exclusivement B, vérifier B=401 et A=200, puis confirmer que toutes les lignes préexistantes restent identiques.
+2. Obtenir une décision de périmètre écrite et explicite acceptant d'exclure le scénario multi-appareils de la clôture LOT-01, avec la limite clairement documentée. Aucune exclusion n'est présumée dans cette mise à jour.
+
+Ne pas supprimer les trois appareils existants, ne pas révoquer leurs sessions, ne pas réinitialiser le compte et ne pas modifier les fixtures partagées pour obtenir artificiellement un PASS.
+
+### 145.6 Verdict
+
+- Auth avancée simulée : OTP **PASS**, Google **PASS**, récupération **PASS**.
+- Build et serveur local : **PASS**.
+- Multi-appareils : **BLOCKED** pour raison de préservation de trois appareils actifs préexistants.
+- **LOT-01 : PARTIAL / NON CLOS**, le seul point restant étant la décision/preuve multi-appareils ci-dessus.
+
+Aucune fusion `main`, aucun déploiement, aucun accès JOBLY-PROD, aucun reset de compte ou de session.
