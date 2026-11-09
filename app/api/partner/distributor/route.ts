@@ -8,6 +8,9 @@ export async function GET(request: NextRequest) {
 
     const sb = adminClient();
     const user = await ensureUser(sb, auth);
+    if (String(user.role) !== "PARTNER") {
+      return NextResponse.json({ message: "Espace Partenaire réservé." }, { status: 403 });
+    }
     const { data: partner, error: partnerError } = await sb
       .from("Partner")
       .select("id,referralCode,partnerType,kycStatus,agreementId")
