@@ -69,3 +69,13 @@ Correction préparée : sonde V2 sans dépendance à Next.js ou `@next/env`. Ell
 
 Aucun résultat de cette V2 n'est encore disponible. Ne pas déclarer la clé validée avant un code HTTP de cette sonde. Le diagnostic réseau sans clé précédent reste PASS (DNS résolu, HTTP 401 attendu).
 
+
+
+## Résultat de la première sonde de clé et correction de l'outil — 9 novembre 2026
+
+Le journal utilisateur de `Jobly-LOT-01-Supabase-Key-Probe.cmd` révèle :
+`MODULE_NOT_FOUND: Cannot find module '@next/env'`, avec la require stack vers `node_modules/next/package.json`. L'utilitaire s'est arrêté pendant son chargement de configuration, avant tout appel HTTP authentifié. Ce résultat n'est ni un rejet de la clé, ni un nouvel échec Supabase, ni un résultat du runner LOT-01.
+
+Un nouveau lanceur de sonde, `Jobly-LOT-01-Supabase-Key-Probe-v2.cmd`, a été préparé et son JavaScript embarqué a passé `node --check` dans l'environnement de préparation. Il ne charge ni Next.js ni `@next/env` : il lit localement les fichiers .env nécessaires, applique l'override éventuel .env.e2e.local, masque la valeur de clé, valide le project URL et la portée des JWT legacy, puis lance un unique GET read-only vers le PostgREST JOBLY-E2E (30 secondes). Le résultat runtime sur le poste opérateur est encore **NON EXÉCUTÉ / NON PROUVÉ**.
+
+Ne pas relancer le runner complet avant d'avoir reçu le HTTP_STATUS ou le FETCH_ERROR de la sonde V2. LOT-01 reste **PARTIAL / NON CLOS**.
