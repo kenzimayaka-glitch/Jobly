@@ -9,8 +9,8 @@ const ROOT = process.cwd();
 const SOURCE_ROOT = process.argv[2] ? path.resolve(process.argv[2]) : "";
 const RUN_MODE = process.argv[3] || "api";
 const PLAYWRIGHT_VERSION = "1.65.0";
-if (!["api", "--browser-only"].includes(RUN_MODE)) {
-  throw new Error("Mode invalide. Utiliser api (défaut) ou --browser-only.");
+if (!["api", "--browser-only", "--role-browser-only"].includes(RUN_MODE)) {
+  throw new Error("Mode invalide. Utiliser api, --browser-only ou --role-browser-only.");
 }
 const PROJECT_REF = "ofqqrryamslxoqkklraw";
 const SUPABASE_URL = "https://" + PROJECT_REF + ".supabase.co";
@@ -190,7 +190,7 @@ async function waitForServer(child) {
 
 const summary = {
   createdAt: new Date().toISOString(),
-  mode: RUN_MODE === "--browser-only" ? "browser-only" : "api",
+  mode: RUN_MODE === "--browser-only" ? "browser-only" : RUN_MODE === "--role-browser-only" ? "role-browser-only" : "api",
   environment: "JOBLY-E2E",
   projectRef: PROJECT_REF,
   status: "BLOCKED",
@@ -202,6 +202,12 @@ const summary = {
   browserAuthEvidence: null,
   browserExecution: null,
   browserFailure: null,
+  roleBrowserSmoke: "NOT_RUN",
+  roleBrowserChecks: null,
+  roleBrowserExecution: null,
+  roleBrowserFailure: null,
+  remoteBusinessDataMayBeModified: false,
+  remoteAuthDeviceStateMayBeModified: false,
   secretsPrinted: false,
   remoteDataMayBeModified: false,
   localServerProbe: null,
@@ -333,7 +339,106 @@ try {
   }
   summary.localServer = "PASS";
 
-  if (RUN_MODE === "--browser-only") {
+  if (RUN_MODE === "--role-browser-only") {
+    console.log("Mode role-browser-only : connexion réelle des trois fixtures et vérifications GET par rôle.");
+    const playwrightModulePath = await ensurePlaywright(env);
+    const roleBrowserEnv = {
+      ...env,
+      E2E_BASE_URL: BASE_URL,
+      PLAYWRIGHT_MODULE_PATH: playwrightModulePath,
+      E2E_FIXTURE_PATH: fixturePath,
+    };
+    const roleStartedAt = new Date();
+    const roleProcessLog = path.join(ROOT, "artifacts", "e2e", "browser-role-smoke-process.log");
+    const roleRun = await runCommandCaptured(
+      process.execPath,
+      ["e2e/authenticated-browser-role-smoke.mjs"],
+      roleBrowserEnv,
+      roleProcessLog,
+    );
+    const roleReportPath = path.join(ROOT, "artifacts", "e2e", "lot1-auth-role-ui-smoke.json");
+    let roleReport = null;
+    let roleReportProblem = null;
+    if (await exists(roleReportPath)) {
+      try {
+        const candidate = JSON.parse(await readFile(roleReportPath, "utf8"));
+        const reportTime = Date.parse(candidate.createdAt || "");
+        const fresh = Number.isFinite(reportTime) && reportTime >= roleStartedAt.getTime() - 1000;
+        const correctTarget =
+          candidate.environment === "JOBLY-E2E" &&
+          candidate.projectRef === PROJECT_REF &&
+          candidate.baseURL === BASE_URL &&
+          candidate.commit === runGit(["rev-parse", "HEAD"]);
+        if (fresh && correctTarget) {
+          roleReport = candidate;
+        } else {
+          roleReportProblem = fresh
+            ? "Rapport rôles présent mais environnement, projet, URL locale ou SHA incorrect."
+            : "Un ancien rapport rôles existe, mais il n'a pas été régénéré pendant cette exécution.";
+        }
+      } catch {
+        roleReportProblem = "Rapport navigateur rôles JSON illisible.";
+      }
+    } else {
+      roleReportProblem = "Le smoke navigateur authentifié n'a pas généré son rapport JSON.";
+    }
+    summary.roleBrowserExecution = {
+      startedAt: roleStartedAt.toISOString(),
+      exitCode: roleRun.exitCode,
+      spawnError: roleRun.spawnError,
+      processLog: "artifacts/e2e/browser-role-smoke-process.log",
+      reportPresent: await exists(roleReportPath),
+      reportGeneratedForThisRun: Boolean(roleReport),
+      reportProblem: roleReportProblem,
+    };
+    if (!roleReport) {
+      summary.roleBrowserSmoke = "BLOCKED";
+      summary.roleBrowserFailure = {
+        reason: roleReportProblem,
+        processExitCode: roleRun.exitCode,
+        spawnError: roleRun.spawnError,
+        processLog: "artifacts/e2e/browser-role-smoke-process.log",
+      };
+      summary.status = "BLOCKED";
+      summary.reason = roleReportProblem + " Consulter browser-role-smoke-process.log.";
+    } else {
+      const failed = Number(roleReport.failed || 0);
+      const blocked = Number(roleReport.blocked || 0);
+      const passed = Number(roleReport.passed || 0);
+      summary.roleBrowserChecks = {
+        executed: Number(roleReport.executed || 0),
+        passed,
+        failed,
+        blocked,
+        roles: roleReport.roles || {},
+      };
+      summary.remoteBusinessDataMayBeModified = roleReport.remoteBusinessDataMayBeModified === true;
+      summary.remoteAuthDeviceStateMayBeModified = roleReport.remoteAuthDeviceStateMayBeModified === true;
+      summary.remoteDataMayBeModified = summary.remoteBusinessDataMayBeModified || summary.remoteAuthDeviceStateMayBeModified;
+      summary.roleBrowserSmoke = failed > 0 || roleRun.exitCode !== 0
+        ? "FAIL"
+        : blocked > 0 || roleReport.status !== "PASS" || Object.values(roleReport.roles || {}).length !== 3
+          ? "PARTIAL"
+          : "PASS";
+      summary.status = summary.roleBrowserSmoke === "PASS"
+        ? "PASS"
+        : summary.roleBrowserSmoke === "FAIL"
+          ? "FAIL"
+          : "PARTIAL";
+    }
+    await writeFile(
+      path.join(ROOT, "artifacts", "e2e", "browser-role-smoke-diagnostic.json"),
+      JSON.stringify({
+        createdAt: new Date().toISOString(),
+        processExitCode: roleRun.exitCode,
+        spawnError: roleRun.spawnError,
+        reportGenerated: await exists(roleReportPath),
+        reportProblem: roleReportProblem,
+        processLog: "artifacts/e2e/browser-role-smoke-process.log",
+      }, null, 2) + "\n",
+      { encoding: "utf8", mode: 0o600 },
+    );
+  } else if (RUN_MODE === "--browser-only") {
     console.log("Mode browser-only : aucun parcours API authentifié ni aucune écriture métier ne seront exécutés.");
     const playwrightModulePath = await ensurePlaywright(env);
     const authReportCandidates = [
@@ -480,5 +585,6 @@ try {
 console.log(JSON.stringify(summary, null, 2));
 console.log("Rapport de synthèse : artifacts/e2e/authenticated-role-runner-summary.json");
 if (RUN_MODE === "--browser-only") console.log("Rapport navigateur : artifacts/e2e/lot1-auth-ui-smoke.json");
+else if (RUN_MODE === "--role-browser-only") console.log("Rapport navigateur rôles : artifacts/e2e/lot1-auth-role-ui-smoke.json");
 else console.log("Rapport API : artifacts/e2e/authenticated-role-smoke.json");
 if (summary.status !== "PASS") process.exitCode = summary.status === "FAIL" ? 1 : 2;
