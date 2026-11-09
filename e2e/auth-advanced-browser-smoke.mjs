@@ -208,17 +208,17 @@ async function scenarioGoogle(browser) {
       catch { return false; }
     });
     const stayedLocal = new URL(opened.page.url()).origin === BASE_URL;
-    check(result, "GOOGLE_AUTHORIZE_INTERCEPTED", calls.authorize === 1 && calls.provider === "google" && calls.method === "GET", "L'action UI a émis une navigation authorize interceptée pour Google.");
+    check(result, "GOOGLE_AUTHORIZE_INTERCEPTED", calls.authorize === 1 && calls.provider === "google" && calls.method === "GET" && calls.redirectStatus === 302, "L'action UI a émis une navigation authorize Google simulée par HTTP 302.");
     check(result, "GOOGLE_SELECT_ACCOUNT_PARAMETER", calls.prompt === "select_account", "Le paramètre prompt=select_account est présent.");
     check(result, "GOOGLE_PROVIDER_REDIRECT_BLOCKED", blockedProviderNavigation && stayedLocal, "La redirection vers le fournisseur Google a été bloquée avant tout accès réseau ; Jobly reste affiché.");
     check(result, "GOOGLE_NO_UNEXPECTED_SUPABASE", opened.observations.unexpectedSupabaseRequests.length === 0, "Aucun endpoint Supabase non prévu n'a été autorisé.");
-    result.intercepted = { authorize: calls.authorize };
+    result.intercepted = { authorize: calls.authorize, redirectStatus: calls.redirectStatus };
     result.query = { provider: calls.provider, prompt: calls.prompt, method: calls.method };
     result.status = "PASS";
   } catch (error) {
     result.status = "FAIL";
     result.error = error instanceof Error ? error.name : "RuntimeError";
-    result.intercepted = { authorize: calls.authorize };
+    result.intercepted = { authorize: calls.authorize, redirectStatus: calls.redirectStatus };
     result.query = { provider: calls.provider, prompt: calls.prompt, method: calls.method };
   } finally {
     await context?.close().catch(() => undefined);
