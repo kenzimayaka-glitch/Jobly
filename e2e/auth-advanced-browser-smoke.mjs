@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 
 const PROJECT_REF = "ofqqrryamslxoqkklraw";
 const SUPABASE_URL = "https://" + PROJECT_REF + ".supabase.co";
+const GOOGLE_E2E_REDIRECT = "https://accounts.google.com/o/oauth2/v2/auth?client_id=jobly-e2e.invalid&redirect_uri=https%3A%2F%2Fjobly-e2e.invalid%2Fcallback&response_type=code";
 const BASE_URL = process.env.E2E_BASE_URL || "http://127.0.0.1:3217";
 const FIXTURE_PATH = path.resolve(process.env.E2E_FIXTURE_PATH || ".e2e-fixtures.json");
 const REPORT_PATH = path.resolve("artifacts/e2e/lot1-auth-advanced-smoke.json");
@@ -25,6 +26,7 @@ const REPORT = {
     MULTI_DEVICE_REVOCATION: { status: "NOT_RUN", checks: [], baselineActiveDevices: null, cleanup: "NOT_RUN" },
   },
   pageErrors: [],
+  blockedExternalRequests: [],
   unexpectedSupabaseRequests: [],
   credentialsPrinted: false,
   tokensPrinted: false,
@@ -63,7 +65,7 @@ async function readFixtures() {
 }
 
 async function installNetworkGuard(context, authHandler = null, allowBrowserAuth = false) {
-  const observations = { blockedExternalOrigins: [], unexpectedSupabaseRequests: [] };
+  const observations = { blockedExternalOrigins: [], blockedExternalRequests: [], unexpectedSupabaseRequests: [] };
   await context.route("**/*", async (route) => {
     const request = route.request();
     let url;
@@ -83,6 +85,15 @@ async function installNetworkGuard(context, authHandler = null, allowBrowserAuth
       return;
     }
     observations.blockedExternalOrigins.push(url.origin);
+    const blockedRequest = {
+      origin: url.origin,
+      pathname: url.pathname,
+      method: request.method(),
+      resourceType: request.resourceType(),
+      isNavigationRequest: request.isNavigationRequest(),
+    };
+    observations.blockedExternalRequests.push(blockedRequest);
+    REPORT.blockedExternalRequests.push(blockedRequest);
     await route.abort();
   });
   return observations;
@@ -149,7 +160,7 @@ async function scenarioOtp(browser) {
     await opened.page.getByRole("button", { name: "Renvoyer le code", exact: true }).click();
     await opened.page.getByText("Un nouveau code vient d'être envoyé.", { exact: true }).waitFor({ state: "visible", timeout: 15000 });
     check(result, "OTP_RESEND_INTERCEPTED", calls.otp === 2, "Le renvoi déclenche un deuxième appel OTP simulé.");
-    check(result, "OTP_NO_EXTERNAL_PROVIDER", opened.observations.unexpectedSupabaseRequests.length === 0 && opened.observations.blockedExternalOrigins.every((origin) => !/google|gmail/i.test(origin)), "Aucun appel fournisseur ou endpoint Supabase non prévu n'a été autorisé.");
+    check(result, "OTP_NO_EXTERNAL_PROVIDER", opened.observations.unexpectedSupabaseRequests.length === 0, "Les appels OTP/verify sont simulés ; aucun endpoint Supabase non prévu n'est autorisé et toute origine externe est bloquée.");
     result.intercepted = { otp: calls.otp, verify: calls.verify };
     result.status = "PASS";
   } catch (error) {
@@ -163,14 +174,15 @@ async function scenarioOtp(browser) {
 
 async function scenarioGoogle(browser) {
   const result = REPORT.scenarios.GOOGLE_OAUTH_SIMULATION;
-  const calls = { authorize: 0, provider: null, prompt: null, method: null };
+  const calls = { authorize: 0, provider: null, prompt: null, method: null, redirectStatus: null };
   const handler = async (route, url) => {
     if (url.pathname === "/auth/v1/authorize") {
       calls.authorize += 1;
       calls.provider = url.searchParams.get("provider");
       calls.prompt = url.searchParams.get("prompt");
       calls.method = route.request().method();
-      await route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ code: "provider_error", message: "OAuth simulated refusal", status: 400 }) });
+      calls.redirectStatus = 302;
+      await route.fulfill({ status: 302, headers: { Location: GOOGLE_E2E_REDIRECT } });
       return true;
     }
     return false;
@@ -180,13 +192,26 @@ async function scenarioGoogle(browser) {
     const opened = await openHome(browser, handler);
     context = opened.context;
     await clickLogin(opened.page);
+    const blockedGoogleRequest = opened.page.waitForEvent("requestfailed", {
+      predicate: (request) => {
+        try {
+          const target = new URL(request.url());
+          return target.hostname === "accounts.google.com" && request.isNavigationRequest();
+        } catch { return false; }
+      },
+      timeout: 15000,
+    });
     await opened.page.getByRole("button", { name: /Continuer avec Google/i }).click();
-    await opened.page.getByRole("alert").getByText(/OAuth simulated refusal/i).waitFor({ state: "visible", timeout: 15000 });
+    await blockedGoogleRequest;
+    const blockedProviderNavigation = opened.observations.blockedExternalRequests.some((request) => {
+      try { return new URL(request.origin).hostname === "accounts.google.com" && request.isNavigationRequest; }
+      catch { return false; }
+    });
     const stayedLocal = new URL(opened.page.url()).origin === BASE_URL;
-    check(result, "GOOGLE_AUTHORIZE_INTERCEPTED", calls.authorize === 1 && calls.provider === "google", "L'action UI a émis une requête authorize interceptée pour Google.");
+    check(result, "GOOGLE_AUTHORIZE_INTERCEPTED", calls.authorize === 1 && calls.provider === "google" && calls.method === "GET", "L'action UI a émis une navigation authorize interceptée pour Google.");
     check(result, "GOOGLE_SELECT_ACCOUNT_PARAMETER", calls.prompt === "select_account", "Le paramètre prompt=select_account est présent.");
-    check(result, "GOOGLE_LOCAL_ERROR_HANDLED", stayedLocal && opened.observations.unexpectedSupabaseRequests.length === 0, "Le refus OAuth simulé est visible et le navigateur reste sur Jobly.");
-    check(result, "GOOGLE_NO_EXTERNAL_REDIRECT", opened.observations.blockedExternalOrigins.every((origin) => !/google\.com|accounts\.google/i.test(origin)), "Aucune navigation ou requête vers un domaine Google n'a été autorisée.");
+    check(result, "GOOGLE_PROVIDER_REDIRECT_BLOCKED", blockedProviderNavigation && stayedLocal, "La redirection vers le fournisseur Google a été bloquée avant tout accès réseau ; Jobly reste affiché.");
+    check(result, "GOOGLE_NO_UNEXPECTED_SUPABASE", opened.observations.unexpectedSupabaseRequests.length === 0, "Aucun endpoint Supabase non prévu n'a été autorisé.");
     result.intercepted = { authorize: calls.authorize };
     result.query = { provider: calls.provider, prompt: calls.prompt, method: calls.method };
     result.status = "PASS";
@@ -231,7 +256,7 @@ async function scenarioRecovery(browser) {
     await opened.page.goto(BASE_URL + "/auth/reset-password?token_hash=invalid-e2e-token&type=recovery", { waitUntil: "domcontentloaded" });
     await opened.page.getByText(/Le lien de récupération est invalide ou a expiré/i).waitFor({ state: "visible", timeout: 15000 });
     check(result, "RECOVERY_INVALID_CALLBACK_HANDLED", calls.verify === 1, "Le callback refuse le jeton invalide ou expiré avec un message visible.");
-    check(result, "RECOVERY_NO_EXTERNAL_PROVIDER", opened.observations.unexpectedSupabaseRequests.length === 0 && opened.observations.blockedExternalOrigins.every((origin) => !/google|gmail/i.test(origin)), "Aucun fournisseur d'e-mail ni endpoint Supabase non prévu n'a été appelé.");
+    check(result, "RECOVERY_NO_EXTERNAL_PROVIDER", opened.observations.unexpectedSupabaseRequests.length === 0, "La requête de récupération et le callback sont simulés ; aucun endpoint Supabase non prévu n'est autorisé et toute origine externe est bloquée.");
     result.intercepted = calls;
     result.status = "PASS";
   } catch (error) {
@@ -543,6 +568,7 @@ console.log(JSON.stringify({
   projectRef: REPORT.projectRef,
   scenarios: Object.fromEntries(Object.entries(REPORT.scenarios).map(([key, value]) => [key, value.status])),
   pageErrors: REPORT.pageErrors.length,
+  blockedExternalRequests: REPORT.blockedExternalRequests.length,
   credentialsPrinted: REPORT.credentialsPrinted,
   tokensPrinted: REPORT.tokensPrinted,
   externalActions: REPORT.externalActions,
