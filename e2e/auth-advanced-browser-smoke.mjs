@@ -222,7 +222,7 @@ async function scenarioGoogle(browser) {
     // On vérifie sa trace d'interception, sans dépendre de requestfailed sur la page principale.
     await opened.page.getByRole("button", { name: /Continuer avec Google/i }).click({ noWaitAfter: true });
     const blockedProviderNavigation = await waitForBlockedGoogleNavigation(opened.observations);
-    check(result, "GOOGLE_AUTHORIZE_INTERCEPTED", calls.authorize === 1 && calls.provider === "google" && calls.method === "GET" && calls.simulatedResponseStatus === 200 && calls.redirectMechanism === "local-html-location-replace", "L'action UI a émis une navigation authorize Google simulée par HTTP 302.");
+    check(result, "GOOGLE_AUTHORIZE_INTERCEPTED", calls.authorize === 1 && calls.provider === "google" && calls.method === "GET" && calls.simulatedResponseStatus === 200 && calls.redirectMechanism === "local-html-location-replace", "L'action UI a émis authorize Google ; la réponse HTML locale déclenche la navigation fournisseur que la garde intercepte avant réseau.");
     check(result, "GOOGLE_SELECT_ACCOUNT_PARAMETER", calls.prompt === "select_account", "Le paramètre prompt=select_account est présent.");
     check(result, "GOOGLE_PROVIDER_REDIRECT_BLOCKED", blockedProviderNavigation, "La requête de navigation vers le fournisseur Google a été interceptée et bloquée avant tout accès réseau.");
     check(result, "GOOGLE_NO_UNEXPECTED_SUPABASE", opened.observations.unexpectedSupabaseRequests.length === 0, "Aucun endpoint Supabase non prévu n'a été autorisé.");

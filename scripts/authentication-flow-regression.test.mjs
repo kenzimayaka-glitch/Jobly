@@ -412,6 +412,7 @@ test("LOT-01 advanced auth browser campaign isolates provider flows and verifies
   assert.match(authAdvancedSmoke, /local-html-location-replace/);
   assert.match(authAdvancedSmoke, /window\.location\.replace/);
   assert.match(authAdvancedSmoke, /simulatedResponseStatus === 200/);
+  assert.match(authAdvancedSmoke, /réponse HTML locale déclenche la navigation fournisseur/);
   assert.doesNotMatch(authAdvancedSmoke, /status: 302/);
   assert.doesNotMatch(authAdvancedSmoke, /redirectStatus/);
   assert.doesNotMatch(authAdvancedSmoke, /blockedExternalOrigins\.every/);
