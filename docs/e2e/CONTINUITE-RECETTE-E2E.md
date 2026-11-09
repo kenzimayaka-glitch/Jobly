@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.157 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.158 — 9 novembre 2026
 >
-> **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée avec clic réel sur le bouton de déconnexion PASS 29/29 (§128), auth régression PASS 29/29, TypeScript PASS et build/serveur PASS sur le run du 9 novembre à 06:56–06:57Z. Les trois rôles Talent, Recruteur et Partenaire ont chacun fermé leur session locale depuis `/settings`, puis obtenu HTTP 401 sur `/api/profile`. La migration de session 20261109015439 reste limitée à JOBLY-E2E. **La porte UI authentifiée de LOT-01 est maintenant PASS ; LOT-01 global reste PARTIAL** jusqu'à validation runtime ou décision explicite de périmètre pour OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils.
+> **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée avec clic réel sur le bouton de déconnexion PASS 29/29 (§128), auth régression PASS 29/29, TypeScript PASS et build/serveur PASS sur le run du 9 novembre à 06:56–06:57Z. Les trois rôles Talent, Recruteur et Partenaire ont chacun fermé leur session locale depuis `/settings`, puis obtenu HTTP 401 sur `/api/profile`. La migration de session 20261109015439 reste limitée à JOBLY-E2E. La recette Auth avancée est définie au §129 ; aucun runner dédié à ces scénarios n'est encore disponible. **La porte UI authentifiée de LOT-01 est maintenant PASS ; LOT-01 global reste PARTIAL** jusqu'à validation runtime ou décision explicite de périmètre pour OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations, lectures SQL et contrôles Storage ; aucun accès JOBLY-PROD et aucun déploiement. Les tests HTTP CI tournent sur un serveur Next.js de build local au runner avec configuration Supabase fictive, jamais sur le site de production.
 >
@@ -7196,3 +7196,81 @@ En conséquence :
 ### 128.6 Garde-fous et suite
 
 JOBLY-E2E uniquement. `externalActions=false`, `remoteBusinessDataMayBeModified=false`, aucun secret/token imprimé. Aucun reset/provisionneur de fixtures, aucune mutation JOBLY-PROD, aucun merge vers `main`, aucun déploiement. La prochaine action doit porter uniquement sur la décision ou la validation contrôlée du périmètre Auth avancé ; les suites déjà PASS ne sont pas à rejouer.
+
+ 
+---
+
+## 129. LOT-01 — recette ciblée Auth avancée : OTP, Google, récupération et révocation multi-appareils
+
+**Mise à jour : 9 novembre 2026 — version 2.158.** Cette section fixe la bonne recette après la réussite du smoke navigateur général §128. Elle évite de rejouer les tests déjà PASS et distingue les flux simulés sans fournisseur externe des mutations réelles et limitées de métadonnées de session JOBLY-E2E.
+
+### 129.1 État du harnais existant — limites vérifiées
+
+- pnpm test:auth est déjà PASS 29/29 dans le run du 9 novembre à 06:57Z (§128.3). Il vérifie les contrats du code, mais n'exécute pas les interactions Auth réelles.
+- e2e/run-authenticated-role-recipe.mjs --role-browser-only teste les connexions username/mot de passe, les rôles, les API propres, les refus inter-rôles et le clic de déconnexion local. Il ne teste pas OTP, Google OAuth, le parcours de récupération du mot de passe ni la révocation d'une autre session.
+- Les appels de production requestEmailOtp, requestPasswordReset et signInWithGoogle passent par Supabase Auth et peuvent envoyer des e-mails ou rediriger vers Google. Ils ne doivent pas être exécutés tels quels pendant la recette sans fournisseur de test et accord spécifique.
+- La révocation d'un appareil passe par DELETE /api/device-sessions/[deviceId], qui appelle la RPC revoke_jobly_device_session. Le contrôle serveur suivant s'appuie sur la session JWT et l'enregistrement UserDeviceSession.
+
+**Décision :** ne pas lancer une deuxième fois le runner --role-browser-only comme substitut à ces scénarios. Aucun script dédié Auth avancée n'est actuellement présent dans le dépôt ; aucune commande d'exécution complète ne doit être annoncée avant l'ajout et la validation du harnais dédié.
+
+### 129.2 Campagne A — OTP e-mail en simulation locale
+
+Le futur test Playwright doit intercepter les requêtes vers Supabase Auth avant qu'elles quittent le navigateur :
+1. Ouvrir l'accueil et démarrer « Créer un compte » avec des données entièrement fictives et une adresse réservée au test.
+2. Intercepter POST /auth/v1/otp et retourner une réponse de succès simulée ; vérifier l'arrivée sur l'écran du code à six chiffres et le message de confirmation.
+3. Intercepter POST /auth/v1/verify avec un code expiré/invalide ; vérifier que l'erreur est visible et que l'utilisateur reste sur l'étape OTP.
+4. Cliquer « Renvoyer le code » ; vérifier un second appel OTP simulé et la remise à zéro de la saisie.
+5. Vérifier que les requêtes ont été interceptées, qu'aucun accès au fournisseur n'a été effectué et qu'aucun compte n'a été créé.
+
+Cette campagne prouve le comportement UI et les erreurs gérées, pas la délivrabilité réelle d'un e-mail ni l'acceptation d'un code émis par Supabase.
+
+### 129.3 Campagne B — Google OAuth sans redirection externe
+
+1. Ouvrir l'écran de connexion et cliquer « Continuer avec Google ».
+2. Intercepter la route Supabase Auth /auth/v1/authorize avant toute connexion réseau.
+3. Vérifier provider=google, le paramètre prompt=select_account et l'URL de callback locale attendue.
+4. Retourner une réponse simulée ou contrôlée qui maintient le test sur localhost ; vérifier la gestion d'une erreur d'autorisation et l'absence de redirection vers accounts.google.com.
+
+Cette campagne valide la demande et le traitement local. Elle ne valide pas l'authentification Google réelle, le consentement ni l'échange d'un code OAuth émis par Google.
+
+### 129.4 Campagne C — récupération du mot de passe sans e-mail réel
+
+1. Ouvrir « Mot de passe oublié ? » et saisir l'adresse e-mail fictive de la fixture.
+2. Intercepter POST /auth/v1/recover avant l'appel réseau et retourner le succès simulé.
+3. Vérifier l'écran « E-mail envoyé » et le retour possible à la connexion.
+4. Tester séparément le callback de récupération avec un jeton invalide/expiré intercepté ; vérifier l'erreur claire et le retour à Jobly.
+5. Pour valider la définition effective d'un nouveau mot de passe, ajouter une réponse de récupération simulée et contrôler la requête auth.updateUser sans modifier le mot de passe d'un compte partagé.
+
+Cette campagne ne valide pas l'envoi réel, le lien reçu par e-mail ni un changement de mot de passe persistant dans Auth.
+
+### 129.5 Campagne D — révocation multi-appareils sur JOBLY-E2E
+
+Ce test est le seul de ces quatre scénarios qui doit écrire un état Auth de test dans la base JOBLY-E2E. Il doit utiliser un compte synthétique existant, deux contextes navigateur isolés et aucune donnée métier.
+
+1. Préflight : confirmer le projet ofqqrryamslxoqkklraw, l'environnement JOBLY-E2E, l'identité de la fixture et la limite de trois appareils actifs. Si le nombre d'appareils actifs ne permet pas deux sessions de test, arrêter sans révoquer un appareil préexistant.
+2. Ouvrir deux contextes indépendants A et B (stockages séparés), puis connecter le même compte synthétique dans chaque contexte. Conserver uniquement en mémoire les jetons et identifiants générés ; ne jamais les imprimer.
+3. Depuis A, lire GET /api/device-sessions et identifier les deux sessions créées pour ce run grâce à leur session courante et leur heure de création. Ne jamais sélectionner une session préexistante.
+4. Dans A, cliquer « Déconnecter » uniquement sur l'appareil B. Vérifier le succès du DELETE /api/device-sessions/[deviceId] et l'état « Déconnecté » dans la liste.
+5. Depuis B, envoyer une requête authentifiée en lecture seule vers GET /api/profile ; elle doit être rejetée par HTTP 401 après révocation. Depuis A, la même requête doit rester HTTP 200.
+6. Relire la liste depuis A et vérifier que A est toujours actif et courant, B révoqué, sans autre ligne modifiée. Fermer les deux contextes et produire un rapport JSON qui exclut tout secret et token.
+
+**Nettoyage :** ne révoquer aucun appareil autre que la seconde session créée par le run. Le compte fixture et les autres appareils préexistants doivent rester inchangés. Si une ambiguïté existe sur l'identité d'une ligne, interrompre le scénario et produire BLOCKED, pas de suppression approximative.
+
+### 129.6 Ordre d'exécution, rapports et critères
+
+Ordre retenu :
+1. Ajouter un script Playwright isolé qui réalise A, B et C par interception stricte des routes Supabase, avec assertion qu'aucune requête fournisseur n'a été émise.
+2. Ajouter au même harnais un scénario D à deux contextes, borné aux sessions créées pendant le run et au projet JOBLY-E2E vérifié.
+3. Ajouter des tests de régression du harnais, node --check, pnpm test:auth, TypeScript et build.
+4. Faire exécuter une seule fois le mode ciblé dédié, puis inspecter un rapport JSON frais contenant les scénarios, statuts, timestamps, SHA, ref du projet, compteurs de requêtes interceptées, statuts HTTP et indicateurs d'effets.
+
+Le rapport doit présenter des statuts distincts pour OTP simulé, OAuth simulé, récupération simulée et révocation multi-appareils réelle. Un succès simulé n'est jamais un succès fournisseur réel. Aucun run PASS ne doit être déclaré avant réception et inspection de ce rapport.
+
+### 129.7 Garde-fous
+
+- Projet JOBLY-E2E uniquement ; aucun accès, aucune lecture et aucune mutation de JOBLY-PROD.
+- Aucun vrai e-mail, SMS, OTP délivré par un fournisseur, redirection Google ou appel OAuth externe.
+- Aucune modification du mot de passe des fixtures, aucun compte créé, aucun reset/provisionneur et aucune mutation métier.
+- Aucune révocation de session préexistante ; seules les sessions B créées par le run sont éligibles.
+- Aucun merge vers main, aucun déploiement.
+- La porte UI authentifiée générale reste PASS 29/29 (§128). LOT-01 global reste PARTIAL jusqu'à la validation des scénarios définis ici ou à une décision écrite d'exclusion du périmètre.
