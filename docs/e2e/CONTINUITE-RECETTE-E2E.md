@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.137 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.138 — 9 novembre 2026
 >
 > **Dernière preuve LOT-01 :** smoke API authentifié PASS 40/40 (rapport opérateur du 8 novembre 2026 à 23:48:30.438Z), sur le code runner `5b39cdea1b5810f2d9fe49fc8111ac3897d8c1df` et smoke `73aee328bc2f11ff15628cac13a7d3bd932f8e1e` ; nettoyage API + base PASS, aucune action externe. Dernier browser-only du 9 novembre : build et serveur PASS, mais le GET `/api/public/home-stats` a répondu 503 ; cause DB identifiée et correction de droits appliquée uniquement sur JOBLY-E2E (§112). Le nouveau smoke génère maintenant un rapport FAIL structuré au lieu de s'arrêter sans preuve. La recette navigateur doit encore être rejouée.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial **3/3 PASS** et cycle de session **12/12 PASS** (§96 et §99). Préparation du test API par rôle : le préflight opérateur du 8 novembre 2026 à 22:34:39 a confirmé URL/ref JOBLY-E2E et fixtures complètes, mais l'ancien code serveur ne lisait que `SUPABASE_SERVICE_ROLE_KEY`, alors que `.env.local` contient la clé moderne `SUPABASE_SECRET_KEY`; le clone local était en retard et aucun runtime privé n'existait. Correctif `adminClient()` maintenant compatible avec la secret key Supabase côté serveur ; le smoke API utilise cette clé locale sans `.e2e-fixture-runtime.json`. Un runner `e2e/run-authenticated-role-recipe.mjs` exécute le build et le smoke sur un worktree détaché propre de `origin/e2e/recette`, lit `.env.local` et `.e2e-fixtures.json` depuis le dépôt source, ne les copie pas et ne les imprime pas. Le parcours croisé crée des données temporaires JOBLY-E2E et vérifie leur nettoyage. Première tentative : build PASS, serveur local BLOCKED (§102). Smoke API exécuté le 8 novembre à 23:03:19 : 36/40 PASS, 3 FAIL et 1 BLOCKED ; les trois rôles sont exécutés, les mutations synthétiques du parcours croisé sont nettoyées (API + vérification DB), externalActions=false. Analyse : les deux feeds échouent sur les garde-fous anti-abus du flux (clé serveur moderne non reconnue et IP loopback absente du client HTTP de recette) ; /api/recruiter/talents échoue car son limiteur n'accepte que la variable legacy SUPABASE_SERVICE_ROLE_KEY. Correctifs ciblés et tests ajoutés au §103 ; leur première exécution s'est arrêtée sur une erreur de résolution Node de next/server depuis le test TypeScript direct. Le point d'entrée du helper a été corrigé en next/server.js (§104), puis le rapport opérateur a confirmé pnpm test:security-core 11/11 PASS, 0 FAIL (Node 26.13.0 ; avertissements MODULE_TYPELESS_PACKAGE_JSON non bloquants). Les tentatives de configuration initiales du 8 novembre sont résolues par les §§105–106. Le smoke API authentifié a donné PASS 40/40 (§107). Le résumé global du runner reçu ensuite confirme également `status=PASS`, `build=PASS`, `localServer=PASS`, `authenticatedRoleSmoke=PASS`, 40/40 contrôles et tous les nettoyages PASS (§109). L'URL a été dérivée du manifeste E2E validé ; la clé serveur a été vérifiée sur PostgREST JOBLY-E2E (HTTP 200). `remoteDataMayBeModified=true` indique que la fenêtre d'exécution des tests d'écriture a été ouverte, mais les trois contrôles de nettoyage du résumé sont PASS et le smoke détaillé confirme l'absence des données synthétiques ; `externalActions=false`. Le rapport global porte `createdAt=23:39:07Z`, alors que le rapport API détaillé porte `createdAt=23:48:30Z` ; ces horodatages ne permettent pas d'affirmer qu'ils proviennent du même lancement, bien que les résultats et les contrôles concordent. Le sous-périmètre runner + API est donc PASS sur la base des deux rapports opérateur. L'audit UI a confirmé que `e2e/browser-smoke.mjs` couvre 14 points publics/anonymes et responsive, sans login réel ni parcours métier authentifié ; le mode `--browser-only` isolé est décrit au §110. La première exécution du 9 novembre à 00:00:16 a été BLOCKED sans rapport. Le second run, créé à 00:13:27.807Z avec processus navigateur lancé à 00:19:13.807Z, a confirmé build PASS et serveur PASS mais a échoué sur GET `/api/public/home-stats` : HTTP 503 au lieu de 200 ; aucun rapport navigateur n'a été écrit. L'analyse read-only de JOBLY-E2E a montré que `public.get_public_home_stats()` ne possédait aucun droit EXECUTE pour `anon`, `authenticated` ou `service_role`, alors que la route utilisait encore la publishable key. La migration de moindre privilège avait volontairement retiré les droits publics et le commentaire de cette migration précisait que la route devait utiliser `adminClient` : il s'agissait donc d'une incohérence entre la route et la politique SQL, pas d'un défaut Playwright. §112 documente la correction : route serveur `adminClient`, RPC autorisée uniquement à `service_role`, et vérification post-migration sur JOBLY-E2E (`anon=false`, `authenticated=false`, `service_role=true`). Le runner avait en plus une référence non déclarée à `failureText`; elle est corrigée. Le smoke navigateur écrit désormais un rapport JSON FAIL structuré en cas d'assertion interrompue. Aucun nouveau lancement browser-only n'a encore validé ces correctifs ; la prochaine action est la relance unique documentée au §112. LOT-01 global et LOT-02/03 restent soumis à leurs autres critères UI/métier. main reste hors périmètre.
+> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial **3/3 PASS** et cycle de session **12/12 PASS** (§96 et §99). Préparation du test API par rôle : le préflight opérateur du 8 novembre 2026 à 22:34:39 a confirmé URL/ref JOBLY-E2E et fixtures complètes, mais l'ancien code serveur ne lisait que `SUPABASE_SERVICE_ROLE_KEY`, alors que `.env.local` contient la clé moderne `SUPABASE_SECRET_KEY`; le clone local était en retard et aucun runtime privé n'existait. Correctif `adminClient()` maintenant compatible avec la secret key Supabase côté serveur ; le smoke API utilise cette clé locale sans `.e2e-fixture-runtime.json`. Un runner `e2e/run-authenticated-role-recipe.mjs` exécute le build et le smoke sur un worktree détaché propre de `origin/e2e/recette`, lit `.env.local` et `.e2e-fixtures.json` depuis le dépôt source, ne les copie pas et ne les imprime pas. Le parcours croisé crée des données temporaires JOBLY-E2E et vérifie leur nettoyage. Première tentative : build PASS, serveur local BLOCKED (§102). Smoke API exécuté le 8 novembre à 23:03:19 : 36/40 PASS, 3 FAIL et 1 BLOCKED ; les trois rôles sont exécutés, les mutations synthétiques du parcours croisé sont nettoyées (API + vérification DB), externalActions=false. Analyse : les deux feeds échouent sur les garde-fous anti-abus du flux (clé serveur moderne non reconnue et IP loopback absente du client HTTP de recette) ; /api/recruiter/talents échoue car son limiteur n'accepte que la variable legacy SUPABASE_SERVICE_ROLE_KEY. Correctifs ciblés et tests ajoutés au §103 ; leur première exécution s'est arrêtée sur une erreur de résolution Node de next/server depuis le test TypeScript direct. Le point d'entrée du helper a été corrigé en next/server.js (§104), puis le rapport opérateur a confirmé pnpm test:security-core 11/11 PASS, 0 FAIL (Node 26.13.0 ; avertissements MODULE_TYPELESS_PACKAGE_JSON non bloquants). Les tentatives de configuration initiales du 8 novembre sont résolues par les §§105–106. Le smoke API authentifié a donné PASS 40/40 (§107). Le résumé global du runner reçu ensuite confirme également `status=PASS`, `build=PASS`, `localServer=PASS`, `authenticatedRoleSmoke=PASS`, 40/40 contrôles et tous les nettoyages PASS (§109). L'URL a été dérivée du manifeste E2E validé ; la clé serveur a été vérifiée sur PostgREST JOBLY-E2E (HTTP 200). `remoteDataMayBeModified=true` indique que la fenêtre d'exécution des tests d'écriture a été ouverte, mais les trois contrôles de nettoyage du résumé sont PASS et le smoke détaillé confirme l'absence des données synthétiques ; `externalActions=false`. Le rapport global porte `createdAt=23:39:07Z`, alors que le rapport API détaillé porte `createdAt=23:48:30Z` ; ces horodatages ne permettent pas d'affirmer qu'ils proviennent du même lancement, bien que les résultats et les contrôles concordent. Le sous-périmètre runner + API est donc PASS sur la base des deux rapports opérateur. L'audit UI a confirmé que `e2e/browser-smoke.mjs` couvre 14 points publics/anonymes et responsive, sans login réel ni parcours métier authentifié ; le mode `--browser-only` isolé est décrit au §110. La première exécution du 9 novembre à 00:00:16 a été BLOCKED sans rapport. Le second run, créé à 00:13:27.807Z avec processus navigateur lancé à 00:19:13.807Z, a confirmé build PASS et serveur PASS mais a échoué sur GET `/api/public/home-stats` : HTTP 503 au lieu de 200 ; aucun rapport navigateur n'a été écrit. L'analyse read-only de JOBLY-E2E a montré que `public.get_public_home_stats()` ne possédait aucun droit EXECUTE pour `anon`, `authenticated` ou `service_role`, alors que la route utilisait encore la publishable key. La migration de moindre privilège avait volontairement retiré les droits publics et le commentaire de cette migration précisait que la route devait utiliser `adminClient` : il s'agissait donc d'une incohérence entre la route et la politique SQL, pas d'un défaut Playwright. §112 documente la correction : route serveur `adminClient`, RPC autorisée uniquement à `service_role`, et vérification post-migration sur JOBLY-E2E (`anon=false`, `authenticated=false`, `service_role=true`). Le runner avait en plus une référence non déclarée à `failureText`; elle est corrigée. Le smoke navigateur écrit désormais un rapport JSON FAIL structuré en cas d'assertion interrompue. Aucun nouveau lancement browser-only n'a encore validé ces correctifs ; la relance ciblée documentée au §112.6 reste l'action immédiate. L'audit V2.138 (§0) confirme qu'elle ne clôt pas LOT-01 à elle seule et interdit pour l'instant le lancement du runner global. LOT-01 global et LOT-02/03 restent soumis à leurs autres critères UI/métier. main reste hors périmètre.
 
-**Version :** 2.137  
+**Version :** 2.138  
 **Date de consolidation :** 9 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -22,6 +22,77 @@
 **Environnement interdit :** JOBLY-PROD, ses données, ses clés, ses comptes et ses déploiements.
 
 > Ce document est le point de reprise de référence. Il sépare les preuves effectivement obtenues, les scénarios présents dans le code mais non validés, les blocages locaux et les actions qui nécessitent l'accord de l'utilisateur. Il doit être mis à jour à chaque nouvelle exécution significative.
+
+
+## 0. AUDIT DE CONTINUITÉ — MODE OPÉRATOIRE ACTIF ET PLAN DE PROGRESSION — V2.138
+
+**Audit réalisé le 9 novembre 2026 à partir de la version distante de e2e/recette.** Cette section devient la première référence opérationnelle. Elle prévaut sur toute ancienne commande ou tout ancien statut dans les sections historiques ; celles-ci restent conservées pour la traçabilité, pas comme instructions de reprise.
+
+### 0.1 Verdict de l'audit
+
+La direction du §112.6 est correcte pour l'étape immédiate : utiliser le runner isolé e2e/run-authenticated-role-recipe.mjs en mode --browser-only afin de vérifier le correctif HTTP 503 et de terminer le smoke public sans rejouer les 40 contrôles API.
+
+**Mais ce smoke ciblé n'est pas une recette LOT-01 complète.** Son périmètre est public/anonyme : accueil, statistiques, navigation vers les formulaires, affichage du mot de passe, responsive et six refus HTTP 401. Il ne réalise pas une connexion utilisateur réelle dans le navigateur ni les parcours authentifiés Talent/Recruteur/Partenaire.
+
+Le document est volumineux et plusieurs sections apparaissent dans un ordre qui ne suit pas les numéros ; certains anciens snapshots LOT-00/LOT-01 restent visibles après des preuves plus récentes. Pour éviter toute ambiguïté :
+- la clôture LOT-00 est celle des §§93.15 à 93.19 : **PASS / CLOS** ; les états antérieurs PARTIAL des sections 88 à 92 et 89 à 90 sont historiques et supersédés ;
+- LOT-01 reste **PARTIAL / NON CLOS** malgré Auth 12/12 et API 40/40 ;
+- le diagnostic structurel du §87 reste pertinent pour le runner global scripts/e2e-local-recipe.mjs (détail actualisé au §87.7) ;
+- le prochain rapport demandé est uniquement le rapport du mode --browser-only décrit au §112.6.
+
+### 0.2 Audit des deux runners : décision d'utilisation
+
+**Runner ciblé — à utiliser maintenant :** e2e/run-authenticated-role-recipe.mjs.
+- Il exige un worktree séparé, propre et exactement aligné sur origin/e2e/recette.
+- Il lit le manifeste .e2e-fixtures.json et les paramètres .env.local dans le dépôt source sans les copier ni les afficher.
+- Le mode --browser-only construit l'application, démarre un serveur local sur le port 3217, exécute uniquement e2e/browser-smoke.mjs et conserve remoteDataMayBeModified=false.
+- Il n'exécute pas authenticated-role-smoke.mjs ; il évite donc de rejouer les 40 API PASS.
+- Il valide la fraîcheur, le projet, l'URL locale et le SHA du rapport ; le smoke produit maintenant un JSON FAIL structuré en cas d'assertion interrompue.
+- **Limite :** le runner exécute pnpm build mais pas pnpm typecheck. Comme le contrôle CI Jobly CI — Typecheck & Build a été annulé sur le commit de code, le typecheck doit être lancé explicitement dans le worktree avant le smoke.
+
+**Runner global — ne pas utiliser pour la prochaine action :** scripts/e2e-local-recipe.mjs.
+La relecture du code courant a confirmé quatre raisons :
+1. executeLot() renvoie PARTIAL après les tests et gates sans disposer d'une preuve runtime reconnue ; pour LOT-01, l'agrégateur ajoute le statut Auth et navigateur mais ne promeut jamais le lot en PASS (il ne fait que le passer en FAIL si Playwright échoue). Le vert complet est donc structurellement impossible avec le code actuel, même si les contrôles de base passent.
+2. Les propriétés dependsOn du catalogue sont conservées dans le rapport, mais runStage() exécute les lots d'une phase sans vérifier que leurs dépendances ont réellement le statut PASS. L'ordre par phases n'est pas un vrai verrou de dépendance.
+3. Le runner global relance le smoke Auth et le smoke API authentifié ; il répéterait donc des contrôles déjà PASS alors que la correction actuelle porte sur home-stats et le harnais navigateur.
+4. Hors CI, son préflight peut entrer dans la branche restauration/provisionnement des fixtures si le manifeste/runtime local ne correspond pas aux critères attendus. Ce chantier interdit toute restauration/provisionnement automatique sans autorisation et contrôle dédiés.
+
+**Décision :** ne pas lancer scripts/e2e-local-recipe.mjs, scripts/e2e-local-recipe ou une « recette complète » qui l'appelle avant correction de ses gates, mise en œuvre effective des dépendances, neutralisation du chemin provisionneur pour ce parcours et approbation d'une campagne globale. Le runner ciblé est le seul chemin autorisé pour l'action suivante.
+
+### 0.3 Critères de clôture LOT-01 — ne pas confondre sous-lots et lot complet
+
+| Porte obligatoire | Critère de PASS | Preuve de référence / état |
+|---|---|---|
+| TypeScript + build | pnpm typecheck et pnpm build PASS sur le SHA testé | Build du runner navigateur à refaire après les derniers commits ; typecheck CI annulé, donc à exécuter localement |
+| Auth réelle | 12/12 PASS, 3 rôles, rôle signé correct et session renouvelée | PASS historique §99 ; à actualiser seulement si le rapport dépasse 6 h au lancement ou si le code Auth change |
+| API par rôle | 40/40 PASS, zéro FAIL/BLOCKED, cycle croisé et nettoyage 3/3 | PASS §§107/109 ; à réutiliser, sans relance puisque le correctif actuel n'a pas changé ces endpoints |
+| UI publique/anonyme | 14/14 PASS, zéro FAIL/BLOCKED, rapport frais et SHA/projet/URL exacts | À exécuter après correctif home-stats (§112.6) |
+| UI authentifiée | Au moins un parcours navigateur contrôlé pour Talent, Recruteur et Partenaire : connexion, session, navigation conforme au rôle, refus inter-rôle et déconnexion ; toute donnée créée pour test doit être synthétique, propre au run et nettoyée | Non démontré aujourd'hui ; scénario dédié à ajouter, distinct des 40 API |
+| Auth avancée | OTP, Google OAuth, reset du mot de passe et révocation multi-appareils : test runtime en environnement contrôlé, ou décision de périmètre écrite qui les exclut explicitement de cette clôture | Non démontré ; ne pas les assimiler à PASS par présence de boutons ou tests statiques |
+| Sécurité et non-régression | Tests Security Core PASS, aucune erreur navigateur non traitée, aucun effet externe, nettoyage confirmé | Security Core CI success ; le build CI est annulé ; aucun effet externe sur le browser-only |
+
+**Règle de décision :** LOT-01 n'est PASS que lorsque toutes les portes classées obligatoires sont PASS ou qu'une exception de périmètre est explicitement acceptée et documentée. Un browser-only 14/14 valide uniquement la porte UI publique/anonyme.
+
+### 0.4 Séquence d'exécution retenue
+
+1. **Maintenant — smoke public ciblé :** vérifier la propreté du worktree, fetcher origin/e2e/recette, détacher le worktree sur le HEAD distant, exécuter node --check sur les deux scripts, puis pnpm typecheck et le runner --browser-only. Ouvrir les quatre rapports avec Notepad. Commande exacte au §112.6.
+2. **Si le browser-only échoue :** analyser le contrôle en FAIL et son log ; corriger uniquement la cause prouvée, mettre le cahier à jour et relancer uniquement la recette ciblée. Ne pas relancer les 40 API.
+3. **Si le browser-only passe 14/14 :** enregistrer uniquement le sous-lot UI public PASS. Concevoir et exécuter un smoke navigateur authentifié par rôle, sans réutiliser de compte Production, sans modifier CV/profil préexistant, sans email/SMS réel et avec nettoyage vérifié des seuls enregistrements synthétiques.
+4. **Avant le vert LOT-01 :** corriger le moteur d'agrégation (ou produire un gate de clôture LOT-01 dédié) pour qu'il consomme les rapports exacts et frais, impose les critères §0.3 et bloque si une dépendance ou un rapport manque. Un changement de simple valeur PARTIAL → PASS est interdit.
+5. **Après LOT-01 :** dérouler les lots selon leurs dépendances et les preuves manquantes, sans rejouer les tests déjà PASS. LOT-02 et LOT-03 sont les parcours cœur P0 ; LOT-07 suit LOT-02/03 en sandbox ; LOT-04 peut avancer indépendamment après LOT-00 ; LOT-05 suit LOT-01 ; LOT-06 suit LOT-02/03 ; LOT-08 suit LOT-01 ; LOT-09 suit LOT-01/02 ; LOT-10 est la régression transversale finale. LOT-11 OpenAPI reste réservé à la fin selon le §76.
+
+### 0.5 Règles permanentes de lecture et de reprise
+
+- Toujours identifier le SHA, le projet, le mode de runner, l'horodatage et le code de sortie d'un rapport.
+- Ne jamais cumuler les rapports de runs différents ; ne pas additionner les nombres de tests de deux exécutions.
+- Ne pas refaire un test PASS sans changement pertinent, expiration de sa fenêtre de fraîcheur ou demande motivée.
+- Aucun mot de passe, secret, token ou contenu de manifeste dans le chat, les logs publics ou Git.
+- Aucune réinitialisation, recréation, restauration de fixture ou exécution de provisionneur automatique.
+- JOBLY-PROD, main, merge et déploiement restent hors périmètre.
+- Après chaque retour opérateur, mettre à jour les preuves et l'action suivante dans ce document ; une seule commande opérateur prioritaire à la fois.
+
+---
+
 
 ---
 
@@ -65,7 +136,7 @@ La règle de moindre privilège est ainsi conservée : seuls les appels serveur 
 
 ### 112.5 CI et état des preuves
 
-Sur le commit `3dff5d1c37e35205bf91d2f51042ba050aafd876`, le contrôle GitHub a ensuite terminé : `Jobly CI — Typecheck & Build` = `cancelled` (ce n'est pas un PASS), `Jobly Security Core — isolated migration tests` = `success`. Plusieurs workflows annexes ont également terminé avec succès, d'autres sont restés en cours ; ils ne remplacent pas le contrôle de build annulé. Le build après les corrections n'est donc pas encore validé par CI. La comparaison réalisée au commit `7061d69cc7151a94af4bfbe3e175c31d020f014f` avec le point de départ `016544e944c1445561cb7821f80cf72880bd907e` donnait 16 commits en avance et 0 en retard ; deux commits documentaires ont ensuite mis à jour uniquement ce fichier de continuité. La comparaison confirme également que `main` conserve le SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`. Aucun PASS de build CI n'est revendiqué.
+Sur le commit `3dff5d1c37e35205bf91d2f51042ba050aafd876`, le contrôle GitHub a ensuite terminé : `Jobly CI — Typecheck & Build` = `cancelled` (ce n'est pas un PASS), `Jobly Security Core — isolated migration tests` = `success`. Plusieurs workflows annexes ont également terminé avec succès, d'autres sont restés en cours ; ils ne remplacent pas le contrôle de build annulé. Le build après les corrections n'est donc pas encore validé par CI ; le runner ciblé exécute le build mais pas pnpm typecheck, d'où l'ajout du typecheck local à la commande §112.6. La comparaison réalisée au commit `7061d69cc7151a94af4bfbe3e175c31d020f014f` avec le point de départ `016544e944c1445561cb7821f80cf72880bd907e` donnait 16 commits en avance et 0 en retard ; deux commits documentaires ont ensuite mis à jour uniquement ce fichier de continuité. La comparaison confirme également que `main` conserve le SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`. Aucun PASS de build CI n'est revendiqué.
 
 Acquis : root cause identifiée par ACL, code corrigé sur la branche, migration appliquée au projet E2E, ACL vérifiée. Non acquis : l'appel HTTP de la route après correction et le smoke Playwright complet. Le prochain lancement doit les vérifier. Ne pas relancer le smoke API authentifié 40/40 : il est déjà PASS (§107 et §109).
 
@@ -85,6 +156,8 @@ node --check e2e\run-authenticated-role-recipe.mjs
 if errorlevel 1 exit /b 1
 node --check e2e\browser-smoke.mjs
 if errorlevel 1 exit /b 1
+pnpm typecheck
+if errorlevel 1 exit /b 1
 node e2e\run-authenticated-role-recipe.mjs C:\Users\ASUS\Jobly --browser-only
 notepad artifacts\e2e\authenticated-role-runner-summary.json
 notepad artifacts\e2e\browser-smoke-diagnostic.json
@@ -93,7 +166,7 @@ notepad artifacts\e2e\lot1-auth-ui-smoke.json
 pause
 ```
 
-Cette commande effectue un nouveau build, démarre le serveur local et le smoke navigateur uniquement. Elle ne rejoue pas `authenticated-role-smoke.mjs`, ne réinitialise aucune fixture, n'envoie aucun email/SMS, et conserve `remoteDataMayBeModified=false`. Les quatre rapports Notepad ci-dessus sont les éléments à transmettre.
+Cette commande exécute d'abord le typecheck, puis le runner fait un nouveau build, démarre le serveur local et le smoke navigateur uniquement. Elle ne rejoue pas `authenticated-role-smoke.mjs`, ne réinitialise aucune fixture, n'envoie aucun email/SMS, et conserve `remoteDataMayBeModified=false`. Les quatre rapports Notepad ci-dessus sont les éléments à transmettre.
 
 ### 112.7 Garde-fous inchangés
 
@@ -1672,28 +1745,48 @@ Le workflow a terminé avec une conclusion `failure` parce que le bilan de recet
 
 État PR vérifié : #266 ouverte, brouillon, non fusionnée. Aucune action de déploiement effectuée.
 
-## 6. État de référence des 11 lots
+## 6. État de référence des 11 lots — pilotage actualisé V2.138
 
-Les statuts à conserver sont ceux de la dernière exécution locale communiquée (section 3.3). Le précédent rapport à 301 tests et le rapport récent à 277 tests sont deux exécutions distinctes ; leurs nombres de tests ne doivent pas être additionnés ni comparés comme s'il s'agissait d'un seul run.
+Les résultats de rapports distincts ne doivent jamais être fusionnés dans une seule exécution. Les données historiques du §3.3 (277 tests, 10 PARTIAL, 1 BLOCKED) sont conservées comme photographie d'un run antérieur et ne décrivent pas la situation de chaque sous-lot après les correctifs ultérieurs.
 
-État des preuves actualisé au 9 novembre 2026 :
-- LOT-01 — sessions Auth trois rôles : 12/12 PASS (§99).
-- LOT-01 — runner API authentifié : build PASS, serveur local PASS, smoke API PASS 40/40, 0 BLOCKED, 0 FAIL ; probe serveur HTTP 401 attendu ; clé serveur vérifiée JOBLY-E2E HTTP 200 ; 3/3 contrôles de nettoyage PASS (§109).
-- LOT-01 — cycle API croisé Talent/Recruteur : offre temporaire, candidature USER_REVIEW, entretien, décision OFFER, protection de la décision et suppression API/DB PASS (§107).
-- Les parcours UI/navigation et la matrice globale Auth/sécurité ne sont pas couverts intégralement par ces rapports ; LOT-01 global n'est donc pas encore déclaré clôturé.
-- LOT-02/03 : le cycle API ciblé est prouvé, mais les parcours UI/métier et scénarios non inclus dans le smoke restent à compléter.
+### 6.1 Preuves acquises qui peuvent être réutilisées
 
-Priorités de reprise :
-- **P0 — LOT-00 :** conserver les preuves de clôture et ne pas rejouer les migrations/contrôles déjà PASS sans nouvelle anomalie.
-- **P0 — LOT-01 :** exécuter le smoke navigateur isolé avec le mode `--browser-only` (§110), sans rejouer les 40 API déjà PASS ; conserver les parcours OTP/Google/reset/révocation comme non démontrés tant qu'ils n'ont pas de scénario runtime contrôlé.
-- **P0 — LOT-02 / LOT-03 :** réutiliser les preuves acquises du parcours croisé ; après le smoke UI public, construire des parcours navigateur authentifiés Talent et Recruteur ciblés (CV, recherche/détail/candidature, score/shortlist/exports), sans rejouer les 40 contrôles API verts.
-- **P0 — LOT-07 :** poursuivre le scénario de paiement en sandbox uniquement, sans transfert ni notification réelle.
-- **P1 — LOT-04 / LOT-05 / LOT-06 :** compléter les parcours Mission Afrique, J'IA 360 et Mobility.
-- **P2 — LOT-08 :** compléter événements, communauté, bons plans et campus.
-- **P1 — LOT-09 :** le gate statique seul ne valide pas les parcours Career Journey/Admin 360/BI ; ajouter des preuves runtime.
-- **P1 — LOT-10 :** la recette responsive ne remplace pas les validations PWA/Android et synchronisation sur appareils/runtimes prévus.
+- LOT-00 : **PASS / CLOS** sur les critères affectés à ce lot (§§93.15–93.19). Ne pas rejouer Storage, les migrations ni les contrôles SQL déjà PASS en l'absence de nouvelle anomalie.
+- LOT-01 Auth : smoke de session **12/12 PASS** sur Talent, Recruteur et Partenaire (§99).
+- LOT-01 API : **40/40 PASS**, cycle croisé Talent/Recruteur et nettoyage **3/3 PASS** (§§107 et 109). Ne pas relancer les 40 API pour le correctif home-stats.
+- LOT-01 Security Core : **11/11 PASS** rapportés (§104), puis job CI Security Core success sur le commit de correction home-stats.
+- LOT-01 browser-only : le dernier run transmis a échoué sur /api/public/home-stats HTTP 503 ; cause identifiée et code/droits corrigés au §112. Le nouveau smoke n'a pas encore été exécuté.
+- LOT-02/03 : le cycle API croisé prouve une partie du parcours Talent/Recruteur, mais pas les parcours UI complets CV, shortlist, tests et exports.
+- Tous les autres lots restent ouverts tant que leurs parcours runtime, persistance et nettoyage propres à leur domaine ne sont pas démontrés.
 
-Aucun lot ne doit être passé au vert par simple absence d'erreur dans une suite partielle.
+### 6.2 Priorités et ordre d'avancement
+
+| Ordre | Lot | Priorité | Travail restant principal | Dépendance |
+|---:|---|---|---|---|
+| 1 | LOT-01 | P0 | Smoke public corrigé, UI authentifiée 3 rôles, critères avancés Auth ou exclusion acceptée, gate de clôture fiable | LOT-00 PASS |
+| 2 | LOT-02 | P0 | Parcours Talent navigateur CV, recherche, détail, candidature et persistance | LOT-01 |
+| 3 | LOT-03 | P0 | Parcours Recruteur navigateur, tests, shortlist, décision et exports | LOT-01 |
+| 4 | LOT-07 | P0 | Cycle abonnement/paiement en sandbox, rapprochement SMS simulé, aucun transfert ni SMS réel | LOT-02 + LOT-03 |
+| 5 | LOT-04 | P1 | Mission Afrique : collecte multi-sources, ingestion, reprise, qualité et persistance E2E | LOT-00 ; peut avancer indépendamment de LOT-01 |
+| 6 | LOT-05 | P1 | J'IA 360 : session Talent réelle, connecteurs/outils, persistance et Internet Brain E2E | LOT-01 |
+| 7 | LOT-06 | P1 | Mobility : demande Talent, éligibilité, justificatifs, financement et actions partenaire | LOT-02 + LOT-03 |
+| 8 | LOT-09 | P1 | Career Journey, Admin 360 et BI : runtime, exports et persistance | LOT-01 + LOT-02 |
+| 9 | LOT-08 | P2 | Events, Community, Bons Plans et Campus : publication, interactions et modération | LOT-01 |
+| 10 | LOT-10 | P1 | PWA, synchronisation, Android et régression transverse sur appareils/runtimes prévus | LOT-01 à LOT-09 |
+| 11 | LOT-11 | Dernier | Contrôle OpenAPI authentifié de clôture sécurité | Après les autres lots, selon §76 |
+
+L'ordre de pilotage met d'abord en vert le socle Auth, puis les parcours Talent/Recruteur avant les paiements et Mobility. LOT-04 reste indépendant et peut être conduit en parallèle sans contourner les garde-fous. Les dépendances de cette table sont des règles de pilotage ; le moteur global doit encore être corrigé pour les faire respecter techniquement (§0.2 et §87.7).
+
+### 6.3 Statut global
+
+- LOT-00 : **PASS / CLOS**.
+- LOT-01 : **PARTIAL / NON CLOS** ; le sous-lot API/Auth est vert, le smoke UI public est à rejouer après correctif, et le parcours UI authentifié + gate de clôture restent à faire.
+- LOT-02 à LOT-10 : **NON CLOS** ; des tests unitaires/statique et quelques parcours ciblés existent, mais aucun statut de clôture globale ne doit être inféré.
+- LOT-11 : non commencé ; réservé à la clôture selon le §76.
+
+Aucun lot ne passe au vert par absence d'erreur dans une suite partielle ou par simple succès de compilation.
+
+---
 
 ## 7. Plan de reprise ordonné — HISTORIQUE, NE PAS EXÉCUTER
 
@@ -6115,6 +6208,18 @@ Le gap catalogue de LOT-01 mentionne encore les parcours réels OTP, Google OAut
 Ne pas lancer `scripts/e2e-local-recipe.mjs` pour contourner ces manques : son chemin d'exécution peut démarrer le serveur et les parcours authentifiés, et il ne doit pas restaurer automatiquement des fixtures. Ne pas exécuter les scripts de provisionnement, reset de mot de passe ou restauration de fixture. Le dépôt local étant 100 commits behind avec des changements non commités, ne pas faire de `pull`, `reset`, `stash` ou `clean` en l'état.
 
 Statut LOT-01 : **PARTIAL / BLOCKED PAR LE MOTEUR DE STATUT ET PAR LES PREUVES RUNTIME MANQUANTES**. Aucun correctif du runner n'a été appliqué pendant cette analyse. JOBLY-PROD, `main`, les PR et les déploiements restent inchangés.
+
+### 87.7 Réconciliation V2.138 — le défaut du runner global est toujours actif
+
+Relecture du code distant actuel de scripts/e2e-local-recipe.mjs le 9 novembre 2026 :
+- executeLot() renvoie encore PARTIAL après les tests et gates sans disposer d'une preuve runtime reconnue ; pour LOT-01, l'agrégateur ajoute le statut Auth et navigateur mais ne promeut jamais le lot en PASS (il ne fait que le passer en FAIL si Playwright échoue).
+- les propriétés dependsOn du catalogue sont conservées dans le rapport, mais runStage() vide et exécute les files par numéro d'étape sans attendre le PASS des dépendances.
+- le chemin local du runner peut restaurer le runtime ou appeler le provisionneur lorsque les fichiers fixture/runtime ne répondent pas à ses critères.
+
+Les correctifs browser-only du §112 portent sur le runner isolé e2e/run-authenticated-role-recipe.mjs et **ne corrigent pas** ce moteur global. L'analyse §87.6 est donc partiellement dépassée pour l'état des preuves (Auth 12/12 et API 40/40 sont maintenant acquis), mais son diagnostic de statut reste exact pour scripts/e2e-local-recipe.mjs.
+
+**Consigne active :** ne pas lancer le runner global. Corriger ses règles de promotion, appliquer réellement les dépendances et isoler explicitement les voies de provisionnement avant de le réintroduire dans la recette. En attendant, utiliser les runners ciblés et les gates de lot dédiés.
+
 
 
 
