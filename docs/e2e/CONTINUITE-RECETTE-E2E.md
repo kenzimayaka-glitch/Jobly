@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.156 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.157 — 9 novembre 2026
 >
-> **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée post-migration PASS 29/29 (§123), build/serveur et test SQL d'idempotence PASS. La migration de session 20261109015439 est appliquée uniquement à JOBLY-E2E. Le commit 723282895fa09808c6aa1d97adeed54aea6bd756 ajoute le bouton de déconnexion visible à /settings et renforce le smoke pour cliquer ce bouton sur les trois rôles ; ce nouveau parcours UI reste à exécuter (§124.4). LOT-01 reste PARTIAL jusqu'à cette preuve et à la décision de périmètre Auth avancée.
+> **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée avec clic réel sur le bouton de déconnexion PASS 29/29 (§128), auth régression PASS 29/29, TypeScript PASS et build/serveur PASS sur le run du 9 novembre à 06:56–06:57Z. Les trois rôles Talent, Recruteur et Partenaire ont chacun fermé leur session locale depuis `/settings`, puis obtenu HTTP 401 sur `/api/profile`. La migration de session 20261109015439 reste limitée à JOBLY-E2E. **La porte UI authentifiée de LOT-01 est maintenant PASS ; LOT-01 global reste PARTIAL** jusqu'à validation runtime ou décision explicite de périmètre pour OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations, lectures SQL et contrôles Storage ; aucun accès JOBLY-PROD et aucun déploiement. Les tests HTTP CI tournent sur un serveur Next.js de build local au runner avec configuration Supabase fictive, jamais sur le site de production.
 >
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial **3/3 PASS** et cycle de session **12/12 PASS** (§96 et §99). Préparation du test API par rôle : le préflight opérateur du 8 novembre 2026 à 22:34:39 a confirmé URL/ref JOBLY-E2E et fixtures complètes, mais l'ancien code serveur ne lisait que `SUPABASE_SERVICE_ROLE_KEY`, alors que `.env.local` contient la clé moderne `SUPABASE_SECRET_KEY`; le clone local était en retard et aucun runtime privé n'existait. Correctif `adminClient()` maintenant compatible avec la secret key Supabase côté serveur ; le smoke API utilise cette clé locale sans `.e2e-fixture-runtime.json`. Un runner `e2e/run-authenticated-role-recipe.mjs` exécute le build et le smoke sur un worktree détaché propre de `origin/e2e/recette`, lit `.env.local` et `.e2e-fixtures.json` depuis le dépôt source, ne les copie pas et ne les imprime pas. Le parcours croisé crée des données temporaires JOBLY-E2E et vérifie leur nettoyage. Première tentative : build PASS, serveur local BLOCKED (§102). Smoke API exécuté le 8 novembre à 23:03:19 : 36/40 PASS, 3 FAIL et 1 BLOCKED ; les trois rôles sont exécutés, les mutations synthétiques du parcours croisé sont nettoyées (API + vérification DB), externalActions=false. Analyse : les deux feeds échouent sur les garde-fous anti-abus du flux (clé serveur moderne non reconnue et IP loopback absente du client HTTP de recette) ; /api/recruiter/talents échoue car son limiteur n'accepte que la variable legacy SUPABASE_SERVICE_ROLE_KEY. Correctifs ciblés et tests ajoutés au §103 ; leur première exécution s'est arrêtée sur une erreur de résolution Node de next/server depuis le test TypeScript direct. Le point d'entrée du helper a été corrigé en next/server.js (§104), puis le rapport opérateur a confirmé pnpm test:security-core 11/11 PASS, 0 FAIL (Node 26.13.0 ; avertissements MODULE_TYPELESS_PACKAGE_JSON non bloquants). Les tentatives de configuration initiales du 8 novembre sont résolues par les §§105–106. Le smoke API authentifié a donné PASS 40/40 (§107). Le résumé global du runner reçu ensuite confirme également `status=PASS`, `build=PASS`, `localServer=PASS`, `authenticatedRoleSmoke=PASS`, 40/40 contrôles et tous les nettoyages PASS (§109). L'URL a été dérivée du manifeste E2E validé ; la clé serveur a été vérifiée sur PostgREST JOBLY-E2E (HTTP 200). `remoteDataMayBeModified=true` indique que la fenêtre d'exécution des tests d'écriture a été ouverte, mais les trois contrôles de nettoyage du résumé sont PASS et le smoke détaillé confirme l'absence des données synthétiques ; `externalActions=false`. Le rapport global porte `createdAt=23:39:07Z`, alors que le rapport API détaillé porte `createdAt=23:48:30Z` ; ces horodatages ne permettent pas d'affirmer qu'ils proviennent du même lancement, bien que les résultats et les contrôles concordent. Le sous-périmètre runner + API est donc PASS sur la base des deux rapports opérateur. L'audit UI a confirmé que `e2e/browser-smoke.mjs` couvre 14 points publics/anonymes et responsive, sans login réel ni parcours métier authentifié ; le mode `--browser-only` isolé est décrit au §110. La première exécution du 9 novembre à 00:00:16 a été BLOCKED sans rapport. Le second run, créé à 00:13:27.807Z avec processus navigateur lancé à 00:19:13.807Z, a confirmé build PASS et serveur PASS mais a échoué sur GET `/api/public/home-stats` : HTTP 503 au lieu de 200 ; aucun rapport navigateur n'a été écrit. L'analyse read-only de JOBLY-E2E a montré que `public.get_public_home_stats()` ne possédait aucun droit EXECUTE pour `anon`, `authenticated` ou `service_role`, alors que la route utilisait encore la publishable key. La migration de moindre privilège avait volontairement retiré les droits publics et le commentaire de cette migration précisait que la route devait utiliser `adminClient` : il s'agissait donc d'une incohérence entre la route et la politique SQL, pas d'un défaut Playwright. §112 documente la correction : route serveur `adminClient`, RPC autorisée uniquement à `service_role`, et vérification post-migration sur JOBLY-E2E (`anon=false`, `authenticated=false`, `service_role=true`). Le runner avait en plus une référence non déclarée à `failureText`; elle est corrigée. Le smoke navigateur écrit désormais un rapport JSON FAIL structuré en cas d'assertion interrompue. Aucun nouveau lancement browser-only n'a encore validé ces correctifs ; la relance ciblée documentée au §112.6 reste l'action immédiate. L'audit V2.138 (§0) confirme qu'elle ne clôt pas LOT-01 à elle seule et interdit pour l'instant le lancement du runner global. LOT-01 global et LOT-02/03 restent soumis à leurs autres critères UI/métier. main reste hors périmètre.
 
-**Version :** 2.146  
+**Version :** 2.157  
 **Date de consolidation :** 9 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -32,7 +32,7 @@
 
 Le correctif HTTP 503 et le smoke public/anonyme sont validés : browser-only PASS 14/14, build/serveur PASS et Playwright exit 0 (§115). Ne pas le rejouer sans changement pertinent.
 
-Le smoke authentifié post-migration a ensuite obtenu **PASS 29/29** pour Talent, Recruteur et Partenaire (§123), avec les API propres 200 et refus inter-rôles 403. Ce run validait toutefois le teardown par purge du contexte, pas le clic utilisateur. Le code §124 ajoute maintenant un bouton visible commun dans /settings et le smoke associé clique ce bouton avant de vérifier le retour HTTP 401. **Point de reprise actuel : exécuter §124.4 sur le commit 723282895fa09808c6aa1d97adeed54aea6bd756.**
+Le smoke authentifié post-migration a obtenu **PASS 29/29** pour Talent, Recruteur et Partenaire (§123), avec API propres 200 et refus inter-rôles 403. Le retest renforcé du 9 novembre a ensuite prouvé le clic réel sur le bouton commun `/settings` : les trois rôles ont été déconnectés, redirigés vers `/` et ont obtenu HTTP 401 sur `/api/profile` (§128). **La porte UI authentifiée est PASS.** Le seul point de clôture encore ouvert pour LOT-01 est le périmètre Auth avancé décrit au §124.5 et §128.5.
 
 Le document est volumineux et plusieurs sections apparaissent dans un ordre qui ne suit pas les numéros ; certains anciens snapshots LOT-00/LOT-01 restent visibles après des preuves plus récentes. Pour éviter toute ambiguïté :
 - la clôture LOT-00 est celle des §§93.15 à 93.19 : **PASS / CLOS** ; les états antérieurs PARTIAL des sections 88 à 92 sont historiques et supersédés ;
@@ -67,7 +67,7 @@ La relecture du code courant a confirmé quatre raisons :
 | Auth réelle | 12/12 PASS, 3 rôles, rôle signé correct et session renouvelée | 12/12 PASS, TALENT/RECRUITER/PARTNER, rapport source à 22:30:34Z et âge 140 min lors du browser-only (§115) |
 | API par rôle | 40/40 PASS, zéro FAIL/BLOCKED, cycle croisé et nettoyage 3/3 | PASS §§107/109 ; à réutiliser, sans relance puisque le correctif actuel n'a pas changé ces endpoints |
 | UI publique/anonyme | 14/14 PASS, zéro FAIL/BLOCKED, rapport frais et SHA/projet/URL exacts | **PASS 14/14** le 9 novembre à 00:50:21.900Z, commit `3dbce55…`, JOBLY-E2E, `http://127.0.0.1:3217`, exit 0 (§115) |
-| UI authentifiée | Au moins un parcours navigateur contrôlé pour Talent, Recruteur et Partenaire : connexion, session, navigation conforme au rôle, refus inter-rôle et déconnexion ; toute donnée créée pour test doit être synthétique, propre au run et nettoyée | **29/29 PASS** post-migration (§123). Le commit 7232828 remplace le teardown simulé par un clic réel sur le bouton visible commun /settings ; nouvelle preuve requise au §124.4 |
+| UI authentifiée | Au moins un parcours navigateur contrôlé pour Talent, Recruteur et Partenaire : connexion, session, navigation conforme au rôle, refus inter-rôle et déconnexion ; toute donnée créée pour test doit être synthétique, propre au run et nettoyée | **PASS 29/29** le 9 novembre 2026, run du commit `da9ce9e2207c9b08ae56d56f02178fdd61cd46c5` (§128) ; clic réel sur le bouton `/settings`, redirection `/`, HTTP 401 pour chacun des trois rôles |
 | Auth avancée | OTP, Google OAuth, reset du mot de passe et révocation multi-appareils : test runtime en environnement contrôlé, ou décision de périmètre écrite qui les exclut explicitement de cette clôture | Non démontré ; ne pas les assimiler à PASS par présence de boutons ou tests statiques |
 | Sécurité et non-régression | Tests Security Core PASS, aucune erreur navigateur non traitée, aucun effet externe, nettoyage confirmé | Security Core CI success ; le build CI est annulé ; aucun effet externe sur le browser-only |
 
@@ -77,10 +77,10 @@ La relecture du code courant a confirmé quatre raisons :
 
 1. **Smoke public/anonyme : PASS acquis.** Le rapport 14/14, le résumé runner PASS, le build/serveur PASS et le process exit 0 sont consolidés au §115. Ne pas rejouer ce smoke ni les 40 API PASS sans changement pertinent.
 
-**Point de reprise actif :** exécuter la commande §124.4 dans `C:\Users\ASUS\Jobly-e2e-recette-v3`. Le nouveau smoke conserve 29 contrôles mais clique le bouton « Se déconnecter de Jobly » pour les trois rôles, attend le retour à `/` et exige HTTP 401. Les logs statique et TypeScript affichent désormais des marqueurs PASS. Ne pas rejouer les 14 contrôles publics ni les 40 API déjà PASS.
+**Point de reprise actif :** la commande §124.4 a été exécutée et le parcours UI renforcé est **PASS 29/29** (§128). Ne pas rejouer les 29 contrôles ni les 14 contrôles publics ou les 40 API déjà PASS sans changement pertinent. Poursuivre la décision de périmètre Auth avancée conformément au §124.5.
 
-2. **Si le smoke passe :** clôturer la porte UI authentifiée après vérification des trois clics, des redirections et des 401 ; ne pas confondre ce test avec la révocation multi-appareils.
-3. **Si le smoke échoue :** corriger uniquement la cause prouvée et relancer uniquement --role-browser-only ; ne pas lancer le runner global ni réinitialiser les fixtures.
+2. **Porte UI authentifiée : PASS 29/29**, clics visibles, redirections et retours HTTP 401 confirmés (§128) ; ne pas confondre ce test avec la révocation multi-appareils.
+3. **Si une régression ultérieure affecte ce parcours :** corriger uniquement la cause prouvée et relancer uniquement --role-browser-only ; ne pas lancer le runner global ni réinitialiser les fixtures.
 4. **Avant le vert LOT-01 :** les scénarios OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils restent à tester sans effet externe ou à exclure dans une décision de périmètre acceptée. Aucun flux Google/e-mail/SMS ne doit être lancé automatiquement. Un simple changement de statut PARTIAL → PASS est interdit.
 5. **Après LOT-01 :** dérouler les lots selon leurs dépendances et les preuves manquantes, sans rejouer les tests déjà PASS. LOT-02 et LOT-03 sont les parcours cœur P0 ; LOT-07 suit LOT-02/03 en sandbox ; LOT-04 peut avancer indépendamment après LOT-00 ; LOT-05 suit LOT-01 ; LOT-06 suit LOT-02/03 ; LOT-08 suit LOT-01 ; LOT-09 suit LOT-01/02 ; LOT-10 est la régression transversale finale. LOT-11 OpenAPI reste réservé à la fin selon le §76.
 
@@ -7063,7 +7063,7 @@ Les parcours Google OAuth, OTP et récupération du mot de passe utilisent des f
 
 La révocation multi-appareils dispose d'une interface et d'une API distinctes ; elle n'est pas prouvée par le test de déconnexion locale. Elle doit faire l'objet d'un scénario séparé avant qu'on puisse dire que toute l'authentification avancée est validée.
 
-**Statut LOT-01 : PARTIAL** jusqu'au nouveau browser smoke post-commit et à une décision formelle sur le périmètre avancé ou à l'exécution contrôlée de ces scénarios. Pas de merge `main), aucune action JOBLY-PROD, aucun déploiement.
+**Statut LOT-01 : PARTIAL** après réussite du nouveau browser smoke (§128), uniquement parce que le périmètre Auth avancé reste non exécuté et non formellement exclu. La porte UI authentifiée, elle, est PASS. Pas de merge `main`, aucune action JOBLY-PROD, aucun déploiement.
 
 
 ---
@@ -7137,3 +7137,60 @@ Une modification de Jobly ne déclenche pas automatiquement la recette globale d
 La politique ne modifie pas les restrictions d'environnement : JOBLY-E2E uniquement pour les recettes, aucune mutation JOBLY-PROD, aucun reset ou provisionnement automatique de fixtures, aucun merge vers `main) et aucun déploiement sans autorisation explicite et validation correspondante.
 
 Cette politique s'applique à toute modification future de Jobly et complète les critères de clôture de chaque lot. Elle n'autorise pas à clôturer LOT-01 sans les preuves et décisions encore requises au §124.
+
+
+---
+
+## 128. LOT-01 — retest navigateur avec déconnexion visible PASS 29/29
+
+**Mise à jour : 9 novembre 2026 — version 2.157.** Le rapport opérateur transmis confirme que le parcours UI de déconnexion visible, ajouté au §124, a été exécuté avec succès sur les trois rôles.
+
+### 128.1 Identité et cohérence de l'exécution
+
+- Commit testé : `da9ce9e2207c9b08ae56d56f02178fdd61cd46c5`.
+- Environnement : JOBLY-E2E uniquement ; projet `ofqqrryamslxoqkklraw`.
+- Mode : `authenticated-role-browser`.
+- URL : `http://127.0.0.1:3217`.
+- Début : `2026-11-09T06:56:26.146Z` ; fin : `2026-11-09T06:57:45.228Z`.
+- Processus runner terminé avec `processExitCode=0`, `spawnError=null`, rapport produit pour cette exécution.
+
+### 128.2 Résultats navigateur
+
+**PASS 29/29 — 0 FAIL — 0 BLOCKED.**
+
+| Rôle | Contrôles réussis | Résultat |
+|---|---:|---|
+| TALENT | 11/11 | PASS |
+| RECRUITER | 11/11 | PASS |
+| PARTNER | 7/7 | PASS |
+| **Total** | **29/29** | **PASS** |
+
+Pour chacun des trois rôles, le formulaire réel accepte la connexion, la page de rôle se charge, Supabase Auth confirme le rôle signé, l'API propre au rôle répond 200 et les accès inter-rôles attendus répondent 403. Le contrôle `*-SESSION-TEARDOWN` confirme désormais le **clic du bouton visible** dans `/settings`, la fermeture de la session locale, le retour à `/` et une réponse HTTP 401 de `/api/profile`.
+
+### 128.3 Vérifications complémentaires du même lancement
+
+- Résumé runner : `status=PASS`, `build=PASS`, `localServer=PASS`, `roleBrowserSmoke=PASS`, 29/29.
+- TypeScript : `pnpm exec tsc --noEmit --incremental false` — PASS, marqueur écrit dans `role-browser-typecheck.log`.
+- Syntaxe : `node --check e2e/run-authenticated-role-recipe.mjs` et `node --check e2e/authenticated-browser-role-smoke.mjs` — PASS.
+- Tests de régression Auth : `pnpm test:auth` — 29 tests, 29 PASS, 0 FAIL, 0 cancelled, 0 skipped ; marqueur PASS écrit.
+- Le résumé d'exécution rapporte `pageErrors=[]), aucun identifiant/mot de passe ou token imprimé, aucun effet externe et aucune modification possible des données métier distantes.
+- Le runner signale `remoteAuthDeviceStateMayBeModified=true` : les requêtes Auth peuvent actualiser/enregistrer les métadonnées de session de l'utilisateur synthétique courant. Cette possibilité est explicitement distinguée d'une mutation métier.
+
+### 128.4 État de la porte UI authentifiée
+
+La porte UI authentifiée décrite au §0.3 est **PASS**. Le défaut de couverture du bouton de déconnexion est corrigé et vérifié par interaction navigateur réelle pour Talent, Recruteur et Partenaire. Le run ne modifie pas les offres, candidatures, CV, paiements, préférences, profils ou dossiers KYC.
+
+Ne pas rejouer ce smoke sans changement pertinent. Les 40 contrôles API, 14 contrôles UI publics, les tests SQL d'idempotence et les autres preuves antérieures restent des preuves séparées : leurs nombres ne sont pas additionnés au 29/29 de ce run.
+
+### 128.5 Périmètre encore ouvert — LOT-01 global reste PARTIAL
+
+Le rapport confirme expressément que les parcours suivants n'ont pas été soumis : OTP, Google OAuth, récupération du mot de passe, paiements, e-mail et SMS. La révocation multi-appareils n'est pas démontrée par une déconnexion locale, qui ne ferme que la session de cet appareil.
+
+En conséquence :
+- **UI authentifiée par rôle : PASS 29/29** ;
+- **LOT-01 global : PARTIAL / NON CLOS**, jusqu'à l'exécution contrôlée de ces scénarios sans effet externe ou à une décision explicite et documentée qui les exclut du périmètre de clôture ;
+- aucune autorisation implicite d'appeler Google, e-mail ou SMS n'est donnée par ce rapport.
+
+### 128.6 Garde-fous et suite
+
+JOBLY-E2E uniquement. `externalActions=false`, `remoteBusinessDataMayBeModified=false`, aucun secret/token imprimé. Aucun reset/provisionneur de fixtures, aucune mutation JOBLY-PROD, aucun merge vers `main), aucun déploiement. La prochaine action doit porter uniquement sur la décision ou la validation contrôlée du périmètre Auth avancé ; les suites déjà PASS ne sont pas à rejouer.
