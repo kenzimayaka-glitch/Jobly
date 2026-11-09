@@ -58,3 +58,14 @@ Interprétation : la résolution DNS et le chemin HTTPS/HTTP jusqu'au endpoint S
 Effectuer une seule sonde authentifiée, en lecture seule, chargée depuis les variables locales du dépôt source. La commande doit afficher uniquement le type de clé, le statut HTTP ou le code d'erreur réseau, jamais la clé ni son contenu. Si elle répond 200, le préflight authentifié est validé et le runner ciblé peut être relancé. Si elle expire encore, conserver le journal et diagnostiquer le chemin réseau/TLS/filtrage avant toute nouvelle recette.
 
 Le statut global ne change pas : **LOT-01 PARTIAL / NON CLOS**, car aucun build ni navigateur n'ont été exécutés dans la tentative du rapport `10:24:48.240Z`.
+
+
+## Défaut du premier utilitaire de sonde de clé — 9 novembre 2026
+
+Le premier fichier `Jobly-LOT-01-Supabase-Key-Probe.cmd` a échoué avant toute requête HTTP authentifiée :
+`MODULE_NOT_FOUND: Cannot find module '@next/env'`, lors de la tentative de résolution depuis le worktree. Ce message appartient à l'utilitaire de diagnostic, pas au runner Auth ni à Supabase. Il ne permet aucune conclusion sur la clé. Le script de diagnostic dépendait inutilement du module privé `@next/env` ; le runner précédent avait, lui, déjà réussi à lire les métadonnées de configuration avant son timeout réseau.
+
+Correction préparée : sonde V2 sans dépendance à Next.js ou `@next/env`. Elle lit localement les seules entrées nécessaires dans les fichiers .env selon la priorité Next courante, applique l'éventuel override .env.e2e.local, ne journalise jamais la valeur de clé, vérifie la portée du JWT legacy quand applicable, puis fait un GET uniquement sur `/rest/v1/` avec l'en-tête apikey. Pour une clé `sb_secret`, la portée est confirmée par la réponse HTTP, pas par décodage local.
+
+Aucun résultat de cette V2 n'est encore disponible. Ne pas déclarer la clé validée avant un code HTTP de cette sonde. Le diagnostic réseau sans clé précédent reste PASS (DNS résolu, HTTP 401 attendu).
+
