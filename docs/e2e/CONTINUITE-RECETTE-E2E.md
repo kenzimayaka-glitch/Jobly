@@ -78,13 +78,12 @@ node e2e\run-authenticated-role-recipe.mjs C:\Users\ASUS\Jobly --browser-only
 notepad artifacts\e2e\authenticated-role-runner-summary.json
 notepad artifacts\e2e\browser-smoke-diagnostic.json
 notepad artifacts\e2e\browser-smoke-process.log
-notepad artifacts\e2e\failure.txt
 pause
 ```
 
 Cette commande ne rejoue pas `authenticated-role-smoke.mjs`, maintient `remoteDataMayBeModified=false` et n'envoie aucun email/SMS. Elle rebuild le code actuel, redémarre le serveur local et exécute uniquement le navigateur public/anonyme.
 
-Si un des trois derniers fichiers n'existe pas, Notepad peut afficher un message d'absence ; ce n'est pas une raison pour relancer plusieurs fois. Transmettre d'abord le nouveau résumé et le log processus. Le fichier `failure.txt` n'est pertinent que s'il a été écrit par ce run ; le résumé indiquera sa présence/absence dans `browserFailure` ou le processus log fournira le message.
+Si `browser-smoke-diagnostic.json` n'existe pas, transmettre le résumé et le log processus. Le log processus est la preuve d'erreur prioritaire ; le fichier `failure.txt` du smoke peut être absent si le processus s'est arrêté avant son gestionnaire d'erreur.
 
 ### 111.5 Ce qui reste inchangé
 
