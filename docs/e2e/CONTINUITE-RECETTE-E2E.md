@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.158 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.159 — 9 novembre 2026
 >
 > **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée avec clic réel sur le bouton de déconnexion PASS 29/29 (§128), auth régression PASS 29/29, TypeScript PASS et build/serveur PASS sur le run du 9 novembre à 06:56–06:57Z. Les trois rôles Talent, Recruteur et Partenaire ont chacun fermé leur session locale depuis `/settings`, puis obtenu HTTP 401 sur `/api/profile`. La migration de session 20261109015439 reste limitée à JOBLY-E2E. La recette Auth avancée est définie au §129 ; aucun runner dédié à ces scénarios n'est encore disponible. **La porte UI authentifiée de LOT-01 est maintenant PASS ; LOT-01 global reste PARTIAL** jusqu'à validation runtime ou décision explicite de périmètre pour OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -7274,3 +7274,34 @@ Le rapport doit présenter des statuts distincts pour OTP simulé, OAuth simulé
 - Aucune révocation de session préexistante ; seules les sessions B créées par le run sont éligibles.
 - Aucun merge vers main, aucun déploiement.
 - La porte UI authentifiée générale reste PASS 29/29 (§128). LOT-01 global reste PARTIAL jusqu'à la validation des scénarios définis ici ou à une décision écrite d'exclusion du périmètre.
+
+
+---
+
+## 130. Transmission opérateur — recette Auth avancée : périmètre et règle de lancement
+
+**Mise à jour : 9 novembre 2026 — version 2.159.**
+
+### 130.1 Ce qui est déjà validé
+
+La porte UI authentifiée standard est PASS 29/29 (§128). Ne pas relancer ce lot, ni utiliser une répétition de `pnpm test:auth` ou de `e2e/run-authenticated-role-recipe.mjs --role-browser-only` comme preuve OTP/Google/récupération/multi-appareils : ces scripts ne couvrent pas ces scénarios.
+
+### 130.2 Recette à réaliser
+
+La campagne correcte est celle du §129, dans cet ordre :
+1. **OTP e-mail simulé** : intercepter localement `POST /auth/v1/otp` et `POST /auth/v1/verify`, vérifier code invalide/expiré, renvoi du code et erreurs visibles ; aucune requête ne doit atteindre Supabase Auth externe.
+2. **Google OAuth simulé** : cliquer le vrai bouton Google, intercepter `/auth/v1/authorize`, contrôler `provider=google`, `prompt=select_account` et le callback local ; aucune navigation vers `accounts.google.com`.
+3. **Récupération simulée** : intercepter `POST /auth/v1/recover`, vérifier l'écran de confirmation, puis le callback expiré/invalide sur `/auth/reset-password` ; aucun courriel ni changement de mot de passe réel.
+4. **Révocation multi-appareils réelle et bornée à E2E** : deux contextes Playwright séparés sur un compte synthétique existant, projet `ofqqrryamslxoqkklraw) exclusivement. Avant connexion, le nombre d'appareils actifs doit laisser deux places sous la limite de trois (au plus un appareil préexistant). Si ce préflight échoue ou si l'identité d'une session créée par le run est ambiguë, statut BLOCKED et aucune révocation. Révoquer seulement B depuis A, vérifier B en HTTP 401, A en HTTP 200 et l'absence de changement des autres appareils.
+
+### 130.3 Disponibilité de la commande
+
+Au contrôle du 9 novembre 2026, le dépôt ne contient **pas encore** de runner dédié à cette campagne Auth avancée. Il n'existe donc pas de commande d'exécution fiable à transmettre à ce stade. Ne pas lancer une commande inventée ni détourner un runner existant. Le prochain livrable technique requis est le script dédié avec interception stricte, préflight E2E, rapport JSON expurgé, tests du harnais, `node --check`, `pnpm test:auth`, TypeScript et build. Après validation de ce harnais, une seule commande opérateur pourra être fournie.
+
+### 130.4 Garde-fous de lancement
+
+- JOBLY-E2E uniquement ; référence attendue `ofqqrryamslxoqkklraw`.
+- OTP, Google et récupération : simulations réseau locales uniquement ; aucun fournisseur externe.
+- Multi-appareils : seules les sessions A/B créées par le run sont éligibles ; jamais de révocation préexistante.
+- Aucun changement de mot de passe, création de compte, reset/provisionneur, donnée métier, merge `main) ou déploiement.
+- Conserver séparément les statuts des quatre scénarios ; ne pas agréger des PASS de runs distincts pour déclarer LOT-01 global PASS.
