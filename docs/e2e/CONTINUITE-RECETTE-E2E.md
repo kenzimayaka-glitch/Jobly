@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.151 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.152 — 9 novembre 2026
 >
 > **Dernière preuve LOT-01 :** smoke API authentifié PASS 40/40 (§§107/109), puis smoke navigateur public/anonyme PASS 14/14 (§115). Smoke navigateur authentifié exécuté le 9 novembre 2026 à 01:25:12Z : 29 contrôles, 12 PASS et 17 FAIL HTTP 500. Les trois connexions, rôles signés et retours 401 étaient PASS. Les journaux Postgres de JOBLY-E2E ont confirmé exactement 17 erreurs SQLSTATE 23505 sur la contrainte UserDeviceSession_authSessionId_key. La fonction d'enregistrement a été corrigée et la migration 20261109015439 appliquée uniquement à JOBLY-E2E. Le test SQL d'idempotence est PASS pour TALENT/RECRUITER/PARTNER ; la relance navigateur ciblée reste à exécuter (§118). LOT-01 reste PARTIAL.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -6967,3 +6967,48 @@ La collecte consolidée ne doit pas être confondue avec le lanceur de recette �
 Après exécution, transmettre chacun des six rapports ou le fichier consolidé seulement comme copie secondaire. Le rapport navigateur doit être postérieur à l'application de la migration (02:54:39, heure de Douala). LOT-01 reste PARTIAL jusqu'à inspection du nouveau run.
 
 Garde-fous inchangés : aucune exécution sur JOBLY-PROD, aucun reset/provisionneur fixture, aucune mutation métier, aucun merge vers `main`, aucun déploiement.
+
+
+---
+
+## 123. LOT-01 — retest navigateur authentifié post-migration PASS 29/29
+
+**Mise à jour : 9 novembre 2026 — version 2.152.** Le rapport opérateur complet a été transmis dans la conversation et inspecté. Il s'agit cette fois d'une exécution postérieure à la migration SQL `20261109015439`.
+
+### 123.1 Identité et cohérence du run
+
+- Runner : `role-browser-only`.
+- Rapport résumé : `createdAt=2026-11-09T05:59:56.371Z`.
+- Projet : JOBLY-E2E, ref `ofqqrryamslxoqkklraw`.
+- Build : PASS ; serveur local : PASS.
+- Smoke navigateur démarré à `2026-11-09T06:04:04.139Z`, rapport navigateur créé à `06:04:04.290Z`, terminé à `06:05:14.446Z`.
+- Commit effectivement testé : `494f8060a619e6704659dae378913be1fd261222`, commit de la commande/cahier V2.151 et descendant du correctif SQL `04031e1d91ef7fab0913f3323d6f95f2e769ec4f).
+- Code de sortie navigateur : 0 ; `spawnError=null) ; rapport présent et produit pendant ce run.
+
+### 123.2 Résultat navigateur — PASS 29/29
+
+- 29 contrôles exécutés, 29 PASS, 0 FAIL, 0 BLOCKED.
+- TALENT : PASS ; connexion réelle formulaire 200, page de rôle 200, rôle signé 200, API propre 200, six refus inter-rôles attendus 403, teardown 401.
+- RECRUITER : PASS ; connexion réelle formulaire 200, page de rôle 200, rôle signé 200, API propre 200, six refus inter-rôles attendus 403, teardown 401.
+- PARTNER : PASS ; connexion réelle formulaire 200, page de rôle 200, rôle signé 200, API propre 200, refus inter-rôles attendus 403, teardown 401.
+- `pageErrors=[]), aucun identifiant/mot de passe ou token imprimé.
+- `externalActions=false), `remoteBusinessDataMayBeModified=false).
+- `remoteAuthDeviceStateMayBeModified=true) et `remoteDataMayBeModified=true) restent des indicateurs de possibilité d'actualisation des seules métadonnées de session synthétique par l'authentification ; le rapport déclare explicitement aucune mutation métier.
+
+### 123.3 Journaux statique et TypeScript vides
+
+Les fichiers `role-browser-static-check.log` et `role-browser-typecheck.log` sont signalés par l'opérateur comme vides. Ce résultat est cohérent avec les commandes utilisées : `node --check` n'émet normalement aucune sortie lorsqu'il réussit, et `pnpm exec tsc --noEmit --incremental false` peut également être silencieux si aucune erreur n'est détectée. Le lanceur n'aurait pas appelé le runner de build et le smoke si les contrôles de syntaxe ou le typecheck avaient renvoyé un code non nul. Le runner indique ensuite build PASS et le processus navigateur exit code 0. Ainsi, les logs vides ne constituent pas un échec ; la chaîne d'exécution indique que ces contrôles préalables n'ont pas interrompu le run. Pour les prochaines recettes, améliorer l'ergonomie en ajoutant des marqueurs explicites `PASS` dans les logs en cas de code de sortie 0.
+
+### 123.4 Statut précis de LOT-01
+
+La porte **UI authentifiée par rôle est PASS 29/29**, après la correction d'idempotence de session appliquée sur JOBLY-E2E. Les portes déjà acquises restent : auth/session 12/12, API rôle 40/40, UI publique 14/14, Security Core 11/11 selon les rapports antérieurs documentés.
+
+**LOT-01 global reste PARTIAL / NON CLOS** selon la règle de clôture §0.3, car :
+- le clic sur le bouton visible de déconnexion n'a pas été exécuté ; le test prouve le teardown du stockage Auth du contexte navigateur isolé et le retour HTTP 401, pas le parcours du bouton utilisateur ;
+- OTP, Google OAuth, réinitialisation du mot de passe et révocation multi-appareils ne sont pas testés ; une décision de périmètre écrite est requise si ces scénarios sont exclus de la clôture.
+
+Ne pas refaire le run 29/29 sans changement pertinent. Le prochain travail est de traiter précisément ces deux portes restantes, ou de faire définir et documenter le périmètre accepté avant d'attribuer le statut global PASS.
+
+### 123.5 Garde-fous
+
+Le run est circonscrit à JOBLY-E2E. Aucun effet métier distant déclaré, aucun fournisseur externe appelé. Aucun accès JOBLY-PROD, aucun merge vers `main`, aucun déploiement. Les statuts antérieurs LOT-00, API 40/40 et UI publique 14/14 ne sont pas rejoués.
