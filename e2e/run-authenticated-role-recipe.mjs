@@ -349,6 +349,7 @@ try {
       PLAYWRIGHT_MODULE_PATH: playwrightModulePath,
       ...(authReportPath ? { E2E_AUTH_SESSION_REPORT_PATH: authReportPath } : {}),
     };
+    const browserStartedAt = new Date();
     const browserLogPath = path.join(ROOT, "artifacts", "e2e", "browser-smoke-process.log");
     const browserRun = await runCommandCaptured(
       process.execPath,
@@ -358,32 +359,52 @@ try {
     );
     const browserCode = browserRun.exitCode;
     const browserReportPath = path.join(ROOT, "artifacts", "e2e", "lot1-auth-ui-smoke.json");
-    const browserFailurePath = path.join(ROOT, "artifacts", "e2e", "failure.txt");
-    const failureText = await exists(browserFailurePath)
-      ? (await readFile(browserFailurePath, "utf8")).slice(0, 4000)
-      : null;
+    let browserReport = null;
+    let browserReportProblem = null;
+    if (await exists(browserReportPath)) {
+      try {
+        const candidate = JSON.parse(await readFile(browserReportPath, "utf8"));
+        const reportTime = Date.parse(candidate.createdAt || "");
+        const fresh = Number.isFinite(reportTime) && reportTime >= browserStartedAt.getTime() - 1000;
+        const correctTarget =
+          candidate.environment === "JOBLY-E2E" &&
+          candidate.projectRef === PROJECT_REF &&
+          candidate.baseURL === BASE_URL &&
+          candidate.commit === runGit(["rev-parse", "HEAD"]);
+        if (fresh && correctTarget) {
+          browserReport = candidate;
+        } else {
+          browserReportProblem = fresh
+            ? "Rapport navigateur présent mais son environnement, son projet, son URL locale ou son SHA ne correspond pas à cette exécution."
+            : "Un ancien rapport navigateur existe, mais il n'a pas été régénéré pendant cette exécution.";
+        }
+      } catch (error) {
+        browserReportProblem = error instanceof Error ? "Rapport navigateur JSON illisible : " + error.message : "Rapport navigateur JSON illisible.";
+      }
+    } else {
+      browserReportProblem = "Le smoke navigateur n'a pas généré son rapport JSON.";
+    }
     summary.browserExecution = {
+      startedAt: browserStartedAt.toISOString(),
       exitCode: browserCode,
       spawnError: browserRun.spawnError,
       processLog: path.relative(ROOT, browserLogPath).split(path.sep).join("/"),
-      reportGenerated: await exists(browserReportPath),
+      reportPresent: await exists(browserReportPath),
+      reportGeneratedForThisRun: Boolean(browserReport),
+      reportProblem: browserReportProblem,
     };
-    if (!(await exists(browserReportPath))) {
+    if (!browserReport) {
       summary.browserSmoke = "BLOCKED";
       summary.browserFailure = {
-        reason: failureText
-          ? "Le smoke navigateur a échoué avant de produire son rapport ; failure.txt contient la cause."
-          : "Le smoke navigateur s'est arrêté avant de produire son rapport. Consulter browser-smoke-process.log.",
+        reason: browserReportProblem,
         processExitCode: browserCode,
         spawnError: browserRun.spawnError,
-        failureArtifact: failureText ? "artifacts/e2e/failure.txt" : null,
         processLog: "artifacts/e2e/browser-smoke-process.log",
       };
       summary.remoteDataMayBeModified = false;
       summary.status = "BLOCKED";
-      summary.reason = summary.browserFailure.reason;
+      summary.reason = browserReportProblem + " Consulter browser-smoke-process.log.";
     } else {
-      const browserReport = JSON.parse(await readFile(browserReportPath, "utf8"));
       const failed = Number(browserReport.failed || 0);
       const blocked = Array.isArray(browserReport.blocked) ? browserReport.blocked.length : 0;
       const passed = Number(browserReport.passed || 0);
