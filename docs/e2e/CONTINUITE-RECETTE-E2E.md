@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.134 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.135 — 9 novembre 2026
 >
 > **Dernière preuve LOT-01 :** smoke API authentifié PASS 40/40 (rapport opérateur du 8 novembre 2026 à 23:48:30.438Z), sur le code runner `5b39cdea1b5810f2d9fe49fc8111ac3897d8c1df` et smoke `73aee328bc2f11ff15628cac13a7d3bd932f8e1e` ; nettoyage API + base PASS, aucune action externe.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial **3/3 PASS** et cycle de session **12/12 PASS** (§96 et §99). Préparation du test API par rôle : le préflight opérateur du 8 novembre 2026 à 22:34:39 a confirmé URL/ref JOBLY-E2E et fixtures complètes, mais l'ancien code serveur ne lisait que `SUPABASE_SERVICE_ROLE_KEY`, alors que `.env.local` contient la clé moderne `SUPABASE_SECRET_KEY`; le clone local était en retard et aucun runtime privé n'existait. Correctif `adminClient()` maintenant compatible avec la secret key Supabase côté serveur ; le smoke API utilise cette clé locale sans `.e2e-fixture-runtime.json`. Un runner `e2e/run-authenticated-role-recipe.mjs` exécute le build et le smoke sur un worktree détaché propre de `origin/e2e/recette`, lit `.env.local` et `.e2e-fixtures.json` depuis le dépôt source, ne les copie pas et ne les imprime pas. Le parcours croisé crée des données temporaires JOBLY-E2E et vérifie leur nettoyage. Première tentative : build PASS, serveur local BLOCKED (§102). Smoke API exécuté le 8 novembre à 23:03:19 : 36/40 PASS, 3 FAIL et 1 BLOCKED ; les trois rôles sont exécutés, les mutations synthétiques du parcours croisé sont nettoyées (API + vérification DB), externalActions=false. Analyse : les deux feeds échouent sur les garde-fous anti-abus du flux (clé serveur moderne non reconnue et IP loopback absente du client HTTP de recette) ; /api/recruiter/talents échoue car son limiteur n'accepte que la variable legacy SUPABASE_SERVICE_ROLE_KEY. Correctifs ciblés et tests ajoutés au §103 ; leur première exécution s'est arrêtée sur une erreur de résolution Node de next/server depuis le test TypeScript direct. Le point d'entrée du helper a été corrigé en next/server.js (§104), puis le rapport opérateur a confirmé pnpm test:security-core 11/11 PASS, 0 FAIL (Node 26.13.0 ; avertissements MODULE_TYPELESS_PACKAGE_JSON non bloquants). Les tentatives de configuration initiales du 8 novembre sont résolues par les §§105–106. Le smoke API authentifié a donné PASS 40/40 (§107). Le résumé global du runner reçu ensuite confirme également `status=PASS`, `build=PASS`, `localServer=PASS`, `authenticatedRoleSmoke=PASS`, 40/40 contrôles et tous les nettoyages PASS (§109). L'URL a été dérivée du manifeste E2E validé ; la clé serveur a été vérifiée sur PostgREST JOBLY-E2E (HTTP 200). `remoteDataMayBeModified=true` indique que la fenêtre d'exécution des tests d'écriture a été ouverte, mais les trois contrôles de nettoyage du résumé sont PASS et le smoke détaillé confirme l'absence des données synthétiques ; `externalActions=false`. Le rapport global porte `createdAt=23:39:07Z`, alors que le rapport API détaillé porte `createdAt=23:48:30Z` ; ces horodatages ne permettent pas d'affirmer qu'ils proviennent du même lancement, bien que les résultats et les contrôles concordent. Le sous-périmètre runner + API est donc PASS sur la base des deux rapports opérateur. L'audit UI a confirmé que `e2e/browser-smoke.mjs` couvre 14 points publics/anonymes et responsive, mais n'effectue aucune connexion utilisateur ni parcours métier authentifié ; un mode `--browser-only` isolé vient d'être ajouté au runner pour lancer ce smoke sans rejouer les 40 API (§110). LOT-01 global et LOT-02/03 restent soumis à leurs autres critères UI/métier. main reste hors périmètre.
+> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial **3/3 PASS** et cycle de session **12/12 PASS** (§96 et §99). Préparation du test API par rôle : le préflight opérateur du 8 novembre 2026 à 22:34:39 a confirmé URL/ref JOBLY-E2E et fixtures complètes, mais l'ancien code serveur ne lisait que `SUPABASE_SERVICE_ROLE_KEY`, alors que `.env.local` contient la clé moderne `SUPABASE_SECRET_KEY`; le clone local était en retard et aucun runtime privé n'existait. Correctif `adminClient()` maintenant compatible avec la secret key Supabase côté serveur ; le smoke API utilise cette clé locale sans `.e2e-fixture-runtime.json`. Un runner `e2e/run-authenticated-role-recipe.mjs` exécute le build et le smoke sur un worktree détaché propre de `origin/e2e/recette`, lit `.env.local` et `.e2e-fixtures.json` depuis le dépôt source, ne les copie pas et ne les imprime pas. Le parcours croisé crée des données temporaires JOBLY-E2E et vérifie leur nettoyage. Première tentative : build PASS, serveur local BLOCKED (§102). Smoke API exécuté le 8 novembre à 23:03:19 : 36/40 PASS, 3 FAIL et 1 BLOCKED ; les trois rôles sont exécutés, les mutations synthétiques du parcours croisé sont nettoyées (API + vérification DB), externalActions=false. Analyse : les deux feeds échouent sur les garde-fous anti-abus du flux (clé serveur moderne non reconnue et IP loopback absente du client HTTP de recette) ; /api/recruiter/talents échoue car son limiteur n'accepte que la variable legacy SUPABASE_SERVICE_ROLE_KEY. Correctifs ciblés et tests ajoutés au §103 ; leur première exécution s'est arrêtée sur une erreur de résolution Node de next/server depuis le test TypeScript direct. Le point d'entrée du helper a été corrigé en next/server.js (§104), puis le rapport opérateur a confirmé pnpm test:security-core 11/11 PASS, 0 FAIL (Node 26.13.0 ; avertissements MODULE_TYPELESS_PACKAGE_JSON non bloquants). Les tentatives de configuration initiales du 8 novembre sont résolues par les §§105–106. Le smoke API authentifié a donné PASS 40/40 (§107). Le résumé global du runner reçu ensuite confirme également `status=PASS`, `build=PASS`, `localServer=PASS`, `authenticatedRoleSmoke=PASS`, 40/40 contrôles et tous les nettoyages PASS (§109). L'URL a été dérivée du manifeste E2E validé ; la clé serveur a été vérifiée sur PostgREST JOBLY-E2E (HTTP 200). `remoteDataMayBeModified=true` indique que la fenêtre d'exécution des tests d'écriture a été ouverte, mais les trois contrôles de nettoyage du résumé sont PASS et le smoke détaillé confirme l'absence des données synthétiques ; `externalActions=false`. Le rapport global porte `createdAt=23:39:07Z`, alors que le rapport API détaillé porte `createdAt=23:48:30Z` ; ces horodatages ne permettent pas d'affirmer qu'ils proviennent du même lancement, bien que les résultats et les contrôles concordent. Le sous-périmètre runner + API est donc PASS sur la base des deux rapports opérateur. L'audit UI a confirmé que `e2e/browser-smoke.mjs` couvre 14 points publics/anonymes et responsive, mais n'effectue aucune connexion utilisateur ni parcours métier authentifié ; un mode `--browser-only` isolé a été ajouté (§110). Première tentative navigateur du 9 novembre à 00:00:16 : build PASS, serveur PASS, mais aucun rapport Playwright généré ; `authenticatedRoleSmoke=NOT_RUN`, `browserSmoke=NOT_RUN`, aucun changement distant (`remoteDataMayBeModified=false`). Le défaut de diagnostic du harnais est corrigé au §111 : capture sortie/code processus, mise du lancement Chromium sous le bloc d'erreur et validation fraîcheur/projet/SHA pour refuser un ancien rapport. L'origine runtime réelle reste à identifier grâce au nouveau journal. LOT-01 global et LOT-02/03 restent soumis à leurs autres critères UI/métier. main reste hors périmètre.
 
-**Version :** 2.134  
+**Version :** 2.135  
 **Date de consolidation :** 9 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -25,9 +25,81 @@
 
 ---
 
+## 111. LOT-01 — diagnostic du premier lancement browser-only : rapport Playwright absent
+
+**Rapport opérateur reçu : 9 novembre 2026 à 00:00:16.624Z. Statut : BLOCKED avant rapport navigateur ; correctif de diagnostic commis, cause d'exécution à identifier.**
+
+### 111.1 Résultat exact reçu
+
+Le résumé `authenticated-role-runner-summary.json` indique :
+- `mode=browser-only`, JOBLY-E2E, ref `ofqqrryamslxoqkklraw` ;
+- `status=BLOCKED` ;
+- `build=PASS`, `localServer=PASS` ;
+- sonde `/api/profile` : HTTP 401 attendu, reçue après 4 tentatives ;
+- `authenticatedRoleSmoke=NOT_RUN`, `browserSmoke=NOT_RUN`, `browserChecks=null`, `browserAuthEvidence=null` ;
+- `remoteDataMayBeModified=false`, `secretsPrinted=false` ;
+- cause publiée : `Le rapport Playwright lot1-auth-ui-smoke.json n’a pas été généré.`
+
+**Interprétation :** l'isolement projet et la mise en route du site local ont réussi ; l'exécution navigateur ne peut pas encore être déclarée FAIL sur un élément d'interface, car aucun rapport de contrôle n'existe. Ce résultat est BLOCKED et non un échec fonctionnel de Jobly. Aucun smoke API authentifié n'a été relancé et aucune écriture distante n'a été effectuée.
+
+### 111.2 Faiblesse du harnais découverte à la relecture
+
+Dans `e2e/browser-smoke.mjs`, `chromium.launch({ headless: true })` était situé avant le bloc `try/catch`. Une erreur de lancement Chromium pouvait donc interrompre le processus avant que le script écrive `failure.txt` et sans donner au runner un détail exploitable dans son JSON.
+
+Le runner browser-only attendait simplement la présence de `lot1-auth-ui-smoke.json`. Il ne conservait pas la sortie standard/erreur du processus, son code de sortie ou sa cause d'arrêt. Il ne vérifiait pas non plus si un rapport préexistant provenait réellement de cette exécution. Ces défauts rendaient le diagnostic incomplet et pouvaient faire prendre un ancien rapport pour une nouvelle preuve.
+
+Aucune preuve ne permet encore d'affirmer que Chromium est la cause réelle ; c'est une hypothèse prioritaire rendue maintenant observable, pas un diagnostic final.
+
+### 111.3 Correctifs commis
+
+- Runner `e2e/run-authenticated-role-recipe.mjs`, commit `1a3f53f3df3ed9553623ec7fa5ec03eee49f4fb9` : nouveau lanceur capturant stdout/stderr, enregistrement de `browser-smoke-process.log`, code de sortie et spawnError.
+- Smoke `e2e/browser-smoke.mjs`, commit `997f7f00718cba203a90ba73249a311d12b22677` : lancement Chromium déplacé dans le try/catch existant ; les erreurs de launch sont désormais écrites dans `failure.txt`.
+- Runner `e2e/run-authenticated-role-recipe.mjs`, commit `d4dd83fa01bf246fc994822a79ff29b93dfaa360` : rapport accepté uniquement si son horodatage est celui du run courant et si environnement, project ref, URL locale et SHA correspondent exactement. Un rapport ancien est explicitement rejeté.
+
+Le résumé ajoute les informations `browserExecution` et `browserFailure`. Le diagnostic complémentaire `browser-smoke-diagnostic.json` est également écrit lorsque le processus Playwright se termine après lancement.
+
+### 111.4 Prochaine exécution unique — diagnostic enrichi
+
+Le worktree doit d'abord être propre ; si cette garde échoue, ne rien écraser. Sinon, récupérer la branche et lancer le même mode navigateur isolé (pas le mode API) :
+
+```cmd
+powershell -NoProfile -Command "$s = git -C 'C:\Users\ASUS\Jobly-e2e-recette-v3' status --porcelain; if ($LASTEXITCODE -ne 0) { exit 2 }; if ($s) { $s; exit 3 }; Write-Output 'WORKTREE_CLEAN'"
+if errorlevel 1 exit /b 1
+git -C C:\Users\ASUS\Jobly-e2e-recette-v3 fetch origin
+if errorlevel 1 exit /b 1
+git -C C:\Users\ASUS\Jobly-e2e-recette-v3 checkout --detach origin/e2e/recette
+if errorlevel 1 exit /b 1
+cd /d C:\Users\ASUS\Jobly-e2e-recette-v3
+node --check e2e\run-authenticated-role-recipe.mjs
+if errorlevel 1 exit /b 1
+node --check e2e\browser-smoke.mjs
+if errorlevel 1 exit /b 1
+node e2e\run-authenticated-role-recipe.mjs C:\Users\ASUS\Jobly --browser-only
+notepad artifacts\e2e\authenticated-role-runner-summary.json
+notepad artifacts\e2e\browser-smoke-diagnostic.json
+notepad artifacts\e2e\browser-smoke-process.log
+notepad artifacts\e2e\failure.txt
+pause
+```
+
+Cette commande ne rejoue pas `authenticated-role-smoke.mjs`, maintient `remoteDataMayBeModified=false` et n'envoie aucun email/SMS. Elle rebuild le code actuel, redémarre le serveur local et exécute uniquement le navigateur public/anonyme.
+
+Si un des trois derniers fichiers n'existe pas, Notepad peut afficher un message d'absence ; ce n'est pas une raison pour relancer plusieurs fois. Transmettre d'abord le nouveau résumé et le log processus. Le fichier `failure.txt` n'est pertinent que s'il a été écrit par ce run ; le résumé indiquera sa présence/absence dans `browserFailure` ou le processus log fournira le message.
+
+### 111.5 Ce qui reste inchangé
+
+- PASS build + serveur du run 00:00 conservés comme preuve de cette tentative ; le run enrichi doit les confirmer à nouveau après le nouveau SHA.
+- PASS API 40/40 et nettoyage 3/3 acquis (§107 et §109), ne pas les rejouer.
+- JOBLY-PROD, `main`, merge et déploiement hors périmètre.
+- Le smoke navigateur est non mutatif : GET publics/anonymes uniquement ; aucune soumission, login, paiement, candidature ou message externe.
+
+**Conclusion §111 :** le harnais est maintenant instrumenté pour exposer le vrai point d'arrêt et empêcher les rapports périmés. La prochaine exécution doit produire soit un rapport navigateur, soit une cause lisible dans le log capturé ; aucun résultat Playwright n'est inventé.
+
+---
+
 ## 110. LOT-01 — smoke navigateur isolé : audit de couverture et runner browser-only
 
-**Mise à jour : 9 novembre 2026. Statut : CODE COMMIS ; exécution Playwright ciblée à faire.**
+**Mise à jour : 9 novembre 2026. Statut : MODE CIBLÉ COMMIS ; première exécution BLOCKED avant rapport ; diagnostic complémentaire commis au §111.**
 
 ### 110.1 Audit du smoke navigateur existant
 
@@ -74,6 +146,9 @@ Le rapport Auth 12/12 est sélectionné dans cet ordre : artefact déjà présen
 | `e2e/run-authenticated-role-recipe.mjs` | `fc0443d2e753224a3d44bc0c65c1a4fdd760d7b8` | Ajout du mode Playwright browser-only, provisioning Playwright/Chromium et synthèse navigateur sans appel API authentifié |
 | `e2e/browser-smoke.mjs` | `8a5495216ed97e3adc79133f22b0a0b25bf620e0` | Acceptation d'un chemin explicite pour le rapport Auth antérieur |
 | `e2e/run-authenticated-role-recipe.mjs` | `22182ffd3757d8c30eb2a8f71cffd310cb7596ee` | Priorité au rapport Auth déjà présent dans le worktree et traçabilité du SHA dans le rapport navigateur |
+| `e2e/run-authenticated-role-recipe.mjs` | `1a3f53f3df3ed9553623ec7fa5ec03eee49f4fb9` | Capture stdout/stderr du processus Playwright et conservation du code de sortie/log |
+| `e2e/browser-smoke.mjs` | `997f7f00718cba203a90ba73249a311d12b22677` | Déplacement du lancement Chromium dans le bloc try/catch pour enregistrer ses erreurs |
+| `e2e/run-authenticated-role-recipe.mjs` | `d4dd83fa01bf246fc994822a79ff29b93dfaa360` | Rapport Playwright rejeté s'il est ancien ou ne correspond pas au projet, à l'URL et au SHA du run courant |
 
 ### 110.4 Commande ciblée — LOT-01 navigateur uniquement
 
@@ -115,7 +190,7 @@ Le smoke public et responsive est le premier jalon UI. Une fois son rapport vali
 
 Ces parcours ne sont pas contenus dans le smoke anonyme de cette section et ne doivent pas être considérés comme déjà PASS.
 
-**Conclusion §110 :** le code de recette possède maintenant un chemin navigateur isolé et non mutatif, qui évite de rejouer les 40 API authentifiées. Son exécution locale Playwright demeure à obtenir ; aucun PASS navigateur nouveau n'est revendiqué.
+**Conclusion §110 :** le code de recette possède un chemin navigateur isolé et non mutatif, qui évite de rejouer les 40 API authentifiées. Le premier lancement a confirmé build et serveur PASS, mais Playwright n'a pas produit de rapport. Aucun PASS navigateur nouveau n'est revendiqué ; voir le diagnostic §111.
 
 ---
 
