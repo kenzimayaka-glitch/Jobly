@@ -443,6 +443,7 @@ test("LOT-01 advanced auth browser campaign isolates provider flows and verifies
   assert.match(authAdvancedSmoke, /payload-keys=/);
   assert.match(authAdvancedSmoke, /devicePayload\.devices\.find/);
   assert.match(authAdvancedSmoke, /Mes appareils connectés/);
+  assert.match(authAdvancedSmoke, /getByText\(deviceLabel, \{ exact: false \}\)/);
   assert.doesNotMatch(authAdvancedSmoke, /const deviceResponsePromise = page\.waitForResponse/);
   assert.match(authAdvancedSmoke, /DEVICE_PREFLIGHT_TWO_FREE_SLOTS/);
   assert.match(authAdvancedSmoke, /activeBefore\.length > 1/);
