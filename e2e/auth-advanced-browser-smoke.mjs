@@ -332,21 +332,61 @@ function stableBaseline(rows) {
 }
 
 async function browserToken(page) {
-  return await page.evaluate(() => {
-    for (const storage of [window.sessionStorage, window.localStorage]) {
-      for (let index = 0; index < storage.length; index += 1) {
-        const key = storage.key(index) || "";
-        if (!key.startsWith("sb-") || !key.includes("auth-token")) continue;
-        const raw = storage.getItem(key);
-        if (!raw) continue;
+  // Prefer Playwright's context snapshot for localStorage: unlike page.evaluate,
+  // it is not tied to the document execution context that login may be navigating.
+  try {
+    const state = await page.context().storageState();
+    for (const origin of state.origins || []) {
+      for (const item of origin.localStorage || []) {
+        if (!item.name.startsWith("sb-") || !item.name.includes("auth-token")) continue;
         try {
-          const parsed = JSON.parse(raw);
+          const parsed = JSON.parse(item.value);
           if (typeof parsed.access_token === "string") return parsed.access_token;
         } catch {}
       }
     }
-    return "";
-  });
+  } catch {
+    // Fall through to the sessionStorage-compatible browser read below.
+  }
+
+  // Supabase can use sessionStorage when "Rester connecté" is disabled.
+  // Authentication may navigate immediately after setting the token, so retry
+  // only navigation-related context failures instead of failing on the first race.
+  let navigationContextDestroyed = false;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    try {
+      const token = await page.evaluate(() => {
+        for (const storage of [window.sessionStorage, window.localStorage]) {
+          for (let index = 0; index < storage.length; index += 1) {
+            const key = storage.key(index) || "";
+            if (!key.startsWith("sb-") || !key.includes("auth-token")) continue;
+            const raw = storage.getItem(key);
+            if (!raw) continue;
+            try {
+              const parsed = JSON.parse(raw);
+              if (typeof parsed.access_token === "string") return parsed.access_token;
+            } catch {}
+          }
+        }
+        return "";
+      });
+      if (token) return token;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (!/Execution context was destroyed|Cannot find context with specified id/i.test(message)) throw error;
+      navigationContextDestroyed = true;
+    }
+
+    if (attempt < 7) {
+      await page.waitForLoadState("domcontentloaded", { timeout: 2000 }).catch(() => undefined);
+      await page.waitForTimeout(150).catch(() => undefined);
+    }
+  }
+
+  if (navigationContextDestroyed) {
+    throw new Error("Session navigateur inaccessible après la navigation de connexion.");
+  }
+  return "";
 }
 
 async function loginDeviceContext(browser, account, deviceId, deviceLabel) {
@@ -379,7 +419,7 @@ async function loginDeviceContext(browser, account, deviceId, deviceLabel) {
       }
     }
     return false;
-  }, { timeout: 15000 });
+  }, undefined, { timeout: 15000 });
   const token = await browserToken(page);
   if (!token) throw new Error("Session navigateur absente après connexion fixture.");
   const deviceResponsePromise = page.waitForResponse((response) =>
