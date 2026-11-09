@@ -1,5 +1,5 @@
 # Jobly — Référence de continuité de la recette E2E
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.181 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.182 — 9 novembre 2026
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.171 — 9 novembre 2026
 >
 > **Dernières preuves LOT-01 :** Le run runtime du 9 novembre à 12:24:48 (SHA `e52448af3e6a0c46f2af558db6028a00294d2696`) confirme OTP 4/4 PASS, Google OAuth simulé 4/4 PASS et récupération 3/3 PASS. Le multi-appareils a passé son préflight (fixture `talent-multidevice`, 0 appareil actif initial), puis échoué avec `page.evaluate: Execution context was destroyed, most likely because of a navigation` avant les contrôles A/B. Le statut global est FAIL ; aucune preuve de révocation B=401/A=200 n'est disponible. `cleanup=NOT_REQUIRED`, `preexistingDeviceRowsUnchanged=true`, mais `remoteAuthDeviceStateMayBeModified=true` : ne pas assimiler ce rapport à une preuve de session temporaire créée/nettoyée. Correctif du harnais E2E préparé sur `e2e/recette` : capture du jeton via snapshot de contexte pour localStorage, retry de lecture pour sessionStorage pendant les navigations et verrou de non-régression. Commits `90f8611941f5548a8169d422a29743fa9e8834da` et `6ce4fdb18d2123b1ef27a36fab0227eb6cd03598`. Le correctif n'a pas encore été exécuté localement ; LOT-01 reste PARTIAL / NON CLOS en attente d'un nouveau rapport runtime PASS.
@@ -8061,6 +8061,7 @@ Le code actuel de `app/api/device-sessions/route.ts` renvoie un objet JSON `{ de
 - Commit `5750678d009539bcd7017aa11165091e13809ae1` : remplace la capture d'une réponse arbitraire en cours de navigation par un GET direct depuis le runner Node vers `/api/device-sessions`, avec le bearer token et les deux headers de l'appareil de test. Le harnais vérifie désormais `payload.devices`, que l'appareil courant A y apparaisse actif, puis attend le heading « Mes appareils connectés » et le libellé exact dans l'interface.
 - En cas de forme de payload inattendue, le rapport d'erreur contiendra désormais le code HTTP, le content-type et les clés de premier niveau du JSON, sans imprimer de token ni de contenu personnel.
 - Commit `597600282b55a41449518cb7cde04b0653c79a74` : verrou de non-régression statique pour le GET direct, la validation de l'appareil courant, le diagnostic expurgé et l'attente UI ; interdit le retour à l'ancien `waitForResponse` concurrent.
+- Commit `2525d938ecfaff68cc30c1932cac1daa9459476b` : rend la recherche du libellé UI non exacte pour tenir compte du suffixe « · Cet appareil » affiché à côté de l'appareil courant ; commit `ca348fbd638cec1f2f92feb1eaa9525273dc534f` : verrouille cette attente dans le test statique.
 - Les deux modifications touchent uniquement le harnais E2E et le test statique. Pas de modification métier, de migration ou de déploiement.
 
 Le correctif complémentaire n'a pas encore été exécuté localement : aucun PASS runtime ne lui est attribué.
