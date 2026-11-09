@@ -6991,7 +6991,7 @@ Garde-fous inchangés : aucune exécution sur JOBLY-PROD, aucun reset/provisionn
 - TALENT : PASS ; connexion réelle formulaire 200, page de rôle 200, rôle signé 200, API propre 200, six refus inter-rôles attendus 403, teardown 401.
 - RECRUITER : PASS ; connexion réelle formulaire 200, page de rôle 200, rôle signé 200, API propre 200, six refus inter-rôles attendus 403, teardown 401.
 - PARTNER : PASS ; connexion réelle formulaire 200, page de rôle 200, rôle signé 200, API propre 200, refus inter-rôles attendus 403, teardown 401.
-- `pageErrors=[]), aucun identifiant/mot de passe ou token imprimé.
+- `pageErrors=[]`, aucun identifiant/mot de passe ou token imprimé.
 - `externalActions=false), `remoteBusinessDataMayBeModified=false).
 - `remoteAuthDeviceStateMayBeModified=true) et `remoteDataMayBeModified=true) restent des indicateurs de possibilité d'actualisation des seules métadonnées de session synthétique par l'authentification ; le rapport déclare explicitement aucune mutation métier.
 
@@ -7047,6 +7047,8 @@ Les workflows Architecture et J'IA Master avaient également conclu SUCCESS. Auc
 
 Le précédent rapport 29/29 PASS (§123) validait la purge du stockage dans le contexte isolé, pas le bouton UI. Le nouveau smoke remplace ce contrôle, en conservant 29 vérifications au total. Il doit être exécuté sur le nouveau commit `723282895fa09808c6aa1d97adeed54aea6bd756), avec JOBLY-E2E uniquement. Le succès attendu est encore 29/29, mais le détail `SESSION-TEARDOWN) doit maintenant indiquer le clic du bouton visible, la redirection à `/` et HTTP 401.
 
+**Mise à jour ultérieure :** le retest demandé dans ce paragraphe a été exécuté et a obtenu PASS 29/29, y compris le clic réel sur le bouton visible pour les trois rôles ; voir §128.
+
 ### 124.4 Commande opérateur — marqueurs PASS explicites et six Notepad
 
 Depuis CMD, exécuter en une seule fois :
@@ -7074,7 +7076,7 @@ La révocation multi-appareils dispose d'une interface et d'une API distinctes ;
 
 La preuve navigateur 29/29 du §123 est conservée comme telle : son ancienne étape de sortie supprimait le stockage Auth isolé. Elle ne doit pas être utilisée pour affirmer que le bouton visible a déjà été cliqué.
 
-Le code de déconnexion visible et le smoke associé sont désormais commis en un seul changement de code : `723282895fa09808c6aa1d97adeed54aea6bd756`. Le workflow CI associé (run `42574575154`) s'est terminé SUCCESS ; les étapes « Authentication and Google account selection regression tests », « Typecheck » et « Production build » sont SUCCESS. La commande locale §124.4 doit encore fournir le rapport navigateur post-commit.
+Le code de déconnexion visible et le smoke associé sont désormais commis en un seul changement de code : `723282895fa09808c6aa1d97adeed54aea6bd756`. Le workflow CI associé (run `42574575154`) s'est terminé SUCCESS ; les étapes « Authentication and Google account selection regression tests », « Typecheck » et « Production build » sont SUCCESS. À la date de cette entrée, la commande locale §124.4 devait encore fournir le rapport navigateur post-commit. **Cette attente est levée par le résultat PASS 29/29 du §128.**
 
 Le point de reprise unique est donc le retest utilisateur §124.4, avec six Notepad séparés et les marqueurs explicites dans les deux fichiers texte. Après réception, vérifier que le rapport porte le nouveau SHA (ou un descendant documentaire), `logoutMethod` indique le clic du bouton /settings, et que les trois entrées `*-SESSION-TEARDOWN` sont PASS avec HTTP 401.
 
@@ -7193,4 +7195,4 @@ En conséquence :
 
 ### 128.6 Garde-fous et suite
 
-JOBLY-E2E uniquement. `externalActions=false`, `remoteBusinessDataMayBeModified=false`, aucun secret/token imprimé. Aucun reset/provisionneur de fixtures, aucune mutation JOBLY-PROD, aucun merge vers `main), aucun déploiement. La prochaine action doit porter uniquement sur la décision ou la validation contrôlée du périmètre Auth avancé ; les suites déjà PASS ne sont pas à rejouer.
+JOBLY-E2E uniquement. `externalActions=false`, `remoteBusinessDataMayBeModified=false`, aucun secret/token imprimé. Aucun reset/provisionneur de fixtures, aucune mutation JOBLY-PROD, aucun merge vers `main`, aucun déploiement. La prochaine action doit porter uniquement sur la décision ou la validation contrôlée du périmètre Auth avancé ; les suites déjà PASS ne sont pas à rejouer.
