@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.148 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.149 — 9 novembre 2026
 >
 > **Dernière preuve LOT-01 :** smoke API authentifié PASS 40/40 (§§107/109), puis smoke navigateur public/anonyme PASS 14/14 (§115). Smoke navigateur authentifié exécuté le 9 novembre 2026 à 01:25:12Z : 29 contrôles, 12 PASS et 17 FAIL HTTP 500. Les trois connexions, rôles signés et retours 401 étaient PASS. Les journaux Postgres de JOBLY-E2E ont confirmé exactement 17 erreurs SQLSTATE 23505 sur la contrainte UserDeviceSession_authSessionId_key. La fonction d'enregistrement a été corrigée et la migration 20261109015439 appliquée uniquement à JOBLY-E2E. Le test SQL d'idempotence est PASS pour TALENT/RECRUITER/PARTNER ; la relance navigateur ciblée reste à exécuter (§118). LOT-01 reste PARTIAL.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -6900,3 +6900,24 @@ Le bouton visible de déconnexion et les scénarios OTP, Google OAuth, récupér
 ### 119.4 Périmètre et garde-fous
 
 Aucun accès à JOBLY-PROD, aucune écriture métier ou réinitialisation de fixture, aucun merge vers `main`, aucun déploiement. La branche de travail reste `e2e/recette`. `main` reste hors périmètre ; aucun changement de statut de lot n'est autorisé sans rapports vérifiés.
+
+
+---
+
+## 120. Collecte des résultats du retest LOT-01 déjà exécuté
+
+**Mise à jour : 9 novembre 2026 — version 2.149.**
+
+L'opérateur indique que le lanceur §118.6 a déjà été exécuté. Ne pas relancer la recette pour le seul motif que les rapports n'ont pas encore été transmis dans la conversation. Étape active : récupérer les fichiers produits par cette exécution dans `C:\Users\ASUS\Jobly-e2e-recette-v3\artifacts\e2e`, les regrouper dans un fichier de restitution local, puis transmettre ce fichier ou son contenu.
+
+Fichiers à collecter sans modification :
+- `role-browser-static-check.log`
+- `role-browser-typecheck.log`
+- `authenticated-role-runner-summary.json`
+- `browser-role-smoke-diagnostic.json`
+- `browser-role-smoke-process.log`
+- `lot1-auth-role-ui-smoke.json`
+
+La commande de collecte ne lance aucun test, ne fait aucun fetch/checkout Git, ne touche à aucune fixture et n'accède pas à Supabase. Elle copie textuellement les rapports existants dans `feedback-lot1-auth-browser-retest.txt` et ouvre ce fichier dans Notepad. Les fichiers absents sont signalés comme tels. À réception, vérifier timestamps, SHA du commit testé, projet, URL locale, code de sortie, nombre de contrôles, statut de chaque rôle, refus inter-rôles et retour 401. LOT-01 reste PARTIAL tant que ces preuves n'ont pas été inspectées.
+
+Garde-fous inchangés : JOBLY-E2E uniquement, aucun accès JOBLY-PROD, aucune réinitialisation de fixture, aucun merge vers `main`, aucun déploiement.
