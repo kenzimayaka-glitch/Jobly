@@ -44,3 +44,17 @@ Ne pas répéter le runner complet avant cette sonde. Si HTTP répond, prévoir 
 - Aucun compte, mot de passe, appareil ou session préexistante n'a été réinitialisé ou révoqué.
 - Pas d'accès JOBLY-PROD, pas de merge sur `main`, pas de déploiement.
 - **LOT-01 demeure PARTIAL / NON CLOS**. Les 30/30 tests statiques de régression ne remplacent pas le runtime Auth avancé.
+
+## Résultat de la sonde réseau sans clé — 9 novembre 2026
+
+L'opérateur a exécuté le diagnostic depuis Windows :
+- DNS via le résolveur local `192.168.43.1` : résolution réussie pour `ofqqrryamslxoqkklraw.supabase.co`, avec deux adresses IPv4 retournées (`172.64.149.246` et `104.18.38.10`).
+- Node fetch vers `/rest/v1/` sans clé : **HTTP 401**.
+
+Interprétation : la résolution DNS et le chemin HTTPS/HTTP jusqu'au endpoint Supabase répondent. Le HTTP 401 est attendu pour une requête anonyme sans clé ; il ne valide ni n'invalide la clé serveur `sb_secret`. Le timeout antérieur du runner reste donc à diagnostiquer sur la requête avec clé, sans conclure à une panne DNS générale.
+
+### Prochaine commande
+
+Effectuer une seule sonde authentifiée, en lecture seule, chargée depuis les variables locales du dépôt source. La commande doit afficher uniquement le type de clé, le statut HTTP ou le code d'erreur réseau, jamais la clé ni son contenu. Si elle répond 200, le préflight authentifié est validé et le runner ciblé peut être relancé. Si elle expire encore, conserver le journal et diagnostiquer le chemin réseau/TLS/filtrage avant toute nouvelle recette.
+
+Le statut global ne change pas : **LOT-01 PARTIAL / NON CLOS**, car aucun build ni navigateur n'ont été exécutés dans la tentative du rapport `10:24:48.240Z`.
