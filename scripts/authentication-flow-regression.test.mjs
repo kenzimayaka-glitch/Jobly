@@ -25,6 +25,8 @@ const mobilityAgreement = read("app/api/mobility/recruiter/agreement/route.ts");
 const mobilityServer = read("lib/mobilityServer.ts");
 const serverAuth = read("lib/server-auth.ts");
 const onboarding = read("app/onboarding/page.tsx");
+const authAdvancedSmoke = read("e2e/auth-advanced-browser-smoke.mjs");
+const authRecipeRunner = read("e2e/run-authenticated-role-recipe.mjs");
 
 test("existing username/password authentication is not blocked by new-password strength rules", () => {
   const loginImplementation = auth.slice(auth.indexOf("export async function loginWithUsernamePassword"), auth.indexOf("export async function completeSignupProfile"));
@@ -390,4 +392,22 @@ test("shared account settings exposes a visible current-device logout for every 
   assert.match(accountSettingsPage, /aria-label="Se déconnecter de Jobly"/);
   assert.match(accountSettingsPage, /router\.replace\("\/"\)/);
   assert.match(accountSettingsPage, /data-testid="jobly-logout-button"/);
+});
+
+
+test("LOT-01 advanced auth browser campaign isolates provider flows and verifies device revocation", () => {
+  for (const endpoint of ["/auth/v1/otp", "/auth/v1/verify", "/auth/v1/authorize", "/auth/v1/recover"]) {
+    assert.ok(authAdvancedSmoke.includes(endpoint), "Missing intercepted Auth endpoint: " + endpoint);
+  }
+  assert.match(authAdvancedSmoke, /blockedExternalOrigins/);
+  assert.match(authAdvancedSmoke, /unexpectedSupabaseRequests/);
+  assert.match(authAdvancedSmoke, /example\.invalid/);
+  assert.match(authAdvancedSmoke, /DEVICE_PREFLIGHT_TWO_FREE_SLOTS/);
+  assert.match(authAdvancedSmoke, /activeBefore\.length > 1/);
+  assert.match(authAdvancedSmoke, /DEVICE_B_REVOKED_FROM_VISIBLE_UI/);
+  assert.match(authAdvancedSmoke, /statusB === 401/);
+  assert.match(authAdvancedSmoke, /statusA === 200/);
+  assert.match(authAdvancedSmoke, /preexistingDeviceRowsUnchanged/);
+  assert.match(authRecipeRunner, /--auth-advanced-only/);
+  assert.match(authRecipeRunner, /reportGeneratedForThisRun/);
 });

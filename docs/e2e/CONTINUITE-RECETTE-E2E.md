@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.164 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.165 — 9 novembre 2026
 >
-> **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée avec clic réel sur le bouton de déconnexion PASS 29/29 (§128), auth régression PASS 29/29, TypeScript PASS et build/serveur PASS sur le run du 9 novembre à 06:56–06:57Z. Les trois rôles Talent, Recruteur et Partenaire ont chacun fermé leur session locale depuis `/settings`, puis obtenu HTTP 401 sur `/api/profile`. La migration de session 20261109015439 reste limitée à JOBLY-E2E. La recette Auth avancée est définie au §129 ; aucun runner dédié à ces scénarios n'est encore disponible. **La porte UI authentifiée de LOT-01 est maintenant PASS ; LOT-01 global reste PARTIAL** jusqu'à validation runtime ou décision explicite de périmètre pour OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils.
+> **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée avec clic réel sur le bouton de déconnexion PASS 29/29 (§128), auth régression PASS 29/29, TypeScript PASS et build/serveur PASS sur le run du 9 novembre à 06:56–06:57Z. Les trois rôles Talent, Recruteur et Partenaire ont chacun fermé leur session locale depuis `/settings`, puis obtenu HTTP 401 sur `/api/profile`. La migration de session 20261109015439 reste limitée à JOBLY-E2E. La recette Auth avancée est définie au §129 ; runner dédié ajouté en §135 ; exécution runtime en attente. **La porte UI authentifiée de LOT-01 est maintenant PASS ; LOT-01 global reste PARTIAL** jusqu'à validation runtime ou décision explicite de périmètre pour OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations, lectures SQL et contrôles Storage ; aucun accès JOBLY-PROD et aucun déploiement. Les tests HTTP CI tournent sur un serveur Next.js de build local au runner avec configuration Supabase fictive, jamais sur le site de production.
 >
@@ -7400,3 +7400,41 @@ Le fichier agrégé reçu le 9 novembre à 08:30 contient le smoke authentifié 
 4. Après le run, ouvrir le rapport JSON avec Notepad et le transmettre. La commande d'ouverture attendue sera `notepad C:\Users\ASUS\Jobly-e2e-recette-v3\artifacts\e2e\lot1-auth-advanced-smoke.json`.
 
 Aucune commande d'ouverture du rapport avancé ne doit être exécutée avant que le runner ait généré ce fichier. JOBLY-E2E uniquement ; aucun fournisseur externe, aucun JOBLY-PROD, aucun merge `main`, aucun déploiement.
+
+
+---
+
+## 135. Implémentation du runner Auth avancée LOT-01
+
+**Mise à jour : 9 novembre 2026 — version 2.165.**
+
+Le code exécutable est ajouté sur la branche `e2e/recette` :
+- `e2e/auth-advanced-browser-smoke.mjs` : OTP, Google OAuth et récupération interceptés côté navigateur ; scénario multi-appareils avec deux contextes Playwright sur la fixture Talent JOBLY-E2E ;
+- `e2e/run-authenticated-role-recipe.mjs --auth-advanced-only` : réutilise le préflight du worktree, l'environnement E2E vérifié, le build, le serveur local et Playwright isolé ; vérifie la fraîcheur, la cible et le SHA du rapport ;
+- `scripts/authentication-flow-regression.test.mjs` : contrôles du harnais, des interceptions, du préflight multi-appareils et du branchement runner.
+
+La campagne multi-appareils lit d'abord les lignes `User` et `UserDeviceSession` avec la clé JOBLY-E2E. Elle refuse de créer A/B si plus d'un appareil actif préexistant est détecté, vérifie l'identité des sessions créées, révoque B depuis le bouton visible, contrôle HTTP 401 sur B et HTTP 200 sur A, puis révoque uniquement les lignes créées par le run. L'instantané des lignes préexistantes est comparé après nettoyage. Si la précondition ou l'identification échoue, le scénario est BLOCKED sans révocation d'une session antérieure.
+
+Commande opérateur CMD depuis le worktree isolé :
+
+```cmd
+cd /d C:\Users\ASUS\Jobly-e2e-recette-v3
+git fetch origin
+git checkout --detach origin/e2e/recette
+pnpm test:auth
+if errorlevel 1 exit /b 1
+pnpm exec tsc --noEmit --incremental false
+if errorlevel 1 exit /b 1
+node e2e\run-authenticated-role-recipe.mjs C:\Users\ASUS\Jobly --auth-advanced-only
+notepad artifacts\e2e\lot1-auth-advanced-smoke.json
+notepad artifacts\e2e\authenticated-role-runner-summary.json
+notepad artifacts\e2e\auth-advanced-smoke-diagnostic.json
+notepad artifacts\e2e\auth-advanced-process.log
+pause
+```
+
+Le runner utilise le serveur Next local sur `127.0.0.1:3217`, le manifeste de fixtures existant en lecture et la configuration privée vérifiée vers `ofqqrryamslxoqkklraw`. Il n'envoie aucun OTP/e-mail/SMS, ne redirige pas vers Google, ne modifie aucun mot de passe ni donnée métier. La seule mutation distante prévue est la création/révocation/nettoyage des métadonnées des deux sessions qui appartiennent au run dans JOBLY-E2E.
+
+Le rapport `artifacts/e2e/lot1-auth-advanced-smoke.json` est la preuve primaire. Le résumé du runner ne déclare PASS que si les quatre scénarios sont PASS, le rapport est frais et correspond au SHA, les erreurs navigateur sont absentes et les lignes préexistantes restent inchangées.
+
+Aucune exécution runtime de ce nouveau runner n'a encore eu lieu au moment de l'ajout. Aucun résultat PASS n'est pré-attribué. LOT-01 reste PARTIAL jusqu'à réception du rapport. Aucun accès JOBLY-PROD, aucun merge `main`, aucun déploiement.

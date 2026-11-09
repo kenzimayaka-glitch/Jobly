@@ -10,7 +10,7 @@ const SOURCE_ROOT = process.argv[2] ? path.resolve(process.argv[2]) : "";
 const RUN_MODE = process.argv[3] || "api";
 const PLAYWRIGHT_VERSION = "1.65.0";
 if (!["api", "--browser-only", "--role-browser-only"].includes(RUN_MODE)) {
-  throw new Error("Mode invalide. Utiliser api, --browser-only ou --role-browser-only.");
+  throw new Error("Mode invalide. Utiliser api, --browser-only, --role-browser-only ou --auth-advanced-only.");
 }
 const PROJECT_REF = "ofqqrryamslxoqkklraw";
 const SUPABASE_URL = "https://" + PROJECT_REF + ".supabase.co";
