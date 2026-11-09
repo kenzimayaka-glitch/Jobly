@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
-
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.172 — 9 novembre 2026
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.171 — 9 novembre 2026
 >
-> **Dernières preuves LOT-01 :** les sous-périmètres déjà prouvés restent PASS : Auth de base 12/12, API authentifiée 40/40 avec nettoyage, UI publique 14/14 et UI authentifiée 29/29 avec déconnexion visible et HTTP 401 (§§96–128). La campagne Auth avancée du 9 novembre à 08:08Z sur le commit 2efc9f111c056b05ec499e5768188f35bf8be0ef a produit OTP 3/4, Google en timeout, récupération 2/3 et multi-appareils BLOCKED car trois appareils préexistants étaient actifs ; aucun état Auth distant n'a été modifié (§138). Le harnais a ensuite été corrigé et commité (§139 : commits 4b040cdd, 71fec66f, 1a7023a1, 9e9d91a8, 8c233faf). Aucun retest runtime post-correctif n'est encore prouvé. LOT-01 reste PARTIAL / NON CLOS jusqu'à réception du rapport frais et résolution du périmètre multi-appareils par fixture isolée autorisée ou décision de périmètre explicite. La recette opérationnelle ciblée et le script CMD sont décrits au §140.
+> **Dernières preuves LOT-01 :** Auth regression opérateur : **30/30 PASS** sur `a8b1b8ef81e41a740e7d9045650d5c60b5567f17`; worktree propre et SHA local/distant identiques. Connectivité sans clé vers JOBLY-E2E : DNS résolu et HTTPS répond `HTTP 401` (réponse attendue sans apikey). Tentative de sonde authentifiée V1 interrompue localement par `MODULE_NOT_FOUND: @next/env`, avant la requête HTTP authentifiée ; elle ne valide ni n'invalide la clé. Le runner `--auth-advanced-only` du rapport `2026-11-09T10:24:48.240Z` est `BLOCKED` avant build : `serverKeyProbeStatus=null`, `build=NOT_RUN`, `localServer=NOT_RUN`, navigateur non lancé. Le log navigateur `waitForEvent("requestfailed")` fourni avec ce run est ancien (08:51Z), donc périmé et non imputable au run 10:24Z. **LOT-01 reste PARTIAL / NON CLOS**. La prochaine étape est de faire fonctionner la sonde authentifiée autonome V2 sans `@next/env`, puis seulement de relancer le runner ciblé si elle reçoit une réponse HTTP.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations, lectures SQL et contrôles Storage ; aucun accès JOBLY-PROD et aucun déploiement. Les tests HTTP CI tournent sur un serveur Next.js de build local au runner avec configuration Supabase fictive, jamais sur le site de production.
 >
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 : PASS statique 6/6. LOT-00 : PASS — clôturé (§§93.15–93.19). LOT-01 : Auth de base 12/12, API 40/40, UI publique 14/14 et UI authentifiée 29/29 sont acquis ; seule la campagne Auth avancée reste ouverte après les premiers échecs du §138 et les corrections du §139. La prochaine action unique est le retest ciblé --auth-advanced-only du §140. Ne pas utiliser le runner global scripts/e2e-local-recipe.mjs, ne pas rejouer les sous-périmètres déjà PASS sans changement pertinent, et ne pas toucher aux fixtures partagées.
+> **État courant et ordre des lots :** E2E-001 : PASS statique 6/6. LOT-00 : PASS — clôturé (§§93.15–93.19). LOT-01 : Auth de base 12/12, API 40/40, UI publique 14/14 et UI authentifiée 29/29 acquis ; régression Auth locale 30/30 PASS. La campagne Auth avancée n'a pas encore dépassé son préflight réseau authentifié : DNS/HTTPS sans clé sont joignables (HTTP 401 attendu), mais la première sonde avec clé a échoué avant requête parce que son utilitaire dépendait de `@next/env` absent. Exécuter uniquement la sonde autonome V2 affichée à l'opérateur et contrôler son statut HTTP ; ne pas relancer le runner global ni le runner Auth complet avant ce contrôle. Ne pas retoucher les fixtures ou sessions partagées.
 
-**Version :** 2.171  
+**Version :** 2.172
 **Date de consolidation :** 9 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -7634,3 +7634,64 @@ Périmètre inchangé : aucune lecture/écriture JOBLY-PROD, aucune mutation de 
 | Version / date | Événement | Sections | Preuve |
 |---|---|---|---|
 | V2.171 — 9 nov. 2026 | Réconciliation de l'état courant, corrections du harnais, nouveau point de reprise ciblé et transmission du CMD isolé. Aucun nouveau test runtime avancé exécuté pendant cette mise à jour. | En-tête, §0.4, §140 | Contenu GitHub relu sur e2e/recette ; commits §139 ; CMD statiquement contrôlé pour tous les labels goto. |
+
+---
+
+## 141. Retest LOT-01 du 9 novembre — Auth 30/30, sonde authentifiée interrompue avant HTTP
+
+**Mise à jour : 9 novembre 2026 — version 2.172.** Cette section est le point de vérité le plus récent et prévaut sur les instructions opérateur précédentes (§§140 et addenda associés) lorsqu'elles invitent à relancer le runner avant validation de la clé.
+
+### 141.1 Preuves effectivement reçues
+
+- Worktree opérateur : C:\\Users\\ASUS\\Jobly-e2e-recette-lot01.
+- SHA local : a8b1b8ef81e41a740e7d9045650d5c60b5567f17.
+- SHA distant origin/e2e/recette : identique au SHA local.
+- État Git rapporté : propre.
+- Node : v26.13.0 ; pnpm : 10.28.0.
+- pnpm test:auth : **30 tests PASS, 0 FAIL, 0 skipped** (durée rapportée : 409.1017 ms).
+- Diagnostic réseau sans clé : DNS de ofqqrryamslxoqkklraw.supabase.co résolu par le serveur local 192.168.43.1 vers 172.64.149.246 et 104.18.38.10 ; Node fetch sur /rest/v1/ répond **HTTP 401**. Cela confirme que DNS et HTTPS/HTTP répondent. Le 401 est normal sans apikey et ne prouve pas la validité de la clé privée.
+
+### 141.2 Échec de la première sonde de clé — erreur de l'utilitaire, pas de Supabase
+
+Le journal transmis pour Jobly-LOT-01-Supabase-Key-Probe.cmd contient MODULE_NOT_FOUND: Cannot find module '@next/env', avec require stack pointant vers node_modules/next/package.json. L'outil s'est interrompu pendant le chargement de la configuration et **avant toute requête HTTP authentifiée**. Il ne s'agit donc ni d'un HTTP 401/403 du endpoint, ni d'une preuve de clé invalide, ni d'une preuve d'indisponibilité Supabase.
+
+La sonde réseau et la sonde de clé doivent rester séparées dans les preuves : le test sans clé est PASS réseau ; la validation de clé est encore NON PROUVÉE.
+
+### 141.3 Rapport du runner de 10:24Z
+
+Le JSON utilisateur horodaté 2026-11-09T10:24:48.240Z indique :
+- status=BLOCKED, build=NOT_RUN, localServer=NOT_RUN, authAdvancedSmoke=NOT_RUN ;
+- serverKeyVerifiedForE2E=false, serverKeyProbeStatus=null ;
+- raison : The operation was aborted due to timeout ;
+- aucune mutation de données métier ou d'appareils distante signalée, aucun secret imprimé.
+
+Comme le rapport n'a reçu aucun statut HTTP, le timeout a interrompu la requête avant confirmation de la clé. Aucun build local, serveur local ou test navigateur n'a été exécuté lors de cette tentative.
+
+Le fichier de processus que l'opérateur a joint dans le même message contient encore l'ancienne trace Playwright page.waitForEvent(requestfailed), datée de l'exécution antérieure autour de 08:51Z. Elle ne correspond pas au rapport 10:24Z : ce dernier s'est arrêté avant le build et avant le lancement Playwright. Ne pas attribuer cet ancien timeout Google au code courant ni le prendre pour le résultat du dernier run.
+
+### 141.4 Outil de sonde V2 fourni en code inline — statut non encore exécuté
+
+Pour contourner @next/env, une nouvelle commande CMD autonome a été fournie directement dans la conversation sous le nom Jobly-LOT-01-Supabase-Key-Probe-v2.cmd. Elle lit les paramètres des fichiers .env localement sans afficher les valeurs, vérifie le périmètre JOBLY-E2E et envoie un GET en lecture seule à https://ofqqrryamslxoqkklraw.supabase.co/rest/v1/ avec la clé serveur. Elle doit rendre uniquement le type de clé, le contrôle de périmètre, le statut HTTP ou le code d'erreur réseau.
+
+**Cette V2 n'a pas encore de preuve d'exécution opérateur.** Ne pas écrire qu'elle est validée ou que la clé serveur est acceptée avant un résultat HTTP obtenu sur le poste. Ne pas transmettre .env.local, .env.e2e.local, .e2e-fixtures.json, clé, mot de passe, token ou en-tête Authorization.
+
+### 141.5 Prochaine action opérateur et décision
+
+1. Exécuter la commande V2 copiée depuis le message conversationnel, enregistrée sous %USERPROFILE%\\Downloads\\Jobly-LOT-01-Supabase-Key-Probe-v2.cmd.
+2. Lire %TEMP%\\jobly-lot01-supabase-key-probe-v2.txt. Les seules valeurs utiles sont KEY_TYPE, KEY_SCOPE, HTTP_STATUS ou FETCH_ERROR. Ne pas coller de secret.
+3. Si HTTP 200 est obtenu, la sonde serveur en lecture seule est validée ; reprendre alors le runner ciblé --auth-advanced-only sur le SHA exact.
+4. Si un HTTP 401/403 est reçu, vérifier le nom de la variable et la clé JOBLY-E2E localement, sans communiquer sa valeur ; ne pas lancer le navigateur.
+5. Si timeout/DNS/TLS réapparaît, conserver le journal et résoudre la connectivité/authentification avant toute nouvelle campagne.
+
+La commande ne doit modifier aucune donnée : GET uniquement. Ne pas exécuter scripts/e2e-local-recipe.mjs, aucun script de reset/provisionnement, aucune migration, aucune révocation de session préexistante.
+
+### 141.6 Statut officiel LOT-01
+
+- Régression Auth : **PASS 30/30**.
+- TypeScript et build sur ce run : **NON EXÉCUTÉS / NON PROUVÉS**.
+- Clé serveur JOBLY-E2E : **NON PROUVÉE** par la sonde authentifiée.
+- OTP, Google, récupération et multi-appareils : **aucune nouvelle preuve runtime après le correctif du harnais**.
+- Ancien contexte multi-appareils : trois appareils actifs préexistants ; ne jamais les supprimer ou révoquer pour forcer la recette.
+- **LOT-01 : PARTIAL / NON CLOS**.
+
+Périmètre de protection inchangé : JOBLY-E2E uniquement ; aucune lecture ni écriture JOBLY-PROD, aucun merge sur main, aucun déploiement, aucun reset de compte, aucune mutation de fixture partagée.
