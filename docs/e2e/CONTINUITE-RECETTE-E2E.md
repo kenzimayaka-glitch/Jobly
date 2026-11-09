@@ -1,5 +1,5 @@
 # Jobly — Référence de continuité de la recette E2E
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.179 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.180 — 9 novembre 2026
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.171 — 9 novembre 2026
 >
 > **Dernières preuves LOT-01 :** Le run runtime du 9 novembre à 12:24:48 (SHA `e52448af3e6a0c46f2af558db6028a00294d2696`) confirme OTP 4/4 PASS, Google OAuth simulé 4/4 PASS et récupération 3/3 PASS. Le multi-appareils a passé son préflight (fixture `talent-multidevice`, 0 appareil actif initial), puis échoué avec `page.evaluate: Execution context was destroyed, most likely because of a navigation` avant les contrôles A/B. Le statut global est FAIL ; aucune preuve de révocation B=401/A=200 n'est disponible. `cleanup=NOT_REQUIRED`, `preexistingDeviceRowsUnchanged=true`, mais `remoteAuthDeviceStateMayBeModified=true` : ne pas assimiler ce rapport à une preuve de session temporaire créée/nettoyée. Correctif du harnais E2E préparé sur `e2e/recette` : capture du jeton via snapshot de contexte pour localStorage, retry de lecture pour sessionStorage pendant les navigations et verrou de non-régression. Commits `90f8611941f5548a8169d422a29743fa9e8834da` et `6ce4fdb18d2123b1ef27a36fab0227eb6cd03598`. Le correctif n'a pas encore été exécuté localement ; LOT-01 reste PARTIAL / NON CLOS en attente d'un nouveau rapport runtime PASS.
@@ -7988,3 +7988,42 @@ Ces commits sont versionnés sur `e2e/recette`, mais **les contrôles locaux et 
 Après synchronisation du worktree propre sur `origin/e2e/recette`, exécuter séparément `node --check e2e/auth-advanced-browser-smoke.mjs`, `pnpm test:auth`, `pnpm exec tsc --noEmit --incremental false`, puis le runner `node e2e/run-authenticated-role-recipe.mjs "%USERPROFILE%\\Jobly" --auth-advanced-only`. Vérifier le rapport frais : fixture `talent-multidevice`, deux appareils A/B visibles, révocation de B par l'interface, B HTTP 401, A HTTP 200, `cleanup=PASS`, `preexistingDeviceRowsUnchanged=true`, erreurs page vides et aucun endpoint Supabase inattendu.
 
 **Verdict : LOT-01 reste PARTIAL / NON CLOS** jusqu'au retest runtime réussi. Ne pas toucher aux appareils partagés, ne pas fusionner vers `main`, ne pas déployer et ne pas utiliser JOBLY-PROD.
+
+---
+
+## 148. Nettoyage ciblé des sessions A orphelines de tentatives précédentes
+
+**Mise à jour : 9 novembre 2026 — version 2.180.**
+
+### 148.1 Diagnostic du run de 21:00
+
+Le rapport du run `2026-11-09T21:00:09.450Z`, commit `2087deed1a9c16d5abafd08ed74dd2ff054621bb`, est **PARTIAL** : OTP 4/4 PASS, Google simulé 4/4 PASS, récupération 3/3 PASS. Le scénario multi-appareils est BLOCKED au préflight avec `baselineActiveDevices=2`; aucune session n'a été créée lors de ce run. Le rapport confirme `remoteAuthDeviceStateMayBeModified=false` et `preexistingDeviceRowsUnchanged=true`.
+
+### 148.2 Inspection en lecture seule de JOBLY-E2E
+
+Pour la seule identité `jobly-e2e-multidevice-talent@jobly.test`, la base présentait exactement deux lignes actives :
+- `e2e-lot1-auth-ee30bfdcd8da-a`, libellé `Jobly E2E LOT-01 A ee30bfdcd8da`, créée le 9 novembre à 12:25:12 UTC ;
+- `e2e-lot1-auth-7dd99806c355-a`, libellé `Jobly E2E LOT-01 A 7dd99806c355`, créée le 9 novembre à 12:36:16 UTC.
+
+Les deux device IDs et les deux libellés correspondent au schéma réservé par le runner pour ses sessions A temporaires. Les deux lignes pointaient vers une session Auth chacune. Aucune ligne B n'était présente. Les horodatages suivent les tentatives du test de cette même journée. Ces lignes sont donc documentées comme résidus de test A, et non comme appareils des fixtures partagées.
+
+### 148.3 Action de nettoyage et vérification
+
+Sur le seul projet JOBLY-E2E `ofqqrryamslxoqkklraw`, une mise à jour ciblée a marqué `revokedAt=now()` sur ces deux lignes exactes, conditionnée par l'email de la fixture dédiée, les deux UUID de lignes, les deux device IDs, les deux labels et `revokedAt IS NULL`. Aucune ligne n'a été supprimée.
+
+Vérification SQL immédiatement après :
+- total des lignes d'appareils de la fixture : **2** ;
+- lignes révoquées : **2** ;
+- lignes actives : **0** ;
+- lignes actives portant le préfixe du runner LOT-01 : **0**.
+
+Aucune donnée métier, fixture partagée, session d'appareil partagée, production, branche `main` ou déploiement n'a été touché.
+
+### 148.4 Prochaine reprise
+
+Le worktree opérateur est à synchroniser sur `origin/e2e/recette`. La version de code à tester est celle contenant la capture de token tolérante à la navigation (`90f8611941f5548a8169d422a29743fa9e8834da`) et les assertions de non-régression corrigées (`1c6bfa2f245427769ab343af36ef474fa10b05d6)), avec la tête courante de la branche. Rejouer `node --check e2e/auth-advanced-browser-smoke.mjs`, `pnpm test:auth`, `pnpm exec tsc --noEmit --incremental false`, puis `node e2e/run-authenticated-role-recipe.mjs "%USERPROFILE%\\Jobly" --auth-advanced-only`.
+
+Le préflight multi-appareils doit maintenant observer `baselineActiveDevices=0`. Si un nouvel échec survient, ne pas révoquer de lignes supplémentaires sans identifier d'abord les device IDs créés par ce run et leurs horodatages.
+
+**Verdict : LOT-01 reste PARTIAL / NON CLOS** jusqu'à la preuve runtime de visibilité A/B, révocation B=401, maintien A=200, `cleanup=PASS` et conservation des lignes préexistantes.
+
