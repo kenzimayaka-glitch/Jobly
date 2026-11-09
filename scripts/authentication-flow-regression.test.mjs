@@ -400,7 +400,12 @@ test("LOT-01 advanced auth browser campaign isolates provider flows and verifies
     assert.ok(authAdvancedSmoke.includes(endpoint), "Missing intercepted Auth endpoint: " + endpoint);
   }
   assert.match(authAdvancedSmoke, /blockedExternalOrigins/);
+  assert.match(authAdvancedSmoke, /blockedExternalRequests/);
   assert.match(authAdvancedSmoke, /unexpectedSupabaseRequests/);
+  assert.match(authAdvancedSmoke, /GOOGLE_PROVIDER_REDIRECT_BLOCKED/);
+  assert.match(authAdvancedSmoke, /https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth/);
+  assert.match(authAdvancedSmoke, /status: 302/);
+  assert.doesNotMatch(authAdvancedSmoke, /blockedExternalOrigins\.every/);
   assert.match(authAdvancedSmoke, /example\.invalid/);
   assert.match(authAdvancedSmoke, /DEVICE_PREFLIGHT_TWO_FREE_SLOTS/);
   assert.match(authAdvancedSmoke, /activeBefore\.length > 1/);
