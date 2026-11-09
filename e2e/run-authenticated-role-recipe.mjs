@@ -90,6 +90,34 @@ function runCommand(command, args, env) {
   });
 }
 
+async function runCommandCaptured(command, args, env, logPath) {
+  return await new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: ROOT,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: process.platform === "win32" && (command === "pnpm" || command === "npm.cmd"),
+      windowsHide: true,
+    });
+    const chunks = [];
+    let spawnError = null;
+    const capture = (chunk) => chunks.push(Buffer.from(chunk));
+    child.stdout.on("data", capture);
+    child.stderr.on("data", capture);
+    child.once("error", (error) => { spawnError = error; });
+    child.once("close", async (code) => {
+      const output = Buffer.concat(chunks).toString("utf8");
+      await mkdir(path.dirname(logPath), { recursive: true });
+      await writeFile(logPath, output, { encoding: "utf8", mode: 0o600 });
+      if (spawnError && code === null) {
+        resolve({ exitCode: 1, spawnError: spawnError.code || spawnError.name, logPath, output });
+        return;
+      }
+      resolve({ exitCode: code ?? 1, spawnError: spawnError ? (spawnError.code || spawnError.name) : null, logPath, output });
+    });
+  });
+}
+
 async function ensurePlaywright(env) {
   const modulePath = path.join(ROOT, ".e2e-tools", "node_modules", "playwright", "index.mjs");
   const cliPath = path.join(ROOT, ".e2e-tools", "node_modules", "playwright", "cli.js");
@@ -172,6 +200,8 @@ const summary = {
   browserSmoke: "NOT_RUN",
   browserChecks: null,
   browserAuthEvidence: null,
+  browserExecution: null,
+  browserFailure: null,
   secretsPrinted: false,
   remoteDataMayBeModified: false,
   localServerProbe: null,
@@ -319,33 +349,77 @@ try {
       PLAYWRIGHT_MODULE_PATH: playwrightModulePath,
       ...(authReportPath ? { E2E_AUTH_SESSION_REPORT_PATH: authReportPath } : {}),
     };
-    const browserCode = await runCommand(process.execPath, ["e2e/browser-smoke.mjs"], browserEnv);
+    const browserLogPath = path.join(ROOT, "artifacts", "e2e", "browser-smoke-process.log");
+    const browserRun = await runCommandCaptured(
+      process.execPath,
+      ["e2e/browser-smoke.mjs"],
+      browserEnv,
+      browserLogPath,
+    );
+    const browserCode = browserRun.exitCode;
     const browserReportPath = path.join(ROOT, "artifacts", "e2e", "lot1-auth-ui-smoke.json");
-    if (!(await exists(browserReportPath))) {
-      throw new Error("Le rapport Playwright lot1-auth-ui-smoke.json n’a pas été généré.");
-    }
-    const browserReport = JSON.parse(await readFile(browserReportPath, "utf8"));
-    const failed = Number(browserReport.failed || 0);
-    const blocked = Array.isArray(browserReport.blocked) ? browserReport.blocked.length : 0;
-    const passed = Number(browserReport.passed || 0);
-    summary.browserChecks = {
-      executed: Number(browserReport.executed || 0),
-      passed,
-      failed,
-      blocked,
+    const browserFailurePath = path.join(ROOT, "artifacts", "e2e", "failure.txt");
+    const failureText = await exists(browserFailurePath)
+      ? (await readFile(browserFailurePath, "utf8")).slice(0, 4000)
+      : null;
+    summary.browserExecution = {
+      exitCode: browserCode,
+      spawnError: browserRun.spawnError,
+      processLog: path.relative(ROOT, browserLogPath).split(path.sep).join("/"),
+      reportGenerated: await exists(browserReportPath),
     };
-    summary.browserAuthEvidence = browserReport.authLifecycleEvidence || null;
-    summary.browserSmoke = failed > 0 || browserCode !== 0
-      ? "FAIL"
-      : blocked > 0 || passed !== 14
-        ? "PARTIAL"
-        : "PASS";
-    summary.remoteDataMayBeModified = false;
-    summary.status = summary.browserSmoke === "PASS"
-      ? "PASS"
-      : summary.browserSmoke === "FAIL"
+    if (!(await exists(browserReportPath))) {
+      summary.browserSmoke = "BLOCKED";
+      summary.browserFailure = {
+        reason: failureText
+          ? "Le smoke navigateur a échoué avant de produire son rapport ; failure.txt contient la cause."
+          : "Le smoke navigateur s'est arrêté avant de produire son rapport. Consulter browser-smoke-process.log.",
+        processExitCode: browserCode,
+        spawnError: browserRun.spawnError,
+        failureArtifact: failureText ? "artifacts/e2e/failure.txt" : null,
+        processLog: "artifacts/e2e/browser-smoke-process.log",
+      };
+      summary.remoteDataMayBeModified = false;
+      summary.status = "BLOCKED";
+      summary.reason = summary.browserFailure.reason;
+    } else {
+      const browserReport = JSON.parse(await readFile(browserReportPath, "utf8"));
+      const failed = Number(browserReport.failed || 0);
+      const blocked = Array.isArray(browserReport.blocked) ? browserReport.blocked.length : 0;
+      const passed = Number(browserReport.passed || 0);
+      summary.browserChecks = {
+        executed: Number(browserReport.executed || 0),
+        passed,
+        failed,
+        blocked,
+      };
+      summary.browserAuthEvidence = browserReport.authLifecycleEvidence || null;
+      summary.browserSmoke = failed > 0 || browserCode !== 0
         ? "FAIL"
-        : "PARTIAL";
+        : blocked > 0 || passed !== 14
+          ? "PARTIAL"
+          : "PASS";
+      summary.remoteDataMayBeModified = false;
+      summary.status = summary.browserSmoke === "PASS"
+        ? "PASS"
+        : summary.browserSmoke === "FAIL"
+          ? "FAIL"
+          : "PARTIAL";
+    }
+    await writeFile(
+      path.join(ROOT, "artifacts", "e2e", "browser-smoke-diagnostic.json"),
+      JSON.stringify({
+        createdAt: new Date().toISOString(),
+        processExitCode: browserCode,
+        spawnError: browserRun.spawnError,
+        reportGenerated: await exists(browserReportPath),
+        failureArtifact: failureText ? "artifacts/e2e/failure.txt" : null,
+        processLog: "artifacts/e2e/browser-smoke-process.log",
+        authReportCandidateSelected: authReportPath ? path.basename(authReportPath) : null,
+        authReportCandidatePresent: Boolean(authReportPath),
+      }, null, 2) + "\n",
+      { encoding: "utf8", mode: 0o600 },
+    );
   } else {
     console.log("Exécution des parcours API authentifiés Talent / Recruteur / Partenaire…");
     summary.remoteDataMayBeModified = true;
