@@ -27,6 +27,7 @@ const serverAuth = read("lib/server-auth.ts");
 const onboarding = read("app/onboarding/page.tsx");
 const authAdvancedSmoke = read("e2e/auth-advanced-browser-smoke.mjs");
 const authRecipeRunner = read("e2e/run-authenticated-role-recipe.mjs");
+const multiDeviceFixtureProvisioner = read("e2e/provision-multidevice-talent-fixture.mjs");
 
 test("existing username/password authentication is not blocked by new-password strength rules", () => {
   const loginImplementation = auth.slice(auth.indexOf("export async function loginWithUsernamePassword"), auth.indexOf("export async function completeSignupProfile"));
@@ -43,6 +44,21 @@ test("username login errors are visible on the login screen exactly once", () =>
 
 test("Google OAuth asks the user to choose an account", () => {
   assert.match(auth, /queryParams:\s*\{\s*prompt:\s*"select_account"\s*\}/);
+});
+
+test("multi-device E2E uses a separate Talent fixture and never mutates shared device rows", () => {
+  assert.match(authAdvancedSmoke, /item\?\.key === "talent-multidevice"/);
+  assert.match(authAdvancedSmoke, /item\?\.purpose === "MULTI_DEVICE_REVOCATION"/);
+  assert.match(authAdvancedSmoke, /result\.fixtureKey = account\.key/);
+  assert.match(multiDeviceFixtureProvisioner, /const PROJECT_REF = "ofqqrryamslxoqkklraw"/);
+  assert.match(multiDeviceFixtureProvisioner, /auth\.admin\.createUser/);
+  assert.match(multiDeviceFixtureProvisioner, /e2e_purpose: PURPOSE/);
+  assert.match(multiDeviceFixtureProvisioner, /activeBefore > 1/);
+  assert.match(multiDeviceFixtureProvisioner, /NO_PASSWORD_OR_SESSION_CHANGE/);
+  assert.match(multiDeviceFixtureProvisioner, /existingDeviceRowsModified: false/);
+  assert.match(multiDeviceFixtureProvisioner, /credentialsPrinted: false/);
+  assert.doesNotMatch(multiDeviceFixtureProvisioner, /from\(["']UserDeviceSession["']\)\.(?:insert|update|delete)/);
+  assert.doesNotMatch(multiDeviceFixtureProvisioner, /insert\s+into\s+auth\.users/i);
 });
 
 test("Google callback gates incomplete internal identities through onboarding", () => {
