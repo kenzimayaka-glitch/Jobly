@@ -37,6 +37,9 @@ export async function GET(request: NextRequest) {
     if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    if (String(user.role) !== "PARTNER") {
+      return NextResponse.json({ message: "Espace Partenaire réservé." }, { status: 403 });
+    }
     const partner = await ensurePartner(supabase, user.id);
     const { data: institution, error: institutionError } = await supabase.from("AdminManagedAccount")
       .select("organizationType,organizationName,website,city,country,status")
@@ -57,9 +60,12 @@ export async function PUT(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
     if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
-    const body = await request.json();
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    if (String(user.role) !== "PARTNER") {
+      return NextResponse.json({ message: "Espace Partenaire réservé." }, { status: 403 });
+    }
+    const body = await request.json();
     await ensurePartner(supabase, user.id);
 
     const payload: Record<string, unknown> = {};
