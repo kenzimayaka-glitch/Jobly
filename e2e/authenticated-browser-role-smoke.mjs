@@ -18,7 +18,8 @@ const EXPECTED = [
     ownApi: "/api/profile",
     cross: [
       { id: "TALENT-DENY-RECRUITER", path: "/api/recruiter/jobs", status: 403 },
-      { id: "TALENT-PARTNER-RESOURCE-ABSENT", path: "/api/partner/ba-onboarding", status: 404 },
+      { id: "TALENT-DENY-PARTNER-PROFILE", path: "/api/partner/profile", status: 403 },
+      { id: "TALENT-DENY-PARTNER-ONBOARDING", path: "/api/partner/ba-onboarding", status: 403 },
     ],
   },
   {
@@ -29,7 +30,8 @@ const EXPECTED = [
     ownApi: "/api/recruiter/jobs",
     cross: [
       { id: "RECRUITER-DENY-TALENT", path: "/api/talent/ai-bonus", status: 403 },
-      { id: "RECRUITER-PARTNER-RESOURCE-ABSENT", path: "/api/partner/ba-onboarding", status: 404 },
+      { id: "RECRUITER-DENY-PARTNER-PROFILE", path: "/api/partner/profile", status: 403 },
+      { id: "RECRUITER-DENY-PARTNER-ONBOARDING", path: "/api/partner/ba-onboarding", status: 403 },
     ],
   },
   {
@@ -71,7 +73,6 @@ const report = {
     "Authenticated route checks are GET-only. No offer, application, CV, payment, preference, profile or KYC mutation is performed.",
     "Authenticated API requests may refresh/register the current synthetic device-session metadata as part of normal Jobly authentication.",
     "Session teardown is validated by clearing only the isolated browser context auth storage and confirming anonymous API denial; visible logout-button clicks are not covered by this smoke.",
-    "Partner-resource absence checks expect HTTP 404 for non-partner fixtures; this is resource absence, not proof of a dedicated Partner role guard.",
     "No OTP, Google OAuth, password-reset, payment, email or SMS provider flow is submitted.",
   ],
 };
