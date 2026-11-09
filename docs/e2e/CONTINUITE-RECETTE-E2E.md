@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.165 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.166 — 9 novembre 2026
 >
 > **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée avec clic réel sur le bouton de déconnexion PASS 29/29 (§128), auth régression PASS 29/29, TypeScript PASS et build/serveur PASS sur le run du 9 novembre à 06:56–06:57Z. Les trois rôles Talent, Recruteur et Partenaire ont chacun fermé leur session locale depuis `/settings`, puis obtenu HTTP 401 sur `/api/profile`. La migration de session 20261109015439 reste limitée à JOBLY-E2E. La recette Auth avancée est définie au §129 ; runner dédié ajouté en §135 ; exécution runtime en attente. **La porte UI authentifiée de LOT-01 est maintenant PASS ; LOT-01 global reste PARTIAL** jusqu'à validation runtime ou décision explicite de périmètre pour OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -7438,3 +7438,24 @@ Le runner utilise le serveur Next local sur `127.0.0.1:3217`, le manifeste de fi
 Le rapport `artifacts/e2e/lot1-auth-advanced-smoke.json` est la preuve primaire. Le résumé du runner ne déclare PASS que si les quatre scénarios sont PASS, le rapport est frais et correspond au SHA, les erreurs navigateur sont absentes et les lignes préexistantes restent inchangées.
 
 Aucune exécution runtime de ce nouveau runner n'a encore eu lieu au moment de l'ajout. Aucun résultat PASS n'est pré-attribué. LOT-01 reste PARTIAL jusqu'à réception du rapport. Aucun accès JOBLY-PROD, aucun merge `main`, aucun déploiement.
+
+
+---
+
+## 136. Runner Auth avancée — branchement du mode et prévalidation CI
+
+**Mise à jour : 9 novembre 2026 — version 2.166.**
+
+Le commit `23541bdf216fe6f9268b5676236e92d992ed998f` corrige l'acceptation du mode `--auth-advanced-only` par le runner principal. Vérifications GitHub du commit :
+- Le mode est présent dans la liste des modes autorisés.
+- Les quatre scénarios et le rapport dédié sont bien présents dans `e2e/auth-advanced-browser-smoke.mjs).
+- Le runner principal contient le branchement Auth avancée, la validation du rapport fraîchement généré et l'impression du chemin du rapport.
+- Le test statique ajouté est présent dans `scripts/authentication-flow-regression.test.mjs).
+
+Workflow GitHub Actions `Jobly CI — Typecheck & Build`, run `42582188620` :
+- tests de régression Auth : SUCCESS ;
+- TypeScript : SUCCESS ;
+- build de production : IN_PROGRESS à l'instant de la mise à jour ;
+- le smoke HTTP LOT-00 n'a pas encore commencé.
+
+Aucun scénario Auth avancé n'a encore été exécuté sur le poste opérateur ; aucun PASS runtime n'est attribué. Après fin du build CI, lancer la commande §135 depuis le worktree isolé pour produire le rapport et ouvrir les quatre résultats dans Notepad. JOBLY-E2E uniquement, aucune action fournisseur réelle, aucun JOBLY-PROD, aucun merge `main), aucun déploiement.
