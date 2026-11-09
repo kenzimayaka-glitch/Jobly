@@ -1,5 +1,5 @@
 # Jobly — Référence de continuité de la recette E2E
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.180 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.181 — 9 novembre 2026
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.171 — 9 novembre 2026
 >
 > **Dernières preuves LOT-01 :** Le run runtime du 9 novembre à 12:24:48 (SHA `e52448af3e6a0c46f2af558db6028a00294d2696`) confirme OTP 4/4 PASS, Google OAuth simulé 4/4 PASS et récupération 3/3 PASS. Le multi-appareils a passé son préflight (fixture `talent-multidevice`, 0 appareil actif initial), puis échoué avec `page.evaluate: Execution context was destroyed, most likely because of a navigation` avant les contrôles A/B. Le statut global est FAIL ; aucune preuve de révocation B=401/A=200 n'est disponible. `cleanup=NOT_REQUIRED`, `preexistingDeviceRowsUnchanged=true`, mais `remoteAuthDeviceStateMayBeModified=true` : ne pas assimiler ce rapport à une preuve de session temporaire créée/nettoyée. Correctif du harnais E2E préparé sur `e2e/recette` : capture du jeton via snapshot de contexte pour localStorage, retry de lecture pour sessionStorage pendant les navigations et verrou de non-régression. Commits `90f8611941f5548a8169d422a29743fa9e8834da` et `6ce4fdb18d2123b1ef27a36fab0227eb6cd03598`. Le correctif n'a pas encore été exécuté localement ; LOT-01 reste PARTIAL / NON CLOS en attente d'un nouveau rapport runtime PASS.
@@ -8026,4 +8026,51 @@ Le worktree opérateur est à synchroniser sur `origin/e2e/recette`. La version 
 Le préflight multi-appareils doit maintenant observer `baselineActiveDevices=0`. Si un nouvel échec survient, ne pas révoquer de lignes supplémentaires sans identifier d'abord les device IDs créés par ce run et leurs horodatages.
 
 **Verdict : LOT-01 reste PARTIAL / NON CLOS** jusqu'à la preuve runtime de visibilité A/B, révocation B=401, maintien A=200, `cleanup=PASS` et conservation des lignes préexistantes.
+
+---
+
+## 149. Retest multi-appareils — liste UI indisponible malgré HTTP 200 ; diagnostic renforcé
+
+**Mise à jour : 9 novembre 2026 — version 2.181.**
+
+### 149.1 Identification et résultats
+
+- Run : `2026-11-09T21:15:10.669Z` à `2026-11-09T21:15:40.817Z`.
+- Commit testé : `a5ebf78bcdffdd5cc8456ca2bb4a004407785b81`.
+- JOBLY-E2E ; préflight multi-appareils **PASS**, `baselineActiveDevices=0`.
+- OTP 4/4 PASS ; Google simulé 4/4 PASS ; récupération 3/3 PASS.
+- Multi-appareils **FAIL** avec détail `Liste des appareils non accessible (HTTP 200)`.
+- Le scénario a échoué après création de la session A, avant affichage/vérification de la liste ou création de B. `cleanup=PASS`.
+
+### 149.2 Vérification distante après le run
+
+Lecture SQL ciblée sur la fixture dédiée :
+- total `UserDeviceSession` : **3** lignes ;
+- sessions révoquées : **3** ;
+- sessions actives : **0** ;
+- sessions actives de préfixe LOT-01 : **0**.
+
+La ligne de ce run, `e2e-lot1-auth-cc497f689d5c-a`, a été créée à `21:15:37.498536Z` puis marquée révoquée à `21:15:39.493Z`. Le cleanup a donc bien révoqué la session A créée par ce run. Les deux lignes des runs antérieurs sont elles aussi révoquées. Aucune suppression de ligne ni modification d'une fixture partagée.
+
+### 149.3 Cause à éclaircir
+
+Le code actuel de `app/api/device-sessions/route.ts` renvoie un objet JSON `{ devices, activeCount, limit }` lorsque l'authentification est valide. Le harnais attendait un événement Playwright `waitForResponse` pendant la navigation vers `/settings`, puis exigeait un tableau `payload.devices`. Le HTTP 200 seul ne permet pas de savoir si l'événement a capturé la réponse attendue, si le body a été parsé correctement ou si une réponse d'un appel concurrent a été prise. Le rapport initial n'enregistre pas les clés du payload, ni son content-type.
+
+### 149.4 Correctif complémentaire préparé sur e2e/recette
+
+- Commit `5750678d009539bcd7017aa11165091e13809ae1` : remplace la capture d'une réponse arbitraire en cours de navigation par un GET direct depuis le runner Node vers `/api/device-sessions`, avec le bearer token et les deux headers de l'appareil de test. Le harnais vérifie désormais `payload.devices`, que l'appareil courant A y apparaisse actif, puis attend le heading « Mes appareils connectés » et le libellé exact dans l'interface.
+- En cas de forme de payload inattendue, le rapport d'erreur contiendra désormais le code HTTP, le content-type et les clés de premier niveau du JSON, sans imprimer de token ni de contenu personnel.
+- Commit `597600282b55a41449518cb7cde04b0653c79a74` : verrou de non-régression statique pour le GET direct, la validation de l'appareil courant, le diagnostic expurgé et l'attente UI ; interdit le retour à l'ancien `waitForResponse` concurrent.
+- Les deux modifications touchent uniquement le harnais E2E et le test statique. Pas de modification métier, de migration ou de déploiement.
+
+Le correctif complémentaire n'a pas encore été exécuté localement : aucun PASS runtime ne lui est attribué.
+
+### 149.5 État de sûreté et prochaine reprise
+
+Après le run, la fixture dédiée ne possède aucun appareil actif (0/3). Aucune session temporaire ne demeure active selon la lecture SQL. Les lignes des sessions de test sont conservées pour audit et portent `revokedAt`.
+
+Synchroniser le worktree propre sur `origin/e2e/recette`, puis rejouer `node --check e2e/auth-advanced-browser-smoke.mjs`, `pnpm test:auth`, `pnpm exec tsc --noEmit --incremental false`, puis `node e2e/run-authenticated-role-recipe.mjs "%USERPROFILE%\\Jobly" --auth-advanced-only`. Le prochain rapport doit prouver : A active et visible dans l'API et dans l'UI, B active et visible, révocation exclusive de B depuis l'UI, B HTTP 401, A HTTP 200, cleanup PASS, et lignes préexistantes inchangées.
+
+**Verdict : LOT-01 reste PARTIAL / NON CLOS** jusqu'au PASS runtime de la révocation multi-appareils.
+
 
