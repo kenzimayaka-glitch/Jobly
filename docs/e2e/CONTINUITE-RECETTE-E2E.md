@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.166 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.167 — 9 novembre 2026
 >
 > **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée avec clic réel sur le bouton de déconnexion PASS 29/29 (§128), auth régression PASS 29/29, TypeScript PASS et build/serveur PASS sur le run du 9 novembre à 06:56–06:57Z. Les trois rôles Talent, Recruteur et Partenaire ont chacun fermé leur session locale depuis `/settings`, puis obtenu HTTP 401 sur `/api/profile`. La migration de session 20261109015439 reste limitée à JOBLY-E2E. La recette Auth avancée est définie au §129 ; runner dédié ajouté en §135 ; exécution runtime en attente. **La porte UI authentifiée de LOT-01 est maintenant PASS ; LOT-01 global reste PARTIAL** jusqu'à validation runtime ou décision explicite de périmètre pour OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -7419,8 +7419,11 @@ Commande opérateur CMD depuis le worktree isolé :
 
 ```cmd
 cd /d C:\Users\ASUS\Jobly-e2e-recette-v3
+if errorlevel 1 exit /b 1
 git fetch origin
+if errorlevel 1 exit /b 1
 git checkout --detach origin/e2e/recette
+if errorlevel 1 exit /b 1
 pnpm test:auth
 if errorlevel 1 exit /b 1
 pnpm exec tsc --noEmit --incremental false
