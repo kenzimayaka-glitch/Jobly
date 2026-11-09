@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.177 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.178 — 9 novembre 2026
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.171 — 9 novembre 2026
 >
-> **Dernières preuves LOT-01 :** Retest runtime Auth avancée du 9 novembre 2026 : build/serveur PASS ; OTP 4/4 PASS ; Google 4/4 PASS avec navigation accounts.google.com bloquée avant réseau ; récupération 3/3 PASS. Le contrôle multi-appareils a été BLOCKED sans création de session ni modification d'appareil, car la fixture Talent partagée avait trois appareils actifs. Après accord explicite de l'utilisateur, un provisionneur local dédié e2e/provision-multidevice-talent-fixture.mjs a été ajouté sur e2e/recette, avec garde JOBLY-E2E, contrôle des collisions, limite d'un appareil actif avant provisioning et aucune écriture dans UserDeviceSession. Le runner Auth avancé sélectionne désormais prioritairement cette fixture et conserve le fallback sûr. **Le script a été préparé et commité, mais il n'a pas encore été exécuté ; aucune identité dédiée n'a donc été créée à ce stade. LOT-01 reste PARTIAL / NON CLOS en attente du rapport de provisionnement puis d'un nouveau rapport runtime multi-appareils.**
+> **Dernières preuves LOT-01 :** Le run runtime du 9 novembre à 12:24:48 (SHA `e52448af3e6a0c46f2af558db6028a00294d2696`) confirme OTP 4/4 PASS, Google OAuth simulé 4/4 PASS et récupération 3/3 PASS. Le multi-appareils a passé son préflight (fixture `talent-multidevice`, 0 appareil actif initial), puis échoué avec `page.evaluate: Execution context was destroyed, most likely because of a navigation` avant les contrôles A/B. Le statut global est FAIL ; aucune preuve de révocation B=401/A=200 n'est disponible. `cleanup=NOT_REQUIRED`, `preexistingDeviceRowsUnchanged=true`, mais `remoteAuthDeviceStateMayBeModified=true` : ne pas assimiler ce rapport à une preuve de session temporaire créée/nettoyée. Correctif du harnais E2E préparé sur `e2e/recette` : capture du jeton via snapshot de contexte pour localStorage, retry de lecture pour sessionStorage pendant les navigations et verrou de non-régression. Commits `90f8611941f5548a8169d422a29743fa9e8834da` et `6ce4fdb18d2123b1ef27a36fab0227eb6cd03598`. Le correctif n'a pas encore été exécuté localement ; LOT-01 reste PARTIAL / NON CLOS en attente d'un nouveau rapport runtime PASS.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations, lectures SQL et contrôles Storage ; aucun accès JOBLY-PROD et aucun déploiement. Les tests HTTP CI tournent sur un serveur Next.js de build local au runner avec configuration Supabase fictive, jamais sur le site de production.
 >
@@ -7943,3 +7943,48 @@ Le rapport doit indiquer status=PASS, le projet JOBLY-E2E, le rôle TALENT, les 
 À la rédaction de cette version, les modifications de code sont commitées mais **la fixture distante n'a pas encore été créée** : le provisionneur n'a pas été exécuté sur la machine opérateur, et aucun rapport de provisioning frais n'est disponible. Aucune mutation de JOBLY-PROD, de main, du déploiement, de la fonction Edge, des fixtures partagées ou de leurs sessions n'a été effectuée. Aucune communication email/SMS ou modification de données métier n'est demandée.
 
 **Verdict : LOT-01 reste PARTIAL / NON CLOS.** Le prochain point opératoire unique est l'exécution locale du provisionneur dédié et la transmission de son rapport non sensible ; seulement après son PASS, lancer le retest Auth avancé.
+---
+
+## 147. Retest multi-appareils — échec de capture du jeton pendant une navigation
+
+**Mise à jour : 9 novembre 2026 — version 2.178.** Cette section remplace le statut d'attente du §146 après réception du premier rapport d'exécution sur la fixture Talent dédiée.
+
+### 147.1 Identification du run
+
+- Début : `2026-11-09T12:24:48.533Z` ; fin : `2026-11-09T12:25:13.101Z`.
+- SHA testé : `e52448af3e6a0c46f2af558db6028a00294d2696`.
+- Environnement JOBLY-E2E, projectRef `ofqqrryamslxoqkklraw`, URL locale `http://127.0.0.1:3217`.
+- Rapport navigateur : **FAIL**.
+
+### 147.2 Résultats
+
+- OTP : **PASS 4/4**.
+- Google OAuth simulé : **PASS 4/4**, navigation vers `accounts.google.com` interceptée avant réseau.
+- Récupération : **PASS 3/3**.
+- Multi-appareils : **FAIL** après `DEVICE_PREFLIGHT_TWO_FREE_SLOTS=PASS`, avec `baselineActiveDevices=0` et fixture `talent-multidevice`.
+- Aucun contrôle de visibilité A/B, révocation de B, B=401 ou A=200 n'a été atteint.
+
+### 147.3 Diagnostic et prudence sur les effets de bord
+
+Erreur : `page.evaluate: Execution context was destroyed, most likely because of a navigation`. Le harnais attendait la présence du token, puis lisait le stockage dans un second `page.evaluate`. Une navigation provoquée par la connexion a pu détruire le contexte entre ces deux opérations. Il s'agit d'un défaut probable du harnais Playwright ; ce rapport ne démontre pas un défaut du code métier de révocation.
+
+- `cleanup=NOT_REQUIRED`.
+- `preexistingDeviceRowsUnchanged=true`.
+- `unexpectedSupabaseRequests=[]`, `credentialsPrinted=false`, `tokensPrinted=false`.
+- `remoteAuthDeviceStateMayBeModified=true` : indicateur conservateur du runner. Les lignes préexistantes sont déclarées inchangées, mais ce rapport seul ne suffit pas à certifier l'état distant complet après l'échec.
+
+Aucune modification d'offre ou autre donnée métier n'est signalée. Aucun accès JOBLY-PROD.
+
+### 147.4 Correctif du harnais sur e2e/recette
+
+- `90f8611941f5548a8169d422a29743fa9e8834da` : lecture prioritaire du jeton via `browserContext.storageState()` (localStorage), puis fallback compatible sessionStorage avec huit tentatives et attente de la fin d'une navigation en cas de destruction du contexte. La signature des options de `page.waitForFunction` a également été corrigée.
+- `6ce4fdb18d2123b1ef27a36fab0227eb6cd03598` : test statique verrouillant le snapshot de contexte, les nouvelles tentatives et l'attente de navigation.
+- Seul le harnais E2E et son test de non-régression sont modifiés ; aucun code métier, schéma, migration, fixture partagée ou déploiement.
+
+Ces commits sont versionnés sur `e2e/recette`, mais **les contrôles locaux et le runtime après correctif ne sont pas encore exécutés**. Ne pas déclarer le point résolu sur la seule base du correctif commité.
+
+### 147.5 Reprise
+
+Après synchronisation du worktree propre sur `origin/e2e/recette`, exécuter séparément `node --check e2e/auth-advanced-browser-smoke.mjs`, `pnpm test:auth`, `pnpm exec tsc --noEmit --incremental false`, puis le runner `node e2e/run-authenticated-role-recipe.mjs "%USERPROFILE%\\Jobly" --auth-advanced-only`. Vérifier le rapport frais : fixture `talent-multidevice`, deux appareils A/B visibles, révocation de B par l'interface, B HTTP 401, A HTTP 200, `cleanup=PASS`, `preexistingDeviceRowsUnchanged=true`, erreurs page vides et aucun endpoint Supabase inattendu.
+
+**Verdict : LOT-01 reste PARTIAL / NON CLOS** jusqu'au retest runtime réussi. Ne pas toucher aux appareils partagés, ne pas fusionner vers `main`, ne pas déployer et ne pas utiliser JOBLY-PROD.
