@@ -35,7 +35,7 @@ La direction du §112.6 est correcte pour l'étape immédiate : utiliser le runn
 **Mais ce smoke ciblé n'est pas une recette LOT-01 complète.** Son périmètre est public/anonyme : accueil, statistiques, navigation vers les formulaires, affichage du mot de passe, responsive et six refus HTTP 401. Il ne réalise pas une connexion utilisateur réelle dans le navigateur ni les parcours authentifiés Talent/Recruteur/Partenaire.
 
 Le document est volumineux et plusieurs sections apparaissent dans un ordre qui ne suit pas les numéros ; certains anciens snapshots LOT-00/LOT-01 restent visibles après des preuves plus récentes. Pour éviter toute ambiguïté :
-- la clôture LOT-00 est celle des §§93.15 à 93.19 : **PASS / CLOS** ; les états antérieurs PARTIAL des sections 88 à 92 et 89 à 90 sont historiques et supersédés ;
+- la clôture LOT-00 est celle des §§93.15 à 93.19 : **PASS / CLOS** ; les états antérieurs PARTIAL des sections 88 à 92 sont historiques et supersédés ;
 - LOT-01 reste **PARTIAL / NON CLOS** malgré Auth 12/12 et API 40/40 ;
 - le diagnostic structurel du §87 reste pertinent pour le runner global scripts/e2e-local-recipe.mjs (détail actualisé au §87.7) ;
 - le prochain rapport demandé est uniquement le rapport du mode --browser-only décrit au §112.6.
