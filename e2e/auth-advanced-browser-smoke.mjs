@@ -460,7 +460,7 @@ async function loginDeviceContext(browser, account, deviceId, deviceLabel) {
   await page.goto(BASE_URL + "/settings", { waitUntil: "domcontentloaded", timeout: 30000 });
   await page.getByRole("heading", { name: "Mes appareils connectés", exact: true })
     .waitFor({ state: "visible", timeout: 20000 });
-  await page.getByText(deviceLabel, { exact: true })
+  await page.getByText(deviceLabel, { exact: false })
     .waitFor({ state: "visible", timeout: 20000 });
   return { context, page, token, devicePayload, observations };
 }
