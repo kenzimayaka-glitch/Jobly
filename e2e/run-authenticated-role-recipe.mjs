@@ -434,7 +434,7 @@ try {
         processExitCode: browserCode,
         spawnError: browserRun.spawnError,
         reportGenerated: await exists(browserReportPath),
-        failureArtifact: failureText ? "artifacts/e2e/failure.txt" : null,
+        failureArtifact: await exists(path.join(ROOT, "artifacts", "e2e", "failure.txt")) ? "artifacts/e2e/failure.txt" : null,
         processLog: "artifacts/e2e/browser-smoke-process.log",
         authReportCandidateSelected: authReportPath ? path.basename(authReportPath) : null,
         authReportCandidatePresent: Boolean(authReportPath),
