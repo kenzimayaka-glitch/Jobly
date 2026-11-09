@@ -166,7 +166,10 @@ async function runRole(browser, spec, account, chromium) {
   try {
     await page.addInitScript(({ landingPath }) => {
       try {
-        sessionStorage.setItem("jobly:after-login", landingPath);
+        if (sessionStorage.getItem("jobly:e2e-role-login-initialized") !== "1") {
+          sessionStorage.setItem("jobly:after-login", landingPath);
+          sessionStorage.setItem("jobly:e2e-role-login-initialized", "1");
+        }
         localStorage.setItem("jobly-remember-me", "0");
         localStorage.removeItem("jobly-remember-until");
       } catch {}
@@ -340,7 +343,7 @@ async function main() {
   }
 
   const allRolesPass = EXPECTED.every((spec) => report.roles[spec.role] === "PASS");
-  report.status = allRolesPass && report.failed === 0 && report.blocked === 0
+  report.status = allRolesPass && report.failed === 0 && report.blocked === 0 && report.pageErrors.length === 0
     ? "PASS"
     : report.failed > 0
       ? "FAIL"
