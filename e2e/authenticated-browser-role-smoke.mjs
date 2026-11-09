@@ -20,6 +20,9 @@ const EXPECTED = [
       { id: "TALENT-DENY-RECRUITER", path: "/api/recruiter/jobs", status: 403 },
       { id: "TALENT-DENY-PARTNER-PROFILE", path: "/api/partner/profile", status: 403 },
       { id: "TALENT-DENY-PARTNER-ONBOARDING", path: "/api/partner/ba-onboarding", status: 403 },
+      { id: "TALENT-DENY-PARTNER-COMMISSIONS", path: "/api/partner/commissions", status: 403 },
+      { id: "TALENT-DENY-PARTNER-DISTRIBUTOR", path: "/api/partner/distributor", status: 403 },
+      { id: "TALENT-DENY-PARTNER-JIA", path: "/api/partner/jia/intelligence", status: 403 },
     ],
   },
   {
@@ -32,6 +35,9 @@ const EXPECTED = [
       { id: "RECRUITER-DENY-TALENT", path: "/api/talent/ai-bonus", status: 403 },
       { id: "RECRUITER-DENY-PARTNER-PROFILE", path: "/api/partner/profile", status: 403 },
       { id: "RECRUITER-DENY-PARTNER-ONBOARDING", path: "/api/partner/ba-onboarding", status: 403 },
+      { id: "RECRUITER-DENY-PARTNER-COMMISSIONS", path: "/api/partner/commissions", status: 403 },
+      { id: "RECRUITER-DENY-PARTNER-DISTRIBUTOR", path: "/api/partner/distributor", status: 403 },
+      { id: "RECRUITER-DENY-PARTNER-JIA", path: "/api/partner/jia/intelligence", status: 403 },
     ],
   },
   {
