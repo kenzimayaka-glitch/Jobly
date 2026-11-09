@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.169 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.170 — 9 novembre 2026
 >
 > **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée avec clic réel sur le bouton de déconnexion PASS 29/29 (§128), auth régression PASS 29/29, TypeScript PASS et build/serveur PASS sur le run du 9 novembre à 06:56–06:57Z. Les trois rôles Talent, Recruteur et Partenaire ont chacun fermé leur session locale depuis `/settings`, puis obtenu HTTP 401 sur `/api/profile`. La migration de session 20261109015439 reste limitée à JOBLY-E2E. La recette Auth avancée définie au §129 et lancée via le runner du §135 a connu une première exécution runtime le 9 novembre à 08:08Z : OTP 3/4 contrôles PASS, Google authorize intercepté mais scénario en timeout, récupération 2/3 contrôles PASS, multi-appareils BLOCKED car 3 appareils préexistants actifs. Aucun état Auth distant n'a été modifié. Les causes des deux assertions trop larges et du timeout Google, puis le correctif du harnais, sont consignés aux §§138–139 ; le correctif n'a pas encore été rejoué en runtime. **La porte UI authentifiée de LOT-01 est maintenant PASS ; LOT-01 global reste PARTIAL** jusqu'à validation runtime ou décision explicite de périmètre pour OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -7536,7 +7536,7 @@ Le rapport confirme également : `pageErrors=0`, `unexpectedSupabaseRequests=[]`
 
 1. Le garde-réseau conserve maintenant, dans le rapport primaire, les requêtes hors origine bloquées avec seulement l'origine, le chemin, la méthode, le type de ressource et l'indicateur de navigation. Aucun query string, en-tête, jeton ou secret n'est conservé.
 2. Les critères OTP et récupération vérifient désormais l'absence d'endpoint Supabase non prévu. Ils ne confondent plus les ressources externes bloquées avec un envoi d'e-mail. Toutes les origines externes restent bloquées par le garde-réseau.
-3. Google OAuth est testé comme un parcours de redirection : l'appel UI réel génère `/auth/v1/authorize`, le runner simule une réponse HTTP 302 vers une URL Google synthétique portant un client et un callback `.invalid`, puis le garde-réseau bloque la navigation vers `accounts.google.com` avant tout accès réseau. Les assertions portent sur `provider=google`, `prompt=select_account`, HTTP 302, la navigation bloquée et le maintien de la page Jobly. Aucun vrai compte Google, secret client ou fournisseur externe n'est utilisé.
+3. Google OAuth est testé comme un parcours de redirection : l'appel UI réel génère `/auth/v1/authorize`, le runner simule une réponse HTTP 302 vers une URL Google synthétique portant un client et un callback `.invalid`, puis le garde-réseau bloque la navigation vers `accounts.google.com` avant tout accès réseau. Les assertions portent sur `provider=google`, `prompt=select_account`, HTTP 302 et l'événement de navigation vers `accounts.google.com` effectivement intercepté/avorté par le garde-réseau. Le test ne dépend pas de l'URL finale d'un onglet après une navigation volontairement bloquée. Aucun vrai compte Google, secret client ou fournisseur externe n'est utilisé.
 4. Les tests statiques verrouillent les nouvelles assertions et interdisent le retour de l'ancien contrôle trop large sur les origines `google/gmail`.
 
 ### 139.2 Commits Git vérifiables
@@ -7545,6 +7545,7 @@ Le rapport confirme également : `pageErrors=0`, `unexpectedSupabaseRequests=[]`
 - Assertions de régression : [`71fec66f`](https://github.com/kenzimayaka-glitch/Jobly/commit/71fec66fb5e08f5dd1911a7938279509437dc666).
 - Assertion du statut 302 et preuve dans le rapport : [`1a7023a1`](https://github.com/kenzimayaka-glitch/Jobly/commit/1a7023a14b70427a7bab010a39181c4d161e8272).
 - Contrôle statique du statut 302 : [`9e9d91a8`](https://github.com/kenzimayaka-glitch/Jobly/commit/9e9d91a8e0d84e853497305be4e9baf82e36730f).
+- Vérification du blocage sur l'événement réseau réel, sans assertion fragile sur l'URL finale de l'onglet : [`8c233faf`](https://github.com/kenzimayaka-glitch/Jobly/commit/8c233faf4d03d26ec87abea6f899d1af51322bd6).
 
 ### 139.3 Limites et prochaine preuve requise
 
