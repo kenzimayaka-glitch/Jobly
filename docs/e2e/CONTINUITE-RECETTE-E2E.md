@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.173 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.174 — 9 novembre 2026
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.171 — 9 novembre 2026
 >
-> **Dernières preuves LOT-01 :** Auth regression opérateur : **30/30 PASS** sur le code testé `a8b1b8ef81e41a740e7d9045650d5c60b5567f17`; worktree propre et SHA local/distant identiques lors de cette exécution. Connectivité sans clé : DNS résolu et HTTPS répond `HTTP 401` (normal sans clé). **Sonde authentifiée V2 désormais PASS :** `.env.local`, URL périmétrée JOBLY-E2E, clé de type `sb_secret`, réponse PostgREST **HTTP 200**, code de sortie 0 ; aucune valeur secrète affichée. La cause `@next/env` de la sonde V1 est dépassée. Prochaine action : synchroniser le worktree avec la tête actuelle de `origin/e2e/recette` (commits documentaires plus récents), relancer Auth 30/30 et TypeScript, puis le runner ciblé `--auth-advanced-only` qui fait son propre build. Les rapports antérieurs montrent que le run 10:24Z s'était arrêté avant build ; aucun résultat runtime post-correctif Auth avancée n'est encore prouvé. **LOT-01 reste PARTIAL / NON CLOS** jusqu'au nouveau rapport frais.
+> **Dernières preuves LOT-01 :** Auth regression : 30/30 PASS sur le SHA précédent `a8b1b8ef81e41a740e7d9045650d5c60b5567f17`. Connectivité sans clé : DNS/HTTPS PASS (HTTP 401 attendu). Sonde authentifiée V2 : `KEY_TYPE=sb_secret`, URL JOBLY-E2E, HTTP 200, code 0. Runner Auth avancée encore non relancé après cette validation. Lors de la synchronisation opérateur, CMD a concaténé `git status --short` et `pnpm` en `git status --shortpnpm`, provoquant `unknown option shortpnpm` ; ceci est une erreur de saisie/concaténation de commandes, pas un défaut du dépôt Git. Reprendre avec une commande par saisie et attendre le retour de l'invite avant la suivante. Si `git status --short` retourne le moindre changement, ne pas checkout et transmettre la sortie. **LOT-01 reste PARTIAL / NON CLOS**.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations, lectures SQL et contrôles Storage ; aucun accès JOBLY-PROD et aucun déploiement. Les tests HTTP CI tournent sur un serveur Next.js de build local au runner avec configuration Supabase fictive, jamais sur le site de production.
 >
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 : PASS statique 6/6. LOT-00 : PASS — clôturé (§§93.15–93.19). LOT-01 : Auth de base 12/12, API 40/40, UI publique 14/14, UI authentifiée 29/29 et régression locale Auth 30/30 acquis. Le préflight réseau/authentifié est désormais levé : DNS OK, sonde de clé `sb_secret` sur JOBLY-E2E HTTP 200 en lecture seule. L'action unique suivante est de synchroniser le worktree propre vers `origin/e2e/recette`, puis d'exécuter `pnpm test:auth`, TypeScript et `--auth-advanced-only`. Ne pas lancer le runner global ; ne pas modifier les fixtures ou sessions partagées.
+> **État courant et ordre des lots :** E2E-001 PASS statique 6/6 ; LOT-00 PASS clôturé. LOT-01 conserve Auth de base 12/12, API 40/40, UI publique 14/14, UI authentifiée 29/29 et régression Auth 30/30 PASS. Préflight Supabase authentifié : HTTP 200 en lecture seule. Point de reprise unique : synchroniser le worktree propre vers `origin/e2e/recette`, puis rejouer tests Auth, TypeScript et `--auth-advanced-only`. L'opérateur a rencontré une concaténation `--shortpnpm` : fournir et exécuter chaque commande individuellement ; ne pas checkout tant que `git status --short` n'est pas vide. Ne pas lancer le runner global ni modifier fixtures/sessions.
 
-**Version :** 2.173
+**Version :** 2.174
 **Date de consolidation :** 9 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -7755,3 +7755,34 @@ pause
 - Les 30/30 tests Auth déjà communiqués sont une preuve du SHA `a8b1b8e...` ; la séquence prescrite les rejoue sur la tête courante pour rattacher la preuve au SHA exact.
 
 Statut officiel inchangé jusqu'au nouveau rapport : **LOT-01 PARTIAL / NON CLOS**. Aucun accès JOBLY-PROD, aucun merge `main`, aucun déploiement, aucun reset/provisionnement, aucune mutation de fixture partagée ou session préexistante.
+
+---
+
+## 143. Synchronisation opérateur interrompue par concaténation de commandes CMD
+
+**Mise à jour : 9 novembre 2026 — version 2.174.**
+
+### 143.1 Diagnostic
+
+L'opérateur a reçu Git : `error: unknown option 'shortpnpm'` avec l'aide de `git status`. Le binaire a donc reçu littéralement `git status --shortpnpm` : la commande suivante `pnpm` a été accolée à l'option `--short`, faute de séparation/validation entre les commandes copiées. Il ne s'agit pas d'un problème de branche ou d'état du dépôt. Aucun résultat `git status` exploitable n'a été obtenu par cette commande ; l'état courant du worktree doit être recontrôlé.
+
+### 143.2 Reprise sûre — une commande par saisie
+
+Dans CMD, envoyer une seule ligne, appuyer sur Entrée et attendre le retour de l'invite (`C:\\...>`) avant de coller la suivante. Ne pas coller plusieurs commandes dans le même bloc.
+
+1. `cd /d "%USERPROFILE%\\Jobly-e2e-recette-lot01"`
+2. `git status --short`
+
+Si la deuxième commande affiche la moindre ligne, arrêter et transmettre exactement cette sortie. Ne lancer ni checkout, ni fetch, ni nettoyage tant que l'état n'est pas examiné. Si elle ne retourne aucune ligne et que l'invite revient normalement, exécuter individuellement :
+
+3. `git fetch origin`
+4. `git checkout --detach origin/e2e/recette`
+5. `git rev-parse HEAD`
+6. `git rev-parse origin/e2e/recette`
+7. `git status --short`
+
+Les deux SHA doivent être identiques et la dernière commande `git status --short` vide. Ensuite seulement, continuer avec `pnpm test:auth`, TypeScript et le runner ciblé. Chaque commande doit être saisie séparément ; vérifier son code de sortie ou son résultat avant la suivante.
+
+### 143.3 Statut
+
+Pas de nouveau test exécuté dans cet incident. La sonde clé JOBLY-E2E HTTP 200 reste valide ; le runner Auth avancée n'a pas encore été relancé. **LOT-01 : PARTIAL / NON CLOS.** Pas de changement `main`, aucun déploiement, aucune action JOBLY-PROD, aucune mutation fixture/session.
