@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.136 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.137 — 9 novembre 2026
 >
 > **Dernière preuve LOT-01 :** smoke API authentifié PASS 40/40 (rapport opérateur du 8 novembre 2026 à 23:48:30.438Z), sur le code runner `5b39cdea1b5810f2d9fe49fc8111ac3897d8c1df` et smoke `73aee328bc2f11ff15628cac13a7d3bd932f8e1e` ; nettoyage API + base PASS, aucune action externe. Dernier browser-only du 9 novembre : build et serveur PASS, mais le GET `/api/public/home-stats` a répondu 503 ; cause DB identifiée et correction de droits appliquée uniquement sur JOBLY-E2E (§112). Le nouveau smoke génère maintenant un rapport FAIL structuré au lieu de s'arrêter sans preuve. La recette navigateur doit encore être rejouée.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -65,7 +65,7 @@ La règle de moindre privilège est ainsi conservée : seuls les appels serveur 
 
 ### 112.5 CI et état des preuves
 
-Sur le commit `3dff5d1c37e35205bf91d2f51042ba050aafd876`, le contrôle GitHub a ensuite terminé : `Jobly CI — Typecheck & Build` = `cancelled` (ce n'est pas un PASS), `Jobly Security Core — isolated migration tests` = `success`. Plusieurs workflows annexes ont également terminé avec succès, d'autres sont restés en cours ; ils ne remplacent pas le contrôle de build annulé. Le build après les corrections n'est donc pas encore validé par CI. Le commit de continuité courant est `7061d69cc7151a94af4bfbe3e175c31d020f014f`. La comparaison de `e2e/recette` avec le point de départ `016544e944c1445561cb7821f80cf72880bd907e` donne 16 commits en avance et 0 en retard. La comparaison confirme également que `main` conserve le SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`. Aucun PASS de build CI n'est revendiqué.
+Sur le commit `3dff5d1c37e35205bf91d2f51042ba050aafd876`, le contrôle GitHub a ensuite terminé : `Jobly CI — Typecheck & Build` = `cancelled` (ce n'est pas un PASS), `Jobly Security Core — isolated migration tests` = `success`. Plusieurs workflows annexes ont également terminé avec succès, d'autres sont restés en cours ; ils ne remplacent pas le contrôle de build annulé. Le build après les corrections n'est donc pas encore validé par CI. La comparaison de `e2e/recette` avec le point de départ `016544e944c1445561cb7821f80cf72880bd907e` donne 16 commits en avance et 0 en retard. La comparaison confirme également que `main` conserve le SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`. Aucun PASS de build CI n'est revendiqué.
 
 Acquis : root cause identifiée par ACL, code corrigé sur la branche, migration appliquée au projet E2E, ACL vérifiée. Non acquis : l'appel HTTP de la route après correction et le smoke Playwright complet. Le prochain lancement doit les vérifier. Ne pas relancer le smoke API authentifié 40/40 : il est déjà PASS (§107 et §109).
 
