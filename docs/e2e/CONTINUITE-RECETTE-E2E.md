@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.150 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.151 — 9 novembre 2026
 >
 > **Dernière preuve LOT-01 :** smoke API authentifié PASS 40/40 (§§107/109), puis smoke navigateur public/anonyme PASS 14/14 (§115). Smoke navigateur authentifié exécuté le 9 novembre 2026 à 01:25:12Z : 29 contrôles, 12 PASS et 17 FAIL HTTP 500. Les trois connexions, rôles signés et retours 401 étaient PASS. Les journaux Postgres de JOBLY-E2E ont confirmé exactement 17 erreurs SQLSTATE 23505 sur la contrainte UserDeviceSession_authSessionId_key. La fonction d'enregistrement a été corrigée et la migration 20261109015439 appliquée uniquement à JOBLY-E2E. Le test SQL d'idempotence est PASS pour TALENT/RECRUITER/PARTNER ; la relance navigateur ciblée reste à exécuter (§118). LOT-01 reste PARTIAL.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -6952,3 +6952,18 @@ Si la commande §118.6 a réellement déjà été exécutée après 02:54:39, le
 ### 121.4 Garde-fous et statut
 
 JOBLY-E2E uniquement ; aucune mutation métier, aucun reset/provisionnement fixture, aucune écriture JOBLY-PROD, aucun merge `main`, aucun déploiement. LOT-01 reste **PARTIAL / NON CLOS** jusqu'à preuve navigateur post-migration vérifiée. Les preuves antérieures Auth 12/12, API 40/40 et UI publique 14/14 restent distinctes et conservées.
+
+
+---
+
+## 122. Correction de la commande de restitution — six rapports Notepad
+
+**Mise à jour : 9 novembre 2026.**
+
+L'instruction de collecte §120 avait été matérialisée par une commande qui concaténait les six rapports dans un seul fichier `feedback-lot1-auth-browser-retest.txt` et ouvrait un seul Notepad. Cette commande satisfaisait la collecte consolidée, mais pas le besoin opérateur de présenter les six rapports séparément dans six fenêtres Notepad. L'assistant a reconnu cette erreur.
+
+La collecte consolidée ne doit pas être confondue avec le lanceur de recette §118.6. Le retest à effectuer maintenant doit être postérieur à la migration E2E `20261109015439`. La commande §118.6 réalise le préflight, le checkout isolé de `origin/e2e/recette`, les contrôles statique/TypeScript, exécute uniquement `--role-browser-only`, puis ouvre séparément les six rapports du lancement courant dans Notepad. Elle n'ouvre pas les anciens rapports comme s'ils appartenaient au nouveau run.
+
+Après exécution, transmettre chacun des six rapports ou le fichier consolidé seulement comme copie secondaire. Le rapport navigateur doit être postérieur à l'application de la migration (02:54:39, heure de Douala). LOT-01 reste PARTIAL jusqu'à inspection du nouveau run.
+
+Garde-fous inchangés : aucune exécution sur JOBLY-PROD, aucun reset/provisionneur fixture, aucune mutation métier, aucun merge vers `main`, aucun déploiement.
