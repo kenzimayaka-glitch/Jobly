@@ -316,7 +316,7 @@ async function restRequest(table, query, method = "GET", body = undefined) {
 
 async function readDeviceRows(userId) {
   const rows = await restRequest("UserDeviceSession", {
-    select: "id,userId,deviceId,authSessionId,revokedAt,createdAt,lastSeenAt",
+    select: "id,userId,deviceId,deviceLabel,authSessionId,revokedAt,createdAt,lastSeenAt",
     userId: "eq." + userId,
     order: "createdAt.desc"
   });
@@ -580,11 +580,16 @@ async function scenarioMultiDevice(browser, account) {
       try {
         const currentRows = await readDeviceRows(userId);
         const currentOwned = currentRows.filter((row) => row.deviceId === deviceA || row.deviceId === deviceB);
+        const expectedDeviceLabels = new Map([[deviceA, labelA], [deviceB, labelB]]);
         if (currentOwned.length > 2) throw new Error("Plus de deux lignes portent les identifiants uniques du run ; nettoyage refusé.");
         for (const owned of currentOwned) {
           if (baseline.some((old) => old.id === owned.id)) throw new Error("Collision avec une session préexistante : nettoyage refusé.");
+          if (expectedDeviceLabels.get(owned.deviceId) !== owned.deviceLabel || !owned.authSessionId) {
+            throw new Error("Identité de session de test ambiguë ; nettoyage refusé.");
+          }
           if (owned.revokedAt) continue;
           const updated = await restRequest("UserDeviceSession", {
+            id: "eq." + owned.id,
             userId: "eq." + userId,
             deviceId: "eq." + owned.deviceId,
             authSessionId: "eq." + owned.authSessionId,
@@ -592,6 +597,17 @@ async function scenarioMultiDevice(browser, account) {
           }, "PATCH", { revokedAt: new Date().toISOString() });
           if (!Array.isArray(updated) || updated.length !== 1) throw new Error("Une session créée par ce run n'a pas été nettoyée de façon unique.");
         }
+        // Verify the database state after cleanup; a successful PATCH response alone
+        // is not sufficient evidence that all run-owned sessions are inactive.
+        const verifiedRows = await readDeviceRows(userId);
+        const verifiedOwned = verifiedRows.filter((row) => row.deviceId === deviceA || row.deviceId === deviceB);
+        if (verifiedOwned.length !== currentOwned.length || verifiedOwned.some((row) => !row.revokedAt)) {
+          throw new Error("Le nettoyage n'est pas confirmé en base : une session de ce run reste active ou a disparu.");
+        }
+        result.cleanupDetails = {
+          ownedRows: verifiedOwned.length,
+          activeOwnedRows: verifiedOwned.filter((row) => !row.revokedAt).length
+        };
         result.cleanup = currentOwned.length > 0 ? "PASS" : "NOT_REQUIRED";
       } catch {
         result.cleanup = "FAIL";
