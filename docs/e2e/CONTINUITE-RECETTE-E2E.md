@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.176 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.177 — 9 novembre 2026
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.171 — 9 novembre 2026
 >
-> **Dernières preuves LOT-01 :** Retest runtime Auth avancée sur `e2e/recette`, rapport runner `2026-11-09T11:08:51.100Z`, projet JOBLY-E2E `ofqqrryamslxoqkklraw`, commit testé `1bfcfddb95a334f23d87b306e4c63143354bc1e4` : build PASS, serveur local PASS ; OTP 4/4 PASS ; Google 4/4 PASS, avec `accounts.google.com/o/oauth2/v2/auth` intercepté comme navigation document (`isNavigationRequest=true`) ; récupération 3/3 PASS. Aucun pageError, aucune requête Supabase inattendue, aucun secret/token imprimé, aucune action externe ; données métier et état des appareils distants non modifiés, `preexistingDeviceRowsUnchanged=true`. Multi-appareils reste BLOCKED : 3 appareils actifs préexistants, aucune session de test créée (`cleanup=NOT_REQUIRED`). Le code de sortie 2 correspond au statut PARTIAL prévu par le runner lorsque le scénario est bloqué. **LOT-01 reste PARTIAL / NON CLOS uniquement à cause du périmètre multi-appareils non validé.**
+> **Dernières preuves LOT-01 :** Retest runtime Auth avancée du 9 novembre 2026 : build/serveur PASS ; OTP 4/4 PASS ; Google 4/4 PASS avec navigation accounts.google.com bloquée avant réseau ; récupération 3/3 PASS. Le contrôle multi-appareils a été BLOCKED sans création de session ni modification d'appareil, car la fixture Talent partagée avait trois appareils actifs. Après accord explicite de l'utilisateur, un provisionneur local dédié e2e/provision-multidevice-talent-fixture.mjs a été ajouté sur e2e/recette, avec garde JOBLY-E2E, contrôle des collisions, limite d'un appareil actif avant provisioning et aucune écriture dans UserDeviceSession. Le runner Auth avancé sélectionne désormais prioritairement cette fixture et conserve le fallback sûr. **Le script a été préparé et commité, mais il n'a pas encore été exécuté ; aucune identité dédiée n'a donc été créée à ce stade. LOT-01 reste PARTIAL / NON CLOS en attente du rapport de provisionnement puis d'un nouveau rapport runtime multi-appareils.**
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations, lectures SQL et contrôles Storage ; aucun accès JOBLY-PROD et aucun déploiement. Les tests HTTP CI tournent sur un serveur Next.js de build local au runner avec configuration Supabase fictive, jamais sur le site de production.
 >
@@ -13,7 +13,7 @@
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 PASS statique 6/6 ; LOT-00 PASS clos. LOT-01 : Auth de base 12/12, API 40/40, UI publique 14/14, UI authentifiée 29/29, régression Auth 30/30 acquis. Dernier runtime Auth avancée : build/serveur PASS ; OTP 4/4, Google 4/4, récupération 3/3 PASS. Le garde réseau a intercepté la navigation Google réelle avant réseau. Seul le multi-appareils reste BLOCKED sur 3 appareils actifs préexistants ; aucune session ni donnée n'a été modifiée. Pour clôturer : fixture distincte explicitement autorisée avec au plus un appareil actif préexistant, ou décision écrite de périmètre excluant ce contrôle. Ne pas révoquer les appareils existants.
 
-**Version :** 2.176
+**Version :** 2.177
 **Date de consolidation :** 9 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -7897,3 +7897,49 @@ Ne pas supprimer les trois appareils existants, ne pas révoquer leurs sessions,
 - **LOT-01 : PARTIAL / NON CLOS**, le seul point restant étant la décision/preuve multi-appareils ci-dessus.
 
 Aucune fusion `main`, aucun déploiement, aucun accès JOBLY-PROD, aucun reset de compte ou de session.
+
+---
+
+## 146. Préparation autorisée d'une fixture Talent isolée pour la révocation multi-appareils
+
+**Mise à jour : 9 novembre 2026 — version 2.177.** L'utilisateur a explicitement autorisé la préparation d'une fixture Talent E2E distincte afin de terminer le contrôle multi-appareils du LOT-01. L'autorisation est strictement limitée à JOBLY-E2E (ofqqrryamslxoqkklraw).
+
+### 146.1 Précontrôles distants en lecture seule
+
+- Projet Supabase vérifié : JOBLY-E2E, état ACTIVE_HEALTHY, région eu-west-1.
+- Compte partagé actuel : 4 identités Auth et 4 lignes public.User (TALENT, RECRUITER, PARTNER, ADMIN).
+- Sessions d'appareils préexistantes : TALENT 3 actives ; RECRUITER 3 ; PARTNER 3 ; ADMIN 0.
+- Identifiants dédiés réservés vérifiés sans collision dans Auth et public.User : jobly-e2e-multidevice-talent@jobly.test, username jobly_e2e_multidevice_talent, téléphone +237600000199.
+- Fonction Edge historique e2e-fixture-provision : version 4 active, mais code actuel HTTP 410 désactivé. Son ancienne source provisionnait/rafraîchissait les trois rôles partagés ; elle n'a pas été réactivée ni appelée.
+- Les vérifications SQL de ce paragraphe sont uniquement des lectures. Aucun utilisateur, profil ou appareil n'a été ajouté/modifié par ces précontrôles.
+
+### 146.2 Modifications versionnées sur e2e/recette
+
+- e2e/provision-multidevice-talent-fixture.mjs ajouté. Il cible exclusivement JOBLY-E2E, vérifie les URL et la clé serveur avant toute écriture, vérifie les marqueurs Auth e2e_fixture, e2e_role et e2e_purpose, refuse les collisions de User/email/username/téléphone, refuse plus d'un appareil actif préexistant, crée ou vérifie l'identité Auth et public.User/public.Profile, et stocke le mot de passe généré uniquement dans le manifeste local .e2e-fixtures.json ignoré par Git. Le rapport exclut les secrets.
+- Le provisionneur ne touche jamais public.UserDeviceSession ; il n'insère, ne met à jour ni ne supprime aucun appareil.
+- e2e/auth-advanced-browser-smoke.mjs sélectionne en priorité la fixture dédiée talent-multidevice avec purpose exact MULTI_DEVICE_REVOCATION, puis garde le fallback existant vers la fixture partagée afin que l'absence de provisionnement reste un blocage sûr et identifiable.
+- scripts/authentication-flow-regression.test.mjs comporte un verrou statique supplémentaire sur l'isolation et l'absence d'écriture d'appareils.
+- Commits de cette préparation (tous sur e2e/recette) : 2b649484868b24868667d8b6a714bb15901c3bfd (ajout initial), b77f479f3122b67d58543bbc7adf374319355f60 (durcissement), c841d470e89aca26d70b02afb9031c404eac6399 (réutilisation du secret local dédié sans rotation inutile), 6a17383b72e66b6c68e7c234f3622e0af083671e (sélection de la fixture dédiée), b197324aacbf04de3d99873c5b2d1e74369583a9 (limites du rapport) et 643769366f342437dfb8825e7814d9d5d3c7a9dd (garde de non-régression).
+- La dernière vérification GitHub du commit 643769366f342437dfb8825e7814d9d5d3c7a9dd ne retournait aucun status CI (statuses=[]). Les tests statiques, TypeScript et le nouveau provisionneur n'ont pas encore été exécutés localement sur ce SHA.
+
+### 146.3 Commande locale autorisée et preuves attendues
+
+Le provisioning nécessite le secret serveur qui reste dans le .env.local local ; il n'est ni transmis dans le chat ni stocké dans Git. Dans CMD, synchroniser d'abord le worktree de recette après avoir confirmé qu'il est propre. Exécuter ensuite, séparément, la commande :
+
+```cmd
+cd /d "%USERPROFILE%\\Jobly-e2e-recette-lot01" && node e2e\\provision-multidevice-talent-fixture.mjs "%USERPROFILE%\\Jobly"
+```
+
+Ouvrir le rapport généré :
+
+```cmd
+notepad artifacts\\e2e\\multidevice-talent-fixture-provision.json
+```
+
+Le rapport doit indiquer status=PASS, le projet JOBLY-E2E, le rôle TALENT, les identifiants non secrets et le décompte des appareils avant/après. Le manifeste local contiendra le mot de passe et ne doit pas être partagé. En cas de FAIL, ne pas poursuivre vers le runner ; transmettre le rapport expurgé des secrets. En cas de PASS, rejouer le runner ciblé --auth-advanced-only, puis vérifier un rapport frais avec MULTI_DEVICE_REVOCATION=PASS, fixture talent-multidevice, révocation de B uniquement, B HTTP 401, A HTTP 200, cleanup=PASS, et conservation des lignes d'appareils préexistantes.
+
+### 146.4 Périmètre et statut
+
+À la rédaction de cette version, les modifications de code sont commitées mais **la fixture distante n'a pas encore été créée** : le provisionneur n'a pas été exécuté sur la machine opérateur, et aucun rapport de provisioning frais n'est disponible. Aucune mutation de JOBLY-PROD, de main, du déploiement, de la fonction Edge, des fixtures partagées ou de leurs sessions n'a été effectuée. Aucune communication email/SMS ou modification de données métier n'est demandée.
+
+**Verdict : LOT-01 reste PARTIAL / NON CLOS.** Le prochain point opératoire unique est l'exécution locale du provisionneur dédié et la transmission de son rapport non sensible ; seulement après son PASS, lancer le retest Auth avancé.
