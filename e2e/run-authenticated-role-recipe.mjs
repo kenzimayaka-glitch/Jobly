@@ -9,7 +9,7 @@ const ROOT = process.cwd();
 const SOURCE_ROOT = process.argv[2] ? path.resolve(process.argv[2]) : "";
 const RUN_MODE = process.argv[3] || "api";
 const PLAYWRIGHT_VERSION = "1.65.0";
-if (!["api", "--browser-only", "--role-browser-only"].includes(RUN_MODE)) {
+if (!["api", "--browser-only", "--role-browser-only", "--auth-advanced-only"].includes(RUN_MODE)) {
   throw new Error("Mode invalide. Utiliser api, --browser-only, --role-browser-only ou --auth-advanced-only.");
 }
 const PROJECT_REF = "ofqqrryamslxoqkklraw";
@@ -190,7 +190,7 @@ async function waitForServer(child) {
 
 const summary = {
   createdAt: new Date().toISOString(),
-  mode: RUN_MODE === "--browser-only" ? "browser-only" : RUN_MODE === "--role-browser-only" ? "role-browser-only" : "api",
+  mode: RUN_MODE === "--browser-only" ? "browser-only" : RUN_MODE === "--role-browser-only" ? "role-browser-only" : RUN_MODE === "--auth-advanced-only" ? "auth-advanced-only" : "api",
   environment: "JOBLY-E2E",
   projectRef: PROJECT_REF,
   status: "BLOCKED",
@@ -206,6 +206,9 @@ const summary = {
   roleBrowserChecks: null,
   roleBrowserExecution: null,
   roleBrowserFailure: null,
+  authAdvancedSmoke: "NOT_RUN",
+  authAdvancedChecks: null,
+  authAdvancedExecution: null,
   remoteBusinessDataMayBeModified: false,
   remoteAuthDeviceStateMayBeModified: false,
   secretsPrinted: false,
@@ -339,7 +342,78 @@ try {
   }
   summary.localServer = "PASS";
 
-  if (RUN_MODE === "--role-browser-only") {
+  if (RUN_MODE === "--auth-advanced-only") {
+    console.log("Mode auth-advanced-only : OTP, Google et récupération simulés ; révocation limitée aux deux sessions créées sur JOBLY-E2E.");
+    const playwrightModulePath = await ensurePlaywright(env);
+    const advancedEnv = { ...env, E2E_BASE_URL: BASE_URL, PLAYWRIGHT_MODULE_PATH: playwrightModulePath, E2E_FIXTURE_PATH: fixturePath };
+    const advancedStartedAt = new Date();
+    const advancedProcessLog = path.join(ROOT, "artifacts", "e2e", "auth-advanced-process.log");
+    const advancedRun = await runCommandCaptured(process.execPath, ["e2e/auth-advanced-browser-smoke.mjs"], advancedEnv, advancedProcessLog);
+    const advancedReportPath = path.join(ROOT, "artifacts", "e2e", "lot1-auth-advanced-smoke.json");
+    let advancedReport = null;
+    let advancedReportProblem = null;
+    if (await exists(advancedReportPath)) {
+      try {
+        const candidate = JSON.parse(await readFile(advancedReportPath, "utf8"));
+        const reportTime = Date.parse(candidate.createdAt || "");
+        const fresh = Number.isFinite(reportTime) && reportTime >= advancedStartedAt.getTime() - 1000;
+        const correctTarget = candidate.environment === "JOBLY-E2E" &&
+          candidate.projectRef === PROJECT_REF && candidate.baseURL === BASE_URL &&
+          candidate.commit === runGit(["rev-parse", "HEAD"]);
+        if (fresh && correctTarget && candidate.mode === "auth-advanced-browser") advancedReport = candidate;
+        else advancedReportProblem = fresh
+          ? "Rapport Auth avancée présent mais environnement, projet, URL, mode ou SHA incorrect."
+          : "Un ancien rapport Auth avancée existe, mais il n'a pas été régénéré pendant cette exécution.";
+      } catch { advancedReportProblem = "Rapport Auth avancée JSON illisible."; }
+    } else advancedReportProblem = "Le runner Auth avancée n'a pas généré son rapport JSON.";
+
+    summary.authAdvancedExecution = {
+      startedAt: advancedStartedAt.toISOString(),
+      exitCode: advancedRun.exitCode,
+      spawnError: advancedRun.spawnError,
+      processLog: "artifacts/e2e/auth-advanced-process.log",
+      reportPresent: await exists(advancedReportPath),
+      reportGeneratedForThisRun: Boolean(advancedReport),
+      reportProblem: advancedReportProblem
+    };
+    if (!advancedReport) {
+      summary.authAdvancedSmoke = "BLOCKED";
+      summary.status = "BLOCKED";
+      summary.reason = advancedReportProblem + " Consulter auth-advanced-process.log.";
+    } else {
+      const scenarioEntries = Object.entries(advancedReport.scenarios || {});
+      summary.authAdvancedChecks = Object.fromEntries(scenarioEntries.map(([key, value]) => [key, {
+        status: value?.status || "NOT_RUN",
+        checks: Array.isArray(value?.checks) ? value.checks.length : 0,
+        cleanup: value?.cleanup || null
+      }]));
+      summary.remoteAuthDeviceStateMayBeModified = advancedReport.remoteAuthDeviceStateMayBeModified === true;
+      summary.remoteBusinessDataMayBeModified = advancedReport.remoteBusinessDataMayBeModified === true;
+      summary.remoteDataMayBeModified = summary.remoteAuthDeviceStateMayBeModified || summary.remoteBusinessDataMayBeModified;
+      summary.externalActions = advancedReport.externalActions === true;
+      const statuses = scenarioEntries.map(([, value]) => value?.status || "NOT_RUN");
+      const allFourPass = scenarioEntries.length === 4 && statuses.every((status) => status === "PASS");
+      const hasFailure = statuses.some((status) => status === "FAIL") || advancedReport.pageErrors?.length > 0;
+      summary.authAdvancedSmoke = allFourPass && advancedReport.status === "PASS" && advancedRun.exitCode === 0
+        ? "PASS"
+        : hasFailure || advancedReport.status === "FAIL"
+          ? "FAIL"
+          : advancedReport.status === "BLOCKED"
+            ? "BLOCKED"
+            : "PARTIAL";
+      summary.status = summary.authAdvancedSmoke === "PASS" ? "PASS"
+        : summary.authAdvancedSmoke === "FAIL" ? "FAIL"
+          : summary.authAdvancedSmoke === "BLOCKED" ? "BLOCKED" : "PARTIAL";
+    }
+    await writeFile(path.join(ROOT, "artifacts", "e2e", "auth-advanced-smoke-diagnostic.json"), JSON.stringify({
+      createdAt: new Date().toISOString(),
+      processExitCode: advancedRun.exitCode,
+      spawnError: advancedRun.spawnError,
+      reportGenerated: await exists(advancedReportPath),
+      reportProblem: advancedReportProblem,
+      processLog: "artifacts/e2e/auth-advanced-process.log"
+    }, null, 2) + "\n", { encoding: "utf8", mode: 0o600 });
+  } else if (RUN_MODE === "--role-browser-only") {
     console.log("Mode role-browser-only : connexion réelle des trois fixtures et vérifications GET par rôle.");
     const playwrightModulePath = await ensurePlaywright(env);
     const roleBrowserEnv = {
@@ -588,7 +662,8 @@ try {
 }
 console.log(JSON.stringify(summary, null, 2));
 console.log("Rapport de synthèse : artifacts/e2e/authenticated-role-runner-summary.json");
-if (RUN_MODE === "--browser-only") console.log("Rapport navigateur : artifacts/e2e/lot1-auth-ui-smoke.json");
+if (RUN_MODE === "--auth-advanced-only") console.log("Rapport Auth avancée : artifacts/e2e/lot1-auth-advanced-smoke.json");
+else if (RUN_MODE === "--browser-only") console.log("Rapport navigateur : artifacts/e2e/lot1-auth-ui-smoke.json");
 else if (RUN_MODE === "--role-browser-only") console.log("Rapport navigateur rôles : artifacts/e2e/lot1-auth-role-ui-smoke.json");
 else console.log("Rapport API : artifacts/e2e/authenticated-role-smoke.json");
 if (summary.status !== "PASS") process.exitCode = summary.status === "FAIL" ? 1 : 2;
