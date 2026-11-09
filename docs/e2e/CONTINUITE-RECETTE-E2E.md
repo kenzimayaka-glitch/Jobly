@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.174 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.175 — 9 novembre 2026
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.171 — 9 novembre 2026
 >
-> **Dernières preuves LOT-01 :** Auth regression : 30/30 PASS sur le SHA précédent `a8b1b8ef81e41a740e7d9045650d5c60b5567f17`. Connectivité sans clé : DNS/HTTPS PASS (HTTP 401 attendu). Sonde authentifiée V2 : `KEY_TYPE=sb_secret`, URL JOBLY-E2E, HTTP 200, code 0. Runner Auth avancée encore non relancé après cette validation. Lors de la synchronisation opérateur, CMD a concaténé `git status --short` et `pnpm` en `git status --shortpnpm`, provoquant `unknown option shortpnpm` ; ceci est une erreur de saisie/concaténation de commandes, pas un défaut du dépôt Git. Reprendre avec une commande par saisie et attendre le retour de l'invite avant la suivante. Si `git status --short` retourne le moindre changement, ne pas checkout et transmettre la sortie. **LOT-01 reste PARTIAL / NON CLOS**.
+> **Dernières preuves LOT-01 :** Régression Auth opérateur : 30/30 PASS (SHA `a8b1b8e...`). Préflight de clé JOBLY-E2E : PASS, `.env.local`, `sb_secret`, HTTP 200 en GET read-only. Retest Auth avancée sur SHA `102f2072e6df2f4ae1b6faed195ca0c46623777a` : build PASS, serveur local PASS, OTP PASS (4 contrôles), récupération PASS (3), Google FAIL (les deux premières assertions passent mais l'interception de la navigation externe échoue), multi-appareils BLOCKED sur trois appareils actifs préexistants, aucune mutation de session préexistante constatée. Diagnostic Playwright : `route.fulfill(302)` ne permet pas une seconde interception de la redirection ; le précédent champ `externalActions=false` ne prouve donc pas que la requête Google a été bloquée. Correctif de sécurité commité sur `e2e/recette` : réponse HTML locale 200 avec `window.location.replace`, Service Workers bloqués, garde réseau contexte qui intercepte/aborte la navigation Google. Commits `0fc97768` et `b9ff33f7`. **Aucun runtime post-correctif n'est encore exécuté. LOT-01 reste PARTIAL / NON CLOS.**
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations, lectures SQL et contrôles Storage ; aucun accès JOBLY-PROD et aucun déploiement. Les tests HTTP CI tournent sur un serveur Next.js de build local au runner avec configuration Supabase fictive, jamais sur le site de production.
 >
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 PASS statique 6/6 ; LOT-00 PASS clôturé. LOT-01 conserve Auth de base 12/12, API 40/40, UI publique 14/14, UI authentifiée 29/29 et régression Auth 30/30 PASS. Préflight Supabase authentifié : HTTP 200 en lecture seule. Point de reprise unique : synchroniser le worktree propre vers `origin/e2e/recette`, puis rejouer tests Auth, TypeScript et `--auth-advanced-only`. L'opérateur a rencontré une concaténation `--shortpnpm` : fournir et exécuter chaque commande individuellement ; ne pas checkout tant que `git status --short` n'est pas vide. Ne pas lancer le runner global ni modifier fixtures/sessions.
+> **État courant et ordre des lots :** E2E-001 PASS statique 6/6 ; LOT-00 PASS clos. LOT-01 : Auth de base 12/12, API 40/40, UI publique 14/14, UI authentifiée 29/29, régression Auth locale 30/30 acquis. Le préflight JOBLY-E2E est validé (clé `sb_secret` HTTP 200). Dernier runtime : build/serveur PASS, OTP PASS, récupération PASS, Google FAIL par défaut de simulation de redirection, multi-appareils BLOCKED à cause de 3 sessions préexistantes. Le code Google est corrigé sur `e2e/recette` via réponse HTML locale 200 et garde réseau, sans 3xx synthétique. Synchroniser le worktree vers la nouvelle tête et rejouer Auth 30/30, TypeScript et `--auth-advanced-only`. Ne pas supprimer/révoquer les appareils existants ni lancer le runner global.
 
-**Version :** 2.174
+**Version :** 2.175
 **Date de consolidation :** 9 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -7786,3 +7786,53 @@ Les deux SHA doivent être identiques et la dernière commande `git status --sho
 ### 143.3 Statut
 
 Pas de nouveau test exécuté dans cet incident. La sonde clé JOBLY-E2E HTTP 200 reste valide ; le runner Auth avancée n'a pas encore été relancé. **LOT-01 : PARTIAL / NON CLOS.** Pas de changement `main`, aucun déploiement, aucune action JOBLY-PROD, aucune mutation fixture/session.
+
+---
+
+## 144. Retest Auth avancée — diagnostic Google et correction de l'isolation réseau
+
+**Mise à jour : 9 novembre 2026 — version 2.175.** Cette section devient la dernière référence opératoire et complète les §§141–143.
+
+### 144.1 Dernier rapport runtime reçu
+
+Runner : `--auth-advanced-only`, SHA testé `102f2072e6df2f4ae1b6faed195ca0c46623777a`, projet JOBLY-E2E `ofqqrryamslxoqkklraw`, serveur local `http://127.0.0.1:3217`.
+
+- Build : **PASS**.
+- Serveur local : **PASS** (endpoint anonyme `/api/profile` répond HTTP 401 attendu).
+- OTP email simulé : **PASS**, 4 contrôles ; otp=2, verify=1.
+- Google OAuth simulé : **FAIL**, 3 contrôles consignés ; `GOOGLE_AUTHORIZE_INTERCEPTED` PASS, `GOOGLE_SELECT_ACCOUNT_PARAMETER` PASS, `GOOGLE_PROVIDER_REDIRECT_BLOCKED` FAIL. Les paramètres observés étaient provider=google, prompt=select_account, méthode GET.
+- Récupération : **PASS**, 3 contrôles.
+- Multi-appareils : **BLOCKED**, 3 appareils actifs préexistants, aucun des deux emplacements requis garanti ; aucune session de test créée.
+- Page errors : 0 ; unexpectedSupabaseRequests : vide ; secrets/tokens non imprimés.
+- Le rapport indiquait `remoteBusinessDataMayBeModified=false`, `remoteAuthDeviceStateMayBeModified=false`, `preexistingDeviceRowsUnchanged=true`.
+
+### 144.2 Cause exacte de l'échec Google et limite de preuve de sécurité
+
+Le code précédent simulait `/auth/v1/authorize` avec `route.fulfill({ status: 302, headers: { Location: GOOGLE_E2E_REDIRECT } })`, puis attendait de voir l'hôte accounts.google.com dans le même gestionnaire de routes. La documentation officielle Playwright précise que lorsqu'une route est satisfaite avec un statut 3xx, le navigateur suit la redirection sans donner une seconde occasion au gestionnaire de routes de l'intercepter ; Playwright recommande de servir le contenu terminal simulé ou de rediriger la requête via `route.continue`/`route.fallback` plutôt que `route.fulfill` 3xx. Référence : https://playwright.dev/docs/network#redirects.
+
+Le rapport ne contenait que quatre requêtes bloquées vers `fonts.googleapis.com`, aucune requête `accounts.google.com`. Par conséquent, l'assertion Google échouait comme attendu. Plus important : l'absence de cette interception signifie que `externalActions=false` ne constitue pas une preuve que la navigation fournisseur a été bloquée ; une sortie réseau Google ne peut pas être exclue pour ce run. Le client_id et redirect_uri étaient synthétiques `.invalid`, mais cela ne remplace pas la preuve de blocage réseau. Cette limite est explicitement consignée ; ne pas réutiliser ce rapport comme preuve d'isolation OAuth.
+
+### 144.3 Correctif appliqué sur e2e/recette
+
+Deux commits ont corrigé uniquement le harnais de test et ses assertions statiques :
+
+- `0fc97768320c2a88c6225afd1365f85bc6ec47cc` — remplace le `route.fulfill(302)` par une réponse HTML locale HTTP 200 contenant `window.location.replace(GOOGLE_E2E_REDIRECT)`. La navigation de page produite passe ainsi par le garde réseau `context.route("**/*")`, qui enregistre et abort `accounts.google.com` avant l'accès réseau. Les Service Workers sont explicitement bloqués dans le contexte afin qu'ils ne contournent pas les routes Playwright.
+- `b9ff33f7bbb0e65e4a51c4298b77432a1e550c6d` — corrige la description du contrôle et verrouille statiquement le nouveau mécanisme ; les assertions interdisent le retour d'un `route.fulfill` avec status 302 ou du champ `redirectStatus`.
+
+Fichiers modifiés : `e2e/auth-advanced-browser-smoke.mjs` et `scripts/authentication-flow-regression.test.mjs`. Aucun code métier Auth, aucune migration, aucune configuration Supabase, aucune fixture ou donnée distante modifiés. La tête de branche a été vérifiée à `b9ff33f7bbb0e65e4a51c4298b77432a1e550c6d` au moment de cette mise à jour. Aucun résultat CI ou runtime post-correctif n'est encore disponible.
+
+### 144.4 Étape opérateur suivante
+
+Le worktree opérateur doit être propre avant synchronisation. Exécuter les commandes dans CMD une par une, attendre le retour de l'invite après chacune ; ne pas les coller toutes ensemble (un incident précédent avait fusionné `--short` et `pnpm`). Si `git status --short` affiche le moindre changement, arrêter et transmettre la sortie, sans checkout.
+
+Après confirmation du worktree propre : `git fetch origin`, puis `git checkout --detach origin/e2e/recette`. Vérifier `git rev-parse HEAD` = `git rev-parse origin/e2e/recette`, et `git status --short` vide. Rejouer ensuite `pnpm test:auth`, `pnpm exec tsc --noEmit --incremental false`, puis `node e2e/run-authenticated-role-recipe.mjs "%USERPROFILE%\\Jobly" --auth-advanced-only`. Le runner exécute son propre build et produit le rapport frais.
+
+Rapport primaire à transmettre : `artifacts/e2e/lot1-auth-advanced-smoke.json`, puis `authenticated-role-runner-summary.json`, `auth-advanced-smoke-diagnostic.json` et `auth-advanced-process.log`. Le nouveau rapport Google doit comporter une requête `accounts.google.com` dans `blockedExternalRequests`, avec `isNavigationRequest=true`, et l'assertion `GOOGLE_PROVIDER_REDIRECT_BLOCKED` PASS. Vérifier également `externalActions=false`, `pageErrors=[]`, `unexpectedSupabaseRequests=[]`, credentials/tokens false.
+
+### 144.5 Multi-appareils et statut de clôture
+
+Le préflight précédent a trouvé trois appareils actifs préexistants. Tant que cela reste vrai, le scénario multi-appareils doit demeurer BLOCKED avant toute création de session ; ne supprimer/révoquer aucune session existante et ne modifier aucune fixture partagée. Une clôture LOT-01 complète exige soit une fixture dédiée explicitement autorisée permettant le test et son nettoyage, soit une décision écrite de périmètre acceptant l'exclusion de ce contrôle ; aucune exclusion n'est présumée.
+
+À cette mise à jour, OTP et récupération ont une preuve PASS runtime sur le SHA `102f2072...`; Google reste FAIL sur l'ancien mécanisme ; le nouveau correctif Google n'a pas été exécuté. TypeScript/build étaient PASS/non exécuté ? Le build du dernier run était PASS, mais TypeScript indépendant sur ce SHA doit être confirmé via le retest. **LOT-01 : PARTIAL / NON CLOS.**
+
+Protections inchangées : JOBLY-E2E uniquement ; aucune lecture/écriture JOBLY-PROD, aucun merge sur main, aucun déploiement, aucun reset de compte, aucune suppression de session préexistante.
