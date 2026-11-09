@@ -36,8 +36,8 @@ const REPORT = {
   preexistingDeviceRowsUnchanged: null,
   limitations: [
     "OTP, Google OAuth and password recovery use strict browser-side interception; no real provider request is sent.",
-    "Multi-device revocation uses two sessions from an existing synthetic JOBLY-E2E fixture and changes only rows created by this run.",
-    "No account creation, password mutation, business-data mutation, email, SMS, payment or real Google authorization is performed."
+    "Multi-device revocation uses a dedicated TALENT fixture provisioned separately in JOBLY-E2E; only rows created by this run are revoked or cleaned.",
+    "The browser recipe itself does not create accounts or change passwords; separate fixture provisioning uses the local JOBLY-E2E server key. No business data, email, SMS, payment or real Google authorization is performed."
   ]
 };
 
