@@ -172,6 +172,22 @@ async function scenarioOtp(browser) {
   }
 }
 
+function hasBlockedGoogleNavigation(requests) {
+  return requests.some((request) => {
+    try {
+      return new URL(request.origin).hostname === "accounts.google.com" && request.isNavigationRequest;
+    } catch { return false; }
+  });
+}
+
+async function waitForBlockedGoogleNavigation(observations, timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!hasBlockedGoogleNavigation(observations.blockedExternalRequests) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return hasBlockedGoogleNavigation(observations.blockedExternalRequests);
+}
+
 async function scenarioGoogle(browser) {
   const result = REPORT.scenarios.GOOGLE_OAUTH_SIMULATION;
   const calls = { authorize: 0, provider: null, prompt: null, method: null, redirectStatus: null };
@@ -192,21 +208,10 @@ async function scenarioGoogle(browser) {
     const opened = await openHome(browser, handler);
     context = opened.context;
     await clickLogin(opened.page);
-    const blockedGoogleRequest = opened.page.waitForEvent("requestfailed", {
-      predicate: (request) => {
-        try {
-          const target = new URL(request.url());
-          return target.hostname === "accounts.google.com" && request.isNavigationRequest();
-        } catch { return false; }
-      },
-      timeout: 15000,
-    });
-    await opened.page.getByRole("button", { name: /Continuer avec Google/i }).click();
-    await blockedGoogleRequest;
-    const blockedProviderNavigation = opened.observations.blockedExternalRequests.some((request) => {
-      try { return new URL(request.origin).hostname === "accounts.google.com" && request.isNavigationRequest; }
-      catch { return false; }
-    });
+    // Le flux OAuth peut ouvrir un nouvel onglet : la garde est au niveau du contexte.
+    // On vérifie sa trace d'interception, sans dépendre de requestfailed sur la page principale.
+    await opened.page.getByRole("button", { name: /Continuer avec Google/i }).click({ noWaitAfter: true });
+    const blockedProviderNavigation = await waitForBlockedGoogleNavigation(opened.observations);
     check(result, "GOOGLE_AUTHORIZE_INTERCEPTED", calls.authorize === 1 && calls.provider === "google" && calls.method === "GET" && calls.redirectStatus === 302, "L'action UI a émis une navigation authorize Google simulée par HTTP 302.");
     check(result, "GOOGLE_SELECT_ACCOUNT_PARAMETER", calls.prompt === "select_account", "Le paramètre prompt=select_account est présent.");
     check(result, "GOOGLE_PROVIDER_REDIRECT_BLOCKED", blockedProviderNavigation, "La requête de navigation vers le fournisseur Google a été interceptée et bloquée avant tout accès réseau.");
