@@ -1,5 +1,5 @@
 # Jobly — Référence de continuité de la recette E2E
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.178 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.179 — 9 novembre 2026
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.171 — 9 novembre 2026
 >
 > **Dernières preuves LOT-01 :** Le run runtime du 9 novembre à 12:24:48 (SHA `e52448af3e6a0c46f2af558db6028a00294d2696`) confirme OTP 4/4 PASS, Google OAuth simulé 4/4 PASS et récupération 3/3 PASS. Le multi-appareils a passé son préflight (fixture `talent-multidevice`, 0 appareil actif initial), puis échoué avec `page.evaluate: Execution context was destroyed, most likely because of a navigation` avant les contrôles A/B. Le statut global est FAIL ; aucune preuve de révocation B=401/A=200 n'est disponible. `cleanup=NOT_REQUIRED`, `preexistingDeviceRowsUnchanged=true`, mais `remoteAuthDeviceStateMayBeModified=true` : ne pas assimiler ce rapport à une preuve de session temporaire créée/nettoyée. Correctif du harnais E2E préparé sur `e2e/recette` : capture du jeton via snapshot de contexte pour localStorage, retry de lecture pour sessionStorage pendant les navigations et verrou de non-régression. Commits `90f8611941f5548a8169d422a29743fa9e8834da` et `6ce4fdb18d2123b1ef27a36fab0227eb6cd03598`. Le correctif n'a pas encore été exécuté localement ; LOT-01 reste PARTIAL / NON CLOS en attente d'un nouveau rapport runtime PASS.
@@ -7978,7 +7978,7 @@ Aucune modification d'offre ou autre donnée métier n'est signalée. Aucun acc�
 ### 147.4 Correctif du harnais sur e2e/recette
 
 - `90f8611941f5548a8169d422a29743fa9e8834da` : lecture prioritaire du jeton via `browserContext.storageState()` (localStorage), puis fallback compatible sessionStorage avec huit tentatives et attente de la fin d'une navigation en cas de destruction du contexte. La signature des options de `page.waitForFunction` a également été corrigée.
-- `6ce4fdb18d2123b1ef27a36fab0227eb6cd03598` : test statique verrouillant le snapshot de contexte, les nouvelles tentatives et l'attente de navigation.
+- `6ce4fdb18d2123b1ef27a36fab0227eb6cd03598` : test statique verrouillant le snapshot de contexte, les nouvelles tentatives et l'attente de navigation ; `1c6bfa2f245427769ab343af36ef474fa10b05d6` : correction de l'expression régulière de ce verrou statique après relecture distante.
 - Seul le harnais E2E et son test de non-régression sont modifiés ; aucun code métier, schéma, migration, fixture partagée ou déploiement.
 
 Ces commits sont versionnés sur `e2e/recette`, mais **les contrôles locaux et le runtime après correctif ne sont pas encore exécutés**. Ne pas déclarer le point résolu sur la seule base du correctif commité.
