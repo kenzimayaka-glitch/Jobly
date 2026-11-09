@@ -37,6 +37,7 @@ const results = [];
 const pageErrors = [];
 const homeStatsResponses = [];
 let browser = null;
+let activeCheckId = "JOBLY-E2E-AUTH-001";
 
 try {
   browser = await chromium.launch({ headless: true });
@@ -61,6 +62,7 @@ try {
   const homeResponse = await page.goto(baseURL, { waitUntil: "domcontentloaded", timeout: 30000 });
   assert.ok(homeResponse && homeResponse.status() < 500, `Home route returned ${homeResponse?.status() ?? "no response"}`);
   await page.locator('img[alt="JOBLY — Your Career OS"]').waitFor({ state: "visible", timeout: 15000 });
+  activeCheckId = "JOBLY-E2E-HOME-001";
   const homeStatsResponse = await homeStatsResponsePromise;
   assert.equal(homeStatsResponse.status(), 200, `Homepage stats API must return HTTP 200; got ${homeStatsResponse.status()}.`);
   const homeStats = await homeStatsResponse.json();
@@ -72,6 +74,7 @@ try {
   await page.screenshot({ path: path.join(evidenceDir, "auth-home-desktop.png"), fullPage: true });
   results.push({ id: "JOBLY-E2E-AUTH-001", status: "PASS", evidence: "auth-home-desktop.png" });
   results.push({ id: "JOBLY-E2E-HOME-001", status: "PASS", evidence: `HTTP 200 · ${homeStats.offersCount} offres · ${homeStats.talentsCount} talents` });
+  activeCheckId = "JOBLY-E2E-AUTH-002";
 
   // JOBLY-E2E-AUTH-002 — the welcome login journey reaches the username/password form.
   const loginCta = page.locator(".jobly-public-home-cta > button").nth(1);
@@ -92,6 +95,7 @@ try {
   await page.getByRole("button", { name: "Masquer le mot de passe" }).click();
   assert.equal(await password.getAttribute("type"), "password", "Password visibility control did not return to masked state.");
   results.push({ id: "JOBLY-E2E-AUTH-003", status: "PASS", evidence: "auth-login-desktop.png" });
+  activeCheckId = "JOBLY-E2E-AUTH-004";
 
   // JOBLY-E2E-AUTH-004 — signup form navigation and mandatory identity fields.
   await page.getByRole("button", { name: "Créer un compte" }).click();
@@ -101,6 +105,7 @@ try {
   await page.locator('input[autocomplete="email"]').waitFor({ state: "visible", timeout: 5000 });
   await page.screenshot({ path: path.join(evidenceDir, "auth-signup-desktop.png"), fullPage: true });
   results.push({ id: "JOBLY-E2E-AUTH-004", status: "PASS", evidence: "auth-signup-desktop.png" });
+  activeCheckId = "JOBLY-E2E-AUTH-005";
 
   // JOBLY-E2E-AUTH-005 — mobile welcome screen has no horizontal viewport overflow.
   const mobile = await context.newPage();
@@ -136,6 +141,7 @@ try {
     { id: "JOBLY-E2E-AUTH-013", path: "/api/career-journey" },
   ];
   for (const endpoint of protectedApiChecks) {
+    activeCheckId = endpoint.id;
     const response = await page.evaluate(async (url) => {
       const result = await fetch(url, { method: "GET", credentials: "include", cache: "no-store" });
       return { status: result.status };
@@ -152,6 +158,7 @@ try {
 
   const homeStatsUnavailable = homeStatsResponses.some((status) => status >= 500);
 
+  activeCheckId = "JOBLY-E2E-AUTH-006";
   // AUTH-006/007 are covered by the separate, real Supabase Auth lifecycle smoke.
   // Reconcile only a recent, complete PASS report from this exact JOBLY-E2E project.
   let authLifecycleEvidence = {
@@ -240,8 +247,48 @@ try {
   await mobile.close();
   await context.close();
 } catch (error) {
-  await writeFile(path.join(evidenceDir, "failure.txt"), error instanceof Error ? error.stack || error.message : String(error));
-  throw error;
+  const failureText = error instanceof Error ? error.stack || error.message : String(error);
+  await writeFile(path.join(evidenceDir, "failure.txt"), failureText);
+  if (!results.some((result) => result.id === activeCheckId && result.status === "FAIL")) {
+    results.push({ id: activeCheckId, status: "FAIL", evidence: error instanceof Error ? error.message : String(error) });
+  }
+  const authLifecycleEvidence = {
+    status: "BLOCKED",
+    sourceReport: path.basename(authSessionReportPath),
+    reason: "Le smoke UI s'est interrompu avant la réconciliation du cycle Auth séparé.",
+  };
+  const failedReport = {
+    createdAt: new Date().toISOString(),
+    runId: process.env.GITHUB_RUN_ID || "local",
+    commit: process.env.GITHUB_SHA || "unknown",
+    environment: "JOBLY-E2E",
+    projectRef: expectedProjectRef,
+    baseURL,
+    executed: results.length,
+    passed: results.filter((result) => result.status === "PASS").length,
+    failed: results.filter((result) => result.status === "FAIL").length,
+    blocked: [
+      { id: "JOBLY-E2E-AUTH-006", status: "BLOCKED", reason: authLifecycleEvidence.reason },
+      { id: "JOBLY-E2E-AUTH-007", status: "BLOCKED", reason: authLifecycleEvidence.reason },
+    ],
+    authLifecycleEvidence,
+    results,
+    mobileDimensions: null,
+    pageErrors,
+    homeStatsResponses,
+    failure: {
+      name: error instanceof Error ? error.name : "Error",
+      message: error instanceof Error ? error.message : String(error),
+      stack: failureText,
+    },
+  };
+  await writeFile(
+    path.join(evidenceDir, "lot1-auth-ui-smoke.json"),
+    JSON.stringify(failedReport, null, 2) + "\n",
+    { encoding: "utf8", mode: 0o600 },
+  );
+  console.error(failureText);
+  process.exitCode = 1;
 } finally {
   await browser?.close().catch(() => undefined);
 }
