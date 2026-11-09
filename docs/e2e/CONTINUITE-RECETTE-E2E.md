@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.167 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.168 — 9 novembre 2026
 >
 > **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée avec clic réel sur le bouton de déconnexion PASS 29/29 (§128), auth régression PASS 29/29, TypeScript PASS et build/serveur PASS sur le run du 9 novembre à 06:56–06:57Z. Les trois rôles Talent, Recruteur et Partenaire ont chacun fermé leur session locale depuis `/settings`, puis obtenu HTTP 401 sur `/api/profile`. La migration de session 20261109015439 reste limitée à JOBLY-E2E. La recette Auth avancée est définie au §129 ; runner dédié ajouté en §135 ; exécution runtime en attente. **La porte UI authentifiée de LOT-01 est maintenant PASS ; LOT-01 global reste PARTIAL** jusqu'à validation runtime ou décision explicite de périmètre pour OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -7462,3 +7462,35 @@ Workflow GitHub Actions `Jobly CI — Typecheck & Build`, run `42582188620` :
 - le smoke HTTP LOT-00 n'a pas encore commencé.
 
 Aucun scénario Auth avancé n'a encore été exécuté sur le poste opérateur ; aucun PASS runtime n'est attribué. Après fin du build CI, lancer la commande §135 depuis le worktree isolé pour produire le rapport et ouvrir les quatre résultats dans Notepad. JOBLY-E2E uniquement, aucune action fournisseur réelle, aucun JOBLY-PROD, aucun merge `main), aucun déploiement.
+
+
+---
+
+## 137. Vérification CI Auth avancée — build non validé, échec infrastructure Deno
+
+**Mise à jour : 9 novembre 2026 — version 2.168.**
+
+### Run le plus récent sur la tête de branche
+
+- Workflow : `Jobly CI — Typecheck & Build`
+- Run : `42582524345`
+- Commit testé : `2efc9f111c056b05ec499e5768188f35bf8be0ef`
+- Conclusion GitHub : **FAILURE**
+- Job concerné : `Typecheck and production build`
+
+L'étape fautive est `Setup Deno` (`denoland/setup-deno@v2`). Son téléchargement de Deno 2.9.8 depuis GitHub Releases a reçu HTTP 504 à deux reprises, puis le step a échoué. Le log contient `Unexpected HTTP response: 504` à 07:57:29Z puis 07:57:42Z, échec final à 07:57:59Z.
+
+### Ce qui a été validé ou non dans ce run
+
+- Installation/dépendances et tests préalables : SUCCESS.
+- Régression Auth et sélection du compte Google : SUCCESS.
+- `Setup Deno` : FAILURE HTTP 504 sur le téléchargement.
+- Tests Mission Afrique dépendant de Deno, Prisma, tests device-session, TypeScript, build production et smoke HTTP LOT-00 : SKIPPED après l'échec de Setup Deno.
+
+Un run précédent `42582188620` sur le commit de code `23541bdf216fe6f9268b5676236e92d992ed998f` avait réussi les tests Auth et TypeScript, mais son étape Build avait été CANCELLED ; le smoke HTTP avait été SKIPPED. Un run intermédiaire `42582446902` a également été CANCELLED. **Aucun run consulté ne prouve encore un build de production PASS du runner Auth avancée.**
+
+### Décision opératoire
+
+L'échec récent est localisé à l'installation externe de Deno, avant TypeScript et Build ; le log ne signale pas une erreur de compilation du runner Auth avancée. Ne pas présenter la CI comme verte. La prochaine action utile est de relancer uniquement le job échoué quand le service de téléchargement Deno est disponible, puis confirmer TypeScript, Build production et smoke LOT-00. Aucun lancement runtime Auth avancée n'est certifié par ce statut CI.
+
+Aucun merge `main), aucun déploiement et aucun accès JOBLY-PROD.
