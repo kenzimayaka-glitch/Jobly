@@ -438,6 +438,12 @@ test("LOT-01 advanced auth browser campaign isolates provider flows and verifies
   assert.match(authAdvancedSmoke, /Execution context was destroyed|Cannot find context with specified id/);
   assert.match(authAdvancedSmoke, /waitForLoadState\("domcontentloaded"/);
   assert.match(authAdvancedSmoke, /undefined, \{ timeout: 15000 \}\)/);
+  assert.match(authAdvancedSmoke, /new URL\("\/api\/device-sessions", BASE_URL\)/);
+  assert.match(authAdvancedSmoke, /Authorization: "Bearer " \+ token/);
+  assert.match(authAdvancedSmoke, /payload-keys=/);
+  assert.match(authAdvancedSmoke, /devicePayload\.devices\.find/);
+  assert.match(authAdvancedSmoke, /Mes appareils connectés/);
+  assert.doesNotMatch(authAdvancedSmoke, /const deviceResponsePromise = page\.waitForResponse/);
   assert.match(authAdvancedSmoke, /DEVICE_PREFLIGHT_TWO_FREE_SLOTS/);
   assert.match(authAdvancedSmoke, /activeBefore\.length > 1/);
   assert.match(authAdvancedSmoke, /DEVICE_B_REVOKED_FROM_VISIBLE_UI/);
