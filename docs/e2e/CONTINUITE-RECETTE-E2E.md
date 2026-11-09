@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.149 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.150 — 9 novembre 2026
 >
 > **Dernière preuve LOT-01 :** smoke API authentifié PASS 40/40 (§§107/109), puis smoke navigateur public/anonyme PASS 14/14 (§115). Smoke navigateur authentifié exécuté le 9 novembre 2026 à 01:25:12Z : 29 contrôles, 12 PASS et 17 FAIL HTTP 500. Les trois connexions, rôles signés et retours 401 étaient PASS. Les journaux Postgres de JOBLY-E2E ont confirmé exactement 17 erreurs SQLSTATE 23505 sur la contrainte UserDeviceSession_authSessionId_key. La fonction d'enregistrement a été corrigée et la migration 20261109015439 appliquée uniquement à JOBLY-E2E. Le test SQL d'idempotence est PASS pour TALENT/RECRUITER/PARTNER ; la relance navigateur ciblée reste à exécuter (§118). LOT-01 reste PARTIAL.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -6921,3 +6921,34 @@ Fichiers à collecter sans modification :
 La commande de collecte ne lance aucun test, ne fait aucun fetch/checkout Git, ne touche à aucune fixture et n'accède pas à Supabase. Elle copie textuellement les rapports existants dans `feedback-lot1-auth-browser-retest.txt` et ouvre ce fichier dans Notepad. Les fichiers absents sont signalés comme tels. À réception, vérifier timestamps, SHA du commit testé, projet, URL locale, code de sortie, nombre de contrôles, statut de chaque rôle, refus inter-rôles et retour 401. LOT-01 reste PARTIAL tant que ces preuves n'ont pas été inspectées.
 
 Garde-fous inchangés : JOBLY-E2E uniquement, aucun accès JOBLY-PROD, aucune réinitialisation de fixture, aucun merge vers `main`, aucun déploiement.
+
+
+---
+
+## 121. Analyse du fichier de restitution — rapports antérieurs à la migration
+
+**Mise à jour : 9 novembre 2026 — version 2.150.**
+
+### 121.1 Rapport effectivement reçu
+
+Le fichier `feedback-lot1-auth-browser-retest.txt` a été reçu et inspecté. Il ne contient pas un retest post-correctif :
+- `lot1-auth-role-ui-smoke.json` porte `createdAt=2026-11-09T01:25:12.030Z`, commit testé `9ac84c7eacfb82531ea2fc90863d358740b9288d`, résultat 12/29 PASS et 17/29 FAIL HTTP 500 ;
+- le processus s'est terminé à `01:26:13.561Z` UTC ;
+- `authenticated-role-runner-summary.json` porte `createdAt=01:19:26.209Z`, build PASS et serveur local PASS, mais le smoke rôles FAIL 12/29 ;
+- les six fichiers collectés ont des dates locales comprises entre 02:17 et 02:26, le 9 novembre.
+
+### 121.2 Comparaison avec la correction Supabase
+
+La lecture de l'historique des migrations du seul projet JOBLY-E2E `ofqqrryamslxoqkklraw` confirme que `20261109015439 jobly_device_session_same_session_idempotency` est enregistrée. Son horodatage version correspond à 01:54:39 UTC (02:54:39 heure locale Africa/Douala), soit après la fin du smoke navigateur à 01:26:13 UTC (02:26:13 heure locale).
+
+**Conclusion : le fichier reçu restitue l'exécution qui a précédé la migration. Il ne démontre ni un échec ni une réussite du code corrigé.** Les 17 erreurs HTTP 500 restent l'ancien résultat ; elles ne doivent pas être présentées comme une régression après migration. Aucun rapport navigateur post-migration n'est encore disponible dans les fichiers transmis.
+
+### 121.3 Action active
+
+La collecte de §120 est terminée ; ne pas la répéter seule. Il faut maintenant exécuter une fois le retest navigateur authentifié §118.6 sur le HEAD courant de `origin/e2e/recette`, après la migration, puis refaire la collecte des six rapports. Avant exécution, le lanceur doit confirmer le SHA courant ; le rapport final doit porter un horodatage postérieur à 02:54:39 heure locale et le commit corrigé actuel (migration de code `04031e1d91ef7fab0913f3323d6f95f2e769ec4f` ou descendant).
+
+Si la commande §118.6 a réellement déjà été exécutée après 02:54:39, les rapports reçus ne sont pas ceux de ce run : vérifier le chemin du worktree `C:\Users\ASUS\Jobly-e2e-recette-v3\artifacts\e2e` et collecter les artefacts du bon run plutôt que de relancer aveuglément.
+
+### 121.4 Garde-fous et statut
+
+JOBLY-E2E uniquement ; aucune mutation métier, aucun reset/provisionnement fixture, aucune écriture JOBLY-PROD, aucun merge `main`, aucun déploiement. LOT-01 reste **PARTIAL / NON CLOS** jusqu'à preuve navigateur post-migration vérifiée. Les preuves antérieures Auth 12/12, API 40/40 et UI publique 14/14 restent distinctes et conservées.
