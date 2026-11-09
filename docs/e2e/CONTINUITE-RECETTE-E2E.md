@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.146 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.147 — 9 novembre 2026
 >
-> **Dernière preuve LOT-01 :** smoke API authentifié PASS 40/40 (§§107/109), puis smoke navigateur public/anonyme PASS 14/14 le 9 novembre 2026 à 00:50:21.900Z sur JOBLY-E2E (`ofqqrryamslxoqkklraw`), URL locale `http://127.0.0.1:3217`, commit annoncé `3dbce55ffc10ef0a8fdac73e2d9f815b3f6a04d7` (§115). Build et serveur PASS, Playwright exit 0, 0 erreur navigateur, home-stats HTTP 200 (28 offres, 1 talent), mobile 390 px sans débordement, auth lifecycle 12/12 frais (3 rôles), aucune mutation métier distante ni secret imprimé. Le blocage antérieur `tsconfig.tsbuildinfo` est résolu par le typecheck non incrémental (§114). La porte UI publique est PASS 14/14 (§115). Le smoke de connexion formulaire pour TALENT/RECRUITER/PARTNER est commis, et les routes Partner sensibles ont maintenant des gardes explicites PARTNER (§§116–117) ; le smoke étendu n'a pas encore été exécuté. Le dernier code HEAD observé est 5383283577af75414f9a7e4614498e318839ba10 ; les checks Typecheck/build et sécurité n'étaient pas encore terminés. Ne pas rejouer les 14/40 PASS déjà acquis. LOT-01 reste PARTIAL.
+> **Dernière preuve LOT-01 :** smoke API authentifié PASS 40/40 (§§107/109), puis smoke navigateur public/anonyme PASS 14/14 (§115). Smoke navigateur authentifié exécuté le 9 novembre 2026 à 01:25:12Z : 29 contrôles, 12 PASS et 17 FAIL HTTP 500. Les trois connexions, rôles signés et retours 401 étaient PASS. Les journaux Postgres de JOBLY-E2E ont confirmé exactement 17 erreurs SQLSTATE 23505 sur la contrainte UserDeviceSession_authSessionId_key. La fonction d'enregistrement a été corrigée et la migration 20261109015439 appliquée uniquement à JOBLY-E2E. Le test SQL d'idempotence est PASS pour TALENT/RECRUITER/PARTNER ; la relance navigateur ciblée reste à exécuter (§118). LOT-01 reste PARTIAL.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations, lectures SQL et contrôles Storage ; aucun accès JOBLY-PROD et aucun déploiement. Les tests HTTP CI tournent sur un serveur Next.js de build local au runner avec configuration Supabase fictive, jamais sur le site de production.
 >
@@ -77,7 +77,7 @@ La relecture du code courant a confirmé quatre raisons :
 
 1. **Smoke public/anonyme : PASS acquis.** Le rapport 14/14, le résumé runner PASS, le build/serveur PASS et le process exit 0 sont consolidés au §115. Ne pas rejouer ce smoke ni les 40 API PASS sans changement pertinent.
 
-**Point de reprise actif :** exécuter la commande unique §117.4 dans C:\Users\ASUS\Jobly-e2e-recette-v3. Elle valide d'abord la propreté, les syntaxes, le typecheck, puis build/serveur et login navigateur pour les trois fixtures, avec vérification étendue des 5 routes Partner protégées en refus 403 pour Talent et Recruteur. Ouvrir les six rapports. Ne pas relancer les 14 contrôles publics ni les 40 API.
+**Point de reprise actif :** exécuter la commande unique §118.6 dans C:\Users\ASUS\Jobly-e2e-recette-v3. Elle relance le smoke navigateur authentifié après la correction SQL idempotente ; ne pas rejouer les 14 contrôles publics ni les 40 API déjà PASS.
 
 2. **Si le smoke rôle passe :** enregistrer la porte UI authentifiée et session par rôle comme PASS uniquement après contrôle des statuts, des rôles signés et du retour 401 post-déconnexion. Traiter séparément le bouton visible de déconnexion et les scénarios Auth avancée non couverts.
 3. **Si le smoke échoue :** corriger uniquement la cause prouvée et relancer uniquement --role-browser-only ; ne pas lancer le runner global ni réinitialiser les fixtures.
@@ -96,6 +96,91 @@ La relecture du code courant a confirmé quatre raisons :
 
 ---
 
+
+---
+
+## 118. LOT-01 — diagnostic des 17 erreurs HTTP 500 et correction de l'enregistrement des sessions
+
+**Mise à jour : 9 novembre 2026 — version 2.147.** Le smoke authentifié partagé par l'opérateur a bien validé les connexions et les rôles signés, mais les 17 vérifications API sont tombées en HTTP 500. L'analyse a été poursuivie jusqu'aux journaux Postgres de JOBLY-E2E ; la cause commune a été identifiée et corrigée.
+
+### 118.1 Résultat du smoke reçu
+
+Rapport créé le 9 novembre 2026 à 01:25:12.030Z, terminé à 01:26:13.561Z, commit testé 9ac84c7eacfb82531ea2fc90863d358740b9288d :
+- 29 contrôles exécutés : 12 PASS, 17 FAIL, 0 BLOCKED ;
+- pour chacun des trois rôles : formulaire de connexion PASS 200, page de rôle PASS 200, rôle signé Supabase PASS 200 et purge de session du contexte isolé confirmée par HTTP 401 ;
+- 17 contrôles API — API propre au rôle et refus inter-rôles — ont tous renvoyé HTTP 500 ;
+- aucune erreur JavaScript navigateur, aucun secret ou jeton imprimé, aucun effet externe et aucune mutation métier distante déclarée.
+
+Les connexions et la reconnaissance des rôles étaient donc correctes. Les échecs étaient communs à la chaîne serveur/API, et non 17 défauts métier indépendants.
+
+### 118.2 Cause racine confirmée dans JOBLY-E2E
+
+Les journaux Postgres du projet ofqqrryamslxoqkklraw sur la fenêtre 01:24–01:28 UTC ont enregistré exactement **17** erreurs :
+- contrainte : UserDeviceSession_authSessionId_key ;
+- SQLSTATE : 23505 ;
+- détail : le même authSessionId était déjà présent dans une autre ligne ;
+- fonction fautive : register_jobly_device_session(), pendant l'insertion d'une seconde ligne de session.
+
+Le helper serveur recevait un même jeton/session Auth avec plusieurs identifiants d'appareil selon les chemins de requête. La fonction cherchait d'abord par userId + deviceId ; lorsqu'elle ne trouvait pas ce deviceId, elle tentait un nouvel INSERT, sans rechercher auparavant l'authSessionId déjà enregistré. La contrainte unique levait alors 23505, et getAuthUser() transformait l'erreur RPC en HTTP 500 sur les routes protégées.
+
+Le nombre et la période des erreurs Postgres correspondent exactement aux 17 échecs API du rapport opérateur.
+
+### 118.3 Correction SQL appliquée uniquement à JOBLY-E2E
+
+Migration Supabase appliquée avec succès au seul projet ofqqrryamslxoqkklraw :
+- version : 20261109015439 ;
+- nom : jobly_device_session_same_session_idempotency ;
+- fichier commité : supabase/migrations/20261109015439_jobly_device_session_same_session_idempotency.sql ;
+- commit Git : 04031e1d91ef7fab0913f3323d6f95f2e769ec4f.
+
+La fonction recherche maintenant en premier la session Auth immuable. Si elle existe déjà pour l'utilisateur :
+1. elle réutilise sa ligne et son deviceId canonique, même si un appel suivant transmet un autre deviceId ;
+2. elle actualise uniquement les métadonnées normales lastSeenAt/deviceLabel/userAgent, selon le throttle existant ;
+3. elle refuse explicitement une session attachée à un autre utilisateur ;
+4. elle ne tente jamais de créer une seconde ligne pour le même authSessionId.
+
+Les verrous transactionnels sont pris par utilisateur et par session Auth pour rendre également ce comportement robuste aux requêtes concurrentes. Les limites de trois appareils et les règles de révocation sont conservées.
+
+Vérification après migration :
+- fonction présente et corps idempotent confirmé ;
+- service_role : EXECUTE autorisé ;
+- authenticated : EXECUTE refusé ;
+- anon : EXECUTE refusé.
+
+### 118.4 Test d'idempotence en base — PASS
+
+Un test SQL ciblé a été exécuté sur une session synthétique existante de chacun des trois rôles, en présentant volontairement un deviceId différent de celui déjà enregistré. Résultats :
+- TALENT : allowed=true, exactement une ligne conservée, deviceId d'origine préservé ;
+- RECRUITER : allowed=true, exactement une ligne conservée, deviceId d'origine préservé ;
+- PARTNER : allowed=true, exactement une ligne conservée, deviceId d'origine préservé.
+
+Ce test a seulement actualisé au besoin les métadonnées de session synthétique ; aucun profil, CV, offre, candidature, Partner, commission ou paiement n'a été modifié. Il ne remplace pas la recette HTTP/navigateur de bout en bout.
+
+### 118.5 État CI et sécurité
+
+Au dernier contrôle GitHub du HEAD 04031e1d91ef7fab0913f3323d6f95f2e769ec4f, les contrôles Typecheck/production build, security-core-migration, architecture et verify étaient encore IN_PROGRESS. Aucun PASS CI n'est anticipé dans cette entrée.
+
+Aucun accès JOBLY-PROD, aucune migration de production, aucun merge main, aucun déploiement. LOT-00, Auth 12/12, API 40/40 et UI publique 14/14 restent les preuves antérieures conservées ; ils ne doivent pas être rejoués sans changement pertinent.
+
+### 118.6 Commande opérateur — relance ciblée après correction
+
+À coller en une seule ligne dans CMD, depuis n'importe quel dossier. Le préflight protège le worktree isolé : il supprime uniquement tsconfig.tsbuildinfo s'il est l'unique élément non suivi ; toute autre modification entraîne un arrêt sans nettoyage. Le typecheck est non incrémental, puis le runner fait build + serveur + smoke navigateur authentifié des trois rôles. Il ne rejoue ni les 14 tests publics ni les 40 API indépendants.
+
+\`\`\`cmd
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $wt='C:\Users\ASUS\Jobly-e2e-recette-v3'; $src='C:\Users\ASUS\Jobly'; $attemptStart=Get-Date; $exitCode=2; try { $st=(& git -C $wt status --porcelain --untracked-files=all | Out-String).Trim(); if($LASTEXITCODE -ne 0){throw 'Lecture du statut Git impossible.'}; if($st -eq '?? tsconfig.tsbuildinfo'){ $cache=Join-Path $wt 'tsconfig.tsbuildinfo'; if(!(Test-Path -LiteralPath $cache -PathType Leaf)){throw 'Cache TypeScript attendu absent ; arrêt.'}; Remove-Item -LiteralPath $cache -Force; Write-Host 'CACHE TYPECHECK PRECEDENT SUPPRIME'; } elseif($st){Write-Host $st;throw 'ARRET : autres modifications du worktree. Aucun fichier local écrasé.'}; $clean=(& git -C $wt status --porcelain --untracked-files=all | Out-String).Trim(); if($LASTEXITCODE -ne 0 -or $clean){Write-Host $clean;throw 'Worktree non propre ; arrêt.'}; Write-Host 'WORKTREE_CLEAN'; & git -C $wt fetch origin; if($LASTEXITCODE -ne 0){throw 'git fetch origin en échec.'}; & git -C $wt checkout --detach origin/e2e/recette; if($LASTEXITCODE -ne 0){throw 'Checkout distant en échec.'}; $head=& git -C $wt rev-parse HEAD; $remote=& git -C $wt rev-parse origin/e2e/recette; if($head -ne $remote){throw 'HEAD ne correspond pas à origin/e2e/recette.'}; Set-Location $wt; New-Item -ItemType Directory -Force -Path 'artifacts\e2e' | Out-Null; $syntaxLog='artifacts\e2e\role-browser-static-check.log'; $typeLog='artifacts\e2e\role-browser-typecheck.log'; & node --check 'e2e\run-authenticated-role-recipe.mjs' *> $syntaxLog; if($LASTEXITCODE -ne 0){throw 'Syntaxe du runner invalide.'}; & node --check 'e2e\authenticated-browser-role-smoke.mjs' >> $syntaxLog 2>&1; if($LASTEXITCODE -ne 0){throw 'Syntaxe du smoke authentifié invalide.'}; & pnpm exec tsc --noEmit --incremental false *> $typeLog; if($LASTEXITCODE -ne 0){throw 'Typecheck en échec : runner non lancé.'}; $post=(& git status --porcelain --untracked-files=all | Out-String).Trim(); if($LASTEXITCODE -ne 0 -or $post){Write-Host $post;throw 'Le typecheck a laissé des changements : runner non lancé.'}; Write-Host 'TYPECHECK_PASS_WORKTREE_CLEAN'; & node 'e2e\run-authenticated-role-recipe.mjs' $src --role-browser-only; $exitCode=$LASTEXITCODE; Write-Host ('RUNNER_EXIT='+$exitCode) } catch { Write-Host ('ARRET : '+$_.Exception.Message); $exitCode=2 } finally { $reports=@('artifacts\e2e\role-browser-static-check.log','artifacts\e2e\role-browser-typecheck.log','artifacts\e2e\authenticated-role-runner-summary.json','artifacts\e2e\browser-role-smoke-diagnostic.json','artifacts\e2e\browser-role-smoke-process.log','artifacts\e2e\lot1-auth-role-ui-smoke.json'); foreach($f in $reports){$p=Join-Path $wt $f; if(Test-Path -LiteralPath $p -PathType Leaf){$i=Get-Item -LiteralPath $p; if($i.LastWriteTime -ge $attemptStart.AddSeconds(-2)){Start-Process -FilePath notepad.exe -ArgumentList ([char]34+$p+[char]34)}else{Write-Host ('ANCIEN RAPPORT NON OUVERT : '+$p)}}else{Write-Host ('RAPPORT NON GENERE : '+$p)}} }; exit $exitCode"
+\`\`\`
+
+Six fichiers doivent s'ouvrir dans Notepad :
+- role-browser-static-check.log ;
+- role-browser-typecheck.log ;
+- authenticated-role-runner-summary.json ;
+- browser-role-smoke-diagnostic.json ;
+- browser-role-smoke-process.log ;
+- lot1-auth-role-ui-smoke.json.
+
+Résultat attendu : 29/29 PASS, 0 FAIL, 0 BLOCKED, trois rôles PASS, rôle signé confirmé, refus inter-rôles HTTP 403, retour 401 après suppression du stockage Auth isolé, remoteBusinessDataMayBeModified=false. Les écritures normales dans UserDeviceSession restent des métadonnées de session de comptes synthétiques et sont consignées séparément.
+
+**Statut LOT-01 : PARTIAL / NON CLOS** jusqu'à réception et inspection du rapport de cette nouvelle exécution. Le bouton visible de déconnexion et les scénarios OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils restent à traiter séparément ou à exclure par décision de périmètre écrite.
 
 ---
 
