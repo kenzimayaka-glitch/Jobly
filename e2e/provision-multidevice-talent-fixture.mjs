@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
-import { access, readFile, rename, writeFile, unlink } from "node:fs/promises";
+import { access, mkdir, readFile, rename, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 
 const PROJECT_REF = "ofqqrryamslxoqkklraw";
@@ -100,6 +100,11 @@ async function activeDeviceCount(admin, internalUserId) {
   return data.filter((row) => !row.revokedAt).length;
 }
 
+async function writeReport(report) {
+  await mkdir(path.dirname(REPORT_PATH), { recursive: true });
+  await writeFile(REPORT_PATH, JSON.stringify(report, null, 2) + "\n", { encoding: "utf8", mode: 0o600 });
+}
+
 async function writeManifest(filePath, document) {
   const temporary = filePath + ".tmp-" + process.pid + "-" + randomUUID();
   try {
@@ -132,6 +137,10 @@ async function main() {
   for (const [key, role] of [["talent", "TALENT"], ["recruiter", "RECRUITER"], ["partner", "PARTNER"]]) {
     assert.ok(fixtures.accounts.some((item) => item?.key === key && item?.role === role),
       "La fixture partagée " + key + " doit rester présente et inchangée.");
+  }
+  const localDedicated = fixtures.accounts.find((item) => item?.key === FIXTURE_KEY);
+  if (localDedicated && (localDedicated.role !== "TALENT" || localDedicated.purpose !== PURPOSE)) {
+    throw new Error("LOCAL_FIXTURE_KEY_OWNED_BY_DIFFERENT_ACCOUNT");
   }
 
   const env = await loadSourceEnvironment(SOURCE_ROOT);
@@ -171,7 +180,7 @@ async function main() {
     existingUser.email?.toLowerCase() !== FIXTURE.email ||
     existingUser.username !== FIXTURE.username ||
     existingUser.role !== "TALENT" ||
-    (authUser && existingUser.authUserId && existingUser.authUserId !== authUser.id) ||
+    (authUser && existingUser.authUserId !== authUser.id) ||
     (!authUser && existingUser.authUserId)
   )) {
     throw new Error("PUBLIC_FIXTURE_ROW_OWNED_BY_DIFFERENT_IDENTITY");
@@ -340,7 +349,7 @@ async function main() {
       businessDataModified: false,
       productionTouched: false,
     };
-    await writeFile(REPORT_PATH, JSON.stringify(report, null, 2) + "\n", { encoding: "utf8", mode: 0o600 });
+    await writeReport(report);
     console.log(JSON.stringify(report, null, 2));
   } catch (error) {
     if (!manifestWritten && createdPublicUser) {
@@ -364,7 +373,7 @@ main().catch(async (error) => {
     credentialsPrinted: false,
     productionTouched: false,
   };
-  await writeFile(REPORT_PATH, JSON.stringify(report, null, 2) + "\n", { encoding: "utf8", mode: 0o600 }).catch(() => undefined);
+  await writeReport(report).catch(() => undefined);
   console.error("Provisioning fixture multi-appareils JOBLY-E2E : ECHEC — " + report.error);
   process.exitCode = 1;
 });
