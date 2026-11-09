@@ -451,6 +451,12 @@ test("LOT-01 advanced auth browser campaign isolates provider flows and verifies
   assert.match(authAdvancedSmoke, /statusB === 401/);
   assert.match(authAdvancedSmoke, /statusA === 200/);
   assert.match(authAdvancedSmoke, /preexistingDeviceRowsUnchanged/);
+  assert.match(authAdvancedSmoke, /select: "id,userId,deviceId,deviceLabel,authSessionId,revokedAt,createdAt,lastSeenAt"/);
+  assert.match(authAdvancedSmoke, /expectedDeviceLabels\.get\(owned\.deviceId\) !== owned\.deviceLabel/);
+  assert.match(authAdvancedSmoke, /id: "eq\." \+ owned\.id/);
+  assert.match(authAdvancedSmoke, /const verifiedRows = await readDeviceRows\(userId\)/);
+  assert.match(authAdvancedSmoke, /verifiedOwned\.some\(\(row\) => !row\.revokedAt\)/);
+  assert.match(authAdvancedSmoke, /activeOwnedRows: verifiedOwned\.filter\(\(row\) => !row\.revokedAt\)\.length/);
   assert.match(authRecipeRunner, /--auth-advanced-only/);
   assert.match(authRecipeRunner, /reportGeneratedForThisRun/);
 });
