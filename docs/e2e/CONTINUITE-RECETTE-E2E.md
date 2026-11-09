@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.163 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.164 — 9 novembre 2026
 >
 > **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée avec clic réel sur le bouton de déconnexion PASS 29/29 (§128), auth régression PASS 29/29, TypeScript PASS et build/serveur PASS sur le run du 9 novembre à 06:56–06:57Z. Les trois rôles Talent, Recruteur et Partenaire ont chacun fermé leur session locale depuis `/settings`, puis obtenu HTTP 401 sur `/api/profile`. La migration de session 20261109015439 reste limitée à JOBLY-E2E. La recette Auth avancée est définie au §129 ; aucun runner dédié à ces scénarios n'est encore disponible. **La porte UI authentifiée de LOT-01 est maintenant PASS ; LOT-01 global reste PARTIAL** jusqu'à validation runtime ou décision explicite de périmètre pour OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -7381,3 +7381,22 @@ Le fichier transmis est donc une restitution du smoke standard de rôles, pas le
 ### 133.4 Suite opérateur
 
 Conserver le rapport ancien FAIL en historique, sans l'additionner au résultat PASS récent. La prochaine preuve attendue est un rapport dédié à la campagne Auth avancée, avec un bloc et un statut distincts pour chacun des quatre scénarios. Le feedback agrégé du §132 ne remplace pas ce rapport. Les garde-fous JOBLY-E2E uniquement, aucune action fournisseur externe non autorisée, aucune révocation de session préexistante, aucun merge `main` et aucun déploiement restent en vigueur.
+
+
+---
+
+## 134. Récupération du feedback Auth avancée — distinction entre rapport existant et rapport à produire
+
+**Mise à jour : 9 novembre 2026 — version 2.164.**
+
+Le fichier agrégé reçu le 9 novembre à 08:30 contient le smoke authentifié standard PASS 29/29, l'ancien run FAIL 12/29 et les contrôles locaux associés. Il ne contient aucun résultat d'exécution OTP, Google OAuth, récupération du mot de passe ou révocation multi-appareils.
+
+**Conclusion :** aucun rapport Auth avancée n'existe à récupérer dans cette livraison. Il ne faut pas relancer le smoke standard ni renommer/copier un ancien JSON pour produire un faux rapport de campagne avancée.
+
+**Procédure réelle :**
+1. Ajouter au dépôt un runner dédié `e2e/auth-advanced-smoke.mjs` qui exécute les scénarios §129/§131 et écrit un rapport structuré `artifacts/e2e/lot1-auth-advanced-smoke.json`.
+2. Ajouter ses tests de harnais, vérifier le typage/build et les mocks réseau avant toute exécution.
+3. Pour la révocation, exiger le préflight du §129.5 et arrêter en BLOCKED si deux sessions nouvelles ne peuvent pas être créées sans toucher aux appareils préexistants.
+4. Après le run, ouvrir le rapport JSON avec Notepad et le transmettre. La commande d'ouverture attendue sera `notepad C:\Users\ASUS\Jobly-e2e-recette-v3\artifacts\e2e\lot1-auth-advanced-smoke.json`.
+
+Aucune commande d'ouverture du rapport avancé ne doit être exécutée avant que le runner ait généré ce fichier. JOBLY-E2E uniquement ; aucun fournisseur externe, aucun JOBLY-PROD, aucun merge `main`, aucun déploiement.
