@@ -1,5 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { adminClient } from "../../../../lib/server-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,14 +12,9 @@ type PublicHomeStats = {
 
 export async function GET() {
   try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-    if (!url || !key) throw new Error("Supabase public client is not configured.");
-
-    // This RPC returns aggregate counters only; public roles receive no table access.
-    const supabase = createClient(url, key, {
-      auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
-    });
+    // The aggregate RPC is deliberately server-only after the least-privilege
+    // migration. Never expose this call through the publishable/anonymous client.
+    const supabase = adminClient();
     const { data, error } = await supabase.rpc("get_public_home_stats");
     if (error) throw error;
 
