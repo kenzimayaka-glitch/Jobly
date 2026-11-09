@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.170 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.171 — 9 novembre 2026
 >
-> **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée avec clic réel sur le bouton de déconnexion PASS 29/29 (§128), auth régression PASS 29/29, TypeScript PASS et build/serveur PASS sur le run du 9 novembre à 06:56–06:57Z. Les trois rôles Talent, Recruteur et Partenaire ont chacun fermé leur session locale depuis `/settings`, puis obtenu HTTP 401 sur `/api/profile`. La migration de session 20261109015439 reste limitée à JOBLY-E2E. La recette Auth avancée définie au §129 et lancée via le runner du §135 a connu une première exécution runtime le 9 novembre à 08:08Z : OTP 3/4 contrôles PASS, Google authorize intercepté mais scénario en timeout, récupération 2/3 contrôles PASS, multi-appareils BLOCKED car 3 appareils préexistants actifs. Aucun état Auth distant n'a été modifié. Les causes des deux assertions trop larges et du timeout Google, puis le correctif du harnais, sont consignés aux §§138–139 ; le correctif n'a pas encore été rejoué en runtime. **La porte UI authentifiée de LOT-01 est maintenant PASS ; LOT-01 global reste PARTIAL** jusqu'à validation runtime ou décision explicite de périmètre pour OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils.
+> **Dernières preuves LOT-01 :** les sous-périmètres déjà prouvés restent PASS : Auth de base 12/12, API authentifiée 40/40 avec nettoyage, UI publique 14/14 et UI authentifiée 29/29 avec déconnexion visible et HTTP 401 (§§96–128). La campagne Auth avancée du 9 novembre à 08:08Z sur le commit 2efc9f111c056b05ec499e5768188f35bf8be0ef a produit OTP 3/4, Google en timeout, récupération 2/3 et multi-appareils BLOCKED car trois appareils préexistants étaient actifs ; aucun état Auth distant n'a été modifié (§138). Le harnais a ensuite été corrigé et commité (§139 : commits 4b040cdd, 71fec66f, 1a7023a1, 9e9d91a8, 8c233faf). Aucun retest runtime post-correctif n'est encore prouvé. LOT-01 reste PARTIAL / NON CLOS jusqu'à réception du rapport frais et résolution du périmètre multi-appareils par fixture isolée autorisée ou décision de périmètre explicite. La recette opérationnelle ciblée et le script CMD sont décrits au §140.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations, lectures SQL et contrôles Storage ; aucun accès JOBLY-PROD et aucun déploiement. Les tests HTTP CI tournent sur un serveur Next.js de build local au runner avec configuration Supabase fictive, jamais sur le site de production.
 >
@@ -11,9 +11,9 @@
 > **Nouvelle méthode de continuité :** ce fichier Markdown dans Git est la seule référence maître. Chaque nouvelle conversation Jobly doit le lire intégralement avant d'agir. Après chaque réponse consacrée à la recette E2E, l'assistant met à jour ce fichier dans la même séquence de travail, sur `e2e/recette`, puis fournit le commit GitHub vérifiable et le chemin du fichier. Chaque entrée distingue les faits établis, leur preuve, les actions non exécutées et les blocages ; aucun résultat non testé ne peut être présenté comme PASS. Ne pas passer par la Bibliothèque/Word pour cette continuité.
 >
 > **Garde-fous actuels :** les consignes historiques qui autorisaient la réinitialisation des mots de passe, la recréation/restauration des fixtures ou l'exécution automatique du provisionneur restent neutralisées. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
-> **État courant et ordre des lots :** E2E-001 : PASS statique local 6/6. LOT-00 : **PASS — clôturé**. LOT-01 Auth : smoke initial **3/3 PASS** et cycle de session **12/12 PASS** (§96 et §99). Préparation du test API par rôle : le préflight opérateur du 8 novembre 2026 à 22:34:39 a confirmé URL/ref JOBLY-E2E et fixtures complètes, mais l'ancien code serveur ne lisait que `SUPABASE_SERVICE_ROLE_KEY`, alors que `.env.local` contient la clé moderne `SUPABASE_SECRET_KEY`; le clone local était en retard et aucun runtime privé n'existait. Correctif `adminClient()` maintenant compatible avec la secret key Supabase côté serveur ; le smoke API utilise cette clé locale sans `.e2e-fixture-runtime.json`. Un runner `e2e/run-authenticated-role-recipe.mjs` exécute le build et le smoke sur un worktree détaché propre de `origin/e2e/recette`, lit `.env.local` et `.e2e-fixtures.json` depuis le dépôt source, ne les copie pas et ne les imprime pas. Le parcours croisé crée des données temporaires JOBLY-E2E et vérifie leur nettoyage. Première tentative : build PASS, serveur local BLOCKED (§102). Smoke API exécuté le 8 novembre à 23:03:19 : 36/40 PASS, 3 FAIL et 1 BLOCKED ; les trois rôles sont exécutés, les mutations synthétiques du parcours croisé sont nettoyées (API + vérification DB), externalActions=false. Analyse : les deux feeds échouent sur les garde-fous anti-abus du flux (clé serveur moderne non reconnue et IP loopback absente du client HTTP de recette) ; /api/recruiter/talents échoue car son limiteur n'accepte que la variable legacy SUPABASE_SERVICE_ROLE_KEY. Correctifs ciblés et tests ajoutés au §103 ; leur première exécution s'est arrêtée sur une erreur de résolution Node de next/server depuis le test TypeScript direct. Le point d'entrée du helper a été corrigé en next/server.js (§104), puis le rapport opérateur a confirmé pnpm test:security-core 11/11 PASS, 0 FAIL (Node 26.13.0 ; avertissements MODULE_TYPELESS_PACKAGE_JSON non bloquants). Les tentatives de configuration initiales du 8 novembre sont résolues par les §§105–106. Le smoke API authentifié a donné PASS 40/40 (§107). Le résumé global du runner reçu ensuite confirme également `status=PASS`, `build=PASS`, `localServer=PASS`, `authenticatedRoleSmoke=PASS`, 40/40 contrôles et tous les nettoyages PASS (§109). L'URL a été dérivée du manifeste E2E validé ; la clé serveur a été vérifiée sur PostgREST JOBLY-E2E (HTTP 200). `remoteDataMayBeModified=true` indique que la fenêtre d'exécution des tests d'écriture a été ouverte, mais les trois contrôles de nettoyage du résumé sont PASS et le smoke détaillé confirme l'absence des données synthétiques ; `externalActions=false`. Le rapport global porte `createdAt=23:39:07Z`, alors que le rapport API détaillé porte `createdAt=23:48:30Z` ; ces horodatages ne permettent pas d'affirmer qu'ils proviennent du même lancement, bien que les résultats et les contrôles concordent. Le sous-périmètre runner + API est donc PASS sur la base des deux rapports opérateur. L'audit UI a confirmé que `e2e/browser-smoke.mjs` couvre 14 points publics/anonymes et responsive, sans login réel ni parcours métier authentifié ; le mode `--browser-only` isolé est décrit au §110. La première exécution du 9 novembre à 00:00:16 a été BLOCKED sans rapport. Le second run, créé à 00:13:27.807Z avec processus navigateur lancé à 00:19:13.807Z, a confirmé build PASS et serveur PASS mais a échoué sur GET `/api/public/home-stats` : HTTP 503 au lieu de 200 ; aucun rapport navigateur n'a été écrit. L'analyse read-only de JOBLY-E2E a montré que `public.get_public_home_stats()` ne possédait aucun droit EXECUTE pour `anon`, `authenticated` ou `service_role`, alors que la route utilisait encore la publishable key. La migration de moindre privilège avait volontairement retiré les droits publics et le commentaire de cette migration précisait que la route devait utiliser `adminClient` : il s'agissait donc d'une incohérence entre la route et la politique SQL, pas d'un défaut Playwright. §112 documente la correction : route serveur `adminClient`, RPC autorisée uniquement à `service_role`, et vérification post-migration sur JOBLY-E2E (`anon=false`, `authenticated=false`, `service_role=true`). Le runner avait en plus une référence non déclarée à `failureText`; elle est corrigée. Le smoke navigateur écrit désormais un rapport JSON FAIL structuré en cas d'assertion interrompue. Aucun nouveau lancement browser-only n'a encore validé ces correctifs ; la relance ciblée documentée au §112.6 reste l'action immédiate. L'audit V2.138 (§0) confirme qu'elle ne clôt pas LOT-01 à elle seule et interdit pour l'instant le lancement du runner global. LOT-01 global et LOT-02/03 restent soumis à leurs autres critères UI/métier. main reste hors périmètre.
+> **État courant et ordre des lots :** E2E-001 : PASS statique 6/6. LOT-00 : PASS — clôturé (§§93.15–93.19). LOT-01 : Auth de base 12/12, API 40/40, UI publique 14/14 et UI authentifiée 29/29 sont acquis ; seule la campagne Auth avancée reste ouverte après les premiers échecs du §138 et les corrections du §139. La prochaine action unique est le retest ciblé --auth-advanced-only du §140. Ne pas utiliser le runner global scripts/e2e-local-recipe.mjs, ne pas rejouer les sous-périmètres déjà PASS sans changement pertinent, et ne pas toucher aux fixtures partagées.
 
-**Version :** 2.157  
+**Version :** 2.171  
 **Date de consolidation :** 9 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
 **Branche de recette :** `e2e/recette`  
@@ -75,15 +75,12 @@ La relecture du code courant a confirmé quatre raisons :
 
 ### 0.4 Séquence d'exécution retenue
 
-1. **Smoke public/anonyme : PASS acquis.** Le rapport 14/14, le résumé runner PASS, le build/serveur PASS et le process exit 0 sont consolidés au §115. Ne pas rejouer ce smoke ni les 40 API PASS sans changement pertinent.
-
-**Point de reprise actif :** la commande §124.4 a été exécutée et le parcours UI renforcé est **PASS 29/29** (§128). Ne pas rejouer les 29 contrôles ni les 14 contrôles publics ou les 40 API déjà PASS sans changement pertinent. Poursuivre la décision de périmètre Auth avancée conformément au §124.5.
-
-2. **Porte UI authentifiée : PASS 29/29**, clics visibles, redirections et retours HTTP 401 confirmés (§128) ; ne pas confondre ce test avec la révocation multi-appareils.
-3. **Si une régression ultérieure affecte ce parcours :** corriger uniquement la cause prouvée et relancer uniquement --role-browser-only ; ne pas lancer le runner global ni réinitialiser les fixtures.
-4. **Avant le vert LOT-01 :** les scénarios OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils restent à tester sans effet externe ou à exclure dans une décision de périmètre acceptée. Aucun flux Google/e-mail/SMS ne doit être lancé automatiquement. Un simple changement de statut PARTIAL → PASS est interdit.
-5. **Après LOT-01 :** dérouler les lots selon leurs dépendances et les preuves manquantes, sans rejouer les tests déjà PASS. LOT-02 et LOT-03 sont les parcours cœur P0 ; LOT-07 suit LOT-02/03 en sandbox ; LOT-04 peut avancer indépendamment après LOT-00 ; LOT-05 suit LOT-01 ; LOT-06 suit LOT-02/03 ; LOT-08 suit LOT-01 ; LOT-09 suit LOT-01/02 ; LOT-10 est la régression transversale finale. LOT-11 OpenAPI reste réservé à la fin selon le §76.
-
+1. Ne pas rejouer les portes déjà PASS sans changement pertinent : Auth de base 12/12, API 40/40 et son nettoyage, navigateur public 14/14, UI authentifiée 29/29. Ces sous-périmètres sont acquis selon leurs rapports sources (§§96–128).
+2. Point de reprise unique : retester la campagne Auth avancée avec e2e/run-authenticated-role-recipe.mjs --auth-advanced-only, sur un worktree détaché propre et aligné sur origin/e2e/recette, selon le §140. Le runner vérifie la cible JOBLY-E2E, le manifeste existant, l'environnement privé, la fraîcheur du rapport, le SHA et l'URL locale. Il construit l'application et démarre son serveur local ; ne pas exécuter le runner global.
+3. Scénarios simulés : OTP, Google OAuth et récupération doivent chacun être PASS sur un nouveau rapport runtime. Les simulations n'émettent aucun e-mail/SMS/OTP fournisseur et ne contactent pas Google. unexpectedSupabaseRequests doit être vide, externalActions=false, sans erreur de page ni secret/token imprimé.
+4. Multi-appareils : le dernier préflight a trouvé trois appareils actifs préexistants (§138). Le scénario doit rester BLOCKED tant qu'une fixture distincte, dédiée et explicitement autorisée ne permet pas deux sessions nouvelles sans toucher aux appareils existants, ou tant qu'une décision écrite de périmètre ne l'exclut pas explicitement. Ne jamais supprimer/révoquer une session préexistante.
+5. Verdict LOT-01 : ne pas convertir mécaniquement PARTIAL en PASS. Le lot ne sera vert que lorsque les trois scénarios simulés auront un PASS runtime frais et que le point multi-appareils aura été validé sur fixture dédiée ou explicitement exclu par décision acceptée. TypeScript et build doivent aussi être PASS sur le SHA de la recette. Les sous-périmètres déjà PASS ne sont pas à additionner à un run différent.
+6. Après LOT-01 : dérouler les lots selon leurs dépendances et les preuves manquantes. LOT-02 et LOT-03 restent les parcours cœur P0 ; LOT-07 suit LOT-02/03 en sandbox ; LOT-04 peut avancer indépendamment après LOT-00 ; LOT-05 suit LOT-01 ; LOT-06 suit LOT-02/03 ; LOT-08 suit LOT-01 ; LOT-09 suit LOT-01/02 ; LOT-10 est la régression transversale finale. LOT-11 OpenAPI reste réservé à la fin selon le §76.
 ### 0.5 Règles permanentes de lecture et de reprise
 
 - Toujours identifier le SHA, le projet, le mode de runner, l'horodatage et le code de sortie d'un rapport.
@@ -7572,3 +7569,68 @@ pause
 ```
 
 Après cette correction, les critères de clôture restent : OTP PASS, Google OAuth PASS, récupération PASS, préservation des sessions préexistantes démontrée ; multi-appareils soit PASS depuis une fixture conforme, soit BLOCKED explicitement accepté comme limite de test. LOT-01 reste PARTIAL jusque-là. `main` demeure inchangé ; aucun merge, aucun déploiement, aucun accès JOBLY-PROD.
+
+---
+
+## 140. Reprise corrigée LOT-01 — retest Auth avancée et recette opérateur
+
+**Mise à jour : 9 novembre 2026 — version 2.171.** Cette entrée remplace comme point de reprise les anciennes commandes opérateur des sections 24, 129–137 et les références périmées au browser-only §112.6. Les sections historiques restent conservées pour la traçabilité. Le présent fichier Markdown sur docs/e2e/CONTINUITE-RECETTE-E2E.md, branche e2e/recette, est la référence de continuité ; la copie DOCX V2.5 de la Bibliothèque n'est plus la référence active.
+
+### 140.1 État de vérité au moment de la consolidation
+
+- LOT-00 : PASS / clôturé (§§93.15–93.19).
+- LOT-01 Auth de base : 12/12 PASS ; API authentifiée par rôle : 40/40 PASS avec nettoyage confirmé ; UI publique : 14/14 PASS ; UI authentifiée avec clic de déconnexion : 29/29 PASS (§§96–128).
+- Première campagne Auth avancée : rapport runtime du 9 novembre à 08:08:08Z–08:08:40Z, commit testé 2efc9f111c056b05ec499e5768188f35bf8be0ef. OTP 3/4, Google en timeout, récupération 2/3, multi-appareils BLOCKED sur trois appareils actifs préexistants. Aucune session existante n'a été révoquée et aucun compte/état métier n'a été modifié (§138).
+- Le harnais est corrigé et les changements sont présents sur e2e/recette (§139) : diagnostics réseau expurgés, assertions OTP/récupération centrées sur les endpoints Supabase inattendus, simulation Google par HTTP 302 et interception réelle de la navigation sortante. Commits : 4b040cdd0f370ac58681ade7ee4c7381cc05c486, 71fec66fb5e08f5dd1911a7938279509437dc666, 1a7023a14b70427a7bab010a39181c4d161e8272, 9e9d91a8e0d84e853497305be4e9baf82e36730f, 8c233faf4d03d26ec87abea6f899d1af51322bd6.
+- Non prouvé : aucun retest runtime des scénarios avancés après ces commits. Le run CI 42582524345 a échoué au step Setup Deno après HTTP 504 de téléchargement ; il ne prouve ni un défaut de compilation ni un build réussi du dernier commit. Un build antérieur PASS ne remplace pas le build du SHA courant.
+- Verdict LOT-01 : PARTIAL / NON CLOS. Aucun PASS global n'est attribué à cette mise à jour.
+
+### 140.2 Script opérateur livré avec cette mise à jour
+
+Artefact transmis séparément : Jobly-LOT-01-Auth-Avancee.cmd.
+
+Paramètres par défaut :
+- dépôt source conservé : %USERPROFILE%\Jobly ;
+- worktree de recette isolé : %USERPROFILE%\Jobly-e2e-recette-lot01 ;
+- branche distante vérifiée : origin/e2e/recette ;
+- projet distant autorisé : JOBLY-E2E / ofqqrryamslxoqkklraw.
+
+Le CMD vérifie le dépôt source, le manifeste de fixtures existant, la présence d'un fichier d'environnement local sans lire son contenu à l'écran, le dépôt distant du worktree, son état Git propre et l'égalité du SHA avec origin/e2e/recette. Il s'arrête en cas de divergence ou si le worktree contient des changements. Il ne supprime pas le worktree et n'exécute ni git clean, ni git reset --hard, ni provisionneur, ni script de reset de mot de passe.
+
+Séquence automatisée :
+1. git fetch origin, création/réutilisation contrôlée du worktree détaché ;
+2. pnpm install --frozen-lockfile uniquement si Next.js n'est pas installé dans ce worktree ;
+3. pnpm test:auth ;
+4. pnpm exec tsc --noEmit --incremental false ;
+5. node e2e\run-authenticated-role-recipe.mjs "%USERPROFILE%\Jobly" --auth-advanced-only.
+
+Le mode ciblé exécute son propre pnpm build, démarre un serveur Next local sur 127.0.0.1:3217, lance e2e/auth-advanced-browser-smoke.mjs, vérifie que le rapport est frais et rattaché au SHA et au projet attendus, puis retourne un code non nul si la campagne n'est pas PASS. Il ne relance pas les 40 API, les 14 contrôles UI publics ni les 29 contrôles UI authentifiés déjà PASS. Le runner global scripts/e2e-local-recipe.mjs est interdit pour cette reprise : ses gates LOT-01 ne peuvent pas promouvoir correctement le lot en PASS et ses préconditions peuvent entraîner des opérations inutiles sur les fixtures (§0.2).
+
+### 140.3 Rapports et restitution
+
+Répertoire de sortie : %USERPROFILE%\Jobly-e2e-recette-lot01\artifacts\e2e\.
+
+Rapport primaire : lot1-auth-advanced-smoke.json. Rapports complémentaires : authenticated-role-runner-summary.json, auth-advanced-smoke-diagnostic.json, auth-advanced-process.log, lot1-auth-advanced-runner-console.log, lot1-auth-regression.log, lot1-typecheck.log, lot1-preflight.txt.
+
+Le CMD ouvre les journaux et JSON présents dans Notepad. Après exécution, transmettre le rapport primaire et la synthèse, ou leur contenu expurgé. Ne jamais transmettre .env*, .e2e-fixtures.json, clé privée, mot de passe, cookie, header Authorization ou token. Le SHA testé, les timestamps, le projet, l'URL, le nombre de contrôles et les statuts doivent rester visibles.
+
+### 140.4 Conditions de clôture définitive
+
+- OTP simulé : PASS runtime frais, avec demande, code invalide et renvoi vérifiés ; aucun endpoint Supabase inattendu.
+- Google simulé : PASS runtime frais, avec clic réel du bouton, provider=google, prompt=select_account, réponse 302 simulée et navigation Google interceptée avant sortie réseau.
+- Récupération simulée : PASS runtime frais, avec demande, confirmation et callback invalide/expiré ; aucun e-mail ni changement de mot de passe réel.
+- Multi-appareils : PASS uniquement sur une fixture dédiée autorisée dont le préflight permet deux sessions neuves (au plus un appareil actif préexistant), avec révocation de la seule session B créée par le run, HTTP 401 sur B, HTTP 200 sur A et preuve que les appareils préexistants restent inchangés. Avec les trois appareils actuellement constatés, le résultat attendu reste BLOCKED.
+- Si la fixture dédiée n'est pas disponible, le lot ne sera intégralement vert qu'après une décision de périmètre écrite et explicite excluant cette vérification de la clôture. Aucune exclusion n'est présumée.
+- TypeScript et build : PASS sur le SHA réellement testé. Les simulations locales ne prouvent pas la délivrabilité d'e-mails, l'émission d'OTP fournisseur ni un consentement Google réel.
+
+### 140.5 Protections et historique local
+
+Le dernier état de poste Windows rapporté dans l'ancienne continuité était un dépôt local avec des modifications et fichiers non suivis, notamment e2e/reset-existing-fixture-passwords.mjs modifié et plusieurs rapports feedback-e2e-*.txt. Ce n'est pas une inspection en direct du poste au 9 novembre. Le patch ancien jobly-e2e-fixture-readonly.patch n'avait pas été appliqué, son fichier étant introuvable selon le retour opérateur. Ne pas le recréer ni l'appliquer à l'aveugle : la reprise actuelle utilise le nouveau worktree dédié et laisse le dépôt source intact. Ne pas nettoyer ni écraser les éléments locaux signalés.
+
+Périmètre inchangé : aucune lecture/écriture JOBLY-PROD, aucune mutation de fixture partagée, aucune fusion vers main, aucun déploiement. main reste au SHA consigné au début du document.
+
+### 140.6 Journal de mise à jour
+
+| Version / date | Événement | Sections | Preuve |
+|---|---|---|---|
+| V2.171 — 9 nov. 2026 | Réconciliation de l'état courant, corrections du harnais, nouveau point de reprise ciblé et transmission du CMD isolé. Aucun nouveau test runtime avancé exécuté pendant cette mise à jour. | En-tête, §0.4, §140 | Contenu GitHub relu sur e2e/recette ; commits §139 ; CMD statiquement contrôlé pour tous les labels goto. |
