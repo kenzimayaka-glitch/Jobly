@@ -58,9 +58,16 @@ async function readFixtures() {
   const document = JSON.parse(await readFile(FIXTURE_PATH, "utf8"));
   assert.equal(document.environment, "JOBLY-E2E", "Fixtures non JOBLY-E2E refusées.");
   assert.equal(document.projectRef, PROJECT_REF, "ProjectRef des fixtures incorrect.");
-  const account = document.accounts?.find((item) => item?.key === "talent" && item?.role === "TALENT");
+  const account = document.accounts?.find((item) =>
+    item?.key === "talent-multidevice" &&
+    item?.role === "TALENT" &&
+    item?.purpose === "MULTI_DEVICE_REVOCATION"
+  ) || document.accounts?.find((item) => item?.key === "talent" && item?.role === "TALENT");
   assert.ok(account, "Fixture Talent E2E absente.");
   assert.ok(account.username && account.password && account.authUserId, "Fixture Talent incomplète.");
+  if (account.key === "talent-multidevice") {
+    assert.equal(account.purpose, "MULTI_DEVICE_REVOCATION", "Fixture Talent multi-appareils non isolée.");
+  }
   return account;
 }
 
@@ -407,6 +414,8 @@ async function authorizedStatus(route, token, deviceId, deviceLabel) {
 
 async function scenarioMultiDevice(browser, account) {
   const result = REPORT.scenarios.MULTI_DEVICE_REVOCATION;
+  result.fixtureKey = account.key || "talent";
+  result.fixturePurpose = account.purpose || "SHARED_TALENT_FALLBACK";
   const runId = randomUUID().replace(/-/g, "").slice(0, 12);
   const deviceA = "e2e-lot1-auth-" + runId + "-a";
   const deviceB = "e2e-lot1-auth-" + runId + "-b";
