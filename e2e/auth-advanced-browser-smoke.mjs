@@ -422,16 +422,46 @@ async function loginDeviceContext(browser, account, deviceId, deviceLabel) {
   }, undefined, { timeout: 15000 });
   const token = await browserToken(page);
   if (!token) throw new Error("Session navigateur absente après connexion fixture.");
-  const deviceResponsePromise = page.waitForResponse((response) =>
-    responsePath(response) === "/api/device-sessions" && response.request().method() === "GET",
-    { timeout: 25000 }
-  );
-  await page.goto(BASE_URL + "/settings", { waitUntil: "domcontentloaded", timeout: 30000 });
-  const deviceResponse = await deviceResponsePromise;
-  const devicePayload = await deviceResponse.json().catch(() => ({}));
-  if (deviceResponse.status() !== 200 || !Array.isArray(devicePayload.devices)) {
-    throw new Error("Liste des appareils non accessible (HTTP " + deviceResponse.status() + ").");
+  // Probe the authenticated endpoint directly with the token and the exact
+  // device identity. Do not bind this check to a page navigation event: settings
+  // can issue overlapping GETs while React hydrates, and waitForResponse may
+  // resolve against an unrelated in-flight request.
+  const deviceResponse = await fetch(new URL("/api/device-sessions", BASE_URL), {
+    method: "GET",
+    headers: {
+      Authorization: "Bearer " + token,
+      "x-jobly-device-id": deviceId,
+      "x-jobly-device-name": deviceLabel,
+      "Cache-Control": "no-store"
+    },
+    signal: AbortSignal.timeout(25000),
+    cache: "no-store"
+  });
+  const deviceResponseText = await deviceResponse.text();
+  let devicePayload = {};
+  try { devicePayload = JSON.parse(deviceResponseText); } catch {}
+  const devicePayloadKeys = devicePayload && typeof devicePayload === "object"
+    ? Object.keys(devicePayload).sort().join(",")
+    : typeof devicePayload;
+  if (deviceResponse.status !== 200 || !Array.isArray(devicePayload.devices)) {
+    throw new Error(
+      "Liste des appareils invalide (HTTP " + deviceResponse.status +
+      "; content-type=" + (deviceResponse.headers.get("content-type") || "absent") +
+      "; payload-keys=" + (devicePayloadKeys || "none") + ")."
+    );
   }
+  const currentDevice = devicePayload.devices.find((device) =>
+    device.deviceId === deviceId && device.current === true && device.active === true
+  );
+  if (!currentDevice) {
+    throw new Error("La session de test " + deviceLabel + " n'est pas marquée actuelle et active dans l'API appareils.");
+  }
+
+  await page.goto(BASE_URL + "/settings", { waitUntil: "domcontentloaded", timeout: 30000 });
+  await page.getByRole("heading", { name: "Mes appareils connectés", exact: true })
+    .waitFor({ state: "visible", timeout: 20000 });
+  await page.getByText(deviceLabel, { exact: true })
+    .waitFor({ state: "visible", timeout: 20000 });
   return { context, page, token, devicePayload, observations };
 }
 
