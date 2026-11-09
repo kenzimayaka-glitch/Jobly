@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.160 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.161 — 9 novembre 2026
 >
 > **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée avec clic réel sur le bouton de déconnexion PASS 29/29 (§128), auth régression PASS 29/29, TypeScript PASS et build/serveur PASS sur le run du 9 novembre à 06:56–06:57Z. Les trois rôles Talent, Recruteur et Partenaire ont chacun fermé leur session locale depuis `/settings`, puis obtenu HTTP 401 sur `/api/profile`. La migration de session 20261109015439 reste limitée à JOBLY-E2E. La recette Auth avancée est définie au §129 ; aucun runner dédié à ces scénarios n'est encore disponible. **La porte UI authentifiée de LOT-01 est maintenant PASS ; LOT-01 global reste PARTIAL** jusqu'à validation runtime ou décision explicite de périmètre pour OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -7324,3 +7324,22 @@ La recette qui reste après le PASS 29/29 du §128 se limite aux scénarios avan
 **Interprétation des résultats :** les trois scénarios simulés valident les interactions UI et le contrat côté client, pas la délivrabilité d'un e-mail, l'émission réelle d'un OTP ou le consentement Google. La révocation multi-appareils est le seul scénario de cette campagne qui modifie réellement des métadonnées Auth de la base JOBLY-E2E. Pour déclarer LOT-01 global entièrement vert au sens strict fournisseur, une recette complémentaire avec fournisseur/messagerie/OAuth de test contrôlés ou une décision formelle acceptant les simulations comme critère est nécessaire.
 
 **Harnais :** au moment de cette mise à jour, aucun runner dédié Auth avancée n'est présent dans le dépôt. Aucune commande d'exécution ne doit être inventée ni remplacée par le runner général déjà PASS 29/29. Livrable préalable : script Playwright dédié, mocks réseau vérifiés, préflight multi-appareils, tests du harnais, typecheck/build et rapport JSON expurgé. Pas de merge `main), pas de déploiement et aucun accès à JOBLY-PROD.
+
+
+---
+
+## 132. Transmission du feedback opérateur Auth avancée via Notepad
+
+**Mise à jour : 9 novembre 2026 — version 2.161.**
+
+Après exécution de la campagne LOT-01 Auth avancée, la commande opérateur ci-dessous rassemble dans un seul fichier les rapports `.json`, journaux `.log` et feedbacks `.txt` écrits dans `artifacts/e2e` pendant les six dernières heures, sans présumer du nom de chaque rapport. Elle exclut le fichier de synthèse lui-même, masque les valeurs usuelles de secrets/tokens, puis ouvre le fichier dans Notepad.
+
+Commande CMD à exécuter depuis Windows :
+
+```cmd
+cd /d C:\Users\ASUS\Jobly-e2e-recette-v3 && powershell -NoProfile -ExecutionPolicy Bypass -Command "$dir='artifacts\e2e'; $out=Join-Path $dir 'feedback-lot1-auth-avancee.txt'; if(!(Test-Path -LiteralPath $dir)){Write-Host 'Dossier artifacts\e2e introuvable.'; exit 2}; $files=Get-ChildItem -LiteralPath $dir -File | Where-Object {$_.LastWriteTime -ge (Get-Date).AddHours(-6) -and $_.Name -ne 'feedback-lot1-auth-avancee.txt' -and $_.Extension -in '.json','.log','.txt'} | Sort-Object LastWriteTime; $sb=New-Object System.Text.StringBuilder; [void]$sb.AppendLine('JOBLY — FEEDBACK LOT-01 AUTH AVANCÉE'); [void]$sb.AppendLine(('Généré le : '+(Get-Date -Format o))); [void]$sb.AppendLine(('Fichiers trouvés : '+$files.Count)); foreach($f in $files){[void]$sb.AppendLine('');[void]$sb.AppendLine(('===== '+$f.Name+' | '+$f.LastWriteTime.ToString('o')+' =====')); $raw=[IO.File]::ReadAllText($f.FullName); $raw=[regex]::Replace($raw,'(?i)(authorization\s*[:=]\s*bearer\s+)[A-Za-z0-9._~+/-]+=*','$1[MASQUÉ]'); $raw=[regex]::Replace($raw,'(?i)("?(?:password|access_token|refresh_token|api[_-]?key|secret)"?\s*[:=]\s*")[^"]*(")','$1[MASQUÉ]$2'); $raw=[regex]::Replace($raw,'sb_secret_[A-Za-z0-9_-]+','[SECRET_MASQUÉE]'); $raw=[regex]::Replace($raw,'eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+','[JWT_MASQUÉ]'); [void]$sb.AppendLine($raw)}; if($files.Count -eq 0){[void]$sb.AppendLine('Aucun rapport JSON, LOG ou TXT récent trouvé dans artifacts\e2e. Vérifier le dossier de sortie de la recette.')}; [IO.File]::WriteAllText((Join-Path (Get-Location) $out),$sb.ToString(),(New-Object System.Text.UTF8Encoding($true))); Start-Process notepad.exe -ArgumentList (Join-Path (Get-Location) $out); Write-Host ('Feedback ouvert : '+(Join-Path (Get-Location) $out))"
+```
+
+Fichier produit : `C:\Users\ASUS\Jobly-e2e-recette-v3\artifacts\e2e\feedback-lot1-auth-avancee.txt`.
+
+Après vérification dans Notepad, transmettre ce fichier ou copier son contenu dans le retour de recette. Ne jamais envoyer `.env`, `.e2e-fixtures.json`, clés privées, mots de passe ou jetons. La synthèse de feedback ne constitue pas à elle seule un PASS : les rapports source restent les preuves de référence.
