@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const home = read("app/page.tsx");
+const accountSettingsPage = read("app/settings/page.tsx");
 const auth = read("lib/auth.ts");
 const loginRoute = read("app/api/auth/username/login/route.ts");
 const completeSignup = read("app/api/auth/complete-signup/route.ts");
@@ -382,4 +383,11 @@ test("logout and remember-me expiry terminate only the current Supabase session"
   assert.doesNotMatch(sessionManager, /auth\.signOut\(\s*\)/);
   assert.doesNotMatch(accountSettings, /auth\.signOut\(\s*\)/);
   assert.doesNotMatch(supabaseClient, /instance\.auth\.signOut\(\s*\)/);
+});
+
+test("shared account settings exposes a visible current-device logout for every role", () => {
+  assert.match(accountSettingsPage, /auth\.signOut\(\{\s*scope:\s*"local"\s*\}\)/);
+  assert.match(accountSettingsPage, /aria-label="Se déconnecter de Jobly"/);
+  assert.match(accountSettingsPage, /router\.replace\("\/"\)/);
+  assert.match(accountSettingsPage, /data-testid="jobly-logout-button"/);
 });

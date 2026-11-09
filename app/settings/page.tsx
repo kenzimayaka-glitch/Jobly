@@ -2,6 +2,7 @@
 
 import JSZip from "jszip";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 import { saveOfflineDocument, saveOfflineSnapshot, type OfflineSnapshot } from "@/lib/offline-store";
 
@@ -65,6 +66,8 @@ function downloadBlob(blob: Blob, filename: string) {
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
   const [passphrase, setPassphrase] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState<"offline" | "backup" | "restore" | "devices" | "">("");
@@ -295,6 +298,24 @@ export default function SettingsPage() {
     }
   }
 
+  async function logout() {
+    if (signingOut) return;
+    setSigningOut(true);
+    setNotice(null);
+    try {
+      const { error } = await getSupabaseClient().auth.signOut({ scope: "local" });
+      if (error) throw error;
+      window.localStorage.removeItem("jobly:gmail-connection");
+      router.replace("/");
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Déconnexion impossible.",
+      });
+      setSigningOut(false);
+    }
+  }
+
   const activeDevices = devices.filter((device) => device.active);
 
   return (
@@ -379,6 +400,21 @@ export default function SettingsPage() {
             {devices.length === 0 ? <p className="text-sm text-slate-500">Connectez-vous à Internet pour afficher vos appareils.</p> : null}
           </div>
           <p className="mt-4 text-xs leading-5 text-slate-500">Un appareil hors connexion ne peut pas recevoir instantanément une révocation. Dès qu'il retrouve Internet, les API Jobly vérifient sa session et le déconnectent si elle a été remplacée.</p>
+        </section>
+
+        <section aria-labelledby="jobly-session-title" className="mt-4 rounded-3xl border border-red-200 bg-white p-5 shadow-sm">
+          <h2 id="jobly-session-title" className="text-lg font-black">Session Jobly</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Fermez la session de Jobly sur cet appareil. Les autres appareils restent gérés séparément dans la liste ci-dessus.</p>
+          <button
+            type="button"
+            data-testid="jobly-logout-button"
+            aria-label="Se déconnecter de Jobly"
+            onClick={() => void logout()}
+            disabled={signingOut}
+            className="mt-4 h-11 w-full rounded-xl bg-red-600 px-4 text-sm font-extrabold text-white disabled:opacity-50"
+          >
+            {signingOut ? "Déconnexion…" : "Se déconnecter de Jobly"}
+          </button>
         </section>
 
         <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-950">

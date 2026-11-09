@@ -73,12 +73,12 @@ const report = {
   externalActions: false,
   remoteBusinessDataMayBeModified: false,
   remoteAuthDeviceStateMayBeModified: true,
-  logoutMethod: "isolated browser auth-storage teardown; no business profile data changed",
+  logoutMethod: "visible /settings sign-out button click; local Supabase session signOut; anonymous API 401 verified",
   limitations: [
     "The real username/password form is submitted for the three existing synthetic JOBLY-E2E fixtures.",
     "Authenticated route checks are GET-only. No offer, application, CV, payment, preference, profile or KYC mutation is performed.",
     "Authenticated API requests may refresh/register the current synthetic device-session metadata as part of normal Jobly authentication.",
-    "Session teardown is validated by clearing only the isolated browser context auth storage and confirming anonymous API denial; visible logout-button clicks are not covered by this smoke.",
+    "The visible sign-out button on /settings is clicked for each role; local Supabase signOut is followed by an anonymous API 401 check.",
     "No OTP, Google OAuth, password-reset, payment, email or SMS provider flow is submitted.",
   ],
 };
@@ -280,38 +280,37 @@ async function runRole(browser, spec, account, chromium) {
       );
     }
 
-    // Supabase's browser session is local to this isolated context. Remove only
-    // this context's auth storage, reload the same route and confirm it is
-    // treated as anonymous. No account/profile/application rows are changed.
-    const storage = await page.evaluate(() => {
-      let removed = 0;
-      for (const target of [window.localStorage, window.sessionStorage]) {
-        const keys = [];
-        for (let index = 0; index < target.length; index += 1) {
-          const key = target.key(index) || "";
-          if (key.startsWith("sb-") && key.includes("auth-token")) keys.push(key);
-        }
-        for (const key of keys) {
-          target.removeItem(key);
-          removed += 1;
-        }
-      }
-      localStorage.setItem("jobly-remember-me", "0");
-      localStorage.removeItem("jobly-remember-until");
-      return removed;
+    // Exercise the actual user-facing logout control rather than deleting
+    // browser storage directly. This is a local-scope logout in the isolated
+    // JOBLY-E2E fixture context; no business records are changed.
+    await page.goto(new URL("/settings", BASE_URL).toString(), {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
     });
-    await page.reload({ waitUntil: "domcontentloaded", timeout: 30000 });
+    const logoutButton = page.getByRole("button", {
+      name: "Se déconnecter de Jobly",
+      exact: true,
+    });
+    await logoutButton.waitFor({ state: "visible", timeout: 20000 });
+    await logoutButton.click();
+    await page.waitForURL((url) => url.pathname === "/", { timeout: 20000 });
     const anonymousStatus = await page.evaluate(async () => {
-      const response = await fetch("/api/profile", { method: "GET", cache: "no-store", credentials: "include" });
+      const response = await fetch("/api/profile", {
+        method: "GET",
+        cache: "no-store",
+        credentials: "include",
+      });
       return response.status;
     });
-    const teardownPassed = storage > 0 && anonymousStatus === 401;
+    const teardownPassed = anonymousStatus === 401 && new URL(page.url()).pathname === "/";
     record(
       spec.role,
       spec.role + "-SESSION-TEARDOWN",
       teardownPassed ? "PASS" : "FAIL",
       anonymousStatus,
-      teardownPassed ? "Stockage Auth isolé supprimé ; la route protégée redevient anonyme." : "La session du contexte isolé n'a pas été neutralisée comme attendu.",
+      teardownPassed
+        ? "Bouton visible cliqué ; session locale fermée et API protégée revenue à 401."
+        : "Le bouton visible n'a pas fermé la session ou l'API n'est pas redevenue anonyme.",
     );
     report.roles[spec.role] = report.results.filter((item) => item.role === spec.role).every((item) => item.status === "PASS")
       ? "PASS"
