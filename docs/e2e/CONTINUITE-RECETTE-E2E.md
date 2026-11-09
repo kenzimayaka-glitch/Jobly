@@ -7303,5 +7303,5 @@ Au contrôle du 9 novembre 2026, le dépôt ne contient **pas encore** de runner
 - JOBLY-E2E uniquement ; référence attendue `ofqqrryamslxoqkklraw`.
 - OTP, Google et récupération : simulations réseau locales uniquement ; aucun fournisseur externe.
 - Multi-appareils : seules les sessions A/B créées par le run sont éligibles ; jamais de révocation préexistante.
-- Aucun changement de mot de passe, création de compte, reset/provisionneur, donnée métier, merge `main) ou déploiement.
+- Aucun changement de mot de passe, création de compte, reset/provisionneur, donnée métier, merge `main` ou déploiement.
 - Conserver séparément les statuts des quatre scénarios ; ne pas agréger des PASS de runs distincts pour déclarer LOT-01 global PASS.
