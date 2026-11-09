@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.162 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.163 — 9 novembre 2026
 >
 > **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée avec clic réel sur le bouton de déconnexion PASS 29/29 (§128), auth régression PASS 29/29, TypeScript PASS et build/serveur PASS sur le run du 9 novembre à 06:56–06:57Z. Les trois rôles Talent, Recruteur et Partenaire ont chacun fermé leur session locale depuis `/settings`, puis obtenu HTTP 401 sur `/api/profile`. La migration de session 20261109015439 reste limitée à JOBLY-E2E. La recette Auth avancée est définie au §129 ; aucun runner dédié à ces scénarios n'est encore disponible. **La porte UI authentifiée de LOT-01 est maintenant PASS ; LOT-01 global reste PARTIAL** jusqu'à validation runtime ou décision explicite de périmètre pour OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -7343,3 +7343,41 @@ cd /d C:\Users\ASUS\Jobly-e2e-recette-v3 && powershell -NoProfile -ExecutionPoli
 Fichier produit : `C:\Users\ASUS\Jobly-e2e-recette-v3\artifacts\e2e\feedback-lot1-auth-avancee.txt`.
 
 Après vérification dans Notepad, transmettre ce fichier ou copier son contenu dans le retour de recette. Ne jamais envoyer `.env`, `.e2e-fixtures.json`, clés privées, mots de passe ou jetons. La synthèse de feedback ne constitue pas à elle seule un PASS : les rapports source restent les preuves de référence.
+
+
+---
+
+## 133. Analyse du feedback transmis — LOT-01 Auth avancée non démontrée
+
+**Mise à jour : 9 novembre 2026 — version 2.163.** Feedback opérateur reçu dans `Texte collé(9).txt`, généré le `2026-11-09T08:30:16.7901340+01:00`.
+
+### 133.1 Contenu et chronologie
+
+Le fichier de feedback agrège sept fichiers du dossier `artifacts/e2e`. Il contient :
+- un ancien rapport de retest navigateur, dont le run du `2026-11-09T01:25:12Z` était FAIL 12/29 (12 PASS, 17 FAIL) ;
+- les journaux de contrôles statiques et TypeScript du run plus récent ;
+- le rapport navigateur actualisé `lot1-auth-role-ui-smoke.json`, créé à `2026-11-09T06:56:26Z), qui est PASS 29/29 ;
+- le diagnostic processus, le résumé runner et le journal de processus correspondants, qui confirment code de sortie 0 et rapport nouvellement généré.
+
+L'ancien échec porte des réponses HTTP 500 sur les API propres aux rôles et refus inter-rôles, et une ancienne méthode de teardown par suppression du stockage Auth. Il précède le résultat mis à jour et ne remplace pas ce dernier. Le run actualisé confirme la déconnexion par clic du bouton visible `/settings` pour Talent, Recruteur et Partenaire, puis HTTP 401.
+
+### 133.2 Périmètre absent du feedback reçu
+
+Aucun des sept fichiers agrégés ne fournit de résultat nommé ou structuré pour :
+- OTP e-mail simulé ;
+- Google OAuth simulé ;
+- récupération du mot de passe simulée ;
+- révocation multi-appareils avec deux contextes et vérification 401/200.
+
+Le fichier transmis est donc une restitution du smoke standard de rôles, pas le feedback d'exécution des quatre scénarios Auth avancée du §131. Ne pas interpréter la présence des tests unitaires Auth (29/29) comme une exécution runtime de ces scénarios.
+
+### 133.3 Statut
+
+- Porte UI authentifiée standard : PASS 29/29 (§128).
+- TypeScript, tests de régression Auth et build rattachés au run précédent : PASS (§128.3).
+- Campagne Auth avancée OTP/Google/récupération/multi-appareils : NOT RUN / NON PROUVÉE par le fichier reçu.
+- LOT-01 global : PARTIAL / NON CLOS.
+
+### 133.4 Suite opérateur
+
+Conserver le rapport ancien FAIL en historique, sans l'additionner au résultat PASS récent. La prochaine preuve attendue est un rapport dédié à la campagne Auth avancée, avec un bloc et un statut distincts pour chacun des quatre scénarios. Le feedback agrégé du §132 ne remplace pas ce rapport. Les garde-fous JOBLY-E2E uniquement, aucune action fournisseur externe non autorisée, aucune révocation de session préexistante, aucun merge `main` et aucun déploiement restent en vigueur.
