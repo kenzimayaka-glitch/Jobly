@@ -165,6 +165,9 @@ async function main() {
   )) {
     throw new Error("RESERVED_AUTH_EMAIL_OWNED_BY_NON_MATCHING_FIXTURE");
   }
+  if (localDedicated && authUser && localDedicated.authUserId !== authUser.id) {
+    throw new Error("LOCAL_AND_REMOTE_DEDICATED_FIXTURE_IDS_DO_NOT_MATCH");
+  }
 
   const byAuthId = authUser
     ? await one(admin, "User", "authUserId", authUser.id, "id,authUserId,email,phone,role,username")
@@ -198,7 +201,15 @@ async function main() {
     throw new Error("DEDICATED_FIXTURE_ALREADY_HAS_MORE_THAN_ONE_ACTIVE_DEVICE; NO_PASSWORD_OR_SESSION_CHANGE");
   }
 
-  const password = "JlyE2E!" + randomBytes(36).toString("base64url") + "aA9";
+  const reuseStoredPassword = Boolean(
+    authUser &&
+    localDedicated?.authUserId === authUser.id &&
+    typeof localDedicated.password === "string" &&
+    localDedicated.password.length >= 12
+  );
+  const password = reuseStoredPassword
+    ? localDedicated.password
+    : "JlyE2E!" + randomBytes(36).toString("base64url") + "aA9";
   let authUserId = authUser?.id || "";
   let createdAuthUser = false;
   let createdPublicUser = false;
@@ -206,26 +217,30 @@ async function main() {
 
   try {
     if (authUser) {
-      const { data, error } = await admin.auth.admin.updateUserById(authUser.id, {
-        password,
-        email_confirm: true,
-        app_metadata: {
-          ...authUser.app_metadata,
-          e2e_fixture: true,
-          e2e_role: "TALENT",
-          e2e_purpose: PURPOSE,
-        },
-        user_metadata: {
-          ...authUser.user_metadata,
-          first_name: FIXTURE.firstName,
-          last_name: FIXTURE.lastName,
-          full_name: FIXTURE.displayName,
-          e2e_fixture: true,
-          e2e_purpose: PURPOSE,
-        },
-      });
-      if (error || !data?.user?.id) throw new Error("AUTH_FIXTURE_PASSWORD_REFRESH_FAILED");
-      authUserId = data.user.id;
+      if (reuseStoredPassword) {
+        authUserId = authUser.id;
+      } else {
+        const { data, error } = await admin.auth.admin.updateUserById(authUser.id, {
+          password,
+          email_confirm: true,
+          app_metadata: {
+            ...authUser.app_metadata,
+            e2e_fixture: true,
+            e2e_role: "TALENT",
+            e2e_purpose: PURPOSE,
+          },
+          user_metadata: {
+            ...authUser.user_metadata,
+            first_name: FIXTURE.firstName,
+            last_name: FIXTURE.lastName,
+            full_name: FIXTURE.displayName,
+            e2e_fixture: true,
+            e2e_purpose: PURPOSE,
+          },
+        });
+        if (error || !data?.user?.id) throw new Error("AUTH_FIXTURE_PASSWORD_REFRESH_FAILED");
+        authUserId = data.user.id;
+      }
     } else {
       const { data, error } = await admin.auth.admin.createUser({
         email: FIXTURE.email,
@@ -339,6 +354,7 @@ async function main() {
       authUserId,
       userId: internalUserId,
       authIdentityCreated: createdAuthUser,
+      authPasswordRotated: Boolean(authUser && !reuseStoredPassword),
       publicUserCreated: createdPublicUser,
       activeDevicesBeforeProvisioning: activeBefore,
       activeDevicesAfterProvisioning: activeAfterProvision,
