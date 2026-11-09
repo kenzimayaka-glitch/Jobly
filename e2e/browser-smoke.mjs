@@ -36,9 +36,10 @@ await mkdir(evidenceDir, { recursive: true });
 const results = [];
 const pageErrors = [];
 const homeStatsResponses = [];
-const browser = await chromium.launch({ headless: true });
+let browser = null;
 
 try {
+  browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
     reducedMotion: "reduce",
@@ -242,5 +243,5 @@ try {
   await writeFile(path.join(evidenceDir, "failure.txt"), error instanceof Error ? error.stack || error.message : String(error));
   throw error;
 } finally {
-  await browser.close();
+  await browser?.close().catch(() => undefined);
 }
