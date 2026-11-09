@@ -403,6 +403,10 @@ test("LOT-01 advanced auth browser campaign isolates provider flows and verifies
   assert.match(authAdvancedSmoke, /blockedExternalRequests/);
   assert.match(authAdvancedSmoke, /unexpectedSupabaseRequests/);
   assert.match(authAdvancedSmoke, /GOOGLE_PROVIDER_REDIRECT_BLOCKED/);
+  assert.match(authAdvancedSmoke, /function hasBlockedGoogleNavigation/);
+  assert.match(authAdvancedSmoke, /function waitForBlockedGoogleNavigation/);
+  assert.match(authAdvancedSmoke, /click\(\{ noWaitAfter: true \}\)/);
+  assert.doesNotMatch(authAdvancedSmoke, /waitForEvent\("requestfailed"/);
   assert.match(authAdvancedSmoke, /https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth/);
   assert.match(authAdvancedSmoke, /status: 302/);
   assert.match(authAdvancedSmoke, /calls\.redirectStatus === 302/);
