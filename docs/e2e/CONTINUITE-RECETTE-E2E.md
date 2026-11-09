@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.152 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.153 — 9 novembre 2026
 >
 > **Dernière preuve LOT-01 :** smoke API authentifié PASS 40/40 (§§107/109), puis smoke navigateur public/anonyme PASS 14/14 (§115). Smoke navigateur authentifié exécuté le 9 novembre 2026 à 01:25:12Z : 29 contrôles, 12 PASS et 17 FAIL HTTP 500. Les trois connexions, rôles signés et retours 401 étaient PASS. Les journaux Postgres de JOBLY-E2E ont confirmé exactement 17 erreurs SQLSTATE 23505 sur la contrainte UserDeviceSession_authSessionId_key. La fonction d'enregistrement a été corrigée et la migration 20261109015439 appliquée uniquement à JOBLY-E2E. Le test SQL d'idempotence est PASS pour TALENT/RECRUITER/PARTNER ; la relance navigateur ciblée reste à exécuter (§118). LOT-01 reste PARTIAL.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -7012,3 +7012,55 @@ Ne pas refaire le run 29/29 sans changement pertinent. Le prochain travail est d
 ### 123.5 Garde-fous
 
 Le run est circonscrit à JOBLY-E2E. Aucun effet métier distant déclaré, aucun fournisseur externe appelé. Aucun accès JOBLY-PROD, aucun merge vers `main`, aucun déploiement. Les statuts antérieurs LOT-00, API 40/40 et UI publique 14/14 ne sont pas rejoués.
+
+
+---
+
+## 124. LOT-01 — ajout du bouton de déconnexion visible et smoke navigateur renforcé
+
+**Mise à jour : 9 novembre 2026 — version 2.153.**
+
+### 124.1 Défaut UI confirmé et correction de code
+
+L'audit du commit de recette a établi :
+- Talent et Partenaire utilisaient déjà `components/AccountSettings.tsx`, qui présentait « Se déconnecter de Jobly » ;
+- le Recruteur avait une page de paramètres distincte sans action de déconnexion ;
+- l'icône Paramètres du `PageHeader` ouvre la page commune `/settings`, utilisée pour les appareils et les sauvegardes, mais cette page ne proposait aucun bouton de sortie.
+
+Correctif commité sur `e2e/recette` :
+- `app/settings/page.tsx) : bouton accessible `Se déconnecter de Jobly`, fermeture de la session Supabase avec `scope: "local"`, retrait de l'indicateur Gmail local et retour à la page d'accueil ; la déconnexion de cet appareil n'annonce pas la révocation des autres appareils ;
+- `e2e/authenticated-browser-role-smoke.mjs) : le contrôle `SESSION-TEARDOWN` est maintenant un vrai parcours UI ; le navigateur ouvre `/settings`, clique le bouton visible, attend la route `/` puis appelle `GET /api/profile) et exige HTTP 401 ;
+- `scripts/authentication-flow-regression.test.mjs) : assertion statique du bouton, de la portée de déconnexion locale et de la redirection.
+
+Commit de code : `723282895fa09808c6aa1d97adeed54aea6bd756`. Aucun changement de base requis.
+
+### 124.2 Vérifications CI déjà obtenues
+
+Sur le commit `723282895fa09808c6aa1d97adeed54aea6bd756), le workflow GitHub Actions `Jobly CI — Typecheck & Build` (run 42574575154) a confirmé :
+- tests « Authentication and Google account selection regression tests » : SUCCESS ;
+- Typecheck : SUCCESS ;
+- build de production : encore IN_PROGRESS au dernier contrôle de cette entrée.
+
+Les workflows Architecture et J'IA Master avaient également conclu SUCCESS. Aucun résultat de build final n'est anticipé ici.
+
+### 124.3 Nouvelle recette navigateur requise
+
+Le précédent rapport 29/29 PASS (§123) validait la purge du stockage dans le contexte isolé, pas le bouton UI. Le nouveau smoke remplace ce contrôle, en conservant 29 vérifications au total. Il doit être exécuté sur le nouveau commit `723282895fa09808c6aa1d97adeed54aea6bd756), avec JOBLY-E2E uniquement. Le succès attendu est encore 29/29, mais le détail `SESSION-TEARDOWN) doit maintenant indiquer le clic du bouton visible, la redirection à `/` et HTTP 401.
+
+### 124.4 Commande opérateur — marqueurs PASS explicites et six Notepad
+
+Depuis CMD, exécuter en une seule fois :
+
+```cmd
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $wt='C:\Users\ASUS\Jobly-e2e-recette-v3'; $src='C:\Users\ASUS\Jobly'; $attemptStart=Get-Date; $exitCode=2; try { $st=(& git -C $wt status --porcelain --untracked-files=all | Out-String).Trim(); if($LASTEXITCODE -ne 0){throw 'Lecture du statut Git impossible.'}; if($st -eq '?? tsconfig.tsbuildinfo'){ $cache=Join-Path $wt 'tsconfig.tsbuildinfo'; if(!(Test-Path -LiteralPath $cache -PathType Leaf)){throw 'Cache TypeScript attendu absent ; arrêt.'}; Remove-Item -LiteralPath $cache -Force; Write-Host 'CACHE TYPECHECK PRECEDENT SUPPRIME'; } elseif($st){Write-Host $st;throw 'ARRET : autres modifications du worktree. Aucun fichier local écrasé.'}; $clean=(& git -C $wt status --porcelain --untracked-files=all | Out-String).Trim(); if($LASTEXITCODE -ne 0 -or $clean){Write-Host $clean;throw 'Worktree non propre ; arrêt.'}; Write-Host 'WORKTREE_CLEAN'; & git -C $wt fetch origin; if($LASTEXITCODE -ne 0){throw 'git fetch origin en échec.'}; & git -C $wt checkout --detach origin/e2e/recette; if($LASTEXITCODE -ne 0){throw 'Checkout distant en échec.'}; $head=& git -C $wt rev-parse HEAD; $remote=& git -C $wt rev-parse origin/e2e/recette; if($head -ne $remote){throw 'HEAD ne correspond pas à origin/e2e/recette.'}; if($head -ne '723282895fa09808c6aa1d97adeed54aea6bd756'){throw ('SHA inattendu : '+$head)}; Set-Location $wt; New-Item -ItemType Directory -Force -Path 'artifacts\e2e' | Out-Null; $syntaxLog='artifacts\e2e\role-browser-static-check.log'; $typeLog='artifacts\e2e\role-browser-typecheck.log'; & node --check 'e2e\run-authenticated-role-recipe.mjs' *> $syntaxLog; if($LASTEXITCODE -ne 0){throw 'Syntaxe du runner invalide.'}; Add-Content $syntaxLog 'PASS: node --check e2e/run-authenticated-role-recipe.mjs'; & node --check 'e2e\authenticated-browser-role-smoke.mjs' >> $syntaxLog 2>&1; if($LASTEXITCODE -ne 0){throw 'Syntaxe du smoke authentifié invalide.'}; Add-Content $syntaxLog 'PASS: node --check e2e/authenticated-browser-role-smoke.mjs'; & pnpm test:auth >> $syntaxLog 2>&1; if($LASTEXITCODE -ne 0){throw 'Tests de régression Auth en échec.'}; Add-Content $syntaxLog 'PASS: pnpm test:auth'; & pnpm exec tsc --noEmit --incremental false *> $typeLog; if($LASTEXITCODE -ne 0){throw 'Typecheck en échec : runner non lancé.'}; Add-Content $typeLog 'PASS: pnpm exec tsc --noEmit --incremental false'; $post=(& git status --porcelain --untracked-files=all | Out-String).Trim(); if($LASTEXITCODE -ne 0 -or $post){Write-Host $post;throw 'Les vérifications ont laissé des changements : runner non lancé.'}; Write-Host 'TYPECHECK_AND_AUTH_REGRESSION_PASS_WORKTREE_CLEAN'; & node 'e2e\run-authenticated-role-recipe.mjs' $src --role-browser-only; $exitCode=$LASTEXITCODE; Write-Host ('RUNNER_EXIT='+$exitCode) } catch { Write-Host ('ARRET : '+$_.Exception.Message); $exitCode=2 } finally { $reports=@('artifacts\e2e\role-browser-static-check.log','artifacts\e2e\role-browser-typecheck.log','artifacts\e2e\authenticated-role-runner-summary.json','artifacts\e2e\browser-role-smoke-diagnostic.json','artifacts\e2e\browser-role-smoke-process.log','artifacts\e2e\lot1-auth-role-ui-smoke.json'); foreach($f in $reports){$p=Join-Path $wt $f; if(Test-Path -LiteralPath $p -PathType Leaf){$i=Get-Item -LiteralPath $p; if($i.LastWriteTime -ge $attemptStart.AddSeconds(-2)){Start-Process -FilePath notepad.exe -ArgumentList ([char]34+$p+[char]34)}else{Write-Host ('ANCIEN RAPPORT NON OUVERT : '+$p)}}else{Write-Host ('RAPPORT NON GENERE : '+$p)}} }; exit $exitCode"
+```
+
+La commande vérifie strictement le SHA de la branche, n'exécute aucun reset/provisionneur et ouvre séparément six rapports du lancement courant. Les deux fichiers texte comporteront désormais des lignes `PASS` explicites ; le runner fait le build et le browser smoke, sans rejouer les 14 contrôles publics ni les 40 API.
+
+### 124.5 Authentification avancée — périmètre non encore clôturé
+
+Les parcours Google OAuth, OTP et récupération du mot de passe utilisent des fournisseurs externes (Google, e-mail ou SMS). Aucun flux fournisseur ne doit être déclenché pendant cette recette sans autorisation dédiée. Leurs contrats UI/callback ont des tests de régression statiques, mais ils ne sont pas démontrés en runtime dans JOBLY-E2E.
+
+La révocation multi-appareils dispose d'une interface et d'une API distinctes ; elle n'est pas prouvée par le test de déconnexion locale. Elle doit faire l'objet d'un scénario séparé avant qu'on puisse dire que toute l'authentification avancée est validée.
+
+**Statut LOT-01 : PARTIAL** jusqu'au nouveau browser smoke post-commit et à une décision formelle sur le périmètre avancé ou à l'exécution contrôlée de ces scénarios. Pas de merge `main), aucune action JOBLY-PROD, aucun déploiement.
