@@ -415,16 +415,20 @@ try {
       summary.remoteBusinessDataMayBeModified = roleReport.remoteBusinessDataMayBeModified === true;
       summary.remoteAuthDeviceStateMayBeModified = roleReport.remoteAuthDeviceStateMayBeModified === true;
       summary.remoteDataMayBeModified = summary.remoteBusinessDataMayBeModified || summary.remoteAuthDeviceStateMayBeModified;
-      summary.roleBrowserSmoke = failed > 0 || roleRun.exitCode !== 0
-        ? "FAIL"
-        : blocked > 0 || roleReport.status !== "PASS" || Object.values(roleReport.roles || {}).length !== 3
-          ? "PARTIAL"
-          : "PASS";
+      summary.roleBrowserSmoke = roleReport.status === "BLOCKED"
+        ? "BLOCKED"
+        : failed > 0 || roleReport.status === "FAIL" || roleRun.exitCode === 1
+          ? "FAIL"
+          : blocked > 0 || roleRun.exitCode !== 0 || roleReport.status !== "PASS" || Object.values(roleReport.roles || {}).length !== 3
+            ? "PARTIAL"
+            : "PASS";
       summary.status = summary.roleBrowserSmoke === "PASS"
         ? "PASS"
         : summary.roleBrowserSmoke === "FAIL"
           ? "FAIL"
-          : "PARTIAL";
+          : summary.roleBrowserSmoke === "BLOCKED"
+            ? "BLOCKED"
+            : "PARTIAL";
     }
     await writeFile(
       path.join(ROOT, "artifacts", "e2e", "browser-role-smoke-diagnostic.json"),
