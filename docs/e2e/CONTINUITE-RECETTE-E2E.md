@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.155 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.156 — 9 novembre 2026
 >
 > **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée post-migration PASS 29/29 (§123), build/serveur et test SQL d'idempotence PASS. La migration de session 20261109015439 est appliquée uniquement à JOBLY-E2E. Le commit 723282895fa09808c6aa1d97adeed54aea6bd756 ajoute le bouton de déconnexion visible à /settings et renforce le smoke pour cliquer ce bouton sur les trois rôles ; ce nouveau parcours UI reste à exécuter (§124.4). LOT-01 reste PARTIAL jusqu'à cette preuve et à la décision de périmètre Auth avancée.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -7090,3 +7090,50 @@ Les parcours Auth avancée ne sont pas silencieusement déclarés clos : OTP, Go
 Le document maître est mis à jour par des commits de continuité après le commit de code `723282895fa09808c6aa1d97adeed54aea6bd756). Par conséquent, après checkout de `origin/e2e/recette`, le HEAD courant est un descendant du commit de code et non nécessairement ce SHA exact.
 
 La commande §124.4 vérifie désormais que le commit de correction est un ancêtre du HEAD courant au moyen de `git merge-base --is-ancestor`. Elle accepte ainsi le dernier commit documentaire sans relâcher le contrôle que le code de déconnexion visible est bien présent. L'exécution doit toujours rester sur le HEAD distant propre de `e2e/recette).
+
+
+---
+
+## 127. Politique permanente de recette continue — tests proportionnés à chaque modification
+
+**Mise à jour : 9 novembre 2026 — version 2.156.**
+
+### 127.1 Principe
+
+Une modification de Jobly ne déclenche pas automatiquement la recette globale de tous les lots. La règle permanente est une recette continue, ciblée et cumulative, proportionnée au risque et à la surface d'impact de la modification. L'objectif est d'éviter les répétitions inutiles tout en protégeant les parcours déjà validés.
+
+### 127.2 Niveaux de validation
+
+**Niveau 1 — recette ciblée (par défaut).** Exécuter les tests unitaires, contrats, API, composants et parcours UI qui couvrent le changement, avec le typecheck/build lorsque le code ou les dépendances le justifient. Pour une modification de contenu purement éditoriale, vérifier uniquement la page, le responsive et l'affichage concernés.
+
+**Niveau 2 — régression liée à l'impact.** Ajouter les contrôles des modules consommateurs, rôles et surfaces partagées touchés. Une modification d'une API commune, de l'authentification, d'une session, d'un droit/RLS, d'une migration ou d'un helper partagé impose une régression sur tous les rôles et modules dépendants. Une régression ciblée doit vérifier les frontières inter-rôles lorsqu'elles peuvent être affectées.
+
+**Niveau 3 — recette globale.** Rejouer la matrice E2E de tous les lots applicables aux jalons majeurs : avant une livraison importante, une mise en production autorisée, une refonte transversale, une évolution majeure du schéma ou du socle de sécurité, ou lorsque les changements cumulés rendent les preuves précédentes non fiables. Les lots indépendants déjà validés ne sont pas rejoués sans motif de fraîcheur, de dépendance ou de changement pertinent.
+
+### 127.3 Matrice indicative d'impact
+
+| Modification | Validation minimale attendue |
+|---|---|
+| Texte, illustration ou style isolé | Page modifiée, responsive et régression visuelle locale |
+| Fonctionnalité Talent | Tests du parcours Talent, API et persistance concernées |
+| Fonctionnalité Recruteur | Tests du parcours Recruteur, API et persistance concernées |
+| Fonctionnalité Partenaire | Tests du parcours Partenaire, API et persistance concernées |
+| J’IA | Tests de la capacité modifiée, état conversationnel, permissions et connecteurs concernés |
+| Authentification, rôles ou sessions | Trois rôles, API protégées, refus inter-rôles, connexion et déconnexion |
+| API partagée, schéma SQL, migration, RLS/ACL | Tous les consommateurs et rôles dépendants, tests migration/permissions, non-régression |
+| Navigation, layout ou composant partagé | Parcours UI de tous les espaces qui le consomment |
+| Refonte transversale ou livraison majeure | Recette globale des lots affectés et gate final |
+
+### 127.4 Gestion des preuves et réutilisation
+
+- Ne pas relancer un test PASS si aucun changement pertinent n'affecte son périmètre et si sa preuve demeure valable pour le SHA, l'environnement et les dépendances considérés.
+- Chaque exécution doit enregistrer le SHA, le lot, le scénario, le projet de test, l'horodatage, le résultat, les journaux et les effets éventuels.
+- Les résultats de runs différents ne doivent pas être additionnés pour fabriquer artificiellement un PASS.
+- Une modification documentaire seule ne nécessite pas de recette applicative ; une modification du code de test ou du runner nécessite au minimum les contrôles du harnais et une exécution représentative.
+- En cas d'incertitude sur l'impact, élargir la régression au niveau suivant plutôt que relancer aveuglément toute la matrice.
+
+### 127.5 Garde-fous
+
+La politique ne modifie pas les restrictions d'environnement : JOBLY-E2E uniquement pour les recettes, aucune mutation JOBLY-PROD, aucun reset ou provisionnement automatique de fixtures, aucun merge vers `main) et aucun déploiement sans autorisation explicite et validation correspondante.
+
+Cette politique s'applique à toute modification future de Jobly et complète les critères de clôture de chaque lot. Elle n'autorise pas à clôturer LOT-01 sans les preuves et décisions encore requises au §124.
