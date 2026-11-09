@@ -1,8 +1,8 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.168 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.169 — 9 novembre 2026
 >
-> **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée avec clic réel sur le bouton de déconnexion PASS 29/29 (§128), auth régression PASS 29/29, TypeScript PASS et build/serveur PASS sur le run du 9 novembre à 06:56–06:57Z. Les trois rôles Talent, Recruteur et Partenaire ont chacun fermé leur session locale depuis `/settings`, puis obtenu HTTP 401 sur `/api/profile`. La migration de session 20261109015439 reste limitée à JOBLY-E2E. La recette Auth avancée est définie au §129 ; runner dédié ajouté en §135 ; exécution runtime en attente. **La porte UI authentifiée de LOT-01 est maintenant PASS ; LOT-01 global reste PARTIAL** jusqu'à validation runtime ou décision explicite de périmètre pour OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils.
+> **Dernières preuves LOT-01 :** API authentifiée PASS 40/40 (§§107/109), UI publique PASS 14/14 (§115), UI authentifiée avec clic réel sur le bouton de déconnexion PASS 29/29 (§128), auth régression PASS 29/29, TypeScript PASS et build/serveur PASS sur le run du 9 novembre à 06:56–06:57Z. Les trois rôles Talent, Recruteur et Partenaire ont chacun fermé leur session locale depuis `/settings`, puis obtenu HTTP 401 sur `/api/profile`. La migration de session 20261109015439 reste limitée à JOBLY-E2E. La recette Auth avancée définie au §129 et lancée via le runner du §135 a connu une première exécution runtime le 9 novembre à 08:08Z : OTP 3/4 contrôles PASS, Google authorize intercepté mais scénario en timeout, récupération 2/3 contrôles PASS, multi-appareils BLOCKED car 3 appareils préexistants actifs. Aucun état Auth distant n'a été modifié. Les causes des deux assertions trop larges et du timeout Google, puis le correctif du harnais, sont consignés aux §§138–139 ; le correctif n'a pas encore été rejoué en runtime. **La porte UI authentifiée de LOT-01 est maintenant PASS ; LOT-01 global reste PARTIAL** jusqu'à validation runtime ou décision explicite de périmètre pour OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
 > **Environnement :** JOBLY-E2E uniquement pour les migrations, lectures SQL et contrôles Storage ; aucun accès JOBLY-PROD et aucun déploiement. Les tests HTTP CI tournent sur un serveur Next.js de build local au runner avec configuration Supabase fictive, jamais sur le site de production.
 >
@@ -7494,3 +7494,80 @@ Un run précédent `42582188620` sur le commit de code `23541bdf216fe6f9268b5676
 L'échec récent est localisé à l'installation externe de Deno, avant TypeScript et Build ; le log ne signale pas une erreur de compilation du runner Auth avancée. Ne pas présenter la CI comme verte. La prochaine action utile est de relancer uniquement le job échoué quand le service de téléchargement Deno est disponible, puis confirmer TypeScript, Build production et smoke LOT-00. Aucun lancement runtime Auth avancée n'est certifié par ce statut CI.
 
 Aucun merge `main), aucun déploiement et aucun accès JOBLY-PROD.
+
+
+---
+
+## 138. Première exécution runtime Auth avancée — diagnostic du 9 novembre
+
+**Rapport primaire :** `artifacts/e2e/lot1-auth-advanced-smoke.json`  
+**Résumé runner :** `artifacts/e2e/authenticated-role-runner-summary.json`  
+**Diagnostic processus :** `artifacts/e2e/auth-advanced-smoke-diagnostic.json` et `artifacts/e2e/auth-advanced-process.log`  
+**Commit du code exécuté :** `2efc9f111c056b05ec499e5768188f35bf8be0ef`  
+**Exécution navigateur :** 9 novembre 2026, 08:08:08Z–08:08:40Z — JOBLY-E2E / `ofqqrryamslxoqkklraw` / serveur loopback `127.0.0.1:3217`.
+
+### 138.1 Verdict observé
+
+Le runner a produit ses rapports, avec `processExitCode=1`, `build=PASS`, `localServer=PASS` et `authAdvancedSmoke=FAIL`. Ce PASS build/serveur n'est pas un PASS de la campagne Auth.
+
+| Scénario | Résultat du rapport | Observations |
+|---|---|---|
+| OTP email simulé | **FAIL — 3/4 contrôles PASS** | `otp=2`, `verify=1`. Demande, code invalide et renvoi validés. Seul `OTP_NO_EXTERNAL_PROVIDER` échoue. |
+| Google OAuth simulé | **FAIL — 0 contrôle validé** | Une requête `/auth/v1/authorize` interceptée, avec `provider=google`, `prompt=select_account`, méthode GET ; attente Playwright terminée en `TimeoutError`. |
+| Récupération mot de passe simulée | **FAIL — 2/3 contrôles PASS** | `recover=1`, `verify=1`. Demande, confirmation et callback invalide passent. Seul `RECOVERY_NO_EXTERNAL_PROVIDER` échoue. |
+| Révocation multi-appareils | **BLOCKED** | Préflight en lecture seule : 3 appareils actifs préexistants ; deux emplacements libres non garantis. Aucune session de test créée, aucun bouton de révocation cliqué. |
+
+Le rapport confirme également : `pageErrors=0`, `unexpectedSupabaseRequests=[]`, `credentialsPrinted=false`, `tokensPrinted=false`, `externalActions=false`, `remoteBusinessDataMayBeModified=false`, `remoteAuthDeviceStateMayBeModified=false` et `preexistingDeviceRowsUnchanged=true`.
+
+### 138.2 Causes identifiées dans le code du runner
+
+- **OTP et récupération :** l'ancienne assertion traitait toute origine bloquée dont le nom contenait `google` ou `gmail` comme un appel fournisseur. Or le garde-réseau intercepte et bloque toutes les origines externes ; une origine de ressource statique suffit donc à faire échouer ce contrôle, même quand les appels Auth utiles (`/otp`, `/verify`, `/recover`) sont simulés et qu'aucun endpoint Supabase inattendu n'est observé. L'ancien rapport ne conservait pas le détail des origines bloquées, donc il ne permet pas d'identifier avec certitude l'hôte responsable.
+- **Google :** le runner renvoyait HTTP 400 JSON sur `/auth/v1/authorize`, qui est une navigation de document lancée par `signInWithOAuth`. Il attendait ensuite une alerte HTML dans la page ; cette attente est incompatible avec le chargement de la réponse JSON de navigation et provoquait le timeout. Ce résultat ne démontre pas un défaut du bouton Google ni du paramètre `prompt`.
+- **Multi-appareils :** le blocage est intentionnel et correct. Le préflight a trouvé 3 appareils actifs ; il a arrêté le scénario avant toute création de session. Ne pas supprimer ni révoquer une session préexistante pour rendre ce test artificiellement vert.
+
+---
+
+## 139. Correctif du harnais Auth avancée — simulation Google et diagnostics réseau
+
+**Mise à jour : 9 novembre 2026 — version 2.169.**  
+**Périmètre :** branche `e2e/recette` uniquement ; aucun changement métier Auth, aucune migration, aucune modification Supabase.
+
+### 139.1 Modifications apportées
+
+1. Le garde-réseau conserve maintenant, dans le rapport primaire, les requêtes hors origine bloquées avec seulement l'origine, le chemin, la méthode, le type de ressource et l'indicateur de navigation. Aucun query string, en-tête, jeton ou secret n'est conservé.
+2. Les critères OTP et récupération vérifient désormais l'absence d'endpoint Supabase non prévu. Ils ne confondent plus les ressources externes bloquées avec un envoi d'e-mail. Toutes les origines externes restent bloquées par le garde-réseau.
+3. Google OAuth est testé comme un parcours de redirection : l'appel UI réel génère `/auth/v1/authorize`, le runner simule une réponse HTTP 302 vers une URL Google synthétique portant un client et un callback `.invalid`, puis le garde-réseau bloque la navigation vers `accounts.google.com` avant tout accès réseau. Les assertions portent sur `provider=google`, `prompt=select_account`, HTTP 302, la navigation bloquée et le maintien de la page Jobly. Aucun vrai compte Google, secret client ou fournisseur externe n'est utilisé.
+4. Les tests statiques verrouillent les nouvelles assertions et interdisent le retour de l'ancien contrôle trop large sur les origines `google/gmail`.
+
+### 139.2 Commits Git vérifiables
+
+- Runner et diagnostics réseau : [`4b040cdd`](https://github.com/kenzimayaka-glitch/Jobly/commit/4b040cdd0f370ac58681ade7ee4c7381cc05c486).
+- Assertions de régression : [`71fec66f`](https://github.com/kenzimayaka-glitch/Jobly/commit/71fec66fb5e08f5dd1911a7938279509437dc666).
+- Assertion du statut 302 et preuve dans le rapport : [`1a7023a1`](https://github.com/kenzimayaka-glitch/Jobly/commit/1a7023a14b70427a7bab010a39181c4d161e8272).
+- Contrôle statique du statut 302 : [`9e9d91a8`](https://github.com/kenzimayaka-glitch/Jobly/commit/9e9d91a8e0d84e853497305be4e9baf82e36730f).
+
+### 139.3 Limites et prochaine preuve requise
+
+Le correctif est commité et son contenu distant a été relu. **Aucun nouveau lancement runtime n'a encore validé les trois simulations** ; aucun PASS n'est attribué à cette mise à jour. Le scénario multi-appareils reste conditionnel au préflight d'au plus un appareil actif préexistant. Tant que les 3 appareils actifs de la fixture ne changent pas naturellement ou qu'une fixture isolée autorisée n'existe pas, le statut de ce scénario doit rester BLOCKED.
+
+Relance ciblée depuis le worktree isolé, après récupération du dernier commit de `origin/e2e/recette` :
+
+```cmd
+cd /d C:\Users\ASUS\Jobly-e2e-recette-v3
+git fetch origin
+if errorlevel 1 exit /b 1
+git checkout --detach origin/e2e/recette
+if errorlevel 1 exit /b 1
+pnpm test:auth
+if errorlevel 1 exit /b 1
+pnpm exec tsc --noEmit --incremental false
+if errorlevel 1 exit /b 1
+node e2e\run-authenticated-role-recipe.mjs C:\Users\ASUS\Jobly --auth-advanced-only
+notepad artifacts\e2e\lot1-auth-advanced-smoke.json
+notepad artifacts\e2e\authenticated-role-runner-summary.json
+notepad artifacts\e2e\auth-advanced-smoke-diagnostic.json
+notepad artifacts\e2e\auth-advanced-process.log
+pause
+```
+
+Après cette correction, les critères de clôture restent : OTP PASS, Google OAuth PASS, récupération PASS, préservation des sessions préexistantes démontrée ; multi-appareils soit PASS depuis une fixture conforme, soit BLOCKED explicitement accepté comme limite de test. LOT-01 reste PARTIAL jusque-là. `main` demeure inchangé ; aucun merge, aucun déploiement, aucun accès JOBLY-PROD.
