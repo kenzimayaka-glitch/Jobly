@@ -100,7 +100,7 @@ async function installNetworkGuard(context, authHandler = null, allowBrowserAuth
 }
 
 async function openHome(browser, authHandler) {
-  const context = await browser.newContext({ viewport: { width: 1365, height: 900 }, locale: "fr-FR", reducedMotion: "reduce" });
+  const context = await browser.newContext({ viewport: { width: 1365, height: 900 }, locale: "fr-FR", reducedMotion: "reduce", serviceWorkers: "block" });
   const observations = await installNetworkGuard(context, authHandler, false);
   const page = await context.newPage();
   page.on("pageerror", (error) => REPORT.pageErrors.push(error?.name || "PageError"));
@@ -190,15 +190,25 @@ async function waitForBlockedGoogleNavigation(observations, timeoutMs = 15000) {
 
 async function scenarioGoogle(browser) {
   const result = REPORT.scenarios.GOOGLE_OAUTH_SIMULATION;
-  const calls = { authorize: 0, provider: null, prompt: null, method: null, redirectStatus: null };
+  const calls = { authorize: 0, provider: null, prompt: null, method: null, simulatedResponseStatus: null, redirectMechanism: null };
   const handler = async (route, url) => {
     if (url.pathname === "/auth/v1/authorize") {
       calls.authorize += 1;
       calls.provider = url.searchParams.get("provider");
       calls.prompt = url.searchParams.get("prompt");
       calls.method = route.request().method();
-      calls.redirectStatus = 302;
-      await route.fulfill({ status: 302, headers: { Location: GOOGLE_E2E_REDIRECT } });
+      // Do not synthesize a 3xx with route.fulfill(): Playwright follows redirects
+      // outside the route chain, so the external hop cannot be intercepted there.
+      // Serve local HTML that attempts navigation; the context-wide route records
+      // and aborts accounts.google.com before any external network access.
+      calls.simulatedResponseStatus = 200;
+      calls.redirectMechanism = "local-html-location-replace";
+      const redirectScript = "window.location.replace(" + JSON.stringify(GOOGLE_E2E_REDIRECT) + ");";
+      await route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: "<!doctype html><html><head><meta charset=\"utf-8\"></head><body><script>" + redirectScript + "</script></body></html>"
+      });
       return true;
     }
     return false;
@@ -212,17 +222,17 @@ async function scenarioGoogle(browser) {
     // On vérifie sa trace d'interception, sans dépendre de requestfailed sur la page principale.
     await opened.page.getByRole("button", { name: /Continuer avec Google/i }).click({ noWaitAfter: true });
     const blockedProviderNavigation = await waitForBlockedGoogleNavigation(opened.observations);
-    check(result, "GOOGLE_AUTHORIZE_INTERCEPTED", calls.authorize === 1 && calls.provider === "google" && calls.method === "GET" && calls.redirectStatus === 302, "L'action UI a émis une navigation authorize Google simulée par HTTP 302.");
+    check(result, "GOOGLE_AUTHORIZE_INTERCEPTED", calls.authorize === 1 && calls.provider === "google" && calls.method === "GET" && calls.simulatedResponseStatus === 200 && calls.redirectMechanism === "local-html-location-replace", "L'action UI a émis une navigation authorize Google simulée par HTTP 302.");
     check(result, "GOOGLE_SELECT_ACCOUNT_PARAMETER", calls.prompt === "select_account", "Le paramètre prompt=select_account est présent.");
     check(result, "GOOGLE_PROVIDER_REDIRECT_BLOCKED", blockedProviderNavigation, "La requête de navigation vers le fournisseur Google a été interceptée et bloquée avant tout accès réseau.");
     check(result, "GOOGLE_NO_UNEXPECTED_SUPABASE", opened.observations.unexpectedSupabaseRequests.length === 0, "Aucun endpoint Supabase non prévu n'a été autorisé.");
-    result.intercepted = { authorize: calls.authorize, redirectStatus: calls.redirectStatus };
+    result.intercepted = { authorize: calls.authorize, simulatedResponseStatus: calls.simulatedResponseStatus, redirectMechanism: calls.redirectMechanism };
     result.query = { provider: calls.provider, prompt: calls.prompt, method: calls.method };
     result.status = "PASS";
   } catch (error) {
     result.status = "FAIL";
     result.error = error instanceof Error ? error.name : "RuntimeError";
-    result.intercepted = { authorize: calls.authorize, redirectStatus: calls.redirectStatus };
+    result.intercepted = { authorize: calls.authorize, simulatedResponseStatus: calls.simulatedResponseStatus, redirectMechanism: calls.redirectMechanism };
     result.query = { provider: calls.provider, prompt: calls.prompt, method: calls.method };
   } finally {
     await context?.close().catch(() => undefined);

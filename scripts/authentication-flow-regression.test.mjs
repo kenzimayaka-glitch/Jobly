@@ -408,8 +408,12 @@ test("LOT-01 advanced auth browser campaign isolates provider flows and verifies
   assert.match(authAdvancedSmoke, /click\(\{ noWaitAfter: true \}\)/);
   assert.doesNotMatch(authAdvancedSmoke, /waitForEvent\("requestfailed"/);
   assert.match(authAdvancedSmoke, /https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth/);
-  assert.match(authAdvancedSmoke, /status: 302/);
-  assert.match(authAdvancedSmoke, /calls\.redirectStatus === 302/);
+  assert.match(authAdvancedSmoke, /serviceWorkers: "block"/);
+  assert.match(authAdvancedSmoke, /local-html-location-replace/);
+  assert.match(authAdvancedSmoke, /window\.location\.replace/);
+  assert.match(authAdvancedSmoke, /simulatedResponseStatus === 200/);
+  assert.doesNotMatch(authAdvancedSmoke, /status: 302/);
+  assert.doesNotMatch(authAdvancedSmoke, /redirectStatus/);
   assert.doesNotMatch(authAdvancedSmoke, /blockedExternalOrigins\.every/);
   assert.match(authAdvancedSmoke, /example\.invalid/);
   assert.match(authAdvancedSmoke, /DEVICE_PREFLIGHT_TWO_FREE_SLOTS/);
