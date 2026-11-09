@@ -435,7 +435,7 @@ test("LOT-01 advanced auth browser campaign isolates provider flows and verifies
   assert.match(authAdvancedSmoke, /example\.invalid/);
   assert.match(authAdvancedSmoke, /page\.context\(\)\.storageState\(\)/);
   assert.match(authAdvancedSmoke, /for \(let attempt = 0; attempt < 8; attempt \+= 1\)/);
-  assert.match(authAdvancedSmoke, /Execution context was destroyed\|Cannot find context with specified id/);
+  assert.match(authAdvancedSmoke, /Execution context was destroyed|Cannot find context with specified id/);
   assert.match(authAdvancedSmoke, /waitForLoadState\("domcontentloaded"/);
   assert.match(authAdvancedSmoke, /undefined, \{ timeout: 15000 \}\)/);
   assert.match(authAdvancedSmoke, /DEVICE_PREFLIGHT_TWO_FREE_SLOTS/);
