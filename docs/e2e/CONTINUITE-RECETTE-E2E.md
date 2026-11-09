@@ -1,6 +1,6 @@
 # Jobly — Référence de continuité de la recette E2E
 
-> ## ÉTAT MAÎTRE ACTUALISÉ — V2.147 — 9 novembre 2026
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.148 — 9 novembre 2026
 >
 > **Dernière preuve LOT-01 :** smoke API authentifié PASS 40/40 (§§107/109), puis smoke navigateur public/anonyme PASS 14/14 (§115). Smoke navigateur authentifié exécuté le 9 novembre 2026 à 01:25:12Z : 29 contrôles, 12 PASS et 17 FAIL HTTP 500. Les trois connexions, rôles signés et retours 401 étaient PASS. Les journaux Postgres de JOBLY-E2E ont confirmé exactement 17 erreurs SQLSTATE 23505 sur la contrainte UserDeviceSession_authSessionId_key. La fonction d'enregistrement a été corrigée et la migration 20261109015439 appliquée uniquement à JOBLY-E2E. Le test SQL d'idempotence est PASS pour TALENT/RECRUITER/PARTNER ; la relance navigateur ciblée reste à exécuter (§118). LOT-01 reste PARTIAL.
 > **`main` :** SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`, inchangé. **PR #266 :** ouverte, brouillon, non fusionnée. **PR #267 :** ouverte, brouillon, non fusionnée.
@@ -6869,3 +6869,34 @@ Les médias externes saisis par URL doivent rester une voie distincte, explicite
 LOT-00 reste PARTIAL jusqu'à clôture des étapes 1 à 4, ou décision d'acceptation de risque explicitement documentée et approuvée sur les sujets photo/médias. La simple réussite du script de trois buckets ne doit pas être présentée comme PASS LOT-00 intégral.
 
 Garde-fous inchangés : dépôt local en retard de 100 commits et avec des modifications non commitées ; ne pas utiliser pull/reset/stash/clean. Ne jamais exécuter le provisionneur ou le reset fixture. JOBLY-PROD, main, PR #266/#267, merge et déploiement restent hors périmètre.
+
+
+---
+
+## 119. Reprise de recette — retest navigateur authentifié LOT-01
+
+**Mise à jour : 9 novembre 2026 à 05:44Z (06:44, heure de Douala) — version 2.148.**
+
+### 119.1 État constaté à la reprise
+
+- Le correctif SQL d'idempotence de `register_jobly_device_session()` reste appliqué uniquement sur JOBLY-E2E, projet `ofqqrryamslxoqkklraw`, migration `20261109015439`.
+- Le test SQL ciblé après correction reste PASS pour TALENT, RECRUITER et PARTNER (§118.4).
+- Les rapports antérieurs API 40/40 (§§107/109) et UI publique 14/14 (§115) restent acquis et ne doivent pas être rejoués.
+- **Aucun nouveau rapport navigateur authentifié n'a été reçu ou exécuté depuis l'application de la migration.** Le dernier rapport navigateur connu demeure celui du 9 novembre à 01:25:12.030Z : 12/29 PASS, 17/29 FAIL avant correctif.
+- LOT-01 demeure **PARTIAL / NON CLOS**. Le correctif en base n'est pas une preuve de réussite HTTP/navigateur.
+
+### 119.2 Action unique de reprise
+
+L'action active reste l'exécution opérateur de la commande complète §118.6 depuis CMD. Le lanceur travaille exclusivement dans `C:\Users\ASUS\Jobly-e2e-recette-v3`, lit les configurations et fixtures de `C:\Users\ASUS\Jobly` sans les imprimer, vérifie l'état du worktree avant de toucher au checkout, récupère uniquement `origin/e2e/recette`, vérifie la syntaxe et le TypeScript, puis lance `e2e/run-authenticated-role-recipe.mjs --role-browser-only`.
+
+Le lanceur ouvre automatiquement dans Notepad les rapports statique, TypeScript, résumé du runner, diagnostic navigateur, log de processus et `lot1-auth-role-ui-smoke.json`. S'il détecte d'autres changements dans le worktree isolé que le seul cache `tsconfig.tsbuildinfo`, il s'arrête sans les écraser. Il ne réinitialise aucune fixture et ne lance pas le runner global.
+
+### 119.3 Critère après réception
+
+Inspecter les six fichiers et vérifier le même run, le SHA testé, le projet E2E, l'URL locale, le code de sortie, les trois rôles signés, les refus inter-rôles attendus et le retour HTTP 401 après purge du stockage Auth isolé. Cible : 29/29 PASS, zéro FAIL, zéro BLOCKED. Si le test échoue, consulter uniquement les preuves du nouveau run et les journaux JOBLY-E2E sur sa fenêtre exacte, corriger la cause démontrée et relancer uniquement le smoke rôle.
+
+Le bouton visible de déconnexion et les scénarios OTP, Google OAuth, récupération du mot de passe et révocation multi-appareils restent explicitement séparés de ce retest et ne deviennent pas PASS par déduction.
+
+### 119.4 Périmètre et garde-fous
+
+Aucun accès à JOBLY-PROD, aucune écriture métier ou réinitialisation de fixture, aucun merge vers `main`, aucun déploiement. La branche de travail reste `e2e/recette`. `main` reste hors périmètre ; aucun changement de statut de lot n'est autorisé sans rapports vérifiés.
