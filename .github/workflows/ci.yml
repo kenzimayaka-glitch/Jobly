@@ -168,6 +168,8 @@ jobs:
         run: pnpm test:company-logo-fallback
       - name: Authentication and Google account selection regression tests
         run: pnpm test:auth
+      - name: Shared explainable matching engine regression tests
+        run: pnpm test:matching
 
       - name: P2 Jobly offer watermark regression tests
         run: pnpm test:p2-offer-watermark
