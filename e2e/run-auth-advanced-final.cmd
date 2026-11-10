@@ -40,12 +40,12 @@ if errorlevel 1 goto :failed
 
 echo.
 echo [4/7] Tests de regression Auth...
-pnpm test:auth
+call pnpm test:auth
 if errorlevel 1 goto :failed
 
 echo.
 echo [5/7] Verification TypeScript...
-pnpm exec tsc --noEmit --incremental false
+call pnpm exec tsc --noEmit --incremental false
 if errorlevel 1 goto :failed
 
 echo.
