@@ -37,6 +37,12 @@ test("LOT-04 Africa runtime runner reads only approved E2E harvest tables", () =
   const runner = read("e2e/runtime-lot04-readonly.mjs");
   assert.match(runner, /JobHarvestCapture/);
   assert.match(runner, /JobOfferPipeline/);
+  assert.match(runner, /id,sourceKey,status,publishedAt,deadline,discoveredAt,processedAt,jobId/);
+  assert.match(runner, /id,jobId,sourceKey,status,qualityScore,createdAt,processedAt/);
+  assert.doesNotMatch(runner, /countryCode|rejectionCode/);
+  assert.match(runner, /AFRICA_DATA_PRESENCE/);
+  assert.match(runner, /AFRICA_FRESHNESS_AUDIT/);
+  assert.match(runner, /captures\.rows\.length === 0/);
   assert.match(runner, /apikey:\s*secretKey/);
   assert.doesNotMatch(runner, /Authorization:\s*["']Bearer ["']\s*\+\s*secretKey/);
   assert.match(runner, /method:\s*["']GET["']/);
