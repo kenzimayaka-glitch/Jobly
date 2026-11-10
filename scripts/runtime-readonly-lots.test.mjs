@@ -184,6 +184,9 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(bootstrap, /git -C "%ROOT%" fetch --depth=1 --progress --no-tags origin refs\/heads\/e2e\/recette/);
   assert.match(bootstrap, /GIT_TERMINAL_PROMPT=0/);
   assert.match(bootstrap, /GCM_INTERACTIVE=never/);
+  assert.doesNotMatch(bootstrap, /set "RC=%ERRORLEVEL%"/);
+  assert.match(bootstrap, /if errorlevel 2 \(set "RC=2"\) else if errorlevel 1 \(set "RC=1"\) else \(set "RC=0"\)/);
+  assert.match(bootstrap, /if errorlevel 1 \(set "RC=1"\) else \(set "RC=0"\)/);
   const bootstrapLogInit = bootstrap.indexOf('if not exist "%BOOTLOG%" > "%BOOTLOG%" echo JOBLY AFRICA BULK BOOTSTRAP');
   const bootstrapFetch = bootstrap.indexOf('git -C "%ROOT%" fetch --depth=1 --progress --no-tags origin refs/heads/e2e/recette');
   assert.ok(bootstrapLogInit >= 0 && bootstrapLogInit < bootstrapFetch, "bootstrap must create its stable log before git fetch");
