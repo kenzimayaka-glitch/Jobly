@@ -80,10 +80,10 @@ const STOP_WORDS = new Set([
 
 const SKILL_GROUPS: Record<string, string[]> = {
   project_management: ["gestion de projet", "project management", "chef de projet", "project manager", "pmp", "agile", "scrum"],
-  crm: ["crm", "salesforce", "hubspot", "dynamics 365", "microsoft dynamics"],
+  crm: ["crm", "customer relationship management", "salesforce", "hubspot", "dynamics 365", "microsoft dynamics"],
   data_analysis: ["analyse de donnees", "analyse des donnees", "data analysis", "data analyst", "power bi", "tableau", "reporting", "statistiques", "analytics"],
   spreadsheets: ["excel", "microsoft excel", "google sheets", "tableur", "tableurs"],
-  sales: ["vente", "ventes", "commercial", "commerciale", "sales", "prospection", "negociation commerciale", "business development", "business developer", "account executive"],
+  sales: ["vente", "ventes", "commercial", "commerciale", "sales", "prospection", "negociation", "negociation commerciale", "gestion de portefeuille", "account management", "key account", "business development", "business developer", "account executive"],
   marketing: ["marketing", "marketing digital", "digital marketing", "seo", "sem", "content marketing", "marketing de contenu", "social media", "reseaux sociaux"],
   accounting: ["comptabilite", "comptable", "accounting", "accountant", "sage comptabilite", "sage 100"],
   finance: ["finance", "financial analysis", "analyse financiere", "budgetisation", "tresorerie", "financial reporting"],
