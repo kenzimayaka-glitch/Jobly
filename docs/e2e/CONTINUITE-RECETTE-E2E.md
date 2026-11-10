@@ -8643,3 +8643,13 @@ Runner, wrapper, tests et documentation :
 **Validation restante :** exécuter la commande unique et examiner le rapport réel. Les tests statiques et l'exécution Deno de ce nouveau lot ne sont pas revendiqués comme déjà exécutés localement.
 
 Ce lot écrit temporairement uniquement dans JOBLY-E2E puis nettoie ses propres objets. Il ne modifie pas JOBLY-PROD, ne déploie pas d'Edge Function, ne touche pas main, ne déclenche pas de source réelle, d'email, de SMS ou de paiement. Aucun déploiement Vercel.
+
+
+### 154.8 Durcissement final du lanceur
+
+Le wrapper archive désormais le rapport précédent sous africa-bulk-recipe-report.previous.json avant de démarrer un nouveau run, puis supprime le rapport actif périmé. Ainsi, si le préflight statique échoue ou si Deno 2.x est absent, le wrapper ouvre le journal du run courant au lieu d'afficher un ancien PASS/PARTIAL. Le test statique vérifie également l'archivage du précédent rapport et le préflight Deno.
+
+- durcissement du rapport et du fallback Notepad : e8362a3d2a862accbeaf281d757041c95adaf9e2 ;
+- verrou statique du backup de rapport et du préflight Deno : 10e10adf8d7dfb2e14e585eba2f63dbbc67a4eaa.
+
+Le rapport précédent reste conservé sous le suffixe .previous.json. Le résultat du run courant est toujours dans africa-bulk-recipe-report.json.
