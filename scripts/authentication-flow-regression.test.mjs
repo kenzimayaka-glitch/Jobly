@@ -42,6 +42,15 @@ test("username login errors are visible on the login screen exactly once", () =>
   assert.equal((loginScreen.match(/aria-live="assertive"/g) || []).length, 1);
 });
 
+test("multi-device preflight retries only safe Supabase reads and reports the failing stage", () => {
+  assert.match(authAdvancedSmoke, /const maxAttempts = method === "GET" \? 3 : 1/);
+  assert.match(authAdvancedSmoke, /method !== "GET" \|\| attempt === maxAttempts/);
+  assert.match(authAdvancedSmoke, /networkFailureCode\(error\)/);
+  assert.match(authAdvancedSmoke, /result\.preflightStage = "LOOKUP_TALENT_USER"/);
+  assert.match(authAdvancedSmoke, /result\.preflightStage = "READ_BASELINE_DEVICE_ROWS"/);
+  assert.match(authAdvancedSmoke, /result\.failureStage = result\.preflightStage \|\| "UNKNOWN"/);
+});
+
 test("Google OAuth asks the user to choose an account", () => {
   assert.match(auth, /queryParams:\s*\{\s*prompt:\s*"select_account"\s*\}/);
 });
