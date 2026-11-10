@@ -26,6 +26,7 @@ const report: Row = {
   tokensPrinted: false,
   externalActions: false,
   productionModified: false,
+  remoteAuthDeviceStateMayBeModified: true,
   temporaryE2EBusinessWrites: true,
   remoteBusinessDataMayBeModified: true,
   cleanupVerified: false,
