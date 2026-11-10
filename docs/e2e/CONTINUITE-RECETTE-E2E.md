@@ -1,4 +1,5 @@
 # Jobly — Référence de continuité de la recette E2E
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.188 — 10 novembre 2026
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.182 — 9 novembre 2026
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.171 — 9 novembre 2026
 >
@@ -8660,3 +8661,14 @@ Le rapport précédent reste conservé sous le suffixe .previous.json. Le résul
 Le runner récupère maintenant la clé privée E2E soit dans .e2e-fixture-runtime.json (avec environment=JOBLY-E2E et projectRef exact), soit dans .env.local / .env.e2e.local. Les URL présentes dans ces fichiers doivent toutes être exactement celles de JOBLY-E2E. Une clé JWT doit en plus porter les claims ref et role correspondants ; une clé sb_secret doit être accompagnée d'une preuve runtime ou URL E2E. Une configuration non démontrable est refusée avant toute écriture.
 
 Pour les clés sb_secret, le client REST retire le header Authorization et conserve uniquement apikey, conformément au modèle de clés Supabase actuel. Aucun secret n'est imprimé ni écrit dans le rapport. Tests statiques associés : commit ca6930bae0d7931398968df5ce9aa46113f53941 ; chargement E2E strict : commit 259882e628cae037b0fec19d8393f1b512971511.
+
+
+### 154.10 Correction du préflight statique bulk Afrique
+
+**Rapport utilisateur du 10 novembre 2026 :** le préflight `node --test scripts/runtime-readonly-lots.test.mjs` a exécuté 11 groupes : 10 PASS, 1 FAIL. L'unique échec provenait de l'assertion du test, qui attendait l'ancienne forme `ingestHarvestItems(admin, candidates)`. Le runner actuel appelle correctement la fonction bulk avec un tableau de fixtures inline : date source réelle, date estimée, offre ancienne et délai expiré.
+
+**Correction appliquée sur `e2e/recette` :** remplacement de l'assertion obsolète par cinq contrôles alignés sur le code existant : signature de l'appel inline, fixture source authentique, fixture estimée, cas de date ancienne et cas de délai dépassé. Commit : `149ca2c6bb3b520be705b8533e562cca91408751`. Blob du test après relecture GitHub : `4f950f4ef4252332be14a6ee171303b7718b42da`.
+
+**Portée du résultat :** le run transmis s'est arrêté au préflight statique ; il ne constitue ni un échec du processeur Afrique ni un test runtime de l'ingestion. La recette Deno n'est pas réputée lancée et aucun résultat métier E2E n'est revendiqué. La correction a été relue dans GitHub, mais le préflight complet doit être rejoué après récupération du nouveau HEAD.
+
+**Reprise :** depuis le worktree `%USERPROFILE%\\Jobly-e2e-recette-lot01`, récupérer `origin/e2e/recette` puis exécuter une seule fois `call e2e\\run-africa-bulk-recipe.cmd`. Le wrapper relancera les 11 contrôles et n'ouvrira la phase Deno que si le préflight passe ; il ouvre lui-même le rapport ou le journal dans Notepad. Aucun autre CMD ni commande Notepad séparée.
