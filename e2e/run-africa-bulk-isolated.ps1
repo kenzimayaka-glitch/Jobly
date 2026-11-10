@@ -40,7 +40,7 @@ function Invoke-Native([string]$FilePath, [string[]]$Arguments, [string]$Label, 
 
   # Stream native output directly to the console and the stable log.
   # Buffering in an array hid fetch/test/runtime progress until the process ended.
-  & $FilePath @Arguments 2>&1 | Tee-Object -FilePath $Log -Append
+  & $FilePath @Arguments 2>&1 | Tee-Object -FilePath $Log -Append | ForEach-Object { Write-Host ([string]$_) }
   $nativeExit = $LASTEXITCODE
   if ($nativeExit -ne 0) {
     throw ($Label + " failed with exit code " + $nativeExit)
