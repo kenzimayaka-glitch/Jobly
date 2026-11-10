@@ -1,3 +1,22 @@
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.195 — 10 novembre 2026
+>
+> **Précision UX et sécurité du matching gratuit — complète et précise la V2.194 :**
+> - Pour un recruteur gratuit, les cinq cartes de matching présentent des aperçus de profils **visuellement floutés et anonymisés**. Le floutage doit être évident sur desktop et mobile ; aucun nom, photo réelle, CV, identifiant, coordonnée ou détail personnel ne doit rester lisible.
+> - **Seuls les scores de matching restent nets et lisibles** (et, si affiché, le rang 1 à 5). Le recruteur gratuit ne dispose d'aucun moyen visible ou fonctionnel d'ouvrir un profil : aucun lien, bouton de consultation, aperçu au survol, action clavier, navigation de détail ou téléchargement ne doit être proposé ou fonctionner.
+> - Le floutage est un traitement de présentation, pas une protection de sécurité : ne jamais transmettre au navigateur les vraies données ensuite masquées par CSS, canvas ou composant UI. Les cartes gratuites utilisent des placeholders/silhouettes non identifiants ; la réponse serveur ne contient que le score et les métadonnées non identifiantes strictement nécessaires.
+> - Les routes/API de profil, CV, recherche, exports, préchargements, pagination et caches doivent refuser l'accès tant que l'abonnement actif et l'entitlement correspondant ne sont pas validés côté serveur. Modifier une URL, appeler directement une API ou réutiliser un cache ne doit pas lever le verrou.
+> - Un CTA d'abonnement distinct peut expliquer comment débloquer la fonctionnalité, mais il ne doit jamais exposer un profil ni rendre une carte floutée cliquable.
+> - Avec abonnement actif et entitlement, les cinq profils autorisés deviennent consultables normalement ; révocation, expiration, annulation, suspension ou impayé reverrouille immédiatement la consultation.
+>
+> **Recettes supplémentaires :**
+> - REC-MATCH-05 : vérifier visuellement le floutage des cinq cartes, sur desktop/mobile, avec score net et aucune donnée personnelle lisible.
+> - REC-MATCH-06 : vérifier l'absence de lien, bouton, focus clavier, hover-preview, navigation ou téléchargement permettant d'ouvrir un profil pour un compte gratuit.
+> - REC-MATCH-07 : inspecter réponses API, HTML/DOM, état client, préchargements, cache, pagination, recherche et exports ; aucune donnée réelle de profil ne doit être livrée au compte gratuit, même si l'interface est inspectée ou contournée.
+>
+> **Statut :** décision documentaire ; implémentation et recettes UI/API runtime encore À CODER / À EXÉCUTER. Aucun PASS n'est revendiqué.
+>
+> ---
+>
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.193 — 10 novembre 2026
 >
 > **Décision produit — accès aux cinq meilleurs talents :** dans la liste des talents correspondant à une offre, les **cinq profils les mieux classés par score de matching** sont une fonctionnalité réservée aux recruteurs disposant d'un abonnement Jobly actif incluant explicitement ce droit. Ils ne sont jamais consultables en version gratuite.
