@@ -156,6 +156,8 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(command, /exit \/b %RC%/i);
   assert.match(isolated, /Invoke-Native "git" @\("-C", \$GitRoot, "archive", "--format=zip"/);
   assert.match(isolated, /FETCH_E2E_RECETTE/);
+  assert.match(isolated, /"--depth=1", "--progress", "--no-tags"/);
+  assert.match(isolated, /Tee-Object -FilePath \\$Log -Append/);
   assert.match(isolated, /\[switch\]\$Capture/);
   assert.match(isolated, /CHECK_ORIGIN" -Capture/);
   assert.match(isolated, /RESOLVE_FETCH_HEAD" -Capture/);
@@ -177,7 +179,9 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(isolated, /cat-file/);
   assert.match(bootstrap, /\[1\/5\] Verification du depot local/);
   assert.match(bootstrap, /\[2\/5\] Recuperation de la branche distante/);
-  assert.match(bootstrap, /git -C "%ROOT%" fetch --no-tags origin refs\/heads\/e2e\/recette/);
+  assert.match(bootstrap, /git -C "%ROOT%" fetch --depth=1 --progress --no-tags origin refs\/heads\/e2e\/recette/);
+  assert.match(bootstrap, /GIT_TERMINAL_PROMPT=0/);
+  assert.match(bootstrap, /GCM_INTERACTIVE=never/);
   assert.match(bootstrap, /FETCH_SHA=%SHA%/);
   assert.match(bootstrap, /git -C "%ROOT%" show %SHA%:e2e\/run-africa-bulk-isolated\.ps1/);
   assert.match(bootstrap, /if not "%~1"==""/);
