@@ -8705,3 +8705,19 @@ L'audit croisé du wrapper et du runner confirme le nom et le chemin réels : `e
 **Sources de configuration Deno :** documentation officielle « Node and npm Compatibility » et « Configuration file (deno.json) », qui décrivent les modes `none`, `auto` et `manual` et confirment que le mode `none` utilise le cache global.
 
 **Validation restante :** récupérer le HEAD mis à jour et rejouer le wrapper. Les 11 tests précédents restent PASS, mais la recette bulk n'a toujours pas exécuté l'ingestion ni le processeur. Ne revendiquer aucune écriture ou validation métier avant un rapport runtime.
+
+
+### 154.13 Preuve réelle de rattachement d'une clé sb_secret au projet E2E
+
+**Rapport opérateur du 10 novembre 2026 à 07:15:18Z :** Deno a chargé et exécuté le runner jusqu'au contrôle de configuration. Celui-ci a trouvé une clé de type `sb_secret_`, mais aucun manifeste runtime local et aucune URL E2E dans les fichiers d'environnement lus. Le contrôle a répondu `SECRET_KEY_WITHOUT_E2E_URL_PROOF`. La recette s'est arrêtée avant l'initialisation du client Supabase et avant toute écriture. Le rapport confirme `externalActions=false`, `productionModified=false`, et `cleanupVerified=false` car aucune fixture n'a été créée.
+
+**Cause racine :** contrairement à un JWT `service_role`, une clé Supabase `sb_secret_` ne contient pas de claim local décodable permettant d'identifier le projet. La condition précédente exigeait donc un manifeste `.e2e-fixture-runtime.json` ou une URL E2E dans le même environnement local ; cette exigence n'était pas satisfaite sur le poste.
+
+**Correction appliquée :** si la clé est de type `sb_secret_` et qu'aucune des deux preuves locales n'est disponible, le runner teste désormais la clé contre l'URL E2E épinglée dans le code, avec une requête strictement en lecture seule sur `Job` : `select id, count exact, HEAD, limit 0`. Aucun enregistrement n'est téléchargé ou modifié. La clé n'est acceptée qu'en l'absence d'erreur API sur ce projet précis. Une clé d'un autre projet doit être rejetée avant toute écriture. Le contrôle est inscrit dans le rapport sous `E2E_SECRET_KEY_PROJECT_PROOF` (PASS) en cas de succès, ou `SECRET_KEY_E2E_PROOF_FAILED` en cas de refus.
+
+- Runner : `e2e/africa-bulk-recipe.ts`.
+- Test statique de non-régression : `scripts/runtime-readonly-lots.test.mjs`.
+- Commit runner : `1cc67133b117ced075014fd82a9717574c5490a6`.
+- Commit test : `93e4b20cfbee10c69e3a42ce7d62939270fd885f`.
+
+**Validation :** le rapport à 07:15:18Z est la preuve d'un arrêt de garde-fou, pas d'un échec du pipeline métier. La nouvelle validation doit reprendre depuis le HEAD mis à jour. Aucun PASS runtime n'est déclaré tant qu'un nouveau rapport complet ne le confirme pas.
