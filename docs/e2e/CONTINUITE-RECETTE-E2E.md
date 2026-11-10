@@ -8393,7 +8393,7 @@ Si le schéma est corrigé mais les tables restent vides, ne pas lancer de colle
 
 ## 152. Règle permanente — ouverture automatique des rapports dans Notepad
 
-**Mise à jour : 10 novembre 2026 — version 2.184.** À la demande de l'utilisateur, toute commande de recette Windows doit ouvrir automatiquement son rapport à la fin. L'opérateur ne doit plus avoir à lancer une deuxième commande Notepad.
+**Mise à jour : 10 novembre 2026 — version 2.185.** À la demande de l'utilisateur, toute commande de recette Windows doit ouvrir automatiquement son rapport à la fin. L'opérateur ne doit plus avoir à lancer une deuxième commande Notepad.
 
 ### 152.1 Lanceurs concernés
 
@@ -8405,7 +8405,7 @@ Les wrappers CMD suivants ont été modifiés pour appeler `start "" notepad` su
 - `e2e/stop-readonly-runtime-server.cmd` → `artifacts/e2e/parallel-runtime-server-stop.json` ;
 - `e2e/run-global-e2e.cmd` → `artifacts/e2e/global-e2e-report.md`.
 
-Le lancement de Notepad intervient également lorsque le runner retourne un code non nul : le rapport FAIL/PARTIAL doit rester immédiatement visible. Le code de sortie initial du test est conservé dans `RC` et reste le code de sortie du wrapper.
+Le lancement de Notepad intervient également lorsque le runner retourne un code non nul : le rapport FAIL/PARTIAL doit rester immédiatement visible. Si le rapport structuré n'a pas pu être créé, le wrapper ouvre automatiquement le journal de processus en solution de repli. Le code de sortie initial du test est conservé dans `RC` et reste le code de sortie du wrapper.
 
 ### 152.2 Règle opératoire à conserver
 
@@ -8423,3 +8423,20 @@ La prochaine exécution doit récupérer la dernière tête de `e2e/recette`, pu
 À la date de cette mise à jour, le correctif des projections SQL est commité, mais le runner LOT-04 corrigé n'a pas encore été rejoué par l'opérateur. Ses résultats doivent être renseignés après réception du nouveau rapport.
 
 **Cette règle est permanente pour la suite de la recette Jobly.**
+
+### 152.4 Durcissement et preuve statique
+
+Les six wrappers vérifient désormais l'existence du rapport avant ouverture et basculent vers le journal de processus s'il manque. Le wrapper d'arrêt serveur capture également stdout/stderr dans son journal ; les dossiers d'artefacts sont créés avant exécution.
+
+Commits de durcissement des wrappers :
+- LOT-02 : `6ea5674eb27eacf488abedf1bd7f5a974b7745e5` ;
+- LOT-03 : `133f28f6135f48c843ed52a03fd8243009cb9042` ;
+- LOT-04 : `475836e7e0b9816648cc380a50b73f4d48cdf5b4` ;
+- démarrage serveur : `6ec12803389c600de66d3b7795ad4f442ffee4d1` ;
+- arrêt serveur : `5ff4e165225b25119dcabebf87beb98f3584dc4a` ;
+- balayage global : `4b26664e6c0cc73c1e8f6c808dfe26450c4df2e0` ;
+- verrou de non-régression sur l'ouverture Notepad et la conservation du code de sortie : `b0b12828d699f9e601690bae7a5d986b94a855c0`.
+
+Le test statique verrouille les six wrappers, leurs chemins de rapport, les journaux de repli, la présence de `start "" notepad` et le retour du code `RC`. Le test statique est versionné ; son exécution locale sur le dernier HEAD reste à effectuer avec la prochaine validation.
+
+
