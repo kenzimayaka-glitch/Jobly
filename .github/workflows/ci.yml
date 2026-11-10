@@ -219,6 +219,9 @@ jobs:
       - name: Offline-first, encrypted backup and device-session regression tests
         run: pnpm test:offline-first
 
+      - name: ATS recruiter score and keyword regression tests
+        run: pnpm test:ats-service
+
       - name: Typecheck
         run: pnpm typecheck
 
