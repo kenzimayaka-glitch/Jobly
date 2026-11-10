@@ -528,6 +528,7 @@ export type HarvestProcessorBatchResult = {
   sourceKeys: string[] | null;
   processedAt: string;
 };
+type HarvestProcessorCounts = Omit<HarvestProcessorBatchResult, "ok" | "sourceKeys" | "processedAt">;
 
 export async function runHarvestProcessorBatch(
   db: any,
@@ -559,7 +560,7 @@ export async function runHarvestProcessorBatch(
   if (normalError) throw new Error("CAPTURE_SELECT_FAILED: " + normalError.message);
 
   const rows: AnyRecord[] = [...stale, ...(normalRows ?? [])];
-  const counts: AnyRecord = {
+  const counts: HarvestProcessorCounts = {
     selected: rows.length,
     created: 0,
     updated: 0,
