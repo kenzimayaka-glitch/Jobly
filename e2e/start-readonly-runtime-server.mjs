@@ -69,6 +69,7 @@ async function verifyRuntimeScripts() {
     "e2e/runtime-lot03-readonly.mjs",
     "e2e/runtime-lot04-readonly.mjs",
     "e2e/start-readonly-runtime-server.mjs",
+    "e2e/stop-readonly-runtime-server.mjs",
   ];
   for (const file of files) {
     const checked = spawnSync(process.execPath, ["--check", file], { cwd: ROOT, encoding: "utf8", windowsHide: true });
