@@ -8741,3 +8741,14 @@ Durcissement supplémentaire : la sonde de lecture HEAD sur `Job` est maintenant
 - Test statique : `0213abc8066b8f2002089cef4169fbaeae31c726`.
 
 Le client retire toujours le header Authorization pour cette clé et conserve uniquement `apikey`. La sonde fait un HEAD avec `limit(0)`, donc elle ne récupère aucune ligne métier. Si elle échoue, le traitement s'arrête sous `SECRET_KEY_E2E_PROOF_FAILED`. Si elle réussit, le rapport doit inclure `E2E_SECRET_KEY_PROJECT_PROOF: PASS`.
+
+
+### 154.16 Reprise isolée sans exiger un worktree propre
+
+**Retour opérateur :** le lanceur local s'est arrêté sur `WORKTREE NON PROPRE`. Ce garde-fou prévenait un checkout destructif, mais il bloquait également la recette à cause de changements locaux sans rapport avec son exécution. La tentative de création d'un second worktree a ensuite échoué sans journal exploitable ; le diagnostic redirigeait tous les messages sans garantir l'ouverture du fichier.
+
+**Décision corrective :** ne plus exiger que le worktree existant soit propre et ne plus créer de second worktree. Le lancement isolé récupère la branche distante avec `git fetch`, exporte exactement `FETCH_HEAD` avec `git archive`, puis extrait ce snapshot versionné dans un dossier temporaire unique. Il exécute les tests et la recette depuis cette copie. Le worktree utilisateur et ses modifications non commitées ne sont ni checkoutés, ni nettoyés, ni écrasés. Les secrets runtime continuent d'être lus depuis le checkout canonique `%USERPROFILE%\\Jobly`, pas depuis l'archive temporaire.
+
+**Traçabilité :** le lanceur capture séparément les erreurs Git/fetch/archive dans un journal temporaire et l'ouvre dans Notepad si l'archive ne peut pas être préparée. Une fois le wrapper E2E démarré, son propre journal et son rapport sont ouverts suivant le comportement déjà testé. Il n'y a ainsi plus de sortie silencieusement perdue.
+
+**État métier :** ce changement ne modifie aucun contrôle de la clé privée, aucune permission Supabase et aucune assertion de l'ingestion. La sonde `E2E_SECRET_KEY_PROJECT_PROOF` reste obligatoire pour chaque `sb_secret_` avant toute écriture. La recette n'est toujours pas réputée exécutée tant que le rapport final n'indique pas le traitement et le nettoyage vérifié.
