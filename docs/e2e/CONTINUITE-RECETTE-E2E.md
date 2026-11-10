@@ -8510,3 +8510,136 @@ Un contrôle complémentaire du code et du guide de recette confirme que le dép
 Conclusion : **aucun mécanisme de fixtures Afrique existant n'a été confirmé** pour alimenter les deux tables observées par LOT-04. Le provisionnement actuel des comptes et le parcours de candidature ne doivent pas être détournés pour simuler une collecte.
 
 La préparation du lot Afrique doit donc être distincte : lire le schéma complet, les contraintes et les dépendances des deux tables ; choisir une voie de création strictement JOBLY-E2E ; marquer chaque objet synthétique avec un identifiant de run unique ; enregistrer exactement les identifiants créés ; puis nettoyer uniquement ces identifiants et vérifier leur absence. Ne pas modifier ni nettoyer des enregistrements préexistants. Tant que ces garde-fous et la forme des données obligatoires ne sont pas établis, LOT-04 conserve son statut PARTIAL.
+
+
+---
+
+## 154. Audit Afrique approfondi et recette bulk intégrée au vrai processeur
+
+**Mise à jour : 10 novembre 2026 — version 2.187.** Cette section prépare la suite du LOT-04 à partir du résultat PARTIAL confirmé en §153. Elle documente le schéma réel E2E, deux anomalies de fraîcheur corrigées et une recette bulk isolée. **La recette bulk n'a pas encore été exécutée par l'opérateur : aucun PASS runtime n'est revendiqué à ce stade.**
+
+### 154.1 Audit de l'état réel de JOBLY-E2E
+
+Projet interrogé en lecture seule : ofqqrryamslxoqkklraw (JOBLY-E2E), PostgreSQL 17.11.0.018, région eu-west-1, état ACTIVE_HEALTHY.
+
+Volumétrie confirmée au moment de l'audit :
+
+| Table / objet | Lignes |
+|---|---:|
+| Job | 31 |
+| JobSource | 0 |
+| JobHarvestCapture | 0 |
+| JobOfferPipeline | 0 |
+| DiscoveryQueueItem | 0 |
+| DiscoveryRun | 0 |
+
+Les 31 offres sont des données de référence E2E ; plusieurs n'ont pas de sourceKey et ne sont pas reliées à des captures. Elles ne constituent donc pas une preuve du fonctionnement du collecteur ou du pipeline canonique.
+
+Une seule Edge Function est actuellement déployée dans JOBLY-E2E : e2e-fixture-provision (ACTIVE, version 4). Les fonctions job-harvest-ingest et job-harvest-process ne sont pas déployées dans cet environnement. C'est une raison structurelle supplémentaire pour laquelle une recette runtime limitée aux GET ne pouvait pas démontrer le traitement effectif.
+
+Sécurité observée :
+- RLS activé sur les tables inspectées ;
+- politiques deny_client_access sur JobSource, JobHarvestCapture et JobOfferPipeline pour anon et authenticated ;
+- politique jobly_security_core_deny_client_select sur Job ;
+- les données d'ingestion sont donc des objets de traitement serveur, pas des fixtures à écrire via un client navigateur.
+
+### 154.2 Schéma et relations validés
+
+JobHarvestCapture :
+- id UUID, sourceKey et sourceUrl obligatoires ;
+- unicité (sourceKey, sourceUrl) ;
+- statuts autorisés : PENDING, PROCESSING, PROCESSED, QUARANTINED, EXPIRED, FAILED ;
+- colonnes de date réelles : publishedAt, deadline, discoveredAt, processedAt ;
+- le champ jobId est une liaison texte vers l'offre créée.
+
+JobOfferPipeline :
+- jobId UUID obligatoire et unique ;
+- clé étrangère vers Job.id avec ON DELETE CASCADE ;
+- statuts PENDING, READY, QUARANTINED, FAILED ;
+- contenu canonique et confiance stockés dans des champs JSONB.
+
+Job :
+- unicité partielle (sourceKey, externalId) lorsque les deux valeurs sont présentes ;
+- unicité (source, sourceUrl) ;
+- sourcePublishedAt nullable ;
+- countryCode, applicationReady, qualityStatus et normalizedContent disponibles pour contrôler la cohérence métier.
+
+Conséquence pour le nettoyage : supprimer en priorité le pipeline par jobId, ensuite le Job, puis les captures par la sourceKey unique du run. Aucun nettoyage global par statut ou par source réelle n'est acceptable.
+
+### 154.3 Anomalie de fraîcheur supplémentaire identifiée
+
+L'audit du code réel job-harvest-ingest → job-harvest-process → app/api/jobs/route.ts a révélé deux problèmes qui n'étaient pas visibles dans la recette GET précédente :
+
+1. Quand une date source manque, le collecteur calcule un fallback de premier constat, mais persistait auparavant discoveredAt = now au lieu de conserver le firstHarvestAt effectivement calculé.
+2. Le processeur copiait la date effective de fallback dans Job.sourcePublishedAt et dans le contenu canonique comme s'il s'agissait d'une vraie date publiée par la source. La route Talent lit sourcePublishedAt comme date source ; elle pouvait alors appliquer la fenêtre de deux mois au lieu de la fenêtre estimée de 30 jours.
+
+Correctifs versionnés :
+- job-harvest-ingest marque explicitement une date estimée lorsque publishedAt manque ;
+- JobHarvestCapture.discoveredAt reçoit le firstHarvestAt calculé ;
+- job-harvest-process conserve Job.sourcePublishedAt = null pour une date estimée ;
+- canonicalContent.sourcePublishedAt reste également null pour une date estimée ;
+- confidence.publicationDateVerified devient false pour une date estimée.
+
+La route Talent peut ainsi retrouver le premier constat dans JobHarvestCapture et réappliquer correctement la fenêtre de 30 jours. Les offres avec une date source authentique conservent, elles, la règle de deux mois calendaires.
+
+### 154.4 Refactor minimal pour tester le vrai code sans déployer Edge Functions
+
+Les fonctions exposent maintenant leurs opérations bulk internes :
+- ingestHarvestItems(admin, items) ;
+- runHarvestProcessorBatch(db, body).
+
+Le serveur HTTP Deno.serve ne démarre que lorsque le fichier est le point d'entrée Deno (import.meta.main). La recette importe les fonctions dans son propre processus, utilise la service key uniquement côté script local et pointe en dur vers JOBLY-E2E. L'autorisation OIDC du handler HTTP n'est pas l'objet de cette recette ; les transformations et écritures métier des deux fonctions sont bien celles du code versionné, mais aucun endpoint Edge n'est déployé.
+
+### 154.5 Contenu du lot bulk
+
+Le nouveau runner e2e/africa-bulk-recipe.ts exécute une seule campagne identifiée par une sourceKey à forte entropie jobly_e2e_bulk_* :
+
+- deux captures valides : une avec date source réelle, une avec premier constat estimé ;
+- deux candidats rejetés par l'ingestion avant persistance : date source dépassant deux mois et deadline dépassée ;
+- trois captures ciblées sur le processeur : date source ancienne, deadline passée et date totalement absente sans fallback ;
+- appel du vrai batch processor, limité à cette seule sourceKey et à 40 lignes ;
+- assertions sur les statuts PROCESSED, EXPIRED et QUARANTINED, sur le pays, le contact synthétique .invalid, les Jobs créés, les deux pipelines READY et la conservation de sourcePublishedAt = null pour l'offre estimée.
+
+Résultat attendu si le schéma et le traitement correspondent à l'audit :
+- ingestion : 2 captures acceptées, 2 offres rejetées avant insertion, dont 1 candidat estimé ;
+- processeur : 5 captures sélectionnées, 2 traitées, 2 expirées, 1 mise en quarantaine, 0 échec ;
+- base avant nettoyage : 5 captures, 2 Jobs, 2 pipelines ;
+- après nettoyage : 0 capture, 0 Job et 0 pipeline appartenant à la sourceKey du run.
+
+Le runner écrit un manifeste de nettoyage avant ses écritures. En cas d'interruption, la prochaine exécution nettoie exactement le run précédent avant d'en commencer un nouveau. Le nettoyage vérifie l'absence des lignes ; si cette vérification échoue, le manifeste est conservé pour reprise. Les 31 offres de référence et les autres sources ne sont jamais ciblées.
+
+### 154.6 Commande unique et rapport
+
+Depuis le worktree Jobly-e2e-recette-lot01, une seule commande :
+
+    call e2e\run-africa-bulk-recipe.cmd
+
+Le wrapper :
+1. exécute d'abord node --test scripts/runtime-readonly-lots.test.mjs ;
+2. exige Deno 2.x avant tout accès d'écriture ;
+3. exécute le lot bulk ;
+4. ouvre automatiquement artifacts/e2e/africa-bulk-recipe-report.json dans Notepad, ou le journal de processus en fallback.
+
+Prérequis locaux : Node.js et Deno 2.x dans le PATH. Aucun deuxième CMD ni aucune commande Notepad séparée.
+
+### 154.7 État d'avancement et garde-fous
+
+Correctifs code versionnés sur e2e/recette :
+- export de la fonction bulk d'ingestion : ddc02d3c59887a04be52341c38b5ec35394b63f1 ;
+- export de la fonction bulk processeur : 9984e3474cd052343d92ad32a0e3afce02ee1a88 ;
+- correction de la date source estimée dans Job/pipeline : 3fbe4086fcc466e285c805ea152e6024f6c561e7 ;
+- conservation de firstHarvestAt : bc702b1925bf9cf030d21c139cddd1cf30ad1444 ;
+- conservation du mode de capture par défaut existant : f361523c2125b6c5031fe4d65c9c39606afce17e.
+
+Runner, wrapper, tests et documentation :
+- runner bulk : 35e6bca3654049af03bc72064004650e58c852c7 ;
+- wrapper initial : ae6ffc7210d59c4a806512c60dbff227c7010050 ;
+- tests statiques : 5101632315f2af85639785bad2875a455933ff95 ;
+- wrapper avec tests statiques : 85a49c5bc75917aed5814d19e69b4683e5f1ef35 ;
+- préflight Deno 2 : bc82dcc4879553d79aea0752f1d6b49cec9d235b ;
+- guide bulk : b404065011d33cb4775b1825cb4aa29fa09729ca ;
+- prérequis Deno documenté : 5a6aee82f9b2d67d28b38e5dd356db777e555a2e.
+
+**Validation restante :** exécuter la commande unique et examiner le rapport réel. Les tests statiques et l'exécution Deno de ce nouveau lot ne sont pas revendiqués comme déjà exécutés localement.
+
+Ce lot écrit temporairement uniquement dans JOBLY-E2E puis nettoie ses propres objets. Il ne modifie pas JOBLY-PROD, ne déploie pas d'Edge Function, ne touche pas main, ne déclenche pas de source réelle, d'email, de SMS ou de paiement. Aucun déploiement Vercel.
