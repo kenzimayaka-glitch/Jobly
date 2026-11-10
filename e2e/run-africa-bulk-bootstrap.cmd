@@ -35,10 +35,12 @@ for /f "delims=" %%H in ('git -C "%ROOT%" rev-parse FETCH_HEAD 2^>nul') do set "
 goto sha_ready
 
 :resolve_fetch_head
+echo [2/5] Reutilisation du FETCH_HEAD deja recupere...
 for /f "delims=" %%H in ('git -C "%ROOT%" rev-parse FETCH_HEAD 2^>nul') do set "SHA=%%H"
 goto sha_ready
 
 :use_argument_sha
+echo [2/5] Reutilisation du SHA fourni...
 set "SHA=%~1"
 
 :sha_ready
