@@ -168,6 +168,7 @@ export async function POST(req: NextRequest) {
       const candidate: MatchingCandidate = {
         headline: profile.headline,
         summary: profile.summary,
+        cvText: application.tailoredCvText,
         location: profile.location,
         targetRoles: Array.isArray(profile.targetRoles) ? profile.targetRoles : [],
         targetCities: Array.isArray(profile.targetCities) ? profile.targetCities : [],
