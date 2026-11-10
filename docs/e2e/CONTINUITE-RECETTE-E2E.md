@@ -8687,3 +8687,21 @@ L'audit croisé du wrapper et du runner confirme le nom et le chemin réels : `e
 **Portée :** le run à 10 PASS / 1 FAIL s'est arrêté avant Deno. Aucun traitement bulk, aucune écriture JOBLY-E2E et aucun nettoyage n'ont été exécutés pendant ce run. Les 11 tests doivent être rejoués depuis le nouveau HEAD ; aucun PASS runtime Afrique n'est revendiqué.
 
 **Reprise :** récupérer `origin/e2e/recette` puis exécuter uniquement `call e2e\\run-africa-bulk-recipe.cmd`. Le wrapper exécute les contrôles avant Deno et ouvre automatiquement le rapport courant ou le journal Notepad de repli.
+
+
+### 154.12 Correction du chargement npm dans Deno 2.x
+
+**Rapport opérateur du 10 novembre 2026 :** les 11 contrôles statiques passent, puis Deno s'arrête au chargement du module `npm:jose@6` avec l'indication qu'aucun paquet correspondant n'existe dans le dossier `node_modules`. Le handler n'est pas entré dans l'exécution de la recette ; le runner ne s'est donc pas connecté à Supabase et aucune écriture métier de ce lancement n'est démontrée.
+
+**Cause racine :** le dépôt contient un `package.json`. Deno 2.x sélectionne alors le mode de gestion local `node_modules` manuel ; les imports npm inline des fonctions Edge, dont `npm:jose@6`, ne sont pas installés dans ce dossier.
+
+**Correction :** le wrapper force désormais `--node-modules-dir=none` pour cette exécution isolée. Deno résout les imports npm depuis son cache global au lieu d'attendre une installation locale dans le worktree. Cela évite d'élargir `--allow-write` au dépôt et conserve les seules écritures runtime autorisées dans `artifacts/e2e`. Le test statique exige la présence de ce flag.
+
+- Wrapper : `e2e/run-africa-bulk-recipe.cmd`.
+- Test de non-régression : `scripts/runtime-readonly-lots.test.mjs`.
+- Commit wrapper : `854c33f985b745d21c709813c4d166b33d24f17a`.
+- Commit test : `006c100fbc0081ed00a6233100894c75a97f279b`.
+
+**Sources de configuration Deno :** documentation officielle « Node and npm Compatibility » et « Configuration file (deno.json) », qui décrivent les modes `none`, `auto` et `manual` et confirment que le mode `none` utilise le cache global.
+
+**Validation restante :** récupérer le HEAD mis à jour et rejouer le wrapper. Les 11 tests précédents restent PASS, mais la recette bulk n'a toujours pas exécuté l'ingestion ni le processeur. Ne revendiquer aucune écriture ou validation métier avant un rapport runtime.
