@@ -8440,3 +8440,59 @@ Commits de durcissement des wrappers :
 Le test statique verrouille les six wrappers, leurs chemins de rapport, les journaux de repli, la présence de `start "" notepad` et le retour du code `RC`. Le test statique est versionné ; son exécution locale sur le dernier HEAD reste à effectuer avec la prochaine validation.
 
 
+
+
+---
+
+## 153. LOT-04 Afrique — lecture corrigée confirmée, couverture bloquée par l'absence de fixtures
+
+**Mise à jour : 10 novembre 2026 — version 2.186.** Cette section clôt le diagnostic de l'erreur 42703 décrit en §151 et enregistre le premier rapport du runner corrigé. Le test a été exécuté sur le commit `94fb9c4cb63e884670f319156df0c952b58c870d`.
+
+### 153.1 Résultat réel du run ciblé
+
+Rapport opérateur créé le 10 novembre 2026 à 04:10:33.930Z, terminé à 04:10:36.224Z :
+
+| Contrôle | Résultat | Preuve |
+|---|---|---|
+| JOBLY_E2E_TARGET | **PASS** | HTTP 200 ; projet `ofqqrryamslxoqkklraw` confirmé |
+| JOB_HARVEST_CAPTURE_READ | **PASS** | HTTP 200 ; lecture paginée complète |
+| JOB_OFFER_PIPELINE_READ | **PASS** | HTTP 200 ; lecture paginée complète |
+| AFRICA_DATA_PRESENCE | **BLOCKED** | Les deux tables sont accessibles mais vides |
+| AFRICA_FRESHNESS_AUDIT | **BLOCKED** | Aucune capture disponible pour calculer la fraîcheur |
+
+Bilan : **3 PASS, 0 FAIL, 2 BLOCKED** ; statut global **PARTIAL**. Le runner ne rencontre plus l'erreur de colonne inexistante 42703 : les deux projections corrigées sont acceptées par l'API REST.
+
+### 153.2 Volumétrie observée
+
+- `JobHarvestCapture` : 0 ligne observée, 0 ligne totale, pagination complète, aucune troncature.
+- `JobOfferPipeline` : 0 ligne observée, 0 ligne totale, pagination complète, aucune troncature.
+- Les répartitions par statut, source et score sont vides, conformément à cette volumétrie nulle.
+- `readOnly: true` ; aucune écriture ou suppression métier effectuée.
+- Aucun e-mail, SMS, paiement, OAuth fournisseur, ingestion, réindexation ou envoi de candidature exécuté.
+- Aucun secret ni token imprimé ; aucune action externe ; aucune modification distante métier déclarée.
+
+Le résultat démontre maintenant la compatibilité des lectures avec le schéma présent dans JOBLY-E2E. Il ne démontre pas le bon fonctionnement d'une collecte, d'un traitement canonique ou de la règle de fraîcheur, puisque aucune donnée de recette n'est disponible pour les exercer.
+
+### 153.3 Diagnostic et décision
+
+La cause technique du FAIL précédent est résolue dans le runner : les contrôles de cible et les deux lectures sont PASS. Les deux BLOCKED restants sont des blocages de couverture dus à l'absence de données, et non des erreurs HTTP ou de schéma.
+
+Ne pas :
+- déclarer LOT-04 PASS sur la seule base des lectures HTTP 200 ;
+- lancer une ingestion réelle pour remplir les tables ;
+- injecter des lignes arbitraires directement dans les tables métier ;
+- modifier le schéma ou les permissions pour lever ces BLOCKED ;
+- utiliser JOBLY-PROD, fusionner dans `main` ou déployer.
+
+Étape suivante : examiner le mécanisme de fixtures E2E déjà prévu par le dépôt et ses dépendances, puis préparer un scénario de recette isolé, strictement limité au projet `ofqqrryamslxoqkklraw`, avec des données synthétiques identifiables et un nettoyage vérifiable. Aucune écriture distante ne doit être effectuée tant que le mécanisme n'a pas été audité et que le périmètre d'écriture/nettoyage n'est pas explicite. Une fois les fixtures sûres disponibles, rejouer LOT-04 seul pour tester les statuts, sources, données canoniques et dates de publication/fraîcheur.
+
+### 153.4 État de validation et garde-fous
+
+- Correctif des projections LOT-04 : **confirmé par exécution ciblée**.
+- Accès au projet JOBLY-E2E : **PASS**.
+- Lecture complète des deux tables : **PASS**.
+- Présence de captures et pipelines : **BLOCKED — 0 ligne**.
+- Audit effectif de fraîcheur : **BLOCKED — aucune capture**.
+- Aucun changement distant métier, aucune action externe, aucun déploiement et aucune fusion dans `main`.
+
+**Verdict : LOT-04 n'échoue plus techniquement. Il reste PARTIAL, de façon intentionnelle et honnête, en attendant des fixtures synthétiques sûres pour JOBLY-E2E.**
