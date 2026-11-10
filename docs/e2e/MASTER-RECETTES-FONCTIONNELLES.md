@@ -10,22 +10,22 @@
 ---
 
 
-## Décision fonctionnelle ajoutée — cinq meilleurs talents réservés à l'abonnement
+## Décision fonctionnelle — matching top 5 et accès premium aux profils
 
-**Règle produit :** les cinq talents les mieux classés pour une offre selon leur score de matching sont visibles uniquement par un recruteur dont l'abonnement Jobly est actif et possède l'entitlement explicite correspondant. Il est impossible de consulter ces cinq profils en version gratuite.
+**Règle globale pour tous les recruteurs et toutes les offres Jobly :** seuls les talents dont le score de matching est **>= 90 %** sont éligibles. Jobly retient au maximum les cinq meilleurs par offre, triés par score décroissant avec départage déterministe.
 
-- Le compte gratuit ne reçoit ni noms, ni photos, ni CV, ni coordonnées, ni détails de profil, ni scores individuels des cinq profils premium. Le contrôle est obligatoire côté serveur/API ; masquer seulement les cartes dans l'UI est insuffisant.
-- L'écran gratuit peut présenter un verrou non révélateur et un CTA vers l'abonnement. Les profils verrouillés ne doivent pas rester accessibles dans le HTML, le cache, les réponses API, la pagination ou les données préchargées.
-- Un abonnement expiré, annulé, suspendu, impayé ou sans le droit correspondant ne permet pas l'accès. La même décision doit être appliquée par l'UI et toutes les routes API.
-- Le classement est calculé par offre, sans mélange entre offres, avec prise en compte des règles de visibilité et de consentement des talents. Les ex-aequo utilisent un ordre secondaire déterministe.
-- Cette restriction ne change pas les règles applicables aux autres talents ni ne donne de droits supplémentaires sur leurs profils.
+- **Compte gratuit :** peut consulter les scores de matching des cinq talents éligibles, mais ne peut ni voir ni ouvrir leurs profils. Aucun nom, photo, identifiant de profil, CV, coordonnées ou autre donnée personnelle identifiable ne doit être transmis au navigateur. Les scores seuls constituent l'accroche commerciale.
+- **Compte avec abonnement :** l'accès aux profils des cinq talents exige un abonnement Jobly actif et l'entitlement explicite correspondant. Expiration, annulation, suspension, impayé ou absence de droit verrouille les profils.
+- Protection serveur/API sur toutes les surfaces Jobly (découverte, matching d'une offre, conversion WhatsApp, espace recruteur, recherche, pagination, exports et préchargements). Un simple masquage UI ne suffit pas.
+- Règle identique pour les offres récupérées par conversion WhatsApp et celles créées directement sur Jobly. Le seuil de 90 % est inclusif.
 
 **Scénarios obligatoires :**
-- **REC-CONV-06 — Free / paywall :** compte gratuit, écran, appels API directs et chemins alternatifs ; aucun champ personnel ni score individuel des cinq talents n'est révélé ; CTA abonnement présent.
-- **REC-CONV-07 — entitlement :** accès accordé à un abonnement actif avec le droit requis ; accès refusé ou révoqué après expiration, annulation, suspension, impayé ou plan non éligible.
-- **REC-CONV-08 — classement et confidentialité :** top 5 propre à chaque offre, scores/ordre cohérents, égalités déterministes, consentement, pagination/cache/HTML/API sans fuite.
+- **REC-MATCH-01 — seuil et classement :** scores 89,99 %, 90 %, au-dessus ; seuls >=90 % sont classés ; maximum cinq par offre ; ordre et égalités déterministes.
+- **REC-MATCH-02 — gratuit :** scores visibles, profils inaccessibles ; vérifier l'absence de données identifiantes dans HTML, réponses API, cache, pagination, recherche et exports.
+- **REC-MATCH-03 — abonnement :** abonnement actif + entitlement ouvre les profils ; expiration, annulation, suspension, impayé ou révocation ferme l'accès.
+- **REC-MATCH-04 — portée globale :** mêmes règles sur toutes les surfaces Jobly et pour tous les recruteurs, y compris les offres créées sans parcours WhatsApp.
 
-Ces scénarios sont **À CODER / À EXÉCUTER** jusqu'à preuve runtime JOBLY-E2E ; aucune implémentation ni recette PASS n'est revendiquée par cette décision documentaire.
+Ces scénarios sont **À CODER / À EXÉCUTER** ; aucune implémentation ni recette PASS n'est revendiquée par cette décision documentaire.
 
 ## 0. Décision de refonte
 
