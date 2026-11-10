@@ -113,7 +113,7 @@ export async function getCascadeOpportunities(userId: string): Promise<CascadeOp
     sb.from("Skill").select("name,level,provenance").eq("userId", userId).limit(60),
     sb.from("Experience").select("title,description,startDate,endDate").eq("userId", userId).limit(30),
     sb.from("Education").select("degree,field,institution").eq("userId", userId).limit(20),
-    sb.from("Job").select("id,title,description,location,contractType,remoteMode,minExperienceYears,companyId,source,sourceUrl,isActive,tags,aiSkills,aiSector,opportunityType").eq("isActive", true).order("createdAt", { ascending: false }).limit(150),
+    sb.from("Job").select("id,title,description,location,contractType,remoteMode,minExperienceYears,companyId,source,sourceUrl,isActive,tags,aiSkills,aiSector,opportunityType,normalizedContent").eq("isActive", true).order("createdAt", { ascending: false }).limit(150),
     sb.from("RecruiterJob").select("id,title,description,companyName,location,contract,remoteMode,minExperienceYears,sector,tags,status").eq("status", "published").order("createdAt", { ascending: false }).limit(100),
     sb.from("Company").select("id,name,logoUrl,verified,website").limit(200),
   ]);
@@ -166,12 +166,12 @@ export async function getCascadeOpportunities(userId: string): Promise<CascadeOp
       remoteMode: job.remoteMode,
       minExperienceYears: job.minExperienceYears,
       sector: job.aiSector,
-      tags: [...(job.tags ?? []), ...(Array.isArray(job.aiSkills) ? job.aiSkills : [])],
+      tags: [...(job.tags ?? []), ...(Array.isArray(job.aiSkills) ? job.aiSkills : [])],\n      normalizedContent: job.normalizedContent,
     } satisfies MatchingJob);
     const prestige = sourcePrestige(String(job.source ?? "discovery"), Boolean(company?.verified));
     results.push({
       id: `job:${job.id}`,
-      kind: isStage ? "STAGE" : "EMPLOI",
+      kind,
       title: job.title,
       company: detectedCompany,
       logoUrl: company?.logoUrl ?? brandLogo(company?.website),
