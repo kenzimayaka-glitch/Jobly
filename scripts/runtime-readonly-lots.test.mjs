@@ -54,6 +54,9 @@ test("LOT-04 Africa runtime runner reads only approved E2E harvest tables", () =
 test("shared server launcher builds once, stays on loopback JOBLY-E2E and rejects an occupied port", () => {
   const runner = read("e2e/start-readonly-runtime-server.mjs");
   assert.match(runner, /const PORT = "3217"/);
+  assert.match(runner, /spawn\(process\.execPath, \[NEXT_CLI, "build"\]/);
+  assert.doesNotMatch(runner, /pnpm\.cmd|shell:\s*process\.platform/);
+  assert.match(runner, /NEXT_BUILD_SPAWN_FAILED/);
   assert.match(runner, /assertPortFree/);
   assert.match(runner, /gitValue\(\["rev-parse", "origin\/e2e\/recette"\]\)/);
   assert.match(runner, /SUPABASE_SECRET_KEY: config\.secretKey/);
