@@ -7,8 +7,10 @@ const read = (file) => readFileSync(new URL("../" + file, import.meta.url), "utf
 test("runtime common helper forces only the JOBLY-E2E project and uses GET for local APIs", () => {
   const common = read("e2e/runtime-readonly-common.mjs");
   assert.match(common, /const PROJECT_REF = "ofqqrryamslxoqkklraw"/);
-  assert.match(common, /publicUrl && publicUrl !== SUPABASE_URL/);
-  assert.match(common, /serverUrl && serverUrl !== SUPABASE_URL/);
+  assert.match(common, /for \(const filename of \["\.env\.local", "\.env\.e2e\.local"\]\)/);
+  assert.doesNotMatch(common, /loadEnvConfig\(sourceRoot,\s*false/);
+  assert.match(common, /\.e2e-fixture-runtime\.json/);
+  assert.match(common, /NON_E2E_REFUSED_SOURCE_/);
   assert.match(common, /method: "GET"/);
   assert.match(common, /127\.0\.0\.1:3217/);
 });
