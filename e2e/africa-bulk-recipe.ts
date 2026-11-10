@@ -106,11 +106,11 @@ async function connectE2E() {
     } },
   });
 
-  // A Supabase sb_secret_ key has no locally decodable project claim. If no
-  // trusted runtime manifest or same-file E2E URL accompanies it, prove the
-  // key against the pinned JOBLY-E2E project with a zero-row, read-only HEAD.
-  // A production/foreign key is rejected by the E2E API before any write.
-  if (key.startsWith("sb_secret_") && !runtimeVerified && !configuredUrls.includes(URL)) {
+  // A Supabase sb_secret_ key has no locally decodable project claim.
+  // Always prove it against the pinned JOBLY-E2E project with a zero-row,
+  // read-only HEAD, even when a local URL/manifest is present. A production or
+  // foreign key is rejected by the E2E API before any business write.
+  if (key.startsWith("sb_secret_")) {
     const { error } = await client.from("Job")
       .select("id", { count: "exact", head: true })
       .limit(0);
