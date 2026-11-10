@@ -7,8 +7,9 @@ const REF = "ofqqrryamslxoqkklraw";
 const URL = "https://" + REF + ".supabase.co";
 const SOURCE_ROOT = path.resolve(Deno.args[0] || "");
 const OUT = path.resolve("artifacts/e2e");
+const STATE = path.resolve(Deno.args[1] || OUT);
 const REPORT = path.join(OUT, "africa-bulk-recipe-report.json");
-const MANIFEST = path.join(OUT, "africa-bulk-recipe-cleanup.json");
+const MANIFEST = path.join(STATE, "africa-bulk-recipe-cleanup.json");
 
 type Row = Record<string, any>;
 const report: Row = {
@@ -44,7 +45,14 @@ async function readText(file: string): Promise<string | null> {
 }
 async function saveJson(file: string, value: unknown) {
   await Deno.mkdir(path.dirname(file), { recursive: true });
-  await Deno.writeTextFile(file, JSON.stringify(value, null, 2) + "\n");
+  const temporary = file + ".tmp-" + crypto.randomUUID();
+  try {
+    await Deno.writeTextFile(temporary, JSON.stringify(value, null, 2) + "\n");
+    await Deno.rename(temporary, file);
+  } catch (error) {
+    await Deno.remove(temporary).catch(() => undefined);
+    throw error;
+  }
 }
 async function connectE2E() {
   insist(SOURCE_ROOT && SOURCE_ROOT !== path.parse(SOURCE_ROOT).root, "SOURCE_ROOT_INVALID");
