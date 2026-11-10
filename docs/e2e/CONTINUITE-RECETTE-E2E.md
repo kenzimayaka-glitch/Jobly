@@ -108,6 +108,8 @@ JOBLY-E2E uniquement ; fixtures existantes uniquement ; aucun reset, rotation ou
 
 **État :** scripts créés et relus sur `e2e/recette`; **aucune exécution runtime opérateur n'est encore prouvée**.
 
+**Arrêt du serveur partagé après lecture des trois rapports :** exécuter `call e2e\\stop-readonly-runtime-server.cmd` depuis le worktree. Le script vérifie le PID enregistré, le type `node.exe` et le retour HTTP 401 du serveur local, puis ne termine que ce PID. Rapport d'arrêt : `artifacts\\e2e\\parallel-runtime-server-stop.json`.
+
 **Dernier commit code des runners :** `aa12c03725a49700f3afa9446b318ee0fa7f5d3c`.
 
 ### Architecture d'exécution
