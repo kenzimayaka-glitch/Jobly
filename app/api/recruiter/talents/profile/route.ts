@@ -55,10 +55,9 @@ export async function GET(request: NextRequest) {
       .eq("userId", share.userId)
       .maybeSingle();
     if (applicationError) throw new Error(applicationError.message);
-    const relationValid = Boolean(application && (
-      (application.jobId && share.jobId === application.jobId) ||
-      (application.recruiterJobId && !share.jobId)
-    ));
+    if (!application) return NextResponse.json({ message: "Offre liée au partage introuvable." }, { status: 404 });
+    const relationValid = (application.jobId && share.jobId === application.jobId) ||
+      (application.recruiterJobId && !share.jobId);
     if (!relationValid) return NextResponse.json({ message: "Offre liée au partage introuvable." }, { status: 404 });
 
     const table = application.jobId ? "Job" : "RecruiterJob";
@@ -122,6 +121,7 @@ export async function GET(request: NextRequest) {
     ]);
     for (const result of [userResult, experienceResult, skillResult]) if (result.error) throw new Error(result.error.message);
 
+    if (!userResult.data) return NextResponse.json({ message: "Profil talent introuvable." }, { status: 404 });
     const user = userResult.data;
     return NextResponse.json({
       profile: profileResult.data,
