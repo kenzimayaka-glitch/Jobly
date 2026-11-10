@@ -172,7 +172,7 @@ Les preuves sont des artefacts GitHub Actions avec durée de conservation limit�
 Depuis CMD, la commande à exécuter est :
 
 ```cmd
-call "%USERPROFILE%\Jobly-e2e-recette-lot01\e2e\run-africa-bulk-bootstrap.cmd"
+cd /d "%USERPROFILE%\Jobly-e2e-recette-lot01" && echo [BOOTSTRAP 1/3] FETCH && git fetch --no-tags origin refs/heads/e2e/recette && echo [BOOTSTRAP 2/3] FETCH_TERMINE && git show FETCH_HEAD:e2e/run-africa-bulk-bootstrap.cmd > "%TEMP%\jobly-africa-bulk-bootstrap.cmd" && echo [BOOTSTRAP 3/3] LANCEMENT && call "%TEMP%\jobly-africa-bulk-bootstrap.cmd" FETCH_HEAD
 ```
 
 Ce fichier versionné affiche cinq jalons. Il récupère le SHA distant, extrait le PowerShell versionné dans un dossier temporaire puis l'exécute avec ce SHA. Il ne demande pas un worktree propre, n'effectue aucun checkout/reset/clean et ne modifie pas les fichiers locaux. Journal bootstrap fixe : `%TEMP%\jobly-africa-bulk-bootstrap.log`. Le lanceur PowerShell ouvre le rapport JSON si le runner Deno le produit ; sinon il ouvre son journal fixe `%TEMP%\jobly-africa-bulk-launch.log`.
