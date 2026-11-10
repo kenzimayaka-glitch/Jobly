@@ -8864,3 +8864,22 @@ Le bootstrap ouvre son journal `%TEMP%\jobly-africa-bulk-bootstrap.log`. Une foi
 **Ajustement final après revue de flux PowerShell :** les lignes natives sont maintenant relayées après `Tee-Object` par `ForEach-Object { Write-Host ... }`. Cela garantit qu'elles restent visibles même lorsque l'appelant termine l'invocation par `Out-Null`, tout en conservant leur copie dans le journal. Correctif : `e73f2ebde7374fa1856afb4ce116a58c4d409875` ; assertion complémentaire : `43fc0aca4e8c64e5288bc8d335d006fc395824c8`.
 
 Ce dernier ajustement est relu sur GitHub. La validation Windows reste nécessaire ; aucun rapport runtime PASS n'est revendiqué.
+
+
+### 154.23 Journal créé avant le tout premier accès réseau
+
+Un dernier contrôle a montré que le premier fetch est lancé par la commande CMD d'amorçage, avant que le fichier bootstrap téléchargé puisse s'exécuter. Le log du bootstrap seul ne suffisait donc pas à couvrir un blocage durant ce premier fetch.
+
+**Correction finale :** la commande de reprise documentée dans `e2e/README.md` initialise maintenant `%TEMP%\jobly-africa-bulk-bootstrap.log` et y inscrit le jalon `BOOTSTRAP 1/3 FETCH` avant d'appeler Git. Le bootstrap téléchargé conserve ce fichier au lieu de le tronquer. Si la récupération s'arrête, le journal existe donc déjà et peut être ouvert par Notepad sans proposition de créer un nouveau document. La progression Git forcée reste affichée dans la fenêtre CMD.
+
+- Bootstrap qui préserve le journal préalable : `36e5f62dbbc7b1b07b62c40a81b7c5323bb9df46`.
+- README avec journal précréé : `d34f453019b75e54e08b2f47b1fc92599bd5ca15`.
+- Test qui vérifie l'ordre journal puis fetch : `3a8faf64b7722b637f124c899ab3091e13ebb93d`.
+
+**Reprise opérateur à utiliser désormais :**
+
+```cmd
+cd /d "%USERPROFILE%\Jobly-e2e-recette-lot01" && set "GIT_TERMINAL_PROMPT=0" && set "GCM_INTERACTIVE=never" && set "BOOTLOG=%TEMP%\jobly-africa-bulk-bootstrap.log" && (echo JOBLY AFRICA BULK BOOTSTRAP > "%BOOTLOG%") && echo [BOOTSTRAP 1/3] FETCH && echo [BOOTSTRAP 1/3] FETCH>>"%BOOTLOG%" && git fetch --depth=1 --progress --no-tags origin refs/heads/e2e/recette && echo FETCH_EXIT_CODE=0>>"%BOOTLOG%" && echo [BOOTSTRAP 2/3] FETCH_TERMINE && git show FETCH_HEAD:e2e/run-africa-bulk-bootstrap.cmd > "%TEMP%\jobly-africa-bulk-bootstrap.cmd" && echo [BOOTSTRAP 3/3] LANCEMENT && call "%TEMP%\jobly-africa-bulk-bootstrap.cmd" FETCH_HEAD
+```
+
+Le journal de pré-démarrage se trouve à `%TEMP%\jobly-africa-bulk-bootstrap.log`. Le lancer Notepad après une éventuelle interruption au fetch ne doit plus demander de créer le fichier. La recette Windows et le rapport métier restent à exécuter ; aucun PASS runtime n'est revendiqué.
