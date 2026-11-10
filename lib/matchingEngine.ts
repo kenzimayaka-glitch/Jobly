@@ -325,6 +325,40 @@ function preferenceScore(preferences: string[], actual: string | null | undefine
   }) ? 100 : 0;
 }
 
+function contractFamily(value: string): string {
+  const text = normalize(value);
+  if (/\\bcdi\\b|permanent|indefinite|open ended/.test(text)) return "CDI";
+  if (/\\bcdd\\b|fixed term|temporary|temporaire/.test(text)) return "CDD";
+  if (/stage|internship|intern/.test(text)) return "STAGE";
+  if (/alternance|apprentissage|apprenticeship/.test(text)) return "ALTERNANCE";
+  if (/freelance|independant|contractor/.test(text)) return "FREELANCE";
+  return text;
+}
+
+function contractPreferenceScore(preferences: string[], actual: string | null | undefined): number | null {
+  if (!preferences.length || !actual) return null;
+  const jobFamily = contractFamily(actual);
+  return preferences.some((item) => contractFamily(item) === jobFamily) ? 100 : 0;
+}
+
+function remoteFamily(value: string): string | null {
+  const text = normalize(value);
+  if (/\\byes\\b|remote|teletravail|distance/.test(text)) return "REMOTE";
+  if (/partial|hybrid|hybride/.test(text)) return "HYBRID";
+  if (/\\bno\\b|presentiel|on site|onsite/.test(text)) return "ONSITE";
+  return null;
+}
+
+function remotePreferenceScore(preference: string | null | undefined, actual: string | null | undefined): number | null {
+  const wanted = preference ? remoteFamily(preference) : null;
+  const offered = actual ? remoteFamily(actual) : null;
+  if (!wanted || !offered) return null;
+  if (wanted === offered) return 100;
+  if (wanted === "REMOTE" && offered === "HYBRID") return 90;
+  if (wanted === "HYBRID" && (offered === "REMOTE" || offered === "ONSITE")) return 60;
+  return 0;
+}
+
 function quantifiedEvidence(candidate: MatchingCandidate): string[] {
   const regex = /\b\d+(?:[.,]\d+)?\s*(?:%|k\b|m\b|bn\b|xaf\b|fcfa\b|euros?\b|usd\b)|\b\d+\s+(?:clients?|comptes?|personnes?|collaborateurs?|projets?|pays?|sites?|jours?|mois|ans?)\b/gi;
   return (candidate.experiences ?? []).flatMap((item) => (String(item.description ?? "").match(regex) ?? []).slice(0, 6)).slice(0, 20);
@@ -367,12 +401,8 @@ export function scoreJobMatch(candidate: MatchingCandidate, job: MatchingJob): J
   const targetRoles = candidate.targetRoles ?? [];
   const roleScore = roleMatch(candidate, job);
   const locationScore = preferenceScore(candidate.targetCities ?? [], job.location);
-  const contractScore = preferenceScore(candidate.contractPreferences ?? [], job.contractType);
-  const preferredRemote = normalize(candidate.remotePreference);
-  const jobRemote = normalize(job.remoteMode);
-  const remoteScore = !preferredRemote || ["indifferent", "peu importe"].includes(preferredRemote)
-    ? null
-    : jobRemote ? ((preferredRemote === jobRemote || (preferredRemote === "yes" && jobRemote === "partial")) ? 100 : 0) : null;
+  const contractScore = contractPreferenceScore(candidate.contractPreferences ?? [], job.contractType);
+  const remoteScore = remotePreferenceScore(candidate.remotePreference, job.remoteMode);
   const sectorScore = preferenceScore(candidate.preferredSectors ?? [], job.sector);
 
   const dimensions: Record<string, MatchDimension> = {
@@ -396,7 +426,7 @@ export function scoreJobMatch(candidate: MatchingCandidate, job: MatchingJob): J
     Boolean(candidate.skills?.length),
     Boolean(experiences.length),
     Boolean(education.length),
-    Boolean(candidate.targetRoles?.length || candidate.location),
+    Boolean(candidate.targetRoles?.length || candidate.targetCities?.length || candidate.preferredSectors?.length || candidate.contractPreferences?.length),
   ].filter(Boolean).length;
   const confidence = Math.max(0, Math.min(100, Math.round((activeWeight / 100) * (0.55 + profileSignals / 5 * 0.45) * 100)));
   const reasons = Object.entries(dimensions)
