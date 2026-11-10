@@ -377,7 +377,7 @@ export function scoreJobMatch(candidate: MatchingCandidate, job: MatchingJob): J
   const matchedSkills: string[] = [];
   const missingSkills: string[] = [];
   let skillScore: number | null = null;
-  if (requiredSkills.length && ((candidate.skills?.length ?? 0) > 0 || experiences.length > 0)) {
+  if (requiredSkills.length && ((candidate.skills?.length ?? 0) > 0 || experiences.length > 0 || Boolean(String(candidate.cvText ?? "").trim()))) {
     const outcomes = requiredSkills.map((required) => {
       const key = skillKey(required);
       const matched = key ? candidateSkillSet.has(key) : overlapScore(required, candidateText) >= 70;
@@ -426,7 +426,7 @@ export function scoreJobMatch(candidate: MatchingCandidate, job: MatchingJob): J
   const weighted = active.reduce((sum, item) => sum + Number(item.score) * item.weight, 0);
   const score = activeWeight ? Math.max(0, Math.min(100, Math.round(weighted / activeWeight))) : 0;
   const profileSignals = [
-    Boolean(candidate.headline || candidate.summary),
+    Boolean(candidate.headline || candidate.summary || candidate.cvText),
     Boolean(candidate.skills?.length),
     Boolean(experiences.length),
     Boolean(education.length),
