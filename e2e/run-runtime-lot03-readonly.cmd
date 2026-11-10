@@ -6,4 +6,5 @@ node e2e\runtime-lot03-readonly.mjs "%USERPROFILE%\Jobly" > artifacts\e2e\lot3-r
 set "RC=%ERRORLEVEL%"
 echo EXIT_CODE=%RC%>> artifacts\e2e\lot3-runtime-readonly-process.log
 type artifacts\e2e\lot3-runtime-readonly-process.log
+start "" notepad "%CD%\artifacts\e2e\lot3-runtime-readonly.json"
 exit /b %RC%
