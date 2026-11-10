@@ -52,6 +52,8 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [generatingJob, setGeneratingJob] = useState(false);
+  const [generationNotice, setGenerationNotice] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [status, setStatus] = useState<"draft" | "published" | "closed">("draft");
@@ -157,6 +159,43 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function generateFromTitle() {
+    if (!token) {
+      setError("Session recruteur indisponible. Recharge la page puis reconnecte-toi.");
+      return;
+    }
+    if (title.trim().length < 3) {
+      setError("Saisis d'abord l'intitulé du poste.");
+      return;
+    }
+    if (description.trim() && !window.confirm("Remplacer la description actuelle par un nouveau brouillon J'IA ?")) return;
+
+    setGeneratingJob(true);
+    setError(null);
+    setGenerationNotice([]);
+    try {
+      const response = await fetch("/api/recruiter/jobs/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "La génération de l'offre a échoué.");
+      const draft = body.draft || {};
+      if (typeof draft.description !== "string" || !draft.description.trim()) {
+        throw new Error("J'IA n'a pas retourné de description exploitable. Réessaie.");
+      }
+      setDescription(draft.description);
+      if (Array.isArray(draft.skills) && draft.skills.length) setTagsInput(draft.skills.join(", "));
+      if (typeof draft.sector === "string" && draft.sector && !sector.trim()) setSector(draft.sector);
+      setGenerationNotice(Array.isArray(draft.missingFields) ? draft.missingFields : []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Génération de l'offre impossible.");
+    } finally {
+      setGeneratingJob(false);
+    }
+  }
 
   async function submit(nextStatus: "draft" | "published") {
     if (!token) return;
@@ -296,15 +335,21 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
               <label className="block">
                 <span className="mb-1.5 block text-xs font-extrabold text-navy flex items-center justify-between">
                   Description *
-                  <span
-                    aria-disabled="true"
-                    title="Nécessite un chiffrage du coût IA avant activation (voir Statut.md §17)"
-                    className="flex cursor-not-allowed items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-jobly-gray"
+                  <button
+                    type="button"
+                    onClick={generateFromTitle}
+                    disabled={generatingJob || !title.trim() || !token}
+                    className="inline-flex items-center gap-1 rounded-full bg-[#FFE135] px-3 py-1.5 text-[10px] font-black text-navy disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <span>✨</span> Générer avec IA · Bientôt disponible
-                  </span>
+                    <span>{generatingJob ? "⏳" : "✨"}</span> {generatingJob ? "Génération…" : "Générer avec J'IA"}
+                  </button>
                 </span>
-                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-navy outline-none focus:border-jobly-blue" placeholder="Décrivez les missions, responsabilités, profil recherché…" />
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={8} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-navy outline-none focus:border-jobly-blue" placeholder="Le brouillon généré apparaîtra ici. Relis et complète les champs propres à ton entreprise avant publication…" />
+                {generationNotice.length > 0 && (
+                  <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+                    <strong>À compléter avant publication :</strong> {generationNotice.join(" · ")}.
+                  </div>
+                )}
               </label>
 
             <div className="grid grid-cols-2 gap-3">
