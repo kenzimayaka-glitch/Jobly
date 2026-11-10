@@ -8883,3 +8883,17 @@ cd /d "%USERPROFILE%\Jobly-e2e-recette-lot01" && set "GIT_TERMINAL_PROMPT=0" && 
 ```
 
 Le journal de pré-démarrage se trouve à `%TEMP%\jobly-africa-bulk-bootstrap.log`. Le lancer Notepad après une éventuelle interruption au fetch ne doit plus demander de créer le fichier. La recette Windows et le rapport métier restent à exécuter ; aucun PASS runtime n'est revendiqué.
+
+
+### 154.24 Réparation de l'assertion TEMP et du code de sortie du bootstrap après le premier run Windows
+
+**Rapport Windows reçu :** le snapshot et Deno 2.9.8 ont bien démarré. Le préflight Node a exécuté 11 groupes : 10 PASS, 1 FAIL. L'unique échec était une assertion du test statique qui attendait à tort `Join-Path $env.TEMP`; le lanceur emploie la syntaxe correcte `Join-Path $env:TEMP`. La recette Deno métier n'a pas été lancée.
+
+**Corrections publiées :**
+- `scripts/runtime-readonly-lots.test.mjs` : assertion corrigée pour exiger `Join-Path $env:TEMP` — commit `697daf75a2a2b472d4c2f9a395670814ff9ae675`.
+- `e2e/run-africa-bulk-bootstrap.cmd` : capture du statut de PowerShell et de Git avec des branches `if errorlevel`, et non une expansion directe `%ERRORLEVEL%`. Cette voie évite une variable d'environnement homonyme qui pourrait masquer le pseudo-variable CMD — commit `11ea80a416982fbfb28a4c705d36c9cbdea03b45`.
+- `scripts/runtime-readonly-lots.test.mjs` : garde de non-régression sur les codes retour 0/1/2 — commit `6bb38037d2745ca3143e2928cdb26ebeacd6baef`.
+
+**État :** le blocage observé est diagnostiqué et corrigé dans la branche `e2e/recette`. Le résultat `10 PASS / 1 FAIL` correspond à l'ancien snapshot `fcdc86d3c3d195597bbc3b6627a3b0e175cc0ffb`, pas aux fichiers corrigés après ce run. Il faut exécuter le nouveau HEAD pour prouver le préflight. Aucun traitement d'offres, aucune écriture métier ni aucun nettoyage n'ont été exécutés par le lancement signalé.
+
+**Reprise :** relancer la commande unique de §154.23. Elle récupère la nouvelle tête de `e2e/recette`, crée le journal avant le fetch et appelle le nouveau bootstrap. Le jalon `ISOLATED_EXIT_CODE` doit maintenant afficher une valeur numérique. Aucun PASS runtime ne doit être revendiqué avant un rapport complet indiquant `status=PASS` et `cleanupVerified=true`.
