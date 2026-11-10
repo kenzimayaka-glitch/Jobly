@@ -8366,11 +8366,7 @@ Le runner LOT-04 est autonome et ne nécessite pas le serveur Next.js. Après sy
 call e2e\run-runtime-lot04-readonly.cmd
 ```
 
-Rapport à ouvrir :
-
-```cmd
-notepad artifacts\e2e\lot4-runtime-readonly.json
-```
+Le lanceur ouvre automatiquement `artifacts\e2e\lot4-runtime-readonly.json` dans Notepad à la fin du test, que le résultat soit PASS, PARTIAL ou FAIL. Aucune commande Notepad séparée n'est nécessaire.
 
 Résultat attendu avec le snapshot E2E observé pendant le diagnostic :
 - `JOBLY_E2E_TARGET` : PASS ;
@@ -8391,3 +8387,39 @@ Si le schéma est corrigé mais les tables restent vides, ne pas lancer de colle
 - Pas de migration, pas de modification de tables ou permissions, pas d'écriture JOBLY-PROD, pas de fusion dans `main`, pas de déploiement Vercel.
 
 **Verdict : cause 42703 identifiée et projection LOT-04 corrigée dans le code. La réussite de la lecture et le statut PARTIAL attendu doivent encore être confirmés par le run ciblé.**
+
+
+---
+
+## 152. Règle permanente — ouverture automatique des rapports dans Notepad
+
+**Mise à jour : 10 novembre 2026 — version 2.184.** À la demande de l'utilisateur, toute commande de recette Windows doit ouvrir automatiquement son rapport à la fin. L'opérateur ne doit plus avoir à lancer une deuxième commande Notepad.
+
+### 152.1 Lanceurs concernés
+
+Les wrappers CMD suivants ont été modifiés pour appeler `start "" notepad` sur leur rapport dédié après l'exécution et avant le retour du code de sortie :
+- `e2e/run-runtime-lot02-readonly.cmd` → `artifacts/e2e/lot2-runtime-readonly.json` ;
+- `e2e/run-runtime-lot03-readonly.cmd` → `artifacts/e2e/lot3-runtime-readonly.json` ;
+- `e2e/run-runtime-lot04-readonly.cmd` → `artifacts/e2e/lot4-runtime-readonly.json` ;
+- `e2e/start-readonly-runtime-server.cmd` → `artifacts/e2e/parallel-runtime-server.json` ;
+- `e2e/stop-readonly-runtime-server.cmd` → `artifacts/e2e/parallel-runtime-server-stop.json` ;
+- `e2e/run-global-e2e.cmd` → `artifacts/e2e/global-e2e-report.md`.
+
+Le lancement de Notepad intervient également lorsque le runner retourne un code non nul : le rapport FAIL/PARTIAL doit rester immédiatement visible. Le code de sortie initial du test est conservé dans `RC` et reste le code de sortie du wrapper.
+
+### 152.2 Règle opératoire à conserver
+
+- Donner une seule commande CMD exécutable par l'utilisateur.
+- Intégrer l'ouverture automatique du rapport dans le wrapper CMD lui-même.
+- Ne plus demander ensuite une deuxième commande `notepad ...`.
+- Quand une commande n'a pas de wrapper, ajouter explicitement une ouverture Notepad à la fin de la même ligne CMD, sans masquer le code de sortie initial.
+- Si le test échoue, conserver et ouvrir le rapport d'échec ; ne jamais ouvrir uniquement le journal si un rapport structuré est disponible.
+- Toute nouvelle commande de recette, tout nouveau lot et tout nouvel orchestrateur doit respecter cette règle.
+
+### 152.3 Reprise immédiate LOT-04
+
+La prochaine exécution doit récupérer la dernière tête de `e2e/recette`, puis invoquer seulement `call e2e\run-runtime-lot04-readonly.cmd`. Le wrapper ouvrira automatiquement le rapport `lot4-runtime-readonly.json`. Pas de build global, pas de serveur Next.js requis, pas de commande Notepad supplémentaire.
+
+À la date de cette mise à jour, le correctif des projections SQL est commité, mais le runner LOT-04 corrigé n'a pas encore été rejoué par l'opérateur. Ses résultats doivent être renseignés après réception du nouveau rapport.
+
+**Cette règle est permanente pour la suite de la recette Jobly.**
