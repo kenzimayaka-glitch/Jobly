@@ -241,8 +241,8 @@ function requiredEducationLevel(job: MatchingJob): number | null {
     [/baccalaureat|baccalaureate|high school|bac general|bac technique/, 2],
     [/cap|bep|vocational/, 1],
   ];
-  for (const [pattern, level] of patterns) if (pattern.test(text)) return level;
-  return null;
+  const listedLevels = patterns.filter(([pattern]) => pattern.test(text)).map(([, level]) => level);
+  return listedLevels.length ? Math.min(...listedLevels) : null;
 }
 
 function buildCandidateText(candidate: MatchingCandidate): string {
