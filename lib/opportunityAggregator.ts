@@ -1,5 +1,6 @@
 import { adminClient } from "./server-auth";
 import { scoreJobMatch, type MatchingCandidate, type MatchingJob, type MatchDimension } from "./matchingEngine";
+import { readOriginalCvText } from "./cv/readOriginalCvText";
 
 export type OpportunityKind = "EMPLOI" | "STAGE" | "FORMATION";
 
@@ -108,7 +109,7 @@ function extractCompanyName(title: string, description: string): string | null {
 
 export async function getCascadeOpportunities(userId: string): Promise<CascadeOpportunity[]> {
   const sb = adminClient();
-  const [profileRes, skillsRes, experiencesRes, educationRes, jobsRes, recruiterRes, companiesRes] = await Promise.all([
+  const [profileRes, skillsRes, experiencesRes, educationRes, jobsRes, recruiterRes, companiesRes, cvEvidence] = await Promise.all([
     sb.from("Profile").select("headline,summary,location,targetRoles,targetCities,contractPreferences,remotePreference,preferredSectors").eq("userId", userId).maybeSingle(),
     sb.from("Skill").select("name,level,provenance").eq("userId", userId).limit(60),
     sb.from("Experience").select("title,description,startDate,endDate").eq("userId", userId).limit(30),
@@ -116,21 +117,27 @@ export async function getCascadeOpportunities(userId: string): Promise<CascadeOp
     sb.from("Job").select("id,title,description,location,contractType,remoteMode,minExperienceYears,companyId,source,sourceUrl,isActive,tags,aiSkills,aiSector,opportunityType,normalizedContent").eq("isActive", true).order("createdAt", { ascending: false }).limit(150),
     sb.from("RecruiterJob").select("id,title,description,companyName,location,contract,remoteMode,minExperienceYears,sector,tags,status").eq("status", "published").order("createdAt", { ascending: false }).limit(100),
     sb.from("Company").select("id,name,logoUrl,verified,website").limit(200),
+    readOriginalCvText(sb, userId),
   ]);
   for (const result of [profileRes, skillsRes, experiencesRes, educationRes, jobsRes, recruiterRes, companiesRes]) {
     if (result.error) throw new Error(result.error.message);
   }
 
-  const profile = profileRes.data ?? {};
+  const profile = (profileRes.data ?? null) as unknown as {
+    headline?: string | null; summary?: string | null; location?: string | null;
+    targetRoles?: unknown; targetCities?: unknown; contractPreferences?: unknown;
+    remotePreference?: string | null; preferredSectors?: unknown;
+  } | null;
   const candidate: MatchingCandidate = {
-    headline: profile.headline,
-    summary: profile.summary,
-    location: profile.location,
-    targetRoles: Array.isArray(profile.targetRoles) ? profile.targetRoles : [],
-    targetCities: Array.isArray(profile.targetCities) ? profile.targetCities : [],
-    contractPreferences: Array.isArray(profile.contractPreferences) ? profile.contractPreferences : [],
-    remotePreference: profile.remotePreference,
-    preferredSectors: Array.isArray(profile.preferredSectors) ? profile.preferredSectors : [],
+    headline: profile?.headline ?? null,
+    summary: profile?.summary ?? null,
+    cvText: cvEvidence.text,
+    location: profile?.location ?? null,
+    targetRoles: Array.isArray(profile?.targetRoles) ? profile.targetRoles as string[] : [],
+    targetCities: Array.isArray(profile?.targetCities) ? profile.targetCities as string[] : [],
+    contractPreferences: Array.isArray(profile?.contractPreferences) ? profile.contractPreferences as string[] : [],
+    remotePreference: profile?.remotePreference ?? null,
+    preferredSectors: Array.isArray(profile?.preferredSectors) ? profile.preferredSectors as string[] : [],
     skills: skillsRes.data ?? [],
     experiences: experiencesRes.data ?? [],
     education: educationRes.data ?? [],

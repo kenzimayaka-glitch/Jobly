@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
 import { scoreRecruiterApplication, type MatchingCandidate, type MatchingCriterion, type MatchingJob } from "../../../../lib/matchingEngine";
+import { readOriginalCvText } from "../../../../lib/cv/readOriginalCvText";
 
 const RECRUITMENT_ROLES = ["OWNER", "HR", "MANAGER", "DELEGATE"];
 
@@ -164,17 +165,23 @@ export async function POST(req: NextRequest) {
         if (result.error) throw new Error(result.error.message);
       }
 
-      const profile = profileRes.data ?? {};
+      const profile = (profileRes.data ?? null) as unknown as {
+        headline?: string | null; summary?: string | null; location?: string | null;
+        targetRoles?: unknown; targetCities?: unknown; contractPreferences?: unknown;
+        remotePreference?: string | null; preferredSectors?: unknown;
+      } | null;
+      const cvEvidence = await readOriginalCvText(sb, String(application.userId));
+      const readableCvText = cvEvidence.text || String(application.tailoredCvText || "").trim();
       const candidate: MatchingCandidate = {
-        headline: profile.headline,
-        summary: profile.summary,
-        cvText: application.tailoredCvText,
-        location: profile.location,
-        targetRoles: Array.isArray(profile.targetRoles) ? profile.targetRoles : [],
-        targetCities: Array.isArray(profile.targetCities) ? profile.targetCities : [],
-        contractPreferences: Array.isArray(profile.contractPreferences) ? profile.contractPreferences : [],
-        remotePreference: profile.remotePreference,
-        preferredSectors: Array.isArray(profile.preferredSectors) ? profile.preferredSectors : [],
+        headline: profile?.headline ?? null,
+        summary: profile?.summary ?? null,
+        cvText: readableCvText,
+        location: profile?.location ?? null,
+        targetRoles: Array.isArray(profile?.targetRoles) ? profile.targetRoles as string[] : [],
+        targetCities: Array.isArray(profile?.targetCities) ? profile.targetCities as string[] : [],
+        contractPreferences: Array.isArray(profile?.contractPreferences) ? profile.contractPreferences as string[] : [],
+        remotePreference: profile?.remotePreference ?? null,
+        preferredSectors: Array.isArray(profile?.preferredSectors) ? profile.preferredSectors as string[] : [],
         skills: skillsRes.data ?? [],
         experiences: experiencesRes.data ?? [],
         education: educationRes.data ?? [],
@@ -193,7 +200,7 @@ export async function POST(req: NextRequest) {
         candidate,
         job: effectiveJob,
         criteria: (criteriaResult.data ?? []) as MatchingCriterion[],
-        cvProvided: Boolean(application.cvUrl || application.cvFileId || application.cvPhotoUrl || application.tailoredCvText),
+        cvProvided: Boolean(readableCvText),
         verifiedDocumentKinds: (documentsRes.data ?? []).map((item: any) => String(item.kind)),
       });
 
@@ -211,7 +218,14 @@ export async function POST(req: NextRequest) {
         profileCompleteness: score.profileCompleteness,
         matchedCriteria: [...score.matchedCriteria, ...matchedDimensions],
         missingCriteria: [...score.missingCriteria, ...missingDimensions],
-        missingDocuments: score.missingDocuments,
+        missingDocuments: [
+          ...score.missingDocuments,
+          ...(!readableCvText && (application.cvUrl || application.cvFileId || application.cvPhotoUrl)
+            ? [{ kind: "CV_ORIGINAL", required: true, reason: "Pièce jointe présente mais texte PDF non extrait : score ATS établi sur les seules données structurées." }]
+            : cvEvidence.status === "UNREADABLE"
+              ? [{ kind: "CV_ORIGINAL", required: true, reason: "Le PDF original ne contient pas de texte exploitable." }]
+              : []),
+        ],
         computedAt: new Date().toISOString(),
         computedByUserId: user.id,
       };
@@ -237,6 +251,8 @@ export async function POST(req: NextRequest) {
           matchedSkills: score.baseMatch.matchedSkills,
           missingSkills: score.baseMatch.missingSkills,
           gaps: score.baseMatch.gaps,
+          cvEvidence: { source: cvEvidence.status === "PARSED" ? "ORIGINAL_PDF" : readableCvText ? "TAILORED_TEXT_FALLBACK" : "PROFILE_ONLY",
+            status: cvEvidence.status, pages: cvEvidence.pages, parsed: cvEvidence.status === "PARSED" },
         },
       });
     }
@@ -256,8 +272,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.action === "document") {
-      const { error: authorizationError } = await authorizeApplication(sb, body.applicationId, user.id);
-      if (authorizationError) throw authorizationError;
+      await authorizeApplication(sb, body.applicationId, user.id);
       if (!body.kind || !body.url) throw new Error("DOCUMENT_FIELDS_REQUIRED");
       const { data, error } = await sb.from("RecruitmentApplicationDocument").insert({
         applicationId: body.applicationId,

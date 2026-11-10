@@ -30,7 +30,7 @@ export async function runAiGateway(req:NextRequest, raw:string, input:any={}):Pr
   const built=await buildJiaContext(sb,user.id,{operation:op,input:safeInput});
   if(built.error||!built.context)return {ok:false,status:500,message:built.error||"Contexte J’IA indisponible."};
   const context=built.context;
-  const started=Date.now(),requestHash=sha({op,input:safeInput,context:{profile:context.profile,skills:context.skills,experiences:context.experiences,memory:context.memory,behavior:context.behavior}});
+  const started=Date.now(),requestHash=sha({op,input:safeInput,context:{profile:context.profile,cvText:context.cvText,cvEvidenceStatus:context.cvEvidenceStatus,skills:context.skills,experiences:context.experiences,memory:context.memory,behavior:context.behavior}});
   const {data:reservation,error:reservationError}=await sb.rpc("reserve_ai_credit",{p_user_id:user.id,p_plan_code:plan,p_operation:op,p_cost:cost,p_request_hash:requestHash});
   if(reservationError)return {ok:false,status:500,message:reservationError.message};
   const row=Array.isArray(reservation)?reservation[0]:reservation;

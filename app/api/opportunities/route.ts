@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
 import { enforceApiRateLimit } from "../../../lib/server-security";
 import { scoreJobMatch, type MatchingCandidate } from "../../../lib/matchingEngine";
+import { readOriginalCvText } from "../../../lib/cv/readOriginalCvText";
 
 export async function GET(req: NextRequest) {
   try {
@@ -30,16 +31,22 @@ export async function GET(req: NextRequest) {
       if (result.error) throw new Error(result.error.message);
     }
 
-    const profile = profileRes.data ?? {};
+    const profile = (profileRes.data ?? null) as unknown as {
+      headline?: string | null; summary?: string | null; location?: string | null;
+      targetRoles?: unknown; targetCities?: unknown; contractPreferences?: unknown;
+      remotePreference?: string | null; preferredSectors?: unknown;
+    } | null;
+    const cvEvidence = await readOriginalCvText(sb, String(user.id));
     const candidate: MatchingCandidate = {
-      headline: profile.headline,
-      summary: profile.summary,
-      location: profile.location,
-      targetRoles: Array.isArray(profile.targetRoles) ? profile.targetRoles : [],
-      targetCities: Array.isArray(profile.targetCities) ? profile.targetCities : [],
-      contractPreferences: Array.isArray(profile.contractPreferences) ? profile.contractPreferences : [],
-      remotePreference: profile.remotePreference,
-      preferredSectors: Array.isArray(profile.preferredSectors) ? profile.preferredSectors : [],
+      headline: profile?.headline ?? null,
+      summary: profile?.summary ?? null,
+      cvText: cvEvidence.text,
+      location: profile?.location ?? null,
+      targetRoles: Array.isArray(profile?.targetRoles) ? profile.targetRoles as string[] : [],
+      targetCities: Array.isArray(profile?.targetCities) ? profile.targetCities as string[] : [],
+      contractPreferences: Array.isArray(profile?.contractPreferences) ? profile.contractPreferences as string[] : [],
+      remotePreference: profile?.remotePreference ?? null,
+      preferredSectors: Array.isArray(profile?.preferredSectors) ? profile.preferredSectors as string[] : [],
       skills: skillsRes.data ?? [],
       experiences: experiencesRes.data ?? [],
       education: educationRes.data ?? [],
@@ -77,7 +84,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       count: opportunities.length,
       opportunities: opportunities.slice(0, 50),
-      matching: { algorithm: "jobly-matching-v2", scoreMeaning: "adéquation pondérée des critères connus", confidenceMeaning: "fiabilité liée aux données réellement disponibles" },
+      matching: { algorithm: "jobly-matching-v2", scoreMeaning: "adéquation pondérée des critères connus", confidenceMeaning: "fiabilité liée aux données réellement disponibles", cvEvidence: { status: cvEvidence.status, parsed: cvEvidence.status === "PARSED", pages: cvEvidence.pages } },
     });
   } catch (error) {
     return NextResponse.json(

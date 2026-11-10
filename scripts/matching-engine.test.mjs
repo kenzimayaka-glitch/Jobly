@@ -110,3 +110,19 @@ test("uses the application CV text snapshot as evidence without requiring duplic
   assert.ok(result.matchedSkills.includes("Prospection"));
   assert.equal(result.dimensions.education.score, 100);
 });
+
+test("original CV text contributes match evidence without separate Skill records", () => {
+  const result = scoreJobMatch({
+    headline: "Commercial B2B",
+    cvText: "Commercial B2B. Salesforce CRM, prospection, négociation. Portefeuille de 45 clients.",
+    skills: [],
+    experiences: [],
+  }, {
+    title: "Business Developer",
+    description: "Prospection B2B et maîtrise de Salesforce CRM.",
+    requiredSkills: ["Salesforce", "Prospection"],
+  });
+  assert.ok(result.matchedSkills.includes("Salesforce"));
+  assert.ok(result.matchedSkills.includes("Prospection"));
+  assert.ok(result.confidence > 0);
+});
