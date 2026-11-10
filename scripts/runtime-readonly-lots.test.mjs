@@ -185,6 +185,8 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(bootstrap, /if \/i "%~1"=="FETCH_HEAD"/);
   assert.match(bootstrap, /rev-parse FETCH_HEAD/);
   assert.match(bootstrap, /:sha_ready/);
+  assert.match(bootstrap, /:resolve_fetch_head/);
+  assert.match(bootstrap, /:use_argument_sha/);
   assert.match(bootstrap, /-FetchedSha "%SHA%"/);
   assert.match(bootstrap, /pause >nul/);
   assert.match(bootstrap, /jobly-africa-bulk-bootstrap\.log/);
