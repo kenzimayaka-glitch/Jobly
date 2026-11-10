@@ -186,7 +186,7 @@ Commande unique depuis le worktree \`Jobly-e2e-recette-lot01\` :
 call "%USERPROFILE%\Jobly-e2e-recette-lot01\e2e\run-africa-bulk-bootstrap.cmd"
 \`\`\`
 
-Le bootstrap récupère le SHA exact de `e2e/recette`, exporte un snapshot temporaire sans checkout du worktree, réutilise les dépendances locales, exécute les garde-fous, construit Next.js, démarre un serveur local sur `127.0.0.1:3217`, puis authentifie la fixture Talent et vérifie le vrai flux `/api/jobs?scope=africa` et les deux détails d'offre. Le lot importe et exécute les fonctions réelles `job-harvest-ingest` et `job-harvest-process` sans les déployer, puis un lot d'intégration unique qui importe et exécute les fonctions réelles \`job-harvest-ingest\` et \`job-harvest-process\` sans les déployer sur Supabase. Il n'appelle aucune source Internet de recrutement.
+Le bootstrap récupère le SHA exact de `e2e/recette`, exporte un snapshot temporaire sans checkout du worktree, réutilise les dépendances locales, exécute les garde-fous, construit Next.js, démarre un serveur local sur `127.0.0.1:3217`, authentifie la fixture Talent, exécute les vraies fonctions `job-harvest-ingest` et `job-harvest-process`, puis vérifie le flux Talent `/api/jobs?scope=africa` et les deux détails d'offre. Aucune Edge Function n'est déployée et aucune source Internet de recrutement n'est appelée.
 
 Le lot synthétique vérifie en une passe :
 - une capture avec vraie date de publication et contact email synthétique \`.invalid\` ;
@@ -197,13 +197,13 @@ Le lot synthétique vérifie en une passe :
 
 Les objets temporaires portent une \`sourceKey\` unique \`jobly_e2e_bulk_*\`. Le runner enregistre un manifeste de reprise, supprime les lignes du lot dans l'ordre pipeline → Job → capture, puis vérifie leur absence. Si le processus est interrompu, la prochaine exécution nettoie d'abord uniquement la \`sourceKey\` du précédent run. Ne jamais modifier manuellement le manifeste pour y ajouter une autre source.
 
-Le rapport JSON est \`artifacts/e2e/africa-bulk-recipe-report.json\`. Le wrapper ouvre automatiquement ce rapport dans Notepad ; en cas d'arrêt avant sa création, il ouvre le journal \`artifacts/e2e/africa-bulk-recipe-process.log\`. Aucun deuxième CMD ou commande Notepad n'est nécessaire.
+Le rapport JSON est `artifacts/e2e/africa-bulk-recipe-report.json` dans le snapshot temporaire `%TEMP%\jobly-africa-bulk-*`. Le lanceur ouvre ce rapport dans Notepad ; en cas d'arrêt avant sa création, il ouvre `%TEMP%\jobly-africa-bulk-launch.log`, tandis que le bootstrap ouvre `%TEMP%\jobly-africa-bulk-bootstrap.log`. Aucun deuxième CMD ni commande Notepad n'est nécessaire.
 
 **Écriture temporaire autorisée uniquement dans JOBLY-E2E** : ce lot crée réellement des captures, Jobs et pipelines synthétiques avant de les nettoyer. Le rapport indique donc \`temporaryE2EBusinessWrites: true\` et \`productionModified: false\`. Les communications, paiements, ingestion de sources réelles, tâches planifiées, Production, \`main\` et Vercel restent hors périmètre.
 
-**Prérequis local :** Node.js (pour `node --test`) et Deno **2.x** dans le `PATH`. Le wrapper détecte l'absence de Deno avant tout accès en écriture et ouvre le journal explicatif dans Notepad.
+**Prérequis local :** Node.js, pnpm, Deno **2.x**, dépendances `node_modules` dans `Jobly-e2e-recette-lot01` ou `Jobly`, fichier `.e2e-fixtures.json` avec une fixture Talent et clé privée `JOBLY-E2E` accessible dans un fichier `.env.local`/`.env.e2e.local` strictement E2E ou `.e2e-fixture-runtime.json`. Une absence ou discordance bloque avant l'écriture métier et ouvre le journal.
 
-Le rapport du run précédent est conservé en `artifacts/e2e/africa-bulk-recipe-report.previous.json` ; un ancien résultat n'est jamais présenté comme celui du run courant.
+Chaque exécution bootstrap utilise un dossier snapshot temporaire unique ; les rapports de runs précédents ne sont pas réutilisés comme résultat courant.
 
 
 ### Correction du lancement bloqué avant le rapport
