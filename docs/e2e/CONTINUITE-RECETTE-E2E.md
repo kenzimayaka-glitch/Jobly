@@ -1,3 +1,17 @@
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.199 — 10 novembre 2026
+>
+> **Précision confirmée — filtre ATS du Recruteur : les deux dimensions sont obligatoires.** Le Recruteur doit pouvoir filtrer ses candidatures à la fois :
+> - par **score ATS / plage de score** (ordre, seuils min/max et tri) ;
+> - par **compétences et mots-clés** : présents, absents/manquants, ou adéquation avec les exigences de l'offre.
+>
+> Ces filtres doivent pouvoir être combinés (score ET compétences/mots-clés), réinitialisés et appliqués réellement aux résultats côté serveur/API ou dans une logique contrôlée et cohérente, sans simple masquage d'éléments déjà chargés. Compteurs, pagination, nombre de résultats et export autorisé doivent refléter les critères actifs. Le filtre est limité à l'offre sélectionnée et aux candidatures du recruteur propriétaire. Les scores manquants/non calculables sont identifiés distinctement et ne sont jamais assimilés à zéro. L'analyse doit être fondée sur le CV réel et les exigences de l'offre ; ne pas inventer de compétences et expliquer les écarts.
+>
+> **Recette détaillée : REC-ATS-06** — vérifier score seul, compétences seules, mots-clés présents, mots-clés manquants, combinaison score + mots-clés, seuils/tri, score non calculable, réinitialisation, compteurs/pagination, changement d'offre, actualisation après nouvelle candidature, export soumis aux mêmes filtres et refus d'accès inter-recruteur.
+>
+> **Statut :** précision produit documentée ; implémentation et recette runtime restent À CODER / À EXÉCUTER. Aucun PASS n'est revendiqué.
+>
+> ---
+>
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.198 — 10 novembre 2026
 >
 > **Quatre fonctionnalités obligatoires à rendre réellement opérationnelles — Talent et Recruteur :**
