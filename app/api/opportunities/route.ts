@@ -1,13 +1,123 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser } from "../../../lib/server-auth";
 import { enforceApiRateLimit } from "../../../lib/server-security";
-function n(v:any){return String(v||"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")}
-export async function GET(req:NextRequest){
- try{const auth=await getAuthUser(req);if(!auth)return NextResponse.json({message:"Session requise."},{status:401});const sb=adminClient();const readLimit=await enforceApiRateLimit(req,sb,{scope:"opportunities-read",identity:`user:${auth.id}`,accountWindows:[{limit:20,windowSeconds:60},{limit:240,windowSeconds:3600}],ipWindows:[{limit:120,windowSeconds:60},{limit:900,windowSeconds:3600}],requireIp:true});if(readLimit)return readLimit;const u=await ensureUser(sb,auth);
- const [p,e,j]=await Promise.all([sb.from("Profile").select("targetRoles,targetCities,contractPreferences,remotePreference,preferredSectors").eq("userId",u.id).maybeSingle(),sb.from("Experience").select("startDate").eq("userId",u.id),sb.from("Job").select("id,title,description,location,contractType,remoteMode,minExperienceYears,companyId,isActive").eq("isActive",true).limit(1000)]);for(const r of[p,e,j])if(r.error)throw new Error(r.error.message);
- type ProfileRow={targetRoles?:unknown[]|null;targetCities?:unknown[]|null;contractPreferences?:unknown[]|null;remotePreference?:unknown|null;preferredSectors?:unknown[]|null};
- const profile:ProfileRow=(p.data??{}) as ProfileRow;const ex=e.data||[];const years=ex.length?Math.floor((Date.now()-Math.min(...ex.map((x:any)=>new Date(x.startDate).getTime())))/(365.25*86400000)):0;const roles=(profile.targetRoles??[]).map(n);const cities=(profile.targetCities??[]).map(n);const contracts=(profile.contractPreferences??[]).map(n);const remote=n(profile.remotePreference)||"indifferent";
- const rows=(j.data||[]).map((x:any)=>{const role=roles.length&&roles.some((r:string)=>n(x.title).includes(r))?1:0;const city=cities.length&&cities.includes(n(x.location))?1:0;const contract=contracts.length&&contracts.includes(n(x.contractType))?1:0;let rm=0;if(remote==="indifferent"||remote===n(x.remoteMode))rm=1;else if(remote==="yes"&&n(x.remoteMode)==="partial")rm=.5;const exp=years>=(x.minExperienceYears||0)?1:0;const base=(role+city+contract+rm+exp)/5*100;const completeness=[x.title,x.location,x.contractType,x.description].filter(Boolean).length/4*100;const score=Math.round(base*.7+completeness*.15+(x.description?.length>200?15:5));return {...x,opportunityScore:Math.min(100,score),matchPercent:Math.round(base),breakdown:{role,city,contract,remote:rm,experience:exp},why:[role?"Métier cible correspondant":null,city?"Ville souhaitée":null,contract?"Contrat souhaité":null,rm?"Télétravail compatible":null,exp?"Expérience suffisante":null].filter(Boolean)}}).sort((a:any,b:any)=>b.opportunityScore-a.opportunityScore);
- return NextResponse.json({count:rows.length,opportunities:rows.slice(0,50)});
- }catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Opportunités indisponibles."},{status:500});}}
-export async function POST(req:NextRequest){try{const auth=await getAuthUser(req);if(!auth)return NextResponse.json({message:"Session requise."},{status:401});const sb=adminClient();const writeLimit=await enforceApiRateLimit(req,sb,{scope:"opportunities-feedback",identity:`user:${auth.id}`,accountWindows:[{limit:30,windowSeconds:60},{limit:300,windowSeconds:3600}],ipWindows:[{limit:180,windowSeconds:60},{limit:1200,windowSeconds:3600}],requireIp:true});if(writeLimit)return writeLimit;const u=await ensureUser(sb,auth);const b=await req.json();if(!b.jobId||!['INTERESTED','NOT_RELEVANT','APPLIED'].includes(b.feedback))return NextResponse.json({message:"Feedback invalide."},{status:400});const {error}=await sb.from("AuditLog").insert({userId:u.id,action:`OPPORTUNITY_FEEDBACK_${b.feedback}`,entityType:"Job",entityId:b.jobId,metadata:{source:b.source||"discovery"}});if(error)throw new Error(error.message);return NextResponse.json({ok:true});}catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Feedback impossible."},{status:500});}}
+import { scoreJobMatch, type MatchingCandidate } from "../../../lib/matchingEngine";
+
+export async function GET(req: NextRequest) {
+  try {
+    const auth = await getAuthUser(req);
+    if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+
+    const sb = adminClient();
+    const readLimit = await enforceApiRateLimit(req, sb, {
+      scope: "opportunities-read",
+      identity: `user:${auth.id}`,
+      accountWindows: [{ limit: 20, windowSeconds: 60 }, { limit: 240, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 120, windowSeconds: 60 }, { limit: 900, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (readLimit) return readLimit;
+
+    const user = await ensureUser(sb, auth);
+    const [profileRes, skillsRes, experiencesRes, educationRes, jobsRes] = await Promise.all([
+      sb.from("Profile").select("headline,summary,location,targetRoles,targetCities,contractPreferences,remotePreference,preferredSectors").eq("userId", user.id).maybeSingle(),
+      sb.from("Skill").select("name,level,provenance").eq("userId", user.id).limit(60),
+      sb.from("Experience").select("title,description,startDate,endDate").eq("userId", user.id).limit(30),
+      sb.from("Education").select("degree,field,institution").eq("userId", user.id).limit(20),
+      sb.from("Job").select("id,title,description,location,contractType,remoteMode,minExperienceYears,companyId,isActive,tags,aiSkills,aiSector,opportunityType,source,sourceUrl,deadline,sourcePublishedAt,qualityStatus").eq("isActive", true).limit(1000),
+    ]);
+    for (const result of [profileRes, skillsRes, experiencesRes, educationRes, jobsRes]) {
+      if (result.error) throw new Error(result.error.message);
+    }
+
+    const profile = profileRes.data ?? {};
+    const candidate: MatchingCandidate = {
+      headline: profile.headline,
+      summary: profile.summary,
+      location: profile.location,
+      targetRoles: Array.isArray(profile.targetRoles) ? profile.targetRoles : [],
+      targetCities: Array.isArray(profile.targetCities) ? profile.targetCities : [],
+      contractPreferences: Array.isArray(profile.contractPreferences) ? profile.contractPreferences : [],
+      remotePreference: profile.remotePreference,
+      preferredSectors: Array.isArray(profile.preferredSectors) ? profile.preferredSectors : [],
+      skills: skillsRes.data ?? [],
+      experiences: experiencesRes.data ?? [],
+      education: educationRes.data ?? [],
+    };
+
+    const opportunities = (jobsRes.data ?? []).map((job: any) => {
+      const result = scoreJobMatch(candidate, {
+        title: job.title,
+        description: job.description,
+        location: job.location,
+        contractType: job.contractType,
+        remoteMode: job.remoteMode,
+        minExperienceYears: job.minExperienceYears,
+        sector: job.aiSector,
+        tags: [...(job.tags ?? []), ...(Array.isArray(job.aiSkills) ? job.aiSkills : [])],
+      });
+      return {
+        ...job,
+        opportunityScore: result.score,
+        matchPercent: result.score,
+        matchConfidence: result.confidence,
+        matchCoverage: result.coverage,
+        breakdown: Object.fromEntries(Object.entries(result.dimensions).map(([key, value]) => [key, value.score])),
+        matchedSkills: result.matchedSkills,
+        missingSkills: result.missingSkills,
+        why: result.reasons,
+        matchGaps: result.gaps,
+        matchAlgorithm: result.algorithm,
+      };
+    }).sort((a: any, b: any) =>
+      b.opportunityScore - a.opportunityScore || b.matchConfidence - a.matchConfidence
+    );
+
+    return NextResponse.json({
+      count: opportunities.length,
+      opportunities: opportunities.slice(0, 50),
+      matching: { algorithm: "jobly-matching-v2", scoreMeaning: "adéquation pondérée des critères connus", confidenceMeaning: "fiabilité liée aux données réellement disponibles" },
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : "Opportunités indisponibles." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const auth = await getAuthUser(req);
+    if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+    const sb = adminClient();
+    const writeLimit = await enforceApiRateLimit(req, sb, {
+      scope: "opportunities-feedback",
+      identity: `user:${auth.id}`,
+      accountWindows: [{ limit: 30, windowSeconds: 60 }, { limit: 300, windowSeconds: 3600 }],
+      ipWindows: [{ limit: 180, windowSeconds: 60 }, { limit: 1200, windowSeconds: 3600 }],
+      requireIp: true,
+    });
+    if (writeLimit) return writeLimit;
+
+    const user = await ensureUser(sb, auth);
+    const body = await req.json();
+    if (!body.jobId || !["INTERESTED", "NOT_RELEVANT", "APPLIED"].includes(body.feedback)) {
+      return NextResponse.json({ message: "Feedback invalide." }, { status: 400 });
+    }
+    const { error } = await sb.from("AuditLog").insert({
+      userId: user.id,
+      action: `OPPORTUNITY_FEEDBACK_${body.feedback}`,
+      entityType: "Job",
+      entityId: body.jobId,
+      metadata: { source: body.source || "discovery" },
+    });
+    if (error) throw new Error(error.message);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : "Feedback impossible." },
+      { status: 500 }
+    );
+  }
+}
