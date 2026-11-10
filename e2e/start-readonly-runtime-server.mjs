@@ -98,7 +98,10 @@ async function main() {
 
   const config = await loadRuntimeConfig(SOURCE_ROOT_ARG);
   const { document, fixturePath } = await loadFixtures(config.sourceRoot);
-  for (const [key, role] of [["talent", "TALENT"], ["recruiter", "RECRUITER"]]) {
+  const requiredFixtures = snapshotMode
+    ? [["talent", "TALENT"]]
+    : [["talent", "TALENT"], ["recruiter", "RECRUITER"]];
+  for (const [key, role] of requiredFixtures) {
     assert.ok(document.accounts.some((item) => item?.key === key && item?.role === role && item.email && item.password),
       "FIXTURE_MISSING_" + role);
   }
