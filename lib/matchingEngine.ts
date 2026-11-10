@@ -327,11 +327,11 @@ function preferenceScore(preferences: string[], actual: string | null | undefine
 
 function contractFamily(value: string): string {
   const text = normalize(value);
-  if (/\\bcdi\\b|permanent|indefinite|open ended/.test(text)) return "CDI";
-  if (/\\bcdd\\b|fixed term|temporary|temporaire/.test(text)) return "CDD";
-  if (/stage|internship|intern/.test(text)) return "STAGE";
-  if (/alternance|apprentissage|apprenticeship/.test(text)) return "ALTERNANCE";
-  if (/freelance|independant|contractor/.test(text)) return "FREELANCE";
+  if (text === "cdi" || text.includes("permanent") || text.includes("indefinite") || text.includes("open ended")) return "CDI";
+  if (text === "cdd" || text.includes("fixed term") || text.includes("temporary") || text.includes("temporaire")) return "CDD";
+  if (text.includes("stage") || text.includes("internship") || text === "intern") return "STAGE";
+  if (text.includes("alternance") || text.includes("apprentissage") || text.includes("apprenticeship")) return "ALTERNANCE";
+  if (text.includes("freelance") || text.includes("independant") || text.includes("contractor")) return "FREELANCE";
   return text;
 }
 
@@ -343,9 +343,9 @@ function contractPreferenceScore(preferences: string[], actual: string | null | 
 
 function remoteFamily(value: string): string | null {
   const text = normalize(value);
-  if (/\\byes\\b|remote|teletravail|distance/.test(text)) return "REMOTE";
-  if (/partial|hybrid|hybride/.test(text)) return "HYBRID";
-  if (/\\bno\\b|presentiel|on site|onsite/.test(text)) return "ONSITE";
+  if (text === "yes" || text.includes("remote") || text.includes("teletravail") || text.includes("distance")) return "REMOTE";
+  if (text.includes("partial") || text.includes("hybrid") || text.includes("hybride")) return "HYBRID";
+  if (text === "no" || text.includes("presentiel") || text.includes("on site") || text.includes("onsite")) return "ONSITE";
   return null;
 }
 
