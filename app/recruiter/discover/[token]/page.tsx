@@ -63,7 +63,7 @@ export default function PublicRecruiterDiscovery() {
                   <div className="text-right text-xs text-slate-500">{talent.experienceYears} an{talent.experienceYears > 1 ? "s" : ""}<br />{talent.location}</div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-1.5">{(talent.skills || []).map((skill: string) => <span key={skill} className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold">{skill}</span>)}</div>
-                <button onClick={() => router.push("/recruiter/talents/profile?userId=" + encodeURIComponent(talent.id))} className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 py-3 text-xs font-black"><UserRound size={13} /> Ouvrir le profil</button>
+                <button onClick={() => router.push("/recruiter/talents/profile?userId=" + encodeURIComponent(talent.id) + "&shareToken=" + encodeURIComponent(token))} className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 py-3 text-xs font-black"><UserRound size={13} /> Ouvrir le profil</button>
               </article>
             ) : (
               <article key={talent.rank || index} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
