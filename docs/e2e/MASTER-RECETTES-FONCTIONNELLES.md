@@ -50,6 +50,29 @@ Ces scénarios sont **À CODER / À EXÉCUTER** ; aucune implémentation ni rece
 
 Ces éléments sont **À CODER / À EXÉCUTER** ; ils ne constituent pas des PASS runtime.
 
+## Exigences fonctionnelles — ATS Talent/Recruteur et génération d'offres
+
+### Recruteur — filtre ATS
+Le filtre ATS doit fonctionner dans l'espace Recruteur, sur les candidatures rattachées aux offres que ce recruteur possède. Il filtre réellement les résultats (pas uniquement le rendu visuel) selon leur compatibilité ATS avec l'offre concernée, applique les critères/plages et le tri de score disponibles et maintient des compteurs et une pagination cohérents. Les candidatures sans score calculable doivent être identifiables et ne doivent pas être confondues avec un score nul. L'accès est limité au bon recruteur et à la bonne offre. Le score doit être expliqué comme une mesure Jobly ; ne pas le présenter comme une certification d'un ATS externe.
+
+### Talent — conversation ATS avec J'IA
+Depuis l'espace Talent, le candidat doit pouvoir dialoguer avec J'IA au sujet de l'analyse ATS de son CV et, lorsque pertinent, de son adéquation avec une offre cible : explication du score, écarts, mots-clés, lisibilité, recommandations et étapes de correction. La conversation utilise le CV réellement sélectionné et l'offre éventuellement ciblée, conserve le contexte des échanges et distingue les constats vérifiables des suggestions. J'IA ne doit inventer aucun fait professionnel et ne modifie pas le CV sans action/consentement explicite du Talent.
+
+### Talent — amélioration du CV
+Le Talent doit pouvoir obtenir des améliorations concrètes et exploitables de son CV : structure, clarté, formulations, lisibilité et pertinence des mots-clés. Chaque modification doit être prévisualisable, acceptée ou refusée par le Talent, puis sauvegardée comme version approuvée sans écraser le CV source. Une amélioration générale du CV Master doit être distinguée de l'adaptation à une offre précise. Aucun diplôme, emploi, expérience, compétence, date, certification, réalisation ou résultat ne peut être inventé. L'export PDF doit refléter exactement la version approuvée.
+
+### Recruteur — génération d'une offre à partir de l'intitulé du poste
+Dans l'espace Recruteur, le seul intitulé du poste doit permettre de générer un brouillon structuré, cohérent avec le métier et suffisamment complet pour être retravaillé : présentation, missions, responsabilités, compétences et expérience/profil requis. Le recruteur doit pouvoir modifier les rubriques et compléter les informations inconnues. Les éléments non déductibles de l'intitulé seul (entreprise, lieu, salaire, avantages, contrat, dates, modalités de candidature et spécificités employeur) doivent rester vides ou signalés « à compléter », jamais inventés comme faits. La génération ne publie pas l'offre ; le recruteur relit, modifie et confirme explicitement la publication.
+
+**Recettes obligatoires :**
+- **REC-ATS-06 — filtre ATS Recruteur :** filtrage effectif, plages/critères, tri, score absent/non calculable, compteurs, pagination, changement d'offre, mise à jour après nouvelle candidature et isolement inter-recruteur.
+- **CV-ATS-09 — conversation ATS Talent :** conversation depuis l'espace Talent, contexte du CV et de l'offre cible, historique et suivi des questions, analyse factuelle, suggestions pertinentes, absence d'invention et aucune écriture CV sans consentement.
+- **CV-ATS-10 — amélioration CV Talent :** suggestions, comparaison avant/après, acceptation/refus, original préservé, version approuvée persistée, export PDF vérifié et absence de données inventées.
+- **REC-JOB-01 — génération d'offre Recruteur :** l'intitulé seul déclenche un brouillon cohérent ; champs inconnus signalés ; édition et sauvegarde en brouillon ; aucune publication sans validation explicite.
+
+Toutes ces recettes exigent UI + API + persistance + contrôles d'accès et preuves runtime JOBLY-E2E. Elles sont À CODER / À EXÉCUTER ; aucune n'est considérée PASS par la simple présence d'une interface ou d'un endpoint.
+
+
 ## 0. Décision de refonte
 
 La recette n'est plus organisée autour des seuls fichiers techniques, ni autour de la simple disponibilité d'une API. Elle doit démontrer que chaque promesse produit peut être accomplie par le bon utilisateur, depuis l'interface, avec une donnée persistée, une conséquence métier vérifiable et un résultat cohérent dans les autres espaces concernés.
