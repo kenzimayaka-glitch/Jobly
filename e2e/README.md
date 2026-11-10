@@ -4,6 +4,18 @@
 
 **Document de continuité de référence :** [docs/e2e/CONTINUITE-RECETTE-E2E.md](../docs/e2e/CONTINUITE-RECETTE-E2E.md). Mettre à jour ce bilan après chaque recette significative ; ne pas reprendre à partir d'un ancien rapport isolé.
 
+## Balayage global rapide V1 — une seule commande
+
+Pour la reprise rapide, utiliser le nouvel orchestrateur plutôt que lancer les runners séparément :
+
+```cmd
+call e2e\run-global-e2e.cmd
+```
+
+Il exécute en parallèle les suites statiques transversales et la préparation du runtime, vérifie l'accueil HTTP, lance les lectures runtime Talent/Recruteur/Afrique en parallèle, puis arrête uniquement le serveur identifié par son PID JOBLY-E2E. Rapport consolidé : `artifacts/e2e/global-e2e-report.md` ; détail JSON au même emplacement.
+
+Cette passe est volontairement rapide et non destructive pour les données métier. Elle ne remplace pas une validation complète Playwright, les écritures métier synthétiques, les paiements sandbox ou les parcours runtime Mobility/Event/J'IA/Android. Les modules non exercés en runtime restent PARTIAL, jamais artificiellement PASS. Elle ne touche ni `main`, ni Vercel, ni JOBLY-PROD.
+
 ## Environnements autorisés
 
 | Élément | Valeur |
