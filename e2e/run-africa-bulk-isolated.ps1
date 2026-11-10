@@ -20,6 +20,8 @@ function Write-Stage([string]$Message) {
   Add-Content -LiteralPath $Log -Value $Message -Encoding UTF8
 }
 
+Write-Stage ("LAUNCH_LOG " + $Log)
+
 function Invoke-Native([string]$FilePath, [string[]]$Arguments, [string]$Label, [switch]$Capture) {
   Write-Stage (">>> " + $Label)
   $script:NativeOutput = @(& $FilePath @Arguments 2>&1)
