@@ -22,10 +22,40 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     if (!userRes.data) {
       return NextResponse.json({ message: "Ce partage CV n'est plus disponible." }, { status: 404 });
     }
+    let applicationPayload: { cvText: string; letterText: string; coverLetterRequired: boolean } | null = null;
+    const sourceValue = typeof share.source === "string" ? share.source : "";
+    const applicationMatch = sourceValue.match(/^WHATSAPP_APPLICATION:([0-9a-f-]{36})$/i);
+    if (applicationMatch) {
+      const { data: application, error: applicationError } = await supabase.from("Application")
+        .select("id,userId,jobId,recruiterJobId,tailoredCvText,letterText")
+        .eq("id", applicationMatch[1])
+        .eq("userId", share.userId)
+        .maybeSingle();
+      if (applicationError) throw new Error(applicationError.message);
+      const linkageValid = Boolean(application && (
+        (application.jobId && share.jobId === application.jobId) ||
+        (application.recruiterJobId && !share.jobId)
+      ));
+      if (!linkageValid || !String(application?.tailoredCvText || "").trim()) {
+        return NextResponse.json({ message: "Le document lié à ce partage n'est plus disponible." }, { status: 404 });
+      }
+      const offerTable = application.jobId ? "Job" : "RecruiterJob";
+      const offerId = application.jobId || application.recruiterJobId;
+      const { data: offer } = await supabase.from(offerTable).select("description").eq("id", offerId).maybeSingle();
+      const description = String(offer?.description || "");
+      const coverLetterRequired = /(?:lettre\s+(?:de\s+)?motivation[^.\n]{0,100}(?:obligatoire|requise|exigée|à\s+joindre)|(?:obligatoire|requise|exigée)[^.\n]{0,80}lettre\s+(?:de\s+)?motivation|cover\s+letter\s+(?:is\s+)?(?:required|mandatory))/i.test(description);
+      applicationPayload = {
+        cvText: String(application.tailoredCvText || ""),
+        letterText: coverLetterRequired ? String(application.letterText || "") : "",
+        coverLetterRequired,
+      };
+    }
+
     await supabase.from("CVShare").update({ viewCount: (share.viewCount || 0) + 1 }).eq("id", share.id);
 
     return NextResponse.json({
       share: { token, jobTitle: share.jobTitleSnapshot, companyName: share.companyNameSnapshot },
+      application: applicationPayload,
       user: {
         id: userRes.data.id,
         displayName: userRes.data.displayName,
