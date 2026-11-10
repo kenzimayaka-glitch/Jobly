@@ -165,7 +165,7 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(isolated, /RESOLVE_FETCH_HEAD" -Capture/);
   assert.doesNotMatch(isolated, /WORKTREE NON PROPRE|git clean|reset --hard/);
   assert.doesNotMatch(isolated, /git status --porcelain/);
-  assert.match(isolated, /Join-Path \$env\.TEMP/);
+  assert.match(isolated, /Join-Path \$env:TEMP/);
   assert.match(isolated, /Write-Host \$Message/);
   assert.match(isolated, /LAUNCH_LOG/);
   assert.match(isolated, /GIT_FETCH_FAILED_ON_ALL_LOCAL_CHECKOUTS/);
