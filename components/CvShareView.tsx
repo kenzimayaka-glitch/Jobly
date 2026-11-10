@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Download, X, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-type Data = { share:any; user:any; profile:any; experiences:any[]; skills:any[]; education:any[] };
+type Data = { share:any; user:any; profile:any; experiences:any[]; skills:any[]; education:any[]; application?: { cvText?: string; letterText?: string; coverLetterRequired?: boolean } | null };
 
 function MiniTalentDemo({ jobTitle }: { jobTitle?: string|null }) {
   return <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-white/[.06] p-3">
@@ -37,7 +37,29 @@ export function CvShareView({ token }: { token:string }) {
     <div className="mx-auto max-w-4xl px-4 py-5 sm:py-8">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.22em] text-slate-400">CV professionnel</p><h1 className="mt-1 text-2xl font-black sm:text-3xl">{name}</h1><p className="mt-1 text-sm font-bold text-[#174EA6]">{data.share?.companyName ? "Candidature — "+data.share.companyName : data.share?.jobTitle || data.profile?.headline || "Profil professionnel"}</p></div><a href={downloadUrl} className="inline-flex items-center gap-2 rounded-2xl bg-[#174EA6] px-4 py-3 text-sm font-black text-white shadow-lg"><Download size={16}/> Télécharger le CV</a></div>
 
-      <article className="overflow-hidden rounded-[28px] bg-white shadow-xl ring-1 ring-slate-200">
+      {data.application?.cvText ? (
+        <article className="overflow-hidden rounded-[28px] bg-white shadow-xl ring-1 ring-slate-200">
+          <div className="border-b border-slate-200 bg-[#0B2447] px-6 py-5 text-white sm:px-9">
+            <p className="text-[10px] font-black uppercase tracking-[.2em] text-[#FFE135]">CV validé sur Jobly</p>
+            <h2 className="mt-2 text-xl font-black">{name}</h2>
+            <p className="mt-1 text-xs text-white/70">{data.share?.jobTitle || "Candidature"}{data.share?.companyName ? " · " + data.share.companyName : ""}</p>
+          </div>
+          <div className="p-6 sm:p-9">
+            <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-7 text-slate-700">{data.application.cvText}</pre>
+            {data.application.coverLetterRequired && data.application.letterText && (
+              <div className="mt-7 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div><p className="text-xs font-black text-navy">Lettre de motivation validée</p><p className="mt-1 text-[10px] text-slate-500">Document associé à cette candidature.</p></div>
+                  <a href={"/api/cv-share/" + encodeURIComponent(token) + "/letter"} className="rounded-xl bg-[#174EA6] px-4 py-2.5 text-xs font-black text-white">Télécharger la lettre PDF</a>
+                </div>
+                <p className="mt-3 whitespace-pre-wrap text-xs leading-6 text-slate-600">{data.application.letterText}</p>
+              </div>
+            )}
+          </div>
+        </article>
+      ) : null}
+
+      <article className={data.application?.cvText ? "hidden" : "overflow-hidden rounded-[28px] bg-white shadow-xl ring-1 ring-slate-200"}>
         <div className="grid md:grid-cols-[30%_70%]">
           <aside className="bg-[#0B2447] p-6 text-white md:min-h-[900px]">
             <div className="grid h-20 w-20 place-items-center overflow-hidden rounded-full bg-white/10 text-2xl font-black">{data.user?.profilePhotoUrl?<img src={data.user.profilePhotoUrl} alt="" className="h-full w-full object-cover"/>:name.split(/\s+/).map((x:string)=>x[0]).join("").slice(0,2).toUpperCase()}</div>
