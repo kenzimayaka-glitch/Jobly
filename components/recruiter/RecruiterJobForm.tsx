@@ -288,6 +288,12 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
               </span>
             </div>
           )}
+          {!isNew && (
+            <button type="button" onClick={() => router.push(`/recruiter/jobs/${encodeURIComponent(id)}/matching`)} className="mb-4 flex w-full items-center justify-between rounded-2xl border border-[#D7E4F5] bg-white p-4 text-left shadow-sm transition hover:border-[#0057B8]">
+              <span><span className="block text-sm font-extrabold text-navy">Top 5 talents correspondants</span><span className="mt-1 block text-xs text-jobly-gray">Profils admissibles à partir de 90 % · accès selon votre abonnement</span></span>
+              <span aria-hidden="true" className="text-lg font-black text-[#0057B8]">→</span>
+            </button>
+          )}
 
           {isNew && (
             <section className="mb-4 rounded-[24px] border border-slate-100 bg-white p-5 shadow-sm">

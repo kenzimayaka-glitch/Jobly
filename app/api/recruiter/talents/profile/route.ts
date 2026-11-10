@@ -33,38 +33,47 @@ export async function GET(request: NextRequest) {
     const params = request.nextUrl.searchParams;
     const id = params.get("userId");
     const token = params.get("shareToken");
-    if (!id || !token) {
+    const ownedJobId = params.get("jobId");
+    if (!id || (!token && !ownedJobId)) {
       return NextResponse.json({ message: "Un profil ne peut être ouvert qu'à partir d'une offre de matching autorisée.", code: "OFFER_CONTEXT_REQUIRED" }, { status: 400 });
     }
 
-    const { data: share, error: shareError } = await db.from("CVShare")
-      .select("userId,jobId,source,expiresAt,revokedAt")
-      .eq("token", token)
-      .maybeSingle();
-    if (shareError) throw new Error(shareError.message);
-    if (!share || share.revokedAt || (share.expiresAt && new Date(share.expiresAt).getTime() <= Date.now())) {
-      return NextResponse.json({ message: "Partage ou contexte de matching expiré." }, { status: 404 });
+    let job: any = null;
+    if (token) {
+      const { data: share, error: shareError } = await db.from("CVShare")
+        .select("userId,jobId,source,expiresAt,revokedAt")
+        .eq("token", token)
+        .maybeSingle();
+      if (shareError) throw new Error(shareError.message);
+      if (!share || share.revokedAt || (share.expiresAt && new Date(share.expiresAt).getTime() <= Date.now())) {
+        return NextResponse.json({ message: "Partage ou contexte de matching expiré." }, { status: 404 });
+      }
+      const source = typeof share.source === "string" ? share.source : "";
+      const match = source.match(/^WHATSAPP_APPLICATION:([0-9a-f-]{36})$/i);
+      if (!match) return NextResponse.json({ message: "Contexte de matching non reconnu." }, { status: 404 });
+      const { data: application, error: applicationError } = await db.from("Application")
+        .select("id,userId,jobId,recruiterJobId")
+        .eq("id", match[1])
+        .eq("userId", share.userId)
+        .maybeSingle();
+      if (applicationError) throw new Error(applicationError.message);
+      if (!application) return NextResponse.json({ message: "Offre liée au partage introuvable." }, { status: 404 });
+      const relationValid = (application.jobId && share.jobId === application.jobId) || (application.recruiterJobId && !share.jobId);
+      if (!relationValid) return NextResponse.json({ message: "Offre liée au partage introuvable." }, { status: 404 });
+      const table = application.jobId ? "Job" : "RecruiterJob";
+      const offerId = application.jobId || application.recruiterJobId;
+      const { data: offer, error: offerError } = await db.from(table).select("*").eq("id", offerId).maybeSingle();
+      if (offerError) throw new Error(offerError.message);
+      job = offer;
+    } else {
+      let query = db.from("RecruiterJob").select("*").eq("id", ownedJobId);
+      if (me.role !== "ADMIN") query = query.eq("recruiterUserId", me.id);
+      const { data: offer, error: offerError } = await query.maybeSingle();
+      if (offerError) throw new Error(offerError.message);
+      if (!offer) return NextResponse.json({ message: "Offre de matching introuvable ou non autorisée." }, { status: 404 });
+      job = offer;
     }
-
-    const source = typeof share.source === "string" ? share.source : "";
-    const match = source.match(/^WHATSAPP_APPLICATION:([0-9a-f-]{36})$/i);
-    if (!match) return NextResponse.json({ message: "Contexte de matching non reconnu." }, { status: 404 });
-    const { data: application, error: applicationError } = await db.from("Application")
-      .select("id,userId,jobId,recruiterJobId")
-      .eq("id", match[1])
-      .eq("userId", share.userId)
-      .maybeSingle();
-    if (applicationError) throw new Error(applicationError.message);
-    if (!application) return NextResponse.json({ message: "Offre liée au partage introuvable." }, { status: 404 });
-    const relationValid = (application.jobId && share.jobId === application.jobId) ||
-      (application.recruiterJobId && !share.jobId);
-    if (!relationValid) return NextResponse.json({ message: "Offre liée au partage introuvable." }, { status: 404 });
-
-    const table = application.jobId ? "Job" : "RecruiterJob";
-    const offerId = application.jobId || application.recruiterJobId;
-    const { data: job, error: jobError } = await db.from(table).select("*").eq("id", offerId).maybeSingle();
-    if (jobError) throw new Error(jobError.message);
-    if (!job) return NextResponse.json({ message: "Offre introuvable." }, { status: 404 });
+    if (!job) return NextResponse.json({ message: "Offre de matching introuvable." }, { status: 404 });
 
     const { data: profiles, error: profilesError } = await db.from("Profile")
       .select("userId,targetRoles,targetCities,contractPreferences,remotePreference,preferredSectors,publicDiscoverable")
