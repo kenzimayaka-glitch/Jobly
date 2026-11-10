@@ -70,6 +70,7 @@ async function verifyRuntimeScripts() {
     "e2e/runtime-lot04-readonly.mjs",
     "e2e/start-readonly-runtime-server.mjs",
     "e2e/stop-readonly-runtime-server.mjs",
+    "e2e/run-global-readonly-recipe.mjs",
   ];
   for (const file of files) {
     const checked = spawnSync(process.execPath, ["--check", file], { cwd: ROOT, encoding: "utf8", windowsHide: true });
@@ -170,6 +171,7 @@ async function main() {
     localServer: "PASS",
     anonymousProtectedApiStatus: healthStatus,
     sourceEnvFiles: config.files,
+    supabaseUrlSources: config.urlSources,
     credentialsPrinted: false,
     secretsPrinted: false,
     remoteBusinessDataMayBeModified: false,
@@ -179,7 +181,7 @@ async function main() {
   };
   await writeFile(REPORT_PATH, JSON.stringify(report, null, 2) + "\n", { encoding: "utf8", mode: 0o600 });
   console.log(JSON.stringify(report, null, 2));
-  console.log("Serveur partagé prêt. Ouvre les trois fenêtres de recette sur le port 3217.");
+  console.log("Serveur JOBLY-E2E prêt pour le balayage global orchestré.");
 }
 
 main().catch(async (error) => {
