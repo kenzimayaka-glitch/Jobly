@@ -8496,3 +8496,17 @@ Ne pas :
 - Aucun changement distant métier, aucune action externe, aucun déploiement et aucune fusion dans `main`.
 
 **Verdict : LOT-04 n'échoue plus techniquement. Il reste PARTIAL, de façon intentionnelle et honnête, en attendant des fixtures synthétiques sûres pour JOBLY-E2E.**
+
+
+### 153.5 Audit des fixtures E2E existantes — périmètre insuffisant pour LOT-04
+
+Un contrôle complémentaire du code et du guide de recette confirme que le dépôt dispose déjà de fixtures synthétiques, mais pour d'autres parcours :
+
+- `e2e/provision-fixtures.mjs` provisionne les trois identités Talent, Recruteur et Partenaire, leurs lignes `User` et leurs profils associés. Son périmètre ne crée pas de `JobHarvestCapture` ni de `JobOfferPipeline`.
+- `scripts/e2e-local-recipe.mjs` orchestre le parcours Auth et le scénario croisé Talent → Recruteur ; le guide précise que l'offre et la candidature synthétiques de ce parcours sont supprimées, puis leur absence est vérifiée.
+- `scripts/africa-p0.test.mjs` contient des tests unitaires de la règle de fraîcheur et des assertions statiques sur la route Talent et les workflows. Il ne provisionne pas de capture ou de ligne pipeline dans JOBLY-E2E.
+- `e2e/README.md` indique que les fonctions Edge et le calendrier d'ingestion ne sont pas provisionnés dans E2E.
+
+Conclusion : **aucun mécanisme de fixtures Afrique existant n'a été confirmé** pour alimenter les deux tables observées par LOT-04. Le provisionnement actuel des comptes et le parcours de candidature ne doivent pas être détournés pour simuler une collecte.
+
+La préparation du lot Afrique doit donc être distincte : lire le schéma complet, les contraintes et les dépendances des deux tables ; choisir une voie de création strictement JOBLY-E2E ; marquer chaque objet synthétique avec un identifiant de run unique ; enregistrer exactement les identifiants créés ; puis nettoyer uniquement ces identifiants et vérifier leur absence. Ne pas modifier ni nettoyer des enregistrements préexistants. Tant que ces garde-fous et la forme des données obligatoires ne sont pas établis, LOT-04 conserve son statut PARTIAL.
