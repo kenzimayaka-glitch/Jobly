@@ -184,6 +184,7 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(bootstrap, /set "SHA=%~1"/);
   assert.match(bootstrap, /if \/i "%~1"=="FETCH_HEAD"/);
   assert.match(bootstrap, /rev-parse FETCH_HEAD/);
+  assert.match(bootstrap, /\[2\/5\] Reutilisation du FETCH_HEAD deja recupere/);
   assert.match(bootstrap, /:sha_ready/);
   assert.match(bootstrap, /:resolve_fetch_head/);
   assert.match(bootstrap, /:use_argument_sha/);
