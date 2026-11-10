@@ -36,6 +36,7 @@ test("LOT-04 Africa runtime runner reads only approved E2E harvest tables", () =
   assert.match(runner, /JobHarvestCapture/);
   assert.match(runner, /JobOfferPipeline/);
   assert.match(runner, /apikey:\s*secretKey/);
+  assert.doesNotMatch(runner, /Authorization:\s*["']Bearer ["']\s*\+\s*secretKey/);
   assert.match(runner, /method:\s*["']GET["']/);
   assert.doesNotMatch(runner, /method:\s*["'](?:POST|PATCH|PUT|DELETE)["']/i);
   assert.doesNotMatch(runner, /\.from\(["'][^"']+["']\)\s*\.(?:insert|update|upsert|delete)\s*\(/i);
