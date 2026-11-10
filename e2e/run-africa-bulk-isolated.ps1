@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
   [string]$WorktreeRoot = (Join-Path $env:USERPROFILE "Jobly-e2e-recette-lot01"),
-  [string]$SourceRoot = (Join-Path $env:USERPROFILE "Jobly")
+  [string]$SourceRoot = (Join-Path $env:USERPROFILE "Jobly"),
+  [string]$FetchedSha = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,10 +52,18 @@ try {
       if ($remote -notmatch "(?i)github\.com[:/]kenzimayaka-glitch/Jobly(?:\.git)?$") {
         throw ("UNEXPECTED_ORIGIN: " + $remote)
       }
-      Invoke-Native "git" @("-C", $candidate, "fetch", "--no-tags", "origin", "refs/heads/e2e/recette") "FETCH_E2E_RECETTE" | Out-Null
-      $sha = ((Invoke-Native "git" @("-C", $candidate, "rev-parse", "FETCH_HEAD") "RESOLVE_FETCH_HEAD") -join [Environment]::NewLine).Trim()
-      if ($sha -notmatch "^[0-9a-f]{40}$") {
-        throw "FETCH_HEAD_INVALID"
+      if ($FetchedSha) {
+        if ($FetchedSha -notmatch "^[0-9a-f]{40}$") {
+          throw "FETCHED_SHA_INVALID"
+        }
+        Invoke-Native "git" @("-C", $candidate, "cat-file", "-e", ($FetchedSha + "^{commit}")) "VERIFY_FETCHED_COMMIT" | Out-Null
+        $sha = $FetchedSha
+      } else {
+        Invoke-Native "git" @("-C", $candidate, "fetch", "--no-tags", "origin", "refs/heads/e2e/recette") "FETCH_E2E_RECETTE" | Out-Null
+        $sha = ((Invoke-Native "git" @("-C", $candidate, "rev-parse", "FETCH_HEAD") "RESOLVE_FETCH_HEAD") -join [Environment]::NewLine).Trim()
+        if ($sha -notmatch "^[0-9a-f]{40}$") {
+          throw "FETCH_HEAD_INVALID"
+        }
       }
       $GitRoot = $candidate
       break
@@ -85,7 +94,8 @@ try {
   }
   $runnerText = Get-Content -LiteralPath $RunnerFile -Raw
   $wrapperText = Get-Content -LiteralPath $WrapperFile -Raw
-  if (-not $runnerText.Contains("E2E_SECRET_KEY_PROJECT_PROOF") -or
+  if (-not $runnerText.Contains('const REF = "ofqqrryamslxoqkklraw"') -or
+      -not $runnerText.Contains("E2E_SECRET_KEY_PROJECT_PROOF") -or
       -not $runnerText.Contains('if (key.startsWith("sb_secret_"))') -or
       $runnerText.Contains("SECRET_KEY_WITHOUT_E2E_URL_PROOF") -or
       -not $wrapperText.Contains("--node-modules-dir=none")) {
