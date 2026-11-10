@@ -398,7 +398,7 @@ test("private Talent profiles are excluded and recruiter discovery requires an o
   assert.doesNotMatch(recruiterList, /profilePhotoUrl|displayName|firstName|lastName/);
   assert.match(recruiterProfile, /\.eq\("publicDiscoverable",\s*true\)/);
   assert.match(recruiterProfile, /Profil public introuvable/);
-  assert.match(recruiterProfile, /status:404/);
+  assert.match(recruiterProfile, /status:\s*404/);
   assert.match(recruiterProfile, /topFiveMatchingProfiles/);
 });
 
