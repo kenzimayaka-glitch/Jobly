@@ -18,7 +18,7 @@ try {
   addCheck(report, "TALENT_FIXTURE_AUTH", "PASS", 200, "Session Auth JOBLY-E2E et rôle TALENT confirmés.");
 
   const profile = await localGet("/api/profile", session.token);
-  addCheck(report, "TALENT_PROFILE_READ", profile.status === 200 && !!profile.payload?.profile, profile.status === 200 && !!profile.payload?.profile ? "PASS" : "FAIL", profile.status, "Lecture du profil Talent.");
+  addCheck(report, "TALENT_PROFILE_READ", profile.status === 200 && !!profile.payload?.profile ? "PASS" : "FAIL", profile.status, "Lecture du profil Talent.");
   const applications = await localGet("/api/applications", session.token);
   const applicationsOk = applications.status === 200 && Array.isArray(applications.payload?.applications) && !!applications.payload?.counters;
   addCheck(report, "TALENT_APPLICATIONS_READ", applicationsOk ? "PASS" : "FAIL", applications.status, "Lecture des candidatures et compteurs sans mutation.");
