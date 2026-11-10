@@ -140,7 +140,7 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(runner, /pendingCleanup: true/);
   assert.match(runner, /BULK_CLEANUP/);
   assert.match(runner, /productionModified: false/);
-  assert.match(command, /run-africa-bulk-recipe\.ts/);
+  assert.match(command, /e2e\\africa-bulk-recipe\.ts/);
   assert.match(command, /africa-bulk-recipe-report\.json/);
   assert.match(command, /africa-bulk-recipe-process\.log/);
   assert.match(command, /start "" notepad/);
