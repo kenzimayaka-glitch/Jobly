@@ -1,3 +1,22 @@
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.193 — 10 novembre 2026
+>
+> **Décision produit — accès aux cinq meilleurs talents :** dans la liste des talents correspondant à une offre, les **cinq profils les mieux classés par score de matching** sont une fonctionnalité réservée aux recruteurs disposant d'un abonnement Jobly actif incluant explicitement ce droit. Ils ne sont jamais consultables en version gratuite.
+>
+> - En version gratuite, ne retourner ni afficher les identités, photos, CV, coordonnées, détails de profil ni scores individuels des cinq talents premium. Le verrou doit être appliqué côté serveur/API, et pas seulement par masquage dans l'interface.
+> - L'interface gratuite peut afficher un écran de verrouillage non révélateur indiquant que les cinq meilleurs talents sont réservés à un abonnement, avec présentation de l'offre d'abonnement/CTA. Aucun détail permettant de réidentifier ou déduire les profils verrouillés ne doit fuiter dans le HTML, les réponses API, les données préchargées ou les journaux client.
+> - Un recruteur abonné ne voit ces cinq profils que si son compte possède un entitlement actif et valide correspondant à cette fonctionnalité. Un abonnement expiré, annulé, suspendu, impayé ou un plan sans ce droit doit être traité comme non éligible. L'interface et l'API doivent appliquer la même règle.
+> - Le classement des cinq profils est calculé pour l'offre concernée, à partir du score de matching existant et des critères de pertinence autorisés. Le classement ne doit pas mélanger les offres, ni exposer des profils non publics/non consentis. En cas d'égalité, utiliser un ordre secondaire déterministe et documenté.
+> - La règle porte sur la consultation des cinq meilleurs talents. Les autres profils et leurs actions restent soumis aux droits et règles d'accès déjà définis ; cette décision ne leur accorde aucun accès supplémentaire.
+>
+> **Scénarios E2E à ajouter à LOT-05 et LOT-08 :**
+> - REC-CONV-06 : avec un compte recruteur gratuit, appeler directement les API et ouvrir l'interface de matching ; vérifier qu'aucune donnée personnelle ni aucun score individuel des cinq meilleurs talents n'est retourné, même en contournant l'interface. Vérifier le message de verrouillage et le CTA abonnement.
+> - REC-CONV-07 : vérifier qu'un abonnement actif avec entitlement donne accès aux cinq profils de l'offre précise, et que l'expiration, l'annulation, la suspension, le défaut de paiement ou un plan sans entitlement révoque immédiatement cet accès côté API et UI.
+> - REC-CONV-08 : vérifier le calcul et l'ordre des cinq meilleurs talents, les égalités, la séparation entre offres, le consentement/visibilité des profils et l'absence de fuite via cache, pagination, HTML ou réponse API.
+>
+> **État d'implémentation :** décision documentée ; aucun changement de code applicatif ni test runtime n'a encore été effectué pour cette règle. Les scénarios sont À CODER / À EXÉCUTER, pas PASS.
+>
+> ---
+>
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.192 — 10 novembre 2026
 >
 > **Précision du résultat attendu après inscription et rapprochement du numéro :**
