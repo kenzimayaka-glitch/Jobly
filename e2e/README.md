@@ -183,10 +183,10 @@ Le dossier temporaire contient le snapshot du commit et son rapport ; le chemin 
 Commande unique depuis le worktree \`Jobly-e2e-recette-lot01\` :
 
 \`\`\`cmd
-call e2e\run-africa-bulk-recipe.cmd
+call "%USERPROFILE%\Jobly-e2e-recette-lot01\e2e\run-africa-bulk-bootstrap.cmd"
 \`\`\`
 
-Le wrapper lance d'abord les tests statiques de non-régression, puis un lot d'intégration unique qui importe et exécute les fonctions réelles \`job-harvest-ingest\` et \`job-harvest-process\` sans les déployer sur Supabase. Il n'appelle aucune source Internet de recrutement.
+Le bootstrap récupère le SHA exact de `e2e/recette`, exporte un snapshot temporaire sans checkout du worktree, réutilise les dépendances locales, exécute les garde-fous, construit Next.js, démarre un serveur local sur `127.0.0.1:3217`, puis authentifie la fixture Talent et vérifie le vrai flux `/api/jobs?scope=africa` et les deux détails d'offre. Le lot importe et exécute les fonctions réelles `job-harvest-ingest` et `job-harvest-process` sans les déployer, puis un lot d'intégration unique qui importe et exécute les fonctions réelles \`job-harvest-ingest\` et \`job-harvest-process\` sans les déployer sur Supabase. Il n'appelle aucune source Internet de recrutement.
 
 Le lot synthétique vérifie en une passe :
 - une capture avec vraie date de publication et contact email synthétique \`.invalid\` ;
