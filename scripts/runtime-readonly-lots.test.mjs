@@ -134,8 +134,8 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(runner, /client\.from\("Job"\)[\s\S]*?\.select\("id", \{ count: "exact", head: true \}\)[\s\S]*?\.limit\(0\)/);
   assert.match(runner, /E2E_SECRET_KEY_PROJECT_PROOF/);
   assert.match(runner, /const ingest = await ingestHarvestItems\(admin, \[/);
-  assert.match(runner, /validItem\\(sourceKey, runId, false, countryCode\\)/);
-  assert.match(runner, /validItem\\(sourceKey, runId, true, countryCode\\)/);
+  assert.match(runner, /validItem\(sourceKey, runId, false, countryCode\)/);
+  assert.match(runner, /validItem\(sourceKey, runId, true, countryCode\)/);
   assert.match(runner, /ingest-stale/);
   assert.match(runner, /ingest-deadline/);
   assert.match(runner, /runHarvestProcessorBatch\(admin, \{ limit: 40, sourceKeys: \[sourceKey\] \}\)/);
