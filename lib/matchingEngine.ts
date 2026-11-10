@@ -352,7 +352,7 @@ export function scoreJobMatch(candidate: MatchingCandidate, job: MatchingJob): J
 
   const requiredLevel = requiredEducationLevel(job);
   const candidateLevel = education.map((item) => educationLevel([item.degree, item.field].filter(Boolean).join(" "))).filter((value): value is number => value !== null);
-  const educationScore = requiredLevel === null ? null : candidateLevel.length ? (Math.max(...candidateLevel) >= requiredLevel ? 100 : Math.round((Math.max(...candidateLevel) / requiredLevel) * 100)) : typeof candidate.educationScore === "number" ? candidate.educationScore : 0;
+  const educationScore = requiredLevel === null ? null : candidateLevel.length ? (Math.max(...candidateLevel) >= requiredLevel ? 100 : Math.round((Math.max(...candidateLevel) / requiredLevel) * 100)) : typeof candidate.educationScore === "number" ? candidate.educationScore : education.length ? 0 : null;
 
   const measurable = quantifiedEvidence(candidate);
   const asksForResults = /kpi|indicateurs|objectifs chiffres|resultats mesurables|performance|chiffre d affaires|croissance|productivite|roi|rendement|targets|measurable results/i.test(normalize(job.description));
