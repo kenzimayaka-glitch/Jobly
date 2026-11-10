@@ -206,6 +206,9 @@ jobs:
         with:
           deno-version: v2.x
 
+      - name: Typecheck J’IA AI Core Edge Function
+        run: deno check supabase/functions/ai-core/index.ts
+
       - name: Mission Afrique date extraction tests
         run: deno test supabase/functions/discover-jobs/date-extraction.test.ts
 
