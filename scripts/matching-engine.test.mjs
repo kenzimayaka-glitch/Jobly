@@ -126,3 +126,28 @@ test("original CV text contributes match evidence without separate Skill records
   assert.ok(result.matchedSkills.includes("Prospection"));
   assert.ok(result.confidence > 0);
 });
+
+test("Talent and recruiter share the same base score and evidence for the same candidate and job", () => {
+  const candidate = {
+    headline: "Commercial B2B",
+    summary: "Prospection et gestion de comptes.",
+    cvText: "Salesforce CRM, prospection commerciale et négociation B2B.",
+    skills: [{ name: "Salesforce" }, { name: "Prospection" }],
+    experiences: [{ title: "Commercial", description: "Gestion de portefeuille B2B." }],
+  };
+  const job = {
+    title: "Business Developer",
+    description: "Prospection B2B et maîtrise de Salesforce.",
+    tags: ["Salesforce", "Prospection"],
+  };
+  const talentMatch = scoreJobMatch(candidate, job);
+  const recruiterAssessment = scoreRecruiterApplication({
+    candidate,
+    job,
+    criteria: [],
+    cvProvided: true,
+  });
+  assert.equal(recruiterAssessment.baseMatch.score, talentMatch.score);
+  assert.deepEqual(recruiterAssessment.baseMatch.matchedSkills, talentMatch.matchedSkills);
+  assert.deepEqual(recruiterAssessment.baseMatch.missingSkills, talentMatch.missingSkills);
+});
