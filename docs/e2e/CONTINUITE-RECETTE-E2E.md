@@ -80,6 +80,30 @@ JOBLY-E2E uniquement ; fixtures existantes uniquement ; aucun reset, rotation ou
 
 ---
 
+## AUDIT DE SÉCURITÉ AVANT RECETTES RUNTIME PARALLÈLES — 10 novembre 2026
+
+**Décision technique :** ne pas démarrer trois runners E2E runtime existants en même temps depuis le même worktree.
+
+### Risques identifiés dans le code
+
+- `e2e/run-authenticated-role-recipe.mjs` utilise actuellement un port fixe `3217`, construit puis démarre son propre serveur Next et l'arrête à la fin. Plusieurs instances concurrentes entreraient en collision sur le port et sur les artefacts `.next`.
+- `e2e/authenticated-role-smoke.mjs` parcourt plusieurs rôles dans le même run ; le scénario Recruteur crée un brouillon d'offre synthétique (et le parcours contient des étapes de mutation/nettoyage). Il ne constitue pas un runner Recruteur strictement en lecture seule.
+- Le chargement initial de `/jobs` appelle les GET des offres et candidatures et un POST `/api/applications/bulk-check` avec `selectedCount: 0`. Le bouton d'actualisation, lui, déclenche `POST /api/jobs/ingest/sources` puis un POST `mode=reprocess` ; ces deux actions doivent être interdites dans la recette Talent.
+- La route `POST /api/jobs/ingest/sources` lance la collecte par défaut et peut créer ou mettre à jour des lignes Company/Job/JobOfferPipeline. Ses modes `reindex` et `reprocess` effectuent également des mises à jour. Ne jamais appeler cette route pendant la recette parallèle.
+- Les endpoints de lecture Recruteur et Recruitment360 peuvent être vérifiés en GET ; ne pas envoyer d'action score, shortlist, document, décision ou e-mail tant qu'un jeu de données synthétique dédié au run et son nettoyage ne sont pas encadrés.
+- Les authentifications des fixtures peuvent inscrire/actualiser des métadonnées de session Auth. Talent et Recruteur sont des comptes distincts, mais ces effets Auth doivent rester signalés dans les rapports.
+
+### Séquence runtime sûre à préparer
+
+1. LOT-02 : runner ciblé TALENT, navigation/offres locale et Afrique, détail, candidatures existantes, CV original et Career Journey ; intercepter tout POST ingestion et ne modifier aucun objet métier.
+2. LOT-03 : runner ciblé RECRUITER, lecture du profil, offres, candidatures, liste Talent et espaces Recruitment360 ; GET uniquement, aucun brouillon, score, shortlist, décision, import Gmail ou envoi e-mail.
+3. LOT-04 : audit en lecture seule des tables JOBLY-E2E `Job`, `JobHarvestCapture` et `JobOfferPipeline`, avec comptage par statut/source/pays et recalcul de fraîcheur ; aucune collecte, ingestion, réindexation, reprocess ou mutation.
+4. Pour une future exécution simultanée, chaque runner devra disposer d'un port/build/report distinct ou partager explicitement un serveur unique ; les rapports ne doivent jamais se chevaucher. Tant que ces runners ciblés ne sont pas préparés et vérifiés, exécuter les parcours runtime en séquence plutôt que lancer les runners existants en parallèle.
+
+**Statut :** audit du code effectué ; runners runtime parallèles spécialisés **NON PRÉPARÉS / NON EXÉCUTÉS**. Les 54 PASS précédents restent des PASS statiques seulement.
+
+---
+
 **Version :** 2.177
 **Date de consolidation :** 9 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
