@@ -8774,3 +8774,13 @@ Le client retire toujours le header Authorization pour cette clé et conserve un
 Commits : lanceur initial `84eafb13c61815dbcef8ad151e34b095e91b73b7`, contrôle strict du rapport `05d1e816bffcf0c0cd139de9796206496226b03e`, réutilisation du SHA de bootstrap `b8d48634eb041a1717e4240b6b76488b3a0bd879`, test statique associé `18f769deb28626a1de8c5c046ff5d8f50551b36d`.
 
 **Prudence de validation :** le nouveau lanceur est versionné et relu sur GitHub ; son exécution Windows réelle reste à faire. Aucun résultat E2E n'est anticipé et aucun accès de Production n'est autorisé.
+
+
+### 154.18 Correctif de capture de sortie PowerShell
+
+La relecture du nouveau lanceur a identifié un risque de conversion d'un tableau PowerShell imbriqué lors de la récupération de l'URL Git et du SHA. La fonction native utilise maintenant un paramètre explicite `-Capture` et retourne une chaîne jointe uniquement pour les commandes qui ont besoin d'une valeur. Les commandes silencieuses (archive, tests et Deno) restent journalisées/affichées sans ambiguïté.
+
+- Lanceur : `7a56713bed666f3b43f38d84bf45870e5b05ee17`.
+- Test statique : `3cbe8ceda6625ecbb8dea96a49e1c843ae058e0e`.
+
+Le rapport n'est déclaré PASS que lorsque le statut du JSON est PASS et que le nettoyage est vérifié. La validation Windows reste à effectuer.
