@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - "fix/offer-pipeline-final-validation"
+      - "e2e/recette"
   pull_request:
     branches:
       - main
