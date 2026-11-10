@@ -97,6 +97,8 @@ export default function TalentCVs() {
   const [atsTargetRole, setAtsTargetRole] = useState("");
   const [atsJobDescription, setAtsJobDescription] = useState("");
   const [chatMessages, setChatMessages] = useState<CvAssistMessage[]>([]);
+  const [chatConversationId, setChatConversationId] = useState<string | null>(null);
+  const [chatRestoreBusy, setChatRestoreBusy] = useState(true);
   const [chatInput, setChatInput] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
   const [improveBusy, setImproveBusy] = useState(false);
@@ -163,6 +165,40 @@ export default function TalentCVs() {
         }));
       }
     })().catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  // CV ATS uses its own persisted J'IA thread so it does not mix with general Talent conversations.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await authenticatedFetch("/api/jia/conversations?ecosystem=TALENT&title=CV%20ATS&limit=60", { cache: "no-store" });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.message || "Historique J'IA indisponible.");
+        let conversation = body.conversation;
+        if (!conversation?.id) {
+          const created = await authenticatedFetch("/api/jia/conversations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "create", ecosystem: "TALENT", title: "CV ATS" }),
+          });
+          const createdBody = await created.json().catch(() => ({}));
+          if (!created.ok || !createdBody.conversation?.id) throw new Error(createdBody.message || "Impossible de créer la conversation ATS.");
+          conversation = createdBody.conversation;
+        }
+        if (cancelled) return;
+        setChatConversationId(String(conversation.id));
+        setChatMessages((Array.isArray(body.messages) ? body.messages : []).flatMap((item: any) => {
+          if ((item?.role !== "user" && item?.role !== "assistant") || typeof item?.content !== "string") return [];
+          return [{ role: item.role, text: item.content } as CvAssistMessage];
+        }));
+      } catch (error) {
+        if (!cancelled) notify(error instanceof Error ? error.message : "La conversation ATS n'a pas pu être restaurée.", "error");
+      } finally {
+        if (!cancelled) setChatRestoreBusy(false);
+      }
+    })();
     return () => { cancelled = true; };
   }, []);
 
@@ -370,19 +406,39 @@ export default function TalentCVs() {
     };
   }
 
+  async function persistAtsChatMessage(role: "user" | "assistant", text: string) {
+    if (!chatConversationId) throw new Error("La conversation ATS n'est pas encore prête.");
+    const response = await authenticatedFetch("/api/jia/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "append",
+        conversationId: chatConversationId,
+        message: { id: crypto.randomUUID(), role, text },
+      }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.message || "Impossible d'enregistrer le message ATS.");
+  }
+
   async function sendAtsMessage() {
     const question = chatInput.trim();
     if (!question || chatBusy) return;
+    if (!chatConversationId) {
+      notify("La conversation ATS se prépare encore. Vérifie aussi ton consentement J'IA.", "info");
+      return;
+    }
     const token = await getAccessToken();
     if (!token) {
       notify("Ta session Jobly n’est plus active. Reconnecte-toi pour utiliser la conversation ATS.", "error");
       return;
     }
     const history = chatMessages.slice(-8);
-    setChatMessages((items) => [...items, { role: "user", text: question }]);
     setChatInput("");
     setChatBusy(true);
     try {
+      await persistAtsChatMessage("user", question);
+      setChatMessages((items) => [...items, { role: "user", text: question }]);
       const response = await fetch("/api/talent/cv/assist", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -400,8 +456,10 @@ export default function TalentCVs() {
       const reply = String(body.output?.reply || "").trim();
       if (!reply) throw new Error("J'IA n'a pas retourné de réponse.");
       setChatMessages((items) => [...items, { role: "assistant", text: reply }]);
+      await persistAtsChatMessage("assistant", reply);
     } catch (error) {
       const text = error instanceof Error ? error.message : "Erreur pendant la conversation ATS.";
+      notify(text, "error");
       setChatMessages((items) => [...items, { role: "assistant", text: `Je n'ai pas pu traiter ta question : ${text}` }]);
     } finally {
       setChatBusy(false);
@@ -629,7 +687,7 @@ export default function TalentCVs() {
           </div>
           <div className="mt-3 max-h-72 space-y-2 overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50 p-3" aria-live="polite">
             {chatMessages.length === 0 ? (
-              <p className="text-xs text-jobly-gray">Exemple : « Quelles compétences me manquent pour ce poste ? » ou « Comment améliorer mon résumé sans inventer d'expérience ? »</p>
+              <p className="text-xs text-jobly-gray">{chatRestoreBusy ? "Restauration de ta conversation ATS…" : "Exemple : « Quelles compétences me manquent pour ce poste ? » ou « Comment améliorer mon résumé sans inventer d'expérience ? »"}</p>
             ) : chatMessages.map((item, index) => (
               <div key={index} className={`max-w-[92%] rounded-2xl px-3 py-2 text-xs leading-5 ${item.role === "user" ? "ml-auto bg-blue-100 text-navy" : "bg-white text-slate-700 shadow-sm"}`}>
                 <p className="mb-1 text-[9px] font-black uppercase">{item.role === "user" ? "Vous" : "J'IA"}</p>
@@ -640,7 +698,7 @@ export default function TalentCVs() {
           </div>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
             <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendAtsMessage(); } }} placeholder="Écris ta question ATS…" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-jobly-blue" />
-            <button type="button" onClick={sendAtsMessage} disabled={chatBusy || !chatInput.trim()} className="rounded-xl bg-jobly-blue px-5 py-3 text-xs font-black text-white disabled:opacity-50">{chatBusy ? "Analyse…" : "Envoyer"}</button>
+            <button type="button" onClick={sendAtsMessage} disabled={chatBusy || chatRestoreBusy || !chatConversationId || !chatInput.trim()} className="rounded-xl bg-jobly-blue px-5 py-3 text-xs font-black text-white disabled:opacity-50">{chatBusy ? "Analyse…" : chatRestoreBusy ? "Restauration…" : "Envoyer"}</button>
           </div>
         </section>
 
