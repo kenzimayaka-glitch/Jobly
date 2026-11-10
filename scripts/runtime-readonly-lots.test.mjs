@@ -156,6 +156,12 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(isolated, /git archive --format=zip/);
   assert.match(isolated, /FETCH_E2E_RECETTE/);
   assert.doesNotMatch(isolated, /WORKTREE NON PROPRE|git clean|reset --hard/);
+  assert.doesNotMatch(isolated, /git status --porcelain/);
+  assert.match(isolated, /Join-Path \$env\.TEMP/);
+  assert.match(isolated, /Write-Host \$Message/);
+  assert.match(isolated, /GIT_FETCH_FAILED_ON_ALL_LOCAL_CHECKOUTS/);
+  assert.match(isolated, /RUNTIME_RECIPE_PASS/);
+  assert.match(isolated, /RUNTIME_RECIPE_NOT_PASS/);
   assert.match(isolated, /--node-modules-dir=none/);
   assert.match(isolated, /E2E_SECRET_KEY_PROJECT_PROOF/);
   assert.match(isolated, /RUNTIME_REPORT_STATUS/);
