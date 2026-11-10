@@ -153,7 +153,7 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(command, /where deno/);
   assert.match(command, /--node-modules-dir=none/);
   assert.match(command, /exit \/b %RC%/i);
-  assert.match(isolated, /git archive --format=zip/);
+  assert.match(isolated, /Invoke-Native "git" @\("-C", \$GitRoot, "archive", "--format=zip"/);
   assert.match(isolated, /FETCH_E2E_RECETTE/);
   assert.match(isolated, /\[switch\]\$Capture/);
   assert.match(isolated, /CHECK_ORIGIN" -Capture/);
