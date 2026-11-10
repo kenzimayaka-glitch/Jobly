@@ -62,3 +62,17 @@ test("server shutdown targets only the recorded JOBLY-E2E PID after health and p
   assert.match(runner, /taskkill", \["\/PID", String\(meta\.pid\), "\/T", "\/F"\]/);
   assert.doesNotMatch(runner, /taskkill", \["\/IM", "node\.exe"/i);
 });
+
+test("global recipe is one-command, parallel by independent module and safely shuts down its own server", () => {
+  const runner = read("e2e/run-global-readonly-recipe.mjs");
+  const command = read("e2e/run-global-e2e.cmd");
+  assert.match(runner, /scripts\/e2e-bulk-runner\.mjs/);
+  assert.match(runner, /Promise\.all/);
+  assert.match(runner, /e2e\/stop-readonly-runtime-server\.mjs/);
+  assert.match(runner, /Date\.parse\(pidMeta\.startedAt/);
+  assert.match(runner, /safeStaticEnv/);
+  assert.match(runner, /global-e2e-report\.md/);
+  assert.match(command, /run-global-readonly-recipe\.mjs/);
+  assert.match(command, /global-e2e-process\.log/);
+  assert.doesNotMatch(runner, /taskkill|SERVICE_ROLE_KEY|SECRET_KEY/);
+});
