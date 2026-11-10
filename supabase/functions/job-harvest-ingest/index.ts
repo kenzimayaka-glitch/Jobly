@@ -136,7 +136,7 @@ export async function ingestHarvestItems(admin: any, items: any[], now = new Dat
       },
       captureMode: item.sourceCaptureMode ?? "http",
       status: "PENDING",
-      discoveredAt: nowIso,
+      discoveredAt: firstHarvestAt,
       updatedAt: nowIso,
     });
   }
