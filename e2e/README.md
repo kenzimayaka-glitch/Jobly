@@ -167,6 +167,19 @@ Les preuves sont des artefacts GitHub Actions avec durée de conservation limit�
 
 ## Lot 04 — recette bulk réelle du pipeline Afrique
 
+### Lancement Windows durci — commande bootstrap visible
+
+Depuis CMD, la commande à exécuter est :
+
+```cmd
+call "%USERPROFILE%\Jobly-e2e-recette-lot01\e2e\run-africa-bulk-bootstrap.cmd"
+```
+
+Ce fichier versionné affiche cinq jalons. Il récupère le SHA distant, extrait le PowerShell versionné dans un dossier temporaire puis l'exécute avec ce SHA. Il ne demande pas un worktree propre, n'effectue aucun checkout/reset/clean et ne modifie pas les fichiers locaux. Journal bootstrap fixe : `%TEMP%\jobly-africa-bulk-bootstrap.log`. Le lanceur PowerShell ouvre le rapport JSON si le runner Deno le produit ; sinon il ouvre son journal fixe `%TEMP%\jobly-africa-bulk-launch.log`.
+
+Le dossier temporaire contient le snapshot du commit et son rapport ; le chemin exact du rapport est imprimé dans CMD et ouvert dans Notepad. La commande retourne 0 seulement si le rapport est PASS et si `cleanupVerified=true`.
+
+
 Commande unique depuis le worktree \`Jobly-e2e-recette-lot01\` :
 
 \`\`\`cmd
