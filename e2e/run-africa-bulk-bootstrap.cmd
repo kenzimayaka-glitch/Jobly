@@ -20,18 +20,8 @@ echo ORIGIN=%ORIGIN%
 echo ORIGIN=%ORIGIN%>> "%BOOTLOG%"
 if /i not "%ORIGIN%"=="https://github.com/kenzimayaka-glitch/Jobly" if /i not "%ORIGIN%"=="https://github.com/kenzimayaka-glitch/Jobly.git" if /i not "%ORIGIN%"=="git@github.com:kenzimayaka-glitch/Jobly.git" goto wrong_origin
 
-if /i "%~1"=="FETCH_HEAD" (
-  for /f "delims=" %%H in ('git -C "%ROOT%" rev-parse FETCH_HEAD 2^>nul') do set "SHA=%%H"
-  echo [2/5] FETCH_HEAD resolu : %SHA%
-  echo SHA FETCH_HEAD fourni au bootstrap>> "%BOOTLOG%"
-  goto sha_ready
-)
-if not "%~1"=="" (
-  set "SHA=%~1"
-  echo [2/5] SHA deja recupere par le bootstrap : %SHA%
-  echo SHA fourni au bootstrap>> "%BOOTLOG%"
-  goto sha_ready
-)
+if /i "%~1"=="FETCH_HEAD" goto resolve_fetch_head
+if not "%~1"=="" goto use_argument_sha
 
 echo [2/5] Recuperation de la branche distante e2e/recette...
 echo [2/5] FETCH origin e2e/recette>> "%BOOTLOG%"
@@ -42,9 +32,17 @@ echo FETCH_EXIT_CODE=%RC%>> "%BOOTLOG%"
 if not "%RC%"=="0" goto fetch_failed
 
 for /f "delims=" %%H in ('git -C "%ROOT%" rev-parse FETCH_HEAD 2^>nul') do set "SHA=%%H"
-if not defined SHA goto sha_failed
+goto sha_ready
+
+:resolve_fetch_head
+for /f "delims=" %%H in ('git -C "%ROOT%" rev-parse FETCH_HEAD 2^>nul') do set "SHA=%%H"
+goto sha_ready
+
+:use_argument_sha
+set "SHA=%~1"
 
 :sha_ready
+if not defined SHA goto sha_failed
 if "%SHA:~39,1%"=="" goto sha_failed
 if not "%SHA:~40,1%"=="" goto sha_failed
 echo FETCH_SHA=%SHA%
