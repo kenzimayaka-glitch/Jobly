@@ -39,6 +39,7 @@
     "node_modules",
     "jobly/**",
     "supabase/functions/**",
+    "e2e/africa-bulk-recipe.ts",
     "packages/database/prisma/seed.ts"
   ]
 }
