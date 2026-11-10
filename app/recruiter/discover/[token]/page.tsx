@@ -29,7 +29,13 @@ export default function PublicRecruiterDiscovery() {
   const talents = Array.isArray(data.talents) ? data.talents : [];
   const profileAccess = data.profileAccess === true;
   const subscriptionUrl = "/abonnement?productType=RECRUITER";
-  const accountAction = () => router.push(data.authenticatedRecruiter ? subscriptionUrl : `/recruiter/onboarding?shareToken=${encodeURIComponent(token)}`);
+  const accountAction = () => {
+    if (data.authenticatedRecruiter) {
+      router.push(subscriptionUrl);
+      return;
+    }
+    router.push(`/?recruiterSignup=1&shareToken=${encodeURIComponent(token)}`);
+  };
 
   return (
     <main className="min-h-[100dvh] bg-[#F5F7FA] text-[#0B2447]">
