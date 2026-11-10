@@ -1,5 +1,7 @@
 @echo off
 setlocal EnableExtensions
+set "GIT_TERMINAL_PROMPT=0"
+set "GCM_INTERACTIVE=never"
 title Jobly - Recette bulk Afrique
 set "ROOT=%USERPROFILE%\Jobly-e2e-recette-lot01"
 set "BOOTDIR=%TEMP%\jobly-africa-bulk-bootstrap"
@@ -25,7 +27,7 @@ if not "%~1"=="" goto use_argument_sha
 
 echo [2/5] Recuperation de la branche distante e2e/recette...
 echo [2/5] FETCH origin e2e/recette>> "%BOOTLOG%"
-git -C "%ROOT%" fetch --no-tags origin refs/heads/e2e/recette
+git -C "%ROOT%" fetch --depth=1 --progress --no-tags origin refs/heads/e2e/recette
 set "RC=%ERRORLEVEL%"
 echo FETCH_EXIT_CODE=%RC%
 echo FETCH_EXIT_CODE=%RC%>> "%BOOTLOG%"
