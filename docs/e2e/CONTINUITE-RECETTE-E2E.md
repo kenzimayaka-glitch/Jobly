@@ -32,7 +32,7 @@
 >
 > **Recettes ajoutées au backlog :** CV-ATS-01 à CV-ATS-08 ; APP-WA-01 à APP-WA-03 ; APP-EXT-01 ; APP-EMAIL-01 ; REC-ATS-01 à REC-ATS-05 ; GMAIL-T-01 à GMAIL-T-02 ; GMAIL-R-01 à GMAIL-R-05 ; COMM-EMAIL-01. Le scénario transversal exige désormais : offre → CV Master → conversion/adaptation approuvée → canal choisi → import/réception → clic CV → traitement Recruteur → communication → décision visible côté Talent.
 >
-> **Priorités :** corriger/arbritrer P1 l'export ATS vs Optimized, le raccord WhatsApp à Application si le suivi ATS est promis, la normalisation pays, la file Gmail non affectée et son isolation propriétaire, l'idempotence de mail de décision et la cohérence Kanban/statuts. Aucun test runtime, envoi réel, appel WhatsApp, import Gmail ou test d'accès croisé sur données JOBLY-E2E n'a été exécuté pendant cet audit. Ces points restent PARTIAL / À EXÉCUTER.
+> **Priorités :** corriger/arbitrer P1 l'export ATS vs Optimized, le raccord WhatsApp à Application si le suivi ATS est promis, la normalisation pays, la file Gmail non affectée et son isolation propriétaire, l'idempotence de mail de décision et la cohérence Kanban/statuts. Aucun test runtime, envoi réel, appel WhatsApp, import Gmail ou test d'accès croisé sur données JOBLY-E2E n'a été exécuté pendant cet audit. Ces points restent PARTIAL / À EXÉCUTER.
 >
 > **Garde-fous inchangés :** JOBLY-E2E uniquement, JOBLY-PROD interdit, aucune fusion de PR #266, aucun déploiement, aucun email/SMS/WhatsApp réel. La PR #266 reste brouillon vers `main`.
 
