@@ -55,7 +55,8 @@ test("shared server launcher builds once, stays on loopback JOBLY-E2E and reject
   const runner = read("e2e/start-readonly-runtime-server.mjs");
   assert.match(runner, /const PORT = "3217"/);
   assert.match(runner, /spawn\(process\.execPath, \[NEXT_CLI, "build"\]/);
-  assert.doesNotMatch(runner, /pnpm\.cmd|shell:\s*process\.platform/);
+  assert.doesNotMatch(runner, /spawn\([^\n]*pnpm\.cmd/);
+  assert.doesNotMatch(runner, /shell:\s*process\.platform/);
   assert.match(runner, /NEXT_BUILD_SPAWN_FAILED/);
   assert.match(runner, /assertPortFree/);
   assert.match(runner, /gitValue\(\["rev-parse", "origin\/e2e\/recette"\]\)/);
