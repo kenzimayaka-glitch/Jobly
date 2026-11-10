@@ -55,7 +55,10 @@ export async function POST(request:NextRequest){try{const authUser=await getAuth
  const quotaLimit=getEntitlements(planCode).applicationsPerWeek;
  const unlimited=isTestUnlimited();
  const effectiveQuotaLimit=unlimited?2147483647:quotaLimit;
- const applicationId=newId();const prepared=await prepareApplication(request,{jobTitle:offer.title,jobDescription:offer.description,company,applicationProfile:offer.applicationProfile||{},profile:profileRes.data||{},experiences:experiencesRes.data||[],skills:skillsRes.data||[],education:educationRes.data||[],letterOverride,skipAi:Boolean(letterOverride)});
+ const cvPreparationMode = ["NORMAL","ATS","IMPROVE","ATS_IMPROVE"].includes(String(body.cvPreparationMode||""))
+   ? String(body.cvPreparationMode) as "NORMAL"|"ATS"|"IMPROVE"|"ATS_IMPROVE"
+   : "ATS";
+ const applicationId=newId();const prepared=await prepareApplication(request,{jobTitle:offer.title,jobDescription:offer.description,company,applicationProfile:offer.applicationProfile||{},profile:profileRes.data||{},experiences:experiencesRes.data||[],skills:skillsRes.data||[],education:educationRes.data||[],letterOverride,skipAi:Boolean(letterOverride),cvPreparationMode});
  
  const status="USER_REVIEW";
  const {data,error}=await supabase.rpc("create_application_with_quota",{p_user_id:user.id,p_weekly_limit:effectiveQuotaLimit,p_application:{id:applicationId,userId:user.id,jobId:source==="discovery"?targetId:null,recruiterJobId:source==="recruiter"?targetId:null,language:"fr",status,letterText:prepared.letter,tailoredCvText:prepared.tailoredCvText,submittedAt:null,proofUrl:null,statusSource:"CANDIDATE",officialListingConsent:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),sourceType:prepared.channel.channel}}).single();
