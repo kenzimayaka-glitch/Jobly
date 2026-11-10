@@ -2,6 +2,10 @@
 setlocal
 cd /d "%~dp0.."
 if not exist artifacts\e2e mkdir artifacts\e2e
+if exist artifacts\e2e\africa-bulk-recipe-report.json (
+  copy /y artifacts\e2e\africa-bulk-recipe-report.json artifacts\e2e\africa-bulk-recipe-report.previous.json >nul
+  del /q artifacts\e2e\africa-bulk-recipe-report.json
+)
 node --test scripts\runtime-readonly-lots.test.mjs > artifacts\e2e\africa-bulk-recipe-process.log 2>&1
 set "RC=%ERRORLEVEL%"
 if not "%RC%"=="0" goto finish
