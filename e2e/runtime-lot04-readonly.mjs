@@ -78,22 +78,32 @@ try {
 
   const [captures, pipelines] = await Promise.all([
     readTable(config.secretKey, "JobHarvestCapture",
-      "id,sourceKey,status,countryCode,rejectionCode,publishedAt,deadline,discoveredAt,processedAt,jobId"),
+      "id,sourceKey,status,publishedAt,deadline,discoveredAt,processedAt,jobId"),
     readTable(config.secretKey, "JobOfferPipeline",
-      "id,sourceKey,status,countryCode,rejectionCode,qualityScore,createdAt,processedAt,jobId"),
+      "id,jobId,sourceKey,status,qualityScore,createdAt,processedAt"),
   ]);
 
   addCheck(report, "JOB_HARVEST_CAPTURE_READ", captures.truncated ? "BLOCKED" : "PASS", 200,
     captures.truncated ? "Lecture bornée à 10000 captures ; le comptage complet exige une campagne paginée plus longue." : "Captures lues intégralement par pages ; aucune mise à jour ni suppression.");
   addCheck(report, "JOB_OFFER_PIPELINE_READ", pipelines.truncated ? "BLOCKED" : "PASS", 200,
     pipelines.truncated ? "Lecture bornée à 10000 lignes pipeline ; le comptage complet exige une campagne paginée plus longue." : "Pipeline canonique lu intégralement par pages ; aucune mise à jour ni suppression.");
+  const totalObserved = captures.rows.length + pipelines.rows.length;
+  addCheck(report, "AFRICA_DATA_PRESENCE", totalObserved > 0 ? "PASS" : "BLOCKED", 200,
+    totalObserved > 0
+      ? "Données de collecte ou pipeline présentes dans JOBLY-E2E."
+      : "Les tables E2E sont accessibles mais vides ; aucune offre capturée ne permet de valider le traitement réel.");
   const freshness = {};
   for (const row of captures.rows) {
     const category = classifyFreshness(row);
     freshness[category] = (freshness[category] || 0) + 1;
   }
-  addCheck(report, "AFRICA_FRESHNESS_AUDIT", captures.truncated ? "BLOCKED" : "PASS", 200,
-    captures.truncated ? "Analyse de fraîcheur partielle car plus de 10000 captures sont présentes." : "Fraîcheur recalculée en mémoire à partir des dates capturées ; aucune écriture.");
+  addCheck(report, "AFRICA_FRESHNESS_AUDIT",
+    captures.truncated || captures.rows.length === 0 ? "BLOCKED" : "PASS", 200,
+    captures.truncated
+      ? "Analyse de fraîcheur partielle car plus de 10000 captures sont présentes."
+      : captures.rows.length === 0
+        ? "Aucune capture disponible dans JOBLY-E2E ; la règle de fraîcheur n'est pas évaluable."
+        : "Fraîcheur recalculée en mémoire à partir des dates capturées ; aucune écriture.");
 
   report.metrics = {
     captures: {
@@ -102,8 +112,6 @@ try {
       truncated: captures.truncated,
       byStatus: countsBy(captures.rows, "status"),
       bySource: countsBy(captures.rows, "sourceKey"),
-      byCountry: countsBy(captures.rows, "countryCode"),
-      byRejectionCode: countsBy(captures.rows, "rejectionCode"),
       freshness,
     },
     pipelines: {
@@ -112,8 +120,7 @@ try {
       truncated: pipelines.truncated,
       byStatus: countsBy(pipelines.rows, "status"),
       bySource: countsBy(pipelines.rows, "sourceKey"),
-      byCountry: countsBy(pipelines.rows, "countryCode"),
-      byRejectionCode: countsBy(pipelines.rows, "rejectionCode"),
+      byQualityScore: countsBy(pipelines.rows, "qualityScore"),
     },
     readOnly: true,
     projectRef: PROJECT_REF,
