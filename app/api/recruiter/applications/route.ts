@@ -166,7 +166,16 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ applications: results, total: results.length, appliedFilters: { atsMin, atsMax, atsKeyword: keyword, atsKeywordMode } });
+    const atsSort = url.searchParams.get("atsSort") === "asc" ? "asc" : url.searchParams.get("atsSort") === "desc" ? "desc" : "";
+    if (atsSort) {
+      results.sort((left: any, right: any) => {
+        const a = typeof left.atsScore === "number" ? left.atsScore : atsSort === "asc" ? 101 : -1;
+        const b = typeof right.atsScore === "number" ? right.atsScore : atsSort === "asc" ? 101 : -1;
+        return atsSort === "asc" ? a - b : b - a;
+      });
+    }
+
+    return NextResponse.json({ applications: results, total: results.length, appliedFilters: { atsMin, atsMax, atsKeyword: keyword, atsKeywordMode, atsSort } });
   } catch (error) {
     return NextResponse.json(
       { message: error instanceof Error ? error.message : "Impossible de charger les candidatures reçues." },
