@@ -43,11 +43,14 @@ try {
     addCheck(report, "TALENT_OFFER_DETAIL_READ", detailOk ? "PASS" : "FAIL", detail.status, "Le détail correspond à l'offre sélectionnée dans le flux.");
     const query = String(candidate.title || "").split(/\s+/).find((word) => word.length >= 3)?.slice(0, 24);
     if (query) {
-      const search = await localGet("/api/jobs?scope=" + encodeURIComponent(candidate.source === "discovery" ? "africa" : "local") + "&limit=10&q=" + encodeURIComponent(query), session.token);
+      const searchScope = (localFeed.payload?.jobs || []).some((job) => job.id === candidate.id && job.source === candidate.source) ? "local" : "africa";
+      const search = await localGet("/api/jobs?scope=" + searchScope + "&limit=10&q=" + encodeURIComponent(query), session.token);
+      const normalize = (value) => String(value || "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+      const normalizedQuery = normalize(query);
       const searchOk = search.status === 200 && Array.isArray(search.payload?.jobs) &&
-        Number.isFinite(search.payload?.totalAvailable) &&
-        search.payload.jobs.every((job) => String(job.title || "").toLowerCase().includes(query.toLowerCase()) ||
-          String(job.company?.name || "").toLowerCase().includes(query.toLowerCase()));
+        Number.isFinite(search.payload?.totalAvailable) && search.payload.jobs.length > 0 &&
+        search.payload.jobs.every((job) => normalize(job.title).includes(normalizedQuery) ||
+          normalize(job.company?.name).includes(normalizedQuery));
       addCheck(report, "TALENT_OFFER_SEARCH_READ", searchOk ? "PASS" : "FAIL", search.status, "Recherche par titre/entreprise et cohérence des résultats.");
     } else {
       addCheck(report, "TALENT_OFFER_SEARCH_READ", "BLOCKED", null, "Aucun terme de recherche exploitable dans les offres retournées.");
