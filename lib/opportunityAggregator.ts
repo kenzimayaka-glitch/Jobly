@@ -58,6 +58,8 @@ export function calculateExplainableMatch(input: {
     preferredSectors: input.preferredSectors,
     skills: input.skills,
     experienceYears: input.experienceYears,
+    educationScore: input.educationScore,
+    achievementScore: input.achievementScore,
   }, {
     title: job.title,
     description: job.description,
