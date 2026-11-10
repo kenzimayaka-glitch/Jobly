@@ -5,6 +5,8 @@ import { runHarvestProcessorBatch } from "../supabase/functions/job-harvest-proc
 
 const REF = "ofqqrryamslxoqkklraw";
 const URL = "https://" + REF + ".supabase.co";
+const API_BASE = "http://127.0.0.1:3217";
+const PUBLISHABLE_KEY = "sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y";
 const SOURCE_ROOT = path.resolve(Deno.args[0] || "");
 const OUT = path.resolve("artifacts/e2e");
 const STATE = path.resolve(Deno.args[1] || OUT);
@@ -175,15 +177,15 @@ async function cleanup(key: string) {
 const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86400000).toISOString();
 const ago = (d: Date, n: number) => new Date(d.getTime() - n * 86400000).toISOString();
 
-function validItem(key: string, run: string, estimated: boolean) {
+function validItem(key: string, run: string, estimated: boolean, countryCode: string) {
   return {
     sourceKey: key,
     url: "https://jobs.e2e.invalid/" + run + (estimated ? "/estimated" : "/source-date"),
-    title: estimated ? "Assistant administratif — fixture estimée" : "Chargé de projet — fixture source",
+    title: (estimated ? "Assistant administratif — fixture estimée " : "Chargé de projet — fixture source ") + run.slice(0, 8),
     description: "Fixture synthétique Jobly E2E. Missions : planification des activités, suivi des indicateurs, coordination des partenaires, rédaction des rapports et accompagnement des équipes. Profil : gestion de projet, rigueur et communication.",
     company: "",
-    location: "Douala, Cameroon",
-    countryCode: "CM",
+    location: countryCode === "SN" ? "Dakar, Senegal" : "Douala, Cameroon",
+    countryCode,
     opportunityType: "EMPLOI",
     sourceType: "national",
     sourceName: "JOBLY E2E BULK RECIPE",
@@ -198,23 +200,23 @@ function validItem(key: string, run: string, estimated: boolean) {
     e2eRunId: run,
   };
 }
-function negativeCapture(key: string, run: string, kind: "stale" | "deadline" | "missing"): Row {
+function negativeCapture(key: string, run: string, kind: "stale" | "deadline" | "missing", countryCode: string): Row {
   const now = new Date();
   const url = "https://jobs.e2e.invalid/" + run + "/processor-" + kind;
   const published = kind === "stale" ? "2026-08-01T12:00:00.000Z" : kind === "missing" ? null : ago(now, 5);
   const deadline = kind === "deadline" ? ago(now, 1) : addDays(now, 20);
   const payload = {
-    e2eRunId: run, url, countryCode: "CM", opportunityType: "EMPLOI",
+    e2eRunId: run, url, countryCode, opportunityType: "EMPLOI",
     sourceType: "national", sourceName: "JOBLY E2E BULK RECIPE",
     published, deadline, applicationEmail: "apply-" + kind + "-" + run + "@example.invalid",
   };
   return {
     sourceKey: key, externalId: url, sourceUrl: url,
     title: "Technicien support — contrôle " + kind,
-    company: null, location: "Douala, Cameroon",
+    company: null, location: countryCode === "SN" ? "Dakar, Senegal" : "Douala, Cameroon",
     description: "Fixture synthétique pour le processeur Afrique. Missions : assistance technique, documentation, suivi des incidents et accompagnement des utilisateurs. Profil : rigueur et communication.",
     contractType: "CDD", remoteMode: "NO", deadline, publishedAt: published,
-    applicationProfile: { countryCode: "CM", opportunityType: "EMPLOI", applicationEmail: payload.applicationEmail, publicationDateEstimated: false, e2eRunId: run },
+    applicationProfile: { countryCode, opportunityType: "EMPLOI", applicationEmail: payload.applicationEmail, publicationDateEstimated: false, e2eRunId: run },
     payload, captureMode: "http", status: "PENDING", attempts: 0,
     discoveredAt: now.toISOString(), updatedAt: now.toISOString(),
   };
@@ -224,6 +226,33 @@ async function main() {
   await Deno.mkdir(OUT, { recursive: true });
   admin = await connectE2E();
   add("JOBLY_E2E_TARGET", "PASS", "Projet JOBLY-E2E confirmé avant toute écriture.");
+
+  const fixturesText = await readText(path.join(SOURCE_ROOT, ".e2e-fixtures.json"));
+  insist(Boolean(fixturesText), "E2E_FIXTURES_FILE_MISSING");
+  const fixtures = JSON.parse(fixturesText!);
+  insist(fixtures.environment === "JOBLY-E2E" && fixtures.projectRef === REF, "E2E_FIXTURES_PROJECT_MISMATCH");
+  const talentFixture = fixtures.accounts?.find((item: Row) => item?.key === "talent" && item?.role === "TALENT");
+  insist(talentFixture?.email && talentFixture?.password, "TALENT_FIXTURE_MISSING");
+  const authClient = createClient(URL, PUBLISHABLE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+  });
+  const signedIn = await authClient.auth.signInWithPassword({
+    email: talentFixture.email,
+    password: talentFixture.password,
+  });
+  if (signedIn.error || !signedIn.data.session?.access_token) throw new Error("TALENT_AUTH_FAILED");
+  insist(
+    signedIn.data.user?.app_metadata?.e2e_fixture === true &&
+    signedIn.data.user?.app_metadata?.e2e_role === "TALENT",
+    "TALENT_FIXTURE_ROLE_MISMATCH",
+  );
+  add("TALENT_FIXTURE_AUTH", "PASS", "Session Talent synthétique JOBLY-E2E obtenue ; aucun token journalisé.");
+  const talentUser = await admin.from("User").select("country")
+    .eq("authUserId", signedIn.data.user.id).maybeSingle();
+  if (talentUser.error) throw new Error("TALENT_COUNTRY_READ_" + talentUser.error.message);
+  const homeCountry = String(talentUser.data?.country || "").trim().toUpperCase();
+  const countryCode = homeCountry === "CM" || homeCountry.includes("CAMER") || homeCountry.includes("CAMEROUN")
+    ? "SN" : "CM";
 
   const previousText = await readText(MANIFEST);
   if (previousText) {
@@ -243,10 +272,10 @@ async function main() {
   await saveJson(MANIFEST, { environment: "JOBLY-E2E", projectRef: REF, runId, sourceKey, pendingCleanup: true, createdAt: new Date().toISOString() });
 
   const ingest = await ingestHarvestItems(admin, [
-    validItem(sourceKey, runId, false),
-    validItem(sourceKey, runId, true),
-    { ...validItem(sourceKey, runId, false), url: "https://jobs.e2e.invalid/" + runId + "/ingest-stale", published: "2026-08-01T12:00:00.000Z", title: "Fixture ancienne" },
-    { ...validItem(sourceKey, runId, false), url: "https://jobs.e2e.invalid/" + runId + "/ingest-deadline", deadline: ago(new Date(), 1), title: "Fixture délai dépassé" },
+    validItem(sourceKey, runId, false, countryCode),
+    validItem(sourceKey, runId, true, countryCode),
+    { ...validItem(sourceKey, runId, false, countryCode), url: "https://jobs.e2e.invalid/" + runId + "/ingest-stale", published: "2026-08-01T12:00:00.000Z", title: "Fixture ancienne" },
+    { ...validItem(sourceKey, runId, false, countryCode), url: "https://jobs.e2e.invalid/" + runId + "/ingest-deadline", deadline: ago(new Date(), 1), title: "Fixture délai dépassé" },
   ]);
   insist(ingest.status === 200, "INGEST_STATUS_" + ingest.status);
   insist(ingest.body.insertedOrRefreshed === 2 && ingest.body.expired === 2, "INGEST_BULK_FILTER_MISMATCH");
@@ -254,7 +283,7 @@ async function main() {
   add("BULK_INGEST_FILTERS", "PASS", "2 captures fraîches acceptées ; publication ancienne et date limite dépassée rejetées avant persistance.", ingest.body);
 
   const negative = await admin.from("JobHarvestCapture")
-    .insert([negativeCapture(sourceKey, runId, "stale"), negativeCapture(sourceKey, runId, "deadline"), negativeCapture(sourceKey, runId, "missing")])
+    .insert([negativeCapture(sourceKey, runId, "stale", countryCode), negativeCapture(sourceKey, runId, "deadline", countryCode), negativeCapture(sourceKey, runId, "missing", countryCode)])
     .select("id,status");
   if (negative.error) throw new Error("NEGATIVE_CAPTURE_INSERT_" + negative.error.message);
   insist(negative.data?.length === 3, "NEGATIVE_CAPTURE_COUNT_MISMATCH");
@@ -311,7 +340,91 @@ async function main() {
     captures: captures.length, jobs: jobs.length, pipelines: pipelines.length,
     sourceDatePersisted: true, estimatedDateStoredAsSource: false,
   });
-  report.metrics = { ingest: ingest.body, processor: processed, captures: captures.length, jobs: jobs.length, pipelines: pipelines.length, sourceKey };
+  const queryToken = runId.slice(0, 8);
+  const feedUrl = new URL("/api/jobs", API_BASE);
+  feedUrl.searchParams.set("scope", "africa");
+  feedUrl.searchParams.set("limit", "20");
+  feedUrl.searchParams.set("page", "1");
+  feedUrl.searchParams.set("q", queryToken);
+  const feedResponse = await fetch(feedUrl, {
+    headers: {
+      Authorization: "Bearer " + signedIn.data.session.access_token,
+      "x-real-ip": "127.0.0.1",
+      "Cache-Control": "no-store",
+    },
+    signal: AbortSignal.timeout(30000),
+  });
+  const feedBody = await feedResponse.json().catch(() => ({}));
+  insist(
+    feedResponse.status === 200 && feedBody.market?.scope === "africa" && Array.isArray(feedBody.jobs),
+    "TALENT_AFRICA_FEED_HTTP_" + feedResponse.status,
+  );
+  const sourceFeedJob = feedBody.jobs.find((job: Row) => job.id === sourceJob.id && job.source === "discovery");
+  const estimatedFeedJob = feedBody.jobs.find((job: Row) => job.id === estimatedJob.id && job.source === "discovery");
+  insist(sourceFeedJob && estimatedFeedJob, "TALENT_AFRICA_FEED_MISSING_SYNTHETIC_OFFERS");
+  insist(sourceFeedJob.countryCode === countryCode && estimatedFeedJob.countryCode === countryCode, "TALENT_FEED_COUNTRY_MISMATCH");
+  insist(
+    sourceFeedJob.publishedAt === sourceJob.sourcePublishedAt && sourceFeedJob.publicationDateEstimated === false,
+    "TALENT_FEED_SOURCE_DATE_MISMATCH",
+  );
+  insist(
+    estimatedFeedJob.publicationDateEstimated === true && estimatedFeedJob.publicationDateSource === "FIRST_HARVEST",
+    "TALENT_FEED_ESTIMATED_DATE_MISMATCH",
+  );
+  insist(
+    sourceFeedJob.applicationReady === true && estimatedFeedJob.applicationReady === true,
+    "TALENT_FEED_APPLICATION_READINESS_MISMATCH",
+  );
+  add("TALENT_AFRICA_FEED", "PASS", "Les deux offres produites par le processeur sont visibles dans l’API Talent Afrique avec pays, dates et canaux cohérents.", {
+    visibleOffers: 2,
+    countryCode,
+    sourcePublicationDate: sourceFeedJob.publishedAt,
+    estimatedPublicationSource: estimatedFeedJob.publicationDateSource,
+  });
+
+  const detailCases = [
+    { job: sourceJob, expectedPublishedAt: String(sourceJob.sourcePublishedAt), estimated: false },
+    { job: estimatedJob, expectedPublishedAt: String(estimatedCapture.discoveredAt), estimated: true },
+  ];
+  for (const item of detailCases) {
+    const detailResponse = await fetch(
+      new URL("/api/jobs/" + encodeURIComponent(item.job.id) + "?source=discovery", API_BASE),
+      {
+        headers: {
+          Authorization: "Bearer " + signedIn.data.session.access_token,
+          "x-real-ip": "127.0.0.1",
+          "Cache-Control": "no-store",
+        },
+        signal: AbortSignal.timeout(30000),
+      },
+    );
+    const detailBody = await detailResponse.json().catch(() => ({}));
+    insist(
+      detailResponse.status === 200 && detailBody.job?.id === item.job.id,
+      "TALENT_OFFER_DETAIL_HTTP_" + detailResponse.status,
+    );
+    insist(detailBody.job.publishedAt === item.expectedPublishedAt, "TALENT_OFFER_DETAIL_PUBLICATION_DATE_MISMATCH");
+    insist(
+      detailBody.job.publicationDateEstimated === item.estimated,
+      "TALENT_OFFER_DETAIL_ESTIMATED_FLAG_MISMATCH",
+    );
+  }
+  add("TALENT_OFFER_DETAILS", "PASS", "Les détails des deux offres reprennent la même date de publication réelle ou estimée que le flux.");
+
+  report.metrics = {
+    ingest: ingest.body,
+    processor: processed,
+    captures: captures.length,
+    jobs: jobs.length,
+    pipelines: pipelines.length,
+    sourceKey,
+    talent: {
+      countryCode: homeCountry || null,
+      testedCountryCode: countryCode,
+      africaFeedOffers: 2,
+      offerDetailsChecked: 2,
+    },
+  };
 }
 
 try {
