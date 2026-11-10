@@ -29,7 +29,7 @@ test("WhatsApp CV and letter links expire at 30-day boundary and preserve the ma
   assert.match(preview, /getTime\(\) <= Date\.now\(\)/);
   assert.match(pdf, /getTime\(\) <= Date\.now\(\)/);
   assert.match(feed, /wa\.me/);
-  assert.match(feed, /Envoyer vous-même/);
+  assert.match(feed, /appuie toi-même sur Envoyer/);
 });
 
 test("Recruiter phone attribution uses immutable signup phone, preserves provenance and is idempotent", () => {
@@ -41,7 +41,7 @@ test("Recruiter phone attribution uses immutable signup phone, preserves provena
   assert.match(claim, /signupPhone/);
   assert.match(claim, /normalizePhoneNumber/);
   assert.match(claim, /PHONE_MISMATCH/);
-  assert.match(claim, /status: "PENDING"/);
+  assert.match(claim, /status\s*:\s*"PENDING"/);
   assert.match(onboarding, /claim-whatsapp-offer/);
   assert.match(migration, /FOR UPDATE/);
   assert.match(migration, /WHATSAPP_ATTRIBUTION/);

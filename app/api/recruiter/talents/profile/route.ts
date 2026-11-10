@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
     }
 
     let job: any = null;
+    let excludedUserId = me.id;
     if (token) {
       const { data: share, error: shareError } = await db.from("CVShare")
         .select("userId,jobId,source,expiresAt,revokedAt")
@@ -48,6 +49,7 @@ export async function GET(request: NextRequest) {
       if (!share || share.revokedAt || (share.expiresAt && new Date(share.expiresAt).getTime() <= Date.now())) {
         return NextResponse.json({ message: "Partage ou contexte de matching expiré." }, { status: 404 });
       }
+      excludedUserId = share.userId;
       const source = typeof share.source === "string" ? share.source : "";
       const match = source.match(/^WHATSAPP_APPLICATION:([0-9a-f-]{36})$/i);
       if (!match) return NextResponse.json({ message: "Contexte de matching non reconnu." }, { status: 404 });
@@ -78,7 +80,7 @@ export async function GET(request: NextRequest) {
     const { data: profiles, error: profilesError } = await db.from("Profile")
       .select("userId,targetRoles,targetCities,contractPreferences,remotePreference,preferredSectors,publicDiscoverable")
       .eq("publicDiscoverable", true)
-      .neq("userId", share.userId)
+      .neq("userId", excludedUserId)
       .limit(1000);
     if (profilesError) throw new Error(profilesError.message);
     const ids = Array.from(new Set((profiles || []).map((profile: any) => String(profile.userId || "")).filter(Boolean)));

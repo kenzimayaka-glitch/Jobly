@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
   if(app.recruiterJobId&&!app.jobId) {
    const {data:owned,error}=await db.from("RecruiterJob").select("id,recruiterUserId").eq("id",app.recruiterJobId).maybeSingle();
    if(error) throw new Error(error.message);
-   if(owned?.recruiterUserId===user.id) return NextResponse.json({claimed:true,idempotent:true,recruiterJobId:owned.id});
+   if(owned && owned.recruiterUserId===user.id) return NextResponse.json({claimed:true,idempotent:true,recruiterJobId:owned.id});
    return NextResponse.json({message:"Offre déjà rattachée à un autre recruteur.",code:"ALREADY_CLAIMED"},{status:409});
   }
   if(!share.jobId||app.jobId!==share.jobId||app.recruiterJobId) return NextResponse.json({message:"Contexte offre/candidature invalide."},{status:409});
