@@ -25,6 +25,9 @@ export type MatchingCandidate = {
   skills?: MatchingSkill[];
   experiences?: MatchingExperience[];
   education?: MatchingEducation[];
+  experienceYears?: number | null;
+  educationScore?: number | null;
+  achievementScore?: number | null;
 };
 
 export type MatchingCriterion = {
@@ -190,7 +193,7 @@ function roleFamily(value: string): string | null {
   return null;
 }
 
-function yearsOfExperience(experiences: MatchingExperience[]): number | null {
+function yearsOfExperience(experiences: MatchingExperience[], fallback?: number | null): number | null {
   const now = Date.now();
   const intervals = experiences.flatMap((item) => {
     const start = item.startDate ? new Date(item.startDate).getTime() : Number.NaN;
@@ -198,7 +201,7 @@ function yearsOfExperience(experiences: MatchingExperience[]): number | null {
     if (!Number.isFinite(start) || !Number.isFinite(end) || start > now || end <= start) return [];
     return [{ start, end: Math.min(end, now) }];
   }).sort((a, b) => a.start - b.start);
-  if (!intervals.length) return null;
+  if (!intervals.length) return typeof fallback === "number" && Number.isFinite(fallback) ? Math.max(0, fallback) : null;
   let totalMs = 0;
   let current = { ...intervals[0] };
   for (const next of intervals.slice(1)) {
@@ -341,7 +344,7 @@ export function scoreJobMatch(candidate: MatchingCandidate, job: MatchingJob): J
     skillScore = Math.round((matchedSkills.length / Math.max(1, requiredSkills.length)) * 100);
   }
 
-  const years = yearsOfExperience(experiences);
+  const years = yearsOfExperience(experiences, candidate.experienceYears);
   const minYears = Number(job.minExperienceYears ?? 0);
   const experienceScore = minYears > 0 && years !== null
     ? Math.min(100, Math.round((years / minYears) * 100))
@@ -349,11 +352,11 @@ export function scoreJobMatch(candidate: MatchingCandidate, job: MatchingJob): J
 
   const requiredLevel = requiredEducationLevel(job);
   const candidateLevel = education.map((item) => educationLevel([item.degree, item.field].filter(Boolean).join(" "))).filter((value): value is number => value !== null);
-  const educationScore = requiredLevel === null ? null : candidateLevel.length ? (Math.max(...candidateLevel) >= requiredLevel ? 100 : Math.round((Math.max(...candidateLevel) / requiredLevel) * 100)) : 0;
+  const educationScore = requiredLevel === null ? null : candidateLevel.length ? (Math.max(...candidateLevel) >= requiredLevel ? 100 : Math.round((Math.max(...candidateLevel) / requiredLevel) * 100)) : typeof candidate.educationScore === "number" ? candidate.educationScore : 0;
 
   const measurable = quantifiedEvidence(candidate);
   const asksForResults = /kpi|indicateurs|objectifs chiffres|resultats mesurables|performance|chiffre d affaires|croissance|productivite|roi|rendement|targets|measurable results/i.test(normalize(job.description));
-  const achievementScore = asksForResults ? (measurable.length ? 100 : experiences.length ? 20 : null) : null;
+  const achievementScore = asksForResults ? (typeof candidate.achievementScore === "number" ? candidate.achievementScore : measurable.length ? 100 : experiences.length ? 20 : null) : null;
 
   const targetRoles = candidate.targetRoles ?? [];
   const roleScore = roleMatch(candidate, job);
@@ -361,7 +364,7 @@ export function scoreJobMatch(candidate: MatchingCandidate, job: MatchingJob): J
   const contractScore = preferenceScore(candidate.contractPreferences ?? [], job.contractType);
   const preferredRemote = normalize(candidate.remotePreference);
   const jobRemote = normalize(job.remoteMode);
-  const remoteScore = !preferredRemote || ["indifferent", "peu importe", "yes"].includes(preferredRemote) && ["indifferent", "peu importe"].includes(preferredRemote)
+  const remoteScore = !preferredRemote || ["indifferent", "peu importe"].includes(preferredRemote)
     ? null
     : jobRemote ? ((preferredRemote === jobRemote || (preferredRemote === "yes" && jobRemote === "partial")) ? 100 : 0) : null;
   const sectorScore = preferenceScore(candidate.preferredSectors ?? [], job.sector);
