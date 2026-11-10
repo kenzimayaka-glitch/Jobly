@@ -230,3 +230,38 @@ jobs:
 
       - name: LOT-00 HTTP runtime smoke — protected upload and recruiter routes
         run: node scripts/e2e/lot00-http-runtime-smoke.mjs
+
+  recruiter-talent-ai-regression:
+    name: Recruiter ATS & Talent AI — independent validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: ATS and Talent/Recruteur functional regression tests
+        run: pnpm test:ats-service
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Production build
+        run: pnpm build
+
