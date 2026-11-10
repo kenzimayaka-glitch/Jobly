@@ -163,3 +163,27 @@ Chaque run doit conserver :
 - test de non-régression après correction.
 
 Les preuves sont des artefacts GitHub Actions avec durée de conservation limitée. Ne jamais y inclure de mot de passe, clé secrète, token de session, CV ou donnée personnelle réelle.
+
+
+## Lot 04 — recette bulk réelle du pipeline Afrique
+
+Commande unique depuis le worktree \`Jobly-e2e-recette-lot01\` :
+
+\`\`\`cmd
+call e2e\run-africa-bulk-recipe.cmd
+\`\`\`
+
+Le wrapper lance d'abord les tests statiques de non-régression, puis un lot d'intégration unique qui importe et exécute les fonctions réelles \`job-harvest-ingest\` et \`job-harvest-process\` sans les déployer sur Supabase. Il n'appelle aucune source Internet de recrutement.
+
+Le lot synthétique vérifie en une passe :
+- une capture avec vraie date de publication et contact email synthétique \`.invalid\` ;
+- une capture sans date source, dont le premier constat doit rester une date estimée limitée à 30 jours ;
+- le rejet avant persistance d'une publication trop ancienne et d'une offre dont le délai est dépassé ;
+- le traitement de captures déjà présentes : expiration par ancienneté, expiration par délai et mise en quarantaine d'une date absente ;
+- la cohérence \`JobHarvestCapture\` → \`Job\` → \`JobOfferPipeline\`, les pays, le contact, les statuts et le champ \`sourcePublishedAt\`.
+
+Les objets temporaires portent une \`sourceKey\` unique \`jobly_e2e_bulk_*\`. Le runner enregistre un manifeste de reprise, supprime les lignes du lot dans l'ordre pipeline → Job → capture, puis vérifie leur absence. Si le processus est interrompu, la prochaine exécution nettoie d'abord uniquement la \`sourceKey\` du précédent run. Ne jamais modifier manuellement le manifeste pour y ajouter une autre source.
+
+Le rapport JSON est \`artifacts/e2e/africa-bulk-recipe-report.json\`. Le wrapper ouvre automatiquement ce rapport dans Notepad ; en cas d'arrêt avant sa création, il ouvre le journal \`artifacts/e2e/africa-bulk-recipe-process.log\`. Aucun deuxième CMD ou commande Notepad n'est nécessaire.
+
+**Écriture temporaire autorisée uniquement dans JOBLY-E2E** : ce lot crée réellement des captures, Jobs et pipelines synthétiques avant de les nettoyer. Le rapport indique donc \`temporaryE2EBusinessWrites: true\` et \`productionModified: false\`. Les communications, paiements, ingestion de sources réelles, tâches planifiées, Production, \`main\` et Vercel restent hors périmètre.
