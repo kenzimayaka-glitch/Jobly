@@ -17,6 +17,9 @@ export type RecruiterATSApplication = {
   interviewAt: string | null;
   createdAt: string;
   updatedAt: string;
+  atsScore?: number | null;
+  atsScoreSource?: "APPLICATION" | "PROFILE_ANALYSIS" | "NOT_CALCULABLE";
+  atsAnalysis?: { matchedKeywords: string[]; missingKeywords: string[]; evaluatedKeywords: number };
 };
 
 const STATUS_CONFIG: Record<ApplicationStatus, { label: string; color: string; icon: string; bgColor: string }> = {
@@ -28,7 +31,7 @@ const STATUS_CONFIG: Record<ApplicationStatus, { label: string; color: string; i
   REJECTED: { label: "Refusé", color: "text-red-600", icon: "✕", bgColor: "bg-red-50" },
 };
 
-const COLUMN_ORDER: ApplicationStatus[] = ["DISCOVERED", "SUBMITTED", "INTERVIEW", "OFFER"];
+const COLUMN_ORDER: ApplicationStatus[] = ["DISCOVERED", "SUBMITTED", "ACKNOWLEDGED", "INTERVIEW", "OFFER", "REJECTED"];
 
 interface RecruiterATSProps {
   applications: RecruiterATSApplication[];
@@ -194,6 +197,23 @@ export default function RecruiterATS({ applications, onStatusChange, isLoading }
                           {/* Job Title */}
                           <p className="mt-2 text-[9px] font-semibold text-navy/70 truncate">{app.jobTitle || "Offre sans titre"}</p>
 
+                          <div className="mt-2 flex items-center justify-between rounded-lg bg-slate-50 px-2.5 py-2">
+                            <span className="text-[9px] font-bold text-jobly-gray">Compatibilité ATS Jobly</span>
+                            <strong className="text-xs font-black text-jobly-blue">
+                              {typeof app.atsScore === "number" ? `${app.atsScore}%` : "Non calculable"}
+                            </strong>
+                          </div>
+                          {app.atsAnalysis?.matchedKeywords?.length ? (
+                            <p className="mt-1.5 text-[9px] leading-4 text-emerald-700">
+                              <strong>Présents :</strong> {app.atsAnalysis.matchedKeywords.slice(0, 5).join(", ")}
+                            </p>
+                          ) : null}
+                          {app.atsAnalysis?.missingKeywords?.length ? (
+                            <p className="mt-1 text-[9px] leading-4 text-amber-700">
+                              <strong>Manquants :</strong> {app.atsAnalysis.missingKeywords.slice(0, 5).join(", ")}
+                            </p>
+                          ) : null}
+
                           {/* Interview Date */}
                           {app.interviewAt && (
                             <p className="mt-1.5 flex items-center gap-1 text-[9px] text-amber-600 font-bold">
@@ -250,7 +270,7 @@ export default function RecruiterATS({ applications, onStatusChange, isLoading }
 
       {/* Stats Footer */}
       {totalApps > 0 && (
-        <div className="mt-4 grid grid-cols-4 gap-2 sm:gap-3">
+        <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6 sm:gap-3">
           {COLUMN_ORDER.map((status) => {
             const config = STATUS_CONFIG[status];
             const count = groupedApps[status]?.length || 0;
