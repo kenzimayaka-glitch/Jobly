@@ -345,7 +345,7 @@ try {
   if (RUN_MODE === "--auth-advanced-only") {
     console.log("Mode auth-advanced-only : OTP, Google et récupération simulés ; révocation limitée aux deux sessions créées sur JOBLY-E2E.");
     const playwrightModulePath = await ensurePlaywright(env);
-    const advancedEnv = { ...env, E2E_BASE_URL: BASE_URL, PLAYWRIGHT_MODULE_PATH: playwrightModulePath, E2E_FIXTURE_PATH: fixturePath };
+    const advancedEnv = { ...env, E2E_BASE_URL: BASE_URL, E2E_SOURCE_COMMIT: runGit(["rev-parse", "HEAD"]), PLAYWRIGHT_MODULE_PATH: playwrightModulePath, E2E_FIXTURE_PATH: fixturePath };
     const advancedStartedAt = new Date();
     const advancedProcessLog = path.join(ROOT, "artifacts", "e2e", "auth-advanced-process.log");
     const advancedRun = await runCommandCaptured(process.execPath, ["e2e/auth-advanced-browser-smoke.mjs"], advancedEnv, advancedProcessLog);
