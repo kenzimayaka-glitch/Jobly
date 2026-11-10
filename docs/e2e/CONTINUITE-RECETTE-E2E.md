@@ -8897,3 +8897,41 @@ Le journal de pré-démarrage se trouve à `%TEMP%\jobly-africa-bulk-bootstrap.l
 **État :** le blocage observé est diagnostiqué et corrigé dans la branche `e2e/recette`. Le résultat `10 PASS / 1 FAIL` correspond à l'ancien snapshot `fcdc86d3c3d195597bbc3b6627a3b0e175cc0ffb`, pas aux fichiers corrigés après ce run. Il faut exécuter le nouveau HEAD pour prouver le préflight. Aucun traitement d'offres, aucune écriture métier ni aucun nettoyage n'ont été exécutés par le lancement signalé.
 
 **Reprise :** relancer la commande unique de §154.23. Elle récupère la nouvelle tête de `e2e/recette`, crée le journal avant le fetch et appelle le nouveau bootstrap. Le jalon `ISOLATED_EXIT_CODE` doit maintenant afficher une valeur numérique. Aucun PASS runtime ne doit être revendiqué avant un rapport complet indiquant `status=PASS` et `cleanupVerified=true`.
+
+## 155. Clôture ciblée — recette bulk Afrique → catalogue Talent
+
+**Périmètre :** \`e2e/recette\`, PR #266. \`main\` n'est ni modifiée ni fusionnée ; aucun déploiement ni aucune écriture JOBLY-PROD.
+
+### Corrections versionnées
+- Le runner Deno Afrique est exclu du \`tsconfig\` Next.js et contrôlé par \`deno check\`.
+- Le processeur Afrique expose un type de retour explicite pour ses compteurs.
+- L'API détail Talent utilise la même priorité de date que le flux : publication source, première collecte, puis date de création en dernier recours. Le marqueur estimé est renvoyé.
+- Le snapshot local du lot Afrique n'exige que la fixture Talent ; une fixture Recruteur absente ne bloque plus ce scénario.
+- Le workflow de vérification exécute aussi les tests statiques du lanceur bulk.
+- L'action manuelle globale a été réduite à un préflight CI sans secret privé ; elle ne simule pas les parcours Auth locaux.
+
+### Preuves CI déjà observées
+Sur le commit \`02f92d288277c844d61a5ff8733ec15998d14c6d\`, les résultats suivants ont été confirmés :
+- \`Verify offer pipeline\` : PASS ; les étapes \`deno check e2e/africa-bulk-recipe.ts\`, \`pnpm typecheck\` et \`pnpm build\` sont PASS.
+- \`Jobly CI — Typecheck & Build\` : PASS, y compris les migrations isolées, le typecheck et le build.
+- \`Africa Source Shadow Crawl\` : le job de validation PR est PASS ; le job de crawl effectif est SKIPPED, comme prévu pour \`pull_request\`.
+- \`Verify Africa source registry\` : PASS.
+- \`Jobly Security Core — isolated migration tests\` : PASS.
+
+Les nouveaux commits de finition doivent repasser ces workflows avant d'être considérés comme stabilisés.
+
+### Couverture du nouveau lot bulk
+Un lancement unique exécute le préflight statique, le build local, le serveur Next lié à \`127.0.0.1:3217\`, l'authentification Talent, l'ingestion des candidates, le vrai processeur, les assertions de persistance, l'API du flux Afrique, les deux détails d'offres, le nettoyage ciblé et l'arrêt du serveur.
+
+Résultats attendus : 2 offres acceptées, 2 rejetées à l'ingestion ; 5 captures traitées par le processeur (2 offres créées, 2 expirées, 1 mise en quarantaine), 0 erreur de persistance ; les 2 offres synthétiques doivent apparaître dans le flux Talent Afrique ; la date source doit rester réelle et la date fallback estimée doit provenir de la première collecte.
+
+Les écritures temporaires sont limitées à \`JOBLY-E2E\`. Le rapport n'est PASS que si toutes les vérifications réussissent, \`cleanupVerified=true\` et le serveur local est arrêté. L'ouverture de session de la fixture Talent peut modifier des métadonnées Auth d'appareil ; le rapport l'indique. Aucun e-mail, SMS, paiement, candidature externe ou compte Production n'est utilisé.
+
+### Commande CMD unique
+\`\`\`cmd
+call "%USERPROFILE%\\Jobly-e2e-recette-lot01\\e2e\\run-africa-bulk-bootstrap.cmd"
+\`\`\`
+
+Le bootstrap récupère le commit de recette exact et travaille sur un snapshot temporaire. Il ne fait aucun checkout, reset, clean, stash, merge ou déploiement. Il ouvre le rapport JSON dans Notepad ; en cas de blocage, il ouvre le journal de lancement, et le bootstrap ouvre son propre journal.
+
+**Statut de clôture de cette entrée :** corrections et recette préparées dans la branche ; CI du nouveau SHA à confirmer ; recette runtime locale \`NOT RUN\` jusqu'au rapport JSON. Aucun PASS métier n'est déduit des seuls contrôles CI.
