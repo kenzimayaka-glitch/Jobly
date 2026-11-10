@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
         const ranked = await getCascadeOpportunities(String(user.id));
         const requestedJobId = typeof body?.jobId === "string" ? body.jobId : "";
         const matches = ranked.slice().sort((left, right) => right.matchScore - left.matchScore || right.matchConfidence - left.matchConfidence);
-        const selected = requestedJobId ? matches.find((item) => item.id.endsWith(requestedJobId)) || matches[0] : matches[0];
+        const selected = requestedJobId ? matches.find((item) => item.id === requestedJobId || item.id.endsWith(`:${requestedJobId}`)) || matches[0] : matches[0];
         if (!selected) {
           response = { ...result, message: "Je n’ai pas trouvé d’offre active exploitable à comparer pour le moment. Complète ton CV ou reviens après la prochaine actualisation des offres." };
           matching = { algorithm: "jobly-matching-v2", matches: [], semanticScored: false };
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
             jobDescription: String(job.description || ""), matchSignals: selected.matchedSkills.slice(0, 15),
           });
           const semantic = ai.ok && ai.output && typeof ai.output === "object" ? ai.output as Record<string, unknown> : null;
-          const semanticScored = semantic?.mode === "ai_semantic" && typeof semantic.score === "number";
+          const semanticScored = semantic?.mode === "ai_semantic" && typeof semantic.score === "number" && Number.isFinite(semantic.score) && semantic.score >= 0 && semantic.score <= 100;
           const shortlist = matches.slice(0, 5).map((item) => ({
             id: item.id, title: item.title, company: item.company, score: item.matchScore,
             confidence: item.matchConfidence, coverage: item.matchCoverage,
@@ -107,13 +107,15 @@ export async function POST(req: NextRequest) {
           }));
           const summary = shortlist.slice(0, 3).map((item, index) =>
             `${index + 1}. ${item.title} — ${item.company} : ${item.score}/100 (fiabilité ${item.confidence}/100)`
-          ).join("\\n");
+          ).join("\n");
+          const semanticConfidence = semantic?.confidence === "HIGH" || semantic?.confidence === "MEDIUM" || semantic?.confidence === "LOW" ? semantic.confidence : "LOW";
+          const fallbackConfidence = selected.matchConfidence >= 80 ? "HIGH" : selected.matchConfidence >= 50 ? "MEDIUM" : "LOW";
           const semanticLine = semanticScored
-            ? ` Analyse sémantique J’IA sur la meilleure offre : ${semantic.score}/100, confiance ${String(semantic.confidence || "LOW")}.`
-            : " Le score sémantique avancé n’a pas été calculé ; les scores affichés restent ceux du moteur commun déterministe.";
+            ? ` Analyse sémantique J’IA sur la meilleure offre : ${semantic.score}/100, confiance ${semanticConfidence}.`
+            : ` Le score sémantique avancé n’a pas été calculé (${ai.ok ? "réponse non scorée du moteur IA" : ai.message}). Les scores affichés restent ceux du moteur commun déterministe.`;
           response = { ...result, intent: "MATCHING",
-            message: `Voici les offres les mieux classées selon les informations vérifiables de ton profil :\\n${summary}\\n${semanticLine}`,
-            confidence: semanticScored && semantic.confidence === "HIGH" ? "HIGH" : "MEDIUM" };
+            message: `Voici les offres les mieux classées selon les informations vérifiables de ton profil :\n${summary}\n${semanticLine}`,
+            confidence: semanticScored ? semanticConfidence : fallbackConfidence };
           matching = { algorithm: "jobly-matching-v2", matches: shortlist, selectedJobId: String(job.id),
             deterministicScore: selected.matchScore, semantic, semanticScored,
             aiCredits: ai.ok ? ai.credits : null, aiUnavailableReason: ai.ok ? null : ai.message };

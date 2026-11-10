@@ -10,17 +10,19 @@ const safeArray=(value:unknown,max=10)=>Array.isArray(value)?value.map(item=>red
 const decayedConfidence=(confidence:number,lastObservedAt:string)=>{const ageDays=Math.max(0,(Date.now()-new Date(lastObservedAt).getTime())/86400000);return Math.max(0,Math.min(1,confidence*Math.exp(-ageDays/180)));};
 
 export async function buildJiaContext(sb:SupabaseClient,userId:string,request:JiaContextInput):Promise<{context:JiaContext|null;error:string|null}>{
-  const [userResult,profileResult,skillsResult,experiencesResult,educationResult,memoryResult,eventsResult,cvEvidence]=await Promise.all([
-    sb.from("User").select("privacyAcceptedAt").eq("id",userId).maybeSingle(),
+  const userResult=await sb.from("User").select("privacyAcceptedAt").eq("id",userId).maybeSingle();
+  if(userResult.error)return{context:null,error:userResult.error.message};
+  const loadOriginalCv=request.operation.toUpperCase()==="MATCHING"&&Boolean(userResult.data?.privacyAcceptedAt);
+  const [profileResult,skillsResult,experiencesResult,educationResult,memoryResult,eventsResult,cvEvidence]=await Promise.all([
     sb.from("Profile").select("headline,summary,location,targetRoles,preferredSectors,targetCities,contractPreferences,remotePreference").eq("userId",userId).maybeSingle(),
     sb.from("Skill").select("name,level").eq("userId",userId).limit(50),
     sb.from("Experience").select("title,company,description,startDate,endDate").eq("userId",userId).limit(20),
     sb.from("Education").select("institution,degree,field,startDate,endDate").eq("userId",userId).limit(20),
     sb.from("jia_memory_unified").select("id,memory_type,content,confidence,source,last_seen_at,importance,relevance,storage_kind").eq("user_id",userId).order("last_seen_at",{ascending:false}).limit(75),
     sb.from("JiaEvent").select("eventType,path,durationMs,occurredAt").eq("userId",userId).order("occurredAt",{ascending:false}).limit(100),
-    request.operation.toUpperCase()==="MATCHING" ? readOriginalCvText(sb,userId) : Promise.resolve({text:"",status:"MISSING" as const,fileName:null,pages:null}),
+    loadOriginalCv ? readOriginalCvText(sb,userId) : Promise.resolve({text:"",status:"MISSING" as const,fileName:null,pages:null}),
   ]);
-  const firstError=userResult.error||profileResult.error||skillsResult.error||experiencesResult.error||educationResult.error||memoryResult.error||eventsResult.error;
+  const firstError=profileResult.error||skillsResult.error||experiencesResult.error||educationResult.error||memoryResult.error||eventsResult.error;
   if(firstError)return{context:null,error:firstError.message};
   const profile:any=profileResult.data||{};
   const skills=(skillsResult.data||[]).map((x:any)=>({name:redact(x.name),level:redact(x.level)}));
