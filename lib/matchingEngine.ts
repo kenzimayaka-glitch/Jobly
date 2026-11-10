@@ -16,6 +16,7 @@ export type MatchingEducation = {
 export type MatchingCandidate = {
   headline?: string | null;
   summary?: string | null;
+  cvText?: string | null;
   location?: string | null;
   targetRoles?: string[];
   targetCities?: string[];
@@ -247,7 +248,7 @@ function requiredEducationLevel(job: MatchingJob): number | null {
 
 function buildCandidateText(candidate: MatchingCandidate): string {
   return [
-    candidate.headline, candidate.summary,
+    candidate.headline, candidate.summary, candidate.cvText,
     ...(candidate.skills ?? []).map((item) => typeof item === "string" ? item : item.name ?? ""),
     ...(candidate.experiences ?? []).flatMap((item) => [item.title, item.description]),
     ...(candidate.education ?? []).flatMap((item) => [item.degree, item.field, item.institution]),
@@ -285,6 +286,7 @@ function candidateSkillKeys(candidate: MatchingCandidate): Set<string> {
   }
   const experienceText = (candidate.experiences ?? []).map((item) => [item.title, item.description].filter(Boolean).join(" ")).join(" ");
   for (const key of detectedSkillKeys(experienceText)) found.add(key);
+  for (const key of detectedSkillKeys(String(candidate.cvText ?? ""))) found.add(key);
   return found;
 }
 
@@ -361,7 +363,9 @@ function remotePreferenceScore(preference: string | null | undefined, actual: st
 
 function quantifiedEvidence(candidate: MatchingCandidate): string[] {
   const regex = /\b\d+(?:[.,]\d+)?\s*(?:%|k\b|m\b|bn\b|xaf\b|fcfa\b|euros?\b|usd\b)|\b\d+\s+(?:clients?|comptes?|personnes?|collaborateurs?|projets?|pays?|sites?|jours?|mois|ans?)\b/gi;
-  return (candidate.experiences ?? []).flatMap((item) => (String(item.description ?? "").match(regex) ?? []).slice(0, 6)).slice(0, 20);
+  const fromExperiences = (candidate.experiences ?? []).flatMap((item) => (String(item.description ?? "").match(regex) ?? []).slice(0, 6));
+  const fromCv = String(candidate.cvText ?? "").match(regex) ?? [];
+  return [...new Set([...fromExperiences, ...fromCv])].slice(0, 20);
 }
 
 export function scoreJobMatch(candidate: MatchingCandidate, job: MatchingJob): JobMatchResult {
@@ -391,7 +395,7 @@ export function scoreJobMatch(candidate: MatchingCandidate, job: MatchingJob): J
     : minYears === 0 && experiences.length > 0 ? 100 : null;
 
   const requiredLevel = requiredEducationLevel(job);
-  const candidateLevel = education.map((item) => educationLevel([item.degree, item.field].filter(Boolean).join(" "))).filter((value): value is number => value !== null);
+  const candidateLevel = [...education.map((item) => educationLevel([item.degree, item.field].filter(Boolean).join(" "))), educationLevel(String(candidate.cvText ?? ""))].filter((value): value is number => value !== null);
   const educationScore = requiredLevel === null ? null : candidateLevel.length ? (Math.max(...candidateLevel) >= requiredLevel ? 100 : Math.round((Math.max(...candidateLevel) / requiredLevel) * 100)) : typeof candidate.educationScore === "number" ? candidate.educationScore : education.length ? 0 : null;
 
   const measurable = quantifiedEvidence(candidate);
