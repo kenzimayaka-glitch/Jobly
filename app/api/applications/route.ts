@@ -14,7 +14,7 @@ function isOpen(deadline:string|null|undefined){return !deadline||new Date(deadl
 
 export async function GET(request:NextRequest){try{const authUser=await getAuthUser(request);if(!authUser)return NextResponse.json({message:"Session requise."},{status:401});const supabase=adminClient();const user=await ensureUser(supabase,authUser);const {data:apps,error}=await supabase.from("Application").select("*").eq("userId",user.id).order("updatedAt",{ascending:false});if(error)throw new Error(error.message);const applications=(apps as ApplicationRow[])||[];const jobIds=applications.map(a=>a.jobId).filter(Boolean) as string[];const recruiterJobIds=applications.map(a=>a.recruiterJobId).filter(Boolean) as string[];const [jobsRes,recruiterJobsRes]=await Promise.all([jobIds.length?supabase.from("Job").select("id,title,location,contractType,remoteMode,companyId").in("id",jobIds):Promise.resolve({data:[],error:null}),recruiterJobIds.length?supabase.from("RecruiterJob").select("id,title,location,contract,remoteMode,companyName").in("id",recruiterJobIds):Promise.resolve({data:[],error:null})]);if(jobsRes.error)throw new Error(jobsRes.error.message);if(recruiterJobsRes.error)throw new Error(recruiterJobsRes.error.message);const companyIds=Array.from(new Set((jobsRes.data||[]).map((j:any)=>j.companyId).filter(Boolean)));const companiesRes=companyIds.length?await supabase.from("Company").select("id,name,logoUrl,description,website").in("id",companyIds):{data:[],error:null};if(companiesRes.error)throw new Error(companiesRes.error.message);const jobsById=new Map((jobsRes.data||[]).map((j:any)=>[j.id,j]));const recruiterJobsById=new Map((recruiterJobsRes.data||[]).map((j:any)=>[j.id,j]));const companiesById=new Map((companiesRes.data||[]).map((c:any)=>[c.id,c]));const results=applications.map(app=>{const isDiscovery=!!app.jobId;const job=isDiscovery?jobsById.get(app.jobId as string):recruiterJobsById.get(app.recruiterJobId as string);const company=isDiscovery&&job?.companyId?companiesById.get(job.companyId):null;return{id:app.id,source:isDiscovery?"discovery":"recruiter",jobId:app.jobId,recruiterJobId:app.recruiterJobId,status:app.status,statusLabel:statusLabel(app.status),statusSource:app.statusSource,proofUrl:app.proofUrl,viewedAt:app.viewedAt,interviewAt:app.interviewAt,createdAt:app.createdAt,updatedAt:app.updatedAt,job:job?{title:job.title,location:job.location,contractType:job.contract,remoteMode:job.remoteMode,companyName:isDiscovery?company?.name??null:job.companyName}:null};});const counters={total:results.length,brouillons:results.filter(a=>a.status==="DISCOVERED").length,pretes:results.filter(a=>["PREPARED","USER_REVIEW"].includes(a.status)).length,envoiEnCours:results.filter(a=>a.status==="SUBMITTING").length,envoyees:results.filter(a=>["SUBMITTED","ACKNOWLEDGED","INTERVIEW","OFFER","REJECTED","WITHDRAWN"].includes(a.status)).length,vues:results.filter(a=>["ACKNOWLEDGED","INTERVIEW","OFFER","REJECTED"].includes(a.status)).length,entretien:results.filter(a=>a.status==="INTERVIEW").length};return NextResponse.json({applications:results,counters});}catch(error){return NextResponse.json({message:error instanceof Error?error.message:"Impossible de charger les candidatures."},{status:500});}}
 
-export async function POST(request:NextRequest){try{const authUser=await getAuthUser(request);if(!authUser)return NextResponse.json({message:"Session requise."},{status:401});const supabase=adminClient();const user=await ensureUser(supabase,authUser);const body=await request.json();const letterOverride=typeof body.letterText==="string"&&body.letterText.trim()?body.letterText.trim().slice(0,30000):null;const source=body.source==="recruiter"?"recruiter":body.source==="discovery"?"discovery":null;const targetId=typeof body.jobId==="string"?body.jobId.trim():"";if(!source||!targetId)return NextResponse.json({message:"Offre invalide (source et identifiant requis)."},{status:400});
+export async function POST(request:NextRequest){try{const authUser=await getAuthUser(request);if(!authUser)return NextResponse.json({message:"Session requise."},{status:401});const supabase=adminClient();const user=await ensureUser(supabase,authUser);const body=await request.json();const existingApplicationId=typeof body.applicationId==="string"?body.applicationId.trim():null;const letterOverride=typeof body.letterText==="string"&&body.letterText.trim()?body.letterText.trim().slice(0,30000):null;const source=body.source==="recruiter"?"recruiter":body.source==="discovery"?"discovery":null;const targetId=typeof body.jobId==="string"?body.jobId.trim():"";if(!source||!targetId)return NextResponse.json({message:"Offre invalide (source et identifiant requis)."},{status:400});
  let offer:any=null;
  if(source==="discovery"){
   const {data,error}=await supabase.from("Job").select("id,title,description,isActive,applicationReady,applicationProfile,createdAt,sourcePublishedAt,deadline,source,sourceUrl,companyId").eq("id",targetId).maybeSingle();if(error)throw new Error(error.message);offer=data;
@@ -27,6 +27,21 @@ export async function POST(request:NextRequest){try{const authUser=await getAuth
   if(!offer||offer.status!=="published")return NextResponse.json({message:"Cette offre Jobly n'est plus publiée."},{status:410});
   if(!offer.applicationReady)return NextResponse.json({message:"J'IA ne peut pas encore candidater à cette offre."},{status:422});
   if(!isFresh(null,null,offer.createdAt))return NextResponse.json({message:"Cette offre n'est plus diffusée par Jobly."},{status:410});
+ }
+ if (existingApplicationId) {
+   const { data: existingApplication, error: existingError } = await supabase.from("Application")
+     .select("id,status,jobId,recruiterJobId")
+     .eq("id", existingApplicationId)
+     .eq("userId", user.id)
+     .maybeSingle();
+   if (existingError) throw new Error(existingError.message);
+   if (!existingApplication) return NextResponse.json({message:"Brouillon de candidature introuvable."},{status:404});
+   const sameOffer = source === "discovery"
+     ? existingApplication.jobId === targetId
+     : existingApplication.recruiterJobId === targetId;
+   if (!sameOffer || !["USER_REVIEW","PREPARED"].includes(String(existingApplication.status))) {
+     return NextResponse.json({message:"Ce brouillon ne peut plus être modifié pour cette offre."},{status:409});
+   }
  }
  const company=source==="discovery"&&offer.companyId?(await supabase.from("Company").select("name").eq("id",offer.companyId).maybeSingle()).data?.name||"l'entreprise":offer.companyName||"l'entreprise";
  const applicationContact=resolveApplicationContact(offer.applicationProfile||{},offer.description||"");
@@ -58,16 +73,32 @@ export async function POST(request:NextRequest){try{const authUser=await getAuth
  const cvPreparationMode = ["NORMAL","ATS","IMPROVE","ATS_IMPROVE"].includes(String(body.cvPreparationMode||""))
    ? String(body.cvPreparationMode) as "NORMAL"|"ATS"|"IMPROVE"|"ATS_IMPROVE"
    : "ATS";
- const applicationId=newId();const prepared=await prepareApplication(request,{jobTitle:offer.title,jobDescription:offer.description,company,applicationProfile:offer.applicationProfile||{},profile:profileRes.data||{},experiences:experiencesRes.data||[],skills:skillsRes.data||[],education:educationRes.data||[],letterOverride,skipAi:Boolean(letterOverride),cvPreparationMode});
- 
- const status="USER_REVIEW";
- const {data,error}=await supabase.rpc("create_application_with_quota",{p_user_id:user.id,p_weekly_limit:effectiveQuotaLimit,p_application:{id:applicationId,userId:user.id,jobId:source==="discovery"?targetId:null,recruiterJobId:source==="recruiter"?targetId:null,language:"fr",status,letterText:prepared.letter,tailoredCvText:prepared.tailoredCvText,submittedAt:null,proofUrl:null,statusSource:"CANDIDATE",officialListingConsent:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),sourceType:prepared.channel.channel}}).single();
- const application = data as { id: string; } | null;
- if(error){if(error.code==="P0001"&&(error.message.includes("APPLICATION_QUOTA_EXCEEDED")||error.message.includes("QUOTA_EXCEEDED"))){const upgradeSuggestion=await maybeCreateJiaUpgradeNudge(supabase,user.id,planCode,"APPLICATION_QUOTA",`La candidature demandée dépasse le quota hebdomadaire inclus dans ta formule.`,`Augmenter le nombre de candidatures que JOBLY peut préparer pour toi chaque semaine`,planCode==="FREE"?"START":planCode==="START"?"PREMIUM":"PRO");return NextResponse.json({message:"Votre quota hebdomadaire de candidatures est atteint.",code:"QUOTA_EXCEEDED",limit:quotaLimit,upgradeSuggestion},{status:429});}if(error.code==="P0002"||error.message.includes("DUPLICATE_APPLICATION"))return NextResponse.json({message:"Vous avez déjà une candidature pour cette offre."},{status:409});throw new Error(error.message);}
- if(!application?.id)throw new Error("Impossible de créer la candidature.");
- const batchId = typeof body.batchId === "string" ? body.batchId.trim() : null;
+ const applicationId=existingApplicationId||newId();
+ const prepared=await prepareApplication(request,{jobTitle:offer.title,jobDescription:offer.description,company,applicationProfile:offer.applicationProfile||{},profile:profileRes.data||{},experiences:experiencesRes.data||[],skills:skillsRes.data||[],education:educationRes.data||[],letterOverride,skipAi:Boolean(letterOverride),cvPreparationMode});
  const readinessScoreAtApply = Number.isFinite(Number(body.readinessScoreAtApply)) ? Math.max(0, Math.min(100, Number(body.readinessScoreAtApply))) : null;
  const locale = typeof body.locale === "string" && body.locale.trim() ? body.locale.trim().slice(0,10) : "fr";
+ let application:any=null;
+ if (existingApplicationId) {
+   const {data:updated,error:updateError}=await supabase.from("Application").update({
+     letterText:prepared.letter,
+     tailoredCvText:prepared.tailoredCvText,
+     sourceType:prepared.channel.channel,
+     readinessScoreAtApply:readinessScoreAtApply,
+     atsScoreAtApply:null,
+     locale,
+     updatedAt:new Date().toISOString(),
+   }).eq("id",existingApplicationId).eq("userId",user.id).in("status",["USER_REVIEW","PREPARED"]).select("id,status,jobId,recruiterJobId,sourceType").maybeSingle();
+   if(updateError)throw new Error(updateError.message);
+   if(!updated) return NextResponse.json({message:"Ce brouillon a été modifié ou envoyé ailleurs. Recharge tes candidatures."},{status:409});
+   application=updated;
+ } else {
+   const status="USER_REVIEW";
+   const {data,error}=await supabase.rpc("create_application_with_quota",{p_user_id:user.id,p_weekly_limit:effectiveQuotaLimit,p_application:{id:applicationId,userId:user.id,jobId:source==="discovery"?targetId:null,recruiterJobId:source==="recruiter"?targetId:null,language:"fr",status,letterText:prepared.letter,tailoredCvText:prepared.tailoredCvText,submittedAt:null,proofUrl:null,statusSource:"CANDIDATE",officialListingConsent:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),sourceType:prepared.channel.channel,readinessScoreAtApply,atsScoreAtApply:null,locale}});
+   application=data as {id:string}|null;
+   if(error){if(error.code==="P0001"&&(error.message.includes("APPLICATION_QUOTA_EXCEEDED")||error.message.includes("QUOTA_EXCEEDED"))){const upgradeSuggestion=await maybeCreateJiaUpgradeNudge(supabase,user.id,planCode,"APPLICATION_QUOTA",`La candidature demandée dépasse le quota hebdomadaire inclus dans ta formule.`,`Augmenter le nombre de candidatures que JOBLY peut préparer pour toi chaque semaine`,planCode==="FREE"?"START":planCode==="START"?"PREMIUM":"PRO");return NextResponse.json({message:"Votre quota hebdomadaire de candidatures est atteint.",code:"QUOTA_EXCEEDED",limit:quotaLimit,upgradeSuggestion},{status:429});}if(error.code==="P0002"||error.message.includes("DUPLICATE_APPLICATION"))return NextResponse.json({message:"Vous avez déjà une candidature pour cette offre."},{status:409});throw new Error(error.message);}
+ }
+ if(!application?.id)throw new Error("Impossible de créer la candidature.");
+ const batchId = typeof body.batchId === "string" ? body.batchId.trim() : null;
  if (batchId) {
    const { data: batch } = await supabase.from("ApplicationBatch").select("id").eq("id", batchId).eq("userId", user.id).maybeSingle();
    if (batch?.id) {
