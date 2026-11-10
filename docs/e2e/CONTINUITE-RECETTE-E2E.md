@@ -8820,3 +8820,19 @@ Cette première commande imprime un marqueur après `git fetch`, extrait le boot
 Le dernier ajustement CMD du SHA (labels explicites hors blocs parenthésés) est commité dans `bdb400b18823dd2604412e5c3099d9c5d669f178`, avec verrou statique `0ac334492c4b83564b5ffb6843a6a04fae143fb8`. La commande est aussi publiée dans `e2e/README.md`.
 
 Validation restante : exécution réelle de cette commande par l'opérateur. Les statiques, la preuve de clé, l'ingestion, le processeur et le nettoyage ne sont pas déclarés exécutés par la seule présence de ce lanceur.
+
+
+### 154.21 Marqueur visible pour la branche FETCH_HEAD du bootstrap
+
+Le bootstrap est maintenant appelé avec l'argument `FETCH_HEAD` depuis la commande unique opérateur. Cette voie saute volontairement un second fetch, résout le commit déjà récupéré dans le dépôt local, affiche explicitement l'étape `[2/5] Reutilisation du FETCH_HEAD deja recupere...`, puis extrait le lanceur PowerShell depuis ce SHA. Le marqueur de réutilisation est verrouillé par le test statique.
+
+- CMD : `c4d86c64e3edf252a798775acc27972e76a48632`.
+- Test : `4d57043244c9933c23c2d5cc0dd226442eec0cf7`.
+
+**Commande à exécuter depuis un seul CMD ouvert :**
+
+```cmd
+cd /d "%USERPROFILE%\Jobly-e2e-recette-lot01" && echo [BOOTSTRAP 1/3] FETCH && git fetch --no-tags origin refs/heads/e2e/recette && echo [BOOTSTRAP 2/3] FETCH_TERMINE && git show FETCH_HEAD:e2e/run-africa-bulk-bootstrap.cmd > "%TEMP%\jobly-africa-bulk-bootstrap.cmd" && echo [BOOTSTRAP 3/3] LANCEMENT && call "%TEMP%\jobly-africa-bulk-bootstrap.cmd" FETCH_HEAD
+```
+
+Cette commande ne fait aucun checkout et ne touche pas aux changements du worktree. Si l'affichage s'arrête avant `[BOOTSTRAP 2/3] FETCH_TERMINE`, l'arrêt est dans Git fetch ; entre les marqueurs 2 et 3, dans l'extraction du bootstrap ; après le marqueur 3, les cinq jalons internes et le journal Notepad indiquent l'étape exacte.
