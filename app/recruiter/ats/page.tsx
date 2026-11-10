@@ -21,8 +21,9 @@ export default function RecruiterATSPage() {
   const [atsMax, setAtsMax] = useState("");
   const [atsKeyword, setAtsKeyword] = useState("");
   const [atsKeywordMode, setAtsKeywordMode] = useState<"present" | "missing">("present");
-  const [appliedAtsFilters, setAppliedAtsFilters] = useState<{ atsMin: string; atsMax: string; atsKeyword: string; atsKeywordMode: "present" | "missing" }>({
-    atsMin: "", atsMax: "", atsKeyword: "", atsKeywordMode: "present",
+  const [atsSort, setAtsSort] = useState<"none" | "asc" | "desc">("none");
+  const [appliedAtsFilters, setAppliedAtsFilters] = useState<{ atsMin: string; atsMax: string; atsKeyword: string; atsKeywordMode: "present" | "missing"; atsSort: "none" | "asc" | "desc" }>({
+    atsMin: "", atsMax: "", atsKeyword: "", atsKeywordMode: "present", atsSort: "none",
   });
 
   const load = useCallback(async () => {
@@ -42,6 +43,7 @@ export default function RecruiterATSPage() {
         query.set("atsKeyword", appliedAtsFilters.atsKeyword);
         query.set("atsKeywordMode", appliedAtsFilters.atsKeywordMode);
       }
+      if (appliedAtsFilters.atsSort !== "none") query.set("atsSort", appliedAtsFilters.atsSort);
       const queryString = query.toString();
       const appsUrl = queryString ? `/api/recruiter/applications?${queryString}` : "/api/recruiter/applications";
       const [appsRes, jobsRes] = await Promise.all([
@@ -74,6 +76,7 @@ export default function RecruiterATSPage() {
       atsMax: atsMax.trim(),
       atsKeyword: atsKeyword.trim(),
       atsKeywordMode,
+      atsSort,
     });
   }
 
@@ -82,7 +85,8 @@ export default function RecruiterATSPage() {
     setAtsMax("");
     setAtsKeyword("");
     setAtsKeywordMode("present");
-    setAppliedAtsFilters({ atsMin: "", atsMax: "", atsKeyword: "", atsKeywordMode: "present" });
+    setAtsSort("none");
+    setAppliedAtsFilters({ atsMin: "", atsMax: "", atsKeyword: "", atsKeywordMode: "present", atsSort: "none" });
   }
 
   const filteredApps = filterJob === "all" ? applications : applications.filter((a) => a.recruiterJobId === filterJob);
@@ -168,6 +172,14 @@ export default function RecruiterATSPage() {
                 <select value={atsKeywordMode} onChange={(e) => setAtsKeywordMode(e.target.value as "present" | "missing")} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-jobly-blue">
                   <option value="present">Compétence présente</option>
                   <option value="missing">Compétence manquante</option>
+                </select>
+              </label>
+              <label className="block text-[11px] font-bold text-navy">
+                Trier par score ATS
+                <select value={atsSort} onChange={(e) => setAtsSort(e.target.value as "none" | "asc" | "desc")} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-jobly-blue">
+                  <option value="none">Ordre initial</option>
+                  <option value="desc">Score décroissant</option>
+                  <option value="asc">Score croissant</option>
                 </select>
               </label>
             </div>
