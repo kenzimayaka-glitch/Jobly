@@ -59,7 +59,18 @@ export async function POST(request: NextRequest) {
       ].join("\n");
     }
 
-    const missingFields = stringList(output.missingFields);
+    const modelMissingFields = stringList(output.missingFields);
+    const requiredCompletionFields = [
+      ...(!String(profile?.companyName || "").trim() ? ["Entreprise"] : []),
+      "Lieu de travail",
+      "Rémunération",
+      "Avantages",
+      "Type de contrat",
+      "Horaires",
+      "Date limite",
+      "Modalités de candidature",
+    ];
+    const missingFields = Array.from(new Set([...modelMissingFields, ...requiredCompletionFields]));
     return NextResponse.json({
       ok: true,
       draft: {
