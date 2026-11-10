@@ -542,3 +542,48 @@ Aucune preuve, aucun rapport et aucun historique des anciens lots ne doivent êt
 - Offline : app/api/offline, app/api/account/backup, app/api/device-sessions, components/OfflineCoordinator.tsx.
 - Communications : app/api/recruiter/gmail, app/api/talent/gmail, app/api/auth/whatsapp, app/api/auth/video-pitch, app/api/notifications.
 - Opérations : app/api/cron, supabase/functions, .github/workflows.
+
+
+---
+
+## 11. Couverture renforcée — CV ATS, WhatsApp, Gmail et recrutement
+
+**Complément obligatoire au catalogue :** les scénarios détaillés et les écarts code/produit sont consignés dans [l'addendum d'audit CV ATS / WhatsApp / Gmail / Recruteur](./AUDIT-CV-ATS-WHATSAPP-GMAIL-RECRUTEUR-2026-11-10.md). Cette section complète explicitement les LOT-02, LOT-04, LOT-05 et LOT-16. Elle ne remplace aucun test historique.
+
+### 11.1 Matrice de lecture à appliquer
+
+| Promesse | Composant de recette obligatoire | Condition pour déclarer la fonction verte |
+|---|---|---|
+| CV PDF → CV Master → ATS | LOT-02 | Extraction exacte, correction humaine, persistance, PDF réellement lisible par extraction de texte |
+| Améliorer le CV avec J'IA | LOT-02 | Forces/lacunes/suggestions visibles ; chaque modification acceptée ou refusée ; aucune donnée professionnelle inventée |
+| CV optimisé pour une offre | LOT-02 + LOT-04 | CV ciblé relié à une offre ; version approuvée réutilisée dans la candidature et la pièce jointe |
+| WhatsApp manuel | LOT-04 | Numéro normalisé pour le pays, message prérempli, lien CV privé, action Envoyer sous contrôle du Talent et retour d'état honnête |
+| Clic Recruteur sur CV WhatsApp | LOT-04 + LOT-05 | Consultation et PDF, compteurs, expiration/révocation, droits et absence de fuite |
+| WhatsApp entrant automatique | LOT-04 + LOT-16 | Webhook/Business API, ingestion idempotente et création d'une candidature détenue par le bon recruteur ; NOT IMPLEMENTED tant que ce pont n'existe pas |
+| Offre externe | LOT-03 + LOT-04 | Redirection vers le promoteur, contexte J'IA, retour Jobly et statut manuel explicite ; aucune fausse confirmation d'envoi |
+| Gmail Talent sortant | LOT-04 + LOT-16 | Consentement/scope, revue, lettre, CV PDF joint, pied marketing, preuve Gmail, retry sans double envoi |
+| Gmail Recruteur entrant | LOT-05 + LOT-16 | Import PDF, tri, affectation, déduplication, ATS score, file « À affecter », ouverture CV avec contrôle du recruteur propriétaire |
+| Signatures marketing e-mail | LOT-16 | Contrôle des variantes texte/HTML, visuels, liens et identité expéditrice ; distinguer pied fixe d'une campagne marketing |
+| Pipeline de recrutement | LOT-05 | Toutes les étapes/statuts visibles, entretien, décision, communication, preuves et synchronisation côté Talent |
+
+### 11.2 Scénarios atomiques à garder dans le backlog E2E
+
+- CV-ATS-01 à CV-ATS-08.
+- APP-EMAIL-01, APP-WA-01 à APP-WA-03, APP-EXT-01 et APP-CHANNEL-01.
+- REC-ATS-01 à REC-ATS-05.
+- GMAIL-T-01 à GMAIL-T-02, GMAIL-R-01 à GMAIL-R-05 et COMM-EMAIL-01.
+
+Le détail des préconditions, assertions, cas contradictoires et preuves attendues est donné dans l'addendum. Chaque cas doit avoir une preuve UI + API + persistance lorsque le parcours l'exige, un scénario négatif d'accès et un nettoyage borné au run.
+
+### 11.3 Écarts P1 à ne pas masquer par un build vert
+
+1. ATS et CV Optimized utilisent actuellement le même constructeur PDF : démontrer la différence attendue ou obtenir une décision produit qui les définit comme une seule sortie.
+2. Les suggestions IA du CV ne sont pas démontrées dans l'interface canonique ; un score de complétude n'est pas un score de compatibilité ATS externe.
+3. Le flux WhatsApp crée un CVShare mais pas une Application ; il ne prouve donc pas à lui seul l'entrée dans le pipeline ATS.
+4. Les numéros WhatsApp sont normalisés autour du Cameroun dans le code du flux observé.
+5. Les imports Gmail sans offre reconnue ne sont pas ramenés dans la liste standard du recruteur ; la file « À affecter » doit être persistante.
+6. La route d'accès aux pièces jointes Gmail ne prouve pas la propriété du recruteur pour les imports sans recruiterJobId.
+7. Les e-mails de décision peuvent être envoyés avant la mise à jour durable du statut ; prévoir idempotence, preuve de message et reprise sans double envoi.
+8. Les états ACKNOWLEDGED et REJECTED doivent rester visibles dans le Kanban ; le GET de traitement ne doit pas créer un faux « Vu » en masse au simple chargement d'une liste.
+
+**Règle :** tant que les anomalies correspondantes ne sont pas corrigées ou arbitrées et contre-testées, les parcours CV ATS, WhatsApp, Gmail et Recruitment ATS restent PARTIAL / NON CLOS.
