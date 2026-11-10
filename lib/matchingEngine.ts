@@ -48,6 +48,7 @@ export type MatchingJob = {
   tags?: unknown;
   aiSkills?: unknown;
   requiredSkills?: unknown;
+  normalizedContent?: unknown;
 };
 
 export type MatchDimension = {
@@ -144,6 +145,10 @@ function asStrings(value: unknown): string[] {
       }
       return [];
     }).map((item) => item.trim()).filter(Boolean);
+  }
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    return ["requiredSkills", "hardSkills", "skills", "tags", "keywords"].flatMap((key) => asStrings(record[key]));
   }
   if (typeof value === "string") {
     const clean = value.trim();
@@ -288,6 +293,7 @@ function jobSkillRequirements(job: MatchingJob): string[] {
     ...asStrings(job.requiredSkills),
     ...asStrings(job.aiSkills),
     ...asStrings(job.tags),
+    ...asStrings(job.normalizedContent),
   ];
   const detected = [...detectedSkillKeys(String(job.title ?? "") + " " + String(job.description ?? ""))];
   const unique = new Map<string, string>();
