@@ -12,17 +12,24 @@ function stringValue(value: unknown): string | null {
 }
 
 export function extractApplicationPhone(text: string): string | null {
+  // Extract possible international or national numbers, then keep only those near
+  // explicit application/contact wording. The country prefix is never guessed here.
   const matches = Array.from(new Set(
-    (text.match(/(?:\+?237[\s.-]?(?:\+?237[\s.-]?)?[26]\d{8}|[26]\d{8})/g) || [])
-      .map(value => value.replace(/[^\d+]/g, "").replace(/^\+237\+237/, "+237"))
+    (text.match(/(?:\+\s?\d{1,3}[\s().-]?(?:\d[\s().-]?){7,12}\d|00\s?\d{1,3}[\s().-]?(?:\d[\s().-]?){7,12}\d|\b(?:\d[\s().-]?){8,15}\b)/g) || [])
+      .map(value => value.trim().replace(/[\s().-]/g, ""))
+      .filter(value => {
+        const digits = value.replace(/\D/g, "");
+        return digits.length >= 8 && digits.length <= 15;
+      })
   ));
   if (!matches.length) return null;
   const lower = text.toLowerCase();
   let best: { phone: string; score: number } | null = null;
   for (const phone of matches) {
-    const digits = phone.replace(/[^\d]/g, "").slice(-9);
-    const index = lower.indexOf(digits);
-    const context = lower.slice(Math.max(0, index - 220), Math.min(lower.length, index + phone.length + 220));
+    const digits = phone.replace(/[^\d]/g, "");
+    const index = lower.indexOf(phone.toLowerCase());
+    const fallbackIndex = index >= 0 ? index : lower.indexOf(digits.slice(-9));
+    const context = lower.slice(Math.max(0, fallbackIndex - 220), Math.min(lower.length, fallbackIndex + phone.length + 220));
     let score = 0;
     if (/(candidature|candidater|postuler|recrutement|recrute|whatsapp|téléphone|telephone|tel|appeler|appel|joindre|contacter|envoyer|envoyez|modalites de candidature|apply)/i.test(context)) score += 5;
     if (/(whatsapp|téléphone|telephone|tel|contact)/i.test(context)) score += 1;
