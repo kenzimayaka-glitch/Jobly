@@ -126,7 +126,11 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(runner, /\.env\.local", "\.env\.e2e\.local/);
   assert.match(runner, /NON_E2E_ENV_URL_REFUSED/);
   assert.match(runner, /SECRET_KEY_WITHOUT_E2E_URL_PROOF/);
-  assert.match(runner, /ingestHarvestItems\(admin, candidates\)/);
+  assert.match(runner, /const ingest = await ingestHarvestItems\(admin, \[/);
+  assert.match(runner, /validItem\(sourceKey, runId, false\)/);
+  assert.match(runner, /validItem\(sourceKey, runId, true\)/);
+  assert.match(runner, /ingest-stale/);
+  assert.match(runner, /ingest-deadline/);
   assert.match(runner, /runHarvestProcessorBatch\(admin, \{ limit: 40, sourceKeys: \[sourceKey\] \}\)/);
   assert.match(runner, /jobly_e2e_bulk_/);
   assert.match(runner, /MISSING_PUBLICATION_AND_FALLBACK_DATE/);
