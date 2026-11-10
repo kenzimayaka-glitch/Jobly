@@ -13,6 +13,42 @@
 > **Garde-fous actuels :** les consignes historiques de réinitialisation des mots de passe et de recréation/restauration des fixtures partagées restent neutralisées. L'ancien provisionneur global de fixtures reste désactivé et ne doit pas être réactivé. Seul le nouveau provisionneur local et isolé décrit au §146 est autorisé, strictement pour JOBLY-E2E et après ses précontrôles. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 PASS statique 6/6 ; LOT-00 PASS clos. LOT-01 : Auth de base 12/12, API 40/40, UI publique 14/14, UI authentifiée 29/29, régression Auth 30/30 acquis. Dernier runtime Auth avancée : build/serveur PASS ; OTP 4/4, Google 4/4, récupération 3/3 PASS. Le garde réseau a intercepté la navigation Google réelle avant réseau. Seul le multi-appareils reste BLOCKED sur 3 appareils actifs préexistants ; aucune session ni donnée n'a été modifiée. Pour clôturer : fixture distincte explicitement autorisée avec au plus un appareil actif préexistant, ou décision écrite de périmètre excluant ce contrôle. Ne pas révoquer les appareils existants.
 
+## DÉCISION DE PILOTAGE — 10 novembre 2026 — LOT-01 différé, reprise LOT-02
+
+**Décision opérateur :** ne plus répéter la recette Auth avancée du LOT-01 pour tenter de résoudre le même blocage réseau ; poursuivre le programme avec le LOT-02. Cette décision autorise une exception de séquencement pour l'avancement, mais ne transforme pas LOT-01 en PASS et ne clôt pas ses critères restants.
+
+### État probant de LOT-01 à cette date
+
+- OTP simulé : **PASS 4/4** dans le rapport runtime reçu.
+- Google OAuth simulé : **PASS 4/4** ; la navigation vers Google a été bloquée avant tout accès réseau.
+- Récupération du mot de passe simulée : **PASS 3/3**.
+- Révocation multi-appareils : **BLOCKED / NON VALIDÉE**. Le rapport du 10 novembre à 00:59:04Z, SHA `dea887d4b1311d1206bd7c38f661676a9d8f0362`, échoue au premier appel réseau Supabase avec `TypeError: fetch failed`, avant obtention de la baseline et avant création de sessions par ce scénario. `cleanup=NOT_REQUIRED` et `remoteAuthDeviceStateMayBeModified=false`. La cause réseau exacte n'est pas démontrée ; aucune preuve ne permet d'attribuer cet échec à la logique de révocation.
+- Verdict conservé : **LOT-01 PARTIAL / NON CLOS**. Ne pas relancer ce scénario dans le cadre du démarrage LOT-02. Le correctif de retry GET et de diagnostic ajouté après le SHA du rapport n'a pas été validé par une nouvelle exécution et reste non prouvé.
+
+### Exception de séquencement acceptée
+
+Les contrôles déjà acquis du socle Auth (connexions, sessions, API par rôle et UI authentifiée) sont réutilisés comme prérequis pratiques pour avancer sur Talent. Le point multi-appareils reste une anomalie différée à reprendre dans une campagne dédiée ; il n'est ni marqué PASS ni supprimé du périmètre de sécurité final. Cette exception de pilotage ne constitue pas une clôture formelle de la dépendance LOT-01.
+
+### Reprise LOT-02 — Talent, offres, recherche et candidatures
+
+**Première passe : lecture seule, fixture TALENT existante, JOBLY-E2E exclusivement.** Parcours à couvrir :
+1. Connexion UI Talent avec la fixture existante et ouverture de l'espace Talent.
+2. Lecture du profil et de la liste des candidatures existantes, sans modification.
+3. Chargement des flux offres `scope=local` et `scope=africa` ; vérifier structure, compteurs, pays/source et cohérence entre éléments retournés et total annoncé.
+4. Recherche/filtrage UI, ouverture d'une offre du flux, puis vérification que le détail correspond au même identifiant et à la même source.
+5. Lecture du CV original : accepter uniquement `404/CV_NOT_FOUND` si aucun CV n'existe, ou `200` avec lien signé privé de 60 secondes si un original existe. Ne pas télécharger, remplacer ou supprimer le CV.
+6. Lecture Career Journey et vérification des éléments de preuve visibles ; aucune écriture.
+
+**Deuxième passe, séparée et non encore autorisée par cette entrée :** préparation d'une candidature synthétique appartenant au run, vérification de sa persistance et de son état candidat, puis nettoyage ciblé avec lecture de contrôle. Aucun envoi d'e-mail/Gmail, SMS ou candidature à un employeur réel. Ne pas lancer cette étape tant que son mécanisme de nettoyage et l'absence d'effet externe ne sont pas établis.
+
+**Preuves LOT-02 :** les fichiers `scripts/external-application-assistant.test.mjs` et `scripts/talent-cv-application-regression.test.mjs` couvrent des contrats statiques ; ils ne remplacent pas le parcours runtime navigateur/API. Aucun nouveau résultat runtime LOT-02 n'est revendiqué par cette mise à jour.
+
+### Garde-fous inchangés
+
+JOBLY-E2E uniquement ; fixtures existantes uniquement ; aucun reset, rotation ou reprovisionnement de comptes ; aucun accès en écriture à JOBLY-PROD ; pas de modification de `main`, pas de merge, pas de déploiement. Après LOT-02, reprendre LOT-03 selon ses propres preuves et ne pas déclencher LOT-07 avant les deux parcours Talent/Recruteur.
+
+---
+
 **Version :** 2.177
 **Date de consolidation :** 9 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
