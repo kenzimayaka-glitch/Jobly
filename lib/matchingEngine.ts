@@ -326,7 +326,7 @@ function preferenceScore(preferences: string[], actual: string | null | undefine
 }
 
 function quantifiedEvidence(candidate: MatchingCandidate): string[] {
-  const regex = /(?:\b\d+(?:[.,]\d+)?\s*(?:%|k|m|bn|xaf|fcfa|euros?|usd|clients?|comptes?|personnes?|collaborateurs?|projets?|pays?|sites?|jours?|mois|ans?)\b)/gi;
+  const regex = /\b\d+(?:[.,]\d+)?\s*(?:%|k\b|m\b|bn\b|xaf\b|fcfa\b|euros?\b|usd\b)|\b\d+\s+(?:clients?|comptes?|personnes?|collaborateurs?|projets?|pays?|sites?|jours?|mois|ans?)\b/gi;
   return (candidate.experiences ?? []).flatMap((item) => (String(item.description ?? "").match(regex) ?? []).slice(0, 6)).slice(0, 20);
 }
 
