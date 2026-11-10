@@ -8,7 +8,7 @@ test("ATS analysis returns matched and missing keywords for the selected offer",
     "Excel gestion projet Python communication"
   );
 
-  assert.equal(result.score, 75);
+  assert.equal(result.score, 80);
   assert.deepEqual(result.matchedKeywords, ["excel", "gestion", "projet", "communication"]);
   assert.deepEqual(result.missingKeywords, ["python"]);
   assert.equal(result.evaluatedKeywords, 5);
