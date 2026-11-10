@@ -8836,3 +8836,26 @@ cd /d "%USERPROFILE%\Jobly-e2e-recette-lot01" && echo [BOOTSTRAP 1/3] FETCH && g
 ```
 
 Cette commande ne fait aucun checkout et ne touche pas aux changements du worktree. Si l'affichage s'arrête avant `[BOOTSTRAP 2/3] FETCH_TERMINE`, l'arrêt est dans Git fetch ; entre les marqueurs 2 et 3, dans l'extraction du bootstrap ; après le marqueur 3, les cinq jalons internes et le journal Notepad indiquent l'étape exacte.
+
+
+### 154.22 Correction du blocage au stade FETCH et journalisation en direct
+
+**Diagnostic confirmé par le chemin d'exécution :** la commande précédente exécutait `git fetch` avant d'extraire et de lancer `run-africa-bulk-isolated.ps1`. Le journal `jobly-africa-bulk-launch.log` était donc normal qu'il n'existe pas encore : son initialisation se trouvait dans le PS1, après le fetch. En outre, la fonction `Invoke-Native` capturait les sorties des processus dans un tableau PowerShell avant de les afficher ; même après le démarrage du lanceur, les étapes Git/tests/Deno pouvaient donc sembler silencieuses jusqu'à leur terminaison.
+
+**Corrections de code sur `e2e/recette` :**
+- `e2e/run-africa-bulk-bootstrap.cmd` crée son journal stable avant tout fetch, limite la récupération à la tête de branche avec `--depth=1`, force la progression avec `--progress` et désactive les invites interactives Git (`GIT_TERMINAL_PROMPT=0`, `GCM_INTERACTIVE=never`). Un problème d'identification doit désormais produire un code d'erreur explicite plutôt qu'attendre une invite cachée.
+- `e2e/run-africa-bulk-isolated.ps1` conserve la capture uniquement pour les deux petites valeurs nécessaires (URL du remote et SHA). Les autres processus sont exécutés dans un pipeline `Tee-Object` qui retransmet leurs sorties au terminal et au fichier stable pendant l'exécution. Le fetch de secours interne est lui aussi superficiel et progressif.
+- `scripts/runtime-readonly-lots.test.mjs` vérifie le fetch superficiel/progressif, la journalisation en streaming, la désactivation des invites et l'initialisation du journal avant le fetch.
+- `e2e/README.md` remplace la commande de reprise précédente par sa version superficielle et non interactive.
+
+**Commits :** bootstrap `50c7a1b151d5e2b325c523f394b5a00c49b8dd33` ; lanceur PowerShell `75151f6d89f28ec0a37796dbc5922e5b641526f8` ; test streaming `a6df3f65fce7624b7df6aa0544275c56f4711bc8` ; assertion de journal précoce `dace455f5dba0bac5da12314101983145c657a9a` ; README `bdd9949667a1cca1d65b99420735b51f5b2da04d`.
+
+**Relecture :** les fichiers modifiés ont été relus depuis GitHub sur `e2e/recette`. Le préflight Node et l'exécution réelle Windows ne sont pas exécutés depuis cette session ; aucun PASS statique ou runtime n'est inventé. La validation métier attend toujours un rapport JOBLY-E2E avec `status=PASS` et `cleanupVerified=true`.
+
+**Reprise unique mise à jour :**
+
+```cmd
+cd /d "%USERPROFILE%\Jobly-e2e-recette-lot01" && set "GIT_TERMINAL_PROMPT=0" && set "GCM_INTERACTIVE=never" && echo [BOOTSTRAP 1/3] FETCH && git fetch --depth=1 --progress --no-tags origin refs/heads/e2e/recette && echo [BOOTSTRAP 2/3] FETCH_TERMINE && git show FETCH_HEAD:e2e/run-africa-bulk-bootstrap.cmd > "%TEMP%\jobly-africa-bulk-bootstrap.cmd" && echo [BOOTSTRAP 3/3] LANCEMENT && call "%TEMP%\jobly-africa-bulk-bootstrap.cmd" FETCH_HEAD
+```
+
+Le bootstrap ouvre son journal `%TEMP%\jobly-africa-bulk-bootstrap.log`. Une fois le lanceur PowerShell démarré, celui-ci ouvre le rapport runtime ou, en cas d'arrêt avant rapport, `%TEMP%\jobly-africa-bulk-launch.log`. Aucun checkout, reset, clean, stash, merge ni déploiement n'est effectué.
