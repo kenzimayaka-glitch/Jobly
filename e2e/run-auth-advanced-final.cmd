@@ -52,6 +52,9 @@ echo.
 echo [6/7] Suppression de l'ancien rapport puis execution E2E...
 if not exist artifacts\e2e mkdir artifacts\e2e
 if exist artifacts\e2e\lot1-auth-advanced-smoke.json del /q artifacts\e2e\lot1-auth-advanced-smoke.json
+if exist artifacts\e2e\auth-advanced-process.log del /q artifacts\e2e\auth-advanced-process.log
+if exist artifacts\e2e\auth-advanced-smoke-diagnostic.json del /q artifacts\e2e\auth-advanced-smoke-diagnostic.json
+if exist artifacts\e2e\authenticated-role-runner-summary.json del /q artifacts\e2e\authenticated-role-runner-summary.json
 if exist artifacts\e2e\lot1-auth-advanced-smoke.json (
   echo ERREUR : impossible de supprimer l'ancien rapport. Arret pour eviter toute confusion.
   goto :failed
