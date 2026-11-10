@@ -1,3 +1,21 @@
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.192 — 10 novembre 2026
+>
+> **Précision du résultat attendu après inscription et rapprochement du numéro :**
+>
+> - Lorsque le numéro saisi pendant l'inscription recruteur correspond, après normalisation, au numéro de contact WhatsApp enregistré sur l'offre d'origine, et que le contexte signé est valide, l'offre est automatiquement rattachée au compte et apparaît dans **Mes offres**. Elle devient administrable dans Jobly comme si le recruteur l'avait créée/publiée depuis son espace Jobly : consultation, modification autorisée, gestion de sa visibilité et réception/gestion des candidatures. Le recruteur ne doit pas devoir recréer manuellement son offre.
+> - La provenance d'origine reste enregistrée pour l'audit (offre découverte/partagée via le parcours WhatsApp, identifiant d'offre source, date et contexte de partage). Dans l'expérience de gestion, cette offre est désormais une offre Jobly administrée par ce recruteur ; l'historique technique ne doit toutefois pas être falsifié.
+> - La candidature du talent qui a déclenché le parcours apparaît automatiquement dans **Mes candidatures** du recruteur et est reliée à cette offre précise. Le CV partagé doit rester consultable dans Jobly et son PDF téléchargeable. L'enregistrement utilise une clé d'idempotence fondée sur l'offre, le talent et le contexte de partage : réouverture du lien, reprise d'inscription, retry réseau ou double clic ne créent ni une deuxième offre ni une deuxième candidature.
+> - Le rapprochement réussi ne doit jamais relier les autres offres ayant simplement le même numéro par approximation : le contexte signé identifie l'offre précise qui a déclenché l'inscription. Les autres offres ne seront importées/associées que par une règle distincte, explicite et autorisée.
+> - En cas de numéro différent, absent ou invalide, le compte recruteur peut exister, mais l'offre et la candidature déclencheuse ne sont pas rattachées à son espace. Aucun accès aux candidatures ou documents d'une autre offre n'est accordé.
+>
+> **Critères d'acceptation additionnels :**
+> - REC-CONV-04 : après rapprochement valide, vérifier l'apparition de l'offre dans **Mes offres**, son administration depuis le compte recruteur et la conservation de sa provenance WhatsApp dans les données d'audit ; aucun nouvel enregistrement manuel de l'offre ne doit être nécessaire.
+> - REC-CONV-05 : vérifier l'apparition unique du talent déclencheur dans **Mes candidatures**, le lien correct vers l'offre, l'accès CV et le téléchargement PDF ; répéter l'ouverture, l'inscription et les requêtes sans produire de doublons.
+>
+> **Rappel décisionnel :** pas d'OTP supplémentaire ; le déclencheur d'attribution reste l'égalité des numéros normalisés ET la validation du contexte Jobly signé. Cette décision ne transforme pas `wa.me` en accusé de livraison WhatsApp et ne transforme pas le lien CV en pièce jointe native.
+>
+> ---
+>
 # Jobly — Référence de continuité de la recette E2E
 
 
