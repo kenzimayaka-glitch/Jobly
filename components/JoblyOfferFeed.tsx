@@ -97,6 +97,8 @@ export function JoblyOfferFeed() {
   const [whatsAppJob, setWhatsAppJob] = useState<Job | null>(null);
   const [whatsAppCvMode, setWhatsAppCvMode] = useState<CVPreparationMode | null>(null);
   const [whatsAppPreparing, setWhatsAppPreparing] = useState(false);
+  const [whatsAppDraftApplicationId, setWhatsAppDraftApplicationId] = useState<string | null>(null);
+  const [whatsAppDraftJobKey, setWhatsAppDraftJobKey] = useState<string | null>(null);
   const [editingLetterId, setEditingLetterId] = useState<string | null>(null);
   const [importingLetterId, setImportingLetterId] = useState<string | null>(null);
   const [bulkPreparing, setBulkPreparing] = useState(false);
@@ -370,7 +372,7 @@ export function JoblyOfferFeed() {
     window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${subject}&body=${body}`, "_blank", "noopener,noreferrer");
   }
 
-  async function prepareSingleApplication(job: Job, channel: "EMAIL" | "WHATSAPP" = "EMAIL", cvPreparationMode: CVPreparationMode = "ATS") {
+  async function prepareSingleApplication(job: Job, channel: "EMAIL" | "WHATSAPP" = "EMAIL", cvPreparationMode: CVPreparationMode = "ATS", existingApplicationId?: string | null) {
     if (!token || bulkPreparing) return;
     setBulkPreparing(true); setError("");
     try {
@@ -383,6 +385,7 @@ export function JoblyOfferFeed() {
           readinessScoreAtApply: job.matchPercent,
           locale: typeof navigator !== "undefined" && navigator.language.startsWith("en") ? "en" : "fr",
           cvPreparationMode,
+          ...(existingApplicationId ? { applicationId: existingApplicationId } : {}),
         }),
       });
       const preparedBody = await prepareRes.json().catch(() => ({}));
@@ -419,28 +422,78 @@ export function JoblyOfferFeed() {
   function applicationPhone(job: Job) {
     return String(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.[0] || "").trim();
   }
-  function applyViaWhatsApp(job: Job) {
+  async function applyViaWhatsApp(job: Job) {
+    const key = `${job.source}:${job.id}`;
     setWhatsAppCvMode(null);
     setWhatsAppJob(job);
-  }
+    setError("");
+    if (whatsAppDraftApplicationId && whatsAppDraftJobKey === key) return;
 
-  async function prepareWhatsAppApplication() {
-    if (!whatsAppJob || !whatsAppCvMode || whatsAppPreparing || bulkPreparing) return;
+    if (!token) {
+      setWhatsAppJob(null);
+      setError("Votre session Jobly a expiré. Reconnectez-vous pour postuler.");
+      return;
+    }
     setWhatsAppPreparing(true);
     try {
-      const prepared = await prepareSingleApplication(whatsAppJob, "WHATSAPP", whatsAppCvMode);
-      if (prepared) {
-        setWhatsAppJob(null);
-        setWhatsAppCvMode(null);
-      }
-    } catch {
-      // The error is shown by prepareSingleApplication; the application is not submitted to WhatsApp.
+      // The Application row is persisted on the first Postuler click, before the
+      // candidate chooses a CV transformation. The later choice updates this same row.
+      const response = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          source: job.source,
+          jobId: job.id,
+          readinessScoreAtApply: job.matchPercent,
+          locale: typeof navigator !== "undefined" && navigator.language.startsWith("en") ? "en" : "fr",
+          cvPreparationMode: "NORMAL",
+          skipApplicationAi: true,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "Impossible de créer le brouillon de candidature.");
+      const applicationId = String(body.application?.id || "");
+      if (!applicationId) throw new Error("Jobly n'a pas retourné l'identifiant du brouillon.");
+      setWhatsAppDraftApplicationId(applicationId);
+      setWhatsAppDraftJobKey(key);
+      setApplicationReadyKeys((previous) => new Set(previous).add(key));
+    } catch (error) {
+      setWhatsAppJob(null);
+      setError(error instanceof Error ? error.message : "Impossible de créer le brouillon de candidature.");
     } finally {
       setWhatsAppPreparing(false);
     }
   }
 
-  function handleApplyClick(job: Job, state: { done: boolean; ready: boolean; busy: boolean }) { if (state.busy) { setError("Envoi en cours : patientez quelques secondes."); return; } if (state.done) { setError("Candidature déjà envoyée pour cette offre. Retrouvez-la dans l’onglet Candidatures."); return; } if (state.ready) { setError("Candidature déjà préparée : elle attend votre validation dans l’onglet Candidatures."); return; } void apply(job); }
+  async function prepareWhatsAppApplication() {
+    if (!whatsAppJob || !whatsAppCvMode || !whatsAppDraftApplicationId || whatsAppPreparing || bulkPreparing) return;
+    setWhatsAppPreparing(true);
+    try {
+      const prepared = await prepareSingleApplication(whatsAppJob, "WHATSAPP", whatsAppCvMode, whatsAppDraftApplicationId);
+      if (prepared) {
+        setWhatsAppJob(null);
+        setWhatsAppCvMode(null);
+      }
+    } finally {
+      setWhatsAppPreparing(false);
+    }
+  }
+
+  function handleApplyClick(job: Job, state: { done: boolean; ready: boolean; busy: boolean }) {
+    if (state.busy) { setError("Envoi en cours : patientez quelques secondes."); return; }
+    if (state.done) { setError("Candidature déjà envoyée pour cette offre. Retrouvez-la dans l’onglet Candidatures."); return; }
+    const key = `${job.source}:${job.id}`;
+    if (state.ready) {
+      if (whatsAppDraftApplicationId && whatsAppDraftJobKey === key) {
+        setWhatsAppCvMode(null);
+        setWhatsAppJob(job);
+        return;
+      }
+      setError("Candidature déjà préparée : elle attend votre validation dans l’onglet Candidatures.");
+      return;
+    }
+    void apply(job);
+  }
   async function apply(job: Job) {
     if (job.deadlineExpired) { setExpiredNoticeOpen(true); return; }
     const email = applicationEmail(job);
@@ -996,7 +1049,7 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
           <p className="mt-4 rounded-xl bg-amber-50 p-3 text-[10px] leading-5 text-amber-900">J'IA ne doit ajouter aucun diplôme, employeur, expérience, compétence, date ou résultat qui ne figure pas dans tes informations. Tu reliras et valideras le CV avant l'ouverture de WhatsApp.</p>
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <button type="button" onClick={() => setWhatsAppJob(null)} className="rounded-full border border-slate-200 px-5 py-3 text-xs font-black">Annuler</button>
-            <button type="button" onClick={() => void prepareWhatsAppApplication()} disabled={!whatsAppCvMode || whatsAppPreparing || bulkPreparing} className="rounded-full bg-[#FFE135] px-5 py-3 text-xs font-black text-[#2E3F4F] disabled:opacity-50">{whatsAppPreparing || bulkPreparing ? "Préparation…" : "Préparer mon dossier"}</button>
+            <button type="button" onClick={() => void prepareWhatsAppApplication()} disabled={!whatsAppCvMode || whatsAppPreparing || bulkPreparing || !whatsAppDraftApplicationId} className="rounded-full bg-[#FFE135] px-5 py-3 text-xs font-black text-[#2E3F4F] disabled:opacity-50">{whatsAppPreparing || bulkPreparing ? "Préparation…" : !whatsAppDraftApplicationId ? "Création du brouillon…" : "Préparer mon dossier"}</button>
           </div>
         </motion.div>
       </motion.div>
