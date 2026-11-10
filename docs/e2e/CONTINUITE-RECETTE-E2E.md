@@ -8918,7 +8918,7 @@ Sur le commit \`02f92d288277c844d61a5ff8733ec15998d14c6d\`, les résultats suiva
 - \`Verify Africa source registry\` : PASS.
 - \`Jobly Security Core — isolated migration tests\` : PASS.
 
-Les nouveaux commits de finition doivent repasser ces workflows avant d'être considérés comme stabilisés.
+Les validations ciblées de code et de build sont stabilisées sur le SHA indiqué ; le rapport runtime local `JOBLY-E2E` reste la preuve métier finale.
 
 ### Couverture du nouveau lot bulk
 Un lancement unique exécute le préflight statique, le build local, le serveur Next lié à \`127.0.0.1:3217\`, l'authentification Talent, l'ingestion des candidates, le vrai processeur, les assertions de persistance, l'API du flux Afrique, les deux détails d'offres, le nettoyage ciblé et l'arrêt du serveur.
