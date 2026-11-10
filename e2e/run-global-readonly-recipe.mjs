@@ -313,6 +313,7 @@ main().catch(async (error) => {
   };
   await mkdir(ARTIFACTS, { recursive: true }).catch(() => undefined);
   await writeFile(GLOBAL_JSON, JSON.stringify(minimal, null, 2) + "\n", { encoding: "utf8", mode: 0o600 }).catch(() => undefined);
+  await writeFile(GLOBAL_MD, "# Jobly — balayage global rapide\\n\\n- Statut : **FAIL**\\n- Environnement : JOBLY-E2E uniquement\\n- Motif : " + minimal.reason + "\\n", "utf8").catch(() => undefined);
   console.error("[ÉCHEC ORCHESTRATEUR] " + minimal.reason);
   process.exitCode = 1;
 });
