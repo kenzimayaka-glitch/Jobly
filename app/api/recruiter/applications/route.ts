@@ -150,7 +150,7 @@ export async function GET(req: NextRequest) {
     const keyword = (url.searchParams.get("atsKeyword") || "").trim().toLowerCase();
     const keywordMode = url.searchParams.get("atsKeywordMode") === "missing" ? "missing" : "present";
     if (keyword) {
-      const terms = keyword.split(",").map((term) => term.trim()).filter(Boolean);
+      const terms = keyword.split(",").flatMap((group) => group.split(/\\s+/)).map((term) => term.trim()).filter((term) => term.length >= 3 && !["avec","dans","pour","une","des","les","sur","aux","and","the","for"].includes(term));
       if (terms.length > 10 || terms.some((term) => term.length > 60)) {
         return NextResponse.json({ message: "Saisis au maximum 10 mots-clés de 60 caractères chacun." }, { status: 400 });
       }
