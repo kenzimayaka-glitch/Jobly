@@ -180,6 +180,9 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(bootstrap, /git -C "%ROOT%" fetch --no-tags origin refs\/heads\/e2e\/recette/);
   assert.match(bootstrap, /FETCH_SHA=%SHA%/);
   assert.match(bootstrap, /git -C "%ROOT%" show %SHA%:e2e\/run-africa-bulk-isolated\.ps1/);
+  assert.match(bootstrap, /if not "%~1"==""/);
+  assert.match(bootstrap, /set "SHA=%~1"/);
+  assert.match(bootstrap, /:sha_ready/);
   assert.match(bootstrap, /-FetchedSha "%SHA%"/);
   assert.match(bootstrap, /pause >nul/);
   assert.match(bootstrap, /jobly-africa-bulk-bootstrap\.log/);
