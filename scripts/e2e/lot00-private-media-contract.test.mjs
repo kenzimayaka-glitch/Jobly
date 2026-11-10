@@ -21,8 +21,13 @@ test("own profile photos are signed while recruiter reads require recorded conse
   const helper = await read("lib/profilePhotoStorage.ts");
   assert.match(owner, /resolveOwnProfilePhotoUrls/);
   assert.match(helper, /createSignedUrl\(path, expiresIn\)/);
-  assert.match(listing, /isProfilePhotoPublic\(user\)/);
-  assert.match(detail, /isProfilePhotoPublic\(u\.data\)/);
+  // The generic talent directory is closed; detailed profile reads are
+  // offer-scoped and enforce the active top-five matching entitlement.
+  assert.match(listing, /OFFER_CONTEXT_REQUIRED/);
+  assert.match(listing, /talents: \[\]/);
+  assert.doesNotMatch(listing, /profilePhotoUrl/);
+  assert.match(detail, /getRecruiterEntitlements\(active\.planCode\)\.topFiveMatchingProfiles/);
+  assert.match(detail, /isProfilePhotoPublic\(user\)/);
 });
 
 test("changing photo visibility requires explicit consent and moves the photo plus Hero", async () => {
