@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Lock, BriefcaseBusiness, ArrowRight } from "lucide-react";
+import { Lock, ArrowRight } from "lucide-react";
 import AppShell from "@/components/ui/AppShell";
 import { Card, Button, PageIntro } from "@/components/ui";
 
