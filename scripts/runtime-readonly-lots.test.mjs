@@ -157,7 +157,7 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(isolated, /Invoke-Native "git" @\("-C", \$GitRoot, "archive", "--format=zip"/);
   assert.match(isolated, /FETCH_E2E_RECETTE/);
   assert.match(isolated, /"--depth=1", "--progress", "--no-tags"/);
-  assert.match(isolated, /Tee-Object -FilePath \\$Log -Append/);
+  assert.match(isolated, /Tee-Object -FilePath \$Log -Append/);
   assert.match(isolated, /\[switch\]\$Capture/);
   assert.match(isolated, /CHECK_ORIGIN" -Capture/);
   assert.match(isolated, /RESOLVE_FETCH_HEAD" -Capture/);
