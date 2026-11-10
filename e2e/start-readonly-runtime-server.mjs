@@ -17,16 +17,24 @@ const PID_PATH = path.join(ARTIFACTS, "parallel-runtime-server.pid.json");
 
 function runBuild(env) {
   return new Promise((resolve, reject) => {
-    const command = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-    const child = spawn(command, ["build"], {
+    // package.json defines "build": "next build". Invoke the pinned Next CLI
+    // through this same Node process; this avoids pnpm.cmd + shell=true on Windows.
+    const child = spawn(process.execPath, [NEXT_CLI, "build"], {
       cwd: ROOT,
       env,
       stdio: "inherit",
-      shell: process.platform === "win32",
       windowsHide: true,
     });
-    child.once("error", reject);
-    child.once("close", (code) => resolve(code ?? 1));
+    child.once("error", (error) => {
+      reject(new Error("NEXT_BUILD_SPAWN_FAILED: " + error.message));
+    });
+    child.once("close", (code, signal) => {
+      if (signal) {
+        reject(new Error("NEXT_BUILD_TERMINATED_" + signal));
+        return;
+      }
+      resolve(code ?? 1);
+    });
   });
 }
 
