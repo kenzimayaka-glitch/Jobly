@@ -29,6 +29,15 @@ type CV = {
   languages: string[]; achievements: string[]; atsKeywords: string[];
   ats: number; createdAt: string;
 };
+type CvAssistMessage = { role: "user" | "assistant"; text: string };
+type CvImprovementChange = {
+  field: "headline" | "summary" | "skills" | "experience" | "education";
+  label: string;
+  before: string;
+  after: string;
+  reason: string;
+  selected: boolean;
+};
 const KEY = "jobly:talent-cvs";
 const CV_TEMPLATES = [
   { id: "classic", name: "Jobly Classic", access: "FREE", description: "Sobre, lisible et ATS-friendly." },
@@ -85,6 +94,13 @@ export default function TalentCVs() {
   const [shares, setShares] = useState<CVShareItem[]>([]);
   const [sharesBusy, setSharesBusy] = useState(false);
   const [sharesError, setSharesError] = useState("");
+  const [atsTargetRole, setAtsTargetRole] = useState("");
+  const [atsJobDescription, setAtsJobDescription] = useState("");
+  const [chatMessages, setChatMessages] = useState<CvAssistMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatBusy, setChatBusy] = useState(false);
+  const [improveBusy, setImproveBusy] = useState(false);
+  const [pendingCvChanges, setPendingCvChanges] = useState<CvImprovementChange[]>([]);
   const activeTemplate = CV_TEMPLATES.find(item => item.id === templateId) || CV_TEMPLATES[0];
   const selectTemplate = (id: string) => {
     const template = CV_TEMPLATES.find(item => item.id === id);
@@ -338,6 +354,142 @@ export default function TalentCVs() {
     finally { setBusy(false); }
   }
 
+  function currentCvPayload() {
+    return {
+      fullName: cv.fullName,
+      headline: cv.headline,
+      email: cv.email,
+      phone: cv.phone,
+      summary: cv.summary,
+      skills: cv.skills,
+      experience: cv.experience,
+      education: cv.education,
+      activities: cv.activities,
+      languages: cv.languages,
+      achievements: cv.achievements,
+    };
+  }
+
+  async function sendAtsMessage() {
+    const question = chatInput.trim();
+    if (!question || chatBusy) return;
+    const token = await getAccessToken();
+    if (!token) {
+      notify("Ta session Jobly n’est plus active. Reconnecte-toi pour utiliser la conversation ATS.", "error");
+      return;
+    }
+    const history = chatMessages.slice(-8);
+    setChatMessages((items) => [...items, { role: "user", text: question }]);
+    setChatInput("");
+    setChatBusy(true);
+    try {
+      const response = await fetch("/api/talent/cv/assist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          mode: "CHAT",
+          cv: currentCvPayload(),
+          question,
+          history,
+          targetRole: atsTargetRole || cv.headline,
+          jobDescription: atsJobDescription,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "La conversation ATS est indisponible.");
+      const reply = String(body.output?.reply || "").trim();
+      if (!reply) throw new Error("J'IA n'a pas retourné de réponse.");
+      setChatMessages((items) => [...items, { role: "assistant", text: reply }]);
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "Erreur pendant la conversation ATS.";
+      setChatMessages((items) => [...items, { role: "assistant", text: `Je n'ai pas pu traiter ta question : ${text}` }]);
+    } finally {
+      setChatBusy(false);
+    }
+  }
+
+  async function proposeCvImprovements() {
+    if (improveBusy || busy) return;
+    const token = await getAccessToken();
+    if (!token) {
+      notify("Ta session Jobly n’est plus active. Reconnecte-toi pour améliorer ton CV.", "error");
+      return;
+    }
+    setImproveBusy(true);
+    setPendingCvChanges([]);
+    try {
+      const response = await fetch("/api/talent/cv/assist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          mode: "IMPROVE",
+          cv: currentCvPayload(),
+          targetRole: atsTargetRole || cv.headline,
+          jobDescription: atsJobDescription,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "L'amélioration du CV est indisponible.");
+      const proposed = body.output?.improvedProfile || {};
+      const labels: Record<CvImprovementChange["field"], string> = {
+        headline: "Titre professionnel",
+        summary: "Résumé professionnel",
+        skills: "Compétences",
+        experience: "Expériences",
+        education: "Formation",
+      };
+      const keys: CvImprovementChange["field"][] = ["headline", "summary", "skills", "experience", "education"];
+      const changes = keys.flatMap((field) => {
+        const raw = proposed[field];
+        const after = Array.isArray(raw) ? raw.map((item: unknown) => String(item)).join(", ") : typeof raw === "string" ? raw.trim() : "";
+        const before = String(cv[field] || "");
+        if (!after || after === before) return [];
+        const described = Array.isArray(body.output?.changes) ? body.output.changes.find((item: any) => String(item?.field || "").toLowerCase() === field) : null;
+        return [{
+          field,
+          label: labels[field],
+          before,
+          after,
+          reason: typeof described?.reason === "string" ? described.reason : "Proposition J'IA à vérifier avant application.",
+          selected: true,
+        }];
+      });
+      setPendingCvChanges(changes);
+      if (!changes.length) {
+        const fallbackMessage = Array.isArray(body.output?.suggestions) ? body.output.suggestions.join(" ") : "Aucune modification automatique fiable n'a été proposée.";
+        notify(fallbackMessage, "info");
+      } else {
+        notify(`${changes.length} proposition(s) prête(s) à relire. Rien n'a été modifié dans ton CV.`, "success");
+      }
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Amélioration du CV impossible.", "error");
+    } finally {
+      setImproveBusy(false);
+    }
+  }
+
+  function toggleCvImprovement(index: number) {
+    setPendingCvChanges((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, selected: !item.selected } : item));
+  }
+
+  function applySelectedCvImprovements() {
+    const selected = pendingCvChanges.filter((item) => item.selected);
+    if (!selected.length) {
+      notify("Sélectionne au moins une proposition à appliquer.", "info");
+      return;
+    }
+    const updates = Object.fromEntries(selected.map((item) => [item.field, item.after])) as Partial<CV>;
+    setCv((current) => ({
+      ...current,
+      ...updates,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      source: `${current.source} · version améliorée par J'IA`,
+    }));
+    setPendingCvChanges([]);
+    notify("Les améliorations sélectionnées sont appliquées à une nouvelle version en mémoire. Clique sur Enregistrer pour les conserver.", "success");
+  }
+
   function openOriginalCv() {
     setOriginalBusy(true);
     router.push("/talent/cvs/original");
@@ -457,6 +609,41 @@ export default function TalentCVs() {
           {originalMeta?.storagePath && <button type="button" onClick={openOriginalCv} disabled={busy || originalBusy} className="mt-3 rounded-xl border border-jobly-blue px-4 py-2 text-xs font-black text-jobly-blue disabled:opacity-50">{originalBusy ? "Ouverture…" : "Ouvrir mon CV original"}</button>}
         </section>
 
+        <section className="rounded-[24px] bg-white p-5 shadow-sm print:hidden">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-black text-navy">Conversation ATS avec J'IA</h2>
+              <p className="mt-1 text-xs text-jobly-gray">Pose tes questions sur la lisibilité de ton CV, les critères ATS, les compétences manquantes et l'adaptation à un poste. Les réponses restent des conseils à vérifier.</p>
+            </div>
+            <span className="rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-black text-jobly-blue">Espace Talent</span>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <label className="block text-[11px] font-bold text-navy">
+              Poste ciblé (facultatif)
+              <input value={atsTargetRole} onChange={(e) => setAtsTargetRole(e.target.value)} placeholder="Ex. Responsable commercial" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-jobly-blue" />
+            </label>
+            <label className="block text-[11px] font-bold text-navy">
+              Description de l'offre (facultatif)
+              <textarea value={atsJobDescription} onChange={(e) => setAtsJobDescription(e.target.value)} rows={2} placeholder="Colle ici les exigences de l'offre pour une analyse ciblée." className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-jobly-blue" />
+            </label>
+          </div>
+          <div className="mt-3 max-h-72 space-y-2 overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50 p-3" aria-live="polite">
+            {chatMessages.length === 0 ? (
+              <p className="text-xs text-jobly-gray">Exemple : « Quelles compétences me manquent pour ce poste ? » ou « Comment améliorer mon résumé sans inventer d'expérience ? »</p>
+            ) : chatMessages.map((item, index) => (
+              <div key={index} className={`max-w-[92%] rounded-2xl px-3 py-2 text-xs leading-5 ${item.role === "user" ? "ml-auto bg-blue-100 text-navy" : "bg-white text-slate-700 shadow-sm"}`}>
+                <p className="mb-1 text-[9px] font-black uppercase">{item.role === "user" ? "Vous" : "J'IA"}</p>
+                <p className="whitespace-pre-wrap">{item.text}</p>
+              </div>
+            ))}
+            {chatBusy && <p className="text-xs font-bold text-jobly-blue">J'IA analyse ton CV…</p>}
+          </div>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendAtsMessage(); } }} placeholder="Écris ta question ATS…" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-jobly-blue" />
+            <button type="button" onClick={sendAtsMessage} disabled={chatBusy || !chatInput.trim()} className="rounded-xl bg-jobly-blue px-5 py-3 text-xs font-black text-white disabled:opacity-50">{chatBusy ? "Analyse…" : "Envoyer"}</button>
+          </div>
+        </section>
+
         <div className="grid gap-4 lg:grid-cols-[1.4fr_.6fr]">
           <section className="rounded-[24px] bg-white p-5 shadow-sm">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -469,6 +656,39 @@ export default function TalentCVs() {
             <textarea value={cv.skills} onChange={e => update("skills", e.target.value)} placeholder="Compétences (séparées par des virgules)" rows={3} className="mt-3 w-full rounded-xl border px-4 py-3" />
             <textarea value={cv.experience} onChange={e => update("experience", e.target.value)} placeholder="Expériences professionnelles" rows={7} className="mt-3 w-full rounded-xl border px-4 py-3" />
             <textarea value={cv.education} onChange={e => update("education", e.target.value)} placeholder="Formation / certifications" rows={4} className="mt-3 w-full rounded-xl border px-4 py-3" />
+
+            <section className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/60 p-4 print:hidden">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-black text-navy">Améliorer mon CV avec J'IA</h3>
+                  <p className="mt-1 text-[10px] text-jobly-gray">J'IA propose des formulations et corrections fondées sur tes informations réelles. Tu gardes le contrôle de chaque changement.</p>
+                </div>
+                <button type="button" onClick={proposeCvImprovements} disabled={improveBusy || busy} className="rounded-xl bg-[#FFE135] px-4 py-2.5 text-[11px] font-black text-navy disabled:opacity-50">{improveBusy ? "Analyse…" : "Proposer des améliorations"}</button>
+              </div>
+              {pendingCvChanges.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  <p className="text-xs font-black text-navy">Prévisualise et sélectionne les changements à appliquer :</p>
+                  {pendingCvChanges.map((change, index) => (
+                    <label key={`${change.field}-${index}`} className="block rounded-xl border border-slate-200 bg-white p-3">
+                      <span className="flex items-center gap-2 text-xs font-black text-navy">
+                        <input type="checkbox" checked={change.selected} onChange={() => toggleCvImprovement(index)} />
+                        {change.label}
+                      </span>
+                      <span className="mt-2 block text-[10px] font-bold text-jobly-gray">Avant</span>
+                      <span className="mt-1 block whitespace-pre-wrap text-xs text-slate-600">{change.before || "Non renseigné"}</span>
+                      <span className="mt-2 block text-[10px] font-bold text-emerald-700">Proposition</span>
+                      <span className="mt-1 block whitespace-pre-wrap text-xs text-navy">{change.after}</span>
+                      <span className="mt-2 block text-[10px] text-jobly-gray">{change.reason}</span>
+                    </label>
+                  ))}
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={applySelectedCvImprovements} className="rounded-xl bg-jobly-blue px-4 py-2.5 text-xs font-black text-white">Appliquer la sélection</button>
+                    <button type="button" onClick={() => setPendingCvChanges([])} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-black text-navy">Tout refuser</button>
+                  </div>
+                </div>
+              )}
+            </section>
+
             <div className="relative mt-4 space-y-2 print:hidden">
               <button onClick={save} className="w-full rounded-xl bg-jobly-blue py-3 font-black text-white">Enregistrer</button>
               <button onClick={() => setPreviewOpen(true)} type="button" className="w-full rounded-xl border-2 border-[#0057B8] bg-white py-3 font-black text-[#0057B8]">Voir le CV</button>
