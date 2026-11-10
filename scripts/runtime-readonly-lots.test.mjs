@@ -182,6 +182,8 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(bootstrap, /git -C "%ROOT%" show %SHA%:e2e\/run-africa-bulk-isolated\.ps1/);
   assert.match(bootstrap, /if not "%~1"==""/);
   assert.match(bootstrap, /set "SHA=%~1"/);
+  assert.match(bootstrap, /if \/i "%~1"=="FETCH_HEAD"/);
+  assert.match(bootstrap, /rev-parse FETCH_HEAD/);
   assert.match(bootstrap, /:sha_ready/);
   assert.match(bootstrap, /-FetchedSha "%SHA%"/);
   assert.match(bootstrap, /pause >nul/);
