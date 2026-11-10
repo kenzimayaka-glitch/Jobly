@@ -8237,4 +8237,74 @@ Synchroniser le worktree propre sur `origin/e2e/recette`, puis rejouer `node --c
 
 **Verdict : LOT-01 reste PARTIAL / NON CLOS** jusqu'au PASS runtime de la révocation multi-appareils.
 
+---
 
+## 150. Premier balayage global rapide V1 — Talent et Recruteur PASS ; Afrique FAIL
+
+**Mise à jour : 10 novembre 2026 — version 2.182.** Cette section enregistre le premier run opérateur de l'orchestrateur global à une seule commande. Elle devient la référence de reprise à la place des anciens lancements manuels séparés.
+
+### 150.1 Identification du run
+
+- Début : 2026-11-10T03:53:58.946Z.
+- Fin : 2026-11-10T03:59:14.300Z.
+- Durée totale : **315,3 secondes (5 min 15,3 s)**.
+- Commit testé : ffcfbee22a7a9d2db389aea6f6c1175904ae8ae4.
+- Branche : e2e/recette.
+- Environnement : JOBLY-E2E uniquement ; projectRef ofqqrryamslxoqkklraw.
+- Rapport consolidé : artifacts/e2e/global-e2e-report.md ; JSON : artifacts/e2e/global-e2e-report.json.
+- Statut global : **FAIL**, causé par LOT-04 Mission Afrique. Ce statut ne remet pas en cause les sous-résultats PASS explicitement enregistrés ci-dessous.
+
+### 150.2 Résultats confirmés
+
+| Porte / module | Résultat | Preuve |
+|---|---|---|
+| Tests statiques transversaux | **PASS** | 7/7 groupes PASS ; 34 fichiers de test |
+| Build et démarrage du serveur JOBLY-E2E | **PASS** | 275,3 s |
+| Accueil public | **PASS** | HTTP 200 ; 27 369 octets HTML |
+| LOT-02 Talent | **PASS** | 10 PASS ; 0 FAIL ; 0 BLOCKED |
+| LOT-03 Recruteur / Recruitment360 | **PASS** | 9 PASS ; 0 FAIL ; 0 BLOCKED |
+| LOT-04 Mission Afrique | **FAIL** | 1 PASS ; 1 FAIL ; 0 BLOCKED |
+| Arrêt du serveur | **PASS** | PID exact du serveur JOBLY-E2E arrêté |
+
+Bilan runtime des trois lots : **20 contrôles PASS, 1 FAIL, 0 BLOCKED**. L'unique échec observé dans ce balayage est circonscrit à LOT-04.
+
+### 150.3 Analyse du temps et de l'efficacité
+
+- Durée totale : 315,3 s.
+- Build et démarrage du serveur : 275,3 s, soit environ **87,3 %** de la durée totale.
+- Temps restant pour les autres étapes du run : environ 40,0 s.
+- Les lots runtime Talent, Recruteur et Afrique ont été exécutés en parallèle.
+- Le temps principal à optimiser est donc le build/démarrage ; les tests runtime ne représentent pas le poste dominant de cette exécution.
+
+Pour la correction en cours, **ne pas relancer la recette globale ni reconstruire le site simplement pour diagnostiquer LOT-04**. Le runner e2e/runtime-lot04-readonly.mjs interroge directement JOBLY-E2E en lecture seule et ne dépend pas du serveur Next.js. Après identification et correction de la cause, rejouer ce seul runner, puis relancer la recette globale uniquement lorsque les contrôles ciblés sont verts ou qu'un changement transversal exige une régression complète.
+
+### 150.4 Diagnostic Afrique — preuve encore nécessaire
+
+Le résumé consolidé indique 1 PASS et 1 FAIL pour LOT-04, mais ne contient pas le détail de l'assertion ou de l'erreur. À la lecture du runner versionné, le profil « 1 PASS + 1 FAIL » signifie que le contrôle de cible JOBLY_E2E_TARGET a réussi, puis qu'une erreur a été capturée pendant la lecture ou le traitement des tables JobHarvestCapture et JobOfferPipeline (ou de leurs champs).
+
+La cause précise ne peut pas être déterminée à partir du seul résumé Markdown. Elle doit être lue dans :
+- artifacts/e2e/lot4-runtime-readonly.json, notamment checks[].id, checks[].detail et checks[].httpStatus ;
+- artifacts/e2e/global-lot-04.log si le détail de processus est nécessaire.
+
+Ne pas lancer de migration, ne pas modifier les tables et ne pas changer les permissions sur la base de ce seul statut. Il faut d'abord identifier la table, la colonne, le code PostgREST ou l'erreur de transport qui a provoqué le FAIL.
+
+### 150.5 Sûreté et périmètre
+
+- Projet ciblé : JOBLY-E2E ofqqrryamslxoqkklraw.
+- Les runners Talent, Recruteur et Afrique sont conçus en lecture seule pour les données métier.
+- Le serveur local a été arrêté par le PID exact qu'avait créé l'orchestrateur.
+- Aucun déploiement, aucune fusion dans main et aucune modification de production ne sont effectués par ce run.
+- Les connexions Auth de test peuvent actualiser les métadonnées de session/appareil ; ne pas confondre cette réserve avec une écriture métier.
+- Aucune action externe (email, SMS, paiement, OAuth réel ou soumission externe) n'a été déclenchée.
+
+### 150.6 Décision de reprise
+
+1. Conserver les résultats statiques **7/7 PASS**, Talent **10/10 PASS**, Recruteur **9/9 PASS**, Build **PASS**, accueil **PASS** et arrêt serveur **PASS** comme acquis pour ce commit.
+2. Examiner le rapport détaillé LOT-04 pour isoler sa cause exacte.
+3. Corriger uniquement le point identifié dans le périmètre Afrique ou son accès en lecture, sans élargir la modification.
+4. Rejouer uniquement LOT-04 pour vérifier la correction et conserver son nouveau rapport.
+5. Effectuer un nouveau balayage global après le PASS ciblé, ou plus tôt uniquement si le correctif touche un socle partagé.
+
+**Verdict de cette version : balayage global FAIL à cause du seul LOT-04 ; Talent, Recruteur, les 34 fichiers statiques, le build, l'accueil et l'arrêt du serveur sont PASS. La cause LOT-04 reste à établir à partir du rapport détaillé.**
+
+Aucun merge vers main, aucun déploiement Vercel, aucune écriture JOBLY-PROD.
