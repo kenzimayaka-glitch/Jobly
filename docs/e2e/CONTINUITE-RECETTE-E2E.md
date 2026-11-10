@@ -49,6 +49,37 @@ JOBLY-E2E uniquement ; fixtures existantes uniquement ; aucun reset, rotation ou
 
 ---
 
+## RÉSULTATS DE CAMPAGNE PARALLÈLE — 10 novembre 2026 — LOT-02 / LOT-03 / LOT-04
+
+**Exécution opérateur reçue :** trois suites Node.js lancées simultanément depuis le worktree `Jobly-e2e-recette-lot01`, après préflight propre sur le SHA `24fda53f9e36b9dbbfe30e2ad28d6923129456cf`, branche de recette `e2e/recette`.
+
+| Lot | Suite exécutée | PASS | FAIL | Exit code | Verdict |
+|---|---|---:|---:|---:|---|
+| LOT-02 Talent | `external-application-assistant.test.mjs` + `talent-cv-application-regression.test.mjs` | 31/31 | 0 | 0 | **PASS statique** |
+| LOT-03 Recruteur / Recruitment 360 | `recruiter-role-regression.test.mjs` | 7/7 | 0 | 0 | **PASS statique** |
+| LOT-04 Mission Afrique | `africa-p0.test.mjs` + `supabase-batch-query.test.mjs` + `p2-jobly-offer-watermark.test.mjs` | 16/16 | 0 | 0 | **PASS statique** |
+
+**Bilan : 54 contrôles PASS, 0 FAIL, 0 skipped, 0 cancelled ; les trois processus ont retourné `EXIT_CODE=0`.** LOT-04 a émis un avertissement Node `MODULE_TYPELESS_PACKAGE_JSON` relatif au module TypeScript partagé ; il n'a pas fait échouer les tests et n'est pas classé comme anomalie fonctionnelle.
+
+### Portée exacte — ne pas surclasser les lots
+
+- Les trois commandes exécutées sont des tests automatisés de régression / contrats de code. Elles ne se sont pas connectées à JOBLY-E2E, n'ont pas exécuté de navigateur, n'ont pas créé d'offre ni de candidature, n'ont pas testé la persistance en base et ne valident pas une collecte ou ingestion réelle.
+- LOT-02 : les contrats de sécurité CV, import/export, propriété, candidature, canaux externes et états sont **PASS statique**. Le parcours Talent runtime (session navigateur, offres locale/Afrique, recherche, détail, CV lié à la fixture et candidature de bout en bout) reste **À EXÉCUTER**.
+- LOT-03 : les contrats de propriété recruteur, accès aux candidatures et autorisations Recruitment 360 sont **PASS statique**. Les scénarios runtime score, shortlist, documents, décision et export sur données E2E dédiées restent **À EXÉCUTER**.
+- LOT-04 : les contrats de fraîcheur, dates de publication, dates limites, fallback de date, requêtes par lots et watermark sont **PASS statique**. La collecte multi-sources, la reprise, l'ingestion et la persistance de bout en bout restent **À EXÉCUTER**.
+- Aucun changement de donnée JOBLY-E2E ou JOBLY-PROD n'est attribué à cette campagne ; aucun appel externe ni déploiement n'a été effectué sur la base des rapports transmis.
+
+### Suite recommandée
+
+1. LOT-02 runtime Talent sur fixture existante, en lecture seule d'abord ; séparer toute création de candidature synthétique et démontrer son nettoyage avant exécution.
+2. LOT-03 runtime Recruteur sur fixture/données synthétiques propres au run, avec nettoyage et preuve en base.
+3. LOT-04 runtime isolé sur jeu de sources strictement borné dans JOBLY-E2E ; ne jamais déclencher l'ingestion de Production pendant cette recette.
+4. Maintenir LOT-01 **PARTIAL / NON CLOS** et son contrôle multi-appareils différé, sans bloquer les travaux ci-dessus.
+
+**Aucun des lots 02, 03 ou 04 n'est déclaré globalement clos par ces seuls résultats statiques.**
+
+---
+
 **Version :** 2.177
 **Date de consolidation :** 9 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
