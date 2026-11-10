@@ -1,4 +1,21 @@
 # Jobly — Référence de continuité de la recette E2E
+
+
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.189 — 10 novembre 2026
+>
+> **Refonte fonctionnelle globale des recettes :** catalogue maître créé dans [docs/e2e/MASTER-RECETTES-FONCTIONNELLES.md](./MASTER-RECETTES-FONCTIONNELLES.md), commit `ba80f705bda04e759f887748b3bcd4de35be2ef9`. Il définit 19 lots fonctionnels (LOT-00 à LOT-18), les parcours transversaux, les critères de preuve et les tests contradictoires. Les 11 anciens lots, leurs résultats et l'historique de ce document sont conservés ; le nouveau découpage les complète et les rattache sans les effacer.
+>
+> **Audit en trois passes effectué sur la branche `e2e/recette` au commit `d66091a5f372fdebe75356bcc5cfc1baf40007ba` :** inventaire de 1 632 entrées Git, 212 handlers API, 114 pages/layouts, 46 fichiers de tests et 66 migrations Supabase ; lecture des familles de tests et des parcours E2E, des workflows, du schéma de données et des routes fonctionnelles représentatives ; confrontation valeur utilisateur → UI/API/service/données, puis données/API → expérience, puis scénarios contradictoires (perte de réponse, doublons, concurrence, droits, échec partiel, changement de compte, hors-ligne, nettoyage interrompu). Le catalogue décrit les écarts établis et les recettes manquantes. Il ne prétend pas que chaque ligne des 1 632 fichiers a été relue individuellement.
+>
+> **Écart central confirmé :** le runner global runtime existant ne valide que l'accueil HTTP, Talent, Recruteur/Recruitment360 et l'inventaire Afrique en lecture seule. La majorité des tests actuellement regroupés en bulk sont des tests unitaires, statiques ou de contrat. Ils restent à conserver et ne deviennent pas des preuves E2E. Les parcours runtime avec écritures métier dédiées et nettoyage restent à concevoir/exécuter pour plusieurs domaines, notamment CV complet, candidatures groupées, décisions/exports Recruteur, J'IA, paiements, Mobile Money, Mobility, Events, Community/Campus, Partner, Admin et Offline.
+>
+> **Candidatures groupées :** capacité présente dans le code, panier/plafond et confirmation unique ; les envois de chaque candidature sont séquentiels dans l'implémentation actuelle. Aucune preuve runtime E2E de plusieurs candidatures n'a été obtenue. Ne pas appeler cela une soumission réellement parallèle.
+>
+> **Preuves CI au commit d'audit :** Jobly CI Typecheck & Build PASS ; gates J'IA, Mobile Money, Android, registre des sources Afrique et autres workflows recensés PASS. Le workflow `Verify offer pipeline` échouait à son test de garde parce que la regex détectait le texte `pnpm.cmd` dans un commentaire alors que le lanceur appelle directement le CLI Next via Node. Correctif du test de garde commité dans `dfb4320e5e7e8618ccd231c44a4046ddeaa73423` ; sa nouvelle exécution CI reste à confirmer. Le workflow Africa Shadow Crawl avait sa validation readiness PASS mais le job de crawl était SKIPPED : aucune collecte réseau réelle ne peut être revendiquée à partir de ce run.
+>
+> **Référence branche / gouvernance :** PR #266 toujours ouverte en brouillon vers `main`. `main` reste au SHA `979f2ccfec9258bc30989af18433cf6adb1b4698`. Aucun merge, aucune mise en production et aucune opération JOBLY-PROD n'ont été effectués dans cette refonte. JOBLY-E2E (`ofqqrryamslxoqkklraw`) demeure le seul environnement de recette autorisé.
+>
+> **Prochaine priorité de travail :** valider le correctif de garde en CI, réutiliser les suites statiques existantes sans les rejouer inutilement, puis construire et exécuter le parcours produit transversal T1 du catalogue : Talent/profil-CV → offre locale/Afrique → préparation et confirmation d'une candidature groupée → boîte Recruteur → décision → même résultat visible côté Talent, avec fournisseurs simulés, persistance vérifiée et nettoyage du seul `runId`. Après ce parcours, avancer lot par lot selon les 19 recettes. L'objectif est maintenant de livrer la valeur utilisateur manquante démontrée par les recettes, pas d'ajouter des couches d'infrastructure sans bénéfice produit.
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.188 — 10 novembre 2026
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.182 — 9 novembre 2026
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.171 — 9 novembre 2026
