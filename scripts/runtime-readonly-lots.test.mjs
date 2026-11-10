@@ -263,3 +263,15 @@ test("snapshot server start is pinned to the fetched commit and stopped by its e
   assert.match(stop, /taskkill", \["\/PID", String\(meta\.pid\), "\/T", "\/F"\]/);
   assert.doesNotMatch(stop, /taskkill", \["\/IM", "node\.exe"/i);
 });
+
+test("manual GitHub E2E workflow is a no-secret static/build preflight, not an interactive fixture run", () => {
+  const workflow = read(".github/workflows/jobly-e2e-recipe.yml");
+  assert.ok(workflow.includes("workflow_dispatch"));
+  assert.ok(workflow.includes("node --test scripts/runtime-readonly-lots.test.mjs"));
+  assert.ok(workflow.includes("deno check --node-modules-dir=none e2e/africa-bulk-recipe.ts"));
+  assert.ok(workflow.includes("pnpm typecheck"));
+  assert.ok(workflow.includes("pnpm build"));
+  assert.ok(!workflow.includes("scripts/e2e-local-recipe.mjs"));
+  assert.ok(!workflow.includes("SUPABASE_SERVICE_ROLE_KEY"));
+  assert.ok(!workflow.includes("SUPABASE_SECRET_KEY"));
+});
