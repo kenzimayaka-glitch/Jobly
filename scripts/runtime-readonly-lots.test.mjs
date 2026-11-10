@@ -51,3 +51,12 @@ test("shared server launcher builds once, stays on loopback JOBLY-E2E and reject
   assert.match(runner, /SUPABASE_SECRET_KEY: config\.secretKey/);
   assert.match(runner, /127\.0\.0\.1/);
 });
+
+test("server shutdown targets only the recorded JOBLY-E2E PID after health and process checks", () => {
+  const runner = read("e2e/stop-readonly-runtime-server.mjs");
+  assert.match(runner, /projectRef !== "ofqqrryamslxoqkklraw"/);
+  assert.match(runner, /meta\.baseURL !== "http:\/\/127\.0\.0\.1:3217"/);
+  assert.match(runner, /tasklist/);
+  assert.match(runner, /taskkill", \["\/PID", String\(meta\.pid\), "\/T", "\/F"\]/);
+  assert.doesNotMatch(runner, /taskkill", \["\/IM", "node\.exe"/i);
+});
