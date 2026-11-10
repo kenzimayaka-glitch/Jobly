@@ -151,9 +151,11 @@ export async function getCascadeOpportunities(userId: string): Promise<CascadeOp
   const results: CascadeOpportunity[] = [];
 
   for (const job of jobsRes.data ?? []) {
-    const isStage = /stage|internship|intern/i.test(String(job.opportunityType ?? "")) ||
+    const opportunityType = String(job.opportunityType ?? "").toUpperCase();
+    const isStage = opportunityType === "STAGE" ||
       /stage|internship|intern/i.test(String(job.contractType ?? "")) ||
       /stage|internship/i.test(String(job.title ?? ""));
+    const kind: OpportunityKind = opportunityType === "FORMATION" ? "FORMATION" : isStage ? "STAGE" : "EMPLOI";
     const company = job.companyId ? companies.get(job.companyId) : null;
     const detectedCompany = company?.name ?? extractCompanyName(String(job.title ?? ""), String(job.description ?? ""));
     if (!job.sourceUrl || !detectedCompany) continue;
@@ -166,7 +168,8 @@ export async function getCascadeOpportunities(userId: string): Promise<CascadeOp
       remoteMode: job.remoteMode,
       minExperienceYears: job.minExperienceYears,
       sector: job.aiSector,
-      tags: [...(job.tags ?? []), ...(Array.isArray(job.aiSkills) ? job.aiSkills : [])],\n      normalizedContent: job.normalizedContent,
+      tags: [...(job.tags ?? []), ...(Array.isArray(job.aiSkills) ? job.aiSkills : [])],
+      normalizedContent: job.normalizedContent,
     } satisfies MatchingJob);
     const prestige = sourcePrestige(String(job.source ?? "discovery"), Boolean(company?.verified));
     results.push({
