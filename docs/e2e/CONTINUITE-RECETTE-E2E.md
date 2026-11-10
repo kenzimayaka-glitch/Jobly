@@ -1,3 +1,15 @@
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.197 — 10 novembre 2026
+>
+> **Décision confirmée — durée de validité du lien sécurisé CV WhatsApp :** le lien de partage du CV reste valide pendant **30 jours à compter de sa création**. Il devient inaccessible à l'échéance et peut être révoqué avant celle-ci selon les droits du propriétaire du partage. Toute consultation ou tentative après expiration/révocation doit être refusée ; aucun cache ou URL PDF déjà connue ne doit contourner cette échéance.
+>
+> **Recettes à appliquer :**
+> - APP-WA-07 : lien accessible avant l'échéance des 30 jours ; consultation et téléchargement PDF autorisés selon les droits du partage.
+> - APP-WA-08 : expiration à 30 jours, révocation anticipée, accès refusé aux vues HTML et PDF après expiration/révocation ; vérifier aussi cache, URL directe et appels API.
+>
+> **Statut :** durée produit arbitrée ; implémentation et vérifications runtime de bout en bout restent À CODER / À EXÉCUTER. Aucune preuve PASS n'est revendiquée.
+>
+> ---
+>
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.196 — 10 novembre 2026
 >
 > **Arbitrages fonctionnels confirmés — parcours WhatsApp recruteur, compteur de matching et Gmail :**
