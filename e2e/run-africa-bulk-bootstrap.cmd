@@ -20,6 +20,12 @@ echo ORIGIN=%ORIGIN%
 echo ORIGIN=%ORIGIN%>> "%BOOTLOG%"
 if /i not "%ORIGIN%"=="https://github.com/kenzimayaka-glitch/Jobly" if /i not "%ORIGIN%"=="https://github.com/kenzimayaka-glitch/Jobly.git" if /i not "%ORIGIN%"=="git@github.com:kenzimayaka-glitch/Jobly.git" goto wrong_origin
 
+if /i "%~1"=="FETCH_HEAD" (
+  for /f "delims=" %%H in ('git -C "%ROOT%" rev-parse FETCH_HEAD 2^>nul') do set "SHA=%%H"
+  echo [2/5] FETCH_HEAD resolu : %SHA%
+  echo SHA FETCH_HEAD fourni au bootstrap>> "%BOOTLOG%"
+  goto sha_ready
+)
 if not "%~1"=="" (
   set "SHA=%~1"
   echo [2/5] SHA deja recupere par le bootstrap : %SHA%
