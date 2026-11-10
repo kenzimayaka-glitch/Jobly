@@ -40,7 +40,11 @@ export async function loadRuntimeConfig(sourceRootArg) {
     for (const [key, value] of Object.entries(parsed)) if (typeof value === "string" && value.trim()) values[key] = value;
   } catch {}
   const env = { ...loaded.combinedEnv, ...values };
-  const url = values.NEXT_PUBLIC_SUPABASE_URL || values.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || env.SUPABASE_URL || "";
+  const publicUrl = values.NEXT_PUBLIC_SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const serverUrl = values.SUPABASE_URL || env.SUPABASE_URL || "";
+  if (publicUrl && publicUrl !== SUPABASE_URL) throw new Error("NEXT_PUBLIC_SUPABASE_URL_NON_E2E_REFUSED");
+  if (serverUrl && serverUrl !== SUPABASE_URL) throw new Error("SUPABASE_URL_NON_E2E_REFUSED");
+  const url = publicUrl || serverUrl || "";
   const publishableKey = values.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || values.NEXT_PUBLIC_SUPABASE_ANON_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
   const secretKey = values.SUPABASE_SECRET_KEY || values.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY || "";
   assert.equal(url, SUPABASE_URL, "SUPABASE_URL_NON_E2E_REFUSED");
