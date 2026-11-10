@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
+import { adminClient, ensureUser, getAuthUser, getRecruiterProfileForAuthUser } from "../../../../lib/server-auth";
 import { isProfilePhotoPublic } from "../../../../lib/profilePhotoStorage";
 import { analyzeATSMatch } from "@/lib/atsService";
 
@@ -11,7 +11,8 @@ export async function GET(req: NextRequest) {
 
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
-    if (user.role !== "RECRUITER" && user.role !== "ADMIN") {
+    const recruiterProfile = user.role === "ADMIN" ? true : await getRecruiterProfileForAuthUser(supabase, authUser.id, user.id);
+    if (user.role !== "RECRUITER" && user.role !== "ADMIN" && !recruiterProfile) {
       return NextResponse.json({ message: "Espace recruteur requis." }, { status: 403 });
     }
 
@@ -147,7 +148,8 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const keyword = (url.searchParams.get("atsKeyword") || "").trim().toLowerCase();
+    const normalizeKeyword = (value: string) => value.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
+    const keyword = normalizeKeyword((url.searchParams.get("atsKeyword") || "").trim());
     const keywordMode = url.searchParams.get("atsKeywordMode") === "missing" ? "missing" : "present";
     if (keyword) {
       const terms = keyword.split(",").flatMap((group) => group.split(/\\s+/)).map((term) => term.trim()).filter((term) => term.length >= 3 && !["avec","dans","pour","une","des","les","sur","aux","and","the","for"].includes(term));
@@ -158,7 +160,7 @@ export async function GET(req: NextRequest) {
         const candidates = keywordMode === "missing"
           ? item.atsAnalysis.missingKeywords
           : item.atsAnalysis.matchedKeywords;
-        const normalized = candidates.map((term: string) => term.toLowerCase());
+        const normalized = candidates.map((term: string) => normalizeKeyword(term));
         return terms.every((term) => normalized.includes(term));
       });
     }
