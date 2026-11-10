@@ -123,6 +123,7 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   const runner = read("e2e/africa-bulk-recipe.ts");
   const command = read("e2e/run-africa-bulk-recipe.cmd");
   const isolated = read("e2e/run-africa-bulk-isolated.ps1");
+  const bootstrap = read("e2e/run-africa-bulk-bootstrap.cmd");
   assert.match(runner, /ofqqrryamslxoqkklraw/);
   assert.match(runner, /\.env\.local", "\.env\.e2e\.local/);
   assert.match(runner, /NON_E2E_ENV_URL_REFUSED/);
@@ -174,4 +175,14 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(isolated, /ofqqrryamslxoqkklraw/);
   assert.match(isolated, /FetchedSha/);
   assert.match(isolated, /cat-file/);
+  assert.match(bootstrap, /\[1\/5\] Verification du depot local/);
+  assert.match(bootstrap, /\[2\/5\] Recuperation de la branche distante/);
+  assert.match(bootstrap, /git -C "%ROOT%" fetch --no-tags origin refs\/heads\/e2e\/recette/);
+  assert.match(bootstrap, /FETCH_SHA=%SHA%/);
+  assert.match(bootstrap, /git -C "%ROOT%" show %SHA%:e2e\/run-africa-bulk-isolated\.ps1/);
+  assert.match(bootstrap, /-FetchedSha "%SHA%"/);
+  assert.match(bootstrap, /pause >nul/);
+  assert.match(bootstrap, /jobly-africa-bulk-bootstrap\.log/);
+  assert.doesNotMatch(bootstrap, /git clean|reset --hard|status --porcelain|checkout --detach/);
+
 });
