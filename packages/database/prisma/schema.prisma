@@ -133,6 +133,7 @@ model User {
   authUserId       String?      @unique
   email           String?      @unique
   phone           String?      @unique
+  signupPhone     String?      // Numero initial saisi a l inscription.
   displayName     String?
   // Ajouts 15/09/2026 : requis par /api/auth/complete-signup et
   // /api/auth/username/check, absents du schéma jusqu'ici (cause de l'erreur
@@ -470,11 +471,36 @@ model RecruiterJob {
   // Ajouts 12/09/2026 — unification avec Job pour le Matching V1 (spec 12.1)
   remoteMode         String @default("NO") // "YES" | "NO" | "PARTIAL", dérivé de `mode` mais normalisé pour le calcul de score
   minExperienceYears Int    @default(0)
+  applicationProfile Json @default("{}")
+  applicationReady Boolean @default(true)
+  sourceType String @default("JOBLY_CREATED")
+  sourceJobId String? @db.Uuid
+  sourceShareId String? @db.Uuid
+  sourcePhoneSnapshot String?
+  sourceProvenance Json @default("{}")
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   applications   Application[]
 
   @@index([recruiterUserId])
+}
+
+model RecruiterOfferClaim {
+  id String @id @default(uuid()) @db.Uuid
+  sourceShareId String @db.Uuid
+  sourceJobId String @db.Uuid
+  applicationId String
+  recruiterUserId String
+  registeredPhone String?
+  offerPhone String?
+  status String @default("PENDING")
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  reviewedAt DateTime? @db.Timestamptz(6)
+  reviewedByUserId String?
+  reviewNote String?
+  @@unique([sourceShareId, recruiterUserId])
+  @@index([status, createdAt])
+  @@index([recruiterUserId, status])
 }
 
 model Match {
@@ -498,6 +524,8 @@ model Application {
   cvUrl          String?
   cvPhotoUrl     String?
   letterText     String?
+  cvApprovedAt DateTime? @db.Timestamptz(6)
+  letterApprovedAt DateTime? @db.Timestamptz(6)
   atsScore       Int?
   submittedAt    DateTime?
   // Ajouts spec 12.2 (écran Candidatures V1)

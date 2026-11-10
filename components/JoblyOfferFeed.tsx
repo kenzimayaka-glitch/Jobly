@@ -578,7 +578,7 @@ export function JoblyOfferFeed() {
         const shareRes = await fetch(`/api/applications/${encodeURIComponent(item.id)}/whatsapp`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ letterText: item.letter }),
+          body: JSON.stringify({ letterText: item.letter, cvApproved: item.cvApproved === true, letterApproved: item.letterApproved === true }),
         });
         const shareBody = await shareRes.json().catch(() => ({}));
         if (!shareRes.ok) throw new Error(shareBody.message || "Impossible de préparer le lien sécurisé du CV.");

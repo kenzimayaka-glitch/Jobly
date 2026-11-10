@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const supabase = adminClient();
     const { data: linkedUser, error: existingError } = await supabase
       .from("User")
-      .select("id")
+      .select("id,signupPhone")
       .eq("authUserId", authUser.id)
       .maybeSingle();
     if (existingError) throw new Error(existingError.message);
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     if (!existing) {
       const { data: legacyUser, error: legacyError } = await supabase
         .from("User")
-        .select("id,authUserId")
+        .select("id,authUserId,signupPhone")
         .ilike("email", email)
         .maybeSingle();
       if (legacyError) throw new Error(legacyError.message);
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       }
       if (legacyUser && !legacyUser.authUserId) {
         const reconciled = await ensureUser(supabase, authUser);
-        existing = { id: reconciled.id };
+        existing = { id: reconciled.id, signupPhone: null };
       }
     }
 
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Ce username est déjà utilisé. Choisis-en un autre." }, { status: 409 });
     }
     const now = new Date().toISOString();
-    const payload = { authUserId: authUser.id, email, phone, firstName, lastName, displayName: username, username, country, privacyAcceptedAt: now, updatedAt: now };
+    const payload = { authUserId: authUser.id, email, phone, signupPhone: existing?.signupPhone || phone, firstName, lastName, displayName: username, username, country, privacyAcceptedAt: now, updatedAt: now };
     const welcomeFields = existing ? {} : { aiWelcomeCredits: 30, aiWelcomeGrantedAt: now };
 
     let userId = existing?.id;

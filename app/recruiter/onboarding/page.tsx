@@ -46,6 +46,7 @@ export default function RecruiterOnboardingPage() {
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
+  const [claimNotice, setClaimNotice] = useState("");
 
   const [companyName, setCompanyName] = useState("");
   const [sector, setSector] = useState("");
@@ -137,11 +138,26 @@ export default function RecruiterOnboardingPage() {
       const shareToken = typeof window !== "undefined"
         ? new URLSearchParams(window.location.search).get("shareToken")
         : null;
+      if (shareToken && /^[A-Za-z0-9_-]{20,80}$/.test(shareToken)) {
+        try {
+          const response = await fetch("/api/recruiter/claim-whatsapp-offer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ shareToken }),
+          });
+          const result = await response.json().catch(() => ({}));
+          if (response.ok && result.claimed) setClaimNotice("Offre ajoutée à Mes offres et candidature ajoutée à Mes candidatures.");
+          else if (result.code === "PHONE_MISMATCH") setClaimNotice("Une vérification manuelle du numéro est nécessaire. Aucun rattachement automatique n'a été effectué.");
+          else setClaimNotice(result.message || "Le rattachement automatique reste à vérifier.");
+        } catch {
+          setClaimNotice("Le rattachement automatique est indisponible. Le lien de découverte reste accessible.");
+        }
+      }
       setTimeout(() => {
         router.push(shareToken
           ? `/recruiter/discover/${encodeURIComponent(shareToken)}`
           : "/recruiter");
-      }, 1000);
+      }, shareToken ? 2400 : 1000);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur d'enregistrement.");
     } finally {
@@ -186,6 +202,7 @@ export default function RecruiterOnboardingPage() {
               {error}
             </div>
           )}
+          {claimNotice && <div role="status" className="mb-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-semibold text-blue-900">{claimNotice}</div>}
 
           <div className="space-y-4 rounded-[24px] border border-slate-100 bg-white p-5 shadow-[0_16px_50px_rgba(22,37,74,0.10)]">
             <h2 className="font-heading text-base font-extrabold text-navy flex items-center gap-2">

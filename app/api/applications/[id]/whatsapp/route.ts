@@ -75,16 +75,15 @@ export async function POST(request: NextRequest, { params }: Context) {
       ? (offer.companyId ? (await db.from("Company").select("name").eq("id", offer.companyId).maybeSingle()).data?.name : null)
       : stringValue(offer.companyName);
     const coverLetterRequired = requiresCoverLetter(String(offer.description || ""));
-    if (coverLetterRequired && !approvedLetter) {
-      return NextResponse.json({ message: "Cette offre exige une lettre de motivation. Relis et valide-la avant de continuer.", code: "COVER_LETTER_REQUIRED" }, { status: 422 });
+    if (body.cvApproved !== true) return NextResponse.json({message:"Le CV doit être relu et validé avant de continuer.",code:"CV_NOT_APPROVED"},{status:422});
+    if (coverLetterRequired && (body.letterApproved !== true || approvedLetter.length < 30)) {
+      return NextResponse.json({message:"Cette offre exige une lettre de motivation relue et validée.",code:"COVER_LETTER_NOT_APPROVED"},{status:422});
     }
-
-    if (approvedLetter && approvedLetter !== String(application.letterText || "")) {
-      const { error: letterError } = await db.from("Application")
-        .update({ letterText: approvedLetter, updatedAt: new Date().toISOString() })
-        .eq("id", application.id).eq("userId", user.id);
-      if (letterError) throw new Error(letterError.message);
-    }
+    const approvedAt = new Date().toISOString();
+    const approvalPayload: Record<string,unknown> = {cvApprovedAt:approvedAt,letterApprovedAt:coverLetterRequired?approvedAt:null,updatedAt:approvedAt};
+    if (coverLetterRequired) approvalPayload.letterText = approvedLetter;
+    const {error:approvalError} = await db.from("Application").update(approvalPayload).eq("id",application.id).eq("userId",user.id);
+    if (approvalError) throw new Error(approvalError.message);
 
     const shareSource = "WHATSAPP_APPLICATION:" + application.id;
     const now = new Date();
