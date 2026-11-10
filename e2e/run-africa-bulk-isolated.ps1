@@ -24,17 +24,27 @@ Write-Stage ("LAUNCH_LOG " + $Log)
 
 function Invoke-Native([string]$FilePath, [string[]]$Arguments, [string]$Label, [switch]$Capture) {
   Write-Stage (">>> " + $Label)
-  $script:NativeOutput = @(& $FilePath @Arguments 2>&1)
-  $script:NativeExit = $LASTEXITCODE
-  foreach ($line in $script:NativeOutput) {
-    $s = [string]$line
-    Write-Host $s
-    Add-Content -LiteralPath $Log -Value $s -Encoding UTF8
+  if ($Capture) {
+    $nativeOutput = @(& $FilePath @Arguments 2>&1)
+    $nativeExit = $LASTEXITCODE
+    foreach ($line in $nativeOutput) {
+      $lineText = [string]$line
+      Write-Host $lineText
+      Add-Content -LiteralPath $Log -Value $lineText -Encoding UTF8
+    }
+    if ($nativeExit -ne 0) {
+      throw ($Label + " failed with exit code " + $nativeExit)
+    }
+    return ($nativeOutput -join [Environment]::NewLine)
   }
-  if ($script:NativeExit -ne 0) {
-    throw ($Label + " failed with exit code " + $script:NativeExit)
+
+  # Stream native output directly to the console and the stable log.
+  # Buffering in an array hid fetch/test/runtime progress until the process ended.
+  & $FilePath @Arguments 2>&1 | Tee-Object -FilePath $Log -Append
+  $nativeExit = $LASTEXITCODE
+  if ($nativeExit -ne 0) {
+    throw ($Label + " failed with exit code " + $nativeExit)
   }
-  if ($Capture) { return ($script:NativeOutput -join [Environment]::NewLine) }
 }
 
 try {
@@ -61,7 +71,7 @@ try {
         Invoke-Native "git" @("-C", $candidate, "cat-file", "-e", ($FetchedSha + "^{commit}")) "VERIFY_FETCHED_COMMIT" | Out-Null
         $sha = $FetchedSha
       } else {
-        Invoke-Native "git" @("-C", $candidate, "fetch", "--no-tags", "origin", "refs/heads/e2e/recette") "FETCH_E2E_RECETTE" | Out-Null
+        Invoke-Native "git" @("-C", $candidate, "fetch", "--depth=1", "--progress", "--no-tags", "origin", "refs/heads/e2e/recette") "FETCH_E2E_RECETTE" | Out-Null
         $sha = (Invoke-Native "git" @("-C", $candidate, "rev-parse", "FETCH_HEAD") "RESOLVE_FETCH_HEAD" -Capture).Trim()
         if ($sha -notmatch "^[0-9a-f]{40}$") {
           throw "FETCH_HEAD_INVALID"
