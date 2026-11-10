@@ -322,7 +322,7 @@ async function main() {
   const estimatedJob = jobs.find((x: Row) => x.id === estimatedCapture.jobId);
   insist(sourceJob?.sourcePublishedAt, "SOURCE_DATE_NOT_PERSISTED");
   insist(estimatedJob && estimatedJob.sourcePublishedAt === null, "ESTIMATED_DATE_STORED_AS_REAL_SOURCE_DATE");
-  insist(sourceJob.countryCode === "CM" && estimatedJob.countryCode === "CM", "COUNTRY_CODE_MISMATCH");
+  insist(sourceJob.countryCode === countryCode && estimatedJob.countryCode === countryCode, "COUNTRY_CODE_MISMATCH");
   insist(sourceJob.applicationReady === true && estimatedJob.applicationReady === true, "APPLICATION_CONTACT_NOT_DETECTED");
 
   const pipelineRes = await admin.from("JobOfferPipeline")
