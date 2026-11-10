@@ -57,10 +57,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         .eq("userId", share.userId)
         .maybeSingle();
       if (error) throw new Error(error.message);
-      const relationValid = Boolean(application && (
-        (application.jobId && share.jobId === application.jobId) ||
-        (application.recruiterJobId && !share.jobId)
-      ));
+      if (!application) return NextResponse.json({ message: "Offre liée au partage introuvable." }, { status: 404 });
+      const relationValid = (application.jobId && share.jobId === application.jobId) ||
+        (application.recruiterJobId && !share.jobId);
       if (!relationValid) return NextResponse.json({ message: "Offre liée au partage introuvable." }, { status: 404 });
 
       const table = application.jobId ? "Job" : "RecruiterJob";
