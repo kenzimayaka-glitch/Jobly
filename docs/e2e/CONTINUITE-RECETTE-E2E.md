@@ -2,14 +2,14 @@
 >
 > **Décision produit — accès aux cinq meilleurs talents :** dans la liste des talents correspondant à une offre, les **cinq profils les mieux classés par score de matching** sont une fonctionnalité réservée aux recruteurs disposant d'un abonnement Jobly actif incluant explicitement ce droit. Ils ne sont jamais consultables en version gratuite.
 >
-> - En version gratuite, ne retourner ni afficher les identités, photos, CV, coordonnées, détails de profil ni scores individuels des cinq talents premium. Le verrou doit être appliqué côté serveur/API, et pas seulement par masquage dans l'interface.
+> - En version gratuite, afficher les scores de matching uniquement ; ne retourner ni afficher les identités, photos, CV, coordonnées, détails de profil ni autres données identifiantes des cinq talents premium. Le verrou doit être appliqué côté serveur/API, et pas seulement par masquage dans l'interface.
 > - L'interface gratuite peut afficher un écran de verrouillage non révélateur indiquant que les cinq meilleurs talents sont réservés à un abonnement, avec présentation de l'offre d'abonnement/CTA. Aucun détail permettant de réidentifier ou déduire les profils verrouillés ne doit fuiter dans le HTML, les réponses API, les données préchargées ou les journaux client.
 > - Un recruteur abonné ne voit ces cinq profils que si son compte possède un entitlement actif et valide correspondant à cette fonctionnalité. Un abonnement expiré, annulé, suspendu, impayé ou un plan sans ce droit doit être traité comme non éligible. L'interface et l'API doivent appliquer la même règle.
 > - Le classement des cinq profils est calculé pour l'offre concernée, à partir du score de matching existant et des critères de pertinence autorisés. Le classement ne doit pas mélanger les offres, ni exposer des profils non publics/non consentis. En cas d'égalité, utiliser un ordre secondaire déterministe et documenté.
 > - La règle porte sur la consultation des cinq meilleurs talents. Les autres profils et leurs actions restent soumis aux droits et règles d'accès déjà définis ; cette décision ne leur accorde aucun accès supplémentaire.
 >
 > **Scénarios E2E à ajouter à LOT-05 et LOT-08 :**
-> - REC-CONV-06 : avec un compte recruteur gratuit, appeler directement les API et ouvrir l'interface de matching ; vérifier qu'aucune donnée personnelle ni aucun score individuel des cinq meilleurs talents n'est retourné, même en contournant l'interface. Vérifier le message de verrouillage et le CTA abonnement.
+> - REC-CONV-06 : avec un compte recruteur gratuit, appeler directement les API et ouvrir l'interface de matching ; vérifier que seuls les scores individuels sont retournés et qu'aucune donnée personnelle/identifiante n'est retournée, même en contournant l'interface. Vérifier le message de verrouillage et le CTA abonnement.
 > - REC-CONV-07 : vérifier qu'un abonnement actif avec entitlement donne accès aux cinq profils de l'offre précise, et que l'expiration, l'annulation, la suspension, le défaut de paiement ou un plan sans entitlement révoque immédiatement cet accès côté API et UI.
 > - REC-CONV-08 : vérifier le calcul et l'ordre des cinq meilleurs talents, les égalités, la séparation entre offres, le consentement/visibilité des profils et l'absence de fuite via cache, pagination, HTML ou réponse API.
 >
@@ -37,6 +37,22 @@
 >
 # Jobly — Référence de continuité de la recette E2E
 
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.194 — 10 novembre 2026
+>
+> **Correction de la règle premium — remplace explicitement la V2.193 :** la version gratuite peut consulter les **scores de matching uniquement** des cinq meilleurs talents ; elle ne peut jamais voir ni ouvrir leurs profils. L'abonnement Jobly actif avec l'entitlement correspondant est requis pour consulter les profils.
+>
+> **Règle globale à tous les recruteurs et à toutes les offres Jobly :**
+> - Seuls les talents dont le score de matching est **>= 90 %** sont éligibles au classement.
+> - Pour chaque offre, classer les talents éligibles par score décroissant et retenir au maximum les **cinq meilleurs**. Le classement est propre à l'offre ; les égalités sont départagées de manière déterministe.
+> - **Version gratuite :** afficher uniquement le score de matching de chacun des talents classés. Ne transmettre ni nom, photo, identifiant de profil, CV, coordonnées, historique, détails personnels ou autre donnée permettant leur identification. Aucun profil ne peut être ouvert. Les scores sont visibles parce qu'ils constituent l'accroche commerciale.
+> - **Abonnement actif + entitlement :** autorise l'ouverture des profils des cinq talents. Expiration, annulation, suspension, impayé ou plan sans le droit requis verrouille les profils.
+> - Appliquer la règle côté serveur/API sur toutes les surfaces Jobly : matching, découverte, espace recruteur, parcours WhatsApp, recherche, pagination, exports, préchargements et caches. Aucun profil verrouillé ne doit être transmis au navigateur gratuit.
+> - Cette règle est identique pour tous les recruteurs, que l'offre provienne du parcours WhatsApp ou ait été créée directement sur Jobly.
+>
+> **Recettes obligatoires :** seuils 89,99 %, 90 % et >90 % ; classement top 5 par offre ; compte gratuit voit les scores mais aucune identité/profil ; abonnement actif déverrouille les profils ; expiration/révocation/suspension/impayé reverrouille ; absence de fuite dans HTML/API/cache/pagination/recherche/export ; répétition sur toutes les surfaces et tous les parcours. Statut : À CODER / À EXÉCUTER, aucun PASS runtime revendiqué.
+>
+> ---
+>
 
 
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.191 — 10 novembre 2026
