@@ -10,7 +10,7 @@ set "BOOTLOG=%TEMP%\jobly-africa-bulk-bootstrap.log"
 set "REMOTEFILE=%TEMP%\jobly-africa-origin.txt"
 set "SHA="
 
-> "%BOOTLOG%" echo JOBLY AFRICA BULK BOOTSTRAP
+if not exist "%BOOTLOG%" > "%BOOTLOG%" echo JOBLY AFRICA BULK BOOTSTRAP
 echo [1/5] Verification du depot local...
 echo [1/5] Verification du depot local...>> "%BOOTLOG%"
 if not exist "%ROOT%\.git" goto no_repo
