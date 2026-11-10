@@ -20,7 +20,7 @@ function Write-Stage([string]$Message) {
   Add-Content -LiteralPath $Log -Value $Message -Encoding UTF8
 }
 
-function Invoke-Native([string]$FilePath, [string[]]$Arguments, [string]$Label) {
+function Invoke-Native([string]$FilePath, [string[]]$Arguments, [string]$Label, [switch]$Capture) {
   Write-Stage (">>> " + $Label)
   $script:NativeOutput = @(& $FilePath @Arguments 2>&1)
   $script:NativeExit = $LASTEXITCODE
@@ -32,7 +32,7 @@ function Invoke-Native([string]$FilePath, [string[]]$Arguments, [string]$Label) 
   if ($script:NativeExit -ne 0) {
     throw ($Label + " failed with exit code " + $script:NativeExit)
   }
-  return ,$script:NativeOutput
+  if ($Capture) { return ($script:NativeOutput -join [Environment]::NewLine) }
 }
 
 try {
@@ -48,7 +48,7 @@ try {
       continue
     }
     try {
-      $remote = ((Invoke-Native "git" @("-C", $candidate, "remote", "get-url", "origin") "CHECK_ORIGIN") -join [Environment]::NewLine).Trim()
+      $remote = (Invoke-Native "git" @("-C", $candidate, "remote", "get-url", "origin") "CHECK_ORIGIN" -Capture).Trim()
       if ($remote -notmatch "(?i)github\.com[:/]kenzimayaka-glitch/Jobly(?:\.git)?$") {
         throw ("UNEXPECTED_ORIGIN: " + $remote)
       }
@@ -60,7 +60,7 @@ try {
         $sha = $FetchedSha
       } else {
         Invoke-Native "git" @("-C", $candidate, "fetch", "--no-tags", "origin", "refs/heads/e2e/recette") "FETCH_E2E_RECETTE" | Out-Null
-        $sha = ((Invoke-Native "git" @("-C", $candidate, "rev-parse", "FETCH_HEAD") "RESOLVE_FETCH_HEAD") -join [Environment]::NewLine).Trim()
+        $sha = (Invoke-Native "git" @("-C", $candidate, "rev-parse", "FETCH_HEAD") "RESOLVE_FETCH_HEAD" -Capture).Trim()
         if ($sha -notmatch "^[0-9a-f]{40}$") {
           throw "FETCH_HEAD_INVALID"
         }
