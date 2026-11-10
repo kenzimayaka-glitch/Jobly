@@ -34,6 +34,8 @@ jobs:
         run: node --test scripts/external-application-assistant.test.mjs scripts/jia-extension-onboarding.test.mjs
       - name: Type-check Gemini offer normalization function
         run: deno check --node-modules-dir=auto supabase/functions/job-offer-ai-normalize/index.ts
+      - name: Run Africa bulk and snapshot launcher guardrails
+        run: node --test scripts/runtime-readonly-lots.test.mjs
       - name: Type-check Africa bulk integration recipe and real Edge Function logic
         run: deno check --node-modules-dir=none e2e/africa-bulk-recipe.ts
       - run: pnpm typecheck
