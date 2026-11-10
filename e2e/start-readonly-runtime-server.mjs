@@ -84,10 +84,15 @@ async function verifyRuntimeScripts() {
 
 async function main() {
   await mkdir(ARTIFACTS, { recursive: true });
-  const head = gitValue(["rev-parse", "HEAD"]);
-  const upstream = gitValue(["rev-parse", "origin/e2e/recette"]);
-  assert.ok(head && head === upstream, "WORKTREE_SHA_NOT_EQUAL_TO_ORIGIN_E2E_RECETTE");
-  assert.equal(gitValue(["status", "--porcelain"]), "", "WORKTREE_NOT_CLEAN");
+  const snapshotMode = process.argv.includes("--snapshot");
+  const head = snapshotMode ? process.env.E2E_RECIPE_SHA || "" : gitValue(["rev-parse", "HEAD"]);
+  if (snapshotMode) {
+    assert.match(head, /^[0-9a-f]{40}$/, "SNAPSHOT_COMMIT_SHA_REQUIRED");
+  } else {
+    const upstream = gitValue(["rev-parse", "origin/e2e/recette"]);
+    assert.ok(head && head === upstream, "WORKTREE_SHA_NOT_EQUAL_TO_ORIGIN_E2E_RECETTE");
+    assert.equal(gitValue(["status", "--porcelain"]), "", "WORKTREE_NOT_CLEAN");
+  }
   await assertPortFree();
   await verifyRuntimeScripts();
 
