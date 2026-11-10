@@ -31,6 +31,7 @@ if /I not "%JOBLY_HEAD_SHA%"=="%JOBLY_BRANCH_SHA%" (
 set "JOBLY_EXPECTED_COMMIT=%JOBLY_HEAD_SHA%"
 echo SHA source confirme : %JOBLY_EXPECTED_COMMIT%
 
+
 echo.
 echo [3/7] Verification syntaxique des runners...
 node --check e2e\auth-advanced-browser-smoke.mjs
