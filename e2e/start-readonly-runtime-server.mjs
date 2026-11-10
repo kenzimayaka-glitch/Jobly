@@ -62,6 +62,24 @@ async function waitForServer(child) {
   throw new Error("NEXT_SERVER_NOT_READY_" + last);
 }
 
+async function verifyRuntimeScripts() {
+  const files = [
+    "e2e/runtime-readonly-common.mjs",
+    "e2e/runtime-lot02-readonly.mjs",
+    "e2e/runtime-lot03-readonly.mjs",
+    "e2e/runtime-lot04-readonly.mjs",
+    "e2e/start-readonly-runtime-server.mjs",
+  ];
+  for (const file of files) {
+    const checked = spawnSync(process.execPath, ["--check", file], { cwd: ROOT, encoding: "utf8", windowsHide: true });
+    if (checked.status !== 0) throw new Error("NODE_SYNTAX_CHECK_FAILED_" + file);
+  }
+  const regression = spawnSync(process.execPath, ["--test", "scripts/runtime-readonly-lots.test.mjs"], {
+    cwd: ROOT, encoding: "utf8", stdio: "inherit", windowsHide: true,
+  });
+  if (regression.status !== 0) throw new Error("READ_ONLY_GUARDRAIL_TESTS_FAILED");
+}
+
 async function main() {
   await mkdir(ARTIFACTS, { recursive: true });
   const head = gitValue(["rev-parse", "HEAD"]);
@@ -69,6 +87,7 @@ async function main() {
   assert.ok(head && head === upstream, "WORKTREE_SHA_NOT_EQUAL_TO_ORIGIN_E2E_RECETTE");
   assert.equal(gitValue(["status", "--porcelain"]), "", "WORKTREE_NOT_CLEAN");
   await assertPortFree();
+  await verifyRuntimeScripts();
 
   const config = await loadRuntimeConfig(SOURCE_ROOT_ARG);
   const { document, fixturePath } = await loadFixtures(config.sourceRoot);
