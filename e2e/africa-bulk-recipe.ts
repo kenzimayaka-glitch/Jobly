@@ -4,7 +4,7 @@ import { ingestHarvestItems } from "../supabase/functions/job-harvest-ingest/ind
 import { runHarvestProcessorBatch } from "../supabase/functions/job-harvest-process/index.ts";
 
 const REF = "ofqqrryamslxoqkklraw";
-const URL = "https://" + REF + ".supabase.co";
+const SUPABASE_URL = "https://" + REF + ".supabase.co";
 const API_BASE = "http://127.0.0.1:3217";
 const PUBLISHABLE_KEY = "sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y";
 const SOURCE_ROOT = path.resolve(Deno.args[0] || "");
@@ -88,7 +88,7 @@ async function connectE2E() {
   }
 
   const configuredUrls = [env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_URL].filter(Boolean);
-  insist(configuredUrls.every((value) => value === URL), "NON_E2E_ENV_URL_REFUSED");
+  insist(configuredUrls.every((value) => value === SUPABASE_URL), "NON_E2E_ENV_URL_REFUSED");
   if (!key) {
     key = String(
       env.SUPABASE_SECRET_KEY ||
@@ -107,7 +107,7 @@ async function connectE2E() {
   // sb_secret_ project binding is checked below by a read-only request against
   // the code-pinned E2E host when no trusted local proof is available.
 
-  const client = createClient(URL, key, {
+  const client = createClient(SUPABASE_URL, key, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
     global: { fetch: async (input, init) => {
       const headers = new Headers(init?.headers);
@@ -234,7 +234,7 @@ async function main() {
   insist(fixtures.environment === "JOBLY-E2E" && fixtures.projectRef === REF, "E2E_FIXTURES_PROJECT_MISMATCH");
   const talentFixture = fixtures.accounts?.find((item: Row) => item?.key === "talent" && item?.role === "TALENT");
   insist(talentFixture?.email && talentFixture?.password, "TALENT_FIXTURE_MISSING");
-  const authClient = createClient(URL, PUBLISHABLE_KEY, {
+  const authClient = createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   });
   const signedIn = await authClient.auth.signInWithPassword({
