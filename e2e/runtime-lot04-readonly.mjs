@@ -23,7 +23,6 @@ async function readTable(secretKey, table, columns) {
       method: "GET",
       headers: {
         apikey: secretKey,
-        Authorization: "Bearer " + secretKey,
         Prefer: "count=exact",
         Range: offset + "-" + (offset + PAGE_SIZE - 1),
       },
