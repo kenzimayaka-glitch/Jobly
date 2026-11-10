@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     }
 
     const url = new URL(req.url);
-    const markViewed = url.searchParams.get("markViewed") !== "0";
+    const markViewed = url.searchParams.get("markViewed") === "1";
     const { data: ownJobs, error: jobsError } = await supabase
       .from("RecruiterJob")
       .select("id,title,description,tags")
