@@ -28,7 +28,7 @@ if not "%~1"=="" goto use_argument_sha
 echo [2/5] Recuperation de la branche distante e2e/recette...
 echo [2/5] FETCH origin e2e/recette>> "%BOOTLOG%"
 git -C "%ROOT%" fetch --depth=1 --progress --no-tags origin refs/heads/e2e/recette
-set "RC=%ERRORLEVEL%"
+if errorlevel 1 (set "RC=1") else (set "RC=0")
 echo FETCH_EXIT_CODE=%RC%
 echo FETCH_EXIT_CODE=%RC%>> "%BOOTLOG%"
 if not "%RC%"=="0" goto fetch_failed
@@ -55,7 +55,7 @@ echo FETCH_SHA=%SHA%>> "%BOOTLOG%"
 echo [3/5] Extraction du lanceur PowerShell depuis le commit exact...
 if not exist "%BOOTDIR%" mkdir "%BOOTDIR%"
 git -C "%ROOT%" show %SHA%:e2e/run-africa-bulk-isolated.ps1 > "%BOOTPS1%"
-set "RC=%ERRORLEVEL%"
+if errorlevel 1 (set "RC=1") else (set "RC=0")
 echo EXTRACT_PS1_EXIT_CODE=%RC%
 echo EXTRACT_PS1_EXIT_CODE=%RC%>> "%BOOTLOG%"
 if not "%RC%"=="0" goto extract_failed
@@ -64,8 +64,8 @@ for %%F in ("%BOOTPS1%") do if %%~zF LSS 1000 goto extract_failed
 
 echo [4/5] Lancement isole du commit %SHA%...
 echo [4/5] Lancement PowerShell -File>> "%BOOTLOG%"
-powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%BOOTPS1%" -WorktreeRoot "%ROOT%" -SourceRoot "%USERPROFILE%\Jobly" -FetchedSha "%SHA%"
-set "RC=%ERRORLEVEL%"
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%BOOTPS1%" -WorktreeRoot "%ROOT%" -SourceRoot "%USERPROFILE%\Jobly" -FetchedSha "%SHA%"
+if errorlevel 2 (set "RC=2") else if errorlevel 1 (set "RC=1") else (set "RC=0")
 echo ISOLATED_EXIT_CODE=%RC%
 echo ISOLATED_EXIT_CODE=%RC%>> "%BOOTLOG%"
 
