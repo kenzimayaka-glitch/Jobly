@@ -275,3 +275,10 @@ test("manual GitHub E2E workflow is a no-secret static/build preflight, not an i
   assert.ok(!workflow.includes("SUPABASE_SERVICE_ROLE_KEY"));
   assert.ok(!workflow.includes("SUPABASE_SECRET_KEY"));
 });
+
+test("Africa snapshot runtime requires Talent fixture only; it does not block on unrelated Recruiter fixture", () => {
+  const server = read("e2e/start-readonly-runtime-server.mjs");
+  assert.match(server, /const requiredFixtures = snapshotMode/);
+  assert.match(server, /\[\["talent", "TALENT"\]\]/);
+  assert.match(server, /\[\["talent", "TALENT"\], \["recruiter", "RECRUITER"\]\]/);
+});
