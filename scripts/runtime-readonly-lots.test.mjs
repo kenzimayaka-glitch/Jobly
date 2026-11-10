@@ -122,6 +122,7 @@ test("Africa processor preserves estimated dates as harvest fallbacks, not sourc
 test("Africa bulk recipe exercises the real ingest and processor in one uniquely tagged run and cleans only that source", () => {
   const runner = read("e2e/africa-bulk-recipe.ts");
   const command = read("e2e/run-africa-bulk-recipe.cmd");
+  const isolated = read("e2e/run-africa-bulk-isolated.ps1");
   assert.match(runner, /ofqqrryamslxoqkklraw/);
   assert.match(runner, /\.env\.local", "\.env\.e2e\.local/);
   assert.match(runner, /NON_E2E_ENV_URL_REFUSED/);
@@ -152,4 +153,13 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(command, /where deno/);
   assert.match(command, /--node-modules-dir=none/);
   assert.match(command, /exit \/b %RC%/i);
+  assert.match(isolated, /git archive --format=zip/);
+  assert.match(isolated, /FETCH_E2E_RECETTE/);
+  assert.doesNotMatch(isolated, /WORKTREE NON PROPRE|git clean|reset --hard/);
+  assert.match(isolated, /--node-modules-dir=none/);
+  assert.match(isolated, /E2E_SECRET_KEY_PROJECT_PROOF/);
+  assert.match(isolated, /RUNTIME_REPORT_STATUS/);
+  assert.match(isolated, /CLEANUP_VERIFIED/);
+  assert.match(isolated, /STATIC_TESTS_11_GROUPS/);
+  assert.match(isolated, /JOBLY-E2E/);
 });
