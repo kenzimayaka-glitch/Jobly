@@ -223,8 +223,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.action === "shortlist") {
-      const { error: authorizationError } = await authorizeApplication(sb, body.applicationId, user.id);
-      if (authorizationError) throw authorizationError;
+      await authorizeApplication(sb, body.applicationId, user.id);
       const { data, error } = await sb.rpc("recruitment360_lot3_set_shortlist", {
         p_application_id: body.applicationId,
         p_actor_user_id: user.id,
