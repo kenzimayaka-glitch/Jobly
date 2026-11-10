@@ -96,7 +96,7 @@ async function connectE2E() {
     insist(runtimeVerified || configuredUrls.includes(URL), "SECRET_KEY_WITHOUT_E2E_URL_PROOF");
   }
 
-  return createClient(URL, key, {
+  const client = createClient(URL, key, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
     global: { fetch: async (input, init) => {
       const headers = new Headers(init?.headers);
@@ -105,6 +105,25 @@ async function connectE2E() {
       return fetch(input, { ...init, headers });
     } },
   });
+
+  // A Supabase sb_secret_ key has no locally decodable project claim. If no
+  // trusted runtime manifest or same-file E2E URL accompanies it, prove the
+  // key against the pinned JOBLY-E2E project with a zero-row, read-only HEAD.
+  // A production/foreign key is rejected by the E2E API before any write.
+  if (key.startsWith("sb_secret_") && !runtimeVerified && !configuredUrls.includes(URL)) {
+    const { error } = await client.from("Job")
+      .select("id", { count: "exact", head: true })
+      .limit(0);
+    insist(!error, "SECRET_KEY_E2E_PROOF_FAILED");
+    add(
+      "E2E_SECRET_KEY_PROJECT_PROOF",
+      "PASS",
+      "Clé sb_secret acceptée par une lecture HEAD sans lignes sur la table Job du projet E2E épinglé",
+      { operation: "GET/HEAD", table: "Job", rowsReturned: 0, projectRef: REF },
+    );
+  }
+
+  return client;
 }
 
 async function exactCount(table: string, column: string, value: string): Promise<number> {
