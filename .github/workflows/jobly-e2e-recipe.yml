@@ -1,7 +1,6 @@
-name: Jobly — Recette E2E isolée
+name: Jobly — Préflight E2E bulk (sans secrets privés)
 
-# Same 11-lot orchestrator for Windows local runs and CI.
-# Manual only: run the shared-fixture recipe after the operator preflight is approved.
+# CI validates the recipe code and application build. Authenticated shared-fixture runs stay local.
 on:
   workflow_dispatch:
 
@@ -9,20 +8,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: jobly-e2e-recipe-${{ github.event.pull_request.number || github.ref }}
+  group: jobly-e2e-preflight-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  full-recipe:
-    name: Jobly — recette complète en 11 lots
+  static-preflight:
+    name: Préflight — statiques, Deno, typecheck et build
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     env:
       E2E_PROJECT_REF: ofqqrryamslxoqkklraw
       NEXT_PUBLIC_SUPABASE_URL: https://ofqqrryamslxoqkklraw.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y
       NODE_ENV: production
-      E2E_LOT_CONCURRENCY: "3"
     steps:
       - name: Checkout exact recipe commit
         uses: actions/checkout@v4
@@ -40,15 +38,15 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
       - name: Install application dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Install pinned Playwright runtime
-        run: |
-          npm install --prefix .e2e-tools --no-save --no-package-lock playwright@1.65.0
-          ./.e2e-tools/node_modules/.bin/playwright install --with-deps chromium
-
-      - name: Assert JOBLY-E2E configuration
+      - name: Assert JOBLY-E2E public build configuration
         shell: bash
         run: |
           test "$E2E_PROJECT_REF" = "ofqqrryamslxoqkklraw"
@@ -59,16 +57,23 @@ jobs:
           fi
           mkdir -p artifacts/e2e
 
-      - name: Run complete 11-lot E2E recipe
-        run: node scripts/e2e-local-recipe.mjs
+      - name: Run E2E guardrail tests
+        run: node --test scripts/runtime-readonly-lots.test.mjs
 
-      - name: Upload consolidated report, logs and evidence
+      - name: Type-check Africa bulk recipe with Deno
+        run: deno check --node-modules-dir=none e2e/africa-bulk-recipe.ts
+
+      - name: Type-check Next.js application
+        run: pnpm typecheck
+
+      - name: Build Next.js application
+        run: pnpm build
+
+      - name: Upload preflight logs and reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: jobly-e2e-recipe-${{ github.run_id }}
-          path: |
-            artifacts/e2e/
-            feedback-e2e-recette-complete.txt
-          if-no-files-found: warn
+          name: jobly-e2e-preflight-${{ github.run_id }}
+          path: artifacts/e2e/
+          if-no-files-found: ignore
           retention-days: 14
