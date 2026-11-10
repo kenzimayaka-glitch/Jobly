@@ -404,9 +404,10 @@ export function JoblyOfferFeed() {
         cvApproved: channel !== "WHATSAPP",
         letterApproved: channel !== "WHATSAPP" || !preparedBody.prepared?.letterRequired,
       }]);
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "La préparation de la candidature a échoué.");
-      throw e;
+      return false;
     } finally {
       setBulkPreparing(false);
     }
@@ -427,9 +428,11 @@ export function JoblyOfferFeed() {
     if (!whatsAppJob || !whatsAppCvMode || whatsAppPreparing || bulkPreparing) return;
     setWhatsAppPreparing(true);
     try {
-      await prepareSingleApplication(whatsAppJob, "WHATSAPP", whatsAppCvMode);
-      setWhatsAppJob(null);
-      setWhatsAppCvMode(null);
+      const prepared = await prepareSingleApplication(whatsAppJob, "WHATSAPP", whatsAppCvMode);
+      if (prepared) {
+        setWhatsAppJob(null);
+        setWhatsAppCvMode(null);
+      }
     } catch {
       // The error is shown by prepareSingleApplication; the application is not submitted to WhatsApp.
     } finally {
