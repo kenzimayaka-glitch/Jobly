@@ -48,18 +48,54 @@ async function saveJson(file: string, value: unknown) {
 }
 async function connectE2E() {
   insist(SOURCE_ROOT && SOURCE_ROOT !== path.parse(SOURCE_ROOT).root, "SOURCE_ROOT_INVALID");
-  const raw = await readText(path.join(SOURCE_ROOT, ".e2e-fixture-runtime.json"));
-  insist(raw, "E2E_RUNTIME_FILE_MISSING");
-  const runtime = JSON.parse(raw);
-  insist(runtime.environment === "JOBLY-E2E", "E2E_RUNTIME_ENVIRONMENT_MISMATCH");
-  insist(runtime.projectRef === REF, "E2E_RUNTIME_PROJECT_MISMATCH");
-  const key = String(runtime.serviceRoleKey || runtime.secretKey || "").trim();
+  const env: Record<string, string> = {};
+  for (const filename of [".env.local", ".env.e2e.local"]) {
+    const text = await readText(path.join(SOURCE_ROOT, filename));
+    if (!text) continue;
+    for (const line of text.split(/\r?\n/)) {
+      const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+      if (!match) continue;
+      let value = match[2].trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      } else {
+        value = value.replace(/\s+#.*$/, "").trim();
+      }
+      env[match[1]] = value;
+    }
+  }
+
+  const runtimeText = await readText(path.join(SOURCE_ROOT, ".e2e-fixture-runtime.json"));
+  let runtimeVerified = false;
+  let key = "";
+  if (runtimeText) {
+    const runtime = JSON.parse(runtimeText);
+    insist(runtime.environment === "JOBLY-E2E", "E2E_RUNTIME_ENVIRONMENT_MISMATCH");
+    insist(runtime.projectRef === REF, "E2E_RUNTIME_PROJECT_MISMATCH");
+    runtimeVerified = true;
+    key = String(runtime.serviceRoleKey || runtime.secretKey || "").trim();
+  }
+
+  const configuredUrls = [env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_URL].filter(Boolean);
+  insist(configuredUrls.every((value) => value === URL), "NON_E2E_ENV_URL_REFUSED");
+  if (!key) {
+    key = String(
+      env.SUPABASE_SECRET_KEY ||
+      env.SUPABASE_SERVICE_ROLE_KEY ||
+      env.SUPABASE_SERVICE_KEY ||
+      "",
+    ).trim();
+  }
   insist(key.startsWith("sb_secret_") || key.startsWith("eyJ"), "E2E_SERVER_KEY_MISSING");
+
   if (key.startsWith("eyJ")) {
     const part = (key.split(".")[1] || "").replace(/-/g, "+").replace(/_/g, "/");
     const claims = JSON.parse(atob(part.padEnd(Math.ceil(part.length / 4) * 4, "=")));
     insist(claims.ref === REF && claims.role === "service_role", "SERVER_KEY_PROJECT_OR_ROLE_MISMATCH");
+  } else {
+    insist(runtimeVerified || configuredUrls.includes(URL), "SECRET_KEY_WITHOUT_E2E_URL_PROOF");
   }
+
   return createClient(URL, key, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
     global: { fetch: async (input, init) => {
@@ -70,6 +106,7 @@ async function connectE2E() {
     } },
   });
 }
+
 async function exactCount(table: string, column: string, value: string): Promise<number> {
   const { count, error } = await admin.from(table).select("id", { count: "exact", head: true }).eq(column, value);
   if (error) throw new Error("COUNT_" + table + "_" + error.message);
