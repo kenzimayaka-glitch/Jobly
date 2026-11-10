@@ -514,7 +514,25 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
 }
 
 
-export async function runHarvestProcessorBatch(db: any, body: AnyRecord = {}) {
+export type HarvestProcessorBatchResult = {
+  ok: true;
+  selected: number;
+  created: number;
+  updated: number;
+  processed: number;
+  expired: number;
+  quarantined: number;
+  failed: number;
+  claimedElsewhere: number;
+  persistenceErrors: number;
+  sourceKeys: string[] | null;
+  processedAt: string;
+};
+
+export async function runHarvestProcessorBatch(
+  db: any,
+  body: AnyRecord = {},
+): Promise<HarvestProcessorBatchResult> {
   const requested = Number(body?.limit ?? MAX_BATCH);
   const limit = Math.min(Math.max(Number.isFinite(requested) ? Math.trunc(requested) : MAX_BATCH, 1), MAX_BATCH);
   const rawSourceKeys = Array.isArray(body?.sourceKeys) ? body.sourceKeys : [];
