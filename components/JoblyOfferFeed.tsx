@@ -92,7 +92,11 @@ export function JoblyOfferFeed() {
   const [selectedMatch, setSelectedMatch] = useState<Job | null>(null);
   const [basket, setBasket] = useState<Set<string>>(new Set());
   const [bulkLimit, setBulkLimit] = useState(1);
-  const [preparedBulk, setPreparedBulk] = useState<Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string; letterSource: "JIA" | "CANDIDATE"; batchId?: string }>>([]);
+  type CVPreparationMode = "NORMAL" | "ATS" | "IMPROVE" | "ATS_IMPROVE";
+  const [preparedBulk, setPreparedBulk] = useState<Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string; letterSource: "JIA" | "CANDIDATE"; batchId?: string; channel?: "EMAIL" | "WHATSAPP"; letterRequired?: boolean; cvPreparationMode?: CVPreparationMode; cvApproved?: boolean; letterApproved?: boolean }>>([]);
+  const [whatsAppJob, setWhatsAppJob] = useState<Job | null>(null);
+  const [whatsAppCvMode, setWhatsAppCvMode] = useState<CVPreparationMode | null>(null);
+  const [whatsAppPreparing, setWhatsAppPreparing] = useState(false);
   const [editingLetterId, setEditingLetterId] = useState<string | null>(null);
   const [importingLetterId, setImportingLetterId] = useState<string | null>(null);
   const [bulkPreparing, setBulkPreparing] = useState(false);
@@ -366,22 +370,46 @@ export function JoblyOfferFeed() {
     window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${subject}&body=${body}`, "_blank", "noopener,noreferrer");
   }
 
-  async function prepareSingleApplication(job: Job) {
+  async function prepareSingleApplication(job: Job, channel: "EMAIL" | "WHATSAPP" = "EMAIL", cvPreparationMode: CVPreparationMode = "ATS") {
     if (!token || bulkPreparing) return;
     setBulkPreparing(true); setError("");
     try {
-      const prepareRes = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ source: job.source, jobId: job.id, readinessScoreAtApply: job.matchPercent, locale: typeof navigator !== "undefined" && navigator.language.startsWith("en") ? "en" : "fr" }) });
+      const prepareRes = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          source: job.source,
+          jobId: job.id,
+          readinessScoreAtApply: job.matchPercent,
+          locale: typeof navigator !== "undefined" && navigator.language.startsWith("en") ? "en" : "fr",
+          cvPreparationMode,
+        }),
+      });
       const preparedBody = await prepareRes.json().catch(() => ({}));
       if (!prepareRes.ok) throw new Error(preparedBody.message || "La candidature n'a pas pu être préparée.");
       const applicationId = preparedBody.application?.id;
       if (!applicationId) throw new Error("La candidature a été préparée sans identifiant exploitable.");
+      const key = `${job.source}:${job.id}`;
+      setApplicationReadyKeys((previous) => new Set(previous).add(key));
       setPreparedBulk([{
-        id: applicationId, key: `${job.source}:${job.id}`, job,
-        letter: String(preparedBody.prepared?.letter || ""), tailoredCvText: String(preparedBody.prepared?.tailoredCvText || ""),
+        id: applicationId,
+        key,
+        job,
+        letter: String(preparedBody.prepared?.letter || ""),
+        tailoredCvText: String(preparedBody.prepared?.tailoredCvText || ""),
         letterSource: preparedBody.prepared?.letterSource === "CANDIDATE" ? "CANDIDATE" : "JIA",
+        channel,
+        letterRequired: Boolean(preparedBody.prepared?.letterRequired),
+        cvPreparationMode,
+        cvApproved: channel !== "WHATSAPP",
+        letterApproved: channel !== "WHATSAPP" || !preparedBody.prepared?.letterRequired,
       }]);
-    } catch (e) { setError(e instanceof Error ? e.message : "La préparation de la candidature a échoué.");  }
-    finally { setBulkPreparing(false); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "La préparation de la candidature a échoué.");
+      throw e;
+    } finally {
+      setBulkPreparing(false);
+    }
   }
 
   function applicationEmail(job: Job) {
@@ -390,21 +418,25 @@ export function JoblyOfferFeed() {
   function applicationPhone(job: Job) {
     return String(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.[0] || "").trim();
   }
-  async function applyViaWhatsApp(job: Job) {
-    const raw = applicationPhone(job);
-    const digits = raw.replace(/\D/g, "");
-    const phone = digits.startsWith("237") ? digits : digits.length === 9 ? "237" + digits : "";
-    if (!phone) { router.push(`/jobs/${job.id}?source=${job.source}`); return; }
-    if (!token) { setError("Votre session Jobly a expiré. Reconnectez-vous pour postuler.");  return; }
-    try {
-      const res = await fetch("/api/cv-share", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ source: job.source, jobId: job.id }) });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || "Impossible de préparer la candidature WhatsApp.");
-      const company = cleanCompanyName(job.company?.name);
-      const message = `Bonjour, je suis ${body.candidateName}. Je souhaite vous soumettre ma candidature au poste de ${job.title}${company !== "Aucune donnée" ? ` chez ${company}` : ""}.\n\n📄 CV ${body.candidateName} — Candidature ${company !== "Aucune donnée" ? company : job.title}\n${window.location.origin}/cv/share/${body.token}`;
-      window.open("https://wa.me/" + phone + "?text=" + encodeURIComponent(message), "_blank", "noopener,noreferrer");
-    } catch (e) { setError(e instanceof Error ? e.message : "Impossible de préparer la candidature WhatsApp.");  }
+  function applyViaWhatsApp(job: Job) {
+    setWhatsAppCvMode(null);
+    setWhatsAppJob(job);
   }
+
+  async function prepareWhatsAppApplication() {
+    if (!whatsAppJob || !whatsAppCvMode || whatsAppPreparing || bulkPreparing) return;
+    setWhatsAppPreparing(true);
+    try {
+      await prepareSingleApplication(whatsAppJob, "WHATSAPP", whatsAppCvMode);
+      setWhatsAppJob(null);
+      setWhatsAppCvMode(null);
+    } catch {
+      // The error is shown by prepareSingleApplication; the application is not submitted to WhatsApp.
+    } finally {
+      setWhatsAppPreparing(false);
+    }
+  }
+
   function handleApplyClick(job: Job, state: { done: boolean; ready: boolean; busy: boolean }) { if (state.busy) { setError("Envoi en cours : patientez quelques secondes."); return; } if (state.done) { setError("Candidature déjà envoyée pour cette offre. Retrouvez-la dans l’onglet Candidatures."); return; } if (state.ready) { setError("Candidature déjà préparée : elle attend votre validation dans l’onglet Candidatures."); return; } void apply(job); }
   async function apply(job: Job) {
     if (job.deadlineExpired) { setExpiredNoticeOpen(true); return; }
@@ -474,9 +506,54 @@ export function JoblyOfferFeed() {
     setImportingLetterId(null);
   }
 
-  async function submitBulkApplications() {
+  async function submitBulkApplications(whatsAppWindow?: Window | null) {
     if (!token || preparedBulk.length === 0 || bulkSubmitting) return;
     setBulkSubmitting(true); setError("");
+
+    if (preparedBulk.length === 1 && preparedBulk[0].channel === "WHATSAPP") {
+      const item = preparedBulk[0];
+      if (!item.cvApproved || (item.letterRequired && !item.letterApproved)) {
+        whatsAppWindow?.close();
+        setError("Valide le CV et, lorsqu'elle est requise, la lettre de motivation avant d'ouvrir WhatsApp.");
+        setBulkSubmitting(false);
+        return;
+      }
+      try {
+        const shareRes = await fetch(`/api/applications/${encodeURIComponent(item.id)}/whatsapp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ letterText: item.letter }),
+        });
+        const shareBody = await shareRes.json().catch(() => ({}));
+        if (!shareRes.ok) throw new Error(shareBody.message || "Impossible de préparer le lien sécurisé du CV.");
+        const company = cleanCompanyName(item.job.company?.name);
+        const companyText = company !== "Aucune donnée" ? ` chez ${company}` : "";
+        const cvLink = window.location.origin + String(shareBody.cvUrl || `/cv/share/${shareBody.token}`);
+        const lines = [
+          `Bonjour, je suis ${shareBody.candidateName}.`,
+          `Je souhaite vous soumettre ma candidature au poste de ${shareBody.jobTitle || item.job.title}${companyText}.`,
+          "",
+          `CV ${shareBody.filename || "CV.pdf"}`,
+          cvLink,
+        ];
+        if (shareBody.coverLetterRequired && shareBody.coverLetterAvailable) {
+          lines.push("", "Lettre de motivation (PDF)", window.location.origin + `/api/cv-share/${encodeURIComponent(shareBody.token)}/letter`);
+        }
+        const whatsappUrl = "https://wa.me/" + encodeURIComponent(String(shareBody.phone)) + "?text=" + encodeURIComponent(lines.join("\n"));
+        const popup = whatsAppWindow || window.open("about:blank", "_blank");
+        if (!popup) throw new Error("Le navigateur a bloqué WhatsApp. Autorise les fenêtres contextuelles et réessaie.");
+        popup.location.href = whatsappUrl;
+        setPreparedBulk([]);
+        setError("WhatsApp est prêt avec le CV validé. Vérifie le destinataire et appuie toi-même sur Envoyer dans WhatsApp. Jobly n'a pas envoyé le message.");
+      } catch (error) {
+        whatsAppWindow?.close();
+        setError(error instanceof Error ? error.message : "Impossible d'ouvrir WhatsApp.");
+      } finally {
+        setBulkSubmitting(false);
+      }
+      return;
+    }
+
     try {
       const checkRes = await fetch("/api/applications/bulk-check", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ selectedCount: preparedBulk.length }) });
       const checkBody = await checkRes.json().catch(() => ({}));
