@@ -95,7 +95,8 @@ export async function GET(req: NextRequest) {
       const jobText = [job?.title, job?.description, ...(job?.tags || [])].filter(Boolean).join("\n");
       const analysis = analyzeATSMatch(cvText, jobText);
       const hasStoredScore = typeof application.atsScore === "number" && Number.isFinite(application.atsScore);
-      const atsScore = hasStoredScore ? application.atsScore : analysis.score;
+      // Prefer the live CV-vs-offer calculation; fall back to a previously persisted score only when the profile cannot be evaluated.
+      const atsScore = analysis.score !== null ? analysis.score : hasStoredScore ? application.atsScore : null;
 
       return {
         id: application.id,
@@ -118,7 +119,7 @@ export async function GET(req: NextRequest) {
         cvPhotoUrl: application.cvPhotoUrl || null,
         letterText: application.letterText || "",
         atsScore,
-        atsScoreSource: hasStoredScore ? "APPLICATION" : analysis.score === null ? "NOT_CALCULABLE" : "PROFILE_ANALYSIS",
+        atsScoreSource: analysis.score !== null ? "PROFILE_ANALYSIS" : hasStoredScore ? "APPLICATION" : "NOT_CALCULABLE",
         atsAnalysis: {
           matchedKeywords: analysis.matchedKeywords,
           missingKeywords: analysis.missingKeywords,
