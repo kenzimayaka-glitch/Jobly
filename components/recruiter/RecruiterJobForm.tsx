@@ -11,8 +11,8 @@ import { generateSharePack } from "../../lib/viralityService";
 import { jobPublicUrl } from "../../lib/site";
 import ViralPoster from "../../components/ViralPoster";
 
-const CONTRACTS = ["CDI", "CDD", "Stage", "Freelance", "Alternance"];
-const MODES = ["Présentiel", "Hybride", "Télétravail"];
+const CONTRACTS = ["À préciser", "CDI", "CDD", "Stage", "Freelance", "Alternance"];
+const MODES = ["À préciser", "Présentiel", "Hybride", "Télétravail"];
 
 type ReceivedApplication = {
   id: string;
@@ -64,8 +64,8 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
   const [countryCode, setCountryCode] = useState("");
   const [distributionScope, setDistributionScope] = useState<"LOCAL" | "COUNTRIES" | "AFRICA">("LOCAL");
   const [targetCountryCodesInput, setTargetCountryCodesInput] = useState("");
-  const [mode, setMode] = useState("Hybride");
-  const [contract, setContract] = useState("CDI");
+  const [mode, setMode] = useState("À préciser");
+  const [contract, setContract] = useState("À préciser");
   const [salary, setSalary] = useState("");
   const [sector, setSector] = useState("");
   const [tagsInput, setTagsInput] = useState("");
@@ -103,8 +103,8 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
       setCountryCode(job.countryCode || "");
       setDistributionScope(job.distributionScope || "LOCAL");
       setTargetCountryCodesInput((job.targetCountryCodes || []).join(", "));
-      setMode(job.mode || "Hybride");
-      setContract(job.contract || "CDI");
+      setMode(job.mode || "À préciser");
+      setContract(job.contract || "À préciser");
       setSalary(job.salary || "");
       setSector(job.sector || "");
       setTagsInput((job.tags || []).join(", "));
@@ -201,6 +201,10 @@ export function RecruiterJobForm({ jobId }: { jobId?: string }) {
     if (!token) return;
     if (!title.trim() || !description.trim()) {
       setError("Le titre et la description sont obligatoires.");
+      return;
+    }
+    if (nextStatus === "published" && (contract === "À préciser" || mode === "À préciser")) {
+      setError("Avant publication, précise le type de contrat et le mode de travail. Le titre du poste ne permet pas de les déduire.");
       return;
     }
     setSaving(true);
