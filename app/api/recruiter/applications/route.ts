@@ -175,7 +175,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ applications: results, total: results.length, appliedFilters: { atsMin, atsMax, atsKeyword: keyword, atsKeywordMode, atsSort } });
+    return NextResponse.json({ applications: results, total: results.length, appliedFilters: { atsMin, atsMax, atsKeyword: keyword, atsKeywordMode: keywordMode, atsSort } });
   } catch (error) {
     return NextResponse.json(
       { message: error instanceof Error ? error.message : "Impossible de charger les candidatures reçues." },
