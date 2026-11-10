@@ -8721,3 +8721,13 @@ L'audit croisé du wrapper et du runner confirme le nom et le chemin réels : `e
 - Commit test : `93e4b20cfbee10c69e3a42ce7d62939270fd885f`.
 
 **Validation :** le rapport à 07:15:18Z est la preuve d'un arrêt de garde-fou, pas d'un échec du pipeline métier. La nouvelle validation doit reprendre depuis le HEAD mis à jour. Aucun PASS runtime n'est déclaré tant qu'un nouveau rapport complet ne le confirme pas.
+
+
+### 154.14 Ordre du contrôle de clé corrigé après relecture
+
+La relecture du commit initial §154.13 a révélé que l'ancien `insist(... SECRET_KEY_WITHOUT_E2E_URL_PROOF)` précédait encore la nouvelle sonde HEAD ; il aurait donc continué à arrêter la recette avant la preuve API. Cet oubli est corrigé : le blocage local-only est supprimé pour les clés `sb_secret_` ; en absence de manifeste/URL locale, la vérification réseau en lecture seule contre le projet épinglé est désormais effectivement atteignable. Le test statique vérifie l'absence de l'ancien blocage et la présence de la sonde HEAD.
+
+- Runner corrigé : `2ec409023d7bedc57db7da53e8f63dafca884e29`.
+- Test corrigé : `054c5ffc25e9fe3f98660a17d14a02b30d9d1e3d`.
+
+Le commit §154.13 est supersédé pour le comportement d'exécution par cette correction. Rejouer la recette depuis le dernier HEAD ; aucun PASS runtime n'est revendiqué avant rapport.
