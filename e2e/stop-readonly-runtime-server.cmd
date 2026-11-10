@@ -1,6 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0.."
+if not exist artifacts\e2e mkdir artifacts\e2e
 node e2e\stop-readonly-runtime-server.mjs > artifacts\e2e\parallel-runtime-server-stop-process.log 2>&1
 set "RC=%ERRORLEVEL%"
 type artifacts\e2e\parallel-runtime-server-stop-process.log
