@@ -134,7 +134,7 @@ export async function ingestHarvestItems(admin: any, items: any[], now = new Dat
         applicationPhone: applicationContact.phone,
         displayModel,
       },
-      captureMode: item.sourceCaptureMode ?? "http",
+      captureMode: item.sourceCaptureMode ?? "shadow-crawl",
       status: "PENDING",
       discoveredAt: firstHarvestAt,
       updatedAt: nowIso,
