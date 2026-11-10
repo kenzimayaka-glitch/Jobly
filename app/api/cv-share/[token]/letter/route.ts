@@ -12,7 +12,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const { token } = await params;
   const db = adminClient();
   const { data: share } = await db.from("CVShare").select("*").eq("token", token).maybeSingle();
-  if (!share || share.revokedAt || (share.expiresAt && new Date(share.expiresAt).getTime() < Date.now())) {
+  if (!share || share.revokedAt || (share.expiresAt && new Date(share.expiresAt).getTime() <= Date.now())) {
     return new NextResponse("Lettre indisponible.", { status: 404 });
   }
   const source = typeof share.source === "string" ? share.source : "";
@@ -20,7 +20,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   if (!match) return new NextResponse("Lettre indisponible.", { status: 404 });
 
   const { data: application } = await db.from("Application")
-    .select("id,userId,jobId,recruiterJobId,letterText")
+    .select("id,userId,jobId,recruiterJobId,letterText,letterApprovedAt")
     .eq("id", match[1]).eq("userId", share.userId).maybeSingle();
   if (!application) return new NextResponse("Lettre indisponible.", { status: 404 });
   const linked = (application.jobId && share.jobId === application.jobId) ||
@@ -31,7 +31,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const offerId = application.jobId || application.recruiterJobId;
   const { data: offer } = await db.from(table).select("description").eq("id", offerId).maybeSingle();
   const letterText = clean(application.letterText);
-  if (!offer || !required(String(offer.description || "")) || letterText.length < 30) {
+  if (!offer || !required(String(offer.description || "")) || !application.letterApprovedAt || letterText.length < 30) {
     return new NextResponse("Aucune lettre validée n'est jointe à cette candidature.", { status: 404 });
   }
 
