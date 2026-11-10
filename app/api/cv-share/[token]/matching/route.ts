@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient } from "@/lib/server-auth";
-import { analyzeATSMatch } from "@/lib/atsService";
+import { calculateExplainableMatch } from "@/lib/opportunityAggregator";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function buildCvText(profile: any, skills: any[], experiences: any[], education: any[]) {
-  return [
-    profile?.headline,
-    profile?.summary,
-    profile?.experienceSummary,
-    profile?.educationSummary,
-    ...(Array.isArray(profile?.targetRoles) ? profile.targetRoles : []),
-    ...skills.map((item) => [item.name, item.level].filter(Boolean).join(" ")),
-    ...experiences.map((item) => [item.title, item.company, item.description].filter(Boolean).join(" ")),
-    ...education.map((item) => [item.degree, item.field, item.institution].filter(Boolean).join(" ")),
-  ].filter(Boolean).join("\n");
+function years(rows: any[]) {
+  const starts = rows.map((item) => new Date(item.startDate).getTime()).filter(Number.isFinite);
+  if (!starts.length) return 0;
+  return Math.max(0, Math.floor((Date.now() - Math.min(...starts)) / (1000 * 60 * 60 * 24 * 365)));
 }
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ token: string }> }) {
@@ -26,7 +19,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       .select("id,token,userId,jobId,source,expiresAt,revokedAt")
       .eq("token", token)
       .maybeSingle();
-    if (shareError || !share || share.revokedAt || (share.expiresAt && new Date(share.expiresAt).getTime() <= Date.now())) {
+    if (shareError) throw new Error(shareError.message);
+    if (!share || share.revokedAt || (share.expiresAt && new Date(share.expiresAt).getTime() <= Date.now())) {
       return NextResponse.json({ message: "Ce partage CV n'est plus disponible." }, { status: 404, headers: { "Cache-Control": "no-store, private" } });
     }
 
@@ -35,7 +29,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     if (!applicationMatch) return NextResponse.json({ message: "Ce partage ne comporte pas de contexte de matching." }, { status: 404 });
 
     const { data: application, error: applicationError } = await db.from("Application")
-      .select("id,userId,jobId,recruiterJobId,tailoredCvText")
+      .select("id,userId,jobId,recruiterJobId")
       .eq("id", applicationMatch[1])
       .eq("userId", share.userId)
       .maybeSingle();
@@ -44,77 +38,90 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       (application.jobId && share.jobId === application.jobId) ||
       (application.recruiterJobId && !share.jobId)
     ));
-    if (!relationValid || !String(application?.tailoredCvText || "").trim()) {
-      return NextResponse.json({ message: "Le contexte de candidature n'est plus disponible." }, { status: 404 });
-    }
+    if (!relationValid) return NextResponse.json({ message: "Le contexte de candidature n'est plus disponible." }, { status: 404 });
 
     const offerTable = application.jobId ? "Job" : "RecruiterJob";
     const offerId = application.jobId || application.recruiterJobId;
-    const { data: offer, error: offerError } = await db.from(offerTable)
-      .select("title,description,tags,aiSkills")
-      .eq("id", offerId)
-      .maybeSingle();
+    const { data: job, error: offerError } = await db.from(offerTable).select("*").eq("id", offerId).maybeSingle();
     if (offerError) throw new Error(offerError.message);
-    if (!offer) return NextResponse.json({ message: "L'offre liée n'est plus disponible." }, { status: 404 });
+    if (!job) return NextResponse.json({ message: "L'offre liée n'est plus disponible." }, { status: 404 });
 
-    const jobText = [offer.title, offer.description, ...(offer.tags || []), ...(Array.isArray(offer.aiSkills) ? offer.aiSkills : [])].filter(Boolean).join("\n");
-    const triggerScore = analyzeATSMatch(String(application.tailoredCvText), jobText).score;
-    if (triggerScore === null) {
+    const { data: triggerProfile, error: triggerProfileError } = await db.from("Profile")
+      .select("userId,targetRoles,targetCities,contractPreferences,remotePreference,preferredSectors,publicDiscoverable")
+      .eq("userId", share.userId)
+      .maybeSingle();
+    if (triggerProfileError) throw new Error(triggerProfileError.message);
+    if (!triggerProfile) return NextResponse.json({ matchingAvailable: false, higherScoreCount: null }, { headers: { "Cache-Control": "no-store, private" } });
+
+    const [triggerExperience, triggerSkills] = await Promise.all([
+      db.from("Experience").select("userId,startDate").eq("userId", share.userId),
+      db.from("Skill").select("userId,name").eq("userId", share.userId),
+    ]);
+    if (triggerExperience.error || triggerSkills.error) throw new Error(triggerExperience.error?.message || triggerSkills.error?.message || "Profil candidat indisponible.");
+    const triggerScore = calculateExplainableMatch({
+      targetRoles: triggerProfile.targetRoles,
+      targetCities: triggerProfile.targetCities,
+      contractPreferences: triggerProfile.contractPreferences,
+      remotePreference: triggerProfile.remotePreference,
+      preferredSectors: triggerProfile.preferredSectors,
+      skills: (triggerSkills.data || []).map((item: any) => item.name),
+      experienceYears: years(triggerExperience.data || []),
+    }, job);
+
+    if (!Number.isFinite(triggerScore)) {
       return NextResponse.json({ matchingAvailable: false, higherScoreCount: null }, { headers: { "Cache-Control": "no-store, private" } });
     }
 
-    // Only profiles whose owners explicitly enabled public discoverability are eligible.
-    // The endpoint returns one aggregate count; no candidate identifiers or scores leave the server.
-    let profiles: any[] = [];
-    const pageSize = 500;
-    for (let from = 0; ; from += pageSize) {
-      const { data, error } = await db.from("Profile")
-        .select("userId,headline,summary,experienceSummary,educationSummary,targetRoles")
-        .eq("publicDiscoverable", true)
-        .range(from, from + pageSize - 1);
-      if (error) throw new Error(error.message);
-      profiles = profiles.concat(data || []);
-      if (!data || data.length < pageSize) break;
+    // Aggregate only: public/consenting Talent profiles, using the exact same
+    // explainable matcher as recruiter discovery. Never return identities or profile scores.
+    const { data: profiles, error: profilesError } = await db.from("Profile")
+      .select("userId,targetRoles,targetCities,contractPreferences,remotePreference,preferredSectors")
+      .eq("publicDiscoverable", true)
+      .neq("userId", share.userId)
+      .limit(1000);
+    if (profilesError) throw new Error(profilesError.message);
+    const ids = Array.from(new Set((profiles || []).map((item: any) => String(item.userId || "")).filter(Boolean)));
+    if (!ids.length) return NextResponse.json({ matchingAvailable: true, higherScoreCount: 0 }, { headers: { "Cache-Control": "no-store, private" } });
+
+    const [usersResult, experiencesResult, skillsResult] = await Promise.all([
+      db.from("User").select("id").in("id", ids).eq("role", "TALENT"),
+      db.from("Experience").select("userId,startDate").in("userId", ids),
+      db.from("Skill").select("userId,name").in("userId", ids),
+    ]);
+    for (const result of [usersResult, experiencesResult, skillsResult]) if (result.error) throw new Error(result.error.message);
+
+    const talentIds = new Set((usersResult.data || []).map((item: any) => String(item.id)));
+    const experiencesByUser = new Map<string, any[]>();
+    const skillsByUser = new Map<string, string[]>();
+    for (const item of experiencesResult.data || []) {
+      const key = String(item.userId);
+      experiencesByUser.set(key, [...(experiencesByUser.get(key) || []), item]);
+    }
+    for (const item of skillsResult.data || []) {
+      const key = String(item.userId);
+      skillsByUser.set(key, [...(skillsByUser.get(key) || []), String(item.name)]);
     }
 
-    const userIds = Array.from(new Set(profiles.map((item) => String(item.userId || "")).filter(Boolean)))
-      .filter((id) => id !== String(share.userId));
-    if (!userIds.length) return NextResponse.json({ matchingAvailable: true, higherScoreCount: 0 }, { headers: { "Cache-Control": "no-store, private" } });
-
     let higherScoreCount = 0;
-    const batchSize = 100;
-    for (let offset = 0; offset < userIds.length; offset += batchSize) {
-      const ids = userIds.slice(offset, offset + batchSize);
-      const [usersRes, skillsRes, experiencesRes, educationRes] = await Promise.all([
-        db.from("User").select("id").in("id", ids).eq("role", "TALENT"),
-        db.from("Skill").select("userId,name,level").in("userId", ids),
-        db.from("Experience").select("userId,title,company,description").in("userId", ids),
-        db.from("Education").select("userId,degree,field,institution").in("userId", ids),
-      ]);
-      for (const result of [usersRes, skillsRes, experiencesRes, educationRes]) {
-        if (result.error) throw new Error(result.error.message);
-      }
-      const talentIds = new Set((usersRes.data || []).map((item) => String(item.id)));
-      const skillsByUser = new Map<string, any[]>();
-      const experiencesByUser = new Map<string, any[]>();
-      const educationByUser = new Map<string, any[]>();
-      for (const item of skillsRes.data || []) skillsByUser.set(item.userId, [...(skillsByUser.get(item.userId) || []), item]);
-      for (const item of experiencesRes.data || []) experiencesByUser.set(item.userId, [...(experiencesByUser.get(item.userId) || []), item]);
-      for (const item of educationRes.data || []) educationByUser.set(item.userId, [...(educationByUser.get(item.userId) || []), item]);
-
-      for (const profile of profiles) {
-        const userId = String(profile.userId || "");
-        if (!talentIds.has(userId) || !ids.includes(userId)) continue;
-        const cvText = buildCvText(profile, skillsByUser.get(userId) || [], experiencesByUser.get(userId) || [], educationByUser.get(userId) || []);
-        const score = analyzeATSMatch(cvText, jobText).score;
-        if (score !== null && score > triggerScore) higherScoreCount += 1;
-      }
+    for (const profile of profiles || []) {
+      const userId = String(profile.userId || "");
+      if (!talentIds.has(userId)) continue;
+      const score = calculateExplainableMatch({
+        targetRoles: profile.targetRoles,
+        targetCities: profile.targetCities,
+        contractPreferences: profile.contractPreferences,
+        remotePreference: profile.remotePreference,
+        preferredSectors: profile.preferredSectors,
+        skills: skillsByUser.get(userId) || [],
+        experienceYears: years(experiencesByUser.get(userId) || []),
+      }, job);
+      if (Number.isFinite(score) && score >= 90 && score > triggerScore) higherScoreCount += 1;
     }
 
     return NextResponse.json({
       matchingAvailable: true,
       higherScoreCount,
-      comparison: "STRICTLY_HIGHER_THAN_TRIGGERING_TALENT",
+      comparison: "ELIGIBLE_SCORE_AT_LEAST_90_AND_STRICTLY_HIGHER_THAN_TRIGGERING_TALENT",
     }, { headers: { "Cache-Control": "no-store, private" } });
   } catch (error) {
     return NextResponse.json({
