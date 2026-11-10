@@ -210,3 +210,43 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.doesNotMatch(bootstrap, /git clean|reset --hard|status --porcelain|checkout --detach/);
 
 });
+
+
+test("Next typecheck excludes the Deno-only Africa recipe while CI checks it with Deno", () => {
+  const config = JSON.parse(read("tsconfig.json"));
+  assert.ok(config.exclude.includes("e2e/africa-bulk-recipe.ts"));
+  const workflow = read(".github/workflows/verify-offer-pipeline.yml");
+  assert.ok(workflow.includes("deno check --node-modules-dir=none e2e/africa-bulk-recipe.ts"));
+  const processor = read("supabase/functions/job-harvest-process/index.ts");
+  assert.ok(processor.includes("export type HarvestProcessorBatchResult"));
+  assert.ok(processor.includes("Promise<HarvestProcessorBatchResult>"));
+});
+
+test("Talent offer detail uses the same source/first-harvest publication precedence as the feed", () => {
+  const detail = read("app/api/jobs/[id]/route.ts");
+  assert.ok(detail.includes("sourcePublishedAt"));
+  assert.ok(detail.includes('from("JobHarvestCapture")'));
+  assert.ok(detail.includes('order("discoveredAt", { ascending: true })'));
+  assert.ok(detail.includes("resolveEffectivePublicationDate"));
+  assert.ok(detail.includes("freshness.effectivePublishedAt || data.createdAt"));
+  assert.ok(detail.includes("publicationDateEstimated: freshness.publicationDateEstimated"));
+});
+
+test("Africa bulk recipe validates ingestion through the authenticated Talent Africa feed and offer details", () => {
+  const recipe = read("e2e/africa-bulk-recipe.ts");
+  const server = read("e2e/start-readonly-runtime-server.mjs");
+  const isolated = read("e2e/run-africa-bulk-isolated.ps1");
+  assert.ok(recipe.includes("TALENT_FIXTURE_AUTH"));
+  assert.ok(recipe.includes('searchParams.set("scope", "africa")'));
+  assert.ok(recipe.includes("TALENT_AFRICA_FEED"));
+  assert.ok(recipe.includes("TALENT_OFFER_DETAILS"));
+  assert.ok(recipe.includes("TALENT_FEED_SOURCE_DATE_MISMATCH"));
+  assert.ok(recipe.includes("TALENT_FEED_ESTIMATED_DATE_MISMATCH"));
+  assert.ok(server.includes('process.argv.includes("--snapshot")'));
+  assert.ok(server.includes("SNAPSHOT_COMMIT_SHA_REQUIRED"));
+  assert.ok(isolated.includes("New-Item -ItemType Junction"));
+  assert.ok(isolated.includes("START_LOCAL_JOBLY_E2E_SERVER"));
+  assert.ok(isolated.includes("STOP_LOCAL_JOBLY_E2E_SERVER"));
+  assert.ok(isolated.includes("--allow-net=127.0.0.1:3217"));
+});
+
