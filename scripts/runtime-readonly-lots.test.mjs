@@ -82,3 +82,21 @@ test("global recipe is one-command, parallel by independent module and safely sh
   assert.match(command, /global-e2e-process\.log/);
   assert.doesNotMatch(runner, /taskkill|SERVICE_ROLE_KEY|SECRET_KEY/);
 });
+
+test("all Windows recipe wrappers auto-open their report in Notepad with a log fallback", () => {
+  const wrappers = [
+    ["e2e/run-runtime-lot02-readonly.cmd", "lot2-runtime-readonly.json", "lot2-runtime-readonly-process.log"],
+    ["e2e/run-runtime-lot03-readonly.cmd", "lot3-runtime-readonly.json", "lot3-runtime-readonly-process.log"],
+    ["e2e/run-runtime-lot04-readonly.cmd", "lot4-runtime-readonly.json", "lot4-runtime-readonly-process.log"],
+    ["e2e/start-readonly-runtime-server.cmd", "parallel-runtime-server.json", "parallel-runtime-server-process.log"],
+    ["e2e/stop-readonly-runtime-server.cmd", "parallel-runtime-server-stop.json", "parallel-runtime-server-stop-process.log"],
+    ["e2e/run-global-e2e.cmd", "global-e2e-report.md", "global-e2e-process.log"],
+  ];
+  for (const [file, report, log] of wrappers) {
+    const command = read(file);
+    assert.match(command, /start "" notepad "%CD%\\artifacts\\e2e\\/);
+    assert.ok(command.includes(report), file + " must open its structured report");
+    assert.ok(command.includes(log), file + " must open its process log when report is missing");
+    assert.match(command, /exit \/b %RC%/i, file + " must preserve the original exit code");
+  }
+});
