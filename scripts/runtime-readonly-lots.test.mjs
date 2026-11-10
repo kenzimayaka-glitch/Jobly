@@ -137,5 +137,7 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(command, /africa-bulk-recipe-report\.json/);
   assert.match(command, /africa-bulk-recipe-process\.log/);
   assert.match(command, /start "" notepad/);
+  assert.match(command, /africa-bulk-recipe-report\.previous\.json/);
+  assert.match(command, /where deno/);
   assert.match(command, /exit \/b %RC%/i);
 });
