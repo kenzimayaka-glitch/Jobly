@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser, getRecruiterProfileForAuthUser } from "../../../../lib/server-auth";
 import { isProfilePhotoPublic } from "../../../../lib/profilePhotoStorage";
-import { analyzeATSMatch } from "@/lib/atsService";
+import { analyzeATSMatch, selectApplicationCvText } from "@/lib/atsService";
 
 // GET /api/recruiter/applications — candidatures des seules offres du recruteur connecté.
 export async function GET(req: NextRequest) {
@@ -85,15 +85,19 @@ export async function GET(req: NextRequest) {
       const experiences = experiencesById.get(application.userId) || [];
       const education = educationById.get(application.userId) || [];
       const job: any = jobsById.get(application.recruiterJobId);
-      const cvText = [
+      const profileCvText = [
         profile.headline, profile.summary, profile.experienceSummary, profile.educationSummary,
         ...(profile.targetRoles || []),
         ...skills.map((item: any) => [item.name, item.level].filter(Boolean).join(" ")),
         ...experiences.map((item: any) => [item.title, item.company, item.description].filter(Boolean).join(" ")),
         ...education.map((item: any) => [item.degree, item.field, item.institution].filter(Boolean).join(" ")),
       ].filter(Boolean).join("\n");
+      // The ATS score must reflect the document actually submitted for this
+      // application. Only use the live Jobly profile as a fallback for legacy
+      // applications that do not carry a usable CV snapshot.
+      const selectedCv = selectApplicationCvText(application.tailoredCvText, profileCvText);
       const jobText = [job?.title, job?.description, ...(job?.tags || [])].filter(Boolean).join("\n");
-      const analysis = analyzeATSMatch(cvText, jobText);
+      const analysis = analyzeATSMatch(selectedCv.text, jobText);
       const hasStoredScore = typeof application.atsScore === "number" && Number.isFinite(application.atsScore);
       // Prefer the live CV-vs-offer calculation; fall back to a previously persisted score only when the profile cannot be evaluated.
       const atsScore = analysis.score !== null ? analysis.score : hasStoredScore ? application.atsScore : null;
@@ -119,7 +123,7 @@ export async function GET(req: NextRequest) {
         cvPhotoUrl: application.cvPhotoUrl || null,
         letterText: application.letterText || "",
         atsScore,
-        atsScoreSource: analysis.score !== null ? "PROFILE_ANALYSIS" : hasStoredScore ? "APPLICATION" : "NOT_CALCULABLE",
+        atsScoreSource: analysis.score !== null ? selectedCv.source : hasStoredScore ? "APPLICATION" : "NOT_CALCULABLE",
         atsAnalysis: {
           matchedKeywords: analysis.matchedKeywords,
           missingKeywords: analysis.missingKeywords,

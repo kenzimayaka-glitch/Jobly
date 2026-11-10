@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
     const output = result.output && typeof result.output === "object" ? result.output as Record<string, unknown> : {};
     const missions = stringList(output.missions);
     const responsibilities = stringList(output.responsibilities);
-    const skills = stringList(output.requiredSkills || output.skills);
+    const requiredSkills = stringList(output.requiredSkills);
+    const skills = requiredSkills.length ? requiredSkills : stringList(output.skills);
     const requiredProfile = typeof output.requiredProfile === "string" ? output.requiredProfile.trim() : "";
     let description = typeof output.description === "string" ? output.description.trim() : "";
 

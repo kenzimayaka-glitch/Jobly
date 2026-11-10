@@ -71,17 +71,32 @@ export async function POST(request: NextRequest) {
     }
 
     const output = result.output && typeof result.output === "object" ? result.output as Record<string, unknown> : {};
+    let safeOutput = output;
     if (mode === "CHAT" && typeof output.reply !== "string") {
       return NextResponse.json({ message: "J'IA n'a pas retourné de réponse conversationnelle exploitable." }, { status: 502 });
     }
     if (mode === "IMPROVE" && (!output.improvedProfile || typeof output.improvedProfile !== "object")) {
       return NextResponse.json({ message: "La proposition d'amélioration du CV n'est pas disponible. Réessaie avec un CV plus complet." }, { status: 502 });
     }
+    if (mode === "IMPROVE") {
+      const proposedProfile = output.improvedProfile as Record<string, unknown>;
+      // J'IA may improve professional wording, but contact and identity fields
+      // remain the values supplied by the Talent and cannot be rewritten by AI.
+      safeOutput = {
+        ...output,
+        improvedProfile: {
+          ...proposedProfile,
+          fullName: clean(cv.fullName, 160),
+          email: clean(cv.email, 200),
+          phone: clean(cv.phone, 80),
+        },
+      };
+    }
 
     return NextResponse.json({
       ok: true,
       mode,
-      output,
+      output: safeOutput,
       credits: result.credits,
       remaining: result.remaining,
       provider: result.provider,

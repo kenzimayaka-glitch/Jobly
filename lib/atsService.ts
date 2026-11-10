@@ -28,6 +28,21 @@ function tokens(text: string) {
   ));
 }
 
+export type ATSScoreSource = "APPLICATION_CV" | "PROFILE_ANALYSIS" | "APPLICATION" | "NOT_CALCULABLE";
+
+export function selectApplicationCvText(
+  applicationCvSnapshot: unknown,
+  currentProfileText: unknown
+): { text: string; source: ATSScoreSource } {
+  const snapshot = typeof applicationCvSnapshot === "string" ? applicationCvSnapshot.trim() : "";
+  const profile = typeof currentProfileText === "string" ? currentProfileText.trim() : "";
+  const isUsable = (value: string) => value.replace(/\s/g, "").length >= 40 && tokens(value).length >= 2;
+
+  if (isUsable(snapshot)) return { text: snapshot, source: "APPLICATION_CV" };
+  if (isUsable(profile)) return { text: profile, source: "PROFILE_ANALYSIS" };
+  return { text: "", source: "NOT_CALCULABLE" };
+}
+
 export function analyzeATSMatch(cvText: string, jobText: string): ATSAnalysis {
   const cvTokens = tokens(cvText);
   const jobTokens = tokens(jobText).slice(0, 120);

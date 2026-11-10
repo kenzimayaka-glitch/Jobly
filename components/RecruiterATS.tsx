@@ -18,7 +18,7 @@ export type RecruiterATSApplication = {
   createdAt: string;
   updatedAt: string;
   atsScore?: number | null;
-  atsScoreSource?: "APPLICATION" | "PROFILE_ANALYSIS" | "NOT_CALCULABLE";
+  atsScoreSource?: "APPLICATION_CV" | "APPLICATION" | "PROFILE_ANALYSIS" | "NOT_CALCULABLE";
   atsAnalysis?: { matchedKeywords: string[]; missingKeywords: string[]; evaluatedKeywords: number };
 };
 
@@ -203,6 +203,17 @@ export default function RecruiterATS({ applications, onStatusChange, isLoading }
                               {typeof app.atsScore === "number" ? `${app.atsScore}%` : "Non calculable"}
                             </strong>
                           </div>
+                          {app.atsScoreSource && (
+                            <p className="mt-1 text-[9px] text-jobly-gray">
+                              {app.atsScoreSource === "APPLICATION_CV"
+                                ? "Calculé depuis le CV soumis avec cette candidature"
+                                : app.atsScoreSource === "PROFILE_ANALYSIS"
+                                  ? "Calculé depuis le profil Jobly actuel"
+                                  : app.atsScoreSource === "APPLICATION"
+                                    ? "Score issu de la candidature enregistrée"
+                                    : "CV insuffisant pour calculer le score"}
+                            </p>
+                          )}
                           {app.atsAnalysis?.matchedKeywords?.length ? (
                             <p className="mt-1.5 text-[9px] leading-4 text-emerald-700">
                               <strong>Présents :</strong> {app.atsAnalysis.matchedKeywords.slice(0, 5).join(", ")}
