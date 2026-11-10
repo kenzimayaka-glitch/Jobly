@@ -96,3 +96,17 @@ test("keeps missing requirements visible instead of silently rejecting the candi
   assert.equal(result.missingCriteria[0].required, true);
   assert.equal(result.missingDocuments.length, 1);
 });
+
+test("uses the application CV text snapshot as evidence without requiring duplicate profile keywords", () => {
+  const result = scoreJobMatch({
+    headline: "Candidat",
+    cvText: "Compétences : Salesforce, prospection commerciale et Microsoft Excel. Licence en commerce.",
+  }, {
+    title: "Commercial",
+    description: "Prospection commerciale, maîtrise de Salesforce et Licence requise.",
+    tags: ["Salesforce", "Prospection"],
+  });
+  assert.ok(result.matchedSkills.includes("Salesforce"));
+  assert.ok(result.matchedSkills.includes("Prospection"));
+  assert.equal(result.dimensions.education.score, 100);
+});
