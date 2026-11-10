@@ -6,5 +6,5 @@ node --experimental-strip-types e2e\runtime-lot04-readonly.mjs "%USERPROFILE%\Jo
 set "RC=%ERRORLEVEL%"
 echo EXIT_CODE=%RC%>> artifacts\e2e\lot4-runtime-readonly-process.log
 type artifacts\e2e\lot4-runtime-readonly-process.log
-start "" notepad "%CD%\artifacts\e2e\lot4-runtime-readonly.json"
+if exist artifacts\e2e\lot4-runtime-readonly.json (start "" notepad "%CD%\artifacts\e2e\lot4-runtime-readonly.json") else (start "" notepad "%CD%\artifacts\e2e\lot4-runtime-readonly-process.log")
 exit /b %RC%
