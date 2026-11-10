@@ -22,10 +22,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const { data: application } = await db.from("Application")
     .select("id,userId,jobId,recruiterJobId,letterText")
     .eq("id", match[1]).eq("userId", share.userId).maybeSingle();
-  const linked = Boolean(application && (
-    (application.jobId && share.jobId === application.jobId) ||
-    (application.recruiterJobId && !share.jobId)
-  ));
+  if (!application) return new NextResponse("Lettre indisponible.", { status: 404 });
+  const linked = (application.jobId && share.jobId === application.jobId) ||
+    (application.recruiterJobId && !share.jobId);
   if (!linked) return new NextResponse("Lettre indisponible.", { status: 404 });
 
   const table = application.jobId ? "Job" : "RecruiterJob";
