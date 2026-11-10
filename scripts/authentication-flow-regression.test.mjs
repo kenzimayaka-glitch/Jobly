@@ -458,5 +458,7 @@ test("LOT-01 advanced auth browser campaign isolates provider flows and verifies
   assert.match(authAdvancedSmoke, /verifiedOwned\.some\(\(row\) => !row\.revokedAt\)/);
   assert.match(authAdvancedSmoke, /activeOwnedRows: verifiedOwned\.filter\(\(row\) => !row\.revokedAt\)\.length/);
   assert.match(authRecipeRunner, /--auth-advanced-only/);
+  assert.match(authAdvancedSmoke, /commit: process\\.env\\.E2E_SOURCE_COMMIT \\|\\| null/);
+  assert.match(authRecipeRunner, /E2E_SOURCE_COMMIT: runGit\\(\\["rev-parse", "HEAD"\\]\\)/);
   assert.match(authRecipeRunner, /reportGeneratedForThisRun/);
 });
