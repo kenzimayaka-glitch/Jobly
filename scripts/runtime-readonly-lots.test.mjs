@@ -124,6 +124,7 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   const command = read("e2e/run-africa-bulk-recipe.cmd");
   const isolated = read("e2e/run-africa-bulk-isolated.ps1");
   const bootstrap = read("e2e/run-africa-bulk-bootstrap.cmd");
+  const readme = read("e2e/README.md");
   assert.match(runner, /ofqqrryamslxoqkklraw/);
   assert.match(runner, /\.env\.local", "\.env\.e2e\.local/);
   assert.match(runner, /NON_E2E_ENV_URL_REFUSED/);
@@ -186,6 +187,10 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   const bootstrapLogInit = bootstrap.indexOf('if not exist "%BOOTLOG%" > "%BOOTLOG%" echo JOBLY AFRICA BULK BOOTSTRAP');
   const bootstrapFetch = bootstrap.indexOf('git -C "%ROOT%" fetch --depth=1 --progress --no-tags origin refs/heads/e2e/recette');
   assert.ok(bootstrapLogInit >= 0 && bootstrapLogInit < bootstrapFetch, "bootstrap must create its stable log before git fetch");
+  const documentedCommandStart = readme.indexOf('set "BOOTLOG=%TEMP%\\jobly-africa-bulk-bootstrap.log"');
+  const documentedLogCreate = readme.indexOf('(echo JOBLY AFRICA BULK BOOTSTRAP > "%BOOTLOG%")', documentedCommandStart);
+  const documentedFetch = readme.indexOf('git fetch --depth=1 --progress --no-tags origin refs/heads/e2e/recette', documentedCommandStart);
+  assert.ok(documentedCommandStart >= 0 && documentedLogCreate > documentedCommandStart && documentedLogCreate < documentedFetch, "documented launch command must create the log before fetch");
   assert.match(bootstrap, /FETCH_SHA=%SHA%/);
   assert.match(bootstrap, /git -C "%ROOT%" show %SHA%:e2e\/run-africa-bulk-isolated\.ps1/);
   assert.match(bootstrap, /if not "%~1"==""/);
