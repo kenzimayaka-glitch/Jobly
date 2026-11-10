@@ -100,3 +100,42 @@ test("all Windows recipe wrappers auto-open their report in Notepad with a log f
     assert.match(command, /exit \/b %RC%/i, file + " must preserve the original exit code");
   }
 });
+
+
+test("Africa ingest exposes the production batch logic for a local isolated E2E run", () => {
+  const ingest = read("supabase/functions/job-harvest-ingest/index.ts");
+  assert.match(ingest, /export async function ingestHarvestItems/);
+  assert.match(ingest, /publicationDateEstimated = item\?\.\s*publicationDateEstimated === true \|\| !publishedAt/);
+  assert.match(ingest, /discoveredAt: firstHarvestAt/);
+  assert.match(ingest, /onConflict: "sourceKey,sourceUrl"/);
+  assert.match(ingest, /if \(import\.meta\.main\) Deno\.serve\(handleRequest\)/);
+});
+
+test("Africa processor preserves estimated dates as harvest fallbacks, not source publication dates", () => {
+  const processor = read("supabase/functions/job-harvest-process/index.ts");
+  assert.match(processor, /export async function runHarvestProcessorBatch/);
+  assert.equal((processor.match(/sourcePublishedAt: freshness\.publicationDateEstimated \? null : publicationDate/g) || []).length, 2);
+  assert.match(processor, /publicationDateVerified: Boolean\(publicationDate\) && !freshness\.publicationDateEstimated/);
+  assert.match(processor, /if \(import\.meta\.main\) Deno\.serve\(handleRequest\)/);
+});
+
+test("Africa bulk recipe exercises the real ingest and processor in one uniquely tagged run and cleans only that source", () => {
+  const runner = read("e2e/africa-bulk-recipe.ts");
+  const command = read("e2e/run-africa-bulk-recipe.cmd");
+  assert.match(runner, /ofqqrryamslxoqkklraw/);
+  assert.match(runner, /ingestHarvestItems\(admin, candidates\)/);
+  assert.match(runner, /runHarvestProcessorBatch\(admin, \{ limit: 40, sourceKeys: \[sourceKey\] \}\)/);
+  assert.match(runner, /jobly_e2e_bulk_/);
+  assert.match(runner, /MISSING_PUBLICATION_AND_FALLBACK_DATE/);
+  assert.match(runner, /ESTIMATED_DATE_STORED_AS_REAL_SOURCE_DATE|ESTIMATED_DATE_STORED_AS_SOURCE_DATE/);
+  assert.match(runner, /async function cleanup\(key: string\)/);
+  assert.match(runner, /JobOfferPipeline/);
+  assert.match(runner, /pendingCleanup: true/);
+  assert.match(runner, /BULK_CLEANUP/);
+  assert.match(runner, /productionModified: false/);
+  assert.match(command, /run-africa-bulk-recipe\.ts/);
+  assert.match(command, /africa-bulk-recipe-report\.json/);
+  assert.match(command, /africa-bulk-recipe-process\.log/);
+  assert.match(command, /start "" notepad/);
+  assert.match(command, /exit \/b %RC%/i);
+});
