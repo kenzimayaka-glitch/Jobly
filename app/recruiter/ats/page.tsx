@@ -35,13 +35,15 @@ export default function RecruiterATSPage() {
     setToken(t);
     try {
       const query = new URLSearchParams();
+      query.set("markViewed", "0");
       if (appliedAtsFilters.atsMin) query.set("atsMin", appliedAtsFilters.atsMin);
       if (appliedAtsFilters.atsMax) query.set("atsMax", appliedAtsFilters.atsMax);
       if (appliedAtsFilters.atsKeyword) {
         query.set("atsKeyword", appliedAtsFilters.atsKeyword);
         query.set("atsKeywordMode", appliedAtsFilters.atsKeywordMode);
       }
-      const appsUrl = query.size ? `/api/recruiter/applications?${query.toString()}` : "/api/recruiter/applications";
+      const queryString = query.toString();
+      const appsUrl = queryString ? `/api/recruiter/applications?${queryString}` : "/api/recruiter/applications";
       const [appsRes, jobsRes] = await Promise.all([
         fetch(appsUrl, { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/recruiter/jobs", { headers: { Authorization: `Bearer ${t}` } }),
