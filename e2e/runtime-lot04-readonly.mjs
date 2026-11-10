@@ -84,14 +84,17 @@ try {
       "id,sourceKey,status,countryCode,rejectionCode,qualityScore,createdAt,processedAt,jobId"),
   ]);
 
-  addCheck(report, "JOB_HARVEST_CAPTURE_READ", "PASS", 200, "Captures lues par pages ; aucune mise à jour ni suppression.");
-  addCheck(report, "JOB_OFFER_PIPELINE_READ", "PASS", 200, "Pipeline canonique lu par pages ; aucune mise à jour ni suppression.");
+  addCheck(report, "JOB_HARVEST_CAPTURE_READ", captures.truncated ? "BLOCKED" : "PASS", 200,
+    captures.truncated ? "Lecture bornée à 10000 captures ; le comptage complet exige une campagne paginée plus longue." : "Captures lues intégralement par pages ; aucune mise à jour ni suppression.");
+  addCheck(report, "JOB_OFFER_PIPELINE_READ", pipelines.truncated ? "BLOCKED" : "PASS", 200,
+    pipelines.truncated ? "Lecture bornée à 10000 lignes pipeline ; le comptage complet exige une campagne paginée plus longue." : "Pipeline canonique lu intégralement par pages ; aucune mise à jour ni suppression.");
   const freshness = {};
   for (const row of captures.rows) {
     const category = classifyFreshness(row);
     freshness[category] = (freshness[category] || 0) + 1;
   }
-  addCheck(report, "AFRICA_FRESHNESS_AUDIT", "PASS", 200, "Fraîcheur recalculée en mémoire à partir des dates capturées ; aucune écriture.");
+  addCheck(report, "AFRICA_FRESHNESS_AUDIT", captures.truncated ? "BLOCKED" : "PASS", 200,
+    captures.truncated ? "Analyse de fraîcheur partielle car plus de 10000 captures sont présentes." : "Fraîcheur recalculée en mémoire à partir des dates capturées ; aucune écriture.");
 
   report.metrics = {
     captures: {
