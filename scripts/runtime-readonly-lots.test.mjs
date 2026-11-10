@@ -125,7 +125,7 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(runner, /ofqqrryamslxoqkklraw/);
   assert.match(runner, /\.env\.local", "\.env\.e2e\.local/);
   assert.match(runner, /NON_E2E_ENV_URL_REFUSED/);
-  assert.match(runner, /SECRET_KEY_WITHOUT_E2E_URL_PROOF/);
+  assert.doesNotMatch(runner, /SECRET_KEY_WITHOUT_E2E_URL_PROOF/);
   assert.match(runner, /SECRET_KEY_E2E_PROOF_FAILED/);
   assert.match(runner, /client\.from\("Job"\)[\s\S]*?\.select\("id", \{ count: "exact", head: true \}\)[\s\S]*?\.limit\(0\)/);
   assert.match(runner, /E2E_SECRET_KEY_PROJECT_PROOF/);
