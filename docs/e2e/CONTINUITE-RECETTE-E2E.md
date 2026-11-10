@@ -1,3 +1,25 @@
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.196 — 10 novembre 2026
+>
+> **Arbitrages fonctionnels confirmés — parcours WhatsApp recruteur, compteur de matching et Gmail :**
+>
+> 1. **Création de la candidature au clic sur Postuler :** Jobly crée/persiste la candidature dès que le Talent clique sur **Postuler**, au moment où le lancement WhatsApp est demandé. Il n'attend pas l'ouverture du lien CV par le recruteur. Le statut doit cependant rester distinct d'une candidature dont le message a effectivement été envoyé : Jobly ne peut pas affirmer que le message WhatsApp a été envoyé, puisque le Talent réalise manuellement cet envoi dans WhatsApp. L'initiation, l'ouverture éventuelle du lien CV et toute preuve ultérieure sont des événements séparés. Les retries/doubles clics doivent être idempotents.
+> 2. **Numéro recruteur différent : réclamation manuelle autorisée :** si le numéro d'inscription ne correspond pas au numéro de l'offre, aucun rattachement automatique n'a lieu. Le recruteur peut demander une réclamation/vérification manuelle de l'offre. L'offre et les candidatures restent non rattachées et protégées tant que la vérification n'a pas été validée ; toute décision et son auteur doivent être auditables. Les pièces/preuves et le protocole précis de vérification restent à définir avant implémentation détaillée.
+> 3. **Compteur de l'animation de matching :** le nombre affiché correspond aux talents dont le score de matching est strictement supérieur à celui du Talent déclencheur, dans le périmètre de comparaison défini pour l'offre concernée. Ce compteur ne révèle aucune identité ni donnée de profil. Il ne modifie pas la règle premium top 5, seuil >=90 %, floutage gratuit et accès par entitlement.
+> 4. **Import Gmail recruteur — deux modes proposés :** le recruteur peut (a) sélectionner individuellement les messages/candidatures à importer, ou (b) autoriser Jobly à rechercher automatiquement les candidatures pertinentes dans sa boîte Gmail et à les présenter dans une file d'importation/affectation. Dans les deux modes, l'import final doit être visible et contrôlable, avec déduplication, rattachement à une offre, isolation stricte par recruteur, gestion des pièces jointes et reprise sans doublon. L'autorisation Gmail doit être explicite et limitée aux scopes nécessaires ; aucune action d'envoi de message n'est impliquée par cette décision.
+>
+> **Décision encore ouverte — durée du lien CV :** aucune nouvelle durée n'a été arbitrée dans la réponse du propriétaire produit. Le comportement technique observé antérieurement est de 30 jours, mais il ne doit pas être présenté comme une nouvelle validation fonctionnelle. Conserver cette question ouverte jusqu'à confirmation.
+>
+> **Scénarios additionnels / critères de recette :**
+> - APP-WA-06 : cliquer Postuler crée une seule candidature persistée avant l'ouverture de WhatsApp ; statut d'initiation distinct d'un envoi confirmé ; ouverture CV recruteur enregistrée comme événement séparé ; double clic/retry sans doublon.
+> - REC-CONV-08 : numéro différent => aucun rattachement automatique ; soumettre une demande de réclamation ; aucune donnée/offre/candidature n'est attribuée avant validation ; décision manuelle auditée.
+> - REC-MATCH-08 : compteur égal au nombre de talents ayant un score strictement supérieur à celui du Talent déclencheur ; aucune identité divulguée ; cohérence avec l'offre et les règles de visibilité.
+> - GMAIL-R-06 : mode sélection individuelle des messages, aperçu et confirmation d'import.
+> - GMAIL-R-07 : mode recherche automatique autorisée, file d'importation/affectation, contrôle avant rattachement, déduplication et isolation par recruteur.
+>
+> **Statut :** arbitrages documentés ; aucune modification de code applicatif ni recette runtime n'est revendiquée par cette mise à jour. Durée du lien CV et protocole détaillé de réclamation restent à arbitrer.
+>
+> ---
+>
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.195 — 10 novembre 2026
 >
 > **Précision UX et sécurité du matching gratuit — complète et précise la V2.194 :**
