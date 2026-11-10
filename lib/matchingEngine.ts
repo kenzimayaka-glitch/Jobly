@@ -299,8 +299,13 @@ function jobSkillRequirements(job: MatchingJob): string[] {
   ];
   const detected = [...detectedSkillKeys(String(job.title ?? "") + " " + String(job.description ?? ""))];
   const unique = new Map<string, string>();
-  for (const value of explicit) unique.set(skillKey(value) ?? normalize(value), value);
-  for (const value of detected) unique.set(value, value.replace(/_/g, " "));
+  for (const value of explicit) {
+    const key = skillKey(value) ?? normalize(value);
+    if (!unique.has(key)) unique.set(key, value);
+  }
+  for (const value of detected) {
+    if (!unique.has(value)) unique.set(value, value.replace(/_/g, " "));
+  }
   return [...unique.values()].filter(Boolean).slice(0, 30);
 }
 
