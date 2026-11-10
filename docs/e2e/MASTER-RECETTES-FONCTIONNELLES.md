@@ -37,11 +37,13 @@ Ces scénarios sont **À CODER / À EXÉCUTER** ; aucune implémentation ni rece
 - **Réclamation manuelle si numéro différent :** aucun rattachement automatique de l'offre ou des candidatures au compte inscrit avec un autre numéro. Une demande de réclamation et une vérification manuelle sont possibles ; aucun rattachement avant validation explicite et auditée. Le protocole et les preuves de vérification restent à spécifier.
 - **Compteur du panneau animé :** afficher le nombre de talents dont le score est strictement supérieur au score du Talent qui a déclenché le partage, pour l'offre concernée. Aucun nom, profil ni identifiant n'est révélé par le compteur. Cette information ne change pas le classement top 5, le seuil >=90 % ni le verrou premium.
 - **Gmail recruteur — les deux options :** (1) sélection individuelle de messages à importer ; (2) recherche automatique des candidatures pertinentes après autorisation explicite du recruteur, puis présentation dans une file d'importation/affectation. Les deux modes exigent contrôle/validation de l'import, isolation par recruteur, déduplication, rattachement d'offre et accès sécurisé aux pièces jointes. Aucun envoi de mail n'est autorisé par ce choix.
-- **Durée du lien CV :** décision produit en attente. Le délai technique observé précédemment est de 30 jours, mais n'est pas confirmé comme durée cible.
+- **Durée du lien CV :** validité confirmée de **30 jours à compter de la création du partage**, avec révocation anticipée ; accès HTML/PDF refusé après expiration ou révocation, y compris via URL directe ou cache.
 
 **Recettes additionnelles :**
 - **APP-WA-06 — création au clic :** une candidature créée avant l'ouverture de WhatsApp ; statut d'initiation distinct d'un envoi confirmé ; événement d'ouverture du lien CV séparé ; retries sans doublon.
 - **REC-CONV-08 — réclamation manuelle :** numéro différent, demande de vérification, accès et rattachement refusés avant validation, audit de la décision, puis rattachement contrôlé si validé.
+- **APP-WA-07 — lien actif :** le lien sécurisé reste utilisable avant l'échéance des 30 jours et permet l'aperçu/téléchargement autorisé du PDF.
+- **APP-WA-08 — expiration/révocation :** après 30 jours ou révocation anticipée, refuser l'aperçu HTML, le PDF, l'URL directe et les appels API ; le cache ne doit pas conserver l'accès.
 - **REC-MATCH-08 — compteur relatif :** nombre exact de talents dont le score est strictement supérieur au score du candidat déclencheur ; aucune identité révélée ; calcul propre à l'offre.
 - **GMAIL-R-06 — import sélectif :** sélectionner des messages, prévisualiser, confirmer, importer et dédupliquer.
 - **GMAIL-R-07 — import automatique :** autoriser la recherche, analyser les messages pertinents, présenter la file d'importation/affectation, demander validation, dédupliquer et isoler les données.
