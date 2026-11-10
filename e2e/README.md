@@ -189,3 +189,5 @@ Le rapport JSON est \`artifacts/e2e/africa-bulk-recipe-report.json\`. Le wrapper
 **Écriture temporaire autorisée uniquement dans JOBLY-E2E** : ce lot crée réellement des captures, Jobs et pipelines synthétiques avant de les nettoyer. Le rapport indique donc \`temporaryE2EBusinessWrites: true\` et \`productionModified: false\`. Les communications, paiements, ingestion de sources réelles, tâches planifiées, Production, \`main\` et Vercel restent hors périmètre.
 
 **Prérequis local :** Node.js (pour `node --test`) et Deno **2.x** dans le `PATH`. Le wrapper détecte l'absence de Deno avant tout accès en écriture et ouvre le journal explicatif dans Notepad.
+
+Le rapport du run précédent est conservé en `artifacts/e2e/africa-bulk-recipe-report.previous.json` ; un ancien résultat n'est jamais présenté comme celui du run courant.
