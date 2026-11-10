@@ -8308,3 +8308,86 @@ Ne pas lancer de migration, ne pas modifier les tables et ne pas changer les per
 **Verdict de cette version : balayage global FAIL à cause du seul LOT-04 ; Talent, Recruteur, les 34 fichiers statiques, le build, l'accueil et l'arrêt du serveur sont PASS. La cause LOT-04 reste à établir à partir du rapport détaillé.**
 
 Aucun merge vers main, aucun déploiement Vercel, aucune écriture JOBLY-PROD.
+
+---
+
+## 151. LOT-04 Afrique — cause 42703 identifiée et runner aligné sur le schéma E2E
+
+**Mise à jour : 10 novembre 2026 — version 2.183.** Cette section précise et corrige le blocage du premier balayage global (§150). Elle ne remplace pas le résultat du run initial : le correctif doit encore être exécuté localement.
+
+### 151.1 Diagnostic confirmé sur JOBLY-E2E
+
+Le rapport opérateur LOT-04 du 10 novembre, créé à 03:58:41.260Z sur le commit ffcfbee22a7a9d2db389aea6f6c1175904ae8ae4, donne :
+- JOBLY_E2E_TARGET : **PASS**, HTTP 200 ;
+- LOT04_RUNTIME_EXECUTION : **FAIL**, détail `JobOfferPipeline_READ_42703` ;
+- aucun secret ou token affiché ;
+- aucune action externe et aucune modification métier distante.
+
+Le code PostgreSQL/PostgREST `42703` correspond à une colonne inexistante. La documentation officielle Supabase décrit ce code comme une référence à une colonne absente : https://supabase.com/docs/guides/api/rest/postgrest-error-codes.
+
+L'inspection en lecture seule de `information_schema.columns` sur le projet `ofqqrryamslxoqkklraw` confirme :
+- `JobHarvestCapture` ne possède ni `countryCode` ni `rejectionCode` ;
+- `JobOfferPipeline` ne possède ni `countryCode` ni `rejectionCode` ;
+- `JobHarvestCapture` possède notamment `id`, `sourceKey`, `status`, `publishedAt`, `deadline`, `discoveredAt`, `processedAt`, `jobId` ;
+- `JobOfferPipeline` possède notamment `id`, `jobId`, `sourceKey`, `status`, `qualityScore`, `createdAt`, `processedAt`.
+
+Le runner initial demandait les deux colonnes absentes dans les deux tables. L'erreur rapportée sur `JobOfferPipeline` était donc un défaut de projection du runner, et non une panne de connexion, de permission ou une raison de modifier le schéma.
+
+Une requête SQL `SELECT COUNT(*)` de contrôle a également confirmé, au moment du diagnostic, **0 ligne dans JobHarvestCapture et 0 ligne dans JobOfferPipeline**. Les tables existent et sont accessibles, mais aucune capture/pipeline n'est présent dans l'environnement E2E pour éprouver les statistiques de collecte et de fraîcheur.
+
+### 151.2 Correctif du runner versionné sur e2e/recette
+
+Commit `a67c075e60ccab0c2682020c70f83c68d1043a4f` :
+- projection `JobHarvestCapture` limitée aux colonnes existantes : `id,sourceKey,status,publishedAt,deadline,discoveredAt,processedAt,jobId` ;
+- projection `JobOfferPipeline` limitée aux colonnes existantes : `id,jobId,sourceKey,status,qualityScore,createdAt,processedAt` ;
+- retrait des agrégations `byCountry` et `byRejectionCode`, qui ne peuvent pas être établies à partir de ces colonnes absentes ;
+- conservation des agrégations par statut et source, ajout de la distribution `byQualityScore` pour le pipeline.
+
+Le runner ne demande plus de migration et n'effectue aucune écriture.
+
+### 151.3 Statut de données vides — pas de PASS artificiel
+
+Le même correctif ajoute deux contrôles explicites :
+- `AFRICA_DATA_PRESENCE` : BLOCKED tant que les deux tables restent vides ;
+- `AFRICA_FRESHNESS_AUDIT` : BLOCKED si aucune capture ne permet de calculer la fraîcheur.
+
+Ainsi, un futur GET réussi sur des tables vides prouvera seulement l'accès et la compatibilité du schéma ; il ne sera pas présenté comme une validation réelle de l'ingestion ou de la fraîcheur.
+
+Commit `463428e20d6f1c4c989c124158b39be645ce42a1` :
+- tests statiques de non-régression ajoutés pour verrouiller exactement les deux projections validées ;
+- interdiction de réintroduire `countryCode` et `rejectionCode` dans le runner LOT-04 ;
+- présence obligatoire des contrôles `AFRICA_DATA_PRESENCE` et `AFRICA_FRESHNESS_AUDIT`.
+
+### 151.4 Reprise ciblée — sans rebuild global
+
+Le runner LOT-04 est autonome et ne nécessite pas le serveur Next.js. Après synchronisation de la branche sur le worktree propre, exécuter uniquement :
+
+```cmd
+call e2e\run-runtime-lot04-readonly.cmd
+```
+
+Rapport à ouvrir :
+
+```cmd
+notepad artifacts\e2e\lot4-runtime-readonly.json
+```
+
+Résultat attendu avec le snapshot E2E observé pendant le diagnostic :
+- `JOBLY_E2E_TARGET` : PASS ;
+- `JOB_HARVEST_CAPTURE_READ` : PASS ;
+- `JOB_OFFER_PIPELINE_READ` : PASS ;
+- `AFRICA_DATA_PRESENCE` : BLOCKED ;
+- `AFRICA_FRESHNESS_AUDIT` : BLOCKED ;
+- statut LOT-04 : **PARTIAL**, et non PASS, tant que les deux tables ne contiennent pas de données de recette.
+
+Si le schéma est corrigé mais les tables restent vides, ne pas lancer de collecte réelle et ne pas créer artificiellement de données : conserver le blocage de couverture et traiter ultérieurement la disponibilité de fixtures de collecte JOBLY-E2E dans un scénario isolé autorisé.
+
+### 151.5 État de validation et garde-fous
+
+- Diagnostic du schéma et comptages : effectués en SQL strictement SELECT sur JOBLY-E2E.
+- Code correctif et verrou statique : commis sur `e2e/recette`.
+- Exécution locale du runner corrigé : **NON ENCORE EXÉCUTÉE**.
+- Les résultats du premier run (§150) restent inchangés jusqu'à réception du nouveau rapport.
+- Pas de migration, pas de modification de tables ou permissions, pas d'écriture JOBLY-PROD, pas de fusion dans `main`, pas de déploiement Vercel.
+
+**Verdict : cause 42703 identifiée et projection LOT-04 corrigée dans le code. La réussite de la lecture et le statut PARTIAL attendu doivent encore être confirmés par le run ciblé.**
