@@ -122,7 +122,19 @@ try {
       $SourceRoot
     )
     Invoke-Native $denoPath $denoArgs "AFRICA_BULK_RUNTIME" | Out-Null
-    $ExitCode = 0
+    if (-not (Test-Path -LiteralPath $Report)) {
+      throw "AFRICA_RUNTIME_REPORT_MISSING"
+    }
+    $runtimeReport = Get-Content -LiteralPath $Report -Raw | ConvertFrom-Json
+    Write-Stage ("RUNTIME_REPORT_STATUS " + $runtimeReport.status)
+    Write-Stage ("CLEANUP_VERIFIED " + $runtimeReport.cleanupVerified)
+    if ($runtimeReport.status -ne "PASS" -or $runtimeReport.cleanupVerified -ne $true) {
+      $ExitCode = 2
+      Write-Stage "RUNTIME_RECIPE_NOT_PASS"
+    } else {
+      $ExitCode = 0
+      Write-Stage "RUNTIME_RECIPE_PASS"
+    }
   } finally {
     Pop-Location
   }
