@@ -30,8 +30,8 @@ if not "%RC%"=="0" goto fetch_failed
 
 for /f "delims=" %%H in ('git -C "%ROOT%" rev-parse FETCH_HEAD 2^>nul') do set "SHA=%%H"
 if not defined SHA goto sha_failed
-if not "%SHA:~39,1%"=="" goto sha_failed
-if "%SHA:~38,1%"=="" goto sha_failed
+if "%SHA:~39,1%"=="" goto sha_failed
+if not "%SHA:~40,1%"=="" goto sha_failed
 echo FETCH_SHA=%SHA%
 echo FETCH_SHA=%SHA%>> "%BOOTLOG%"
 
