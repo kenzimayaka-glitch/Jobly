@@ -14,6 +14,46 @@
 > **Garde-fous actuels :** les consignes historiques de réinitialisation des mots de passe et de recréation/restauration des fixtures partagées restent neutralisées. L'ancien provisionneur global de fixtures reste désactivé et ne doit pas être réactivé. Seul le nouveau provisionneur local et isolé décrit au §146 est autorisé, strictement pour JOBLY-E2E et après ses précontrôles. Ne pas exécuter `e2e/reset-existing-fixture-passwords.mjs`, ne pas restaurer de secret/runtime et ne pas lancer `scripts/e2e-local-recipe.mjs` tant que les prérequis effectifs du préflight, les fixtures et l'isolation n'ont pas été revus.
 > **État courant et ordre des lots :** E2E-001 PASS statique 6/6 ; LOT-00 PASS clos. LOT-01 : Auth de base 12/12, API 40/40, UI publique 14/14, UI authentifiée 29/29, régression Auth 30/30 acquis. Dernier runtime Auth avancée : build/serveur PASS ; OTP 4/4, Google 4/4, récupération 3/3 PASS. Le garde réseau a intercepté la navigation Google réelle avant réseau. Seul le multi-appareils reste BLOCKED sur 3 appareils actifs préexistants ; aucune session ni donnée n'a été modifiée. Pour clôturer : fixture distincte explicitement autorisée avec au plus un appareil actif préexistant, ou décision écrite de périmètre excluant ce contrôle. Ne pas révoquer les appareils existants.
 
+
+## AUDIT CIBLÉ — CANDIDATURES GROUPÉES / SOUMISSION MULTIPLE — 10 novembre 2026
+
+**Question auditée :** la recette E2E avait-elle prévu de démontrer qu'un candidat peut postuler à plusieurs offres en une même opération ou simultanément ?
+
+### Verdict
+
+- **Fonction produit existante : OUI.** Le flux Talent comporte un panier de candidatures groupées, un plafond UI/plan et une revue finale avant confirmation.
+- **Préparation d'un lot : OUI.** `POST /api/applications/batch` crée un `ApplicationBatch` et ses `ApplicationBatchItem`, avec une limite de 20 offres et les contrôles de quota bulk/hebdomadaire. Le test statique dans `scripts/talent-cv-application-regression.test.mjs` vérifie la portée propriétaire, le plafond, les quotas et les états du lot.
+- **Soumission réellement simultanée : NON dans le code UI observé.** `components/JoblyOfferFeed.tsx::submitBulkApplications` parcourt `preparedBulk` avec une boucle `for...of` et appelle successivement `POST /api/applications/:id/submit`. C'est une action groupée côté candidat, mais les envois sont séquentiels, pas lancés en parallèle par `Promise.all`.
+- **Recette E2E runtime de plusieurs candidatures : NON PRÉVUE / NON PROUVÉE.** Le LOT-02 runtime courant est GET-only et exclut le bulk-check, la préparation et la soumission. La deuxième passe documentaire prévoit une seule candidature synthétique non envoyée, avec vérification de persistance et nettoyage, sans Gmail/SMS ni candidature réelle.
+- **Ancien parcours croisé Talent → Recruteur : UNE seule candidature.** `e2e/authenticated-role-smoke.mjs` prépare un seul objet via `POST /api/applications`, le vérifie dans les espaces Talent et Recruteur, fait vérifier les transitions métier, puis nettoie cette candidature et l'offre synthétiques. Il ne couvre pas `ApplicationBatch`, un panier multi-offres, une soumission en lot, les échecs partiels ou la concurrence.
+- **La recette Afrique bulk actuelle : hors sujet pour cette capacité.** Elle valide l'ingestion/traitement et la visibilité de deux offres dans le flux Talent ; elle ne crée ni candidature ni batch.
+
+### Sources de code examinées
+
+- `app/api/applications/batch/route.ts` : création/liste/mise à jour de lot ; plafond 20 ; contrôles de quotas ; insertion `ApplicationBatchItem` en `DRAFT`.
+- `app/api/applications/bulk-check/route.ts` : vérification des quotas avant confirmation.
+- `components/JoblyOfferFeed.tsx` : constitution du panier, préparation des candidatures une par une, revue finale et soumission séquentielle via les routes individuelles.
+- `app/api/applications/[id]/submit/route.ts` : soumission individuelle, verrou d'état `SUBMITTING`, envoi Gmail et enregistrement de la preuve. Cette route ne doit pas être appelée contre de vraies adresses dans une recette.
+- `scripts/talent-cv-application-regression.test.mjs` : contrat statique du batch ; aucune exécution runtime multi-candidatures.
+- `e2e/runtime-lot02-readonly.mjs` : lecture seule ; aucune préparation/soumission.
+- `e2e/authenticated-role-smoke.mjs` : une candidature synthétique unique, jamais envoyée, et nettoyage vérifié.
+
+### À ajouter au programme E2E — LOT-02B « Candidatures groupées »
+
+Prévoir un scénario runtime JOBLY-E2E indépendant, avec offres et candidatures synthétiques propres au run, et nettoyage DB vérifié :
+1. Sélectionner plusieurs offres éligibles et vérifier la limite du panier (dont 0, 1, limite, limite+1) et les quotas.
+2. Créer un batch ; vérifier le nombre, l'appartenance Talent, la correspondance exacte des offerId et l'état initial de chaque item.
+3. Préparer plusieurs candidatures ; vérifier qu'une offre invalide ou un échec partiel ne corrompt pas le reste du lot.
+4. Exercer le comportement réel de l'interface : une confirmation groupée, avec envois séquentiels comme dans le code actuel, et statuts `SENDING`, `COMPLETED` ou `PARTIAL_FAILURE`.
+5. Tester doublon de même offre, double clic/retry, deux requêtes concurrentes sur la même candidature et reprise après réponse partielle ; vérifier l'absence de double candidature et de double envoi.
+6. Vérifier la liste Talent et la visibilité côté Recruteur pour chaque élément du lot.
+7. Simuler le fournisseur d'envoi dans E2E : aucun appel Gmail réel, aucun e-mail/SMS externe ; vérifier les états de preuve et les erreurs.
+8. Nettoyer toutes les candidatures, items, batches et offres créés par ce run, puis prouver leur absence en base.
+
+**Critère d'interprétation :** la recette ci-dessus validera le parcours groupé actuel (confirmation unique, traitements séquentiels). Un vrai envoi simultané en parallèle serait un changement de comportement produit distinct ; il ne faut pas le déclarer supporté ni le tester comme acquis tant que le code UI reste séquentiel.
+
+**État au moment de l'audit :** LOT-02B absent des runners et du balayage global ; aucune preuve runtime de candidatures groupées ou simultanées. Aucun envoi réel ni aucune mutation de données n'a été déclenché pendant cet audit.
+
 ## DÉCISION DE PILOTAGE — 10 novembre 2026 — LOT-01 différé, reprise LOT-02
 
 **Décision opérateur :** ne plus répéter la recette Auth avancée du LOT-01 pour tenter de résoudre le même blocage réseau ; poursuivre le programme avec le LOT-02. Cette décision autorise une exception de séquencement pour l'avancement, mais ne transforme pas LOT-01 en PASS et ne clôt pas ses critères restants.
