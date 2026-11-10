@@ -172,7 +172,7 @@ Les preuves sont des artefacts GitHub Actions avec durée de conservation limit�
 Depuis CMD, la commande à exécuter est :
 
 ```cmd
-cd /d "%USERPROFILE%\Jobly-e2e-recette-lot01" && set "GIT_TERMINAL_PROMPT=0" && set "GCM_INTERACTIVE=never" && echo [BOOTSTRAP 1/3] FETCH && git fetch --depth=1 --progress --no-tags origin refs/heads/e2e/recette && echo [BOOTSTRAP 2/3] FETCH_TERMINE && git show FETCH_HEAD:e2e/run-africa-bulk-bootstrap.cmd > "%TEMP%\jobly-africa-bulk-bootstrap.cmd" && echo [BOOTSTRAP 3/3] LANCEMENT && call "%TEMP%\jobly-africa-bulk-bootstrap.cmd" FETCH_HEAD
+cd /d "%USERPROFILE%\Jobly-e2e-recette-lot01" && set "GIT_TERMINAL_PROMPT=0" && set "GCM_INTERACTIVE=never" && set "BOOTLOG=%TEMP%\jobly-africa-bulk-bootstrap.log" && (echo JOBLY AFRICA BULK BOOTSTRAP > "%BOOTLOG%") && echo [BOOTSTRAP 1/3] FETCH && echo [BOOTSTRAP 1/3] FETCH>>"%BOOTLOG%" && git fetch --depth=1 --progress --no-tags origin refs/heads/e2e/recette && echo FETCH_EXIT_CODE=0>>"%BOOTLOG%" && echo [BOOTSTRAP 2/3] FETCH_TERMINE && git show FETCH_HEAD:e2e/run-africa-bulk-bootstrap.cmd > "%TEMP%\jobly-africa-bulk-bootstrap.cmd" && echo [BOOTSTRAP 3/3] LANCEMENT && call "%TEMP%\jobly-africa-bulk-bootstrap.cmd" FETCH_HEAD
 ```
 
 Ce fichier versionné affiche cinq jalons. Il récupère le SHA distant, extrait le PowerShell versionné dans un dossier temporaire puis l'exécute avec ce SHA. Il ne demande pas un worktree propre, n'effectue aucun checkout/reset/clean et ne modifie pas les fichiers locaux. Journal bootstrap fixe : `%TEMP%\jobly-africa-bulk-bootstrap.log`. Le lanceur PowerShell ouvre le rapport JSON si le runner Deno le produit ; sinon il ouvre son journal fixe `%TEMP%\jobly-africa-bulk-launch.log`.
@@ -208,11 +208,11 @@ Le rapport du run précédent est conservé en `artifacts/e2e/africa-bulk-recipe
 
 ### Correction du lancement bloqué avant le rapport
 
-Le bootstrap de la recette Afrique récupère maintenant uniquement la tête de branche (`--depth=1`) et force l'affichage de la progression Git (`--progress`). Les invites d'authentification interactives sont désactivées pour qu'une absence de jeton produise une erreur explicite au lieu de laisser la fenêtre sans résultat. Le journal bootstrap est créé avant la récupération.
+Le bootstrap de la recette Afrique crée désormais `%TEMP%\\jobly-africa-bulk-bootstrap.log` avant le tout premier fetch, puis récupère uniquement la tête de branche (`--depth=1`) et force l'affichage de la progression Git (`--progress`). Les invites d'authentification interactives sont désactivées pour qu'une absence de jeton produise une erreur explicite au lieu de laisser la fenêtre sans résultat. Le journal bootstrap est créé avant la récupération.
 
 Le lanceur PowerShell transmet maintenant les sorties des processus natifs au terminal et au journal au fil de l'eau avec `Tee-Object`; il ne met plus les sorties des tests et de Deno en mémoire jusqu'à la fin du processus. Le rapport et le journal deviennent donc observables pendant l'exécution.
 
-Commande de reprise mise à jour :
+Commande de reprise mise à jour (elle initialise d'abord le journal, avant le premier accès réseau) :
 
 ```cmd
 cd /d "%USERPROFILE%\Jobly-e2e-recette-lot01" && set "GIT_TERMINAL_PROMPT=0" && set "GCM_INTERACTIVE=never" && echo [BOOTSTRAP 1/3] FETCH && git fetch --depth=1 --progress --no-tags origin refs/heads/e2e/recette && echo [BOOTSTRAP 2/3] FETCH_TERMINE && git show FETCH_HEAD:e2e/run-africa-bulk-bootstrap.cmd > "%TEMP%\jobly-africa-bulk-bootstrap.cmd" && echo [BOOTSTRAP 3/3] LANCEMENT && call "%TEMP%\jobly-africa-bulk-bootstrap.cmd" FETCH_HEAD
