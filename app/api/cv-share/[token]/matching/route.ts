@@ -34,10 +34,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       .eq("userId", share.userId)
       .maybeSingle();
     if (applicationError) throw new Error(applicationError.message);
-    const relationValid = Boolean(application && (
-      (application.jobId && share.jobId === application.jobId) ||
-      (application.recruiterJobId && !share.jobId)
-    ));
+    if (!application) return NextResponse.json({ message: "Le contexte de candidature n'est plus disponible." }, { status: 404 });
+    const relationValid = (application.jobId && share.jobId === application.jobId) ||
+      (application.recruiterJobId && !share.jobId);
     if (!relationValid) return NextResponse.json({ message: "Le contexte de candidature n'est plus disponible." }, { status: 404 });
 
     const offerTable = application.jobId ? "Job" : "RecruiterJob";
