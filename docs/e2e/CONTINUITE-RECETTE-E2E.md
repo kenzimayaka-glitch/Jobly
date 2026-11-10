@@ -1,6 +1,42 @@
 # Jobly — Référence de continuité de la recette E2E
 
 
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.190 — 10 novembre 2026
+>
+> **Addendum d'audit des parcours CV ATS / WhatsApp / Gmail / Recruteur :** créé dans `docs/e2e/AUDIT-CV-ATS-WHATSAPP-GMAIL-RECRUTEUR-2026-11-10.md` (commit `f42c0d0aba148fbd956a6fd55da291ad0be73dbe`). Le catalogue `docs/e2e/MASTER-RECETTES-FONCTIONNELLES.md` est complété par une matrice et des scénarios atomiques sur LOT-02, LOT-04, LOT-05 et LOT-16 (commit `d73e732c03683fe7f8fd3f4f90f7f560f9420177`). Les 19 lots et leurs anciennes preuves restent conservés.
+>
+> **Verdict explicite :** les recettes précédentes ne couvraient pas suffisamment les promesses détaillées de conversion/amélioration CV ATS, adaptation à une offre, candidature WhatsApp avec clic Recruteur sur CV, marketing/footer d'e-mails, import de candidatures Gmail et processus de recrutement multi-étapes. Des contrats statiques existaient, mais aucun E2E runtime de ces chaînes complètes n'est prouvé à cette date.
+>
+> **Constats code — CV :**
+> - La surface canonique observée est `/talent/cvs` : import PDF, extraction déterministe + CV Intelligence, édition, sauvegarde profil/original privé, vues Jobly/ATS et téléchargement.
+> - L'interface calcule un score de lisibilité/complétude ; il ne doit pas être présenté comme une validation par un ATS externe.
+> - L'API d'export fait passer les services ATS et OPTIMIZED par le même constructeur `buildPdf(cv)` ; la sélection change le paiement et le nom de fichier, pas le moteur PDF observé. Le PDF exporté ne rend actuellement que profil, compétences, expérience et formation en plus de l'identité/contact. Différence et complétude à prouver.
+> - Le CV Intelligence renvoie des suggestions/forces/écarts, mais la page canonique ne démontre pas leur exposition et leur acceptation/refus. Le tri `lib/applicationCv.ts` est une adaptation déterministe par mots-clés, distincte d'une réécriture complète IA.
+>
+> **Constats code — WhatsApp et plateformes :**
+> - Le flux WhatsApp candidat ouvre `wa.me` avec un message prérempli et un lien CVShare à token de 30 jours, révocable ; le candidat doit envoyer lui-même le message. Il ne crée pas une ligne `Application`, donc ne rejoint pas automatiquement l'ATS et le suivi « Mes candidatures ».
+> - Le chemin de normalisation WhatsApp observé est centré sur les numéros camerounais `237` ou locaux à 9 chiffres ; couverture des autres pays à vérifier.
+> - Aucun webhook/endpoint métier WhatsApp Business entrant n'a été trouvé dans les routes auditées ; `fetchFromWhatsApp()` renvoie une liste vide. Ne pas confondre ce manque avec les routes OTP WhatsApp d'authentification, historiquement reportées pour coûts/fournisseur non connecté.
+> - Les offres EXTERNAL ouvrent le site du promoteur et passent le contexte à J'IA ; aucun adaptateur Jobly de soumission automatique ni callback universel de confirmation n'est observé. Ne jamais marquer une candidature externe envoyée sans preuve.
+>
+> **Constats code — Gmail, marketing et Recruteur :**
+> - Gmail Talent est un flux sortant `gmail.send` : candidature revue, PDF ciblé en pièce jointe, message/thread enregistrés ; le corps e-mail contient un pied promotionnel Jobly (visuel et lien). Ce scope ne prouve pas la lecture des réponses Gmail.
+> - Gmail Recruteur propose un import manuel de 25 messages max avec PDF reçus dans les 90 derniers jours. L'interface `/recruiter/candidatures` présente importer depuis Gmail, score ATS, bouton CV, lettre, Valider/Refuser. Les e-mails de décision incluent un pied « Recrutement géré via Jobly ».
+> - Les imports sans offre reconnue peuvent être créés avec `recruiterJobId=null`, mais la liste standard filtre par les offres possédées : ces candidatures « À affecter » risquent de disparaître après import. La recette doit exiger une file d'intake propriétaire persistante.
+> - La route de pièce jointe Gmail vérifie le propriétaire de l'offre lorsqu'elle existe ; pour `recruiterJobId=null`, le contrôle se réduit à « le recruteur possède au moins une offre ». L'appartenance au compte/import doit être durcie. C'est un défaut d'autorisation à contre-tester, pas une fuite inter-tenant runtime démontrée.
+> - Les mails de décision sont envoyés avant le PATCH du statut ; le parcours n'enregistre pas de preuve messageId sur l'Application. En cas d'échec après envoi, le retry peut dupliquer l'e-mail.
+> - Le Kanban déclare ACKNOWLEDGED/REJECTED mais n'affiche que quatre colonnes ; le GET de traitement peut marquer en bloc les candidatures SUBMITTED comme ACKNOWLEDGED. Les critères de statut « Vu » doivent être précisés.
+> - « Signature marketing » : pieds promotionnels statiques présents sur certains e-mails, mais aucun éditeur de signature par compte ni moteur de campagne/newsletter n'est établi par les routes auditées. Clarifier le périmètre de cette promesse si elle désigne autre chose que le footer Jobly.
+>
+> **Décisions historiques conservées :** `Statut.md` distingue l'authentification WhatsApp (reportée pour coûts et fournisseur non raccordé) de l'ouverture manuelle WhatsApp pour postuler. Il demande aussi CV optimisé par IA, adaptation CV pour l'offre, suivi candidat/recruteur et priorité à la décision du Recruteur en cas de conflit. Ces décisions restent à tester et ne doivent pas être effacées.
+>
+> **Recettes ajoutées au backlog :** CV-ATS-01 à CV-ATS-08 ; APP-WA-01 à APP-WA-03 ; APP-EXT-01 ; APP-EMAIL-01 ; REC-ATS-01 à REC-ATS-05 ; GMAIL-T-01 à GMAIL-T-02 ; GMAIL-R-01 à GMAIL-R-05 ; COMM-EMAIL-01. Le scénario transversal exige désormais : offre → CV Master → conversion/adaptation approuvée → canal choisi → import/réception → clic CV → traitement Recruteur → communication → décision visible côté Talent.
+>
+> **Priorités :** corriger/arbritrer P1 l'export ATS vs Optimized, le raccord WhatsApp à Application si le suivi ATS est promis, la normalisation pays, la file Gmail non affectée et son isolation propriétaire, l'idempotence de mail de décision et la cohérence Kanban/statuts. Aucun test runtime, envoi réel, appel WhatsApp, import Gmail ou test d'accès croisé sur données JOBLY-E2E n'a été exécuté pendant cet audit. Ces points restent PARTIAL / À EXÉCUTER.
+>
+> **Garde-fous inchangés :** JOBLY-E2E uniquement, JOBLY-PROD interdit, aucune fusion de PR #266, aucun déploiement, aucun email/SMS/WhatsApp réel. La PR #266 reste brouillon vers `main`.
+
+
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.189 — 10 novembre 2026
 >
 > **Refonte fonctionnelle globale des recettes :** catalogue maître créé dans [docs/e2e/MASTER-RECETTES-FONCTIONNELLES.md](./MASTER-RECETTES-FONCTIONNELLES.md), commit `ba80f705bda04e759f887748b3bcd4de35be2ef9`. Il définit 19 lots fonctionnels (LOT-00 à LOT-18), les parcours transversaux, les critères de preuve et les tests contradictoires. Les 11 anciens lots, leurs résultats et l'historique de ce document sont conservés ; le nouveau découpage les complète et les rattache sans les effacer.
