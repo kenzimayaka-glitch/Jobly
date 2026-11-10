@@ -134,7 +134,14 @@ export default function RecruiterOnboardingPage() {
       const body = await res.json();
       if (!res.ok) throw new Error(body.message || "Enregistrement impossible.");
       setCompleted(true);
-      setTimeout(() => router.push("/recruiter"), 1000);
+      const shareToken = typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("shareToken")
+        : null;
+      setTimeout(() => {
+        router.push(shareToken
+          ? `/recruiter/discover/${encodeURIComponent(shareToken)}`
+          : "/recruiter");
+      }, 1000);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur d'enregistrement.");
     } finally {
