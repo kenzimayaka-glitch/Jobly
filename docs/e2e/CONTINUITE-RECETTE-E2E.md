@@ -8653,3 +8653,10 @@ Le wrapper archive désormais le rapport précédent sous africa-bulk-recipe-rep
 - verrou statique du backup de rapport et du préflight Deno : 10e10adf8d7dfb2e14e585eba2f63dbbc67a4eaa.
 
 Le rapport précédent reste conservé sous le suffixe .previous.json. Le résultat du run courant est toujours dans africa-bulk-recipe-report.json.
+
+
+### 154.9 Chargement des secrets E2E durci
+
+Le runner récupère maintenant la clé privée E2E soit dans .e2e-fixture-runtime.json (avec environment=JOBLY-E2E et projectRef exact), soit dans .env.local / .env.e2e.local. Les URL présentes dans ces fichiers doivent toutes être exactement celles de JOBLY-E2E. Une clé JWT doit en plus porter les claims ref et role correspondants ; une clé sb_secret doit être accompagnée d'une preuve runtime ou URL E2E. Une configuration non démontrable est refusée avant toute écriture.
+
+Pour les clés sb_secret, le client REST retire le header Authorization et conserve uniquement apikey, conformément au modèle de clés Supabase actuel. Aucun secret n'est imprimé ni écrit dans le rapport. Tests statiques associés : commit ca6930bae0d7931398968df5ce9aa46113f53941 ; chargement E2E strict : commit 259882e628cae037b0fec19d8393f1b512971511.
