@@ -161,5 +161,7 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(isolated, /RUNTIME_REPORT_STATUS/);
   assert.match(isolated, /CLEANUP_VERIFIED/);
   assert.match(isolated, /STATIC_TESTS_11_GROUPS/);
-  assert.match(isolated, /JOBLY-E2E/);
+  assert.match(isolated, /ofqqrryamslxoqkklraw/);
+  assert.match(isolated, /FetchedSha/);
+  assert.match(isolated, /cat-file/);
 });
