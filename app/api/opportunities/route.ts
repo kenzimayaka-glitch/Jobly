@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       sb.from("Skill").select("name,level,provenance").eq("userId", user.id).limit(60),
       sb.from("Experience").select("title,description,startDate,endDate").eq("userId", user.id).limit(30),
       sb.from("Education").select("degree,field,institution").eq("userId", user.id).limit(20),
-      sb.from("Job").select("id,title,description,location,contractType,remoteMode,minExperienceYears,companyId,isActive,tags,aiSkills,aiSector,opportunityType,source,sourceUrl,deadline,sourcePublishedAt,qualityStatus").eq("isActive", true).limit(1000),
+      sb.from("Job").select("id,title,description,location,contractType,remoteMode,minExperienceYears,companyId,isActive,tags,aiSkills,aiSector,opportunityType,normalizedContent,source,sourceUrl,deadline,sourcePublishedAt,qualityStatus").eq("isActive", true).limit(1000),
     ]);
     for (const result of [profileRes, skillsRes, experiencesRes, educationRes, jobsRes]) {
       if (result.error) throw new Error(result.error.message);
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
         remoteMode: job.remoteMode,
         minExperienceYears: job.minExperienceYears,
         sector: job.aiSector,
-        tags: [...(job.tags ?? []), ...(Array.isArray(job.aiSkills) ? job.aiSkills : [])],
+        tags: [...(job.tags ?? []), ...(Array.isArray(job.aiSkills) ? job.aiSkills : [])],\n        normalizedContent: job.normalizedContent,
       });
       return {
         ...job,
