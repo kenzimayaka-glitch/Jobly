@@ -8784,3 +8784,24 @@ La relecture du nouveau lanceur a identifié un risque de conversion d'un tablea
 - Test statique : `3cbe8ceda6625ecbb8dea96a49e1c843ae058e0e`.
 
 Le rapport n'est déclaré PASS que lorsque le statut du JSON est PASS et que le nettoyage est vérifié. La validation Windows reste à effectuer.
+
+
+### 154.19 Bootstrap CMD téléchargeable sans checkout — affichage explicite après FETCH
+
+**Cause de l'affichage tronqué rapporté par l'opérateur :** la tentative précédente utilisait un long `powershell -Command` inline ; l'utilisateur n'observait que `FETCH ...` puis `From https://github.com/...`, sans jalons permettant de confirmer l'étape suivante. Le second lanceur PowerShell existe dans la branche, mais n'est pas présent dans le worktree local tant que son fichier n'a pas été extrait explicitement.
+
+**Correctif :** ajout de `e2e/run-africa-bulk-bootstrap.cmd`, un bootstrap CMD versionné qui affiche les étapes numérotées, le code retour Git, le SHA récupéré et le code retour PowerShell. Il accepte un SHA en argument pour éviter un deuxième fetch, extrait le script PowerShell avec `git show` et l'exécute avec le SHA exact. Le bootstrap vérifie l'URL du remote autorisé, la longueur du SHA et la taille du fichier extrait ; il conserve un journal fixe dans `%TEMP%\\jobly-africa-bulk-bootstrap.log`, l'ouvre dans Notepad et garde la fenêtre ouverte avec `pause`.
+
+Le bootstrap ne fait aucun checkout, reset, clean, stash ni contrôle `git status`. Le worktree local peut rester modifié. Le PowerShell exécute seulement un snapshot `git archive` du commit distant dans un dossier temporaire séparé.
+
+Correctifs successifs du bootstrap et de son contrôle :
+- fichier bootstrap initial : `989b638ae939d333c2153c42ab3bb711a34ff040` ;
+- contrôle de longueur SHA : `480fd28c511d47f19feb404f95544bf4b4719dbc` ;
+- test des étapes visibles : `b78b6bda3a092ab7282d4a89b192c7c789d5253f` ;
+- réutilisation du SHA transmis : `f71edcbd984af2f5cb28fc22fc4bc3249960fb7f` ;
+- test du transfert SHA : `c00eddc81b18ef4cee70e5aa4ce2497daab1a9f7` ;
+- documentation opérateur : `320a4b0ea122569bd5b742077da3f39c939b87d2`.
+
+**Commande de démarrage locale :** une première commande CMD native récupère `e2e/recette`, extrait le bootstrap CMD avec `git show` dans `%TEMP%`, puis l'appelle en transmettant le SHA. Le bootstrap affiche ensuite ses cinq jalons, puis le PowerShell affiche le préflight statique, Deno, la preuve de clé, le rapport métier et le nettoyage.
+
+**Validation :** le contenu versionné et les assertions statiques ont été relus sur GitHub ; le lancement réel de cette nouvelle chaîne CMD/PowerShell sous Windows reste à confirmer par le prochain rapport opérateur. Aucun résultat d'ingestion, de traitement ou de nettoyage n'est revendiqué avant ce rapport.
