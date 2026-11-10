@@ -175,7 +175,7 @@ test("Africa bulk recipe exercises the real ingest and processor in one uniquely
   assert.match(isolated, /E2E_SECRET_KEY_PROJECT_PROOF/);
   assert.match(isolated, /RUNTIME_REPORT_STATUS/);
   assert.match(isolated, /CLEANUP_VERIFIED/);
-  assert.match(isolated, /STATIC_TESTS_11_GROUPS/);
+  assert.match(isolated, /STATIC_TESTS_UPDATED_GUARDRAILS/);
   assert.match(isolated, /ofqqrryamslxoqkklraw/);
   assert.match(isolated, /FetchedSha/);
   assert.match(isolated, /cat-file/);
@@ -250,3 +250,16 @@ test("Africa bulk recipe validates ingestion through the authenticated Talent Af
   assert.ok(isolated.includes("--allow-net=127.0.0.1:3217"));
 });
 
+
+test("snapshot server start is pinned to the fetched commit and stopped by its exact recorded PID", () => {
+  const server = read("e2e/start-readonly-runtime-server.mjs");
+  const isolated = read("e2e/run-africa-bulk-isolated.ps1");
+  const stop = read("e2e/stop-readonly-runtime-server.mjs");
+  assert.match(server, /process\.argv\.includes\("--snapshot"\)/);
+  assert.match(server, /E2E_RECIPE_SHA/);
+  assert.match(isolated, /New-Item -ItemType Junction/);
+  assert.match(isolated, /START_LOCAL_JOBLY_E2E_SERVER/);
+  assert.match(isolated, /STOP_LOCAL_JOBLY_E2E_SERVER/);
+  assert.match(stop, /taskkill", \["\/PID", String\(meta\.pid\), "\/T", "\/F"\]/);
+  assert.doesNotMatch(stop, /taskkill", \["\/IM", "node\.exe"/i);
+});
