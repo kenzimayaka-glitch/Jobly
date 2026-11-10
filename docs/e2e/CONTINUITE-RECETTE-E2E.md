@@ -8859,3 +8859,8 @@ cd /d "%USERPROFILE%\Jobly-e2e-recette-lot01" && set "GIT_TERMINAL_PROMPT=0" && 
 ```
 
 Le bootstrap ouvre son journal `%TEMP%\jobly-africa-bulk-bootstrap.log`. Une fois le lanceur PowerShell démarré, celui-ci ouvre le rapport runtime ou, en cas d'arrêt avant rapport, `%TEMP%\jobly-africa-bulk-launch.log`. Aucun checkout, reset, clean, stash, merge ni déploiement n'est effectué.
+
+
+**Ajustement final après revue de flux PowerShell :** les lignes natives sont maintenant relayées après `Tee-Object` par `ForEach-Object { Write-Host ... }`. Cela garantit qu'elles restent visibles même lorsque l'appelant termine l'invocation par `Out-Null`, tout en conservant leur copie dans le journal. Correctif : `e73f2ebde7374fa1856afb4ce116a58c4d409875` ; assertion complémentaire : `43fc0aca4e8c64e5288bc8d335d006fc395824c8`.
+
+Ce dernier ajustement est relu sur GitHub. La validation Windows reste nécessaire ; aucun rapport runtime PASS n'est revendiqué.
