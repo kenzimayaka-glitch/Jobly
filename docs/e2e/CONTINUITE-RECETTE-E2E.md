@@ -8731,3 +8731,13 @@ La relecture du commit initial §154.13 a révélé que l'ancien `insist(... SEC
 - Test corrigé : `054c5ffc25e9fe3f98660a17d14a02b30d9d1e3d`.
 
 Le commit §154.13 est supersédé pour le comportement d'exécution par cette correction. Rejouer la recette depuis le dernier HEAD ; aucun PASS runtime n'est revendiqué avant rapport.
+
+
+### 154.15 Vérification API systématique des clés sb_secret
+
+Durcissement supplémentaire : la sonde de lecture HEAD sur `Job` est maintenant exécutée pour **toute** clé `sb_secret_`, même si un manifeste runtime ou une URL E2E locale est présent. Une URL dans un fichier local n'est pas, à elle seule, une preuve cryptographique que la clé appartient au même projet. La réponse de l'API du projet E2E épinglé confirme donc la clé avant le début des écritures métier.
+
+- Runner : `ac8f684ca9fd9a9ed237fe28c6ca49f148409bd0`.
+- Test statique : `0213abc8066b8f2002089cef4169fbaeae31c726`.
+
+Le client retire toujours le header Authorization pour cette clé et conserve uniquement `apikey`. La sonde fait un HEAD avec `limit(0)`, donc elle ne récupère aucune ligne métier. Si elle échoue, le traitement s'arrête sous `SECRET_KEY_E2E_PROOF_FAILED`. Si elle réussit, le rapport doit inclure `E2E_SECRET_KEY_PROJECT_PROOF: PASS`.
