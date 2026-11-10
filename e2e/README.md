@@ -187,3 +187,5 @@ Les objets temporaires portent une \`sourceKey\` unique \`jobly_e2e_bulk_*\`. Le
 Le rapport JSON est \`artifacts/e2e/africa-bulk-recipe-report.json\`. Le wrapper ouvre automatiquement ce rapport dans Notepad ; en cas d'arrêt avant sa création, il ouvre le journal \`artifacts/e2e/africa-bulk-recipe-process.log\`. Aucun deuxième CMD ou commande Notepad n'est nécessaire.
 
 **Écriture temporaire autorisée uniquement dans JOBLY-E2E** : ce lot crée réellement des captures, Jobs et pipelines synthétiques avant de les nettoyer. Le rapport indique donc \`temporaryE2EBusinessWrites: true\` et \`productionModified: false\`. Les communications, paiements, ingestion de sources réelles, tâches planifiées, Production, \`main\` et Vercel restent hors périmètre.
+
+**Prérequis local :** Node.js (pour `node --test`) et Deno **2.x** dans le `PATH`. Le wrapper détecte l'absence de Deno avant tout accès en écriture et ouvre le journal explicatif dans Notepad.
