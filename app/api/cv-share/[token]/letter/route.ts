@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const clean = (value: unknown) => typeof value === "string" ? value.trim() : "";
-const required = (description: string) => /(?:lettre\s+(?:de\s+)?motivation[^.\n]{0,100}(?:obligatoire|requise|exigée|à\s+joindre)|(?:obligatoire|requise|exigée)[^.\n]{0,80}lettre\s+(?:de\s+)?motivation|cover\s+letter\s+(?:is\s+)?(?:required|mandatory))/i.test(description);
+const required = (description: string) => /(?:lettre\s+(?:de\s+)?motivation[^.\n]{0,120}(?:obligatoire|requise|exigée|demandée|à\s+joindre|à\s+fournir)|(?:obligatoire|requise|exigée|demandée)[^.\n]{0,80}lettre\s+(?:de\s+)?motivation|cover\s+letter\s+(?:is\s+)?(?:required|mandatory))/i.test(description);
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
