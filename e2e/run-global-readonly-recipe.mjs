@@ -22,6 +22,14 @@ async function exists(file) {
   try { await access(file); return true; } catch { return false; }
 }
 
+function safeStaticEnv() {
+  const env = { ...process.env };
+  const blocked = /(SUPABASE|DATABASE_URL|DIRECT_URL|POSTGRES|SERVICE_ROLE|SECRET|TOKEN|PASSWORD|PRIVATE_KEY|RESEND|SMTP|SENDGRID|TWILIO|STRIPE|PAYPAL|MOBILE_MONEY|CLIENT_SECRET|API_KEY)/i;
+  for (const key of Object.keys(env)) if (blocked.test(key)) delete env[key];
+  env.E2E_BULK_CONCURRENCY = "3";
+  return env;
+}
+
 async function readJson(file) {
   try { return JSON.parse(await readFile(file, "utf8")); } catch { return null; }
 }
@@ -158,7 +166,7 @@ async function main() {
   const [staticRun, serverRun] = await Promise.all([
     runNode("global-static-sweep", "scripts/e2e-bulk-runner.mjs", [], {
       timeoutMs: 360000,
-      env: { ...process.env, E2E_BULK_CONCURRENCY: "3" },
+      env: safeStaticEnv(),
     }),
     runNode("global-server-start", "e2e/start-readonly-runtime-server.mjs", [SOURCE_ROOT], {
       timeoutMs: 900000,
