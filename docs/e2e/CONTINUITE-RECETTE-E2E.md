@@ -8752,3 +8752,25 @@ Le client retire toujours le header Authorization pour cette clé et conserve un
 **Traçabilité :** le lanceur capture séparément les erreurs Git/fetch/archive dans un journal temporaire et l'ouvre dans Notepad si l'archive ne peut pas être préparée. Une fois le wrapper E2E démarré, son propre journal et son rapport sont ouverts suivant le comportement déjà testé. Il n'y a ainsi plus de sortie silencieusement perdue.
 
 **État métier :** ce changement ne modifie aucun contrôle de la clé privée, aucune permission Supabase et aucune assertion de l'ingestion. La sonde `E2E_SECRET_KEY_PROJECT_PROOF` reste obligatoire pour chaque `sb_secret_` avant toute écriture. La recette n'est toujours pas réputée exécutée tant que le rapport final n'indique pas le traitement et le nettoyage vérifié.
+
+
+### 154.17 Lanceur isolé observable — remplacement de la commande PowerShell silencieuse
+
+**Problème de la tentative précédente :** la commande PowerShell monolithique n'affichait visiblement que `FETCH ...` et `From https://github.com/...`. Elle envoyait la suite de ses sorties dans un journal temporaire au nom aléatoire, puis ouvrait Notepad en arrière-plan en cas d'échec. L'opérateur ne pouvait donc pas distinguer un blocage Git, un échec d'archive, un prérequis local absent ou une erreur runtime.
+
+**Nouveau lanceur :** `e2e/run-africa-bulk-isolated.ps1`.
+- ne vérifie plus `git status --porcelain` et ne demande jamais un worktree propre ;
+- récupère un SHA distant unique de `e2e/recette`, puis exporte exactement ce commit par `git archive` dans un dossier temporaire ;
+- laisse intacts tous les fichiers suivis, non suivis et modifiés du worktree opérateur ;
+- accepte le SHA déjà récupéré par le bootstrap (`-FetchedSha`) pour ne pas faire deux fetchs ;
+- valide l'URL `origin`, le SHA, les fichiers, le garde-fou de projet et le mode Deno avant la recette ;
+- écrit chaque étape et chaque sortie native dans `%TEMP%\\jobly-africa-bulk-launch.log` et les affiche aussi dans la fenêtre ;
+- lance les 11 tests dans l'archive temporaire, puis le runner Deno avec lecture limitée au checkout source et à l'archive, écriture limitée aux artefacts temporaires et réseau limité au projet E2E + registre npm ;
+- ouvre le rapport dans Notepad, ou le journal stable en cas d'échec ;
+- ne retourne le code 0 que si le rapport métier est `PASS` **et** `cleanupVerified=true`. Un rapport `FAIL` ou `PARTIAL` retourne 2 même si Deno a terminé normalement.
+
+**Bootstrap de la commande :** depuis le worktree existant, un unique CMD récupère le script PowerShell depuis `FETCH_HEAD` dans `%TEMP%`, puis le lance en lui passant le SHA exact. Aucun deuxième worktree Git n'est créé. Les secrets sont toujours lus depuis `%USERPROFILE%\\Jobly`; ils ne sont pas copiés dans l'archive, ni dans le journal.
+
+Commits : lanceur initial `84eafb13c61815dbcef8ad151e34b095e91b73b7`, contrôle strict du rapport `05d1e816bffcf0c0cd139de9796206496226b03e`, réutilisation du SHA de bootstrap `b8d48634eb041a1717e4240b6b76488b3a0bd879`, test statique associé `18f769deb28626a1de8c5c046ff5d8f50551b36d`.
+
+**Prudence de validation :** le nouveau lanceur est versionné et relu sur GitHub ; son exécution Windows réelle reste à faire. Aucun résultat E2E n'est anticipé et aucun accès de Production n'est autorisé.
