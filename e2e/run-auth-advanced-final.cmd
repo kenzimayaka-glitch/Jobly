@@ -61,7 +61,7 @@ call pnpm exec tsc --noEmit --incremental false
 if errorlevel 1 goto :failed
 
 echo.
-echo [6/7] Suppression de l'ancien rapport puis execution E2E...
+echo [6/7] Execution de la recette navigateur E2E...
 
 node e2e\run-authenticated-role-recipe.mjs "%USERPROFILE%\Jobly" --auth-advanced-only
 set "JOBLY_RUN_EXIT=%ERRORLEVEL%"
