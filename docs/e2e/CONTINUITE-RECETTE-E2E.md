@@ -8805,3 +8805,18 @@ Correctifs successifs du bootstrap et de son contrôle :
 **Commande de démarrage locale :** une première commande CMD native récupère `e2e/recette`, extrait le bootstrap CMD avec `git show` dans `%TEMP%`, puis l'appelle en transmettant le SHA. Le bootstrap affiche ensuite ses cinq jalons, puis le PowerShell affiche le préflight statique, Deno, la preuve de clé, le rapport métier et le nettoyage.
 
 **Validation :** le contenu versionné et les assertions statiques ont été relus sur GitHub ; le lancement réel de cette nouvelle chaîne CMD/PowerShell sous Windows reste à confirmer par le prochain rapport opérateur. Aucun résultat d'ingestion, de traitement ou de nettoyage n'est revendiqué avant ce rapport.
+
+
+### 154.20 Commande unique de récupération et d'exécution du bootstrap
+
+La reprise opérateur commence directement avec cette commande CMD native, qui évite PowerShell pendant l'étape de récupération initiale :
+
+```cmd
+cd /d "%USERPROFILE%\Jobly-e2e-recette-lot01" && echo [BOOTSTRAP 1/3] FETCH && git fetch --no-tags origin refs/heads/e2e/recette && echo [BOOTSTRAP 2/3] FETCH_TERMINE && git show FETCH_HEAD:e2e/run-africa-bulk-bootstrap.cmd > "%TEMP%\jobly-africa-bulk-bootstrap.cmd" && echo [BOOTSTRAP 3/3] LANCEMENT && call "%TEMP%\jobly-africa-bulk-bootstrap.cmd" FETCH_HEAD
+```
+
+Cette première commande imprime un marqueur après `git fetch`, extrait le bootstrap depuis le commit distant exact et l'appelle avec `FETCH_HEAD`. Le bootstrap résout ce SHA sans refaire de fetch, extrait le PowerShell dans le dossier temporaire puis lance le snapshot isolé. Aucun fichier du worktree n'est remplacé. En cas de sortie après un marqueur donné, le dernier marqueur identifie précisément le point de blocage. Le bootstrap ouvre son journal et garde la fenêtre ouverte.
+
+Le dernier ajustement CMD du SHA (labels explicites hors blocs parenthésés) est commité dans `bdb400b18823dd2604412e5c3099d9c5d669f178`, avec verrou statique `0ac334492c4b83564b5ffb6843a6a04fae143fb8`. La commande est aussi publiée dans `e2e/README.md`.
+
+Validation restante : exécution réelle de cette commande par l'opérateur. Les statiques, la preuve de clé, l'ingestion, le processeur et le nettoyage ne sont pas déclarés exécutés par la seule présence de ce lanceur.
