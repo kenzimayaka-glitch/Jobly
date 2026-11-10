@@ -14,14 +14,18 @@
 
 **Règle globale pour tous les recruteurs et toutes les offres Jobly :** seuls les talents dont le score de matching est **>= 90 %** sont éligibles. Jobly retient au maximum les cinq meilleurs par offre, triés par score décroissant avec départage déterministe.
 
-- **Compte gratuit :** peut consulter les scores de matching des cinq talents éligibles, mais ne peut ni voir ni ouvrir leurs profils. Aucun nom, photo, identifiant de profil, CV, coordonnées ou autre donnée personnelle identifiable ne doit être transmis au navigateur. Les scores seuls constituent l'accroche commerciale.
+- **Compte gratuit :** affiche les cinq cartes de matching sous forme d'aperçus **visuellement floutés et anonymisés**. Seuls les scores de matching (et éventuellement le rang 1 à 5) restent nets et lisibles. Aucun nom, photo réelle, identifiant, CV, coordonnée ou détail personnel identifiable ne doit être transmis au navigateur ; les aperçus floutés sont des placeholders/silhouettes non identifiants.
+- **Aucun accès visible ou fonctionnel au profil en gratuit :** aucune carte floutée n'est cliquable ; aucun lien, bouton, hover-preview, action clavier, route de détail ou téléchargement ne permet d'ouvrir le profil. Un CTA d'abonnement séparé peut expliquer le déblocage, sans révéler ni rendre les profils consultables.
 - **Compte avec abonnement :** l'accès aux profils des cinq talents exige un abonnement Jobly actif et l'entitlement explicite correspondant. Expiration, annulation, suspension, impayé ou absence de droit verrouille les profils.
-- Protection serveur/API sur toutes les surfaces Jobly (découverte, matching d'une offre, conversion WhatsApp, espace recruteur, recherche, pagination, exports et préchargements). Un simple masquage UI ne suffit pas.
+- Protection serveur/API sur toutes les surfaces Jobly (découverte, matching d'une offre, conversion WhatsApp, espace recruteur, recherche, pagination, exports, préchargements et caches). Le floutage CSS/UI ne remplace jamais le refus d'accès serveur.
 - Règle identique pour les offres récupérées par conversion WhatsApp et celles créées directement sur Jobly. Le seuil de 90 % est inclusif.
 
 **Scénarios obligatoires :**
 - **REC-MATCH-01 — seuil et classement :** scores 89,99 %, 90 %, au-dessus ; seuls >=90 % sont classés ; maximum cinq par offre ; ordre et égalités déterministes.
-- **REC-MATCH-02 — gratuit :** scores visibles, profils inaccessibles ; vérifier l'absence de données identifiantes dans HTML, réponses API, cache, pagination, recherche et exports.
+- **REC-MATCH-02 — gratuit :** cinq cartes floutées/anonymisées, scores seuls lisibles, aucun accès au profil ; vérifier l'absence de données identifiantes dans HTML/DOM, état client, réponses API, cache, pagination, recherche, préchargements et exports.
+- **REC-MATCH-05 — floutage visuel :** contrôler le rendu flouté des cinq cartes, score net, sur desktop et mobile ; les éléments floutés sont des placeholders sans données réelles.
+- **REC-MATCH-06 — aucun chemin d'ouverture :** vérifier l'absence de lien, bouton, aperçu au survol, focus/action clavier, route de détail et téléchargement utilisables en gratuit.
+- **REC-MATCH-07 — contournement :** inspection DOM et appels directs API/URL, cache, pagination, recherche et exports ; aucune donnée réelle de profil ne doit être transmise ou récupérable.
 - **REC-MATCH-03 — abonnement :** abonnement actif + entitlement ouvre les profils ; expiration, annulation, suspension, impayé ou révocation ferme l'accès.
 - **REC-MATCH-04 — portée globale :** mêmes règles sur toutes les surfaces Jobly et pour tous les recruteurs, y compris les offres créées sans parcours WhatsApp.
 
