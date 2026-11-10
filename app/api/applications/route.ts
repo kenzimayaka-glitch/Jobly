@@ -74,7 +74,7 @@ export async function POST(request:NextRequest){try{const authUser=await getAuth
    ? String(body.cvPreparationMode) as "NORMAL"|"ATS"|"IMPROVE"|"ATS_IMPROVE"
    : "ATS";
  const applicationId=existingApplicationId||newId();
- const prepared=await prepareApplication(request,{jobTitle:offer.title,jobDescription:offer.description,company,applicationProfile:offer.applicationProfile||{},profile:profileRes.data||{},experiences:experiencesRes.data||[],skills:skillsRes.data||[],education:educationRes.data||[],letterOverride,skipAi:Boolean(letterOverride),cvPreparationMode});
+ const prepared=await prepareApplication(request,{jobTitle:offer.title,jobDescription:offer.description,company,applicationProfile:offer.applicationProfile||{},profile:profileRes.data||{},experiences:experiencesRes.data||[],skills:skillsRes.data||[],education:educationRes.data||[],letterOverride,skipAi:Boolean(letterOverride)||Boolean(body.skipApplicationAi),cvPreparationMode});
  const readinessScoreAtApply = Number.isFinite(Number(body.readinessScoreAtApply)) ? Math.max(0, Math.min(100, Number(body.readinessScoreAtApply))) : null;
  const locale = typeof body.locale === "string" && body.locale.trim() ? body.locale.trim().slice(0,10) : "fr";
  let application:any=null;
