@@ -23,7 +23,9 @@ export async function loadRuntimeConfig(sourceRootArg) {
   const require = createRequire(import.meta.url);
   const nextPackage = require.resolve("next/package.json");
   const nextRequire = createRequire(nextPackage);
-  const dotenv = nextRequire("dotenv");
+  const nextEnvPath = nextRequire.resolve("@next/env");
+  const nextEnvRequire = createRequire(nextEnvPath);
+  const dotenv = nextEnvRequire("dotenv");
   const { loadEnvConfig } = nextRequire("@next/env");
   const loaded = loadEnvConfig(sourceRoot, false, { info() {}, error() {} }, true);
   const values = {};
