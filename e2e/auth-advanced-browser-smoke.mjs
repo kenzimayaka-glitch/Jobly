@@ -13,7 +13,7 @@ const REPORT_PATH = path.resolve("artifacts/e2e/lot1-auth-advanced-smoke.json");
 const REPORT = {
   createdAt: new Date().toISOString(),
   completedAt: null,
-  commit: process.env.GITHUB_SHA || null,
+  commit: process.env.E2E_SOURCE_COMMIT || null,
   environment: "JOBLY-E2E",
   projectRef: PROJECT_REF,
   baseURL: BASE_URL,
