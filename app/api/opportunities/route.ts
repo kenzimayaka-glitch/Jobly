@@ -54,7 +54,8 @@ export async function GET(req: NextRequest) {
         remoteMode: job.remoteMode,
         minExperienceYears: job.minExperienceYears,
         sector: job.aiSector,
-        tags: [...(job.tags ?? []), ...(Array.isArray(job.aiSkills) ? job.aiSkills : [])],\n        normalizedContent: job.normalizedContent,
+        tags: [...(job.tags ?? []), ...(Array.isArray(job.aiSkills) ? job.aiSkills : [])],
+        normalizedContent: job.normalizedContent,
       });
       return {
         ...job,
