@@ -8672,3 +8672,18 @@ Pour les clés sb_secret, le client REST retire le header Authorization et conse
 **Portée du résultat :** le run transmis s'est arrêté au préflight statique ; il ne constitue ni un échec du processeur Afrique ni un test runtime de l'ingestion. La recette Deno n'est pas réputée lancée et aucun résultat métier E2E n'est revendiqué. La correction a été relue dans GitHub, mais le préflight complet doit être rejoué après récupération du nouveau HEAD.
 
 **Reprise :** depuis le worktree `%USERPROFILE%\\Jobly-e2e-recette-lot01`, récupérer `origin/e2e/recette` puis exécuter une seule fois `call e2e\\run-africa-bulk-recipe.cmd`. Le wrapper relancera les 11 contrôles et n'ouvrira la phase Deno que si le préflight passe ; il ouvre lui-même le rapport ou le journal dans Notepad. Aucun autre CMD ni commande Notepad séparée.
+
+
+### 154.11 Correction de la dernière assertion du wrapper Afrique
+
+**Rapport opérateur du 10 novembre 2026 :** après le premier correctif du test de signature d'ingestion, le préflight a exécuté 11 groupes : 10 PASS et 1 FAIL. Le groupe restant ne signalait plus une divergence du runner bulk ; il vérifiait encore à tort que le wrapper référence `run-africa-bulk-recipe.ts`.
+
+L'audit croisé du wrapper et du runner confirme le nom et le chemin réels : `e2e/africa-bulk-recipe.ts`. Le wrapper Deno appelait déjà correctement ce fichier ; seul le test statique était erroné. La correction consiste donc à verrouiller le chemin réel `e2e\\africa-bulk-recipe.ts`, sans renommer le runner ni modifier le wrapper.
+
+- Test corrigé : `scripts/runtime-readonly-lots.test.mjs`.
+- Commit : `308ba4683ecb7fc64066d924b99d9236fbd1613a`.
+- Vérification GitHub : le test doit maintenant contrôler explicitement le chemin Windows réellement appelé par le wrapper.
+
+**Portée :** le run à 10 PASS / 1 FAIL s'est arrêté avant Deno. Aucun traitement bulk, aucune écriture JOBLY-E2E et aucun nettoyage n'ont été exécutés pendant ce run. Les 11 tests doivent être rejoués depuis le nouveau HEAD ; aucun PASS runtime Afrique n'est revendiqué.
+
+**Reprise :** récupérer `origin/e2e/recette` puis exécuter uniquement `call e2e\\run-africa-bulk-recipe.cmd`. Le wrapper exécute les contrôles avant Deno et ouvre automatiquement le rapport courant ou le journal Notepad de repli.
