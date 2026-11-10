@@ -17,6 +17,7 @@ async function authorizeApplication(sb: ReturnType<typeof adminClient>, applicat
     .from("Recruitment360")
     .select("id,recruiterJobId")
     .eq("recruiterJobId", application.recruiterJobId)
+    .limit(1)
     .maybeSingle();
   if (recruitmentError) throw new Error(recruitmentError.message);
   if (!recruitment) throw new Error("RECRUITMENT_NOT_FOUND");
@@ -27,6 +28,7 @@ async function authorizeApplication(sb: ReturnType<typeof adminClient>, applicat
     .eq("recruitmentId", recruitment.id)
     .eq("userId", actorId)
     .in("role", RECRUITMENT_ROLES)
+    .limit(1)
     .maybeSingle();
   if (accessError) throw new Error(accessError.message);
   if (!access) throw new Error("FORBIDDEN");
@@ -71,6 +73,15 @@ export async function GET(req: NextRequest) {
     if (applicationsError) throw new Error(applicationsError.message);
 
     const applicationIds = (applications ?? []).map((item: any) => item.id);
+    const userIds = [...new Set((applications ?? []).map((item: any) => String(item.userId)).filter(Boolean))];
+    const [{ data: users, error: usersError }, { data: recruiterJobs, error: recruiterJobsError }] = await Promise.all([
+      userIds.length ? sb.from("User").select("id,displayName,firstName,lastName").in("id", userIds) : Promise.resolve({ data: [], error: null }),
+      sb.from("RecruiterJob").select("id,title,companyName").in("id", jobIds),
+    ]);
+    if (usersError) throw new Error(usersError.message);
+    if (recruiterJobsError) throw new Error(recruiterJobsError.message);
+    const usersById = new Map((users ?? []).map((item: any) => [String(item.id), item]));
+    const jobsById = new Map((recruiterJobs ?? []).map((item: any) => [String(item.id), item]));
     const [{ data: assessments, error: assessmentsError }, { data: shortlists, error: shortlistsError }] = applicationIds.length
       ? await Promise.all([
           sb.from("RecruitmentApplicationAssessment").select("*").in("applicationId", applicationIds),
@@ -83,11 +94,18 @@ export async function GET(req: NextRequest) {
     const assessmentByApplication = new Map((assessments ?? []).map((item: any) => [item.applicationId, item]));
     const shortlistByApplication = new Map((shortlists ?? []).map((item: any) => [item.applicationId, item]));
     return NextResponse.json({
-      applications: (applications ?? []).map((item: any) => ({
-        ...item,
-        assessment: assessmentByApplication.get(item.id) ?? null,
-        shortlist: shortlistByApplication.get(item.id) ?? null,
-      })),
+      applications: (applications ?? []).map((item: any) => {
+        const candidate = usersById.get(String(item.userId));
+        const job = jobsById.get(String(item.recruiterJobId));
+        return {
+          ...item,
+          candidateName: candidate?.displayName || [candidate?.firstName, candidate?.lastName].filter(Boolean).join(" ") || "Candidat",
+          jobTitle: job?.title ?? null,
+          companyName: job?.companyName ?? null,
+          assessment: assessmentByApplication.get(item.id) ?? null,
+          shortlist: shortlistByApplication.get(item.id) ?? null,
+        };
+      }),
     });
   } catch (error) {
     return NextResponse.json(
