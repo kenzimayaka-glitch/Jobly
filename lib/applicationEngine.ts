@@ -98,6 +98,7 @@ export async function prepareApplication(req: NextRequest, args: {
   education: TailoredCvEducation[];
   letterOverride?: string | null;
   skipAi?: boolean;
+  cvPreparationMode?: "NORMAL" | "ATS" | "IMPROVE" | "ATS_IMPROVE";
 }) {
   const applicationProfile = { ...args.applicationProfile };
   // The candidature channel and subject are derived from the dedicated
@@ -119,7 +120,33 @@ export async function prepareApplication(req: NextRequest, args: {
   if (!ai.ok) throw new Error(ai.message);
   const output = ai.output && typeof ai.output === "object" ? ai.output as Record<string, unknown> : {};
   const warnings = Array.isArray(output.warnings) ? output.warnings.filter((x): x is string => typeof x === "string") : [];
-  const tailoredCvText = buildTailoredCv({
+  const cvMode = args.cvPreparationMode || "ATS";
+  const originalCvText = [
+    [args.profile.firstName, args.profile.lastName].filter(Boolean).join(" "),
+    args.profile.headline || "",
+    args.profile.location || "",
+    "",
+    "PROFIL",
+    args.profile.summary || args.profile.experienceSummary || "",
+    "",
+    "COMPÉTENCES",
+    args.skills.map((item) => [item.name, item.level].filter(Boolean).join(" — ")).filter(Boolean).join("\n"),
+    "",
+    "EXPÉRIENCE",
+    args.experiences.map((item) => [
+      [item.title, item.company].filter(Boolean).join(" — "),
+      [item.startDate, item.endDate].filter(Boolean).join(" – "),
+      item.description || "",
+    ].filter(Boolean).join("\n")).join("\n\n") || args.profile.experienceSummary || "",
+    "",
+    "FORMATION",
+    args.education.map((item) => [
+      [item.degree, item.field, item.institution].filter(Boolean).join(" — "),
+      [item.startDate, item.endDate].filter(Boolean).join(" – "),
+    ].filter(Boolean).join("\n")).join("\n") || args.profile.educationSummary || "",
+  ].join("\n").trim();
+
+  const atsCvText = buildTailoredCv({
     profile: args.profile,
     experiences: args.experiences,
     skills: args.skills,
@@ -127,6 +154,50 @@ export async function prepareApplication(req: NextRequest, args: {
     jobTitle: args.jobTitle,
     jobDescription: args.jobDescription,
   });
+
+  let tailoredCvText = cvMode === "NORMAL" ? originalCvText : atsCvText;
+  if (cvMode === "IMPROVE" || cvMode === "ATS_IMPROVE") {
+    const sourceText = cvMode === "ATS_IMPROVE" ? atsCvText : originalCvText;
+    const cvAssist = await runAiGateway(req, "CV_INTELLIGENCE", {
+      cvText: sourceText,
+      mode: "IMPROVE",
+      targetRole: args.jobTitle,
+      jobDescription: args.jobDescription,
+    });
+    if (!cvAssist.ok) throw new Error(cvAssist.message);
+    const improved = cvAssist.output && typeof cvAssist.output === "object"
+      ? (cvAssist.output as Record<string, unknown>).improvedProfile as Record<string, unknown> | undefined
+      : undefined;
+    if (improved) {
+      const list = (value: unknown) => Array.isArray(value) ? value.map((item) => String(item || "").trim()).filter(Boolean).join("\n") : "";
+      tailoredCvText = [
+        String(improved.fullName || "").trim(),
+        String(improved.headline || "").trim(),
+        [improved.email, improved.phone].map((value) => String(value || "").trim()).filter(Boolean).join(" · "),
+        "",
+        "PROFIL",
+        String(improved.summary || "").trim(),
+        "",
+        "COMPÉTENCES",
+        list(improved.skills),
+        "",
+        "EXPÉRIENCE",
+        String(improved.experience || "").trim(),
+        "",
+        "FORMATION",
+        String(improved.education || "").trim(),
+        "",
+        "LANGUES",
+        list(improved.languages),
+        "",
+        "RÉALISATIONS",
+        list(improved.achievements),
+      ].join("\n").trim();
+    } else {
+      throw new Error("J'IA n'a pas retourné de CV amélioré exploitable. Le CV source reste inchangé.");
+    }
+  }
+  if (!tailoredCvText.trim()) throw new Error("Aucun contenu CV exploitable n'a été généré.");
   return {
     channel,
     definition,
