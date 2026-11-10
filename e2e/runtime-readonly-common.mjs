@@ -20,44 +20,123 @@ export async function loadRuntimeConfig(sourceRootArg) {
   if (!sourceRoot || sourceRoot === path.parse(sourceRoot).root) {
     throw new Error("SOURCE_ROOT_INVALID");
   }
+
+  // Never import .env.production or .env.production.local from the source checkout:
+  // this is a local production-mode build, but its data target must remain JOBLY-E2E.
   const require = createRequire(import.meta.url);
   const nextPackage = require.resolve("next/package.json");
   const nextRequire = createRequire(nextPackage);
-  const nextEnvPath = nextRequire.resolve("@next/env");
-  const nextEnvRequire = createRequire(nextEnvPath);
-  const dotenv = nextEnvRequire("dotenv");
-  const { loadEnvConfig } = nextRequire("@next/env");
-  const loaded = loadEnvConfig(sourceRoot, false, { info() {}, error() {} }, true);
+  const dotenv = nextRequire("dotenv");
   const values = {};
-  for (const file of loaded.loadedEnvFiles || []) {
-    const parsed = file.env && Object.keys(file.env).length ? file.env : dotenv.parse(file.contents || "");
-    for (const [key, value] of Object.entries(parsed)) {
-      if (typeof value === "string" && value.trim() && !Object.prototype.hasOwnProperty.call(values, key)) values[key] = value;
+  const origins = {};
+  const files = [];
+
+  for (const filename of [".env.local", ".env.e2e.local"]) {
+    const filePath = path.join(sourceRoot, filename);
+    try {
+      const content = await readFile(filePath, "utf8");
+      const parsed = dotenv.parse(content);
+      files.push(filename);
+      for (const [key, value] of Object.entries(parsed)) {
+        if (typeof value === "string" && value.trim()) {
+          values[key] = value.trim();
+          origins[key] = filename;
+        }
+      }
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
     }
   }
-  const overridePath = path.join(sourceRoot, ".env.e2e.local");
+
+  let runtimeSecret = "";
+  const runtimePath = path.join(sourceRoot, ".e2e-fixture-runtime.json");
   try {
-    await access(overridePath);
-    const parsed = dotenv.parse(await readFile(overridePath, "utf8"));
-    for (const [key, value] of Object.entries(parsed)) if (typeof value === "string" && value.trim()) values[key] = value;
+    const runtime = JSON.parse(await readFile(runtimePath, "utf8"));
+    if (runtime.environment === "JOBLY-E2E" && runtime.projectRef === PROJECT_REF &&
+        typeof runtime.serviceRoleKey === "string" && runtime.serviceRoleKey.length >= 20) {
+      runtimeSecret = runtime.serviceRoleKey;
+      files.push(".e2e-fixture-runtime.json");
+    }
   } catch {}
-  const env = { ...loaded.combinedEnv, ...values };
-  const publicUrl = values.NEXT_PUBLIC_SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || "";
-  const serverUrl = values.SUPABASE_URL || env.SUPABASE_URL || "";
-  if (publicUrl && publicUrl !== SUPABASE_URL) throw new Error("NEXT_PUBLIC_SUPABASE_URL_NON_E2E_REFUSED");
-  if (serverUrl && serverUrl !== SUPABASE_URL) throw new Error("SUPABASE_URL_NON_E2E_REFUSED");
-  const url = publicUrl || serverUrl || "";
-  const publishableKey = values.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || values.NEXT_PUBLIC_SUPABASE_ANON_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-  const secretKey = values.SUPABASE_SECRET_KEY || values.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY || "";
-  assert.equal(url, SUPABASE_URL, "SUPABASE_URL_NON_E2E_REFUSED");
-  assert.ok(publishableKey.startsWith("sb_publishable_") || publishableKey.startsWith("eyJ"), "PUBLISHABLE_KEY_MISSING");
-  assert.ok(secretKey.startsWith("sb_secret_") || secretKey.startsWith("eyJ"), "E2E_SERVER_KEY_MISSING");
+
+  const effective = (key) => {
+    const fromProcess = process.env[key];
+    return typeof fromProcess === "string" && fromProcess.trim()
+      ? { value: fromProcess.trim(), source: "CMD_ENV" }
+      : { value: values[key] || "", source: origins[key] || "ABSENT" };
+  };
+
+  for (const key of ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL"]) {
+    const candidate = effective(key);
+    if (candidate.value && candidate.value !== SUPABASE_URL) {
+      let actualProject = "INVALID_URL";
+      try { actualProject = new URL(candidate.value).hostname.split(".")[0]; } catch {}
+      throw new Error(key + "_NON_E2E_REFUSED_SOURCE_" + candidate.source + "_PROJECT_" + actualProject);
+    }
+  }
+
+  const url = SUPABASE_URL;
+  const publishable = effective("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
+  const legacyAnon = effective("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const publishableKey = publishable.value || legacyAnon.value ||
+    "sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y";
+
+  const secretCandidates = [
+    runtimeSecret,
+    effective("SUPABASE_SECRET_KEY").value,
+    effective("SUPABASE_SERVICE_ROLE_KEY").value,
+    effective("SUPABASE_SERVICE_KEY").value,
+  ];
+  const secretKey = secretCandidates.find((value) => typeof value === "string" && value.trim()) || "";
+
+  assert.ok(
+    publishableKey.startsWith("sb_publishable_") || publishableKey.startsWith("eyJ"),
+    "PUBLISHABLE_KEY_MISSING",
+  );
+  assert.ok(
+    secretKey.startsWith("sb_secret_") || secretKey.startsWith("eyJ"),
+    "E2E_SERVER_KEY_MISSING",
+  );
+
   if (secretKey.startsWith("eyJ")) {
     const claims = JSON.parse(Buffer.from(secretKey.split(".")[1] || "", "base64url").toString("utf8"));
     assert.equal(claims.ref, PROJECT_REF, "SERVER_KEY_PROJECT_MISMATCH");
     assert.equal(claims.role, "service_role", "SERVER_KEY_ROLE_MISMATCH");
   }
-  return { sourceRoot, env, url, publishableKey, secretKey, files: (loaded.loadedEnvFiles || []).map((f) => path.basename(f.path)) };
+
+  // Inherit only OS/toolchain variables. All service credentials are opt-in from
+  // E2E files and are re-injected only after the E2E project checks below.
+  const blocked = /(SUPABASE|DATABASE_URL|DIRECT_URL|POSTGRES|SERVICE_ROLE|SECRET|TOKEN|PASSWORD|PRIVATE_KEY|RESEND|SMTP|SENDGRID|TWILIO|STRIPE|PAYPAL|MOBILE_MONEY|CLIENT_SECRET|API_KEY)/i;
+  const env = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (!blocked.test(key)) env[key] = value;
+  }
+  for (const [key, value] of Object.entries(values)) {
+    if (!blocked.test(key) && (key.startsWith("NEXT_PUBLIC_") || key.startsWith("JOBLY_") ||
+        key === "NEXT_TELEMETRY_DISABLED" || key === "NODE_OPTIONS")) {
+      env[key] = value;
+    }
+  }
+  env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
+  env.SUPABASE_URL = SUPABASE_URL;
+  env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = publishableKey;
+  env.NEXT_PUBLIC_SUPABASE_ANON_KEY = publishableKey;
+  env.SUPABASE_PUBLISHABLE_KEY = publishableKey;
+  env.SUPABASE_ANON_KEY = publishableKey;
+  env.SUPABASE_SECRET_KEY = secretKey;
+  env.SUPABASE_SERVICE_ROLE_KEY = secretKey;
+
+  return {
+    sourceRoot, env, url, publishableKey, secretKey,
+    files: [...new Set(files)],
+    urlSources: {
+      public: effective("NEXT_PUBLIC_SUPABASE_URL").source,
+      server: effective("SUPABASE_URL").source,
+      serverKey: runtimeSecret ? ".e2e-fixture-runtime.json" :
+        effective("SUPABASE_SECRET_KEY").value ? effective("SUPABASE_SECRET_KEY").source :
+        effective("SUPABASE_SERVICE_ROLE_KEY").source,
+    },
+  };
 }
 
 export async function loadFixtures(sourceRoot) {
