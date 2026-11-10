@@ -28,7 +28,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
         (application.jobId && share.jobId === application.jobId) ||
         (application.recruiterJobId && !share.jobId)
       ));
-      if (!linkageValid || !String(application?.tailoredCvText || "").trim() || !user) {
+      if (!application || !linkageValid || !String(application.tailoredCvText || "").trim() || !user) {
         return NextResponse.json({ message: "Le document lié à ce partage n'est plus disponible." }, { status: 404 });
       }
       const offerTable = application.jobId ? "Job" : "RecruiterJob";

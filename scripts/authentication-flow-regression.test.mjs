@@ -389,13 +389,17 @@ test("Account notification and Talent privacy preferences persist and control th
   assert.match(inbox, /notificationsDisabled \? "Notifications désactivées"/);
 });
 
-test("private Talent profiles are excluded from recruiter discovery and profile detail", () => {
+test("private Talent profiles are excluded and recruiter discovery requires an offer-scoped top-five context", () => {
   const recruiterList = read("app/api/recruiter/talents/route.ts");
   const recruiterProfile = read("app/api/recruiter/talents/profile/route.ts");
-  assert.match(recruiterList, /\.eq\("publicDiscoverable",\s*true\)/);
+  assert.match(recruiterList, /OFFER_CONTEXT_REQUIRED/);
+  assert.match(recruiterList, /talents:\s*\[\]/);
+  assert.match(recruiterList, /status: 403/);
+  assert.doesNotMatch(recruiterList, /profilePhotoUrl|displayName|firstName|lastName/);
   assert.match(recruiterProfile, /\.eq\("publicDiscoverable",\s*true\)/);
   assert.match(recruiterProfile, /Profil public introuvable/);
   assert.match(recruiterProfile, /status:404/);
+  assert.match(recruiterProfile, /topFiveMatchingProfiles/);
 });
 
 test("logout and remember-me expiry terminate only the current Supabase session", () => {
