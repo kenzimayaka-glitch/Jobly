@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { scoreJobMatch, scoreRecruiterApplication } from "../lib/matchingEngine.ts";
 
 const strongCandidate = {
@@ -150,4 +151,40 @@ test("Talent and recruiter share the same base score and evidence for the same c
   assert.equal(recruiterAssessment.baseMatch.score, talentMatch.score);
   assert.deepEqual(recruiterAssessment.baseMatch.matchedSkills, talentMatch.matchedSkills);
   assert.deepEqual(recruiterAssessment.baseMatch.missingSkills, talentMatch.missingSkills);
+});
+
+const readSource = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
+
+test("J’IA conversation is wired to the shared matching and semantic gateway", () => {
+  const ui = readSource("../components/JiaPresence.tsx");
+  const route = readSource("../app/api/jia/brain/route.ts");
+  assert.match(ui, /fetch\("\/api\/jia\/brain"/);
+  assert.match(ui, /appendConversationMessage\("assistant", out\.message/);
+  assert.match(route, /matchingRequested/);
+  assert.match(route, /getCascadeOpportunities\(/);
+  assert.match(route, /runAiGateway\(req, "MATCHING"/);
+});
+
+test("Talent, discovery aggregation and recruiter ATS use the same matching evidence reader", () => {
+  const talent = readSource("../app/api/opportunities/route.ts");
+  const aggregator = readSource("../lib/opportunityAggregator.ts");
+  const recruiter = readSource("../app/api/recruitment360/applications/route.ts");
+  const cvReader = readSource("../lib/cv/readOriginalCvText.ts");
+  assert.match(talent, /scoreJobMatch/);
+  assert.match(aggregator, /scoreJobMatch/);
+  assert.match(recruiter, /scoreRecruiterApplication/);
+  assert.match(talent, /readOriginalCvText/);
+  assert.match(aggregator, /readOriginalCvText/);
+  assert.match(recruiter, /readOriginalCvText/);
+  assert.match(cvReader, /storage\.from\("talent-cvs"\)\.download/);
+});
+
+test("J’IA only reads and forwards the original CV after privacy consent", () => {
+  const context = readSource("../lib/jiaContext.ts");
+  const gateway = readSource("../lib/aiGateway.ts");
+  const edge = readSource("../supabase/functions/ai-core/index.ts");
+  assert.match(context, /loadOriginalCv=.*privacyAcceptedAt/);
+  assert.match(context, /redact\(cvEvidence\.text\)/);
+  assert.match(gateway, /op==="MATCHING"&&!context\.behavior\.consented/);
+  assert.match(edge, /context\.cvText/);
 });
