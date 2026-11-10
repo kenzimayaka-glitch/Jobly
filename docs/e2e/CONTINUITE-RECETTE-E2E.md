@@ -104,6 +104,76 @@ JOBLY-E2E uniquement ; fixtures existantes uniquement ; aucun reset, rotation ou
 
 ---
 
+## RECETTES RUNTIME PARALLÈLES — runners isolés LOT-02 / LOT-03 / LOT-04 — 10 novembre 2026
+
+**État :** scripts créés et relus sur `e2e/recette`; **aucune exécution runtime opérateur n'est encore prouvée**.
+
+**Dernier commit code des runners :** `aa12c03725a49700f3afa9446b318ee0fa7f5d3c`.
+
+### Architecture d'exécution
+
+- Un seul serveur Next de recette est construit puis démarré en mode production local sur `127.0.0.1:3217`. Les trois campagnes interrogent ce même serveur ; elles ne lancent pas trois builds/serveurs concurrents.
+- Le lanceur refuse un worktree non propre, un SHA différent de `origin/e2e/recette`, un port 3217 déjà occupé, une URL Supabase autre que JOBLY-E2E, une fixture d'un autre projet ou une clé serveur qui échoue au probe REST en lecture seule.
+- Avant le build, il exécute `node --check` sur les runners et `node --test scripts/runtime-readonly-lots.test.mjs` pour verrouiller les garde-fous.
+- Les variables et fixtures sont chargées depuis le dépôt source passé en argument (par défaut Windows : `%USERPROFILE%\Jobly`). Aucun fichier de secrets n'est copié dans le worktree ni affiché dans les rapports.
+- La clé privée/secret E2E n'est utilisée que dans le processus serveur et le contrôle REST LOT-04. Le runner LOT-04 envoie la clé dans `apikey` uniquement, pas en bearer token. Aucun secret n'est journalisé.
+- Les trois runners écrivent dans des fichiers distincts : `lot2-runtime-readonly.json`, `lot3-runtime-readonly.json`, `lot4-runtime-readonly.json`, avec journaux process distincts.
+
+### Commandes Windows
+
+1. Synchroniser le worktree de recette propre sur `origin/e2e/recette`, puis lancer le serveur partagé depuis un CMD :
+
+```cmd
+cd /d "%USERPROFILE%\Jobly-e2e-recette-lot01" && git fetch origin && git checkout --detach origin/e2e/recette && e2e\start-readonly-runtime-server.cmd
+```
+
+Le script compile une fois, démarre le serveur local et écrit :
+- `artifacts\e2e\parallel-runtime-server.json`
+- `artifacts\e2e\parallel-runtime-server.log`
+- `artifacts\e2e\parallel-runtime-server.pid.json`
+
+N'ouvrir les trois campagnes que si le rapport serveur indique `status=PASS`, `build=PASS`, `localServer=PASS` et `anonymousProtectedApiStatus=401`.
+
+2. Ouvrir trois CMD distincts, puis lancer une seule commande par fenêtre :
+
+- LOT-02 : `call e2e\run-runtime-lot02-readonly.cmd`
+- LOT-03 : `call e2e\run-runtime-lot03-readonly.cmd`
+- LOT-04 : `call e2e\run-runtime-lot04-readonly.cmd`
+
+### Périmètre strict de chaque campagne
+
+**LOT-02 Talent**
+- Auth réelle de la fixture TALENT JOBLY-E2E.
+- GET profil, candidatures, flux local/Afrique, recherche, détail d'une offre, CV original et Career Journey.
+- Aucun POST ingestion, aucun appel bulk-check, aucune création/préparation/envoi de candidature.
+- Le GET du CV peut créer un lien signé temporaire de lecture ; le fichier n'est ni téléchargé ni modifié.
+- Rapport : `artifacts\e2e\lot2-runtime-readonly.json`; journal : `lot2-runtime-readonly-process.log`.
+
+**LOT-03 Recruteur**
+- Auth réelle de la fixture RECRUITER JOBLY-E2E.
+- GET profil, offres propres, candidatures avec `markViewed=0`, liste Talent et listes Recruitment360.
+- Test GET d'un identifiant de recrutement non détenu : HTTP 403 attendu.
+- Aucune création de brouillon, modification de statut, mise en shortlist, notation, décision, document, import Gmail ou envoi d'e-mail.
+- Rapport : `artifacts\e2e\lot3-runtime-readonly.json`; journal : `lot3-runtime-readonly-process.log`.
+
+**LOT-04 Mission Afrique**
+- GET REST en lecture seule des tables `JobHarvestCapture` et `JobOfferPipeline` de JOBLY-E2E.
+- Agrégations par statut, source, pays, code de rejet et calcul en mémoire de la fraîcheur depuis `publishedAt`, `discoveredAt` et `deadline`.
+- Pagination bornée à 10 000 lignes par table ; si ce plafond est atteint, le rapport sort PARTIAL/BLOCKED sur la complétude, sans présenter les chiffres comme exhaustifs.
+- Aucun appel aux sources externes, aucune collecte, ingestion, réindexation, reprocess, mise à jour ou suppression.
+- Rapport : `artifacts\e2e\lot4-runtime-readonly.json`; journal : `lot4-runtime-readonly-process.log`.
+
+### Limites et précautions
+
+- LOT-02 et LOT-03 se connectent avec deux comptes fixtures distincts. Les sessions Auth peuvent actualiser des métadonnées d'appareil ; leurs rapports conservent donc `remoteAuthDeviceStateMayBeModified=true`. Aucune donnée métier n'est écrite.
+- LOT-04 n'ouvre pas de session utilisateur ; `remoteAuthDeviceStateMayBeModified=false`.
+- Ces recettes sont des contrôles **API runtime en lecture seule**, pas un test Playwright de tous les clics/écrans, ni une preuve de soumission de candidature, de shortlist, de décision, d'export ou d'ingestion.
+- Si le port 3217 est occupé, arrêter et identifier uniquement le serveur Jobly connu ; ne pas lancer un `taskkill` générique sur tous les processus Node.
+- Le serveur reste démarré après les trois campagnes ; ne pas relancer le build avant d'avoir terminé les trois rapports.
+- JOBLY-PROD, `main`, merge et déploiement restent hors périmètre. LOT-01 reste PARTIAL et différé.
+
+---
+
 **Version :** 2.177
 **Date de consolidation :** 9 novembre 2026  
 **Dépôt :** `kenzimayaka-glitch/Jobly`  
