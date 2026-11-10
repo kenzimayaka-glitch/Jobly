@@ -1,3 +1,24 @@
+> ## ÉTAT MAÎTRE ACTUALISÉ — V2.198 — 10 novembre 2026
+>
+> **Quatre fonctionnalités obligatoires à rendre réellement opérationnelles — Talent et Recruteur :**
+>
+> 1. **Recruteur — filtre ATS :** depuis l'espace Recruteur et les candidatures de ses propres offres, filtrer réellement les candidatures/profils selon leur compatibilité ATS avec l'offre concernée. Le filtre doit agir sur les résultats, compteurs et pagination, pas seulement sur l'apparence ; supporter les critères/plages et le tri de score disponibles, distinguer score nul/non calculable et ne jamais mélanger les offres ou les recruteurs. Afficher clairement ce que mesure le score ; ne pas le présenter comme un résultat certifié d'un ATS externe.
+> 2. **Talent — conversation ATS :** depuis l'espace Talent, offrir une véritable conversation avec J'IA sur l'analyse ATS de son CV, les exigences d'une offre cible, les écarts, mots-clés pertinents et améliorations possibles. La conversation doit être contextualisée par le CV et, lorsqu'il est sélectionné, par l'offre cible ; ses réponses doivent s'appuyer sur les données réellement fournies, distinguer constats et suggestions et ne pas inventer de faits professionnels.
+> 3. **Talent — amélioration du CV :** fournir un parcours utilisable de bout en bout pour analyser et améliorer le CV du Talent : suggestions concrètes, prévisualisation des changements, conservation du CV source, acceptation/refus par le Talent, sauvegarde versionnée et export de la version approuvée. Aucune expérience, formation, compétence, date, certification, réalisation ou métrique ne peut être inventée. L'amélioration générale du CV et son adaptation à une offre sont deux opérations distinctes.
+> 4. **Recruteur — génération d'une offre depuis l'intitulé :** dans l'espace Recruteur, le titre du poste doit suffire à déclencher la génération d'un brouillon d'offre structuré et cohérent avec le métier (présentation du poste, missions, responsabilités, compétences et expérience/profil requis). Le recruteur peut modifier chaque rubrique et compléter les éléments que le seul intitulé ne permet pas de connaître. Les informations non connues — entreprise, lieu, salaire, avantages, contrat, dates, modalités de candidature et exigences propres à l'employeur — ne doivent pas être inventées ou publiées comme des faits ; les marquer à compléter. La génération ne publie jamais l'offre automatiquement : validation explicite du recruteur avant publication.
+>
+> **Scénarios E2E à ajouter :**
+> - REC-ATS-06 : filtre ATS Recruteur appliqué aux candidatures de l'offre possédée ; vérifier filtres/plages/tri, scores manquants, compteurs, pagination, mise à jour des résultats et refus inter-recruteur.
+> - CV-ATS-09 : conversation ATS dans l'espace Talent ; contexte CV/offre, questions et réponses successives, recommandations traçables, continuité de conversation, aucune donnée inventée et aucune modification du CV sans consentement.
+> - CV-ATS-10 : amélioration du CV Talent ; suggestions, aperçu/diff, acceptation et refus, conservation de l'original, version approuvée sauvegardée et PDF exporté cohérent.
+> - REC-JOB-01 : générer une offre depuis le seul intitulé du poste ; vérifier pertinence métier, rubriques, champs inconnus signalés, édition, persistance en brouillon et absence de publication avant validation.
+>
+> **Règle de validation :** l'existence d'un écran, d'un bouton ou d'une route ne suffit pas. Chaque fonction doit être prouvée dans le bon espace utilisateur, avec résultat utile à l'écran, traitement API, persistance, contrôles de rôle/propriété, cas négatifs et recette runtime sur JOBLY-E2E.
+>
+> **Statut :** exigences fonctionnelles confirmées ; leur implémentation et les scénarios E2E restent À CODER / À EXÉCUTER. Ne pas déclarer ces fonctions PASS sur la seule base d'un test statique ou d'un build vert.
+>
+> ---
+>
 > ## ÉTAT MAÎTRE ACTUALISÉ — V2.197 — 10 novembre 2026
 >
 > **Décision confirmée — durée de validité du lien sécurisé CV WhatsApp :** le lien de partage du CV reste valide pendant **30 jours à compter de sa création**. Il devient inaccessible à l'échéance et peut être révoqué avant celle-ci selon les droits du propriétaire du partage. Toute consultation ou tentative après expiration/révocation doit être refusée ; aucun cache ou URL PDF déjà connue ne doit contourner cette échéance.
