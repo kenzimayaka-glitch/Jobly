@@ -14,7 +14,7 @@ function stringValue(value: unknown) {
 }
 
 function requiresCoverLetter(description: string) {
-  return /(?:lettre\s+(?:de\s+)?motivation[^.\n]{0,100}(?:obligatoire|requise|exigée|à\s+joindre)|(?:obligatoire|requise|exigée)[^.\n]{0,80}lettre\s+(?:de\s+)?motivation|cover\s+letter\s+(?:is\s+)?(?:required|mandatory))/i.test(description);
+  return /(?:lettre\s+(?:de\s+)?motivation[^.\n]{0,120}(?:obligatoire|requise|exigée|demandée|à\s+joindre|à\s+fournir)|(?:obligatoire|requise|exigée|demandée)[^.\n]{0,80}lettre\s+(?:de\s+)?motivation|cover\s+letter\s+(?:is\s+)?(?:required|mandatory))/i.test(description);
 }
 
 export async function POST(request: NextRequest, { params }: Context) {
