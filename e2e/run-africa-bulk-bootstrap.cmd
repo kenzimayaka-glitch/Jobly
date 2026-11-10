@@ -20,6 +20,13 @@ echo ORIGIN=%ORIGIN%
 echo ORIGIN=%ORIGIN%>> "%BOOTLOG%"
 if /i not "%ORIGIN%"=="https://github.com/kenzimayaka-glitch/Jobly" if /i not "%ORIGIN%"=="https://github.com/kenzimayaka-glitch/Jobly.git" if /i not "%ORIGIN%"=="git@github.com:kenzimayaka-glitch/Jobly.git" goto wrong_origin
 
+if not "%~1"=="" (
+  set "SHA=%~1"
+  echo [2/5] SHA deja recupere par le bootstrap : %SHA%
+  echo SHA fourni au bootstrap>> "%BOOTLOG%"
+  goto sha_ready
+)
+
 echo [2/5] Recuperation de la branche distante e2e/recette...
 echo [2/5] FETCH origin e2e/recette>> "%BOOTLOG%"
 git -C "%ROOT%" fetch --no-tags origin refs/heads/e2e/recette
@@ -30,6 +37,8 @@ if not "%RC%"=="0" goto fetch_failed
 
 for /f "delims=" %%H in ('git -C "%ROOT%" rev-parse FETCH_HEAD 2^>nul') do set "SHA=%%H"
 if not defined SHA goto sha_failed
+
+:sha_ready
 if "%SHA:~39,1%"=="" goto sha_failed
 if not "%SHA:~40,1%"=="" goto sha_failed
 echo FETCH_SHA=%SHA%
