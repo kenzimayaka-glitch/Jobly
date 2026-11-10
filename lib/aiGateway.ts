@@ -14,7 +14,7 @@ const sha=(v:unknown)=>crypto.createHash("sha256").update(JSON.stringify(v)).dig
 const redactPII=(v:string)=>v.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,"[email]").replace(/(?:\+?\d[\d\s().-]{7,}\d)/g,"[phone]");
 const maxFor=(op:AiOperation,key:string)=>op==="CV_INTELLIGENCE"&&key==="cvText"?16000:4000;
 const INPUT_KEYS:Record<AiOperation,string[]>={
-  OFFER_INTELLIGENCE:["jobTitle","jobDescription","company","location","contract","skills"], CV_INTELLIGENCE:["cvText","targetRole","jobDescription"], MATCHING:["jobTitle","jobDescription","jobId","matchSignals"],
+  OFFER_INTELLIGENCE:["jobTitle","jobDescription","company","location","contract","skills"], CV_INTELLIGENCE:["cvText","targetRole","jobDescription","mode","question","conversationHistory"], MATCHING:["jobTitle","jobDescription","jobId","matchSignals"],
   APPLICATION_COPILOT:["jobTitle","jobDescription"], APPLICATION_STRATEGY:["jobTitle","jobDescription","applicationId","stage"], LEARNING:["goal","timePerWeek","targetRole","skillGaps"],
   INTERVIEW:["answer","difficulty","role","jobDescription","company"], CAREER_COMPANION:["goal","blocker","targetRole","horizon"], NOTIFICATION:["signalType","opportunityId","reason","urgency"], PAYMENT_SMS_INTELLIGENCE:[]
 };
