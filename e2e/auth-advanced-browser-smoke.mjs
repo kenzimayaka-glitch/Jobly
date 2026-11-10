@@ -299,19 +299,55 @@ function serviceHeaders() {
   return { apikey: key, Authorization: "Bearer " + key, Accept: "application/json" };
 }
 
+function networkFailureCode(error) {
+  const cause = error && typeof error === "object" ? error.cause : null;
+  const code = cause && typeof cause === "object" ? cause.code : null;
+  return String(code || error?.code || error?.name || "NETWORK_ERROR").slice(0, 48);
+}
+
 async function restRequest(table, query, method = "GET", body = undefined) {
   const url = new URL("/rest/v1/" + table, SUPABASE_URL);
   for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);
-  const response = await fetch(url, {
-    method,
-    headers: { ...serviceHeaders(), ...(body ? { "Content-Type": "application/json", Prefer: "return=representation" } : {}) },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-    signal: AbortSignal.timeout(15000),
-    cache: "no-store"
-  });
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) throw new BlockedError("Préflight Supabase E2E impossible (HTTP " + response.status + ") sur " + table + ".");
-  return payload;
+  const headers = { ...serviceHeaders(), ...(body ? { "Content-Type": "application/json", Prefer: "return=representation" } : {}) };
+  // Only idempotent reads are retried. PATCH is deliberately single-shot so an
+  // uncertain network outcome can never cause an automatic duplicate mutation.
+  const maxAttempts = method === "GET" ? 3 : 1;
+  let lastFailure = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        method,
+        headers,
+        ...(body ? { body: JSON.stringify(body) } : {}),
+        signal: AbortSignal.timeout(15000),
+        cache: "no-store"
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        if (method === "GET" && [502, 503, 504].includes(response.status) && attempt < maxAttempts) {
+          lastFailure = new Error("HTTP " + response.status);
+          await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+          continue;
+        }
+        throw new BlockedError("Préflight Supabase E2E impossible (HTTP " + response.status + ") sur " + table + ".");
+      }
+      return payload;
+    } catch (error) {
+      if (error instanceof BlockedError) throw error;
+      lastFailure = error;
+      if (method !== "GET" || attempt === maxAttempts) {
+        throw new Error(
+          "Échec réseau Supabase JOBLY-E2E sur " + table + " (" + method + "), tentative " +
+          attempt + "/" + maxAttempts + " ; cause=" + networkFailureCode(error) + "."
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+    }
+  }
+  throw new Error(
+    "Échec réseau Supabase JOBLY-E2E sur " + table + " (" + method + ") ; cause=" +
+    networkFailureCode(lastFailure) + "."
+  );
 }
 
 async function readDeviceRows(userId) {
@@ -500,9 +536,11 @@ async function scenarioMultiDevice(browser, account) {
   let baseline = [];
   let failure = null;
   try {
+    result.preflightStage = "LOOKUP_TALENT_USER";
     const users = await restRequest("User", { select: "id", authUserId: "eq." + account.authUserId });
     if (!Array.isArray(users) || users.length !== 1 || !users[0]?.id) throw new BlockedError("Identité interne Talent ambiguë ou absente dans JOBLY-E2E.");
     userId = users[0].id;
+    result.preflightStage = "READ_BASELINE_DEVICE_ROWS";
     const beforeRows = await readDeviceRows(userId);
     baseline = stableBaseline(beforeRows);
     const activeBefore = beforeRows.filter((row) => !row.revokedAt);
@@ -510,6 +548,7 @@ async function scenarioMultiDevice(browser, account) {
     if (activeBefore.length > 1) throw new BlockedError("Deux places libres non garanties : plus d'un appareil actif préexistant. Aucune session de test créée.");
     check(result, "DEVICE_PREFLIGHT_TWO_FREE_SLOTS", activeBefore.length <= 1, "Le compte dispose de deux places avant la création des sessions.");
 
+    result.preflightStage = "LOGIN_DEVICE_A";
     REPORT.remoteAuthDeviceStateMayBeModified = true;
     sessionA = await loginDeviceContext(browser, account, deviceA, labelA);
     contextA = sessionA.context;
@@ -521,6 +560,7 @@ async function scenarioMultiDevice(browser, account) {
     const aInList = sessionA.devicePayload.devices.find((row) => row.deviceId === deviceA && row.current && row.active);
     if (!aInList || createdRows.length !== 1) throw new BlockedError("La session A créée par ce run n'est pas identifiable sans ambiguïté.");
 
+    result.preflightStage = "LOGIN_DEVICE_B";
     sessionB = await loginDeviceContext(browser, account, deviceB, labelB);
     contextB = sessionB.context;
     const rowsAfterB = await readDeviceRows(userId);
@@ -531,6 +571,7 @@ async function scenarioMultiDevice(browser, account) {
     }
     if (rowsAfterB.filter((row) => !row.revokedAt).length > 3) throw new BlockedError("La limite de trois appareils actifs est dépassée ; révocation de test interrompue.");
 
+    result.preflightStage = "READ_A_DEVICE_LIST";
     const refreshDevices = sessionA.page.waitForResponse((response) =>
       responsePath(response) === "/api/device-sessions" && response.request().method() === "GET",
       { timeout: 25000 }
@@ -550,6 +591,7 @@ async function scenarioMultiDevice(browser, account) {
     if (await rowB.count() !== 1) throw new BlockedError("La ligne UI du seul appareil B créé par ce run n'est pas unique.");
     const revokeButton = rowB.getByRole("button", { name: "Déconnecter", exact: true });
     if (await revokeButton.count() !== 1 || !(await revokeButton.isVisible())) throw new BlockedError("Le bouton de révocation de B n'est pas disponible dans la ligne ciblée.");
+    result.preflightStage = "REVOKE_B_FROM_UI";
     const deletePromise = sessionA.page.waitForResponse((response) =>
       responsePath(response).startsWith("/api/device-sessions/") && response.request().method() === "DELETE",
       { timeout: 25000 }
@@ -559,11 +601,13 @@ async function scenarioMultiDevice(browser, account) {
     const deletePayload = await deleteResponse.json().catch(() => ({}));
     check(result, "DEVICE_B_REVOKED_FROM_VISIBLE_UI", deleteResponse.status() === 200 && deletePayload.revokedDeviceId === deviceB, "A révoque B par le bouton visible et l'API confirme exactement B.", deleteResponse.status());
 
+    result.preflightStage = "VERIFY_API_DEVICE_STATES";
     const statusB = await authorizedStatus("/api/profile", sessionB.token, deviceB, labelB);
     const statusA = await authorizedStatus("/api/profile", sessionA.token, deviceA, labelA);
     check(result, "DEVICE_B_API_DENIED", statusB === 401, "La session B révoquée obtient HTTP 401.", statusB);
     check(result, "DEVICE_A_REMAINS_ACTIVE", statusA === 200, "La session A initiatrice conserve HTTP 200.", statusA);
 
+    result.preflightStage = "VERIFY_SERVER_DEVICE_STATE";
     const afterRevoke = await readDeviceRows(userId);
     const rowA = afterRevoke.find((row) => row.deviceId === deviceA && row.authSessionId === createdRows.find((row) => row.deviceId === deviceA)?.authSessionId);
     const rowBState = afterRevoke.find((row) => row.deviceId === deviceB && row.authSessionId === createdRows.find((row) => row.deviceId === deviceB)?.authSessionId);
@@ -571,6 +615,7 @@ async function scenarioMultiDevice(browser, account) {
     check(result, "DEVICE_SERVER_STATE_CONFIRMED", true, "B est révoqué et A reste actif après les vérifications API.");
   } catch (error) {
     failure = error;
+    result.failureStage = result.preflightStage || "UNKNOWN";
     result.status = error instanceof BlockedError ? "BLOCKED" : "FAIL";
     result.error = error instanceof Error ? error.name : "RuntimeError";
     result.detail = error instanceof Error ? error.message.slice(0, 220) : "Erreur non détaillée.";
