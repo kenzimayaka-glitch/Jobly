@@ -11,6 +11,8 @@ $Log = Join-Path $env:TEMP "jobly-africa-bulk-launch.log"
 $RunRoot = Join-Path $env:TEMP ("jobly-africa-bulk-" + (Get-Date -Format "yyyyMMdd-HHmmss") + "-" + [guid]::NewGuid().ToString("N").Substring(0,8))
 $Archive = $RunRoot + ".zip"
 $Report = Join-Path $RunRoot "artifacts\e2e\africa-bulk-recipe-report.json"
+$ServerPid = Join-Path $RunRoot "artifacts\e2e\parallel-runtime-server.pid.json"
+$NodeModulesRoot = @((Join-Path $WorktreeRoot "node_modules"), (Join-Path $SourceRoot "node_modules")) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 $ExitCode = 1
 
 Set-Content -LiteralPath $Log -Value ("JOBLY AFRICA BULK LAUNCH " + (Get-Date -Format o)) -Encoding UTF8
@@ -97,6 +99,12 @@ try {
   Expand-Archive -LiteralPath $Archive -DestinationPath $RunRoot -Force
   Remove-Item -LiteralPath $Archive -Force
   Write-Stage ("SNAPSHOT_READY " + $RunRoot)
+  if (-not $NodeModulesRoot) {
+    throw "NODE_MODULES_NOT_FOUND_IN_WORKTREE_OR_SOURCE_ROOT"
+  }
+  $NodeModulesTarget = Join-Path $RunRoot "node_modules"
+  New-Item -ItemType Junction -Path $NodeModulesTarget -Target $NodeModulesRoot | Out-Null
+  Write-Stage ("NODE_MODULES_REUSED_READONLY " + $NodeModulesRoot)
 
   $RunnerFile = Join-Path $RunRoot "e2e\africa-bulk-recipe.ts"
   $WrapperFile = Join-Path $RunRoot "e2e\run-africa-bulk-recipe.cmd"
@@ -132,14 +140,23 @@ try {
 
   Push-Location $RunRoot
   try {
-    Invoke-Native "node" @("--test", "scripts\runtime-readonly-lots.test.mjs") "STATIC_TESTS_11_GROUPS" | Out-Null
+    Invoke-Native "node" @("--test", "scripts\runtime-readonly-lots.test.mjs") "STATIC_TESTS_UPDATED_GUARDRAILS" | Out-Null
+
+    $previousRecipeSha = $env:E2E_RECIPE_SHA
+    $env:E2E_RECIPE_SHA = $sha
+    try {
+      Invoke-Native "node" @("e2e\start-readonly-runtime-server.mjs", $SourceRoot, "--snapshot") "START_LOCAL_JOBLY_E2E_SERVER" | Out-Null
+    } finally {
+      if ($null -eq $previousRecipeSha) { Remove-Item Env:E2E_RECIPE_SHA -ErrorAction SilentlyContinue }
+      else { $env:E2E_RECIPE_SHA = $previousRecipeSha }
+    }
 
     $denoArgs = @(
       "run",
       "--node-modules-dir=none",
       ("--allow-read=" + $SourceRoot + "," + $RunRoot),
       ("--allow-write=" + (Join-Path $RunRoot "artifacts\e2e")),
-      "--allow-net=ofqqrryamslxoqkklraw.supabase.co,registry.npmjs.org",
+      "--allow-net=127.0.0.1:3217,ofqqrryamslxoqkklraw.supabase.co,registry.npmjs.org",
       "e2e\africa-bulk-recipe.ts",
       $SourceRoot
     )
@@ -158,6 +175,14 @@ try {
       Write-Stage "RUNTIME_RECIPE_PASS"
     }
   } finally {
+    if (Test-Path -LiteralPath $ServerPid) {
+      try {
+        Invoke-Native "node" @("e2e\stop-readonly-runtime-server.mjs") "STOP_LOCAL_JOBLY_E2E_SERVER" | Out-Null
+      } catch {
+        Write-Stage ("SERVER_STOP_FAILED " + $_.Exception.Message)
+        $ExitCode = 1
+      }
+    }
     Pop-Location
   }
 
