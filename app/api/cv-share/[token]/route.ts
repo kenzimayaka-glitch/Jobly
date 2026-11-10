@@ -37,7 +37,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       if (offerError) throw new Error(offerError.message);
       if (!offer) return NextResponse.json({ message: "L'offre liée à ce partage n'est plus disponible." }, { status: 404 });
       const description = String(offer.description || "");
-      const coverLetterRequired = /(?:lettre\s+(?:de\s+)?motivation[^.\n]{0,100}(?:obligatoire|requise|exigée|demandée|à\s+joindre|à\s+fournir)|(?:obligatoire|requise|exigée|demandée)[^.\n]{0,80}lettre\s+(?:de\s+)?motivation|cover\s+letter\s+(?:is\s+)?(?:required|mandatory))/i.test(description);
+      const coverLetterRequired = /(?:lettre\s+(?:de\s+)?motivation[^.\n]{0,120}(?:obligatoire|requise|exigée|demandée|à\s+joindre|à\s+fournir)|(?:obligatoire|requise|exigée|demandée)[^.\n]{0,80}lettre\s+(?:de\s+)?motivation|cover\s+letter\s+(?:is\s+)?(?:required|mandatory))/i.test(description);
       await supabase.from("CVShare").update({ viewCount: (share.viewCount || 0) + 1 }).eq("id", share.id);
       return NextResponse.json({
         share: { token, jobTitle: share.jobTitleSnapshot, companyName: share.companyNameSnapshot },
