@@ -92,9 +92,9 @@ async function connectE2E() {
     const part = (key.split(".")[1] || "").replace(/-/g, "+").replace(/_/g, "/");
     const claims = JSON.parse(atob(part.padEnd(Math.ceil(part.length / 4) * 4, "=")));
     insist(claims.ref === REF && claims.role === "service_role", "SERVER_KEY_PROJECT_OR_ROLE_MISMATCH");
-  } else {
-    insist(runtimeVerified || configuredUrls.includes(URL), "SECRET_KEY_WITHOUT_E2E_URL_PROOF");
   }
+  // sb_secret_ project binding is checked below by a read-only request against
+  // the code-pinned E2E host when no trusted local proof is available.
 
   const client = createClient(URL, key, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
