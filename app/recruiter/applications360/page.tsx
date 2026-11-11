@@ -102,9 +102,13 @@ export default function Applications360() {
                       {application.status} · Compatibilité {assessment?.atsScore ?? "—"}% · Profil {assessment?.profileCompleteness ?? "—"}%
                     </p>
                     {summary && (
-                      <p className="mt-1 text-xs text-slate-600">
-                        Fiabilité du matching : {summary.confidence}% · Critères évalués : {summary.coverage}% · Algorithme : {summary.algorithm}
-                      </p>
+                      <div className="mt-2 space-y-2 rounded-xl border border-blue-100 bg-blue-50/50 p-3">
+                        <p className="text-xs font-bold text-blue-900">Fiabilité : {summary.confidence}% · Couverture : {summary.coverage}% · {summary.algorithm}</p>
+                        <p className="text-[10px] text-slate-500">Source CV : {summary.cvEvidence?.status === "PARSED" ? "CV original lu" : summary.cvEvidence?.source === "TAILORED_TEXT_FALLBACK" ? "Texte de CV adapté" : "Profil structuré uniquement"}</p>
+                        {summary.matchedSkills?.length > 0 && <div><p className="text-[10px] font-black uppercase text-emerald-700">Compétences démontrées</p><div className="mt-1 flex flex-wrap gap-1">{summary.matchedSkills.map((item: string) => <span key={item} className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] text-emerald-900">{item}</span>)}</div></div>}
+                        {summary.missingSkills?.length > 0 && <div><p className="text-[10px] font-black uppercase text-amber-700">Compétences non démontrées</p><div className="mt-1 flex flex-wrap gap-1">{summary.missingSkills.map((item: string) => <span key={item} className="rounded-full bg-amber-100 px-2 py-1 text-[10px] text-amber-900">{item}</span>)}</div></div>}
+                        {summary.gaps?.length > 0 && <ul className="list-disc space-y-1 pl-4 text-[11px] text-slate-600">{summary.gaps.map((item: string, index: number) => <li key={index}>{item}</li>)}</ul>}
+                      </div>
                     )}
                     <p className="mt-2 whitespace-pre-wrap text-sm">{application.letterText || "Lettre non renseignée."}</p>
                   </div>
