@@ -159,7 +159,9 @@ test("J’IA conversation is wired to the shared matching and semantic gateway",
   const ui = readSource("../components/JiaPresence.tsx");
   const route = readSource("../app/api/jia/brain/route.ts");
   assert.match(ui, /fetch\("\/api\/jia\/brain"/);
-  assert.match(ui, /appendConversationMessage\("assistant", out\.message/);
+  assert.match(ui, /appendConversationMessage\("assistant", visibleAnswer/);
+  assert.match(ui, /DÉTAIL DU CLASSEMENT/);
+  assert.match(ui, /Analyse sémantique J’IA/);
   assert.match(route, /matchingRequested/);
   assert.match(route, /getCascadeOpportunities\(/);
   assert.match(route, /runAiGateway\(req, "MATCHING"/);
