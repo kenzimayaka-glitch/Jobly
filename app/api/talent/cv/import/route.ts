@@ -142,28 +142,37 @@ async function extractCvPhoto(parser: any) {
     return "";
   }
 }
-function normalizeOutput(output: any) {
+function normalizeOutput(output: any, fallback: ReturnType<typeof extractDeterministicCv>) {
   const profile = output?.profile || {};
+  const textValue = (value: unknown, secondary: string) =>
+    typeof value === "string" && value.trim() ? value.trim() : secondary;
+  const listValue = (value: unknown, secondary: string[], limit: number) =>
+    Array.isArray(value) && value.some((item) => String(item).trim())
+      ? value.map((item: unknown) => String(item).trim()).filter(Boolean).slice(0, limit)
+      : secondary.slice(0, limit);
   return {
-    fullName: typeof profile.fullName === "string" ? profile.fullName.trim() : "",
-    headline: typeof profile.headline === "string" ? profile.headline.trim() : "",
-    email: typeof profile.email === "string" ? profile.email.trim() : "",
-    phone: typeof profile.phone === "string" ? profile.phone.trim() : "",
-    summary: typeof profile.summary === "string" ? profile.summary.trim() : "",
-    skills: Array.isArray(profile.skills) ? profile.skills.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 30) : [],
-    experience: typeof profile.experience === "string" ? profile.experience.trim() : "",
-    education: typeof profile.education === "string" ? profile.education.trim() : "",
-    activities: Array.isArray(profile.activities) ? profile.activities.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
-    interests: Array.isArray(profile.interests) ? profile.interests.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
-    references: Array.isArray(profile.references) ? profile.references.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
-    referencesVisible: profile.referencesVisible !== false && Array.isArray(profile.references) && profile.references.length > 0,
-    languages: Array.isArray(profile.languages) ? profile.languages.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
-    achievements: Array.isArray(profile.achievements) ? profile.achievements.map((x: unknown) => String(x).trim()).filter((x: string) => /\d|%|€|\$|fcfa|xaf|million|milliard|x[af]/i.test(x)).slice(0, 20) : [],
+    fullName: textValue(profile.fullName, fallback.fullName),
+    headline: textValue(profile.headline, fallback.headline),
+    email: textValue(profile.email, fallback.email),
+    phone: textValue(profile.phone, fallback.phone),
+    summary: textValue(profile.summary, fallback.summary),
+    skills: listValue(profile.skills, fallback.skills, 30),
+    experience: textValue(profile.experience, fallback.experience),
+    education: textValue(profile.education, fallback.education),
+    activities: listValue(profile.activities, fallback.activities, 20),
+    interests: listValue(profile.interests, fallback.interests, 20),
+    references: listValue(profile.references, fallback.references, 20),
+    referencesVisible: typeof profile.referencesVisible === "boolean"
+      ? profile.referencesVisible && listValue(profile.references, fallback.references, 20).length > 0
+      : fallback.referencesVisible,
+    languages: listValue(profile.languages, fallback.languages, 20),
+    achievements: listValue(profile.achievements, fallback.achievements, 20)
+      .filter((x: string) => /\d|%|€|\$|fcfa|xaf|million|milliard|x[af]/i.test(x)),
     atsScore: Number.isFinite(Number(output?.ats?.score)) ? Math.max(0, Math.min(100, Number(output.ats.score))) : 0,
-    atsKeywords: Array.isArray(output?.ats?.keywords) ? output.ats.keywords.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : [],
-    strengths: Array.isArray(output?.strengths) ? output.strengths.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 8) : [],
-    gaps: Array.isArray(output?.gaps) ? output.gaps.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 8) : [],
-    suggestions: Array.isArray(output?.suggestions) ? output.suggestions.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 8) : [],
+    atsKeywords: listValue(output?.ats?.keywords, fallback.atsKeywords, 20),
+    strengths: listValue(output?.strengths, fallback.strengths, 8),
+    gaps: listValue(output?.gaps, fallback.gaps, 8),
+    suggestions: listValue(output?.suggestions, fallback.suggestions, 8),
   };
 }
 
@@ -226,39 +235,42 @@ export async function POST(request: NextRequest) {
       pages: parsed.total,
     };
 
-    // PDF text extraction is deterministic and remains available independently
-    // of J'IA credits. AI enrichment is a separate, quota-gated step.
-    const deterministicCv = { ...extractDeterministicCv(cvText), photoDataUrl: extractedPhoto };
+    // J'IA classe d'abord chaque information dans la rubrique CV appropriée.
+    // Les règles déterministes interviennent ensuite uniquement pour valider,
+    // compléter les champs laissés vides et assurer un secours sans IA.
+    const deterministicCv = extractDeterministicCv(cvText);
     const ai = await runAiGateway(request, "CV_INTELLIGENCE", { cvText });
-
-    if (!ai.ok) {
-      if (ai.status === 429) {
-        return NextResponse.json({
-          ok: true,
-          aiAvailable: false,
-          aiQuotaExceeded: true,
-          aiMessage: ai.message,
-          fileName: canonicalFileName || "CV_Utilisateur.pdf",
-          pages: parsed.total,
-          extractedCharacters: cvText.length,
-          originalCv,
-          cv: deterministicCv,
-        });
-      }
-      return NextResponse.json({ error: "CV_AI_UNAVAILABLE", message: ai.message }, { status: ai.status });
+    if (ai.ok) {
+      const classified = normalizeOutput(ai.output, deterministicCv);
+      return NextResponse.json({
+        ok: true,
+        aiAvailable: true,
+        classificationMethod: "AI_PRIMARY_RULES_SECONDARY",
+        classificationLabel: "Classement J’IA, contrôle et complément automatique",
+        fileName: canonicalFileName || "CV_Utilisateur.pdf",
+        pages: parsed.total,
+        extractedCharacters: cvText.length,
+        credits: ai.credits,
+        remaining: ai.remaining,
+        provider: ai.provider,
+        originalCv,
+        cv: { ...classified, photoDataUrl: extractedPhoto },
+      });
     }
 
+    const quotaExceeded = ai.status === 429;
     return NextResponse.json({
       ok: true,
-      aiAvailable: true,
+      aiAvailable: false,
+      aiQuotaExceeded: quotaExceeded,
+      aiMessage: ai.message,
+      classificationMethod: "RULES_FALLBACK",
+      classificationLabel: "Classement automatique de secours — vérification manuelle recommandée",
       fileName: canonicalFileName || "CV_Utilisateur.pdf",
       pages: parsed.total,
       extractedCharacters: cvText.length,
-      credits: ai.credits,
-      remaining: ai.remaining,
-      provider: ai.provider,
       originalCv,
-      cv: { ...normalizeOutput(ai.output), photoDataUrl: extractedPhoto },
+      cv: { ...normalizeOutput({}, deterministicCv), photoDataUrl: extractedPhoto },
     });
   } catch (error) {
     return NextResponse.json({ error: "CV_IMPORT_FAILED", message: error instanceof Error ? error.message : "Impossible d’analyser le CV PDF." }, { status: 500 });
