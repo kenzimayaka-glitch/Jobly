@@ -22,8 +22,11 @@ export async function POST(req: NextRequest) {
     let imported = 0, skipped = 0; const items: any[] = [];
     for (const item of listed.messages || []) {
       const messageId = String(item.id);
-      const existing = await context.supabase.from("Application").select("id").eq("sourceMessageId", messageId).limit(1);
-      if ((existing.data || []).length) { skipped++; continue; }
+      const [existing, queued] = await Promise.all([
+        context.supabase.from("Application").select("id,recruiterJobId").eq("sourceMessageId", messageId).not("recruiterJobId", "is", null),
+        context.supabase.from("RecruiterGmailIntake").select("id").eq("sourceMessageId", messageId).eq("recruiterUserId", context.user.id).limit(1),
+      ]);
+      if ((existing.data || []).some((row: any) => jobs.some((job: any) => job.id === row.recruiterJobId)) || (queued.data || []).length) { skipped++; continue; }
       const msgRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?format=full`, { headers: { Authorization: `Bearer ${token}` } });
       const message = await msgRes.json(); if (!msgRes.ok) { skipped++; continue; }
       const sender = header(message, "From");
@@ -32,7 +35,7 @@ export async function POST(req: NextRequest) {
       const candidateName = sender.replace(/<[^>]+>/g, "").replace(/\"/g, "").trim() || senderEmail;
       const parts = [message.payload, ...partsOf(message.payload)].filter(Boolean);
       const pdf = parts.find((p: any) => String(p.filename || "").toLowerCase().endsWith(".pdf") && (p.body?.attachmentId || p.body?.data));
-      if (!pdf || !senderEmail || senderEmail === String(context.user.email || "").toLowerCase()) { skipped++; continue; }
+      if (!pdf || !pdf.body?.attachmentId || !senderEmail || senderEmail === String(context.user.email || "").toLowerCase()) { skipped++; continue; }
 
       let pdfBytes: Buffer;
       if (pdf.body.attachmentId) {

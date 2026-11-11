@@ -549,6 +549,26 @@ model Application {
   @@index([recruiterJobId, officialListingConsent])
 }
 
+model RecruiterGmailIntake {
+  id                   String   @id
+  recruiterUserId      String
+  candidateUserId      String
+  candidateEmail       String
+  candidateName        String
+  sourceMessageId      String
+  sourceThreadId       String?
+  sourceAttachmentId   String
+  sourceFilename       String
+  sourceJobTitle       String?
+  atsScore             Int?
+  status               String   @default("PENDING")
+  applicationId        String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  @@unique([recruiterUserId, sourceMessageId])
+  @@index([recruiterUserId, status, createdAt])
+}
+
 model Subscription {
   id                  String             @id @default(cuid())
   userId              String
