@@ -70,6 +70,17 @@ function CvStudioContent() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [savingOriginal, setSavingOriginal] = useState(false);
+  const [downloadLoading, setDownloadLoading] = useState(false);
+  const [paymentFeature, setPaymentFeature] = useState<"CV_ATS_DOWNLOAD" | "CV_OPTIMIZED_DOWNLOAD" | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
+  const [paymentPhone, setPaymentPhone] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"MTN MoMo" | "Orange Money">("MTN MoMo");
+  const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [paymentInstructions, setPaymentInstructions] = useState("");
+  const [plan, setPlan] = useState("FREE");
+  const [cvAtsDownloadPriceXaf, setCvAtsDownloadPriceXaf] = useState<number | null>(null);
+  const [cvOptimizedDownloadPriceXaf, setCvOptimizedDownloadPriceXaf] = useState<number | null>(null);
   const searchParams = useSearchParams();
   const adaptMode = searchParams.get("mode") === "adapt";
   const adaptJobId = searchParams.get("jobId");
@@ -98,6 +109,27 @@ function CvStudioContent() {
       .then(job => setAdaptJob(job))
       .catch(() => setAdaptJob(null));
   }, [adaptMode, adaptJobId, adaptSource]);
+
+  useEffect(() => {
+    let active = true;
+    const loadEntitlements = async () => {
+      try {
+        const response = await authenticatedFetch("/api/entitlements", { cache: "no-store" });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result?.message || "Droits CV indisponibles.");
+        if (!active) return;
+        const entitlements = result?.entitlements || {};
+        if (result?.subscription?.plan) setPlan(String(result.subscription.plan));
+        setCvAtsDownloadPriceXaf(Number.isFinite(Number(entitlements.cvAtsDownloadPriceXaf)) ? Number(entitlements.cvAtsDownloadPriceXaf) : 0);
+        setCvOptimizedDownloadPriceXaf(Number.isFinite(Number(entitlements.cvOptimizedDownloadPriceXaf)) ? Number(entitlements.cvOptimizedDownloadPriceXaf) : 0);
+      } catch (error) {
+        if (!active) return;
+        setMessage(error instanceof Error ? error.message : "Droits CV indisponibles.");
+      }
+    };
+    void loadEntitlements();
+    return () => { active = false; };
+  }, []);
 
   function selectCv(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -163,6 +195,183 @@ function CvStudioContent() {
     }
   }
 
+
+  async function authenticatedFetch(url: string, init: RequestInit = {}) {
+    const supabase = getSupabaseClient();
+    const current = await supabase.auth.getSession();
+    let token = current.data.session?.access_token || null;
+    const expiresAt = Number(current.data.session?.expires_at || 0);
+    if (!token || (expiresAt > 0 && expiresAt <= Date.now() / 1000 + 30)) {
+      const refreshed = await supabase.auth.refreshSession();
+      token = refreshed.data.session?.access_token || null;
+    }
+    if (!token) throw new Error("Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.");
+
+    const send = (accessToken: string) => {
+      const headers = new Headers(init.headers);
+      headers.set("Authorization", "Bearer " + accessToken);
+      return fetch(url, { ...init, headers });
+    };
+    let response = await send(token);
+    if (response.status === 401) {
+      const refreshed = await supabase.auth.refreshSession();
+      const refreshedToken = refreshed.data.session?.access_token || null;
+      if (refreshedToken && refreshedToken !== token) response = await send(refreshedToken);
+    }
+    return response;
+  }
+
+  async function saveOriginalCv() {
+    if (!selectedFile) {
+      setMessage("Sélectionne d’abord ton CV PDF.");
+      return;
+    }
+    setSavingOriginal(true);
+    setMessage("");
+    try {
+      const body = new FormData();
+      body.append("file", selectedFile);
+      const response = await authenticatedFetch("/api/talent/cv/original", {
+        method: "POST",
+        body,
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result?.message || "Impossible d’enregistrer le CV original.");
+      setMessage("CV original enregistré dans ton espace privé Jobly.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Enregistrement du CV impossible.");
+    } finally {
+      setSavingOriginal(false);
+    }
+  }
+
+  async function downloadCv(paymentOverride: string | null = paymentId, allowExistingBusy = false) {
+    if (downloadLoading && !allowExistingBusy) return;
+    setDownloadLoading(true);
+    setMessage("");
+    try {
+      const feature = paymentOverride && paymentFeature
+        ? paymentFeature
+        : mode === "ats" ? "CV_ATS_DOWNLOAD" : "CV_OPTIMIZED_DOWNLOAD";
+      const service = feature === "CV_ATS_DOWNLOAD" ? "ATS" : "OPTIMIZED";
+      const response = await authenticatedFetch("/api/talent/cv/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cv, service, ...(paymentOverride ? { paymentId: paymentOverride } : {}) }),
+      });
+
+      if (response.status === 402) {
+        const result = await response.json().catch(() => ({}));
+        if (result?.paymentRequired === true) {
+          setPaymentFeature(feature);
+          setPaymentAmount(Number(result.priceXaf) || 0);
+          setPaymentId(null);
+          setPaymentInstructions("");
+        } else if (result?.error === "CV_ACCESS_EXPIRED") {
+          setPaymentFeature(feature);
+          setPaymentId(null);
+          setPaymentInstructions("");
+        }
+        throw new Error(result?.message || "Un paiement ou un droit d’accès est requis pour télécharger ce CV.");
+      }
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result?.message || "Génération du CV impossible.");
+      }
+
+      const pdf = await response.blob();
+      const disposition = response.headers.get("Content-Disposition") || "";
+      const filename = disposition.match(/filename="([^"]+)"/i)?.[1] || generatedName;
+      const url = URL.createObjectURL(pdf);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+      setPaymentFeature(null);
+      setPaymentAmount(null);
+      setPaymentId(null);
+      setPaymentInstructions("");
+      setMessage("Ton CV PDF est prêt.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Téléchargement impossible.");
+    } finally {
+      setDownloadLoading(false);
+    }
+  }
+
+  async function startCvPayment() {
+    if (!paymentFeature) return;
+    if (!paymentPhone.trim()) {
+      setMessage("Saisis le numéro Mobile Money à débiter.");
+      return;
+    }
+    setDownloadLoading(true);
+    setMessage("");
+    try {
+      const response = await authenticatedFetch("/api/talent/cv/payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": globalThis.crypto.randomUUID(),
+        },
+        body: JSON.stringify({
+          feature: paymentFeature,
+          provider: "ICLAN",
+          phone: paymentPhone.trim(),
+          paymentMethod,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result?.message || "Impossible de lancer le paiement CV.");
+      if (result?.included === true) {
+        await downloadCv(null, true);
+        return;
+      }
+      const createdId = String(result?.payment?.id || "");
+      if (!createdId) throw new Error("Le prestataire n’a pas retourné de référence de paiement vérifiable.");
+      setPaymentId(createdId);
+      setPaymentInstructions(String(result?.instructions || "Valide la demande sur ton téléphone, puis vérifie le paiement."));
+      setMessage("Demande de paiement créée. Le téléchargement reste verrouillé jusqu’à confirmation du prestataire.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Paiement CV impossible.");
+    } finally {
+      setDownloadLoading(false);
+    }
+  }
+
+  async function verifyCvPayment() {
+    if (!paymentId) return;
+    setDownloadLoading(true);
+    setMessage("");
+    try {
+      const response = await authenticatedFetch("/api/payments/" + encodeURIComponent(paymentId) + "/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result?.message || "Vérification du paiement impossible.");
+      const status = String(result?.payment?.status || "");
+      if (status === "SUCCESSFUL") {
+        setMessage("Paiement confirmé. Préparation du CV…");
+        await downloadCv(paymentId, true);
+      } else if (status === "FAILED") {
+        setPaymentId(null);
+        setPaymentInstructions("");
+        throw new Error("Le paiement a échoué. Tu peux relancer une demande depuis le téléchargement.");
+      } else {
+        setMessage(result?.message || "Paiement en attente de confirmation opérateur. Réessaie la vérification après validation sur ton téléphone.");
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Vérification du paiement impossible.");
+    } finally {
+      setDownloadLoading(false);
+    }
+  }
+
   const update = (key: keyof CvData, value: string) => setCv((current) => ({ ...current, [key]: value }));
 
   return (
@@ -196,7 +405,10 @@ function CvStudioContent() {
                 <h2 className="font-extrabold">Importer mon CV PDF</h2>
                 <p className="mt-1 text-sm text-slate-500">Gratuit pour tous les plans. Sélectionnez votre PDF puis cliquez sur « Extraire les données » pour préremplir votre CV Master.</p>
                 {fileName && <p className="mt-3 text-xs font-bold text-slate-700">{fileName}</p>}
-                {fileName && <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); void extractCvData(); }} disabled={loading} className="mt-4 rounded-xl bg-green-600 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:brightness-95 disabled:cursor-wait disabled:opacity-60">{loading ? "Extraction en cours…" : "Extraire les données"}</button>}
+                {fileName && <div className="mt-4 flex flex-wrap gap-2">
+                  <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); void extractCvData(); }} disabled={loading || savingOriginal} className="rounded-xl bg-green-600 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:brightness-95 disabled:cursor-wait disabled:opacity-60">{loading ? "Extraction en cours…" : "Extraire les données"}</button>
+                  <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); void saveOriginalCv(); }} disabled={savingOriginal || loading} className="rounded-xl border border-[#22448B] px-4 py-2 text-xs font-black text-[#22448B] disabled:opacity-50">{savingOriginal ? "Enregistrement…" : "Enregistrer le CV original"}</button>
+                </div>}
                 {loading && <p className="mt-2 text-xs font-bold text-[#0b2447]">J’IA extrait les données de votre CV…</p>}
               </div>
             </div>
@@ -296,9 +508,30 @@ function CvStudioContent() {
               </article>
             )}
             <div className="mx-auto mt-5 flex max-w-[760px] flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between">
-              <div><div className="font-extrabold">{mode === 'simple' ? 'CV Simple' : 'CV ATS'}</div><div className="text-xs text-slate-500">Téléchargement soumis aux droits CV de votre plan.</div></div>
-              <button type="button" disabled className="cursor-not-allowed rounded-xl bg-slate-200 px-4 py-2 font-bold text-slate-500"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />Télécharger · paiement/plan</span></button>
+              <div><div className="font-extrabold">{mode === 'simple' ? 'CV Simple' : 'CV ATS'}</div><div className="text-xs text-slate-500">Formule {plan} · ATS : {cvAtsDownloadPriceXaf === null ? "…" : cvAtsDownloadPriceXaf.toLocaleString("fr-FR") + " FCFA"} · CV optimisé : {cvOptimizedDownloadPriceXaf === null ? "…" : cvOptimizedDownloadPriceXaf.toLocaleString("fr-FR") + " FCFA"}. Téléchargement selon tes droits ou après confirmation du paiement.</div></div>
+              <button type="button" onClick={() => void downloadCv()} disabled={downloadLoading} className="rounded-xl bg-[#FFD60A] px-4 py-3 font-black text-[#17212B] disabled:cursor-wait disabled:opacity-60"><span className="inline-flex items-center gap-1.5"><PremiumDiamond />{downloadLoading ? "Préparation…" : "Télécharger le PDF"}</span></button>
             </div>
+            {paymentFeature && (
+              <div className="mx-auto mt-3 max-w-[760px] rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm">
+                <p className="font-black text-amber-950">Paiement requis avant le téléchargement</p>
+                {paymentAmount !== null && <p className="mt-1 text-amber-900">Montant : <strong>{paymentAmount.toLocaleString("fr-FR")} FCFA</strong></p>}
+                {!paymentId ? (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_180px_auto]">
+                    <input type="tel" value={paymentPhone} onChange={(event) => setPaymentPhone(event.target.value)} placeholder="Numéro Mobile Money" className="min-h-11 rounded-xl border border-amber-300 bg-white px-3 text-sm" aria-label="Numéro Mobile Money à débiter" />
+                    <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as "MTN MoMo" | "Orange Money")} className="min-h-11 rounded-xl border border-amber-300 bg-white px-3 text-sm" aria-label="Opérateur Mobile Money">
+                      <option value="MTN MoMo">MTN MoMo</option>
+                      <option value="Orange Money">Orange Money</option>
+                    </select>
+                    <button type="button" onClick={() => void startCvPayment()} disabled={downloadLoading} className="min-h-11 rounded-xl bg-[#17212B] px-4 font-black text-white disabled:opacity-50">Confirmer le paiement</button>
+                  </div>
+                ) : (
+                  <div className="mt-3">
+                    <p className="text-amber-900">{paymentInstructions}</p>
+                    <button type="button" onClick={() => void verifyCvPayment()} disabled={downloadLoading} className="mt-3 min-h-11 rounded-xl bg-[#17212B] px-4 font-black text-white disabled:opacity-50">{downloadLoading ? "Vérification…" : "Vérifier le paiement et télécharger"}</button>
+                  </div>
+                )}
+              </div>
+            )}
           </section>
         </div>
       </div>

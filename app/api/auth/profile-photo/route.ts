@@ -1,56 +1,113 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, getAuthUser } from "../../../../lib/server-auth";
+import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
 import crypto from "node:crypto";
+import {
+  PRIVATE_PROFILE_PHOTO_BUCKET,
+  PUBLIC_PROFILE_PHOTO_BUCKET,
+  getProfilePhotoStoragePath,
+  isProfilePhotoPublic,
+} from "../../../../lib/profilePhotoStorage";
+
+const MIME_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
+
+function detectImageMime(bytes: Uint8Array): string | null {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes.length >= 8 && bytes[0] === 0x89 && String.fromCharCode(...bytes.subarray(1, 4)) === "PNG") return "image/png";
+  if (bytes.length >= 12 && String.fromCharCode(...bytes.subarray(0, 4)) === "RIFF" && String.fromCharCode(...bytes.subarray(8, 12)) === "WEBP") return "image/webp";
+  if (bytes.length >= 6 && ["GIF87a", "GIF89a"].includes(String.fromCharCode(...bytes.subarray(0, 6)))) return "image/gif";
+  return null;
+}
+
+const error = (message: string, status = 400) => NextResponse.json({ message }, { status });
 
 export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
-    if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+    if (!authUser) return error("Session requise.", 401);
+
     const form = await request.formData();
     const kind = form.get("kind") === "hero" ? "hero" : "profile";
     const file = form.get("photo");
-    if (!(file instanceof File)) return NextResponse.json({ message: "Photo manquante." }, { status: 400 });
-    if (!file.type.startsWith("image/")) return NextResponse.json({ message: "Le fichier doit être une image." }, { status: 400 });
-    if (kind === "hero" && file.type !== "image/png") return NextResponse.json({ message: "Le visuel Hero doit être un PNG transparent." }, { status: 400 });
-    if (file.size > (kind === "hero" ? 10 : 5) * 1024 * 1024) return NextResponse.json({ message: kind === "hero" ? "Le visuel Hero est trop volumineux." : "La photo doit faire au maximum 5 Mo." }, { status: 400 });
+    if (!(file instanceof File)) return error("Photo manquante.");
+    if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
+      return error(kind === "hero" ? "Le visuel Hero doit faire au maximum 5 Mo." : "La photo doit faire au maximum 5 Mo.", 422);
+    }
+
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const actualMime = detectImageMime(bytes);
+    if (!actualMime || actualMime !== file.type) return error("Format image non supporté ou type MIME incohérent.", 422);
+    if (kind === "hero" && actualMime !== "image/png") return error("Le visuel Hero doit être un PNG transparent.");
 
     const supabase = adminClient();
-    const bucket = "profile-photos";
-    const { data: buckets } = await supabase.storage.listBuckets();
-    if (!buckets?.some((b) => b.name === bucket)) {
-      const { error } = await supabase.storage.createBucket(bucket, { public: true, fileSizeLimit: "5MB", allowedMimeTypes: ["image/*"] });
-      if (error && !error.message.toLowerCase().includes("already exists")) throw new Error(error.message);
+    const user = await ensureUser(supabase, authUser);
+    const visibility = kind === "hero"
+      ? (isProfilePhotoPublic(user) ? "PUBLIC" : "PRIVATE")
+      : (form.get("visibility") === "PUBLIC" ? "PUBLIC" : "PRIVATE");
+    if (kind === "profile" && visibility === "PUBLIC" && form.get("publicPhotoConsent") !== "true") {
+      return error("Confirmez explicitement que vous autorisez la publication de votre photo.", 422);
     }
 
-    const { data: user } = await supabase.from("User").select("id,profilePhotoUrl").eq("authUserId", authUser.id).maybeSingle();
-    if (!user) return NextResponse.json({ message: "Profil JOBLY introuvable." }, { status: 404 });
+    const bucket = visibility === "PUBLIC" ? PUBLIC_PROFILE_PHOTO_BUCKET : PRIVATE_PROFILE_PHOTO_BUCKET;
+    const { data: bucketInfo, error: bucketError } = await supabase.storage.getBucket(bucket);
+    if (bucketError || !bucketInfo || (visibility === "PRIVATE" && bucketInfo.public)) {
+      return error("Le stockage photo privé/public n'est pas correctement configuré. Réessayez après la configuration LOT-00.", 503);
+    }
 
-    let path: string;
+    let storagePath: string;
     if (kind === "hero") {
-      const sourceUrl = user.profilePhotoUrl;
-      const publicMarker = "/storage/v1/object/public/profile-photos/";
-      const sourceIndex = typeof sourceUrl === "string" ? sourceUrl.indexOf(publicMarker) : -1;
-      if (sourceIndex < 0) return NextResponse.json({ message: "Photo source introuvable." }, { status: 409 });
-      const sourcePath = sourceUrl.slice(sourceIndex + publicMarker.length);
-      if (!sourcePath || !sourcePath.startsWith(`${authUser.id}/`)) return NextResponse.json({ message: "Photo source invalide." }, { status: 403 });
-      path = `${sourcePath}.hero.png`;
+      const sourcePath = getProfilePhotoStoragePath(user);
+      if (!sourcePath) return error("Photo source introuvable.", 409);
+      storagePath = `${sourcePath}.hero.png`;
     } else {
-      const extension = file.name.split(".").pop()?.replace(/[^a-z0-9]/gi, "") || "jpg";
-      path = `${authUser.id}/${crypto.randomUUID()}.${extension}`;
+      storagePath = `${authUser.id}/${crypto.randomUUID()}.${MIME_EXTENSIONS[actualMime]}`;
     }
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, bytes, { contentType: file.type, upsert: false, cacheControl: "31536000" });
-    if (uploadError && !(kind === "hero" && /already exists|duplicate/i.test(uploadError.message))) throw new Error(uploadError.message);
-    const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(path);
+
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(storagePath, bytes, {
+      contentType: actualMime,
+      upsert: kind === "hero",
+      cacheControl: "3600",
+    });
+    if (uploadError) throw new Error(uploadError.message);
+
+    const storage = supabase.storage.from(bucket);
+    const photoUrl = visibility === "PUBLIC"
+      ? storage.getPublicUrl(storagePath).data.publicUrl
+      : (await storage.createSignedUrl(storagePath, 3600)).data?.signedUrl ?? null;
 
     if (kind === "profile") {
-      const { error: updateError } = await supabase.from("User").update({ profilePhotoUrl: publicData.publicUrl, updatedAt: new Date().toISOString() }).eq("id", user.id);
-      if (updateError) throw new Error(updateError.message);
-      const heroUrl = supabase.storage.from(bucket).getPublicUrl(`${path}.hero.png`).data.publicUrl;
-      return NextResponse.json({ ok: true, url: publicData.publicUrl, heroUrl });
+      const previousPath = getProfilePhotoStoragePath(user);
+      const previousBucket = isProfilePhotoPublic(user) ? PUBLIC_PROFILE_PHOTO_BUCKET : PRIVATE_PROFILE_PHOTO_BUCKET;
+      const now = new Date().toISOString();
+      const { error: updateError } = await supabase.from("User").update({
+        profilePhotoUrl: visibility === "PUBLIC" ? photoUrl : null,
+        profilePhotoStoragePath: storagePath,
+        profilePhotoVisibility: visibility,
+        profilePhotoConsentAt: visibility === "PUBLIC" ? now : null,
+        updatedAt: now,
+      }).eq("id", user.id);
+      if (updateError) {
+        await storage.remove([storagePath]).catch(() => undefined);
+        throw new Error(updateError.message);
+      }
+      if (previousPath && (previousPath !== storagePath || previousBucket !== bucket)) {
+        await supabase.storage.from(previousBucket).remove([previousPath, `${previousPath}.hero.png`]);
+      }
+      const heroPath = `${storagePath}.hero.png`;
+      const heroUrl = visibility === "PUBLIC"
+        ? storage.getPublicUrl(heroPath).data.publicUrl
+        : null;
+      return NextResponse.json({ ok: true, url: photoUrl, heroUrl, visibility });
     }
 
-    return NextResponse.json({ ok: true, url: publicData.publicUrl });
+    const heroUrl = visibility === "PUBLIC"
+      ? storage.getPublicUrl(storagePath).data.publicUrl
+      : (await storage.createSignedUrl(storagePath, 3600)).data?.signedUrl ?? null;
+    return NextResponse.json({ ok: true, url: heroUrl, visibility });
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Impossible d'enregistrer la photo." }, { status: 500 });
   }

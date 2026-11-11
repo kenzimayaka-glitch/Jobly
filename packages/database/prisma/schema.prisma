@@ -133,6 +133,7 @@ model User {
   authUserId       String?      @unique
   email           String?      @unique
   phone           String?      @unique
+  signupPhone     String?      // Numero initial saisi a l inscription.
   displayName     String?
   // Ajouts 15/09/2026 : requis par /api/auth/complete-signup et
   // /api/auth/username/check, absents du schéma jusqu'ici (cause de l'erreur
@@ -143,7 +144,11 @@ model User {
   country           String?
   privacyAcceptedAt DateTime?
   role            UserRole     @default(TALENT)
+  notificationsEnabled Boolean  @default(true)
   profilePhotoUrl String?
+  profilePhotoStoragePath String?
+  profilePhotoVisibility String @default("PRIVATE")
+  profilePhotoConsentAt DateTime?
   pitchVideoUrl String?
   pitchVideoStoragePath String?
   pitchVideoDurationMs Int?
@@ -365,6 +370,9 @@ model Profile {
   country        String?
   headline       String?
   summary        String?
+  // Texte CV déclaré/importé conservé sans inventer d'expérience structurée ni de dates.
+  experienceSummary String?
+  educationSummary  String?
   location       String?
   targetRoles    String[] @default([])
   preferredSectors String[] @default([])
@@ -463,11 +471,36 @@ model RecruiterJob {
   // Ajouts 12/09/2026 — unification avec Job pour le Matching V1 (spec 12.1)
   remoteMode         String @default("NO") // "YES" | "NO" | "PARTIAL", dérivé de `mode` mais normalisé pour le calcul de score
   minExperienceYears Int    @default(0)
+  applicationProfile Json @default("{}")
+  applicationReady Boolean @default(true)
+  sourceType String @default("JOBLY_CREATED")
+  sourceJobId String? @db.Uuid
+  sourceShareId String? @db.Uuid
+  sourcePhoneSnapshot String?
+  sourceProvenance Json @default("{}")
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   applications   Application[]
 
   @@index([recruiterUserId])
+}
+
+model RecruiterOfferClaim {
+  id String @id @default(uuid()) @db.Uuid
+  sourceShareId String @db.Uuid
+  sourceJobId String @db.Uuid
+  applicationId String
+  recruiterUserId String
+  registeredPhone String?
+  offerPhone String?
+  status String @default("PENDING")
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  reviewedAt DateTime? @db.Timestamptz(6)
+  reviewedByUserId String?
+  reviewNote String?
+  @@unique([sourceShareId, recruiterUserId])
+  @@index([status, createdAt])
+  @@index([recruiterUserId, status])
 }
 
 model Match {
@@ -491,6 +524,8 @@ model Application {
   cvUrl          String?
   cvPhotoUrl     String?
   letterText     String?
+  cvApprovedAt DateTime? @db.Timestamptz(6)
+  letterApprovedAt DateTime? @db.Timestamptz(6)
   atsScore       Int?
   submittedAt    DateTime?
   // Ajouts spec 12.2 (écran Candidatures V1)
@@ -498,6 +533,8 @@ model Application {
   viewedAt       DateTime?         // horodatage de la première ouverture par un recruteur (statut "Vu")
   interviewAt    DateTime?         // date d'entretien renseignée manuellement
   statusSource   String   @default("CANDIDATE") // "CANDIDATE" | "RECRUITER" — qui a fixé le statut final en cas de conflit
+  officialListingConsent Boolean @default(false) // Consentement explicite du candidat pour les listes officielles
+  officialListingDisplayName String? // Nom d’affichage corrigé, sans remplacer l’identité réelle
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -509,6 +546,27 @@ model Application {
   // publiée par un recruteur JOBLY (recruiterJobId) — jamais les deux, jamais aucune.
   @@unique([userId, jobId])
   @@unique([userId, recruiterJobId])
+  @@index([recruiterJobId, officialListingConsent])
+}
+
+model RecruiterGmailIntake {
+  id                   String   @id
+  recruiterUserId      String
+  candidateUserId      String
+  candidateEmail       String
+  candidateName        String
+  sourceMessageId      String
+  sourceThreadId       String?
+  sourceAttachmentId   String
+  sourceFilename       String
+  sourceJobTitle       String?
+  atsScore             Int?
+  status               String   @default("PENDING")
+  applicationId        String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  @@unique([recruiterUserId, sourceMessageId])
+  @@index([recruiterUserId, status, createdAt])
 }
 
 model Subscription {
@@ -1190,6 +1248,7 @@ model Event {
   audience String[] @default([])
   mediaType String?
   mediaUrl String?
+  mediaStoragePath String?
   mediaSizeBytes Int?
   mediaDurationSeconds Float?
   status String @default("DRAFT")

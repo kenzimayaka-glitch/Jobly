@@ -700,6 +700,15 @@ export default function Home() {
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
+      const recruiterShareToken = params.get("shareToken");
+      if (params.get("recruiterSignup") === "1" && recruiterShareToken && /^[A-Za-z0-9_-]{20,80}$/.test(recruiterShareToken)) {
+        const destination = `/recruiter/onboarding?shareToken=${encodeURIComponent(recruiterShareToken)}`;
+        window.sessionStorage.setItem("jobly:recruiter-share-token", recruiterShareToken);
+        window.sessionStorage.setItem("jobly:after-login", destination);
+        window.localStorage.setItem("jobly:last-ecosystem", "recruiter");
+        setScreen("signup");
+        return;
+      }
       if (params.get("screen") === "journey") {
         const u = params.get("u");
         if (u) setUsername(u);
@@ -919,6 +928,15 @@ export default function Home() {
         const response = await fetch("/api/auth/profile-photo", { method: "POST", headers: { Authorization: `Bearer ${sessionData.session.access_token}` }, body: form });
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.message || "La photo n'a pas pu être enregistrée.");
+      }
+      let recruiterShareToken: string | null = null;
+      try {
+        recruiterShareToken = window.sessionStorage.getItem("jobly:recruiter-share-token");
+        if (recruiterShareToken) window.sessionStorage.removeItem("jobly:recruiter-share-token");
+      } catch {}
+      if (recruiterShareToken && /^[A-Za-z0-9_-]{20,80}$/.test(recruiterShareToken)) {
+        window.location.assign(`/recruiter/onboarding?shareToken=${encodeURIComponent(recruiterShareToken)}`);
+        return;
       }
       setJourneyIndex(0);
       goTo("journey");

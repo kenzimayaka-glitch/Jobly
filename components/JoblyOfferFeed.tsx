@@ -92,7 +92,13 @@ export function JoblyOfferFeed() {
   const [selectedMatch, setSelectedMatch] = useState<Job | null>(null);
   const [basket, setBasket] = useState<Set<string>>(new Set());
   const [bulkLimit, setBulkLimit] = useState(1);
-  const [preparedBulk, setPreparedBulk] = useState<Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string; letterSource: "JIA" | "CANDIDATE"; batchId?: string }>>([]);
+  type CVPreparationMode = "NORMAL" | "ATS" | "IMPROVE" | "ATS_IMPROVE";
+  const [preparedBulk, setPreparedBulk] = useState<Array<{ id: string; key: string; job: Job; letter: string; tailoredCvText: string; letterSource: "JIA" | "CANDIDATE"; batchId?: string; channel?: "EMAIL" | "WHATSAPP"; letterRequired?: boolean; cvPreparationMode?: CVPreparationMode; cvApproved?: boolean; letterApproved?: boolean }>>([]);
+  const [whatsAppJob, setWhatsAppJob] = useState<Job | null>(null);
+  const [whatsAppCvMode, setWhatsAppCvMode] = useState<CVPreparationMode | null>(null);
+  const [whatsAppPreparing, setWhatsAppPreparing] = useState(false);
+  const [whatsAppDraftApplicationId, setWhatsAppDraftApplicationId] = useState<string | null>(null);
+  const [whatsAppDraftJobKey, setWhatsAppDraftJobKey] = useState<string | null>(null);
   const [editingLetterId, setEditingLetterId] = useState<string | null>(null);
   const [importingLetterId, setImportingLetterId] = useState<string | null>(null);
   const [bulkPreparing, setBulkPreparing] = useState(false);
@@ -334,6 +340,10 @@ export function JoblyOfferFeed() {
     if (applied.has(key)) { setError("Vous avez déjà postulé à cette offre : elle ne peut plus être ajoutée au panier."); return; }
     if (applicationReadyKeys.has(key)) { setError("Cette candidature est déjà préparée et attend votre validation : retrouvez-la dans l’onglet Candidatures."); return; }
     if (!job.applicationReady) { setError("Cette offre est consultable, mais aucune modalité de candidature n’est vérifiée. Consultez la source originale avant de postuler."); return; }
+    if (!applicationEmail(job) || externalApplicationTarget(job)) {
+      setError("Le panier groupé est réservé aux candidatures par e-mail. Pour une offre téléphone ou plateforme externe, utilisez son action manuelle.");
+      return;
+    }
     setBasket(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
@@ -362,22 +372,48 @@ export function JoblyOfferFeed() {
     window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${subject}&body=${body}`, "_blank", "noopener,noreferrer");
   }
 
-  async function prepareSingleApplication(job: Job) {
+  async function prepareSingleApplication(job: Job, channel: "EMAIL" | "WHATSAPP" = "EMAIL", cvPreparationMode: CVPreparationMode = "ATS", existingApplicationId?: string | null) {
     if (!token || bulkPreparing) return;
     setBulkPreparing(true); setError("");
     try {
-      const prepareRes = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ source: job.source, jobId: job.id, readinessScoreAtApply: job.matchPercent, locale: typeof navigator !== "undefined" && navigator.language.startsWith("en") ? "en" : "fr" }) });
+      const prepareRes = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          source: job.source,
+          jobId: job.id,
+          readinessScoreAtApply: job.matchPercent,
+          locale: typeof navigator !== "undefined" && navigator.language.startsWith("en") ? "en" : "fr",
+          cvPreparationMode,
+          ...(existingApplicationId ? { applicationId: existingApplicationId } : {}),
+        }),
+      });
       const preparedBody = await prepareRes.json().catch(() => ({}));
       if (!prepareRes.ok) throw new Error(preparedBody.message || "La candidature n'a pas pu être préparée.");
       const applicationId = preparedBody.application?.id;
       if (!applicationId) throw new Error("La candidature a été préparée sans identifiant exploitable.");
+      const key = `${job.source}:${job.id}`;
+      setApplicationReadyKeys((previous) => new Set(previous).add(key));
       setPreparedBulk([{
-        id: applicationId, key: `${job.source}:${job.id}`, job,
-        letter: String(preparedBody.prepared?.letter || ""), tailoredCvText: String(preparedBody.prepared?.tailoredCvText || ""),
+        id: applicationId,
+        key,
+        job,
+        letter: String(preparedBody.prepared?.letter || ""),
+        tailoredCvText: String(preparedBody.prepared?.tailoredCvText || ""),
         letterSource: preparedBody.prepared?.letterSource === "CANDIDATE" ? "CANDIDATE" : "JIA",
+        channel,
+        letterRequired: Boolean(preparedBody.prepared?.letterRequired),
+        cvPreparationMode,
+        cvApproved: channel !== "WHATSAPP",
+        letterApproved: channel !== "WHATSAPP" || !preparedBody.prepared?.letterRequired,
       }]);
-    } catch (e) { setError(e instanceof Error ? e.message : "La préparation de la candidature a échoué.");  }
-    finally { setBulkPreparing(false); }
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "La préparation de la candidature a échoué.");
+      return false;
+    } finally {
+      setBulkPreparing(false);
+    }
   }
 
   function applicationEmail(job: Job) {
@@ -387,21 +423,77 @@ export function JoblyOfferFeed() {
     return String(job.applicationProfile?.applicationPhone || job.applicationProfile?.phone || job.applicationProfile?.phoneNumbers?.[0] || "").trim();
   }
   async function applyViaWhatsApp(job: Job) {
-    const raw = applicationPhone(job);
-    const digits = raw.replace(/\D/g, "");
-    const phone = digits.startsWith("237") ? digits : digits.length === 9 ? "237" + digits : "";
-    if (!phone) { router.push(`/jobs/${job.id}?source=${job.source}`); return; }
-    if (!token) { setError("Votre session Jobly a expiré. Reconnectez-vous pour postuler.");  return; }
+    const key = `${job.source}:${job.id}`;
+    setWhatsAppCvMode(null);
+    setWhatsAppJob(job);
+    setError("");
+    if (whatsAppDraftApplicationId && whatsAppDraftJobKey === key) return;
+
+    if (!token) {
+      setWhatsAppJob(null);
+      setError("Votre session Jobly a expiré. Reconnectez-vous pour postuler.");
+      return;
+    }
+    setWhatsAppPreparing(true);
     try {
-      const res = await fetch("/api/cv-share", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ source: job.source, jobId: job.id }) });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || "Impossible de préparer la candidature WhatsApp.");
-      const company = cleanCompanyName(job.company?.name);
-      const message = `Bonjour, je suis ${body.candidateName}. Je souhaite vous soumettre ma candidature au poste de ${job.title}${company !== "Aucune donnée" ? ` chez ${company}` : ""}.\n\n📄 CV ${body.candidateName} — Candidature ${company !== "Aucune donnée" ? company : job.title}\n${window.location.origin}/cv/share/${body.token}`;
-      window.open("https://wa.me/" + phone + "?text=" + encodeURIComponent(message), "_blank", "noopener,noreferrer");
-    } catch (e) { setError(e instanceof Error ? e.message : "Impossible de préparer la candidature WhatsApp.");  }
+      // The Application row is persisted on the first Postuler click, before the
+      // candidate chooses a CV transformation. The later choice updates this same row.
+      const response = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          source: job.source,
+          jobId: job.id,
+          readinessScoreAtApply: job.matchPercent,
+          locale: typeof navigator !== "undefined" && navigator.language.startsWith("en") ? "en" : "fr",
+          cvPreparationMode: "NORMAL",
+          skipApplicationAi: true,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message || "Impossible de créer le brouillon de candidature.");
+      const applicationId = String(body.application?.id || "");
+      if (!applicationId) throw new Error("Jobly n'a pas retourné l'identifiant du brouillon.");
+      setWhatsAppDraftApplicationId(applicationId);
+      setWhatsAppDraftJobKey(key);
+      setApplicationReadyKeys((previous) => new Set(previous).add(key));
+    } catch (error) {
+      setWhatsAppJob(null);
+      setError(error instanceof Error ? error.message : "Impossible de créer le brouillon de candidature.");
+    } finally {
+      setWhatsAppPreparing(false);
+    }
   }
-  function handleApplyClick(job: Job, state: { done: boolean; ready: boolean; busy: boolean }) { if (state.busy) { setError("Envoi en cours : patientez quelques secondes."); return; } if (state.done) { setError("Candidature déjà envoyée pour cette offre. Retrouvez-la dans l’onglet Candidatures."); return; } if (state.ready) { setError("Candidature déjà préparée : elle attend votre validation dans l’onglet Candidatures."); return; } void apply(job); }
+
+  async function prepareWhatsAppApplication() {
+    if (!whatsAppJob || !whatsAppCvMode || !whatsAppDraftApplicationId || whatsAppPreparing || bulkPreparing) return;
+    setWhatsAppPreparing(true);
+    try {
+      const prepared = await prepareSingleApplication(whatsAppJob, "WHATSAPP", whatsAppCvMode, whatsAppDraftApplicationId);
+      if (prepared) {
+        setWhatsAppJob(null);
+        setWhatsAppCvMode(null);
+      }
+    } finally {
+      setWhatsAppPreparing(false);
+    }
+  }
+
+  function handleApplyClick(job: Job, state: { done: boolean; ready: boolean; busy: boolean }) {
+    if (state.busy) { setError("Envoi en cours : patientez quelques secondes."); return; }
+    if (state.done) { setError("Candidature déjà envoyée pour cette offre. Retrouvez-la dans l’onglet Candidatures."); return; }
+    const key = `${job.source}:${job.id}`;
+    if (state.ready) {
+      if (whatsAppDraftApplicationId && whatsAppDraftJobKey === key) {
+        setWhatsAppCvMode(null);
+        setWhatsAppJob(job);
+        return;
+      }
+      setError("Candidature déjà préparée : elle attend votre validation dans l’onglet Candidatures.");
+      return;
+    }
+    void apply(job);
+  }
   async function apply(job: Job) {
     if (job.deadlineExpired) { setExpiredNoticeOpen(true); return; }
     const email = applicationEmail(job);
@@ -470,9 +562,54 @@ export function JoblyOfferFeed() {
     setImportingLetterId(null);
   }
 
-  async function submitBulkApplications() {
+  async function submitBulkApplications(whatsAppWindow?: Window | null) {
     if (!token || preparedBulk.length === 0 || bulkSubmitting) return;
     setBulkSubmitting(true); setError("");
+
+    if (preparedBulk.length === 1 && preparedBulk[0].channel === "WHATSAPP") {
+      const item = preparedBulk[0];
+      if (!item.cvApproved || (item.letterRequired && !item.letterApproved)) {
+        whatsAppWindow?.close();
+        setError("Valide le CV et, lorsqu'elle est requise, la lettre de motivation avant d'ouvrir WhatsApp.");
+        setBulkSubmitting(false);
+        return;
+      }
+      try {
+        const shareRes = await fetch(`/api/applications/${encodeURIComponent(item.id)}/whatsapp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ letterText: item.letter, cvApproved: item.cvApproved === true, letterApproved: item.letterApproved === true }),
+        });
+        const shareBody = await shareRes.json().catch(() => ({}));
+        if (!shareRes.ok) throw new Error(shareBody.message || "Impossible de préparer le lien sécurisé du CV.");
+        const company = cleanCompanyName(item.job.company?.name);
+        const companyText = company !== "Aucune donnée" ? ` chez ${company}` : "";
+        const cvLink = window.location.origin + String(shareBody.cvUrl || `/cv/share/${shareBody.token}`);
+        const lines = [
+          `Bonjour, je suis ${shareBody.candidateName}.`,
+          `Je souhaite vous soumettre ma candidature au poste de ${shareBody.jobTitle || item.job.title}${companyText}.`,
+          "",
+          `CV ${shareBody.filename || "CV.pdf"}`,
+          cvLink,
+        ];
+        if (shareBody.coverLetterRequired && shareBody.coverLetterAvailable) {
+          lines.push("", "Lettre de motivation (PDF)", window.location.origin + `/api/cv-share/${encodeURIComponent(shareBody.token)}/letter`);
+        }
+        const whatsappUrl = "https://wa.me/" + encodeURIComponent(String(shareBody.phone)) + "?text=" + encodeURIComponent(lines.join("\n"));
+        const popup = whatsAppWindow || window.open("about:blank", "_blank");
+        if (!popup) throw new Error("Le navigateur a bloqué WhatsApp. Autorise les fenêtres contextuelles et réessaie.");
+        popup.location.href = whatsappUrl;
+        setPreparedBulk([]);
+        setError("WhatsApp est prêt avec le CV validé. Vérifie le destinataire et appuie toi-même sur Envoyer dans WhatsApp. Jobly n'a pas envoyé le message.");
+      } catch (error) {
+        whatsAppWindow?.close();
+        setError(error instanceof Error ? error.message : "Impossible d'ouvrir WhatsApp.");
+      } finally {
+        setBulkSubmitting(false);
+      }
+      return;
+    }
+
     try {
       const checkRes = await fetch("/api/applications/bulk-check", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ selectedCount: preparedBulk.length }) });
       const checkBody = await checkRes.json().catch(() => ({}));
@@ -889,6 +1026,35 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
       </div>
     )}
 
+    <AnimatePresence>{whatsAppJob && (
+      <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-[120] grid place-items-center bg-black/65 p-3 backdrop-blur-sm">
+        <motion.div initial={{y:22,opacity:0}} animate={{y:0,opacity:1}} className="max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-[28px] bg-white p-5 text-[#17212B] shadow-2xl sm:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div><p className="text-[10px] font-black uppercase tracking-[1.8px] text-[#B59A00]">J'IA · préparation WhatsApp</p><h2 className="mt-1 text-xl font-black">Quel CV souhaites-tu envoyer ?</h2><p className="mt-1 text-xs text-slate-500">{whatsAppJob.title} · {cleanCompanyName(whatsAppJob.company?.name)}</p></div>
+            <button type="button" onClick={() => setWhatsAppJob(null)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200" aria-label="Fermer"><X size={17}/></button>
+          </div>
+          <div className="mt-5 space-y-2">
+            {([
+              ["NORMAL","Utiliser mon CV normal","Aucune transformation : reprendre le contenu enregistré dans ton CV."],
+              ["ATS","Optimiser mon CV pour les filtres ATS","Réorganiser les compétences et expériences réelles selon l'offre."],
+              ["IMPROVE","Améliorer mon CV avec J'IA","Améliorer la clarté et la rédaction sans inventer de faits."],
+              ["ATS_IMPROVE","Optimiser ATS + améliorer mon CV","Combiner le ciblage ATS et l'amélioration rédactionnelle."],
+            ] as const).map(([value,label,description]) => (
+              <label key={value} className={`flex cursor-pointer gap-3 rounded-2xl border p-3.5 transition ${whatsAppCvMode===value?"border-[#174EA6] bg-blue-50":"border-slate-200 bg-white hover:bg-slate-50"}`}>
+                <input type="radio" name="whatsapp-cv-preparation" value={value} checked={whatsAppCvMode===value} onChange={() => setWhatsAppCvMode(value)} className="mt-1" />
+                <span><span className="block text-sm font-black text-navy">{label}</span><span className="mt-1 block text-[11px] leading-5 text-slate-500">{description}</span></span>
+              </label>
+            ))}
+          </div>
+          <p className="mt-4 rounded-xl bg-amber-50 p-3 text-[10px] leading-5 text-amber-900">J'IA ne doit ajouter aucun diplôme, employeur, expérience, compétence, date ou résultat qui ne figure pas dans tes informations. Tu reliras et valideras le CV avant l'ouverture de WhatsApp.</p>
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button type="button" onClick={() => setWhatsAppJob(null)} className="rounded-full border border-slate-200 px-5 py-3 text-xs font-black">Annuler</button>
+            <button type="button" onClick={() => void prepareWhatsAppApplication()} disabled={!whatsAppCvMode || whatsAppPreparing || bulkPreparing || !whatsAppDraftApplicationId} className="rounded-full bg-[#FFE135] px-5 py-3 text-xs font-black text-[#2E3F4F] disabled:opacity-50">{whatsAppPreparing || bulkPreparing ? "Préparation…" : !whatsAppDraftApplicationId ? "Création du brouillon…" : "Préparer mon dossier"}</button>
+          </div>
+        </motion.div>
+      </motion.div>
+    )}</AnimatePresence>
+
     <AnimatePresence>{preparedBulk.length > 0 && (
       <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-[110] grid place-items-center bg-black/65 p-3 backdrop-blur-sm">
         <motion.div initial={{y:24,opacity:0}} animate={{y:0,opacity:1}} className="max-h-[88dvh] w-full max-w-2xl overflow-y-auto rounded-[30px] bg-white p-5 text-[#17212B] shadow-2xl sm:p-6">
@@ -899,23 +1065,46 @@ function normalizeVoice(text: string) { return text.normalize("NFD").replace(/[\
             return <details key={item.id} open={isEditing || undefined} className="rounded-2xl border border-slate-200 bg-[#F8FAFC] p-3">
               <summary className="cursor-pointer list-none"><div className="flex items-center gap-3"><CompanyLogo companyName={cleanCompanyName(item.job.company?.name)} logoUrl={item.job.company?.logoUrl} domain={item.job.company?.domain} website={item.job.company?.website} size={40}/><div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold uppercase text-slate-400">{cleanCompanyName(item.job.company?.name)}</p><p className="truncate text-sm font-black">{item.job.title}</p></div><span className="rounded-full bg-[#DDF8EA] px-2 py-1 text-[9px] font-black text-[#08733E]">{item.job.matchPercent}% match</span></div></summary>
               <div className="mt-3 border-t border-slate-200 pt-3">
+                {item.channel === "WHATSAPP" && (
+                  <div className="mb-4 rounded-2xl border border-blue-100 bg-white p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-black text-navy">CV à partager sur WhatsApp</p><p className="mt-1 text-[10px] text-slate-500">Mode : {item.cvPreparationMode === "NORMAL" ? "CV normal" : item.cvPreparationMode === "ATS" ? "Optimisation ATS" : item.cvPreparationMode === "IMPROVE" ? "Amélioration J'IA" : "ATS + amélioration"}</p></div><span className="rounded-full bg-amber-100 px-2 py-1 text-[9px] font-black text-amber-800">Validation requise</span></div>
+                    <details className="mt-3 rounded-xl bg-slate-50 p-3">
+                      <summary className="cursor-pointer text-[11px] font-black text-navy">Prévisualiser le CV complet</summary>
+                      <pre className="mt-3 max-h-72 overflow-y-auto whitespace-pre-wrap break-words font-sans text-[11px] leading-5 text-slate-600">{item.tailoredCvText}</pre>
+                    </details>
+                    <label className="mt-3 flex items-start gap-2 text-[11px] font-bold text-navy">
+                      <input type="checkbox" checked={Boolean(item.cvApproved)} onChange={(e) => setPreparedBulk(prev => prev.map(x => x.id === item.id ? { ...x, cvApproved: e.target.checked } : x))} className="mt-0.5"/>
+                      J'ai relu et je valide cette version de mon CV pour cette candidature.
+                    </label>
+                  </div>
+                )}
+                {(item.channel !== "WHATSAPP" || item.letterRequired) && (
+                <>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[1px] text-slate-400"><FileText size={14}/> Lettre · {item.letterSource === "CANDIDATE" ? "Votre document" : "Préparée par J’IA"}</div><div className="flex gap-2">
                   <button type="button" onClick={() => setEditingLetterId(isEditing ? null : item.id)} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-[10px] font-black"><Pencil size={13}/> {isEditing ? "Fermer" : "Modifier"}</button>
                   <label htmlFor={inputId} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-[10px] font-black"><Upload size={13}/> {importingLetterId === item.id ? "Import…" : "Importer PDF / Word"}</label>
                   <input id={inputId} type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="hidden" onChange={async e => {
                     const file = e.target.files?.[0]; e.currentTarget.value = ""; if (!file || !token) return;
                     setImportingLetterId(item.id); setError("");
-                    try { const form = new FormData(); form.append("file", file); const res = await fetch("/api/applications/letter-import", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form }); const body = await res.json().catch(() => ({})); if (!res.ok) throw new Error(body.message || "Impossible d’importer la lettre."); setPreparedBulk(prev => prev.map(x => x.id === item.id ? { ...x, letter: String(body.text || ""), letterSource: "CANDIDATE" } : x)); setEditingLetterId(item.id); }
+                    try { const form = new FormData(); form.append("file", file); const res = await fetch("/api/applications/letter-import", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form }); const body = await res.json().catch(() => ({})); if (!res.ok) throw new Error(body.message || "Impossible d’importer la lettre."); setPreparedBulk(prev => prev.map(x => x.id === item.id ? { ...x, letter: String(body.text || ""), letterSource: "CANDIDATE", letterApproved: false } : x)); setEditingLetterId(item.id); }
                     catch (err) { setError(err instanceof Error ? err.message : "Impossible d’importer la lettre."); } finally { setImportingLetterId(null); }
                   }}/>
                 </div></div>
-                {isEditing ? <textarea value={item.letter} onChange={e => setPreparedBulk(prev => prev.map(x => x.id === item.id ? { ...x, letter: e.target.value, letterSource: "CANDIDATE" } : x))} className="min-h-64 w-full rounded-2xl border border-slate-200 bg-white p-4 text-xs leading-6 outline-none focus:border-[#FFE135]" placeholder="Modifiez librement votre lettre. Vous gardez le dernier mot." aria-label="Lettre de motivation"/> : <p className="whitespace-pre-wrap text-xs leading-5 text-slate-600">{item.letter || "Lettre personnalisée prête à l’envoi."}</p>}
+                {isEditing ? <textarea value={item.letter} onChange={e => setPreparedBulk(prev => prev.map(x => x.id === item.id ? { ...x, letter: e.target.value, letterSource: "CANDIDATE", letterApproved: false } : x))} className="min-h-64 w-full rounded-2xl border border-slate-200 bg-white p-4 text-xs leading-6 outline-none focus:border-[#FFE135]" placeholder="Modifiez librement votre lettre. Vous gardez le dernier mot." aria-label="Lettre de motivation"/> : <p className="whitespace-pre-wrap text-xs leading-5 text-slate-600">{item.letter || "Lettre personnalisée prête à l’envoi."}</p>}
                 <p className="mt-2 text-[10px] text-slate-400">J’IA assiste. Vous décidez du texte envoyé.</p>
+                {item.channel === "WHATSAPP" && item.letterRequired && (
+                  <label className="mt-3 flex items-start gap-2 text-[11px] font-bold text-navy">
+                    <input type="checkbox" checked={Boolean(item.letterApproved)} onChange={(e) => setPreparedBulk(prev => prev.map(x => x.id === item.id ? { ...x, letterApproved: e.target.checked } : x))} className="mt-0.5"/>
+                    J'ai relu et je valide cette lettre de motivation.
+                  </label>
+                )}
+                </>
+                )}
               </div>
             </details>;
           })}</div>
-          <div className="mt-4 rounded-2xl border border-[#FFE135]/50 bg-[#FFFBE0] p-3 text-[11px] font-semibold text-slate-600">Aucune lettre n’est envoyée automatiquement : relisez, modifiez ou remplacez chaque lettre avant de confirmer.</div>
-          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button onClick={editPreparedBulk} className="rounded-full border border-slate-200 px-5 py-3 text-xs font-black">Fermer la revue</button><button onClick={() => void submitBulkApplications()} disabled={bulkSubmitting} className="rounded-full bg-[#FFE135] px-5 py-3 text-xs font-black text-[#2E3F4F]">{bulkSubmitting ? "Envoi des candidatures…" : `Confirmer et envoyer ${preparedBulk.length} candidature${preparedBulk.length>1?"s":""}`}</button></div>
+          <div className="mt-4 rounded-2xl border border-[#FFE135]/50 bg-[#FFFBE0] p-3 text-[11px] font-semibold text-slate-600">{preparedBulk.some(item => item.channel === "WHATSAPP") ? "Après validation, WhatsApp s'ouvrira avec le CV et, si elle est requise, la lettre PDF. Tu devras appuyer toi-même sur Envoyer dans WhatsApp." : "Aucune lettre n’est envoyée automatiquement : relisez, modifiez ou remplacez chaque lettre avant de confirmer."}</div>
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button onClick={editPreparedBulk} className="rounded-full border border-slate-200 px-5 py-3 text-xs font-black">Fermer la revue</button><button onClick={() => { const isWhatsApp = preparedBulk.some(item => item.channel === "WHATSAPP"); const popup = isWhatsApp ? window.open("about:blank", "_blank") : null; void submitBulkApplications(popup); }} disabled={bulkSubmitting || preparedBulk.some(item => item.channel === "WHATSAPP" && (!item.cvApproved || (item.letterRequired && !item.letterApproved)))} className="rounded-full bg-[#FFE135] px-5 py-3 text-xs font-black text-[#2E3F4F] disabled:opacity-50">{bulkSubmitting ? "Préparation…" : preparedBulk.some(item => item.channel === "WHATSAPP") ? "Valider et ouvrir WhatsApp" : `Confirmer et envoyer ${preparedBulk.length} candidature${preparedBulk.length>1?"s":""}`}</button></div>
         </motion.div>
       </motion.div>
     )}</AnimatePresence>

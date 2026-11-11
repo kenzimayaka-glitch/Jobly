@@ -27,6 +27,9 @@ export async function GET(request: NextRequest) {
     if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    if (String(user.role) !== "PARTNER") {
+      return NextResponse.json({ message: "Espace Partenaire réservé." }, { status: 403 });
+    }
     const { data: partner } = await supabase.from("Partner").select("*").eq("userId", user.id).maybeSingle();
     if (!partner) return NextResponse.json({ message: "Profil Partner introuvable." }, { status: 404 });
     const [{ data: kyc }, { data: agreement }] = await Promise.all([
@@ -43,6 +46,11 @@ export async function POST(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request);
     if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+    const supabase = adminClient();
+    const user = await ensureUser(supabase, authUser);
+    if (String(user.role) !== "PARTNER") {
+      return NextResponse.json({ message: "Espace Partenaire réservé." }, { status: 403 });
+    }
     const form = await request.formData();
     const locationText = String(form.get("locationText") || "").trim();
     const locationLat = Number(form.get("locationLat"));
@@ -60,8 +68,6 @@ export async function POST(request: NextRequest) {
     const allowed = ["image/jpeg", "image/png", "application/pdf"];
     if (identityFront.size > 10 * 1024 * 1024 || identityBack.size > 10 * 1024 * 1024 || !allowed.includes(identityFront.type) || !allowed.includes(identityBack.type)) return NextResponse.json({ message: "Document d'identité non accepté : JPEG, PNG ou PDF, 10 Mo maximum par fichier." }, { status: 400 });
 
-    const supabase = adminClient();
-    const user = await ensureUser(supabase, authUser);
     const { data: partner, error: partnerError } = await supabase.from("Partner").select("*").eq("userId", user.id).maybeSingle();
     if (partnerError) throw new Error(partnerError.message);
     if (!partner) return NextResponse.json({ message: "Profil Partner introuvable." }, { status: 404 });

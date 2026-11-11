@@ -1,10 +1,10 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateJourney } from "@/lib/careerJourney";
+import { getJourneyReadOnly, getOrCreateJourney } from "@/lib/careerJourney";
 
 export async function GET(request: NextRequest) {
   try {
-    const ctx = await getOrCreateJourney(request);
+    const ctx = await getJourneyReadOnly(request);
     const [portfolio, evidence] = await Promise.all([
       ctx.supabase.from("CareerPortfolioItem").select("*").eq("userId", ctx.user.id).order("createdAt", { ascending: false }),
       ctx.supabase.from("CareerEvidence").select("*").eq("userId", ctx.user.id).order("createdAt", { ascending: false }),

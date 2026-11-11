@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import crypto from "node:crypto";
+import { ensureUser as ensureCanonicalUser } from "./server-auth";
 
 export function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -24,24 +24,7 @@ export async function ensureUser(
   sb: ReturnType<typeof adminClient>,
   au: { id: string; email?: string | null; phone?: string | null; user_metadata?: Record<string, unknown> },
 ) {
-  const { data, error } = await sb.from("User").select("*").eq("authUserId", au.id).maybeSingle();
-  if (error) throw new Error("JOBLY_USER_LOOKUP_FAILED: " + error.message);
-  if (data) return data;
-
-  const displayName = (au.user_metadata?.full_name as string | undefined)
-    || (au.user_metadata?.name as string | undefined)
-    || null;
-  const row = {
-    id: crypto.randomUUID(),
-    authUserId: au.id,
-    email: au.email ?? null,
-    phone: au.phone ?? null,
-    displayName,
-    updatedAt: new Date().toISOString(),
-  };
-  const { data: created, error: createError } = await sb.from("User").insert(row).select("*").single();
-  if (createError) throw new Error("JOBLY_USER_CREATE_FAILED: " + createError.message);
-  return created;
+  return ensureCanonicalUser(sb, au);
 }
 
 export async function requirePremium(request: NextRequest) {

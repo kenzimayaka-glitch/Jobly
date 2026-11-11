@@ -3,6 +3,7 @@ import { runAiOrchestrator } from "../ai/orchestrator";
 import { adminClient } from "../server-auth";
 import { actionForIntent, isFinancialRequest } from "./guard";
 import { observeInternet } from "./internet";
+import { shouldUseInternetBrain } from "./internet/policy";
 import { buildJiaContext } from "@/lib/jiaContext";
 
 export type JiaBrainInput = {
@@ -109,7 +110,7 @@ function normalizeIntent(message: string) {
 }
 
 function needsWebResearch(message: string) {
-  return /\b(aujourd'hui|actualit|dernier|dernière|récent|maintenant|sur internet|en ligne|cherche|recherche|compare|prix|salaire|marché|offre|emploi|formation|événement|réglementation|202[4-9])\b/i.test(message);
+  return shouldUseInternetBrain(message);
 }
 
 

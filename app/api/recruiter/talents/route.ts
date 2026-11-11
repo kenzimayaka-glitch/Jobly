@@ -1,3 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, ensureUser, getAuthUser } from "../../../../lib/server-auth";
-export async function GET(req:NextRequest){try{const auth=await getAuthUser(req);if(!auth)return NextResponse.json({message:"Session requise."},{status:401});const sb=adminClient(),me=await ensureUser(sb,auth);const recruiter=await sb.from("RecruiterProfile").select("id").eq("userId",auth.id).maybeSingle();if(recruiter.error)throw new Error(recruiter.error.message);if(me.role!=="RECRUITER"&&me.role!=="ADMIN"&&!recruiter.data)return NextResponse.json({message:"Espace recruteur requis."},{status:403});const p=await sb.from("Profile").select("userId,firstName,lastName,headline,summary,location,publicDiscoverable").eq("publicDiscoverable",true).limit(200);if(p.error)throw new Error(p.error.message);const ids=(p.data||[]).map((x:any)=>x.userId);if(!ids.length)return NextResponse.json({count:0,talents:[]});const [u,e,s,subs]=await Promise.all([sb.from("User").select("id,displayName,profilePhotoUrl,executiveSummary,portfolioBusiness,advertisingVideoUrl,advertisingVideoDurationMs,pitchVideoUrl,pitchVideoDurationMs").in("id",ids),sb.from("Experience").select("userId,title,company,startDate,endDate").in("userId",ids),sb.from("Skill").select("userId,name,level").in("userId",ids),sb.from("Subscription").select("userId,plan,updatedAt").in("userId",ids).eq("status","ACTIVE").order("updatedAt",{ascending:false})]);for(const x of [u,e,s,subs])if(x.error)throw new Error(x.error.message);const users=new Map((u.data||[]).map((x:any)=>[x.id,x])),ex=new Map<string,any[]>(),skills=new Map<string,any[]>(),plans=new Map<string,string>();for(const x of e.data||[])((ex.get(x.userId)||ex.set(x.userId,[]).get(x.userId)!) as any[]).push(x);for(const x of s.data||[])((skills.get(x.userId)||skills.set(x.userId,[]).get(x.userId)!) as any[]).push(x);for(const x of subs.data||[]){if(!plans.has(x.userId)){const raw=String(x.plan||"FREE").toUpperCase();plans.set(x.userId,raw==="PRO"?"PRO":raw.indexOf("PREMIUM")===0?"PREMIUM":"FREE");}}const talents=(p.data||[]).map((profile:any)=>{const user=users.get(profile.userId)||{},plan=plans.get(profile.userId)||"FREE";return{userId:profile.userId,name:[profile.firstName,profile.lastName].filter(Boolean).join(" ")||user.displayName||"Talent Jobly",headline:profile.headline||"Profil professionnel",summary:profile.summary||user.executiveSummary||"",location:profile.location||null,photoUrl:user.profilePhotoUrl||null,plan,topSkills:(skills.get(profile.userId)||[]).slice(0,6),experiences:(ex.get(profile.userId)||[]).slice(0,6),pitchVideoUrl:user.pitchVideoUrl||null,pitchVideoDurationMs:user.pitchVideoDurationMs||null,advertisingVideoUrl:user.advertisingVideoUrl||null,advertisingVideoDurationMs:user.advertisingVideoDurationMs||null,advertisingEligible:(plan==="PRO"||plan==="PREMIUM")&&!!user.advertisingVideoUrl,portfolioBusiness:user.portfolioBusiness||{}}});return NextResponse.json({count:talents.length,talents});}catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Impossible de charger Top Talent."},{status:500});}}
+import { adminClient, ensureUser, getAuthUser, getRecruiterProfileForAuthUser } from "../../../../lib/server-auth";
+
+export async function GET(request: NextRequest) {
+  try {
+    const auth = await getAuthUser(request);
+    if (!auth) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+
+    const db = adminClient();
+    const me = await ensureUser(db, auth);
+    const recruiterProfile = me.role === "ADMIN" ? true : await getRecruiterProfileForAuthUser(db, auth.id, me.id);
+    if (me.role !== "RECRUITER" && me.role !== "ADMIN" && !recruiterProfile) {
+      return NextResponse.json({ message: "Espace recruteur requis." }, { status: 403 });
+    }
+
+    // A global talent directory would bypass the per-offer top-five rule.
+    // Recruiters must enter discovery from a specific offer/share context.
+    return NextResponse.json({
+      message: "La découverte des talents se fait depuis une offre précise afin d'appliquer le seuil de 90 %, le classement des cinq meilleurs profils et les droits d'abonnement.",
+      code: "OFFER_CONTEXT_REQUIRED",
+      talents: [],
+      count: 0,
+    }, { status: 403, headers: { "Cache-Control": "no-store, private" } });
+  } catch (error) {
+    return NextResponse.json({
+      message: error instanceof Error ? error.message : "Impossible de charger Top Talent.",
+    }, { status: 500, headers: { "Cache-Control": "no-store, private" } });
+  }
+}

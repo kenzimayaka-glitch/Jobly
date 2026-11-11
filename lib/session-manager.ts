@@ -137,7 +137,7 @@ class JoblySessionManager {
 
   async signOut() {
     await this.ensureStarted();
-    const { error } = await getSupabaseClient().auth.signOut();
+    const { error } = await getSupabaseClient().auth.signOut({ scope: "local" });
     if (error) throw error;
     this.setState({ status: "anonymous", session: null, error: null });
   }

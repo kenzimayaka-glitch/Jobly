@@ -29,6 +29,10 @@
     {
       "path": "/api/cron/jobly-analytics",
       "schedule": "10 7 * * *"
+    },
+    {
+      "path": "/api/cron/event-media-cleanup",
+      "schedule": "15 4 * * *"
     }
   ]
 }

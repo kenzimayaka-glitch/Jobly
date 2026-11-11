@@ -33,3 +33,15 @@ test("customer-side review cannot be confused with merchant credit review", () =
   assert.match(ai, /redactPaymentSmsForAi\(input\.body\)/);
   assert.match(ai, /allowDeterministic: false/);
 });
+
+test("an unverified customer-entered transaction reference is lookup-only and cannot pin a pending order", () => {
+  const route = read("../app/api/payments/[id]/verify/route.ts");
+  const smsBranch = route.slice(
+    route.indexOf('if (["SMS_MTN", "SMS_ORANGE"].includes(String(payment.provider)))'),
+    route.indexOf('if (!payment.externalId)'),
+  );
+  assert.match(smsBranch, /\.from\("PaymentSmsReceipt"\)/);
+  assert.match(smsBranch, /\.eq\("transactionId", transactionId\)/);
+  assert.doesNotMatch(smsBranch, /\.update\(\{\s*reportedTransactionId:\s*transactionId/);
+  assert.match(smsBranch, /Never persist it before a matching trusted merchant receipt exists/);
+});

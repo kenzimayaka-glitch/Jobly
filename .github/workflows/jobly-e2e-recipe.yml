@@ -1,0 +1,79 @@
+name: Jobly — Préflight E2E bulk (sans secrets privés)
+
+# CI validates the recipe code and application build. Authenticated shared-fixture runs stay local.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jobly-e2e-preflight-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-preflight:
+    name: Préflight — statiques, Deno, typecheck et build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      E2E_PROJECT_REF: ofqqrryamslxoqkklraw
+      NEXT_PUBLIC_SUPABASE_URL: https://ofqqrryamslxoqkklraw.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_Z9_IW1X9Um0J7d7kOWXjWg_ua9Hvg9y
+      NODE_ENV: production
+    steps:
+      - name: Checkout exact recipe commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install application dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Assert JOBLY-E2E public build configuration
+        shell: bash
+        run: |
+          test "$E2E_PROJECT_REF" = "ofqqrryamslxoqkklraw"
+          test "$NEXT_PUBLIC_SUPABASE_URL" = "https://ofqqrryamslxoqkklraw.supabase.co"
+          if [[ "$NEXT_PUBLIC_SUPABASE_URL" == *"mpoyaegtwtmhookdzqdy"* ]]; then
+            echo "::error::Production Supabase URL is forbidden in the E2E workflow."
+            exit 1
+          fi
+          mkdir -p artifacts/e2e
+
+      - name: Run E2E guardrail tests
+        run: node --test scripts/runtime-readonly-lots.test.mjs
+
+      - name: Type-check Africa bulk recipe with Deno
+        run: deno check --node-modules-dir=none e2e/africa-bulk-recipe.ts
+
+      - name: Type-check Next.js application
+        run: pnpm typecheck
+
+      - name: Build Next.js application
+        run: pnpm build
+
+      - name: Upload preflight logs and reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jobly-e2e-preflight-${{ github.run_id }}
+          path: artifacts/e2e/
+          if-no-files-found: ignore
+          retention-days: 14

@@ -19,3 +19,8 @@ export function getJiaInternetConfig(): JiaInternetConfig {
   };
 }
 export function canInternetRead(c=getJiaInternetConfig()){ return c.enabled && c.mode!=="OFF"; }
+
+// Only explicit requests for external/current information leave Jobly's internal context.
+// Routine job search, personal salary/payment questions and private profile data stay local.
+const EXPLICIT_WEB_INTENT = /\b(?:sur\s+internet|sur\s+le\s+web|recherche\s+(?:web|internet)|cherche\s+sur\s+(?:internet|le\s+web)|en\s+ligne|actualit[eé]s?|aujourd['’]hui|derni[eè]r(?:e|es|s)?\s+(?:information|nouvelle|actualit[eé])|r[eéè]glementation\s+(?:en\s+vigueur|actuelle)|sources?\s+(?:officielles?|r[eè]centes?))\b/i;
+export function shouldUseInternetBrain(message:string){ return EXPLICIT_WEB_INTENT.test(String(message||"")); }

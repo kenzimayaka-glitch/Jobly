@@ -18,6 +18,7 @@ const NAV = [
   { href: "/admin/jia", label: "J’IA · CEO", group: "Intelligence" },
   { href: "/admin/jia/chat", label: "J’IA · Copilot", group: "Intelligence" },
   { href: "/admin/jobs/reprocess", label: "Offres & ingestion", group: "Opérations" },
+  { href: "/admin/recruiter-offer-claims", label: "Réclamations offres recruteur", group: "Opérations" },
   { href: "/admin/mobility", label: "Mobility", group: "Opérations" },
   { href: "/admin/events/payments", label: "Paiements événements", group: "Finance" },
   { href: "/admin/payments/sms", label: "Mobile Money", group: "Finance" },

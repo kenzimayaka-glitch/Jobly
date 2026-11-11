@@ -9,7 +9,7 @@ import {
   getJiaVariationCoverage,
 } from "../lib/jia/experience-engine.ts";
 import { GESTURES } from "../lib/jia/gestures.ts";
-import { JIA_100_MOVES } from "../components/JIA/movements.ts";
+import { JIA_100_MOVES } from "../components/jia-avatar/movements.ts";
 import {
   JIA_AVATAR_APPEARANCES,
   JIA_AVATAR_FRAMING_VARIATIONS,
@@ -24,9 +24,9 @@ import {
 } from "../lib/jia/visual-variations.ts";
 
 const root = process.cwd();
-const rig = JSON.parse(readFileSync(join(root, "components/JIA/JIA_Rig.json"), "utf8"));
+const rig = JSON.parse(readFileSync(join(root, "components/jia-avatar/JIA_Rig.json"), "utf8"));
 const manifests = ["blue", "white", "yellow"].map((outfit) =>
-  JSON.parse(readFileSync(join(root, `components/JIA/clipsManifest.${outfit}.json`), "utf8"))
+  JSON.parse(readFileSync(join(root, `components/jia-avatar/clipsManifest.${outfit}.json`), "utf8"))
 );
 const outfitDirs = ["blue", "white", "yellow"];
 const clipPaths = outfitDirs.flatMap((outfit) =>
@@ -66,11 +66,14 @@ const bodySignature = (move) => ({
 });
 const bodyGroupsBySignature = new Map();
 for (const [key, move] of entries) {
+  const name = key.replace(/^\d+_/, "");
+  // The neutral idle/focus pose is a baseline, not a produced body gesture.
+  if (name === "idle" || name === "focus") continue;
   const body = bodySignature(move);
   if (!Object.values(body).some(Boolean)) continue;
   const signature = JSON.stringify(stable(body));
   if (!bodyGroupsBySignature.has(signature)) bodyGroupsBySignature.set(signature, []);
-  bodyGroupsBySignature.get(signature).push(key.replace(/^\d+_/, ""));
+  bodyGroupsBySignature.get(signature).push(name);
 }
 const bodyShapes = [...bodyGroupsBySignature.keys()];
 const uniqueGestureNames = unique(clipPaths.map((path) => path.split("/").pop().replace(/\.webm$/i, "").replace(/--\d+$/, "")));
@@ -121,7 +124,7 @@ test("all 50 registered facial expressions have semantic gestures and runnable r
   assert.equal(facialShapes.length, 50);
   assert.equal(facialMoveNames.size, 60);
   assert.ok([...facialMoveNames].every((name) => rigNames.has(name) && moves.has(name)));
-  const gestureMapping = readFileSync(join(root, "components/JIA/gestureMap.ts"), "utf8");
+  const gestureMapping = readFileSync(join(root, "components/jia-avatar/gestureMap.ts"), "utf8");
   const mappedMoves = new Set([...gestureMapping.matchAll(/^\s*[a-z0-9_]+:\s*"([a-z0-9_]+)"[,]?\s*$/gm)].map((match) => match[1]));
   const groups = new Map();
   for (const [key, move] of entries) {
@@ -162,7 +165,7 @@ test("fifty unique portrait appearances remain catalogued but are not loaded by 
   assert.equal(JIA_AVATAR_APPEARANCES.length, 50);
   assert.equal(new Set(JIA_AVATAR_APPEARANCES.map(item => item.id)).size, 50);
   assert.equal(new Set(JIA_AVATAR_APPEARANCES.map(({id,...item}) => JSON.stringify(item))).size, 50);
-  const avatar = readFileSync(join(root, "components/JIA/JIA3D.tsx"), "utf8");
+  const avatar = readFileSync(join(root, "components/jia-avatar/JIA3D.tsx"), "utf8");
   const surface = readFileSync(join(root, "components/jia/JiaConversationSurface.tsx"), "utf8");
   assert.ok(avatar.includes("JIAAppearanceOverlay"));
   assert.ok(avatar.includes("data-jia-avatar-appearance"));
@@ -184,8 +187,9 @@ test("conversation keeps its adaptive layout while using a non-physical presence
   }
 });
 
-test("all 50 body gesture variations resolve to real clip or rig movement assets", () => {
+test("all 50 body gesture variations resolve to real clip or rig movement assets, excluding the neutral idle baseline", () => {
   assert.equal(bodyGestureCatalog.length, 50);
+  assert.equal(bodyGestureCatalog.some((item) => item.id === "rig:idle" || item.id === "rig:focus"), false);
   assert.equal(uniqueGestureNames.length, 39);
   assert.equal(rigOnlyBodyNames.length, 11);
   for (const item of bodyGestureCatalog) {

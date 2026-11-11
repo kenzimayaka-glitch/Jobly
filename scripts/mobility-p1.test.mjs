@@ -218,3 +218,13 @@ test("la migration aligne MobilityRequest.recruiterGuaranteed avec le modèle Pr
   assert.match(sql, /alter table public\."MobilityRequest"[\s\S]*add column if not exists "recruiterGuaranteed" boolean not null default false/);
   assert.match(schema, /recruiterGuaranteed Boolean\s+@default\(false\)/);
 });
+
+test("la demande Mobility transmet la session Talent au contrôle de candidature acceptée", () => {
+  const page = readFileSync(new URL("../app/bons-plans/mobility/talent/request/page.tsx", import.meta.url), "utf8");
+  const api = readFileSync(new URL("../app/api/matches/last-accepted/route.ts", import.meta.url), "utf8");
+  assert.match(page, /getSupabaseClient\(\)\.auth\.getSession\(\)/);
+  assert.ok(page.includes("Authorization: `Bearer ${token}`"));
+  assert.match(page, /cache:\s*"no-store"/);
+  assert.ok(api.includes("authUser(req)"));
+  assert.ok(api.includes("status:401"));
+});

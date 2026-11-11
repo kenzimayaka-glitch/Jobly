@@ -344,7 +344,7 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
     skills: safeTextArray(payload.skills),
     tags: safeTextArray(payload.tags),
     publishedAt: freshness.effectivePublishedAt,
-    sourcePublishedAt: publicationDate,
+    sourcePublishedAt: freshness.publicationDateEstimated ? null : publicationDate,
     publicationDateEstimated: freshness.publicationDateEstimated,
     publicationDateSource: freshness.publicationDateSource,
     deadline,
@@ -387,7 +387,7 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
     sourceKey,
     externalId,
     contentHash,
-    sourcePublishedAt: publicationDate,
+    sourcePublishedAt: freshness.publicationDateEstimated ? null : publicationDate,
     aiProcessed: false,
     aiProcessedAt: null,
     aiQualityScore: null,
@@ -476,7 +476,7 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
     countryCodeVerified: true,
     countryEvidence: countryResolution.evidence,
     countryConflictCorrected: countryResolution.conflict,
-    publicationDateVerified: Boolean(publicationDate),
+    publicationDateVerified: Boolean(publicationDate) && !freshness.publicationDateEstimated,
     publicationDateEstimated: freshness.publicationDateEstimated,
     deadlineVerified: Boolean(deadline),
     applicationRouteVerified: hasApplicationRoute,
@@ -513,9 +513,118 @@ async function processCapture(db: any, capture: AnyRecord, counts: AnyRecord): P
   counts.processed++;
 }
 
-Deno.serve(async (req: Request) => {
-  if (req.method !== "POST") return json({ message: "POST required" }, 405);
 
+export type HarvestProcessorBatchResult = {
+  ok: true;
+  selected: number;
+  created: number;
+  updated: number;
+  processed: number;
+  expired: number;
+  quarantined: number;
+  failed: number;
+  claimedElsewhere: number;
+  persistenceErrors: number;
+  sourceKeys: string[] | null;
+  processedAt: string;
+};
+type HarvestProcessorCounts = Omit<HarvestProcessorBatchResult, "ok" | "sourceKeys" | "processedAt">;
+
+export async function runHarvestProcessorBatch(
+  db: any,
+  body: AnyRecord = {},
+): Promise<HarvestProcessorBatchResult> {
+  const requested = Number(body?.limit ?? MAX_BATCH);
+  const limit = Math.min(Math.max(Number.isFinite(requested) ? Math.trunc(requested) : MAX_BATCH, 1), MAX_BATCH);
+  const rawSourceKeys = Array.isArray(body?.sourceKeys) ? body.sourceKeys : [];
+  const sourceKeys = [...new Set(rawSourceKeys.map((key: unknown) => clean(key, 120)).filter(Boolean))];
+  if (sourceKeys.length > 20) throw new Error("A processing batch is limited to 20 source keys.");
+
+  const pendingOnly = body?.pendingOnly === true;
+  const staleBefore = new Date(Date.now() - STALE_PROCESSING_MS).toISOString();
+  const staleLimit = Math.min(5, limit);
+  let stale: AnyRecord[] = [];
+  if (!pendingOnly) {
+    let staleQuery = db.from("JobHarvestCapture").select("*").eq("status", "PROCESSING")
+      .lt("updatedAt", staleBefore).order("updatedAt", { ascending: true });
+    if (sourceKeys.length) staleQuery = staleQuery.in("sourceKey", sourceKeys);
+    const { data: staleRows, error: staleError } = await staleQuery.limit(staleLimit);
+    if (staleError) throw new Error("STALE_CAPTURE_SELECT_FAILED: " + staleError.message);
+    stale = staleRows ?? [];
+  }
+  const statuses = pendingOnly ? ["PENDING"] : ["PENDING", "FAILED"];
+  let normalQuery = db.from("JobHarvestCapture").select("*").in("status", statuses)
+    .order("discoveredAt", { ascending: true });
+  if (sourceKeys.length) normalQuery = normalQuery.in("sourceKey", sourceKeys);
+  const { data: normalRows, error: normalError } = await normalQuery.limit(Math.max(0, limit - stale.length));
+  if (normalError) throw new Error("CAPTURE_SELECT_FAILED: " + normalError.message);
+
+  const rows: AnyRecord[] = [...stale, ...(normalRows ?? [])];
+  const counts: HarvestProcessorCounts = {
+    selected: rows.length,
+    created: 0,
+    updated: 0,
+    processed: 0,
+    expired: 0,
+    quarantined: 0,
+    failed: 0,
+    claimedElsewhere: 0,
+    persistenceErrors: 0,
+  };
+
+  for (const row of rows) {
+    const attempts = Number(row.attempts ?? 0);
+    if (attempts >= MAX_ATTEMPTS) {
+      try {
+        await quarantine(db, row, "MAX_PROCESS_ATTEMPTS",
+          "Processing retry ceiling reached; manual review is required.");
+        counts.quarantined++;
+      } catch (error) {
+        counts.persistenceErrors++;
+        console.error("Failed to quarantine retry-exhausted capture", row.id, error);
+      }
+      continue;
+    }
+
+    let capture: AnyRecord | null;
+    try {
+      capture = await claimCapture(db, row);
+    } catch (error) {
+      counts.persistenceErrors++;
+      console.error("Capture claim failed", row.id, error);
+      continue;
+    }
+    if (!capture) {
+      counts.claimedElsewhere++;
+      continue;
+    }
+
+    try {
+      await processCapture(db, capture, counts);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      const attemptCount = Number(capture.attempts ?? 0);
+      const retryExhausted = attemptCount >= MAX_ATTEMPTS;
+      try {
+        if (retryExhausted) {
+          await quarantine(db, capture, "MAX_PROCESS_ATTEMPTS", reason);
+          counts.quarantined++;
+        } else {
+          await persistCaptureState(db, capture, "FAILED", "PROCESSING_ERROR", reason);
+          counts.failed++;
+        }
+      } catch (persistError) {
+        counts.persistenceErrors++;
+        console.error("Failed to persist processing error", capture.id, persistError);
+      }
+    }
+  }
+
+  return { ok: true, ...counts, sourceKeys: sourceKeys.length ? sourceKeys : null, processedAt: new Date().toISOString() };
+}
+
+async function handleRequest(req: Request) {
+  if (req.method !== "POST") return json({ message: "POST required" }, 405);
   try {
     await authorize(req);
   } catch (error) {
@@ -527,100 +636,14 @@ Deno.serve(async (req: Request) => {
     const key = secretKeys.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!key) throw new Error("No privileged Supabase key configured");
     const db = createClient(Deno.env.get("SUPABASE_URL")!, key);
-
     const body = await req.json().catch(() => ({}));
-    const requested = Number((body as AnyRecord)?.limit ?? MAX_BATCH);
-    const limit = Math.min(Math.max(Number.isFinite(requested) ? Math.trunc(requested) : MAX_BATCH, 1), MAX_BATCH);
-    const rawSourceKeys = Array.isArray((body as AnyRecord)?.sourceKeys) ? (body as AnyRecord).sourceKeys : [];
-    const sourceKeys = [...new Set(rawSourceKeys.map((key: unknown) => clean(key, 120)).filter(Boolean))];
-    if (sourceKeys.length > 20) return json({ message: "A processing batch is limited to 20 source keys." }, 400);
-
-    const pendingOnly = (body as AnyRecord)?.pendingOnly === true;
-    const staleBefore = new Date(Date.now() - STALE_PROCESSING_MS).toISOString();
-    const staleLimit = Math.min(5, limit);
-    let stale: AnyRecord[] = [];
-    if (!pendingOnly) {
-      let staleQuery = db.from("JobHarvestCapture").select("*").eq("status", "PROCESSING")
-        .lt("updatedAt", staleBefore).order("updatedAt", { ascending: true });
-      if (sourceKeys.length) staleQuery = staleQuery.in("sourceKey", sourceKeys);
-      const { data: staleRows, error: staleError } = await staleQuery.limit(staleLimit);
-      if (staleError) throw new Error("STALE_CAPTURE_SELECT_FAILED: " + staleError.message);
-      stale = staleRows ?? [];
-    }
-    const statuses = pendingOnly ? ["PENDING"] : ["PENDING", "FAILED"];
-    let normalQuery = db.from("JobHarvestCapture").select("*").in("status", statuses)
-      .order("discoveredAt", { ascending: true });
-    if (sourceKeys.length) normalQuery = normalQuery.in("sourceKey", sourceKeys);
-    const { data: normalRows, error: normalError } = await normalQuery.limit(Math.max(0, limit - stale.length));
-    if (normalError) throw new Error("CAPTURE_SELECT_FAILED: " + normalError.message);
-
-    // Reclaim abandoned PROCESSING rows first so they are not starved by a
-    // continuously replenished PENDING queue.
-    const rows: AnyRecord[] = [...stale, ...(normalRows ?? [])];
-
-    const counts: AnyRecord = {
-      selected: rows.length,
-      created: 0,
-      updated: 0,
-      processed: 0,
-      expired: 0,
-      quarantined: 0,
-      failed: 0,
-      claimedElsewhere: 0,
-      persistenceErrors: 0,
-    };
-
-    for (const row of rows) {
-      const attempts = Number(row.attempts ?? 0);
-      if (attempts >= MAX_ATTEMPTS) {
-        try {
-          await quarantine(db, row, "MAX_PROCESS_ATTEMPTS",
-            "Processing retry ceiling reached; manual review is required.");
-          counts.quarantined++;
-        } catch (error) {
-          counts.persistenceErrors++;
-          console.error("Failed to quarantine retry-exhausted capture", row.id, error);
-        }
-        continue;
-      }
-
-      let capture: AnyRecord | null;
-      try {
-        capture = await claimCapture(db, row);
-      } catch (error) {
-        counts.persistenceErrors++;
-        console.error("Capture claim failed", row.id, error);
-        continue;
-      }
-      if (!capture) {
-        counts.claimedElsewhere++;
-        continue;
-      }
-
-      try {
-        await processCapture(db, capture, counts);
-      } catch (error) {
-        const reason = error instanceof Error ? error.message : String(error);
-        const attemptCount = Number(capture.attempts ?? 0);
-        const retryExhausted = attemptCount >= MAX_ATTEMPTS;
-        try {
-          if (retryExhausted) {
-            await quarantine(db, capture, "MAX_PROCESS_ATTEMPTS", reason);
-            counts.quarantined++;
-          } else {
-            await persistCaptureState(db, capture, "FAILED", "PROCESSING_ERROR", reason);
-            counts.failed++;
-          }
-        } catch (persistError) {
-          counts.persistenceErrors++;
-          console.error("Failed to persist processing error", capture.id, persistError);
-        }
-      }
-    }
-
-    return json({ ok: true, ...counts, sourceKeys: sourceKeys.length ? sourceKeys : null, processedAt: new Date().toISOString() });
+    const result = await runHarvestProcessorBatch(db, asRecord(body));
+    return json(result);
   } catch (error) {
     console.error("Harvest processor fatal error", error);
     return json({ ok: false, message: error instanceof Error ? error.message : String(error) }, 500);
   }
-});
+}
+
+if (import.meta.main) Deno.serve(handleRequest);
+

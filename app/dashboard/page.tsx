@@ -30,7 +30,7 @@ type Job = {
 };
 
 type JobsResponse = { totalAvailable: number; matchingCount: number; count: number; jobs: Job[] };
-type ApplicationsResponse = { counters?: { envoyees: number; vues: number; entretien: number } };
+type ApplicationsResponse = { counters?: { total: number; brouillons: number; pretes: number; envoiEnCours: number; envoyees: number; vues: number; entretien: number } };
 
 const QUICK = [
   { href: "/talent/cvs", icon: "cv", title: "Mon CV", subtitle: "Optimisé par J’IA", tone: "violet" },
@@ -118,7 +118,8 @@ export default function DashboardPage() {
 
   const firstName = data?.user.displayName?.split(" ")[0] || "";
   const topJobs = jobs?.jobs?.filter((job) => job.matchPercent >= 50).slice(0, 3) ?? [];
-  const applicationsCount = applications?.counters?.envoyees ?? 0;
+  const applicationsCount = applications?.counters?.total ?? 0;
+  const applicationsReadyCount = applications?.counters?.pretes ?? 0;
   const visibleJobCount = jobs?.totalAvailable ?? 0;
   const availableOffersLabel = `${visibleJobCount} offre${visibleJobCount > 1 ? "s" : ""} disponible${visibleJobCount > 1 ? "s" : ""} aujourd’hui`;
   const carouselRef = useRef<HTMLDivElement | null>(null);
@@ -173,7 +174,7 @@ export default function DashboardPage() {
                 <button key={item.href} type="button" onClick={() => router.push(item.href)} className="group min-w-0 rounded-[18px] border border-[#DCE5F1] bg-white p-2.5 text-left shadow-[0_8px_22px_rgba(7,27,69,.055)] transition-all hover:-translate-y-0.5 hover:border-[#FFE135] active:scale-[.98] sm:rounded-[22px] sm:p-4">
                   <span className={`grid h-10 w-10 place-items-center rounded-2xl ${tone} sm:h-12 sm:w-12`}><QuickIcon id={item.icon}/></span>
                   <strong className="mt-2 block truncate text-[11px] font-black sm:mt-3 sm:text-sm">{item.title}</strong>
-                  <span className="mt-1 hidden min-h-8 text-[10px] leading-4 text-[#5D6C83] sm:block">{item.title === "Offres" ? availableOffersLabel : item.title === "Mes candidatures" ? "+" + applicationsCount + " candidatures" : item.title === "Mon CV" ? "Votre CV Jobly" : "Votre parcours professionnel"}</span>
+                  <span className="mt-1 hidden min-h-8 text-[10px] leading-4 text-[#5D6C83] sm:block">{item.title === "Offres" ? availableOffersLabel : item.title === "Mes candidatures" ? applicationsCount + " candidatures · " + applicationsReadyCount + " prêtes" : item.title === "Mon CV" ? "Votre CV Jobly" : "Votre parcours professionnel"}</span>
                   <span className="mt-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#D9E2F0] text-sm font-black text-[#22448B] sm:mt-3 sm:h-8 sm:w-8 sm:text-lg">→</span>
                 </button>
               );

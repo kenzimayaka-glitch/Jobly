@@ -11,7 +11,41 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const { token } = await params;
   const supabase = adminClient();
   const { data: share } = await supabase.from("CVShare").select("*").eq("token", token).maybeSingle();
-  if (!share || share.revokedAt || (share.expiresAt && new Date(share.expiresAt).getTime() < Date.now())) return new NextResponse("CV indisponible.", { status: 404 });
+  if (!share || share.revokedAt || (share.expiresAt && new Date(share.expiresAt).getTime() <= Date.now())) return new NextResponse("CV indisponible.", { status: 404 });
+
+  const applicationMatch = typeof share.source === "string" ? share.source.match(/^WHATSAPP_APPLICATION:([0-9a-f-]{36})$/i) : null;
+  if (applicationMatch) {
+    const { data: application, error: applicationError } = await supabase.from("Application")
+      .select("id,userId,jobId,recruiterJobId,tailoredCvText,cvApprovedAt")
+      .eq("id", applicationMatch[1]).eq("userId", share.userId).maybeSingle();
+    if (applicationError) throw new Error(applicationError.message);
+    const linkageValid = Boolean(application && (
+      (application.jobId && share.jobId === application.jobId) ||
+      (application.recruiterJobId && !share.jobId)
+    ));
+    const documentText = clean(application?.tailoredCvText);
+    if (!linkageValid || !application?.cvApprovedAt || documentText.length < 40) return new NextResponse("CV indisponible.", { status: 404 });
+    const doc = new PDFDocument({ size: "A4", margin: 48 });
+    const chunks: Buffer[] = [];
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    const done = new Promise<Buffer>((resolve) => doc.on("end", () => resolve(Buffer.concat(chunks))));
+    const name = clean(share.candidateNameSnapshot) || "Talent Jobly";
+    doc.font("Helvetica-Bold").fontSize(20).fillColor("#0B2447").text(name);
+    doc.moveDown(0.7).font("Helvetica").fontSize(10).fillColor("#111827").text(documentText, { lineGap: 3, width: 500 });
+    doc.end();
+    const pdf = await done;
+    await supabase.from("CVShare").update({ downloadCount: (share.downloadCount || 0) + 1 }).eq("id", share.id);
+    const safeName = name.replace(/[^a-zA-Z0-9]+/g, "_");
+    const responseFilename = "CV_" + safeName + ".pdf";
+    return new NextResponse(new Uint8Array(pdf), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": 'attachment; filename="' + responseFilename + '"',
+        "Cache-Control": "no-store, private",
+      },
+    });
+  }
 
   const [u,p,e,s,ed] = await Promise.all([
     supabase.from("User").select("displayName,firstName,lastName,email,phone").eq("id",share.userId).single(),

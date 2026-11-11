@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       { message: error instanceof Error ? error.message : "Envoi Gmail impossible." },
-      { status: 500 },
+      { status: Number.isInteger((error as any)?.status) ? (error as any).status : 500 },
     );
   }
 }

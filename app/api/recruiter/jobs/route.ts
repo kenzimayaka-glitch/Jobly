@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminClient, cleanStrings, ensureUser, getAuthUser, newId } from "../../../../lib/server-auth";
+import { adminClient, cleanStrings, ensureUser, getAuthUser, getRecruiterProfileForAuthUser, newId } from "../../../../lib/server-auth";
 import { enforceRecruiterMarketEntitlement, normalizeRecruiterMarket } from "../../../../lib/recruiterMarket";
 
 async function authorizeRecruiterWorkspace(supabase: ReturnType<typeof adminClient>, user: { id: string; role?: string }, authUserId: string) {
   if (user.role === "RECRUITER" || user.role === "ADMIN") return true;
-  const { data, error } = await supabase.from("RecruiterProfile").select("id").eq("userId", authUserId).maybeSingle();
-  if (error) throw new Error(error.message);
-  if (data) return true;
+  const profile = await getRecruiterProfileForAuthUser(supabase, authUserId, user.id);
+  if (profile) return true;
   const { data: ownedJob, error: jobsError } = await supabase.from("RecruiterJob").select("id").eq("recruiterUserId", user.id).limit(1).maybeSingle();
   if (jobsError) throw new Error(jobsError.message);
   return Boolean(ownedJob);
@@ -19,8 +18,8 @@ async function authorizeRecruiterWorkspace(supabase: ReturnType<typeof adminClie
 // le reste de l'app (Profile/Experience/Skill utilisent tous l'id interne
 // "User", pas l'uid Supabase). Réécrite pour suivre exactement le pattern de
 // /api/profile : client admin (service role) + "User".id comme clé de
-// propriété, sur la vraie table "RecruiterJob" (voir
-// supabase/RECRUITER-PARTNER-FOUNDATION.sql).
+// propriété. RecruiterProfile is Auth-UID-owned by RLS, while RecruiterJob
+// remains attached to the internal User.id.
 
 export async function GET(req: NextRequest) {
   try {
@@ -78,12 +77,8 @@ export async function POST(req: NextRequest) {
 
     let company = String(b.companyName || "").trim();
     if (!company) {
-      const p = await supabase
-        .from("RecruiterProfile")
-        .select("companyName")
-        .eq("userId", user.id)
-        .maybeSingle();
-      company = p.data?.companyName || "Mon entreprise";
+      const profile = await getRecruiterProfileForAuthUser(supabase, authUser.id, user.id);
+      company = profile?.companyName || "Mon entreprise";
     }
 
     const now = new Date().toISOString();

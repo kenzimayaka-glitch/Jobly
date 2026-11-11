@@ -15,6 +15,9 @@ export async function GET(request: NextRequest) {
     if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
     const supabase = adminClient();
     const user = await ensureUser(supabase, authUser);
+    if (String(user.role) !== "PARTNER") {
+      return NextResponse.json({ message: "Espace Partenaire réservé." }, { status: 403 });
+    }
 
     const { data: partner, error: partnerError } = await supabase
       .from("Partner")

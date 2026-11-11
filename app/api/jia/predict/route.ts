@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { getAuthUser } from "@/lib/server-auth";
 import { adminClient } from "@/lib/server-auth";
 import { buildJiaContext } from "@/lib/jiaContext";
+import { enforceApiRateLimit } from "@/lib/apiRateLimit";
 
 export const runtime = "nodejs";
 
@@ -18,10 +19,6 @@ type JiaPrediction = {
   shouldSpeak: boolean;
   target?: string;
 };
-
-const RATE_WINDOW_MS = 60_000;
-const RATE_MAX = 8;
-const rateStore = new Map<string, { count: number; resetAt: number }>();
 
 type Lang = "fr" | "en";
 
@@ -71,6 +68,22 @@ export async function POST(request: NextRequest) {
     const auth = await getAuthUser(request);
     if (!auth) return Response.json({ message: "Session requise." }, { status: 401 });
 
+    const supabase = adminClient();
+    const rateLimited = await enforceApiRateLimit(supabase, request, {
+      scope: "jia-predict",
+      identity: auth.id,
+      accountWindows: [
+        { windowSeconds: 60, maxRequests: 8 },
+        { windowSeconds: 3600, maxRequests: 60 },
+      ],
+      ipWindows: [
+        { windowSeconds: 60, maxRequests: 30 },
+        { windowSeconds: 3600, maxRequests: 300 },
+      ],
+      requireIp: true,
+    });
+    if (rateLimited) return rateLimited;
+
     const body = await request.json();
     lang = body?.lang === "en" ? "en" : "fr";
     const context = {
@@ -82,7 +95,7 @@ export async function POST(request: NextRequest) {
         : [],
       idleMs: Number.isFinite(body?.idleMs) ? Math.min(Math.max(body.idleMs, 0), 300000) : 0,
     };
-    const twin = await buildJiaContext(adminClient(), auth.id, { operation: "PROACTIVE_SIGNAL", input: context });
+    const twin = await buildJiaContext(supabase, auth.id, { operation: "PROACTIVE_SIGNAL", input: context });
     const careerContext = twin.context ? {
       readiness: twin.context.readiness,
       gaps: twin.context.gaps.slice(0, 3),
@@ -90,21 +103,6 @@ export async function POST(request: NextRequest) {
       targetRoles: twin.context.profile.targetRoles,
       recentActivity: twin.context.behavior.recent.slice(0, 5),
     } : null;
-
-    const forwarded = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
-    const ip = forwarded.split(",")[0].trim();
-    const now = Date.now();
-    const entry = rateStore.get(ip);
-    if (!entry || entry.resetAt <= now) {
-      rateStore.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    } else if (entry.count >= RATE_MAX) {
-      return Response.json(FALLBACK[lang], {
-        status: 429,
-        headers: { "Retry-After": String(Math.ceil((entry.resetAt - now) / 1000)) },
-      });
-    } else {
-      entry.count += 1;
-    }
 
     const contextFallback: JiaPrediction = careerContext?.gaps[0]
       ? { message: `Je peux t’aider à ${careerContext.nextBestAction.toLowerCase()}.`, gesture: "encourage", shouldSpeak: true }

@@ -12,9 +12,18 @@ export async function GET(request: NextRequest) {
 
   try {
     const userId = verifyOAuthState(state);
+    const supabase = adminClient();
+    const { data: owner, error: ownerError } = await supabase
+      .from("User")
+      .select("id,role")
+      .eq("id", userId)
+      .maybeSingle();
+    if (ownerError) throw new Error(ownerError.message);
+    if (!owner || String(owner.role || "").toUpperCase() !== "TALENT") {
+      throw new Error("La connexion Gmail candidat est réservée aux comptes Talent.");
+    }
     const tokens = await exchangeCode(code, request);
     const profile = await gmailProfile(tokens.access_token);
-    const supabase = adminClient();
     const now = new Date();
     const scopes = String(tokens.scope || "").split(" ").filter(Boolean);
     const { error: dbError } = await supabase.from("CandidateGmailConnection").upsert({

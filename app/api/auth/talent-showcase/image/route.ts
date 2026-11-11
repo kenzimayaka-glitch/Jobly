@@ -1,7 +1,77 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
-const BUCKET="talent-showcase",MAX=5*1024*1024;
-async function auth(req:NextRequest){const t=req.headers.get("authorization")?.replace(/^Bearer\\s+/i,"");if(!t)return null;const u=process.env.NEXT_PUBLIC_SUPABASE_URL,k=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;if(!u||!k)throw new Error("Supabase client non configuré.");const sb=createClient(u,k,{auth:{autoRefreshToken:false,persistSession:false}});return (await sb.auth.getUser(t)).data.user||null;}
-function admin(){const u=process.env.NEXT_PUBLIC_SUPABASE_URL,k=process.env.SUPABASE_SERVICE_ROLE_KEY;if(!u||!k)throw new Error("Supabase serveur non configuré.");return createClient(u,k,{auth:{autoRefreshToken:false,persistSession:false}});}
-export async function POST(req:NextRequest){try{const au=await auth(req);if(!au)return NextResponse.json({message:"Session requise."},{status:401});const sb=admin(),u=await sb.from("User").select("id").eq("authUserId",au.id).maybeSingle();if(!u.data)return NextResponse.json({message:"Utilisateur introuvable."},{status:404});const f=(await req.formData()).get("file");if(!(f instanceof File)||!f.type.startsWith("image/"))return NextResponse.json({message:"Image invalide."},{status:415});if(f.size>MAX)return NextResponse.json({message:"5 Mo maximum par image."},{status:413});const bs=await sb.storage.listBuckets();if(bs.error)throw new Error(bs.error.message);if(!bs.data?.some((b:any)=>b.name===BUCKET)){const x=await sb.storage.createBucket(BUCKET,{public:true,fileSizeLimit:String(MAX),allowedMimeTypes:["image/jpeg","image/png","image/webp"]});if(x.error&&!/already exists/i.test(x.error.message))throw new Error(x.error.message);}const ext=f.type.split("/")[1].replace("jpeg","jpg"),path=u.data.id+"/"+Date.now()+"-"+crypto.randomUUID()+"."+ext;const x=await sb.storage.from(BUCKET).upload(path,new Uint8Array(await f.arrayBuffer()),{contentType:f.type,upsert:false,cacheControl:"31536000"});if(x.error)throw new Error(x.error.message);return NextResponse.json({url:sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl,path});}catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Upload impossible."},{status:500});}}
+import { adminClient, ensureUser, getAuthUser } from "@/lib/server-auth";
+import { getTalentShowcasePlan, TALENT_SHOWCASE_LIMITS } from "@/lib/talentShowcaseEntitlements";
+
+const BUCKET = "talent-showcase";
+const MAX = 5 * 1024 * 1024;
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+export async function POST(req: NextRequest) {
+  try {
+    const authUser = await getAuthUser(req);
+    if (!authUser) return NextResponse.json({ message: "Session requise." }, { status: 401 });
+
+    const supabase = adminClient();
+    const user = await ensureUser(supabase, authUser);
+    const plan = await getTalentShowcasePlan(supabase, user.id);
+    if (plan === "FREE") {
+      return NextResponse.json({ message: "Les images d’actions sont disponibles avec Pro ou Premium." }, { status: 403 });
+    }
+
+    const limit = TALENT_SHOWCASE_LIMITS[plan].images;
+    const existingImages: string[] = [];
+    if (Array.isArray(user.actionImages)) {
+      for (const value of user.actionImages) {
+        if (typeof value === "string" && value.trim()) existingImages.push(value.trim());
+      }
+    }
+    const uniqueExistingImages = [...new Set(existingImages)];
+    if (uniqueExistingImages.length >= limit) {
+      return NextResponse.json({ message: `Quota d’images atteint pour votre formule (${limit}).`, limit }, { status: 409 });
+    }
+
+    const form = await req.formData();
+    const file = form.get("file");
+    if (!(file instanceof File)) return NextResponse.json({ message: "Image manquante." }, { status: 400 });
+    if (!ALLOWED_TYPES.has(file.type)) return NextResponse.json({ message: "Formats acceptés : JPEG, PNG ou WebP." }, { status: 415 });
+    if (file.size <= 0 || file.size > MAX) return NextResponse.json({ message: "5 Mo maximum par image." }, { status: 413 });
+
+    const buckets = await supabase.storage.listBuckets();
+    if (buckets.error) throw new Error(buckets.error.message);
+    if (!buckets.data?.some((bucket) => bucket.name === BUCKET)) {
+      const created = await supabase.storage.createBucket(BUCKET, {
+        public: true,
+        fileSizeLimit: String(MAX),
+        allowedMimeTypes: [...ALLOWED_TYPES],
+      });
+      if (created.error && !/already exists/i.test(created.error.message)) throw new Error(created.error.message);
+    }
+
+    const extension = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1];
+    const storagePath = `${user.id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+    const uploaded = await supabase.storage.from(BUCKET).upload(
+      storagePath,
+      new Uint8Array(await file.arrayBuffer()),
+      { contentType: file.type, upsert: false, cacheControl: "31536000" },
+    );
+    if (uploaded.error) throw new Error(uploaded.error.message);
+
+    const url = supabase.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
+    const nextImages = [...uniqueExistingImages, url];
+    const saved = await supabase.from("User").update({
+      actionImages: nextImages,
+      updatedAt: new Date().toISOString(),
+    }).eq("id", user.id);
+    if (saved.error) {
+      await supabase.storage.from(BUCKET).remove([storagePath]);
+      throw new Error(saved.error.message);
+    }
+
+    return NextResponse.json({ ok: true, url, path: storagePath, count: nextImages.length, limit });
+  } catch (error) {
+    return NextResponse.json({
+      message: error instanceof Error ? error.message : "Upload impossible.",
+    }, { status: 500 });
+  }
+}

@@ -139,6 +139,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!offer) return NextResponse.json({ message: "L'offre n'est plus disponible." }, { status: 404 });
     const profile = (offer.applicationProfile && typeof offer.applicationProfile === "object" ? offer.applicationProfile : {}) as Record<string, unknown>;
     const recipient = profileValue(profile, ["applicationEmail", "email", "recipientEmail", "recipient"]);
+    const phone = profileValue(profile, ["applicationPhone", "phone", "recipientPhone"]);
+    const rawTargetUrl = profileValue(profile, ["applicationUrl", "applyUrl", "url"]) || String(offer.sourceUrl || "");
+    let applicationTargetUrl: string | null = null;
+    try {
+      const parsed = new URL(rawTargetUrl);
+      if (parsed.protocol === "https:" || parsed.protocol === "http:") applicationTargetUrl = parsed.href;
+    } catch {
+      applicationTargetUrl = null;
+    }
     const company = application.jobId && offer.companyId ? ((await supabase.from("Company").select("name").eq("id", offer.companyId).maybeSingle()).data?.name || "l'entreprise") : (offer.companyName || "l'entreprise");
     const subject = profileValue(profile, ["subject", "emailSubject"]) || `Candidature — ${String(offer.title || "Offre Jobly")}`;
     return NextResponse.json({
@@ -146,6 +155,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       job: { title: offer.title, company, location: offer.location || null },
       channel: String(application.sourceType || "EMAIL"),
       recipient,
+      phone,
+      applicationTargetUrl,
       subject,
     });
   } catch (error) {
@@ -177,6 +188,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (application.status === "SUBMITTING") return NextResponse.json({ message: "Cette candidature est déjà en cours d'envoi. Réessayez dans quelques instants.", submitting: true }, { status: 409 });
     if (application.status !== "USER_REVIEW" && application.status !== "PREPARED") return NextResponse.json({ message: "Cette candidature n'est pas prête à être envoyée." }, { status: 409 });
     previousStatus = application.status;
+    const requestedChannel = String(application.sourceType || "").toUpperCase();
+    if (requestedChannel !== "EMAIL") {
+      return NextResponse.json({
+        message: "Ce canal nécessite une action manuelle sur le téléphone ou la plateforme d’origine. Jobly ne l’enverra pas comme un e-mail.",
+        code: "MANUAL_CHANNEL_REQUIRED",
+        channel: requestedChannel || "UNSUPPORTED",
+      }, { status: 409 });
+    }
 
     const quota = await checkWeeklyApplicationQuota(supabase, user.id);
     if (!quota.allowed) return NextResponse.json({ message: quota.message || "Quota hebdomadaire atteint.", quota }, { status: 429 });
@@ -195,8 +214,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!offer) throw new Error("L'offre n'est plus disponible.");
 
     const applicationProfile = (offer.applicationProfile && typeof offer.applicationProfile === "object" ? offer.applicationProfile : {}) as Record<string, unknown>;
-    const requestedChannel = String(claimedApplication.sourceType || "").toUpperCase();
-    if (requestedChannel !== "EMAIL") throw new Error("Ce canal de candidature n'est pas encore automatisable.");
     if (!String(claimedApplication.tailoredCvText || "").trim() || String(claimedApplication.tailoredCvText).trim() === "CV non disponible.") {
       throw new Error("Votre CV/profil professionnel est incomplet. Complétez-le avant l'envoi.");
     }

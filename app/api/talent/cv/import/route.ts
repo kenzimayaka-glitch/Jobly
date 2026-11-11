@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import crypto from "node:crypto";
+import { adminClient, ensureUser, getAuthUser } from "../../../../../lib/server-auth";
 import sharp from "sharp";
 import { runAiGateway } from "../../../../../lib/aiGateway";
 import { getActivePlanCode } from "../../../../../lib/entitlements";
@@ -11,44 +10,22 @@ function safeFilePart(value: unknown) {
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "Utilisateur";
 }
-async function canonicalCvFileName(authUserId: string) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  const admin = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { data } = await admin.from("User").select("username,firstName").eq("authUserId", authUserId).maybeSingle();
+function canonicalCvFileName(user: { username?: unknown; firstName?: unknown }) {
   const now = new Date();
   const month = new Intl.DateTimeFormat("fr-FR", { month: "long" }).format(now);
-  return `CV_${safeFilePart(data?.username)}_${safeFilePart(data?.firstName)}_${safeFilePart(month)}_${now.getFullYear()}.pdf`;
+  return `CV_${safeFilePart(user.username)}_${safeFilePart(user.firstName)}_${safeFilePart(month)}_${now.getFullYear()}.pdf`;
 }
 export const maxDuration = 60;
 
 const FREE_MAX_BYTES = 1 * 1024 * 1024;
 const PAID_MAX_BYTES = 3 * 1024 * 1024;
 
-async function getPlan(authUser: { id: string }) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return "FREE";
-  const admin = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { data } = await admin.from("User").select("id,role").eq("authUserId", authUser.id).maybeSingle();
-  if (!data?.id) return "FREE";
+async function getPlan(admin: ReturnType<typeof adminClient>, user: { id: string; role?: string }) {
   try {
-    return String(await getActivePlanCode(admin, data.id, String(data.role) === "RECRUITER" ? "RECRUITER" : "TALENT")).toUpperCase();
+    return String(await getActivePlanCode(admin, user.id, String(user.role) === "RECRUITER" ? "RECRUITER" : "TALENT")).toUpperCase();
   } catch {
     return "FREE";
   }
-}
-
-async function getAuthUser(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!token) return null;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return null;
-  const supabase = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { data } = await supabase.auth.getUser(token);
-  return data.user || null;
 }
 
 function section(text: string, names: string[]) {
@@ -189,7 +166,9 @@ export async function POST(request: NextRequest) {
         message: "Ta session Jobly n’est plus active. Reconnecte-toi puis réessaie.",
       }, { status: 401 });
     }
-    const plan = await getPlan(authUser);
+    const admin = adminClient();
+    const user = await ensureUser(admin, authUser);
+    const plan = await getPlan(admin, user);
     const maxBytes = plan === "FREE" ? FREE_MAX_BYTES : PAID_MAX_BYTES;
     const maxLabel = plan === "FREE" ? "1 Mo" : "3 Mo";
     if (file.size <= 0 || file.size > maxBytes) {
@@ -219,7 +198,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Import is preview-only: durable original-file persistence happens only after the user explicitly clicks "Enregistrer".
-    const canonicalFileName = await canonicalCvFileName(authUser.id);
+    const canonicalFileName = canonicalCvFileName(user);
     const originalCv: { stored: boolean; storagePath?: string; fileName?: string; pages?: number } = {
       stored: false,
       fileName: canonicalFileName || "CV_Utilisateur.pdf",

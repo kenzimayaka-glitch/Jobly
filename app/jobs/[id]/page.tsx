@@ -166,6 +166,43 @@ function JobDetailInner() {
   const [matchOpen, setMatchOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [shared, setShared] = useState(false);
+  const savedOfferKey = source && params.id ? `${source}:${params.id}` : null;
+
+  // Keep the detail-page favorite in sync with the offers feed's persisted list.
+  useEffect(() => {
+    if (!savedOfferKey) {
+      setSaved(false);
+      return;
+    }
+    try {
+      const stored = JSON.parse(localStorage.getItem("jobly:jia:saved-offers") || "[]");
+      setSaved(Array.isArray(stored) && stored.includes(savedOfferKey));
+    } catch {
+      setSaved(false);
+    }
+  }, [savedOfferKey]);
+
+  function toggleSaved() {
+    if (!savedOfferKey) return;
+    setSaved((current) => {
+      let stored: string[] = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem("jobly:jia:saved-offers") || "[]");
+        if (Array.isArray(parsed)) stored = parsed.filter((value): value is string => typeof value === "string");
+      } catch {
+        stored = [];
+      }
+      const next = new Set(stored);
+      if (current) next.delete(savedOfferKey);
+      else next.add(savedOfferKey);
+      try {
+        localStorage.setItem("jobly:jia:saved-offers", JSON.stringify([...next]));
+      } catch {
+        // Keep the current interaction usable when browser storage is unavailable.
+      }
+      return next.has(savedOfferKey);
+    });
+  }
 
   useEffect(() => {
     if (!params.id || (source !== "discovery" && source !== "recruiter")) {
@@ -379,7 +416,7 @@ function JobDetailInner() {
                   {company && <p className="mt-2 text-base font-extrabold text-[#22448B]">{company}</p>}
                   {deadlineExpired && <span className="mt-3 inline-flex rounded-full bg-red-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[1px] text-red-600">Offre expirée</span>}
                 </div>
-                <button onClick={() => setSaved(v => !v)} aria-label={saved ? "Retirer des favoris" : "Ajouter aux favoris"} className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border ${saved ? "border-[#FFD60A] bg-[#FFFBE0] text-[#8C7600]" : "border-slate-200 bg-white text-slate-500"}`}><Heart size={18} fill={saved ? "currentColor" : "none"}/></button>
+                <button onClick={toggleSaved} aria-label={saved ? "Retirer des favoris" : "Ajouter aux favoris"} className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border ${saved ? "border-[#FFD60A] bg-[#FFFBE0] text-[#8C7600]" : "border-slate-200 bg-white text-slate-500"}`}><Heart size={18} fill={saved ? "currentColor" : "none"}/></button>
               </div>
 
               {headerFacts.length > 0 && <div className="mt-6 grid gap-2 sm:grid-cols-2">{headerFacts.map(({ icon: Icon, value }) => <div key={value} className="flex min-w-0 items-center gap-2.5 rounded-xl bg-[#F7FAFF] px-3.5 py-3 text-sm font-semibold text-slate-600">{Icon ? <Icon size={16} className="shrink-0 text-[#22448B]"/> : <span className="h-2 w-2 shrink-0 rounded-full bg-[#FFD60A]"/>}<span className="truncate">{value}</span></div>)}</div>}

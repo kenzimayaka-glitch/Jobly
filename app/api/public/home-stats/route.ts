@@ -1,168 +1,38 @@
 import { NextResponse } from "next/server";
 import { adminClient } from "../../../../lib/server-auth";
-import { resolveEffectivePublicationDate } from "../../../../supabase/functions/_shared/job-freshness";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const PAGE_SIZE = 1000;
-const CAPTURE_ID_BATCH_SIZE = 200;
-const AFRICAN_COUNTRY_CODES = [
-  "AO", "BF", "BI", "BJ", "BW", "CD", "CF", "CG", "CI", "CM", "CV",
-  "DJ", "DZ", "EG", "ER", "ET", "GA", "GH", "GM", "GN", "GQ", "GW",
-  "KE", "KM", "LR", "LS", "LY", "MA", "MG", "ML", "MR", "MU", "MW",
-  "MZ", "NA", "NE", "NG", "RW", "SC", "SD", "SL", "SN", "SO", "SS",
-  "ST", "SZ", "TD", "TG", "TN", "TZ", "UG", "ZA", "ZM", "ZW",
-  "EH",
-] as const;
-
-type DiscoveryOffer = {
-  id: string;
-  sourcePublishedAt: string | null;
-  createdAt: string;
-  deadline: string | null;
-  opportunityType: string | null;
+type PublicHomeStats = {
+  offersCount: number;
+  talentsCount: number;
+  updatedAt: string;
 };
-
-type HarvestCapture = { jobId: string; discoveredAt: string };
-
-type RecruiterOffer = {
-  id: string;
-  createdAt: string;
-};
-
-async function fetchAllActiveDiscoveryOffers(
-  supabase: ReturnType<typeof adminClient>,
-): Promise<DiscoveryOffer[]> {
-  const offers: DiscoveryOffer[] = [];
-
-  for (let offset = 0; ; offset += PAGE_SIZE) {
-    const { data, error } = await supabase
-      .from("Job")
-      .select("id,sourcePublishedAt,createdAt,deadline,opportunityType")
-      .eq("isActive", true)
-      .in("countryCode", [...AFRICAN_COUNTRY_CODES])
-      .range(offset, offset + PAGE_SIZE - 1);
-
-    if (error) throw error;
-
-    const page = (data ?? []) as DiscoveryOffer[];
-    offers.push(...page);
-    if (page.length < PAGE_SIZE) break;
-  }
-
-  return offers;
-}
-
-async function fetchFirstHarvestDates(
-  supabase: ReturnType<typeof adminClient>,
-  offers: DiscoveryOffer[],
-): Promise<Map<string, string>> {
-  const ids = offers
-    .filter((offer) => !offer.sourcePublishedAt)
-    .map((offer) => offer.id);
-  const firstHarvestByJob = new Map<string, string>();
-
-  for (let index = 0; index < ids.length; index += CAPTURE_ID_BATCH_SIZE) {
-    const batch = ids.slice(index, index + CAPTURE_ID_BATCH_SIZE);
-
-    for (let offset = 0; ; offset += PAGE_SIZE) {
-      const { data, error } = await supabase
-        .from("JobHarvestCapture")
-        .select("jobId,discoveredAt")
-        .in("jobId", batch)
-        .order("discoveredAt", { ascending: true })
-        .range(offset, offset + PAGE_SIZE - 1);
-
-      if (error) throw error;
-
-      const page = (data ?? []) as HarvestCapture[];
-      for (const capture of page) {
-        if (capture.jobId && capture.discoveredAt && !firstHarvestByJob.has(capture.jobId)) {
-          firstHarvestByJob.set(capture.jobId, capture.discoveredAt);
-        }
-      }
-
-      if (page.length < PAGE_SIZE) break;
-    }
-  }
-
-  return firstHarvestByJob;
-}
-
-async function fetchPublishedRecruiterOffers(
-  supabase: ReturnType<typeof adminClient>,
-  now: Date,
-): Promise<RecruiterOffer[]> {
-  const twoMonthsAgoDate = new Date(now);
-  twoMonthsAgoDate.setMonth(twoMonthsAgoDate.getMonth() - 2);
-  const twoMonthsAgo = twoMonthsAgoDate.toISOString();
-  const offers: RecruiterOffer[] = [];
-
-  for (let offset = 0; ; offset += PAGE_SIZE) {
-    const { data, error } = await supabase
-      .from("RecruiterJob")
-      .select("id,createdAt")
-      .eq("status", "published")
-      .eq("applicationReady", true)
-      .in("countryCode", [...AFRICAN_COUNTRY_CODES])
-      .gte("createdAt", twoMonthsAgo)
-      .range(offset, offset + PAGE_SIZE - 1);
-
-    if (error) throw error;
-
-    const page = (data ?? []) as RecruiterOffer[];
-    offers.push(...page);
-    if (page.length < PAGE_SIZE) break;
-  }
-
-  return offers;
-}
 
 export async function GET() {
   try {
+    // The aggregate RPC is deliberately server-only after the least-privilege
+    // migration. Never expose this call through the publishable/anonymous client.
     const supabase = adminClient();
-    const now = new Date();
-    const nowIso = now.toISOString();
+    const { data, error } = await supabase.rpc("get_public_home_stats");
+    if (error) throw error;
 
-    const [discoveryOffers, recruiterOffers, talentProfiles] = await Promise.all([
-      fetchAllActiveDiscoveryOffers(supabase),
-      fetchPublishedRecruiterOffers(supabase, now),
-      supabase.from("Profile").select("id, User!inner(role)", { count: "exact", head: true }).eq("User.role", "TALENT"),
-    ]);
-
-    if (talentProfiles.error) throw talentProfiles.error;
-
-    const firstHarvestByJob = await fetchFirstHarvestDates(supabase, discoveryOffers);
-
-    const visibleDiscoveryOffers = discoveryOffers.filter((offer) => {
-      if (offer.opportunityType && offer.opportunityType !== "EMPLOI") return false;
-
-      return resolveEffectivePublicationDate({
-        sourcePublishedAt: offer.sourcePublishedAt,
-        firstHarvestAt: firstHarvestByJob.get(offer.id) ?? null,
-        createdAt: offer.createdAt,
-        deadline: offer.deadline,
-        now: nowIso,
-      }).visible;
-    }).length;
-
-    const visibleRecruiterOffers = recruiterOffers.filter((offer) =>
-      resolveEffectivePublicationDate({
-        sourcePublishedAt: null,
-        firstHarvestAt: null,
-        createdAt: offer.createdAt,
-        deadline: null,
-        now: nowIso,
-      }).visible,
-    ).length;
+    const row = (Array.isArray(data) ? data[0] : data) as PublicHomeStats | null;
+    if (
+      !row ||
+      !Number.isFinite(Number(row.offersCount)) ||
+      !Number.isFinite(Number(row.talentsCount)) ||
+      typeof row.updatedAt !== "string"
+    ) {
+      throw new Error("The public homepage statistics response is invalid.");
+    }
 
     return NextResponse.json(
       {
-        // Count only visible, fresh offers located in African countries.
-        offersCount: visibleDiscoveryOffers + visibleRecruiterOffers,
-        talentsCount: talentProfiles.count ?? 0,
-        updatedAt: nowIso,
+        offersCount: Number(row.offersCount),
+        talentsCount: Number(row.talentsCount),
+        updatedAt: row.updatedAt,
       },
       {
         headers: {

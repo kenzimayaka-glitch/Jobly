@@ -34,6 +34,7 @@ export async function candidateContext(request: NextRequest) {
   if (!authUser) return null;
   const supabase = adminClient();
   const user = await ensureUser(supabase, authUser);
+  if (String(user.role || "").toUpperCase() !== "TALENT") return null;
   return { authUser, supabase, user };
 }
 

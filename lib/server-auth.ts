@@ -5,19 +5,21 @@ import crypto from "node:crypto";
 /**
  * Shared server-side auth helpers for JOBLY API routes.
  *
- * Mirrors the pattern already proven in app/api/profile/route.ts: every
- * internal table (Profile, Experience, Skill, Education — and now
- * RecruiterProfile/RecruiterJob/Partner/Commission) is owned by the internal
- * "User".id, never by the raw Supabase auth uid directly. This is what lets
- * one JOBLY account carry a Talent profile, a Recruiter profile and a Partner
- * profile at the same time without collision.
+ * Internal business records such as Profile, Experience, Skill, Education,
+ * RecruiterJob, Partner, Commission and billing rows use the internal
+ * "User".id. RecruiterProfile is the deliberate exception: its owner is the
+ * verified Supabase Auth UID, matching its database RLS policy.
  */
 
 export function adminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  // Supabase's modern server-only secret key replaces the legacy service_role key.
+  // Never prefix either privileged key with NEXT_PUBLIC_ or expose it to a client.
+  const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Supabase serveur non configuré.");
-  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+  return createClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+  });
 }
 
 function decodeSessionId(token: string): string | null {
@@ -61,12 +63,10 @@ export async function getAuthUser(request: NextRequest) {
   const sessionId = decodeSessionId(token);
   if (sessionId) {
     const service = adminClient();
-    const { data: internalUser, error: userError } = await service
-      .from("User")
-      .select("id")
-      .eq("authUserId", data.user.id)
-      .maybeSingle();
-    if (userError) throw new Error("Vérification du compte Jobly impossible.");
+    // Reconcile legacy email-only accounts before registering the device. Otherwise
+    // a first authenticated request can skip the device limit because the RPC only
+    // recognizes a User row already linked to this Auth UID.
+    const internalUser = await ensureUser(service, data.user);
     if (internalUser?.id) {
       const requestedDeviceId = request.headers.get("x-jobly-device-id")?.trim() || `legacy-${sessionId}`;
       const deviceId = /^[A-Za-z0-9:_-]{1,160}$/.test(requestedDeviceId) ? requestedDeviceId : `legacy-${sessionId}`;
@@ -92,33 +92,96 @@ export async function ensureUser(
   supabase: ReturnType<typeof adminClient>,
   authUser: { id: string; email?: string | null; phone?: string | null; user_metadata?: Record<string, unknown> }
 ) {
-  const { data: existing, error: lookupError } = await supabase
-    .from("User")
-    .select("*")
-    .eq("authUserId", authUser.id)
-    .maybeSingle();
-  if (lookupError) throw new Error(lookupError.message);
-  if (existing) return existing;
-
+  const email = authUser.email?.trim().toLowerCase() || null;
   const displayName =
     (authUser.user_metadata?.full_name as string | undefined) ||
     (authUser.user_metadata?.name as string | undefined) ||
     null;
   const now = new Date().toISOString();
+
+  const findByAuthId = async () => {
+    const { data, error } = await supabase
+      .from("User")
+      .select("*")
+      .eq("authUserId", authUser.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data;
+  };
+
+  const findByEmail = async () => {
+    if (!email) return null;
+    const exact = await supabase.from("User").select("*").eq("email", email).maybeSingle();
+    if (exact.error) throw new Error(exact.error.message);
+    if (exact.data) return exact.data;
+
+    // Legacy rows may preserve the casing entered before Auth normalized the email.
+    const folded = await supabase.from("User").select("*").ilike("email", email).maybeSingle();
+    if (folded.error) throw new Error(folded.error.message);
+    return folded.data;
+  };
+
+  const linkLegacyRow = async (legacy: Record<string, any>) => {
+    if (legacy.authUserId) {
+      if (legacy.authUserId === authUser.id) return legacy;
+      throw new Error("AUTH_USER_EMAIL_ALREADY_LINKED");
+    }
+
+    const updates: Record<string, unknown> = {
+      authUserId: authUser.id,
+      updatedAt: now,
+    };
+    if (!legacy.email && email) updates.email = email;
+    if (!legacy.phone && authUser.phone) updates.phone = authUser.phone;
+    if (!legacy.displayName && displayName) updates.displayName = displayName;
+
+    const { data: linked, error: linkError } = await supabase
+      .from("User")
+      .update(updates)
+      .eq("id", legacy.id)
+      .is("authUserId", null)
+      .select("*")
+      .maybeSingle();
+
+    if (linkError && linkError.code !== "23505") throw new Error(linkError.message);
+    if (linked) return linked;
+
+    // Another request may have won the same email-linking race.
+    const raced = await findByAuthId();
+    if (raced) return raced;
+    throw new Error("AUTH_USER_EMAIL_LINK_CONFLICT");
+  };
+
+  const existing = await findByAuthId();
+  if (existing) return existing;
+
+  const legacy = await findByEmail();
+  if (legacy) return linkLegacyRow(legacy);
+
   const { data, error } = await supabase
     .from("User")
     .insert({
       id: crypto.randomUUID(),
       authUserId: authUser.id,
-      email: authUser.email ?? null,
+      email,
       phone: authUser.phone ?? null,
       displayName,
       updatedAt: now,
     })
     .select("*")
     .single();
-  if (error) throw new Error(error.message);
-  return data;
+
+  if (!error) return data;
+
+  // Idempotent retry: a parallel request may have created or linked the row.
+  if (error.code === "23505") {
+    const raced = await findByAuthId();
+    if (raced) return raced;
+    const racedLegacy = await findByEmail();
+    if (racedLegacy) return linkLegacyRow(racedLegacy);
+  }
+
+  throw new Error(error.message);
 }
 
 export function cleanStrings(value: unknown): string[] {
@@ -132,16 +195,104 @@ export function newId() {
 }
 
 
+
+/**
+ * Resolve a recruiter's profile using the Supabase Auth UID required by RLS.
+ * Older application code may have stored User.id in RecruiterProfile.userId;
+ * only that exact row from the already authenticated internal User is eligible
+ * for a conditional relink. Existing profile content and id are preserved.
+ */
+export async function getRecruiterProfileForAuthUser(
+  supabase: ReturnType<typeof adminClient>,
+  authUserId: string,
+  internalUserId?: string | null,
+) {
+  const findByAuthUid = async () => {
+    const { data, error } = await supabase
+      .from("RecruiterProfile")
+      .select("*")
+      .eq("userId", authUserId)
+      .maybeSingle();
+    if (error) throw new Error("RECRUITER_PROFILE_LOOKUP_FAILED: " + error.message);
+    return data;
+  };
+
+  const current = await findByAuthUid();
+  if (current) return current;
+
+  if (
+    internalUserId &&
+    internalUserId !== authUserId &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(internalUserId)
+  ) {
+    const { data: legacy, error: legacyError } = await supabase
+      .from("RecruiterProfile")
+      .select("*")
+      .eq("userId", internalUserId)
+      .maybeSingle();
+    if (legacyError) throw new Error("RECRUITER_PROFILE_LEGACY_LOOKUP_FAILED: " + legacyError.message);
+
+    if (legacy) {
+      const { data: linked, error: linkError } = await supabase
+        .from("RecruiterProfile")
+        .update({ userId: authUserId, updatedAt: new Date().toISOString() })
+        .eq("id", legacy.id)
+        .eq("userId", internalUserId)
+        .select("*")
+        .maybeSingle();
+
+      if (linkError) {
+        const raced = await findByAuthUid();
+        if (raced) return raced;
+        throw new Error("RECRUITER_PROFILE_LINK_FAILED: " + linkError.message);
+      }
+      if (linked) return linked;
+
+      // Another request may have completed the same relink first.
+      const raced = await findByAuthUid();
+      if (raced) return raced;
+      throw new Error("RECRUITER_PROFILE_LINK_CONFLICT");
+    }
+  }
+
+  return null;
+}
+
+export async function ensureRecruiterProfileForAuthUser(
+  supabase: ReturnType<typeof adminClient>,
+  authUserId: string,
+  internalUserId: string,
+) {
+  const existing = await getRecruiterProfileForAuthUser(supabase, authUserId, internalUserId);
+  if (existing) return existing;
+
+  const { data, error } = await supabase
+    .from("RecruiterProfile")
+    .insert({
+      id: crypto.randomUUID(),
+      userId: authUserId,
+      companyName: "Mon entreprise",
+      updatedAt: new Date().toISOString(),
+    })
+    .select("*")
+    .single();
+  if (error) {
+    const raced = await getRecruiterProfileForAuthUser(supabase, authUserId, internalUserId);
+    if (raced) return raced;
+    throw new Error("RECRUITER_PROFILE_CREATE_FAILED: " + error.message);
+  }
+  return data;
+}
+
 export type BillingProductType = "TALENT" | "RECRUITER";
 
 /**
  * An account may carry both a Talent profile and a Recruiter profile.
- * Recruiter ownership is tied to the Supabase Auth UID (RecruiterProfile.userId),
- * whereas billing rows are tied to the internal User.id.
- */
+ * RecruiterProfile and billing rows are both tied to the internal User.id.
+  */
 export async function resolveBillingProductType(
   supabase: ReturnType<typeof adminClient>,
-  internalUser: { role?: string },
+  internalUser: { id?: string; role?: string },
   authUserId: string,
   requested?: unknown,
 ): Promise<BillingProductType> {
@@ -154,15 +305,11 @@ export async function resolveBillingProductType(
     throw new Error("INVALID_PRODUCT_TYPE");
   }
 
+  // RecruiterProfile is owned by the Supabase Auth UID; billing rows remain
+  // owned by the internal User.id.
   if (productType === "RECRUITER") {
-    const { data, error } = await supabase
-      .from("RecruiterProfile")
-      .select("id")
-      .eq("userId", authUserId)
-      .limit(1)
-      .maybeSingle();
-    if (error) throw new Error("RECRUITER_PROFILE_LOOKUP_FAILED: " + error.message);
-    if (!data) throw new Error("RECRUITER_PROFILE_REQUIRED");
+    const profile = await getRecruiterProfileForAuthUser(supabase, authUserId, internalUser.id);
+    if (!profile) throw new Error("RECRUITER_PROFILE_REQUIRED");
   }
 
   return productType;

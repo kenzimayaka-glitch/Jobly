@@ -24,9 +24,10 @@
     "test:company-logo-fallback": "node --experimental-strip-types --test scripts/company-logo-fallback.test.mjs",
     "test:p2-offer-watermark": "node --test scripts/p2-jobly-offer-watermark.test.mjs",
     "test:p2-hibp": "node --experimental-strip-types --test scripts/p2-pwned-passwords.test.mjs",
-    "test:security-core": "node --experimental-strip-types --test scripts/jobly-security-core.test.mjs",
+    "test:security-core": "node --experimental-strip-types --test scripts/jobly-security-core.test.mjs scripts/api-rate-limit-secret-key.test.mjs",
     "test:jia-experience": "node --experimental-strip-types --test scripts/jia-experience-engine.test.mjs scripts/jia-workspace.test.mjs scripts/jia-access.test.mjs scripts/jia-variation-inventory.test.mjs scripts/jia-conversation-write-guard.test.mjs scripts/jia-responsive-layout.test.mjs scripts/jia-session-isolation-integration.test.mjs",
-    "test:auth": "node --test scripts/authentication-flow-regression.test.mjs"
+    "test:auth": "node --test scripts/authentication-flow-regression.test.mjs",
+    "test:ats-service": "node --experimental-strip-types --test scripts/ats-service-regression.test.mjs scripts/recruiter-talent-ai-regression.test.mjs scripts/whatsapp-recruiter-conversion-regression.test.mjs scripts/gmail-intake-regression.test.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",

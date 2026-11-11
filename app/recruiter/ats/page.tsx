@@ -17,6 +17,14 @@ export default function RecruiterATSPage() {
   const [applications, setApplications] = useState<RecruiterATSApplication[]>([]);
   const [filterJob, setFilterJob] = useState<string>("all");
   const [jobs, setJobs] = useState<any[]>([]);
+  const [atsMin, setAtsMin] = useState("");
+  const [atsMax, setAtsMax] = useState("");
+  const [atsKeyword, setAtsKeyword] = useState("");
+  const [atsKeywordMode, setAtsKeywordMode] = useState<"present" | "missing">("present");
+  const [atsSort, setAtsSort] = useState<"none" | "asc" | "desc">("none");
+  const [appliedAtsFilters, setAppliedAtsFilters] = useState<{ atsMin: string; atsMax: string; atsKeyword: string; atsKeywordMode: "present" | "missing"; atsSort: "none" | "asc" | "desc" }>({
+    atsMin: "", atsMax: "", atsKeyword: "", atsKeywordMode: "present", atsSort: "none",
+  });
 
   const load = useCallback(async () => {
     const session = await getSupabaseClient().auth.getSession();
@@ -27,8 +35,19 @@ export default function RecruiterATSPage() {
     const t = session.data.session.access_token;
     setToken(t);
     try {
+      const query = new URLSearchParams();
+      query.set("markViewed", "0");
+      if (appliedAtsFilters.atsMin) query.set("atsMin", appliedAtsFilters.atsMin);
+      if (appliedAtsFilters.atsMax) query.set("atsMax", appliedAtsFilters.atsMax);
+      if (appliedAtsFilters.atsKeyword) {
+        query.set("atsKeyword", appliedAtsFilters.atsKeyword);
+        query.set("atsKeywordMode", appliedAtsFilters.atsKeywordMode);
+      }
+      if (appliedAtsFilters.atsSort !== "none") query.set("atsSort", appliedAtsFilters.atsSort);
+      const queryString = query.toString();
+      const appsUrl = queryString ? `/api/recruiter/applications?${queryString}` : "/api/recruiter/applications";
       const [appsRes, jobsRes] = await Promise.all([
-        fetch("/api/recruiter/applications", { headers: { Authorization: `Bearer ${t}` } }),
+        fetch(appsUrl, { headers: { Authorization: `Bearer ${t}` } }),
         fetch("/api/recruiter/jobs", { headers: { Authorization: `Bearer ${t}` } }),
       ]);
 
@@ -45,11 +64,30 @@ export default function RecruiterATSPage() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, appliedAtsFilters]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  function applyAtsFilters() {
+    setAppliedAtsFilters({
+      atsMin: atsMin.trim(),
+      atsMax: atsMax.trim(),
+      atsKeyword: atsKeyword.trim(),
+      atsKeywordMode,
+      atsSort,
+    });
+  }
+
+  function resetAtsFilters() {
+    setAtsMin("");
+    setAtsMax("");
+    setAtsKeyword("");
+    setAtsKeywordMode("present");
+    setAtsSort("none");
+    setAppliedAtsFilters({ atsMin: "", atsMax: "", atsKeyword: "", atsKeywordMode: "present", atsSort: "none" });
+  }
 
   const filteredApps = filterJob === "all" ? applications : applications.filter((a) => a.recruiterJobId === filterJob);
 
@@ -110,6 +148,47 @@ export default function RecruiterATSPage() {
               ↻ Actualiser
             </button>
           </div>
+
+          <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-3">
+              <h2 className="text-sm font-black text-navy">Filtres ATS</h2>
+              <p className="mt-1 text-[11px] text-jobly-gray">Combine le score ATS avec les compétences et mots-clés du CV par rapport à l'offre sélectionnée.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="block text-[11px] font-bold text-navy">
+                Score minimum (%)
+                <input type="number" min="0" max="100" value={atsMin} onChange={(e) => setAtsMin(e.target.value)} placeholder="Ex. 70" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-jobly-blue" />
+              </label>
+              <label className="block text-[11px] font-bold text-navy">
+                Score maximum (%)
+                <input type="number" min="0" max="100" value={atsMax} onChange={(e) => setAtsMax(e.target.value)} placeholder="Ex. 95" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-jobly-blue" />
+              </label>
+              <label className="block text-[11px] font-bold text-navy">
+                Compétence / mot-clé
+                <input value={atsKeyword} onChange={(e) => setAtsKeyword(e.target.value)} placeholder="Ex. Excel, gestion de projet" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-jobly-blue" />
+              </label>
+              <label className="block text-[11px] font-bold text-navy">
+                Présence dans le CV
+                <select value={atsKeywordMode} onChange={(e) => setAtsKeywordMode(e.target.value as "present" | "missing")} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-jobly-blue">
+                  <option value="present">Compétence présente</option>
+                  <option value="missing">Compétence manquante</option>
+                </select>
+              </label>
+              <label className="block text-[11px] font-bold text-navy">
+                Trier par score ATS
+                <select value={atsSort} onChange={(e) => setAtsSort(e.target.value as "none" | "asc" | "desc")} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-jobly-blue">
+                  <option value="none">Ordre initial</option>
+                  <option value="desc">Score décroissant</option>
+                  <option value="asc">Score croissant</option>
+                </select>
+              </label>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button type="button" onClick={applyAtsFilters} disabled={loading} className="rounded-xl bg-jobly-blue px-4 py-2.5 text-xs font-black text-white disabled:opacity-50">Appliquer les filtres</button>
+              <button type="button" onClick={resetAtsFilters} disabled={loading} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-black text-navy disabled:opacity-50">Réinitialiser</button>
+              <span className="text-[10px] font-semibold text-jobly-gray">{filteredApps.length} candidature(s) dans le résultat courant</span>
+            </div>
+          </section>
 
           {/* Stats Bar */}
           {filteredApps.length > 0 && (

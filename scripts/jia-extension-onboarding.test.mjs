@@ -57,3 +57,28 @@ test("external form inspection remains opt-in and excludes sensitive values", ()
   assert.match(panel, /file/);
   assert.doesNotMatch(panel, /el\.value|\.value\s*\)/);
 });
+
+test("form inspection and J’IA form assistance stay locked until the user explicitly activates the extension", () => {
+  const panel = read("apps/jia-chrome-extension/sidepanel.js");
+  assert.match(panel, /let assistantEnabled=false/);
+  assert.match(panel, /scanButton\.disabled=true/);
+  assert.match(panel, /scanButton\.disabled=!enabled/);
+  assert.match(panel, /assistButton\.disabled=!enabled\|\|!currentContext/);
+  assert.match(panel, /if\(!assistantEnabled\) throw new Error/);
+  assert.match(panel, /if\(!enabled\) fieldsEl\.replaceChildren\(\)/);
+});
+
+test("the extension strips URL query secrets, clears inspected metadata on pause and discloses the exact data boundary", () => {
+  const sidepanel = read("apps/jia-chrome-extension/sidepanel.js");
+  const background = read("apps/jia-chrome-extension/background.js");
+  const policy = read("app/legal/privacy/page.tsx");
+  assert.match(sidepanel, /inspectedUrl\.search = ""/);
+  assert.match(sidepanel, /inspectedUrl\.hash = ""/);
+  assert.match(background, /if \(!enabled\)/);
+  assert.match(background, /formFields: \[\]/);
+  assert.match(background, /inspectedPageUrl: ""/);
+  assert.match(policy, /libellé accessible, type, caractère obligatoire/);
+  assert.match(policy, /ne lit pas les valeurs saisies/);
+  assert.match(policy, /stockage de session de l’extension/);
+  assert.match(policy, /Chrome Web Store/);
+});

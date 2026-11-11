@@ -4,6 +4,7 @@ import { resolveApplicationContact } from "../../../../lib/applicationEngine";
 import { cleanCompanyName, cleanJobDescription, cleanJobTitle, extractCompanyNameFromDescription, parseJobDetailSections } from "../../../../lib/jobContent";
 import { normalizeJobContent, normalizeJobIdentity } from "../../../../lib/jobNormalizer";
 import { enforceApiRateLimit } from "../../../../lib/server-security";
+import { resolveEffectivePublicationDate } from "../../../../supabase/functions/_shared/job-freshness";
 
 function companyDomain(website:string|null|undefined):string|null { if(!website) return null; try { const raw=website.startsWith("http")?website:`https://${website}`; return new URL(raw).hostname.toLowerCase().replace(/^www\\./,"") || null; } catch { return null; } }
 
@@ -26,17 +27,29 @@ export async function GET(request: NextRequest, context: Context) {
     if (rateLimitResponse) return rateLimitResponse;
     if (source === "discovery") {
       const { data, error } = await supabase.from("Job")
-        .select("id,title,description,location,contractType,remoteMode,minExperienceYears,salaryMin,salaryMax,salaryCurrency,deadline,createdAt,sourceUrl,source,applicationReady,applicationProfile,tags,aiSector,normalizedContent,company:Company(name,logoUrl,website,description)")
+        .select("id,title,description,location,contractType,remoteMode,minExperienceYears,salaryMin,salaryMax,salaryCurrency,deadline,createdAt,sourcePublishedAt,sourceUrl,source,applicationReady,applicationProfile,tags,aiSector,normalizedContent,company:Company(name,logoUrl,website,description)")
         .eq("id", id).eq("isActive", true).maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) return NextResponse.json({ message: "Offre introuvable ou inactive." }, { status: 404 });
-      const platformExpiration = new Date(new Date(data.createdAt).setMonth(new Date(data.createdAt).getMonth() + 2));
-      const platformExpired = Number.isFinite(platformExpiration.getTime()) && platformExpiration.getTime() <= Date.now();
+      const harvestResult = data.sourcePublishedAt
+        ? { data: null, error: null }
+        : await supabase.from("JobHarvestCapture").select("discoveredAt")
+          .eq("jobId", id).order("discoveredAt", { ascending: true }).limit(1).maybeSingle();
+      if (harvestResult.error) throw new Error(harvestResult.error.message);
+      const freshness = resolveEffectivePublicationDate({
+        sourcePublishedAt: data.sourcePublishedAt || null,
+        firstHarvestAt: harvestResult.data?.discoveredAt || null,
+        createdAt: data.createdAt,
+        deadline: data.deadline,
+      });
+      const platformExpiration = freshness.expiresAt
+        ? new Date(freshness.expiresAt)
+        : new Date(new Date(data.createdAt).setMonth(new Date(data.createdAt).getMonth() + 2));
+      const platformExpired = freshness.expiredByFreshness;
       // An offer with no explicit deadline disappears after two months.
       // An offer with an explicit deadline remains accessible as an archive
       // after two months, but is clearly marked EXPIRED.
       if (platformExpired && !data.deadline) {
-        await supabase.from("Job").update({ isActive: false, updatedAt: new Date().toISOString() }).eq("id", id);
         return NextResponse.json({ message: "Offre expirée." }, { status: 404 });
       }
       const company = Array.isArray(data.company) ? data.company[0] : data.company;
@@ -51,9 +64,9 @@ export async function GET(request: NextRequest, context: Context) {
       const detailSections = Object.values(parsedSections).some((items) => Array.isArray(items) && items.length)
         ? parsedSections
         : (String(data.description || "").trim() ? { ...parsedSections, description: [String(data.description).trim()] } : parsedSections);
-      const publishedAt = data.createdAt;
+      const publishedAt = freshness.effectivePublishedAt || data.createdAt;
       const expirationAt = platformExpiration.toISOString();
-      const deadlineExpired = Boolean(data.deadline && new Date(data.deadline).getTime() < Date.now());
+      const deadlineExpired = freshness.expiredByDeadline;
       const expired = platformExpired || deadlineExpired;
       const notification = expired ? {
         type: "JOB_EXPIRED",
@@ -61,7 +74,7 @@ export async function GET(request: NextRequest, context: Context) {
         message: "Cette offre a dépassé sa période de visibilité sur Jobly et ne doit plus être utilisée pour candidater.",
         action: "VIEW_OTHER_OFFERS",
       } : null;
-      return NextResponse.json({ source, notification, job: { ...data, title: cleanedTitle, description: cleanedDescription, publishedAt, expirationAt, platformExpired, deadlineExpired, offerStatus: expired ? "EXPIRED" : "ACTIVE", applicationReady: expired ? false : data.applicationReady, applicationProfile, company: company ? { ...company, name: cleanedCompanyName, domain: companyDomain(company.website) } : (cleanedCompanyName ? { name: cleanedCompanyName, logoUrl: null, website: null, description: null, domain: null } : null),
+      return NextResponse.json({ source, notification, job: { ...data, title: cleanedTitle, description: cleanedDescription, publishedAt, expirationAt, platformExpired, publicationDateEstimated: freshness.publicationDateEstimated, publicationDateSource: freshness.publicationDateSource, deadlineExpired, offerStatus: expired ? "EXPIRED" : "ACTIVE", applicationReady: expired ? false : data.applicationReady, applicationProfile, company: company ? { ...company, name: cleanedCompanyName, domain: companyDomain(company.website) } : (cleanedCompanyName ? { name: cleanedCompanyName, logoUrl: null, website: null, description: null, domain: null } : null),
           displayTitle: cleanedTitle,
           displayCompanyName: cleanedCompanyName,
           detailSections } });

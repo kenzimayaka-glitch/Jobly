@@ -55,7 +55,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     const enabled = message.enabled === true;
     chrome.storage.local.set({ assistantEnabled: enabled })
-      .then(getInstallStatus)
+      .then(async () => {
+        if (!enabled) {
+          const stored = await chrome.storage.session.get(["externalApplicationContext"]);
+          const context = stored.externalApplicationContext;
+          if (context && typeof context === "object") {
+            await chrome.storage.session.set({
+              externalApplicationContext: { ...context, formFields: [], inspectedPageUrl: "" }
+            });
+          }
+        }
+        return getInstallStatus();
+      })
       .then((status) => sendResponse({ ok: true, status }))
       .catch((error) => sendResponse({ ok: false, message: String(error) }));
     return true;

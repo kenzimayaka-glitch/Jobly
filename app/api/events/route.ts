@@ -6,9 +6,22 @@ import { buildEventEcosystemConnections, scoreEventForProfile } from "../../../l
 import { estimateAndDistributeEvent } from "../../../lib/eventDistribution";
 import { discoverEventPartners } from "../../../lib/eventPartnerDiscovery";
 import { getEventManualPaymentInstructions } from "../../../lib/eventManualPayments";
+import { exposePublishedEventMedia, JOBLY_EVENTS_BUCKET } from "../../../lib/eventStorage";
 
 export const dynamic = "force-dynamic";
 const fail=(message:string,status=400,code="EVENT_ERROR")=>NextResponse.json({error:code,message},{status});
+
+type EventLike = Parameters<typeof scoreEventForProfile>[0];
+
+function isEventLike(value: unknown): value is EventLike {
+  if (!value || typeof value !== "object") return false;
+  const event = value as Record<string, unknown>;
+  return typeof event.id === "string"
+    && typeof event.title === "string"
+    && typeof event.description === "string"
+    && typeof event.domain === "string"
+    && typeof event.startAt === "string";
+}
 
 export async function GET(request:NextRequest){
   try{
@@ -18,7 +31,7 @@ export async function GET(request:NextRequest){
     const {data:featured,error:fe}=await sb.from("EventFeaturedCampaign").select("eventId,startAt,endAt,slot,status").eq("status","ACTIVE").lte("startAt",now).gte("endAt",now).order("slot",{ascending:true}).limit(6);
     if(fe)throw new Error(fe.message);
     const ids=(featured??[]).map(x=>x.eventId);
-    const allEvents=events??[];
+    const allEvents=(await Promise.all((events??[]).map((event)=>exposePublishedEventMedia(sb,event)))).filter(isEventLike);
 
     const auth=await getAuthUser(request);
     let recommended: Array<{event:any;score:number|null}>=allEvents.slice(0,12).map(e=>({event:e,score:null}));
@@ -102,15 +115,18 @@ export async function POST(request:NextRequest){
     };
     const registrationUrl=safeUrl(body.registrationUrl);
     const mediaUrl=safeUrl(body.mediaUrl);
+    const mediaStoragePath=body.mediaStoragePath==null?null:String(body.mediaStoragePath).trim();
     if(body.registrationUrl&&!registrationUrl)return fail("Lien d'inscription invalide.");
     if(body.mediaUrl&&!mediaUrl)return fail("URL média invalide.");
+    if(mediaStoragePath&&(mediaStoragePath.length>500||mediaStoragePath.includes("..")||mediaStoragePath.startsWith("/")||mediaUrl))return fail("Chemin de média invalide.");
 
     const mediaType=body.mediaType==null?null:String(body.mediaType);
     const mediaSizeBytes=body.mediaSizeBytes==null?null:Number(body.mediaSizeBytes);
     const mediaDurationSeconds=body.mediaDurationSeconds==null?null:Number(body.mediaDurationSeconds);
     const media=validateEventMedia({mediaType,mediaSizeBytes,mediaDurationSeconds});
     if(!media.ok)return fail(media.error??"Média invalide.");
-    if(mediaType&&!mediaUrl)return fail("Le média doit être associé à une URL.");
+    if(mediaType&&!mediaUrl&&!mediaStoragePath)return fail("Le média doit être associé à un fichier Jobly ou à une URL.");
+    if(mediaStoragePath&&(!mediaType||!mediaSizeBytes))return fail("Métadonnées du média manquantes.");
 
     const audience=Array.isArray(body.audience)
       ? body.audience.filter((value:unknown):value is string=>typeof value==="string"&&value.trim().length>0&&value.trim().length<=80).slice(0,8).map((value:string)=>value.trim())
@@ -118,6 +134,12 @@ export async function POST(request:NextRequest){
 
     const sb=adminClient();
     const user=await ensureUser(sb,auth);
+    if(mediaStoragePath){
+      if(!mediaStoragePath.startsWith(auth.id+"/"))return fail("Ce média ne vous appartient pas.",403,"EVENT_MEDIA_FORBIDDEN");
+      const {data:storedMedia,error:storedMediaError}=await sb.storage.from(JOBLY_EVENTS_BUCKET).download(mediaStoragePath);
+      if(storedMediaError||!storedMedia)return fail("Le fichier média privé est introuvable.",422,"EVENT_MEDIA_NOT_FOUND");
+      if(storedMedia.size<=0||storedMedia.size!==mediaSizeBytes)return fail("Le fichier média ne correspond pas à sa taille déclarée.",422,"EVENT_MEDIA_SIZE_MISMATCH");
+    }
     const now=new Date().toISOString();
     const {data:entitlement,error:entitlementError}=await sb.from("EventEntitlement")
       .select("*").eq("organizerUserId",user.id).eq("active",true).lte("validFrom",now)
@@ -136,7 +158,7 @@ export async function POST(request:NextRequest){
       mode,venue:body.venue?String(body.venue).trim().slice(0,300):null,
       city:body.city?String(body.city).trim().slice(0,120):null,country,
       registrationMode,registrationUrl,audience,
-      mediaType,mediaUrl,mediaSizeBytes,mediaDurationSeconds,
+      mediaType,mediaUrl,mediaStoragePath,mediaSizeBytes,mediaDurationSeconds,
       status:free?"PUBLISHED":"PENDING_PAYMENT",
       publicationSource:free?(user.role==="ADMIN"?"JOBLY":"PARTNER_CONVENTION"):"STANDARD",
       priceAmount:free?0:pricing.total,priceCurrency:"XAF",

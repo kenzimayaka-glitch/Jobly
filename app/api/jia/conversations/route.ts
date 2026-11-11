@@ -55,6 +55,8 @@ export async function GET(request: NextRequest) {
     if (requestedConversationId) {
       query = query.eq("id", requestedConversationId);
     } else {
+      const requestedTitle = request.nextUrl.searchParams.get("title")?.trim();
+      if (requestedTitle) query = query.eq("title", requestedTitle.slice(0, 80));
       query = query.order("lastMessageAt", { ascending: false });
     }
     const { data: conversation, error: conversationError } = await query.limit(1).maybeSingle();
@@ -110,11 +112,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "Cet espace J’IA n'est pas autorisé pour ce compte." }, { status: 403 });
       }
       const now = new Date().toISOString();
+      const requestedTitle = typeof body.title === "string" ? body.title.trim().slice(0, 80) : "";
       const { data, error } = await ctx.db.from("JiaConversation").insert({
         id: newId(),
         userId: ctx.user.id,
         ecosystem: requestedEcosystem,
-        title: "Conversation J’IA",
+        title: requestedTitle || "Conversation J’IA",
         lastMessageAt: now,
         updatedAt: now,
       }).select("id,userId,ecosystem,title,lastMessageAt,createdAt,updatedAt").single();
