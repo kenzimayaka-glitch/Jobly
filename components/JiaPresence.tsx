@@ -882,12 +882,12 @@ export default function JiaPresence() {
         if (best.length) {
           matchingLines.push("DÉTAIL DU CLASSEMENT");
           best.forEach((item: any, index: number) => matchingLines.push(
-            \`\${index + 1}. \${item.title || "Offre"} — \${item.score ?? "—"}/100 · fiabilité \${item.confidence ?? "—"}/100 · couverture \${item.coverage ?? "—"}%\`
+            `${index + 1}. ${item.title || "Offre"} — ${item.score ?? "—"}/100 · fiabilité ${item.confidence ?? "—"}/100 · couverture ${item.coverage ?? "—"}%`
           ));
         }
         if (matching.semanticScored && matching.semantic) {
           const semantic = matching.semantic;
-          matchingLines.push(\`Analyse sémantique J’IA : \${semantic.score}/100 · confiance \${semantic.confidence || "LOW"} · couverture \${semantic.coverage ?? "—"}%\`);
+          matchingLines.push(`Analyse sémantique J’IA : ${semantic.score}/100 · confiance ${semantic.confidence || "LOW"} · couverture ${semantic.coverage ?? "—"}%`);
           if (Array.isArray(semantic.matchedSkills) && semantic.matchedSkills.length) matchingLines.push("Compétences démontrées : " + semantic.matchedSkills.join(" · "));
           if (Array.isArray(semantic.missingSkills) && semantic.missingSkills.length) matchingLines.push("Compétences à démontrer : " + semantic.missingSkills.join(" · "));
           if (Array.isArray(semantic.transferableSkills) && semantic.transferableSkills.length) matchingLines.push("Compétences transférables : " + semantic.transferableSkills.join(" · "));
