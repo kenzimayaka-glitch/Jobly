@@ -240,7 +240,7 @@ export async function POST(request: NextRequest) {
     // compléter les champs laissés vides et assurer un secours sans IA.
     const deterministicCv = extractDeterministicCv(cvText);
     const ai = await runAiGateway(request, "CV_INTELLIGENCE", { cvText });
-    if (ai.ok) {
+    if (ai.ok && ai.provider !== "DETERMINISTIC") {
       const classified = normalizeOutput(ai.output, deterministicCv);
       return NextResponse.json({
         ok: true,
@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const quotaExceeded = ai.status === 429;
+    const quotaExceeded = !ai.ok && ai.status === 429;
     return NextResponse.json({
       ok: true,
       aiAvailable: false,
