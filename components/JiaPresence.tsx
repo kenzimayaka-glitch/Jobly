@@ -875,18 +875,40 @@ export default function JiaPresence() {
       if (sessionUserIdRef.current !== initiatingOwner || conversationWriteEpochRef.current !== initiatingEpoch) return;
       setSourceLinks(nextSources);
       const answer = typeof out.message === "string" ? out.message.trim() : "";
+      const matching = out.matching && typeof out.matching === "object" ? out.matching as Record<string, any> : null;
+      const matchingLines: string[] = [];
+      if (matching) {
+        const best = Array.isArray(matching.matches) ? matching.matches.slice(0, 3) : [];
+        if (best.length) {
+          matchingLines.push("DÉTAIL DU CLASSEMENT");
+          best.forEach((item: any, index: number) => matchingLines.push(
+            \`\${index + 1}. \${item.title || "Offre"} — \${item.score ?? "—"}/100 · fiabilité \${item.confidence ?? "—"}/100 · couverture \${item.coverage ?? "—"}%\`
+          ));
+        }
+        if (matching.semanticScored && matching.semantic) {
+          const semantic = matching.semantic;
+          matchingLines.push(\`Analyse sémantique J’IA : \${semantic.score}/100 · confiance \${semantic.confidence || "LOW"} · couverture \${semantic.coverage ?? "—"}%\`);
+          if (Array.isArray(semantic.matchedSkills) && semantic.matchedSkills.length) matchingLines.push("Compétences démontrées : " + semantic.matchedSkills.join(" · "));
+          if (Array.isArray(semantic.missingSkills) && semantic.missingSkills.length) matchingLines.push("Compétences à démontrer : " + semantic.missingSkills.join(" · "));
+          if (Array.isArray(semantic.transferableSkills) && semantic.transferableSkills.length) matchingLines.push("Compétences transférables : " + semantic.transferableSkills.join(" · "));
+          if (Array.isArray(semantic.gaps) && semantic.gaps.length) matchingLines.push("Points à examiner : " + semantic.gaps.slice(0, 4).join(" · "));
+        } else if (matching.semanticScored === false) {
+          matchingLines.push("L'analyse sémantique IA n'a pas été calculée. Les résultats ci-dessus restent ceux du moteur déterministe.");
+        }
+      }
+      const visibleAnswer = [answer || "Je suis prête à t’aider.", matchingLines.join("\n")].filter(Boolean).join("\n\n");
       const previousAnswer = recentDialogue[recentDialogue.length - 1]?.trim().toLocaleLowerCase();
       if (answer && answer.toLocaleLowerCase() === previousAnswer) {
         throw new Error("J’IA a produit une réponse répétée ; nouvelle réponse demandée.");
       }
       setRecentDialogue((history) => [...history, command, answer].filter(Boolean).slice(-12));
       const proposedType = out.proposedAction?.type as string | undefined;
-      appendConversationMessage("assistant", out.message || "Je suis prête à t’aider.", nextSources, workspaceBlock || undefined);
+      appendConversationMessage("assistant", visibleAnswer, nextSources, workspaceBlock || undefined);
       const sourceSuffix = nextSources.length
         ? `\n\nSources vérifiables : ${nextSources.slice(0, 3).map((source: { title: string; url: string }) => source.title || source.url).join(" · ")}`
         : "";
       if (proposedType) setPendingAction({ type: proposedType, message: command, target: out.proposedAction?.target });
-      say(`${out.message || "Je suis prête à t’aider."}${sourceSuffix}`, {
+      say(`${visibleAnswer}${sourceSuffix}`, {
         gesture: proposedType ? "analyze" : "reassure",
         move: out.proposedAction ? "point_button" : undefined,
         speak: true,
