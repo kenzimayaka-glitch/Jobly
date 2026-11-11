@@ -152,9 +152,9 @@ function CvStudioContent() {
       if (!response.ok) throw new Error(result?.message || "Impossible d’analyser le CV.");
       setCv((current) => ({ ...current, ...result.cv }));
       setMessage(
-        result.aiQuotaExceeded
-          ? "CV extrait. L’analyse J’IA est temporairement indisponible car le quota de crédits est atteint. Vous pouvez déjà corriger et compléter votre CV."
-          : "CV importé. Vérifiez et corrigez les informations avant de générer votre version finale."
+        result.aiAvailable
+          ? "J’IA a classé les informations dans les rubriques de votre CV. Les règles Jobly ont vérifié les champs et complété uniquement les éléments manquants. Vérifiez avant d’enregistrer."
+          : "J’IA est temporairement indisponible. Un classement automatique de secours a prérempli les champs ; vérifiez particulièrement les rubriques avant d’enregistrer."
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Import impossible.");
@@ -164,6 +164,8 @@ function CvStudioContent() {
   }
 
   const update = (key: keyof CvData, value: string) => setCv((current) => ({ ...current, [key]: value }));
+  const updateList = (key: "skills" | "activities" | "interests" | "references" | "languages" | "achievements", value: string) =>
+    setCv((current) => ({ ...current, [key]: value.split(/\r?\n|[,;•]/).map((item) => item.trim()).filter(Boolean).slice(0, 30) }));
 
   return (
     <main className="min-h-screen bg-[#f5f7fb] px-4 py-8 text-[#0b2447] md:px-8">
@@ -219,8 +221,17 @@ function CvStudioContent() {
           <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-5 flex items-center justify-between"><h2 className="font-black">CV Master</h2><span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold uppercase tracking-widest">éditable</span></div>
             <div className="space-y-3">
-              {([['fullName','Nom & prénom'],['headline','Titre professionnel'],['email','Email'],['phone','Téléphone'],['summary','Résumé'],['experience','Expérience'],['education','Formation']] as const).map(([key,label]) => (
+              {([['fullName','Nom & prénom'],['headline','Titre professionnel'],['email','Email'],['phone','Téléphone'],['summary','Résumé professionnel'],['experience','Expériences professionnelles'],['education','Formations & certifications']] as const).map(([key,label]) => (
                 <label key={key} className="block"><span className="mb-1 block text-xs font-bold text-slate-500">{label}</span>{key === 'summary' || key === 'experience' || key === 'education' ? <textarea value={String(cv[key])} onChange={(e) => update(key, e.target.value)} className="min-h-20 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#0b2447]" /> : <input value={String(cv[key])} onChange={(e) => update(key, e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#0b2447]" />}</label>
+              ))}
+              {([
+                ["skills","Compétences"],["languages","Langues & niveaux"],["achievements","Réalisations mesurables"],
+                ["activities","Activités & engagements"],["interests","Centres d’intérêt"],["references","Références"],
+              ] as const).map(([key,label]) => (
+                <label key={key} className="block">
+                  <span className="mb-1 block text-xs font-bold text-slate-500">{label}</span>
+                  <textarea value={cv[key].join("\n")} onChange={(e) => updateList(key, e.target.value)} placeholder="Une information par ligne" className="min-h-16 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#0b2447]" />
+                </label>
               ))}
             </div>
           </section>
