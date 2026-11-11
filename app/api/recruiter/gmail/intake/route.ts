@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminClient, ensureUser, getAuthUser, newId } from "@/lib/server-auth";
-import { getGmailAccessToken } from "@/lib/gmailServer";
 
 async function gate(req:NextRequest){
  const auth=await getAuthUser(req);if(!auth)return {response:NextResponse.json({message:"Session requise."},{status:401})};

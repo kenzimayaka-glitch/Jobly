@@ -51,16 +51,29 @@ export async function POST(req: NextRequest) {
       let user = (await context.supabase.from("User").select("id").eq("email", senderEmail).limit(1)).data?.[0];
       if (!user) { user = { id: newId() }; const { error: userError } = await context.supabase.from("User").insert({ id: user.id, email: senderEmail, displayName: candidateName, role: "TALENT", updatedAt: new Date().toISOString() }); if (userError) { skipped++; continue; } }
 
-      const now = new Date().toISOString(); const applicationId = newId();
+      const now = new Date().toISOString();
+      if (!job) {
+        const intakeId = newId();
+        const { error: intakeError } = await context.supabase.from("RecruiterGmailIntake").insert({
+          id: intakeId, recruiterUserId: context.user.id, candidateUserId: user.id, candidateEmail: senderEmail,
+          candidateName, sourceMessageId: messageId, sourceThreadId: message.threadId || null,
+          sourceAttachmentId: pdf.body.attachmentId, sourceFilename: pdf.filename || "CV.pdf",
+          sourceJobTitle: subject || null, atsScore: score, status: "PENDING", createdAt: now, updatedAt: now,
+        });
+        if (intakeError) { skipped++; continue; }
+        imported++; items.push({ id: intakeId, jobTitle: "À affecter", candidateName, candidateEmail: senderEmail, atsScore: score, source: "Gmail", pendingAssignment: true });
+        continue;
+      }
+      const applicationId = newId();
       const { error: appError } = await context.supabase.from("Application").insert({
-        id: applicationId, userId: user.id, recruiterJobId: job?.id || null, status: "SUBMITTED", language: "fr", letterText: null, atsScore: score,
+        id: applicationId, userId: user.id, recruiterJobId: job.id, status: "SUBMITTED", language: "fr", letterText: null, atsScore: score,
         submittedAt: now, statusSource: "GMAIL", createdAt: now, updatedAt: now, sourceType: "GMAIL", sourceMessageId: messageId,
-        sourceThreadId: message.threadId || null, sourceEmail: senderEmail, sourceCandidateName: candidateName, sourceAttachmentId: pdf.body.attachmentId || null,
+        sourceThreadId: message.threadId || null, sourceEmail: senderEmail, sourceCandidateName: candidateName, sourceAttachmentId: pdf.body.attachmentId,
         sourceFilename: pdf.filename || "CV.pdf", cvUrl: `/api/recruiter/gmail/attachment?applicationId=${encodeURIComponent(applicationId)}`,
       });
       if (appError) { skipped++; continue; }
-      imported++; items.push({ id: applicationId, jobTitle: job?.title || "À affecter", candidateName, candidateEmail: senderEmail, atsScore: score, source: "Gmail" });
+      imported++; items.push({ id: applicationId, jobTitle: job.title, candidateName, candidateEmail: senderEmail, atsScore: score, source: "Gmail" });
     }
-    return NextResponse.json({ ok: true, imported, skipped, scanned: (listed.messages || []).length, applications: items });
+    return NextResponse.json({ ok: true, imported, skipped, pendingAssignment: items.filter((x) => x.pendingAssignment).length, scanned: (listed.messages || []).length, applications: items });
   } catch (error) { return NextResponse.json({ message: error instanceof Error ? error.message : "Import Gmail impossible." }, { status: Number.isInteger((error as any)?.status) ? (error as any).status : 500 }); }
 }
