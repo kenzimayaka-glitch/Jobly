@@ -38,7 +38,7 @@ export async function POST(req:NextRequest){
    cvUrl:`/api/recruiter/gmail/attachment?intakeId=${encodeURIComponent(intake.id)}`,createdAt:now,updatedAt:now
   });
   if(insertError){
-   const {data:existing}=await g.db.from("Application").select("id").eq("userId",intake.candidateUserId).eq("recruiterJobId",job.id).maybeSingle();
+   const {data:existing}=await g.db.from("Application").select("id").eq("userId",intake.candidateUserId).eq("recruiterJobId",job.id).eq("sourceMessageId",intake.sourceMessageId).maybeSingle();
    if(!existing)throw new Error(insertError.message);
    const {error:updateError}=await g.db.from("RecruiterGmailIntake").update({status:"ASSIGNED",applicationId:existing.id,updatedAt:now}).eq("id",intake.id).eq("recruiterUserId",g.user.id);
    if(updateError)throw new Error(updateError.message);
